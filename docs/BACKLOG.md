@@ -21632,6 +21632,60 @@ Read from his own store, read only, on 2026-09-05.
    comment records the same-folder residual Phase 34 left open. A row that names an unresumable
    thread was recorded as exact.
 
+### The class, and this is the amendment he asked for on 2026-09-05
+
+He read the diagnosis and asked how this gets fixed so it does not happen again **for every agent
+that works this way**. That is a better question than the entry first answered, so the scope widens
+from codex to the shape, measured against the tree the same day.
+
+**There are two families and only one of them can have this bug.**
+
+- **Pre-assigned.** For claude, cursor, cursoride, copilotide, droid, gemini and grok, Tortie TELLS
+  the agent its session id at launch, being `claude --session-id <uuid>` and its equivalents, and the
+  uuid it passed becomes the store filename. It never guesses, so it can never pick up a sub agent.
+  Immune by construction and untouched by this phase.
+- **Harvested.** Seven agents are guessed from a store by `DESCRIPTORS` in
+  `src/main/manifest/harvest/stores.ts`, and only these can be wrong.
+
+**Inside the harvested family the risk is the KEY, and four of the seven share the exact shape that
+broke.**
+
+| agent | key | what binds the claim | exposure |
+| --- | --- | --- | --- |
+| codex | `cwd-newest` | a folder both threads share | the reported bug |
+| deepseek | `cwd-newest` | a folder both threads share | same shape, NEVER CHECKED |
+| pi | `cwd-newest` | a folder both threads share | same shape, NEVER CHECKED |
+| omp | `cwd-newest` | a folder both threads share | same shape, NEVER CHECKED |
+| qwen | `pid` | a process | a derived stream cannot take it |
+| muse | `tmux-pane` | a pane | already refuses `subagent/` by path |
+| antigravity | `fd-owner` | an open descriptor | a derived stream cannot take it |
+
+`cwd-newest` is the whole exposure: a derived thread inherits its parent's folder verbatim and is
+newer, so newest-in-folder always prefers it. **And muse proves the key alone is not the answer**,
+because a pane bound agent still needed an explicit refusal once its store held sub agent streams.
+
+### What actually stops it happening again, and it is a required answer rather than a patch
+
+Fixing codex fixes codex. What he asked for is that the NEXT agent cannot arrive with this hole, so
+the mechanism is a question every descriptor must answer:
+
+- **Every harvest descriptor declares how a derived stream is told from a resumable session.** It is
+  a required field, not an optional one, and it may answer `none`, meaning this store holds no
+  derived streams, which is a claim rather than a silence.
+- **The pipeline asks it once, for every agent, before any key is applied.** A record that fails is
+  refused whatever the key is, so a future `cwd-newest` agent inherits the protection rather than
+  re-earning it, and muse's path rule becomes one implementation of the shared question instead of a
+  one off.
+- **A gate fails the build when a descriptor does not answer.** That is the part that binds the
+  future: adding an agent without saying how its derived streams are recognised does not compile
+  past the gate, and `none` must be written down deliberately by a person rather than reached by
+  default. Today the default is refuse-nothing, which is exactly how codex slipped through with
+  `confidence: 'exact'` on a row that could not be resumed.
+- **The three other `cwd-newest` stores are measured, not assumed.** deepseek, pi and omp all exist
+  on his machine at `~/.deepseek`, `~/.pi` and `~/.omp`. The phase reads each, says whether it holds
+  derived streams and what marks them, and answers the required field from evidence. If a store has
+  none, the phase says `none` and says how it looked.
+
 ### What it builds
 
 - **The codex `confirm` refuses a sub agent rollout.** A rollout whose line 1 `session_meta` carries
@@ -21689,10 +21743,11 @@ Read from his own store, read only, on 2026-09-05.
 
 ### What is NOT in this phase
 
-- **No change to how any other agent is harvested.**
+- **No change to the pre-assigned family**, being claude, cursor, cursoride, copilotide, droid, gemini and grok, which cannot have this bug because Tortie names their session at launch.
 - **No attempt to resume a sub agent.** codex says it cannot be resumed through its parent and Tortie
   believes it; the sub agent is not offered, hidden or repaired into something it is not.
 - **No repair of a row whose parent is gone.** Left alone and reported.
+- **No repair of any agent but codex.** The declaration and the gate cover every harvested agent from now on, and the three other `cwd-newest` stores are measured, but only codex has a proved wrong row on his disk, so only codex rows are rewritten.
 - **No new package, no schema change beyond what the repair note needs.**
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
