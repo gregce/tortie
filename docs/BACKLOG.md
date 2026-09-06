@@ -21664,6 +21664,50 @@ broke.**
 newer, so newest-in-folder always prefers it. **And muse proves the key alone is not the answer**,
 because a pane bound agent still needed an explicit refusal once its store held sub agent streams.
 
+### Codex states the answer in a database, and Tortie is inferring it instead
+
+He asked whether Tortie has the conversation id when the provider starts, and whether it records
+the orchestrator and the sub agents. Answering those exposed a better mechanism than the one this
+entry first proposed, measured read only on 2026-09-05.
+
+**Codex maintains `~/.codex/state_5.sqlite`, and it already answers both questions as data.**
+
+- `threads` carries `id`, `rollout_path`, `cwd`, `created_at_ms` and, decisively, **`thread_source`**
+  plus `agent_path`, `agent_nickname` and `agent_role`. Over his 25,973 rows it reads `user` 482
+  times, `subagent` 453 times and null for the 25,038 legacy rows that predate the column.
+- **`thread_spawn_edges` is an explicit parent to child table**, `(parent_thread_id,
+  child_thread_id, status)`, 519 rows. His own case is three of them: parent
+  `01a06966-7253-7a72-afc1-ae84664a7cd5` to children `01a0696a-75d1-...`, `01a0696a-8a49-...` and
+  `01a0696a-9e06-...`, all `status: 'open'`.
+- His two rows read exactly as the rollout said: the parent is `thread_source: 'user'`, and the id
+  Tortie stored is `thread_source: 'subagent'` with `agent_nickname: 'Hegel'`.
+
+**The registry has known about this file since Phase 12.** `src/main/agents/registry.ts` line 645
+says of codex: *FAST PATH AVAILABLE, NOT YET USED: `~/.codex/state_5.sqlite` -> `threads(id, cwd,
+rollout_path, created_at_ms)` carries id and cwd in ONE row.* It was recorded as a speed
+optimisation and never taken, and nobody noticed the same file also answers *is this a session*
+and *who is its parent*.
+
+**So the codex half of this phase changes shape.** The store is asked first and the rollout is the
+fallback:
+
+1. **Prefer the database.** Resolve the pane's thread from `threads` on `cwd`, and refuse any row
+   whose `thread_source` is `subagent`. Follow `thread_spawn_edges` to the parent when repairing.
+   This is the vendor stating the answer rather than Tortie inferring it from a file's first line.
+2. **Fall back to the rollout parse** when the database is absent, older than the `thread_source`
+   column, locked, or missing the row, which the null count above proves is a real state rather
+   than a hypothetical. The predicate this entry already specifies is that fallback, unchanged.
+3. **The two must agree.** Where both can answer, the phase proves they agree over his whole store,
+   and a disagreement is a finding rather than a preference.
+4. **The database is opened READ ONLY, on a copy, and never migrated.** It is codex's own file and
+   Tortie is a reader of it.
+
+**Two honest answers this settles, recorded because he asked them.** At session open codex writes
+NOTHING, being neither a rollout nor a `threads` row, both appearing on the first turn, measured
+2026-08-11 on 0.147.0 and unchanged; so Tortie does NOT have the id when the provider starts and
+watches for six hours to learn it. And Tortie records exactly ONE id per session row, never a set,
+so the orchestrator and its sub agents are not both kept; the row simply named the wrong one.
+
 ### What actually stops it happening again, and it is a required answer rather than a patch
 
 Fixing codex fixes codex. What he asked for is that the NEXT agent cannot arrive with this hole, so
@@ -22163,3 +22207,4 @@ cycle rather than only the evening it was written.
 - 2026-09-05, Phase 215 QUEUED, the resume id is the session: he rebooted, went to restore, and codex refused one of his sessions with cannot resume an unloaded multi-agent v2 sub-agent through its parent. MEASURED BEFORE QUEUING, read only over his own store: the id in his row is a SUB AGENT thread whose line 1 says `thread_source: subagent` and names parent `01a06966-7253-7a72-afc1-ae84664a7cd5`, whose rollout is still on disk at 19 MB and was written half an hour after the sub agent's; the codex descriptor picks `cwd-newest` and its `confirm` reads only `payload.cwd`, which a sub agent INHERITS VERBATIM, and three sub agents opened five minutes after the parent so the newest is always one of them; the harvest window is six hours; and 165 of the 184 rollouts in his September shards are sub agents, so this is nine in ten rather than a one off. Tortie ALREADY refuses this for muse at stores.ts line 511 because muse puts sub agents in their own directory, and it missed codex because codex writes them into the same shard with the same filename shape, so only the contents tell them apart. The phase refuses a sub agent rollout at confirm by three fields asked together, AND repairs rows already written by walking parent_thread_id to a parent it proves exists, leaving any row it cannot prove exactly as it is rather than emptying it. Tier 3 because it can lose his work, with the end to end proof being a real codex session and a real sub agent on a scratch CODEX_HOME whose harvested id is then handed to codex resume.
 - 2026-09-05, Phase 215 STARTED in a detached worktree at `3ec70c5`, the resume id is the session; sockets p215 and v215; his ~/.codex and his live manifest are READ ONLY for every agent in the run, the repair is exercised against a COPY of the manifest, and no agent launches codex, so the live resume proof is HIS acceptance step.
 - 2026-09-05, Phase 215 RESTARTED at the widened shape as wf_4575484c-4d7, three minutes into its first run and with no commits lost, so the measure step now also reads ~/.deepseek, ~/.pi and ~/.omp and designs the required declaration and its gate rather than measuring codex alone.
+- 2026-09-05, Phase 215 AMENDED A SECOND TIME and restarted, on his three questions: does Tortie have the conversation id when the provider starts, does it record the orchestrator and the sub agents, and was he resuming a sub agent of his own thread. The answers are no, no and yes, and chasing them found a BETTER MECHANISM than the entry first proposed: `~/.codex/state_5.sqlite` carries a `threads` table with `thread_source`, reading user 482 times and subagent 453 times over his 25,973 rows, AND a `thread_spawn_edges` table of parent to child, 519 rows, whose three rows for his own case name parent `01a06966` and its three children exactly. The registry has named that file since Phase 12 as a FAST PATH AVAILABLE NOT YET USED, recorded as a speed optimisation, and nobody noticed it also answers is this a session and who is its parent. So codex now ASKS THE STORE FIRST and keeps the rollout parse as the fallback for the older rows that predate the column, with the two proved to agree over his whole store and any disagreement a finding. The measure step was stopped fourteen minutes in with no commits to take this, which is the second stop and the mechanism changing rather than the scope.
