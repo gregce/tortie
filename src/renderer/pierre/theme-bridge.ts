@@ -63,7 +63,7 @@ const gmuxPaletteDark = P;
  */
 const S = {
   fg: '#d8dbe2', //       foreground   — plain identifiers/variables/text
-  comment: '#6e7583', //  brBlack-ish  — comments (also --status-idle's hex)
+  comment: '#6e7583', //  brBlack-ish  — comments (was --status-idle's hex until Phase 218)
   string: '#6bc46d', //   green        — strings, JSON values, attr values
   escape: '#85d488', //   brGreen      — escape sequences inside strings
   keyword: '#6cb6ff', //  blue         — keywords, storage, tags

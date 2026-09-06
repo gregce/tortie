@@ -68,11 +68,25 @@
      background stay constants there. */
   --terminal-selection: rgba(77, 157, 232, 0.3);
 
-  /* §1.3 Session status */
+  /* §1.3 Session status
+     PHASE 218 MOVED THE TWO GREYS, and it is the only thing about this base
+     that moved. They shipped at #6e7583, which reads 3.149:1 on the active
+     fill it is drawn over, 0.149 above the 3:1 WCAG 1.4.11 asks of a non
+     text mark, and they were in NO floor family, so the frame controls could
+     walk the ground out from under them: 2.591:1 at Normal and 2.193:1 at
+     High over the 35 frames a person may choose, 7 of the 35 under the floor
+     at Normal alone and 19 at some contrast level, one of them a single stop
+     from the default. #8b93a1 is the same OKLCH chroma and hue lifted to L
+     0.661, which is the least lift that clears 3:1 on EVERY offered frame
+     with slack a rounding cannot eat: worst 3.281 on #424238, the lightest
+     active fill any offered frame reaches, and 4.712 on the shipped one. It
+     is ONE colour for both states because the states are told apart by
+     shape, and the ring is the thinner mark of the two. The floor is now in
+     the family, so this pair can never drift back out. */
   --status-working: #4d9de8; /* solid dot; agent producing output              */
   --status-attention: #f5b84a; /* solid dot + pulse; NEEDS_INPUT — loudest     */
-  --status-idle: #6e7583; /* solid dot; shell prompt / agent quiet             */
-  --status-exited: #6e7583; /* HOLLOW dot (1.5px ring); process ended, exit 0  */
+  --status-idle: #8b93a1; /* solid dot; shell prompt / agent quiet             */
+  --status-exited: #8b93a1; /* HOLLOW dot (1.5px ring); process ended, exit 0  */
   --status-failed: #e5655e; /* HOLLOW dot; process ended, exit ≠ 0             */
   --status-attention-badge-bg: #f5b84a;
   --status-attention-badge-fg: #131417;
@@ -510,8 +524,11 @@
   --on-accent: #f5f7fa; /* the paper itself on the accent, 4.5:1          */
   --terminal-selection: rgba(33, 117, 189, 0.3); /* ink on it 8.98:1     */
 
-  /* §1.3 Session status. Every dot clears 3:1 on the active row, which is
-     the floor Phase 210 left open on dark and this base does not. */
+  /* §1.3 Session status. Every dot clears 3:1 on the active row. Phase 210
+     left that floor open on dark and Phase 218 closed it there, by lifting
+     the two greys rather than by narrowing what the frame offers, so both
+     bases now hold the same floor and paper keeps its bytes: worst 3.007
+     over the four frames it offers, at shade 0 depth 0 hue 301 at High. */
   --status-working: #2175bd;
   --status-attention: #976900; /* solved so PAPER text clears 4.5 on it,
      which keeps the badge and the dot one amber; 3.53 on active         */

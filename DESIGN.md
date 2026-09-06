@@ -97,12 +97,18 @@ Accent is used for: primary action per surface, current selection, focus ring, l
 ```css
 --status-working:   #4D9DE8;  /* solid dot; agent producing output              */
 --status-attention: #F5B84A;  /* solid dot + pulse; NEEDS_INPUT — loudest color */
---status-idle:      #6E7583;  /* solid dot; shell prompt / agent quiet          */
---status-exited:    #6E7583;  /* HOLLOW dot (1.5px ring); process ended, exit 0 */
+--status-idle:      #8B93A1;  /* solid dot; shell prompt / agent quiet          */
+--status-exited:    #8B93A1;  /* HOLLOW dot (1.5px ring); process ended, exit 0 */
 --status-failed:    #E5655E;  /* HOLLOW dot; process ended, exit ≠ 0            */
 --status-attention-badge-bg: #F5B84A;   /* count badges: amber bg…             */
 --status-attention-badge-fg: #131417;   /* …with dark text (≥8:1)              */
 ```
+
+**The two greys moved in Phase 218, and the reason is a floor rather than a taste.** They shipped at `#6E7583`, which reads 3.149:1 on `--bg-active` — 0.149 over the 3:1 WCAG 1.4.11 asks of a non-text mark — and they were in no floor family at all, so the Appearance frame controls could move the ground out from under them while their own neighbours were held. Over the 35 frames a person can choose they fell to **2.591:1 at Normal** (shade 2, depth 0, hue 134) and **2.193:1 at High** (shade -2, depth 3, hue 63), with **7 of the 35 under the floor at Normal alone and 19 at some contrast level**, one of them a single stop from the default. It was not a Phase 210 defect: at shade 0 depth 0, all Phase 207's circle offers, the pair already reached 2.701:1 at High.
+
+`#8B93A1` holds the shipped chroma (OKLCH C 0.023, so it is still the near-neutral grey the design asks for) at hue 262 against the shipped 264, and lifts lightness from L 0.561 to L 0.661. That is the smallest lift that clears 3:1 on **every** offered frame at every contrast level with slack an eight-bit rounding cannot eat: worst **3.281:1**, on `#424238`, the lightest active fill any offered frame reaches, and 4.712:1 on the shipped fill. It sits ΔE2000 3.44 from `--text-muted` and 17.1 from `--status-working`, so it reads as its own grey and not as either. The offered region did not move by one cell — all 35 stay reachable, the shipped default included — and no other token moved. **The price, stated rather than hidden:** a passing colour must sit at relative luminance ≥ 0.26021 to clear 3:1 on the lightest active fill any offered frame reaches, and `--text-muted` sits at 0.2492, so the idle dot is now marginally *louder* than the metadata beside it (5.95:1 against 5.25:1 on the canvas) where it used to be quieter. There is no darker answer; the arithmetic forbids one.
+
+**IDLE and EXITED stay one colour.** They are told apart by shape — a solid disc against a 1.5px ring — and the ring is the thinner mark, so it needs the lift more, not less. Both are pinned at 3:1 on `--bg-active` on both bases now (`STATUS_PINS_DARK` and `STATUS_PINS_LIGHT` in `src/renderer/theme/presets.ts`), and `npm run conformance:hue` rule 32 walks that floor over every offered frame on both bases. `--status-failed` is deliberately NOT pinned and reads **3.013:1** at the same binding frame; pinning it costs the region nothing today, but it would make a 0.013 margin load-bearing, so it is recorded here instead and the next palette change must not take it under.
 
 Status is never color-alone: WORKING = solid blue, NEEDS_INPUT = solid amber **pulsing**, IDLE = solid gray, EXITED = hollow gray, FAILED = hollow red, SAVED = solid gray + ↺ — shape + motion + color, plus a text label ("working", "needs input", "idle", "ended", "failed (exit N)", "saved"). Where the label lives depends on density: the identity strip and the attention overlay show it as visible text; session tabs and right-list rows (too dense for a label) carry it via tooltip and `aria-label`, and needs-input additionally bumps the name to weight 500 so the state survives without color.
 
