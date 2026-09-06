@@ -80,6 +80,7 @@ import { unwatchGitRepo } from '../git';
 import { applyUsageTap } from '../usage';
 import {
   claimConversationId,
+  closeCodexState,
   conversationClaimant,
   ManifestStore,
   onConversationReclaimed,
@@ -3079,6 +3080,12 @@ export class GmuxCore {
     this.ringSchedule?.stop();
     for (const watch of this.idCaptureWatches.values()) watch.cancel();
     this.idCaptureWatches.clear();
+    // PHASE 215. The read-only connection to codex's own state store, kept
+    // per codex home so a harvest does not reopen a 578 MB file per candidate.
+    // It can never write, so closing it is tidiness rather than safety, but a
+    // file descriptor on somebody else's store is not something to leave open
+    // past the thing that opened it.
+    closeCodexState();
     this.unsubscribeReclaims?.();
     this.unsubscribeReclaims = null;
     // Phase 70: every machine's poll timer, and the wake hook behind them. The
