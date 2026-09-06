@@ -70,30 +70,18 @@ import {
   codexStateFor,
   DESCRIPTORS,
   SESSION_CONTRACT_VERSION,
+  walkToResumableThread,
+  type ChainLookup,
   type CodexStateReader,
   type ManifestSessionRecord,
   type ManifestStore,
-  type ResumeProvenance
+  type ResumeProvenance,
+  type ThreadClassification
 } from '../manifest';
 import { agentExtrasOf } from './launch-plan';
 import { composeResumeArgv } from './resume-argv';
 
 const sessionsLog = getLog('sessions');
-
-/**
- * How many parent hops a walk may take.
- *
- * EIGHT, and the number is a measurement rather than caution. Over his 521
- * derived records the deepest real chain is THREE hops (491 resolve in 1, 25 in
- * 2, 3 in 3) and the vendor's own declared `depth` agrees exactly. Eight is
- * 2.6x that, each hop is one bounded head read of a file already in the page
- * cache, so a generous bound costs nothing while a bound of 3 would silently
- * stop repairing the day codex nests deeper.
- *
- * THE BOUND IS A REFUSAL, NEVER A TRUNCATION. A walk that reaches it leaves
- * the row exactly as it is; it never writes the last id it happened to reach.
- */
-const MAX_PARENT_HOPS = 8;
 
 /** Why a row was left alone, or that it was not. */
 export type CodexRepairVerdict =
@@ -212,39 +200,19 @@ function repairOne(
     saidBy
   });
 
-  const first = reader.classify(before);
-  if (first.verdict === 'session') return left('already-a-session', first.saidBy);
-  if (first.verdict === 'unknown') {
-    return left(first.onDisk ? 'cannot-tell' : 'rollout-missing', 'neither');
+  const saidBy = reader.said(before).saidBy;
+  // THE WALK IS PURE and lives in ../manifest/harvest/derived.ts, so every one
+  // of its refusals can be ablated one clause at a time by the gate. This
+  // function injects the two voices and does the writing.
+  const walk = walkToResumableThread(before, reader);
+  if (walk.verdict === 'repaired' && walk.resolved !== null) {
+    return write(manifest, rec, before, walk.resolved, walk.hops, saidBy, reader, now);
   }
-
-  // THE WALK. Visited is compared lower case, so a cycle spelled in two cases
-  // is caught by the SET rather than by the counter.
-  const visited = new Set<string>([before.toLowerCase()]);
-  let cursor = before;
-  let hops = 0;
-  for (;;) {
-    const parent = reader.parentOf(cursor);
-    if (parent === null) return left('no-parent-named', first.saidBy, hops);
-    if (visited.has(parent.toLowerCase())) return left('cycle', first.saidBy, hops);
-    hops += 1;
-    if (hops > MAX_PARENT_HOPS) return left('over-bound', first.saidBy, hops);
-    const step = reader.classify(parent);
-    // A parent nothing on disk can vouch for is not a parent this repair will
-    // write. Proving it exists is the whole difference between a repair and a
-    // guess.
-    if (!step.onDisk) return left('parent-missing', first.saidBy, hops);
-    if (step.verdict === 'session') {
-      return write(manifest, rec, before, parent, hops, first.saidBy, reader, now);
-    }
-    if (step.verdict === 'unknown') {
-      // Its rollout is there and neither voice can classify it. Refusing to
-      // walk past a record nobody can read is the same rule as the bound.
-      return left('cannot-tell', first.saidBy, hops);
-    }
-    visited.add(parent.toLowerCase());
-    cursor = parent;
-  }
+  return left(
+    walk.verdict === 'absent' ? 'rollout-missing' : walk.verdict,
+    walk.verdict === 'already-a-session' ? saidBy : saidBy,
+    walk.hops
+  );
 }
 
 function write(
@@ -330,15 +298,16 @@ function write(
 // ---------------------------------------------------------------------------
 
 interface Classification {
-  verdict: 'session' | 'derived' | 'unknown';
-  /** TRUE when a rollout for this id is on disk. */
-  onDisk: boolean;
+  verdict: ThreadClassification;
   saidBy: CodexRepairOutcome['saidBy'];
 }
 
-interface CodexHomeReader {
-  classify(id: string): Classification;
-  parentOf(id: string): string | null;
+/**
+ * The two voices, plus where a record lives. It IS a `ChainLookup`, so the
+ * pure walk can be handed this object directly.
+ */
+interface CodexHomeReader extends ChainLookup {
+  said(id: string): Classification;
   rolloutOf(id: string): string | null;
 }
 
@@ -378,36 +347,40 @@ function makeCodexHomeReader(
     return parsed;
   };
 
+  const said = (id: string): Classification => {
+    // THE STORE FIRST, because it is the vendor STATING the answer rather
+    // than Tortie inferring it from a file's first line.
+    const stated = state?.derived(id) ?? 'unknown';
+    if (stated === 'derived') return { verdict: 'derived', saidBy: 'store' };
+    // THEN THE ROLLOUT, and it is asked even when the store said `session`,
+    // because a refusal by EITHER is a refusal. Over his 25,972 records the
+    // store never calls a derived record a session, and the rollout catches
+    // two the store says nothing about.
+    const record = recordOf(id);
+    if (record === null) {
+      // A rollout that is GONE is 'absent', which the walk refuses to step
+      // past. A file that is there and cannot be READ, being a .zst, an empty
+      // one that has not been flushed, or a line 1 that is not JSON, is
+      // 'unknown' with a different sentence. Both leave the row alone.
+      if (stated === 'session') return { verdict: 'session', saidBy: 'store' };
+      return {
+        verdict: rolloutOf(id) === null ? 'absent' : 'unknown',
+        saidBy: 'neither'
+      };
+    }
+    if (codexDerivedRecord([record])) {
+      return { verdict: 'derived', saidBy: 'rollout' };
+    }
+    return {
+      verdict: 'session',
+      saidBy: stated === 'session' ? 'store' : 'rollout'
+    };
+  };
+
   return {
     rolloutOf,
-    classify: (id): Classification => {
-      // THE STORE FIRST, because it is the vendor STATING the answer rather
-      // than Tortie inferring it from a file's first line.
-      const stated = state?.derived(id) ?? 'unknown';
-      if (stated === 'derived') {
-        return { verdict: 'derived', onDisk: rolloutOf(id) !== null, saidBy: 'store' };
-      }
-      // THEN THE ROLLOUT, and it is asked even when the store said `session`,
-      // because a refusal by EITHER is a refusal. Over his 25,972 records the
-      // store never calls a derived record a session, and the rollout catches
-      // two the store says nothing about.
-      const record = recordOf(id);
-      if (record === null) {
-        // A file that is there but cannot be READ, being a .zst, an empty
-        // one that has not been flushed, or a line 1 that is not JSON, is
-        // `unknown` WITH the file present. It is a different sentence from a
-        // rollout that is gone, and both leave the row alone.
-        return {
-          verdict: stated === 'session' ? 'session' : 'unknown',
-          onDisk: rolloutOf(id) !== null,
-          saidBy: stated === 'session' ? 'store' : 'neither'
-        };
-      }
-      if (codexDerivedRecord([record])) {
-        return { verdict: 'derived', onDisk: true, saidBy: 'rollout' };
-      }
-      return { verdict: 'session', onDisk: true, saidBy: stated === 'session' ? 'store' : 'rollout' };
-    },
+    said,
+    classify: (id): ThreadClassification => said(id).verdict,
     parentOf: (id): string | null => {
       // `thread_spawn_edges` states it. His 519 edges agree with the rollouts
       // on every one of the 519 parents, with zero disagreements.

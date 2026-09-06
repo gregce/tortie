@@ -246,3 +246,103 @@ export function derivedByRecords(
 export function derivedRecordLines(rule: DerivedStreamRule): number {
   return rule.kind === 'record' ? rule.lines : 0;
 }
+
+// ---------------------------------------------------------------------------
+// The chain
+// ---------------------------------------------------------------------------
+
+/** What a store can say about one thread id. */
+export type ThreadClassification =
+  /** A thread a person can resume. */
+  | 'session'
+  /** A derived stream. Not resumable, and it names a parent. */
+  | 'derived'
+  /** Nothing on disk or in a store can say. */
+  | 'unknown'
+  /** No record for this id exists at all. */
+  | 'absent';
+
+export interface ChainLookup {
+  classify(id: string): ThreadClassification;
+  parentOf(id: string): string | null;
+}
+
+export type ChainVerdict =
+  | 'already-a-session'
+  | 'repaired'
+  | 'cannot-tell'
+  | 'absent'
+  | 'no-parent-named'
+  | 'cycle'
+  | 'over-bound'
+  | 'parent-missing';
+
+export interface ChainResult {
+  verdict: ChainVerdict;
+  /** The thread to resume. ONLY set on 'repaired'. */
+  resolved: string | null;
+  hops: number;
+}
+
+/**
+ * How many parent hops a walk may take.
+ *
+ * EIGHT, and the number is a measurement rather than caution. Over the
+ * operator's 521 derived records the deepest real chain is THREE hops (491
+ * resolve in 1, 25 in 2, 3 in 3) and the vendor's own declared `depth` agrees
+ * exactly, though the walk is what is trusted because `depth` is a number the
+ * vendor writes and the walk is a fact about the files. Eight is 2.6x that,
+ * each hop is one bounded head read of a file already in the page cache, so a
+ * generous bound costs nothing while a bound of 3 would silently stop
+ * repairing the day codex nests deeper.
+ */
+export const MAX_PARENT_HOPS = 8;
+
+/**
+ * Walk from a thread to the nearest ancestor a person can actually resume.
+ *
+ * PURE, and it is pure so that every one of its refusals can be ablated one
+ * clause at a time by `npm run conformance:derived`. It reads no file and
+ * opens no database: the caller injects both voices through `lookup`.
+ *
+ * EVERY REFUSAL LEAVES THE CALLER WITH NOTHING TO WRITE. `resolved` is null on
+ * every verdict but `repaired`, so a caller cannot half-apply a walk that
+ * stopped, and the bound in particular is a refusal rather than a truncation:
+ * it never answers with the last id it happened to reach.
+ */
+export function walkToResumableThread(
+  start: string,
+  lookup: ChainLookup,
+  maxHops: number = MAX_PARENT_HOPS
+): ChainResult {
+  const stop = (verdict: ChainVerdict, hops: number): ChainResult => ({
+    verdict,
+    resolved: null,
+    hops
+  });
+  const first = lookup.classify(start);
+  if (first === 'session') return stop('already-a-session', 0);
+  if (first === 'absent') return stop('absent', 0);
+  if (first === 'unknown') return stop('cannot-tell', 0);
+
+  // Compared lower case, so a cycle spelled in two cases is caught by the SET
+  // rather than by the counter.
+  const visited = new Set<string>([start.toLowerCase()]);
+  let cursor = start;
+  let hops = 0;
+  for (;;) {
+    const parent = lookup.parentOf(cursor);
+    if (parent === null) return stop('no-parent-named', hops);
+    if (visited.has(parent.toLowerCase())) return stop('cycle', hops);
+    hops += 1;
+    if (hops > maxHops) return stop('over-bound', hops);
+    const step = lookup.classify(parent);
+    // A parent nothing can vouch for is not a parent this walk will hand over.
+    // Proving it exists is the whole difference between a repair and a guess.
+    if (step === 'absent') return stop('parent-missing', hops);
+    if (step === 'unknown') return stop('cannot-tell', hops);
+    if (step === 'session') return { verdict: 'repaired', resolved: parent, hops };
+    visited.add(parent.toLowerCase());
+    cursor = parent;
+  }
+}
