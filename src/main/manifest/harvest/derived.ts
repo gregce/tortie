@@ -30,8 +30,13 @@
  * Ownership: src/main/manifest/**. Pure — no file system, no process, no
  * Electron. Both readers of a store call in here: ./stores.ts reads records
  * off this Mac's disk and ./remote.ts reads them out of head bytes that came
- * over a connection, and one predicate serves both, which is what stops a
- * connected machine taking sub agents after this Mac stopped.
+ * over a connection, and one predicate serves both, so the two rungs cannot
+ * drift. WHAT THE REMOTE HALF IS WORTH TODAY is written honestly beside its
+ * own call site in ./remote.ts and measured by `conformance:derived` rule 8:
+ * the answer there is bounded by how many bytes that rung is handed, and at
+ * the shipped budget a codex line 1 does not fit, so it refuses to answer
+ * rather than refusing the record. It costs no row either way, because only a
+ * `match` may win a remote harvest.
  */
 
 /**

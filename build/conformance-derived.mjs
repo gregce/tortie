@@ -34,8 +34,10 @@
  *  5. THE PIPELINE ASKS IT, scanned over the real source: `consider()` asks
  *     before `confirm`, `scan()` asks of a directory name, and the REMOTE rung
  *     asks the same predicate, because that rung re-implements codex's confirm
- *     by hand and a fix confined to stores.ts would leave a connected machine
- *     taking sub agents. Every scanner is proved on planted fixtures.
+ *     by hand and a fix confined to stores.ts would leave it reading the one
+ *     field a sub agent inherits verbatim. What that arm is worth at the
+ *     shipped head budget is rule 8, and it is less than the phase claimed.
+ *     Every scanner is proved on planted fixtures.
  *  6. THE REPAIR, driven over a fixture manifest and a fixture store: one row
  *     per verdict, no row emptied on any path, a row already naming a session
  *     byte identical, no other agent touched, and idempotent by digest.
@@ -695,8 +697,8 @@ function checkScanners() {
     }
     fail(
       `rule 5: ${scan.what} — not found in ${scan.file}. Without it a ` +
-        'derived record reaches a key, or a connected machine takes a sub ' +
-        'agent this Mac would refuse.'
+        'derived record reaches a key, or a connected machine reads the one ' +
+        'field a sub agent inherits from its parent verbatim.'
     );
   }
   // The scanners are proved on files this gate writes, so a scan that cannot
