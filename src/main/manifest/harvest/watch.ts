@@ -688,8 +688,8 @@ export function watchForSessionId(
     // claim. It is asked HERE, ahead of the freshness arithmetic and ahead of
     // `confirm`, because a sub agent inherits its parent's cwd verbatim and is
     // NEWER than the thread that spawned it, so every rule below this line
-    // prefers it. Six of the seven descriptors answer `none` and this costs
-    // them nothing at all.
+    // prefers it. The five descriptors that answer `none` pay nothing at all
+    // for it, and muse pays one comparison of a directory name.
     if (await candidateIsDerivedStream(d, roots, path)) return;
 
     // Freshness: a filename timestamp OR the file's own times must be at or

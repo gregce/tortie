@@ -993,9 +993,10 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
  * derived record and no derived record can ever become a rival, a grace
  * acceptance or a claim.
  *
- * It costs NOTHING for the six agents that answer `none`: no path is walked
- * and no byte is read. It costs one bounded head read for codex, of a file
- * `confirm` was about to read anyway.
+ * It costs NOTHING for the five descriptors that answer `none`: no path is
+ * walked and no byte is read. It costs muse one comparison of a directory
+ * name, and it costs codex one bounded head read, of a file `confirm` was
+ * about to read anyway.
  */
 export async function candidateIsDerivedStream(
   d: HarvestDescriptor,

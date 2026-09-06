@@ -448,10 +448,12 @@ function checkDeclaration(data) {
     for (const problem of declarationProblems(row)) fail(problem);
   }
   const answered = data.descriptors.filter((r) => r.answered).length;
+  const noneCount = data.descriptors.filter((r) => r.kind === 'none').length;
   notes.push(
     `rule 1: ${answered} of ${data.descriptors.length} descriptors answer, ` +
-      `${data.descriptors.filter((r) => r.kind === 'none').length} of them 'none'.`
+      `${noneCount} of them 'none'.`
   );
+  checkNoneCountProse(noneCount);
   // The checker is proved on rows it cannot have been written around.
   const planted = [
     { agent: 'x', answered: true, kind: 'none', measured: 'too short', lines: 0, hasTest: null },
@@ -479,6 +481,87 @@ function checkDeclaration(data) {
     fail("rule 1's own checker failed a well formed descriptor.");
   }
 }
+
+/**
+ * Rule 1b, and it is a fix round's arm rather than a nicety.
+ *
+ * Three shipped comments said "the six agents that answer `none`" while this
+ * gate printed five in the same breath, so the code disagreed with its own
+ * gate. A count written by hand decays the day a descriptor's answer moves,
+ * and there is no reason for the prose to be the only place that is not
+ * derived. So the number is COUNTED from `DESCRIPTORS` and every place that
+ * states it in the shape below has to state the counted one.
+ *
+ * The phrase is deliberately one literal form, `the <word> descriptors that
+ * answer \`none\``, so a new site is either written in it and checked or is
+ * not making the claim at all.
+ */
+function checkNoneCountProse(noneCount) {
+  const files = [
+    'src/main/manifest/harvest/watch.ts',
+    'src/main/manifest/harvest/derived.ts',
+    'src/main/manifest/harvest/stores.ts'
+  ];
+  const want = WORD_NUMBERS[noneCount] ?? String(noneCount);
+  let sites = 0;
+  for (const file of files) {
+    const found = noneCountClaims(readFileSync(resolve(file), 'utf8'));
+    if (found.length === 0) {
+      fail(
+        `rule 1: ${file} no longer states how many descriptors answer ` +
+          "`none` in the checked form, so the count in it is unchecked. " +
+          `Write it as "the ${want} descriptors that answer \`none\`".`
+      );
+      continue;
+    }
+    for (const said of found) {
+      sites += 1;
+      if (said.toLowerCase() !== want) {
+        fail(
+          `rule 1: ${file} says "the ${said} descriptors that answer ` +
+            `\`none\`" and ${noneCount} of them actually do, being ` +
+            `"${want}". The count is counted from DESCRIPTORS, so the prose ` +
+            'moves when an answer moves.'
+        );
+      }
+    }
+  }
+  // The scanner is proved on text this gate writes, so a scan that cannot fail
+  // is never mistaken for a scan that passed.
+  const plants = [
+    ['a comment stating the wrong count', 'the six descriptors that answer `none`', ['six']],
+    ['a comment stating the right count', 'the five descriptors that answer `none`', ['five']],
+    ['a comment making no claim', 'five descriptors answer, and some do not', []],
+    ['two claims in one file', 'the five descriptors that answer `none` and\nthe two descriptors that answer `none`', ['five', 'two']]
+  ];
+  for (const [name, text, want2] of plants) {
+    const got = noneCountClaims(text);
+    if (JSON.stringify(got) !== JSON.stringify(want2)) {
+      fail(
+        `rule 1's own scanner read the planted text "${name}" as ` +
+          `${JSON.stringify(got)} rather than ${JSON.stringify(want2)}, so it ` +
+          'is not reading what it claims to read.'
+      );
+    }
+  }
+  notes.push(
+    `rule 1: ${sites} prose sites state the 'none' count and all say ${want}.`
+  );
+}
+
+const WORD_NUMBERS = [
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'
+];
+
+/** Every count this text claims answers `none`, in the one checked form. */
+function noneCountClaims(text) {
+  const out = [];
+  const re = /\bthe ([A-Za-z]+) descriptors that answer `none`/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) out.push(m[1]);
+  return out;
+}
+
 
 function declarationProblems(row) {
   const out = [];
