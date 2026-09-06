@@ -547,8 +547,42 @@ const ABLATIONS = [
     file: 'renderer/theme/presets.ts',
     edits: [
       [
-        "  return scheme === 'light' ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT] : CHROMATIC_PINS;",
-        '  return CHROMATIC_PINS;'
+        "    ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT]\n    : [...CHROMATIC_PINS, ...STATUS_PINS_DARK];",
+        '    ? [...CHROMATIC_PINS]\n    : [...CHROMATIC_PINS, ...STATUS_PINS_DARK];'
+      ]
+    ]
+  },
+  {
+    // PHASE 218, RULE 32, and this is the ablation the phase owes: a colour
+    // planted under the floor, which is what rule 30 does with a lane. The
+    // hex is the one that SHIPPED until this phase, so the plant is the
+    // defect itself rather than an invented one. It reads 3.149 on the
+    // shipped fill and 2.193 at the worst offered frame, and 2.701 at hue
+    // 121, which the witness list carries, so a coarse walk sees it too.
+    name: 'the idle and exited greys put back where they were under the floor',
+    file: 'renderer/styles/tokens.css',
+    edits: [
+      [
+        '  --status-idle: #8b93a1;',
+        '  --status-idle: #6e7583;'
+      ],
+      [
+        '  --status-exited: #8b93a1;',
+        '  --status-exited: #6e7583;'
+      ]
+    ]
+  },
+  {
+    // PHASE 218, RULE 32's OTHER HALF. The colours still clear the floor, so
+    // every arithmetic reading stays green and only the structural half can
+    // see this: the predicate the SLIDERS stop on no longer carries the
+    // floor, so the next change to the ramp would be free to walk past it.
+    name: 'the dot floor taken back out of the dark chromatic family',
+    file: 'renderer/theme/presets.ts',
+    edits: [
+      [
+        "    ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT]\n    : [...CHROMATIC_PINS, ...STATUS_PINS_DARK];",
+        '    ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT]\n    : [...CHROMATIC_PINS];'
       ]
     ]
   },
@@ -1343,6 +1377,9 @@ function pinLaneSeparation(a) {
   return problems;
 }
 
+/** What rule 32 last measured on each base, for the line the gate prints. */
+const lastDotNumbers = {};
+
 /** What rule 30 last measured, for the line the gate prints. */
 let lastSeparationNumbers = [];
 
@@ -1637,7 +1674,13 @@ function pinFacts(a) {
   // Rule 25. Dark is byte identical, against the parent commit's own numbers.
   const sha = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   const got = {
-    tokens: facts.tokensSha.dark,
+    // PHASE 218 MOVED TWO DECLARATIONS and nothing else in this block, so the
+    // digest asked here is the block with those two put back to the hex the
+    // parent carried. That keeps rule 25's claim exactly as strong as it was
+    // rather than weakening it to a new pinned number: every other byte of
+    // the dark base still has to match 02fd5ed. The live digest is asked to
+    // DIFFER just below, or the greys never moved at all.
+    tokens: facts.tokensSha.darkAsP213,
     terminal: sha(facts.terminal.dark),
     monaco: facts.monaco === null ? 'unread' : sha(facts.monaco.dark),
     pierre: facts.pierre === null ? 'unread' : facts.pierre.darkSha,
@@ -1648,6 +1691,25 @@ function pinFacts(a) {
   for (const [what, want] of Object.entries(DARK_AT_THE_PARENT)) {
     if (got[what] !== want) {
       problems.push(`rule 25: the dark ${what} is ${String(got[what])} where the parent commit 02fd5ed had ${String(want)}`);
+    }
+  }
+  if (facts.tokensSha.dark === DARK_AT_THE_PARENT.tokens) {
+    problems.push('rule 25: the dark block is byte identical to 02fd5ed with the two status greys still in it, so Phase 218 moved nothing');
+  }
+
+  // Rule 32's structural half (Phase 218): the predicate the SLIDERS stop on
+  // names the floor, on both bases. The arithmetic half lives in pinDots,
+  // which reads the ratios with a list of its own; this half is what stops a
+  // later round taking the pin out and leaving the colours to luck.
+  if (facts.statusPins === null) problems.push('rule 32: the shipping chromatic pins could not be read');
+  else {
+    for (const [scheme, want] of Object.entries(STATUS_PINS_WANTED)) {
+      const got = facts.statusPins[scheme] ?? [];
+      for (const one of want) {
+        if (!got.includes(one)) {
+          problems.push(`rule 32: chromaticPinsFor('${scheme}') does not carry ${one}; it carries ${got.length === 0 ? 'no status floor at all' : got.join(', ')}`);
+        }
+      }
     }
   }
   return problems;
@@ -1783,22 +1845,56 @@ const ORDER_RUNS = {
 };
 
 /**
- * The status dots (Phase 213). Phase 210 recorded this floor as OPEN on the
- * dark base, where the idle grey reads 3.15 on the shipped active fill and a
- * lighter shade takes it under, so adding it there would refuse frames people
- * already chose. The light palette was designed TO it: 3.52, 3.53, 3.41 and
- * 3.40 at the shipped frame, and the badge's paper text 4.51 on its amber.
+ * The status dots (Phase 213). The light palette was designed TO this floor:
+ * 3.52, 3.53, 3.41 and 3.40 at the shipped frame, and the badge's paper text
+ * 4.51 on its amber. Phase 218 added the hollow ring, which is the same hex
+ * as the solid dot on this base and so measures nothing new today; what the
+ * family NAMES is what a later palette change is asked about.
  */
 const STATUS_FLOORS_LIGHT = [
   ['--status-working', '--bg-active', 3],
   ['--status-attention', '--bg-active', 3],
   ['--status-idle', '--bg-active', 3],
+  ['--status-exited', '--bg-active', 3],
   ['--status-failed', '--bg-active', 3],
   ['--status-attention-badge-fg', '--status-attention-badge-bg', 4.5]
 ];
 
+/**
+ * THE SAME FLOOR ON THE DARK BASE, AND IT IS TWO TOKENS (Phase 218). Phase
+ * 210 recorded it as OPEN here and Phase 213 repeated the reason: at the
+ * shipped `#6e7583` the idle grey read 3.149 on the active fill and 2.193 at
+ * the worst offered frame, and pinning it there collapsed the region from 35
+ * cells to 16 with the SHIPPED DEFAULT outside. So the colour moved to
+ * `#8b93a1` and the floor went in behind it.
+ *
+ * `--status-working` (3.540), `--status-attention` (5.678) and
+ * `--status-failed` (3.013) clear the same walk without a pin and are
+ * deliberately NOT here. Pinning the last would make its 0.013 the binding
+ * number of the whole region, which DESIGN.md section 1.3 records in prose
+ * instead.
+ */
+const STATUS_FLOORS_DARK = [
+  ['--status-idle', '--bg-active', 3],
+  ['--status-exited', '--bg-active', 3]
+];
+
+/**
+ * RULE 32's structural half (Phase 218): what `chromaticPinsFor` must name on
+ * each base, in the shape `readStatusPins` reports. This is asked of the
+ * SHIPPING function, so it fails when a later round drops the family even if
+ * the colours would still clear the floor by luck.
+ */
+const STATUS_PINS_WANTED = {
+  dark: ['--status-exited on --bg-active at 3', '--status-idle on --bg-active at 3'],
+  light: STATUS_FLOORS_LIGHT.map(([token, ground, floor]) => `${token} on ${ground} at ${String(floor)}`).sort()
+};
+
+/** Rule 32's own list of the two greys and the fill they are drawn over. */
+const DOT_FLOOR = 3;
+
 const CHROMATIC_BY_SCHEME = {
-  dark: CHROMATIC_FLOORS,
+  dark: [...CHROMATIC_FLOORS, ...STATUS_FLOORS_DARK],
   light: [...CHROMATIC_FLOORS, ...STATUS_FLOORS_LIGHT]
 };
 
@@ -2242,6 +2338,66 @@ function pinRegion(a, scheme, REG, CHROMA, problem) {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // RULE 32: THE IDLE AND EXITED GREYS KEEP 3:1 ON EVERY OFFERED FRAME
+  // (Phase 218), on both bases, at every contrast level.
+  //
+  // A status dot is a non text mark on the row it sits in, so it owes WCAG
+  // 1.4.11's 3:1 on `--bg-active`, the deepest fill a row takes. Until Phase
+  // 218 these two were the only marks on that row in NO floor family at all:
+  // shipped they read 3.149 and over the 35 frames a person may choose they
+  // fell to 2.591 at Normal and 2.193 at High, 7 of the 35 under the floor at
+  // Normal alone and 19 at some level.
+  //
+  // THREE THINGS MAKE THIS A RULE RATHER THAN A RESTATEMENT OF RULE 16.
+  //
+  // It is asked over the cells the PINNED REGION TABLE names, not over the
+  // cells the walk found feasible. Once the floor is in the family, a colour
+  // that broke it would drop its own cells out of the feasible set and take
+  // the reading with them, so rule 16 would go quiet exactly when this one
+  // has something to say. Rule 15 would still turn red, but it would name a
+  // region that moved rather than a dot that cannot be seen.
+  //
+  // It reads a number the probe took with a list of ITS OWN, held in
+  // hue-conformance-probe.mts beside the walk, so it survives the family
+  // being taken back out of presets.ts. That is the other half, and it is
+  // pinFacts's `STATUS_PINS_WANTED` above: this half asks whether the floor
+  // is KEPT, that one asks whether it is ENFORCED by the predicate the
+  // sliders stop on. A round that removed the pin and left the colours would
+  // pass this and fail that; a round that darkened the colour and left the
+  // pin would fail this.
+  //
+  // And it is asked at every contrast level rather than at Normal, because
+  // High is where the ground goes lightest and where the shipped pair was
+  // worst.
+  let dot = { slack: Number.POSITIVE_INFINITY, where: '', what: '', hue: -1 };
+  let dotCells = 0;
+  for (const cell of a.ramp) {
+    const row = REG[String(cell.shade)];
+    if (row === undefined || cell.depth < row[0] || cell.depth > row[1]) continue;
+    dotCells += 1;
+    if (cell.worstDot === undefined) {
+      problem('r32r', 'rule 32: the walk took no status dot reading at all');
+      continue;
+    }
+    if (cell.worstDot < dot.slack) {
+      dot = {
+        slack: cell.worstDot,
+        where: `shade ${String(cell.shade)} depth ${String(cell.depth)} ${cell.contrast} ${cell.scheme}`,
+        what: cell.dotBinding,
+        hue: cell.dotBindingHue
+      };
+    }
+    if (cell.worstDot < 0) {
+      problem(
+        `r32-${String(cell.shade)}-${String(cell.depth)}`,
+        `rule 32: ${cell.dotBinding} is ${(cell.worstDot + DOT_FLOOR).toFixed(3)}:1 at shade ${String(cell.shade)} depth ${String(cell.depth)} ${cell.contrast} ${cell.scheme} hue ${String(cell.dotBindingHue)}, under the ${String(DOT_FLOOR)}:1 WCAG 1.4.11 asks of a non text mark`
+      );
+    }
+  }
+  if (dotCells === 0) problem('r32n', 'rule 32: no offered frame was walked, so the dot floor was asked of nothing');
+  lastDotNumbers[scheme] = { ...dot, cells: dotCells };
+
   return [];
 }
 
@@ -2403,6 +2559,13 @@ try {
       for (const point of shipping.rampPoints) {
         say(`${TAG} rule 21: the ${point.name.padEnd(16)} frame (shade ${String(point.shade).padStart(2)}, depth ${String(point.depth).padStart(2)}) writes ${String(point.keys.length).padStart(2)} token(s): canvas ${point.values['--bg-canvas']} sidebar ${point.values['--bg-sidebar']} active ${point.values['--bg-active']} border ${point.values['--border']}`);
       }
+      const dots = lastDotNumbers.dark;
+      if (dots !== undefined) {
+        const shippedDot = shipping.shipped['--status-idle'];
+        const shippedFill = shipping.shipped['--bg-active'];
+        say(`${TAG} rule 32: the idle and exited greys are ${shippedDot} and read ${wcagContrast(shippedDot, shippedFill).toFixed(3)}:1 on the shipped ${shippedFill}; over all ${String(dots.cells)} offered cell(s) on graphite their worst is ${(dots.slack + DOT_FLOOR).toFixed(3)}:1, ${dots.what} at ${dots.where} hue ${String(dots.hue)}, against the ${String(DOT_FLOOR)}:1 WCAG 1.4.11 asks of a non text mark`);
+        say(`${TAG} rule 32: and chromaticPinsFor carries the floor on both bases, so the sliders refuse a frame that breaks it rather than the colours clearing it by luck`);
+      }
     }
   }
 
@@ -2490,6 +2653,12 @@ try {
         darkPoints += c.darkHues;
       }
       say(`${TAG} rule 22: rule 20 INVERTED. The text family reads dark at all ${String(darkPoints)} of ${String(points)} points on paper, so the flip Phase 210 could only reach on a synthetic ground is where this base lives`);
+      const dots = lastDotNumbers.light;
+      if (dots !== undefined) {
+        const shippedDot = lightAnswer.shipped['--status-idle'];
+        const shippedFill = lightAnswer.shipped['--bg-active'];
+        say(`${TAG} rule 32: on paper the two greys are ${shippedDot} and read ${wcagContrast(shippedDot, shippedFill).toFixed(3)}:1 on the shipped ${shippedFill}; over all ${String(dots.cells)} offered cell(s) their worst is ${(dots.slack + DOT_FLOOR).toFixed(3)}:1, ${dots.what} at ${dots.where} hue ${String(dots.hue)}. Paper kept its bytes: Phase 218 moved the dark base to the floor paper already held`);
+      }
     }
   }
 
@@ -2517,7 +2686,7 @@ try {
       say(`${TAG} rule 24: Monaco ${String(facts.monaco.dark.base)} to ${String(facts.monaco.light.base)}, ground ${String(facts.monaco.dark.colors['editor.background'])} to ${String(facts.monaco.light.colors['editor.background'])}`);
       say(`${TAG} rule 24: Pierre ${String(facts.pierre.pair.dark)} (${String(facts.pierre.darkType)}) and ${String(facts.pierre.pair.light)} (${String(facts.pierre.lightType)}) are both named in the theme pair, so the diff follows the root; the tree host carries ${String(facts.pierre.treeKeys.length)} keys and no colorScheme`);
       say(`${TAG} rule 24: the window fill ${String(facts.windowFill.dark)} to ${String(facts.windowFill.light)} at hue 222, ${String(facts.windowFill.darkAt40)} to ${String(facts.windowFill.lightAt40)} at hue 40`);
-      say(`${TAG} rule 25: DARK IS BYTE IDENTICAL to the parent 02fd5ed. tokens ${facts.tokensSha.dark.slice(0, 12)}, terminal ${sha(facts.terminal.dark).slice(0, 12)}, Monaco ${sha(facts.monaco.dark).slice(0, 12)}, Pierre ${facts.pierre.darkSha.slice(0, 12)}, fill ${String(facts.windowFill.dark)} and ${String(facts.windowFill.darkAt40)}, xterm floor ${String(facts.terminal.floorDark)}`);
+      say(`${TAG} rule 25: DARK IS BYTE IDENTICAL to the parent 02fd5ed apart from the two status greys Phase 218 moved. tokens ${facts.tokensSha.dark.slice(0, 12)}, which is ${facts.tokensSha.darkAsP213.slice(0, 12)} with those two put back, terminal ${sha(facts.terminal.dark).slice(0, 12)}, Monaco ${sha(facts.monaco.dark).slice(0, 12)}, Pierre ${facts.pierre.darkSha.slice(0, 12)}, fill ${String(facts.windowFill.dark)} and ${String(facts.windowFill.darkAt40)}, xterm floor ${String(facts.terminal.floorDark)}`);
       for (const line of lastLaneNumbers) say(`${TAG} rule 28: the graph lanes on ${line}, and every one of them is avoided by the rotation`);
       for (const line of lastSeparationNumbers) say(`${TAG} rule 30: ${line}; paper has none under it at all, so six live lanes in one row never draw two branches as one`);
       say(`${TAG} rule 30: the simulation itself holds a neutral fixed, leaves blue against yellow untouched, loses two thirds of red against green, and reproduces the 21.2 and the 12.4 this codebase already publishes`);
@@ -2607,4 +2776,4 @@ if (failed > 0) {
   console.error(`${TAG} ${String(failed)} failure(s)`);
   process.exit(1);
 }
-say(`${TAG} OK: every pinned ratio at all 360 hues and three contrast levels ON BOTH BASES, lightness held, the offset kept, each base's ramp in its own order, one threshold with one crossing over the synthetic ground, each base's offered region exact over 49 shade and depth pairs at every whole degree, the status dots clearing the active row on paper, every non token surface carrying a second theme, DARK BYTE IDENTICAL to the parent by four digests, no colour literal outside the six theme constant places, the control refusing what this gate refuses, ${String(ABLATIONS.length)} ablations each red, the gate named`);
+say(`${TAG} OK: every pinned ratio at all 360 hues and three contrast levels ON BOTH BASES, lightness held, the offset kept, each base's ramp in its own order, one threshold with one crossing over the synthetic ground, each base's offered region exact over 49 shade and depth pairs at every whole degree, the idle and exited greys clearing the active row at every offered frame ON BOTH BASES with the predicate carrying the floor, every non token surface carrying a second theme, DARK BYTE IDENTICAL to the parent by four digests apart from the two greys Phase 218 moved, no colour literal outside the six theme constant places, the control refusing what this gate refuses, ${String(ABLATIONS.length)} ablations each red, the gate named`);

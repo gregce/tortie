@@ -131,6 +131,19 @@ function schemeBlock(css: string, scheme: 'dark' | 'light'): string {
   const close = css.indexOf('}', start + head.length);
   return close === -1 ? '' : css.slice(start + head.length, close);
 }
+/**
+ * The dark block with the two Phase 218 greys put back to the hex Phase 213's
+ * parent commit carried (Phase 218). Comments are already stripped by
+ * `tokensCssFor`, so a declaration is `--name: value;` and nothing else, and
+ * a substitution of the VALUE alone leaves every other byte where it was.
+ */
+const PHASE_213_DOT = '#6e7583';
+function asPhase213(block: string): string {
+  return block.replace(
+    /(--status-(?:idle|exited)\s*:\s*)[^;]+;/g,
+    (_whole, head: string) => `${head}${PHASE_213_DOT};`
+  );
+}
 const declarations = readDeclarations(schemeBlock(tokensCss, 'dark'));
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
 function declarationsFor(root: string, scheme: 'dark' | 'light'): Map<string, string> {
@@ -165,11 +178,15 @@ const CHROMATIC = [
   '--graph-lane-3',
   '--graph-lane-5'
 ];
-/** The status family the light base pins on the active row (Phase 213). */
+/**
+ * The status family pinned on the active row: five tokens on the light base
+ * (Phase 213) and the two greys on both bases (Phase 218).
+ */
 const STATUS = [
   '--status-working',
   '--status-attention',
   '--status-idle',
+  '--status-exited',
   '--status-failed',
   '--status-attention-badge-bg',
   '--status-attention-badge-fg'
@@ -226,6 +243,21 @@ interface RampCell {
   disagree: number;
   /** Hues where a chromatic token moved off the value the shipped frame has. */
   chromaticMoved: number;
+  /**
+   * RULE 32 (Phase 218). The idle and exited greys against `--bg-active`,
+   * as a slack against 3:1, reduced over the hues this cell walked, with the
+   * token and hue that bound it.
+   *
+   * IT IS READ FROM THIS FILE'S OWN LIST rather than from the shipping pin
+   * list, on purpose. `worstChroma` above already carries these two once
+   * `chromaticPinsFor` names them, and a rule reading only that would go
+   * blind the moment somebody took the pin back out. This reading survives
+   * that, which is what lets rule 32 ask the two questions separately: is
+   * the floor KEPT, and is it ENFORCED by the predicate the sliders stop on.
+   */
+  worstDot: number;
+  dotBinding: string;
+  dotBindingHue: number;
   /**
    * The lightest canvas this cell reaches over the hues it walked, and the
    * hue that reached it (Phase 210 fix round). Rule 20 quotes the maximum
@@ -462,6 +494,10 @@ async function readRoot(
 
   const SHADES = [-4, -3, -2, -1, 0, 1, 2];
   const DEPTHS = [-3, -2, -1, 0, 1, 2, 3];
+  // Rule 32's own list (Phase 218), held here rather than read from presets.
+  const DOT_TOKENS = ['--status-idle', '--status-exited'];
+  const DOT_GROUND = '--bg-active';
+  const DOT_FLOOR = 3;
   const ramp: RampCell[] = [];
   const rampPoints: RampPoint[] = [];
 
@@ -532,6 +568,9 @@ async function readRoot(
         let maxCanvasY = -1;
         let maxCanvas = '';
         let maxCanvasHue = -1;
+        let worstDot = Number.POSITIVE_INFINITY;
+        let dotBinding = '';
+        let dotBindingHue = -1;
         // The stepped set ALWAYS carries the witnesses and the shipped 222,
         // whatever the step, because the failures this walk is looking for sit
         // in clusters a few degrees wide and a coarse step walks over them.
@@ -620,6 +659,19 @@ async function readRoot(
             const there = shippedFrame[pin.token] ?? base[pin.token] ?? '';
             if (here !== there) chromaticMoved += 1;
           }
+          // RULE 32 (Phase 218). Read at every hue of every cell, offered or
+          // refused, because the rule is asked over the region table the
+          // control offers from rather than over the cells this walk finds
+          // feasible: a colour that broke the floor would drop its own cells
+          // out of the feasible set and take the reading with them.
+          for (const token of DOT_TOKENS) {
+            const slack = ratioOf(v(token), v(DOT_GROUND)) - DOT_FLOOR;
+            if (slack < worstDot) {
+              worstDot = slack;
+              dotBinding = `${token} on ${DOT_GROUND}`;
+              dotBindingHue = h;
+            }
+          }
           if (!cellHolds) feasible = false;
           // THE CONTROL AND THE GATE MUST REFUSE THE SAME THINGS. The shipping
           // predicate is what the sliders stop on; this walk is what proves
@@ -649,7 +701,10 @@ async function readRoot(
           chromaticMoved,
           maxCanvasY,
           maxCanvas,
-          maxCanvasHue
+          maxCanvasHue,
+          worstDot,
+          dotBinding,
+          dotBindingHue
         });
       }
     }
@@ -789,8 +844,25 @@ interface Facts {
     pair: { dark: string; light: string };
     treeKeys: string[];
   } | null;
-  /** sha256 of each base's own block of tokens.css, dark first. */
-  tokensSha: { dark: string; light: string };
+  /**
+   * sha256 of each base's own block of tokens.css, dark first.
+   *
+   * `darkAsP213` (Phase 218) is the dark block with the two status greys put
+   * back to the hex they carried at Phase 213's parent commit. Rule 25's
+   * claim is that dark is BYTE IDENTICAL to that commit, and Phase 218 moved
+   * exactly two declarations, so the claim is kept by pinning this digest
+   * rather than by bumping the pinned one: the whole block still has to match
+   * the parent's bytes everywhere else, and `dark` itself has to differ, or
+   * the two greys did not move at all.
+   */
+  tokensSha: { dark: string; light: string; darkAsP213: string };
+  /**
+   * RULE 32 (Phase 218). What `chromaticPinsFor` really names on each base,
+   * read by RUNNING the shipping function, so the rule can ask whether the
+   * predicate the SLIDERS stop on carries the dot floor, and not only
+   * whether the colours happen to clear it today.
+   */
+  statusPins: { dark: string[]; light: string[] } | null;
   /**
    * The two shadow hosts put back on the document's inheritance chain
    * (Phase 213). Both Pierre packages declare `color-scheme: light dark` on
@@ -895,6 +967,30 @@ function hostColorScheme(root: string, tag: string): string | null {
   return answer;
 }
 
+/**
+ * The status floors each base's own predicate carries (Phase 218), by running
+ * `chromaticPinsFor` rather than by reading the source for a name.
+ */
+async function readStatusPins(
+  load: (rel: string) => Promise<Record<string, unknown>>
+): Promise<Facts['statusPins']> {
+  try {
+    const presets = await load('renderer/theme/presets.ts');
+    const pinsFor = presets['chromaticPinsFor'] as
+      | ((s: string) => { token: string; ground: string; floor: number }[])
+      | undefined;
+    if (pinsFor === undefined) return null;
+    const read = (scheme: string): string[] =>
+      pinsFor(scheme)
+        .filter((pin) => pin.token.startsWith('--status-'))
+        .map((pin) => `${pin.token} on ${pin.ground} at ${String(pin.floor)}`)
+        .sort();
+    return { dark: read('dark'), light: read('light') };
+  } catch {
+    return null;
+  }
+}
+
 async function readFacts(
   root: string,
   load: (rel: string) => Promise<Record<string, unknown>>
@@ -956,8 +1052,10 @@ async function readFacts(
     pierre,
     tokensSha: {
       dark: sha256(schemeBlock(tokensCssFor(root), 'dark')),
-      light: sha256(schemeBlock(tokensCssFor(root), 'light'))
+      light: sha256(schemeBlock(tokensCssFor(root), 'light')),
+      darkAsP213: sha256(asPhase213(schemeBlock(tokensCssFor(root), 'dark')))
     },
+    statusPins: await readStatusPins(load),
     hosts: {
       diffs: hostColorScheme(root, 'diffs-container'),
       tree: hostColorScheme(root, 'file-tree-container')
