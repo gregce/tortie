@@ -463,11 +463,13 @@ export function ensureServer(): Promise<TmuxContext> {
     void getUserPath();
 
     // ONE BUILD STILL WAITS, and only when it has to. A development build
-    // looks for tmux in /opt/homebrew/bin, /usr/local/bin and /usr/bin and
-    // then scans the PATH, so a tmux installed anywhere else is found only
-    // after the capture lands. When that scan comes back empty, wait. A
-    // packaged build never reaches the scan: it returns the copy inside its
-    // own bundle and ignores PATH entirely, so it never waits here.
+    // looks for the copy in its own checkout (Phase 217), then in
+    // /opt/homebrew/bin, /usr/local/bin and /usr/bin, and then scans the PATH,
+    // so a tmux installed anywhere else is found only after the capture lands.
+    // When that scan comes back empty, wait. A checkout that has built its own
+    // copy answers before the scan, and a packaged build never reaches it: it
+    // returns the copy inside its own bundle and ignores PATH entirely, so
+    // neither waits here.
     // `resolveTmux()` is three existsSync calls plus, only if those miss, one
     // PATH scan, and it populates no cache, so asking costs nothing and
     // changes no later answer. `installUserPath()` does not await this

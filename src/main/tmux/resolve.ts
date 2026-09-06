@@ -28,7 +28,9 @@
  *     attach-host.ts — one module, two consumers, zero duplication).
  *     Phase 41 put the bundled tmux here too: a packaged Tortie runs the copy
  *     at Contents/Resources/bin/tmux and nothing else, and a development build
- *     keeps the old PATH search with GMUX_TMUX_BIN in front of it. See
+ *     keeps the old PATH search with GMUX_TMUX_BIN in front of it. Phase 217
+ *     put the checkout's own build/vendor/tmux/bin/tmux between those two, so
+ *     a development build and an installed Tortie run the same version. See
  *     `resolveTmux` for the rules and for why the packaged branch refuses the
  *     override.
  *
@@ -103,10 +105,12 @@ const tmuxLog = getLog('tmux');
  * one cached promise in ./user-path.ts.
  *
  * A DEVELOPMENT BUILD HAS ONE MORE WAIT and takes it only when it needs it.
- * Such a build looks for tmux in three known directories and then scans the
- * PATH, so a tmux installed anywhere else is found only after the capture. On
- * that machine `ensureServer` waits before it resolves tmux. A packaged build
- * never reaches the scan, because it runs the copy inside its own bundle.
+ * Such a build looks for the copy in its own checkout, then in three known
+ * directories, and then scans the PATH, so a tmux installed anywhere else is
+ * found only after the capture. On that machine `ensureServer` waits before it
+ * resolves tmux. A checkout that has built its own copy never reaches the scan
+ * either, and neither does a packaged build, which runs the copy inside its own
+ * bundle.
  */
 export const PATH_CAPTURE_TIMEOUT_MS = 10_000;
 
@@ -709,12 +713,18 @@ export async function resolveBinary(
  * Returns null outside Electron so this module stays loadable, and testable,
  * in plain node. Outside Electron nothing is packaged.
  */
-function electronApp(): { isPackaged: boolean } | null {
+function electronApp(): { isPackaged: boolean; appPath: string } | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { app } = require('electron') as typeof import('electron');
     if (typeof app?.isPackaged !== 'boolean') return null;
-    return { isPackaged: app.isPackaged };
+    // PHASE 217. `getAppPath()` is the directory holding the package.json
+    // Electron loaded, which for `electron .` from the repo root IS the repo
+    // root. `resolveConfPath` below already locates resources/ that way, so
+    // the vendored tmux is located the same way rather than by a new
+    // mechanism. `process.resourcesPath` cannot do it: in a development
+    // launch it points inside node_modules/electron/dist/Electron.app.
+    return { isPackaged: app.isPackaged, appPath: app.getAppPath() };
   } catch {
     return null;
   }
@@ -725,8 +735,19 @@ export function isPackagedApp(): boolean {
   return electronApp()?.isPackaged === true;
 }
 
-/** Where the tmux binary this process runs came from. */
-export type TmuxBinarySource = 'bundled' | 'dev-override' | 'dev-path';
+/**
+ * Where the tmux binary this process runs came from.
+ *
+ * `dev-vendored` is Phase 217. It is the copy this checkout built into
+ * build/vendor/tmux/bin/tmux, which is the same version a packaged Tortie
+ * carries, and a development build prefers it over anything installed on the
+ * machine.
+ */
+export type TmuxBinarySource =
+  | 'bundled'
+  | 'dev-override'
+  | 'dev-vendored'
+  | 'dev-path';
 
 /** The full answer to "which tmux does this process run, and why that one". */
 export interface TmuxResolution {
@@ -742,7 +763,44 @@ export interface TmuxResolution {
 /** Said once per process, so a repeated resolve does not repeat a warning. */
 let saidPackagedOverrideIgnored = false;
 let saidOverrideUnusable = false;
-let saidOverrideUsed = false;
+let saidDevChoice = false;
+
+/**
+ * Where a development build's own copy of tmux sits inside the checkout
+ * (Phase 217).
+ *
+ * `npm run vendor:tmux` and the packaging hook both build the pinned version
+ * to exactly this path, and `npm run package` copies that same file into
+ * Contents/Resources/bin. So the file named here and the file inside an
+ * installed Tortie are the same build of the same version.
+ *
+ * IT IS A PREFERENCE AND NEVER A REQUIREMENT. build/vendor is gitignored, so a
+ * fresh clone has no such file until somebody builds one, and its absence
+ * falls through to the probe order below exactly as it always did.
+ */
+export const VENDORED_TMUX_RELATIVE_PATH = ['build', 'vendor', 'tmux', 'bin', 'tmux'];
+
+/**
+ * Say ONCE which tmux this development build is running, and why that one.
+ *
+ * PHASE 217, and it is half the fix rather than a nicety. The defect the
+ * operator hit was that two builds resolved two different binaries and nothing
+ * anywhere said so, so a refusal naming two version numbers was the first he
+ * heard of it. One line at boot, being the path and the reason, is what makes
+ * that answerable before it becomes a screen. A packaged build says nothing
+ * here because it has no choice to report.
+ */
+function sayDevChoice(res: TmuxResolution, why: string): TmuxResolution {
+  if (saidDevChoice) return res;
+  saidDevChoice = true;
+  tmuxLog.info(
+    res.path === null
+      ? `This development build found no tmux to run. ${why}`
+      : `This development build runs ${res.path}. ${why}`,
+    { path: res.path, source: res.source }
+  );
+  return res;
+}
 
 /**
  * Locate tmux (Phase 41).
@@ -754,19 +812,32 @@ let saidOverrideUsed = false;
  * the one Apple's notary service saw. A missing file there is a broken install
  * rather than a missing prerequisite, and it is reported as one.
  *
- * A DEVELOPMENT BUILD keeps what it always did, which is the three known
- * install locations and then PATH, because `npm run dev` and every harness run
- * against the machine's own tmux. `GMUX_TMUX_BIN` is the override in front of
- * that, and it is what lets the interop probes run a real client of a chosen
- * version against a server of another. A value that names something that is not
- * an executable file is ignored with one warning rather than being fatal: a
- * stale line in a shell profile must not make a development build unusable.
+ * A DEVELOPMENT BUILD PREFERS THE COPY IN ITS OWN CHECKOUT since Phase 217,
+ * being build/vendor/tmux/bin/tmux, and falls back to the three known install
+ * locations and then PATH when there is none. That is the fix for what the
+ * operator hit on 2026-09-06: his installed Tortie had created the session
+ * server with the 3.7b it carries, his development build resolved Homebrew's
+ * 3.6a, and the version gate refused the pair, correctly. Two builds of the
+ * same product now run the same binary. A fresh clone has no vendored copy,
+ * because build/vendor is gitignored, and it behaves exactly as it did before.
+ *
+ * `GMUX_TMUX_BIN` is the override in front of all of that, and it is what lets
+ * the interop probes run a real client of a chosen version against a server of
+ * another. A value that names something that is not an executable file is
+ * ignored with one warning rather than being fatal: a stale line in a shell
+ * profile must not make a development build unusable.
+ *
+ * WHICH COPY WAS CHOSEN IS SAID ONCE, at info level, with the path and the
+ * reason. The whole defect was that nothing told a person which tmux their
+ * build was running until a refusal named two version numbers.
  */
 export function resolveTmux(env: NodeJS.ProcessEnv = process.env): TmuxResolution {
+  const electron = electronApp();
   return planTmuxResolution({
-    packaged: isPackagedApp(),
+    packaged: electron?.isPackaged === true,
     env,
-    resourcesPath: process.resourcesPath
+    resourcesPath: process.resourcesPath,
+    appPath: electron?.appPath ?? ''
   });
 }
 
@@ -778,6 +849,17 @@ export interface TmuxResolutionInput {
   env: NodeJS.ProcessEnv;
   /** `process.resourcesPath`, which only exists inside Electron. */
   resourcesPath: string;
+  /**
+   * `app.getAppPath()`, the directory holding the package.json Electron
+   * loaded. In a development build that is the repository root, which is where
+   * the vendored tmux lives. Empty outside Electron, and an empty value simply
+   * finds no vendored copy.
+   *
+   * It is REQUIRED rather than optional on purpose. A caller that forgets it
+   * would silently get the old probe order back, which is the defect Phase 217
+   * exists to remove.
+   */
+  appPath: string;
 }
 
 /**
@@ -812,18 +894,21 @@ export function planTmuxResolution(input: TmuxResolutionInput): TmuxResolution {
     };
   }
 
+  // THE OVERRIDE STAYS IN FRONT OF EVERYTHING (Phase 217 did not move it).
+  // The interop probes exist to run a chosen client against a chosen server,
+  // and build/tmux-pair.mjs sets this variable to do it. A vendored copy that
+  // won over the override would make those probes measure the wrong pair.
   if (override !== '') {
     if (isExecutableFile(override)) {
-      if (!saidOverrideUsed) {
-        saidOverrideUsed = true;
-        tmuxLog.info(`GMUX_TMUX_BIN names the tmux this run uses: ${override}`);
-      }
-      return {
-        path: override,
-        source: 'dev-override',
-        packaged: false,
-        detail: `GMUX_TMUX_BIN=${override}`
-      };
+      return sayDevChoice(
+        {
+          path: override,
+          source: 'dev-override',
+          packaged: false,
+          detail: `GMUX_TMUX_BIN=${override}`
+        },
+        'GMUX_TMUX_BIN names it.'
+      );
     }
     if (!saidOverrideUnusable) {
       saidOverrideUnusable = true;
@@ -834,8 +919,39 @@ export function planTmuxResolution(input: TmuxResolutionInput): TmuxResolution {
     }
   }
 
+  // PHASE 217. The copy this checkout carries, ahead of anything installed on
+  // the machine, so a development build and an installed Tortie run the same
+  // tmux and create servers a later run of either can attach to. The operator
+  // met the alternative on 2026-09-06: his installed 0.100.0 had created the
+  // server with its bundled 3.7b, his development build turned up as
+  // Homebrew's 3.6a, and the version gate refused it, correctly.
+  //
+  // A missing file here is NOT an error. build/vendor is gitignored, so a fresh
+  // clone falls straight through to the probe order below.
+  if (input.appPath !== '') {
+    const vendored = join(input.appPath, ...VENDORED_TMUX_RELATIVE_PATH);
+    if (isExecutableFile(vendored)) {
+      return sayDevChoice(
+        {
+          path: vendored,
+          source: 'dev-vendored',
+          packaged: false,
+          detail: vendored
+        },
+        'It is the copy this checkout carries, which is the version a ' +
+          'packaged Tortie ships.'
+      );
+    }
+  }
+
   // GUI-launched Electron apps inherit a minimal PATH (no /opt/homebrew/bin),
   // so probe the known locations first, then scan PATH.
+  //
+  // The three locations are still tested with `existsSync`, which is what they
+  // have always been tested with, and Phase 217 deliberately left that alone
+  // so nothing outside its own preference moved. The vendored test above is
+  // stricter on purpose, because a half written or non executable file in the
+  // checkout must not win over a working tmux on the machine.
   const known = [
     '/opt/homebrew/bin/tmux',
     '/usr/local/bin/tmux',
@@ -843,30 +959,39 @@ export function planTmuxResolution(input: TmuxResolutionInput): TmuxResolution {
   ];
   for (const candidate of known) {
     if (existsSync(candidate)) {
-      return {
-        path: candidate,
-        source: 'dev-path',
-        packaged: false,
-        detail: candidate
-      };
+      return sayDevChoice(
+        {
+          path: candidate,
+          source: 'dev-path',
+          packaged: false,
+          detail: candidate
+        },
+        'No copy is built in this checkout, so it came from the machine.'
+      );
     }
   }
   const onPath = resolveBinaryAgainst('tmux', env['PATH'] ?? '', []);
-  return {
-    path: onPath,
-    source: 'dev-path',
-    packaged: false,
-    detail:
-      onPath ??
-      'probed /opt/homebrew/bin, /usr/local/bin, /usr/bin and PATH'
-  };
+  return sayDevChoice(
+    {
+      path: onPath,
+      source: 'dev-path',
+      packaged: false,
+      detail:
+        onPath ??
+        'probed build/vendor/tmux/bin, /opt/homebrew/bin, /usr/local/bin, ' +
+          '/usr/bin and PATH'
+    },
+    onPath === null
+      ? 'Build one with "npm run vendor:tmux", or install tmux.'
+      : 'No copy is built in this checkout, so it came from PATH.'
+  );
 }
 
 /** Test hook, so one process can exercise more than one resolution path. */
 export function resetTmuxResolutionWarnings(): void {
   saidPackagedOverrideIgnored = false;
   saidOverrideUnusable = false;
-  saidOverrideUsed = false;
+  saidDevChoice = false;
 }
 
 /**

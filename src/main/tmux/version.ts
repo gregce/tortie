@@ -615,6 +615,10 @@ export async function assertServerVersionUsable(
 function sourcePhrase(source: TmuxBinarySource, bin: string): string {
   if (source === 'bundled') return 'the copy inside the application bundle';
   if (source === 'dev-override') return 'GMUX_TMUX_BIN';
+  // PHASE 217. The copy the checkout built, which is the same version a
+  // packaged Tortie carries. Naming it is the point: the log of any launch
+  // now says which of the two copies is holding this person's sessions.
+  if (source === 'dev-vendored') return `${bin}, the copy this checkout carries`;
   return bin;
 }
 

@@ -13,6 +13,16 @@
  * - a development build with neither, which is the old PATH search.
  * - the two error sentences, which are different on purpose.
  *
+ * PHASE 217 ADDED THE SECOND RULE THIS FILE HOLDS: a development build runs the
+ * copy its own checkout carries, at build/vendor/tmux/bin/tmux, before anything
+ * installed on the machine. The operator hit the alternative on 2026-09-06.
+ * His installed Tortie had created the session server with the 3.7b it carries,
+ * his development build resolved Homebrew's 3.6a, and the version gate refused
+ * the pair. The gate was right; the two builds running two binaries was the
+ * defect. The cases below pin the preference, that GMUX_TMUX_BIN still beats
+ * it, that a fresh clone with no such file is not an error, and that a packaged
+ * build never looks at it.
+ *
  * They drive `planTmuxResolution`, which is the decision with `app.isPackaged`
  * and `process.resourcesPath` passed in. Neither of those two can be set
  * honestly from a plain node test, and the packaged branch is the one this
@@ -68,7 +78,12 @@ afterEach(() => {
 describe('packaged', () => {
   it('runs the copy inside the bundle', () => {
     const { resourcesPath, bin } = fakeResources(true);
-    const res = planTmuxResolution({ packaged: true, env: {}, resourcesPath });
+    const res = planTmuxResolution({
+      packaged: true,
+      env: {},
+      resourcesPath,
+      appPath: root
+    });
     assert.equal(res.path, bin);
     assert.equal(res.source, 'bundled');
     assert.equal(res.packaged, true);
@@ -82,7 +97,8 @@ describe('packaged', () => {
     const res = planTmuxResolution({
       packaged: true,
       env: { PATH: elsewhere },
-      resourcesPath
+      resourcesPath,
+      appPath: root
     });
     assert.equal(res.path, null, 'a packaged build fell back to PATH');
     assert.match(res.detail, /bundled tmux is not at/);
@@ -94,7 +110,8 @@ describe('packaged', () => {
     const res = planTmuxResolution({
       packaged: true,
       env: { GMUX_TMUX_BIN: other },
-      resourcesPath
+      resourcesPath,
+      appPath: root
     });
     assert.equal(res.path, bin);
     assert.equal(res.source, 'bundled');
@@ -105,14 +122,19 @@ describe('packaged', () => {
     mkdirSync(dirname(bin), { recursive: true });
     writeFileSync(bin, 'not executable\n');
     chmodSync(bin, 0o644);
-    const res = planTmuxResolution({ packaged: true, env: {}, resourcesPath });
+    const res = planTmuxResolution({
+      packaged: true,
+      env: {},
+      resourcesPath,
+      appPath: root
+    });
     assert.equal(res.path, null);
   });
 
   it('a missing bundled binary is a broken install, not a missing prerequisite', () => {
     const { resourcesPath } = fakeResources(false);
     const err = tmuxUnavailableError(
-      planTmuxResolution({ packaged: true, env: {}, resourcesPath })
+      planTmuxResolution({ packaged: true, env: {}, resourcesPath, appPath: root })
     );
     assert.equal(err.payload.code, 'TMUX_BUNDLE_INCOMPLETE');
     assert.equal(
@@ -138,7 +160,8 @@ describe('development build', () => {
     const res = planTmuxResolution({
       packaged: false,
       env: { GMUX_TMUX_BIN: chosen, PATH: '' },
-      resourcesPath: root
+      resourcesPath: root,
+      appPath: join(root, 'no-checkout')
     });
     assert.equal(res.path, chosen);
     assert.equal(res.source, 'dev-override');
@@ -151,7 +174,8 @@ describe('development build', () => {
     const res = planTmuxResolution({
       packaged: false,
       env: { GMUX_TMUX_BIN: notExecutable, PATH: join(root, 'onpath') },
-      resourcesPath: root
+      resourcesPath: root,
+      appPath: join(root, 'no-checkout')
     });
     // A stale line in a shell profile must not make a dev build unusable, so
     // the search carries on rather than stopping.
@@ -163,7 +187,8 @@ describe('development build', () => {
     const res = planTmuxResolution({
       packaged: false,
       env: { GMUX_TMUX_BIN: join(root, 'nothing-here'), PATH: '' },
-      resourcesPath: root
+      resourcesPath: root,
+      appPath: join(root, 'no-checkout')
     });
     assert.equal(res.source, 'dev-path');
   });
@@ -178,14 +203,16 @@ describe('development build', () => {
     const res = planTmuxResolution({
       packaged: false,
       env: { PATH: join(root, 'empty') },
-      resourcesPath: root
+      resourcesPath: root,
+      appPath: join(root, 'no-checkout')
     });
     assert.equal(res.source, 'dev-path');
     assert.equal(res.packaged, false);
     if (res.path === null) {
       assert.equal(
         res.detail,
-        'probed /opt/homebrew/bin, /usr/local/bin, /usr/bin and PATH'
+        'probed build/vendor/tmux/bin, /opt/homebrew/bin, /usr/local/bin, ' +
+          '/usr/bin and PATH'
       );
     } else {
       assert.equal(res.detail, res.path);
@@ -207,5 +234,114 @@ describe('development build', () => {
         'packaged Tortie carries its own copy and needs nothing installed.'
     );
     assert.equal(err.payload.detail, 'probed nothing');
+  });
+});
+
+/**
+ * PHASE 217. The copy the checkout carries, and the four things about it that
+ * matter.
+ *
+ * `appPath` is `app.getAppPath()`, which for `electron .` from the repository
+ * root IS the repository root. `process.resourcesPath` cannot answer this in a
+ * development launch: it points inside
+ * node_modules/electron/dist/Electron.app/Contents/Resources, measured with a
+ * one window Electron on 2026-09-06.
+ */
+describe('the copy this checkout carries (Phase 217)', () => {
+  /** A scratch checkout, with or without build/vendor/tmux/bin/tmux in it. */
+  function fakeCheckout(withBinary: boolean): { appPath: string; bin: string } {
+    const appPath = join(root, 'checkout');
+    const bin = join(appPath, 'build', 'vendor', 'tmux', 'bin', 'tmux');
+    mkdirSync(dirname(bin), { recursive: true });
+    if (withBinary) makeExecutable(bin);
+    return { appPath, bin };
+  }
+
+  it('a development build runs it, ahead of anything on the machine', () => {
+    const { appPath, bin } = fakeCheckout(true);
+    const onPath = join(root, 'onpath');
+    makeExecutable(join(onPath, 'tmux'));
+    const res = planTmuxResolution({
+      packaged: false,
+      env: { PATH: onPath },
+      resourcesPath: root,
+      appPath
+    });
+    assert.equal(res.path, bin);
+    assert.equal(res.source, 'dev-vendored');
+    assert.equal(res.packaged, false);
+    assert.equal(res.detail, bin);
+  });
+
+  it('GMUX_TMUX_BIN still wins, because the interop probes depend on it', () => {
+    const { appPath } = fakeCheckout(true);
+    const chosen = makeExecutable(join(root, 'chosen', 'tmux'));
+    const res = planTmuxResolution({
+      packaged: false,
+      env: { GMUX_TMUX_BIN: chosen, PATH: '' },
+      resourcesPath: root,
+      appPath
+    });
+    assert.equal(res.path, chosen);
+    assert.equal(res.source, 'dev-override');
+  });
+
+  it('a fresh clone has no such file, and that is not an error', () => {
+    // build/vendor is gitignored, so this is what every first clone looks
+    // like. The answer must be the probe order that shipped before Phase 217.
+    const { appPath } = fakeCheckout(false);
+    const res = planTmuxResolution({
+      packaged: false,
+      env: { PATH: '' },
+      resourcesPath: root,
+      appPath
+    });
+    assert.equal(res.source, 'dev-path');
+    assert.notEqual(res.source, 'dev-vendored');
+  });
+
+  it('a file that is there and is not executable does not win', () => {
+    // A half written or unfinished vendor build must not take precedence over
+    // a working tmux on the machine.
+    const { appPath, bin } = fakeCheckout(false);
+    mkdirSync(dirname(bin), { recursive: true });
+    writeFileSync(bin, 'not a binary\n');
+    chmodSync(bin, 0o644);
+    const onPath = join(root, 'onpath');
+    makeExecutable(join(onPath, 'tmux'));
+    const res = planTmuxResolution({
+      packaged: false,
+      env: { PATH: onPath },
+      resourcesPath: root,
+      appPath
+    });
+    // Which file it lands on depends on the machine, since the three known
+    // locations are probed before PATH. What is asserted is that it is not the
+    // unusable one in the checkout.
+    assert.notEqual(res.path, bin);
+    assert.equal(res.source, 'dev-path');
+  });
+
+  it('a packaged build never looks at it, whatever the checkout holds', () => {
+    const { resourcesPath, bin } = fakeResources(true);
+    const { appPath } = fakeCheckout(true);
+    const res = planTmuxResolution({
+      packaged: true,
+      env: {},
+      resourcesPath,
+      appPath
+    });
+    assert.equal(res.path, bin);
+    assert.equal(res.source, 'bundled');
+  });
+
+  it('an empty appPath, which is what plain node gets, finds nothing', () => {
+    const res = planTmuxResolution({
+      packaged: false,
+      env: { PATH: '' },
+      resourcesPath: root,
+      appPath: ''
+    });
+    assert.notEqual(res.source, 'dev-vendored');
   });
 });
