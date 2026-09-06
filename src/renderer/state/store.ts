@@ -122,7 +122,8 @@ export const useApp = create<AppState>((set, get, api) => ({
   ready: false,
   bootBlock: null,
   bootErrorDetail: null,
-  bootBlockMessage: null
+  bootBlockMessage: null,
+  bootRemedy: null
 }));
 
 /**

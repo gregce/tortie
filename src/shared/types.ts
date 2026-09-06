@@ -1123,6 +1123,34 @@ export type GitDeleteBranchResult =
   | { status: 'unmerged' };
 
 /**
+ * What Tortie MEASURED about a refusal, and what to run about it (Phase 217).
+ *
+ * It exists because a refusal that names two version numbers and stops leaves
+ * a person with nowhere to go. The operator met exactly that on 2026-09-06.
+ * Every field here is composed from a real read on the machine at the moment
+ * of the refusal, never from a fixed sentence, because a remedy that names the
+ * wrong file is worse than no remedy at all. When a read fails, the line it
+ * would have produced is absent rather than guessed.
+ *
+ * IT IS STILL A REFUSAL. Nothing here is a control. There is no button that
+ * attaches anyway, no override on the face, and nothing that restarts, signals
+ * or reconfigures a running server.
+ */
+export interface GmuxErrorRemedy {
+  /**
+   * Short lines, in reading order. Product copy, and the UI rule binds them:
+   * just enough words, never a paragraph. May be empty when nothing could be
+   * read, and the screen then draws exactly what it drew before this existed.
+   */
+  lines: string[];
+  /**
+   * The one command a person copies and runs themselves, composed against what
+   * was measured. Tortie never runs it. Null when nothing measured earns one.
+   */
+  command: string | null;
+}
+
+/**
  * Structured error shape. Main-process handlers throw Error whose `message`
  * is `JSON.stringify(GmuxErrorPayload)` when they can classify the failure;
  * renderers may fall back to the raw message for unclassified errors.
@@ -1190,6 +1218,12 @@ export interface GmuxErrorPayload {
     | 'UNKNOWN';
   message: string;
   detail?: string;
+  /**
+   * What was measured about this failure and what to run about it (Phase 217).
+   * Optional and additive. Absent on every error that composes none, which is
+   * every error in the product except the version refusal.
+   */
+  remedy?: GmuxErrorRemedy;
 }
 
 // ---------------------------------------------------------------------------

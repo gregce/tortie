@@ -26,6 +26,7 @@ import {
   decideRemoteControlGate,
   decideRemoteVersionGate,
   assertServerVersionUsable,
+  composeVersionRemedy,
   decideVersionGate,
   lastVersionGate,
   parseTmuxVersion,
@@ -295,6 +296,129 @@ describe('the words', () => {
   });
 });
 
+/**
+ * PHASE 217. The refusal has to say what to do about itself, and every word of
+ * that is composed from a real read.
+ *
+ * The guard is NOT what changed. `TESTED_TMUX_PAIRS` gains no row here, the
+ * same pairs are refused, and nothing on the screen attaches anyway. What
+ * changed is that the screen used to name two version numbers and stop, with a
+ * fixed command naming socket gmux whatever socket was in use.
+ */
+describe('composeVersionRemedy', () => {
+  const installed = {
+    pid: 953,
+    binary: '/Applications/Tortie.app/Contents/Resources/bin/tmux',
+    appBundle: '/Applications/Tortie.app'
+  };
+
+  it('names the application that started the server', () => {
+    const remedy = composeVersionRemedy({
+      socket: 'gmux',
+      packaged: true,
+      origin: installed
+    });
+    assert.equal(
+      remedy.lines[0],
+      'That server was started by Tortie at /Applications/Tortie.app.'
+    );
+  });
+
+  it('names a plain binary when the server is not inside an application', () => {
+    const remedy = composeVersionRemedy({
+      socket: 'gmux',
+      packaged: true,
+      origin: { pid: 12, binary: '/opt/homebrew/bin/tmux', appBundle: null }
+    });
+    assert.deepEqual(remedy.lines, [
+      'That server was started by /opt/homebrew/bin/tmux.'
+    ]);
+  });
+
+  it('says nothing about a server it could not identify', () => {
+    // A remedy that names the wrong file is worse than no remedy, so a failed
+    // read costs a line rather than inventing one.
+    const remedy = composeVersionRemedy({
+      socket: 'gmux',
+      packaged: true,
+      origin: { pid: null, binary: null, appBundle: null }
+    });
+    assert.deepEqual(remedy.lines, []);
+  });
+
+  it('offers the second way forward to a development build only', () => {
+    const dev = composeVersionRemedy({
+      socket: 'gmux',
+      packaged: false,
+      origin: installed
+    });
+    assert.equal(dev.lines.length, 2);
+    assert.equal(
+      dev.lines[1],
+      'This development build can run that same tmux with GMUX_TMUX_BIN.'
+    );
+    // A packaged Tortie refuses the override, so telling anybody to set it
+    // would be an instruction that does nothing.
+    const packaged = composeVersionRemedy({
+      socket: 'gmux',
+      packaged: true,
+      origin: installed
+    });
+    assert.equal(packaged.lines.length, 1);
+  });
+
+  it('does not offer it when there is no binary to point at', () => {
+    const remedy = composeVersionRemedy({
+      socket: 'gmux',
+      packaged: false,
+      origin: { pid: 7, binary: null, appBundle: null }
+    });
+    assert.deepEqual(remedy.lines, []);
+  });
+
+  it('the command names the socket actually in use', () => {
+    // In the product this is byte identical to the string the screen shipped
+    // with. Under a harness socket the old fixed string sent a person at the
+    // server holding their real work.
+    assert.equal(
+      composeVersionRemedy({
+        socket: 'gmux',
+        packaged: true,
+        origin: installed
+      }).command,
+      'tmux -L gmux kill-server'
+    );
+    assert.equal(
+      composeVersionRemedy({
+        socket: 'gmux-p217-app',
+        packaged: false,
+        origin: installed
+      }).command,
+      'tmux -L gmux-p217-app kill-server'
+    );
+  });
+
+  it('keeps the house writing rules on every line it composes', () => {
+    for (const packaged of [true, false]) {
+      for (const origin of [
+        installed,
+        { pid: 12, binary: '/opt/homebrew/bin/tmux', appBundle: null },
+        { pid: null, binary: null, appBundle: null }
+      ]) {
+        const remedy = composeVersionRemedy({ socket: 'gmux', packaged, origin });
+        // Just enough words. At most two lines, each one sentence.
+        assert.ok(remedy.lines.length <= 2);
+        for (const line of remedy.lines) {
+          assert.ok(!line.includes('—'), line);
+          assert.ok(!line.includes('–'), line);
+          assert.ok(!line.includes(':'), line);
+          assert.ok(line.endsWith('.'), line);
+        }
+      }
+    }
+  });
+});
+
 describe('assertServerVersionUsable', () => {
   /** A server that answers one version, and a client binary that answers another. */
   function exec(version: string | null): TmuxExec {
@@ -329,6 +453,31 @@ describe('assertServerVersionUsable', () => {
     assert.match(payload.message, /running tmux 3\.5a/);
     assert.match(payload.message, /Tortie runs tmux 3\.7b/);
     assert.match(payload.detail ?? '', /socket gmux-p41-unit/);
+    // PHASE 217. The refusal carries the way out with it, and the command is
+    // composed against the socket that was refused rather than a fixed one.
+    assert.equal(payload.remedy?.command, 'tmux -L gmux-p41-unit kill-server');
+  });
+
+  it('a server it cannot identify still gets a command on the right socket', async () => {
+    // The fake door answers the VERSION to every display-message, so the pid
+    // read gets "3.5a" and is refused as not a pid. That is the shape of a
+    // machine whose process could not be read, and the remedy says nothing
+    // about who started the server rather than guessing.
+    let thrown: unknown = null;
+    try {
+      await assertServerVersionUsable({
+        exec: exec('3.5a'),
+        bin: clientBin,
+        socket: 'gmux-p41-unit',
+        packaged: true
+      });
+    } catch (err) {
+      thrown = err;
+    }
+    assert.ok(thrown instanceof GmuxError);
+    const remedy = (thrown as GmuxError).payload.remedy;
+    assert.deepEqual(remedy?.lines, []);
+    assert.equal(remedy?.command, 'tmux -L gmux-p41-unit kill-server');
   });
 
   it('does NOT remember a block, so Check again re-probes', async () => {

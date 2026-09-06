@@ -253,6 +253,16 @@
   margin-top: var(--space-3);
 }
 
+/* PHASE 217 — the lines main MEASURED about the server it refused.
+
+   They sit directly under main's own sentence and they carry a path, which is
+   the one thing on this screen a person will want to select. Selectable, and
+   allowed to break, so a long bundle path never widens the column. */
+.empty-inner.boot-block .boot-block-measured {
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
 /* The line a bug report quotes. Monospace, dimmed, and selectable, so it can
    be copied out without a button of its own. */
 .onb-inner .boot-block-detail {

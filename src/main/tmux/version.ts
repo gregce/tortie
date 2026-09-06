@@ -59,9 +59,17 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
+import type { GmuxErrorRemedy } from '@shared/types';
+
 import { gmuxError } from '../errors';
 import { getLog } from '../log';
 import type { TmuxBinarySource } from './resolve';
+import {
+  appNameOf,
+  readServerOrigin,
+  UNKNOWN_ORIGIN,
+  type TmuxServerOrigin
+} from './server-origin';
 
 const execFileP = promisify(execFile);
 
@@ -521,6 +529,55 @@ export function versionBlockDetail(
   return `server ${server}, client ${client}, socket ${socket}, client at ${bin}`;
 }
 
+/**
+ * What to do about the refusal, composed from what was MEASURED (Phase 217).
+ *
+ * Until this phase the screen named two version numbers and stopped, and the
+ * one command on it was a fixed string naming socket gmux whatever socket was
+ * actually in use. Both halves are answered here.
+ *
+ * EVERY LINE IS A READING. A server whose process could not be identified
+ * produces no line about it, rather than a sentence somebody invented. A remedy
+ * naming the wrong file is worse than no remedy, because the command under it
+ * ends every session on a server.
+ *
+ * THE COMMAND IS THE SOCKET ACTUALLY IN USE. In the product that is `gmux` and
+ * the string is byte identical to the one the screen shipped with. Under a
+ * harness socket it is that socket, which is what the old fixed string got
+ * wrong.
+ *
+ * JUST ENOUGH WORDS. At most two lines, each one sentence. Everything a person
+ * might want beyond that is already on the screen around it.
+ *
+ * IT IS STILL A REFUSAL. Nothing here attaches, nothing here restarts a server,
+ * and Tortie never runs the command.
+ */
+export function composeVersionRemedy(input: {
+  socket: string;
+  packaged: boolean;
+  origin: TmuxServerOrigin;
+}): GmuxErrorRemedy {
+  const { origin } = input;
+  const lines: string[] = [];
+  if (origin.appBundle !== null) {
+    lines.push(
+      `That server was started by ${appNameOf(origin.appBundle)} at ` +
+        `${origin.appBundle}.`
+    );
+  } else if (origin.binary !== null) {
+    lines.push(`That server was started by ${origin.binary}.`);
+  }
+  // A development build can be pointed at the very binary that made the
+  // server, which is the second way forward the operator named on 2026-09-06.
+  // A packaged Tortie never gets this line, because it refuses the override.
+  if (!input.packaged && origin.binary !== null) {
+    lines.push(
+      'This development build can run that same tmux with GMUX_TMUX_BIN.'
+    );
+  }
+  return { lines, command: `tmux -L ${input.socket} kill-server` };
+}
+
 // ---------------------------------------------------------------------------
 // The gate, as the supervisor calls it
 // ---------------------------------------------------------------------------
@@ -595,10 +652,28 @@ export async function assertServerVersionUsable(
 
   const gate = decideVersionGate({ server, client, packaged: input.packaged });
   if (gate.kind === 'untested-pair' || gate.kind === 'unreadable') {
+    // PHASE 217. Two more reads, and ONLY on the path that is about to refuse,
+    // so an ordinary boot costs nothing. `readServerOrigin` never throws and
+    // never guesses, and a reader that fails costs the screen a line rather
+    // than putting an invented one in front of a person about to end a server.
+    const origin = await readServerOrigin(input.exec).catch(
+      () => UNKNOWN_ORIGIN
+    );
+    tmuxLog.warn(
+      `refusing the session server on socket ${input.socket}. ` +
+        (origin.binary === null
+          ? 'Its process could not be identified.'
+          : `It is running ${origin.binary}.`)
+    );
     throw gmuxError(
       'TMUX_VERSION_UNTESTED',
       versionBlockMessage(gate),
-      versionBlockDetail(gate, input.socket, input.bin)
+      versionBlockDetail(gate, input.socket, input.bin),
+      composeVersionRemedy({
+        socket: input.socket,
+        packaged: input.packaged,
+        origin
+      })
     );
   }
   if (gate.kind === 'tested-pair') {

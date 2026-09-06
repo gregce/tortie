@@ -124,6 +124,11 @@ describe('the untested version screen', () => {
     // The socket name is an ADDRESS, not a name (see the supervisor's note on
     // TMUX_SOCKET). A screen that printed a different one would send the user
     // to a server that holds none of their work.
+    //
+    // PHASE 217. This is the FALLBACK now. Main composes the command against
+    // the socket it actually refused, which in the product is this string, and
+    // the screen prefers main's. The constant still has to be right, because a
+    // main that sent no remedy draws it.
     assert.equal(TMUX_VERSION_BLOCKED_COPY.command, 'tmux -L gmux kill-server');
     assert.equal(
       TMUX_VERSION_BLOCKED_COPY.afterCommand[0],

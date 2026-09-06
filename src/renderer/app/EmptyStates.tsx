@@ -482,11 +482,25 @@ export function TmuxBundleIncomplete(): React.JSX.Element {
 export function TmuxVersionBlocked(): React.JSX.Element {
   const message = useApp((s) => s.bootBlockMessage);
   const detail = useApp((s) => s.bootErrorDetail);
+  // PHASE 217. What main MEASURED about the server it refused. Null when
+  // nothing could be read, and null from an older main, and the screen is then
+  // exactly the screen that shipped before.
+  const remedy = useApp((s) => s.bootRemedy);
   return (
     <div className="empty">
       <div className="empty-inner onb-inner boot-block">
         <h2 className="empty-title">{TMUX_VERSION_BLOCKED_COPY.title}</h2>
         {message !== null ? <p className="empty-body">{message}</p> : null}
+        {/*
+          Straight after main's sentence, because "who started it" is the
+          missing half of "the server is running a version I will not attach
+          to". Short lines and never a paragraph.
+        */}
+        {(remedy?.lines ?? []).map((line) => (
+          <p className="empty-body boot-block-measured" key={line}>
+            {line}
+          </p>
+        ))}
         {TMUX_VERSION_BLOCKED_COPY.body.map((line) => (
           <p className="empty-body" key={line}>
             {line}
@@ -497,8 +511,14 @@ export function TmuxVersionBlocked(): React.JSX.Element {
             <li key={line}>{line}</li>
           ))}
         </ul>
+        {/*
+          The command names the socket that is actually in use, because main
+          composed it from the socket it refused. The constant is the fallback
+          for a main that sent no remedy, and in the product the two strings
+          are identical.
+        */}
         <CommandRow
-          command={TMUX_VERSION_BLOCKED_COPY.command}
+          command={remedy?.command ?? TMUX_VERSION_BLOCKED_COPY.command}
           copyLabel={TMUX_VERSION_BLOCKED_COPY.copyLabel}
         />
         {TMUX_VERSION_BLOCKED_COPY.afterCommand.map((line) => (

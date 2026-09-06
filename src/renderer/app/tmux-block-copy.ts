@@ -19,6 +19,13 @@
  * One sentence on each screen is NOT here. Main composes it, because main is
  * the only place that holds the two version numbers, and the renderer draws it
  * from `bootBlockMessage`.
+ *
+ * PHASE 217 PUT TWO MORE OUTSIDE THIS MODULE, for the same reason. The lines
+ * that say WHO started the server are composed by main from a real read of the
+ * machine, and so is the command, which names the socket that was actually
+ * refused. Neither can be a constant here: a remedy that names the wrong file
+ * is worse than no remedy at all. The screen draws them from `bootRemedy` and
+ * falls back to what is in this module when a main sent none.
  */
 
 /** §6.4 — a development build with no tmux anywhere on the machine. */
@@ -64,6 +71,13 @@ export const TMUX_VERSION_BLOCKED_COPY = {
     'Leave it alone. Quit Tortie and keep using the copy of Tortie that started that server.',
     'Move over. End the old server yourself, then open Tortie again. Tortie starts a new server with the version it carries, lists your sessions from its own records, and you restore the ones you want. Restoring brings the agent back with its conversation.'
   ],
+  /**
+   * THE FALLBACK COMMAND since Phase 217, and byte identical to what it always
+   * was. Main composes the real one against the socket it actually refused and
+   * sends it in the block's remedy, which in the product is this exact string.
+   * This constant is what the screen draws when a main sent no remedy, and it
+   * names the real socket for the reason the test below gives.
+   */
   command: 'tmux -L gmux kill-server',
   copyLabel: 'Copy the command that ends the old server',
   afterCommand: [

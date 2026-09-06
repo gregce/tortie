@@ -28,7 +28,7 @@
  * that consumes it.
  */
 
-import type { GmuxErrorPayload } from '@shared/types';
+import type { GmuxErrorPayload, GmuxErrorRemedy } from '@shared/types';
 
 export type GmuxErrorCode = GmuxErrorPayload['code'];
 
@@ -79,8 +79,13 @@ const CODE_SET: ReadonlySet<string> = new Set(KNOWN_ERROR_CODES);
 export class GmuxError extends Error {
   readonly payload: GmuxErrorPayload;
 
-  constructor(code: GmuxErrorCode, message: string, detail?: string) {
-    const payload: GmuxErrorPayload = { code, message, detail };
+  constructor(
+    code: GmuxErrorCode,
+    message: string,
+    detail?: string,
+    remedy?: GmuxErrorRemedy
+  ) {
+    const payload: GmuxErrorPayload = { code, message, detail, remedy };
     super(JSON.stringify(payload));
     this.name = 'GmuxError';
     this.payload = payload;
@@ -90,9 +95,10 @@ export class GmuxError extends Error {
 export function gmuxError(
   code: GmuxErrorCode,
   message: string,
-  detail?: string
+  detail?: string,
+  remedy?: GmuxErrorRemedy
 ): GmuxError {
-  return new GmuxError(code, message, detail);
+  return new GmuxError(code, message, detail, remedy);
 }
 
 /**
@@ -115,13 +121,35 @@ export function gmuxErrorPayloadOf(err: unknown): GmuxErrorPayload | null {
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
     return null;
   }
-  const { code, message, detail } = payload as Record<string, unknown>;
+  const { code, message, detail, remedy } = payload as Record<string, unknown>;
   if (typeof code !== 'string' || !CODE_SET.has(code)) return null;
   if (typeof message !== 'string') return null;
   if (detail !== undefined && typeof detail !== 'string') return null;
-  return detail === undefined
-    ? { code: code as GmuxErrorCode, message }
-    : { code: code as GmuxErrorCode, message, detail };
+  // PHASE 217. A remedy that is not exactly the shape this file writes is
+  // DROPPED WHOLE rather than read partially, on the same fails closed terms
+  // as everything above it. A dropped remedy costs a person two measured lines
+  // on one screen; a partially read one would put a half composed command in
+  // front of somebody about to end a server that holds their work. The
+  // surrounding payload survives, because the classification a caller reads
+  // this for does not depend on the remedy.
+  const kept = validRemedy(remedy);
+  const base: GmuxErrorPayload =
+    detail === undefined
+      ? { code: code as GmuxErrorCode, message }
+      : { code: code as GmuxErrorCode, message, detail };
+  return kept === null ? base : { ...base, remedy: kept };
+}
+
+/** The remedy a value carries, or null. Absent reads as null, never as empty. */
+function validRemedy(value: unknown): GmuxErrorRemedy | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const { lines, command } = value as Record<string, unknown>;
+  if (!Array.isArray(lines)) return null;
+  if (!lines.every((line) => typeof line === 'string')) return null;
+  if (command !== null && typeof command !== 'string') return null;
+  return { lines: lines as string[], command };
 }
 
 /**

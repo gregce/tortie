@@ -604,6 +604,16 @@ export const CHECKS = [
   // token, opens no keychain, reads nothing under the person's home.
   // `--self-test` proves the graders on 19 fixtures and launches nothing.
   electron('probe:p214'),
+  // PHASE 217. build/probe-p217-tmux.mjs: TWO Electrons one after the other
+  // and never at once, on one scratch profile and the gmux-p217 socket. Launch
+  // A reproduces the operator's 2026-09-06 report exactly, being a scratch
+  // server made by an installed Tortie's own tmux at 3.7b against a client
+  // forced to the machine's 3.6a, and reads the refusal off the DOM. Launch B
+  // drops the override and proves a development build now resolves the copy
+  // the checkout carries and boots. It spawns no agent, spends no token, opens
+  // no keychain, and never addresses socket gmux. `--self-test` proves the
+  // graders on 17 fixtures and launches nothing.
+  electron('probe:p217'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

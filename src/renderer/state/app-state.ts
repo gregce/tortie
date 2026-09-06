@@ -11,6 +11,8 @@
  * helper and type they always did) from ./store.
  */
 
+import type { GmuxErrorRemedy } from '@shared/types';
+
 import type { ChromeSlice } from './chrome-slice';
 import type { MachinesSlice } from './machines-slice';
 import type { NoticesSlice } from './notices-slice';
@@ -62,6 +64,15 @@ export interface LifecycleSlice {
    * its old job, which is the technical line at the foot.
    */
   bootBlockMessage: string | null;
+  /**
+   * What main MEASURED about the block, and what to run about it (Phase 217).
+   *
+   * Null for every block that composes none, which today is all of them except
+   * the version refusal, and null whenever main's payload carried a remedy
+   * this build could not read. A null remedy draws the screen exactly as it was
+   * drawn before this field existed.
+   */
+  bootRemedy: GmuxErrorRemedy | null;
 }
 
 export type AppState = LifecycleSlice &

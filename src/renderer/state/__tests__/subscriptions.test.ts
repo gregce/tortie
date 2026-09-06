@@ -181,9 +181,14 @@ describe('repeated start', () => {
  */
 describe('the three boot blocks', () => {
   /** Fail the next hydrate the way main reports a classified failure. */
-  function failWith(code: string, message: string, detail: string): void {
+  function failWith(
+    code: string,
+    message: string,
+    detail: string,
+    remedy?: unknown
+  ): void {
     failListsWith = new Error(
-      `gmux: ${JSON.stringify({ code, message, detail })}`
+      `gmux: ${JSON.stringify({ code, message, detail, remedy })}`
     );
   }
 
@@ -221,6 +226,69 @@ describe('the three boot blocks', () => {
     expect(useApp.getState().bootBlockMessage).toContain('3.5a');
     expect(useApp.getState().bootBlockMessage).toContain('3.7b');
     expect(useApp.getState().bootErrorDetail).toContain('socket gmux');
+    // Phase 217: main sent no remedy here, so the screen draws exactly what it
+    // drew before that field existed.
+    expect(useApp.getState().bootRemedy).toBeNull();
+  });
+
+  /**
+   * PHASE 217. The refusal now carries what main MEASURED about the server it
+   * refused, and the screen draws it. It is still a refusal: nothing in the
+   * remedy attaches, and Tortie never runs the command.
+   */
+  it('an untested pair carries the measured remedy through to the store', async () => {
+    failWith(
+      'TMUX_VERSION_UNTESTED',
+      'The session server on this machine is running tmux 3.7b.',
+      'server 3.7b, client 3.6a, socket gmux, client at /opt/homebrew/bin/tmux',
+      {
+        lines: [
+          'That server was started by Tortie at /Applications/Tortie.app.',
+          'This development build can run that same tmux with GMUX_TMUX_BIN.'
+        ],
+        command: 'tmux -L gmux kill-server'
+      }
+    );
+    await bootApp();
+    expect(useApp.getState().bootBlock).toBe('tmux-version-blocked');
+    expect(useApp.getState().bootRemedy?.lines).toEqual([
+      'That server was started by Tortie at /Applications/Tortie.app.',
+      'This development build can run that same tmux with GMUX_TMUX_BIN.'
+    ]);
+    expect(useApp.getState().bootRemedy?.command).toBe(
+      'tmux -L gmux kill-server'
+    );
+  });
+
+  it('a remedy of the wrong shape is dropped whole, never read in part', async () => {
+    // The command inside a remedy is the one thing on that screen that could
+    // end somebody's work, so a payload this build does not understand costs
+    // two lines rather than producing a half composed command.
+    for (const bad of [
+      { lines: 'not an array', command: 'x' },
+      { lines: ['fine', 7], command: 'x' },
+      { lines: [], command: 12 },
+      'a string',
+      ['an array']
+    ]) {
+      failWith('TMUX_VERSION_UNTESTED', 'blocked', 'detail', bad);
+      await bootApp();
+      expect(useApp.getState().bootBlock).toBe('tmux-version-blocked');
+      expect(useApp.getState().bootRemedy).toBeNull();
+    }
+  });
+
+  it('a successful boot clears the remedy with the block', async () => {
+    failWith('TMUX_VERSION_UNTESTED', 'blocked', 'detail', {
+      lines: ['measured'],
+      command: 'tmux -L gmux kill-server'
+    });
+    await bootApp();
+    expect(useApp.getState().bootRemedy).not.toBeNull();
+    failListsWith = null;
+    await retryBootApp();
+    await settle();
+    expect(useApp.getState().bootRemedy).toBeNull();
   });
 
   it('any other failure is a toast, not a block', async () => {

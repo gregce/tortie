@@ -37,7 +37,7 @@ import type { InstalledGmuxApi, SessionActivityInfo } from '@shared/ipc';
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
 import { isDurabilityNotice } from '@shared/notice';
 import { formatScrollbackBytes } from '@shared/scrollback';
-import type { GmuxErrorPayload } from '@shared/types';
+import type { GmuxErrorPayload, GmuxErrorRemedy } from '@shared/types';
 import type { AppState, BootBlock } from './app-state';
 import { errorPayload, errorText } from './errors';
 import { loadLocal } from './local';
@@ -136,6 +136,7 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
       bootBlock: null,
       bootErrorDetail: null,
       bootBlockMessage: null,
+      bootRemedy: null,
       projects: merged,
       activeProjectId
     });
@@ -188,7 +189,12 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
         ready: true,
         bootBlock: block,
         bootBlockMessage: payload.message,
-        bootErrorDetail: payload.detail ?? null
+        bootErrorDetail: payload.detail ?? null,
+        // PHASE 217. What main measured about the block, when it measured
+        // anything. An older main sends no remedy and the screen draws exactly
+        // what it drew before, which is why this is read defensively rather
+        // than assumed.
+        bootRemedy: remedyOf(payload)
       });
     } else {
       setState({ ready: true });
@@ -272,6 +278,27 @@ async function readShellPathReady(store: AppStore): Promise<void> {
   } catch {
     /* the controls stay off; main's own wait is what keeps a restore right */
   }
+}
+
+/**
+ * The remedy a boot block payload carries, or null (Phase 217).
+ *
+ * It is read STRUCTURALLY and it fails closed, exactly as main's own reader
+ * does. A remedy that is not the shape this build understands is dropped
+ * whole, never read partially, because the command inside it is the one thing
+ * on that screen that could end somebody's work.
+ */
+function remedyOf(payload: GmuxErrorPayload): GmuxErrorRemedy | null {
+  const remedy: unknown = payload.remedy;
+  if (remedy === null || typeof remedy !== 'object' || Array.isArray(remedy)) {
+    return null;
+  }
+  const { lines, command } = remedy as Record<string, unknown>;
+  if (!Array.isArray(lines) || !lines.every((l) => typeof l === 'string')) {
+    return null;
+  }
+  if (command !== null && typeof command !== 'string') return null;
+  return { lines: lines as string[], command };
 }
 
 /** Which main-process failure stops the boot, and with which screen. */
@@ -857,6 +884,6 @@ export async function bootApp(): Promise<void> {
  * it never remembers a block.
  */
 export async function retryBootApp(): Promise<void> {
-  useApp.setState({ bootBlock: null, bootBlockMessage: null });
+  useApp.setState({ bootBlock: null, bootBlockMessage: null, bootRemedy: null });
   await bootApp();
 }
