@@ -693,18 +693,22 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
     derivedStream: {
       kind: 'none',
       measured:
-        '~/.deepseek/sessions is FLAT: 34 files named <uuid>.json and no ' +
-        'subdirectory at all, so there is nowhere to file a derived stream ' +
-        'separately either. All 34 carry one top level keyset ' +
+        '~/.deepseek/sessions holds 34 files named <uuid>.json and ONE ' +
+        'subdirectory, checkpoints, which is EMPTY. maxDepth is 0 so that ' +
+        'directory is never walked, and the Phase 34 note above already ' +
+        'names sessions/checkpoints/latest.json as one global file rather ' +
+        'than a per session one. All 34 files carry one top level keyset ' +
         '(schema_version, metadata, messages, system_prompt) and one metadata ' +
         'keyset (id, title, created_at, updated_at, message_count, ' +
         'total_tokens, model, workspace, mode) with no parent, no source and ' +
         'no spawn record. Grepping every file for subagent|sub_agent|' +
         'parent_session|parent_thread|task_stream|delegat|spawn gives 0 hits ' +
-        'in metadata and hits only inside system_prompt prose. ' +
-        '~/.deepseek/tasks/runtime/threads and .../turns, where a derived ' +
-        'stream would go, are EMPTY and state.json reads next_seq 1. ' +
-        '~/.codewhale does not exist, so the successor root is unexercised.'
+        'in metadata, 952 inside system_prompt prose and 8 inside messages ' +
+        'in ONE file, being conversation text about sub agents rather than a ' +
+        'field anything reads. ~/.deepseek/tasks/runtime/threads and ' +
+        '.../turns, where a derived stream would go, are EMPTY and ' +
+        'state.json reads next_seq 1. ~/.codewhale does not exist, so the ' +
+        'successor root is unexercised.'
     },
     // Phase 25.5: the package renamed itself to codewhale, and the successor
     // binary writes ~/.codewhale/sessions, keeping ~/.deepseek/sessions only
@@ -786,8 +790,9 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
         'do carry parentId, on model_change, thinking_level_change and ' +
         'message records. That is the record chain INSIDE one transcript and ' +
         'NOT a session parent, so reading it as one would refuse every pi ' +
-        'session. Nothing under ~/.pi outside agent/{bin,sessions,skills} ' +
-        'and pi-acp.'
+        'session. No DIRECTORY under ~/.pi outside agent/{bin,sessions,' +
+        'skills} and pi-acp, the rest of agent/ being settings and ' +
+        'credential files rather than a place a stream could be filed.'
     },
     roots: (ctx, de) => {
       // Precedence per `pi --help` (registry notes): an explicit session dir
