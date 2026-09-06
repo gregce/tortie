@@ -21,12 +21,10 @@
  */
 
 import {
-  agentBinaryName,
   // PHASE 49. The last RESOLVED scan, never a new one. The create path reads
   // this synchronously, so a create can never start a version probe and can
   // never wait on one.
-  peekDetectedAgents,
-  registryResumeArgv
+  peekDetectedAgents
 } from '../agents';
 import { getLog } from '../log';
 import {
@@ -52,7 +50,7 @@ import {
 // login the session was launched under (codex keeps its rollouts under
 // CODEX_HOME). One pure file read; it opens no keychain and spawns nothing.
 import { loginEnvForSession } from '../logins';
-import { wrapWithRecord } from '../specstory';
+import { composeResumeArgv } from './resume-argv';
 import * as tmux from '../tmux';
 import type { LaunchableAgentKind, ResumeCapture } from '@shared/types';
 import { agentExtrasOf } from './launch-plan';
@@ -213,30 +211,26 @@ export function startIdCapture(
       // record, which is why it is stored verbatim. Compose the inner
       // resume from THAT, then put the wrapper back around it, so a
       // harvested session restores captured exactly like a pre-assigned one.
-      const capture = rec.specstory;
-      const innerBin =
-        capture?.agentArgv[0] ?? rec.argv[0] ?? agentBinaryName(agent);
-      const innerResume = registryResumeArgv(
+      // PHASE 215 moved the three rules of this composition into
+      // ./resume-argv.ts, because the boot repair recomposes an argv for a row
+      // whose id moved and must compose it exactly as this does.
+      const composed = composeResumeArgv(
+        rec,
         agent,
         harvested.sessionId,
-        extraArgs,
-        innerBin
+        extraArgs
       );
-      if (innerResume.length === 0) return; // never persist an id-less argv
-      let resumeArgv = innerResume;
-      if (capture?.enabled === true) {
-        const rewrapped = wrapWithRecord(capture, innerResume);
-        if (rewrapped !== null) resumeArgv = rewrapped;
-        else {
-          // The wrap could not be rebuilt (an argument SpecStory cannot
-          // pass through). Arming the BARE resume is right — the
-          // conversation is what matters — but the user's capture would
-          // silently stop at the restore, so it is said out loud.
-          sessionsLog.warn(
-            `${agent} resume for "${rec.name}" could not keep ` +
-              'SpecStory capture; the armed command runs the agent directly.'
-          );
-        }
+      if (composed === null) return; // never persist an id-less argv
+      const resumeArgv = composed.argv;
+      if (composed.captureLost) {
+        // The wrap could not be rebuilt (an argument SpecStory cannot
+        // pass through). Arming the BARE resume is right — the
+        // conversation is what matters — but the user's capture would
+        // silently stop at the restore, so it is said out loud.
+        sessionsLog.warn(
+          `${agent} resume for "${rec.name}" could not keep ` +
+            'SpecStory capture; the armed command runs the agent directly.'
+        );
       }
       // PHASE 21 (G6) — persist how good the evidence was, not just the id.
       //
@@ -617,35 +611,19 @@ export function admitConfirmedConversationId(
   // on a captured session `rec.argv[0]` is the SpecStory wrapper rather than
   // the agent, so the inner argv is composed first and the wrapper goes back
   // around it afterwards.
-  const capture = rec.specstory;
-  const innerBin =
-    capture?.agentArgv[0] ?? rec.argv[0] ?? agentBinaryName(rec.agent);
-  const extras = agentExtrasOf(rec);
-  // FOUND BY THIS PHASE'S OWN TEST. `registryResumeArgv` THROWS for an agent
-  // the registry holds but cannot launch in a session, e.g. cursoride, whose
-  // resume is a row written into another program's database rather than a
-  // command. `startIdCapture` above never meets that case because
-  // `agentRescuesId` filters it out first, and this path has no such filter in
-  // front of it: the agent column is whatever the row records. A throw here
-  // would land inside a confirmation nobody is awaiting, so it is an answer
-  // rather than an exception.
-  let innerResume: string[];
-  try {
-    innerResume = registryResumeArgv(rec.agent, conversationId, extras, innerBin);
-  } catch {
-    return 'no-resume-argv';
-  }
-  if (innerResume.length === 0) return 'no-resume-argv';
-  let resumeArgv = innerResume;
-  if (capture?.enabled === true) {
-    const rewrapped = wrapWithRecord(capture, innerResume);
-    if (rewrapped !== null) resumeArgv = rewrapped;
-    else {
-      sessionsLog.warn(
-        `${rec.agent} resume for "${rec.name}" could not keep SpecStory ` +
-          'capture; the armed command runs the agent directly.'
-      );
-    }
+  const composed = composeResumeArgv(
+    rec,
+    rec.agent,
+    conversationId,
+    agentExtrasOf(rec)
+  );
+  if (composed === null) return 'no-resume-argv';
+  const resumeArgv = composed.argv;
+  if (composed.captureLost) {
+    sessionsLog.warn(
+      `${rec.agent} resume for "${rec.name}" could not keep SpecStory ` +
+        'capture; the armed command runs the agent directly.'
+    );
   }
 
   // 'confirmed' rather than `claimStrengthOf`, and the difference is the
