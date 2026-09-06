@@ -21794,6 +21794,110 @@ the mechanism is a question every descriptor must answer:
 - **No repair of any agent but codex.** The declaration and the gate cover every harvested agent from now on, and the three other `cwd-newest` stores are measured, but only codex has a proved wrong row on his disk, so only codex rows are rewritten.
 - **No new package, no schema change beyond what the repair note needs.**
 
+## Phase 216 — what it would take to ship Tortie on Linux and Windows (operator asked 2026-09-06) RESEARCH ONLY
+
+**Subject.** `docs(research): what shipping Tortie on Linux and Windows would actually cost`
+
+**First body line.** `Phase 216: the cost of Linux and Windows`
+
+**Semver.** No version change. A research phase ships a document and touches no shipping code.
+
+**Tier 1.** It is a document. The gates are the evidence and the verifier's job is to attack the
+conclusions rather than photograph anything. But **every number in it is measured or it is not
+written**, which is the standing lesson, and a research phase that guesses is worse than no research
+phase because the next round inherits the guess.
+
+**Charter.** This entry, his ask of 2026-09-06, `docs/ZEN-OF-TORTIE.md`, the scope guardrail in
+CLAUDE.md, `electron-builder.yml` and its whole signing preamble, and `docs/research/27-*` for the
+macOS release lane that already exists. The Phase 23 refusals bind: nothing here proposes loading
+third party code, and a second platform is not a reason to relax the CSP or the entitlements.
+
+### Why this is research and not a phase that builds
+
+Three things are true of the tree as it stands, read on 2026-09-06.
+
+1. **The macOS binding is structural, not a scatter of branches.** There are 11 `process.platform`
+   sites in `src/` and 10 files that name `darwin` at all. A port is not a matter of adding `else`
+   arms. What binds Tortie to macOS is the set of things it ASSUMES rather than the things it checks.
+2. **338 files under `src/main` name tmux**, and tmux is the durability architecture, not a terminal
+   detail. Sessions live in a private tmux server on socket `-L gmux` and the app is a disposable
+   client. **tmux does not exist on Windows.** So Linux and Windows are not one question, they are
+   two questions with almost nothing in common, and the entry treats them separately throughout.
+3. **The release lane is macOS shaped end to end.** `electron-builder.yml` carries a `mac:` block and
+   nothing else, cutting a signed hardened DMG and ZIP, with three nested binaries signed inside-out
+   by `build/sign-nested-binaries.cjs`, being specstory, the unpacked ripgrep and a tmux built from
+   pinned source by `build/build-tmux.mjs`. Notarization, entitlements, the keychain identity
+   discovery and `build/verify-signed.mjs` are all Apple mechanisms with no counterpart on either
+   target.
+
+### What the research must answer, and it answers each one separately for Linux and for Windows
+
+**A. The session substrate, which is the whole question.**
+
+- Linux: tmux exists and is the same program. The research measures what actually differs, being the
+  pinned build in `build/build-tmux.mjs` which is macOS shaped, the socket path, the `@gmux-*`
+  session options, `GMUX_SESSION_ID` pane env, and whether `resources/gmux-tmux.conf` is portable
+  as written. It states which of the identifiers CLAUDE.md protects are portable and which are not.
+- Windows: there is no tmux, so the research PRICES THE OPTIONS rather than assuming one.
+  At minimum: WSL2 as the only supported substrate with Tortie running as a Windows app talking to a
+  Linux tmux; ConPTY with a Tortie-owned supervisor process replacing tmux's role; a Windows port of
+  the durability contract onto something else entirely; and **refusing Windows**, which is a real
+  answer and must be priced like the others rather than treated as failure. Each option gets what it
+  costs, what it breaks, and what promise it cannot keep.
+
+**B. Every macOS mechanism, named with its file, and what replaces it.**
+The keychain and the `security` command in `src/main/credentials/`, which on Linux is libsecret or a
+file vault and on Windows is DPAPI or the credential manager; the native menus through
+`ui:popupMenu`, `src/main/menu.ts`, `menu-popup.ts`, `native-menu-icon.ts` and `src/main/tray/`;
+FSEvents and its eight path exclusion cap in `src/main/watcher/`, which is inotify on Linux with a
+completely different limit and ReadDirectoryChangesW on Windows; the window chrome and traffic
+lights; `app.setName` and the data directory; and the login shell PATH injection that makes bare-name
+agent launch work.
+
+**C. The agents, because they are the product.** Which of the agents in
+`src/main/agents/registry.ts` exist on Linux and on Windows at all, how each is installed there, and
+what happens to the resume argv and the harvest descriptors when the store paths move. An agent that
+cannot run is a row that must not be offered.
+
+**D. Distribution, and this is the half he asked about.** For Linux: AppImage, deb, rpm, Flatpak and
+Snap, each with what it costs to produce, what it costs to keep, whether the nested binaries survive
+its sandbox, and how updates reach a person. For Windows: NSIS and MSIX, code signing including
+whether an EV certificate is required and what it costs in money and in time, SmartScreen reputation,
+and the update path. Both: what the CI release lane in `.github/workflows/` would have to grow, and
+whether a cross-platform release can be cut from one lane or needs a runner per platform.
+
+**E. The self-update path.** Phase 24 built self update on the macOS lane. The research says whether
+it generalises or whether each platform needs its own answer.
+
+**F. The honest total.** A per-platform verdict with a rough size, what a first release would and
+would not do, and what would be permanently worse than the macOS build. It must be willing to
+conclude that one or both targets are not worth it, and if it does, it says exactly what would have
+to change for that to flip.
+
+### Proof, run rather than read
+
+- **Every claim about what exists on a platform is checked, not recalled.** Package availability,
+  tmux versions, node-pty and better-sqlite3 prebuilds for each target, and agent CLI availability
+  are read from the real sources on the day, with what was read and when.
+- **The two hard numbers are measured rather than estimated**: what fraction of `src/main` is
+  genuinely substrate-bound rather than merely tmux-naming, re-derived by a second method; and what
+  the nested binary story costs per platform.
+- **THE INDEPENDENT METHOD:** the verifier attacks the recommendation rather than confirming it. If
+  the research says Windows is affordable, the verifier's job is to find the promise it quietly
+  drops; if it says Windows is refused, the verifier's job is to find the cheaper path it missed.
+- No app run, because nothing is built.
+
+### What is NOT in this phase
+
+- **No code changes at all.** Not a platform branch, not an `electron-builder.yml` target, not a CI
+  lane. The output is `docs/research/81-linux-and-windows.md` and nothing else.
+- **No decision.** The research prices the options and recommends; the operator chooses, and a build
+  phase is queued only at his word.
+- **No relaxation of any Phase 23 refusal.** A second platform is not a reason to load third party
+  code, to relax the CSP, or to add an entitlement.
+- **No rename of any protected identifier.** The tmux socket, the config file, the `@gmux-*` options,
+  the pane env and the inner data directory keep their names on every platform.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -22209,3 +22313,4 @@ cycle rather than only the evening it was written.
 - 2026-09-05, Phase 215 RESTARTED at the widened shape as wf_4575484c-4d7, three minutes into its first run and with no commits lost, so the measure step now also reads ~/.deepseek, ~/.pi and ~/.omp and designs the required declaration and its gate rather than measuring codex alone.
 - 2026-09-05, Phase 215 AMENDED A SECOND TIME and restarted, on his three questions: does Tortie have the conversation id when the provider starts, does it record the orchestrator and the sub agents, and was he resuming a sub agent of his own thread. The answers are no, no and yes, and chasing them found a BETTER MECHANISM than the entry first proposed: `~/.codex/state_5.sqlite` carries a `threads` table with `thread_source`, reading user 482 times and subagent 453 times over his 25,973 rows, AND a `thread_spawn_edges` table of parent to child, 519 rows, whose three rows for his own case name parent `01a06966` and its three children exactly. The registry has named that file since Phase 12 as a FAST PATH AVAILABLE NOT YET USED, recorded as a speed optimisation, and nobody noticed it also answers is this a session and who is its parent. So codex now ASKS THE STORE FIRST and keeps the rollout parse as the fallback for the older rows that predate the column, with the two proved to agree over his whole store and any disagreement a finding. The measure step was stopped fourteen minutes in with no commits to take this, which is the second stop and the mechanism changing rather than the scope.
 - 2026-09-05, Phase 215 RESTARTED a second time as wf_a93433c3-93b at `92d223b`, carrying the database mechanism; the measure step now reads state_5.sqlite on a copy BEFORE anything else in the codex half, confirms the row counts and his own parent and children, says what the database cannot answer and when it is absent or stale, and proves the database and the rollout agree wherever both can answer, with a disagreement being a finding rather than a preference.
+- 2026-09-06 Phase 216 queued at his ask: research only, what it would take end to end to package and distribute Tortie on Linux and Windows, with refusing a platform priced as a real answer.
