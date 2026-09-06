@@ -23,6 +23,28 @@ binary's own bytes, or from a vendor's own documentation, and each one that need
 settle is named in §0.6 with the probe that would settle it. Nothing was built for either target, so
 **no artifact size and no launch is claimed for either platform.**
 
+**What the fix round changed, on 2026-09-06, after an independent verifier attacked both verdicts.**
+Six defects were confirmed by re-measuring rather than by agreeing, and none of them moved either
+headline verdict, though one moved a recommendation inside it.
+1. **§D.3.1's most emphatic sentence was wrong.** It said a tmux server started inside an AppImage
+   outlives the app *"because there is no container to tear down"*. There is a FUSE mount to tear down.
+   The claim is withdrawn, the exact teardown mechanism is now read out of the runtime's own source on
+   both sides, the outcome is marked UNMEASURED with its probe, and **§D.3.6 and §D.0 now put the
+   `.deb` first**, because a `.deb` puts real files at a stable absolute path and that is the mechanism
+   the live tier actually rests on.
+2. **§0.2's "there is no tmux on Windows and never has been" was refuted by the tarball in this
+   repository**, which carries a first-class Cygwin platform arm, and by MSYS2, which packages tmux
+   3.7c today. A fifth option, **E**, is now priced and refused on the record in §A.2.6 rather than
+   excluded by an absolute.
+3. §0.5 and §A.1.6 reported a re-derivation that had read only one of its two arms; linux-arm64 carries
+   `GLIBCXX_3.4.29` and `CXXABI_1.3.9` as well, identically to x64. The 2.34 floor is unchanged.
+4. §A.2.5 counted pull requests as issues. It is 36 open Windows issues and 9 open Windows pull
+   requests, and **#5195 is one of the pull requests**, which makes the point sharper rather than
+   weaker.
+5. §0.5 mixed denominators on the tmux file counts; §F.1 always had them right.
+6. §A.1.2's version floor is one release stronger than it stated: `noattr` was fixed twice after 3.6,
+   the second fix naming the default `mode-style` the conf actually sets.
+
 **What ran and what did not.** No Electron was started. No tmux server was started. No agent was
 spawned and no token was spent. The pinned tmux 3.7b tarball at
 `build/vendor/tmux/cache/tmux-3.7b.tar.gz` was extracted read-only to scratch and read; the shipped
@@ -55,7 +77,7 @@ directory moves only its root, to `~/.config/Tortie/gmux/`. **No rename is requi
 installers and registries on the day (§C.1). Six of them capture as well as they do on macOS on day
 one; four more need one measurement each; one needs a rewrite; two IDE rows must be hidden.
 
-The cost is not the code. It is four things:
+The cost is not the code. It is five things:
 
 1. **The bundled tmux has to be built on Linux, and `build/build-tmux.mjs` is the most macOS-shaped
    file in the tree.** About eleven executable statements across five functions, a fourth pinned
@@ -71,7 +93,12 @@ The cost is not the code. It is four things:
 3. **Two silent returns.** `build/before-pack.cjs:35` and `build/after-pack.cjs:56` are both
    `if (context.electronPlatformName !== 'darwin') return;`. A Linux build today would package with
    no tmux, no specstory and no skills CLI, exit 0, and fail at runtime.
-4. **Two durability hazards that are product decisions rather than code.** systemd's
+4. **A packaging choice that turns out to be a durability choice.** The `.deb` and not the AppImage is
+   the artifact to hand somebody first, because a `.deb` installs real files at `/opt/Tortie` while an
+   AppImage runs from a fresh random FUSE mount every launch whose behaviour under a tmux server that
+   outlives the app is **unmeasured** and whose documented design intent is to tear that mount down
+   (§D.3.1). It costs a password prompt on every self-update, which is the smaller of the two prices.
+5. **Two durability hazards that are product decisions rather than code.** systemd's
    `tmpfiles.d/tmp.conf` ages `/tmp` at 10 days and tmux holds no persistent lock on its socket
    directory (§A.1.4); and `logind`'s `KillUserProcesses` defaults to `yes` upstream, which the man
    page itself says *"will break tools like screen(1) and tmux(1)"*. Debian and Ubuntu override it to
@@ -99,8 +126,11 @@ binary and nine have a documented install route** (§C.1). Only `muse` cannot ru
 `die` in Meta's own launcher.
 
 **It is refused because of the substrate, and specifically because of what keeping it would require
-Tortie to own.** There is no tmux on Windows and never has been — upstream's own README lists
-OpenBSD, FreeBSD, NetBSD, Linux, macOS and Solaris. Four options exist and §A.2 prices all four:
+Tortie to own.** tmux does not run NATIVELY on Windows — upstream's own README lists OpenBSD, FreeBSD,
+NetBSD, Linux, macOS and Solaris. It does build and ship under Cygwin, and an earlier draft of this
+document turned that README line into *"there is no tmux on Windows and never has been"*, which the
+pinned tarball in this very repository refutes: §A.2.6 now prices that path as option E rather than
+excluding it. **Five options exist and §A.2 prices all five:**
 
 - **A, WSL2 as a machine** — keeps every promise, writes no new durability code, and reuses the
   remote plane Phases 68–73 already built. Its cost is a real install floor (WSL2, a distro, tmux and
@@ -113,11 +143,21 @@ OpenBSD, FreeBSD, NetBSD, Linux, macOS and Solaris. Four options exist and §A.2
   older than this product"* and a supervisor written this year is none of the three. When it has a
   bug, what is lost is the in-flight turn, which is the one thing the cold tier cannot bring back.
 - **B′, zellij as the substrate** — the option "assemble, never reimplement" requires pricing.
-  Refused today on measurement rather than taste: 45 open Windows issues on 2026-09-06, of which
-  **#5195 is the server failing to break out of the parent's job object**, which is the live tier
-  itself; no per-session key/value options, so the five `@gmux-*` stamps have no home; no
+  Refused today on measurement rather than taste: 36 open Windows issues and 9 open Windows pull
+  requests on 2026-09-06, among them **PR #5195, the server failing to break out of the parent's job
+  object**, which is the live tier itself and which has been open and untouched since May; no per-session key/value options, so the five `@gmux-*` stamps have no home; no
   `remain-on-exit failed` equivalent, so exit-code truth is lost; no control-mode event stream, so
   `control-client.ts` has nothing to attach to; and no Windows arm64 asset has ever been published.
+- **E, tmux under Cygwin/MSYS2** — the real tmux, and MSYS2 packages **3.7c**, one release newer than
+  the 3.7b this repository pins and above the conf's own floor, which no Linux LTS in §A.1.2's table
+  manages. So it is the only option besides A that keeps the Zen's *"boring, inspectable and older
+  than this product"*. **Refused anyway, on price rather than on an absolute:** a Cygwin pty is not a
+  Windows console, so every native `.exe` agent needs `winpty` in front of it at every pane rather
+  than only at the attach; `/cygdrive/c` paths disagree with the Windows paths the agents write their
+  own stores at, which breaks §C.2's harvest encodings and inverts §C.3's one findable defect; there
+  is no Landlock and no seccomp for the agents; the `msys` environment is x86_64 only, which is the
+  same criticism this document makes of zellij; and it asks a person to install a runtime nothing else
+  on their machine wants. Option A gets the same tmux with none of that.
 - **C, sessions that die with the app** — refused. It sacrifices the frequent case (quit, daily) to
   save the rare one (reboot, monthly), and it makes the first sentence of the Zen false.
 
@@ -164,12 +204,15 @@ like Windows. It is one command on four machines and nobody has run it.
    terminal closed — *and* the operator judges "install WSL2 and keep your repos on the Linux side"
    an acceptable floor to ask of a Windows user. That is a product judgement and it is his.
 2. **Microsoft closes `WSL#4739`.** It is A's only real product concession and it is Microsoft's bug.
-3. **zellij's Windows port matures**: `#5195` merged, an `aarch64-pc-windows-msvc` release asset
-   published, the Windows issue count in single digits, and durable per-session metadata plus an
+3. **zellij's Windows port matures**: PR `#5195` merged, an `aarch64-pc-windows-msvc` release asset
+   published, the open Windows issue count in single digits, and durable per-session metadata plus an
    exit-status-on-death semantic added. Re-price in twelve months, not sooner.
 4. **His explicit word on option B**, because it contradicts a standing Zen refusal. B is not
    unbuildable — `@xterm/headless` makes it materially cheaper than it looks — it is *undesirable*,
    and those are different claims.
+5. **WSL2 becomes unavailable to the person** — a locked-down machine, a policy, an older Windows.
+   That is the only case in which **option E**, tmux under Cygwin/MSYS2 (§A.2.6), rises above A, and it
+   is listed last because it is the least likely of the five and the most expensive to be wrong about.
 
 **To flip Flatpak or Snap** (both refused in §D.3): somebody would have to want Tortie on a
 distribution AppImage and deb do not reach, and be willing to accept either a bundled tmux that
@@ -183,7 +226,7 @@ re-measured during integration on 2026-09-06 at `bb9a5cb` rather than averaged.
 
 | Disagreement | What each said | Resolved, and how |
 | --- | --- | --- |
-| How many files under `src/main` name tmux | boundary and the charter: **338**. The two substrate probes: **334** | **Both are right about different sets.** `grep -rl tmux src/main` = 338; restricted to `.ts`/`.tsx` = 334. The four extra are test fixtures (`activity/__tests__/fixtures/pi-idle.txt`, three files under `machines/__tests__/golden/`). Case-insensitive it is 352. The document uses **338 naive / 334 source files / 153 of them tests / 544 non-test files in the directory**, all re-run at integration |
+| How many files under `src/main` name tmux | boundary and the charter: **338**. The two substrate probes: **334** | **Both are right about different sets.** `grep -rl tmux src/main` = 338; restricted to `.ts`/`.tsx` = 334. The four extra are test fixtures (`activity/__tests__/fixtures/pi-idle.txt`, three files under `machines/__tests__/golden/`). Case-insensitive it is 352. The document uses **338 naive / 334 `.ts`/`.tsx` / 149 of those 334 under `__tests__` / 544 non-test files in the directory**, all re-run at integration. **Corrected at the fix round:** an earlier draft wrote "334 source files, 153 of them tests", which mixes denominators — 153 is 149 tests plus the 4 non-`.ts` fixtures, so it is 153 of **338**, and of the 334 it is 149 tests against 185 non-test source files. §F.1's table always had it right |
 | `process.platform` sites in `src/` | macos-mechanisms: **11**. substrate-linux: **8** | Both correct, different denominators. Re-run: **11 total, 8 non-test, and only 6 of those 8 are code** — the other two are the words `process.platform` inside a comment in `src/shared/ipc/base.ts:120` and `src/main/diagnostics/off-device.ts:105`. **Six real runtime branches in the entire product** |
 | Settings in `resources/gmux-tmux.conf` | substrate-windows: **12**. macos-mechanisms: **11**. boundary: **eleven** | Re-counted at integration: **12**. Listed in §A.1.2 |
 | The conf's tmux version floor | substrate-linux: **3.6**, attributed per directive from the pinned tarball's `CHANGES`. boundary: *"3.3-ish"* | **3.6, and boundary's estimate was wrong.** Re-derived at integration by extracting the pinned tarball and locating each directive's line in `CHANGES` against its section headers: `copy-mode-position-format` at line 549 and `noattr` for `mode-style` at line 452 both sit inside `CHANGES FROM 3.5a TO 3.6` (lines 375–576). This is the finding that makes bundling mandatory on Linux, so it mattered |
@@ -193,14 +236,20 @@ re-measured during integration on 2026-09-06 at `bb9a5cb` rather than averaged.
 
 One further correction the probes did not disagree about but which integration checked: better-sqlite3's
 Linux glibc floor. substrate-linux read **GLIBC_2.34** and **GLIBCXX_3.4.29** out of
-`prebuilds/linux-x64.node`. Re-derived at integration with `strings` over both Linux prebuilds:
-`GLIBC_2.34` and `GLIBCXX_3.4.29` on x64, `GLIBC_2.34` on arm64. **Confirmed. That is the whole
-product's floor**, and it excludes Ubuntu 20.04, Debian 11, RHEL 8 and Amazon Linux 2.
+`prebuilds/linux-x64.node`. Re-derived at integration with `strings` over both Linux prebuilds —
+and **re-run again at the fix round, because the integration reading under-read the arm64 arm.** The
+two are IDENTICAL in their versioned symbol sets, not merely in their glibc floor: both
+`prebuilds/linux-x64.node` and `prebuilds/linux-arm64.node` carry `GLIBC_2.34`, `GLIBCXX_3.4.29` and
+`CXXABI_1.3.9` as their highest versions, x64 additionally naming the older `GLIBC_2.2.5`/`2.3`/`2.4`
+and arm64 the older `GLIBC_2.17`, which are architecture baselines rather than floors. The integration
+sentence said "`GLIBC_2.34` on arm64" and stopped, which was one of two arms half read. **The verdict
+does not move: 2.34 is binding on both**, and it excludes Ubuntu 20.04, Debian 11, RHEL 8 and Amazon
+Linux 2.
 
 ### 0.6 What this document could not measure, in one place
 
 Every one of these is a claim a real machine would settle in under a day. They are collected here so
-a later round inherits the gap rather than the guess; §A.1.9, §A.2.9, §B.5, §C and §D.9 repeat each
+a later round inherits the gap rather than the guess; §A.1.9, §A.2.10, §B.5, §C and §D.9 repeat each
 one beside the claim it limits.
 
 | UNMEASURED | The probe that settles it |
@@ -208,6 +257,7 @@ one beside the claim it limits.
 | **Whether a tmux server keeps a WSL2 distro alive with every terminal closed.** Option A's entire live tier rests on this, and `instanceIdleTimeout` — the setting that governs it — is not in the settings tables on Microsoft Learn's `.wslconfig` page as read on 2026-09-06 | Start a tmux server in a distro, close every terminal, wait five minutes, `wsl --list --running` |
 | **Whether Tortie's attach stream survives the ConPTY boundary.** `microsoft/terminal#15976`, the ConPTY out-of-sync megathread, has been open since 2023-09-17 | Drive Claude Code inside WSL tmux through both carriages — node-pty/ConPTY, and `tmux -CC` over plain pipes — and check shift+enter (CSI-u), bracketed-paste image drop, OSC 52 and focus events |
 | **`KillUserProcesses` on Fedora, RHEL, Arch and openSUSE.** Upstream defaults `yes`; Debian sets `false` in `debian/rules`. The other four were not checked | `loginctl show --property=KillUserProcesses` on one machine each |
+| **Whether an AppImage's FUSE mount comes down under a live tmux server, or is held open by it.** The runtime tears the mount down when the last holder of an inherited, non-`CLOEXEC` pipe descriptor closes it, and nothing in Tortie's chain closes that descriptor, so the two possible outcomes are a lost live tier and a leaked mount per launch. Neither has been seen. It is why §D.3.6 now puts deb first (§D.3.1) | Build the AppImage, `GMUX_SMOKE=create`, quit, then `mount \| grep '\.mount_'`, `ls -d /tmp/.mount_*`, `pgrep -a squashfuse`, `tmux -L gmux ls`, `GMUX_SMOKE=verify`; repeat over three launches |
 | **Whether `/tmp` ageing really reaches a live tmux socket directory.** The `q /tmp … 10d` default and the absence of a persistent flock in tmux are both measured; whether real use refreshes the timestamps enough is not | A 10-day-uptime Linux box and `systemd-tmpfiles --clean --dry-run` |
 | **Anything about the Linux CPU status tier.** procps-ng documents `time` as whole seconds, the sampling constants are `CPU_BUSY_PERCENT = 5` and `CPU_BUSY_TICKS = 2`, and the conclusion that the CPU promoter stops firing follows arithmetically. **Nobody has watched a Linux agent fail to promote** | Run one agent under a Linux Tortie and read `src/main/activity/process.ts`'s own tier decisions |
 | **`fs.inotify.max_user_watches` against Tortie's real watch count**, and whether the count exceeds it over the operator's repositories | Open his repositories on a Linux box and count watch descriptors |
@@ -297,6 +347,18 @@ section headers:
 | `set -g allow-passthrough on` | 3.3 | `CHANGES FROM 3.2a TO 3.3` |
 | **`set -g copy-mode-position-format ""`** | **3.6** | line 549, inside `CHANGES FROM 3.5a TO 3.6` (375–576) |
 | **`set -g mode-style "noattr,…"`** | **3.6** | line 452, same section |
+
+**And the effective floor for `noattr` is a release ABOVE 3.6, which the fix round found by reading the
+rest of the same file.** `noattr` enters at `CHANGES:452` as the table says, and the same `CHANGES`
+records it being fixed twice afterwards, both against upstream issue 4713: *"Fix noattr so it does not
+delete attributes set in the style itself"* at `:366`, inside `CHANGES FROM 3.6 TO 3.6a` (349–374), and
+*"Fix the noattr attribute in styles, **used by the default mode-style**"* at `:335`, inside
+`CHANGES FROM 3.6b TO 3.7` (14–343). The conf's line is
+`set -g mode-style "noattr,bg=default,fg=default"` — the default mode-style, which is exactly what the
+second fix names. So a tmux at exactly 3.6 accepts the directive and gets it wrong, silently, and the
+first release that behaves is 3.7. **No verdict moves**, because no distro in the table below sits at
+3.6 and the gate below refuses all of them anyway; the bundling argument is simply one release
+stronger than the table alone states.
 
 **The floor is 3.6, and no shipped LTS meets it.** Distro versions read from repology.org on
 2026-09-06:
@@ -453,8 +515,9 @@ not per-Electron.
 musl set by reading `process.report.getReport().header.glibcVersionRuntime`. Notably, on this machine
 `build/Release/` holds no `.node` at all — `electron-rebuild` produced only stamps — so **the running
 app already loads a prebuild rather than a rebuild**. Linux gets the same treatment for free. The
-floor, re-derived at integration with `strings` over the prebuilds themselves: **`GLIBC_2.34` and
-`GLIBCXX_3.4.29` (GCC 11) on linux-x64, `GLIBC_2.34` on linux-arm64.** That excludes Ubuntu 20.04
+floor, re-derived at integration with `strings` over the prebuilds themselves and re-run at the
+fix round because the integration reading stopped short on one arm: **`GLIBC_2.34`, `GLIBCXX_3.4.29`
+(GCC 11) and `CXXABI_1.3.9` on linux-x64 — and the same three, identically, on linux-arm64.** That excludes Ubuntu 20.04
 (2.31), Debian 11 (2.31), RHEL 8 (2.28) and Amazon Linux 2, and is met by Ubuntu 22.04+, Debian 12+,
 RHEL 9+ and Fedora 35+.
 
@@ -584,7 +647,7 @@ build is a different subject from an upstream tarball — Debian's tmux links `l
 `conformance:resume` and `probe:p167` all assume macOS shapes; and `-ApplePersistenceIgnoreState YES`
 in about 30 npm scripts becoming positional garbage on a Linux harness launch. §F.4 prices it.
 
-### A.2 Windows — the four options, priced
+### A.2 Windows — the five options, priced
 
 #### A.2.1 What the substrate contract actually is, measured
 
@@ -595,7 +658,7 @@ Measured over `src/main` excluding `__tests__`, with the file counts re-run at i
 | --- | --- |
 | `.ts`/`.tsx` files under `src/main` | 985 |
 | …non-test | 544 |
-| …that name tmux at all | 334 source files (338 counting four test fixtures), 153 of them tests |
+| …that name tmux at all | **334** `.ts`/`.tsx`, of which **149 are under `__tests__` and 185 are not**; 338 counting four non-`.ts` test fixtures |
 | **Local substrate** — files holding a real tmux verb string or an exec-door call, excluding `machines/`, `harness/`, `conformance/` | **20 files, 15,064 lines** |
 | Same, including them | 52 files, 35,128 lines, of which `machines/` is 15 files and 12,343 lines |
 | Exec-door call sites in production | **88** (50 `execOn`, 33 `execTmux`, 5 `tmuxCommand`) |
@@ -793,21 +856,31 @@ through v0.45.1, published 2026-08-28** — verified from the GitHub releases AP
 from an article. A detached server, sessions that outlive clients, `attach`, and a CLI. Structurally
 it is tmux's shape.
 
-Then what is open. **45 open issues with "Windows" in the title** (GitHub search, 2026-09-06), and the
-relevant ones read like a list of Tortie's own requirements:
+Then what is open. **36 open ISSUES and 9 open PULL REQUESTS with "Windows" in the title, 45 threads in
+all** — re-run at the fix round on 2026-09-06 through the GitHub search API, because the integration
+figure of "45 open issues" counted pull requests as issues (`is:issue is:open Windows in:title` = 36,
+`is:pr` = 9, unqualified = 45). The relevant ones read like a list of Tortie's own requirements, and
+which kind each thread is is stated, because for the first one it is the whole point:
 
-- **#5195, open since 2026-05-19, `fix(windows): break server out of parent job on spawn`** — the
+- **#5195 is a PULL REQUEST, not an issue: `fix(windows): break server out of parent job on spawn`,
+  open, created 2026-05-19 and untouched since 2026-05-20** (GitHub API, read at the fix round). The
   server does not break out of the parent's job object, so when the parent's job is terminated
-  *"there's nothing left to `zellij attach` to."* **That is the live tier, open, in the substrate.**
-- #5580 (2026-09-03) — a stale session marker whose PID has been reused hangs the client forever.
-- #4998 — cannot attach to a session after renaming it. Tortie calls `rename-session` at 5 production
-  sites.
-- #5333 — multi-line bracketed paste renders in **reverse line order**. Tortie's image drop is a
-  bracketed paste of a path.
-- #5022, #5017, #5294, #5360 — Ctrl+D not passed through, all Ctrl+ combinations emitting `[xx;5u`
-  garbage, Ctrl+Enter not reported. That is the `extended-keys` / `multilineKey` contract.
-- #5258 and #5090 — Windows ARM64 CI target, both open. **No release has ever published a Windows
-  ARM64 asset**; every Windows artefact from v0.44.0 to v0.45.1 is `x86_64-pc-windows-msvc` only.
+  *"there's nothing left to `zellij attach` to."* **That is the live tier, and the correction makes the
+  case sharper rather than softer: a proposed fix for the substrate's own durability has sat unmerged
+  for three and a half months.**
+- #5580, issue, opened 2026-09-03 — a stale session marker whose PID has been reused hangs the client
+  forever.
+- #4998, issue, opened 2026-04-03 — cannot attach to a session after renaming it. Tortie calls
+  `rename-session` at 5 production sites.
+- #5333, issue, opened 2026-07-05 — multi-line bracketed paste renders in **reverse line order**.
+  Tortie's image drop is a bracketed paste of a path.
+- #5022, #5017 (both 2026-04-08), #5294 (2026-06-21) and #5360 (2026-07-12), all issues — Ctrl+D not
+  passed through, all Ctrl+ combinations emitting `[xx;5u` garbage, Ctrl+Enter not reported. That is
+  the `extended-keys` / `multilineKey` contract.
+- #5258 (2026-06-13) and #5090 (2026-04-23) — the Windows ARM64 CI target. **Both are pull requests
+  and both are open**, which is the same reading as #5195: the work is proposed and not landed. **No
+  release has ever published a Windows ARM64 asset**; every Windows artefact from v0.44.0 to v0.45.1
+  is `x86_64-pc-windows-msvc` only.
 
 And structurally, independent of bug counts: zellij has **no user-settable per-session key/value
 options**, so the five `@gmux-*` stamps have no home and only the `GMUX_SESSION_ID` pane-env half
@@ -815,11 +888,96 @@ survives; **no `remain-on-exit failed` / `pane_dead_status` equivalent**, so exi
 and **no control-mode event stream**, so `control-client.ts` — Tortie's event bus — has nothing to
 attach to.
 
-**Refuse today. Re-price when the Windows issue count is in single digits, #5195 is merged, and an
+**Refuse today. Re-price when the open Windows issue count is in single digits, #5195 is merged, and an
 `aarch64-pc-windows-msvc` asset exists.** Its Windows port is five and a half months old against
 tmux's eighteen years, and Tortie's rule is that the durability layer must be older than the product.
 
-#### A.2.6 Option C — a weaker durability contract
+#### A.2.6 Option E — tmux under Cygwin/MSYS2, which the pinned tarball refutes excluding
+
+**This option was excluded by an absolute, and the absolute was wrong.** The first draft of this
+document wrote *"There is no tmux on Windows and never has been"* and cited tmux's own README. The
+README line is verbatim correct — `README:7` of the pinned 3.7b tarball reads *"This release runs on
+OpenBSD, FreeBSD, NetBSD, Linux, macOS and Solaris"* — but the inference from it is not, and the
+tarball sitting in this repository is what refutes it. Read at the fix round on 2026-09-06 out of
+`build/vendor/tmux/work/tmux-3.7b/`:
+
+- `configure.ac:993-995` — `*cygwin*|*msys*) AC_MSG_RESULT(cygwin); PLATFORM=cygwin`, a first-class arm
+  beside the darwin, linux and solaris ones rather than a fall-through to the `*)` arm's
+  `PLATFORM=unknown` at `:1001-1003`.
+- `configure.ac:1016` — `AM_CONDITIONAL(IS_CYGWIN, test "x$PLATFORM" = xcygwin)`.
+- `Makefile.am:79-82` — `# Set flags for Cygwin. / if IS_CYGWIN / AM_CPPFLAGS += -DTMUX_SOCK_PERM=0`.
+- `server-client.c:2546-2549` — `#ifdef __CYGWIN__`, reopening the client's tty by name.
+
+**And it ships.** `packages.msys2.org/base/tmux`, read 2026-09-06, packages **tmux 3.7c** in MSYS2's
+`msys` repository — one release NEWER than the 3.7b this repository pins, and above the conf's own
+floor, which is more than any Linux LTS in §A.1.2's table manages. So option E is real, it is the same
+eighteen-year-old program with the same 19 verbs and the same 31 format variables, and on its face it
+scores on exactly the grounds B and B′ are refused on: boring, inspectable, older than this product,
+and no new durability code Tortie owns.
+
+**It is refused, and this is the price rather than another absolute.**
+
+1. **The pty is emulated, so every agent needs a second adapter — at every pane.** The `msys`
+   environment is a Cygwin runtime and a Cygwin pty is not a Windows console. winpty exists for
+   precisely this, and its own README (read 2026-09-06) states the case: it *"allows running Windows
+   console programs (e.g. CMD, PowerShell, IronPython, etc.) under `mintty` or Cygwin's `sshd` with
+   properly-functioning input (e.g. arrow and function keys) and output (e.g. line buffering)"*, by
+   *"starting the `winpty-agent.exe` process with a new, hidden console window"* and polling that
+   console's screen buffer for changes, and its own opening paragraph says it is *"a tool for Cygwin
+   and MSYS for running Windows console programs in a Cygwin/MSYS pty"*. Every agent that runs on
+   Windows at all runs there as a native `.exe` — eleven of the twelve, per §C.1 — so under E every
+   pane becomes `tmux → winpty-agent → a hidden conhost → the agent`. That is the ConPTY fidelity tax option A pays, paid one layer deeper and at every pane
+   rather than only at the attach carriage — and option A has an escape hatch from its tax
+   (`tmux -CC` over plain pipes, §A.2.2) where E has none, because E's adapter is *inside* the pane.
+   MSYS2 packages winpty 0.4.3-3, whose upstream predates ConPTY entirely.
+2. **Paths stop agreeing with themselves, and that is not cosmetic.** A Cygwin tmux gives its panes a
+   Cygwin view of the filesystem, `/cygdrive/c/Users/x/repo`, while the agents running in those panes
+   are Windows programs writing their stores at `C:\Users\x\...`. §C.2's harvest descriptors encode a
+   project's cwd into a store directory name; encoded from the Cygwin form they name a directory the
+   agent never created, so `tmux-pane` degrades to nothing on exactly the rows §C.1 says are strongest.
+   And §C.3's one findable defect inverts rather than disappears: `bareNameFor`'s
+   `bare.includes('/')` guard fires on the Cygwin spelling of a path and not on the Windows spelling of
+   the same binary, so the two halves of one session disagree about what a path is.
+3. **The agents lose their sandbox, which is the same reading §A.2.2 takes in A's favour.** Cygwin
+   offers no Landlock and no seccomp; Anthropic's own setup page reads *Sandboxing — Not supported* for
+   native Windows and *Supported* for WSL 2. E's agents are exactly as exposed as B's.
+4. **No Windows arm64, which is the criticism this document makes of zellij four paragraphs up.** The
+   `msys` environment is x86_64 only; MSYS2's single aarch64 environment is CLANGARM64, an
+   LLVM/ucrt **native Windows** toolchain (msys2.org/docs/environments, read 2026-09-06), which by
+   construction cannot host a Cygwin-emulated tmux. Refusing B′ partly for a missing arm64 asset and
+   then shipping E would be inconsistent.
+5. **A second runtime a person installs first, and it is not the one they would otherwise install.**
+   A asks for WSL2, which Microsoft ships, which VS Code Remote has required since 2019 and which the
+   agent vendors themselves document. E asks for MSYS2, which nothing else on the machine wants, and
+   then asks for tmux and the agents inside it anyway — so E's install floor is A's install floor with
+   a less familiar runtime at the bottom of it.
+6. **One startup pathology, fixed, and included because of what it indicates rather than what it
+   costs.** tmux/tmux#3428, *"Reissue: slow startup under MSYS2/Cygwin"*, opened 2023-01-08 and now
+   **closed**, traced multi-second client startup to Windows' TCP SYN retransmission behaviour on the
+   connect path. It is not a live defect. It is here because the upstream README declining to list the
+   platform is a maintainer's statement about what they test, and this is the shape of what goes wrong
+   on a platform tested by somebody else.
+
+**What E genuinely buys, stated so the refusal is priced and not dismissed.** E is the only option
+besides A under which Tortie writes no durability code, and unlike A it leaves Tortie a **native
+Windows app**, so the Explorer tree, the Changes list, the Architecture panel and the watcher all read
+Windows files natively and `microsoft/WSL#4739` — A's one product concession — does not exist. That is
+a real advantage and it is the reason E gets a section rather than a sentence.
+
+**Verdict: refuse, on the record.** E trades A's one file-boundary concession for an emulated pty at
+every pane, a path model that disagrees with the agents' own, no agent sandboxing, no arm64 and an
+unfamiliar runtime. **E would rise above A only if WSL2 were unavailable to the person**, which is not
+a case anybody has presented. It does not move the recommendation, which stays D with A2 as the
+shippable step — and it is written down so a later round prices it rather than inheriting an absolute
+this one got wrong.
+
+**UNMEASURED for E, and it is everything behind the arithmetic above:** no MSYS2 machine was used. In
+particular, whether `gmux-tmux.conf` loads clean on the MSYS2 3.7c build, whether `remain-on-exit
+failed` reports a native `.exe`'s exit code faithfully through the Cygwin process layer, whether
+`#{pane_dead_signal}` has any meaning there, and what a Cygwin tmux server does across a Windows
+logoff. The probe is one MSYS2 install and the existing T1 smoke.
+
+#### A.2.7 Option C — a weaker durability contract
 
 As the charter states it ("survive app quit but not reboot"), **C is not weaker than macOS — it is
 macOS**, per §A.0. So the option has to be restated to mean anything: C is *sessions that do not
@@ -839,7 +997,7 @@ less; **frequency UNMEASURED**.)
 that is the only Windows on offer, D is better than C, because refusing is honest and C is a promise
 that quietly is not kept.
 
-#### A.2.7 Option D — refuse Windows
+#### A.2.8 Option D — refuse Windows
 
 **A real answer, and the correct fallback.**
 
@@ -859,33 +1017,42 @@ currently using this file'"*, and #88586 on the notification-area instance holdi
 lock. So any Windows build must be NSIS or a plain installer, or must put the supervisor outside the
 package — another reason B is worse than it first looks.
 
-#### A.2.8 The four-way comparison
+#### A.2.9 The five-way comparison
 
-| | **A. WSL2 as a machine** | **B. Tortie supervisor / B′ zellij** | **C. Sessions die with the app** | **D. Refuse Windows** |
-| --- | --- | --- | --- | --- |
-| Live tier (quit, crash) | **Kept** — tmux, unchanged | B: kept if written correctly. B′: **open bug #5195** | **Lost** | n/a |
-| Cold tier (reboot) | Kept — same code as macOS | Kept | Kept | n/a |
-| Protected identifiers | **All portable** | B: reimplemented. B′: `@gmux-*` has no home | Reimplemented | n/a |
-| 19 verbs / 31 formats | **All, free** | B: 18 free, 8 via `@xterm/headless`, 2 with no honest Windows answer | Same as B | n/a |
-| Agent sandboxing | **Supported** (WSL2) | Not supported | Not supported | n/a |
-| Terminal fidelity | ConPTY tax on attach, **avoidable via control mode over pipes** | ConPTY tax, unavoidable | ConPTY tax | n/a |
-| Explorer / git / search, repo on the Windows side | **Broken** (WSL#4739, open 6.5 yrs) — so the product requires Linux-side repos | Native and correct | Native and correct | n/a |
-| Person must install first | WSL2 + distro + tmux + agents | Nothing | Nothing | n/a |
-| New durability code Tortie owns | **None** | B: all of it. B′: a second substrate contract forever | All of it | None |
-| Largest existing seam reused | `machines/` — 15 files, 12,343 lines | None | None | n/a |
-| Breaks the Zen | No | **Yes** (*"boring, inspectable and older than this product"*) | **Yes** (*"the session continues"*) | No |
+| | **A. WSL2 as a machine** | **B. Tortie supervisor / B′ zellij** | **E. Cygwin/MSYS2 tmux** | **C. Sessions die with the app** | **D. Refuse Windows** |
+| --- | --- | --- | --- | --- | --- |
+| Live tier (quit, crash) | **Kept** — tmux, unchanged | B: kept if written correctly. B′: **open PR #5195** | **Kept** — the real tmux, `exit-empty off` | **Lost** | n/a |
+| Cold tier (reboot) | Kept — same code as macOS | Kept | Kept | Kept | n/a |
+| Protected identifiers | **All portable** | B: reimplemented. B′: `@gmux-*` has no home | **All portable** | Reimplemented | n/a |
+| 19 verbs / 31 formats | **All, free** | B: 18 free, 8 via `@xterm/headless`, 2 with no honest Windows answer | **All, free** | Same as B | n/a |
+| Agent sandboxing | **Supported** (WSL2) | Not supported | Not supported | Not supported | n/a |
+| Terminal fidelity | ConPTY tax on attach, **avoidable via control mode over pipes** | ConPTY tax, unavoidable | **winpty at every pane**, not only at attach, and no escape hatch | ConPTY tax | n/a |
+| Path model the agents agree with | Linux paths, agents run Linux builds | Windows paths throughout | **Split** — `/cygdrive/c` in the pane, `C:\…` in the agents' stores | Windows paths throughout | n/a |
+| Explorer / git / search, repo on the Windows side | **Broken** (WSL#4739, open 6.5 yrs) — so the product requires Linux-side repos | Native and correct | **Native and correct** — E's one real advantage over A | Native and correct | n/a |
+| Windows arm64 | Yes | B: yes. B′: **no asset ever published** | **No** — `msys` is x86_64 only | Yes | n/a |
+| Person must install first | WSL2 + distro + tmux + agents | Nothing | MSYS2 + tmux + agents | Nothing | n/a |
+| New durability code Tortie owns | **None** | B: all of it. B′: a second substrate contract forever | **None** | All of it | None |
+| Largest existing seam reused | `machines/` — 15 files, 12,343 lines | None | `machines/`, same shape as A | None | n/a |
+| Breaks the Zen | No | **Yes** (*"boring, inspectable and older than this product"*) | No — the substrate is older than the product | **Yes** (*"the session continues"*) | No |
 
-#### A.2.9 The Windows substrate verdict
+#### A.2.10 The Windows substrate verdict
 
-**A is the only option under which Tortie writes no new durability code**, and every other option asks
-the product to own the layer its own philosophy says it must not own. So: **A is the shape if Windows
-ever happens, A2 is its shippable first step, B and B′ and C are refused, and D is what this document
+**Two options write no new durability code, A and E**, and E is the one the fix round added after the
+first draft excluded it by an absolute. Between them A wins on every axis but one: the agents keep
+their sandbox, the pty tax is confined to the attach carriage and has an escape hatch, the paths the
+panes see are the paths the agents write, and Windows arm64 exists. E's single advantage is that Tortie
+stays a native Windows app, so §A.2.2's file-boundary concession disappears — which is real, and is not
+worth an emulated pty in front of every agent. Every other option asks the product to own the layer its
+own philosophy says it must not own. So: **A is the shape if Windows ever happens, A2 is its shippable
+first step, B, B′, E and C are refused with their reasons on the record, and D is what this document
 recommends holding until A's two measurements are taken.**
 
-**UNMEASURED for §A.2, in full:** no Windows machine was used. Specifically — whether a tmux server
-keeps a WSL2 distro alive; whether Electron's process on Windows sits in a job object; ConPTY fidelity
-for Tortie's actual stream; `tmux -CC` as a rendering carriage; WSL2 boot-to-usable latency; 9p
-throughput in numbers; and Windows Update restart frequency.
+**UNMEASURED for §A.2, in full:** no Windows machine and no MSYS2 installation were used. Specifically
+— whether a tmux server keeps a WSL2 distro alive; whether Electron's process on Windows sits in a job
+object; ConPTY fidelity for Tortie's actual stream; `tmux -CC` as a rendering carriage; WSL2
+boot-to-usable latency; 9p throughput in numbers; Windows Update restart frequency; and everything in
+§A.2.6's own UNMEASURED paragraph, being whether `gmux-tmux.conf` loads clean on MSYS2's tmux 3.7c and
+whether exit-code truth survives the Cygwin process layer.
 
 ---
 
@@ -1287,10 +1454,15 @@ Windows machine were available to this research.** Everything that would need on
 
 ### D.0 The decision, in five sentences
 
-1. **Linux: ship AppImage and deb, and nothing else.** They are the two formats electron-builder cuts
-   today with no sandbox to fight, they are the two `electron-updater` can update in place, and
-   between them they cover "download and run" and "install it properly". Both are UNMEASURED on a
-   real Linux box and both are cheap to try.
+1. **Linux: ship deb and AppImage, and nothing else — in that order.** They are the two formats
+   electron-builder cuts today with no sandbox to fight, they are the two `electron-updater` can update
+   in place, and between them they cover "install it properly" and "download and run". Both are
+   UNMEASURED on a real Linux box and both are cheap to try. **deb is named first, and the fix round
+   moved it there:** a `.deb` puts real files at `/opt/Tortie` on the real filesystem, which is the
+   stable-absolute-path mechanism the live tier rests on, while an AppImage runs from a fresh random
+   FUSE mount per launch whose behaviour under a tmux server that outlives the app is unmeasured and
+   whose documented design intent is to tear that mount down (§D.3.1). If that probe comes back clean
+   the two are equal again.
 2. **Linux: refuse Flatpak and Snap, and the reason is the same one for both.** Tortie's whole job is
    to start a durable tmux server and let it spawn the user's own agent binaries out of the user's
    own home directory. That is precisely the shape both sandboxes exist to prevent. Snap can only do
@@ -1303,7 +1475,8 @@ Windows machine were available to this research.** Everything that would need on
    cutting for nobody.
 4. **Windows: do not ship, and the packaging half is not the reason.** NSIS is the cheapest installer
    on the table and Windows signing turns out to be cheaper than macOS signing. The blocker is that
-   **there is no tmux on Windows**, which is §A.2's question; §A.2 answers it by refusing the native
+   **there is no NATIVE tmux on Windows** — there is a Cygwin one, and §A.2.6 prices it as option E and
+   refuses it — which is §A.2's question; §A.2 answers it by refusing the native
    product, so a Windows installer today would package a product that cannot keep the promise on the
    first page of `docs/ZEN-OF-TORTIE.md`. Refusing Windows is the answer this section recommends, and
    §D.7 states exactly what would have to change to flip it.
@@ -1400,7 +1573,7 @@ electron-builder 26.15.3 ships target implementations for **appimage, snap, flat
 "supported" in the sense that a target class exists. What differs enormously is what the *host* needs
 and what the *user's machine* needs.
 
-#### D.3.1 AppImage — ship it
+#### D.3.1 AppImage — ship it, but second, and only after one probe
 
 - **What electron-builder produces today.** `AppImageTarget` builds a squashfs image with an AppImage
   runtime prepended and **appends a blockmap**, which is what makes differential update possible.
@@ -1422,11 +1595,78 @@ and what the *user's machine* needs.
   (`toolsets/linux.js`, `getFuse2Paths`: `toolRoot = process.platform === "linux" ? "linux-<arch>" : "darwin"`),
   so an AppImage is buildable **on the Mac**. The static-runtime layout has no host subdirectory, so
   it reads as Linux-host-only. **UNMEASURED** — read from the path layout, not run.
-- **Nested binaries.** AppImage is not a sandbox. It is a self-mounting archive; everything inside runs
-  with the user's ordinary privileges and sees the user's ordinary `$HOME` and `$PATH`. specstory, rg
-  and a bundled tmux all work, and a tmux server started from inside it **outlives the app** exactly
-  as on macOS, because there is no container to tear down. This is the single most important
-  compatibility fact in this whole section.
+- **Nested binaries, and the mount that has to come down.** AppImage is not a sandbox. It is a
+  self-mounting archive; everything inside runs with the user's ordinary privileges and sees the
+  user's ordinary `$HOME`, so specstory, rg and a bundled tmux all execute. **The first draft of this
+  section then said a tmux server started from inside it "outlives the app exactly as on macOS,
+  because there is no container to tear down", and called that the single most important compatibility
+  fact here. That sentence is withdrawn.** There IS something to tear down — a FUSE mount — and the
+  claim also contradicted §D.9, which listed the same question as unmeasured on the same day. What
+  happens to a tmux server standing in that mount is **UNMEASURED**. What the fix round did measure is
+  the mechanism on both sides, and the two sides point opposite ways.
+
+  **The project's stated intent is teardown.** AppImage's own software overview, read 2026-09-06:
+  *"After the payload application exited, the runtime unmounts the squashfs image and cleans up the
+  temporary resources (such as, the temporary mountpoint directory)."* And in AppImage discussion
+  #1327, dated 2024-05-25, the maintainer puts it in as many words: *"Once the main long-running
+  process for your main executable exits, we assume that the application has been quit by the user and
+  at this point all processes spawned by it should be terminated, and the mount point should be
+  unmounted. This is by design."*
+
+  **The runtime's own code implements no such thing, and the trigger is a file descriptor rather than
+  an exit.** `src/runtime/runtime.c` from `AppImage/type2-runtime`, fetched and read at the fix round
+  on 2026-09-06 (1,857 lines): it kills no process and no process group on the mount-and-run path, and
+  calls no `fusermount -u` there either. Teardown is a keepalive pipe and nothing else. The runtime
+  calls `pipe(keepalive_pipe)` at `:1726`, forks a squashfuse daemon whose `fuse_mounted` callback at
+  `:608-613` starts `write_pipe_thread` (`:594-606`) writing into the WRITE end forever, closes the
+  write end in the parent at `:1786`, does `dup2(dir_fd, 1023)` on the mount directory at `:1800`, and
+  `execv`s AppRun at `:1850`. When the last holder of the READ end closes it, that thread's `write`
+  returns `-1` and it does `kill(fuse_pid, SIGTERM)` at `:602`, which is what unmounts. So the mount
+  comes down when the last process holding `keepalive_pipe[0]` goes, not when the payload exits.
+  **Both toolsets are covered by that reading, which matters because the DEFAULT one is the older
+  runtime.** `AppImageKit`'s `src/runtime.c` — the legacy FUSE2 runtime that
+  `toolsets.appimage: "0.0.0"` prepends — was fetched at the same time (958 lines) and carries the
+  identical design at its own line numbers: `keepalive_pipe` at `:135`, `write_pipe_thread` with the
+  same `kill(fuse_pid, SIGTERM)` on a failed write at `:138-152`, `pipe()` at `:842`, and the same
+  `dup2(dir_fd, 1023)` / `setenv("APPDIR", mount_dir)` / `execv(filename, real_argv)` sequence closing
+  the parent branch. type2-runtime is a fork of it and this part was not changed.
+
+  **And that descriptor is inherited by every descendant, including the tmux server.** The runtime uses
+  `pipe()` rather than `pipe2(O_CLOEXEC)`, and `dup2` clears close-on-exec by definition, so both
+  `keepalive_pipe[0]` and fd 1023 survive every `exec` down the tree. No link in Tortie's chain closes
+  them: node-pty's Linux path forks and `execvp`s with no descriptor sweep at all
+  (`node_modules/node-pty/src/unix/pty.cc:399-447` — the only `POSIX_SPAWN_CLOEXEC_DEFAULT` in that
+  file is at `:703`, inside the `__APPLE__` branch), and tmux's `proc_fork_and_daemon` at
+  `build/vendor/tmux/work/tmux-3.7b/proc.c:359-380` calls `daemon(1, 0)`, which redirects 0, 1 and 2
+  and closes nothing above 2. **So the likely real outcome is neither the old claim nor the documented
+  intent: the tmux server holds the AppImage MOUNTED after Tortie quits, leaving one `squashfuse`
+  process and one `/tmp/.mount_*` directory per launch alive until the last session dies.** Both
+  outcomes are defects — one loses the live tier, the other leaks a mount per launch — and neither has
+  been seen on a machine.
+
+- **The per-launch resources path, which is a defect whichever way the mount goes.** `build_mount_point`
+  at `runtime.c:978-997` composes `<TMPDIR or /tmp>/.mount_<name>XXXXXX` and `:1721` runs `mkdtemp` on
+  it, so `$APPDIR` is a **fresh random directory on every launch** and `process.resourcesPath` is
+  `$APPDIR/resources`. Tortie composes the bundled tmux path from it at
+  `src/main/tmux/resolve.ts:803` and the conf at `:918`. A tmux server started under one launch is
+  therefore executing a binary at a path the next launch cannot name, and if the mount is ever released
+  while that server lives, the server's own text pages are backed by a filesystem that has gone away.
+  Worse for §A.1.7: electron-builder's generated `AppRun` (`generateAppRunScript` in
+  `node_modules/app-builder-lib/out/targets/appimage/appImageUtil.js`) exports
+  `PATH="${APPDIR}:${APPDIR}/usr/sbin:$PATH"` and `LD_LIBRARY_PATH="${APPDIR}/usr/lib:…"` into every
+  descendant, so the tmux server's environment — the thing Phase 12.7 F3 deliberately seeds so
+  `execvp` finds agents by bare name — carries two per-launch directories that outlive the launch and
+  point into a mount that may be gone. And §A.1.4's hazard one gains a second thing for `/tmp` ageing
+  to age, being the mount directory itself. **A `.deb` has none of this: `installPrefix` is `/opt`
+  (`app-builder-lib/out/targets/LinuxTargetHelper.js:76`, used at `FpmTarget.js:215`), so
+  `process.resourcesPath` is `/opt/Tortie/resources`, a real path on a real filesystem, stable across
+  launches and across updates — which is the macOS mechanism the live tier actually rests on.**
+
+- **The probe that settles it, and it is one afternoon on any Linux box.** Build the AppImage, run
+  `GMUX_SMOKE=create`, quit the app, then read `mount | grep '\.mount_'`, `ls -d /tmp/.mount_*`,
+  `pgrep -a squashfuse` and `tmux -L gmux ls`, and run `GMUX_SMOKE=verify`. Repeat over three launches
+  to see whether mounts accumulate. **Until that has been run, AppImage is a SHIP with a condition and
+  deb is the format the live tier should be measured on.**
 - **Updates.** `electron-updater` picks `AppImageUpdater` for any Linux app with no `package-type`
   marker. It refuses unless `process.env.APPIMAGE` is set (`AppImageUpdater.js:18`), i.e. the app must
   actually be running as an AppImage; it downloads differentially against the blockmap and swaps the
@@ -1437,15 +1677,25 @@ and what the *user's machine* needs.
   no desktop checks by default.
 - **Cost to set up:** one `linux:` block, two targets, per-platform paths for the three literal
   ripgrep strings, a Linux tmux build path, four more specstory pin rows. **Cost to keep:** the
-  FUSE/toolset decision has to be revisited when the beta toolset goes stable, and that is about it.
+  FUSE/toolset decision has to be revisited when the beta toolset goes stable, plus the mount question
+  above, which is the one thing in this section that could cost more than it looks.
 
-#### D.3.2 deb — ship it
+#### D.3.2 deb — ship it, and make it the primary format
 
 - **What electron-builder produces.** `FpmTarget` shells out to a **bundled** fpm 1.17.0. The toolset
   table in `toolsets/linux.js` lists `fpm-1.17.0-ruby-3.4.3-darwin-arm64.7z` among five builds, so
   **a `.deb` is buildable on the operator's Mac** with no Docker and no Linux box.
-- **Nested binaries.** A `.deb` is a tarball with a control file. No confinement whatsoever. Everything
-  works, and the tmux server outlives the app.
+- **Nested binaries, and this is why deb moved ahead of AppImage at the fix round.** A `.deb` is a
+  tarball with a control file. No confinement, no sandbox and — the part that matters — **no mount**.
+  Files land at `/opt/<productName>/` (`installPrefix = "/opt"` at
+  `app-builder-lib/out/targets/LinuxTargetHelper.js:76`, applied at `FpmTarget.js:215`), so
+  `process.resourcesPath` is `/opt/Tortie/resources` on every launch for the life of the install. The
+  bundled tmux the server is executing sits at a stable absolute path, exactly as
+  `/Applications/Tortie.app/Contents/Resources/bin/tmux` does on macOS, and an update replaces the file
+  while a running server keeps its unlinked-but-open inode — which is the macOS behaviour, unchanged.
+  **The tmux server outlives the app for the same structural reason it does on macOS**, and that
+  sentence is true here in a way §D.3.1 could not establish for AppImage. It is also the format that
+  can install the `tmpfiles.d` drop-in §A.1.4 needs.
 - **Updates, and this is deb's one real cost.** `electron-updater` selects `DebUpdater` when
   `resources/package-type` reads `deb`. Installing means running `dpkg -i` — and `LinuxUpdater.js`
   shows what that means for a person: `runCommandWithSudoIfNeeded` checks for uid 0 and otherwise
@@ -1456,8 +1706,15 @@ and what the *user's machine* needs.
   `apt upgrade` picks it up — costs a signing key, a repo layout and a host, and is not worth it for
   one user.
 - **Store account or review.** None.
-- **Cost to set up:** one line in the target list plus a `deb.depends` list. **Cost to keep:** the
-  dependency list drifts as distros move; low.
+- **Cost to set up:** one line in the target list plus a `deb.depends` list, plus the `tmpfiles.d`
+  drop-in of §A.1.4. **Cost to keep:** the dependency list drifts as distros move; low.
+- **Why it is now first rather than second.** The two formats were originally ordered by how pleasant
+  the update is, and on that axis AppImage wins outright. The fix round re-ordered them by what the
+  LIVE TIER rests on, which is a stable absolute path to the bundled tmux and no filesystem that can be
+  torn down under a running server. deb wins that outright, and the update prompt is a nuisance a
+  person sees a few times a month against a durability question nobody has answered. **If the §D.3.1
+  probe comes back clean — the mount survives, no leak accumulates, `GMUX_SMOKE=verify` passes — the
+  two are equal and the ordering can go back.**
 
 #### D.3.3 rpm — cut it only if asked
 
@@ -1537,8 +1794,8 @@ one-line addition the day a Fedora user appears.
 
 | Format | Build host | Set up | Keep | Signing | Nested binaries survive? | Update path | Store / review | Ship? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **AppImage** | Mac (FUSE2 toolset) or Linux | small | small | none | **yes**, no sandbox at all | `AppImageUpdater`, differential, no prompt | none | **SHIP** |
-| **deb** | Mac (bundled fpm) or Linux | small | small | none | **yes** | `DebUpdater`, `dpkg` behind a `pkexec`/`sudo` prompt every time | none | **SHIP** |
+| **deb** | Mac (bundled fpm) or Linux | small | small | none | **yes** — real files at `/opt/Tortie`, stable path, no mount | `DebUpdater`, `dpkg` behind a `pkexec`/`sudo` prompt every time | none | **SHIP, first** |
+| **AppImage** | Mac (FUSE2 toolset) or Linux | small | small | none | **unproven** — no sandbox, but a FUSE mount whose teardown vs. a live tmux server is UNMEASURED, and a per-launch `$APPDIR` (§D.3.1) | `AppImageUpdater`, differential, no prompt | none | **SHIP, second, after one probe** |
 | **rpm** | Linux, or Mac + `rpmbuild` | small | small | none | **yes** | `RpmUpdater`, same prompt | none | later, on request |
 | **Flatpak** | Linux + `flatpak-builder` only | **large** | large | Flathub's | **no** — needs `--talk-name=org.freedesktop.Flatpak` and `flatpak-spawn --host`, which breaks bundled tmux | Flathub only; **no updater** | Flathub PR, volunteer review, source-build rule specstory fails | **REFUSE** |
 | **Snap** | Linux + LXD, or Multipass, or Launchpad | **large** | large | Store's | **only under classic** | Snap Store auto-refresh; **no updater**; refresh restarts the app | Snap Store account + **Canonical classic review** | **REFUSE** |
@@ -1774,7 +2031,7 @@ Linux and has no Windows meaning.
 
 Stated so a later round does not have to guess.
 
-1. **A Windows session substrate exists that keeps the durability promise.** §A.2 prices four and
+1. **A Windows session substrate exists that keeps the durability promise.** §A.2 prices five and
    recommends exactly one, being WSL2 shaped as a machine, whose two open measurements are named in
    §0.6. Until one of those is settled, everything in §D.4 is packaging for a product that does not
    work.
@@ -1798,8 +2055,9 @@ permission that makes the sandbox decorative. Neither is likely and neither shou
 GitHub release the DMG comes from, of the same order of size as the 165 MiB DMG (**UNMEASURED** —
 Electron's linux zip and the Linux specstory asset are within a few percent of their darwin
 counterparts, but nothing was built). It launches, it starts a private tmux server on socket
-`-L gmux` from a bundled tmux, the sessions survive quitting the app, and the AppImage updates itself
-silently the way the Mac does.
+`-L gmux` from a bundled tmux, and the AppImage updates itself silently the way the Mac does.
+**Sessions surviving the quit is stated for the `.deb` and is UNPROVEN for the AppImage**, for the
+mount reason in §D.3.1 — which is why the deb is the one to hand somebody first.
 
 **What would be permanently worse than the macOS build:**
 
@@ -1810,6 +2068,10 @@ silently the way the Mac does.
 - **The deb self-updates behind a password prompt**, or does not self-update at all.
 - **The AppImage may need `libfuse2t64` installed by hand** on the two most common Ubuntu releases,
   unless Tortie opts into a toolset electron-builder labels beta.
+- **The AppImage's live tier is unproven and may cost a leaked mount per launch.** Its resources live
+  on a fresh random FUSE mount each time, so the bundled tmux a running server is executing sits at a
+  path the next launch cannot name (§D.3.1). The `.deb` has no such problem, which is a real difference
+  between the two artifacts in the same release rather than a packaging preference.
 - **The bundled tmux is only as portable as its glibc**, where the macOS one is guaranteed by a single
   SDK.
 - **Native menus.** `CLAUDE.md`'s UI rule says *"Native macOS menus via the `ui:popupMenu` bridge —
@@ -1830,7 +2092,7 @@ guesses this section refused to make.
 | Whether the static-runtime AppImage toolset can build on a darwin host | run the build once with `toolsets.appimage: "1.0.3"` on the Mac and read the error |
 | Whether removing `--no-sandbox` from `executableArgs` leaves a working app | build both ways, launch both |
 | Whether a tmux built on ubuntu-24.04 runs on Debian stable and Fedora | build once, `ldd` it, run it in three containers |
-| Whether a tmux server started inside an AppImage really outlives the app | `GMUX_SMOKE=create` then quit, then `GMUX_SMOKE=verify` — the existing T1 smoke, unchanged, on Linux |
+| **Whether a tmux server started inside an AppImage really outlives the app, and whether it instead pins the mount open.** §D.3.1 measures the mechanism on both sides and they disagree: the format's documentation and maintainer say the mount is torn down when the payload exits, while the runtime's code ties teardown to the last holder of an inherited non-`CLOEXEC` descriptor that neither node-pty nor tmux closes. This is the highest-value unmeasured claim in §D | `GMUX_SMOKE=create`, quit, then `mount \| grep '\.mount_'`, `ls -d /tmp/.mount_*`, `pgrep -a squashfuse` and `tmux -L gmux ls`, then `GMUX_SMOKE=verify` — the existing T1 smoke plus four reads, on Linux, repeated over three launches |
 | Whether `-ApplePersistenceIgnoreState YES` is inert to a Linux Electron | run any smoke script on Linux |
 | Whether cross-compiling `node-pty` and `better-sqlite3` for linux from darwin works | it should not be attempted; use native runners |
 | Whether `windows-11-arm` has an MSVC toolchain for `electron-rebuild` | one `npm ci` on that runner |
@@ -2198,7 +2460,7 @@ none of these numbers is a measurement.**
 
 | Phase | What it does | Tier | Why that tier |
 | --- | --- | --- | --- |
-| **L1 — the build** | `build/build-tmux.mjs` on Linux with a fourth pinned tarball for static ncurses and two architectures; the two silent pack-hook returns become deliberate branches; the four specstory pin rows and the three literal ripgrep paths become per-platform; a `linux:` block cutting AppImage and deb on x64 and arm64; two CI jobs and the publish job (§D.5) | **Tier 3** | It spawns processes and it packages what a person runs. The per-row matrix is the four artifacts actually built and launched |
+| **L1 — the build** | `build/build-tmux.mjs` on Linux with a fourth pinned tarball for static ncurses and two architectures; the two silent pack-hook returns become deliberate branches; the four specstory pin rows and the three literal ripgrep paths become per-platform; a `linux:` block cutting deb and AppImage on x64 and arm64, with the §D.3.1 mount probe run before the AppImage is offered to anybody; two CI jobs and the publish job (§D.5) | **Tier 3** | It spawns processes and it packages what a person runs. The per-row matrix is the four artifacts actually built and launched |
 | **L2 — the substrate honest** | The nine files §A.1.9 names: `resolve.ts` (8 lines), `env.ts` (`C.UTF-8`), the five `/bin/ps` sites plus the new `/proc/<pid>/stat` reader, `proc/orphans.ts`'s ppid predicate, node-pty's Linux build path, and a real Linux row in `TESTED_TMUX_PAIRS` | **Tier 3** | It can lose the person's work — tmux, restore and session lifecycle are all in scope |
 | **L3 — the macOS mechanisms** | §B's needs-work rows that are not the keymap: the in-window menu bar and the four dead roles, the window chrome and the 76 px inset, the tray refusal on GNOME, `about`, fonts and a re-measured `assert-tab-floor`, the 31 `startsWith('/')` sites, the Squirrel domain behind a darwin guard, and the three diagnostics panels refusing honestly off-mac | **Tier 2** | Rendered surfaces with no new durable state, one app run each, plus one independent method |
 | **L4 — the gates, and it is not optional** | A Linux packaged-dir smoke on every pull request (§D.5 says the class of bug it catches is per-platform by definition), `smoke:t1` and `smoke:t3` on Linux, `conformance:resume`, a Linux `probe:p167` written against `/proc/self/fd` because the macOS assertion measures a code path that does not exist, and a durability soak over a real logout | **Tier 3** | This is the phase that turns "it runs" into "it is dependable", and without it the Linux build is a claim rather than a product |
@@ -2217,9 +2479,11 @@ deliverable. That asymmetry is the recommendation.
 
 **What a person would get.** An `.AppImage` and a `.deb` for x64 and arm64 from the same GitHub
 release the DMG comes from. It launches, it starts a private tmux server on socket `-L gmux` from a
-bundled tmux, **sessions survive quitting the app**, restore brings a project back after a reboot with
-the agent's resume command prepared, and the AppImage updates itself silently the way the Mac does.
-All twelve agents can be launched. Six of them capture as strongly as on macOS on day one.
+bundled tmux, **sessions survive quitting the app on the `.deb`**, restore brings a project back after
+a reboot with the agent's resume command prepared, and the AppImage updates itself silently the way the
+Mac does. All twelve agents can be launched. Six of them capture as strongly as on macOS on day one.
+**The AppImage's live tier is the one claim on this list that is unproven** — its resources sit on a
+per-launch FUSE mount and §D.3.1 names the probe.
 
 **What it would not do on day one:** capture exactly for `codex`, `deepseek`, `omp` and `qwen` until
 each store encoding is read off a real install; capture exactly for `antigravity` on any machine
@@ -2242,6 +2506,10 @@ submenu as more than a single default; or offer the power, footprint and disk di
 - **The deb self-updates behind a password prompt**, or does not self-update at all (§E).
 - **The AppImage may need `libfuse2t64` installed by hand** on the two most common Ubuntu releases,
   unless Tortie opts into a toolset electron-builder labels beta (§D.3.1).
+- **The AppImage runs from a per-launch FUSE mount**, so the path the bundled tmux is executing from
+  changes on every launch and the teardown behaviour under a live server is unmeasured (§D.3.1). The
+  `.deb` is the artifact this document would hand somebody first, and that ordering is itself a thing
+  macOS never has to think about.
 - **The bundled tmux is only as portable as its glibc**, where the macOS one is guaranteed by a single
   SDK; the whole product's measured floor is **GLIBC_2.34**.
 - **Real-keystroke verification does not port**, and on Wayland there is no portable synthetic-input
@@ -2270,7 +2538,7 @@ would additionally not do: the setsid'd-tool-child status oracle, which has no W
 for six of the twelve agents without new machinery; `muse` at all; and it would carry a ConPTY
 fidelity tax on the attach stream unless the control-mode carriage is built and proved.
 
-**Under B or C** — the promises stop being true, which is why both are refused (§A.2.4, §A.2.6).
+**Under B or C** — the promises stop being true, which is why both are refused (§A.2.4, §A.2.7).
 
 **What would be permanently worse than the macOS build on any Windows**, and these do not depend on
 which option is chosen: the Tier-2 status oracle (no session-leader concept, no STAT column, no
