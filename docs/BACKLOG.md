@@ -22010,6 +22010,234 @@ none.
 - **No new user-facing setting.** A person does not get a tmux picker; the point is that they should
   not have to think about it at all.
 
+## Phase 218 — the idle and exited dots keep their floor (operator's call, taken 2026-09-06)
+
+**Subject.** `fix(theme): the status dots hold 3 to 1 on every frame a person can choose`
+
+**First body line.** `Phase 218: the dots keep their floor`
+
+**Semver.** PATCH if only the two hexes move. MINOR only if the phase ends up changing what the
+frame controls offer, which it is told below not to do.
+
+**Tier 2**, and the parent commit measurement is mandatory. It is a rendered surface with no new
+state, so one app run and one independent method. It earns no more than that: nothing here can lose
+his work, spawn a process or hold a credential.
+
+**Charter.** This entry, the running log line of 2026-09-03 headed *QUEUED, NOT A PHASE YET, the
+idle and exited dots on `--bg-active`*, the closing list of
+`docs/audits/2026-09-03-verifier-findings-fifty-phases.md` where it is the last item, the Phase 210
+verifier's finding F2, and DESIGN.md section 1.3. The `conformance:hue` gate and its 43 ablations
+bind every change here.
+
+### What is wrong, measured rather than recalled
+
+`--status-idle` and `--status-exited` are the same colour, `#6e7583`. The solid IDLE dot and the
+hollow EXITED ring are drawn at `src/renderer/styles/globals.css` lines 277 and 292, and both sit on
+`--bg-active`, the fill under the selected row. They are in NEITHER `CHROMATIC_PINS` nor any other
+floor family, while being exactly the shape the floors exist for: a token that never moves, over a
+ground that does.
+
+Measured by running the shipping derivation over the offered region, in the Phase 210 fix round:
+
+- Shipped, they read **3.149:1**, which is 0.149 above the WCAG 1.4.11 non-text floor of 3:1 that
+  `CHROMATIC_PINS` already applies to their neighbours.
+- Over the offered region they fall to **2.591:1 at Normal**, at shade 2 depth 0 hue 134, and to
+  **2.193:1 at High**, at shade -2 depth 3 hue 63.
+- **7 of the 35 offered cells are under the floor at Normal alone, and 19 of 35 at some contrast
+  level**, including shade 0 depth 1, which is ONE STOP from the default.
+
+Two facts decide the shape of this phase and neither may be lost:
+
+1. **It is not a Phase 210 defect.** At shade 0 depth 0, which is all Phase 207's circle offers and
+   which writes no ramp override at all, the pair already reaches 2.701:1 at High and hue 121. Phase
+   210 deepened a gap it did not open.
+2. **It cannot simply be pinned.** The Phase 210 verifier's exhaustive walk, with `--status-idle` at
+   3:1 on `--bg-active` added to `CHROMATIC_PINS`, collapses the region to shade -4 [1,2], -3
+   [-2..1], -2 [-3..0], -1 [-3..-1], 0 [-3,-2], 1 [-3] and 2 empty, **which excludes the shipped
+   default**. A floor that refuses the colours the app ships in is not a floor, it is a bug.
+
+One number in the record did not reproduce and is recorded so nobody chases it: the verifier
+reported 11 of 40 for the Normal count where the fix round's own re-derivation read 7 of 35. The
+finding is unaffected either way, and this phase re-derives the count itself before it does anything
+else.
+
+### The three answers, and the phase measures all three before it picks
+
+The 2026-09-03 log line put the choice to the operator in three parts. He has now said to take it as
+a phase, so the phase prices all three and takes the one that satisfies the constraints below,
+saying in the commit body why the other two were not taken.
+
+- **A. Move the dots' hex.** Choose new values for `--status-idle` and `--status-exited` that hold
+  3:1 over every offered frame at every contrast level. Cheapest, touches two tokens, and the risk
+  is that the new colour reads as a different state or collides with `--text-muted`.
+- **B. Give the family a floor of its own and accept a smaller region.** Honest, and refused as
+  written, because the measured collapse excludes the shipped default. It becomes viable only if the
+  dots move first, which makes it a consequence of A rather than an alternative to it.
+- **C. Rule that shape plus label is the whole answer.** DESIGN.md section 1.3 already says a status
+  dot is never the only carrier of its meaning; the row carries a word too. This is a legitimate
+  answer and it must be priced, not dismissed, but if it is taken then it is WRITTEN DOWN in
+  DESIGN.md as a deliberate exemption with the measured numbers beside it, and the gate asserts the
+  exemption exists so a later round cannot quietly assume the floor is being kept.
+
+**The preference, and the phase may overturn it with evidence:** A, then C, then B.
+
+### What it must get right
+
+- **The offered region does not shrink.** All 35 cells stay reachable. A fix that buys contrast by
+  taking frames away from him is refused.
+- **The shipped default is byte identical** unless the two dot hexes are what changed, and then only
+  those two declarations move. Every other token is proved unmoved by digest, the way Phase 213
+  proves the dark base.
+- **Both bases.** The light palette landed in Phase 213 and its status dots were solved to clear 3:1
+  on the active row already. Whatever is done here is asked of BOTH bases, and light must not
+  regress.
+- **The two states stay distinguishable.** IDLE solid and EXITED hollow are the same colour today. If
+  a new colour is chosen, the phase says whether they stay the same colour and why.
+- **The floor is asked at every contrast level**, Normal, Raised and High, not only at Normal.
+
+### Proof, run rather than read
+
+- **Re-derive the finding first.** Before any colour moves, run the shipping derivation over the
+  offered region and reproduce 3.149 shipped, 2.591 at Normal and 2.193 at High, and settle the 7 of
+  35 against 11 of 40 discrepancy with your own count. A phase that cannot reproduce its own bug
+  should stop.
+- **The gate carries it.** A new rule in `npm run conformance:hue` asserting the dot family's floor
+  over every offered frame at every contrast level on BOTH bases, with an ablation that goes red.
+  The rule is proved able to fail by planting a colour that breaks it.
+- **Measure the parent commit**, which is mandatory: the worst cell at the parent and at HEAD, by the
+  same instrument.
+- **One app run**: the dots read off a real selected row at the default frame and at the worst
+  offered cell, both states, on both bases, in one session.
+- **THE INDEPENDENT METHOD:** the verifier re-derives the contrast with its own WCAG arithmetic and
+  its own colour conversion, over the whole region, and confirms the region did not shrink by one
+  cell.
+- The battery. `npm run conformance:hue` is about eleven minutes; budget for it.
+
+### What is NOT in this phase
+
+- **No change to the offered region and no new frame control.**
+- **No re-solving of either palette.** His 2026-09-05 word binds: light mode may be simplified rather
+  than over engineered, and the same restraint applies here. Two tokens, not a redesign.
+- **No new floor family applied to anything but these two tokens.**
+- **No change to what a status means, to when a dot is drawn, or to the shape-plus-label rule** other
+  than writing an exemption down if answer C is taken.
+- **Not the Phase 200 heap flake and not any other recorded nit.** Those are Phase 219.
+
+## Phase 219 — the fifth nits round, and it is the list Phase 212 wrote (operator asked 2026-09-06)
+
+**Subject.** `fix(nits): eleven findings phases recorded rather than fixed`
+
+**First body line.** `Phase 219: the fifth nits round`
+
+**Semver.** PATCH. Nothing here adds a surface or a setting.
+
+**TIERED PER ITEM, and the round refuses to promote itself.** That is the rule Phase 206 set and it
+binds here: a round does not go to Tier 3 because one item earns it, and the item that earns it is
+not demoted to match the rest. Most of these are Tier 1 or 2. The three credential items are Tier 3
+by the tiering rule's fourth question, because that domain holds his credentials, and their evidence
+is the `conformance:credentials` and `conformance:logins` gates going red one clause at a time.
+
+**Charter.** This entry, his ask of 2026-09-06, and above all the closing section of
+`docs/audits/2026-09-03-verifier-findings-fifty-phases.md`, headed *What verifiers found that is
+still not fixed*. **That section is the authority for this round's list**, because Phase 212 wrote
+it for exactly this purpose, so nothing would be quietly lost. The house shape is Phase 197's and
+Phase 206's: **one commit per item**, each naming its item.
+
+### The rule that comes first, because a nits round from a stale list is the classic failure
+
+**The measure step re-confirms every item against the tree at HEAD before anything is built.** An
+item that no longer reproduces is DROPPED, and the round says so with how it looked. An item that
+turns out to be bigger than a nit is LIFTED OUT and queued as its own entry rather than being
+squeezed in. Neither outcome is a failure; both are the measurement doing its job. The list below is
+the record's list, not a promise that all eleven are still true.
+
+### The eleven, with their source
+
+**The credential and login half. Tier 3 each, gates are the evidence.**
+
+1. **Phase 202 — a login folder created outside the root.** Add login creates an empty folder outside
+   the root when the provider root itself is a symbolic link. The row is dropped at every later read,
+   so the damage is bounded, but the one line fix and its fixture are owed. `src/main/logins/`.
+2. **Phase 204 — the observe side reads through a planted link.** A link planted at the store path
+   itself is still followed on the OBSERVE side. The write and rename sides are already guarded by
+   `src/main/credentials/nofollow.ts`; this is the third door. Tier 3 without argument: the guarded
+   sides exist because the Phase 202 verifier found a real one in the running app.
+3. **Phase 206 — a numeric id deletes a login whole.** A hand edited logins record whose id is a
+   number rather than a string makes the stray sweep delete that login entirely. Tortie never writes
+   that shape, which is why it is a nit and not an emergency, and the fix is that an invalid row is
+   dropped whole rather than acted on, which is already the domain's stated rule.
+4. **Phase 208 — three at once in the keychain migration.** A home folder behind a symbolic link is
+   refused the migration SILENTLY; a delete that fails is counted as deleted; and the gate goes red
+   at the parent by CRASHING rather than by naming a rule, which means it is not yet a gate that
+   fails usefully. The fourth thing that section names, a bare second profile copying his credential
+   into an item of its own, is BY DESIGN and is not in scope.
+
+**The everything else half. Tier 1 or 2 each.**
+
+5. **Phase 170 — the live capture window shrinks and resets.** The window printed in the diagnostics
+   header shrinks tick by tick and then resets, because each window opens only after the previous
+   finish waits for the stream's next block. Tier 2, and the evidence is the number read off the
+   face over several ticks.
+6. **Phase 175 — the Architecture switch does not disarm its watch.** Turning the switch off leaves a
+   file watch armed that was armed while it was on. Tier 2. **It must not cost an FSEvents exclusion
+   slot**, and `npm run conformance:watcher` proves the eight path budget is untouched.
+7. **Phase 181.2 — eighteen scripts missing from the gate's list.** Eighteen scripts that reach the
+   shared Electron helper are absent from `HELPER_USERS` in `build/assert-electron-teardown.mjs`, by
+   the re-verifier's own scan, drift going back to Phase 140. Tier 2, and the fix is not a longer
+   list: **the list should be DERIVED rather than maintained**, or the gate should fail when a script
+   reaches the helper and is not named. A hand list that drifts for eighty phases is the defect.
+8. **Phase 182 — a refusal nobody sees.** The refusal to install a status line over the person's own
+   is still a log line rather than something a person is told on screen. Tier 2. The UI rule binds:
+   short words on the face, not a paragraph.
+9. **Phase 188 — a newline splits a pasted report line**, and a narrow pane shows a horizontal
+   scrollbar. Tier 1 for the newline, Tier 2 for the scrollbar since it is geometry.
+10. **Phase 192 — a comment states a parent measurement in the present tense**, so it reads as a fact
+    about the tree rather than about a commit that has moved on. Tier 1, a documentation fix, and it
+    is in this round because the standing lesson is that a sentence sounding like a measurement gets
+    measured or dated.
+11. **Phase 209 — Clear during a selection copies nothing, silently.** If Clear drops the history
+    while a selection is held, copy does nothing and says nothing. Tier 2. Silence is the defect; the
+    fix may be that the selection is dropped visibly, not that copy is made to work.
+
+### What is deliberately NOT in this round, and why
+
+- **Phase 194's Cmd-A then Copy**, which yields interleaved redline text. It was RULED a known limit
+  by the phase that shipped it, and a nits round does not overturn a ruling.
+- **Phase 200's split profile heap**, which fails one run in two at BOTH commits and which nobody has
+  explained. That is an investigation, not a nit, and squeezing it into a round of eleven is how a
+  round stops landing. It stays on the operator's list.
+- **Phase 207's subtle circle and the black fall on the dark side of the flip**, both superseded by
+  Phase 210's measurements and by light mode.
+- **Phase 210's status dots**, which are Phase 218.
+- **Phase 208's second profile copying his credential**, which the record says is by design.
+
+### Proof, run rather than read
+
+- **One app run for the whole round**, not one per item. It launches once, drives every item that has
+  a face, being 5, 6, 8, 9 and 11, and reads what a person would see. Phase 137.2 spent ten launches
+  on five items and bought nothing.
+- **The three credential items are proved by their gates going red one clause at a time**, being
+  `npm run conformance:credentials` and `npm run conformance:logins`, each with a new ablation. A
+  fixture is written for item 1 as the record says is owed.
+- **Item 7 is proved by the gate catching a planted script** that reaches the helper and is not
+  named, since the whole finding is that the check could not notice drift.
+- **Item 4's third part is proved by the gate failing USEFULLY at the parent**, naming its rule
+  rather than crashing. A gate that dies is not a gate that fails.
+- **THE INDEPENDENT METHOD:** the verifier re-derives the item list itself from the primary sources,
+  being the workflow journals and the running log, rather than trusting either the audit document or
+  this entry, and it reports anything the list missed. That is the one method that can catch a nit
+  the record lost.
+- The battery, plus `conformance:watcher` for item 6 and `conformance:credentials` and
+  `conformance:logins` for items 1 to 4.
+
+### What is NOT in this phase
+
+- **No new surface, no new setting, no new package.**
+- **No widening of any item.** An item that grows past a nit is lifted out and queued, not built here.
+- **No change to the Phase 23 refusals, the protected identifiers, or any tmux behaviour.**
+- **Nothing on his disk is touched.** Every credential and login item is proved over fixtures on a
+  scratch root, and his own logins, credentials and keychain are read only throughout.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -22427,3 +22655,5 @@ cycle rather than only the evening it was written.
 - 2026-09-05, Phase 215 RESTARTED a second time as wf_a93433c3-93b at `92d223b`, carrying the database mechanism; the measure step now reads state_5.sqlite on a copy BEFORE anything else in the codex half, confirms the row counts and his own parent and children, says what the database cannot answer and when it is absent or stale, and proves the database and the rollout agree wherever both can answer, with a disagreement being a finding rather than a preference.
 - 2026-09-06 Phase 216 queued at his ask: research only, what it would take end to end to package and distribute Tortie on Linux and Windows, with refusing a platform priced as a real answer.
 - 2026-09-06 Phase 217 queued: he ran the dev build after a restart and it refused his live sessions, server 3.7b against client 3.6a. Nothing on his machine updated; the installed app and the dev build have resolved DIFFERENT tmux binaries since 2026-08-15, and the reboot only changed which one created the server. The guard was right and is untouched. He chose both halves: the dev build prefers the tmux Tortie carries, and the refusal says who started the server and what to run.
+- 2026-09-06 Phase 218 queued at his word, the idle and exited dots keep their floor: the choice the 2026-09-03 log line put to him is taken as a phase, the round prices all three answers, being move the two hexes, give the family its own floor, or write the shape plus label exemption down, with A then C then B as the preference and evidence allowed to overturn it; the offered region does not shrink, the shipped default is byte identical unless the two dot declarations are what moved, and the floor is asked of BOTH bases at every contrast level.
+- 2026-09-06 Phase 219 queued at his word, the fifth nits round: ELEVEN findings phases recorded rather than fixed, and the list is the closing section of docs/audits/2026-09-03-verifier-findings-fifty-phases.md, which Phase 212 wrote for exactly this. Tiered per item with the round refusing to promote itself, one commit an item, and the measure step re-confirms every item at HEAD first because a nits round from a stale list is the classic failure, dropping what no longer reproduces and lifting out anything bigger than a nit. Deliberately excluded: Phase 194 which was RULED a limit, Phase 200 which is an investigation rather than a nit, Phase 207 which 210 superseded, Phase 210 which is 218, and Phase 208 second profile which is by design.
