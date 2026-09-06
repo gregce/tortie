@@ -217,9 +217,12 @@ function repairOne(
   if (walk.verdict === 'repaired' && walk.resolved !== null) {
     return write(manifest, rec, before, walk.resolved, walk.hops, saidBy, reader, now);
   }
+  // `absent` is the walk's word for a thread neither voice has a record of,
+  // and this domain's word for it is `rollout-missing`. Every other verdict is
+  // the walk's own, and `saidBy` is which voice answered, whatever it said.
   return left(
     walk.verdict === 'absent' ? 'rollout-missing' : walk.verdict,
-    walk.verdict === 'already-a-session' ? saidBy : saidBy,
+    saidBy,
     walk.hops
   );
 }
