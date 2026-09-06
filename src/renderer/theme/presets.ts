@@ -290,8 +290,9 @@ export function frameRegionFor(scheme: BaseScheme): readonly FrameRegionRow[] {
 /**
  * Chromatic tokens whose chroma lifts so muted hues separate on a dim
  * display. `--status-idle` and `--status-exited` are near-neutral grays and
- * stay out. The scheme applies before this lift, so the lift acts on the
- * scheme-rotated accent.
+ * stay out, which Phase 218 kept when it lifted their lightness: a floor is
+ * not a reason to give a grey a hue. The scheme applies before this lift, so
+ * the lift acts on the scheme-rotated accent.
  */
 export const CONTRAST_CHROMA: readonly string[] = [
   '--accent',
@@ -453,25 +454,59 @@ export const CHROMATIC_PINS: readonly ChromaticPin[] = [
 /**
  * THE STATUS DOT FLOOR (Phase 213). A dot is a non text mark on the row it
  * sits in, so it owes 3:1 on `--bg-active`, the deepest fill a row takes.
- * Phase 210 recorded this floor as open on the dark base, where the idle
- * grey reads 3.15 on the shipped active fill and a lighter shade takes it
- * under; adding it there would refuse frames people already chose, so the
- * dark base keeps its region and this pin binds the LIGHT base alone, where
- * the palette was designed to it: 3.52, 3.53, 3.41 and 3.40 at the shipped
- * frame. The attention badge's text is pinned on the same list, because the
- * badge and the dot are one amber.
+ * The light palette was designed TO it: 3.52, 3.53, 3.41 and 3.40 at the
+ * shipped frame. The attention badge's text is pinned on the same list,
+ * because the badge and the dot are one amber.
+ *
+ * PHASE 218 ADDED `--status-exited`. It is the same hex as `--status-idle`
+ * on this base, so nothing measures differently today, and the list carries
+ * it for the same reason the dark one does: what the family names is what a
+ * later palette change is asked about, and a hollow ring is a mark like any
+ * other.
  */
 export const STATUS_PINS_LIGHT: readonly ChromaticPin[] = [
   { token: '--status-working', ground: '--bg-active', floor: 3 },
   { token: '--status-attention', ground: '--bg-active', floor: 3 },
   { token: '--status-idle', ground: '--bg-active', floor: 3 },
+  { token: '--status-exited', ground: '--bg-active', floor: 3 },
   { token: '--status-failed', ground: '--bg-active', floor: 3 },
   { token: '--status-attention-badge-fg', ground: '--status-attention-badge-bg', floor: 4.5 }
 ];
 
+/**
+ * THE SAME FLOOR ON THE DARK BASE, AND IT IS TWO TOKENS RATHER THAN FIVE
+ * (Phase 218). Phase 210 recorded this floor as OPEN here and Phase 213
+ * repeated the reason: the idle grey read 3.149:1 on the shipped active fill
+ * and a lighter shade took it under, so pinning it at the shipped hex would
+ * have refused frames people had already chosen. Measured with the pin added
+ * and the hex left alone, the region collapsed from 35 cells to 16 and the
+ * SHIPPED DEFAULT fell outside it, which is a bug wearing a floor's clothes.
+ *
+ * So the phase moved the colour instead. `--status-idle` and
+ * `--status-exited` went from `#6e7583` to `#8b93a1`, the least lift in
+ * OKLCH lightness that clears 3:1 over every offered frame at every contrast
+ * level, and the floor went in behind it. Re-derived with both changes: 35
+ * cells, the identical table, the default in, and the pair's worst reading
+ * 3.281 rather than 2.193.
+ *
+ * TWO TOKENS AND NOT THE WHOLE FAMILY, deliberately. `--status-working` reads
+ * 3.540 and `--status-attention` 5.678 over the same walk, so they are clear
+ * without a pin; `--status-failed` reads 3.013, which clears by 0.013.
+ * Pinning it costs the region nothing today, and it would make that 0.013 the
+ * binding number of the whole region, which is a margin no later palette
+ * change could see coming. DESIGN.md section 1.3 records the 3.013 in prose
+ * instead, which is where a number that must not be taken under belongs.
+ */
+export const STATUS_PINS_DARK: readonly ChromaticPin[] = [
+  { token: '--status-idle', ground: '--bg-active', floor: 3 },
+  { token: '--status-exited', ground: '--bg-active', floor: 3 }
+];
+
 /** The chromatic floors a base must keep. */
 export function chromaticPinsFor(scheme: BaseScheme): readonly ChromaticPin[] {
-  return scheme === 'light' ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT] : CHROMATIC_PINS;
+  return scheme === 'light'
+    ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT]
+    : [...CHROMATIC_PINS, ...STATUS_PINS_DARK];
 }
 
 // ---------------------------------------------------------------------------
@@ -495,8 +530,10 @@ export const ALL_THEME_TOKENS: readonly string[] = [
     ...HUE_TOKENS,
     ...TEXT_PINS.map((p) => p.token),
     // Phase 213: the status pins read the idle dot and the badge pair, which
-    // the chroma lift never moves, so the base must carry them too.
-    ...STATUS_PINS_LIGHT.flatMap((p) => [p.token, p.ground])
+    // the chroma lift never moves, so the base must carry them too. Phase 218
+    // added the dark pair, which is the same two tokens on the other base.
+    ...STATUS_PINS_LIGHT.flatMap((p) => [p.token, p.ground]),
+    ...STATUS_PINS_DARK.flatMap((p) => [p.token, p.ground])
   ])
 ];
 

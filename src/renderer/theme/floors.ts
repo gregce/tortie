@@ -27,7 +27,11 @@
  *  - CHROMATIC. The accent, the git decorations and the graph lanes, none of
  *    which move with the frame. This is the floor that binds the light end.
  *    On the LIGHT base (Phase 213) the status dots join this family, at 3:1
- *    on the active fill, and they are what binds its dark end.
+ *    on the active fill, and they are what binds its dark end. Phase 218 put
+ *    the idle and exited greys on the DARK base's list too, at the same 3:1
+ *    on the same fill, after lifting them to a colour that can hold it: the
+ *    pin at the old hex refused 19 of the 35 offered frames including the
+ *    shipped default, and at the new one it refuses none.
  *
  * Nothing here reads a setting. It is handed the values a derivation produced
  * and answers about those, which is what lets the gate run it under node.
