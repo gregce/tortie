@@ -480,6 +480,50 @@ describe('assertServerVersionUsable', () => {
     assert.equal(remedy?.command, 'tmux -L gmux-p41-unit kill-server');
   });
 
+  it('the refusal carries who started the server, read through the gate', async () => {
+    // PHASE 217, committer's round. The two lines this phase put on the screen
+    // were reachable only by `npm run probe:p217`, which is in no gate: with
+    // the origin read unwired from the gate the whole battery stayed green.
+    // This case drives the SHIPPING gate with a door that answers the pid the
+    // way tmux does and a process table that answers the installed app, which
+    // is the operator's own machine on 2026-09-06, and reads the words off the
+    // thrown payload rather than off the composer.
+    const door: TmuxExec = (args) => {
+      if (args[0] === 'display-message' && args[2] === '#{pid}') {
+        return Promise.resolve('953\n');
+      }
+      if (args[0] === 'display-message') return Promise.resolve('3.5a\n');
+      return Promise.resolve('');
+    };
+    let thrown: unknown = null;
+    try {
+      await assertServerVersionUsable({
+        exec: door,
+        bin: clientBin,
+        socket: 'gmux-p41-unit',
+        // Packaged, because a development build's client version is read by
+        // running `bin -V` and this case has no tmux to point that at. The
+        // second line, which only a development build gets, is pinned on the
+        // composer above.
+        packaged: true,
+        ps: (pid) =>
+          Promise.resolve(
+            pid === 953
+              ? '/Applications/Tortie.app/Contents/Resources/bin/tmux'
+              : null
+          )
+      });
+    } catch (err) {
+      thrown = err;
+    }
+    assert.ok(thrown instanceof GmuxError);
+    const remedy = (thrown as GmuxError).payload.remedy;
+    assert.deepEqual(remedy?.lines, [
+      'That server was started by Tortie at /Applications/Tortie.app.'
+    ]);
+    assert.equal(remedy?.command, 'tmux -L gmux-p41-unit kill-server');
+  });
+
   it('does NOT remember a block, so Check again re-probes', async () => {
     await assert.rejects(() =>
       assertServerVersionUsable({

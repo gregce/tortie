@@ -68,6 +68,7 @@ import {
   appNameOf,
   readServerOrigin,
   UNKNOWN_ORIGIN,
+  type PsReader,
   type TmuxServerOrigin
 } from './server-origin';
 
@@ -592,6 +593,19 @@ export interface ServerVersionGateInput {
   socket: string;
   /** True when this is a packaged Tortie. */
   packaged: boolean;
+  /**
+   * How the process table is asked for the origin read on the refusing path
+   * (Phase 217, committer's round).
+   *
+   * The product never passes it and gets `/bin/ps`. It exists because without
+   * a seam here NOTHING in the commit battery could reach the two lines this
+   * phase put on the refusal screen. The one committed case that drove the
+   * gate used a door answering a version string to every argv, so the origin
+   * was unreadable by construction, and unwiring `readServerOrigin` from the
+   * gate below turned no test red. A proof that lives only in a probe nothing
+   * runs is a proof the next round deletes without noticing.
+   */
+  ps?: PsReader;
 }
 
 /**
@@ -656,7 +670,7 @@ export async function assertServerVersionUsable(
     // so an ordinary boot costs nothing. `readServerOrigin` never throws and
     // never guesses, and a reader that fails costs the screen a line rather
     // than putting an invented one in front of a person about to end a server.
-    const origin = await readServerOrigin(input.exec).catch(
+    const origin = await readServerOrigin(input.exec, input.ps).catch(
       () => UNKNOWN_ORIGIN
     );
     tmuxLog.warn(

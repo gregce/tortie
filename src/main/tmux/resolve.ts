@@ -771,8 +771,18 @@ let saidDevChoice = false;
  *
  * `npm run vendor:tmux` and the packaging hook both build the pinned version
  * to exactly this path, and `npm run package` copies that same file into
- * Contents/Resources/bin. So the file named here and the file inside an
- * installed Tortie are the same build of the same version.
+ * Contents/Resources/bin.
+ *
+ * SAME BUILD, SAME VERSION, DIFFERENT BYTES, and the difference is the
+ * signature rather than the program. MEASURED 2026-09-06: this file is
+ * 1,437,872 bytes, sha256 d7002f7d…, signed adhoc by the linker as
+ * `tmux-stripped`; the copy inside the installed 0.100.0 is 1,439,648 bytes,
+ * sha256 2e48a903…, hardened runtime, re-signed and timestamped as
+ * `com.itavero.tortie.tmux` by packaging. Both answer `tmux 3.7b`, and the
+ * version string is the whole of what the gate in ./version.ts compares, which
+ * is why preferring this file is what ends the mismatch. An earlier draft of
+ * this comment said the two were the same file, which the Phase 217 verifier
+ * refuted by hashing them.
  *
  * IT IS A PREFERENCE AND NEVER A REQUIREMENT. build/vendor is gitignored, so a
  * fresh clone has no such file until somebody builds one, and its absence
