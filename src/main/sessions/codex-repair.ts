@@ -49,6 +49,15 @@
  * cannot answer, ONE directory walk of the rollout store: 25,994 files over
  * 209 directories measured at 161 ms cold and 16 ms warm on his own tree.
  *
+ * WHAT ABOUT A RECONSTRUCTED MANIFEST? `<userData>/gmux/snapshots/*.capsules.json`
+ * holds a second copy of every id, and 66 of his 72 capsule files carry one, so
+ * a rebuild would bring a sub agent id straight back. The capsule layout is
+ * append only and durable and is NOT rewritten. It does not need to be: a
+ * rebuilt manifest can only be put in place by quitting Tortie, moving the file
+ * across and starting again, which is a boot, and this pass runs at every boot
+ * and is idempotent. So a reconstructed row is repaired the first time it is
+ * read, by the same code and with the same note.
+ *
  * A STATED LIMIT, and it is not a defect this phase introduced. Two rows can
  * end up naming one conversation, and one such pair already exists on his
  * disk. `agent_session_id` carries no uniqueness constraint, the boot loop in

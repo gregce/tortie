@@ -642,7 +642,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         mode: 'harvest',
         key: 'cwd-newest',
         source:
-          'rollout filename uuid + line-1 session_meta cwd under ${CODEX_HOME:-~/.codex}/sessions (what gmux watches). FAST PATH AVAILABLE, NOT YET USED: ~/.codex/state_5.sqlite → threads(id, cwd, rollout_path, created_at_ms) carries id and cwd in ONE row.',
+          'rollout filename uuid + line-1 session_meta cwd under ${CODEX_HOME:-~/.codex}/sessions (what gmux watches). PHASE 215 TOOK THE FAST PATH, and for a reason the speed note never saw: ~/.codex/state_5.sqlite also carries thread_source and an explicit thread_spawn_edges parent map, so it says whether a thread is a SESSION or a sub agent and who spawned it. It is asked read only beside the rollout parse, never instead of it.',
         // CORRECTION to research 22 §1.1, MEASURED 2026-08-11 on 0.147.0: a
         // trusted, fully painted codex TUI has NO rollout file and NO
         // state_5.sqlite row. Both appear tens of seconds later or at the
@@ -655,7 +655,9 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         '${CODEX_HOME:-~/.codex}/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl',
       notes:
         'Resume is a SUBCOMMAND, not a flag; SESSION_ID may be a UUID or a session NAME (UUIDs take precedence). Global date-sharded store; cwd attribution via line-1 session_meta. Bound watchers to ~7 days (fd-exhaustion lesson). ' +
-        'NEW 2026-08-10 (0.147.0): ~/.codex/state_5.sqlite has a `threads` table carrying id, cwd, rollout_path, created_at_ms in ONE row — no JSONL parse and no cwd-attribution grace timer. gmux has NOT adopted it: the filename is version-stamped (state_5) and undocumented, so the rollout watch stays the implementation and the index is a future fast path with a schema probe in front of it. ' +
+        'NEW 2026-08-10 (0.147.0): ~/.codex/state_5.sqlite has a `threads` table carrying id, cwd, rollout_path, created_at_ms in ONE row — no JSONL parse and no cwd-attribution grace timer. ' +
+        'PHASE 215 ADOPTED IT AS A SECOND VOICE and not as a replacement, with the schema probe this note asked for: the same table carries `thread_source` (user 482, subagent 453 and NULL for the 25,038 legacy rows in one real store) and `thread_spawn_edges` names parent to child, so it answers is this a resumable session and who is its parent. The rollout parse stays the fallback because the filename is version-stamped and undocumented, because the column post-dates most rows, and because the rollout catches two records the database says nothing about. It is opened READ ONLY and never when a -wal exists without its -shm, since that open would CREATE a file inside the person\'s store. ' +
+        'A ROLLOUT DOES NOT NAME A SESSION BY ITSELF: a sub agent inherits its parent cwd verbatim and opens LATER, so cwd-newest preferred one until Phase 215 refused them. ' +
         'MEASURED, not assumed: launch flags are NOT restored — launched with --dangerously-bypass-approvals-and-sandbox the header reads "permissions: YOLO mode"; after `codex resume` that row is gone. Re-append extras. ' +
         'FIRST-RUN TRUST GATE (measured 2026-08-11, and it applies to muse too): in a directory codex has never seen it opens "Do you trust the contents of this directory?" and writes NOTHING to its store until that is answered. A harvest window has to outlive a prompt the user may not answer for an hour — gmux watches for 6 h with a backing-off poll rather than the old 120 s. ' +
         'Once the rollout exists, gmux matches it in ~12 ms (measured against a live pane). ' +
