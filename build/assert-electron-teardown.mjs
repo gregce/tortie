@@ -139,13 +139,19 @@ const HELPER = 'electron-run.mjs';
  * one off the helper does.
  *
  * Measured on 2026-09-06 with `node build/assert-electron-teardown.mjs --list`,
- * which printed 86 names. Lower it ONLY in the same commit that deletes a probe
- * on purpose, and say in the commit body which file went and why. Do not lower
- * it to make a red gate green: red here means either a probe left the tree or a
- * probe stopped routing its launch through the helper, and the second one is
- * the 2026-08-22 crash coming back.
+ * which printed 86 names, and re-measured at 87 the same day when Phase 219's
+ * fix round added `probe-p219-geometry.mjs`. Lower it ONLY in the same commit
+ * that deletes a probe on purpose, and say in the commit body which file went
+ * and why. Do not lower it to make a red gate green: red here means either a
+ * probe left the tree or a probe stopped routing its launch through the helper,
+ * and the second one is the 2026-08-22 crash coming back.
+ *
+ * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
+ * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
+ * it was is a floor that would let the probe you just added be deleted again in
+ * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 86;
+const HELPER_USER_FLOOR = 87;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.
