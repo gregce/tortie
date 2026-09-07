@@ -27,6 +27,9 @@
  *   - {@link closeOf} returns the index of the bracket matching an open one.
  *   - {@link namedFunctions} returns every function a file gives a name to,
  *     with its body, so a caller can ask what a local wrapper does.
+ *   - {@link functionBodyOf} returns the body of ONE named function
+ *     declaration, braces and all, for a gate that asks its question of one
+ *     function rather than of a whole file.
  *
  * It spawns nothing, opens no socket and reads no file. Callers hand it text.
  */
@@ -428,6 +431,40 @@ export function namedFunctions(code) {
   }
 
   return bodies;
+}
+
+/**
+ * The body of the FUNCTION DECLARATION called `name` in `code`, braces and all,
+ * or null when the file declares no such function.
+ *
+ * WHY THIS IS NOT {@link namedFunctions}. That one answers "every wrapper this
+ * file declares", which is the spawn gates' question. Two conformance gates ask
+ * a narrower one: is this particular call inside THIS particular function, and
+ * where in it. `build/conformance-credentials.mjs` asks whether
+ * `disposeMainCapabilities` closes admission before its first await, and
+ * `build/conformance-logins.mjs` asks whether the one function every login
+ * change answers through pushes `logins:changed`. Both need the braces of one
+ * named function and nothing else, because a call in some other function of the
+ * same file is not a call in this one.
+ *
+ * It takes code a caller has ALREADY stripped, the way {@link namedFunctions}
+ * does, so a gate keeps whichever comment stripper the rest of its rules use
+ * and this helper does not quietly change what those rules read.
+ *
+ * The parameter list is skipped through {@link closeOf} rather than by finding
+ * the first `{`, so a destructured or defaulted parameter cannot be mistaken
+ * for the body.
+ */
+export function functionBodyOf(code, name) {
+  const declared = new RegExp(`\\b(?:async\\s+)?function\\s*\\*?\\s*${name}\\s*\\(`);
+  const m = declared.exec(code);
+  if (m === null) return null;
+  const params = closeOf(code, m.index + m[0].length - 1);
+  if (params === -1) return null;
+  const open = code.indexOf('{', params);
+  if (open === -1) return null;
+  const inner = blockAt(code, open);
+  return inner === null ? null : `{${inner}}`;
 }
 
 /**

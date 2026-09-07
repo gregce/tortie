@@ -118,6 +118,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { functionBodyOf } from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
 
 const TAG = '[logins]';
@@ -1015,28 +1016,10 @@ try {
 // function does not count, and every change handler must reach that function.
 // ---------------------------------------------------------------------------
 
-/** The body of the function called `name` in `text`, braces matched, or null. */
-function functionBodyOf(text, name) {
-  const body = stripComments(text);
-  const m = new RegExp(`\\bfunction\\s+${name}\\s*\\(`).exec(body);
-  if (m === null) return null;
-  const open = body.indexOf('{', m.index);
-  if (open < 0) return null;
-  let depth = 0;
-  for (let i = open; i < body.length; i++) {
-    const ch = body[i];
-    if (ch === '{') depth += 1;
-    else if (ch === '}') {
-      depth -= 1;
-      if (depth === 0) return body.slice(open, i + 1);
-    }
-  }
-  return null;
-}
 
 /** Does the registrar push after every change? */
 function pushesAfterEveryChange(text) {
-  const answer = functionBodyOf(text, 'answer');
+  const answer = functionBodyOf(stripComments(text), 'answer');
   if (answer === null) return false;
   if (!/\bbroadcastEvent\s*\(\s*EVT_LOGINS_CHANGED\s*\)/.test(answer)) return false;
   const body = stripComments(text);

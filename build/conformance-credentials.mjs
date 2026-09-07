@@ -156,6 +156,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { functionBodyOf } from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
 
 const TAG = '[credentials]';
@@ -1442,7 +1443,7 @@ check(
  * begin after the first await is a begin that let work in while the quit ran.
  */
 function disposerRegistersTheOwner(text) {
-  const body = functionBodyOf(text, 'disposeMainCapabilities');
+  const body = functionBodyOf(stripComments(text), 'disposeMainCapabilities');
   if (body === null) return false;
   const begin = body.indexOf('beginCredentialShutdown(');
   const join = body.indexOf('joinCredentialShutdown(');
@@ -1452,24 +1453,6 @@ function disposerRegistersTheOwner(text) {
   return /await\s+joinCredentialShutdown\s*\(/.test(body);
 }
 
-/** The body of the function called `name` in `text`, braces matched, or null. */
-function functionBodyOf(text, name) {
-  const body = stripComments(text);
-  const m = new RegExp(`\\bfunction\\s+${name}\\s*\\(`).exec(body);
-  if (m === null) return null;
-  const open = body.indexOf('{', m.index);
-  if (open < 0) return null;
-  let depth = 0;
-  for (let i = open; i < body.length; i++) {
-    const ch = body[i];
-    if (ch === '{') depth += 1;
-    else if (ch === '}') {
-      depth -= 1;
-      if (depth === 0) return body.slice(open, i + 1);
-    }
-  }
-  return null;
-}
 {
   const DISPOSER_FIXTURES = [
     {
