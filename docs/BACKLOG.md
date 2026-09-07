@@ -22450,11 +22450,19 @@ against it. The research should note the difference and not re-litigate the stre
 - **It is already prose only, by the allowlist he just named.** Markdown extensions plus `txt` and
   `text`. The reason is measured: research 74 §2.4 drove a real code change through the word tokenizer
   and got **311 character level spans of confetti**.
-- **Pierre cannot draw a redline, it can only HOLD one.** Every `@pierre/diffs` line is a grid item of a
-  subgrid so its display is blockified by the CSS specification and no stylesheet can undo it (research
-  74 §3). The redline lives in a light-DOM annotation row Pierre hands back. **That constraint decides
-  where a button can go and whether a caret can live there at all**, and it is the first thing the
-  research must re-measure.
+- **THERE ARE TWO REDLINE SURFACES AND THIS PHASE IS ABOUT THE SECOND ONE.** Phase 191 put a Redline
+  toggle INSIDE the stacked diff, hanging a marked up line under Pierre's own deletion and insertion
+  rows. **Phase 194 then built the redline as a view of its own**, at his own request: *"I don't want
+  the code stack or side by side diff here, I want it to be a redline view all by itself... like file
+  or preview (for markdown, html), there was a way of JUST showing the redline view outside of the code
+  review."* **He confirmed on 2026-09-07 that the editable version is for THAT view and that it does
+  not need to look like a git diff.**
+- **So the Pierre blockification constraint is largely BESIDE THE POINT here.** Research 74 §3 measured
+  that every `@pierre/diffs` line is a grid item of a subgrid, blockified by the CSS specification and
+  beyond the reach of any stylesheet, which is why the in-diff redline lives in an annotation row.
+  **The standalone view is not a Pierre grid**, so it is free to be a document. The research states
+  what Phase 194's view actually is in DOM terms, and treats the in-diff redline from 191 as a
+  secondary surface that may simply not get these controls at all.
 - **The libraries in the tree** are `diff@9.0.0`, `@pierre/diffs@1.3.5`, `@pierre/trees` and
   `monaco-editor`. **Monaco is already vendored and is an editing surface**, which may matter a great
   deal here.
@@ -22466,12 +22474,16 @@ files?** Not whether Tortie should watch an agent, which is settled and is no.
 
 ### What the research must price, and none of these is assumed to win
 
-**A. Where the controls live, and whether they can live there at all.** The Pierre blockification
-constraint is the hard fact. Re-measure it against the vendored `@pierre/diffs@1.3.5` and then price:
-controls inside the annotation row Pierre hands back; controls in a gutter beside it; a keyboard-only
-scheme with no drawn control at all, which the *Just enough words* rule may actually prefer; and a view
-that is not the Pierre diff at all. **Say plainly if the current diff view cannot host this**, because
-that is the finding that decides the shape.
+**A. What Phase 194's standalone view actually is, and what it can host.** Read
+`src/renderer/editor/redline-document.ts` and its CSS and say in DOM terms what that view is today:
+what element holds the document, whether it reflows, whether it is a grid of any kind, and what it
+would take for a control or a caret to live in it. **It is not a Pierre grid, so it is free to be a
+document, and the research should start from that freedom rather than from the diff's constraints.**
+Then price the placements inside it: a control per change; a control that appears on hover or focus; a
+**keyboard-only scheme with no drawn control at all**, which the *Just enough words* rule may prefer;
+and a margin or gutter. **It does not need to look like a git diff and should not be made to.** Say
+separately, and briefly, whether the in-diff redline from Phase 191 gets these controls too or is left
+alone — leaving it alone is a fine answer.
 
 **B. What "edit the source" means here, and this is the crux.** A redline row is a computed rendering of
 a change, not the file. Making it typeable means one of:
@@ -22507,8 +22519,8 @@ cheap to undo. Say what undo means here and where it lives.
 
 ### Proof, run rather than read
 
-- **The Pierre constraint is re-measured**, not quoted from research 74, since that is from 1 September
-  and the tree has moved.
+- **What Phase 194's view is in DOM terms is read from the tree**, not assumed, since the whole shape
+  of the answer depends on it.
 - **The sub-line demonstration is run** with real content and real git output, per D.
 - **What Cursor actually does is checked**, not recalled, and cited with what was read.
 - **Library claims are checked on the day**, with licence, release and size, and with the Phase 23
@@ -22524,6 +22536,9 @@ cheap to undo. Say what undo means here and where it lives.
 
 - **No code changes at all.** The output is one document under `docs/research/` and nothing else.
 - **No live streaming of an agent's edits.** That reading is withdrawn and the Zen settles it.
+- **The redline is not made to look like a git diff.** He said so on 2026-09-07. It is a document view
+  and it stays one; no side by side, no gutters of the diff's kind, no line numbers unless the research
+  shows a person needs them.
 - **The prose allowlist is not widened.** He named `txt` and `md` himself; the 311 spans of confetti are
   why, and a research phase that proposes widening it must carry a new measurement.
 - **No new package is added**, even provisionally. Naming a candidate is not adopting one.
@@ -23276,3 +23291,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07 Phase 222 RESTARTED on his clarification, four minutes in and with no commits lost. The first entry read issue 15 broadly and asked whether a view that streams an agent's edits is the supervisor's console the Zen refuses. THAT WAS THE WRONG READING and he said so: what he wants is Cursor style accept and reject on the REDLINE THAT ALREADY SHIPS, for prose only which is `txt` and `md`, with the redline becoming an EDITING surface rather than a preview. So the streaming question is withdrawn, the prose allowlist is the ask rather than a compromise, and the crux moves to two things: whether the Pierre annotation row can host a control or a caret at all, since every `@pierre/diffs` line is blockified by the CSS specification, and what accept actually WRITES to his file, since the redline has only ever read.
 - 2026-09-07 Phase 224 queued at his report, research only: where the remote machine work landed, why it is clunky, and what parity with the local experience would cost, with herdr 0.9.0 as the robustness bar he named. Grounded before queueing: twenty one phases landed on this and research 57 already planned it, saying twenty gaps of which fifteen build, one waits and FOUR ARE REFUSED PERMANENTLY being trash, reveal, discard and Symbols, so the first question is which of the fifteen actually landed rather than what to build. THE COMPARISON THAT MAY BE THE REAL FINDING: herdr 0.9.0's changelog says missing server features disable only the affected action instead of preventing connection, and Tortie does the OPPOSITE deliberately, since Phase 217 landed yesterday on a version gate that refuses a whole attach because an untested pair can hang rather than fail. The phase must ask whether that posture applied to every remote capability is what makes the surface feel clunky, and which refusals should stay and which should become a disabled action with a sentence. His Mac Pro is READ ONLY and every write is driven against a scratch machine.
 - 2026-09-07 Phase 224 AMENDED at his word before it launched: he lifted the Mac Pro read only rule for this phase, saying drive it against my mac pro and it would also be wise to actually try to do writes as well. He is right, since the write path is where the clunkiness he reported lives and a scratch machine would not have found it. The bounds I kept are mine rather than his and are stated as such: every write goes into a scratch git repository the phase creates there and removes in a finally rather than into a project of his, the five Tortie sessions still alive on that machine from 15 and 16 August are read and left exactly as found, ~/.ssh is still never written and the ssh agent stays empty, and the far side is counted when the drive ends because a probe that leaves something on another person's computer is worse than one that leaves it here. If a finding genuinely needs a real repository the document says so and asks him.
+- 2026-09-07 Phase 222 AMENDED AGAIN and restarted a second time, ten minutes in with no commits lost, because he said the editable redline is for THE REDLINE VIEW and does not need to look like a git diff. That matters more than it sounds: Phase 194 already built the redline as a view of its own at his own request, so the editable version belongs there and NOT in the Pierre stacked diff, which means the research 74 blockification constraint that the first two framings treated as the hard fact is largely beside the point. The standalone view is not a Pierre grid, so it is free to be a document, and the phase now starts from that freedom rather than from the diff's constraints. The in-diff redline from Phase 191 is a secondary surface and leaving it without these controls is a fine answer.
