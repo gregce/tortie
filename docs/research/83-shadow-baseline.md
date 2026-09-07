@@ -8,7 +8,13 @@ page that links the real `redline.css` and `tokens.css`. Every Electron went thr
 `build/electron-run.mjs` and was ended in a `finally`; the post-run count found nothing left. No tmux
 server was contacted, no repository of the operator's was written to, no package was installed,
 `package.json` and the lockfile are unmoved, no shipping file was edited, and no version was bumped.
-The scratch scripts every number comes from are under `.p222/`.
+The scratch scripts every number comes from are under `.p222/`; the fix round's are under
+`.p222/fix/`.
+
+**This document has been through a fix round.** A verifier attacked the recommendation as the charter
+asked and constructed cases in which a person loses prose. Three of them survived every guard this
+document stated. Section 3 lists every correction, and each one is written into the section it
+belongs to rather than only collected there.
 
 This document answers questions the operator asked twice on 2026-09-07. His clarifications supersede
 issue 15 and the entry in `docs/BACKLOG.md` carries them verbatim.
@@ -27,12 +33,19 @@ the one thing that can lose his prose. The choice is his.
    phrase writes the file and leaves the baseline alone. Accepting a phrase writes the baseline and
    leaves the file alone. Accepting everything is `baseline := the bytes you are looking at`, which
    is one line of state. All of that is measured in section B, exhaustively over all 256 subsets of an
-   eight-change paragraph, with zero failures.
+   eight-change paragraph, with zero failures. **It is safe only with four guards, and the fix round
+   found two of them missing:** re-derive at press time against a fresh read (E.7); **refuse a
+   truncated read** (E.7a, which silently reverted a whole 5.9 MB document in one arm and dropped
+   98,110 bytes in another); bind the press to the **baseline generation** it was drawn against
+   (B.8a, without which a per-phrase accept landing between the draw and the press rewound the wrong
+   phrase); and hold the write under a precondition (E.5).
 3. **The difficulty moved to the baseline, and that is now the crux.** When it is taken, when it
    advances, where it lives, and what a stale one does. A missing baseline is benign — the view falls
    back to exactly what ships today. A **stale** baseline that still looks plausible is the danger,
    and section A8 names the sequence in which a person presses rewind believing it is an undo and
-   writes another branch's prose over their own file.
+   writes another branch's prose over their own file. **The fix round added a second sequence that
+   needs no staleness and no mistake at all**, being the person rewinding their own uncommitted
+   paragraph, measured at 149 bytes gone from every place Tortie holds anything (A8a).
 4. **"Every agent edit shows up" is mostly already built.** The chain from an agent's write to a
    recomposed redline exists end to end and costs zero new watcher subscriptions and zero FSEvents
    exclusion paths. It has one measured hole: a file inside a gitignored directory is seen **0 times
@@ -108,10 +121,14 @@ refuse when ambiguous". Section B measured that rule: identity is `(offset into 
 text, inserted text)`, baseline offsets are **strictly increasing across a draw (0 violations in 2,998
 draws)**, and over 1,500 draws with an outside edit landing in between, **1,472 resolved to exactly
 one edit, 28 to none, and 0 to more than one**. Same rule; B carries the numbers and the property that
-makes it safe, which is that the baseline does not move during the press.
+makes it safe, which is that the baseline does not move during the press — **and B.8a is the guard
+that makes that property true, which the fix round found neither section stated.**
 
 **4. Per-phrase accept.** Section B measured it costing no mechanism at all — it writes only Tortie's
-own shadow copy and not one byte of his file. Section F refuses it in version one. That is not a
+own shadow copy and not one byte of his file. Section F refuses it in version one. **The fix round
+found one thing it does cost, and it is not a byte of his file: it MOVES THE BASELINE**, which is the
+coordinate system every pressed identity is expressed in, so it needs B.8a's generation guard before
+it ships. That strengthens F's refusal rather than weakening it. That is not a
 contradiction and both stand: it is cheap, it is *safer* than rewind, and it is kept out of the first
 version because two controls that mean different things beside each other is a surface problem rather
 than a mechanism problem.
@@ -128,6 +145,58 @@ runs.
 and 16 are Phase 194's two byte-exact projections over 26 fixtures with a 3,000-pair fuzz, and the 96
 adjacent pairs sharing no whitespace. `CLAUDE.md`'s sentence "pins fourteen rulings" is stale by two
 and should be corrected in this phase's commit.
+
+---
+
+## 3. The fix round, and what it changed
+
+A verifier ran the charter's named independent method — construct the case where a person loses prose
+they wrote and see whether the proposal stops it — and constructed five. **Three survived every guard
+this document stated.** Every one below was re-derived here rather than accepted: the scripts are
+under `.p222/fix/` and their outputs beside them. The instrument was checked first
+(`.p222/fix/f0-selfcheck.ts`): a hand-written `editsOf` and `mix` reproduce section B's whole
+transcript from the paragraphs printed in B.1 — 477 B md5 `32119ae9`, 464 B md5 `8cc5e7a6`, 23 runs,
+one block, `approximate false`, the eight baseline offsets 7, 27, 62, 74, 183, 244, 322 and 450, the
+E4 rewind at 465 B md5 `cd918864` first differing at offset 180, and all 256 subsets distinct with 0
+projection failures. Four of the corrections below rest on that instrument, so it is proved before it
+is used.
+
+**The three that lose prose.**
+
+1. **A truncated read reaches the rewind, and nothing checks it.** E.7 step 1 says re-read at the
+   moment of the press, and the renderer's only reader caps at 5 MB and reports `truncated`. The word
+   appeared four times in this document and never once in a rewind context. Two arms, both driven:
+   98,110 bytes dropped in one, and in the other the whole 5,895,890-byte document silently reverted
+   to the baseline with both of the agent's other edits gone. **E.7a** is the new refusal and
+   **A3.1** and **E.5** are corrected.
+2. **"The baseline is immutable during the press" was asserted, and A2.2 makes two things move it.**
+   A2.3's refusals cover the file changing, typing, looking, session lifecycle and a rewind. They do
+   not cover an accept or a commit, and both are asynchronous with a press. Reproduced: a per-phrase
+   accept of a preceding shrinking edit slid a second identical phrase's baseline offset exactly onto
+   the first's, the pressed identity resolved to **exactly one** edit — the wrong one — and the write
+   succeeded with nothing said. **B.8a** states the guard the document never stated.
+3. **The loss case that needs no staleness is rewinding your own writing.** A2.3 refuses on purpose to
+   advance the baseline when the person types or saves, so their own uncommitted paragraphs sit in the
+   redline as insertions with rewind controls beside them, on a surface whose verb means undo. Driven
+   with a perfectly fresh baseline: 149 bytes gone, surviving in no file, no baseline, no redline and
+   no undo stack. **A8a**.
+
+**The conclusion that was refuted by re-running this document's own script.** A2.1 concluded that the
+reading failure at scale is fixed by nothing but a baseline that moves, and its instrument was blind:
+`.p222/m4-scale.ts` printed `skipped=${doc.skipped ?? 0}` and `RedlineDocument` has no `skipped`
+field, so every row printed a constant zero. With `whole` restored the same rows reproduce byte for
+byte and show what was hidden. **A2.1 is rewritten**, the direction survives, and the stated cause
+does not.
+
+**Eight further corrections**, each written into the section it belongs to rather than only here: the untracked-file
+claim in **A1.2** narrowed to what the first read can actually see; the HEAD re-seed in **A4.2**
+caveated, because the signal it rides is lazy and in-process, and the "newest of" rule given the
+ordering it never had; the containment guard carried into **E.5**, which had answered three of E.4's
+four rows; **E.5** also told that its tmp-and-rename writes into the repository A3.2 refused to write
+into; **encoding named for the first time** in **E.7b**, measured at three bytes corrupted outside
+the rewound span on a latin-1 `.txt`; **G.1** given all nine of its rows and its ratio band
+restated, because two omitted rows break it; **D.4** made to answer the charter's fourth question for
+the two options that dodged it; and **F.2**'s impermanence sentence widened past a restart.
 
 ---
 
@@ -223,17 +292,30 @@ dealt with it, which is D and E — and it has four properties no other formulat
    anything, in a tree with nothing lost, gets `headContents`, which is precisely
    `RedlineDocument.tsx:89` as it stands. Version one is a strict superset of Phase 194 rather than a
    replacement for it, and a lost baseline is not a broken feature (A3.4).
-2. **It fixes the "only shows up when there was a diff" complaint at its sharpest point.** An
-   untracked prose file — an agent writing a brand new `notes.md` and rewriting it ten times — has no
-   redline at all today, and the reason is measured rather than inferred: `git show HEAD:untracked.md`
-   exits **128** with `fatal: path 'untracked.md' exists on disk, but not in 'HEAD'`, `loadHead`
-   catches that and patches `canDiff: false` (`src/renderer/editor/tab-io.ts`), and the Redline option
-   is gated on `tab.canDiff` (`src/renderer/editor/EditorPanel.tsx:217` and `:236`). No HEAD, no
-   Redline tab, ever. "The first bytes Tortie read" is the clause that gives that file a redline.
+2. **It fixes the "only shows up when there was a diff" complaint, for an untracked file that is
+   already open.** An untracked prose file has no redline at all today, and the reason is measured
+   rather than inferred: `git show HEAD:untracked.md` exits **128** with `fatal: path
+   'untracked.md' exists on disk, but not in 'HEAD'`, `loadHead` catches that and patches
+   `canDiff: false` (`src/renderer/editor/tab-io.ts`), and the Redline option is gated on
+   `tab.canDiff` (`src/renderer/editor/EditorPanel.tsx:217` and `:236`). No HEAD, no Redline tab,
+   ever. "The first bytes Tortie read" is the clause that gives that file a redline.
+
+   **The example this claim was first written to does NOT hold, and the correction is the fix
+   round's.** The draft said *"an agent writing a brand new `notes.md` and rewriting it ten times"*,
+   and the first read cannot see any of that. `loadContents` is called from exactly one place,
+   `store.ts:587` inside `openFile`, confirmed by grep over the whole renderer: it runs when **the
+   person opens the file**, which for a file the agent created is after all ten writes. The baseline
+   seeds from the tenth version and the redline is empty. **The claim narrows to: an untracked file
+   that was already open when the agent wrote to it gets a redline where today it gets none.** A file
+   the agent created from nothing needs a second seeding moment that this document does not name and
+   a build phase would have to; the honest reading is that this property is worth less than the draft
+   claimed and is still worth having.
 3. **Taking it at the FIRST SUCCESSFUL READ, not lazily when the view opens, is deliberate.** A
    baseline captured the first time somebody presses Redline would be captured from whatever the file
    said at that moment, which may be mid-rewrite, and it would then be wrong for ever. The first read
-   already happens: `loadContents` fills `savedContents` when the tab opens.
+   already happens: `loadContents` fills `savedContents` when the tab opens. **This is a distinction
+   between tab-open and redline-mode-select, and neither of them precedes the agent** — see the
+   correction to property 2.
 4. **It never needs to know who wrote a byte,** which matters because it cannot (A4).
 
 #### A1.3 The moments that are refused, and why
@@ -269,23 +351,84 @@ n   baseline = OPEN (V0)                      baseline = LAST DEALT WITH (V n-1)
  40   40   40    488       2.56                 1    1     11       0.09
 ```
 
-Linear, and it never comes down. Forty small edits is a modest afternoon. `.p222/m4-scale.ts` runs the
-same shape over the largest hand-written document in this tree that a person would actually read in a
-redline (`CLAUDE.md`, 125,831 bytes, 362 lines):
+Linear, and it never comes down. Forty small edits is a modest afternoon. **That table is unaffected
+by every cap** — `docs/ZEN-OF-TORTIE.md`'s longest line is 80 characters and 40 changes is under
+`REDLINE_MAX_BLOCKS` = 60 — so its 488 characters over 40 edits, about twelve each, is the honest
+shape of the growth and is the number the corrected large-file reading below agrees with.
+
+**The large-file table below was published with a blind instrument and its conclusion was wrong. This
+is the corrected one, and the correction is the fix round's.** `.p222/m4-scale.ts` printed
+`skipped=${doc.skipped ?? 0}`, and `RedlineDocument` has no `skipped` field — it has `whole`
+(`redline-document.ts:145`) — so all six rows printed a constant `skipped=0` and the caps that were
+firing were invisible. Re-run with `whole` restored (`.p222/fix/m4-whole.ts`), over the same document
+and the same edit shape, the numbers reproduce byte for byte and say something else:
+
+(`tooDifferent` and `unaligned` are 0 in every row and are elided from the `whole` column here; the
+committed output at `.p222/fix/out-m4-whole.txt` prints all four.)
 
 ```
-after   1 agent writes: del=   1 ins=   1 markedChars=   13 blocks=   1 compose= 8.3ms
-after  10 agent writes: del=  10 ins=  10 markedChars=  123 blocks=  10 compose= 2.0ms
-after  50 agent writes: del=  50 ins=  50 markedChars=13719 blocks=  35 compose=10.7ms
-after 100 agent writes: del= 100 ins= 100 markedChars=29437 blocks=  55 compose=14.4ms
-after 200 agent writes: del= 175 ins= 175 markedChars=119109 blocks=  85 compose=19.0ms
-after 400 agent writes: del= 203 ins= 203 markedChars=133860 blocks=  80 compose=28.0ms
+CLAUDE.md, 125,831 bytes, 362 lines, one word changed per write on a line over 70 characters
+after   1 agent writes: del=   1 ins=   1 markedChars=   13 blocks=  1 whole={tooBig:0, overCap: 0} compose= 7.3ms
+after  10 agent writes: del=  10 ins=  10 markedChars=  123 blocks= 10 whole={tooBig:0, overCap: 0} compose= 1.9ms
+after  50 agent writes: del=  50 ins=  50 markedChars=13719 blocks= 35 whole={tooBig:1, overCap: 0} compose= 8.1ms
+after 100 agent writes: del= 100 ins= 100 markedChars=29437 blocks= 55 whole={tooBig:2, overCap: 0} compose=14.3ms
+after 200 agent writes: del= 175 ins= 175 markedChars=119109 blocks= 85 whole={tooBig:2, overCap:25} compose=18.6ms
+after 400 agent writes: del= 203 ins= 203 markedChars=133860 blocks= 80 whole={tooBig:3, overCap:20} compose=25.3ms
 ```
 
-**At 200 writes, 119,109 of about 126,000 characters are marked.** The whole document is a redline,
-which is the same as no redline. That is the failure mode, and it is not a performance failure — 19
-milliseconds is nothing. It is a *reading* failure, and no cap, cost guard or virtualisation addresses
-it. Only a baseline that moves does.
+**Almost none of that 119,109 is the redline's marking. It is the shipping caps drawing whole
+blocks.** `.p222/fix/m4-attribute.ts` re-derives the same partition independently, applies the
+composer's own block rules with and without `REDLINE_MAX_BLOCKS`, and attributes every marked
+character. It agrees with the shipping compose to within 22–74 characters, which is `peelSharedSpace`
+moving shared bytes into `same` runs:
+
+| n | shipping markedChars | from blocks drawn WHOLE | from word-level runs | with the block cap removed |
+| --- | --- | --- | --- | --- |
+| 50 | 13,719 | 13,105 in 1 block | **636** | 13,741 (unchanged) |
+| 100 | 29,437 | 28,222 in 2 blocks | **1,239** | 29,461 (unchanged) |
+| 200 | 119,109 | 117,347 in 27 blocks | **1,836** | 62,175 |
+| 400 | 133,860 | 131,694 in 23 blocks | **2,212** | 91,260 |
+
+At 200 writes **98.5 %** of the marked characters come from blocks drawn whole, and the reason is
+`CLAUDE.md`'s own shape: it holds **7 lines longer than `REDLINE_MAX_BLOCK_CHARS` = 4,000**, with a
+maximum of 9,339, so a single word changed on one of them marks the whole paragraph twice over, once
+struck through and once inserted. Past 60 changes `REDLINE_MAX_BLOCKS` does the same to every block
+after the sixtieth.
+
+**Run over a large prose file whose lines are ordinary, the picture is quite different**
+(`.p222/fix/m4-ordinary.ts`, `docs/BACKLOG.md`, 2,660,698 bytes, 23,321 lines, edits confined to
+lines between 70 and 400 characters so no block can be too big):
+
+```
+docs/BACKLOG.md, 2,660,698 bytes, 23,321 lines; no block is ever too big, so overCap is the only cap
+after   1 writes: markedChars=    11 (0.00%) blocks=  1 whole={overCap:  0}
+after  10 writes: markedChars=   120 (0.00%) blocks= 10 whole={overCap:  0}
+after  50 writes: markedChars=   608 (0.02%) blocks= 50 whole={overCap:  0}
+after 100 writes: markedChars= 10751 (0.40%) blocks=100 whole={overCap: 40}
+after 200 writes: markedChars= 32635 (1.23%) blocks=200 whole={overCap:140}
+after 400 writes: markedChars= 76421 (2.87%) blocks=400 whole={overCap:340}
+```
+
+Below sixty changes, where no cap fires at all, fifty edits mark **608 characters**, about twelve
+each. Above sixty, every further change is drawn whole and the marked count stops being about the
+edits and starts being about the size of the paragraphs holding them.
+
+**Four sentences of the draft, judged one at a time.**
+
+- *"At 200 writes, 119,109 of about 126,000 characters are marked"* is true and misleading: 117,347
+  of them are two-sided whole-block draws on a document with 9 KB lines, not the accumulated redline.
+- *"The whole document is a redline"* is right about what a person would see, and wrong about why.
+- *"No cap, cost guard or virtualisation addresses it"* is refuted twice. The caps do not fail to
+  address it; **they produce most of it.**
+- *"Only a baseline that moves does"* **survives, and now has a measured reason it did not have**: a
+  baseline that moves keeps the change count under `REDLINE_MAX_BLOCKS` = 60, which is exactly the
+  boundary at which the marked count stops tracking the edits. The word-level growth itself is linear
+  and small — 636, 1,239, 1,836, 2,212 characters over 50 to 400 edits — and it is the whole-draw
+  cliff at 60 changes, not the accumulation, that makes the view unreadable.
+
+A build phase inherits one obligation from this correction: **a redline drawn against a baseline must
+report `doc.whole` on its own face** the way `redlineDocumentNote` already does, because a person
+looking at a page of red cannot otherwise tell an agent's rewrite from a cap that fired.
 
 #### A2.2 What advances it
 
@@ -293,25 +436,42 @@ it. Only a baseline that moves does.
 
 1. **Accept.** Accepting is the baseline advancing, and the charter's guess that this "may be one line
    of state" is right. Accepting the whole file sets the baseline to what is in front of the person.
-2. **A commit that includes the file.** When a person commits, they have declared the file theirs. This
-   is the important one for growth, because it costs no new gesture at all: it is a thing the person
-   already does, on the rhythm they already keep, and it makes any future store self-pruning. Under
-   this rule the redline's span is *"since your last commit or your last accept, whichever is later"*,
-   which is strictly narrower than today's *"since your last commit"* and never wider.
+2. **A commit that includes the file — and the fix round narrowed this one, because the premise is
+   false in this product.** The draft's reason was *"when a person commits, they have declared the
+   file theirs"*. **In Tortie, agents commit.** `CLAUDE.md`'s own operating contract says *"Commit per
+   phase"* and *"The committer is the last agent"*, and it is the ordinary rhythm of the product this
+   feature lives in. An agent that commits mid-work would erase the person's ability to rewind the
+   very edits that agent had just made, which is thread 150230 in section E.9 happening inside Tortie
+   rather than in Cursor — and E.9 names that class of failure as the real difference between what he
+   asked for and what Cursor ships. **The two sections cannot both stand as first written, and this
+   is the one that gives way.** Either the commit-advance is refused outright, or it is qualified to a
+   commit the PERSON made in this window, which Tortie can tell because it is the window the commit
+   was issued from. This document recommends the qualification and records that the refusal is also a
+   defensible answer, since accept alone already bounds the growth.
+
+   With the qualification, the redline's span is *"since your last commit or your last accept,
+   whichever is later"*, which is strictly narrower than today's *"since your last commit"* and never
+   wider; without it, an agent's commit silently makes the span zero.
 
 **Accepting ONE change is the same mechanism, not a different one**, and it is worth writing down here
 because it is where the crux dissolution pays off a second time. The baseline is text. Accepting run
 *n* means the new baseline is *the document with run n's new text taken and every other run's old text
 kept*, which is the exact mirror of rewinding run *n*. Both are compositions over the same run list and
 neither needs anything from git. (The rewind half is section E's; what matters here is that
-per-change accept costs the baseline nothing beyond being writable.)
+per-change accept costs the baseline nothing beyond being writable.) **It costs one thing more, added
+by the fix round: it moves the baseline, and every drawn rewind control is an offset INTO the
+baseline. B.8a is the guard, and it applies to this gesture as much as to a commit.**
 
 #### A2.3 What does NOT advance it, stated as refusals because each is a one-line mistake
 
 - **The file changing.** Policy Z above. It is the whole feature, deleted.
 - **The person typing, or saving their own typing.** Their edit shows in the redline as an insertion,
   which is honest — the view's claim is "this changed since the baseline", not "the agent did this" —
-  and the alternative asks the file to remember an author it does not have (A4).
+  and the alternative asks the file to remember an author it does not have (A4). **This refusal is
+  right and it has a price the fix round measured**, being that the person's own uncommitted
+  paragraphs then carry rewind controls on a surface whose verb means undo. A8a is that case, it needs
+  no staleness and no mistake, and the mitigation A4.2 ruling 1 offers for it is copy rather than
+  mechanism.
 - **The redline view being opened, scrolled or closed.** A baseline that advances because you looked is
   a baseline that silently swallows an edit that arrived while you were looking away and back. That is
   precisely the Zen's *"come back without reconstruction"* broken by the thing meant to serve it. This
@@ -335,11 +495,19 @@ min=27  p50=25,001  p90=71,172  p99=155,780  max=2,658,585  mean=44,660
 
 The maximum is `docs/BACKLOG.md`. Two structural bounds already in the tree cap this without any new
 rule: `READ_CAP_BYTES = 5 * 1024 * 1024` at `src/main/fs/ipc.ts:57`, past which a read comes back
-`truncated`; and a truncated tab is refused by `save` outright (`src/renderer/editor/tab-io.ts`,
-`if (tab.deleted || tab.truncated || tab.error !== null) return false`). So no baseline can exceed
-5 MB, and any file at that cap is read-only anyway, which means it can never be rewound and never needs
-a baseline at all. `MAX_TABS = 10` (`src/renderer/editor/store.ts:100`) bounds how many can be live at
-once.
+`truncated`; and a truncated tab is refused by `save` outright (`src/renderer/editor/tab-io.ts:465`
+and `:552`, `if (tab.deleted || tab.truncated || tab.error !== null) return false`) and is read-only
+in Monaco (`MonacoHost.tsx:167`). So no baseline can exceed 5 MB. `MAX_TABS = 10`
+(`src/renderer/editor/store.ts:100`) bounds how many can be live at once.
+
+**The draft went one clause further than the tree supports and the fix round removed it.** It said
+that a file at the cap *"can never be rewound and never needs a baseline at all"*, and that rests
+entirely on `save` being the only way bytes reach the file. **Section E.5's whole recommendation is a
+new channel that is not `save`**, so the design routes around the only guard this paragraph leans on,
+and E.7's press-time re-read is not `save` either. Driven, the consequence is not theoretical: see
+**E.7a**, where a rewind over a truncated read dropped 98,110 bytes in one arm and silently reverted
+a 5,895,890-byte document to its baseline in another. The refusal has to be restated where the write
+is, and it is.
 
 **Worst realistic live set: ten prose tabs at this tree's p90 is 712 KB.**
 
@@ -459,6 +627,21 @@ the baseline" and a completely wrong answer to the question the person is actual
    subscription filtered down to `.git/HEAD` and `.git/refs/**` (`src/main/watcher/repo-watcher.ts`),
    and `refreshRepo` already re-runs `git show HEAD:<path>` on every tick (`tab-io.ts:640`). The signal
    is in the product; only the rule is new.
+
+   **Two caveats the fix round added, because this ruling is the first of the three things A8 says
+   stop the worst case and it cannot fire in the case that creates it.** First, the signal is
+   in-process and lazy: `ensureWatcher` (`src/main/git/ipc.ts:109`) starts the subscription the first
+   time a git channel is asked about that repository, and it dies with the process. **Quit Tortie,
+   `git checkout other-branch`, relaunch** and HEAD moved while nothing was watching, and nothing in
+   this document compares the baseline to HEAD at load. That is moot for version one, whose baseline
+   dies with the process anyway, and it becomes live the moment A3.3's durable second step lands —
+   which A3.3 does not say. **A durable baseline must compare itself to HEAD when it is loaded, not
+   only when the watcher ticks.** Second, A1.2's rule says *"the newest of"* three versions and never
+   defines the ordering. Under a timestamp reading a checkout to an OLDER commit leaves a stale
+   accepted baseline winning, which is precisely the case A8 draws. **The ordering has to be stated:
+   a HEAD version that Tortie has not seen before wins outright, whatever its date**, because the
+   question the redline answers is "what has changed since you last dealt with it" and a checkout is
+   dealing with it.
 3. **The file moving under a redline that is already drawn is a REWIND hazard, not a baseline hazard,**
    and it belongs to section E with one fact it needs: **`fs:writeFile` has no precondition of any
    kind.** The handler is `await writeFile(abs, contents, 'utf8')` (`src/main/fs/ipc.ts:238`) — no mtime
@@ -562,8 +745,11 @@ docs/BACKLOG.md          ~2658 KB   stat=0.0011ms  read=2.426ms  read+sha256=1.0
 ```
 
 Noticing a change is one to two **microseconds**. Re-reading the largest prose file in this tree is
-2.4 ms. Composing the redline is 0.09 ms to 28 ms, and the 28 ms case is a document that is 95 % marked
-and unreadable for other reasons.
+2.4 ms. Composing the redline is 0.09 ms to 28 ms, and the 28 ms case is a document that is 95 %
+marked and unreadable for other reasons — **which A2.1's correction renames rather than removes**: the
+95 % is the shipping caps drawing whole blocks on a file with 9 KB lines, and the cost argument is
+unchanged either way, since 28 ms is nothing whatever produced it. A run over a large prose file with
+ordinary lines composes 400 scattered edits in 52 ms, which is also nothing.
 
 **That is the whole argument for where the Zen line sits.** The view can be recomputed from scratch
 every time it is opened, at a cost no person can perceive, from a baseline and a file. It therefore
@@ -590,9 +776,56 @@ undoing anything. **They are writing another branch's prose over their file, thr
 with no precondition, having read the screen as an undo.** That is the sentence to hold a build phase to.
 
 Three things stop it, and all three are cheap: re-seed the baseline when HEAD moves (A4.2, the signal
-already exists); name the baseline on the face so a person can see when it was taken; and make the
-rewind re-derive against the file as it is at the instant of the write rather than as it was when the
-view was drawn.
+already exists, **with that ruling's two caveats**); name the baseline on the face so a person can see
+when it was taken; and make the rewind re-derive against the file as it is at the instant of the write
+rather than as it was when the view was drawn.
+
+### A8a. The loss that needs no staleness and no mistake, and it is the person's own writing
+
+**The fix round's finding, and it is the easiest loss on this surface rather than the most exotic.**
+A2.3 refuses on purpose to advance the baseline when the person types or saves. That refusal is right
+— the alternative asks the file to remember an author it does not have — and its consequence is that
+**the person's own uncommitted paragraphs sit in the redline as insertions, each with a rewind control
+beside it, on a surface whose verb means "undo the agent".** Nothing on the face says who wrote a
+byte, because A4.1 measured that nothing can.
+
+Driven with a perfectly fresh baseline, no `git checkout`, no stale draw, and E.7's ARM 3 fully
+applied (`.p222/fix/f5-own-prose.ts`): the baseline is the file at HEAD, the person writes a
+149-byte paragraph and saves it, an agent tidies one sentence elsewhere, and the redline draws two
+edits. The person presses the one that is their own paragraph.
+
+```
+the redline against a PERFECTLY FRESH baseline: 2 edits
+   E0 at  21: "is" -> "ships"
+   E1 at  35: ""   -> "\nWe should say plainly that the shadow baseline is not a bac"…
+ARM 3: the identity resolves to 1 edit -> WROTE
+  file 187 B -> 38 B      bytes of HIS OWN writing destroyed : 149
+  his paragraph survives in the file : false
+  ...in the baseline                 : false
+  ...in the recomposed redline       : false
+  ...anywhere in git                 : no — it was never committed
+  ...in Monaco's undo stack          : no — resetWorkingModel calls setValue, which clears it (A3.4)
+  what the person was told           : nothing; the write returned success
+```
+
+**Every guard this document proposes is satisfied and none of them is about this case.** The baseline
+is correct, the press-time re-read is correct, the identity resolves to exactly one edit, the write is
+what the person asked for. The loss is that they asked for the wrong thing, and the surface is what
+invited it.
+
+Three answers, and a build phase owes at least the second:
+
+1. **Copy alone.** A4.2 ruling 1 already says the view never claims an agent did it, and names the
+   baseline on its face. That is the whole mitigation the draft had, and it is copy against a
+   destructive one-press control.
+2. **The in-memory undo journal**, which section F.4 lists as a refusal item — *"a rewind must not
+   ship without its undo"* — and which is this case's actual floor. E.8 prices it at tens of bytes an
+   entry. It is not an extra; for this case it is the guard.
+3. **Refuse to draw a rewind control on an edit that is entirely an insertion the person's own save
+   put there.** Tortie cannot tell an author from a file (A4.1), but it CAN tell that the bytes
+   arrived through its own `save` rather than through a watcher tick, because `save` runs in the
+   renderer that owns the tab. That is a narrower claim than authorship and it is available for free.
+   It is offered rather than recommended, because it is a surface decision and the operator's.
 
 ### A9. What was NOT verified in this section
 
@@ -961,7 +1194,8 @@ projection checks were green in both runs.*
   refusing, 0 ever ambiguous, and 0 producing bytes other than "the rewind plus whatever arrived".
 - **The safety argument rests on one property: the baseline is immutable during the press.** An offset
   into it cannot shift under an outside edit. **A design that advanced the baseline on a timer would
-  break this**, which is a second reason for section A2.3's refusals.
+  break this**, which is a second reason for section A2.3's refusals. **That sentence was asserted and
+  it is not true as this document's own A2.2 leaves it — B.8a is the guard it needs.**
 - **A plain compare-and-swap is the fallback if the identity scheme is judged too clever.** It is
   honest and strictly worse: it refuses in every case where the file moved at all, including the 1,472
   where the rewind was perfectly well defined.
@@ -970,6 +1204,64 @@ projection checks were green in both runs.*
   against a just-read copy, which is a narrower guarantee than an atomic swap in main (section E.5
   assembles the parts that fix it); and `npm run conformance:redline` rule 9, which goes red the day
   rewind ships and must be narrowed deliberately rather than deleted (section F.3a).
+
+### B.8a. The guard the draft never stated: a press is bound to the baseline generation it was drawn against
+
+**The fix round's second finding, and it resurrects through the baseline the exact failure E.7
+rejects through the index.** B.8's whole safety argument is that the baseline does not move during the
+press. The draft rested that on A2.3's refusals — and A2.3 refuses the file changing, the person
+typing, looking, session lifecycle and a rewind. **It does not refuse either of the two things A2.2
+says DO advance the baseline**, being an accept and a commit, and both are asynchronous with a press:
+a commit can be an agent's (see A2.2's correction), and an accept can come from a second window on the
+same file, which A9 already records as unmeasured.
+
+Constructed and driven with the shipping composer (`.p222/fix/f2-baseline-moved.ts`). A document with
+two IDENTICAL phrases, and a heading clause the agent deleted whose length is exactly the gap between
+their two baseline offsets:
+
+```
+--- the draw the person is looking at ---
+drawn: 3 edits
+   E0 at baseline offset  20  ", filed on the Tuesday of that week." -> ""
+   E1 at baseline offset  86  "red" -> "blue"
+   E2 at baseline offset 122  "red" -> "blue"
+the person presses the FIRST lorry: (offset 86, "red" -> "blue")
+
+--- the baseline advanced: the heading edit was accepted (B.5's per-phrase accept) ---
+baseline 137 B -> 101 B  (shrank by 36)
+
+--- ARM 3 at press time: re-read the file, recompose against the baseline ---
+fresh: 2 edits
+   E0 at baseline offset  50  "red" -> "blue"
+   E1 at baseline offset  86  "red" -> "blue"
+
+the pressed identity resolves to 1 edit(s) — ARM 3 says WRITE
+   and the edit it resolved to is E1, which is the SECOND lorry — not the one pressed
+
+   "The consignment note is here."
+   "The first lorry was blue on Monday."
+   "The second lorry was red on Friday."
+
+  the phrase pressed (FIRST lorry) is back  : false
+  a phrase NOT pressed (SECOND) was rewound : true
+  what the person was told                  : nothing; the write returned success
+```
+
+**Every stated guard was satisfied.** The re-read was fresh, the recompose was against the baseline,
+the identity resolved to exactly one edit, and the write succeeded. It is E.7's own sentence about
+index identity — *"both writes succeed, so nothing would have said a word"* — reappearing through the
+baseline, because the identity's coordinate system moved while the identity did not.
+
+**The guard is one integer and it costs nothing.** The baseline carries a generation number that
+increments on every advance. A drawn run list carries the generation it was composed against. At press
+time, before anything is read or written:
+
+> **If the baseline generation is not the one the view was drawn against, refuse, redraw, and say the
+> baseline moved.** Only then do the re-read, the recompose and the identity resolution of E.7.
+
+It is strictly cheaper than the identity scheme it protects, it needs no new state beyond one counter,
+and it is the reason B.8's invariant is true rather than an assumption that it is. **A2.3's refusals
+are what keep the generation from moving often; this is what makes it safe that it moves at all.**
 
 ---
 
@@ -1555,6 +1847,18 @@ injected text is not in the model, so it never copies, which is right for a redl
 deletion is unselectable. Third: Monaco arrives as an editor, so gutter, minimap, folding and line
 decorations all have to be turned off before it stops looking like the surface he did not want.
 
+**What happens when the file changes underneath while a caret is in the view — the charter asked this
+of every option and the draft answered it only for option C. The fix round answers it here.** Monaco
+IS the tab's editor, so this option inherits the answer the tree already has and it is not a good one:
+`refreshRepo` reloads a tab only `if (!tab.dirty)` (`tab-io.ts:616`), so the instant a caret has
+typed anything, the agent's later writes stop arriving and the redline goes stale with nothing on its
+face. If the tab is CLEAN, the reload path is `resetWorkingModel` -> `model.setValue`, which
+`textModel.js:343` follows with `this._commandManager.clear()` — so a file changing under a resting
+caret **destroys the undo stack and moves the caret**, since `setValue` replaces the whole model
+rather than applying an edit. That is a strictly worse answer than option C's, because option C only
+goes stale where this one also loses ⌘Z. A phase choosing Monaco owns changing that reload path to
+`pushEditOperations`, which B.6 already names for the undo question and which is the same fix.
+
 **Verdict: the strongest typing option, blocked on one thing.** Either deletions are split at line
 breaks into several injected decorations, or a multi-line deletion falls back to something else. A
 design decision, not a rewrite.
@@ -1574,6 +1878,16 @@ verifier caught with `peelSharedSpace`, and it is why this option needs the `bef
 rather than a lint. Second break: an unintercepted paste writes new `<del>` elements into the document
 and **rewrites the baseline** (+19 characters); `plaintext-only` closes that one for free and is the
 sensible floor.
+
+**What happens when the file changes underneath while a caret is in the view — again the charter's
+question, and this option is the one with no answer at all in the tree.** A contenteditable view owns
+its own DOM, so nothing existing refreshes it: a watcher tick would have to re-render the document
+under a live selection, and there is no `setValue` and no `pushEditOperations` to argue about because
+the view is not a Monaco model. **This is the option's real second cost and the draft did not price
+it.** Either the view refuses to redraw while it has focus, which makes it stale exactly like a dirty
+tab and needs a sentence on its face, or it redraws and must restore a selection expressed in a run
+list that has just changed shape. Neither was measured; the harness never drove a redraw under a live
+caret. It is recorded in D.7 as unverified rather than answered.
 
 #### C. Editing elsewhere and reflecting here
 
@@ -1629,6 +1943,12 @@ this would mean deleting a green gate rule he asked for. **Leave it alone.**
   stylesheets; it does not mount the React component.
 - **Monaco's injected-text behaviour was measured in the harness**, not inside Tortie's own configured
   editor with its own options.
+- **No option was driven with the file changing underneath a live caret.** The fix round answered the
+  charter's fourth question for options A and B from the tree rather than from a run — A from
+  `refreshRepo`'s `if (!tab.dirty)` and `setValue`'s `_commandManager.clear()`, B from the absence of
+  any refresh path at all. **Option B's redraw-under-a-selection is the one genuinely unpriced thing
+  left in this section**, and a phase that chooses contenteditable owes it a measurement before it
+  chooses.
 
 ---
 
@@ -1754,12 +2074,51 @@ and each answers one row of the table above.
   `renameSync`. Measured: tmp plus rename moves the inode, so a reader sees the old file or the
   new file and never a partial one, which is rows 2 and 3.
 
+- **The containment guard is the fourth row and the fix round had to add it here, because the three
+  patterns above answer rows 1 to 3 and the draft carried nothing across for row 4.** `fs:createFile`,
+  `fs:rename`, `fs:move` and `fs:trash` all resolve and authorise a project root first, through
+  `root()` in `src/main/fs/file-ops.ts:149` calling `resolveOpenProjectRoot` against
+  `listProjectRoots()`; `fs:writeFile` calls none of it (`src/main/fs/ipc.ts:229-247`, confirmed).
+  A new renderer-reachable whole-file write that did not carry it would be **the second channel in
+  the product with no containment**, and it would be the one a rewind aims. It costs one call: the
+  same `root()` gate the file operations already use.
+
 **Recommendation: a NEW channel rather than a wider `fs:writeFile`.** Adding an optional
 precondition to `fs:writeFile` changes the channel every Cmd-S in the product goes through, and
 a mistake there breaks saving. A separate channel is one line in
 `docs/audits/contract-baseline.txt`, is reachable only from the redline, and cannot regress the
 save path. Its answer should be a word rather than a throw, in `putFileOnMachine`'s shape:
 `wrote`, `stale`, or `refused`, so the renderer can say the right sentence for each.
+
+**Four things the channel must refuse, three of which the fix round added.** Stated here so a build
+phase does not have to reconstruct them from three different sections:
+
+1. **A stale digest** — the precondition above. `stale`.
+2. **A path outside every open project root** — the containment guard above. `refused`.
+3. **A truncated read on either side.** E.7a measured what happens without it: a rewind composed over
+   the first 5 MB of a larger file dropped 98,110 bytes in one arm and reverted a whole 5,895,890-byte
+   document to its baseline in another, and answered `wrote` both times. A3.1's `save` refusal does
+   not carry, because this channel is not `save`. `refused`.
+4. **A baseline generation that has moved since the draw.** B.8a. `refused`, and it is checked in the
+   renderer before this channel is called at all.
+
+**And one thing the recommendation itself imports, which A3.2 refused two hundred lines earlier.**
+The atomic replace pattern taken from `src/main/settings/store.ts:657` is `writeFileSync(tmp)` then
+`renameSync(tmp, path)` with `tmp = ${path}.tmp` — **a file Tortie creates inside the person's
+repository, at a path Tortie chose, which is word for word the objection A3.2 used to refuse keeping
+the baseline beside the file**, and which a crash or a killed process leaves behind for the next
+`git add -A` to pick up. The objection was raised once and not the second time. It does not sink the
+pattern, because the file is transient by design and the atomicity is worth having, but a build phase
+owes two things it would otherwise discover: the temp name must be one `git status` will not show as
+an untracked file people commit by accident, and a leftover must be cleaned on the next write rather
+than left. Writing it to a system temp directory is NOT the answer, because `rename` is only atomic
+within a volume.
+
+**One more thing a phase reading E.5 alone would not know.** The rename-over this pattern performs is
+exactly the operation section C.2 measured making an `fs.watch` **on the file** go deaf — 1 callback,
+1 more after a rename-over, then 0 for the next in-place write. It is harmless here only because
+C.8's recommendation watches the DIRECTORY with a basename filter, for exactly that reason. The two
+recommendations depend on each other and neither says so.
 
 ### E.6 The Monaco trap, and a first version will hit it
 
@@ -1851,6 +2210,78 @@ real files in this tree:
 and the write there is a window a fast agent can land in. The sha256 of what was read is what
 closes it, which is E.5's channel.
 
+### E.7a. Step 1 has to refuse a truncated read, and the draft never said so
+
+**The fix round's first finding, and it is the largest measured loss in this document.** Step 1 says
+*"re-read the file at the moment of the press"*. The renderer's only reader is
+`gmux.fs.readFile` -> `fs:readFile` -> `readTextCapped`, which returns **the first
+`READ_CAP_BYTES = 5 * 1024 * 1024` bytes** and reports `truncated: true`
+(`src/main/fs/ipc.ts:57-89`). Step 2 then recomposes over that truncated string, step 3 resolves the
+identity against it, and E.1's rule writes **the whole file**. The word `truncated` appeared four
+times in this document's 2,310 lines and never once in a rewind context.
+
+Driven with the shipping composer and the shipping cap over scratch prose files, nothing under the
+person's home touched (`.p222/fix/f1-truncated.ts`). Three agent edits: one near the top, which the
+person presses, one in the middle, and one past the 5 MB mark.
+
+| arm | file | what the re-read gave | the compose | ARM 3 said | what happened |
+| --- | --- | --- | --- | --- | --- |
+| A, a small truncated tail | 5,340,990 B | 5,242,880 B, `truncated: true` | 3 edits, exact | **`wrote`** | **98,110 bytes gone**, the last paragraph of the file absent, the agent's edit past the cap gone |
+| B, a large truncated tail | 5,895,890 B | 5,242,880 B, `truncated: true` | 1 edit, `approximate: true` | **`wrote`** | **the whole document reverted to the baseline**; both of the agent's other edits gone |
+
+**Arm B is the shape nobody would predict from reading the code**, and it is why this needed running
+rather than reasoning. A truncated tail longer than `REDLINE_DOC_MAX_LINE_EDITS = 1,000` lines makes
+`linePartition` give up and fall back to head-and-tail, so the ENTIRE document becomes one change
+block drawn whole. There is then exactly one edit in the list, the person's press resolves to it
+unambiguously, and `mix` puts the whole baseline back. **One phrase pressed, the whole file reverted,
+nothing said.**
+
+**The refusal is one line and it goes in three places.** The channel refuses a write whose source read
+was truncated (E.5's list, item 3); the view does not draw rewind controls on a tab whose
+`truncated` flag is set, which the tree already tracks and `refreshRepo` already keeps fresh
+(`tab-io.ts:622`); and the sentence a person sees is its own, being that the file is too large for
+Tortie to rewind rather than a generic failure. The tree's existing treatment of a truncated tab —
+read-only in Monaco, refused by `save` — is the right instinct and this is the same instinct restated
+where the new write is.
+
+### E.7b. Encoding, which this document did not name once
+
+**The fix round's finding, and it is narrow, real and cheap to state.** The words `encoding`,
+`UTF-8`, `BOM` and `CRLF` each appeared **zero** times in 2,310 lines. A rewind writes the **whole**
+file (E.1) through a `readFile(..., 'utf8')` and a `writeFile(..., 'utf8')`, so every byte in the file
+makes the round trip whether or not the person pointed at it. `readTextCapped` refuses only BINARY
+content, by sniffing the first 8,192 bytes for a NUL — and a legacy single-byte encoding has no NULs,
+so it opens.
+
+Driven on a latin-1 `.txt` with the accents outside the rewound span
+(`.p222/fix/f9-encoding.ts`):
+
+```
+on disk: 87 bytes, latin-1
+  as latin-1  : "Notes de réunion" / "La reponse fût brève et polie."
+  read as utf8: 3 bytes already read back as U+FFFD in memory
+compose: 1 edit — E0 at 38: "huit" -> "neuf"
+AFTER THE REWIND
+  file 87 B -> 93 B
+  the pressed span went back to "huit"  : true
+  line 1: "Notes de r�union"
+  line 3: "La reponse f�t br�ve et polie."
+  what the person was told              : nothing; the write returned success
+```
+
+Three characters the person never pointed at were destroyed and the file grew by six bytes.
+
+**`save` has exactly the same shape today and this is not reported as a defect in `save`**, for E.4's
+reason: a person pressing Cmd-S is looking at the mojibake in Monaco and can decide. **A rewind is
+one press sold as a targeted undo**, the person is looking at a redline rather than at the file, and
+`.txt` is precisely where legacy encodings still live. The honest answer is not to build encoding
+detection — that is a different feature and a large one. It is to say so:
+
+- **The limit is stated in section H** rather than discovered by whoever hits it.
+- A build phase that wants a guard has a cheap one: a read whose UTF-8 decode produced a U+FFFD that
+  the bytes on disk did not contain is not a file Tortie should offer to rewind. That is a byte
+  comparison, not a detector, and it costs one pass.
+
 ### E.8 A rewind is destructive and it is not undoable from the view
 
 This was expected to be free and it is not, so it is recorded as a finding rather than a
@@ -1922,6 +2353,12 @@ correct whenever you look**, rather than a property of a turn that expires when 
 The three threads above are the evidence that the second axis is a real difference and not a
 refinement: every one of them is somebody losing the controls at a boundary, being a commit, an
 update, a settings default, where a baseline owned by the file would not have moved at all.
+
+**And that sentence is the one the fix round used to correct A2.2**, because as first drafted this
+document diagnosed Cursor's flaw and then adopted its trigger: A2.2 made *a commit that includes the
+file* advance the baseline, in a product where agents commit. Thread 150230 is that failure, and it
+would have been reproduced here. A2.2 now qualifies the commit-advance to a commit the person made,
+so this paragraph's claim of a real difference stands rather than being spent.
 
 ---
 
@@ -2033,24 +2470,38 @@ holds anyway for a different and much stronger reason.** All three of those are 
 
 Research 74 section 2.4 records Phase 185 measuring 188, 45 and 311 spans over a real commit to
 `PierreDiff.tsx`. Running the installed jsdiff over every commit that ever touched that file
-(`.p222/confetti4.mts`):
+(`.p222/confetti4.mts`). **The draft published five of the nine rows the script prints, and the
+sentence above the table said "every commit that ever touched that file". The fix round re-ran it and
+this is all of them:**
 
-| commit | old B | new B | `diffWords` | `diffWordsWithSpace` | `diffChars` |
-| --- | --- | --- | --- | --- | --- |
-| `1c1e4e4` | 17,572 | 13,076 | 68 | 163 | 284 |
-| `e238ff1` | 12,622 | 17,572 | 21 | 32 | 79 |
-| `0a31afb` | 10,139 | 12,094 | 15 | 19 | 52 |
-| `d3ee863` | 9,935 | 10,139 | 85 | 242 | **319** |
-| `611d74c` | 7,122 | 9,935 | 85 | 147 | 254 |
+| commit | old B | new B | `diffWords` | `diffWordsWithSpace` | `diffChars` | chars ÷ words |
+| --- | --- | --- | --- | --- | --- | --- |
+| `e53a32e` | 13,076 | 13,618 | 6 | 7 | 18 | 3.00 |
+| `1c1e4e4` | 17,572 | 13,076 | 68 | 163 | 284 | 4.18 |
+| `e238ff1` | 12,622 | 17,572 | 21 | 32 | 79 | 3.76 |
+| `468a67d` | 12,094 | 12,622 | 7 | 26 | 44 | **6.29** |
+| `0a31afb` | 10,139 | 12,094 | 15 | 19 | 52 | 3.47 |
+| `d3ee863` | 9,935 | 10,139 | 85 | 242 | **319** | 3.75 |
+| `611d74c` | 7,122 | 9,935 | 85 | 147 | 254 | 2.99 |
+| `bc8ebd9` | 5,307 | 7,122 | 11 | 45 | 42 | 3.82 |
+| `207decf` | 0 | 5,307 | 1 | 1 | 1 | 1.00 (the file's creation, degenerate) |
 
 Nothing reads 188, 45 and 311. `d3ee863` reads 85, 242 and 319, which is the same shape and the
 same order of magnitude. The likely explanation is that Phase 185 counted **drawn `data-diff-span`
 elements in the running app**, under Pierre's own per-line highlighter with both sides counted,
 which is a different count from parts returned by jsdiff over a file pair. Research 74's own
 table counts spans that way. So the 311 is not wrong, it is a different measurement, and this
-document should not treat it as a jsdiff figure. **What reproduces is the ratio**: character
-mode gives between 3.0 and 4.2 times as many marked spans as word mode over the same five real
-code changes, being 2.99, 3.47, 3.75, 3.76 and 4.18.
+document should not treat it as a jsdiff figure.
+
+**What reproduces is the DIRECTION, and the draft's band was an artifact of the rows it published.**
+It said *"between 3.0 and 4.2 times as many marked spans"*, which is exactly the range of the five
+rows it showed and is broken by two it did not: `468a67d` reads **6.29** and the file's creation reads
+1.00. Over the eight real changes the range is **2.99 to 6.29**, with a median of 3.76. The claim that
+survives is the one the allowlist ever needed: **character mode marks three to six times as many spans
+as word mode on every real code change in this file's history, and never fewer.** That is a
+correction to a sentence rather than to a finding, and it is the class this repository's own
+conventions name — a sentence that reads as a measurement of a whole population when it is the range
+of a sample.
 
 ### G.2 The confetti COUNT does not separate prose from code in this tree
 
@@ -2163,6 +2614,27 @@ shipping code.
   one, because a `same` run can never be empty; that is an argument, not a measurement of what a
   person would point at. A different grouping changes the change counts in E.1 and E.7 and nothing
   about the write mechanism or any failure mode.
+- **ENCODING IS A STATED LIMIT AND NOT A SOLVED ONE.** E.7b measures it: a rewind writes the whole
+  file through a UTF-8 round trip, and on a latin-1 `.txt` three characters outside the rewound span
+  became U+FFFD and the file grew six bytes, with nothing said. No encoding detection is proposed and
+  none should be inferred from this document. A build phase either states the limit on the face or
+  refuses to rewind a file whose decode lost bytes, which E.7b prices at one pass. **A BOM, a CRLF
+  file and a UTF-16 file were NOT driven at all** — only latin-1 — and CRLF in particular interacts
+  with `linePartition` in a way nothing here has measured.
+- **The fix round's five constructed losses were run under node with the shipping composer, not in
+  the app.** They use a hand-written `editsOf` and `mix`, proved first against section B's whole
+  published transcript (section 3), which is the strongest check available without an app run and is
+  not the same as one. **The arms that matter most, being E.7a's truncated read and B.8a's moved
+  baseline, would each be one line in a build phase's own gate**, and that is where they belong.
+- **B.8a's collision was constructed rather than sampled.** It needed a document with two identical
+  phrases and an accepted edit whose length exactly equals the gap between their baseline offsets.
+  **How often that shape occurs in real prose is UNMEASURED**, and it does not matter: the guard is
+  one integer, and a failure mode that silently rewrites the wrong sentence does not need to be
+  common to be worth one integer.
+- **A2.2's qualification — "a commit the person made in this window" — was not implemented or
+  measured.** That Tortie can tell its own window's commits from an agent's is an inference from
+  where the commit is issued, not a reading from the tree. A build phase confirms it before relying
+  on it; if it cannot, the refusal is the fallback and accept alone still bounds the growth.
 
 ---
 
@@ -2195,10 +2667,17 @@ E.7.
 *A note from the write's side on what the cheapest A is, offered to the section that owns it.*
 The bytes Tortie last read for that tab are already in the tree, as `tab.savedContents`, already
 refreshed by the watcher, already meaning "what the file said when Tortie last looked". Holding
-that as the baseline for the life of the tab is a one-field first version. It is **not durable**,
-so a restart loses the redline, and the surface must say that plainly rather than imply a
-permanence it does not have. A durable baseline is a real thing to want and it is a second
-phase.
+that as the baseline for the life of the tab is a one-field first version. A durable baseline is a
+real thing to want and it is a second phase.
+
+**It is not durable, and the fix round widened what that sentence has to say.** The draft said only
+that *"a restart loses the redline"*. A3.2's own table lists four ways an in-memory baseline dies and
+a restart is the least likely of them: **tab close, LRU eviction past ten tabs, window reload, quit,
+crash**. `MAX_TABS = 10` (`store.ts:100`, confirmed), and opening an eleventh prose tab is an
+ordinary mid-session action nobody would connect to losing a redline. Under A3.4's own reasoning that
+is the moment an uncommitted paragraph's only other copy disappears. **So the surface's sentence is
+"this lasts as long as this tab is open", not "this lasts until you restart"** — and if that sentence
+is judged too weak to ship behind, the answer is A3.3's durable step rather than a softer sentence.
 
 ### F.3 The order, and it is chosen so that each step is provable before the next starts
 
@@ -2247,6 +2726,9 @@ should say what rule 9 becomes, in words, before any code is written.
   each multiplies the stale case in E.7. One change, one write.
 - **A rewind must not ship without its undo.** E.8 measured that the view cannot undo itself and
   the rewound phrase survives nowhere. An in-memory per-tab stack is cheap and it is the floor.
+  **A8a is why this is not a nicety**: the loss case that needs no staleness and no mistake is the
+  person rewinding their own uncommitted paragraph, and for that case the journal is the only guard
+  there is.
 - **No widening of the prose allowlist**, for the reason section G measures.
 - **No git worktree, no index, no stash.** The whole point of the shadow baseline is that git is
   not involved, and every mechanism that reaches for git brings the line-granularity problem
@@ -2264,7 +2746,7 @@ The charter asked that the pieces be separated. They are, and they do not get on
 | piece | verdict | why |
 | --- | --- | --- |
 | **The baseline, and the redline it draws** | **Ready to be decided.** The mechanism is measured, the failure modes are named, and the read-only version writes nothing. | Drawing against a baseline is one argument changed in an existing call, every Phase 194 ruling carries over, and a lost baseline degrades to exactly what ships today. |
-| **Rewind** | **Ready, but only with its rule.** It is not shippable as "write the projection of what is on screen". | The naive form destroyed 87 bytes of prose in the first case tried, and returned success. With the re-read, the recompose and identity by baseline offset, it was correct in 1,472 of 1,500 and refused in the other 28, never ambiguously. It also needs its guarded write and its undo. |
+| **Rewind** | **Ready, but only with FOUR rules, and the fix round found two of them missing.** It is not shippable as "write the projection of what is on screen", and it is not shippable with the re-read alone either. | The naive form destroyed 87 bytes of prose in the first case tried, and returned success. With the re-read, the recompose and identity by baseline offset, it was correct in 1,472 of 1,500 and refused in the other 28, never ambiguously — and it still lost 98,110 bytes over a truncated read (E.7a) and rewound the wrong phrase after an accept moved the baseline (B.8a). The four are: refuse a truncated read; bind the press to the baseline generation; re-derive at press time; and write under a precondition and a containment guard. It also needs its undo, which A8a makes a guard rather than a nicety. |
 | **Typing in the view** | **Not ready, and not needed.** Phase two at the earliest. | Everything hard belongs to typing and nothing about rewind depends on it. Monaco is the front-runner if it is ever wanted, blocked on one measured thing: 26.7% of real deleted runs carry a line break and injected text must be a single line. |
 | **Per-phrase accept** | **Free, and deliberately deferred.** | It writes only Tortie's own copy and not one byte of his file, so it is the safe half. It is held back on surface grounds, not mechanism grounds. |
 
@@ -2286,7 +2768,12 @@ labelled as one.
 - **Phase 3 — wire rewind.** The grouping, the keyboard affordance from D.3, the re-read and recompose,
   identity by baseline offset, the four refusal sentences, the in-memory undo journal, and the
   narrowing of `conformance:redline` rule 9 in the same commit. Tier 3, and the verifier's named job is
-  the stale-file attack. **One phase, and it is the real work.**
+  the stale-file attack. **One phase, and it is the real work.** **Its gate owes six arms, one per
+  loss this document measured**, being the stale draw, the truncated read (E.7a, both the exact and
+  the `approximate` shape, because they fail differently), the moved baseline generation (B.8a), the
+  path outside every project root (E.5), the person's own insertion (A8a), and the encoding round trip
+  (E.7b) as a stated refusal or a stated limit. Each of them is a pure computation over two strings,
+  so the gate launches no Electron and spawns nothing, in the `conformance:credentials` shape.
 - **Optional later, each its own phase and none of them owed:** the durable baseline
   (`<userData>/gmux/baselines/` through `src/main/durable`, already priced at 9.0 ms median for 126 KB);
   the `fs.watch` on the active file's directory that closes the gitignored hole; per-phrase accept; and
@@ -2306,5 +2793,12 @@ commit**, and drives it with a file being rewritten under it rather than only op
 ---
 
 **This document recommends that nothing be started.** It prices the work, separates it into pieces
-that can be decided one at a time, names the sequence in which a person loses prose, and records that
+that can be decided one at a time, names the sequences in which a person loses prose, and records that
 a product doing most of this already exists and can be tried in an evening. The operator chooses.
+
+**And after a fix round it names five such sequences rather than one.** The stale draw (B.4d), the
+truncated read (E.7a), the moved baseline (B.8a), the person's own paragraph (A8a) and the encoding
+round trip (E.7b). Three of those were found by attacking a recommendation that had already stated
+its guards, which is the argument for the guards being written as gate arms rather than as
+paragraphs. It is also the argument for the first recommendation in this document standing: **step 1
+of F.3 writes nothing at all**, and every one of these five is a property of the write.
