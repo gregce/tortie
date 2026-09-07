@@ -84,7 +84,7 @@ const { historyRangeToCopy, holdHistorySelection } = await import(
 );
 const { registerTerminal } = await import('../../drop/registry');
 
-const POS = (line: number): HistoryPos => ({ line, x: 0 });
+const POS = (line: number): HistoryPos => ({ line, col: 0 });
 
 /** A terminal that records what Clear did to it. */
 function recordingTerminal(): {

@@ -63,6 +63,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
 import { getLog } from '../log';
+import type { ClaudeStatusLineState } from '@shared/usage';
 import { getSettings } from '../settings/store';
 import {
   claudeStatusLineScript,
