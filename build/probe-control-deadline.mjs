@@ -48,12 +48,52 @@
  *     anywhere in this file.
  *  4. Everything is written under one run directory, `<tmpdir>/p83-deadline-<pid>`.
  *     Nothing under the person's home is opened for writing.
+ *
+ * ## PHASE 220. What this file gained, and what it did NOT repair
+ *
+ * The 0.99.0 audit recorded that this probe could not reach its subject, and
+ * named separate loaded module instances as the cause. Measured again at
+ * `b5cc017` (docs/research/82 §4), NEITHER half reproduced: the probe passed
+ * twice, its source was byte identical to the audited commit, and a driver that
+ * imported the same two modules the same two ways read its own registration
+ * back. So nothing here is a repair of that break. What was true is that a leg
+ * that has only ever been watched PASSING is not yet a check, and this file had
+ * three such legs. It now carries three arms that can fail:
+ *
+ *   arm 0, the teardown  This file is run as a CHILD with `P83_FORCE_FAIL=1`,
+ *                        which throws once an sshd, an ssh, a far side tmux
+ *                        server and four directories are all held. The parent
+ *                        reads the pids and directories the child recorded and
+ *                        asks the machine whether any of them survived. That is
+ *                        the audit's own shape: the probe died before its kill
+ *                        loop and left both running.
+ *   the readback         Every machine `arm()` registers is read back through
+ *                        `remoteContextFor`, which is the control plane's own
+ *                        export and the one `openControlPlane` calls. The
+ *                        boundary the audit named answers before any child is
+ *                        spawned rather than being inferred from a later leg.
+ *   arm 6, the ablation  The same driver is run again over a COPY of `src` with
+ *                        exactly one clause removed, being the line that arms
+ *                        the greeting timer. Leg 1's readings must come back the
+ *                        other way round. The arm asserts what the ablated build
+ *                        DID first, being that it opened and spawned a child, so
+ *                        a copy that will not load can never be mistaken for a
+ *                        timer that was taken away.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { refuseRealSockets, scratchMachine, scratchYard } from './scratch-machine.mjs';
@@ -68,6 +108,24 @@ const WHO = 'probe-control-deadline';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const socket = process.env.GMUX_TMUX_SOCKET ?? `gmux-p83-deadline-${String(process.pid)}`;
 refuseRealSockets(socket, WHO);
+
+/**
+ * PHASE 220. The two knobs the new arms need, and neither is for a person.
+ *
+ * `P83_FORCE_FAIL` makes this file throw AFTER its scratch machine and its
+ * scratch tmux server are running, which is the exact shape the 0.98.0 audit
+ * found leaking: the probe died before its own kill loop. The teardown arm
+ * below runs this file that way as a child and then reads whether the pids it
+ * had recorded are gone and the directories it had made were removed. The
+ * child never runs the arm itself, which is what stops it recursing.
+ *
+ * `P83_PORT` exists only so the child binds a different loopback port from the
+ * parent, because the parent's own machine starts after the child is gone and
+ * a listener that has just been signalled is not always released the instant
+ * its process is.
+ */
+const forceFail = process.env['P83_FORCE_FAIL'] === '1';
+const machinePort = Number(process.env['P83_PORT'] ?? '47831');
 
 const runDir = join(tmpdir(), `p83-deadline-${String(process.pid)}`);
 const pids = [];
@@ -153,6 +211,27 @@ function teardown() {
       // Under the temporary folder. Leaving it costs nothing.
     }
   }
+  // PHASE 220. Leg 5 starts a LOCAL tmux server on this run's own socket, and
+  // a server that is signalled does not unlink its socket file, so four inert
+  // files named `gmux-p83-deadline-<pid>` were found sitting in the same folder
+  // as the socket `gmux` after the measure step's runs. This removes exactly
+  // one path: the socket this run named, in the folder tmux puts it in. The
+  // three guards are the whole safety of it, and none of them is decoration —
+  // the name must be this run's, it must not be a real socket, and the thing on
+  // disk must be a socket rather than anything else.
+  try {
+    const own = join('/tmp', `tmux-${String(process.getuid?.() ?? 0)}`, socket);
+    if (
+      basename(own) === socket &&
+      socket !== 'gmux' &&
+      socket !== 'default' &&
+      lstatSync(own).isSocket()
+    ) {
+      rmSync(own, { force: true });
+    }
+  } catch {
+    // No socket file, or another user's folder. Either way nothing is removed.
+  }
 }
 
 process.on('exit', teardown);
@@ -220,8 +299,64 @@ writeFileSync(
 );
 chmodSync(exitingTmux, 0o755);
 
+// ---------------------------------------------------------------------------
+// PHASE 220. Arm 0: this file's teardown is watched running on a FAILING path
+// ---------------------------------------------------------------------------
+//
+// `process.on('exit', teardown)` above is a claim, and until this arm the only
+// evidence for it was that the happy path also called `teardown()` by hand. The
+// 0.98.0 audit found this probe dead AFTER it had started an sshd and a tmux
+// server, with both left running, so the failing path is the one that has to be
+// watched rather than the one that already works.
+//
+// So the arm runs THIS FILE as a child with `P83_FORCE_FAIL=1`. The child gets
+// as far as a listening sshd, a signed in ssh, a running tmux server on the far
+// side and four scratch directories, prints what it recorded, and then throws.
+// The parent reads that list and asks the machine, not the code, whether any of
+// it is still there.
+//
+// It runs BEFORE the parent's own machine starts, so at no moment are two
+// scratch sshds alive at once, and the child is given its own port.
+const teardownArm = { ran: false, status: null, pids: [], dirs: [], alive: [], left: [] };
+if (!forceFail) {
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 180_000,
+    env: { ...process.env, P83_FORCE_FAIL: '1', P83_PORT: String(machinePort + 1) }
+  });
+  teardownArm.ran = true;
+  teardownArm.status = child.status;
+  const at = (child.stdout ?? '').indexOf('P83TEARDOWN');
+  if (at >= 0) {
+    const line = (child.stdout ?? '').slice(at + 'P83TEARDOWN'.length).split('\n')[0] ?? '';
+    try {
+      const noted = JSON.parse(line);
+      teardownArm.pids = Array.isArray(noted.pids) ? noted.pids : [];
+      teardownArm.dirs = Array.isArray(noted.dirs) ? noted.dirs : [];
+    } catch {
+      // Left empty, and the assertion below names it.
+    }
+  }
+  // A moment for the signalled tree to go. The reading is of the machine.
+  execFileSync('/bin/sleep', ['1']);
+  for (const pid of teardownArm.pids) {
+    const r = spawnSync('/bin/sh', ['-c', `ps -p ${String(pid)} > /dev/null 2>&1; echo $?`], {
+      encoding: 'utf8'
+    });
+    if ((r.stdout ?? '').trim() === '0') teardownArm.alive.push(pid);
+  }
+  for (const dir of teardownArm.dirs) if (existsSync(dir)) teardownArm.left.push(dir);
+  say(
+    `[${WHO}] the teardown arm ran this file with a deliberate failure: it recorded ` +
+      `${String(teardownArm.pids.length)} pid(s) and ${String(teardownArm.dirs.length)} ` +
+      `directory(ies), and left ${String(teardownArm.alive.length)} and ` +
+      `${String(teardownArm.left.length)} of them behind.`
+  );
+}
+
 const yard = scratchYard({ root: runDir, prefix: 'p83', record });
-const machine = scratchMachine(yard, { id: 'a', port: 47_831 });
+const machine = scratchMachine(yard, { id: 'a', port: machinePort });
 machine.start();
 // PHASE 200: the machine's own tmux temporary directory, named for the
 // teardown as soon as it exists.
@@ -283,6 +418,19 @@ if (Number.isFinite(serverPid) && serverPid > 0) {
   fail('no server could be started on the scratch machine, so leg 3 has nothing to greet');
 }
 
+// PHASE 220. This is the deliberate failure the teardown arm above watches, and
+// it is placed HERE on purpose: an sshd is listening, an ssh has signed in, a
+// tmux server is running on the far side and four directories exist. Everything
+// this file could leak, it is holding at this line. The throw is uncaught, which
+// is the shape the audit found, and `process.on('exit')` is what has to catch it.
+if (forceFail) {
+  say(`P83TEARDOWN${JSON.stringify({ pids, dirs: scratchDirs })}`);
+  throw new Error(
+    'P83_FORCE_FAIL: a deliberate assertion failure, so the teardown can be watched ' +
+      'on the path that is not the happy one. Nothing here is a defect.'
+  );
+}
+
 /**
  * The driver, written into the run directory rather than into the repository.
  *
@@ -291,10 +439,16 @@ if (Number.isFinite(serverPid) && serverPid > 0) {
  * repository's own `tsconfig.node.json`, which is where the `@shared/*` mapping
  * lives.
  */
-const driver = join(runDir, 'p83-driver.mts');
-writeFileSync(
-  driver,
-  `
+/**
+ * PHASE 220. The driver's text, as a function of the source tree it drives.
+ *
+ * It used to name `${repoRoot}/src` inline. The ablation arm at the bottom of
+ * this file runs the SAME driver over a COPY of the tree with one clause
+ * removed, and a driver written twice would prove nothing about the driver the
+ * real arm runs.
+ */
+function driverText(srcRoot) {
+  return `
 import { readFileSync } from 'node:fs';
 import {
   CONTROL_GREETING_DEADLINE,
@@ -304,19 +458,21 @@ import {
   machineLinkFacts,
   missedGreetingThisRun,
   openControlPlane,
+  remoteContextFor,
   setControlPlaneSink
-} from '${repoRoot}/src/main/machines/control-plane';
+} from '${srcRoot}/main/machines/control-plane';
 import {
+  machineGeneration,
   registerRemoteMachineContext,
   setMachineRemotePath,
   type RemoteMachineContext
-} from '${repoRoot}/src/main/machines/context';
-import { composeControlPath } from '${repoRoot}/src/main/machines/ssh';
+} from '${srcRoot}/main/machines/context';
+import { composeControlPath } from '${srcRoot}/main/machines/ssh';
 import {
   CONTROL_ATTACH_ARGS,
   CONTROL_GREETING_DEADLINE_MS,
   TmuxControlClient
-} from '${repoRoot}/src/main/tmux/control-client';
+} from '${srcRoot}/main/tmux/control-client';
 import { execFileSync } from 'node:child_process';
 
 const cfg = JSON.parse(readFileSync(process.env['P83_CONFIG'] as string, 'utf8'));
@@ -342,11 +498,36 @@ function contextFor(id: string, program: string): RemoteMachineContext {
   };
 }
 
+const SEARCH_LIST = '/usr/bin:/bin:/usr/sbin:/sbin';
+
+/**
+ * What the control plane's OWN graph reads back for each machine this driver
+ * armed. PHASE 220: the 0.99.0 audit said this driver's registration was
+ * invisible to the graph that opens the plane and named separate loaded module
+ * instances as the cause. The reading below is taken through
+ * \`remoteContextFor\`, which is the control plane's export and the function
+ * \`openControlPlane\` itself calls, rather than through the registry this file
+ * wrote to. A graph that could not see the registration answers here, before any
+ * child is spawned, instead of being inferred from a leg that failed later.
+ */
+const graphReads: Record<string, unknown> = {};
+
 function arm(id: string, program: string): void {
   registerRemoteMachineContext(contextFor(id, program));
   // The plane refuses a machine whose program search list was never read, and
   // this driver composes the context by hand rather than preparing a machine.
-  setMachineRemotePath(id, '/usr/bin:/bin:/usr/sbin:/sbin');
+  setMachineRemotePath(id, SEARCH_LIST);
+  try {
+    const seen = remoteContextFor(id);
+    graphReads[id] = {
+      program: seen.remoteTmuxPath === program,
+      searchList: machineGeneration(id).remotePath === SEARCH_LIST,
+      socket: seen.socket === cfg.socket,
+      controlPath: seen.controlPath === contextFor(id, program).controlPath
+    };
+  } catch (err) {
+    graphReads[id] = { threw: String(err) };
+  }
 }
 
 /** Children of this process whose command line names our control socket. */
@@ -420,6 +601,17 @@ async function main(): Promise<void> {
   out['linkReason'] = facts.reason;
   out['linkReasonIsTheClause'] = facts.reason === CONTROL_GREETING_DEADLINE_REASON;
   out['missedThisRun'] = missedGreetingThisRun('hang');
+
+  // PHASE 220. The ablation arm drives leg 1 and nothing else: with the
+  // greeting timer removed there is no fallback to wait for, and legs 2 to 5
+  // measure numbers the ablation does not change. The connection is closed
+  // here because on that copy nothing else will close it.
+  if (cfg.leg1Only === true) {
+    closeControlPlane('hang');
+    out['graphReads'] = graphReads;
+    process.stdout.write('P83JSON' + JSON.stringify(out) + '\\n');
+    return;
+  }
 
   // ---- leg 2. A second open for the same machine spawns nothing ------------
   const beforeSecond = sshChildren().length;
@@ -526,6 +718,7 @@ async function main(): Promise<void> {
     out['localServerPid'] = null;
   }
 
+  out['graphReads'] = graphReads;
   process.stdout.write('P83JSON' + JSON.stringify(out) + '\\n');
 }
 
@@ -536,9 +729,11 @@ void main().then(
     process.exit(1);
   }
 );
-`,
-  'utf8'
-);
+`;
+}
+
+const driver = join(runDir, 'p83-driver.mts');
+writeFileSync(driver, driverText(`${repoRoot}/src`), 'utf8');
 
 const config = {
   host: machine.host,
@@ -557,7 +752,10 @@ const config = {
   // directory named for this process, and it is removed by name at the end.
   controlDir: join('/tmp', `p83cd-${String(process.pid)}`),
   tortieHostKeys,
-  userHostKeys
+  userHostKeys,
+  // PHASE 220. The full arm drives all five legs. The ablation arm below sets
+  // this, and drives leg 1 alone.
+  leg1Only: false
 };
 mkdirSync(config.controlDir, { recursive: true, mode: 0o700 });
 // PHASE 200: named for the teardown as soon as it exists, so a throw between
@@ -593,8 +791,178 @@ if (marker >= 0) {
 }
 
 if (data === null) {
-  fail('the driver printed no answer');
+  // PHASE 220. A prerequisite that was never met must say so rather than fall
+  // off the end of a report full of blanks. `run.status` is null when the
+  // driver was killed by its own timeout, and `run.signal` says which signal.
+  fail(
+    'the driver printed no answer ' +
+      `(exit ${String(run.status)}, signal ${String(run.signal)}, ` +
+      `${String((run.stderr ?? '').length)} bytes on stderr)`
+  );
   process.stdout.write(`${run.stdout ?? ''}\n${run.stderr ?? ''}\n`);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 220. The ablation arm: take the greeting timer away and leg 1 must fail
+// ---------------------------------------------------------------------------
+//
+// ## Why this arm exists, stated plainly
+//
+// The 0.99.0 audit recorded that this probe could not reach its subject and
+// named separate loaded module instances as the cause. Neither half reproduced
+// at `b5cc017`: the probe passed twice, its source was byte identical to the
+// audited commit, and `graphReads` above is the standing reading that the
+// control plane's own graph sees what this driver registered. So this phase adds
+// a GUARD rather than repairing a break, and this is the guard.
+//
+// A leg that passes proves nothing until it has been watched failing. So the
+// same driver is run a second time over a COPY of `src` with exactly one clause
+// removed, being the line that arms the greeting timer, and leg 1's readings
+// must come back the other way round: no fallback inside the deadline plus its
+// margin, and the held child still alive.
+//
+// ## What stops this arm passing for the wrong reason
+//
+// A copy that will not load, an import that does not resolve or a driver that
+// throws would ALSO produce "no fallback", and that would be an ablation arm
+// that can never fail. So the arm asserts what the ablated build DID do first:
+// it opened the connection and it spawned the ssh child. Only then is the
+// absence of a fallback read as the removed timer.
+let ablated = null;
+let ablationApplied = false;
+let ablationHits = 0;
+if (data !== null) {
+  const ablRoot = join(runDir, 'ablated');
+  mkdirSync(ablRoot, { recursive: true, mode: 0o700 });
+  // A clone on this APFS volume, measured at 0.2 s for the 26 MB tree. `-c`
+  // fails rather than silently copying on a file system that cannot clone, so
+  // the plain copy is the fallback.
+  let copied = spawnSync('/bin/cp', ['-Rc', join(repoRoot, 'src'), join(ablRoot, 'src')], {
+    encoding: 'utf8'
+  });
+  if (copied.status !== 0) {
+    copied = spawnSync('/bin/cp', ['-R', join(repoRoot, 'src'), join(ablRoot, 'src')], {
+      encoding: 'utf8'
+    });
+  }
+  const target = join(ablRoot, 'src', 'main', 'tmux', 'control-client.ts');
+  const MARK = '    this.greetingTimer = setTimeout(() => {';
+  if (copied.status !== 0 || !existsSync(target)) {
+    fail(
+      'the source tree could not be copied for the ablation arm, so nothing was ' +
+        `ablated: ${String(copied.stderr ?? '').trim()}`
+    );
+  } else {
+    const text = readFileSync(target, 'utf8');
+    ablationHits = text.split(MARK).length - 1;
+    if (ablationHits !== 1) {
+      fail(
+        `the ablation arm found ${String(ablationHits)} place(s) arming the greeting ` +
+          'timer in src/main/tmux/control-client.ts, not 1. The clause it removes has ' +
+          'moved, so this arm is no longer measuring the timer leg 1 measures.'
+      );
+    } else {
+      writeFileSync(
+        target,
+        text.replace(
+          MARK,
+          `    return; // PHASE 220 ablation arm: the greeting timer is never armed\n${MARK}`
+        ),
+        'utf8'
+      );
+      ablationApplied = true;
+    }
+  }
+
+  if (ablationApplied) {
+    // MEASURED. The copy sits outside the repository, so node's own resolver
+    // walked up from `<ablated>/src/main/log/index.ts`, found no node_modules
+    // and answered `Cannot find module 'electron'` before a line of the driver
+    // ran. One symbolic link to the repository's installed dependencies is the
+    // whole fix, and it keeps the copy under the temporary folder rather than
+    // putting 26 MB inside the checkout while other gates may be reading it.
+    try {
+      symlinkSync(join(repoRoot, 'node_modules'), join(ablRoot, 'node_modules'));
+    } catch {
+      // Already there from a previous attempt in this run; nothing to do.
+    }
+    // tsx reads compilerOptions only, and `@shared/*` has to point at the COPY
+    // rather than at the repository, or half the graph would be the tree this
+    // arm is not measuring.
+    writeFileSync(
+      join(ablRoot, 'tsconfig.json'),
+      `${JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2023',
+            module: 'ESNext',
+            moduleResolution: 'bundler',
+            types: ['node'],
+            strict: true,
+            esModuleInterop: true,
+            isolatedModules: true,
+            resolveJsonModule: true,
+            skipLibCheck: true,
+            noEmit: true,
+            baseUrl: '.',
+            paths: { '@shared/*': ['src/shared/*'] }
+          }
+        },
+        null,
+        2
+      )}\n`,
+      'utf8'
+    );
+    const ablDriver = join(ablRoot, 'p83-driver-ablated.mts');
+    writeFileSync(ablDriver, driverText(join(ablRoot, 'src')), 'utf8');
+    // Its own control directory, so a stale control socket from the arm above
+    // can never be what this arm measures.
+    const ablControlDir = join('/tmp', `p83cd-abl-${String(process.pid)}`);
+    mkdirSync(ablControlDir, { recursive: true, mode: 0o700 });
+    scratchDirs.push(ablControlDir);
+    const ablConfigPath = join(ablRoot, 'p83-config.json');
+    writeFileSync(
+      ablConfigPath,
+      JSON.stringify({ ...config, leg1Only: true, controlDir: ablControlDir }, null, 2),
+      'utf8'
+    );
+    const ablRun = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', join(ablRoot, 'tsconfig.json'), ablDriver],
+      {
+        cwd: ablRoot,
+        encoding: 'utf8',
+        timeout: 120_000,
+        env: {
+          ...process.env,
+          P83_CONFIG: ablConfigPath,
+          GMUX_TMUX_SOCKET: socket,
+          SSH_AUTH_SOCK: yard.authSock
+        }
+      }
+    );
+    const ablAt = (ablRun.stdout ?? '').indexOf('P83JSON');
+    if (ablAt >= 0) {
+      try {
+        ablated = JSON.parse(
+          (ablRun.stdout ?? '').slice(ablAt + 'P83JSON'.length).split('\n')[0] ?? ''
+        );
+      } catch {
+        ablated = null;
+      }
+    }
+    if (ablated === null) {
+      fail(
+        'the ablation arm printed no answer, so taking the greeting timer away ' +
+          `proved nothing (exit ${String(ablRun.status)}, signal ${String(ablRun.signal)}): ` +
+          `${String(ablRun.stderr ?? '').trim().split('\n').slice(0, 3).join(' | ')}`
+      );
+    } else {
+      // Whatever the arm concludes, the child it left holding is this file's to
+      // end. It is recorded before any assertion so a failure below still ends it.
+      if (typeof ablated.childPid === 'number') record(ablated.childPid);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -616,6 +984,32 @@ say(
 // ---------------------------------------------------------------------------
 // The report
 // ---------------------------------------------------------------------------
+
+// PHASE 220. The teardown arm's verdict, read from the machine.
+if (teardownArm.ran) {
+  if (teardownArm.status === 0) {
+    fail('the forced failure run exited 0. It is meant to fail, so this arm measured nothing.');
+  }
+  if (teardownArm.pids.length === 0 || teardownArm.dirs.length < 2) {
+    fail(
+      'the forced failure run never reached the line that records what it was holding ' +
+        `(${String(teardownArm.pids.length)} pid(s), ${String(teardownArm.dirs.length)} ` +
+        'directory(ies)), so its teardown was not watched over anything.'
+    );
+  }
+  if (teardownArm.alive.length > 0) {
+    fail(
+      `a run that failed left ${String(teardownArm.alive.length)} process(es) running: ` +
+        `${teardownArm.alive.join(', ')}. A probe that tidies only on the happy path is a defect.`
+    );
+  }
+  if (teardownArm.left.length > 0) {
+    fail(
+      `a run that failed left ${String(teardownArm.left.length)} scratch director(ies) behind: ` +
+        `${teardownArm.left.join(', ')}.`
+    );
+  }
+}
 
 if (data !== null) {
   say('');
@@ -640,7 +1034,60 @@ if (data !== null) {
   row(4, 'a far side printing %exit produced disconnects', data.exitDisconnects);
   row(4, 'a far side printing %exit produced greeting timeouts', data.exitTimeouts);
   row(5, 'the local client greeted in ms', data.localGreetingMs);
+  row(
+    0,
+    'the plane read back every registration this driver made',
+    JSON.stringify(data.graphReads ?? null)
+  );
+  row(0, 'the forced failure run exited', teardownArm.status);
+  row(
+    0,
+    'it held pid(s) / dir(s) when it threw',
+    `${String(teardownArm.pids.length)} / ${String(teardownArm.dirs.length)}`
+  );
+  row(
+    0,
+    'of those, still alive / still on disk',
+    `${String(teardownArm.alive.length)} / ${String(teardownArm.left.length)}`
+  );
+  row(6, 'the greeting timer was removed in N place(s)', ablationHits);
+  row(6, 'the ablated build opened a connection', ablated === null ? null : ablated.opened);
+  row(
+    6,
+    'the ablated build spawned an ssh child',
+    ablated === null ? null : ablated.childrenDuring
+  );
+  row(6, 'ms from spawn to the fallback, ablated', ablated === null ? null : ablated.msToFallback);
+  row(6, 'the ablated child was still alive', ablated === null ? null : ablated.childStillAlive);
+  row(6, "the ablated machine's link reads", ablated === null ? null : ablated.link);
 
+  // PHASE 220. The registration readback, asserted rather than printed. Every
+  // machine this driver armed must be readable through the control plane's own
+  // export, which is the claim the 0.99.0 audit said was false.
+  {
+    const reads = data.graphReads ?? {};
+    const ids = Object.keys(reads);
+    if (ids.length === 0) {
+      fail('the driver armed no machine, or it read none of them back through the plane.');
+    }
+    for (const id of ids) {
+      const one = reads[id];
+      const every =
+        one !== null &&
+        typeof one === 'object' &&
+        one.program === true &&
+        one.searchList === true &&
+        one.socket === true &&
+        one.controlPath === true;
+      if (!every) {
+        fail(
+          `the control plane's own graph did not read back the registration this ` +
+            `driver made for ${id}: ${JSON.stringify(one)}. That is the boundary the ` +
+            '0.99.0 audit named, and it would stop this probe reaching its subject.'
+        );
+      }
+    }
+  }
   if (typeof data.msToFallback !== 'number') {
     fail('the connection never fell back to the timer feed. The deadline did not fire.');
   } else if (data.msToFallback > data.deadlineMs + 5_000) {
@@ -676,6 +1123,39 @@ if (data !== null) {
         'this file says it does not, so one of the two is wrong.'
     );
   }
+
+  // PHASE 220. The ablation arm's verdict. Order matters: what the ablated
+  // build DID is asserted before what it did not, so a copy that never ran can
+  // never be read as a timer that was removed.
+  if (ablationApplied && ablated !== null) {
+    if (ablated.opened !== true) {
+      fail(
+        'the ablated build never opened a connection, so its silence is a broken ' +
+          'copy rather than a removed timer. This arm measured nothing.'
+      );
+    } else if (typeof ablated.childrenDuring !== 'number' || ablated.childrenDuring < 1) {
+      fail(
+        'the ablated build spawned no ssh child, so its silence is a broken copy ' +
+          'rather than a removed timer. This arm measured nothing.'
+      );
+    } else if (typeof ablated.msToFallback === 'number') {
+      fail(
+        `the greeting timer was removed and the connection still fell back after ` +
+          `${String(ablated.msToFallback)} ms. Leg 1 is measuring something other than ` +
+          'the timer, so its pass is not evidence that the deadline works.'
+      );
+    } else if (ablated.childStillAlive !== true) {
+      fail(
+        'the greeting timer was removed and the held child died anyway, so leg 1 is ' +
+          'not measuring what kills it.'
+      );
+    } else if (ablated.link === 'polling') {
+      fail(
+        "the greeting timer was removed and the machine's link still read polling, so " +
+          'leg 1 is not measuring what moves it.'
+      );
+    }
+  }
 }
 
 const sessionsAfter = operatorSessions();
@@ -708,4 +1188,8 @@ if (failures.length > 0) {
 }
 
 say('\nPASS. A live connection that is never greeted is taken away, the machine');
-say('keeps the timer feed, and nothing was started twice.');
+say('keeps the timer feed, and nothing was started twice. The plane read back');
+say('every registration this driver made, a run that threw with an sshd and a');
+say('far side server in its hands left neither behind, and the same driver over');
+say('a copy with the greeting timer removed did NOT fall back and left its child');
+say('alive, so leg 1 is a reading that can fail.');
