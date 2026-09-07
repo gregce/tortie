@@ -807,7 +807,11 @@ function SessionsTable({
             <tbody>
               {rows.map((s) => (
                 <tr key={s.sessionId ?? s.name}>
-                  <td className="diag-name">
+                  {/* Phase 219, item 9. Capped, with the whole name on the
+                      hover, the way the project cell beside it already is. A
+                      session name is typed by a person and has no bound, and
+                      it was the one uncapped column in a table of eight. */}
+                  <td className="diag-name diag-session-name" title={s.name}>
                     <span className="diag-proc">{s.name}</span>
                   </td>
                   <td className="diag-project" title={s.projectPath ?? undefined}>

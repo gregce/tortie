@@ -187,6 +187,45 @@
   min-width: 0;
 }
 
+/*
+ * Phase 219, item 9. The session's own name, capped the way the project beside
+ * it already is.
+ *
+ * Phase 188's verifier reported that a narrow pane shows a horizontal
+ * scrollbar, and the cause is one uncapped column rather than the container.
+ * `.diag-scroll` above is deliberate and predates Phase 188: a wide table
+ * scrolls inside its own card so the tab never scrolls sideways. What Phase
+ * 188 changed is that the sessions table went to EIGHT columns, every `th` and
+ * `td` in it `white-space: nowrap`, and of those eight only the project was
+ * capped. A session name is typed by a person and has no bound at all, so one
+ * long name widened the table on its own and the scrollbar appeared with seven
+ * columns' worth of room going spare.
+ *
+ * 22ch, the same cap and for the same reason as `.diag-project`, whose comment
+ * is four rules up. The full name is on the cell's `title`, so nothing is lost
+ * when it truncates.
+ *
+ * IT IS ITS OWN CLASS rather than a rule on `.diag-name`, because `.diag-name`
+ * is also the Tortie process table's first column, where the name is a binary
+ * name and the cell already carries a chevron, a kind and a detail. Capping
+ * that one would be a geometry change to a table nobody reported.
+ */
+.diag-session-name {
+  max-width: 22ch;
+}
+
+/*
+ * The ellipsis goes on the SPAN and not the cell. `.diag-name` is a flex
+ * container, and `text-overflow` does nothing on one; the span is the flex
+ * item that has to be allowed to shrink below its content and then truncate.
+ * `white-space: nowrap` is inherited from the `td` rule above.
+ */
+.diag-session-name .diag-proc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* One level of parent indentation, the Process Explorer shape. */
 .diag-child .diag-name {
   padding-left: var(--space-6);
