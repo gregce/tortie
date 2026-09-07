@@ -26,11 +26,34 @@
  *   1. FORWARD. No file under build/ except electron-run.mjs passes an Electron
  *      program to spawn, spawnSync, execFile, execFileSync or exec. The
  *      helper's teardown cannot end a process the helper never started.
- *   2. REVERSE. Every file on the recorded list below still reaches the helper,
- *      being an import of ./electron-run.mjs and a call to withElectron or
- *      runElectron. Without this direction the gate would go on passing after
- *      somebody deleted every probe, which is the same lesson
+ *   2. REVERSE. The POPULATION of files that reach the helper is not shrinking.
+ *      Without this direction the gate would go on passing after somebody
+ *      deleted every probe, which is the same lesson
  *      build/assert-probe-containment.mjs records about itself at its line 27.
+ *
+ *      This rule was a HAND LIST of 50 names until Phase 219, and the hand list
+ *      is what it exists to refuse. On 2026-09-06 the tree held 87 files that
+ *      reach the helper and the list named 56 of them, so 30 real scripts had
+ *      drifted off it, going back to Phase 140, while the gate printed a green
+ *      sentence claiming "56 reach build/electron-run.mjs". That sentence was
+ *      the list's own length rather than a measurement, and reciting a constant
+ *      is how the drift stayed invisible for eighty phases.
+ *
+ *      So the set is DERIVED now, by the same usesHelper() this file already
+ *      exported, and rule 2 is a FLOOR on its size rather than a roll call.
+ *      Deriving the set alone would be a tautology, since a list computed by
+ *      usesHelper and then checked with usesHelper can never disagree with
+ *      itself, and that tautology is exactly the vacuity rule 2 was written to
+ *      prevent. The floor is what keeps the assertion real: adding a probe can
+ *      never turn this gate red, and deleting one, renaming one, or quietly
+ *      taking one off the helper does. A deliberate deletion lowers
+ *      HELPER_USER_FLOOR in the same commit and says so in the commit body, the
+ *      way the deleted row used to.
+ *
+ *      What is given up is per name identity in the failure message. That is
+ *      the right trade, because the value was never in the names: it was in the
+ *      assertion that the population is not shrinking, and the names are one
+ *      `--list` away.
  *   3. THE HELPER ITSELF. electron-run.mjs kills inside a `finally` block, read
  *      by matching braces rather than by searching for a string. A gate that
  *      greps for the word "finally" passes on a file that mentions it in a
@@ -40,7 +63,10 @@
  *      directly, and one that spawns it through a variable called "bin", which
  *      is how a rule like this gets around by accident. The first must produce
  *      no finding and the other two must produce exactly one each. A checker
- *      nobody has seen fail is a checker nobody has seen work.
+ *      nobody has seen fail is a checker nobody has seen work. Rule 2's floor
+ *      is proved the same way, against a count one below the floor and against
+ *      the floor itself, because a floor nobody has seen refuse anything is
+ *      indistinguishable from no floor at all.
  *
  * ## What it does not assert
  *
@@ -103,69 +129,37 @@ const buildDir = join(repoRoot, 'build');
 const HELPER = 'electron-run.mjs';
 
 /**
- * The files that reached the helper when Phase 140 landed. The reverse
- * direction reads this list. When a probe is deleted on purpose, delete its row
- * here in the same commit and say so in the commit body. Do not delete the row
- * to make a red gate green.
+ * The size the derived population may never fall below.
+ *
+ * This replaced a hand written list of 50 names in Phase 219. It was 56 names
+ * by then and the tree held 87 files that reach the helper, so it had drifted
+ * by 30 and nothing noticed, because the list was both the claim and the thing
+ * checked. The floor is the part of that rule that can still fail: adding a
+ * probe never turns this gate red, and removing one, renaming one, or taking
+ * one off the helper does.
+ *
+ * Measured on 2026-09-06 with `node build/assert-electron-teardown.mjs --list`,
+ * which printed 86 names. Lower it ONLY in the same commit that deletes a probe
+ * on purpose, and say in the commit body which file went and why. Do not lower
+ * it to make a red gate green: red here means either a probe left the tree or a
+ * probe stopped routing its launch through the helper, and the second one is
+ * the 2026-08-22 crash coming back.
  */
-const HELPER_USERS = [
-  'fault-harness.mjs',
-  'p117-create-unknown.mjs',
-  'p118-remote-children.mjs',
-  'p118-shot.mjs',
-  'p132-install-sheet.mjs',
-  'p134-about-shot.mjs',
-  'partition-harness.mjs',
-  'probe-finder-open.mjs',
-  'probe-fullscreen-menu.mjs',
-  'probe-home-machines.mjs',
-  'probe-home-update-line.mjs',
-  'probe-machines.mjs',
-  'probe-p101-shot.mjs',
-  'probe-p102-shot.mjs',
-  'probe-p103-shot.mjs',
-  'probe-p104-shot.mjs',
-  'probe-p119-menu.mjs',
-  'probe-p120-shot.mjs',
-  'probe-p127-probes.mjs',
-  'probe-p129-agents.mjs',
-  'probe-p129-chord.mjs',
-  'probe-p129-projects.mjs',
-  'probe-p129-rail.mjs',
-  'probe-p130-install-copy.mjs',
-  'probe-p130-prose.mjs',
-  'probe-p130-spacing.mjs',
-  'probe-p131-row.mjs',
-  'probe-p133-login-session.mjs',
-  'probe-p135-chrome.mjs',
-  'probe-p135-verify.mjs',
-  'probe-p137-overview.mjs',
-  'probe-p1372-columns.mjs',
-  'probe-p181-usage-switch.mjs',
-  'probe-p1811-strip-fit.mjs',
-  'probe-p1812-bar-and-card.mjs',
-  'probe-p1372-menu.mjs',
-  'probe-p138-fold.mjs',
-  'probe-p139-caption.mjs',
-  'probe-p143-story.mjs',
-  'probe-p166-cache.mjs',
-  'probe-p185-drawing.mjs',
-  'probe-p93-attention.mjs',
-  'probe-p94-hotkey.mjs',
-  'probe-p95-scroll.mjs',
-  'probe-p96-remote-surfaces.mjs',
-  'probe-p97-untracked.mjs',
-  'probe-remote-project.mjs',
-  'probe-remote-recents.mjs',
-  'probe-session-focus.mjs',
-  'probe-shell-open.mjs',
-  'probe-shell-path.mjs',
-  'probe-workspace-target.mjs',
-  'remote-matrix.mjs',
-  'smoke-standalone.mjs',
-  'tmux-pair.mjs',
-  'update-rehearsal.mjs'
-];
+const HELPER_USER_FLOOR = 86;
+
+/**
+ * This file is not a helper user, and it reads as one to its own scanner.
+ *
+ * usesHelper() looks for an import of ./electron-run.mjs and a call to
+ * withElectron or runElectron. Both appear in THIS file as text: the first
+ * inside usesHelper's own regular expression literal, the second inside
+ * GOOD_FIXTURE. stripComments() removes comments and strings but not regular
+ * expression literals, so the derived set counted the gate itself and the count
+ * was permanently one too high. The gate spawns nothing and launches no
+ * Electron, so excluding it by name is the honest reading rather than a
+ * convenience: it does not reach the helper, it quotes it.
+ */
+const NOT_A_HELPER_USER = new Set(['assert-electron-teardown.mjs']);
 
 /**
  * The one file that is allowed to name an Electron program in a spawn, plus the
@@ -274,6 +268,44 @@ export function usesHelper(source) {
   const imported = /from\s+['"]\.\/electron-run\.mjs['"]/.test(code);
   const called = /\b(withElectron|runElectron)\s*\(/.test(code);
   return { imported, called };
+}
+
+/**
+ * Every file under build/ that reaches the helper, derived rather than listed.
+ *
+ * `read` is injected so the fixture arm can drive this over files that are not
+ * in the tree, which is what lets rule 2's floor be proved rather than recited.
+ */
+export function helperUsers(names, read) {
+  const found = [];
+  for (const name of names) {
+    if (NOT_A_HELPER_USER.has(name)) continue;
+    const use = usesHelper(read(name));
+    if (use.imported && use.called) found.push(name);
+  }
+  return found;
+}
+
+/**
+ * Rule 2 itself, as a function, so the fixture arm can watch it refuse.
+ * Returns a finding, or null when the population meets the floor.
+ */
+export function floorFinding(count, floor) {
+  if (count >= floor) return null;
+  return {
+    what:
+      `only ${String(count)} files under build/ reach build/${HELPER}, and ` +
+      `the floor is ${String(floor)}`,
+    detail:
+      'The population that routes its Electron launch through the helper has ' +
+      'SHRUNK. Either a probe left the tree, or a probe stopped calling ' +
+      'withElectron/runElectron and now starts an Electron some other way, ' +
+      'which is the shape that left about 480 MB running on 2026-08-22. Run ' +
+      '`node build/assert-electron-teardown.mjs --list` and diff it against ' +
+      'the same command at the parent commit to see which file went. If the ' +
+      'deletion was deliberate, lower HELPER_USER_FLOOR in this file in that ' +
+      'same commit and say which file went in the commit body.'
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -418,10 +450,58 @@ function runFixtures(failures) {
           'variable name is defeated by renaming the variable.'
       });
     }
+    // Rule 2's own fixture. A floor nobody has seen refuse a count is
+    // indistinguishable from no floor at all, and the hand list it replaced
+    // failed in exactly that way for eighty phases: it was both the claim and
+    // the thing checked, so it could not disagree with itself. These two calls
+    // are the disagreement made possible. The floor must refuse a population
+    // one short of itself and accept one that meets it.
+    let floorRefused = 0;
+    const below = floorFinding(HELPER_USER_FLOOR - 1, HELPER_USER_FLOOR);
+    const at = floorFinding(HELPER_USER_FLOOR, HELPER_USER_FLOOR);
+    if (below === null) {
+      failures.push({
+        what: 'the floor accepted a population one file short of itself',
+        detail:
+          `floorFinding(${String(HELPER_USER_FLOOR - 1)}, ` +
+          `${String(HELPER_USER_FLOOR)}) returned null. Rule 2 cannot notice ` +
+          'a probe leaving the tree or leaving the helper, which is the only ' +
+          'thing it is for.'
+      });
+    } else floorRefused += 1;
+    if (at !== null) {
+      failures.push({
+        what: 'the floor refused a population that meets it',
+        detail:
+          `floorFinding(${String(HELPER_USER_FLOOR)}, ` +
+          `${String(HELPER_USER_FLOOR)}) returned a finding. The floor is a ` +
+          'minimum and not an equality, so adding a probe must never turn ' +
+          'this gate red.'
+      });
+    }
+
+    // And the derivation itself, over files that are not in the tree, so a
+    // pass says helperUsers() still separates the shapes rather than that the
+    // tree happens to be clean today.
+    const derived = helperUsers(
+      ['fixture-good.mjs', 'fixture-bad.mjs', 'fixture-sly.mjs'],
+      (name) => readFileSync(join(dir, name), 'utf8')
+    );
+    if (derived.length !== 1 || derived[0] !== 'fixture-good.mjs') {
+      failures.push({
+        what: 'the derivation did not pick out the file that reaches the helper',
+        detail:
+          `It answered [${derived.join(', ')}] over three fixtures of which ` +
+          'exactly one calls runElectron. A derivation that miscounts makes ' +
+          'the floor meaningless in whichever direction it is wrong.'
+      });
+    }
+
     return {
       good: goodHits.length,
       bad: badHits.length,
-      sly: slyHits.length
+      sly: slyHits.length,
+      floorRefused
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -432,11 +512,27 @@ function runFixtures(failures) {
 // The run
 // ---------------------------------------------------------------------------
 
-function main() {
-  const failures = [];
-  const files = readdirSync(buildDir).filter(
+function buildFiles() {
+  return readdirSync(buildDir).filter(
     (n) => n.endsWith('.mjs') || n.endsWith('.cjs') || n.endsWith('.mts')
   );
+}
+
+/**
+ * `--list` prints the derived population, one name per line, and asserts
+ * nothing. It is what a person runs when the floor goes red, to diff against
+ * the same command at the parent commit, and what they run to read the new
+ * number when they lower the floor on purpose.
+ */
+function list() {
+  const files = buildFiles();
+  const read = (n) => readFileSync(join(buildDir, n), 'utf8');
+  for (const name of helperUsers(files, read)) console.log(name);
+}
+
+function main() {
+  const failures = [];
+  const files = buildFiles();
 
   // Rule 1, forward.
   let scanned = 0;
@@ -457,33 +553,12 @@ function main() {
     }
   }
 
-  // Rule 2, reverse.
-  for (const name of HELPER_USERS) {
-    let source;
-    try {
-      source = readFileSync(join(buildDir, name), 'utf8');
-    } catch {
-      failures.push({
-        what: `build/${name} is on the recorded list and is not on disk`,
-        detail:
-          'Either it was deleted and HELPER_USERS in this file went stale, or ' +
-          'it was renamed. Edit the list on purpose rather than deleting the ' +
-          'row to make this gate green.'
-      });
-      continue;
-    }
-    const use = usesHelper(source);
-    if (!use.imported || !use.called) {
-      failures.push({
-        what: `build/${name} no longer reaches the helper`,
-        detail:
-          `It imports ./${HELPER}: ${String(use.imported)}. It calls ` +
-          `withElectron or runElectron: ${String(use.called)}. Both must be ` +
-          'true. Without this direction the gate goes on passing while ' +
-          'checking nothing.'
-      });
-    }
-  }
+  // Rule 2, reverse. The population is derived and its size is the assertion.
+  const users = helperUsers(files, (name) =>
+    readFileSync(join(buildDir, name), 'utf8')
+  );
+  const shortfall = floorFinding(users.length, HELPER_USER_FLOOR);
+  if (shortfall) failures.push(shortfall);
 
   // Rule 3, the helper's own shape.
   const helperSource = readFileSync(join(buildDir, HELPER), 'utf8');
@@ -511,12 +586,15 @@ function main() {
 
   console.log(
     `[electron-teardown] ${String(scanned)} files under build/ were read and ` +
-      `none starts an Electron itself. ${String(HELPER_USERS.length)} reach ` +
-      `build/${HELPER}, whose kill is inside a finally block. Fixtures: the ` +
-      `good one produced ${String(fixtures.good)} findings, the bad one ` +
-      `produced ${String(fixtures.bad)}, and the one that hides the name ` +
-      `produced ${String(fixtures.sly)}.`
+      `none starts an Electron itself. ${String(users.length)} of them reach ` +
+      `build/${HELPER}, counted rather than listed, against a floor of ` +
+      `${String(HELPER_USER_FLOOR)}. The helper's kill is inside a finally ` +
+      `block. Fixtures: the good one produced ${String(fixtures.good)} ` +
+      `findings, the bad one produced ${String(fixtures.bad)}, the one that ` +
+      `hides the name produced ${String(fixtures.sly)}, and the floor refused ` +
+      `${String(fixtures.floorRefused)} of the 2 populations it was shown.`
   );
 }
 
-main();
+if (process.argv.includes('--list')) list();
+else main();
