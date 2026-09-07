@@ -621,6 +621,21 @@ export const CHECKS = [
   // no keychain, and never addresses socket gmux. `--self-test` proves the
   // graders on 17 fixtures and launches nothing.
   electron('probe:p217'),
+  // PHASE 218. build/probe-p218-dots.mjs: ONE Electron on a scratch profile
+  // and the gmux-p218 socket, with HOME inside the scratch directory. It
+  // makes one repository of its own and two plain shell sessions on that
+  // socket, ends one of them by typing at it, and reads the IDLE disc, the
+  // ENDED ring and the unknown ring off REAL SELECTED ROWS at five frames:
+  // the shipped one on graphite, the worst frame graphite offers, the same
+  // frame with the parent's two declarations planted on the live root, and
+  // the shipped and worst frames on paper. The ground under each mark is
+  // found by walking up from the dot to the first opaque fill rather than by
+  // naming a token, and the ratio is computed with WCAG arithmetic of this
+  // file's own, so the reading is not the gate's instrument. Spawns no agent,
+  // spends no token, opens no keychain, makes no request, reads nothing under
+  // the person's home. `--self-test` proves the graders on 23 fixtures and
+  // launches nothing.
+  electron('probe:p218'),
   // PHASE 219, ITEM 9. The GEOMETRY reading, which no unit test can take. One
   // app run on a scratch profile creates a real shell session whose name is
   // 137 characters, opens the diagnostics report, and reads the sessions

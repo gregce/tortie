@@ -54,6 +54,7 @@
     "probe:p213": "npm run build && node build/probe-p213-scheme.mjs",
     "probe:p214": "npm run build && node build/probe-p214-light-face.mjs",
     "probe:p217": "npm run build && node build/probe-p217-tmux.mjs",
+    "probe:p218": "npm run build && node build/probe-p218-dots.mjs",
     "probe:p219": "npm run build && node build/harness-socket.mjs --fresh gmux-p219 'node build/probe-p219-geometry.mjs'",
     "probe:p211": "npm run build && node build/harness-socket.mjs --fresh gmux-p211 'node build/probe-p211-switch.mjs'",
     "probe:p185": "npm run build && node build/harness-socket.mjs gmux-p185-drawing 'node build/probe-p185-drawing.mjs'",
