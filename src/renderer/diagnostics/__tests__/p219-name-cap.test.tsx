@@ -4,19 +4,29 @@
  * WHAT THIS IS ABOUT. Phase 188's verifier reported two things and only the
  * first was fixed: a newline in a project name split a pasted report line, and
  * a narrow pane shows a horizontal scrollbar. Phase 197 item 18 closed the
- * newline, `oneLine()` in report-text.ts, pinned by its own test. The
- * scrollbar was still true at bd16e36 and the cause is one column.
+ * newline, `oneLine()` in report-text.ts, pinned by its own test.
  *
  * `.diag-scroll` is deliberate and predates Phase 188: a wide table scrolls
  * inside its own card so the tab never scrolls sideways. What Phase 188 did was
  * take the sessions table to EIGHT columns, every cell `white-space: nowrap`,
  * and cap exactly one of them, the project. A session name is typed by a
- * person and has no bound, so one long name widened the table by itself.
+ * person and has no bound, so one long name widened the table by itself. This
+ * cap is what bounds it.
  *
- * Static markup cannot measure a pixel, so the geometry itself is the round's
- * app run. What is pinned here is the two things that decide it and that a
- * later edit can silently undo: the cell asks for the cap, and the stylesheet
- * still gives that class one. Both were absent at the parent.
+ * WHAT THIS FILE DOES NOT CLAIM, and the first version of this comment did.
+ * It said the scrollbar's cause is one column. `npm run probe:p219` measured
+ * that in the running app and refuted it: with the name column driven to
+ * NOTHING the remaining seven still want 455px, against a 282px card at the
+ * app's narrowest pane, so the card scrolls sideways whatever this cap is set
+ * to. The cap is worth a measured 692px on a 137 character name and that is
+ * all it is worth. Phase 219 lifted the scrollbar half out as a layout entry
+ * of its own rather than letting this rule stand as its fix.
+ *
+ * Static markup cannot measure a pixel, which is exactly why this file is not
+ * where that question is settled; `npm run probe:p219` is. What is pinned here
+ * is the two things that decide the cap and that a later edit can silently
+ * undo: the cell asks for it, and the stylesheet still gives that class one.
+ * Both were absent at the parent.
  */
 
 import { readFileSync } from 'node:fs';

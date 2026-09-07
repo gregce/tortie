@@ -169,10 +169,17 @@
 
 /*
  * Phase 188. The project a session belongs to. Capped so one long name cannot
- * push Started and Last seen out of the card; the full path is on the hover,
- * so nothing is lost when it truncates. An unknown project draws an empty
- * cell rather than a dash, so the eye reads down the column to the rows that
- * do carry one.
+ * widen the table without bound; the full path is on the hover, so nothing is
+ * lost when it truncates. An unknown project draws an empty cell rather than a
+ * dash, so the eye reads down the column to the rows that do carry one.
+ *
+ * PHASE 219 CORRECTED THIS COMMENT'S CLAIM, and the correction is the same one
+ * the rule below carries. It used to say the cap stops a long name pushing
+ * Started and Last seen OUT OF THE CARD, which is a geometry claim, and
+ * `npm run probe:p219` measured that it is not one a cap can make: the eight
+ * columns want more than the card has at the app's narrowest pane whatever any
+ * cap is set to. What a cap really does is bound an unbounded column, which is
+ * worth having and is all it is. The numbers are four rules down.
  */
 .diag-project {
   max-width: 22ch;
@@ -191,19 +198,37 @@
  * Phase 219, item 9. The session's own name, capped the way the project beside
  * it already is.
  *
- * Phase 188's verifier reported that a narrow pane shows a horizontal
- * scrollbar, and the cause is one uncapped column rather than the container.
+ * Phase 188's verifier reported two things, and this rule answers ONE of them.
  * `.diag-scroll` above is deliberate and predates Phase 188: a wide table
  * scrolls inside its own card so the tab never scrolls sideways. What Phase
  * 188 changed is that the sessions table went to EIGHT columns, every `th` and
  * `td` in it `white-space: nowrap`, and of those eight only the project was
  * capped. A session name is typed by a person and has no bound at all, so one
- * long name widened the table on its own and the scrollbar appeared with seven
- * columns' worth of room going spare.
+ * long name widened the table on its own, without limit.
  *
  * 22ch, the same cap and for the same reason as `.diag-project`, whose comment
  * is four rules up. The full name is on the cell's `title`, so nothing is lost
  * when it truncates.
+ *
+ * WHAT THIS CAP DOES NOT DO, MEASURED RATHER THAN ASSUMED. The first version of
+ * this comment said the scrollbar appeared "with seven columns' worth of room
+ * going spare", and `npm run probe:p219` refuted it in the running app over a
+ * real session with a 137 character name. The readings, all taken in one
+ * window so the uncapped one is this build rather than another:
+ *
+ *   uncapped, that name          the table wants 1255px
+ *   capped at 22ch               the table wants  563px, of which the name is 166
+ *   name column driven to zero   the other seven still want 455px
+ *   the card at EDITOR_MIN       282px
+ *
+ * So the cap is worth a real 692px on that name, and it is not the whole
+ * finding: with the name column at NOTHING the remaining seven are 173px wider
+ * than the card at the narrowest pane the app will give this tab, and it
+ * scrolls sideways anyway. The scrollbar half of Phase 188's finding is a
+ * layout question about eight nowrap columns in a 282px card, and no column cap
+ * can close it. Phase 219 lifted that half out rather than pretending this rule
+ * closed it. Do not write a smaller number here and call the scrollbar fixed;
+ * run the probe.
  *
  * IT IS ITS OWN CLASS rather than a rule on `.diag-name`, because `.diag-name`
  * is also the Tortie process table's first column, where the name is a binary

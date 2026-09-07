@@ -621,6 +621,17 @@ export const CHECKS = [
   // no keychain, and never addresses socket gmux. `--self-test` proves the
   // graders on 17 fixtures and launches nothing.
   electron('probe:p217'),
+  // PHASE 219, ITEM 9. The GEOMETRY reading, which no unit test can take. One
+  // app run on a scratch profile creates a real shell session whose name is
+  // 137 characters, opens the diagnostics report, and reads the sessions
+  // table's own floor four ways in ONE window: at the shipped 22ch cap, with
+  // the cap rule switched off in the CSSOM, which is the parent reading taken
+  // in the same build rather than another one, and with the cap driven to
+  // zero, which is the irreducible width of the other seven columns. Each is
+  // read at the natural pane width and at EDITOR_MIN, the narrowest pane the
+  // app will give this tab. It spawns no agent, spends no token, opens no
+  // keychain, and never addresses socket gmux.
+  electron('probe:p219'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
