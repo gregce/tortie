@@ -329,6 +329,18 @@ describe('Phase 220: the credentials domain has one shutdown owner', () => {
       expect(reads).toBe(0);
       expect(logged).not.toContain('logins.boot');
 
+      // THE REMOVE. It does neither half of itself, so Phase 206's order, that
+      // the credentials go before the row, is not inverted by the quit window.
+      const rows = readLoginsFile(root).file.logins.length;
+      const removed = (await handlers.get('logins:remove')?.(
+        null,
+        'codex',
+        'alice.example'
+      )) as { ok: boolean; reason?: string };
+      expect(removed.ok).toBe(false);
+      expect(String(removed.reason)).toContain('closing');
+      expect(readLoginsFile(root).file.logins.length).toBe(rows);
+
       // THE WATCH START. No watcher and no timer appears.
       await startLoginsWatch();
       expect(loginsWatchState()).toBeNull();

@@ -467,6 +467,25 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     if (id === null) {
       return { ok: false, reason: 'Unknown provider.', snapshot: await wholeList() };
     }
+    // PHASE 220's FIX ROUND. A REMOVE THAT ARRIVES DURING THE QUIT DOES
+    // NEITHER HALF OF ITSELF, and this guard is at the top for that reason.
+    //
+    // The first build of this phase put the admission question on the credential
+    // half alone, so a remove landing in the quit window skipped `forgetLogin`
+    // and still forgot the row, which is Phase 206's order INVERTED: the one id
+    // that names the vendor's keychain item, Tortie's own slot and the record
+    // row went out of the file while all three were still there. It is
+    // recoverable, because `finishStrayLogins` reads the record rather than the
+    // file, but a rule this domain is built on is not a thing to invert for
+    // milliseconds. Refusing whole is the same answer `logins:choose` gives and
+    // it leaves the login exactly where the person left it.
+    if (!credentialsAreOpen()) {
+      return {
+        ok: false,
+        reason: 'Tortie is closing, so nothing was changed.',
+        snapshot: await wholeList()
+      };
+    }
     // PHASE 204. THE KEPT COPY GOES WITH THE LOGIN. The id is read before the
     // remove, because the remove is what forgets the row it lives on.
     const row = readLoginsFile(loginsRoot()).file.logins.find(
@@ -479,7 +498,7 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // from the file. Clearing them first cannot strand a credential: the worst
     // an interrupted remove now leaves is a login the person can see and
     // remove again, and the sweep below finishes it anyway.
-    if (row !== undefined && credentialsAreOpen()) {
+    if (row !== undefined) {
       try {
         // PHASE 220. Owned, so a quit joins it rather than leaving a removal
         // half done with the row already gone from the file.
