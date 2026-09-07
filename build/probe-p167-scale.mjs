@@ -49,6 +49,30 @@
  * cycles kill and discard twelve real sessions a block and the Past Sessions
  * data that leaves behind grows the DOM by design.
  *
+ * PHASE 220 gave that profile the two rulers it was missing, and they are the
+ * two the sentence above could not provide. See judge() for both.
+ *
+ *   detached  Elements the renderer holds that no document can reach, counted
+ *             after the two collections through `Runtime.queryObjects`, which
+ *             is how the devtools console's own `queryObjects()` helper works
+ *             and is a different mechanism from the Performance counters. A
+ *             detached tree is never drawn and is never Past Sessions, so it
+ *             can be asserted where `Nodes` cannot.
+ *   past      How many discarded sessions the app holds in Past Sessions,
+ *             asked of the app through `sessions.listRemoved`. It is the
+ *             WORKLOAD FLOOR: a block that discarded nothing retains nothing,
+ *             and a run under the floor is INCONCLUSIVE and says so rather than
+ *             printing a plateau. It is also what proves this profile kept its
+ *             history while releasing its disposable state, which is the
+ *             distinction the whole finding turns on.
+ *
+ * And at the end of every run the page is asked to HOLD 24 detached trees of 43
+ * elements each, being the size the failing runs of 2026-09-07 held per block.
+ * The census must see them, the grader must go red on them, and the release
+ * must bring the count back. A run that cannot do all three says so and fails,
+ * because a ruler that has only ever been watched reporting "nothing was
+ * retained" has not been watched at all.
+ *
  * The whole drive runs under emulated reduced motion, which is the app's own
  * no flight path. The surface flights end on a requestAnimationFrame that
  * Chromium throttles when the window is occluded on the person's screen, and
@@ -129,12 +153,34 @@
  * the throttle cannot be applied, so a Chromium that stopped supporting it
  * cannot quietly turn the ruler off.
  *
+ * ## WHAT PHASE 220 COULD NOT DO, WRITTEN DOWN SO NOBODY READS A GREEN RUN AS
+ * ## THE ANSWER
+ *
+ * The split profile failed two runs of three at `b5cc017` on 2026-09-07, at
+ * about 5 MB and exactly 1,020 DOM nodes a block, with the elements REACHABLE
+ * from the document flat, so what grew was entirely detached. Seven runs
+ * afterwards, over a renderer BYTE IDENTICAL to the one those runs measured
+ * (`git diff b5cc017 HEAD -- src/renderer src/shared src/preload` is empty),
+ * came back clean: 0 to 13 detached elements, constant, and a flat node count.
+ * Two of those seven drove at a quarter CPU speed and one drove beside another
+ * app doing the same work, so neither the throttle nor contention reproduced
+ * it. NO OWNER WAS NAMED, and no renderer file was changed on a guess.
+ *
+ * What is here instead is the instrument that names one the day it comes back:
+ * the detached census in every reading, the workload floor under it, one heap
+ * snapshot per block behind `P167_SNAPSHOT=1` and `build/heap-retainers.mjs` to
+ * read the retaining paths out of it. A run that goes red now says WHICH trees
+ * and, with the snapshot, WHAT HOLDS THEM.
+ *
  * Knobs, none prefixed GMUX_ so the contract inventory's env sweep does not
  * carry them: P167_BLOCKS (default 3), P167_CYCLES per block (default 6),
  * P167_PROFILES (default b,c,d), P167_OUT_DIR (default out/p167),
  * P167_HEAP_MB (default 8), P167_NODES (default 400), P167_LISTENERS
- * (default 200), P167_CPU, the throttle for profile c (default 4; 1 turns it
- * off and the run says so).
+ * (default 200), P167_DETACHED (default 50), P167_CPU, the throttle
+ * (default 4; 1 turns it off and the run says so), P167_CPU_PROFILES, which
+ * profiles it applies to (default c), P167_SNAPSHOT=1 for a heap snapshot per
+ * block, P167_PLANT=0 to skip the planted leak arm, and P167_CENSUS_ROOTS, how
+ * many detached tree roots each census line names (default 6).
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -176,15 +222,44 @@ const say = (line) => process.stdout.write(`${line}\n`);
 // The grader. Pure, so --self-test can prove it fails when it should.
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_BUDGETS = { heapMb: 8, nodes: 400, listeners: 200 };
+export const DEFAULT_BUDGETS = {
+  heapMb: 8,
+  nodes: 400,
+  listeners: 200,
+  // PHASE 220. Detached elements the renderer still holds after two forced
+  // collections. Zero is what a healthy split profile reads; the budget is
+  // generous so a transient one nobody owns is not a finding, and the failing
+  // runs of 2026-09-07 held about five hundred.
+  detached: 50
+};
 
 /**
  * Judge one profile's block readings against the plateau rule.
  *
  * `blocks` is the reading after each block, oldest first, each carrying
- * `heapMb`, `nodes`, `listeners`, `documents`, and, when the profile tracks
- * descriptors, `ptmx` and `ttys`. `before` is the reading taken before the
- * first block. Returns the list of failures, empty when the profile passed.
+ * `heapMb`, `nodes`, `listeners`, `documents`, `detached`, `past`, and, when
+ * the profile tracks descriptors, `ptmx` and `ttys`. `before` is the reading
+ * taken before the first block. Returns the list of failures, empty when the
+ * profile passed.
+ *
+ * PHASE 220 added the last two, and they are the two halves of the question
+ * this profile could not previously answer.
+ *
+ *   detached  Elements the renderer holds that are NOT reachable from any
+ *             document, counted by `detachedCensus` below through
+ *             `Runtime.queryObjects`, which is a different mechanism from the
+ *             `Performance.getMetrics` counters everything else here reads.
+ *             `Nodes` counts drawn and detached nodes together, which is why
+ *             this profile's node budget had to be turned off: the header used
+ *             to say Past Sessions grows the DOM by design. Detached elements
+ *             are never drawn and never intentional, so they can be asserted
+ *             here where `Nodes` cannot.
+ *   past      How many discarded sessions the app has in Past Sessions. It is
+ *             the WORKLOAD FLOOR. A profile that killed nothing retains
+ *             nothing, and a ruler that cannot tell "the app released it" from
+ *             "there was nothing to release" reports a plateau over a run that
+ *             measured nothing. A run under the floor is INCONCLUSIVE and says
+ *             so, rather than passing.
  */
 export function judge(profile, before, blocks, budgets = DEFAULT_BUDGETS, rules = {}) {
   const assertNodes = rules.nodes !== false;
@@ -254,6 +329,49 @@ export function judge(profile, before, blocks, budgets = DEFAULT_BUDGETS, rules 
       );
     }
   }
+  // PHASE 220. Detached elements: never drawn, never intentional, and the one
+  // dimension of this profile that Past Sessions cannot explain away.
+  if (rules.detached !== false) {
+    const readings = [before, ...blocks];
+    const missing = readings.filter((r) => typeof r.detached !== 'number').length;
+    if (missing > 0) {
+      failures.push(
+        `${profile}: the detached element census came back empty for ${String(missing)} of ${String(readings.length)} readings, so this profile cannot say whether the renderer released the trees it discarded`
+      );
+    } else {
+      const detachedGrowth = worst('detached');
+      if (detachedGrowth.value > budgets.detached) {
+        failures.push(
+          `${profile}: the renderer held ${String(detachedGrowth.value)} more detached element(s) after block ${String(detachedGrowth.at + 1)} than after block ${String(detachedGrowth.at)}, over the ${String(budgets.detached)} budget. Detached trees are not drawn and are never Past Sessions.`
+        );
+      }
+    }
+  }
+  // PHASE 220. The workload floor. See the comment above `past`.
+  if (typeof rules.historyFloor === 'number') {
+    const readings = [before, ...blocks].map((r) => r.past);
+    const missing = readings.filter((p) => typeof p !== 'number').length;
+    if (missing > 0) {
+      failures.push(
+        `${profile}: the Past Sessions count could not be read for ${String(missing)} of ${String(readings.length)} readings, so this run cannot say that its workload landed`
+      );
+    } else {
+      let least = Infinity;
+      let at = 0;
+      for (let i = 1; i < readings.length; i += 1) {
+        const step = readings[i] - readings[i - 1];
+        if (step < least) {
+          least = step;
+          at = i;
+        }
+      }
+      if (least < rules.historyFloor) {
+        failures.push(
+          `${profile}: block ${String(at)} put ${String(least)} discarded session(s) into Past Sessions, under the floor of ${String(rules.historyFloor)}. This run is INCONCLUSIVE rather than a plateau: a workload that did not land retains nothing, and that is not evidence about the renderer.`
+        );
+      }
+    }
+  }
   if (typeof before.ptmx === 'number' && typeof last.ptmx === 'number') {
     if (last.ptmx !== before.ptmx) {
       failures.push(`${profile}: main holds ${String(last.ptmx)} /dev/ptmx descriptors after the last block against ${String(before.ptmx)} before the first (Phase 167 finding 1)`);
@@ -266,7 +384,9 @@ export function judge(profile, before, blocks, budgets = DEFAULT_BUDGETS, rules 
 }
 
 function selfTest() {
-  const b = (heapMb, nodes, listeners, ptmx = 0, ttys = 0) => ({ heapMb, nodes, listeners, documents: 1, ptmx, ttys });
+  const b = (heapMb, nodes, listeners, ptmx = 0, ttys = 0) => ({ heapMb, nodes, listeners, documents: 1, ptmx, ttys, detached: 0, past: 0 });
+  /** PHASE 220. A reading with a detached count and a Past Sessions count. */
+  const d = (heapMb, detached, past) => ({ heapMb, nodes: 448, listeners: 229, documents: 14, ptmx: 0, ttys: 0, detached, past });
   const cases = [
     { name: 'flat', before: b(30, 2000, 300), blocks: [b(31, 2010, 301), b(31.5, 2012, 302), b(31.2, 2011, 301)], red: false },
     { name: 'one time allocation that plateaus', before: b(30, 2000, 300), blocks: [b(80, 2400, 380), b(81, 2410, 381), b(81.5, 2405, 380)], red: false },
@@ -291,7 +411,28 @@ function selfTest() {
     { name: 'heap warms up under the budget then holds', before: b(20, 439, 227), blocks: [b(20, 439, 227), b(25, 439, 227), b(25.2, 439, 227)], red: false },
     { name: 'one block', before: b(30, 2000, 300), blocks: [b(30, 2000, 300)], red: true },
     { name: 'node growth under the d rules', before: b(30, 2000, 300), blocks: [b(30, 2600, 300), b(30, 3300, 300), b(30, 4100, 300)], red: false, rules: { nodes: false, listeners: false } },
-    { name: 'descriptor leak under the d rules', before: b(30, 2000, 300, 1, 0), blocks: [b(30, 2000, 300, 31, 1), b(30, 2000, 300, 61, 1), b(30, 2000, 300, 91, 1)], red: true, rules: { nodes: false, listeners: false } }
+    { name: 'descriptor leak under the d rules', before: b(30, 2000, 300, 1, 0), blocks: [b(30, 2000, 300, 31, 1), b(30, 2000, 300, 61, 1), b(30, 2000, 300, 91, 1)], red: true, rules: { nodes: false, listeners: false } },
+    // PHASE 220. The split profile's own shape, in the two dimensions it could
+    // not previously judge. The healthy reading is measured: 0 detached at every
+    // block and 24 discarded sessions a block into Past Sessions.
+    { name: 'the split profile healthy', before: d(7.2, 0, 0), blocks: [d(10.3, 0, 24), d(10.3, 0, 48), d(11.1, 0, 72)], red: false, rules: { nodes: false, listeners: false, historyFloor: 21 } },
+    // A disposable leak: the history is recorded normally and the renderer keeps
+    // a detached tree per discarded session. Nothing else moves, so only the new
+    // rule can catch it. The heap here stays under the slope rule on purpose.
+    { name: 'detached trees held per discarded session', before: d(7.2, 0, 0), blocks: [d(10.3, 500, 24), d(11.0, 1000, 48), d(11.6, 1500, 72)], red: true, rules: { nodes: false, listeners: false, historyFloor: 21 } },
+    // The census never answered. A ruler that reports green over a reading it
+    // did not take is the thing this round is repairing.
+    { name: 'the detached census came back empty', before: d(7.2, 0, 0), blocks: [{ ...d(10.3, 0, 24), detached: null }, d(10.3, 0, 48), d(11.1, 0, 72)], red: true, rules: { nodes: false, listeners: false, historyFloor: 21 } },
+    // The workload did not land. This is the run that used to print "every
+    // driven profile plateaued" over a block that discarded nothing.
+    { name: 'a plateau over a workload that did not land', before: d(7.2, 0, 0), blocks: [d(10.5, 0, 24), d(10.5, 0, 26), d(11.1, 0, 50)], red: true, rules: { nodes: false, listeners: false, historyFloor: 21 } },
+    // And a run whose history could not be read at all, which is the same
+    // absence and must read the same way.
+    { name: 'the Past Sessions count could not be read', before: d(7.2, 0, 0), blocks: [{ ...d(10.3, 0, 24), past: null }, d(10.3, 0, 48), d(11.1, 0, 72)], red: true, rules: { nodes: false, listeners: false, historyFloor: 21 } },
+    // A profile that records no history at all, being b and c, must not be
+    // asked the workload question. Without this the two other profiles would
+    // go red on a rule that is not about them.
+    { name: 'a profile with no history floor is not asked', before: d(7.2, 0, 0), blocks: [d(7.7, 4, 0), d(7.7, 4, 0), d(7.7, 4, 0)], red: false, rules: {} }
   ];
   let bad = 0;
   for (const c of cases) {
@@ -334,7 +475,8 @@ const profilesWanted = (process.env['P167_PROFILES'] ?? 'b,c,d').split(',').map(
 const budgets = {
   heapMb: Number(process.env['P167_HEAP_MB'] ?? String(DEFAULT_BUDGETS.heapMb)),
   nodes: Number(process.env['P167_NODES'] ?? String(DEFAULT_BUDGETS.nodes)),
-  listeners: Number(process.env['P167_LISTENERS'] ?? String(DEFAULT_BUDGETS.listeners))
+  listeners: Number(process.env['P167_LISTENERS'] ?? String(DEFAULT_BUDGETS.listeners)),
+  detached: Number(process.env['P167_DETACHED'] ?? String(DEFAULT_BUDGETS.detached))
 };
 /**
  * The CPU throttle the surface profile drives under. See the header: it is
@@ -344,6 +486,36 @@ const budgets = {
  * as the same evidence as a green verdict from a throttled one.
  */
 const cpuThrottle = Math.max(1, Number(process.env['P167_CPU'] ?? '4'));
+/**
+ * PHASE 220. How many detached tree roots the census names in the run's own
+ * output. The census itself is always taken, because its count is asserted.
+ */
+const censusRoots = Math.max(0, Number(process.env['P167_CENSUS_ROOTS'] ?? '6'));
+/** PHASE 220. One heap snapshot per block, off by default. */
+const snapshots = process.env['P167_SNAPSHOT'] === '1';
+/**
+ * PHASE 220. The planted leak arm at the end of the run, on by default because
+ * it costs about five seconds and it is what makes a green verdict mean
+ * something. `P167_PLANT=0` turns it off and the run says nothing was proved.
+ */
+const plantArm = process.env['P167_PLANT'] !== '0';
+/**
+ * PHASE 220. WHICH profiles drive under the throttle. The default is the
+ * surface profile alone, which is exactly what Phase 200 wired, so the ordinary
+ * command is unchanged.
+ *
+ * It is a knob because the split profile's retention is the same KIND of
+ * reading as the diff's was: it appeared in two runs of three at `b5cc017` and
+ * in none of three afterwards on a quiet machine, and the throttle is this
+ * file's own way of widening a window rather than waiting for another workflow
+ * to load the machine. A run that turns it on for a profile says so in its
+ * output and in its report, so its verdict can never be read as the same
+ * evidence as the default command's.
+ */
+const cpuProfiles = (process.env['P167_CPU_PROFILES'] ?? 'c')
+  .split(',')
+  .map((one) => one.trim())
+  .filter((one) => one !== '');
 const outDir = resolve((process.env['P167_OUT_DIR'] ?? '').trim() || join(REPO, 'out', 'p167'));
 mkdirSync(outDir, { recursive: true });
 mkdirSync(join(harnessDir, 'p167'), { recursive: true });
@@ -456,7 +628,17 @@ async function cdpForAppWindow(timeoutMs) {
         if (t.type !== 'page' || !t.webSocketDebuggerUrl) continue;
         let cdp = null;
         try {
-          cdp = await wsConnect(t.webSocketDebuggerUrl);
+          // PHASE 220: the heap snapshot arrives as a stream of events, so the
+          // client is told to keep them. Nothing else changes; the two default
+          // events are still collected and the chunks are dropped by
+          // writeHeapSnapshot as soon as they are on disk.
+          cdp = await wsConnect(t.webSocketDebuggerUrl, {
+            collect: [
+              'Runtime.consoleAPICalled',
+              'Runtime.exceptionThrown',
+              'HeapProfiler.addHeapSnapshotChunk'
+            ]
+          });
           const answer = await cdpEval(
             cdp,
             `typeof window.gmux === 'object' && typeof window.__gmuxShotDrive === 'function' ? location.href : null`,
@@ -539,6 +721,146 @@ async function readRenderer(cdp) {
       `(() => { let n = 0; const walk = (root) => { for (const el of root.querySelectorAll('*')) { n += 1; if (el.shadowRoot !== null) walk(el.shadowRoot); } }; walk(document); return n; })()`
     )
   };
+}
+
+/**
+ * PHASE 220. A census of the DETACHED elements the renderer is still holding,
+ * grouped by the root of each detached tree.
+ *
+ * ## Why the readings above could not name an owner
+ *
+ * `Nodes` from `Performance.getMetrics` counts detached nodes as well as drawn
+ * ones, and `live` beside it counts only what is reachable from the document.
+ * The split profile's failing runs at `b5cc017` grew `Nodes` by exactly 1,020 a
+ * block while `live` stayed flat, so what grows is entirely detached: 24 real
+ * sessions are discarded a block and something keeps 42.5 elements of each. A
+ * pair of totals says that much and no more, and the brief asks for the owner.
+ *
+ * So this asks the page. `Runtime.queryObjects` is what the devtools console's
+ * own `queryObjects()` helper uses: it collects first and then hands back every
+ * live object whose prototype chain holds the one it is given. Every element
+ * that answers and is not connected is counted, and the ROOT of each detached
+ * tree, being an element whose parent is not itself an element, is grouped by
+ * its tag and class with the size of the tree hanging off it. A name and a size
+ * is what turns a slope into an owner.
+ *
+ * It is off by default (`P167_CENSUS=1`) because it walks every element in the
+ * heap, and it releases its object group before returning, so the census can
+ * never be the thing that retains what it is counting.
+ */
+async function detachedCensus(cdp) {
+  const GROUP = 'p167-census';
+  try {
+    const proto = await cdp.call('Runtime.evaluate', {
+      expression: 'Element.prototype',
+      objectGroup: GROUP
+    });
+    const protoId = proto.result?.result?.objectId;
+    if (protoId === undefined) return { failed: `no prototype: ${JSON.stringify(proto).slice(0, 300)}` };
+    const found = await cdp.call('Runtime.queryObjects', {
+      prototypeObjectId: protoId,
+      objectGroup: GROUP
+    });
+    const arrayId = found.result?.objects?.objectId;
+    if (arrayId === undefined) return { failed: `no objects: ${JSON.stringify(found).slice(0, 300)}` };
+    const answer = await cdp.call(
+      'Runtime.callFunctionOn',
+      {
+        objectId: arrayId,
+        objectGroup: GROUP,
+        returnByValue: true,
+        functionDeclaration: `function () {
+          const roots = new Map();
+          let elements = 0;
+          let detached = 0;
+          let refused = 0;
+          for (const el of this) {
+            // queryObjects hands back Element.prototype itself and every other
+            // object on that chain, and a DOM getter called on one of those
+            // throws "Illegal invocation". Counted rather than swallowed.
+            let connected = true;
+            try {
+              connected = el.isConnected;
+            } catch {
+              refused += 1;
+              continue;
+            }
+            elements += 1;
+            if (connected) continue;
+            detached += 1;
+            const parent = el.parentNode;
+            if (parent !== null && parent.nodeType === 1) continue;
+            const cls =
+              typeof el.className === 'string' && el.className.trim() !== ''
+                ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.')
+                : '';
+            const under = parent === null ? '' : ' under ' + parent.nodeName.toLowerCase();
+            const key = el.tagName.toLowerCase() + cls + under;
+            const was = roots.get(key) ?? { trees: 0, nodes: 0 };
+            was.trees += 1;
+            was.nodes += 1 + el.querySelectorAll('*').length;
+            roots.set(key, was);
+          }
+          return {
+            elements,
+            detached,
+            refused,
+            roots: [...roots]
+              .map(([what, v]) => ({ what, trees: v.trees, nodes: v.nodes }))
+              .sort((a, b) => b.nodes - a.nodes)
+              .slice(0, 14)
+          };
+        }`
+      },
+      120_000
+    );
+    return answer.result?.result?.value ?? { failed: `no value: ${JSON.stringify(answer).slice(0, 300)}` };
+  } catch (err) {
+    return { failed: String(err) };
+  } finally {
+    try {
+      await cdp.call('Runtime.releaseObjectGroup', { objectGroup: GROUP });
+    } catch {
+      /* the page is gone; nothing is held either way */
+    }
+  }
+}
+
+/**
+ * PHASE 220. Write one post-collection heap snapshot, for
+ * `build/heap-retainers.mjs` to name what is holding what.
+ *
+ * The census above says WHICH trees are detached and how big they are. It
+ * cannot say what holds them, and the brief asks for that half to come from
+ * retaining paths rather than from the slope. This is the capture; the reading
+ * is a separate plain node script over the file, so nothing about the analysis
+ * runs inside the app being measured.
+ *
+ * The chunks are removed from the client's event list the moment they are on
+ * disk, so this probe never holds a second copy of the renderer's heap while
+ * the next block runs. Off by default (`P167_SNAPSHOT=1`), because a snapshot
+ * of a 40 MB heap is a large file and takes seconds to stream.
+ */
+async function writeHeapSnapshot(cdp, path) {
+  const events = cdp.events();
+  const from = events.length;
+  await cdp.call(
+    'HeapProfiler.takeHeapSnapshot',
+    { reportProgress: false, captureNumericValue: false },
+    900_000
+  );
+  const chunks = [];
+  for (let i = from; i < events.length; i += 1) {
+    if (events[i].method === 'HeapProfiler.addHeapSnapshotChunk') {
+      chunks.push(events[i].params?.chunk ?? '');
+    }
+  }
+  const kept = events.slice(from).filter((e) => e.method !== 'HeapProfiler.addHeapSnapshotChunk');
+  events.length = from;
+  for (const one of kept) events.push(one);
+  const text = chunks.join('');
+  writeFileSync(path, text);
+  return text.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -714,6 +1036,48 @@ async function cycleSplit(cdp, log) {
   await sleep(400);
 }
 
+/** One line of the census and the history count, for the run's own output. */
+function censusLine(row) {
+  if (row.censusFailed !== null && row.censusFailed !== undefined) {
+    return `could not be read: ${String(row.censusFailed)}`;
+  }
+  if (typeof row.detached !== 'number') return 'not read';
+  const top = (row.censusRoots ?? [])
+    .slice(0, censusRoots)
+    .map((r) => `${r.what} x${String(r.trees)} (${String(r.nodes)} nodes)`)
+    .join(', ');
+  return (
+    `${String(row.detached)} detached element(s), ` +
+    `${row.past === null ? 'no' : String(row.past)} in Past Sessions` +
+    (top === '' ? '' : `; ${top}`)
+  );
+}
+
+/**
+ * PHASE 220. How many discarded sessions the app has in Past Sessions.
+ *
+ * It is the WORKLOAD FLOOR, and it is read from the app rather than inferred
+ * from a node count. See judge(): a block that discarded nothing retains
+ * nothing, and a plateau over it is not evidence. It is also the reading that
+ * proves this phase kept the brief's promise not to delete history to obtain a
+ * plateau: the count must keep climbing while the detached count does not.
+ */
+async function pastSessionCount(cdp) {
+  try {
+    return await cdpEval(
+      cdp,
+      `(async () => {
+         const s = window.gmux?.sessions;
+         if (typeof s?.listRemoved !== 'function') return null;
+         try { return (await s.listRemoved()).length; } catch { return null; }
+       })()`,
+      30_000
+    );
+  } catch {
+    return null;
+  }
+}
+
 const CYCLES = { b: cycleSwitch, c: cycleSurfaces, d: cycleSplit };
 const NAMES = { b: 'b, project switches', c: 'c, surface open and close', d: 'd, split, close and reattach' };
 
@@ -795,6 +1159,13 @@ await withElectron(
         rendererFootprintMb: footprintMb(rendererPid)
       };
       if (withDescriptors) Object.assign(row, ptyDescriptors(mainPid));
+      // PHASE 220. Both readings are taken AFTER readRenderer's two forced
+      // collections, so a detached tree that is counted here survived them.
+      const c = await detachedCensus(cdp);
+      row.censusRoots = c === null || c === undefined || c.failed !== undefined ? null : c.roots;
+      row.detached = typeof c?.detached === 'number' ? c.detached : null;
+      row.censusFailed = c?.failed ?? null;
+      row.past = await pastSessionCount(cdp);
       return row;
     };
     const fmt = (row) =>
@@ -812,7 +1183,7 @@ await withElectron(
       // PHASE 200 fix round. The surface profile, and only it, drives at a
       // quarter speed so the removal-versus-first-frame race the header
       // describes falls the same way every run.
-      const throttled = key === 'c' && cpuThrottle > 1;
+      const throttled = cpuProfiles.includes(key) && cpuThrottle > 1;
       if (throttled) {
         const answer = await cdp.call('Emulation.setCPUThrottlingRate', { rate: cpuThrottle });
         if (answer.error !== undefined) {
@@ -832,6 +1203,7 @@ await withElectron(
             : '  full speed'
       );
       say(`  before      ${fmt(before)}`);
+      say(`  census      ${censusLine(before)}`);
       const blocks = [];
       for (let b = 1; b <= blocksWanted; b += 1) {
         const started = Date.now();
@@ -841,6 +1213,12 @@ await withElectron(
         row.ms = Date.now() - started;
         blocks.push(row);
         say(`  block ${String(b)}     ${fmt(row)}  (${String(row.ms)} ms)`);
+        say(`  census      ${censusLine(row)}`);
+        if (snapshots) {
+          const path = join(outDir, `heap-${key}-block${String(b)}.heapsnapshot`);
+          const bytes = await writeHeapSnapshot(cdp, path);
+          say(`  snapshot    ${path} (${(bytes / (1024 * 1024)).toFixed(1)} MB)`);
+        }
       }
       if (descriptors && blocks.length > 0) {
         const last = blocks[blocks.length - 1];
@@ -852,7 +1230,20 @@ await withElectron(
       }
       const thrown = cdp.events().filter((e) => e.method === 'Runtime.exceptionThrown').slice(exceptionsBefore);
       const exceptions = thrown.map((e) => e.params?.exceptionDetails?.exception?.description ?? e.params?.exceptionDetails?.text ?? 'unknown');
-      const rules = key === 'd' ? { nodes: false, listeners: false } : {};
+      // PHASE 220. Profile d keeps its node and listener rules off, because the
+      // header's reason for turning them off is about what the app may DRAW.
+      // It gains the two rules that are not about drawing: the detached census
+      // and the workload floor. Each cycle discards four real sessions, and the
+      // floor is set a little under that so one session the app records late is
+      // not read as a workload that did not land.
+      const rules =
+        key === 'd'
+          ? {
+              nodes: false,
+              listeners: false,
+              historyFloor: Math.max(1, Math.floor(cyclesWanted * 4 * 0.75))
+            }
+          : {};
       const verdicts = judge(key, before, blocks, budgets, rules);
       if (log.openMisses.length > 0) verdicts.push(`${key}: ${String(log.openMisses.length)} surface open(s) did not land: ${[...new Set(log.openMisses)].join(', ')}`);
       if (log.closeMisses.length > 0) verdicts.push(`${key}: ${String(log.closeMisses.length)} surface close(s) did not land: ${[...new Set(log.closeMisses)].join(', ')}`);
@@ -892,6 +1283,72 @@ await withElectron(
       report.profiles[key] = { before, blocks, log, exceptions, verdicts, cpuThrottle: throttled ? cpuThrottle : 1 };
       if (throttled) await cdp.call('Emulation.setCPUThrottlingRate', { rate: 1 });
     }
+
+    // -----------------------------------------------------------------------
+    // PHASE 220. The planted leak, so a green run is a run whose ruler is armed
+    // -----------------------------------------------------------------------
+    //
+    // Every reading above is a number that came back small. A ruler that has
+    // only ever been watched reporting "nothing was retained" has not been
+    // watched at all, and the brief asks for a planted disposable leak that any
+    // replacement measurement must reject.
+    //
+    // So the page is asked to hold 24 detached trees of 43 elements each, which
+    // is the size and the shape the split profile's failing runs of 2026-09-07
+    // held per block, being about 1,020 nodes. The census must see them, the
+    // grader must go red on them, and the release must bring the count back.
+    // The last of the three is not decoration: an arm that plants a leak and
+    // cannot prove it let go is itself a leak.
+    if (plantArm) {
+      const rest = await readAll(false);
+      const planted = await cdpEval(
+        cdp,
+        `(() => {
+           const held = [];
+           for (let i = 0; i < 24; i += 1) {
+             const root = document.createElement('div');
+             root.className = 'p167-planted-leak';
+             for (let j = 0; j < 42; j += 1) root.appendChild(document.createElement('span'));
+             held.push(root);
+           }
+           window.__p167Planted = held;
+           return held.length * 43;
+         })()`
+      );
+      const during = await readAll(false);
+      const verdicts = judge('planted leak', rest, [rest, during], budgets, {
+        nodes: false,
+        listeners: false
+      });
+      await cdpEval(
+        cdp,
+        `(() => { delete window.__p167Planted; return true; })()`
+      );
+      const after = await readAll(false);
+      const grew = (during.detached ?? 0) - (rest.detached ?? 0);
+      const left = (after.detached ?? 0) - (rest.detached ?? 0);
+      say('\nthe planted leak, which proves the ruler is armed');
+      say(
+        `  planted ${String(planted)} element(s) in 24 detached trees; the census saw ${String(grew)} more, the grader raised ${String(verdicts.length)} finding(s), and ${String(left)} were still held after the page let go`
+      );
+      if (grew < 1000) {
+        failures.push(
+          `the planted leak of ${String(planted)} detached elements moved the census by only ${String(grew)}, so the census is not counting what this profile is asked to catch`
+        );
+      }
+      if (verdicts.length === 0) {
+        failures.push(
+          'the grader passed a planted leak of 24 detached trees. Every green verdict in this run was produced by a ruler that cannot fail.'
+        );
+      }
+      if (left > budgets.detached) {
+        failures.push(
+          `the planted leak left ${String(left)} detached element(s) behind after the page released it, so this arm is itself retaining what it counted`
+        );
+      }
+      report.plantedLeak = { planted, grew, left, verdicts };
+    }
+
     cdp.close();
   }
 );
