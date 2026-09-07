@@ -7,7 +7,7 @@
  * and removes for the record file.
  */
 
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -15,6 +15,7 @@ import { writeKeptFile } from '../kept';
 import {
   isOwnProfile,
   migrateUnscopedVault,
+  ownProfileVerdict,
   unscopedVaultServiceFor
 } from '../migrate';
 import { credentialDigest } from '../payload';
@@ -112,6 +113,137 @@ describe('Phase 208: isOwnProfile', () => {
   });
 });
 
+describe('Phase 219: a home behind a link, and a refusal that says which', () => {
+  let scratch = '';
+  beforeEach(() => {
+    scratch = mkdtempSync(join(tmpdir(), 'p219-profile-'));
+  });
+  afterEach(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  /**
+   * THE FOUR SHAPES, on a real disk with a real link.
+   *
+   * `resolve` never follows a link, so before Phase 219 the two MIXED shapes
+   * read false and the migration was refused for ever on a machine whose home
+   * or whose Application Support is reached through one. Both of them really
+   * are the same directory, which is what `realpathSync` is asked.
+   */
+  it('a real link over the profile is the person own profile from either spelling', () => {
+    const real = join(scratch, 'real');
+    const support = join(real, 'Library', 'Application Support');
+    mkdirSync(join(support, 'Tortie'), { recursive: true });
+    const linked = join(scratch, 'linked-home');
+    symlinkSync(real, linked);
+    const linkedSupport = join(linked, 'Library', 'Application Support');
+    const shapes: [string, string][] = [
+      [join(support, 'Tortie'), support],
+      [join(linkedSupport, 'Tortie'), linkedSupport],
+      [join(support, 'Tortie'), linkedSupport],
+      [join(linkedSupport, 'Tortie'), support]
+    ];
+    for (const [userData, appData] of shapes) {
+      expect(ownProfileVerdict({ userData, appData, appName: 'Tortie', env: {} })).toBe('own');
+    }
+  });
+
+  it('a scratch profile is still refused however the link is spelled', () => {
+    const real = join(scratch, 'real2');
+    const support = join(real, 'Library', 'Application Support');
+    mkdirSync(join(support, 'Tortie'), { recursive: true });
+    const elsewhere = join(scratch, 'profile');
+    mkdirSync(elsewhere, { recursive: true });
+    const linked = join(scratch, 'linked-home2');
+    symlinkSync(real, linked);
+    for (const appData of [support, join(linked, 'Library', 'Application Support')]) {
+      expect(
+        ownProfileVerdict({ userData: elsewhere, appData, appName: 'Tortie', env: {} })
+      ).toBe('elsewhere');
+      expect(isOwnProfile({ userData: elsewhere, appData, appName: 'Tortie', env: {} })).toBe(
+        false
+      );
+    }
+  });
+
+  it('the refusal says WHICH refusal it is', () => {
+    expect(ownProfileVerdict({ userData: OWN, appData: '/Users/someone/Library/Application Support', appName: 'Tortie', env: { GMUX_PROBES: '1' } })).toBe('harness');
+    expect(ownProfileVerdict({ userData: '', appData: '', appName: '', env: {} })).toBe('no-paths');
+    expect(ownProfileVerdict({ userData: '/private/tmp/p208/profile', appData: '/Users/someone/Library/Application Support', appName: 'Tortie', env: {} })).toBe('elsewhere');
+    expect(ownProfileVerdict({ userData: OWN, appData: '/Users/someone/Library/Application Support', appName: 'Tortie', env: {} })).toBe('own');
+  });
+
+  it('a refused migration carries its reason out', async () => {
+    for (const verdict of ['harness', 'no-paths', 'elsewhere'] as const) {
+      const security = fakeSecurity();
+      security.items.set(unscopedVaultServiceFor(DEFAULT), cred('old'));
+      const result = await migrateUnscopedVault({
+        runner: security,
+        vault: keychainVault(security, root),
+        root,
+        slots: [DEFAULT],
+        ownProfile: verdict
+      });
+      expect(result).toEqual({
+        refused: true,
+        reason: verdict,
+        moved: 0,
+        deleted: 0,
+        kept: 0,
+        failed: 0
+      });
+      expect(security.named).toEqual([]);
+    }
+  });
+
+  /**
+   * THE DELETE THAT FAILED AND WAS COUNTED AS A DELETE.
+   *
+   * `keychainDelete` answered `void`, so this arm read `{deleted: 2}` while
+   * both items were still on the machine and the next launch would find them
+   * again. The runner below answers 44, which is what `security` uses for an
+   * item it could not find.
+   */
+  it('a delete security refuses is counted as failed, never as deleted', async () => {
+    const security = fakeSecurity();
+    const refusingDelete: SecurityRunner = {
+      run: async (argv, stdin) => {
+        if (argv[0] === 'delete-generic-password') return { code: 44, stdout: '' };
+        return security.run(argv, stdin);
+      }
+    };
+    security.items.set(unscopedVaultServiceFor(stagedSlotFor(DEFAULT)), cred('residue'));
+    security.items.set(unscopedVaultServiceFor(DEFAULT), cred('old'));
+    const result = await migrateUnscopedVault({
+      runner: refusingDelete,
+      vault: keychainVault(refusingDelete, root),
+      root,
+      slots: [DEFAULT],
+      ownProfile: 'own'
+    });
+    expect(result.deleted).toBe(0);
+    expect(result.failed).toBe(2);
+    expect(result.moved).toBe(1);
+    // AND THE ITEMS ARE REALLY STILL THERE, which is the whole point.
+    expect(security.items.has(unscopedVaultServiceFor(DEFAULT))).toBe(true);
+    expect(security.items.has(unscopedVaultServiceFor(stagedSlotFor(DEFAULT)))).toBe(true);
+  });
+
+  it('a delete that succeeds is still counted as one', async () => {
+    const security = fakeSecurity();
+    security.items.set(unscopedVaultServiceFor(DEFAULT), cred('old'));
+    const result = await migrateUnscopedVault({
+      runner: security,
+      vault: keychainVault(security, root),
+      root,
+      slots: [DEFAULT],
+      ownProfile: 'own'
+    });
+    expect(result.deleted).toBe(1);
+    expect(result.failed).toBe(0);
+  });
+});
+
 describe('Phase 208: migrateUnscopedVault', () => {
   it('a profile that is not the person own composes no unscoped name at all', async () => {
     const security = fakeSecurity();
@@ -121,7 +253,7 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [DEFAULT, LOGIN],
-      ownProfile: false
+      ownProfile: 'elsewhere'
     });
     expect(result.refused).toBe(true);
     expect(security.named).toEqual([]);
@@ -136,9 +268,9 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [DEFAULT, LOGIN],
-      ownProfile: true
+      ownProfile: 'own'
     });
-    expect(result).toEqual({ refused: false, moved: 1, deleted: 1, kept: 0 });
+    expect(result).toEqual({ refused: false, reason: null, moved: 1, deleted: 1, kept: 0, failed: 0 });
     expect(security.items.get(vaultServiceFor(DEFAULT, root))).toBe(cred('old'));
     expect(security.items.has(unscopedVaultServiceFor(DEFAULT))).toBe(false);
     expect(unscopedDeletes(security.deletes)).toEqual([unscopedVaultServiceFor(DEFAULT)]);
@@ -152,9 +284,9 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [DEFAULT, LOGIN],
-      ownProfile: true
+      ownProfile: 'own'
     });
-    expect(result).toEqual({ refused: false, moved: 0, deleted: 0, kept: 0 });
+    expect(result).toEqual({ refused: false, reason: null, moved: 0, deleted: 0, kept: 0, failed: 0 });
     expect(security.deletes).toEqual([]);
     expect(security.items.size).toBe(0);
   });
@@ -168,9 +300,9 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [DEFAULT],
-      ownProfile: true
+      ownProfile: 'own'
     });
-    expect(result).toEqual({ refused: false, moved: 0, deleted: 1, kept: 0 });
+    expect(result).toEqual({ refused: false, reason: null, moved: 0, deleted: 1, kept: 0, failed: 0 });
     expect([...security.items.keys()]).toEqual([vaultServiceFor(DEFAULT, root)]);
   });
 
@@ -196,9 +328,9 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [DEFAULT],
-      ownProfile: true
+      ownProfile: 'own'
     });
-    expect(result).toEqual({ refused: false, moved: 1, deleted: 1, kept: 0 });
+    expect(result).toEqual({ refused: false, reason: null, moved: 1, deleted: 1, kept: 0, failed: 0 });
     expect(security.items.get(vaultServiceFor(DEFAULT, root))).toBe(cred('recorded'));
     expect(security.items.has(unscopedVaultServiceFor(DEFAULT))).toBe(false);
   });
@@ -225,9 +357,9 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [DEFAULT],
-      ownProfile: true
+      ownProfile: 'own'
     });
-    expect(result).toEqual({ refused: false, moved: 0, deleted: 1, kept: 0 });
+    expect(result).toEqual({ refused: false, reason: null, moved: 0, deleted: 1, kept: 0, failed: 0 });
     expect(security.items.get(vaultServiceFor(DEFAULT, root))).toBe(cred('recorded'));
   });
 
@@ -239,9 +371,9 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [LOGIN],
-      ownProfile: true
+      ownProfile: 'own'
     });
-    expect(result).toEqual({ refused: false, moved: 0, deleted: 1, kept: 0 });
+    expect(result).toEqual({ refused: false, reason: null, moved: 0, deleted: 1, kept: 0, failed: 0 });
     expect(security.items.size).toBe(0);
   });
 
@@ -263,9 +395,9 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(refusing, root),
       root,
       slots: [DEFAULT],
-      ownProfile: true
+      ownProfile: 'own'
     });
-    expect(result).toEqual({ refused: false, moved: 0, deleted: 0, kept: 1 });
+    expect(result).toEqual({ refused: false, reason: null, moved: 0, deleted: 0, kept: 1, failed: 0 });
     expect(security.items.get(unscopedVaultServiceFor(DEFAULT))).toBe(cred('old'));
     expect(unscopedDeletes(security.deletes)).toEqual([]);
   });
@@ -278,7 +410,7 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: ['other.default', 'claude.../../x'],
-      ownProfile: true
+      ownProfile: 'own'
     });
     expect(security.named).toEqual([]);
   });
@@ -291,11 +423,18 @@ describe('Phase 208: migrateUnscopedVault', () => {
       vault: keychainVault(security, root),
       root,
       slots: [DEFAULT],
-      ownProfile: true
+      ownProfile: 'own'
     });
     const text = JSON.stringify(result);
     expect(text).not.toContain('P208');
     expect(text).not.toContain('Tortie-credentials');
-    expect(Object.keys(result).sort()).toEqual(['deleted', 'kept', 'moved', 'refused']);
+    expect(Object.keys(result).sort()).toEqual([
+      'deleted',
+      'failed',
+      'kept',
+      'moved',
+      'reason',
+      'refused'
+    ]);
   });
 });

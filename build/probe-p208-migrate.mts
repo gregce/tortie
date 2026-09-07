@@ -94,7 +94,9 @@ const migrate = (root: string, ownProfile: boolean, slots: string[]) =>
     vault: keychainVault(runner, root),
     root,
     slots,
-    ownProfile
+    // Phase 219 made the proof a VERDICT rather than a boolean, so the refusal
+    // can say which refusal it is. This probe only ever asks the two ends.
+    ownProfile: ownProfile ? 'own' : 'elsewhere'
   });
 
 await arm('present', async (root) => {

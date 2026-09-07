@@ -221,7 +221,11 @@ function observeAll(): Promise<Map<string, KeptFacts>> {
  * THE COST IS SAID OUT LOUD in one line, being the wall time and the number of
  * `security` runs this process made between its start and its end, so a probe
  * and a person reading a log can both see what a cold start paid. The line
- * carries the migration's four counts and nothing that names an item.
+ * carries the migration's counts and, since Phase 219, its REASON when it was
+ * refused, so `refused: true` no longer reads the same for "not macOS", for a
+ * probe's own deliberate refusal and for a home behind a symbolic link, which
+ * is the third of those going unnoticed for eleven phases. It still names no
+ * item, no account and no digest.
  */
 export async function observeLoginsAtBoot(): Promise<void> {
   const started = Date.now();

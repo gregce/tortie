@@ -47,6 +47,7 @@
  * disagrees leaves the old item exactly where it was and says so in a count.
  */
 
+import { realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { isHarnessLaunch } from '../harness/launch-gate';
 import { credentialDigest } from './payload';
@@ -80,8 +81,19 @@ export interface ProfileShape {
   env: NodeJS.ProcessEnv;
 }
 
+/** WHY a profile is not the person's own, or `'own'` when it is. */
+export type ProfileVerdict =
+  /** The person's own profile. The migration may run. */
+  | 'own'
+  /** A harness launch of any kind, being any `GMUX_*` knob the predicate knows. */
+  | 'harness'
+  /** Electron answered an empty path or an empty name. */
+  | 'no-paths'
+  /** A userData directory that is not `<appData>/<appName>`, spelled or real. */
+  | 'elsewhere';
+
 /**
- * Is this process running in the person's own profile?
+ * Is this process running in the person's own profile, and if not, WHY?
  *
  * TWO TESTS AND BOTH MUST PASS. A harness launch of any kind is refused by the
  * widest predicate the harness has, so `GMUX_PROBES` at any value is enough to
@@ -89,13 +101,46 @@ export interface ProfileShape {
  * own, being `<appData>/<appName>`, which is what every scratch profile moves
  * with `--user-data-dir`. Compared after `resolve`, so a trailing separator
  * does not make the person's own profile read as somebody else's.
+ *
+ * THE REAL PATHS ARE ASKED SECOND (Phase 219), and the Phase 208 verifier's
+ * finding is why. `resolve` does no input and output at all, so it never
+ * follows a link: a person whose home, or whose `Library/Application Support`,
+ * is reached through a symbolic link gets one side of that comparison spelled
+ * through the link and the other spelled around it, the two strings differ,
+ * and the migration is refused for ever. The credential a tree before Phase
+ * 208 wrote then stays under the unscoped name where nothing can reach it.
+ * Both MIXED shapes read false and both matched shapes read true, which is
+ * how it was measured. `realpathSync` is asked only when the strings already
+ * disagree and only about paths Electron itself composed, so it can turn a
+ * refusal into a pass and never the other way round; a scratch profile moved
+ * by `--user-data-dir` still really is a different directory, so it gains
+ * nothing, and the harness test above it has already run.
+ *
+ * THE REASON IS THE ANSWER, not a boolean, because a refusal with no reason is
+ * the other half of the same finding: the only trace of one was `refused:true`
+ * in a log line, and that was indistinguishable from "not macOS" and from a
+ * probe's own deliberate refusal.
  */
-export function isOwnProfile(shape: ProfileShape): boolean {
-  if (isHarnessLaunch(shape.env)) return false;
+export function ownProfileVerdict(shape: ProfileShape): ProfileVerdict {
+  if (isHarnessLaunch(shape.env)) return 'harness';
   if (shape.userData === '' || shape.appData === '' || shape.appName === '') {
-    return false;
+    return 'no-paths';
   }
-  return resolve(shape.userData) === resolve(join(shape.appData, shape.appName));
+  const own = resolve(join(shape.appData, shape.appName));
+  const here = resolve(shape.userData);
+  if (here === own) return 'own';
+  try {
+    if (realpathSync(here) === realpathSync(own)) return 'own';
+  } catch {
+    // One of the two is not on disk. That is not the person's own profile
+    // being reached through a link, it is a path that does not exist.
+  }
+  return 'elsewhere';
+}
+
+/** {@link ownProfileVerdict} as the boolean every earlier caller asked for. */
+export function isOwnProfile(shape: ProfileShape): boolean {
+  return ownProfileVerdict(shape) === 'own';
 }
 
 /** What the caller hands in. Every seam is an argument, so the gate can drive it. */
@@ -106,20 +151,44 @@ export interface MigrateDeps {
   root: string;
   /** The slots worth asking about, being every slot this profile could name. */
   slots: readonly string[];
-  /** The answer of {@link isOwnProfile}. False refuses before any name is composed. */
-  ownProfile: boolean;
+  /**
+   * The answer of {@link ownProfileVerdict}. Anything but `'own'` refuses
+   * before a single name is composed, and the reason is carried out again in
+   * {@link MigrateResult.reason} so the boot line can say which.
+   */
+  ownProfile: ProfileVerdict;
 }
 
-/** Counts and nothing else. No name, no digest, no payload. */
+/** Why a whole migration was refused. `null` when it ran. */
+export type MigrateRefusal = Exclude<ProfileVerdict, 'own'> | 'not-keychain';
+
+/** Counts and a reason, and nothing else. No name, no digest, no payload. */
 export interface MigrateResult {
   /** True when the refusal fired and nothing at all was asked of the keychain. */
   refused: boolean;
+  /**
+   * WHICH refusal, so a log line says something a person could act on
+   * (Phase 219). `refused` alone read the same for "not macOS", for a probe
+   * and for a home behind a symbolic link, which is how the third of those
+   * went unnoticed for eleven phases.
+   */
+  reason: MigrateRefusal | null;
   /** Slots whose old item was rewritten under the scoped name. */
   moved: number;
   /** Old items deleted, staged leftovers included. */
   deleted: number;
   /** Old items left in place because the scoped copy did not read back equal. */
   kept: number;
+  /**
+   * Deletes `security` did not answer 0 to (Phase 219).
+   *
+   * `keychainDelete` used to answer `void`, so a delete that failed every time
+   * was counted as a delete that happened: a runner refusing all six left
+   * `{moved: 0, deleted: 2, kept: 0}` and the old item still in the keychain.
+   * A number here means an item Tortie believed it had cleaned up is still on
+   * the machine, and the next launch's migration will find it again.
+   */
+  failed: number;
 }
 
 /**
@@ -129,9 +198,17 @@ export interface MigrateResult {
  * it composes, unless the caller proved it is the person's own profile.
  */
 export async function migrateUnscopedVault(d: MigrateDeps): Promise<MigrateResult> {
-  const out: MigrateResult = { refused: false, moved: 0, deleted: 0, kept: 0 };
-  if (d.ownProfile !== true) {
+  const out: MigrateResult = {
+    refused: false,
+    reason: null,
+    moved: 0,
+    deleted: 0,
+    kept: 0,
+    failed: 0
+  };
+  if (d.ownProfile !== 'own') {
     out.refused = true;
+    out.reason = d.ownProfile;
     return out;
   }
   const { file } = readKeptFile(d.root);
@@ -143,8 +220,9 @@ export async function migrateUnscopedVault(d: MigrateDeps): Promise<MigrateResul
     // a delete is only ever asked for an item the keychain just said is there.
     const staged = unscopedVaultServiceFor(stagedSlotFor(slot));
     if ((await safeRead(d.runner, staged)) !== null) {
-      await keychainDelete(d.runner, staged);
-      out.deleted += 1;
+      // ONLY A DELETE THAT SUCCEEDED IS COUNTED AS ONE (Phase 219).
+      if (await keychainDelete(d.runner, staged)) out.deleted += 1;
+      else out.failed += 1;
     }
     const legacy = unscopedVaultServiceFor(slot);
     const held = await safeRead(d.runner, legacy);
@@ -179,8 +257,8 @@ export async function migrateUnscopedVault(d: MigrateDeps): Promise<MigrateResul
       out.kept += 1;
       continue;
     }
-    await keychainDelete(d.runner, legacy);
-    out.deleted += 1;
+    if (await keychainDelete(d.runner, legacy)) out.deleted += 1;
+    else out.failed += 1;
   }
   return out;
 }

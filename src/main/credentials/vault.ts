@@ -162,7 +162,12 @@ export function keychainVault(runner: SecurityRunner, scope: string): VaultBacke
       const ok = await keychainWrite(runner, serviceFor(slot), VAULT_ACCOUNT, payload);
       if (!ok) throw new Error('the keychain refused an entry');
     },
-    del: (slot) => keychainDelete(runner, serviceFor(slot))
+    del: async (slot) => {
+      // The answer is discarded on purpose: this seam is `Promise<void>` and
+      // its callers already re-read. The migration is the one place that
+      // counts a delete, and it asks `keychainDelete` directly.
+      await keychainDelete(runner, serviceFor(slot));
+    }
   };
 }
 

@@ -250,7 +250,9 @@ function keychainTarget(
     // `add-generic-password -U` UPDATES IN PLACE, measured: one item before,
     // one item after, and the access control list is the one the item had.
     commit: (payload) => put(service, payload),
-    discard: () => keychainDelete(d.runner, staged)
+    discard: async () => {
+      await keychainDelete(d.runner, staged);
+    }
   };
 }
 

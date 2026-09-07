@@ -58,9 +58,23 @@ const kept = (await import(
 const nofollow = (await import(
   pathToFileURL(resolve(MODULES, 'nofollow.ts')).href
 )) as typeof import('../src/main/credentials/nofollow');
-const migrate = (await import(
-  pathToFileURL(resolve(MODULES, 'migrate.ts')).href
-)) as typeof import('../src/main/credentials/migrate');
+/**
+ * THE ONE MODULE THAT MAY BE MISSING, and why it is loaded differently
+ * (Phase 219).
+ *
+ * `migrate.ts` is Phase 208's own file, so a run of this probe over a copy of
+ * the domain from BEFORE that phase does not have it. A bare top level import
+ * of a file that is not there throws ERR_MODULE_NOT_FOUND, which killed the
+ * whole probe: the gate then wrapped a raw node stack as "the probe did not
+ * run" and named no rule at all. A gate that dies is not a gate that fails,
+ * which is the third of the three Phase 208 findings this round closes. So the
+ * absence is a READING now, and rule 17 says it in its own words.
+ */
+const migrate = existsSync(resolve(MODULES, 'migrate.ts'))
+  ? ((await import(
+      pathToFileURL(resolve(MODULES, 'migrate.ts')).href
+    )) as typeof import('../src/main/credentials/migrate'))
+  : null;
 
 /** A value only this probe ever writes. If it appears anywhere, say where. */
 const TOKEN = 'P204-SENTINEL-TOKEN-4c19be';
@@ -2176,7 +2190,11 @@ try {
   //     and the migration reads or deletes the unscoped name only in the
   //     person's own profile.
   // -------------------------------------------------------------------------
-  {
+  if (migrate === null) {
+    // The domain has no migration at all. Say so as a reading rather than by
+    // dying, so rule 17 can name itself.
+    out['scope'] = { absent: true };
+  } else {
     const ownRoot = '/Users/someone/Library/Application Support/Tortie/gmux/logins';
     const scratchRoot = '/private/tmp/gmux-p208-1234/profile/gmux/logins';
     const roots = [ownRoot, scratchRoot, '/', 'x', `${ownRoot}/`];
@@ -2284,7 +2302,7 @@ try {
         vault: vault.keychainVault(runner, root),
         root,
         slots: ['claude.default', vault.slotFor('claude', 'b'.repeat(16))],
-        ownProfile
+        ownProfile: ownProfile ? 'own' : 'elsewhere'
       });
       const named = world.argvs
         .map((argv) => argv[argv.indexOf('-s') + 1] ?? '')
@@ -2321,6 +2339,39 @@ try {
         payload: claudeCredential('residue', '3')
       });
     }, true);
+    // PHASE 219, item 4b. A `security` that refuses EVERY delete with the 44
+    // it uses for an item it could not find. Before this round `keychainDelete`
+    // answered `void`, so this arm read `deleted: 2` with both items still on
+    // the machine and the next launch finding them again.
+    const refusedDelete = await (async () => {
+      const root = freshRoot();
+      const world = makeWorld();
+      const sec = fakeSecurity(world);
+      sec.items.set(unscopedOf('claude.default'), { account: 'tortie', payload: old });
+      sec.items.set(unscopedOf(vault.stagedSlotFor('claude.default')), {
+        account: 'tortie',
+        payload: claudeCredential('residue', '4')
+      });
+      const runner = {
+        run: async (argv: readonly string[], stdin?: string) =>
+          argv[0] === 'delete-generic-password'
+            ? { code: 44, stdout: '' }
+            : sec.runner.run(argv, stdin)
+      };
+      const result = await migrate.migrateUnscopedVault({
+        runner,
+        vault: vault.keychainVault(runner, root),
+        root,
+        slots: ['claude.default'],
+        ownProfile: 'own' as const
+      });
+      return {
+        result,
+        stillThere:
+          sec.items.has(unscopedOf('claude.default')) &&
+          sec.items.has(unscopedOf(vault.stagedSlotFor('claude.default')))
+      };
+    })();
     const badReadback = await arm(
       (items) => {
         items.set(unscopedOf('claude.default'), { account: 'tortie', payload: old });
@@ -2339,6 +2390,65 @@ try {
       composerAgrees,
       backendNamesScoped,
       crossProfileHidden,
+      // PHASE 219, item 4a. Four REAL shapes on a REAL disk with a REAL link.
+      // `resolve` follows nothing, so the two MIXED spellings read false and a
+      // person whose home is behind a link was refused the migration for ever,
+      // with `refused: true` in a log line as the only trace.
+      linkedProfile: ((): Record<string, unknown> => {
+        const home = freshRoot();
+        const real = join(home, 'real');
+        const support = join(real, 'Library', 'Application Support');
+        mkdirSync(join(support, 'Tortie'), { recursive: true });
+        symlinkSync(real, join(home, 'link'));
+        const linkedSupport = join(home, 'link', 'Library', 'Application Support');
+        const shapes: [string, string, string][] = [
+          ['both real', join(support, 'Tortie'), support],
+          ['both through the link', join(linkedSupport, 'Tortie'), linkedSupport],
+          ['userData real, appData linked', join(support, 'Tortie'), linkedSupport],
+          ['userData linked, appData real', join(linkedSupport, 'Tortie'), support]
+        ];
+        const elsewhere = join(home, 'profile');
+        mkdirSync(elsewhere, { recursive: true });
+        return {
+          verdicts: shapes.map(([why, userData, appData]) => [
+            why,
+            migrate.ownProfileVerdict({ userData, appData, appName: 'Tortie', env: {} })
+          ]),
+          // AND THE SCRATCH PROFILE IS STILL REFUSED from either spelling, or
+          // the realpath fallback has widened the predicate rather than fixed
+          // it, and every probe on this machine would reach his own item.
+          scratchStillRefused: [support, linkedSupport].map((appData) =>
+            migrate.ownProfileVerdict({
+              userData: elsewhere,
+              appData,
+              appName: 'Tortie',
+              env: {}
+            })
+          )
+        };
+      })(),
+      // The refusal now says WHICH refusal it is.
+      reasons: [
+        migrate.ownProfileVerdict({
+          userData: '/Users/someone/Library/Application Support/Tortie',
+          appData: '/Users/someone/Library/Application Support',
+          appName: 'Tortie',
+          env: { GMUX_PROBES: '1' }
+        }),
+        migrate.ownProfileVerdict({ userData: '', appData: '', appName: '', env: {} }),
+        migrate.ownProfileVerdict({
+          userData: scratchRoot,
+          appData: '/Users/someone/Library/Application Support',
+          appName: 'Tortie',
+          env: {}
+        }),
+        migrate.ownProfileVerdict({
+          userData: '/Users/someone/Library/Application Support/Tortie',
+          appData: '/Users/someone/Library/Application Support',
+          appName: 'Tortie',
+          env: {}
+        })
+      ],
       ownProfile: {
         own: migrate.isOwnProfile({
           userData: '/Users/someone/Library/Application Support/Tortie',
@@ -2389,7 +2499,19 @@ try {
         badReadbackKept:
           badReadback.result.kept === 1 &&
           badReadback.result.deleted === 0 &&
-          holds(badReadback, unscopedOf('claude.default')) === old
+          holds(badReadback, unscopedOf('claude.default')) === old,
+        // PHASE 219, item 4a's other half: the refusal carries its reason out.
+        refusedReason: refused.result.reason,
+        ranReason: present.result.reason,
+        // PHASE 219, item 4b.
+        failedDelete: {
+          deleted: refusedDelete.result.deleted,
+          failed: refusedDelete.result.failed,
+          moved: refusedDelete.result.moved,
+          stillThere: refusedDelete.stillThere
+        },
+        // The honest half: a delete that WORKS is still counted as one.
+        succeededDelete: present.result.failed === 0 && present.result.deleted === 1
       }
     };
   }

@@ -108,7 +108,7 @@
  *      is not the person's own composes NO unscoped name at all. The scan half:
  *      the unscoped composer is defined in exactly one file, migrate.ts, and
  *      the one call of the migration outside that file, in index.ts, carries
- *      the profile proof composed by isOwnProfile.
+ *      the profile proof composed by ownProfileVerdict.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -263,7 +263,7 @@ function migrationCarriesTheProof(text) {
   }
   const call = end < 0 ? '' : body.slice(at, end + 1);
   const calls = (body.match(/migrateUnscopedVault\s*\(/g) ?? []).length;
-  return { calls, proved: /ownProfile:\s*isOwnProfile\s*\(/.test(call) };
+  return { calls, proved: /ownProfile:\s*ownProfileVerdict\s*\(/.test(call) };
 }
 
 /**
@@ -353,7 +353,7 @@ check(
 const proof = migrationCarriesTheProof(readFileSync(join(DOMAIN, 'index.ts'), 'utf8'));
 check(
   proof.calls === 1 && proof.proved,
-  `${TAG} index.ts calls the migration ${String(proof.calls)} time(s) and ${proof.proved ? 'with' : 'WITHOUT'} the profile proof composed by isOwnProfile`
+  `${TAG} index.ts calls the migration ${String(proof.calls)} time(s) and ${proof.proved ? 'with' : 'WITHOUT'} the profile proof composed by ownProfileVerdict`
 );
 for (const file of domainFiles) {
   const name = file.slice(repoRoot.length + 1);
@@ -524,7 +524,7 @@ for (const f of SCOPE_FIXTURES) {
 const PROOF_FIXTURES = [
   {
     name: 'the shipping call',
-    text: 'migration = migrateUnscopedVault({\n  runner: r,\n  vault: v,\n  slots: [],\n  ownProfile: isOwnProfile({ userData: a, env: process.env })\n});\n',
+    text: 'migration = migrateUnscopedVault({\n  runner: r,\n  vault: v,\n  slots: [],\n  ownProfile: ownProfileVerdict({ userData: a, env: process.env })\n});\n',
     calls: 1,
     proved: true
   },
@@ -536,7 +536,7 @@ const PROOF_FIXTURES = [
   },
   {
     name: 'the proof elsewhere in the file but not in the call',
-    text: 'const own = isOwnProfile({ env });\nmigration = migrateUnscopedVault({\n  runner: r,\n  ownProfile: own\n});\n',
+    text: 'const own = ownProfileVerdict({ env });\nmigration = migrateUnscopedVault({\n  runner: r,\n  ownProfile: own\n});\n',
     calls: 1,
     proved: false
   },
@@ -1162,6 +1162,22 @@ if ('error' in live) {
   check(!live.keychain.stagedLeft, `${TAG} a staged keychain item was left behind`);
 
   // Rule 17. THE VAULT IS SCOPED TO ITS PROFILE (Phase 208).
+  //
+  // A DOMAIN WITH NO MIGRATION FAILS HERE, IN WORDS (Phase 219, item 4c).
+  // Until this round the probe imported `migrate.ts` at the top level, so a
+  // copy of the domain from before Phase 208 killed the whole run with a raw
+  // ERR_MODULE_NOT_FOUND, the gate printed "the probe did not run" with 600
+  // characters of node stack, and NO rule was named. A gate that dies is not a
+  // gate that fails.
+  check(
+    live.scope.absent !== true,
+    `${TAG} RULE 17 CANNOT RUN: the domain has no migrate.ts, so nothing moves an item a tree before Phase 208 wrote under the unscoped name onto the scoped one`
+  );
+  if (live.scope.absent === true) {
+    // Every reading below is the migration's own. Naming them one by one when
+    // there is no migration would print seventeen failures for one cause.
+    notes.push(`${TAG} rule 17 had no migrate.ts to run, so its readings are absent`);
+  } else {
   check(live.scope.differ, `${TAG} A SCRATCH ROOT AND THE PERSON'S ROOT COMPOSE THE SAME KEYCHAIN NAME, so every profile on the machine addresses one item`);
   check(live.scope.neverUnscoped, `${TAG} A NAME COMPOSED FROM A ROOT EQUALS THE UNSCOPED ONE a tree before Phase 208 wrote`);
   check(live.scope.digestRederived, `${TAG} the scope digest is not the first eight hex of a sha256 of the root`);
@@ -1180,6 +1196,42 @@ if ('error' in live) {
   check(live.scope.migration.stagedResidueDeleted, `${TAG} a staged leftover under the old name survived the migration`);
   check(live.scope.migration.presentNamedUnscoped, `${TAG} the present arm never named the unscoped item, so the refusal arm proves nothing`);
   check(live.scope.migration.badReadbackKept, `${TAG} THE OLD ITEM WAS DELETED THOUGH THE SCOPED COPY NEVER LANDED, so the credential is gone from both names`);
+
+  // Rule 17b. A HOME BEHIND A LINK (Phase 219, item 4a).
+  for (const [why, got] of live.scope.linkedProfile.verdicts) {
+    check(
+      got === 'own',
+      `${TAG} A REAL LINK OVER THE PROFILE (${why}) READ AS ${String(got)}, so the migration is refused for ever on that machine and the credential stays under a name nothing can reach`
+    );
+  }
+  check(
+    live.scope.linkedProfile.scratchStillRefused.every((v) => v === 'elsewhere'),
+    `${TAG} A SCRATCH PROFILE PASSED once a link was in the path, so the real path fallback widened the predicate rather than fixing it: ${JSON.stringify(live.scope.linkedProfile.scratchStillRefused)}`
+  );
+  check(
+    JSON.stringify(live.scope.reasons) === JSON.stringify(['harness', 'no-paths', 'elsewhere', 'own']),
+    `${TAG} the profile verdict does not say WHICH refusal it is: ${JSON.stringify(live.scope.reasons)}`
+  );
+  check(
+    live.scope.migration.refusedReason === 'elsewhere' && live.scope.migration.ranReason === null,
+    `${TAG} a refused migration did not carry its reason out, so a log line cannot tell a probe from a home behind a link: ${JSON.stringify([live.scope.migration.refusedReason, live.scope.migration.ranReason])}`
+  );
+
+  // Rule 17c. A DELETE THAT FAILED (Phase 219, item 4b).
+  check(
+    live.scope.migration.failedDelete.deleted === 0 &&
+      live.scope.migration.failedDelete.failed === 2,
+    `${TAG} A DELETE SECURITY REFUSED WAS COUNTED AS A DELETE: ${JSON.stringify(live.scope.migration.failedDelete)}`
+  );
+  check(
+    live.scope.migration.failedDelete.stillThere,
+    `${TAG} the refusing arm's items were gone, so this probe stopped testing a delete that fails`
+  );
+  check(
+    live.scope.migration.succeededDelete,
+    `${TAG} a delete that SUCCEEDED was not counted as one, so the count above proves nothing`
+  );
+  }
 
   // Rule 11's runtime half: the shapes.
   check(live.shapes.claudeOk && live.shapes.codexOk, `${TAG} a vendor credential was refused`);
@@ -1765,7 +1817,7 @@ const ABLATIONS = [
     edits: [
       {
         file: 'migrate.ts',
-        from: '  if (d.ownProfile !== true) {',
+        from: "  if (d.ownProfile !== 'own') {",
         to: '  if (false) {'
       }
     ]
@@ -1777,8 +1829,46 @@ const ABLATIONS = [
     edits: [
       {
         file: 'migrate.ts',
-        from: '  if (isHarnessLaunch(shape.env)) return false;',
+        from: "  if (isHarnessLaunch(shape.env)) return 'harness';",
         to: ''
+      }
+    ]
+  },
+  {
+    // PHASE 219, item 4a. The real path fallback taken out, which is the
+    // finding: a home behind a symbolic link is refused the migration for
+    // ever and the only trace is `refused: true` in a log line.
+    name: 'the real path fallback taken out, so a home behind a link is refused for ever',
+    edits: [
+      {
+        file: 'migrate.ts',
+        from: "    if (realpathSync(here) === realpathSync(own)) return 'own';",
+        to: ''
+      }
+    ]
+  },
+  {
+    // PHASE 219, item 4a's other half. The reason dropped, so every refusal
+    // reads alike: not macOS, a probe, and a home behind a link.
+    name: 'the refusal reason dropped, so a log line cannot say which refusal it was',
+    edits: [
+      {
+        file: 'migrate.ts',
+        from: '    out.reason = d.ownProfile;',
+        to: ''
+      }
+    ]
+  },
+  {
+    // PHASE 219, item 4b. The delete's answer discarded, which is exactly the
+    // shape that shipped: a runner refusing all six left `deleted: 2` and both
+    // items on the machine.
+    name: 'a delete counted whether or not security did it',
+    edits: [
+      {
+        file: 'security.ts',
+        from: "  const { code } = await runner.run(['delete-generic-password', '-s', service]);\n  return code === 0;",
+        to: "  await runner.run(['delete-generic-password', '-s', service]);\n  return true;"
       }
     ]
   },
@@ -1894,6 +1984,43 @@ try {
       );
     }
   }
+  // -------------------------------------------------------------------------
+  // A DOMAIN WITH NO MIGRATION, and it is the third Phase 208 finding
+  // (Phase 219, item 4c). Every ablation above is a TEXT EDIT, so none of them
+  // can express the shape that actually broke this gate, which is a file that
+  // is not there at all. The parent of Phase 208's own code is exactly that,
+  // and running the gate at it printed a raw ERR_MODULE_NOT_FOUND wrapped as
+  // "the probe did not run" with no rule named. A gate that dies is not a gate
+  // that fails, so the missing file is staged here and the reading is read.
+  // -------------------------------------------------------------------------
+  {
+    const dir = join(mainDir, `${ABLATION_PREFIX}absent`);
+    mkdirSync(dir, { recursive: true });
+    for (const f of readdirSync(DOMAIN).filter((n) => n.endsWith('.ts'))) {
+      if (f === 'migrate.ts') continue;
+      cpSync(join(DOMAIN, f), join(dir, f));
+    }
+    const withoutMigrate = runProbe(dir);
+    if ('error' in withoutMigrate) {
+      failures.push(
+        `${TAG} A DOMAIN WITH NO migrate.ts STOPPED THE PROBE RUNNING instead of naming rule 17: ${String(withoutMigrate.error).slice(0, 200)}`
+      );
+    } else if (withoutMigrate.scope?.absent !== true) {
+      failures.push(
+        `${TAG} a domain with no migrate.ts did not answer absent, so rule 17 cannot say why it could not run`
+      );
+    } else {
+      // AND THE RULE MUST REALLY SAY SO. The gate's own sentence is composed
+      // here from the same reading, so a later round that drops the check has
+      // to drop this too.
+      const said = /RULE 17 CANNOT RUN/.test(readFileSync(fileURLToPath(import.meta.url), 'utf8'));
+      if (!said) {
+        failures.push(`${TAG} rule 17 has no sentence for a domain with no migration`);
+      }
+      notes.push('a domain with no migrate.ts answers absent and rule 17 names itself');
+    }
+  }
+
   notes.push(`${String(red)} of ${String(ABLATIONS.length)} ablations went red`);
   if (process.env['P204_ABLATION_DETAIL'] === '1') {
     for (const line of moves) process.stdout.write(`${TAG} ablation ${line}\n`);

@@ -25,7 +25,7 @@ import { readTextNoFollowSync, renameNoFollowSync, writeNoFollowSync } from './n
 import { defaultSecurityRunner, type SecurityRunner } from './security';
 import type { StoreDeps } from './stores';
 import { sweepableSlots, type KeepDeps, type LiveSession } from './keep';
-import { isOwnProfile, migrateUnscopedVault, type MigrateResult } from './migrate';
+import { migrateUnscopedVault, ownProfileVerdict, type MigrateResult } from './migrate';
 import { fileVault, keychainVault, type VaultBackend } from './vault';
 
 export {
@@ -51,7 +51,14 @@ export {
   type WatchDeps,
   type WatchTarget
 } from './watch';
-export { isOwnProfile, type MigrateResult, type ProfileShape } from './migrate';
+export {
+  isOwnProfile,
+  ownProfileVerdict,
+  type MigrateRefusal,
+  type MigrateResult,
+  type ProfileShape,
+  type ProfileVerdict
+} from './migrate';
 export {
   CREDENTIAL_FILE_MODE,
   readTextNoFollowSync,
@@ -297,11 +304,12 @@ let migration: Promise<MigrateResult> | null = null;
  * promise, and it is asked at all only on macOS, only when no harness seam is
  * installed, and only when {@link isOwnProfile} says this is the person's own
  * profile. Every scratch profile, every probe and every harness run gets the
- * seams back at once with the migration refused before it composed a name.
+ * seams back at once with the migration refused before it composed a name, and
+ * the refusal carries WHICH of those it was, so the boot line says so.
  *
  * THE PROOF OF THE PROFILE IS COMPOSED HERE and nowhere else, out of the three
  * paths Electron answers and the process environment. The migration itself
- * takes the answer as a boolean and refuses on anything but true.
+ * takes the verdict and refuses on anything but `'own'`.
  */
 export function readyKeepDeps(): Promise<KeepDeps> {
   const deps = keepDeps();
@@ -317,16 +325,30 @@ export function readyKeepDeps(): Promise<KeepDeps> {
             slots: LOGIN_PROVIDERS.flatMap((provider) =>
               sweepableSlots(deps.root, provider)
             ),
-            ownProfile: isOwnProfile({
+            ownProfile: ownProfileVerdict({
               userData: app.getPath('userData'),
               appData: app.getPath('appData'),
               appName: app.getName(),
               env: process.env
             })
           }).catch(
-            (): MigrateResult => ({ refused: false, moved: 0, deleted: 0, kept: 0 })
+            (): MigrateResult => ({
+              refused: false,
+              reason: null,
+              moved: 0,
+              deleted: 0,
+              kept: 0,
+              failed: 0
+            })
           )
-        : Promise.resolve({ refused: true, moved: 0, deleted: 0, kept: 0 });
+        : Promise.resolve({
+            refused: true,
+            reason: 'not-keychain' as const,
+            moved: 0,
+            deleted: 0,
+            kept: 0,
+            failed: 0
+          });
   }
   return migration.then(() => deps);
 }

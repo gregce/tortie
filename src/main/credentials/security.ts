@@ -286,11 +286,24 @@ export async function keychainWrite(
   return code === 0;
 }
 
-/** Remove one item. A missing item is not a failure. */
+/**
+ * Remove one item, and SAY WHETHER IT WENT (Phase 219).
+ *
+ * It answered `void` until Phase 219, so every caller that counted a delete
+ * counted the ASKING rather than the doing: a runner answering `security`'s
+ * exit 44 to all six deletes of a migration still left `{deleted: 2}` in the
+ * result and both old items on the machine. True means `security` exited 0.
+ * Anything else, including the 44 it uses for an item it could not find, is
+ * false, because every caller here reads the item first and a thing that was
+ * there a moment ago and cannot now be found is an anomaly worth counting
+ * rather than a tidy no-op. A name this module refuses is never asked at all,
+ * which is a refusal and so also false.
+ */
 export async function keychainDelete(
   runner: SecurityRunner,
   service: string
-): Promise<void> {
-  if (!isPlainSecurityName(service)) return;
-  await runner.run(['delete-generic-password', '-s', service]);
+): Promise<boolean> {
+  if (!isPlainSecurityName(service)) return false;
+  const { code } = await runner.run(['delete-generic-password', '-s', service]);
+  return code === 0;
 }
