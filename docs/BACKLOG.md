@@ -22798,10 +22798,24 @@ may be more. Rough phase count so he can judge it against the queue.
 
 - **The surfaces are DRIVEN, not read.** A code read cannot find "clunky". Use a real remote and read
   what a person sees, with timings.
-- **HIS MAC PRO IS READ ONLY.** Drive read-only surfaces against it and NOTHING ELSE. Anything that
-  writes — save, new folder, rename, stage, commit — is driven against a **scratch machine the phase
-  makes for itself**, the way `build/with-scratch-machine.mjs` already provides. **Never write a byte to
-  `gregs-mac-pro.tail2ddfe1.ts.net`**, never touch `~/.ssh`, and leave ssh agent 22052 empty.
+- **DRIVE IT AGAINST HIS MAC PRO, INCLUDING THE WRITES. He asked for this explicitly on 2026-09-07**,
+  lifting the standing read-only rule for this phase and this phase only: *"yes we should definintely
+  drive it against my mac pro, and i think it would also be wise to actually try to do writes as well"*.
+  He is right that the write path is where the clunkiness he reported lives, and a scratch machine would
+  not have found it. The machine is `gregs-mac-pro.tail2ddfe1.ts.net`, already added and confirmed.
+  **The bounds, which are not his instruction but the responsible reading of it:**
+  - **Every write goes into a scratch git repository the phase creates on the Mac Pro and REMOVES in a
+    `finally`**, not into any project of his that lives there. Same ssh, same tmux, same
+    `src/main/machines/` code paths, so it tests the real thing; it simply does not leave a stray commit
+    in work he cares about. If a finding genuinely needs a real repository, the document SAYS SO and
+    asks him rather than doing it.
+  - **The five Tortie sessions from 15 and 16 August that are still alive on that machine are not
+    touched, not killed and not attached to destructively.** Read them; leave them exactly as found.
+  - `~/.ssh` is still never written, ssh agent 22052 still stays empty, and his known_hosts is still
+    reached only through `build/ssh-run.mjs` with Tortie's own record file first, which
+    `npm run gate:knownhosts` enforces.
+  - **Count what is left on the far side when the drive ends**, and say so. A probe that leaves a
+    process or a directory on another person's computer is worse than one that leaves it here.
 - **Every herdr claim is cited to a file in his checkout** and nothing is written there.
 - **Research 57's twenty gaps are re-checked one by one**, since that document is from 19 August and
   twenty-one phases have landed since.
@@ -23261,3 +23275,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07 Phase 223 queued at his ask, research only: what herdr does, how work could TRANSFER between heterogeneous agents which is issue 14, and how an agent could DELEGATE or start a Tortie session. He said explicitly not to read the ask literally, so the need is treated as continue this work somewhere else and resume, replay, summary and re-prompt are all candidates. THE DELEGATION HALF RUNS STRAIGHT INTO PHASE 23'S EIGHTH REFUSAL, that nothing may cause a process to start without a human confirming out of band of an agent turn, and herdr has SHIPPED exactly that shape with `agent start --kind`, so the phase must argue whether the refusal covers it, whether it is a new question deserving its own answer, or whether a propose-and-confirm shape keeps the value with the refusal intact. A research phase that quietly widens a standing refusal has failed. The transfer half is held to Phase 82's standard: a person must never read a continued conversation and get a new one. /Users/gdc/herdr is READ ONLY throughout.
 - 2026-09-07 Phase 222 RESTARTED on his clarification, four minutes in and with no commits lost. The first entry read issue 15 broadly and asked whether a view that streams an agent's edits is the supervisor's console the Zen refuses. THAT WAS THE WRONG READING and he said so: what he wants is Cursor style accept and reject on the REDLINE THAT ALREADY SHIPS, for prose only which is `txt` and `md`, with the redline becoming an EDITING surface rather than a preview. So the streaming question is withdrawn, the prose allowlist is the ask rather than a compromise, and the crux moves to two things: whether the Pierre annotation row can host a control or a caret at all, since every `@pierre/diffs` line is blockified by the CSS specification, and what accept actually WRITES to his file, since the redline has only ever read.
 - 2026-09-07 Phase 224 queued at his report, research only: where the remote machine work landed, why it is clunky, and what parity with the local experience would cost, with herdr 0.9.0 as the robustness bar he named. Grounded before queueing: twenty one phases landed on this and research 57 already planned it, saying twenty gaps of which fifteen build, one waits and FOUR ARE REFUSED PERMANENTLY being trash, reveal, discard and Symbols, so the first question is which of the fifteen actually landed rather than what to build. THE COMPARISON THAT MAY BE THE REAL FINDING: herdr 0.9.0's changelog says missing server features disable only the affected action instead of preventing connection, and Tortie does the OPPOSITE deliberately, since Phase 217 landed yesterday on a version gate that refuses a whole attach because an untested pair can hang rather than fail. The phase must ask whether that posture applied to every remote capability is what makes the surface feel clunky, and which refusals should stay and which should become a disabled action with a sentence. His Mac Pro is READ ONLY and every write is driven against a scratch machine.
+- 2026-09-07 Phase 224 AMENDED at his word before it launched: he lifted the Mac Pro read only rule for this phase, saying drive it against my mac pro and it would also be wise to actually try to do writes as well. He is right, since the write path is where the clunkiness he reported lives and a scratch machine would not have found it. The bounds I kept are mine rather than his and are stated as such: every write goes into a scratch git repository the phase creates there and removes in a finally rather than into a project of his, the five Tortie sessions still alive on that machine from 15 and 16 August are read and left exactly as found, ~/.ssh is still never written and the ssh agent stays empty, and the far side is counted when the drive ends because a probe that leaves something on another person's computer is worse than one that leaves it here. If a finding genuinely needs a real repository the document says so and asks him.
