@@ -139,12 +139,23 @@ integrator ran it four times at 17:30 and it was **red every time**, on rule 5 a
 was **97.48** at the time, from the operator's own unrelated Go and clang work. Nothing in this phase
 touched shipping code. **Rule 5 is a wall-clock budget and it is load-sensitive**, which is worth
 knowing before a builder reads a red gate as a regression. The other fifteen rules passed in all four
-runs.
+runs. **The committer measured the other end of that, so the sentence is a measurement on both sides
+rather than an inference from one:** at a load average of **4.98** the same rule on the same tree read
+**156 ms** against the same 400 ms ceiling, and every one of the sixteen passed. The load moved by a
+factor of about 20 between the two readings and the rule's cost moved by a factor of 3 to 4.5, which
+is the whole finding: **neither the green nor the red is a reading of this rule's own cost**, and a
+builder should treat a red rule 5 as a question about the machine before it is a question about the
+code.
 
-**6. The gate prints sixteen rules, and `CLAUDE.md` says fourteen.** Confirmed by running it: rules 15
-and 16 are Phase 194's two byte-exact projections over 26 fixtures with a 3,000-pair fuzz, and the 96
-adjacent pairs sharing no whitespace. `CLAUDE.md`'s sentence "pins fourteen rulings" is stale by two
-and should be corrected in this phase's commit.
+**6. The gate prints sixteen rules, and `CLAUDE.md` says fourteen.** Confirmed by running it three
+times, twice in the fix round and once by the committer: rules 15 and 16 are Phase 194's two byte-exact
+projections over 26 fixtures with a 3,000-pair fuzz, and the 96 adjacent pairs sharing no whitespace.
+`CLAUDE.md:269`'s sentence — *"so fourteen rulings stay executable rather than documented"* — is stale
+by two. **It is owed by a LATER commit and not by this phase's**, and the draft of this line said "this
+phase's commit", which is an instruction this phase's own scope forbids: a research phase touches
+`docs/research/` and the running log and nothing else, so the sentence asked for something that could
+not be done and was not done. The correction is handed on in the landing entry in `docs/BACKLOG.md`
+instead, alongside this section's other one, being that a red rule 5 is load rather than a regression.
 
 ---
 
