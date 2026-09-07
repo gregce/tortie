@@ -76,6 +76,7 @@ import { getLog } from '../log';
 import { forgetLoginAccounts, loginFacts } from '../usage/login-accounts';
 import {
   activateLogin,
+  credentialsAreOpen,
   defaultKeychainFingerprint,
   finishStrayLogins,
   forgetLogin,
@@ -83,6 +84,7 @@ import {
   readyKeepDeps,
   securityCallCount,
   startCredentialWatch,
+  trackCredentialWork,
   vaultMigrationResult,
   NO_KEPT_FACTS,
   type CredentialWatch,
@@ -172,6 +174,12 @@ function observeAll(): Promise<Map<string, KeptFacts>> {
   if (Date.now() - observedAt < OBSERVE_TTL_MS) {
     return Promise.resolve(observedFacts);
   }
+  // PHASE 220. NO NEW PASS AFTER ADMISSION CLOSES. The list still draws, from
+  // the last facts, which is the same answer a refusal below already gives it;
+  // what it does not do is start a walk of every store during a quit.
+  if (!credentialsAreOpen()) {
+    return observeInFlight ?? Promise.resolve(observedFacts);
+  }
   // A SECOND CALLER JOINS THE ONE ALREADY RUNNING rather than starting a
   // second pass. Both get the same answer, which is also what stops the two
   // provider blocks drawing from two different readings of the same moment.
@@ -201,7 +209,13 @@ function observeAll(): Promise<Map<string, KeptFacts>> {
     refreshLoginsWatch();
     return facts;
   })();
-  observeInFlight = run;
+  // PHASE 220. THE PASS IS OWNED, and the ownership is not the cache.
+  // `forgetObservation()` below sets `observeInFlight` to null on every change
+  // a person makes, which gave up the only reference to a pass that was still
+  // running: it went on reading stores and writing Tortie's own after the quit
+  // had finished with this domain. The tracked promise is what the disposer
+  // joins, and it is kept whatever happens to the cache.
+  observeInFlight = trackCredentialWork(run);
   return run.finally(() => {
     if (observeInFlight === run) observeInFlight = null;
   });
@@ -228,6 +242,10 @@ function observeAll(): Promise<Map<string, KeptFacts>> {
  * item, no account and no digest.
  */
 export async function observeLoginsAtBoot(): Promise<void> {
+  // PHASE 220. A quit that lands in the boot delay finds this closed and the
+  // boot observe never starts. The chain that reaches it is fire and forget, so
+  // this is the only place that can refuse it.
+  if (!credentialsAreOpen()) return;
   const started = Date.now();
   const callsBefore = securityCallCount();
   let observed = 0;
@@ -264,8 +282,20 @@ let watch: CredentialWatch | null = null;
  */
 export async function startLoginsWatch(): Promise<void> {
   if (watch !== null) return;
+  // PHASE 220. THE LATE START, WHICH IS THE SHAPE NOBODY HAD NAMED. This is the
+  // last link of a fire and forget chain that begins with the core and a one
+  // second wait, so a quit landing anywhere in it ran `stopLoginsWatch()`
+  // against `watch === null` and this line then installed `fs.watch` handles
+  // and the backstop interval AFTER the ordered disposer had finished with the
+  // domain. Reproduced at `b5cc017` in three lines: at quit the watcher had
+  // `[]`, and after the held dependency landed it had `["watch"]`. Admission is
+  // asked on both sides of the await, and the second one is the one that
+  // matters; the third is for the shape of a later edit that adds an await
+  // between the construction and the assignment.
+  if (!credentialsAreOpen()) return;
   const keep = await readyKeepDeps();
-  watch = startCredentialWatch({
+  if (!credentialsAreOpen()) return;
+  const started = startCredentialWatch({
     keep,
     emitChanged: () => {
       forgetLoginAccounts();
@@ -274,6 +304,11 @@ export async function startLoginsWatch(): Promise<void> {
     },
     keychainFingerprint: () => defaultKeychainFingerprint(keep)
   });
+  if (!credentialsAreOpen()) {
+    started.stop();
+    return;
+  }
+  watch = started;
 }
 
 /**
@@ -286,6 +321,18 @@ export async function startLoginsWatch(): Promise<void> {
  */
 export function refreshLoginsWatch(): void {
   watch?.refresh();
+}
+
+/**
+ * What the watcher is watching, or null when there is no watcher (Phase 220).
+ *
+ * A read, for the disposer's own proof: the late start this phase closes is
+ * only observable as a watcher that exists after the quit, and nothing else in
+ * this module could see one. It names DIRECTORIES and never a file, an account
+ * or a credential.
+ */
+export function loginsWatchState(): string[] | null {
+  return watch === null ? null : watch.watching();
 }
 
 /** Stop the watcher. Called from the one ordered quit disposer. */
@@ -359,9 +406,21 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // The order is what makes a refused write leave the choice alone: a login
     // whose account could not be put back would launch every new session
     // signed out, so nothing is chosen at all and the person reads why.
+    // PHASE 220. A CHOICE THAT ARRIVES DURING THE QUIT STARTS NOTHING. It is
+    // the one channel that writes a credential, so it refuses rather than
+    // beginning a write whose owner is closing.
+    if (!credentialsAreOpen()) {
+      return {
+        ok: false,
+        reason: 'Tortie is closing, so nothing was changed.',
+        snapshot: await wholeList()
+      };
+    }
     let activation: string | null = null;
     try {
-      const put = await activateLogin(await readyKeepDeps(), id, name);
+      const put = await trackCredentialWork(
+        activateLogin(await readyKeepDeps(), id, name)
+      );
       if (!put.ok) {
         forgetObservation();
         log.info('logins.activate', { provider: id, ok: false });
@@ -420,9 +479,11 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // from the file. Clearing them first cannot strand a credential: the worst
     // an interrupted remove now leaves is a login the person can see and
     // remove again, and the sweep below finishes it anyway.
-    if (row !== undefined) {
+    if (row !== undefined && credentialsAreOpen()) {
       try {
-        await forgetLogin(await readyKeepDeps(), id, row.id);
+        // PHASE 220. Owned, so a quit joins it rather than leaving a removal
+        // half done with the row already gone from the file.
+        await trackCredentialWork(forgetLogin(await readyKeepDeps(), id, row.id));
       } catch {
         // A store that will not answer is not a reason to refuse a remove.
       }
@@ -432,7 +493,9 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // PHASE 206. AND ANY EARLIER REMOVE THAT DID NOT FINISH IS FINISHED HERE,
     // so a stray can never outlive the next Remove the person presses.
     try {
-      const finished = await finishStrayLogins(await readyKeepDeps(), id);
+      const finished = credentialsAreOpen()
+        ? await trackCredentialWork(finishStrayLogins(await readyKeepDeps(), id))
+        : [];
       if (finished.length > 0) {
         log.info('logins.strays', { provider: id, finished: finished.length });
       }

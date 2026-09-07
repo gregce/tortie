@@ -76,6 +76,23 @@ const migrate = existsSync(resolve(MODULES, 'migrate.ts'))
     )) as typeof import('../src/main/credentials/migrate'))
   : null;
 
+/**
+ * PHASE 220's module, loaded the same defensive way `migrate.ts` is and for the
+ * same reason: a copy of the domain from before this phase does not carry it,
+ * and a bare import would kill the probe rather than name the rule.
+ */
+const locksMod = (await import(
+  pathToFileURL(resolve(MODULES, 'locks.ts')).href
+)) as typeof import('../src/main/credentials/locks');
+const watchMod = (await import(
+  pathToFileURL(resolve(MODULES, 'watch.ts')).href
+)) as typeof import('../src/main/credentials/watch');
+const lifecycle = existsSync(resolve(MODULES, 'lifecycle.ts'))
+  ? ((await import(
+      pathToFileURL(resolve(MODULES, 'lifecycle.ts')).href
+    )) as typeof import('../src/main/credentials/lifecycle'))
+  : null;
+
 /** A value only this probe ever writes. If it appears anywhere, say where. */
 const TOKEN = 'P204-SENTINEL-TOKEN-4c19be';
 
@@ -2725,6 +2742,142 @@ try {
       slotOk: vault.isSlotName(vault.slotFor('claude', 'a'.repeat(16))),
       slotEscape: vault.isSlotName('claude.../../etc'),
       slotOther: vault.isSlotName('other.default')
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 12. THE SHUTDOWN OWNER (Phase 220, item 2). IT IS LAST ON PURPOSE, because
+  //     it closes the domain's admission and every arm above reads it.
+  //
+  //     It spawns NOTHING. The child half is proved here as the cancel really
+  //     reaching an owned controller; that the abort really ends a `/usr/bin/
+  //     security` is proved by `src/main/credentials/__tests__/p220-shutdown.
+  //     test.ts`, which spawns a stand in that never exits, and this gate must
+  //     stay a gate that opens no process.
+  // -------------------------------------------------------------------------
+  if (lifecycle === null) {
+    out['lifecycle'] = { absent: true };
+  } else {
+    lifecycle.resetCredentialLifecycle();
+    const openAtStart = lifecycle.credentialsAreOpen();
+
+    // ADMISSION, and it closes synchronously.
+    lifecycle.beginCredentialShutdown();
+    const begunClosesAdmission = !lifecycle.credentialsAreOpen();
+    lifecycle.resetCredentialLifecycle();
+
+    // OWNERSHIP. The same promise comes back, so a caller can still compare
+    // identities, and a held one keeps the join pending.
+    let release = (): void => undefined;
+    const heldWork = new Promise<void>((r) => {
+      release = r;
+    });
+    const returned = lifecycle.trackCredentialWork(heldWork);
+    const trackedIdentity = returned === heldWork;
+    const trackedCount = lifecycle.credentialWorkCount();
+
+    // A CHILD, owned and then cancelled by the join.
+    const child = lifecycle.ownCredentialChild();
+    const childCounted = lifecycle.credentialChildCount() === 1;
+
+    // A DEADLINE THAT EXPIRES SAYS SO rather than claiming it joined.
+    // A REF'D TIMER, because the join's own deadline is unref'd on purpose: with
+    // the tracked promise held and nothing else scheduled, node would exit
+    // rather than wait, and the probe would report an unsettled await instead
+    // of the reading.
+    const keepAlive = setTimeout(() => undefined, 5_000);
+    const short = await lifecycle.joinCredentialShutdown(20);
+    clearTimeout(keepAlive);
+    const joinReportsTracked = short.tracked === 1;
+    const joinReportsNotJoined = short.joined === false;
+    const childAborted = child.signal.aborted;
+    const childCountCleared = lifecycle.credentialChildCount() === 0;
+    const secondIsAlready = (await lifecycle.joinCredentialShutdown()).already;
+    release();
+    child.done();
+
+    // THE IDLE QUIT. Nothing tracked, nothing ended, no wait at all.
+    lifecycle.resetCredentialLifecycle();
+    const idle = await lifecycle.joinCredentialShutdown();
+
+    // THE LOCK BOUNDARY, which is interruption point 1. It is asked BEFORE the
+    // mkdir, so a lock the vendor holds is never taken and never stolen.
+    lifecycle.resetCredentialLifecycle();
+    const lockMem = inMemoryLockDeps();
+    let lockRefusal: unknown = null;
+    try {
+      const h = await locksMod.acquireLock('/scratch/.oauth_refresh.lock', {
+        lockName: '.oauth_refresh.lock',
+        deps: { ...lockMem.deps, cancelled: () => true }
+      });
+      h.release();
+    } catch (err) {
+      lockRefusal = err;
+    }
+    const refusedForStop =
+      lockRefusal instanceof locksMod.LockHeld && lockRefusal.why === 'stopped';
+    const lockNamedInRefusal =
+      lockRefusal instanceof Error &&
+      lockRefusal.message.includes('.oauth_refresh.lock') &&
+      lockRefusal.message.includes('closing');
+    // NOT ONE DIRECTORY WAS MADE, which is what "never steals a lock" means.
+    const lockMadeNothing = lockMem.made.length === 0;
+
+    // THE WATCHER'S OWN PASS, which starts nothing once admission has closed.
+    lifecycle.resetCredentialLifecycle();
+    const wroot = freshRoot();
+    const ww = makeWorld();
+    ww.files.set(CODEX_DEFAULT, codexCredential('alice', '1'));
+    const wd = makeDeps(wroot, ww);
+    let readsWhileClosed = 0;
+    let fire: (() => void) | null = null;
+    let told = 0;
+    const watcher = watchMod.startCredentialWatch({
+      keep: {
+        ...wd,
+        stores: {
+          ...wd.stores,
+          readText: async (path: string) => {
+            readsWhileClosed += 1;
+            return wd.stores.readText(path);
+          }
+        }
+      },
+      emitChanged: () => {
+        told += 1;
+      },
+      watchDir: () => ({ close: () => undefined }),
+      setTimeout: (fn: () => void) => {
+        fire = fn;
+        return { clear: () => undefined };
+      },
+      setInterval: () => ({ clear: () => undefined })
+    });
+    lifecycle.beginCredentialShutdown();
+    watcher.poke();
+    if (fire !== null) (fire as () => void)();
+    await new Promise<void>((r) => setTimeout(r, 20));
+    watcher.stop();
+    lifecycle.resetCredentialLifecycle();
+
+    out['lifecycle'] = {
+      absent: false,
+      openAtStart,
+      begunClosesAdmission,
+      trackedIdentity,
+      trackedCount,
+      joinReportsTracked,
+      joinReportsNotJoined,
+      childCounted,
+      childAborted,
+      childCountCleared,
+      secondIsAlready,
+      idle: JSON.stringify(idle),
+      refusedForStop,
+      lockNamedInRefusal,
+      lockMadeNothing,
+      watchReadNothing: readsWhileClosed === 0,
+      watchToldNobody: told === 0
     };
   }
 } finally {

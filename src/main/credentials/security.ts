@@ -38,7 +38,8 @@
  * forwarded: a failure answers a fixed sentence naming the service.
  */
 
-import { execFile } from 'node:child_process';
+import { runGuarded } from '../proc/guarded';
+import { credentialsAreOpen, ownCredentialChild } from './lifecycle';
 
 /** How long any one `security` call may take. */
 export const SECURITY_TIMEOUT_MS = 10_000;
@@ -99,7 +100,18 @@ export function isPlainKeychainPath(path: string): boolean {
  * seam never reads, writes or deletes an item in the person's own keychain,
  * whatever names it composes. The shipped app passes nothing here.
  */
-export function defaultSecurityRunner(keychainFile?: string): SecurityRunner {
+export function defaultSecurityRunner(
+  keychainFile?: string,
+  /**
+   * PHASE 220. The program, so a test can drive the SHIPPING runner over a
+   * child of its own that never exits, which is the only way to prove the
+   * cancel really ends something. It defaults to {@link SECURITY_BIN}, no
+   * shipping caller passes it, and nothing a person or an agent can write
+   * reaches this argument. `../usage/credentials.ts` takes the same seam for
+   * the same reason and says so in the same words.
+   */
+  bin: string = SECURITY_BIN
+): SecurityRunner {
   const file =
     keychainFile !== undefined && isPlainKeychainPath(keychainFile)
       ? keychainFile
@@ -108,38 +120,52 @@ export function defaultSecurityRunner(keychainFile?: string): SecurityRunner {
     throw new Error('the keychain file for security is not a path this domain will name');
   }
   return {
-    run: (argv, stdin) =>
-      new Promise((resolve) => {
-        calls += 1;
-        const line = [...argv];
-        let input = stdin;
-        if (file !== null) {
-          if (argv[0] === '-i') {
-            // THE COMMAND IS ON STDIN, so the keychain goes on the end of it,
-            // inside the same quotes the service and the account already use.
-            input =
-              stdin === undefined
-                ? undefined
-                : `${stdin.replace(/\n$/, '')} "${file}"\n`;
-          } else {
-            line.push(file);
-          }
+    run: async (argv, stdin) => {
+      // PHASE 220. NO NEW CHILD AFTER ADMISSION CLOSES. A call that arrives
+      // during the quit answers the way a `security` that found nothing
+      // answers, which every caller in this domain already treats as "no item"
+      // or as a refusal, so nothing has to learn a new failure.
+      if (!credentialsAreOpen()) return { code: 1, stdout: '' };
+      calls += 1;
+      const line = [...argv];
+      let input = stdin;
+      if (file !== null) {
+        if (argv[0] === '-i') {
+          // THE COMMAND IS ON STDIN, so the keychain goes on the end of it,
+          // inside the same quotes the service and the account already use.
+          input =
+            stdin === undefined
+              ? undefined
+              : `${stdin.replace(/\n$/, '')} "${file}"\n`;
+        } else {
+          line.push(file);
         }
-        const child = execFile(
-          SECURITY_BIN,
-          line,
-          { timeout: SECURITY_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
-          (err, stdout) => {
-            resolve({
-              code: err === null ? 0 : 1,
-              stdout: typeof stdout === 'string' ? stdout : ''
-            });
-          }
-        );
-        if (input !== undefined) {
-          child.stdin?.end(input);
+      }
+      // PHASE 220. THROUGH `../proc/guarded` RATHER THAN A BARE `execFile`.
+      // This was the one child in the product that nothing could reach: not
+      // `reapGuardedChildren()` at quit, and not this domain's own disposer,
+      // which did not exist. `runGuarded` puts it in the same registry every
+      // other guarded child is in, always settles inside its deadline, and
+      // takes an abort signal so {@link joinCredentialShutdown} can end it at
+      // its own point. The argv is the same argv, the deadline is the same ten
+      // seconds, and the payload still goes over stdin and reaches no command
+      // line.
+      const child = ownCredentialChild();
+      try {
+        const run = await runGuarded(bin, line, {
+          timeoutMs: SECURITY_TIMEOUT_MS,
+          maxOutputBytes: 4 * 1024 * 1024,
+          cancel: child.signal,
+          ...(input === undefined ? {} : { stdin: input })
+        });
+        if (run.spawnError !== null || run.timedOut || run.cancelled) {
+          return { code: 1, stdout: '' };
         }
-      })
+        return { code: run.code === 0 ? 0 : 1, stdout: run.stdout };
+      } finally {
+        child.done();
+      }
+    }
   };
 }
 

@@ -84,6 +84,7 @@ import {
   utimesSync
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { credentialsAreOpen } from './lifecycle';
 
 /**
  * Claude Code's credential locks are stale only past SIXTY seconds (2.1.259
@@ -160,13 +161,15 @@ export function storageWriteLockDir(configHome: string): string {
 export class LockHeld extends Error {
   constructor(
     public readonly lockName: string,
-    public readonly why: 'held' | 'unwritable' = 'held'
+    public readonly why: 'held' | 'unwritable' | 'stopped' = 'held'
   ) {
     super(
       why === 'held'
         ? `Could not take ${lockName}: Claude Code appears to be refreshing ` +
             'its credentials. Try again in a few seconds.'
-        : `Could not make ${lockName}: the sign in folder is missing or not writable.`
+        : why === 'unwritable'
+          ? `Could not make ${lockName}: the sign in folder is missing or not writable.`
+          : `Could not take ${lockName}: Tortie is closing, so nothing was written.`
     );
     this.name = 'LockHeld';
   }
@@ -192,6 +195,22 @@ export interface LockDeps {
   sleep(ms: number): Promise<void>;
   /** Set an interval, so a test can drive the toucher without real time. */
   setInterval(fn: () => void, ms: number): { clear(): void };
+  /**
+   * PHASE 220. Has this domain stopped accepting work?
+   *
+   * IT IS ASKED ONLY WHILE THE LOCK IS BEING WAITED FOR, which is interruption
+   * point 1 in `./lifecycle.ts` and the only point at which a write is
+   * cancelled on purpose. Nothing has been read and nothing written, so a
+   * refusal here leaves the outgoing account exactly where it was; and because
+   * the answer is asked BEFORE the mkdir rather than after it, a lock the
+   * vendor holds is never taken and so can never be stolen or released by a
+   * quit. A lock already HELD is never given up this way: a write past its lock
+   * runs to completion and is interrupted only by its own child ending, which
+   * lands on `./swap.ts`'s old-or-new guarantee.
+   *
+   * The default is this domain's own admission. The tests hand in their own.
+   */
+  cancelled?(): boolean;
 }
 
 /** The real seams, over the file system. */
@@ -231,6 +250,7 @@ export function defaultLockDeps(): LockDeps {
       }
     },
     now: () => Date.now(),
+    cancelled: () => !credentialsAreOpen(),
     sleep: (ms) => new Promise<void>((r) => setTimeout(r, ms)),
     setInterval: (fn, ms) => {
       const id = setInterval(fn, ms);
@@ -268,11 +288,25 @@ export async function acquireLock(
   const deps = opts.deps ?? defaultLockDeps();
   const timeout = opts.timeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS;
   const staleness = opts.stalenessMs ?? CREDENTIALS_STALENESS_MS;
+  /**
+   * PHASE 220. THE ONE PLACE A WRITE IS CANCELLED ON PURPOSE, written once and
+   * asked twice: before the parent is made, so a quit makes no directory at
+   * all, and at the top of every turn of the wait, so a quit that arrives while
+   * the vendor holds the lock stops waiting for it. Both asks are before the
+   * mkdir that would TAKE the lock, which is what makes this a refusal rather
+   * than a lock given up: a lock this process never took is a lock it can
+   * never steal or release out from under the vendor.
+   */
+  const refuseIfStopped = (): void => {
+    if (deps.cancelled?.() === true) throw new LockHeld(opts.lockName, 'stopped');
+  };
+  refuseIfStopped();
   // The parent must exist for the mkdir to land. It is the config home or the
   // directory holding it, both of which Tortie has already resolved.
   ensureParent(dir, deps);
   const start = deps.now();
   for (;;) {
+    refuseIfStopped();
     let made: boolean;
     try {
       made = deps.mkdir(dir);

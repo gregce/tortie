@@ -25,6 +25,7 @@ import { readTextNoFollowSync, renameNoFollowSync, writeNoFollowSync } from './n
 import { defaultSecurityRunner, type SecurityRunner } from './security';
 import type { StoreDeps } from './stores';
 import { sweepableSlots, type KeepDeps, type LiveSession } from './keep';
+import { credentialsAreOpen, trackCredentialWork } from './lifecycle';
 import { migrateUnscopedVault, ownProfileVerdict, type MigrateResult } from './migrate';
 import { fileVault, keychainVault, type VaultBackend } from './vault';
 
@@ -43,6 +44,18 @@ export {
   type LiveSession
 } from './keep';
 export { readKeptFile, writeKeptFile, type KeptFile, type KeptRecord } from './kept';
+export {
+  beginCredentialShutdown,
+  credentialChildCount,
+  credentialWorkCount,
+  credentialsAreOpen,
+  joinCredentialShutdown,
+  ownCredentialChild,
+  resetCredentialLifecycle,
+  trackCredentialWork,
+  CREDENTIAL_SHUTDOWN_JOIN_MS,
+  type CredentialShutdownReport
+} from './lifecycle';
 export {
   defaultKeychainFingerprint,
   startCredentialWatch,
@@ -313,8 +326,13 @@ let migration: Promise<MigrateResult> | null = null;
  */
 export function readyKeepDeps(): Promise<KeepDeps> {
   const deps = keepDeps();
+  // PHASE 220. A QUIT DOES NOT START THE MOVE. The migration reads and writes
+  // keychain items, so a caller that reaches this line after admission closed
+  // gets the seams back with nothing started; one already running is OWNED
+  // below and joined by the disposer.
+  if (migration === null && !credentialsAreOpen()) return Promise.resolve(deps);
   if (migration === null) {
-    migration =
+    migration = trackCredentialWork(
       keychainIsTheStore() && deps.vault.kind === 'keychain'
         ? migrateUnscopedVault({
             // THE SAME `security` THE STORES USE, so a harness seam that points
@@ -348,7 +366,8 @@ export function readyKeepDeps(): Promise<KeepDeps> {
             deleted: 0,
             kept: 0,
             failed: 0
-          });
+          })
+    );
   }
   return migration.then(() => deps);
 }

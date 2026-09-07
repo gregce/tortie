@@ -125,6 +125,23 @@
  *      naming the store it may have changed when nothing was confirmed, and the
  *      Phase 211 shaped partial when a write was. Neither rolls anything back,
  *      because a vendor refresh may have landed in the same window.
+ *  19. THE DOMAIN HAS ONE SHUTDOWN OWNER (Phase 220). At `b5cc017` the whole of
+ *      this domain's quit was `stopLoginsWatch()`: the `security` children were
+ *      a raw `execFile` in no registry, the observation in flight was held by
+ *      nobody once a change replaced it, the boot chain could install a watcher
+ *      AFTER the ordered disposer had finished with the domain, and the
+ *      migration, nine seconds of lock waits and the activation were owned by
+ *      nothing at all. The runtime half of this rule is arm 12 of the probe,
+ *      over the shipping lifecycle, lock and watch modules, and it spawns
+ *      NOTHING: that the cancel really ends a `/usr/bin/security` is proved by
+ *      `src/main/credentials/__tests__/p220-shutdown.test.ts`, which spawns a
+ *      stand in that never exits. The scanned half is the two things an
+ *      ablation cannot reach, being that `security.ts` runs its child through
+ *      `runGuarded` with a cancel rather than a bare `execFile`, and that
+ *      `disposeMainCapabilities` closes admission BEFORE its first await and
+ *      awaits the join; the second is scanned because `capabilities.ts` is not
+ *      in the domain the ablated copies carry, and it is proved on six fixtures
+ *      of which five must make it fail.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -673,7 +690,8 @@ const VERDICT_PARTS = [
   'nofollow',
   'keychain',
   'scope',
-  'shapes'
+  'shapes',
+  'lifecycle'
 ];
 
 function verdict(d) {
@@ -713,7 +731,8 @@ function verdict(d) {
     JSON.stringify(d.nofollow),
     JSON.stringify(keychain),
     JSON.stringify(d.scope),
-    JSON.stringify(d.shapes)
+    JSON.stringify(d.shapes),
+    JSON.stringify(d.lifecycle)
   ];
 }
 
@@ -1307,6 +1326,196 @@ if ('error' in live) {
     `${String(live.roundTrip.pairs.length)} ordered pairs switched and back with all ${String(live.roundTrip.accounts.length)} accounts intact, ${String(live.interrupted.length)} interrupted arms, ${String(live.attack.length)} attack shapes, ${String(live.keychain.argvCount)} keychain calls and no payload on any of them`
   );
 }
+
+// ---------------------------------------------------------------------------
+// Rule 19 (Phase 220, item 2). THE DOMAIN HAS ONE SHUTDOWN OWNER.
+//
+// The runtime half is arm 12 of the probe, over the SHIPPING lifecycle, lock
+// and watch modules. It spawns nothing: that the cancel really ends a
+// `/usr/bin/security` is proved by the vitest file, which spawns a stand in
+// that never exits, and this gate stays one that opens no process.
+//
+// The scanned half is here, and it is the half an ablation cannot reach:
+// `../src/main/capabilities.ts` is not in the domain, so the copy the
+// ablations run over does not carry it. Both scanners are proved on fixtures
+// this file writes, of which several must make them fail.
+// ---------------------------------------------------------------------------
+
+if (!('error' in live)) {
+  const life = live.lifecycle ?? { absent: true };
+  check(
+    life.absent !== true,
+    `${TAG} the credentials domain carries no lifecycle.ts, so nothing owns its shutdown: at that commit the whole of this domain's quit is stopLoginsWatch()`
+  );
+  if (life.absent !== true) {
+    check(
+      life.openAtStart && life.begunClosesAdmission,
+      `${TAG} admission does not close synchronously, so work can still be admitted while the quit runs`
+    );
+    check(
+      life.trackedIdentity,
+      `${TAG} trackCredentialWork does not hand back the promise it was given, so a caller cannot both own and cache one`
+    );
+    check(
+      life.trackedCount === 1 && life.joinReportsTracked,
+      `${TAG} accepted work is not owned, so the join has nothing to wait for`
+    );
+    check(
+      life.joinReportsNotJoined,
+      `${TAG} A JOIN THAT RAN OUT OF TIME REPORTED THAT IT JOINED, which is the one thing a shutdown report may never do`
+    );
+    check(
+      life.childCounted && life.childAborted && life.childCountCleared,
+      `${TAG} the join does not reach this domain's own security children`
+    );
+    check(
+      life.secondIsAlready,
+      `${TAG} a second join is not idempotent`
+    );
+    check(
+      life.idle === '{"already":false,"tracked":0,"children":0,"joined":true,"waitedMs":0}',
+      `${TAG} an idle quit is not immediate: it answered ${String(life.idle)}`
+    );
+    check(
+      life.refusedForStop && life.lockNamedInRefusal,
+      `${TAG} a lock waited for during a quit is not refused in a sentence naming the lock`
+    );
+    check(
+      life.lockMadeNothing,
+      `${TAG} A LOCK WAIT DURING A QUIT MADE A DIRECTORY, so the refusal is not before the mkdir and a lock could be taken while the domain is closing`
+    );
+    check(
+      life.watchReadNothing && life.watchToldNobody,
+      `${TAG} the watcher's own pass still reads every store after admission closes`
+    );
+  }
+}
+
+/** Does `security.ts` run its child through the guarded registry, cancellably? */
+function securityIsGuarded(text) {
+  const body = stripComments(text);
+  if (/\bexecFile\s*\(/.test(body)) return false;
+  if (!/\brunGuarded\s*\(/.test(body)) return false;
+  return /cancel:\s*\w+\.signal/.test(body);
+}
+{
+  const SECURITY_FIXTURES = [
+    {
+      name: 'guarded and cancellable',
+      text: "const child = ownCredentialChild();\nconst run = await runGuarded(bin, line, { cancel: child.signal });\n",
+      guarded: true
+    },
+    {
+      name: 'the bare execFile this phase replaced',
+      text: "const child = execFile(SECURITY_BIN, line, { timeout: 10 }, cb);\n",
+      guarded: false
+    },
+    {
+      name: 'guarded but with no cancel, so the disposer cannot reach it',
+      text: "const run = await runGuarded(bin, line, { timeoutMs: 10 });\n",
+      guarded: false
+    },
+    {
+      name: 'the cancel only in a comment',
+      text: "// cancel: child.signal\nconst run = await runGuarded(bin, line, { timeoutMs: 10 });\n",
+      guarded: false
+    }
+  ];
+  let behaved = 0;
+  for (const f of SECURITY_FIXTURES) {
+    if (securityIsGuarded(f.text) === f.guarded) behaved += 1;
+    else failures.push(`${TAG} the security scanner misread the fixture "${f.name}"`);
+  }
+  notes.push(`${String(behaved)} of ${String(SECURITY_FIXTURES.length)} security fixtures behaved`);
+}
+check(
+  securityIsGuarded(readFileSync(join(DOMAIN, 'security.ts'), 'utf8')),
+  `${TAG} src/main/credentials/security.ts does not run its security child through runGuarded with a cancel, so neither the quit reap nor this domain's own disposer can reach it`
+);
+
+/**
+ * Is the shutdown owner registered in the ordered disposer, and is admission
+ * closed BEFORE the first await of it?
+ *
+ * Read from `disposeMainCapabilities`'s own braces, because a call in some
+ * other function is not a call in this one, and the position is the rule: a
+ * begin after the first await is a begin that let work in while the quit ran.
+ */
+function disposerRegistersTheOwner(text) {
+  const body = functionBodyOf(text, 'disposeMainCapabilities');
+  if (body === null) return false;
+  const begin = body.indexOf('beginCredentialShutdown(');
+  const join = body.indexOf('joinCredentialShutdown(');
+  if (begin < 0 || join < 0) return false;
+  const firstAwait = body.indexOf('await ');
+  if (firstAwait >= 0 && begin > firstAwait) return false;
+  return /await\s+joinCredentialShutdown\s*\(/.test(body);
+}
+
+/** The body of the function called `name` in `text`, braces matched, or null. */
+function functionBodyOf(text, name) {
+  const body = stripComments(text);
+  const m = new RegExp(`\\bfunction\\s+${name}\\s*\\(`).exec(body);
+  if (m === null) return null;
+  const open = body.indexOf('{', m.index);
+  if (open < 0) return null;
+  let depth = 0;
+  for (let i = open; i < body.length; i++) {
+    const ch = body[i];
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return body.slice(open, i + 1);
+    }
+  }
+  return null;
+}
+{
+  const DISPOSER_FIXTURES = [
+    {
+      name: 'registered, and admission closes before the first await',
+      text: "export async function disposeMainCapabilities() {\n  beginCredentialShutdown();\n  stopLoginsWatch();\n  const r = await joinCredentialShutdown();\n  await other();\n}\n",
+      ok: true
+    },
+    {
+      name: 'not registered at all, which is the parent',
+      text: "export async function disposeMainCapabilities() {\n  stopLoginsWatch();\n  await other();\n}\n",
+      ok: false
+    },
+    {
+      name: 'joined but never begun',
+      text: "export async function disposeMainCapabilities() {\n  stopLoginsWatch();\n  const r = await joinCredentialShutdown();\n}\n",
+      ok: false
+    },
+    {
+      name: 'begun after the first await, so work was admitted while the quit ran',
+      text: "export async function disposeMainCapabilities() {\n  await other();\n  beginCredentialShutdown();\n  const r = await joinCredentialShutdown();\n}\n",
+      ok: false
+    },
+    {
+      name: 'the join not awaited, so the disposer resolves while the domain runs',
+      text: "export async function disposeMainCapabilities() {\n  beginCredentialShutdown();\n  void joinCredentialShutdown();\n  await other();\n}\n",
+      ok: false
+    },
+    {
+      name: 'registered in some other function',
+      text: "function elsewhere() {\n  beginCredentialShutdown();\n  return joinCredentialShutdown();\n}\nexport async function disposeMainCapabilities() {\n  await other();\n}\n",
+      ok: false
+    }
+  ];
+  let behaved = 0;
+  for (const f of DISPOSER_FIXTURES) {
+    if (disposerRegistersTheOwner(f.text) === f.ok) behaved += 1;
+    else failures.push(`${TAG} the disposer scanner misread the fixture "${f.name}"`);
+  }
+  notes.push(`${String(behaved)} of ${String(DISPOSER_FIXTURES.length)} disposer fixtures behaved`);
+}
+check(
+  disposerRegistersTheOwner(
+    readFileSync(join(repoRoot, 'src/main/capabilities.ts'), 'utf8')
+  ),
+  `${TAG} disposeMainCapabilities does not close credential admission before its first await and await the join, so this domain has no owner in the ordered quit`
+);
 
 // ---------------------------------------------------------------------------
 // The ablations. Each one must change the verdict.
@@ -1981,6 +2190,71 @@ const ABLATIONS = [
         file: 'keep.ts',
         from: '  } catch {\n    // AN UNCLASSIFIED THROW IS NOT A SUCCESSFUL SWITCH (Phase 220).',
         to: '  } catch (thrown) {\n    throw thrown;\n    // AN UNCLASSIFIED THROW IS NOT A SUCCESSFUL SWITCH (Phase 220).'
+      }
+    ]
+  },
+  {
+    // PHASE 220, item 2. Admission never closes, so every entry point goes on
+    // admitting work while the quit runs.
+    name: 'admission never closes',
+    edits: [
+      {
+        file: 'lifecycle.ts',
+        from: 'export function beginCredentialShutdown(): void {\n  open = false;\n}',
+        to: 'export function beginCredentialShutdown(): void {\n  open = open;\n}'
+      },
+      {
+        file: 'lifecycle.ts',
+        from: '  // ADMISSION CLOSES HERE TOO, so a caller that reaches the join without the\n  // disposer\'s first line still cannot admit work while it runs.\n  open = false;',
+        to: '  // ADMISSION CLOSES HERE TOO, so a caller that reaches the join without the\n  // disposer\'s first line still cannot admit work while it runs.'
+      }
+    ]
+  },
+  {
+    // PHASE 220, item 2. Accepted work is not owned, so the join has nothing to
+    // wait for and resolves while a pass is still reading stores.
+    name: 'accepted work not owned',
+    edits: [
+      {
+        file: 'lifecycle.ts',
+        from: '  tracked.add(held);',
+        to: '  if (held === undefined) tracked.add(held);'
+      }
+    ]
+  },
+  {
+    // PHASE 220, item 2. The cancel never reaches this domain's own children,
+    // which is the shape the bare execFile had.
+    name: 'the security children not cancelled by the join',
+    edits: [
+      {
+        file: 'lifecycle.ts',
+        from: '  for (const one of children) {\n    one.abort();\n    ended += 1;\n  }',
+        to: '  for (const one of children) {\n    ended += 1;\n  }'
+      }
+    ]
+  },
+  {
+    // PHASE 220, item 2. The lock wait is not cancelled, so a quit waits nine
+    // seconds per lock for a lock it is not going to use.
+    name: 'the lock wait not cancelled',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: "    if (deps.cancelled?.() === true) throw new LockHeld(opts.lockName, 'stopped');",
+        to: "    if (false) throw new LockHeld(opts.lockName, 'stopped');"
+      }
+    ]
+  },
+  {
+    // PHASE 220, item 2. The watcher's own pass walks every store during the
+    // quit, which is the pass nothing owned at the parent.
+    name: "the watcher's pass not refused after shutdown",
+    edits: [
+      {
+        file: 'watch.ts',
+        from: '    if (running || stopped || !credentialsAreOpen()) return;',
+        to: '    if (running || stopped) return;'
       }
     ]
   },

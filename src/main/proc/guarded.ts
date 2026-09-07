@@ -170,6 +170,20 @@ export interface GuardedRunOptions {
    * that must not resolve while its own child is still running.
    */
   cancel?: AbortSignal;
+  /**
+   * PHASE 220. Text to send on the child's stdin, closed straight after.
+   *
+   * It exists for exactly one caller, being `../credentials/security.ts`, whose
+   * write is `security -i` and reads its WHOLE command from the pipe so that no
+   * credential ever reaches an argv. Without it that one child could not come
+   * through this helper, and the credentials domain would keep the bare
+   * `execFile` that nothing could reach: not the quit reap, and not its own
+   * disposer.
+   *
+   * When it is not given the child gets no stdin at all, which is what every
+   * other caller has always had, so nothing about them changes.
+   */
+  stdin?: string;
 }
 
 export interface GuardedRunResult {
@@ -230,7 +244,7 @@ export function runGuarded(
     try {
       child = spawn(bin, [...args], {
         detached: true, // own process group ⇒ the forks are reachable too
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: [options.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
         ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
         ...(options.env !== undefined ? { env: options.env } : {})
       });
@@ -240,6 +254,14 @@ export function runGuarded(
     }
 
     const untrack = trackGuardedChild(child);
+
+    // PHASE 220. The whole command over the pipe, then the pipe closed. A
+    // broken pipe is not an error the caller should see: the child is already
+    // gone in that case and the deadline or the close settles this call.
+    if (options.stdin !== undefined) {
+      child.stdin?.on('error', () => undefined);
+      child.stdin?.end(options.stdin);
+    }
 
     child.stdout?.setEncoding('utf8');
     child.stderr?.setEncoding('utf8');

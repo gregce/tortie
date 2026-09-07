@@ -58,6 +58,7 @@ import { keychainAccount, keychainModified } from './security';
 import { loginDirIn, loginDirOnDisk } from '../logins/dirs';
 import { readLoginsFile } from '../logins/store';
 import { observeProvider, type KeepDeps } from './keep';
+import { credentialsAreOpen, trackCredentialWork } from './lifecycle';
 
 /** How long a burst of file events is allowed to settle into one observe. */
 export const WATCH_DEBOUNCE_MS = 400;
@@ -242,12 +243,16 @@ export function startCredentialWatch(deps: WatchDeps): CredentialWatch {
     const wait = Math.max(WATCH_DEBOUNCE_MS, OBSERVE_MIN_INTERVAL_MS - since);
     timer = setT(() => {
       timer = null;
-      void run();
+      // PHASE 220. THE PASS IS OWNED. `stop()` clears the timer and closes the
+      // handles, and until this phase a pass already running was held by
+      // nobody: it went on reading stores and writing Tortie's own after the
+      // disposer had finished with this domain.
+      void trackCredentialWork(run());
     }, wait);
   }
 
   async function run(): Promise<void> {
-    if (running || stopped) return;
+    if (running || stopped || !credentialsAreOpen()) return;
     running = true;
     pending = false;
     lastRunAt = now();
@@ -278,6 +283,8 @@ export function startCredentialWatch(deps: WatchDeps): CredentialWatch {
   if (deps.keychainFingerprint !== undefined) {
     const poll = deps.keychainFingerprint;
     interval = setI(() => {
+      // PHASE 220. The backstop starts no `security` child during a quit.
+      if (!credentialsAreOpen()) return;
       void poll()
         .then((fingerprint) => {
           if (fingerprint === null) return;

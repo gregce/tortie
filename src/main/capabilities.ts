@@ -35,7 +35,12 @@ import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
 // snapshot they answer from, dropped in the ordered disposer below.
 import { disposeUsageService, registerUsageIpc } from './usage/ipc';
 import { registerLoginsIpc, stopLoginsWatch } from './logins/ipc';
-import { setLiveSessionsProbe, type LiveSession } from './credentials';
+import {
+  beginCredentialShutdown,
+  joinCredentialShutdown,
+  setLiveSessionsProbe,
+  type LiveSession
+} from './credentials';
 import { stopLiveSampling } from './diagnostics/live';
 import { loginProviderForAgent } from '@shared/logins';
 import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
@@ -410,10 +415,38 @@ function afterMs(ms: number): { wait: Promise<void>; cancel: () => void } {
  * the same ordered teardown, exactly as the pre-move handler did.
  */
 export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
+  // PHASE 220. ADMISSION FOR THE CREDENTIALS DOMAIN CLOSES ON THE FIRST LINE,
+  // synchronously, before any await in this function. From here a list, a
+  // choose, the boot observe, a late watch start, the vault migration and a
+  // `security` child all begin nothing, which is what makes the join below a
+  // bounded thing rather than a race against work still being admitted.
+  beginCredentialShutdown();
   // PHASE 211. Stop the credential watcher first: it holds fs.watch handles and
   // a slow interval, and both must be released whatever the rest of teardown
   // does. It is synchronous and cannot throw.
   stopLoginsWatch();
+  // PHASE 220. Then join what was already accepted: the observation in flight
+  // and the one a change replaced, an activation, the migration, and this
+  // domain's own `security` children, which are ended by the handle that
+  // spawned them and never by name. It is HERE, before `shutdownGmuxCore()`
+  // below, because an observe reaches the manifest through the live sessions
+  // seam and a write must settle before the owner it asks is closed. A quit
+  // with nothing in flight walks two empty sets and resolves in this same
+  // tick, so the ordinary quit pays nothing and starts no process.
+  const credentials = await joinCredentialShutdown();
+  if (credentials.tracked > 0 || credentials.children > 0) {
+    getLog('quit').info(
+      `settled credential work: ${credentials.tracked} operation(s) and ` +
+        `${credentials.children} keychain child(ren), ` +
+        `${credentials.joined ? 'joined' : 'NOT joined'} after ${credentials.waitedMs} ms`,
+      {
+        tracked: credentials.tracked,
+        children: credentials.children,
+        joined: credentials.joined,
+        waitedMs: credentials.waitedMs
+      }
+    );
+  }
   // Phase 18.6: a clone in flight is cancelled the same way pressing
   // Cancel cancels it, with SIGTERM and never SIGKILL, because a hard kill
   // leaves a repository mid write. Awaited first and bounded inside, so
