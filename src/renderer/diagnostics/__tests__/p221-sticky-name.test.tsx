@@ -34,12 +34,25 @@
  * `:first-child`, so a column inserted before Session would move it without
  * touching this stylesheet at all.
  *
- * PROVED TO BE ABLE TO FAIL, on 2026-09-07, one clause at a time, eight of
- * eight red: the pin made static, its fill changed to `--bg-canvas`, its scope
+ * THE FIX ROUND ADDED THE LAYER, and it is the one thing here that was a
+ * REGRESSION rather than a rule. `.diag-head` has been `position: sticky;
+ * z-index: 1` since Phase 163, and this pin arrived sticky at the same number.
+ * Nothing between the pinned cell and the tab makes a stacking context, so the
+ * two are siblings in ONE context, tree order decides, and the table is later:
+ * the pinned column painted over the report's own head and took its clicks.
+ * The head is at 2 now and the two cases below hold it, the second of them
+ * against EVERY other z-index in the file rather than against the pin alone,
+ * because `.diag-ladder-dot` was already sitting on the head for the same
+ * reason and a later rule can do it again.
+ *
+ * PROVED TO BE ABLE TO FAIL, on 2026-09-07, one clause at a time, ten of ten
+ * red: the pin made static, its fill changed to `--bg-canvas`, its scope
  * dropped so the Tortie table is caught too, the hover rule's background taken
  * away, `left` moved off 0, `.diag-scroll` given `overflow-x: visible` so the
- * tab scrolls instead of the card, the 22ch name cap removed, and the project
- * cell moved in front of the name cell in `DiagnosticsTab.tsx`.
+ * tab scrolls instead of the card, the 22ch name cap removed, the project
+ * cell moved in front of the name cell in `DiagnosticsTab.tsx`, the head put
+ * back to z-index 1, and the head left at 2 with `.diag-ladder-dot` raised to
+ * meet it.
  */
 
 import { readFileSync } from 'node:fs';
@@ -206,6 +219,44 @@ describe('the pinned first column', () => {
 
   it('stacks above the cells that scroll under it', () => {
     expect(Number(decl(STICKY?.[1] ?? '', 'z-index'))).toBeGreaterThan(0);
+  });
+
+  it('stays UNDER the report head, which is the other sticky layer in the same context', () => {
+    // PHASE 221'S FIX ROUND. `.diag-head` has been `position: sticky;
+    // z-index: 1` since Phase 163, and this pin is sticky too. Neither
+    // `.diag-group` (overflow hidden) nor `.diag-scroll` (overflow-x auto)
+    // makes a stacking context, so the two are SIBLINGS in one context: at the
+    // same number TREE ORDER decides and the table is later, so the pinned
+    // column painted over the report's own head and swallowed its clicks.
+    // Measured in the running app: a point three pixels inside the head
+    // answered the table's Session header, and a click meant for Heap snapshot
+    // landed on a sort button. It is not a narrow-pane case — `position:
+    // sticky` makes a stacking context whether or not its scroller overflows.
+    // `npm run probe:p219` reading 9 is what holds it against a real pixel;
+    // this holds the arithmetic under `npm test`.
+    const head = ruleFor((s) => s.trim() === '.diag-head');
+    expect(head).not.toBeNull();
+    expect(decl(head?.[1] ?? '', 'position')).toBe('sticky');
+    expect(Number(decl(head?.[1] ?? '', 'z-index'))).toBeGreaterThan(
+      Number(decl(STICKY?.[1] ?? '', 'z-index'))
+    );
+  });
+
+  it('stays under every OTHER positioned layer the tab already had, too', () => {
+    // The same defect, one rule further down: `.diag-ladder-dot` is
+    // `position: relative; z-index: 1` and is later in tree order than the
+    // head. Nothing in this tab may share the head's number.
+    const head = Number(decl(ruleFor((s) => s.trim() === '.diag-head')?.[1] ?? '', 'z-index'));
+    const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+    const others: number[] = [];
+    for (const m of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selector = (m[1] ?? '').split('\n').map((s) => s.trim()).filter(Boolean).join(' ');
+      if (selector.trim() === '.diag-head') continue;
+      const z = decl(m[2] ?? '', 'z-index');
+      if (z !== null) others.push(Number(z));
+    }
+    expect(others.length).toBeGreaterThan(0);
+    for (const z of others) expect(z).toBeLessThan(head);
   });
 
   it('keeps the row hover on the cell its own fill would paint over', () => {

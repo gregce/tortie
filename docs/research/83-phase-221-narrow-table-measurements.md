@@ -152,7 +152,8 @@ the numbers scroll under a name that stays. Driven at `EDITOR_MIN` with `scrollL
 of 392:
 
 - the head and the cell both stay at **0px from the card's left edge**; it sticks;
-- computed `position: sticky`, `z-index: 1`, an opaque background, so nothing shows through;
+- computed `position: sticky`, `z-index: 1`, an opaque background, so nothing shows through — and
+  **that z-index is the one thing this section got wrong**, which section 8 measures and fixes;
 - **the collapsed border survives**: `.diag-table` is `border-collapse: collapse`, which historically
   broke sticky cells, and the head's `border-bottom` still measures 1px;
 - at the far end of the scroll `Started` sits beside the pinned name at 158px, so every column is
@@ -209,3 +210,84 @@ with one cell's text. The rule that can fail is the sticky one: the first column
 and the row-hover rule exists; with an ablation of each that goes red. The floor itself is pinned as
 an ORDERING — the table's floor exceeds the card at `EDITOR_MIN` — which is the true statement and
 is the one a person can act on.
+
+## 8. The fix round: what section 6 did not measure, and it was a regression
+
+Section 6 read the pin's `z-index` as `1` and recorded it as proof the pin stacks above the cells
+that scroll under it. It does, and that was the wrong question to stop at. **`.diag-head` has been
+`position: sticky; z-index: 1` since Phase 163** (`diagnostics.css:34`), and the pin arrived at the
+same number.
+
+**Nothing between them makes a stacking context.** Walked in the running window, from the pinned
+`th` up to `.diag`: `.diag-group` is `overflow: hidden` and `.diag-scroll` is `overflow-x: auto`,
+and neither of those makes one; the only stacking context the walk finds is the pinned cell itself.
+So the report's head and the pinned column are **siblings in one stacking context at one z-index**,
+and tree order decides. The table is later in the document.
+
+Measured, one window, four arms taken through the CSSOM so the build never changes, at a point three
+pixels inside the head's bottom edge with a session row scrolled under it. The tab is at
+`EDITOR_MIN` here only because that is where the round's other readings are taken; the width is not
+what decides it, and the paragraph after the table is the proof:
+
+| arm | head z | pin | `elementFromPoint` at (1039, 236) |
+| --- | --- | --- | --- |
+| as shipped at `de84278` | 1 | `sticky`, z 1 | `TH` — the table's own **Session** header |
+| pin ablated to `static` | 1 | `static` | `HEADER.diag-head` — the report head |
+| head lifted to 2, pin intact | 2 | `sticky`, z 1 | `HEADER.diag-head` — the report head |
+| as shipped again | 1 | `sticky`, z 1 | `TH` — **Session** again |
+
+The photograph at that point reads `#212329`, the pin's `--bg-raised`, and not the head's
+`--bg-surface` `rgb(25, 27, 32)`. It takes the **hit test** as well as the paint, so a click aimed
+at `Capture again` or `Heap snapshot` lands on the table's sort button instead.
+
+**It is not a narrow-pane case and it does not need the card scrolled.** `position: sticky` makes a
+stacking context whether or not its scroller is scrolled, so this happened at every pane width, any
+time a session row scrolled vertically under the head. Reading 9 in the shipped probe is deliberately
+taken with the pane width **removed** and `scrollLeft` back at **0** — the pin at its resting place,
+where a person has done nothing sideways at all — and with `.diag-head` ablated back to `z-index: 1`
+it still answers `TH "Session"` at (1039, 178) on a 461px card.
+
+**The remedy is `.diag-head { z-index: 2 }` and nothing else.** The page's own head outranks a
+column inside one of its cards. `.diag-ladder-dot` further down is `position: relative; z-index: 1`
+and was sitting on the head for exactly the same reason, so the same one line fixes that too, and
+`p221-sticky-name.test.tsx` now asserts the head against **every** other z-index in the file rather
+than against the pin alone.
+
+`probe:p219` reading 9 is what holds it against a real pixel: it walks the ancestors to prove the
+context claim rather than assert it, scrolls the tab until a row straddles the head's bottom edge,
+and asks `elementFromPoint`. With the head put back to 1 it goes red naming both clauses and reports
+`TH "Session"`.
+
+### Reading 8 could not fail, and now it can
+
+Reading 8 samples the photograph at the header's hairline under the pin and beside it. It wanted
+`pinned.d > 0` and an asymmetry, `pinned.d >= beside.d * 0.5`. Neither can fail:
+
+- With `border-bottom` removed from every `.diag-table th`, **no hairline is painted anywhere**, both
+  samples drop from 16 to a distance of **1** from the card's fill — antialiased text — and `1 > 0`
+  and `1 >= 0.5` both hold. Green over a border that is not there.
+- Recolouring the collapsed border from the CSSOM moves the computed style and **no pixel at all**,
+  because Chromium's collapsed-border conflict resolution keeps `--border`.
+
+So the question is asked against the **resolved `--border`** now: the strongest pixel in the band
+must be closer to the border colour than to the card's fill. Shipped it reads `#26282e`, 1 from
+`--border` `rgb(37, 40, 46)` and 16 from the fill. With the border removed it reads `#212329`, 14
+from the border and 1 from the fill, and the reading goes red.
+
+**And a sample must land inside the card.** Under the `static` ablation the pinned head sits at
+-281px, entirely off the card, and both samples read `#131417` — the canvas behind the tab. A pixel
+*was* read, so the old `d >= 0` guard held and reading 8 went green over a sample taken nowhere near
+the thing it names. That is the same class as the correction section 6's probe already carried for a
+band entirely off the image. The card's own rectangle is read in the same window and the sample
+point must be inside it.
+
+The three ablations, each red on its own clause, rebuilt and driven one at a time:
+
+| ablation | what went red |
+| --- | --- |
+| `.diag-head` back to `z-index: 1` | reading 9, both clauses, hit `TH "Session"` |
+| `border-bottom` off `.diag-table th` | reading 8's hairline, `#212329`, 14 from `--border` |
+| the pin made `position: static` | reading 7's two clauses **and** reading 8's outside-the-card guard **and** its hairline |
+
+The third one is the point: at `de84278` that ablation reddened reading 7 alone and reading 8
+reported a hairline it had sampled on the canvas.

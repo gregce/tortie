@@ -42,7 +42,32 @@
   position: sticky;
   top: 0;
   background: var(--bg-surface);
-  z-index: 1;
+  /*
+   * TWO IS NOT DECORATION, IT IS THE ONLY NUMBER THAT WORKS, and Phase 221's
+   * fix round measured why. This head is sticky, and so, since that phase, is
+   * the sessions table's first column four hundred lines down. Nothing between
+   * the pinned cell and the document root makes a stacking context (the walk
+   * that proves it is probe:p219 reading 9, and the only one it finds is the
+   * cell itself), so the two sticky layers are SIBLINGS in one context. At the
+   * same z-index the later one in tree order wins, and the table is later, so
+   * the pinned column painted over this head AND took its clicks: with a row
+   * scrolled under the head, `elementFromPoint` three pixels inside it
+   * answered the table's own Session header, and a click meant for Capture
+   * again or Heap snapshot landed on the table's sort button instead.
+   *
+   * IT IS NOT A NARROW-PANE EDGE CASE AND IT DOES NOT NEED THE CARD SCROLLED.
+   * `position: sticky` makes a stacking context whether or not its scroller is
+   * scrolled, so this happened at every pane width the moment a session row
+   * scrolled vertically under this head. Reading 9 is taken with no pane width
+   * set and the card's own `scrollLeft` at 0, the pin at rest, and at the same
+   * z-index it still wins there.
+   *
+   * The page's own head outranks a column inside one of its cards, so the
+   * head is the one that goes up. `.diag-ladder-dot` further down is
+   * `position: relative; z-index: 1` for the same reason and is below this
+   * too, which is also right.
+   */
+  z-index: 2;
 }
 
 .diag-title {
@@ -295,6 +320,13 @@
 .diag-group-sessions .diag-table td:first-child {
   position: sticky;
   left: 0;
+  /*
+   * ONE, AND IT MUST STAY UNDER `.diag-head`'s TWO. This cell and that head
+   * are two sticky layers in ONE stacking context, so raising this to the
+   * head's number puts the column back over the page's own head, which is
+   * where Phase 221's fix round found it. The reason is written in full at
+   * `.diag-head`, and probe:p219 reading 9 is what holds it.
+   */
   z-index: 1;
   /*
    * The CARD's own fill, measured rather than assumed: the card is

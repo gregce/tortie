@@ -658,6 +658,21 @@ export const CHECKS = [
   // hairline inside the pinned column and beside it, which is the one question
   // a computed style cannot answer, because border-collapse gives that
   // hairline to the TABLE and paints it before any cell background.
+  //
+  // THE FIX ROUND ADDED READING 9 AND GAVE READING 8 A FAILING CASE. Reading 9
+  // is the REGRESSION the pin introduced: .diag-head has been sticky at
+  // z-index 1 since Phase 163, the pin arrived sticky at the same number, and
+  // nothing between the pinned cell and the tab makes a stacking context, so
+  // the two are siblings and tree order decides — the table is later, so the
+  // pinned column painted over the report's own head and took its clicks at
+  // EVERY pane width. It walks the ancestors to prove the context claim, then
+  // scrolls a row under the head and asks elementFromPoint who is really
+  // there. Reading 8 asked whether the sampled pixel merely DIFFERED from the
+  // card's fill, which could not fail: with the border taken off every th both
+  // samples read a distance of one and it stayed green. It is asked against
+  // the resolved --border now, and a sample that lands outside the card is a
+  // failure rather than a reading, which is what the static ablation was
+  // quietly passing on.
   electron('probe:p219'),
   electron('probe:p185'),
   electron('probe:p194'),

@@ -41,7 +41,19 @@
  *      before any cell background, so an opaque pinned cell can cover a border
  *      that a computed style still reports as 1px
  *
- * Readings 6 to 8 exit non zero when they fail, so this is a check and not a
+ * PHASE 221'S FIX ROUND ADDED READING 9 AND GAVE READING 8 A FAILING CASE:
+ *
+ *   9  the report's own `.diag-head` is sticky at z-index 1 and so, since
+ *      Phase 221, is the first column. Nothing between the pinned cell and the
+ *      tab makes a stacking context, so the two are SIBLINGS at one z-index
+ *      and tree order decides — the table is later, so the pinned column
+ *      painted over the head and took its clicks. This walks the ancestors to
+ *      prove the context claim, then scrolls a row under the head and asks
+ *      `elementFromPoint` who is really there. It is neither narrowed nor
+ *      scrolled sideways, because `position: sticky` makes a stacking context
+ *      whether or not its scroller overflows and the defect was at every width.
+ *
+ * Readings 6 to 9 exit non zero when they fail, so this is a check and not a
  * printout. Readings 1 to 5 are unchanged, so a run at this round's parent
  * compares to a run at its head line for line.
  *
@@ -186,6 +198,89 @@ const probeJs = `(async () => {
     projectRule.style.removeProperty('min-width');
   }
 
+  /*
+   * PHASE 221 FIX ROUND, reading 9. THE HEAD KEEPS ITS OWN LAYER.
+   *
+   * .diag-head is position: sticky; z-index: 1 and has been since Phase
+   * 163. The pin above is sticky too. Neither .diag-group (overflow hidden)
+   * nor .diag-scroll (overflow-x auto) makes a stacking context, so the two
+   * are siblings in ONE context at the same z-index and TREE ORDER decides —
+   * the table is later, so the pinned column painted over the report's own
+   * head and took its clicks. This walks the ancestors to prove the context
+   * claim rather than assert it, then scrolls the tab until a row of the
+   * sessions table straddles the head's bottom edge and asks
+   * elementFromPoint who is really there.
+   *
+   * It is NOT narrowed and NOT scrolled sideways for this, because the defect
+   * is neither: position: sticky makes a stacking context whether or not its
+   * scroller overflows.
+   */
+  root.style.removeProperty('width');
+  root.style.removeProperty('flex');
+  scroller.scrollLeft = 0;
+  await wait(250);
+
+  const layerTh = table.querySelector('thead th');
+  if (!layerTh) return { error: 'the sessions table has no head cell' };
+  const contexts = [];
+  for (let el = layerTh.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+    const cst = getComputedStyle(el);
+    const makes =
+      (cst.position !== 'static' && cst.zIndex !== 'auto') ||
+      cst.opacity !== '1' || cst.transform !== 'none' || cst.filter !== 'none' ||
+      cst.isolation === 'isolate' || cst.mixBlendMode !== 'normal' ||
+      cst.willChange.includes('transform') || cst.willChange.includes('opacity') ||
+      cst.contain.includes('paint') || cst.contain.includes('layout');
+    if (makes) contexts.push(el.tagName + '.' + String(el.className || ''));
+    if (el === root) break;
+  }
+
+  // A SHORTER TAB, which is all this is: .diag is height: 100% of an
+  // editor pane, so this is exactly the clientHeight a person with a shorter
+  // window has. Without it this fixture's one session sits below the fold and
+  // the sessions table can never be scrolled under the head at all.
+  const wasHeight = root.style.height;
+  root.style.height = '420px';
+  root.style.flex = '0 0 auto';
+  await wait(250);
+
+  const headEl = document.querySelector('.diag-head');
+  const rows = () => [layerTh, ...Array.from(table.querySelectorAll('tbody tr td:first-child'))];
+  let overlap = null;
+  for (let step = 0; step < 300 && headEl; step += 1) {
+    const hb = headEl.getBoundingClientRect();
+    const y = Math.round(hb.bottom) - 3;
+    const tb = layerTh.getBoundingClientRect();
+    const x = Math.round(tb.left + tb.width / 2);
+    const straddles = rows().some((c) => {
+      const b = c.getBoundingClientRect();
+      return b.top < y && b.bottom > y;
+    });
+    if (straddles) {
+      const hit = document.elementFromPoint(x, y);
+      overlap = {
+        x, y,
+        hit: hit ? hit.tagName + '.' + String(hit.className || '') : null,
+        hitText: hit ? (hit.textContent || '').trim().slice(0, 40) : null,
+        hitIsHead: hit ? headEl.contains(hit) : false,
+        hitInTable: hit ? table.contains(hit) : false
+      };
+      break;
+    }
+    if (root.scrollTop >= root.scrollHeight - root.clientHeight) break;
+    root.scrollTop += 8;
+    await wait(12);
+  }
+  const headStyle = headEl ? getComputedStyle(headEl) : null;
+  out.layers = {
+    headPosition: headStyle ? headStyle.position : null,
+    headZ: headStyle ? headStyle.zIndex : null,
+    pinZ: getComputedStyle(layerTh).zIndex,
+    contexts,
+    overlap
+  };
+  root.style.height = wasHeight;
+
   // PHASE 221, reading 7. THE PINNED FIRST COLUMN, read where the finding
   // lives: the narrowest pane, the card scrolled as far right as it goes.
   await at(${EDITOR_MIN});
@@ -210,11 +305,21 @@ const probeJs = `(async () => {
 
   // The canvas token RESOLVED, so 'the card's own fill and not the tab behind
   // it' is a comparison of two painted colours rather than of two token names.
-  const swatch = document.createElement('div');
-  swatch.style.background = 'var(--bg-canvas)';
-  card.appendChild(swatch);
-  const canvasFill = getComputedStyle(swatch).backgroundColor;
-  swatch.remove();
+  // --border is resolved the same way, because PHASE 221's FIX ROUND made
+  // reading 8 ask whether the sampled pixel IS the hairline rather than
+  // whether it merely differs from the fill: with the border taken off every
+  // th both samples read a distance of 1 and the old asymmetry rule stayed
+  // green, so the check recited instead of gating.
+  const resolve1 = (token) => {
+    const swatch = document.createElement('div');
+    swatch.style.background = 'var(' + token + ')';
+    card.appendChild(swatch);
+    const v = getComputedStyle(swatch).backgroundColor;
+    swatch.remove();
+    return v;
+  };
+  const canvasFill = resolve1('--bg-canvas');
+  const borderFill = resolve1('--border');
 
   // The row hover cannot be provoked by a synthetic event, so the rule itself
   // is read out of the CSSOM: an opaque cell paints over the fill the 'tr'
@@ -257,8 +362,19 @@ const probeJs = `(async () => {
     // edge: scrolled to the far end that column is off the card to the left,
     // and sampling there reads the tab behind the card rather than the card.
     besideX: Math.round(thBox.right + 20),
+    borderFill,
+    // The CARD's own rectangle, so a sample can be required to land INSIDE it.
+    // Without this, reading 8 passed over a pin scrolled entirely off the card:
+    // under the static ablation both samples read the CANVAS behind the tab,
+    // a pixel WAS read, d >= 0 held, and the check went green on a sample
+    // taken nowhere near the thing it names.
+    cardRect: (() => {
+      const b = card.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) };
+    })(),
     dpr: window.devicePixelRatio
   };
+
   return out;
 })()`;
 
@@ -411,19 +527,40 @@ try {
   // -1 means NOTHING WAS SAMPLED, which is a failure and not a flat reading.
   // The first version of this returned 0 for a band entirely off the image and
   // printed 'no departure from the fill' over a card that was under the fold.
+  // The BORDER token resolved in the same window, so the question below is
+  // 'is the sampled pixel the hairline' rather than 'does it differ from the
+  // fill by anything at all'. That distinction is the whole of Phase 221's fix
+  // round on this reading: with `border-bottom` taken off every `.diag-table
+  // th` both samples read a distance of ONE from the fill and the old rules
+  // stayed green, so a hairline that was not painted anywhere read as painted.
+  const borderRgb = (/(\d+),\s*(\d+),\s*(\d+)/.exec(String(st.borderFill)) ?? []).slice(1).map(Number);
+  const toBorder = (px) =>
+    borderRgb.length === 3
+      ? Math.abs(px[0] - borderRgb[0]) + Math.abs(px[1] - borderRgb[1]) + Math.abs(px[2] - borderRgb[2])
+      : Number.POSITIVE_INFINITY;
+  // A sample must land INSIDE the card. Under the `static` ablation the pinned
+  // head sits at -281px, entirely off the card, and both samples read the
+  // canvas behind the tab: a pixel WAS read, so a `d >= 0` guard passed over a
+  // reading taken nowhere near the thing it names.
+  const inCard = (cssX) => {
+    const c = st.cardRect;
+    const y = st.rect.y + st.rect.h;
+    return cssX >= c.x && cssX <= c.x + c.w && y >= c.y && y <= c.y + c.h;
+  };
   const band = (cssX) => {
     const x = Math.round(cssX * dpr);
     const y0 = Math.round((st.rect.y + st.rect.h) * dpr);
     let best = -1;
     let hex = null;
+    let px0 = null;
     for (let y = y0 - 5; y <= y0 + 5; y += 1) {
       if (y < 0 || y >= img.height || x < 0 || x >= img.width) continue;
       const at = pixel(img, x, y);
       const px = rgbOf(at);
       if (px === null) continue;
-      if (dist(px) > best) { best = dist(px); hex = at; }
+      if (dist(px) > best) { best = dist(px); hex = at; px0 = px; }
     }
-    return { d: best, hex };
+    return { d: best, hex, toBorder: px0 === null ? -1 : toBorder(px0), inCard: inCard(cssX) };
   };
   const pinned = band(st.rect.x + Math.round(st.rect.w / 2));
   const beside = band(st.besideX);
@@ -442,8 +579,17 @@ try {
     'the pinned head cell was outside the photograph, so the hairline was sampled nowhere'
   );
   want(
-    pinned.d > 0,
-    'the header hairline is not painted under the pinned column at all'
+    pinned.inCard && beside.inCard,
+    `a hairline sample fell OUTSIDE the card (pinned ${String(pinned.inCard)}, beside ${String(beside.inCard)}), so it read the tab behind it rather than the card`
+  );
+  // THE PIXEL IS THE HAIRLINE OR IT IS NOTHING. `> 0` was the old want and it
+  // could not fail: with the border taken off every `th` the strongest
+  // departure in the band was still 1, from antialiased text, and 1 > 0. The
+  // question is asked against the RESOLVED `--border` instead, so a hairline
+  // that is not painted, and a hairline an opaque cell covered, both go red.
+  want(
+    pinned.toBorder >= 0 && pinned.toBorder < pinned.d,
+    `the pixel under the pinned column is not the header hairline: it is ${String(pinned.hex)}, ${String(pinned.toBorder)} from --border ${String(st.borderFill)} and only ${String(pinned.d)} from the card's fill`
   );
   want(
     beside.d <= 0 || pinned.d >= beside.d * 0.5,
@@ -453,6 +599,43 @@ try {
   say(`the capture at ${shotPath} could not be sampled: ${String(err)}`);
   failures.push('the photograph could not be sampled, so the hairline under the pin is unproved');
 }
+
+/*
+ * PHASE 221 FIX ROUND, reading 9. THE REPORT'S OWN HEAD KEEPS ITS LAYER.
+ *
+ * Two sticky layers in one stacking context at the same z-index: tree order
+ * decides, and the table is later. Measured at the parent of this fix in one
+ * window with three arms, the pin as shipped, the pin ablated to `static`, and
+ * `.diag-head` lifted to 2 with the pin intact — the first answered the
+ * table's Session header at a point three pixels inside the head, and the
+ * other two answered `HEADER.diag-head`.
+ */
+const ly = reading.layers;
+say('');
+if (ly === undefined || ly === null) {
+  console.error(`${TAG} the window took no layer reading`);
+  process.exit(1);
+}
+say(`THE LAYERS. the head is ${String(ly.headPosition)} at z-index ${String(ly.headZ)}, the pinned column at ${String(ly.pinZ)}.`);
+say(`stacking contexts between the pinned cell and the tab: ${ly.contexts.length === 0 ? 'none, so the two sticky layers are siblings' : JSON.stringify(ly.contexts)}`);
+if (ly.overlap === null) {
+  say('NO ROW COULD BE SCROLLED UNDER THE HEAD, so the hit test proved nothing.');
+} else {
+  say(`at (${String(ly.overlap.x)}, ${String(ly.overlap.y)}), three pixels inside the head, the point belongs to ${String(ly.overlap.hit)} "${String(ly.overlap.hitText)}"`);
+}
+want(ly.headPosition === 'sticky', `the report head is ${String(ly.headPosition)} rather than sticky, so nothing here is about layers any more`);
+want(
+  Number(ly.headZ) > Number(ly.pinZ),
+  `the report head sits at z-index ${String(ly.headZ)} and the pinned column at ${String(ly.pinZ)}: at the same number the column is later in tree order and paints over the head`
+);
+want(
+  ly.overlap !== null,
+  'no session row could be scrolled under the report head, so the layer question was never asked of a real pixel'
+);
+want(
+  ly.overlap === null || ly.overlap.hitIsHead,
+  `a point three pixels inside the report head belongs to ${String(ly.overlap?.hit)} "${String(ly.overlap?.hitText)}" instead: the pinned column is painted over the head and takes its clicks`
+);
 
 say('');
 if (failures.length > 0) {
