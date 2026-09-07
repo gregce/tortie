@@ -16,6 +16,13 @@
  * body carries the person's email address, user id and account id; none of
  * that is in `UsageSnapshot` and none of it crosses this pair.
  *
+ * PHASE 219 ADDED ONE READ, `usage:statusLine`, and it is the cheapest thing
+ * in this file: it reads at most three files under the person's own `.claude`
+ * and answers one word. It opens no keychain, spawns nothing, makes no request
+ * and writes no byte, which is exactly why it is not a field on the snapshot
+ * the two reads answer with — those can fetch and can open the keychain, and
+ * opening Settings must do neither.
+ *
  * PHASE 182 ADDED ONE EVENT and no invoke. The live tap arrives when a
  * person's own turn ends rather than when a window asks, so there is nothing
  * for a renderer to poll: main broadcasts the snapshot it already holds. The
@@ -25,7 +32,7 @@
  * MAIN: src/main/usage/ipc.ts, the one `usage:*` registrar.
  */
 
-import type { UsageSnapshot } from '../usage';
+import type { ClaudeStatusLineState, UsageSnapshot } from '../usage';
 
 /** Main → renderers (ALL windows): the held usage snapshot changed. */
 export const EVT_USAGE_CHANGED = 'usage:changed' as const;
@@ -47,6 +54,18 @@ export interface UsageInvokeChannelMap {
   'usage:read': { req: []; res: UsageSnapshot };
   /** The refresh control. Skips the interval, honours the floor and Retry-After. */
   'usage:refresh': { req: []; res: UsageSnapshot };
+  /**
+   * PHASE 219, ITEM 8. Whether a claude session Tortie launches gets the
+   * managed status line, and when it does not, why.
+   *
+   * It is a THIRD channel rather than a field on the snapshot for one reason:
+   * the two reads above can start a vendor request and open the person's
+   * keychain, and opening Settings must do neither. This one reads at most
+   * three files under the person's own `.claude`, opens no keychain, spawns
+   * nothing, makes no request and writes no byte, which is what lets the
+   * Settings page ask it on every open.
+   */
+  'usage:statusLine': { req: []; res: ClaudeStatusLineState };
 }
 
 export interface GmuxUsageExtras {
@@ -55,5 +74,7 @@ export interface GmuxUsageExtras {
     refresh(): Promise<UsageSnapshot>;
     /** Subscribe to the live snapshot. Returns its own unsubscribe. */
     onChanged(cb: (snapshot: UsageSnapshot) => void): () => void;
+    /** Why a launched claude session has no managed status line, or that it has. */
+    statusLine(): Promise<ClaudeStatusLineState>;
   };
 }

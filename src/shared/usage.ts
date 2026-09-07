@@ -124,6 +124,34 @@ export interface UsageProviderSnapshot {
 }
 
 /** Every provider, in `USAGE_PROVIDERS` order. The one payload both channels answer. */
+/**
+ * Whether a claude session Tortie launches carries the managed status line,
+ * and when it does not, WHY (Phase 219, item 8).
+ *
+ * Phase 182 wrote this decision at every launch and sent it to a log line, one
+ * per reason per process. Its own verifier recorded that a person is never
+ * told, and it stayed unfixed for twenty seven phases: turning Claude usage on
+ * in Settings can leave the meter polling on a fifteen minute interval instead
+ * of moving when a turn ends, and the face said nothing at all.
+ *
+ * `off` and `installed` are not refusals and the face draws nothing extra for
+ * them. The other two are refusals and each gets one short line.
+ */
+export type ClaudeStatusLineState =
+  /** The Claude usage switch is off. Nothing is written and nothing runs. */
+  | 'off'
+  /** A session launched now gets the managed status line; the meter is live. */
+  | 'installed'
+  /**
+   * The person's own settings already name a status line. A status line is one
+   * command and the highest source wins outright, so installing Tortie's would
+   * silently delete theirs inside Tortie launched sessions. The meter keeps the
+   * endpoint poll it already had.
+   */
+  | 'person-owns-it'
+  /** The script could not be written at the last launch that tried. */
+  | 'unwritable';
+
 export interface UsageSnapshot {
   providers: UsageProviderSnapshot[];
   /** Milliseconds since epoch this payload was composed. */

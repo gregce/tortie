@@ -30,13 +30,14 @@
 import React from 'react';
 import type { GmuxSettings, UsageBarWindow } from '@shared/settings';
 import { sanitizeUsageBarWindow } from '@shared/settings';
-import type { UsageProviderId } from '@shared/usage';
+import type { ClaudeStatusLineState, UsageProviderId } from '@shared/usage';
 import type { LoginProviderId } from '@shared/logins';
 import { loginAccountLabel, loginRowDetail } from '@shared/login-copy';
 
 /** Is this a macOS build? (Phase 211). The switch timing differs by platform. */
 const IS_MAC =
   typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
+import { gmuxBridge } from '../bridge';
 import { loginsOf, useLogins } from '../state/logins';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
@@ -53,6 +54,8 @@ import {
   USAGE_BAR_SEVEN_DAY,
   USAGE_CLAUDE_CAPTION,
   USAGE_CLAUDE_LABEL,
+  USAGE_CLAUDE_OWNED_NOTE,
+  USAGE_CLAUDE_UNWRITABLE_NOTE,
   USAGE_CODEX_CAPTION,
   USAGE_CODEX_LABEL,
   USAGE_LOGIN_CHOSEN,
@@ -100,14 +103,69 @@ export function setUsageBarWindow(raw: string): Promise<GmuxSettings | null> {
   });
 }
 
-function UsageRow({
+/**
+ * Whether the Claude meter is live or polling, and why (Phase 219, item 8).
+ *
+ * ONE READ, on mount and on every flip of the switch it is about, and that
+ * cadence is the whole design. The answer can only change when the switch
+ * changes or when the person edits their own `.claude` settings by hand, so
+ * there is nothing to poll: asking again when the switch moves is what makes
+ * the line appear the moment a person turns Claude usage on.
+ *
+ * It deliberately does NOT go through the usage store beside it. That store's
+ * reads can start a vendor request and open the person's keychain, and opening
+ * Settings must do neither; `usage:statusLine` reads at most three files under
+ * the person's own `.claude` and answers one word.
+ *
+ * A build whose preload has no `usage` member, and a read that fails, both
+ * leave `off`, which draws nothing. A missing answer must never invent a
+ * refusal.
+ */
+function useClaudeStatusLine(): ClaudeStatusLineState {
+  const claudeOn = useSettingsStore((s) => s.settings.usage.claude);
+  const [state, setState] = React.useState<ClaudeStatusLineState>('off');
+  React.useEffect(() => {
+    let live = true;
+    const api = gmuxBridge()?.usage;
+    if (api?.statusLine === undefined) return undefined;
+    void api
+      .statusLine()
+      .then((next) => {
+        if (live) setState(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [claudeOn]);
+  return state;
+}
+
+/**
+ * The one line under a switch, or nothing. `off` and `installed` say nothing.
+ *
+ * Exported for its test. This repository carries no jsdom, so a static render
+ * never runs the effect above, and the mapping from a state to a sentence is
+ * the part that can be wrong.
+ */
+export function statusLineNote(state: ClaudeStatusLineState): string | null {
+  if (state === 'person-owns-it') return USAGE_CLAUDE_OWNED_NOTE;
+  if (state === 'unwritable') return USAGE_CLAUDE_UNWRITABLE_NOTE;
+  return null;
+}
+
+/** Exported for its test, for the same reason `statusLineNote` is. */
+export function UsageRow({
   provider,
   label,
-  caption
+  caption,
+  note
 }: {
   provider: UsageProviderId;
   label: string;
   caption: string;
+  /** One short line under the caption, drawn only while it is true. */
+  note?: string | null;
 }): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   return (
@@ -115,6 +173,11 @@ function UsageRow({
       <div className="set-row-text">
         <span className="set-row-label">{label}</span>
         <span className="set-row-caption">{caption}</span>
+        {note == null ? null : (
+          <span className="set-row-caption set-row-warn" data-usage-note={provider}>
+            {note}
+          </span>
+        )}
       </div>
       <Switch
         checked={settings.usage[provider]}
@@ -268,6 +331,9 @@ function LoginsCaptions(): React.JSX.Element {
 }
 
 export function UsageGroup(): React.JSX.Element {
+  // PHASE 219, ITEM 8. Why the Claude meter is polling rather than moving when
+  // a turn ends. Codex has no status line at all, so it has no such note.
+  const claudeStatusLine = useClaudeStatusLine();
   return (
     <div data-usage-group="1">
       <div className="set-group-label">{USAGE_TITLE}</div>
@@ -276,6 +342,7 @@ export function UsageGroup(): React.JSX.Element {
           provider="claude"
           label={USAGE_CLAUDE_LABEL}
           caption={USAGE_CLAUDE_CAPTION}
+          note={statusLineNote(claudeStatusLine)}
         />
         <UsageRow
           provider="codex"

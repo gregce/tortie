@@ -17,7 +17,7 @@
  */
 
 import type { IpcMain } from 'electron';
-import type { UsageSnapshot } from '@shared/usage';
+import type { ClaudeStatusLineState, UsageSnapshot } from '@shared/usage';
 import { EVT_USAGE_CHANGED } from '@shared/ipc';
 import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
@@ -27,6 +27,10 @@ import { gmuxError } from '../errors';
 // PHASE 202. The chosen login per provider. Two pure file reads under
 // `<userData>/gmux/logins`; it opens no keychain and spawns nothing.
 import { effectiveLogin, loginsRoot } from '../logins';
+// PHASE 219, ITEM 8. The read only half of the status line decision. It reads
+// at most three files under the person's own `.claude`, and that is all it
+// does: no keychain, no request, no write, nothing spawned.
+import { claudeStatusLineState } from '../activity/hooks';
 import { defaultCredentialDeps } from './credentials';
 import {
   createUsageService,
@@ -271,5 +275,18 @@ export function registerUsageIpc(ipc: IpcMain): void {
   handle(ipc, 'usage:refresh', (): Promise<UsageSnapshot> => {
     if (shuttingDown) return Promise.reject(usageShutdownRefusal());
     return usageService().refresh();
+  });
+  /**
+   * PHASE 219, ITEM 8. Why a launched claude session has no managed status
+   * line, or that it has one.
+   *
+   * It BUILDS NO SERVICE and it is not refused during shutdown, because it
+   * holds nothing that a shutdown could have closed: it reads the settings
+   * store and at most three files under the person's own `.claude`. That is
+   * also why it is not a field on the two snapshots above, which can start a
+   * vendor request and open the keychain.
+   */
+  handle(ipc, 'usage:statusLine', (): Promise<ClaudeStatusLineState> => {
+    return Promise.resolve(claudeStatusLineState());
   });
 }

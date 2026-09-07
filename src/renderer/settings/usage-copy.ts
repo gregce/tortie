@@ -26,6 +26,27 @@ export const USAGE_CODEX_LABEL = 'Codex';
 export const USAGE_CODEX_CAPTION =
   'Reads the login Codex already stored and asks OpenAI how much of your plan you have used.';
 
+/**
+ * PHASE 219, ITEM 8. The two refusals a person could not see.
+ *
+ * A claude session Tortie launches normally carries a managed status line, and
+ * that is what makes the Claude meter move when a turn ends rather than on a
+ * fifteen minute poll. Two things stop it, and Phase 182 sent both to a log
+ * line: its own verifier recorded that and it stayed unfixed for twenty seven
+ * phases. So a person turned the switch on, the meter went on polling, and the
+ * page said nothing.
+ *
+ * ONE SENTENCE EACH, under the switch it is about, and only while it is true.
+ * The rule is just enough words: what is in the way, and what happens instead.
+ * Neither line asks the person to do anything, because neither is a fault:
+ * owning your own status line is the ordinary case and Tortie will not
+ * overwrite it.
+ */
+export const USAGE_CLAUDE_OWNED_NOTE =
+  'Your own status line is in use, so this meter polls instead of updating as turns end.';
+export const USAGE_CLAUDE_UNWRITABLE_NOTE =
+  'Tortie could not write its status line script, so this meter polls instead of updating as turns end.';
+
 export const USAGE_OFF_NOTE =
   'While a meter is off nothing is read and nothing is sent.';
 

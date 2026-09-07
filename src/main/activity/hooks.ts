@@ -665,6 +665,32 @@ export type TapDecision =
   | { install: true; script: string }
   | { install: false; reason: 'off' | 'person-owns-it' | 'unwritable' };
 
+/**
+ * PHASE 219, ITEM 8. The last decision this process actually made.
+ *
+ * `claudeTapDecision` is called at a session's LAUNCH and its answer went
+ * nowhere a person could see it: one `usage.tap.not-installed` log line per
+ * reason per process, and nothing else. The Phase 182 verifier recorded that
+ * and it was never fixed, so a person turned Claude usage on in Settings,
+ * nothing became live, and nothing said why.
+ *
+ * This is what lets `claudeStatusLineState` answer `unwritable` without
+ * writing anything. The other two refusals are re-derived read only; this one
+ * cannot be, because the only way to find out whether the script can be
+ * written is to try, and Settings must never write. So a launch that met it
+ * remembers it, and a Settings page opened afterwards can say so.
+ *
+ * It is deliberately NOT cleared on a switch flip. A stale `unwritable` is
+ * overwritten by the next launch's real answer, and until then it is the last
+ * true thing anybody measured.
+ */
+let lastTapRefusal: 'unwritable' | null = null;
+
+/** Test seam: forget the last refusal this process met. */
+export function resetLastTapRefusal(): void {
+  lastTapRefusal = null;
+}
+
 /** One line per reason per process. A launch loop must not write a log a minute. */
 const loggedTapReasons = new Set<string>();
 
@@ -760,9 +786,53 @@ export function claudeTapDecision(cwd: string | undefined): TapDecision {
   const script = ensureClaudeTapScript();
   if (script === null) {
     logTapReasonOnce('unwritable');
+    lastTapRefusal = 'unwritable';
     return { install: false, reason: 'unwritable' };
   }
+  lastTapRefusal = null;
   return { install: true, script };
+}
+
+/**
+ * The same question, asked READ ONLY, for the Settings face (Phase 219).
+ *
+ * `claudeTapDecision` above cannot be called from a settings read, because its
+ * third step WRITES: `ensureClaudeTapScript` creates the status line script
+ * under userData. Opening Settings must not write a file, so this re-derives
+ * the two answers that are pure reads and takes the third from what the last
+ * real launch decided.
+ *
+ *  - `off`            the switch is off. Nothing is written and nothing runs.
+ *  - `person-owns-it` the person's own settings already name a status line,
+ *                     and Tortie will not overwrite it. THIS IS THE ONE THE
+ *                     FINDING IS ABOUT.
+ *  - `unwritable`     a launch in this process could not write the script.
+ *  - `installed`      nothing is in the way; a claude session launched now
+ *                     gets the managed status line and the meter goes live.
+ *
+ * `cwd` is undefined here on purpose. A settings page is not looking at a
+ * project, so the question it asks is the one without one, being the person's
+ * user level settings files. THE STATED LIMIT: a person who names a status
+ * line only in ONE project's `.claude/settings.json` reads `installed` here
+ * while that project's sessions are refused, because the refusal is per
+ * session and this face is not. Saying so needs a project, and Settings has
+ * none.
+ *
+ * It opens no keychain, spawns nothing, makes no request and writes no byte.
+ */
+export function claudeStatusLineState(): ClaudeStatusLineState {
+  let on = false;
+  try {
+    on = getSettings().usage.claude;
+  } catch {
+    on = false;
+  }
+  if (!on) return 'off';
+  if (personOwnsStatusLine(personStatusLineFiles(process.env, homedir(), undefined))) {
+    return 'person-owns-it';
+  }
+  if (lastTapRefusal === 'unwritable') return 'unwritable';
+  return 'installed';
 }
 
 /**
