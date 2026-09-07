@@ -22397,6 +22397,154 @@ the tab.
   in the session name and both project fields, which was the other half of Phase 188's line and is
   closed.
 
+## Phase 222 — what continuous phrase level approval of an agent's prose edits would take (operator asked 2026-09-07) RESEARCH ONLY
+
+**Subject.** `docs(research): what continuous phrase level approval would cost`
+
+**First body line.** `Phase 222: continuous phrase level approval`
+
+**Semver.** No version change. A research phase ships a document and touches no shipping code.
+
+**Tier 1.** It is a document, and the verifier's job is to attack its recommendation rather than
+photograph anything. But **every number in it is measured or it is not written**, and every claim
+about a library is checked on the day rather than recalled.
+
+**Charter.** This entry, [issue 15](https://github.com/gregce/tortie/issues/15), `docs/ZEN-OF-TORTIE.md`,
+the scope guardrail in CLAUDE.md, `docs/research/74-redline-in-the-diff-view.md`, and the Phase 191
+and 194 entries above. **The Phase 23 refusals bind and are not reopened**: nothing here proposes
+loading third party code into a Tortie process, and no proposal may relax the CSP or the entitlements.
+
+### What he asked for, in his own words
+
+> We already have word-level diff approval in the codebase itself. What's missing is the ability to
+> surface all agent edits in the UI continuously — updating in real time, not just when there's a git
+> diff associated with the change.
+
+Three desired behaviours: show all agent edits inline rather than only those tied to a git diff;
+approve and dismiss **phrase by phrase within a paragraph** rather than per line or per file; and an
+approved change is staged and leaves the diff view.
+
+He proposed an implementation and the research must treat it as one candidate rather than the answer:
+git worktrees holding a shadow copy, dirty meaning not yet staged, approvals staging progressively,
+and a workaround for the fact that **git staging is line oriented** so a phrase inside a long
+single-line paragraph cannot use git's own granularity.
+
+### What already exists, read from the tree on 2026-09-07, so the research does not re-derive it
+
+- **The redline is built and shipping**, from Phase 191 and its own view in Phase 194. It lives at
+  `src/renderer/editor/redline.ts` with `redline-document.ts`, `redline-copy.ts` and `redline.css`,
+  and `npm run conformance:redline` pins fourteen rulings over the shipping module.
+- **It reads a change block, not a line.** Both sides are joined, whitespace including newlines is
+  normalised, and `diffWords` is called once over the pair. That is already word level.
+- **It is PROSE ONLY by a narrow extension allowlist**, being the markdown extensions plus `txt` and
+  `text`, and the reason is measured rather than stylistic: research 74 §2.4 drove a real code change
+  through the word tokenizer and got **311 character level spans of confetti**. A proportional
+  reflowing row destroys the only structure a line of source has.
+- **Pierre cannot draw a redline, it can only hold one.** Every `@pierre/diffs` line is a grid item of
+  a subgrid, so its display is blockified by the CSS specification and no stylesheet can undo it
+  (research 74 §3). The redline lives in a light-DOM annotation row Pierre hands back.
+- **The libraries already in the tree** are `diff@9.0.0`, `@pierre/diffs@1.3.5`, `@pierre/trees` and
+  `monaco-editor`. The research says what, if anything, a new one would buy.
+- **There is a file watcher**, `src/main/watcher/`, and it has a hard constraint: `FSEventStreamSetExclusionPaths`
+  accepts at most EIGHT paths and above that silently applies ZERO, which `npm run conformance:watcher`
+  exists to enforce. Any "continuous, real time" proposal is measured against that budget.
+
+### The question this phase answers
+
+**What would it take to surface an agent's prose edits continuously and let a person accept or
+dismiss them phrase by phrase, and is that a thing Tortie should do?** The second half is not
+rhetorical and the research must answer it rather than assume it.
+
+### The Zen questions, and they are load bearing
+
+The document answers each of these in its own words before it recommends anything:
+
+1. **Does this serve the work agents actually do, or does it exist because editors have it?** That is
+   the scope guardrail's first rule and it has refused features before.
+2. **Is a view that updates in real time as an agent types a signal, or is it the thing the Zen calls
+   progress theatre?** *"Not a supervisor's console. Tortie never asks the human to watch an agent
+   work."* A surface that streams edits as they happen is exactly that shape, and the research must
+   say why this one is different, or concede it is not.
+3. **Does it protect human attention or spend it?** The Zen's test is that the developer can look
+   away without anxiety and come back without reconstruction. Approving phrases as they arrive is the
+   opposite of looking away; approving them WHEN YOU COME BACK may be the same feature with the
+   opposite posture, and the research should say whether the real ask is the second one.
+4. **What writes, and when?** *"Nothing Tortie draws ever starts a process on its own."* Staging an
+   approval is Tortie WRITING to the person's repository or to a store beside it. That is a bigger
+   step than anything the redline does today, which only reads. Name exactly what is written, where,
+   and what happens when it goes wrong.
+5. **Is the durable part boring, inspectable and older than this product?** If the shadow store is
+   new code holding the only copy of an edit a person half-approved, it is none of the three.
+
+### What the research must price, and none of these is assumed to win
+
+**A. The shadow store.** His proposal is a git worktree. Price it against the alternatives, each with
+what it costs, what it breaks and what it cannot represent:
+
+- a **git worktree** holding the shadow copy, which is what he proposed;
+- the **git index alone**, since staging is what he describes and the index already is a staging area;
+- a **plain shadow directory** Tortie owns, outside git entirely;
+- **no store at all**, holding the approved and unapproved state in the manifest or a database beside
+  it and applying it to the file only on a person's word;
+- and the one that must be priced because the tree already leans on it: **what Tortie's existing git
+  layer can already do**, since `src/main/git/` is substantial and the answer may be smaller than a
+  new store.
+
+For each: what happens when the agent writes the file again mid-approval, what happens on a crash,
+what a person sees in `git status` while it is running, and whether it can lose an edit.
+
+**B. Sub-line acceptance, which is the crux and he named it himself.** Git stages lines. A phrase
+inside a 900 character paragraph is not a line. So:
+
+- how a partial acceptance is REPRESENTED, given the accepted and rejected parts interleave in one
+  line;
+- how it is APPLIED, given `diff@9.0.0` gives word runs and git gives hunks, and something has to
+  turn a subset of word runs into a new file content;
+- what happens to the run ORDER and to overlapping edits, which the redline already had to solve
+  once — `conformance:redline` pins that the run order is kept as jsdiff returns it rather than
+  tidied into pairs;
+- and whether a three way merge, an OT or a CRDT is warranted or is the cleverness the Zen refuses.
+  **Check the real libraries on the day**: `diff-match-patch`, jsdiff's own patch application,
+  Automerge, Yjs, and anything else the research finds, with licence, maintenance and size, and with
+  the Phase 23 refusal applied — a library that would EXECUTE in a Tortie process is refused, a
+  vendored extract in the Pierre and Monaco pattern is the only admissible shape.
+
+**C. "Continuously, in real time."** What actually delivers it, measured against the watcher's eight
+path exclusion budget and against the `probe:p167` plateau rule, since a surface that redraws on
+every keystroke of an agent is exactly the shape that grew nodes a block in Phase 200. Say what the
+redraw costs and what it holds.
+
+**D. The scope of the file set.** The redline is prose only for a measured reason. Issue 15 says "all
+agent edits". Price whether the answer stays inside the prose allowlist, and if it widens, what
+happens to the 311 spans of confetti.
+
+**E. What a first version would be.** The smallest thing that delivers the person's actual ask, and
+what it deliberately leaves out.
+
+### Proof, run rather than read
+
+- **Every claim about a library is checked today**, with licence, latest release, activity and size,
+  and cited with what was read and when. Training recall is not evidence.
+- **The sub-line application problem is DEMONSTRATED, not described.** Take a real paragraph, run the
+  shipping `diffWords` over it, accept a subset of the runs by hand, and show the resulting file
+  content and what git makes of it. That measurement is the heart of the document.
+- **The redline's own constraints are re-measured rather than quoted**, since research 74's numbers
+  are from 1 September and the tree has moved.
+- **THE INDEPENDENT METHOD:** the verifier attacks the recommendation rather than confirming it. If
+  the document recommends building this, the verifier's job is to find the Zen refusal it walked past
+  and the failure mode that loses an edit. If it recommends refusing or narrowing it, the verifier's
+  job is to find the cheaper version that would have served him.
+- No app run, because nothing is built.
+
+### What is NOT in this phase
+
+- **No code changes at all.** The output is one document under `docs/research/` and nothing else.
+- **No decision.** The research prices the options and recommends; the operator chooses, and a build
+  phase is queued only at his word.
+- **No new package is added**, even provisionally. Naming a candidate is not adopting one.
+- **No relaxation of any Phase 23 refusal**, of the CSP, or of the entitlements.
+- **Nothing that writes to his repository is built or trialled.** This phase reads and measures.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -22833,3 +22981,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07, Phase 220 FIX ROUND on the verifier's `needs_work`, close the three remaining architecture gaps, SIX commits from `625498d`. **EVERY PRODUCTION REPAIR THE VERIFIER ATTACKED HELD; WHAT FAILED WAS THREE OF THE PHASE'S OWN CHECKS**, and all three were re-derived here before anything moved rather than taken on the verdict's word. **The list and boot arms of `shutdown_refuses_late_login_work` could not fail**: `observeAll` holds its reading for five seconds and the two adds that set the case up had stamped that clock a millisecond earlier, so deleting BOTH admission guards, the one in `observeAll` and the one in `observeLoginsAtBoot`, left the case green, reproduced here exactly. The clock is driven past the hold before each arm now, twice rather than once because a refused answer stamps it again on its way past, and the boot arm reads the `logins.boot` line as well as the store count because the boot guard is upstream of every read; each guard is one arm and each goes red alone, `expected 7 to be +0` for the first and `expected [ 'logins.boot' ] to not include 'logins.boot'` for the second. **The activation call site was owned by nothing**: `logins/ipc.ts` is outside the directory `conformance:credentials` ablates, so replacing `trackCredentialWork(activateLogin(...))` with a bare `await` left every case in both new files green while the phase's headline lifecycle claim quietly stopped being true. `shutdown_joins_the_activation_it_started` holds a real `logins:choose` inside the store read, quits underneath it and proves the join does not resolve until the switch settles; it reads `expected +0 to be 1` with the ownership removed. **The join's PLACE was a comment and nothing else**: the sentence beside it says it is above `shutdownGmuxCore()` because an observe reaches the manifest through the live sessions seam, and moving the join below that line left the gate printing OK with all six disposer fixtures behaving. It is pinned twice now, being the position in `disposerRegistersTheOwner` with nine fixtures, and the same two questions in `src/main/__tests__/quit-dispose-order.test.ts` on every `npm test`, over the body with comments stripped since the explaining sentence contains the word `await` twice; ablated, the gate fails naming the disposer and the test reads `expected 339 to be less than 275`. **THE THREE LOWS ARE CLOSED TOO AND ONE OF THEM WAS THIS PHASE'S OWN REGRESSION**: a Remove landing in the quit window skipped `forgetLogin` and forgot the row anyway, which is Phase 206's order inverted, so the guard moves to the top of the handler and the whole Remove refuses the way `logins:choose` does; `liveSessionEvidence`'s `Array.isArray` guard and `activateLogin`'s record of WHICH store a lift is inside now each have an arm that goes red on their own one line ablation, the second driven as the ordinary re-choose with a default session running so the sentence must name the store rather than claim nothing changed; and the scale probe's comment claiming the detached census is off by default under a `P167_CENSUS=1` that does not exist is corrected, CLAUDE.md's knob list having been right all along. Battery green at `d27c24c`: typecheck 0 violations and 0 cycles, build with the contract inventory byte identical, `npm test` 12,246 passed and 2 skipped over 780 files, `smoke:t1` 6 of 6, `smoke:t3` 3 of 3, `conformance:credentials` 60 of 60 ablations red with 9 of 9 disposer fixtures, `conformance:logins` 16 of 16 with hash `72a77146867c` unchanged, `conformance:machines` PASS, and the p167 grader's self-test 18 of 18. Nothing was written under his home, no keychain was opened, no `-g` or `-w` was passed to `security`, socket `gmux` was never addressed and no Electron survived. **THE PHASE IS NOT CLOSED BY THIS ROUND.** Still outstanding, in the brief's own words: the fresh dated audit of all twelve categories at one commit, this phase's own backlog completion section, and the CHANGELOG entry. **AND THE SCORE IS 35 OF 36 ON THE EVIDENCE THAT EXISTS**, because Lifecycle's split half is neither repaired nor independently explained and four green profile-d runs are not proof that an intermittent slope ended; the brief says to keep an unproved category at 2 and name the missing evidence, and this is it.
 - 2026-09-07, Phase 220 LANDED at `1a290e7` at version 0.100.0 with NO bump, NO tag and NO push, close the three remaining architecture gaps, SEVENTEEN commits from `e896de8` rebased onto Phase 218's tip `662691e`; the brief refuses a tag, a release and a push by name, so the branch sits on origin/main's tip ready for him and nothing was published. **THE SCORE THE EVIDENCE SUPPORTS IS 35 OF 36, AND THE CATEGORY STILL AT 2 IS LIFECYCLE.** ITEM 1, the account switch says what actually happened: an unavailable answer from the live sessions seam is a THIRD STATE asked once above every write instead of the `[]` Phase 211 read it as, so a switch that cannot be checked refuses and says so rather than printing the sentence a switch that worked prints while the running agent keeps the old account, and an unclassified throw inside an activation no longer falls through to `chooseLogin` and record a choice nobody made. ITEM 2, the credential domain settles at quit: admission closes synchronously on the disposer's first line so a list, a choose, the boot observe, a late watch start, the vault migration and a `security` child all begin nothing, the work already accepted is owned and joined before `shutdownGmuxCore()` closes the seam an observe reaches the manifest through, the one bare `execFile` in the product now goes through `proc/guarded` so its child is in the same registry every other child is in, and the only place a write is cancelled on purpose is the wait for a vendor lock, before the mkdir, so a lock this process never took can never be stolen or released out from under Claude Code. ITEM 3, the deadline probe: ITS STATED CAUSE IS REFUTED rather than repaired, since nothing between `84a281d` and `b5cc017` touched it and the two runs pass, so what it gained is the three arms it could not fail before, being a readback of every registration, a deadline it rejects when ablated, and a teardown that holds on the failing path, measured at a 10,003 ms fallback against a 10,000 ms deadline with the healthy far side greeted in 9 ms and 3 pids and 2 dirs held becoming 0 and 0 when an assertion is forced to throw. ITEM 4, the split profile: NOT REPAIRED, and the measure step's own inference that a green run recorded nothing is refuted in research 82, so what landed is a ruler that can name an owner the day the slope returns, being a detached element census in every reading, a workload floor that calls a run INCONCLUSIVE rather than a plateau when too few sessions were discarded, a planted leak arm the grader must reject, and a heap retaining path reader; four green profile-d runs are four green runs and not an explanation of the two failures at `b5cc017`, which is exactly why Lifecycle keeps its 2. ITEM 5, the audit, `docs/audits/2026-09-07-electron-typescript-architecture-0.100.0.md`, all twelve categories at ONE commit with every row run rather than quoted, the nine previous 3s re-established, and a Limitations and a What was not run section. WHAT WAS DROPPED OR LIFTED OUT: the eager-size finding is SUPERSEDED, 450,366 raw and 108,476 gzip bytes of headroom against the 2,232 the 0.99.0 audit read, so no bundle refactor was done and none is owed; the CHANGELOG entry is deliberately NOT written here, because this repository writes one section per release at release time and Phases 213, 214, 218 and 219 all shipped visible behaviour into an unwritten 0.101.0 section the same way, so the truthful switch outcome and the settled quit belong in that entry when the release is cut; and ONE LOW IS LIFTED OUT FOR QUEUING, being that three of the six `trackCredentialWork` call sites, the two in `logins:remove` and the vault migration, can be unwired with the whole battery green, so the family the phase's own third defect came from is closed at one site and not at the shape, which one arm held over a `logins:remove` would close. Battery green at `1a290e7` AFTER the rebase: typecheck 0 violations and 0 cycles, build with the contract inventory byte identical and the electron and background teardown floors held, `npm test` 12,253 passed and 2 skipped over 782 files, `smoke:t1` 6 of 6, `smoke:t3` 3 of 3, `conformance:credentials` 60 of 60 ablations red with 9 of 9 disposer fixtures, `conformance:logins` 16 of 16 with hash `72a77146867c` unchanged, `conformance:machines` PASS and `conformance:watcher` PASS. Nothing was written under his home, no keychain was opened, no `-g` and no `-w` was passed to `security`, socket `gmux` was read for its session count only and read 12 sessions before and after, socket `gmux-p218` was left alone, and no Electron survived any run.
 - 2026-09-07, **0.101.0 RELEASED AND PROMOTED**, tag `v0.101.0` on `2555d6e`, website at `33c851b`. Eight phases since ea35fec: 213 light mode, 214 the light face and its lanes, 215 the resume id is the session, 216 the Linux and Windows costing, 217 one tmux, 218 the dots keep their floor, 219 the fifth nits round, and 220 which took the architecture score from 33 to an HONEST 35 of 36 with the split screen memory slope recorded as neither repaired nor explained. THE RELEASE GATE CAUGHT ONE THING AND IT WILL RECUR: `npm run package` notarized and stapled the .app but left the DMG WRAPPER with no ticket of its own, so `verify:signed --expect-notarized` failed on `stapler validate (Tortie-0.101.0-arm64.dmg)`. The fix by hand was `xcrun notarytool submit <dmg> --keychain-profile tortie-notary --wait` then `xcrun stapler staple <dmg>`, after which the gate passed. A later round should make the packaging step staple the DMG itself rather than leaving it to the release driver.
+- 2026-09-07 Phase 222 queued at his ask, research only: what continuous phrase level approval of an agent's prose edits would take, from issue 15. It is grounded in the redline Phases 191 and 194 already shipped, and it must answer the ZEN questions before it recommends anything, being whether a view that streams an agent's edits is a signal or the supervisor's console the Zen refuses, and what exactly WRITES when a phrase is approved. The crux he named himself: git stages LINES and a phrase inside a paragraph is not one, so sub line acceptance is demonstrated with a real paragraph rather than described.
