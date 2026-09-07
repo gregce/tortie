@@ -437,18 +437,107 @@ Each line says what the verifier did instead, so a reader can tell nothing found
 
 These are named so nothing is quietly lost. None was rated blocking at the time.
 
-- **Phase 170.** The live capture window printed in the header shrinks tick by tick and resets, because each window opens only after the previous finish waits for the stream's next block.
-- **Phase 175.** Turning the Architecture switch off does not disarm a file watch armed while it was on.
-- **Phase 181.2.** Eighteen scripts that reach the shared Electron helper are missing from the gate's list of them, by the re-verifier's own scan, drift going back to Phase 140.
-- **Phase 182.** The refusal to install a status line over the person's own is still a log line, not something a person is told on screen.
-- **Phase 188.** A newline in a project name splits a pasted report line, and a narrow pane shows a horizontal scrollbar.
-- **Phase 192.** A comment states a parent measurement in the present tense.
-- **Phase 194.** Cmd-A from the Edit menu then Copy yields the interleaved redline text; ruled a known limit.
-- **Phase 200.** The split profile, the part of the scale test that splits and closes real shell sessions, still fails its renderer heap in one run of two at both commits, and nobody knows why.
-- **Phase 202.** Add login creates an empty folder outside the root when the provider root itself is a link. The row is dropped at every later read, so it is bounded, but the one line fix and its fixture are owed.
-- **Phase 204.** A link planted at the store path itself is still read through on the observe side; the write and rename sides are guarded.
-- **Phase 206.** A hand edited logins record whose id is a number rather than a string makes the stray sweep delete that login whole. Tortie never writes that shape.
-- **Phase 207.** At the shipped chroma the whole hue circle is subtle, and on the dark side of the text flip a colour that cannot reach its shipped ratio falls to pure black. Neither was reachable by any setting when it was written. Phase 210 then added the shade control the first note asked for; the flip stays out of reach, and Phase 210 measured why.
-- **Phase 208.** A home folder behind a symbolic link is refused the keychain migration silently; a delete that fails is counted as deleted; a bare second profile with no harness knob copies his credential into an item of its own, by design; and the gate goes red at the parent by crashing rather than by naming a rule.
-- **Phase 209.** If Clear drops the history while a selection is held, copy does nothing silently.
-- **Phase 210.** The idle and exited status dots on the active row fill drop under the 3 to 1 contrast floor for non-text over 7 of the 35 offered frames, and they cannot be pinned without refusing the shipped default. Queued as the operator's call, not a phase yet.
+**PHASE 219, THE FIFTH NITS ROUND, READ THIS SECTION AS ITS CHARTER ON 2026-09-07 AND CLOSED NINE OF
+THE ELEVEN IT TOOK.** The section is rewritten below rather than appended to, because a list that
+stays stale after the round that used it is the same defect the round exists to fix. Two of the
+eleven were DROPPED because they no longer reproduced, one half of a third was LIFTED OUT because it
+turned out to be bigger than a nit, and the round's own re-derivation found two things this list had
+missed. All of that is recorded here rather than only in the commits.
+
+### Still open
+
+- **Phase 188, the narrow pane's horizontal scrollbar.** LIFTED OUT of Phase 219 as its own entry,
+  because it is a layout question and not a nit. Phase 219 capped the session name column at 22ch
+  and MEASURED what that cap is worth, in the running app, in one window: the table wants 1255px
+  with a 137 character name, 563px capped, and 455px with the name column driven to ZERO, against a
+  282px card at `EDITOR_MIN`. So the cap is worth a real 692px and closes nothing — the remaining
+  SEVEN columns are still 173px wider than the card, and every one of them is already at its own
+  header or content minimum, Project sitting at 56px against its own 22ch cap. No column cap can
+  reach this. It needs a layout answer for eight nowrap columns in a 282px card.
+- **Phase 194.** Cmd-A from the Edit menu then Copy yields the interleaved redline text; ruled a
+  known limit by the phase that shipped it, and a nits round does not overturn a ruling.
+- **Phase 200.** The split profile, the part of the scale test that splits and closes real shell
+  sessions, still fails its renderer heap in one run of two at both commits, and nobody knows why.
+  That is an investigation, not a nit.
+- **Phase 207.** At the shipped chroma the whole hue circle is subtle, and on the dark side of the
+  text flip a colour that cannot reach its shipped ratio falls to pure black. Neither was reachable
+  by any setting when it was written. Phase 210 then added the shade control the first note asked
+  for; the flip stays out of reach, and Phase 210 measured why.
+- **Phase 208, the bare second profile.** A second profile with no harness knob copies his
+  credential into an item of its own. BY DESIGN, and recorded as such rather than as a defect.
+- **Phase 210.** The idle and exited status dots on the active row fill drop under the 3 to 1
+  contrast floor for non-text over 7 of the 35 offered frames, and they cannot be pinned without
+  refusing the shipped default. Queued as the operator's call.
+- **The geometry numbers in `src/renderer/diagnostics/diagnostics.css` are a measurement and not a
+  constant.** Phase 219's verifier re-ran the phase's own probe and read 1262 / 570 / 461 / 282
+  against the comment's 1255 / 563 / 455 / 282, a consistent +7px. The conclusion is unaffected, the
+  gap against the card being 179px rather than 173px, and nothing enforces the numbers. A later
+  round should not read them as constants. In the same run `naturalZeroCap` read 461 against 461,
+  which is the table FILLING the card rather than a min-content reading; the load bearing cell,
+  `narrowZeroCap` at 461 against a 282px card, is genuine.
+
+### Closed by Phase 219, the fifth nits round (2026-09-07)
+
+- **Phase 170** (`91212ae`). The live capture window printed in the header shrank tick by tick and
+  reset, because each window opened only after the previous finish waited for the stream's next
+  block. Every tick now reports the interval it is labelled with, and the next window opens on the
+  tick boundary rather than when the finish lands.
+- **Phase 181.2** (`3c577df`, floor raised in `bcd3cd1`). The gate's hand list of scripts reaching
+  the shared Electron helper had drifted since Phase 140. Re-measured at the round's parent: 87
+  reach it and 56 were listed, so 30 real and not the 18 recorded. The list is DELETED rather than
+  lengthened — the population is derived and rule 2 is now a FLOOR on its size, so adding a probe
+  never turns the gate red while deleting, renaming or unhooking one does. A commit that adds a
+  probe raises the floor in the same commit; this round's own probe did.
+- **Phase 182** (`2f96be2`). The refusal to install a status line over the person's own was a log
+  line nobody saw. Settings now says on the face why the Claude meter is not live, read only: it
+  opens no keychain, spawns nothing and writes no byte. Stated limit: a person who names a status
+  line in ONE project's settings reads `installed` there, because a settings page has no project.
+- **Phase 188, the newline half.** DROPPED — it no longer reproduced. `oneLine()` in
+  `src/main/diagnostics/report-text.ts` already folds a newline in the session name and in both
+  project fields on the row a person pastes, pinned by that module's own test. The record named a
+  renderer file that does not exist. The scrollbar half is above, still open.
+- **Phase 192** (`0e5d302`, and `8519845` for two of this round's own). Comments stating a parent
+  measurement in the present tense are dated. The rule is that a sentence sounding like a
+  measurement gets measured or dated, and the round applied it to sentences it had itself written
+  hours earlier: `CLAUDE.md` said the logins gate ran fifteen ablations while the gate printed
+  sixteen, and said the domain held exactly ONE guarded deletion call while the gate had pinned two.
+- **Phase 202** (`4a4823d`). Add login created an empty folder outside the logins root when the
+  provider root itself was a symbolic link. Reproduced at the round's parent before anything moved:
+  it answered ok and the outside directory went from empty to one folder. The guard in front of the
+  two `mkdir`s was a pure string compare, which a link passes. `loginAncestorIsLink` is the ancestor
+  test lifted out so a create path can ask it BEFORE the folder exists.
+- **Phase 204.** DROPPED — it no longer reproduced. The Phase 211 fix round closed it:
+  `defaultStoreDeps` in `src/main/credentials/index.ts` gives `readText` as `readTextNoFollowSync`,
+  so the observe side goes through `nofollow.ts` with `O_NOFOLLOW` like the write and rename sides.
+- **Phase 206** (`9a94ff9`). A hand edited logins record whose `id` was a JSON number made
+  `namedLoginIds` answer the set the rest of the file justified, so a login the record NAMES read as
+  a stray and the sweep deleted its folder and the credential in it. Any element that is not a plain
+  object carrying a string `id` now refuses the WHOLE file, which is that function's own stated
+  rule; the cost is a sweep that does not run.
+- **Phase 208** (`b3c3a80`, and `21da259` for the gate). Three at once. A home behind a symbolic link
+  was refused the keychain migration for ever and silently, because `resolve` follows no link and
+  one side of the comparison was spelled through it; the profile proof is a VERDICT now and
+  `realpathSync` is asked second, so it can only turn a refusal into a pass. A delete that failed was
+  counted as deleted; `keychainDelete` answers a boolean and the result carries a reason. And the
+  gate went red at the parent by CRASHING rather than by naming a rule — it now answers ten findings
+  with rule 17 naming itself and no stack.
+- **Phase 209** (`4564106`). If Clear dropped the history while a selection was held, copy did
+  nothing and said nothing. The selection is now dropped visibly when Clear takes the history with
+  it, which was the fix the record preferred over making copy work.
+
+### What the round's own re-derivation added to this list
+
+- **The stray sweep had a SECOND door, and the first fix guarded only the first** (`ce86380`).
+  Phase 219 put the ancestor rule in `strayLoginIds` and reasoned in writing that
+  `removeStrayLoginDir`'s "own ownership rule is the string one and passes" — then guarded the
+  caller and not the delete. `finishStraysOnce` in `src/main/credentials/keep.ts` unions
+  `strayLoginIds`'s answer with the ids of Tortie's own recorded vault slots that no row names, and
+  that second source never passes through `strayLoginIds` at all. Driven over a real symlink on a
+  real disk, an id aimed straight at the delete took a planted victim directory whole, one entry
+  holding a credential before and zero after. The guard is now where the delete is.
+- **A guard whose only witness is the sentence that removes it is not pinned.** The lesson is the
+  transferable half of the item above. The first guard's ablation was the gate's own text edit, and
+  taking the guard out BY HAND left every live rule green, because no arm had ever driven a sweep
+  under a link. Every guard in that domain is pinned by BEHAVIOUR now, with the honest half — the
+  same planted directory swept normally under a root with no link — driven in the same breath, so a
+  guard that refuses everything cannot read as a pass.
