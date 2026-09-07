@@ -79,12 +79,20 @@ import {
 /**
  * The agents Tortie will offer as install targets.
  *
- * It is NOT every registry agent. `skillsCliTargets` in main knows which agents
- * the CLI has a name for, and two of Tortie's ten are absent from its table
- * entirely. Rather than duplicate that table here, the sheet offers the agents
- * the current scan actually read and lets main's `installCommand` refuse a name
- * it does not know, which it does by throwing rather than by running a wrong
- * command.
+ * It is NOT every registry agent. `SKILLS_CLI_NAMES` in
+ * src/main/context/agent-context.ts knows which agents the CLI has a name for
+ * and answers null for the rest. Rather than duplicate that table here, the
+ * sheet offers the agents the current scan actually read and lets main's
+ * `installCommand` refuse a name it does not know, which it does by throwing
+ * rather than by running a wrong command.
+ *
+ * HOW MANY HAVE NO NAME IS A READING, NOT A PROPERTY (Phase 219, item 10).
+ * This sentence said "two of Tortie's ten are absent from its table entirely"
+ * and both numbers had moved: at bd16e36 the registry holds FOURTEEN agents
+ * and FIVE of them answer null, being omp, deepseek, muse, cursoride and
+ * copilotide. It is the same defect Phase 192's verifier reported in
+ * install.css, one file over, found while dating that one. Counted from the
+ * table itself rather than restated here, so the next round reads the table.
  */
 const RISK_WORDS: ReadonlySet<string> = new Set([
   'safe',
