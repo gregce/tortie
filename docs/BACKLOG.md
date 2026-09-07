@@ -22687,6 +22687,140 @@ a tree of agents nobody is watching, which is its nightmare. Say which, and what
   queued only at his word.
 - **No new package, no API surface, no IPC channel designed in detail.** Shapes, costs and refusals.
 
+## Phase 224 — where the remote work actually landed, and what parity with local would take (operator reported 2026-09-07) RESEARCH ONLY
+
+**Subject.** `docs(research): the remote gap, measured against local and against herdr 0.9.0`
+
+**First body line.** `Phase 224: the remote gap`
+
+**Semver.** No version change. A research phase ships a document and touches no shipping code.
+
+**Tier 1** by the tiering rule, since it is a document. But **he reported this personally**, so the
+rule that a reported thing is measured rather than reasoned about applies in full: the research DRIVES
+the remote surfaces and reads what a person sees, because *"not smooth"* is a thing you only find by
+using it, and a code read would have found none of it.
+
+**Charter.** This entry and his report of 2026-09-07. The banked research it must not re-derive:
+`docs/research/28-remote-sessions.md`, `51-remote-machines.md`, `52-remote-env-and-review.md`,
+**`54-remote-parity.md`**, the `55-*` and `56-*` and `58-*` series, and above all
+**`docs/research/57-remote-parity.md`**, which already planned this. `/Users/gdc/herdr` at 0.9.0 is
+READ ONLY and is the robustness bar he named.
+
+### What he said
+
+> can we also launch a research phase to understand where we left the remote machine work? I ideally
+> want it to be as robust as /users/gdc/herdr (and it's 0.9.0) release, right now there is not a great
+> ux smoothness and also the 4 main nav bar issues including write access, etc is quite clunky and not
+> the same as local. can we determine how we can get it as close to parity with the local experience
+> and what gaps are
+
+Three asks: **where did the remote work land**, **why is it clunky**, and **what would parity cost**.
+The activity bar has five views — Explorer, SCM, Search, Architecture and Context — and he says four of
+them are clunky on a machine. The research finds out which four rather than assuming.
+
+### What is already built, so the research does not re-derive it
+
+Twenty-one phases landed on this: 68 to 73 built the machine object, the exec plane, attach, create and
+restore; 79.1 the key; 83 his own Mac Pro; 85 the status dot; 89 a conversation coming back; **100 to
+109 built the nav surfaces one at a time** — last lines, save a file, new folder and rename, stage and
+unstage, commit, runs, branches, history, Context, and which agents a machine actually has; 118 owned
+removal; 131 stopped the machine row saying four times what it should say once; 187 the remote feed's
+own maps. `src/main/machines/` holds about seventy modules today.
+
+**Research 57 already answered the planning question and its answer must be checked rather than
+repeated.** Its own words: *"Of the twenty gaps between a local tab and a tab on another machine,
+fifteen should be built, one should wait, and four should be refused permanently."* The four permanent
+refusals are **trash, reveal, discard and Symbols**, each for a reason it says does not expire. It also
+ruled: no ripgrep shipped or sent, use `git ls-files` and the machine's own `grep`; scrollback gets the
+smaller affordance rather than a real scrollbar; and Context points the same reader at the same paths.
+
+**So the first question is not what to build. It is which of the fifteen actually landed, which landed
+half, and whether the four refusals still hold.**
+
+### herdr 0.9.0 is the bar he named, and its changelog says what to compare against
+
+Read from `/Users/gdc/herdr/CHANGELOG.md` on 2026-09-07, its 0.9.0 headline is nearly a description of
+his complaint:
+
+> Manage Local and saved SSH machines from one Herdr window, with a combined agent list,
+> **machine-scoped navigation**, notifications, and **automatic reconnects**. Add and manage
+> connections with `herdr machine`; **a disconnected machine does not interrupt the others**.
+
+And one line under Changed is a different philosophy from Tortie's, and it may be the single most
+important comparison in this document:
+
+> Client updates can now leave compatible servers and their running agents untouched. **Missing server
+> features disable only the affected action instead of preventing connection.**
+
+**Tortie does the opposite and did it deliberately.** Phase 217 landed yesterday on exactly this: the
+tmux version gate REFUSES to attach across a pair nobody tested, because an untested pair can HANG
+rather than fail and a hang reads as Tortie freezing on work a person cares about. That refusal was
+right for the case it was written for. **The research must ask whether the same posture, applied to
+every remote capability, is what makes the whole surface feel clunky** — whether Tortie refuses
+wholesale where herdr degrades per action, and what it would cost to degrade per action instead
+without giving up the reason the gate exists.
+
+### What the research must answer
+
+**A. Where the work actually landed.** Go through research 57's twenty gaps and say, for each, whether
+it is built, half built or absent today, **read from the tree and confirmed by driving it**, not from
+the phase entries. Say which of the fifteen shipped, what happened to the one that should wait, and
+whether the four permanent refusals still hold or have been quietly worked around.
+
+**B. What is clunky, named precisely.** He said four of the five nav views. **Drive each of Explorer,
+SCM, Search, Architecture and Context on a real machine and say what a person meets**: how long it
+takes, what it does while it waits, what it says when it fails, what it cannot do at all, and where it
+differs visibly from the same view on a local tab. Name the four he means, or say if it is five, or
+three. **Write access is called out by name in his report** — find what is actually wrong with it,
+since Phases 101 to 104 built saving, folders, staging and committing.
+
+**C. What "not smooth" is made of.** Break the feeling into measurable parts: first paint after a
+click, whether anything indicates work in flight, whether a slow machine blocks an unrelated view,
+whether a failure is recoverable without a reconnect, and whether the same gesture behaves the same way
+locally and remotely. **Measure the timings** rather than describing them.
+
+**D. Robustness against herdr's bar.** Compare on the four things its 0.9.0 line claims: a combined
+agent list, machine-scoped navigation, automatic reconnect, and one machine's failure not disturbing
+another. For each, what Tortie does today and what it would take. Read herdr's `connecting-machines`
+and `persistence-remote` docs and its source where it clarifies, and **cite the file**.
+
+**E. The refuse-versus-degrade question**, which is the philosophical half and may be the real finding.
+Where does Tortie refuse a whole surface or a whole connection because one thing is missing or
+mismatched? For each, is the refusal load bearing like the tmux version gate, or is it caution that
+costs a person a working feature? **Say which refusals should stay and which should become a disabled
+action with a sentence.**
+
+**F. The honest total.** What closes the gap, in what order, and what will never reach parity because
+the machine is a different computer — the four permanent refusals are the existing example and there
+may be more. Rough phase count so he can judge it against the queue.
+
+### Proof, run rather than read
+
+- **The surfaces are DRIVEN, not read.** A code read cannot find "clunky". Use a real remote and read
+  what a person sees, with timings.
+- **HIS MAC PRO IS READ ONLY.** Drive read-only surfaces against it and NOTHING ELSE. Anything that
+  writes — save, new folder, rename, stage, commit — is driven against a **scratch machine the phase
+  makes for itself**, the way `build/with-scratch-machine.mjs` already provides. **Never write a byte to
+  `gregs-mac-pro.tail2ddfe1.ts.net`**, never touch `~/.ssh`, and leave ssh agent 22052 empty.
+- **Every herdr claim is cited to a file in his checkout** and nothing is written there.
+- **Research 57's twenty gaps are re-checked one by one**, since that document is from 19 August and
+  twenty-one phases have landed since.
+- **THE INDEPENDENT METHOD:** the verifier drives the same surfaces itself, without reading the
+  document's timings first, and reports where its own experience disagrees. A parity claim that only
+  one person measured is not measured.
+- No build, so no app run beyond the driving above.
+
+### What is NOT in this phase
+
+- **No code changes at all.** The output is one document under `docs/research/` and nothing else.
+- **Not one byte written to his Mac Pro, to `/Users/gdc/herdr`, or to any other repository of his.**
+- **No decision.** The research prices and recommends; the operator chooses, and a build phase is
+  queued only at his word.
+- **The four permanent refusals from research 57 are not overturned by this phase.** It may report that
+  one deserves revisiting, with the reason, and that is his call.
+- **No new package and no new dependency**, including anything herdr uses. Naming is not adopting, and
+  the Phase 23 refusals are untouched.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -23126,3 +23260,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07 Phase 222 queued at his ask, research only: what continuous phrase level approval of an agent's prose edits would take, from issue 15. It is grounded in the redline Phases 191 and 194 already shipped, and it must answer the ZEN questions before it recommends anything, being whether a view that streams an agent's edits is a signal or the supervisor's console the Zen refuses, and what exactly WRITES when a phrase is approved. The crux he named himself: git stages LINES and a phrase inside a paragraph is not one, so sub line acceptance is demonstrated with a real paragraph rather than described.
 - 2026-09-07 Phase 223 queued at his ask, research only: what herdr does, how work could TRANSFER between heterogeneous agents which is issue 14, and how an agent could DELEGATE or start a Tortie session. He said explicitly not to read the ask literally, so the need is treated as continue this work somewhere else and resume, replay, summary and re-prompt are all candidates. THE DELEGATION HALF RUNS STRAIGHT INTO PHASE 23'S EIGHTH REFUSAL, that nothing may cause a process to start without a human confirming out of band of an agent turn, and herdr has SHIPPED exactly that shape with `agent start --kind`, so the phase must argue whether the refusal covers it, whether it is a new question deserving its own answer, or whether a propose-and-confirm shape keeps the value with the refusal intact. A research phase that quietly widens a standing refusal has failed. The transfer half is held to Phase 82's standard: a person must never read a continued conversation and get a new one. /Users/gdc/herdr is READ ONLY throughout.
 - 2026-09-07 Phase 222 RESTARTED on his clarification, four minutes in and with no commits lost. The first entry read issue 15 broadly and asked whether a view that streams an agent's edits is the supervisor's console the Zen refuses. THAT WAS THE WRONG READING and he said so: what he wants is Cursor style accept and reject on the REDLINE THAT ALREADY SHIPS, for prose only which is `txt` and `md`, with the redline becoming an EDITING surface rather than a preview. So the streaming question is withdrawn, the prose allowlist is the ask rather than a compromise, and the crux moves to two things: whether the Pierre annotation row can host a control or a caret at all, since every `@pierre/diffs` line is blockified by the CSS specification, and what accept actually WRITES to his file, since the redline has only ever read.
+- 2026-09-07 Phase 224 queued at his report, research only: where the remote machine work landed, why it is clunky, and what parity with the local experience would cost, with herdr 0.9.0 as the robustness bar he named. Grounded before queueing: twenty one phases landed on this and research 57 already planned it, saying twenty gaps of which fifteen build, one waits and FOUR ARE REFUSED PERMANENTLY being trash, reveal, discard and Symbols, so the first question is which of the fifteen actually landed rather than what to build. THE COMPARISON THAT MAY BE THE REAL FINDING: herdr 0.9.0's changelog says missing server features disable only the affected action instead of preventing connection, and Tortie does the OPPOSITE deliberately, since Phase 217 landed yesterday on a version gate that refuses a whole attach because an untested pair can hang rather than fail. The phase must ask whether that posture applied to every remote capability is what makes the surface feel clunky, and which refusals should stay and which should become a disabled action with a sentence. His Mac Pro is READ ONLY and every write is driven against a scratch machine.
