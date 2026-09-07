@@ -776,6 +776,23 @@ export function namedLoginIds(root: string): ReadonlySet<string> | null {
  * makes a stray that is a symbolic link safe to finish: the entry inside
  * Tortie's own data goes and the directory somebody aimed it at is untouched.
  * That was measured rather than assumed.
+ *
+ * ## THE ANCESTOR RULE IS ASKED HERE TOO, AND IT IS THE SECOND DOOR
+ *
+ * Phase 219's fix round measured this one. {@link isOwnedLoginDir} is the
+ * STRING rule: it decides whether a path is spelled as a direct child of the
+ * provider root, and a string cannot see a link. So it passed for
+ * `<root>/claude/<sixteen hex>` while `<root>/claude` was itself a symbolic
+ * link, and `rmSync` acting on the LINK-FREE final component then deleted a
+ * directory inside somebody else's tree. Driven at the parent of this change,
+ * the planted victim went from one entry holding a whole credential to none.
+ *
+ * The guard in {@link strayLoginIds} did not cover it, and that is the point.
+ * `finishStraysOnce` in `../credentials/keep.ts` unions that function's answer
+ * with the ids of Tortie's own recorded vault slots that no row names, and
+ * that second source never passes through {@link strayLoginIds} at all. So the
+ * refusal has to live where the delete lives, which is here, and it is the
+ * same standing rule the paragraph above states rather than a new one.
  */
 export function removeStrayLoginDir(
   root: string,
@@ -783,6 +800,11 @@ export function removeStrayLoginDir(
   id: string
 ): boolean {
   if (!LOGIN_ID_RE.test(id)) return false;
+  // A ROOT TORTIE CANNOT COMPOSE HONESTLY AUTHORISES NO DELETE, which is the
+  // same sentence `strayLoginIds` above states. The ancestors are asked and
+  // the ENTRY is not, because a stray that is itself a link must still be
+  // finishable: `rmSync` unlinks it and leaves what it points at alone.
+  if (loginAncestorIsLink(root, provider)) return false;
   const dir = loginDirIn(root, provider, id);
   if (!isOwnedLoginDir(root, provider, dir)) return false;
   try {

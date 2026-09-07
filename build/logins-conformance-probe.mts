@@ -238,6 +238,61 @@ try {
   };
 
   // -------------------------------------------------------------------------
+  // 2e. THE SWEEP ITSELF UNDER A LINKED PROVIDER ROOT (Phase 219's fix round).
+  //     Section 2c asks the PREDICATE and section 2d drives the sweep over
+  //     PLAIN roots, so nothing drove the sweep under a link: the verifier
+  //     took the guard out of `strayLoginIds` by hand and every live rule
+  //     here stayed green, the only failure being this gate's own "found
+  //     nothing to edit". A guard pinned by its own text is not pinned.
+  //
+  //     BOTH DOORS ARE DRIVEN, and the second is why this arm is not one
+  //     line. `strayLoginIds` carries the guard. `removeStrayLoginDir` does
+  //     not, and `finishStraysOnce` in ../src/main/credentials/keep.ts reaches
+  //     it with ids from a SECOND source, being the record's own vault slots
+  //     that no row names, which never pass through `strayLoginIds` at all.
+  //     So an id aimed straight at the remove is the shape that actually
+  //     escapes, and the victim's own contents are counted on both sides.
+  // -------------------------------------------------------------------------
+  const sweepLinkRoot = join(root, 'sweep-linked');
+  const sweepVictim = join(root, 'sweep-victim');
+  const plantedStrayId = 'd'.repeat(16);
+  mkdirSync(join(sweepVictim, plantedStrayId), { recursive: true });
+  writeFileSync(
+    join(sweepVictim, plantedStrayId, '.credentials.json'),
+    JSON.stringify({ claudeAiOauth: { accessToken: TOKEN } }),
+    'utf8'
+  );
+  mkdirSync(sweepLinkRoot, { recursive: true });
+  symlinkSync(sweepVictim, dirs.loginProviderRootIn(sweepLinkRoot, 'claude'));
+  // A file Tortie CAN read, naming no login at all, so every hex directory
+  // under that root is a stray by the plain rule and only the link stops it.
+  writeFileSync(dirs.loginsFileIn(sweepLinkRoot), '{"v":1,"chosen":{},"logins":[]}', 'utf8');
+  const linkedStrays = store.strayLoginIds(sweepLinkRoot, 'claude');
+  for (const id of linkedStrays) store.removeStrayLoginDir(sweepLinkRoot, 'claude', id);
+  const aimedAtLinked = store.removeStrayLoginDir(sweepLinkRoot, 'claude', plantedStrayId);
+  out['sweepLinked'] = {
+    strays: linkedStrays,
+    aimed: aimedAtLinked,
+    victimEntries: existsSync(sweepVictim) ? readdirSync(sweepVictim).length : -1,
+    credentialSurvives: existsSync(join(sweepVictim, plantedStrayId, '.credentials.json')),
+    // AND THE HONEST HALF, on a root with no link in it: the same planted
+    // directory must still be named a stray and must still be removed, or the
+    // guard has turned the sweep off rather than made it careful.
+    plain: (() => {
+      const plainSweepRoot = join(root, 'sweep-plain');
+      mkdirSync(join(plainSweepRoot, 'claude', plantedStrayId), { recursive: true });
+      writeFileSync(dirs.loginsFileIn(plainSweepRoot), '{"v":1,"chosen":{},"logins":[]}', 'utf8');
+      const found = store.strayLoginIds(plainSweepRoot, 'claude');
+      const removed = store.removeStrayLoginDir(plainSweepRoot, 'claude', plantedStrayId);
+      return {
+        strays: found,
+        removed,
+        gone: !existsSync(join(plainSweepRoot, 'claude', plantedStrayId))
+      };
+    })()
+  };
+
+  // -------------------------------------------------------------------------
   // 2d. A NUMERIC ID IN THE RECORD (Phase 219, item 3). Tortie never writes
   //     that shape, so a file holding one was hand edited and cannot be read.
   //     The old `namedLoginIds` skipped the row and answered a set the rest of

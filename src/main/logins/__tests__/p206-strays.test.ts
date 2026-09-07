@@ -132,4 +132,42 @@ describe('removeStrayLoginDir', () => {
       expect(removeStrayLoginDir(root, 'claude', id)).toBe(false);
     }
   });
+
+  /**
+   * PHASE 219'S FIX ROUND, AND IT IS THE SECOND DOOR.
+   *
+   * The guard the round added sits in `strayLoginIds`, and `finishStraysOnce`
+   * in `../../credentials/keep.ts` reaches THIS function with a second source
+   * of ids, being Tortie's own recorded vault slots that no row names, which
+   * never pass through that function at all. `isOwnedLoginDir` is the string
+   * rule and a string cannot see a link, so the id below passed it while the
+   * provider root itself was a symbolic link, and the delete landed inside
+   * somebody else's tree. Driven at the parent of the fix the victim went from
+   * one entry holding a credential to none.
+   */
+  it('refuses an id under a provider root that is itself a LINK', () => {
+    const victim = join(root, 'somebody-elses-tree');
+    const id = '7777777777777777';
+    mkdirSync(join(victim, id), { recursive: true });
+    writeFileSync(join(victim, id, '.credentials.json'), 'THEIRS', 'utf8');
+    symlinkSync(victim, join(root, 'claude'));
+    expect(removeStrayLoginDir(root, 'claude', id)).toBe(false);
+    expect(readFileSync(join(victim, id, '.credentials.json'), 'utf8')).toBe(
+      'THEIRS'
+    );
+  });
+
+  /**
+   * And the honest half: the SAME planted directory under a root with no link
+   * in it is still removed, or the guard above turned the remove off rather
+   * than making it careful.
+   */
+  it('still removes the same directory when no ancestor is a link', () => {
+    const id = '7777777777777777';
+    const dir = loginDirIn(root, 'claude', id);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, '.credentials.json'), 'OURS', 'utf8');
+    expect(removeStrayLoginDir(root, 'claude', id)).toBe(true);
+    expect(existsSync(dir)).toBe(false);
+  });
 });

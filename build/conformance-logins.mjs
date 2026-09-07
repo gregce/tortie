@@ -413,6 +413,7 @@ function verdict(d) {
     JSON.stringify(d.linked),
     JSON.stringify(d.create),
     JSON.stringify(d.numeric),
+    JSON.stringify(d.sweepLinked),
     JSON.stringify(d.refusals),
     JSON.stringify(d.chosen),
     JSON.stringify(d.leak),
@@ -509,6 +510,32 @@ if ('error' in live) {
   check(
     !live.create.absentAncestor,
     `${TAG} a provider root that is not there yet reads as a link, so no login could ever be created`
+  );
+
+  // Rule 3c2, THE SWEEP DRIVEN UNDER A LINKED PROVIDER ROOT (Phase 219's fix
+  // round). Rule 3c above asks the PREDICATE and rule 3d below drives the
+  // sweep over plain roots. Neither drove the sweep under a link, so the guard
+  // inside `strayLoginIds` was pinned only by this gate's own ablation text:
+  // taken out by hand, every live rule here stayed green. These four are the
+  // behaviour, and the second of them is the door `finishStraysOnce` reaches
+  // with ids that never pass through `strayLoginIds` at all.
+  check(
+    live.sweepLinked.strays.length === 0,
+    `${TAG} A LINKED PROVIDER ROOT WAS WALKED FOR STRAYS: ${JSON.stringify(live.sweepLinked.strays)}`
+  );
+  check(
+    !live.sweepLinked.aimed,
+    `${TAG} THE STRAY REMOVE ACCEPTED AN ID UNDER A LINKED PROVIDER ROOT, so a delete reached a directory Tortie does not own`
+  );
+  check(
+    live.sweepLinked.credentialSurvives && live.sweepLinked.victimEntries === 1,
+    `${TAG} THE SWEEP DELETED SOMEBODY ELSE'S DIRECTORY THROUGH A LINKED ROOT: ${String(live.sweepLinked.victimEntries)} entries left, credential ${String(live.sweepLinked.credentialSurvives)}`
+  );
+  check(
+    live.sweepLinked.plain.strays.length === 1 &&
+      live.sweepLinked.plain.removed &&
+      live.sweepLinked.plain.gone,
+    `${TAG} the SAME planted directory under a root with no link was not swept, so the refusals above turned the sweep off rather than making it careful: ${JSON.stringify(live.sweepLinked.plain)}`
   );
 
   // Rule 3d, a record row Tortie did not write (Phase 219, item 3).
@@ -866,6 +893,20 @@ const ABLATIONS = [
       {
         file: 'store.ts',
         from: '  if (loginAncestorIsLink(root, provider)) return [];',
+        to: ''
+      }
+    ]
+  },
+  {
+    // THE SECOND DOOR, and the reason this ablation is not the one above it.
+    // `finishStraysOnce` reaches this remove with ids from the record's own
+    // vault slots, which never pass through `strayLoginIds`, so taking the
+    // guard out of one function says nothing about the other.
+    name: 'the ancestor guard taken out of the stray REMOVE, so a delete follows a linked root',
+    edits: [
+      {
+        file: 'store.ts',
+        from: '  if (loginAncestorIsLink(root, provider)) return false;',
         to: ''
       }
     ]
