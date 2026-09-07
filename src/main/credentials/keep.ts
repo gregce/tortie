@@ -110,8 +110,13 @@ export interface KeepDeps {
    * longer refuses; it asks this list one thing only, being whether a session
    * of the provider is running under the DEFAULT login, because that session
    * reads the vendor's own location and the chosen account is put there too so
-   * it follows. An answer that throws is read as "no sessions", the shape every
-   * other seam in this tree takes.
+   * it follows.
+   *
+   * PHASE 220. AN ANSWER THAT THROWS IS NOT "NO SESSIONS". It is asked once,
+   * above every write an activation makes, and a rejection refuses the whole
+   * activation with the choice left alone, because a switch reported as done
+   * while the running agent kept the old account is the untruthful outcome the
+   * phase was written for. {@link activateLogin} carries the measurement.
    */
   liveSessions(): Promise<LiveSession[]>;
   now(): number;
@@ -1021,47 +1026,99 @@ export async function activateLogin(
   }
   const digest = credentialDigest(payload);
 
+  // THE SESSION EVIDENCE IS ASKED HERE, ABOVE EVERY WRITE (Phase 220), and an
+  // answer that could not be had is a THIRD STATE rather than "no sessions".
+  //
+  // Phase 211 made this answer decide whether the person's own default
+  // location is written, and it was asked as `.catch(() => [])`, which made an
+  // UNAVAILABLE answer byte for byte indistinguishable from a machine with
+  // nothing running: the default lift was skipped, the agent running under the
+  // default login kept the account the person had just switched away from, and
+  // the sentence they read was the one a switch that worked prints. Measured
+  // at `b5cc017`, a rejected query with a default session running and a working
+  // query with no sessions at all both answered
+  // `ok=true "one.example is signed in again."`.
+  //
+  // IT IS NOT THE PHASE 204 REFUSAL COMING BACK. A KNOWN answer, empty or not,
+  // still writes exactly as Phase 211 left it, running session and default
+  // store included. What is refused is acting on evidence nobody has: without
+  // it Tortie cannot tell whether the switch reaches the session the person is
+  // looking at, so nothing is written, the choice is left alone, and the
+  // sentence says which of the two it was.
+  const evidence = await liveSessionEvidence(d);
+  if (!evidence.known) {
+    return {
+      ok: false,
+      reason: `Tortie could not check which sessions are running, so ${row.name} was left as it was. Try again in a moment.`
+    };
+  }
+
   let wrote = false;
   let says: string | null = null;
   let firstProblem: string | null = null;
+  /**
+   * The store a lift is INSIDE right now, or null between them (Phase 220).
+   *
+   * It is what lets an unclassified throw say whether a write may have been
+   * reached at all, instead of the caller having to assume the worst or the
+   * best. Set before each lift and cleared after it.
+   */
+  let inside: string | null = null;
 
-  // 1. THE LOGIN'S OWN STORE, so a session already running under this login and
-  //    every new session launched under it get the account. Nothing moves when
-  //    the store already holds it, which is the ordinary re-choose.
-  const own = await liftStore(
-    d,
-    provider,
-    { id: row.id, dir, name: row.name },
-    slot,
-    payload,
-    digest,
-    stopAfter
-  );
-  if (!own.ok) return { ok: false, reason: own.reason };
-  if (own.wrote) wrote = true;
-  else says = own.says ?? null;
-
-  // 2. THE DEFAULT LIFT (Phase 211). A session of this provider running under
-  //    the default login reads the vendor's own location, so the chosen account
-  //    is put THERE too and that running session follows. The account that is
-  //    in the default store is given a login of its own BEFORE a byte moves,
-  //    inside the same {@link liftStore}, under the vendor's locks.
-  const running = await d.liveSessions().catch((): LiveSession[] => []);
-  if (running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {
-    const lifted = await liftStore(
+  try {
+    // 1. THE LOGIN'S OWN STORE, so a session already running under this login and
+    //    every new session launched under it get the account. Nothing moves when
+    //    the store already holds it, which is the ordinary re-choose.
+    inside = row.name;
+    const own = await liftStore(
       d,
       provider,
-      { id: null, dir: null, name: DEFAULT_LOGIN_NAME },
+      { id: row.id, dir, name: row.name },
       slot,
       payload,
       digest,
       stopAfter
     );
-    if (lifted.ok) {
-      if (lifted.wrote) wrote = true;
-    } else if (firstProblem === null) {
-      firstProblem = lifted.reason;
+    inside = null;
+    if (!own.ok) return { ok: false, reason: own.reason };
+    if (own.wrote) wrote = true;
+    else says = own.says ?? null;
+
+    // 2. THE DEFAULT LIFT (Phase 211). A session of this provider running under
+    //    the default login reads the vendor's own location, so the chosen account
+    //    is put THERE too and that running session follows. The account that is
+    //    in the default store is given a login of its own BEFORE a byte moves,
+    //    inside the same {@link liftStore}, under the vendor's locks.
+    if (
+      evidence.sessions.some(
+        (s) => s.provider === provider && isDefaultLogin(s.login)
+      )
+    ) {
+      inside = DEFAULT_LOGIN_NAME;
+      const lifted = await liftStore(
+        d,
+        provider,
+        { id: null, dir: null, name: DEFAULT_LOGIN_NAME },
+        slot,
+        payload,
+        digest,
+        stopAfter
+      );
+      inside = null;
+      if (lifted.ok) {
+        if (lifted.wrote) wrote = true;
+      } else if (firstProblem === null) {
+        firstProblem = lifted.reason;
+      }
     }
+  } catch {
+    // AN UNCLASSIFIED THROW IS NOT A SUCCESSFUL SWITCH (Phase 220). Every
+    // refusal this function knows about already leaves as `{ ok: false }` with
+    // a sentence; anything that arrives here is a step that failed for a reason
+    // nobody classified, and until this phase it left `activateLogin` uncaught,
+    // was swallowed by the registrar, and the person was told the login had
+    // been switched while nothing had been written.
+    return unexpectedActivation(row.name, inside, wrote);
   }
 
   if (!wrote) {
@@ -1080,6 +1137,74 @@ export async function activateLogin(
     };
   }
   return { ok: true, wrote: true, says: `${row.name} is signed in again.` };
+}
+
+/**
+ * What the live session seam answered, with "could not be answered" kept apart
+ * from "nothing is running" (Phase 220).
+ *
+ * The seam is the sessions domain reached through the boot, so an answer can be
+ * missing for ordinary reasons, being a core that has not opened the manifest
+ * yet or one that is closing. Phase 211 read every one of those as an empty
+ * list. THE REASON IS DELIBERATELY NOT CARRIED OUT OF HERE: this domain writes
+ * no log line and composes no sentence out of somebody else's error text, so
+ * what a caller learns is that the answer is not available and nothing more.
+ */
+type SessionEvidence =
+  | { known: true; sessions: LiveSession[] }
+  | { known: false };
+
+async function liveSessionEvidence(d: KeepDeps): Promise<SessionEvidence> {
+  try {
+    const answer = await d.liveSessions();
+    // A seam that answered something that is not a list has not answered.
+    return Array.isArray(answer) ? { known: true, sessions: answer } : { known: false };
+  } catch {
+    return { known: false };
+  }
+}
+
+/**
+ * What an activation answers when a step threw for a reason nobody classified
+ * (Phase 220).
+ *
+ * THREE OUTCOMES, AND THEY ARE DIFFERENT THINGS. A throw between the lifts
+ * changed nothing. A throw INSIDE a lift may have changed the store it names,
+ * because `./swap.ts` guarantees the store holds the old credential or the new
+ * one and never says which; the sentence says so rather than claiming either.
+ * A throw after a lift that DID write is the partial outcome the person must
+ * be told about, and it reads like the Phase 211 partial success it resembles:
+ * the choice stands, because every new session under this login gets the
+ * account, and the half that did not happen is named.
+ *
+ * NOTHING IS ROLLED BACK on any of the three. A vendor refresh may have landed
+ * inside the same window, and writing over it to tidy up is the exact loss the
+ * locks were ported to stop. Every account Tortie was holding is still held:
+ * `liftStore` keeps and promotes what a store held BEFORE it writes, and it
+ * refuses the write outright when it could not.
+ */
+function unexpectedActivation(
+  name: string,
+  inside: string | null,
+  wrote: boolean
+): ActivateResult {
+  if (wrote) {
+    return {
+      ok: true,
+      wrote: true,
+      says: `${name} is signed in again, but the switch did not finish, so a session running on your own sign in may still be on the account you left. Every account Tortie keeps is still here.`
+    };
+  }
+  if (inside !== null) {
+    return {
+      ok: false,
+      reason: `Something went wrong while ${name} was being put back, so the choice was left as it was. The sign in for ${inside} holds either what it held or ${name}, and every account Tortie keeps is still here.`
+    };
+  }
+  return {
+    ok: false,
+    reason: `Something went wrong while ${name} was being put back, so nothing was changed and the choice was left as it was.`
+  };
 }
 
 /** One store a switch can write, as the lift sees it. */

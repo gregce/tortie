@@ -91,6 +91,17 @@
  *      real source: `-w` is what makes `security` print the secret, and it
  *      appears nowhere; and the module writes no log line of any kind, so
  *      there is no line for an address or a token to reach.
+ *
+ * ## Phase 220 added one more, and it is the second defect that phase repaired
+ *
+ *  12. AN UNCLASSIFIED THROW IN `logins:choose` DOES NOT FALL THROUGH TO THE
+ *      CHOICE. Measured at `b5cc017`: with `activateLogin` made to reject, the
+ *      registered handler answered `ok: true` and `logins.json` recorded the
+ *      new name, so a step that failed for a reason nobody classified was
+ *      written down as a switch that worked. The catch is read out of the
+ *      handler's OWN span by matching braces, because a return in another
+ *      handler is not a return in this one, and the rule is about leaving
+ *      rather than about the words in the sentence.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -1084,6 +1095,114 @@ check(
     else failures.push(`${TAG} the push scanner misread the fixture "${f.name}": ${String(got)} (want ${String(f.pushes)})`);
   }
   notes.push(`${String(behaved)} of ${String(PUSH_FIXTURES.length)} push fixtures behaved`);
+}
+
+// ---------------------------------------------------------------------------
+// Rule 12 (Phase 220, item 1). AN UNCLASSIFIED THROW IN `logins:choose` DOES
+// NOT FALL THROUGH TO THE CHOICE.
+//
+// Measured at `b5cc017`: with `activateLogin` made to reject, the registered
+// handler answered `ok: true`, `logins.json` recorded the new name, the person
+// was told nothing, and every new session under that login launched with
+// whatever bytes happened to be in the store. The catch fell through to
+// `chooseLogin` two lines below it.
+//
+// The rule is read from the HANDLER'S OWN SPAN by matching braces rather than
+// by searching the file for a `return`, because a return in some other handler
+// is not a return in this one. It is deliberately about the catch and not
+// about the words in it: a later round may rewrite the sentence, and it may
+// not go on recording a choice it could not make.
+// ---------------------------------------------------------------------------
+
+/** The text of the handler registered for `channel`, or null. */
+function handlerSpanOf(text, channel) {
+  const body = stripComments(text);
+  const at = body.indexOf(`'${channel}'`);
+  if (at < 0) return null;
+  const next = body.indexOf('handle(', at + 1);
+  return body.slice(at, next < 0 ? body.length : next);
+}
+
+/** Every `catch` block in `span`, as its own text. */
+function catchBlocksIn(span) {
+  const out = [];
+  const re = /\bcatch\b\s*(\([^)]*\))?\s*\{/g;
+  let m;
+  while ((m = re.exec(span)) !== null) {
+    const open = span.indexOf('{', m.index + (m[0].length - 1));
+    let depth = 0;
+    for (let i = open; i < span.length; i++) {
+      const ch = span[i];
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          out.push(span.slice(open, i + 1));
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Does every catch in the choose handler leave rather than fall through? */
+function chooseCatchLeaves(text) {
+  const span = handlerSpanOf(text, 'logins:choose');
+  if (span === null) return false;
+  if (!/\bactivateLogin\s*\(/.test(span)) return false;
+  const blocks = catchBlocksIn(span);
+  if (blocks.length === 0) return false;
+  return blocks.every((b) => /\breturn\b/.test(b) || /\bthrow\b/.test(b));
+}
+
+check(
+  chooseCatchLeaves(ipcText),
+  `${TAG} the logins:choose handler has a catch that falls through to the choice, so a step that failed for a reason nobody classified is recorded as a switch that worked`
+);
+{
+  const CHOOSE_FIXTURES = [
+    {
+      name: 'the catch returns a refusal',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  try {\n    const put = await activateLogin(d, p, n);\n  } catch {\n    return { ok: false, reason: 'no' };\n  }\n  return answer(chooseLogin(root, p, n));\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      leaves: true
+    },
+    {
+      name: 'the catch falls through to the choice, which is the parent',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  try {\n    const put = await activateLogin(d, p, n);\n  } catch {\n    log.info('x');\n  }\n  return answer(chooseLogin(root, p, n));\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      leaves: false
+    },
+    {
+      name: 'a return in ANOTHER handler does not count',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  try {\n    await activateLogin(d, p, n);\n  } catch {\n    log.info('x');\n  }\n  return answer(chooseLogin(root, p, n));\n});\nhandle(ipc, 'logins:remove', async () => {\n  try {\n    await forget();\n  } catch {\n    return { ok: false };\n  }\n});\n",
+      leaves: false
+    },
+    {
+      name: 'no activation at all is not a passing choose handler',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  return answer(chooseLogin(root, p, n));\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      leaves: false
+    },
+    {
+      name: 'a return only in a comment inside the catch',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  try {\n    await activateLogin(d, p, n);\n  } catch {\n    // return { ok: false } would go here\n  }\n  return answer(chooseLogin(root, p, n));\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      leaves: false
+    }
+  ];
+  let behaved = 0;
+  for (const f of CHOOSE_FIXTURES) {
+    const got = chooseCatchLeaves(f.text);
+    if (got === f.leaves) behaved += 1;
+    else
+      failures.push(
+        `${TAG} the choose-catch scanner misread the fixture "${f.name}": ${String(got)} (want ${String(f.leaves)})`
+      );
+  }
+  notes.push(`${String(behaved)} of ${String(CHOOSE_FIXTURES.length)} choose-catch fixtures behaved`);
 }
 
 // ---------------------------------------------------------------------------

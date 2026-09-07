@@ -695,6 +695,196 @@ try {
   }
 
   // -------------------------------------------------------------------------
+  // 7k. THE SESSION EVIDENCE, AND THE UNCLASSIFIED THROW (Phase 220).
+  //
+  //    Three answers to "which sessions are running" and two throws that no
+  //    branch of the activation classifies. At the parent an UNAVAILABLE answer
+  //    was read as an empty list, so a switch that never reached the running
+  //    agent answered in the same bytes as one that had nothing to reach; and a
+  //    throw left `activateLogin` uncaught for the registrar to swallow.
+  // -------------------------------------------------------------------------
+  {
+    /**
+     * One promoted codex login over a world of its own, so each arm below
+     * starts from the same place a person is in after one `/login`.
+     */
+    const world = async (): Promise<{
+      d: import('../src/main/credentials/keep').KeepDeps & {
+        vault: ReturnType<typeof makeVault>;
+      };
+      w: World;
+      root: string;
+      dir: string;
+      name: string;
+    }> => {
+      const root = freshRoot();
+      const w = makeWorld();
+      w.files.set(CODEX_DEFAULT, codexCredential('alice', '1'));
+      const d = makeDeps(root, w);
+      await keep.observeProvider(d, 'codex');
+      w.files.set(CODEX_DEFAULT, codexCredential('bob', '2'));
+      await keep.observeProvider(d, 'codex');
+      const row = readLoginsFile(root).file.logins.find(
+        (l) => l.name === 'alice.example'
+      );
+      return {
+        d,
+        w,
+        root,
+        dir: row === undefined ? '' : loginDirIn(root, 'codex', row.id),
+        name: 'alice.example'
+      };
+    };
+
+    const asked = (
+      live: () => Promise<import('../src/main/credentials/keep').LiveSession[]>
+    ) => live;
+
+    // A. THE ANSWER CANNOT BE HAD, with a default session running.
+    const a = await world();
+    const aResult = await keep.activateLogin(
+      {
+        ...a.d,
+        liveSessions: asked(async () => {
+          throw new Error('the manifest is not open');
+        })
+      },
+      'codex',
+      a.name
+    );
+    // B. A KNOWN EMPTY ANSWER. Phase 211 untouched: the login's own store is
+    //    written and the person's own location is not.
+    const b = await world();
+    const bResult = await keep.activateLogin(
+      { ...b.d, liveSessions: asked(async () => []) },
+      'codex',
+      b.name
+    );
+    // C. A KNOWN DEFAULT SESSION. The default lift happens.
+    const c = await world();
+    const cResult = await keep.activateLogin(
+      {
+        ...c.d,
+        liveSessions: asked(async () => [
+          { provider: 'codex' as LoginProviderId, login: null }
+        ])
+      },
+      'codex',
+      c.name
+    );
+
+    // D. AN UNCLASSIFIED THROW WITH NOTHING WRITTEN YET. The record file stops
+    //    being writable the instant the sessions are asked, which is after the
+    //    activation's own observe and before its first lift. The login's own
+    //    store already holds the chosen account, so lift 1 moves nothing, and
+    //    the person's own location holds a third account, so lift 2 must keep
+    //    it before it writes and that keep is the write that throws.
+    const breakRecord = (root: string): void => {
+      const path = join(root, 'kept.json');
+      rmSync(path, { force: true, recursive: true });
+      mkdirSync(path, { recursive: true });
+    };
+    const d1 = await world();
+    d1.w.files.set(join(d1.dir, 'auth.json'), codexCredential('alice', '1'));
+    d1.w.files.set(CODEX_DEFAULT, codexCredential('carol', '3'));
+    let threw1 = false;
+    let d1Result: import('../src/main/credentials/keep').ActivateResult | null = null;
+    try {
+      d1Result = await keep.activateLogin(
+        {
+          ...d1.d,
+          liveSessions: asked(async () => {
+            breakRecord(d1.root);
+            return [{ provider: 'codex' as LoginProviderId, login: null }];
+          })
+        },
+        'codex',
+        d1.name
+      );
+    } catch {
+      threw1 = true;
+    }
+
+    // E. THE SAME THROW, AFTER A CONFIRMED WRITE. The record file goes away the
+    //    moment the person's own location is READ for the switch, which is
+    //    inside the second lift and therefore after the first one has written
+    //    the login's own store. That is the partial outcome, and it is the one
+    //    the person must be told about rather than have hidden.
+    const e1 = await world();
+    let threw2 = false;
+    let eResult: import('../src/main/credentials/keep').ActivateResult | null = null;
+    try {
+      eResult = await keep.activateLogin(
+        {
+          ...e1.d,
+          liveSessions: asked(async () => [
+            { provider: 'codex' as LoginProviderId, login: null }
+          ]),
+          stores: {
+            ...e1.d.stores,
+            readText: async (path: string) => {
+              if (
+                path.startsWith(CODEX_DEFAULT) &&
+                e1.w.files.has(join(e1.dir, 'auth.json'))
+              ) {
+                breakRecord(e1.root);
+              }
+              return e1.d.stores.readText(path);
+            }
+          }
+        },
+        'codex',
+        e1.name
+      );
+    } catch {
+      threw2 = true;
+    }
+
+    out['evidence'] = {
+      // A. REFUSED, in a sentence, with neither activation target written.
+      unavailableRefused: aResult.ok === false,
+      unavailableSays:
+        aResult.ok === false && aResult.reason.includes('could not check which sessions are running'),
+      unavailableWroteOwn: a.w.files.has(join(a.dir, 'auth.json')),
+      unavailableWroteDefault: a.w.files.get(CODEX_DEFAULT) !== codexCredential('bob', '2'),
+      // B and C. THE TWO KNOWN ANSWERS ARE UNCHANGED, and they differ from each
+      // other, which is what the parent could not say about A and B.
+      emptyOk: bResult.ok === true && bResult.ok && bResult.wrote === true,
+      emptyWroteOwn: b.w.files.get(join(b.dir, 'auth.json')) === codexCredential('alice', '1'),
+      emptyLeftDefault: b.w.files.get(CODEX_DEFAULT) === codexCredential('bob', '2'),
+      runningOk: cResult.ok === true && cResult.ok && cResult.wrote === true,
+      runningLiftedDefault:
+        c.w.files.get(CODEX_DEFAULT) === codexCredential('alice', '1'),
+      // D. THE UNCERTAIN OUTCOME: classified, refused, and it says which store.
+      uncertainThrew: threw1,
+      uncertainRefused: d1Result !== null && d1Result.ok === false,
+      uncertainNamesTheStore:
+        d1Result !== null &&
+        d1Result.ok === false &&
+        d1Result.reason.includes(d1.name) &&
+        d1Result.reason.includes('every account Tortie keeps is still here'),
+      // NOTHING WAS WRITTEN in that arm: the store it names still holds what it
+      // held, and the person's own location was never reached.
+      uncertainWroteNothing:
+        d1.w.files.get(CODEX_DEFAULT) === codexCredential('carol', '3'),
+      // E. THE PARTIAL OUTCOME: the confirmed write is reported, not hidden.
+      partialThrew: threw2,
+      partialReported: eResult !== null && eResult.ok === true && eResult.ok && eResult.wrote === true,
+      partialSays:
+        eResult !== null &&
+        eResult.ok === true &&
+        eResult.ok &&
+        eResult.says.includes('did not finish'),
+      partialKeptTheWrite:
+        e1.w.files.get(join(e1.dir, 'auth.json')) === codexCredential('alice', '1'),
+      // AND NOTHING WAS ROLLED BACK over the account that was there.
+      partialRecoverable: readLoginsFile(e1.root)
+        .file.logins.map((l) => l.name)
+        .includes('bob.example')
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // 7c. THE LOCKS (Phase 211). Claude Code's own credential locks, cooperated
   //     with, driven over the SHIPPING lock module and in-memory seams.
   // -------------------------------------------------------------------------

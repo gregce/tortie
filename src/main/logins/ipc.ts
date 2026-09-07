@@ -370,9 +370,30 @@ export function registerLoginsIpc(ipc: IpcMain): void {
       activation = put.wrote ? put.says : null;
       log.info('logins.activate', { provider: id, ok: true, wrote: put.wrote });
     } catch {
-      // A store Tortie could not reach leaves the choice to the person: the
-      // name is still recorded and the login runs on whatever is in it.
-      log.info('logins.activate', { provider: id, ok: false });
+      // PHASE 220. AN UNCLASSIFIED THROW IS NOT AN ORDINARY SUCCESSFUL CHOICE.
+      //
+      // Until this phase this catch fell through to `chooseLogin` below, so a
+      // step that failed for a reason nobody classified was recorded as a
+      // switch that worked: measured at `b5cc017`, an `activateLogin` made to
+      // reject answered `ok: true` with `logins.json` holding the new name, the
+      // person was told nothing, and every new session under that login
+      // launched with whatever bytes happened to be in the store.
+      //
+      // IT IS NOT THE SAME THING AS THE TWO BRANCHES ABOVE, and the three must
+      // not be collapsed. `put.ok === false` is a refusal the domain composed,
+      // and Phase 211's lock refusals arrive that way, typed and named. This is
+      // the one nobody named, so it says only what is true: nothing was
+      // recorded, and the choice the person had is still theirs. Anything
+      // `activateLogin` itself could classify, including a write that landed
+      // before the throw, comes back as a result rather than through here.
+      forgetObservation();
+      log.info('logins.activate', { provider: id, ok: false, unexpected: true });
+      return {
+        ok: false,
+        reason:
+          'Something went wrong while that sign in was being put back, so the choice was left as it was. Try again in a moment.',
+        snapshot: await wholeList()
+      };
     }
     const change = chooseLogin(loginsRoot(), id, name);
     log.info('logins.choose', { provider: id, ok: change.ok });

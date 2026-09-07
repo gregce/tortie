@@ -109,6 +109,22 @@
  *      the unscoped composer is defined in exactly one file, migrate.ts, and
  *      the one call of the migration outside that file, in index.ts, carries
  *      the profile proof composed by ownProfileVerdict.
+ *  18. THE SESSION EVIDENCE IS THREE ANSWERS, NOT TWO, AND AN UNCLASSIFIED
+ *      THROW IS NOT A SUCCESSFUL SWITCH (Phase 220). Phase 211 asked which
+ *      sessions are running as `.catch(() => [])`, so an answer that could not
+ *      be had was byte for byte a machine with nothing running: measured at
+ *      `b5cc017`, a rejected query with a default session live and a working
+ *      query with no sessions at all both answered
+ *      `ok=true "one.example is signed in again."` while the running agent kept
+ *      the account the person had just left. The ask now happens ABOVE every
+ *      write, an unavailable answer refuses with the choice unchanged and says
+ *      so, and the two KNOWN answers still behave exactly as Phase 211 left
+ *      them, which is what the arm holds all three against each other for. The
+ *      second half is the throw nobody classified: it left `activateLogin`
+ *      uncaught for the registrar to swallow, and it now answers a refusal
+ *      naming the store it may have changed when nothing was confirmed, and the
+ *      Phase 211 shaped partial when a write was. Neither rolls anything back,
+ *      because a vendor refresh may have landed in the same window.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -635,6 +651,7 @@ const VERDICT_PARTS = [
   'rollbackOwn',
   'defaultStore',
   'running',
+  'evidence',
   'locks',
   'claudeLock',
   'lockRefusal',
@@ -674,6 +691,7 @@ function verdict(d) {
     JSON.stringify(d.rollbackOwn),
     JSON.stringify(d.defaultStore),
     JSON.stringify(d.running),
+    JSON.stringify(d.evidence),
     JSON.stringify(d.locks),
     JSON.stringify(d.claudeLock),
     JSON.stringify(d.lockRefusal),
@@ -810,6 +828,49 @@ if ('error' in live) {
   check(
     live.running.defaultStoreNowHolds,
     `${TAG} the default store does not hold the chosen account after the default lift, so the running session cannot follow`
+  );
+
+  // Rule 18 (Phase 220). THE SESSION EVIDENCE IS THREE ANSWERS, NOT TWO, and a
+  // throw nobody classified is not a successful switch.
+  check(
+    live.evidence.unavailableRefused,
+    `${TAG} AN UNAVAILABLE SESSION ANSWER WAS TREATED AS "NO SESSIONS": the activation went ahead on evidence nobody has`
+  );
+  check(
+    live.evidence.unavailableSays,
+    `${TAG} the refusal for an unavailable session answer does not say that is what happened`
+  );
+  check(
+    !live.evidence.unavailableWroteOwn && !live.evidence.unavailableWroteDefault,
+    `${TAG} an activation refused for unavailable session evidence still wrote a store`
+  );
+  check(
+    live.evidence.emptyOk && live.evidence.emptyWroteOwn && live.evidence.emptyLeftDefault,
+    `${TAG} a KNOWN empty session answer no longer writes the login's own store and leaves the person's own location alone, which is the Phase 211 behaviour this phase must not touch`
+  );
+  check(
+    live.evidence.runningOk && live.evidence.runningLiftedDefault,
+    `${TAG} a KNOWN default session no longer lifts the person's own location, which is Phase 211's whole point`
+  );
+  check(
+    !live.evidence.uncertainThrew && live.evidence.uncertainRefused,
+    `${TAG} AN UNCLASSIFIED THROW LEFT activateLogin UNCAUGHT, so the registrar decides what it meant`
+  );
+  check(
+    live.evidence.uncertainWroteNothing,
+    `${TAG} the arm that proves an unclassified throw before any write had already written one, so it proves nothing`
+  );
+  check(
+    live.evidence.uncertainNamesTheStore,
+    `${TAG} the refusal after an unclassified throw does not name the store it may have changed, or does not say the kept accounts survive`
+  );
+  check(
+    !live.evidence.partialThrew && live.evidence.partialReported && live.evidence.partialSays,
+    `${TAG} A CONFIRMED WRITE FOLLOWED BY AN UNCLASSIFIED THROW WAS HIDDEN rather than reported as the partial outcome it is`
+  );
+  check(
+    live.evidence.partialKeptTheWrite && live.evidence.partialRecoverable,
+    `${TAG} the partial outcome rolled back the write or lost the account that was there`
   );
 
   // Rule 6b (Phase 211). THE LOCKS. Claude Code's own credential locks.
@@ -1509,8 +1570,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '  if (running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {',
-        to: '  if (false && running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {'
+        from: '      evidence.sessions.some(\n        (s) => s.provider === provider && isDefaultLogin(s.login)\n      )',
+        to: '      false &&\n      evidence.sessions.some(\n        (s) => s.provider === provider && isDefaultLogin(s.login)\n      )'
       }
     ]
   },
@@ -1893,6 +1954,33 @@ const ABLATIONS = [
         file: 'migrate.ts',
         from: '    if (proof === null || (rewrite && proof !== held)) {',
         to: '    if (false) {'
+      }
+    ]
+  },
+  {
+    // PHASE 220, item 1. The permissive catch restored, which is the shape that
+    // shipped: an answer that could not be had becomes an empty list, the
+    // default lift is skipped in silence, and the sentence the person reads is
+    // the one a switch that worked prints.
+    name: 'an unavailable session answer read as no sessions',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '  const evidence = await liveSessionEvidence(d);\n  if (!evidence.known) {',
+        to: '  const evidence = { known: true as const, sessions: await d.liveSessions().catch((): LiveSession[] => []) };\n  if (false) {'
+      }
+    ]
+  },
+  {
+    // PHASE 220, item 1. The classification of an unclassified throw removed,
+    // so it leaves activateLogin uncaught for a caller to guess at, which is
+    // what the registrar did.
+    name: 'an unclassified activation throw left uncaught',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '  } catch {\n    // AN UNCLASSIFIED THROW IS NOT A SUCCESSFUL SWITCH (Phase 220).',
+        to: '  } catch (thrown) {\n    throw thrown;\n    // AN UNCLASSIFIED THROW IS NOT A SUCCESSFUL SWITCH (Phase 220).'
       }
     ]
   },
