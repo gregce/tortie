@@ -6,8 +6,17 @@
  * says otherwise, because at that commit the whole of this domain's quit was
  * `stopLoginsWatch()` and nothing else was owned at all.
  *
+ * THE FIX ROUND ADDED THE THIRD OF THEM AND REWROTE THE FIRST. The verifier
+ * found that two arms of `shutdown_refuses_late_login_work` could not fail,
+ * because `observeAll` holds its reading for five seconds and the setup had
+ * just stamped that clock, and that the `trackCredentialWork` around the
+ * activation was held up by nothing at all: `../../logins/ipc.ts` is outside
+ * the directory the credentials gate ablates, so a bare `await` there left the
+ * whole battery green while a switch in flight stopped being joined.
+ *
  *  - `shutdown_refuses_late_login_work`
  *  - `shutdown_joins_replaced_observation`
+ *  - `shutdown_joins_the_activation_it_started`
  *  - `late_watch_start_cannot_rearm_after_shutdown`
  *  - `shutdown_settles_held_security_read_and_write`
  *  - `shutdown_during_vendor_lock_keeps_recovery`
@@ -54,6 +63,25 @@ vi.mock('../../typed-ipc', () => ({
   }
 }));
 vi.mock('../../typed-events', () => ({ broadcastEvent: () => undefined }));
+
+/**
+ * THE LOG, CAPTURED, because the boot observe's own guard is upstream of every
+ * store read and so cannot be seen in the read count alone (Phase 220 fix
+ * round). `observeLoginsAtBoot` refuses on its first line; with that line gone
+ * it runs, joins or draws the held reading, asks the migration and writes its
+ * `logins.boot` line, and the only one of those a store read can see is a pass
+ * `observeAll`'s own guard would have refused anyway. So the arm reads the line
+ * as well as the store, and the two guards are then one arm each.
+ */
+const logged: string[] = [];
+vi.mock('../../log', () => ({
+  getLog: () => ({
+    error: (event: string) => logged.push(event),
+    warn: (event: string) => logged.push(event),
+    info: (event: string) => logged.push(event),
+    debug: (event: string) => logged.push(event)
+  })
+}));
 
 import type { KeepDeps } from '../index';
 
@@ -231,6 +259,7 @@ beforeEach(() => {
   mkdirSync(root, { recursive: true });
   mkdirSync(home, { recursive: true });
   reads = 0;
+  logged.length = 0;
   handlers.clear();
   resetCredentialLifecycle();
   setKeepDeps(deps());
@@ -259,30 +288,53 @@ describe('Phase 220: the credentials domain has one shutdown owner', () => {
     beginCredentialShutdown();
     expect(credentialsAreOpen()).toBe(false);
 
-    // THE CHOICE. The one channel that writes a credential starts nothing.
-    const before = readIfThere(codexDefault());
-    const chose = (await handlers.get('logins:choose')?.(null, 'codex', name)) as {
-      ok: boolean;
-      reason?: string;
-    };
-    expect(chose.ok).toBe(false);
-    expect(String(chose.reason)).toContain('closing');
-    expect(existsSync(join(dir, 'auth.json'))).toBe(false);
-    expect(readIfThere(codexDefault())).toBe(before);
-    expect(readLoginsFile(root).file.chosen['codex']).toBeUndefined();
+    // THE CLOCK IS DRIVEN, and this is what the fix round added (Phase 220).
+    //
+    // `observeAll` holds its reading for five seconds, and the two adds above
+    // stamped that clock a millisecond ago. So the list and the boot observe
+    // below both returned the held facts and read nothing WHATEVER ADMISSION
+    // SAID, and the arms passed with both guards deleted. Proved both ways: at
+    // `OBSERVE_TTL_MS = 0` the same double deletion turns this test red and the
+    // shipped code stays green. Time is moved on before each arm rather than
+    // once, because a refused answer stamps the clock again on its way past.
+    let drift = 0;
+    const realNow = Date.now.bind(Date);
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => realNow() + drift);
+    try {
+      // THE CHOICE. The one channel that writes a credential starts nothing.
+      const before = readIfThere(codexDefault());
+      const chose = (await handlers.get('logins:choose')?.(null, 'codex', name)) as {
+        ok: boolean;
+        reason?: string;
+      };
+      expect(chose.ok).toBe(false);
+      expect(String(chose.reason)).toContain('closing');
+      expect(existsSync(join(dir, 'auth.json'))).toBe(false);
+      expect(readIfThere(codexDefault())).toBe(before);
+      expect(readLoginsFile(root).file.chosen['codex']).toBeUndefined();
 
-    // THE LIST. It still draws, and it walks no store to do it.
-    reads = 0;
-    await handlers.get('logins:list')?.();
-    expect(reads).toBe(0);
+      // THE LIST. It still draws, and it walks no store to do it, with the held
+      // reading long expired so the refusal is the only thing stopping the walk.
+      drift += 10 * 60_000;
+      reads = 0;
+      await handlers.get('logins:list')?.();
+      expect(reads).toBe(0);
 
-    // THE BOOT OBSERVE. It reads nothing at all.
-    await observeLoginsAtBoot();
-    expect(reads).toBe(0);
+      // THE BOOT OBSERVE. It does not run at all: no store is read and the line
+      // it writes at the end of every boot observe was never written.
+      drift += 10 * 60_000;
+      reads = 0;
+      logged.length = 0;
+      await observeLoginsAtBoot();
+      expect(reads).toBe(0);
+      expect(logged).not.toContain('logins.boot');
 
-    // THE WATCH START. No watcher and no timer appears.
-    await startLoginsWatch();
-    expect(loginsWatchState()).toBeNull();
+      // THE WATCH START. No watcher and no timer appears.
+      await startLoginsWatch();
+      expect(loginsWatchState()).toBeNull();
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it('shutdown_joins_replaced_observation', async () => {
@@ -329,6 +381,58 @@ describe('Phase 220: the credentials domain has one shutdown owner', () => {
     await Promise.allSettled([listA, addB]);
     expect(report.tracked).toBe(2);
     expect(report.joined).toBe(true);
+    expect(credentialWorkCount()).toBe(0);
+  });
+
+  it('shutdown_joins_the_activation_it_started', async () => {
+    // THE FIX ROUND'S OWN CASE (Phase 220). The activation is the one thing in
+    // this domain that WRITES a credential, and `logins/ipc.ts` is outside the
+    // directory the credentials gate ablates, so the `trackCredentialWork(...)`
+    // around it was held up by nothing at all: replacing it with a bare `await`
+    // left every case in this file and in `../../logins/__tests__` green while
+    // a switch in flight stopped being joined at quit. This is that call site,
+    // held across the quit and asked for by name.
+    const { name } = await twoCodexAccounts();
+    let release = (): void => undefined;
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    let hold = false;
+    const installed = deps();
+    setKeepDeps({
+      ...installed,
+      stores: {
+        ...installed.stores,
+        readText: async (path) => {
+          // Only once the two adds above are done, so the hang belongs to the
+          // activation and to nothing that set it up.
+          if (hold && path.endsWith('auth.json')) await held;
+          return installed.stores.readText(path);
+        }
+      }
+    });
+
+    hold = true;
+    const choosing = handlers.get('logins:choose')?.(null, 'codex', name);
+    await sleep(20);
+    // THE SWITCH IS OWNED WHILE IT RUNS, which is the whole assertion.
+    expect(credentialWorkCount()).toBe(1);
+
+    beginCredentialShutdown();
+    let settled = false;
+    const join = joinCredentialShutdown(5_000).then((report) => {
+      settled = true;
+      return report;
+    });
+    await sleep(20);
+    // THE QUIT DOES NOT RESOLVE OVER THE TOP OF IT.
+    expect(settled).toBe(false);
+
+    release();
+    const report = await join;
+    expect(report.tracked).toBe(1);
+    expect(report.joined).toBe(true);
+    await Promise.allSettled([choosing]);
     expect(credentialWorkCount()).toBe(0);
   });
 
