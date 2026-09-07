@@ -35,7 +35,11 @@ import {
   faceCssFor,
   hasBoldRuns
 } from './capture-fonts';
-import { historyRangeToCopy, historySelection } from './history-selection';
+import {
+  historyRangeToCopy,
+  historySelection,
+  holdHistorySelection
+} from './history-selection';
 import type {
   HistorySelection,
   HistorySelectionRange
@@ -107,6 +111,17 @@ function captured(text: string): void {
 function failed(err: unknown): void {
   toast('error', errorText(err));
 }
+
+/**
+ * PHASE 219, ITEM 11. What a person is told when the lines a selection names
+ * are no longer in the scrollback.
+ *
+ * `info` rather than `error`, because nothing went wrong: the lines are gone.
+ * It names WHAT happened rather than a mechanism, per the just enough words
+ * rule, and it is exported so its test and the round's app run read the same
+ * string the face draws.
+ */
+export const COPY_NOTHING_LEFT = 'Those lines are no longer in the scrollback.';
 
 // ---------------------------------------------------------------------------
 // Copy
@@ -250,7 +265,15 @@ export async function copySelection(
   if (history !== null) {
     try {
       const composed = await composeFromHistory(sessionId, bridge, history, false);
-      if (composed === null || composed.text.length === 0) return false;
+      // PHASE 219, ITEM 11. The residual empty compose, and it SAYS SO now.
+      // Clear no longer leaves a range pointing at a history that is gone, but
+      // a server can drop a scrollback for its own reasons between the
+      // selection and the verb, and this branch is what a person met then: no
+      // clipboard write and no word at all. Silence was the defect.
+      if (composed === null || composed.text.length === 0) {
+        toast('info', COPY_NOTHING_LEFT);
+        return false;
+      }
       await bridge.writeRich({ text: composed.text, html: '' });
       return true;
     } catch (err) {
@@ -290,7 +313,11 @@ export async function copySelectionAsHtml(
   if (history !== null) {
     try {
       const composed = await composeFromHistory(sessionId, bridge, history, true);
-      if (composed === null || composed.text.length === 0) return;
+      // The same residual, and the same words. See copySelection above.
+      if (composed === null || composed.text.length === 0) {
+        toast('info', COPY_NOTHING_LEFT);
+        return;
+      }
       await bridge.writeRich(composed);
       toast('success', 'Copied with colors.');
     } catch (err) {
@@ -337,12 +364,41 @@ export function selectAll(sessionId: string): void {
 /**
  * Clear: drop what is on screen AND the server-side history, so "capture the
  * last 250 lines" agrees with what the user just cleared.
+ *
+ * PHASE 219, ITEM 11. THE SELECTION GOES WITH THE HISTORY IT DESCRIBES.
+ *
+ * Phase 209's verifier reported that Clear during a selection makes Copy do
+ * nothing, silently, and it was still true at bd16e36. The cause is that this
+ * function dropped the history and left the selection standing. A held range
+ * (./history-selection.ts) is a pair of positions in a scrollback that no
+ * longer exists, so `copySelection` composed from it, got no text back, and
+ * took its `composed.text.length === 0` branch to `return false`. Both callers
+ * of that verb, ../menu/terminal-menu.ts and ../keys/index.ts, are
+ * `void copySelection(...)`, so nothing was written and nothing was said. The
+ * other branch is no better: if xterm's own `clear()` happened to fire
+ * `onSelectionChange` the drag module released the range, `hasSelection()`
+ * came back false, and the same `return false` ran.
+ *
+ * The fix is the one the charter named: make the selection VISIBLY go, so a
+ * person watches the highlight leave with the history instead of pressing Copy
+ * into silence. It is not a fix that makes copy work, because there is nothing
+ * left to copy — the person asked for it to be gone.
+ *
+ * ORDER MATTERS. The highlight is cleared first, then the held range is
+ * dropped, then the screen is cleared. Dropping the range LAST means no
+ * `onSelectionChange` handler firing in between can put one back, and the
+ * held map is left empty whether or not the lazily loaded drag module was
+ * ever imported in this window — which is the case the first branch above
+ * depended on and could not assume.
  */
 export async function clearSession(
   sessionId: string,
   tmuxName: string
 ): Promise<void> {
-  getTerminal(sessionId)?.clear();
+  const term = getTerminal(sessionId);
+  term?.clearSelection();
+  holdHistorySelection(sessionId, null);
+  term?.clear();
   const bridge = captureBridge();
   if (bridge === null) return;
   try {
