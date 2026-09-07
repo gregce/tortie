@@ -18,7 +18,7 @@
  * keychain is a set of names and the file system is a bag of strings.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -200,6 +200,41 @@ try {
     chooseOk: store.chooseLogin(linkRoot, 'claude', 'Planted').ok,
     // AND THE DIRECTORY IT POINTED AT IS UNTOUCHED by every refusal above.
     victimSurvives: existsSync(join(outside, '.credentials.json'))
+  };
+
+  // -------------------------------------------------------------------------
+  // 2c. THE CREATE PATH UNDER A LINKED PROVIDER ROOT (Phase 219, item 1).
+  //     Section 2b proves every READ refuses this shape. Nothing proved the
+  //     WRITE, and it did not refuse: `addLogin` answered ok and made its
+  //     folder in a directory Tortie does not own, which the next `listLogins`
+  //     then dropped, so the only trace was an empty folder somewhere else.
+  //     The victim directory is counted before and after, which is the whole
+  //     reading: a refusal that leaves a folder behind is not a refusal.
+  // -------------------------------------------------------------------------
+  const createRoot = join(root, 'create-linked');
+  const createVictim = join(root, 'create-victim');
+  mkdirSync(createVictim, { recursive: true });
+  mkdirSync(createRoot, { recursive: true });
+  symlinkSync(createVictim, dirs.loginProviderRootIn(createRoot, 'claude'));
+  const linkedAdd = store.addLogin(createRoot, 'claude', 'Planted');
+  // AND THE HONEST HALF. A root with no link in it must still create, or the
+  // guard above is refusing everything and this reading proves nothing.
+  const plainRoot = join(root, 'create-plain');
+  mkdirSync(plainRoot, { recursive: true });
+  const plainAdd = store.addLogin(plainRoot, 'claude', 'Ordinary');
+  out['create'] = {
+    linkedOk: linkedAdd.ok,
+    linkedReason: linkedAdd.ok ? null : (linkedAdd.reason ?? '').slice(0, 64),
+    victimEntries: readdirSync(createVictim).length,
+    ancestorLink: dirs.loginAncestorIsLink(createRoot, 'claude'),
+    // The logins ROOT as a link is the same attack one level up.
+    rootLinkAncestor: dirs.loginAncestorIsLink(linkedRootLink, 'claude'),
+    plainOk: plainAdd.ok,
+    plainAncestor: dirs.loginAncestorIsLink(plainRoot, 'claude'),
+    plainDirOwned: dirs.isOwnedLoginDir(plainRoot, 'claude', plainAdd.dir ?? ''),
+    // A provider root that is simply NOT THERE YET is not a link, which is
+    // what makes the predicate usable in front of a mkdir at all.
+    absentAncestor: dirs.loginAncestorIsLink(join(root, 'create-absent'), 'claude')
   };
 
   // -------------------------------------------------------------------------

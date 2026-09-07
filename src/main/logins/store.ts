@@ -45,6 +45,7 @@ import {
 import {
   LOGIN_ID_RE,
   isOwnedLoginDir,
+  loginAncestorIsLink,
   loginDirIn,
   loginDirOnDisk,
   loginProviderRootIn,
@@ -541,6 +542,16 @@ export function addLogin(
   if (!isOwnedLoginDir(root, provider, dir)) {
     return { ok: false, reason: 'Tortie refused a folder outside its own data.' };
   }
+  // AND THE SECOND GUARD, which the string rule above cannot give (Phase 219).
+  // `isOwnedLoginDir` opens nothing, so a provider root that is a LINK is
+  // spelled perfectly inside the logins root and passes it. The two `mkdir`s
+  // below then follow that link and make Tortie's folder somewhere else. The
+  // read side has refused that shape since Phase 202, so the row was dropped
+  // at every later read and the damage stopped at an empty folder; an empty
+  // folder outside Tortie's own data is still one Tortie made.
+  if (loginAncestorIsLink(root, provider)) {
+    return { ok: false, reason: 'Tortie refused a folder reached through a link.' };
+  }
   try {
     mkdirSync(loginProviderRootIn(root, provider), { recursive: true });
     mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -687,6 +698,13 @@ export function removeLogin(
 export function strayLoginIds(root: string, provider: LoginProviderId): string[] {
   const known = namedLoginIds(root);
   if (known === null) return [];
+  // THE SAME ANCESTOR RULE THE CREATE PATH NOW ASKS (Phase 219), because this
+  // is the domain's other unguarded path: `readdirSync` follows a linked
+  // provider root, and every name it reads that happens to be sixteen hex
+  // would then be swept as a stray by `removeStrayLoginDir`, whose own
+  // ownership rule is the string one and passes. A root Tortie cannot compose
+  // honestly authorises no sweep at all, which is this function's stated rule.
+  if (loginAncestorIsLink(root, provider)) return [];
   let entries: string[];
   try {
     entries = readdirSync(loginProviderRootIn(root, provider));

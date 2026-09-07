@@ -411,6 +411,7 @@ function verdict(d) {
     JSON.stringify(d.owned),
     JSON.stringify(d.hostile),
     JSON.stringify(d.linked),
+    JSON.stringify(d.create),
     JSON.stringify(d.refusals),
     JSON.stringify(d.chosen),
     JSON.stringify(d.leak),
@@ -480,6 +481,33 @@ if ('error' in live) {
   check(
     live.linked.victimSurvives,
     `${TAG} the directory a link pointed at was deleted by a refusal`
+  );
+
+  // Rule 3c, the CREATE path under a linked ancestor (Phase 219, item 1).
+  check(
+    live.create.ancestorLink,
+    `${TAG} the planted provider root is no longer read as a link, so this probe stopped testing the attack`
+  );
+  check(
+    live.create.rootLinkAncestor,
+    `${TAG} a logins root that is a link is not read as one`
+  );
+  check(!live.create.linkedOk, `${TAG} ADD LOGIN CREATED A FOLDER THROUGH A LINKED PROVIDER ROOT`);
+  check(
+    live.create.victimEntries === 0,
+    `${TAG} add login left ${String(live.create.victimEntries)} folder(s) in a directory Tortie does not own`
+  );
+  check(
+    (live.create.linkedReason ?? '').length > 0,
+    `${TAG} add login refused a linked root with no sentence`
+  );
+  check(
+    live.create.plainOk && live.create.plainDirOwned && !live.create.plainAncestor,
+    `${TAG} add login refused an ORDINARY root, so the guard above proves nothing`
+  );
+  check(
+    !live.create.absentAncestor,
+    `${TAG} a provider root that is not there yet reads as a link, so no login could ever be created`
   );
 
   check(live.chosen.owned, `${TAG} a chosen login resolved to a directory Tortie does not own`);
@@ -790,6 +818,29 @@ const ABLATIONS = [
         file: 'store.ts',
         from: "  if (loginDirOnDisk(root, provider, dir) !== 'ok') {",
         to: '  if (!isOwnedLoginDir(root, provider, dir) || !existsSync(dir)) {'
+      }
+    ]
+  },
+  {
+    name: 'the ancestor guard taken out of the create path, which is the Phase 202 finding',
+    edits: [
+      {
+        file: 'store.ts',
+        from:
+          '  if (loginAncestorIsLink(root, provider)) {\n' +
+          "    return { ok: false, reason: 'Tortie refused a folder reached through a link.' };\n" +
+          '  }',
+        to: ''
+      }
+    ]
+  },
+  {
+    name: 'the ancestor guard taken out of the stray sweep, so a linked root is walked',
+    edits: [
+      {
+        file: 'store.ts',
+        from: '  if (loginAncestorIsLink(root, provider)) return [];',
+        to: ''
       }
     ]
   },

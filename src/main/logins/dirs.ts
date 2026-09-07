@@ -102,6 +102,46 @@ export function isOwnedLoginDir(
   return rest.length > 0 && !rest.includes(sep);
 }
 
+/**
+ * Is either directory Tortie composes a login path FROM a link (Phase 219)?
+ *
+ * THIS IS THE HALF OF {@link loginDirOnDisk} THAT DOES NOT NEED THE LOGIN TO
+ * EXIST, and it was lifted out because the create path could not ask the
+ * question at all. `loginDirOnDisk` answers `absent` for a directory that is
+ * not there yet, before it ever reaches the ancestor test, so `addLogin`
+ * calling it would have been told "absent" about a folder it was about to
+ * make inside a linked provider root. The Phase 202 verifier's own attack,
+ * `<root>/<provider>` as a symbolic link, therefore survived the create path
+ * for seventeen phases: the row was dropped at every later READ, so the
+ * damage was bounded to an empty folder somewhere else, but a folder somewhere
+ * else is still a folder Tortie made outside its own data.
+ *
+ * ONLY THE TWO COMPONENTS TORTIE COMPOSES ARE ASKED, being the logins root and
+ * the provider root. Ancestors ABOVE the logins root are deliberately not,
+ * for the reason {@link loginDirOnDisk} gives: they are the person's own
+ * userData path and are routinely reached through a link on macOS.
+ *
+ * A COMPONENT THAT IS NOT THERE IS NOT A LINK. That is what makes this usable
+ * in front of a `mkdir`, which is the whole point of splitting it out, and it
+ * costs `loginDirOnDisk` nothing: by the time that function asks, the login
+ * directory itself has already been `lstat`ed as a real directory, so neither
+ * ancestor can be missing. Every other error is refused, because a component
+ * Tortie cannot read is not one it may write inside.
+ */
+export function loginAncestorIsLink(
+  root: string,
+  provider: LoginProviderId
+): boolean {
+  for (const step of [root, loginProviderRootIn(root, provider)]) {
+    try {
+      if (lstatSync(step).isSymbolicLink()) return true;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return true;
+    }
+  }
+  return false;
+}
+
 /** What is actually on disk where a login's directory should be. */
 export type LoginDirDiskState =
   /** A real directory, reached without following a single link. */
@@ -161,14 +201,8 @@ export function loginDirOnDisk(
   // A link to a directory is a directory to `stat` and is NOT one here, which
   // is why `lstat` is asked: `isDirectory` on the link itself is false.
   if (!present) return 'escapes';
+  if (loginAncestorIsLink(root, provider)) return 'escapes';
   const base = loginProviderRootIn(root, provider);
-  for (const step of [root, base]) {
-    try {
-      if (lstatSync(step).isSymbolicLink()) return 'escapes';
-    } catch {
-      return 'escapes';
-    }
-  }
   try {
     const realBase = realpathSync(base);
     const realDir = realpathSync(dir);
