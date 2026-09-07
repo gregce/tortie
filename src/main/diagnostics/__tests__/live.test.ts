@@ -10,6 +10,7 @@
 
 import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import type { DiagnosticsLiveSample, DiagnosticsReport } from '@shared/ipc';
 import {
   LIVE_FAILURE_LIMIT,
@@ -252,5 +253,160 @@ describe('live sampling', () => {
     await settle();
     assert.equal(liveTimerCount(), 1);
     assert.equal(h.sent.length, 1);
+  });
+});
+
+/**
+ * Phase 219, item 5. THE WINDOW THE HEADER PRINTS IS THE INTERVAL.
+ *
+ * The Phase 170 verifier reported that the live capture window shrinks tick by
+ * tick and then resets. The cause is the ORDER inside one tick: the loop
+ * awaited the finish and only then opened the next window, and the promise the
+ * finish returns is resolved by the streaming `top`'s next block, which runs on
+ * its own two second clock. So the window opened at the block rather than at
+ * the tick, and the printed number was `interval minus the wait for that
+ * block`, sliding by the difference between the two clocks every tick and
+ * wrapping when the drift passed a whole block.
+ *
+ * This drives the SHIPPING loop over a model of exactly that world: a virtual
+ * clock, a `finish` that reads its `now` synchronously the way `finishCapture`
+ * does and resolves only at the stream's next block, and a `top` whose period
+ * is 0.4 percent longer than the timer's. Nothing here launches an Electron,
+ * spawns a process or opens a file.
+ */
+describe('Phase 219: the live capture window is the interval', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    stopLiveSampling();
+    vi.useRealTimers();
+  });
+
+  interface WindowHarness {
+    deps: LiveSamplingDeps;
+    /** What each tick's report says its window was, in order. */
+    windows: number[];
+    /** The virtual instant `begin` was called at, per window. */
+    beganAt: number[];
+    /** The virtual instant `finish` was invoked at, per tick. */
+    finishedAt: number[];
+  }
+
+  function windowHarness(intervalMs: number, streamPeriodMs: number): WindowHarness {
+    const startedAt = new Map<string, number>();
+    const h: WindowHarness = {
+      windows: [],
+      beganAt: [],
+      finishedAt: [],
+      deps: undefined as unknown as LiveSamplingDeps
+    };
+    let opened = 0;
+    let openId: string | null = null;
+    h.deps = {
+      begin: () => {
+        opened += 1;
+        const id = `w${opened}`;
+        startedAt.set(id, Date.now());
+        h.beganAt.push(Date.now());
+        openId = id;
+        return { id };
+      },
+      // The shape of `finishCapture`: `now` and the window are read in the
+      // SYNCHRONOUS prefix and the slot is released there, and only the rest
+      // of the report waits for the stream.
+      finish: (id) => {
+        const now = Date.now();
+        h.finishedAt.push(now);
+        const windowMs = now - (startedAt.get(id) ?? now);
+        // The slot is released here, before the promise is handed back, which
+        // is what lets the loop open the next window on this instant.
+        if (openId === id) openId = null;
+        const wait = streamPeriodMs - (now % streamPeriodMs);
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ windowMs } as unknown as DiagnosticsReport);
+          }, wait === 0 ? streamPeriodMs : wait);
+        });
+      },
+      send: (sample) => {
+        h.windows.push((sample.report as unknown as { windowMs: number }).windowMs);
+      },
+      onGone: () => () => undefined,
+      intervalMs
+    };
+    return h;
+  }
+
+  it('every tick reports the interval, not the interval minus a stream wait', async () => {
+    const interval = 2_000;
+    const h = windowHarness(interval, 2_008);
+    startLiveSampling(h.deps);
+    for (let i = 0; i < 12; i += 1) {
+      await vi.advanceTimersByTimeAsync(interval);
+      await settle();
+    }
+    assert.ok(h.windows.length >= 10, `only ${String(h.windows.length)} ticks reported`);
+    // AT THE PARENT this reads 1992, 1984, 1976 ... and wraps.
+    for (const [at, windowMs] of h.windows.entries()) {
+      assert.equal(
+        windowMs,
+        interval,
+        `tick ${String(at + 1)} reported a ${String(windowMs)} ms window rather than ${String(interval)}: ${JSON.stringify(h.windows)}`
+      );
+    }
+    // AND IT DOES NOT SLIDE, which is the shape the operator would see even if
+    // one tick happened to read right.
+    assert.equal(new Set(h.windows).size, 1, JSON.stringify(h.windows));
+  });
+
+  it('the next window opens on the tick boundary, not when the finish lands', async () => {
+    const h = windowHarness(2_000, 2_008);
+    startLiveSampling(h.deps);
+    for (let i = 0; i < 5; i += 1) {
+      await vi.advanceTimersByTimeAsync(2_000);
+      await settle();
+    }
+    // beganAt[0] is the start's own window. Every later one must sit exactly
+    // on the instant the finish before it was invoked.
+    for (const [at, when] of h.finishedAt.entries()) {
+      assert.equal(
+        h.beganAt[at + 1],
+        when,
+        `window ${String(at + 2)} opened at ${String(h.beganAt[at + 1])} for a tick at ${String(when)}`
+      );
+    }
+  });
+});
+
+/**
+ * Phase 219, item 5's other half. The loop's fix rests on `finishCapture`
+ * closing its window in a SYNCHRONOUS prefix, so this reads the shipping
+ * source and fails if an `await` is ever put in front of `open = null`. The
+ * fallback branch above it is the one await that may precede it, and the live
+ * loop never takes that branch.
+ */
+describe('Phase 219: finishCapture releases its window before its first await', () => {
+  it('nothing is awaited between the fallback branch and open = null', async () => {
+    const source = await readFile(
+      new URL('../report.ts', import.meta.url),
+      'utf8'
+    );
+    // Comments are stripped first, because the note in report.ts that explains
+    // this rule uses the word itself and a scan that reads its own explanation
+    // as a violation cannot pass.
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    const body = code.slice(code.indexOf('export async function finishCapture('));
+    const afterFallback = body.indexOf('fellBack = true;');
+    const release = body.indexOf('open = null;', afterFallback);
+    assert.ok(afterFallback > 0 && release > afterFallback, 'finishCapture no longer has that shape');
+    const prefix = body.slice(afterFallback, release);
+    assert.equal(
+      /\bawait\b/.test(prefix),
+      false,
+      `finishCapture awaits before releasing its window, so live.ts opens the next one over an open slot: ${prefix.trim().slice(0, 200)}`
+    );
   });
 });

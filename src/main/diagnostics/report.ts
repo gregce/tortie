@@ -300,6 +300,15 @@ export async function finishCapture(
     await sleep(FALLBACK_WINDOW_MS);
     fellBack = true;
   }
+  // EVERYTHING FROM HERE TO `open = null` IS LOAD BEARING AND SYNCHRONOUS, and
+  // a later round that puts an await above this line breaks the live loop
+  // rather than this function (Phase 219). `runTick` in ./live.ts invokes this
+  // and opens the NEXT window before awaiting the promise it gets back, so
+  // that the next window's `startedAt` is the tick boundary; that only works
+  // while this prefix has already read `now`, kept the open window's
+  // `startedAt` and released the slot. The fallback branch above is the one
+  // await that may precede it, and the live loop never takes it because its
+  // handle always names the window it opened.
   const now = fellBack || options.now === undefined ? Date.now() : options.now;
   const startedAt = open?.startedAt ?? now;
   const powerPromise = open?.power ?? Promise.resolve(null);
