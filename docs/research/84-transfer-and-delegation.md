@@ -15,7 +15,11 @@ was started. No agent CLI was spawned for a turn and no model turn was spent by 
 --help`, `claude import --help` and `codex --help` were read, which take no turn and spend no token.
 Nothing was written to `/Users/gdc/gmux`. The tmux server on socket `gmux` was never contacted. No
 Electron was launched, because nothing was built. Every measurement below was taken with `python3`,
-`rg`, `strings` or `sed` at a shell over files opened read only.
+`rg`, `grep`, `strings` or `sed` at a shell over files opened read only. **The fix round ran no `git`
+command inside `/Users/gdc/herdr` at all**, deliberately: a read-only `git` query there refreshes
+`.git/index`'s stat cache and writes a byte, which is the only write the first round left behind, and
+nothing in this document needs one — the version and HEAD in §1 were taken by the first round and are
+not re-derived here.
 
 **Five lanes measured this independently** — herdr, transfer, limit detection, delegation and the Zen
 read — and this document is the integration. Where two lanes disagreed the disagreement is resolved in
@@ -24,6 +28,15 @@ not be settled. The integrator re-derived six claims by hand rather than accepti
 socket paths, the herdr method count, herdr's `agent.send_keys` guard, Tortie's danger-flag catalogue,
 Claude Code's digest-bound import confirm, and the manifest's provenance columns. Two lane claims did
 not survive that and are corrected below.
+
+**A fix round then went back to the sources.** It corrected four claims of this document's own,
+including one the integrator had marked as independently re-derived — see §9 — and added three
+sections the first draft did not have: **§2.4b**, what a transfer WRONGLY carries, measured as a
+census over his whole claude store; **§2.8**, the adversarial reading applied to the half this document
+recommends rather than only to the half it refuses; and the second half of **§4.5**, naming where a
+proposal is written, because a refusal whose permitted side has no mechanism gets one invented for it.
+Rows in §10 marked **[F]** are its measurements. It re-read `/Users/gdc/herdr`, `/Users/gdc/codex` and
+`~/.claude` and wrote to none of them; its own scripts are under `.p223/fix/`.
 
 **What this document does not re-derive**, because it is already banked: `02-agent-resume.md` (how
 every CLI agent resumes), `22-resume-audit.md`, `46-herder-study.md` (herdr at 0.8.0, read in full and
@@ -59,10 +72,18 @@ fresher than any transcript. So the thing worth moving is the *intent*, and inte
 **Recommend: a briefing a person reads and edits. Refuse the store replant, refuse the verbatim
 replay, refuse anything automatic.**
 
+**And one thing a transfer can do that is worse than losing anything, added by the fix round.** A
+claude transcript is a `parentUuid` DAG, the shipped importer walks it line by line and never reads
+that field, and `parentUuid` appears **0 times in all of Tortie's `src/`**. Over his whole store, 70
+files carry a turn he **rewound past** — `do all of that and push commits to the CLI`, replaced by
+`do all of that and locally commit first please` — and a line-sequential move carries both, in his
+voice, with nothing saying which one survived. **§2.4b is that measurement and it is a constraint on
+the recommended mechanism**, not a reason against it.
+
 **Delegation.** **Refuse the agent-callable spawn, permanently and by name.** Not because an API is
 dangerous in the abstract, but because of four measured facts about the only shipped example, and
-because Tortie's own catalogue lists **27 danger flags across 13 of the 15 agents in
-`AGENT_FLAG_PRESETS`**, 22 of them read out of the agent's own help text. The only shape that could
+because Tortie's own catalogue lists **21 danger flags across 10 of the 12 launchable agents in
+`AGENT_FLAG_PRESETS`**, 16 of them read out of the agent's own help text. The only shape that could
 ever be admitted is one where an agent **proposes** and a person confirms out of band — and this
 document does not recommend building even that one yet, because **he is already delegating**: 792 of
 his claude transcript files carry `<teammate-message teammate_id=`, 2,430 occurrences since February.
@@ -104,6 +125,13 @@ reason:
 That is not a widening. It is refusal 8's reason applied to a mechanism refusal 8 did not name, and it
 is narrower than refusal 8 in exactly one respect: it admits a proposal where refusal 8 admits
 nothing, because a proposal starts nothing.
+
+**And the permitted side is named rather than left open**, because a refusal whose permitted half has
+no mechanism is an invitation to invent one. §4.5 says where a proposal is written: **the agent's own
+transcript**, which Tortie already resolves per session for eleven of the twelve CLI agents and
+already reads redacted. The agent gains no capability it does not have — writing sentences is the only
+thing it does — so *a proposal starts nothing* is a property of the mechanism rather than a promise,
+and there is nothing to call.
 
 **Nothing in this document widens a standing refusal.** §4 argues the new answer and attacks it. §7
 recommends that he adopt it in `CLAUDE.md` as a ninth refusal in his own words; only he can do that,
@@ -350,9 +378,22 @@ shell; the whole credentials and logins domain, which herdr has nothing in; the 
 Architecture, redline, search and the git surfaces; and a read-only posture toward the person's
 provider stores and configuration, which herdr does not share.
 
-**One row that is new and belongs to this document: herdr has no usage-limit awareness at all.** A
-search of every `.rs`, `.toml` and `.mdx` in the tree for *usage limit*, *rate limit*, *quota*,
-*resets*, *five hour* and *weekly limit* returns four hits, all of them `pane graphics layer limit`.
+**One row that is new and belongs to this document: herdr has no usage-limit awareness at all.** The
+first draft supported that with *"four hits, all of them `pane graphics layer limit`"*, and the fix
+round refutes the search rather than the conclusion: the phrase `rate limit` **with a space** cannot
+match `rate_limited`, which is how Rust spells it. A case-insensitive search over every `.rs`, `.toml`
+and `.mdx` for `rate.?limit|usage.limit|quota|five hour|weekly limit` returns **35 files**, and every
+Rust hit is herdr's own notification throttle — `API_NOTIFICATION_RATE_LIMIT: Duration =
+Duration::from_secs(1)` at `src/app/api.rs:20`, `NotificationShowReason::RateLimited` at
+`src/api/schema/common.rs:136` — plus the `socket-api.mdx` pages documenting it. It is how often a
+toast may fire, not a provider quota. The two `pane graphics layer limit` hits are at
+`src/app/api/pane_graphics.rs:233` and `:391`.
+
+**The corrected search makes the claim stronger, not weaker.** Ask it of the detection layer alone,
+where a limit would have to be recognised: **`src/detect/`, being the engine and all 21 manifests,
+holds ZERO occurrences of any limit vocabulary**, and the only three occurrences of the bare word
+`limit` anywhere under it are `validate_matcher_limits` in `src/detect/manifest.rs`, a regex
+complexity cap. herdr's state machine has four words and none of them can mean *stopped by a quota*.
 **So the delegation half of his question has shipped in a comparable product; the transfer half has
 not.** Nothing in herdr addresses issue 14.
 
@@ -558,6 +599,73 @@ counted, only two — `message` role user and role assistant — have an unambig
 are **1,472 of 40,345 records and 0.70% of the bytes**. claude has no `developer` role, no per-turn
 context record and no place for a `world_state`.
 
+### 2.4b What a transfer WRONGLY CARRIES, which §2.4 never asked
+
+§2.4 enumerates what a move LOSES. Every mechanism in this document was then priced on that list
+alone, and the list has no entry for **a record that arrives when it should not have**. That is a
+different failure and a worse one, because a loss is a gap the receiving agent can notice and a wrong
+carry is a fact it cannot.
+
+**A claude transcript is not a list of records. It is a `parentUuid` DAG.** When the person rewinds —
+goes back to an earlier turn and says something else — the CLI writes the new turn with its
+`parentUuid` pointing before the rewind, and the branch that was there stays in the file. The live
+conversation is the ancestor chain of the last record; the orphaned branch is a thing that was **said
+and then ruled out**.
+
+**Nothing in this chain reads that field.** The shipped importer's `read_session_import`
+(`/Users/gdc/codex/codex-rs/external-agent-migration/src/sessions/records_cla.rs:97-152`) walks the
+file with `reader.read_line` in a `loop`, drops `isMeta` and `isSidechain` (`:175-176`) and **never
+mentions `parentUuid`** — the string appears zero times in the whole `sessions/` module. Neither does
+Tortie: **`parentUuid` appears 0 times in all of `src/`**, and `src/main/overview/reader/lines.ts` is
+by construction a line-sequential stream that decides on the raw bytes of each line on its own. So
+§7 B5's *"the asks"*, composed from the overview store, inherits exactly the same blindness.
+
+**Measured over his whole claude store, not a sample.** 19,194 files; 8,237 carry a top-level
+conversation chain and 10,957 are all-sidechain `agent-*.jsonl`. `.p223/fix/rewind-split.py`:
+
+| shape | points | files | abandoned importable records | abandoned human asks |
+| --- | ---: | ---: | ---: | ---: |
+| **genuine rewind** — the branch head's text DIFFERS from the ask that replaced it | 123 | **70** (0.8% of chained files) | 895 (**0.177%** of 504,629) | 156 (**0.487%** of 32,033) |
+| **duplicate re-anchor** — same text, same timestamp, written at two parents | 15 | 12 (0.1%) | 900 | 85 |
+
+Worst single file: 292 abandoned importable records. **The rate is small and the rate is not the
+finding.** These are the ones, read out of the raw records:
+
+| what he ruled out | what replaced it |
+| --- | --- |
+| `do all of that and push commits to the CLI` | `do all of that and locally commit first please` |
+| `can we define intent lead time on slide 4?` | `can we define intent lead time on slide 5?` |
+| `lets write a commit` | `restructure outline.md and then write a commit` |
+| `yea i like by day` | `i like by day` |
+| `it is very muted ` | `it is very muted, make the button opaque so it can be seen` |
+
+The first row is the whole finding in one line: he cancelled *push* and asked for a local commit
+instead. A line-sequential import carries both halves of each pair, in the person's own voice, in
+file order, with nothing marking which one survived. **The second agent is told the thing that was cancelled, and
+neither the person nor Tortie can tell.** That is §5.2's quiet failure in its sharpest form: not a
+fact missing, a decision inverted, and the person finds out at the diff.
+
+**Three of my own passes were wrong before this one and all three are recorded**, because the
+correction is the method. Pass 1 counted every `parentUuid` fork and read 23.2% of files as forked;
+most of those forks are `progress` records, an older claude bookkeeping class hanging beside the
+conversation. Pass 2 collapsed the DAG to `user`/`assistant` records and still read 8.5%; hand-reading
+the worst file killed that one too, because claude issues PARALLEL tool_use blocks as a chain of
+assistant records and each `tool_result` user record's `parentUuid` points at the assistant record
+that issued its call — the record names it in `sourceToolAssistantUUID`, so the branching is
+mechanical. Pass 3 keys a rewind on a HUMAN ASK — `type: user`, real text, no `toolUseResult`, no
+`sourceToolAssistantUUID` — whose effective conversation parent already had a child written earlier in
+the file, and every rewind above was then read by hand in the raw records before the number was
+written down. **Every intermediate rate was an artifact of the definition and each looked plausible.**
+
+**What follows for the mechanisms.** (d) the store replant is unaffected, being refused already. (a)
+verbatim replay carries every abandoned branch by construction and this is a second reason to refuse
+it as a default. (c) the deterministic handoff is **the one that must change**: composed from the asks
+it would carry a cancelled ask beside its replacement, so a handoff that lists asks must walk the
+`parentUuid` chain from the last record and take only the live ones, and must say in the artifact that
+it did. (b) a model-written summary inherits whatever it is fed. **The fix is cheap and it is one
+field**, and nothing in the tree reads it today, which is the point of writing this down before a
+build phase composes the artifact from a line-sequential reader it already has.
+
 ### 2.5 The one thing that does survive intact, and it is the whole repository
 
 Over 8,659 tool calls in 400 real claude transcripts: **Bash 35.9%, Read 24.5%, Edit 14.4%, Grep 8.7%,
@@ -583,7 +691,7 @@ guessed: `model_context_window` as codex itself records it over the pinned corpu
 | --- | --- | --- | --- | --- |
 | **(a) Verbatim replay as a prompt** | The whole ask, answer and tool trace pasted into a new agent. It has *read a transcript*; it did not do the work | claude median 170,986 B (~42,746 tok), p90 ~123,212 tok; **18 of 60 codex rollouts exceed 200k tokens**, 2 of 60 claude | Yes, by accident — one enormous first turn is unmistakable | **Refuse as the default.** It spends a sixth of the window at the median on a trace of work the repository answers in seconds, which is the opposite of what a person at a usage limit needs. Offer it only when he explicitly asks for the whole thing |
 | **(b) A summary the model writes** | A briefing. claude already writes one when it compacts, and it is good: **480 of them across 9,615 scanned transcripts**, median 13,031 chars, opening *"This session is being continued from a previous conversation that ran out of context."* | ~13 KB | **No** — prose with no provenance, unless the sentence names where it came from | **The only honest candidate**, with one ordering constraint: **the agent that just hit its limit cannot write it.** It is written by the receiving agent or a third |
-| **(c) A structured handoff Tortie composes** | Which agent was working, in which directory, on which branch, at which commit, what was asked, what it last said, which files it touched — every field of which Tortie **already extracts** | ~1.1 KB (~280 tok) on the real conversation driven, **9.7% of (a)** | Yes, if Tortie shows what it composed; it is deterministic, so it can be shown in full | **Best value per unit of risk**, and the only one that costs nothing to try. Its honest limit is the median-1 finding: built from asks alone it is nearly empty, so it must carry the path list and the git mark |
+| **(c) A structured handoff Tortie composes** | Which agent was working, in which directory, on which branch, at which commit, what was asked, what it last said, which files it touched — every field of which Tortie **already extracts** | ~1.1 KB (~280 tok) on the real conversation driven, **9.7% of (a)** | Yes, if Tortie shows what it composed; it is deterministic, so it can be shown in full | **Best value per unit of risk**, and the only one that costs nothing to try. Two honest limits: the median-1 finding, so built from asks alone it is nearly empty and must carry the path list and the git mark; and §2.4b, so the asks it carries must be the LIVE ones, taken along the `parentUuid` chain from the last record rather than in file order |
 | **(d) A store replant** of the Phase 82 shape | A session that *looks* resumed | n/a | **No, and that is the objection** | **Refuse.** 78.57% has no slot; the thinking cannot be forged because the signature is vendor-issued and the vendor's own bundle says the API rejects tampering; where a vendor wanted this the vendor built it, and it is still six slots into a new thread |
 
 **Resolving (b) against (c), because two lanes ranked them differently.** They are not competitors. (c)
@@ -604,9 +712,11 @@ refuse whole — is exactly right.
 
 **Delivery already exists and needs no new machinery.** `typeIntoPane(target, text, pressEnter)` at
 `src/main/restore/restore.ts:301` is already used by `src/main/sessions/resume-in-place.ts:1215` with
-**`pressEnter` false**, so Tortie types text into a session and the person presses Enter. That is
-propose-and-confirm with the confirmation being the most ordinary act there is. The artifact is still a
-document he can read and edit; the typed delivery is one line on top of it.
+**`pressEnter` false**, so Tortie types text into a session and the person presses Enter. The artifact
+is still a document he can read and edit; the typed delivery is one line on top of it. **An earlier
+draft called that Enter press "propose-and-confirm with the confirmation being the most ordinary act
+there is", and §2.8 refutes it**: an Enter press is ordinary because it is unread, so the confirmation
+is the document, not the keystroke.
 
 ### 2.7 How a person can tell which one they got — Phase 82's standard
 
@@ -628,6 +738,64 @@ written *"whenever the conversation id is"* — it records **how the resume id w
 the work came from. There is still no field that could say *this session was continued from that one*.
 Whichever mechanism is chosen, the row needs one field and the session card one line, or Tortie will
 be the only thing in the chain that cannot say where the work came from.
+
+### 2.8 The adversarial reading, applied to the half this document RECOMMENDS
+
+**This section is the fix round's, and the reason it exists is a defect in the shape of the document
+rather than in any of its numbers.** The words *poisoned*, *compromised*, *untrusted* and *injection*
+appear twice in the 1,465 lines this document had at the parent commit: once in §3.4 about agents
+writing the phrase *usage limit*, and once at the head of §4.3, inside the half it REFUSES. They are never applied to §2 or to §7 B5,
+which is the half it recommends building. A document that attacks only what it is already declining
+has not attacked anything.
+
+**The chain is real and every link of it is in the tree today.**
+
+1. §2.5 measured **88.4% of 8,659 tool calls acting on the working tree**. Reading a file the agent did
+   not write is the ordinary case, not the edge one.
+2. Whatever that file says enters agent A's transcript as a `tool_result`, and from there the overview
+   store.
+3. The only filter on that store is `src/main/overview/redact.ts`, 81 lines. Read in full: **nine**
+   `SECRET_PATTERNS` vendored from `@specstory/lore` plus **two** `TORTIE_PATTERNS`, eleven in all,
+   every one of them a **secret shape** — `AKIA…`, `gh[pousr]_`, `xox[baprs]-`, `sk-`, `AIza`, a JWT,
+   a PEM block, a bearer header, a `key = value` heuristic, then a Stripe key and an email address.
+   **There is no instruction filtering of any kind, and there should not be**, because instruction
+   filtering does not work. The point is only that nothing downstream may assume it exists.
+4. §2.6 prices the deterministic handoff at ~1.1 KB and the model half at ~13 KB, and §7 B5 composes
+   both from that store.
+5. `typeIntoPane(target, text, false)` (`src/main/restore/restore.ts:301`) sends it into a pane.
+6. Agent B may be running under one of claude's 2 or codex's 4 catalogued danger flags (§4.2).
+7. The person presses Enter.
+
+**So the two standards in this document must be made one.** §4.3 attack 1 sets the bar for the refused
+half: a confirmation *"must carry information he does not already have"*, and one that *"degenerates
+into 'Allow? [Y]' "* does not hold and the feature should be pulled rather than tuned. §2.6 then
+describes B5's delivery as *"propose-and-confirm with the confirmation being the most ordinary act
+there is."* **That sentence was wrong and it is corrected in place.** An Enter press is ordinary
+precisely because it is unread; the ordinariness is the defect, not the reassurance. Attack 1's
+standard is the standard, and it binds B5 exactly as it binds a spawn proposal.
+
+**What that costs B5, stated as a constraint a build phase can be held to.**
+
+- **The document is the confirmation, and the Enter press is not.** The briefing is opened in the
+  editor, read and editable, before anything is typed anywhere. A path that composes and delivers
+  without that step is not a narrower B5, it is a different feature, and it is refused.
+- **Never the model half unread.** The deterministic ~1.1 KB is composed by Tortie out of fields Tortie
+  extracted, and its worst case is a wrong path. The ~13 KB model half is written by a model that read
+  agent A's transcript, and its worst case is text an attacker chose. They are not the same artifact
+  and the surface must not present them as one.
+- **The receiving agent's flags are the person's, at the create dialog, every time.** §4.3 attack 3
+  says this for the spawn proposal. It is the same rule and it is worth saying twice: nothing about a
+  briefing may pre-select a posture.
+- **The provenance line §2.7 asks for is a safety field, not a courtesy.** *This text was composed from
+  session X by agent Y* is what lets him distrust it. Without it the briefing is anonymous prose with
+  no author.
+
+**And the honest limit on all of it.** Nothing above prevents a poisoned instruction reaching agent B.
+It is a person reading a document, and a person reading a document misses things. What it does is keep
+the person the only route between one agent's output and another agent's input, and keep that route
+one a person can actually read: **1.1 KB of fields, and 13 KB he opened**. That is the whole claim,
+and it should be tested rather than asserted — the acceptance question attack 1 asks of a spawn
+confirm is the acceptance question for this surface too.
 
 ---
 
@@ -891,13 +1059,27 @@ these four facts together, all measured in §1.5:
 4. The documented safety rule is an instruction to a language model.
 
 **And the premise refusal 8 rests on measures larger than the word "several" suggests.**
-`src/main/agents/flags.ts` catalogues **27 flags marked `danger: true` across 13 of the 15 agents in
-`AGENT_FLAG_PRESETS`**, of which **22 carry `provenance: 'VERIFIED'`** and 5 `'RESEARCH'`, meaning the
-exact flag was read out of that agent's own help text. Only droid and pi carry none. *(One lane
-reported 22 of 27 VERIFIED; the integrator re-derived it per object and confirms 22 VERIFIED and 5
-RESEARCH, and 13 of 15 agents.)* So the premise is not that a couple of agents can be run unsafely; it
-is that unsafe launch is the ordinary, catalogued, one-checkbox condition of nearly every agent Tortie
-starts. The two that matter most were checked against the installed CLIs by `--help` alone, no turn
+`src/main/agents/flags.ts` catalogues **21 flags marked `danger: true` across 10 of the 12 launchable
+agents in `AGENT_FLAG_PRESETS`**, of which **16 carry `provenance: 'VERIFIED'`** and 5 `'RESEARCH'`,
+meaning the exact flag was read out of that agent's own help text. Only droid and pi carry none. So
+the premise is not that a couple of agents can be run unsafely; it is that unsafe launch is the
+ordinary, catalogued, one-checkbox condition of **five agents in six** of the ones Tortie can start.
+
+**That sentence read `27 … across 13 of the 15` until the fix round and the correction is the lesson
+rather than the number.** 27, 22 and 13-of-15 are the sums of TWO constants attributed to one of
+them. `AGENT_FLAG_PRESETS` (`:124`) holds the 12 launchable registry agents and carries 21 danger
+flags, 16 VERIFIED and 5 RESEARCH, in 10 of its 12. `NON_REGISTRY_FLAG_PRESETS` (`:603`) holds three
+more — amp, opencode and copilot — with 6 danger flags between them, and its own header says they are
+*"NOT consumed by the create-session modal while they remain outside the registry"*. They are CLIs on
+this machine that Tortie cannot launch at all, so counting them inside a sentence about *"nearly every
+agent Tortie starts"* inflated the premise with agents the premise is not about. §10 marked the figure
+**[I]** — re-derived by the integrator per object — which is what makes it worth writing down: a
+re-derivation that reproduces the lane's arithmetic because it inherited the lane's boundary is the
+class `CLAUDE.md`'s known-hosts paragraph exists to forbid. The re-derivation here is a brace-matched
+parse of both constants separately (`.p223/fix/flags-parse.py`), and it prints the per-agent table so
+the boundary is visible rather than assumed. **The conclusion is unchanged and is proportionally
+stronger**: 10 of 12 is a higher share than 13 of 15. Only the count of agents the claim covers moved,
+and it moved downward, toward the agents the refusal is actually about. The two that matter most were checked against the installed CLIs by `--help` alone, no turn
 spent: `claude --dangerously-skip-permissions  Bypass all permission checks` and `codex
 --dangerously-bypass-approvals-and-sandbox  Skip all confirmation prompts and execute commands without
 sandboxing. EXTREMELY DANGEROUS`.
@@ -1100,6 +1282,43 @@ session started from a proposal says so on its own row, permanently, and that pr
 an agent can write. It is the answer to the only question that matters after something goes wrong: *did
 I start this, or did something else ask me to?*
 
+**Where a proposal is WRITTEN, which the first draft never said.** This is the fix round's, and the
+gap it closes is the one most likely to be filled badly: across the 1,465 lines this document had at
+the parent commit it named exactly one channel, attack 9's loopback server, and named it only to
+refuse it. Its permitted half —
+*an agent may only PROPOSE* — had no mechanism anywhere, one paragraph after naming the cheapest place
+in the codebase to break the refusal. A refusal whose permitted side is unspecified is an invitation.
+
+**The channel already exists and it is the agent's own transcript.** Tortie resolves one per session
+today — `resolveSessionLog` in `src/main/overview/reader/resolve.ts` has a case for eleven of the
+twelve CLI agents, droid alone answering `no-store` by design — reads both sides of every turn, and
+redacts them through `src/main/overview/redact.ts` before anything is stored. A proposal written as
+**ordinary agent output** therefore needs no listener, no port, no token, no route, no schema
+published to anyone, and **no file an agent can write that Tortie was not already reading**.
+
+**Its privilege delta is exactly zero, and that is the whole argument.** An agent can already write any
+sentence it likes into its own transcript; writing sentences is the only thing it does. It gains no
+capability by one of those sentences being noticed. Compare every other shape: the loopback route hands
+the agent a caller, a socket hands it a caller, a configuration directory hands it a writable input to
+something Tortie acts on. Here the agent's reach is unchanged and only **Tortie's reading** changes.
+So *a proposal starts nothing* stops being a promise a later round can spend and becomes a **property
+of the mechanism**: there is nothing to call.
+
+**Three honest limits, so this is not sold as free.**
+
+- **The marker is forgeable by anything the agent reads.** A poisoned file can contain it and an agent
+  can echo it, so a proposal is not evidence that the agent decided anything. This is survivable only
+  because a proposal is inert: the worst case is a list that got long, which §4.3 attack 6 already
+  bounds and §4.2 already prices as a nuisance against his attention.
+- **It is the closest this shape comes to refusal 2, and it must be named rather than waved past.** A
+  documented marker is a surface somebody outside Tortie writes to. It is not a contribution point: it
+  registers nothing, dispatches nothing, decorates nothing, re-exports no internal type, and carries no
+  field that decides what runs — §4.2's no-argv clause is what keeps that true. **The day a marker
+  carries a flag, a login, a machine or a path, it is refusal 2 and refusal 8 at once**, and that is
+  the line a build phase states in its brief.
+- **It arrives at file-watch latency and only where a store resolves.** Eleven of twelve, not twelve,
+  and never instantly. A proposal is not a message.
+
 **When a delegated agent delegates.** It proposes, exactly like any other agent, and a person confirms,
 exactly like any other proposal. Research 67 §5.5 recommended depth one; under this shape the question
 mostly dissolves, because **there is no chain**: every link is a human act, so the chain is a list of
@@ -1151,6 +1370,11 @@ thing he said not to do. And the failure mode is the quiet one. A second agent m
 loudly, because it reads the file and finds out. A second agent missing a decision **redoes work that
 was already done, or redoes the thing that was already ruled out**, confidently, and he finds out at the
 diff. That is a worse failure than stopping.
+
+**And §2.4b is the same sentence with the sign flipped, which is why it belongs here rather than only
+in §2.** A lossy handoff omits a decision. A line-sequential handoff **states a decision that was
+reversed**, in his own words, indistinguishable from one that stands. The receiving agent cannot fail
+loudly on that one either, and it has strictly more confidence than the omission gives it.
 
 ### 5.3 Is transfer an extension of "the application may come and go, the session continues"?
 
@@ -1255,18 +1479,43 @@ Phase counts are judgement, not measurement, and are stated in the units the bac
 agent's request results in a launch. §0.2 states the new answer; §4.2 argues it; §4.3 attacks it.
 **Recommendation: he adds it to `CLAUDE.md` as a ninth refusal in his own words.** This document may
 recommend that and cannot do it. Name attack 9's loopback channel in the same breath, so the cheapest
-place to break the refusal is refused ground before anybody reaches for it.
+place to break the refusal is refused ground before anybody reaches for it — **and name the permitted
+side in the same sentence** (§4.5), being the agent's own transcript and nothing else, because a
+refusal that says only what is forbidden gets a mechanism invented for it by whoever needs one first.
 
 **R2. Reach between sessions.** Even under a proposal shape, an agent may never send text or keys into
 another session. §4.3 attack 5 is the reason, and herdr's own `agent.send_keys` is the proof that the
 guard on one door does not guard the next.
 
+**R2 binds the CALLER absolutely and the CONTENT conditionally, and the fix round is writing that down
+because the document contradicted itself without noticing.** As first written R2 said *"its own
+included"* while §7 B5 said the briefing, whose model half is written by an agent, *"goes through the
+existing `typeIntoPane(…, false)` path"*. Agent-authored text reaches another session's input in both;
+only the caller differs — and §4.3 attack 5's harm is **content**, not caller, since `agent.send_keys`
+is refused for what arrives rather than for who asked. One sentence settles it and it is the stricter
+of the two readings:
+
+> **No agent-issued request may ever cause Tortie to send anything into any session, and no text may
+> reach a session's input until a person has seen it in a surface where they could change it. The
+> caller is always a person; the author may be a model, and only after the person has read what the
+> model wrote.**
+
+The first clause is absolute and is what refuses `agent.send_keys` in every form. The second is what
+B5 must satisfy, and §2.8 is what it costs. **Text an agent wrote that no person read never moves**,
+which is the property both halves of R2 were reaching for.
+
 **R3. A cross-agent store replant.** Phase 82's refusal stands and §2.1 strengthens it. The one vendor
 who built this decided the honest answer was flattened prose in a new thread with a new id and a
 marker; a Tortie replant claiming to be a continuation would claim more than the receiving vendor does.
-**Write down the read-only posture too** (§0.3): `src/main/overview/` and `src/main/manifest/harvest/`
-have never written a byte into a provider's store, and that is a property worth naming before it is
-spent.
+**Write down the read-only posture too** (§0.3), and write it with the word §0.3 uses:
+`src/main/overview/` and `src/main/manifest/harvest/` have never written a byte into a provider's
+**conversation** store, and that is a property worth naming before it is spent. **The scope is not
+decoration.** An earlier draft of this line dropped *conversation* and dropped the two directories,
+and the sentence it left behind would be false the moment it was copied into `CLAUDE.md`:
+`defaultStoreTarget` at `src/main/credentials/stores.ts:311` has written the vendor's own default
+CREDENTIAL store for both providers since Phase 211, deliberately and at his instruction, being
+codex's `auth.json` and claude's own keychain item. The refusal is about the transcript, and it is
+worth having precisely because a credential write already exists a few directories away.
 
 **R4. Automatic transfer of any kind.** No mechanism moves a conversation without the person reading
 what moved. §5.3 is the reason.
@@ -1307,14 +1556,22 @@ Its bounds, and they are the whole design:
 
 - It writes a **document**, opened in the editor, that he reads and edits.
 - It **starts no session, sends nothing anywhere, and names no agent**. He carries it. If it is ever
-  delivered into a pane, it goes through the existing `typeIntoPane(…, false)` path so the person's own
-  Enter is the confirmation, and Tortie shows the composed text first.
+  delivered into a pane, it goes through the existing `typeIntoPane(…, false)` path, under R2's second
+  clause: the delivery is issued by the person and never by any agent, and **the confirmation is the
+  document he opened, not the Enter he pressed** (§2.8).
 - It is never called a continuation, never inherits a session's name, and the surface says in words that
   a second agent is being **told about** the work rather than **given** it.
 - The deterministic half is composed first and always — agent, directory, branch, commit, the asks, the
   last answer, the files touched — because it is ~1.1 KB, invents nothing and costs no turn. The model
   half is an addition to it, written by the receiving agent or a third, **never by the agent that just
   ran out**.
+- **The asks are the LIVE asks and this is an acceptance criterion, not a detail.** §2.4b measured that
+  a claude transcript is a `parentUuid` DAG carrying turns the person rewound past, that `parentUuid`
+  appears 0 times in `src/`, and that the reader this bullet would reuse
+  (`src/main/overview/reader/lines.ts`) is line-sequential by construction. A briefing that lists
+  `do all of that and push commits to the CLI` beside the `do all of that and locally commit first
+  please` that replaced it is worse than one that says nothing. The composer walks back from the last
+  record and takes that chain only, and a build phase proves it against the 70 files §2.4b names.
 - It is composed from what the overview store already holds redacted plus the repository state, and
   **never from the tool trace**, because §2.5 shows the tool trace is recoverable from the repository
   and §2.4 shows it is 78.57% of what is lost anyway.
@@ -1343,6 +1600,8 @@ Stated per conclusion, because a recommendation that cannot be falsified is an o
 | Codex limit detection is reliable (§3.2) | A single codex refusal in his corpus. There are none: 925,056 nulls. The signal is proved present and the refusal is UNMEASURED |
 | Prose is the only thing that moves (§2.1) | A receiving agent that accepts a structured tool trace from a foreign vendor. None of the fourteen in the registry does today |
 | The claude sentence test is precise (§3.3) | The vendor rewording it. Both the sentence and the structured field moved inside four months in this corpus |
+| A line-sequential briefing is safe enough (§2.4b) | A measurement showing the live-chain walk costs more than it buys — the rate is 0.8% of chained files, so a build phase may reasonably judge it out of scope. What would NOT overturn it is the rate being small, because the harm is a reversed decision rather than a missing one |
+| The transcript is the right proposal channel (§4.5) | A marker that cannot be distinguished from ordinary agent prose in practice, or a latency measurement that makes a proposal useless. Either sends the shape back to a channel, and a channel is R1 |
 
 ---
 
@@ -1393,6 +1652,26 @@ Stated per conclusion, because a recommendation that cannot be falsified is an o
   to build it for a reason research 67 could not have known, being §4.1's measurement.
 - **Cost words are judgement.** The phase counts in §7 are not estimates of build effort taken from
   anything.
+- **The fix round corrected four claims of this document's own and one of them was marked as
+  independently re-derived.** The danger-flag figure (§0.1, §4.2, §10) summed two constants; the herdr
+  limit search (§1.8) used a phrase that cannot match Rust's spelling; R3's recommended wording dropped
+  the word *conversation* and would have been false if adopted; and §2.6 called an Enter press a
+  confirmation. Each is corrected in place and says what it corrected. **None of them changed a
+  conclusion**, which is the honest thing to report and is also the uncomfortable thing: four wrong
+  supporting numbers under four right answers is exactly the state in which a later round inherits a
+  wrong number and builds on it.
+- **The rewind measurement in §2.4b is a census of his claude store and of nothing else.** codex was
+  not measured for the same shape, and its rollout format is a flat event log rather than a DAG, so
+  whether it records a rewound turn at all is **UNMEASURED**. cursor's importer
+  (`records_cur.rs:148-149`) drops the same two flags and is presumed to share the blindness, unread.
+- **Whether a person can TELL a briefing carried a cancelled ask is UNMEASURED and is the acceptance
+  question for B5.** §2.4b proves the records are there; nobody has built the composer, so nobody has
+  read one.
+- **§2.8's chain is read from the code and was not driven.** No poisoned file was planted, no briefing
+  was composed and nothing was typed into a pane, because the phase spends no turn. Every link is
+  cited; the composition of them is reasoning.
+- **§4.5's transcript channel is a shape, not a design.** No marker was chosen, nothing was written to
+  recognise one, and the file-watch latency it would inherit was not measured.
 - **One scratch file was lost during the run.** A lane deleted `.p223/claude-limit-files.txt`, an 18 KB
   file list belonging to another lane, believing it was its own. It is regenerable in seconds with
   `rg -l` and nothing in this document depends on it. Recorded because a research phase that hides its
@@ -1403,7 +1682,9 @@ Stated per conclusion, because a recommendation that cannot be falsified is an o
 ## 10. Evidence ledger
 
 Every claim, where it came from, and how it was taken. Nothing below was recalled. Rows marked **[I]**
-were re-derived by the integrator rather than accepted from a lane.
+were re-derived by the integrator rather than accepted from a lane. Rows marked **[F]** were measured
+or re-measured by the FIX ROUND, and where a fix-round row corrects an earlier one it says what it
+corrects and where the earlier reading went wrong.
 
 | Claim | How it was taken |
 | --- | --- |
@@ -1427,7 +1708,8 @@ were re-derived by the integrator rather than accepted from a lane.
 | The plugin install confirm, and `plugin.link` bypassing it | `src/cli/plugin.rs:188-208,1294,1550-1556`; `src/app/api/plugins/mod.rs:68-87,177-222` |
 | Remote replacement consent | commit `702aa1e4`; `src/remote/attach.rs:94,98` |
 | The safety rule is a prompt | `skills/herdr/SKILL.md`; `docs/next/website/src/content/docs/agent-skill.mdx` |
-| herdr has no limit awareness | grep over `*.rs`, `*.toml`, `*.mdx` for six limit phrases; 4 hits, all pane graphics |
+| **[F]** herdr has no limit awareness | case-insensitive `rate.?limit\|usage.limit\|quota\|five hour\|weekly limit` over `*.rs`, `*.toml`, `*.mdx`: 35 files, every Rust hit herdr's own 1-second notification throttle (`src/app/api.rs:20`, `src/api/schema/common.rs:136`). Corrects a first-draft `rate limit` with a space, which cannot match `rate_limited` |
+| **[F]** `src/detect/` holds no limit vocabulary at all | same search over `src/detect/`: 0 hits; the only three `limit` occurrences under it are `validate_matcher_limits`, `src/detect/manifest.rs:1000,1033,1051` |
 | The shipped claude→codex importer | `/Users/gdc/codex/codex-rs/external-agent-migration/src/sessions/`, read only |
 | Thinking dropped, tool notes truncated at 2,000 and 4,000 | `sessions/records_common.rs` |
 | Tool-result-only records re-roled to assistant | `sessions/records_cla.rs:205` |
@@ -1437,6 +1719,13 @@ were re-derived by the integrator rather than accepted from a lane.
 | Byte census, slot maps, survival, move sizes | `.p223/b-transfer/census-*.py`, `slots*.py`, `survival.py`, `move-size*.py` |
 | 69.4% of thinking blocks empty | `.p223/thinkscan.py` over 600 random transcripts |
 | Interactive sessions at 1.7% portable | `.p223/handoff2.py` over 500 random transcripts |
+| **[F]** The importer never reads `parentUuid`; Tortie never reads it either | `read_session_import`, `records_cla.rs:97-152` read in full; `grep -rn parentUuid` over `/Users/gdc/codex/codex-rs/external-agent-migration/src/sessions/` and over `src/`, zero hits in both |
+| **[F]** 70 files carry a genuine rewind, 895 abandoned importable records, 156 abandoned asks | whole-store census, not a sample: `.p223/fix/rewind-split.py` over all 19,194 files, output `.p223/fix/out-rewind-split.txt`. Three earlier passes of my own were artifacts and are recorded in §2.4b and in the script's own header |
+| **[F]** Every rewind quoted in §2.4b was read in the raw records | `.p223/fix/inspect2.py` over the named files; the branch head, its timestamp and the ask that replaced it printed side by side |
+| **[F]** `redact.ts` is secret shapes only, with no instruction filtering | `src/main/overview/redact.ts` read in full, 81 lines, 9 `SECRET_PATTERNS` plus 2 `TORTIE_PATTERNS` |
+| **[F]** The words *poisoned*, *compromised*, *untrusted*, *injection* appeared twice in 1,465 lines | `grep -cEi` over this document at the parent commit; §3.4 and the head of §4.3 |
+| **[F]** `defaultStoreTarget` writes the vendor's own default credential store | `src/main/credentials/stores.ts:311`, read with its header; why R3's wording needed the word *conversation* |
+| **[F]** `resolveSessionLog` has a case for 11 of the 12 CLI agents | `case '` over `src/main/overview/reader/resolve.ts`; droid answers `no-store` by design |
 | Tool name distribution | `.p223/toolscan.py` over 400 transcripts, 8,659 `tool_use` blocks |
 | 480 compact summaries, median 13,031 chars | `.p223/compactscan.py` over 9,615 transcripts |
 | 0 of 568 codex compactions carry prose | `.p223/codexcompact2.py` over 195 rollouts |
@@ -1449,7 +1738,9 @@ were re-derived by the integrator rather than accepted from a lane.
 | The auto-continue sentences, 53 occurrences | `rg` over `~/.claude/projects` |
 | 792 files with `<teammate-message teammate_id=`, 19 project dirs | `rg -l` over `~/.claude/projects` |
 | 11,019 files matching "rate limit" against 571 structured markers | `grep -rl` over `~/.claude/projects`, `.p223/limitscan.sh` |
-| **[I]** 27 danger flags, 22 VERIFIED and 5 RESEARCH, 13 of 15 agents | per-object parse of `src/main/agents/flags.ts` |
+| **[F]** 21 danger flags, 16 VERIFIED and 5 RESEARCH, 10 of the 12 launchable agents | brace-matched parse of `AGENT_FLAG_PRESETS` and `NON_REGISTRY_FLAG_PRESETS` SEPARATELY, `.p223/fix/flags-parse.py`, output `.p223/fix/out-flags.txt`. Corrects the `27 / 22 / 13-of-15` this row carried, which summed the two constants |
+| **[F]** 6 more danger flags outside the registry, in amp, opencode and copilot | same parse; `NON_REGISTRY_FLAG_PRESETS`, `src/main/agents/flags.ts:603`, whose header says it is not consumed by the create-session modal |
+| **[F]** 14 registry entries, 12 CLI and 2 `kind: 'ide'` with no flag entry | `id: '` and `kind: 'ide'` over `src/main/agents/registry.ts` |
 | The two danger flags' own help text | `claude --help`, `codex --help`; no turn spent |
 | **[I]** `resume_provenance` exists and answers a different question | `src/main/manifest/schema.ts:175`, `:206` |
 | **[I]** Reconstruct's acknowledgement plus single-use token | `src/main/manifest/reconstruct.ts:29-40,140,387-395,662-683` |
