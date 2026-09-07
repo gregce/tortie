@@ -53,6 +53,18 @@
  *      scrolled sideways, because `position: sticky` makes a stacking context
  *      whether or not its scroller overflows and the defect was at every width.
  *
+ * AND THE COMMITTER'S ROUND WIDENED READING 9, because as written it could not
+ * see the defect the fix for it introduced. Its walk stopped at `.diag` and
+ * printed "none, so the two sticky layers are siblings" WITHOUT NAMING the
+ * context they are siblings IN. It was the document root: `overflow` makes no
+ * stacking context and every ancestor to BODY is static or `position:
+ * relative; z-index: auto`, so raising this head to 2 tied it with the editor
+ * pane's own `.ed-divider` and, later in tree order, took two of that 5px drag
+ * handle's pixels wherever the two overlapped. The walk now runs to the
+ * document root and NAMES its answer, enumerates every positioned peer sharing
+ * that context, and hit tests the rightmost pixel of the handle inside the
+ * head's band. Both go red at the parent of `isolation: isolate` on `.diag`.
+ *
  * Readings 6 to 9 exit non zero when they fail, so this is a check and not a
  * printout. Readings 1 to 5 are unchanged, so a run at this round's parent
  * compares to a run at its head line for line.
@@ -222,17 +234,109 @@ const probeJs = `(async () => {
 
   const layerTh = table.querySelector('thead th');
   if (!layerTh) return { error: 'the sessions table has no head cell' };
-  const contexts = [];
-  for (let el = layerTh.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+
+  /*
+   * THE WALK GOES TO THE DOCUMENT ROOT, and the committer's round is why. As
+   * first written it stopped at '.diag' — 'if (el === root) break' — and then
+   * printed "none, so the two sticky layers are siblings" without ever naming
+   * WHICH context they are siblings in. They were siblings in the ROOT one,
+   * because 'overflow' makes no stacking context and every ancestor up to
+   * BODY is static or 'position: relative; z-index: auto', so every z-index in
+   * diagnostics.css competed app-wide. A walk that cannot name its answer
+   * cannot notice that.
+   */
+  const names = (el) => el.tagName + (el.className ? '.' + String(el.className) : '');
+  const makesContext = (el) => {
     const cst = getComputedStyle(el);
-    const makes =
+    return (
       (cst.position !== 'static' && cst.zIndex !== 'auto') ||
+      cst.position === 'fixed' || cst.position === 'sticky' ||
       cst.opacity !== '1' || cst.transform !== 'none' || cst.filter !== 'none' ||
       cst.isolation === 'isolate' || cst.mixBlendMode !== 'normal' ||
       cst.willChange.includes('transform') || cst.willChange.includes('opacity') ||
-      cst.contain.includes('paint') || cst.contain.includes('layout');
-    if (makes) contexts.push(el.tagName + '.' + String(el.className || ''));
-    if (el === root) break;
+      cst.contain.includes('paint') || cst.contain.includes('layout')
+    );
+  };
+  const contexts = [];
+  let contextRoot = 'HTML';
+  let contextIsTab = false;
+  for (let el = layerTh.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+    if (!makesContext(el)) continue;
+    contexts.push(names(el));
+    // The FIRST one found is the context this cell's z-index is resolved in,
+    // which is the whole question. Everything after it is bookkeeping.
+    if (contexts.length === 1) {
+      contextRoot = names(el);
+      contextIsTab = el === root || root.contains(el);
+    }
+  }
+
+  /*
+   * THE PEERS, enumerated rather than reasoned about. Every positioned element
+   * in the document whose own nearest stacking context is the same one this
+   * tab's head resolves in, with its z-index. At the parent of the committer's
+   * round this listed the editor's drag handle, the sidebar resizer and the
+   * xterm layers beside '.diag-head'; after 'isolation: isolate' on '.diag' it
+   * lists nothing from this file at all.
+   */
+  const headForPeers = document.querySelector('.diag-head');
+  const contextOf = (el) => {
+    for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+      if (makesContext(a)) return a;
+    }
+    return document.documentElement;
+  };
+  const headContextEl = headForPeers ? contextOf(headForPeers) : document.documentElement;
+  const peers = [];
+  for (const el of Array.from(document.querySelectorAll('*'))) {
+    if (el === headForPeers) continue;
+    const cst = getComputedStyle(el);
+    if (cst.position === 'static' || cst.zIndex === 'auto') continue;
+    if (contextOf(el) !== headContextEl) continue;
+    peers.push({ name: names(el), z: Number(cst.zIndex) });
+  }
+  peers.sort((a, b) => b.z - a.z || a.name.localeCompare(b.name));
+
+  /*
+   * THE EDITOR PANE'S DRAG HANDLE, hit tested where it overlaps this head.
+   *
+   * '.ed-divider' is 'position: absolute; width: 5px; z-index: 2' and is the
+   * only way to resize the editor pane with a pointer. It is rendered at
+   * EditorPanel.tsx:819 and this tab at :895, so at the SAME number the head
+   * wins on tree order and swallows whatever part of the 5px band it covers.
+   * The point is the RIGHTMOST pixel the handle still covers, inside the
+   * head's own vertical band, which is the worst case rather than a midpoint
+   * that might miss a 2px overlap.
+   */
+  const divider = document.querySelector('.ed-divider');
+  let handle = null;
+  if (divider && headForPeers) {
+    const db = divider.getBoundingClientRect();
+    const hb = headForPeers.getBoundingClientRect();
+    const x0 = Math.max(db.left, hb.left);
+    const x1 = Math.min(db.right, hb.right);
+    const y0 = Math.max(db.top, hb.top);
+    const y1 = Math.min(db.bottom, hb.bottom);
+    const overlapW = Math.max(0, Math.round(x1 - x0));
+    const overlapH = Math.max(0, Math.round(y1 - y0));
+    let hit = null;
+    if (overlapW > 0 && overlapH > 0) {
+      const x = Math.round(x1) - 1;
+      const y = Math.round((y0 + y1) / 2);
+      const el = document.elementFromPoint(x, y);
+      hit = {
+        x, y,
+        name: el ? names(el) : null,
+        isDivider: el ? divider.contains(el) || el === divider : false,
+        isHead: el ? headForPeers.contains(el) : false
+      };
+    }
+    handle = {
+      dividerZ: getComputedStyle(divider).zIndex,
+      divider: { l: Math.round(db.left), r: Math.round(db.right), t: Math.round(db.top), b: Math.round(db.bottom) },
+      head: { l: Math.round(hb.left), r: Math.round(hb.right), t: Math.round(hb.top), b: Math.round(hb.bottom) },
+      overlapW, overlapH, hit
+    };
   }
 
   // A SHORTER TAB, which is all this is: .diag is height: 100% of an
@@ -277,6 +381,10 @@ const probeJs = `(async () => {
     headZ: headStyle ? headStyle.zIndex : null,
     pinZ: getComputedStyle(layerTh).zIndex,
     contexts,
+    contextRoot,
+    contextIsTab,
+    peers,
+    handle,
     overlap
   };
   root.style.height = wasHeight;
@@ -617,7 +725,18 @@ if (ly === undefined || ly === null) {
   process.exit(1);
 }
 say(`THE LAYERS. the head is ${String(ly.headPosition)} at z-index ${String(ly.headZ)}, the pinned column at ${String(ly.pinZ)}.`);
-say(`stacking contexts between the pinned cell and the tab: ${ly.contexts.length === 0 ? 'none, so the two sticky layers are siblings' : JSON.stringify(ly.contexts)}`);
+say(`the context both of them resolve in is ${String(ly.contextRoot)}, which is ${ly.contextIsTab ? 'INSIDE the tab' : 'OUTSIDE the tab'}`);
+say(`stacking contexts on the walk to the document root: ${ly.contexts.length === 0 ? 'NONE, so every z-index in diagnostics.css is app-wide' : JSON.stringify(ly.contexts)}`);
+say(`positioned peers sharing that context: ${ly.peers.length === 0 ? 'none' : ly.peers.map((p) => p.name + ' ' + String(p.z)).join(', ')}`);
+if (ly.handle === null || ly.handle === undefined) {
+  say('the editor pane drew no drag handle in this window, so the handle arm asked nothing');
+} else {
+  say(`the editor's drag handle is z-index ${String(ly.handle.dividerZ)} at l ${String(ly.handle.divider.l)} r ${String(ly.handle.divider.r)}, the head at l ${String(ly.handle.head.l)} r ${String(ly.handle.head.r)}`);
+  say(`they overlap ${String(ly.handle.overlapW)}px wide by ${String(ly.handle.overlapH)}px tall`);
+  if (ly.handle.hit !== null) {
+    say(`at (${String(ly.handle.hit.x)}, ${String(ly.handle.hit.y)}), the rightmost pixel of the handle inside the head's band, the point belongs to ${String(ly.handle.hit.name)}`);
+  }
+}
 if (ly.overlap === null) {
   say('NO ROW COULD BE SCROLLED UNDER THE HEAD, so the hit test proved nothing.');
 } else {
@@ -636,6 +755,37 @@ want(
   ly.overlap === null || ly.overlap.hitIsHead,
   `a point three pixels inside the report head belongs to ${String(ly.overlap?.hit)} "${String(ly.overlap?.hitText)}" instead: the pinned column is painted over the head and takes its clicks`
 );
+
+/*
+ * THE COMMITTER'S ROUND, and it is the other half of the same question. The
+ * two clauses above hold the head over the pin; these hold the head's number
+ * INSIDE this tab, which it was not. `.diag` has `isolation: isolate` for the
+ * reason written at that rule; without it the head's 2 tied with the editor
+ * pane's `.ed-divider` and, being later in tree order, took two of the drag
+ * handle's five pixels wherever the two overlapped.
+ *
+ * The context clause is what makes the handle clause more than one geometry's
+ * luck: an overlap that happens to be zero in this window would let a handle
+ * arm pass while the numbers were still app-wide.
+ */
+want(
+  ly.contextIsTab === true,
+  `the layers in diagnostics.css resolve in ${String(ly.contextRoot)}, which is outside the tab: every z-index in that file is competing app-wide, and its head at ${String(ly.headZ)} ties with whatever else in the app sits at that number`
+);
+want(
+  ly.handle !== null && ly.handle !== undefined,
+  'the editor pane drew no drag handle, so the one control the report head can overlap was never asked about'
+);
+if (ly.handle !== null && ly.handle !== undefined) {
+  want(
+    ly.handle.overlapW === 0 || ly.handle.hit !== null,
+    'the handle and the head overlap but no point in the overlap was hit tested'
+  );
+  want(
+    ly.handle.hit === null || ly.handle.hit.isDivider,
+    `the rightmost pixel of the editor's drag handle inside the report head belongs to ${String(ly.handle.hit?.name)} instead of the handle: ${String(ly.handle.overlapW)}px of a 5px resize target does not start a drag`
+  );
+}
 
 say('');
 if (failures.length > 0) {

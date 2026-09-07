@@ -45,14 +45,21 @@
  * because `.diag-ladder-dot` was already sitting on the head for the same
  * reason and a later rule can do it again.
  *
- * PROVED TO BE ABLE TO FAIL, on 2026-09-07, one clause at a time, ten of ten
- * red: the pin made static, its fill changed to `--bg-canvas`, its scope
- * dropped so the Tortie table is caught too, the hover rule's background taken
- * away, `left` moved off 0, `.diag-scroll` given `overflow-x: visible` so the
- * tab scrolls instead of the card, the 22ch name cap removed, the project
- * cell moved in front of the name cell in `DiagnosticsTab.tsx`, the head put
- * back to z-index 1, and the head left at 2 with `.diag-ladder-dot` raised to
- * meet it.
+ * AND THE COMMITTER'S ROUND ADDED THE ISOLATION, which is the same defect one
+ * layer further out: nothing between this tab and the DOCUMENT ROOT makes a
+ * stacking context either, so the head's new 2 tied with `.ed-divider`'s 2 and
+ * took two pixels of the editor pane's drag handle. `.diag` isolates now, the
+ * case below reads the editor's own number rather than typing it, and
+ * `probe:p219` reading 9 names the context and hit tests the handle.
+ *
+ * PROVED TO BE ABLE TO FAIL, on 2026-09-07, one clause at a time, eleven of
+ * eleven red: the pin made static, its fill changed to `--bg-canvas`, its
+ * scope dropped so the Tortie table is caught too, the hover rule's background
+ * taken away, `left` moved off 0, `.diag-scroll` given `overflow-x: visible`
+ * so the tab scrolls instead of the card, the 22ch name cap removed, the
+ * project cell moved in front of the name cell in `DiagnosticsTab.tsx`, the
+ * head put back to z-index 1, the head left at 2 with `.diag-ladder-dot`
+ * raised to meet it, and `isolation: isolate` taken off `.diag`.
  */
 
 import { readFileSync } from 'node:fs';
@@ -240,6 +247,38 @@ describe('the pinned first column', () => {
     expect(Number(decl(head?.[1] ?? '', 'z-index'))).toBeGreaterThan(
       Number(decl(STICKY?.[1] ?? '', 'z-index'))
     );
+  });
+
+  it('is a number that means something only inside this tab, which is what `.diag` isolating buys', () => {
+    // THE COMMITTER'S ROUND, and it is the same defect class one layer out.
+    // `overflow` makes no stacking context and every ancestor of this tab to
+    // BODY is static or `position: relative; z-index: auto`, so until `.diag`
+    // was given `isolation: isolate` every z-index in this file resolved in
+    // the DOCUMENT ROOT. The head's 2 above therefore tied with
+    // `.ed-divider`'s 2 — the editor pane's 5px drag handle — and, later in
+    // tree order, took 2 of its 5 pixels wherever they overlapped: measured in
+    // the running window at (942, 146), `HEADER.diag-head` as shipped and
+    // `DIV.ed-divider` with the head put back to 1.
+    //
+    // The case below reads the SHIPPING editor stylesheet rather than typing
+    // 2, so it stays true if that handle's number moves, and it asserts the
+    // isolation rather than the collision, because the isolation is what makes
+    // every number in this file local instead of only this one pair safe.
+    const diag = ruleFor((s) => s.trim() === '.diag');
+    expect(decl(diag?.[1] ?? '', 'isolation')).toBe('isolate');
+
+    const editorCss = readFileSync(
+      fileURLToPath(new URL('../../editor/editor.css', import.meta.url)),
+      'utf8'
+    );
+    const dividerZ = Number(
+      decl(rules(editorCss).get('.ed-divider') ?? '', 'z-index')
+    );
+    expect(Number.isFinite(dividerZ)).toBe(true);
+    const head = Number(decl(ruleFor((s) => s.trim() === '.diag-head')?.[1] ?? '', 'z-index'));
+    // The tie is REAL and is not being pinned away by picking a third number:
+    // it is allowed to exist precisely because `.diag` no longer lets it out.
+    expect(head).toBe(dividerZ);
   });
 
   it('stays under every OTHER positioned layer the tab already had, too', () => {

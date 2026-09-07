@@ -673,6 +673,21 @@ export const CHECKS = [
   // the resolved --border now, and a sample that lands outside the card is a
   // failure rather than a reading, which is what the static ablation was
   // quietly passing on.
+  //
+  // AND THE COMMITTER'S ROUND WIDENED READING 9, because as written it could
+  // not see the defect the fix for it introduced. Its ancestor walk stopped at
+  // .diag and printed "none, so the two sticky layers are siblings" without
+  // ever NAMING the context they are siblings in. It was the DOCUMENT ROOT:
+  // overflow makes no stacking context and every ancestor up to BODY is static
+  // or position: relative with z-index: auto, so raising the head to 2 tied it
+  // with the editor pane's own .ed-divider, the 5px drag handle, which is
+  // earlier in tree order and therefore lost 2 of its 5 pixels wherever the
+  // two overlap. The walk now runs to the document root and names its answer,
+  // enumerates every positioned peer sharing that context, and hit tests the
+  // rightmost pixel of the handle inside the head's band. Both clauses go red
+  // at the parent of `isolation: isolate` on .diag, where the peer list reads
+  // .xterm-helpers 5, .xterm-link-layer 2, .ed-divider 2, .sidebar-resizer 2
+  // and eight more.
   electron('probe:p219'),
   electron('probe:p185'),
   electron('probe:p194'),

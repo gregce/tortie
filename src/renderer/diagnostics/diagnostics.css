@@ -28,6 +28,36 @@
   color: var(--text-secondary);
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
+  /*
+   * THIS TAB'S LAYERS ARE THIS TAB'S, and the fix round's verifier is why the
+   * line is here rather than the number below being trusted to behave. Every
+   * z-index in this file is small and local and reads as though it were, and
+   * until this declaration NONE OF THEM WAS: `overflow` makes no stacking
+   * context, `.ed-body`, `.ed-panel`, `.work-row`, `.work-area`, `.shell-body`
+   * and `.shell` are all either static or `position: relative` with `z-index:
+   * auto`, so the walk from a cell in here to a stacking context ends at the
+   * DOCUMENT ROOT. Every number in this file was competing app-wide with
+   * `.ed-divider` (2), `.sidebar-resizer` (2), `.xterm-link-layer` (2),
+   * `.focus-wash` (1), `.section-header` (1) and the rest.
+   *
+   * IT WAS NOT THEORETICAL. Raising `.diag-head` to 2 below, which is the only
+   * number that puts it over the pinned column, tied it with `.ed-divider`, the
+   * editor pane's own 5px drag handle at `src/renderer/editor/editor.css`. The
+   * handle is rendered at `EditorPanel.tsx:819` and this tab at `:895`, so the
+   * later one won and the head took 2 of the handle's 5 pixels wherever the two
+   * overlap: measured in the running window at (942, 146), `elementFromPoint`
+   * answered `HEADER.diag-head` as shipped and `DIV.ed-divider` with the head
+   * put back to 1, over a 2px by 71px band, so a drag started there did not
+   * start the resize.
+   *
+   * One declaration closes it at the source rather than by choosing a third
+   * number: `.diag` becomes the stacking context its contents already assumed,
+   * the head still beats the pin INSIDE it, and nothing in this file can reach
+   * out of the tab again. `probe:p219` reading 9 holds both halves: the
+   * context is named rather than assumed, and the handle's overlap band is hit
+   * tested.
+   */
+  isolation: isolate;
 }
 
 /* -- the head: the title, when it was taken, the three controls ----------- */
@@ -43,17 +73,23 @@
   top: 0;
   background: var(--bg-surface);
   /*
-   * TWO IS NOT DECORATION, IT IS THE ONLY NUMBER THAT WORKS, and Phase 221's
-   * fix round measured why. This head is sticky, and so, since that phase, is
-   * the sessions table's first column four hundred lines down. Nothing between
-   * the pinned cell and the document root makes a stacking context (the walk
-   * that proves it is probe:p219 reading 9, and the only one it finds is the
-   * cell itself), so the two sticky layers are SIBLINGS in one context. At the
-   * same z-index the later one in tree order wins, and the table is later, so
-   * the pinned column painted over this head AND took its clicks: with a row
+   * TWO IS THE ONLY NUMBER THAT WORKS INSIDE `.diag`, and Phase 221's fix
+   * round measured why, twice. This head is sticky, and so, since that phase,
+   * is the sessions table's first column four hundred lines down. Neither
+   * `.diag-group` (overflow hidden) nor `.diag-scroll` (overflow-x auto) makes
+   * a stacking context, so the two sticky layers are SIBLINGS. At the same
+   * z-index the later one in tree order wins, and the table is later, so the
+   * pinned column painted over this head AND took its clicks: with a row
    * scrolled under the head, `elementFromPoint` three pixels inside it
    * answered the table's own Session header, and a click meant for Capture
    * again or Heap snapshot landed on the table's sort button instead.
+   *
+   * AND THE CONTEXT THEY ARE SIBLINGS IN IS NAMED, which is the half the
+   * committer's round added: until `.diag` was given `isolation: isolate` it
+   * was the DOCUMENT ROOT, so this 2 also tied with `.ed-divider` and took two
+   * pixels of the editor pane's drag handle. The reason and the measurement
+   * are at `.diag`. This number is local now, and `probe:p219` reading 9 fails
+   * if it stops being.
    *
    * IT IS NOT A NARROW-PANE EDGE CASE AND IT DOES NOT NEED THE CARD SCROLLED.
    * `position: sticky` makes a stacking context whether or not its scroller is
