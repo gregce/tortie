@@ -4,6 +4,29 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.101.0 (2026-09-07)
+
+This release is about light mode. The whole app can now sit on paper rather than graphite, terminal and editor and diffs included, and the frame controls work the same way on both. A codex session you restore after a reboot now opens instead of refusing, and a development build no longer disagrees with the installed app about which tmux to use.
+
+### Added
+
+- Tortie can run light. Settings then Appearance offers Light, Dark or Match the Mac, and the terminal, the editor, the diff view, the Architecture map and the window itself all follow. Switching is a crossfade, and it is instant if you have reduced motion turned on ([`4ab4400`](https://github.com/gregce/tortie/commit/4ab4400)), ([`419bc5f`](https://github.com/gregce/tortie/commit/419bc5f)), ([`4564106`](https://github.com/gregce/tortie/commit/4564106))
+- The colour and depth controls work on light as they do on dark, and a control that cannot move on the base you are using is simply not shown. A shade you chose on dark comes back when you choose Dark again ([`a5a846a`](https://github.com/gregce/tortie/commit/a5a846a))
+- Settings now says why the Claude usage meter is polling, so a meter that is working is not mistaken for one that is stuck ([`2f96be2`](https://github.com/gregce/tortie/commit/2f96be2))
+- The repository carries a costing of what shipping Tortie on Linux and Windows would take, written to be read rather than filed ([`4e1b98c`](https://github.com/gregce/tortie/commit/4e1b98c))
+
+### Fixed
+
+- Restoring a codex session after a reboot now opens the conversation you actually had. It could name one of that session's sub-agents instead, which codex refuses to resume; rows already stored that way are repaired once, and a row whose parent cannot be found is left alone rather than guessed at ([`ac13925`](https://github.com/gregce/tortie/commit/ac13925)), ([`f2acc9e`](https://github.com/gregce/tortie/commit/f2acc9e))
+- A development build and the installed app now run the same tmux, so they can no longer disagree about a session server after a restart. If they ever do, the message says which app started the server and what to run ([`1bd4094`](https://github.com/gregce/tortie/commit/1bd4094)), ([`dfea858`](https://github.com/gregce/tortie/commit/dfea858))
+- The idle and ended session dots are readable on every frame colour you can choose. On some of them they were too faint against the selected row ([`c38b4d4`](https://github.com/gregce/tortie/commit/c38b4d4))
+- In the git graph on light, six branches side by side stay distinguishable to a colour-blind reader ([`065d41e`](https://github.com/gregce/tortie/commit/065d41e))
+- Clearing a session while text is selected no longer copies nothing in silence — the selection goes with the history ([`4564106`](https://github.com/gregce/tortie/commit/4564106))
+- One very long session name no longer stretches the diagnostics table, and the live capture window is the interval it says it is ([`c7b9b8b`](https://github.com/gregce/tortie/commit/c7b9b8b)), ([`91212ae`](https://github.com/gregce/tortie/commit/91212ae))
+- Adding a login refuses a folder reached through a link, and a login record Tortie did not write no longer authorises anything to be swept away ([`4a4823d`](https://github.com/gregce/tortie/commit/4a4823d)), ([`9a94ff9`](https://github.com/gregce/tortie/commit/9a94ff9))
+- Choosing another account now reports what actually happened, including when a running session could not be checked. Quitting settles credential work rather than abandoning it mid-write, and removing a login during a quit no longer stops half-done ([`e1a1359`](https://github.com/gregce/tortie/commit/e1a1359)), ([`ff60e49`](https://github.com/gregce/tortie/commit/ff60e49)), ([`2ff1c5d`](https://github.com/gregce/tortie/commit/2ff1c5d))
+- Migrating a stored credential says why it refused when it refuses, and counts only the deletions that really happened ([`b3c3a80`](https://github.com/gregce/tortie/commit/b3c3a80))
+
 ## 0.100.0 (2026-09-03)
 
 This release is about the account a session runs on and the frame around it. Choosing another account now reaches a session that is already running, and signing in inside a session is noticed the moment it finishes. The frame can take a colour of your own, darker or lighter, and a selection you scrolled through now copies all of it.
