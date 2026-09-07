@@ -22289,6 +22289,114 @@ Use the existing scratch profile, scoped keychain, SSH and Electron helpers. A s
 - no weaker memory budget, lower test workload, hidden failed sample or automatic award of 36/36
 - no tag, release, push or automatic launch of another phase under this brief
 
+## Phase 221 — the diagnostics table does not fit a narrow editor pane, and a column cap cannot fix it (lifted out of Phase 219, 2026-09-07)
+
+**Subject.** `fix(diagnostics): eight columns fit the pane they are given`
+
+**First body line.** `Phase 221: the sessions table in a narrow pane`
+
+**Semver.** PATCH. Nothing here adds a surface or a setting. If the answer chosen is a column a
+person can hide, that is MINOR and the entry says so at the decision.
+
+**Tier 2.** It is a rendered surface with no new state, so the tiering rule's sixth question answers
+it: the gates, ONE app run that drives every claim in one session, and one independent method. The
+independent method is named below and it is not a photograph, because the finding is a WIDTH and a
+photograph of a scrollbar proves only that a scrollbar is there.
+
+**Charter.** This entry, and the measurement Phase 219 took when it tried to close this as a nit.
+The source is Phase 188's verifier, recorded in the closing section of
+`docs/audits/2026-09-03-verifier-findings-fifty-phases.md` as the second half of one line: *a
+newline in a project name splits a pasted report line, and a narrow pane shows a horizontal
+scrollbar*. The newline half was already fixed and Phase 219 dropped it. THIS half was LIFTED OUT,
+which is the charter's own instruction for an item that turns out to be bigger than a nit, and this
+entry exists so that lifting it out does not lose it the way the first eleven were lost.
+
+### What is already measured, so the next round does not re-derive it
+
+`npm run probe:p219` is committed and registered in `build/verification-checks.mjs`. It drives one
+Electron through `build/electron-run.mjs` on a scratch profile and the `gmux-p219` socket, over a
+real shell session whose name is 137 characters, and takes all four readings in ONE window so the
+uncapped one is the same build as the capped one. It spawns no agent, spends no token, opens no
+keychain, and reads through `GMUX_SHOT_JS` rather than the clipboard knob so the person's own
+pasteboard is never touched.
+
+| Reading | Width |
+| --- | --- |
+| Uncapped, that name | the table wants 1255px |
+| Capped at 22ch (what shipped in Phase 219) | 563px, of which the name is 166px |
+| Name column driven to ZERO | the other seven still want 455px |
+| The card at `EDITOR_MIN` | 282px |
+
+`EDITOR_MIN` is 320 and lives in `src/renderer/state/chrome-geometry.ts`; the probe reads it rather
+than typing it. It is a REAL floor a person can reach by dragging, enforced at
+`src/renderer/editor/EditorPanel.tsx:503` through `src/renderer/editor/panel-width.ts:47`, and the
+diagnostics report is an editor tab. **So the finding is 173px of overflow that no column cap can
+reach**, and the Phase 219 verifier then asked the probe's own per-column printout the question the
+phase had not: at the shipped cap the eight columns measure Session 166, Project 56, Agent 48,
+Processes 71, CPU 46, Memory 60, Started 56 and Last seen 67, so Project sits at 56px against its
+own 22ch cap and EVERY remaining column is already at its header or content minimum. There is no
+slack anywhere in the row.
+
+**The verifier's own re-run read 1262 / 570 / 461 / 282 against those numbers, a consistent +7px.**
+The conclusion does not move — the gap is 179px rather than 173px — and nothing enforces the numbers,
+but they are a measurement and not a constant, and this round must re-take them rather than quote
+them. In that run `naturalZeroCap` read 461 against 461, which is the table FILLING the card rather
+than a min-content reading; the load bearing cell is `narrowZeroCap` at 461 against a 282px card.
+
+### The mechanism, with the real files
+
+The table is `src/renderer/diagnostics/DiagnosticsTab.tsx` at the sessions section, eight
+`SortableHead` columns being Session, Project, Agent, Processes, CPU, Memory, Started and Last seen,
+with `AgeCell` drawing the last two. Its stylesheet is
+`src/renderer/diagnostics/diagnostics.css`: `.diag-scroll` is the card's own overflow container and
+PREDATES Phase 188 deliberately, so a wide table scrolls inside its card and the tab never scrolls
+sideways; every `th` and `td` in `.diag-table` is `white-space: nowrap`; `.diag-project` and
+`.diag-session-name` are capped at 22ch each and are the only two capped.
+
+**The round prices at least three answers and does not assume one.**
+
+1. **Let the table reflow.** Drop `nowrap` on the columns that can take two lines and let the row
+   grow. Cheapest, and the risk is a table that reads as a list of paragraphs, which the *Just
+   enough words* rule is against.
+2. **Drop columns as the card narrows**, by container query on `.diag-scroll`, keeping Session,
+   Project and the one number that answers the question a person opened this tab to ask. The
+   dropped values stay reachable on the row's hover, the way the full name already is. This is the
+   preference going in, and evidence is allowed to overturn it.
+3. **Accept the scrollbar and say so**, which means writing the ruling down where the CSS is and
+   striking the finding from the audit as a limit rather than a defect. This is a real answer and
+   the round must price it rather than reach past it, the way Phase 194's ruling was respected.
+
+Whatever is chosen, `.diag-scroll` keeps the property it was written for: the CARD scrolls, never
+the tab.
+
+### Proof, run rather than read
+
+- `npm run probe:p219` re-run at this round's parent AND at HEAD, which is the only honest proof a
+  width defect is fixed, and the per-column printout read rather than only its four totals.
+- The app run drives ONE session: the report tab dragged to `EDITOR_MIN`, the eight columns read off
+  the DOM at that width, the same reading at a comfortable width to prove nothing was lost there,
+  and a 137 character name still fully reachable by whatever route the answer chooses.
+- **The independent method is a re-derivation, not a photograph**: sum the eight measured column
+  widths independently of the table's own `scrollWidth` and require the two to agree, because a
+  `scrollWidth` that fits proves nothing if a column was clipped to reach it. The Phase 219
+  verifier's `naturalZeroCap` reading is exactly this trap caught once already.
+- A test beside `src/renderer/diagnostics/__tests__/p219-name-cap.test.tsx` pins whatever rule is
+  chosen, and it must go red under an ablation of that rule.
+
+### What is NOT in this phase
+
+- **The name cap is not revisited.** `.diag-session-name` at 22ch is a real bound on the one column
+  that had none and it stays. This round is about the other seven.
+- **`.diag-scroll` is not removed** and the tab is never allowed to scroll sideways.
+- **The Tortie process table is not touched.** `.diag-name` is its first column too, where the cell
+  already carries a chevron, a kind and a detail; capping or reflowing that is a geometry change to
+  a table nobody reported.
+- **No new setting**, no column picker persisted anywhere, and no per-person layout state. If
+  answer 2 is chosen the widths are a container query and nothing is stored.
+- **The report text is not touched.** `src/main/diagnostics/report-text.ts` already folds a newline
+  in the session name and both project fields, which was the other half of Phase 188's line and is
+  closed.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -22716,3 +22824,5 @@ cycle rather than only the evening it was written.
 - 2026-09-06, Phase 215 FIX ROUND on the verifier's four findings, the resume id is the session: NO FUNCTIONAL DEFECT WAS FOUND and none is fixed here, every "must get right" holding under measurement, so all four are CLAIMS that were not exactly true and one of them is the phase's own headline item. THE BIG ONE is the remote arm: the phase called it the finding a fix confined to `stores.ts` would have missed and said it stops a connected machine taking sub agents exactly as this Mac did, and over his own store it stops nothing, because `REMOTE_HARVEST_HEAD_BYTES` is 8,192 and a codex `session_meta` line is far bigger. Re-measured independently by driving the SHIPPING arm over all 25,976 of his rollouts: the shortest line 1 of the 523 derived ones is 13,798 bytes, the longest 22,298, the largest line 1 anywhere 34,526, only 171 of his 25,453 session records fit inside 8,192, so the arm answers `unknown` 523 of 523 at the shipped budget and `mismatch` 200 of 200 when handed the whole line. It cost no row before or after, because `decideRemoteHarvest` accepts a verdict of exactly `match`. Rule 8 of the gate now READS the budget out of the live half, drives the arm over seven records padded to exact byte lengths with two sizes computed from the budget so the boundary is always exercised, fails if a sub agent is called a match at any size, and fails if an `unknown` or a `mismatch` ever wins; four ablations behave, the first being the parent shape, which turns nine assertions red. TWO COUNTED NUMBERS ARE NOW COUNTED: rule 5 printed `4 call sites found` as a hardcoded string in the same breath as naming two call sites it had just failed to find, and reads `2 of 4` against the parent's `watch.ts` now; and three shipped comments said the six agents answer `none` while rule 1 printed five in the same output, so the count is derived from `DESCRIPTORS` and rule 1 fails the build naming any prose site that states a different one. THE EVIDENCE SENTENCES were corrected where they were not exactly true, deepseek's saying the store is FLAT when it holds an empty `checkpoints` directory the descriptor's own Phase 34 note names, and saying the derivation vocabulary appears only inside `system_prompt` when one file carries 8 hits inside `messages`; the counts are 0 in metadata, 952 in system_prompt and 8 in messages in one file, `none` is still right, and pi's claim was narrowed to DIRECTORIES because `~/.pi/agent` also holds four settings files. One dead ternary was found and removed, `walk.verdict === 'already-a-session' ? saidBy : saidBy`. THE LIVE RESUME IS STILL UNMEASURED AND IS HIS, being one line, `codex resume 01a06966-7253-7a72-afc1-ae84664a7cd5 --dangerously-bypass-approvals-and-sandbox`, because `conformance:resume:capture` SKIPS codex by design and no agent may spend his turn.
 - 2026-09-06, Phase 220 queued at the operator's request for a backlog goal: close the remaining Lifecycle, Failure flow and Test seam exceptions, with the complete brief in `docs/audits/2026-09-06-architecture-36-goal.md`. Reconfirm the findings at the execution commit after Phase 219's overlapping credential work; preserve Phase 211's running-session account switches, join credential work at quit, prove the remote deadline probe reaches its subject, and explain the split-session heap slope. Target 36/36 through a fresh audit of all twelve categories, with no point awarded without passing evidence. Queued only; implementation has not started.
 - 2026-09-06, Phase 215 LANDED at `4c426a1` at version 0.100.0 with NO bump, the declared semver being PATCH, a resume id names a session and never one of its sub agents, SEVENTEEN commits from `50c096a`, rebased onto Phase 217's tip. WHAT HE CAN NOW DO, in his own words of 2026-09-05: restore a codex session after a reboot and have it OPEN rather than answer `cannot resume an unloaded multi-agent v2 sub-agent through its parent`. FOUR of his rows were wrong at the parent, one of them the session he reported, and the repair walks each to the thread he actually had. THE MECHANISM CHANGED MID PHASE at his own question, and that is the whole story of it: he asked whether Tortie has the conversation id when the provider starts, whether it records the orchestrator and the sub agents, and whether he had been resuming a sub agent of his own thread, and the answers are no, no and yes; chasing them found `~/.codex/state_5.sqlite`, whose `threads` table carries `thread_source` and whose `thread_spawn_edges` names parent to child, so the VENDOR STATES what Tortie had been inferring from a rollout's first line. `src/main/agents/registry.ts` had named that file since Phase 12 as a fast path available and not used, recorded as a speed optimisation, and nobody had noticed it also answers is this a session and who is its parent. So codex ASKS THE STORE FIRST and the rollout parse is the documented fallback for the older rows that predate the column, and where both can answer they must agree. THE REPAIR runs once per boot as the FIRST pass of `resumeIdHarvests`, ahead of the claim seeding, over codex rows only, and it WALKS `parent_thread_id` rather than taking one hop because `depth` is a field the vendor writes and nothing promises it is 1; `MAX_PARENT_HOPS` is 8, being 2.6 times the deepest real chain in his store, and REACHING THE BOUND IS A REFUSAL RATHER THAN A TRUNCATION, keeping the id the row has instead of writing the last one it reached. NO ROW IS EVER EMPTIED ON ANY PATH, a row already naming a real session is byte identical afterwards, and a cycle, a self reference, a chain past the bound, a parent not on disk, a record naming no parent, a line 1 that is not JSON and a `.zst` all leave the row exactly as it is and are reported. It is idempotent by construction rather than by a flag. THE ROW SAYS WHAT IT IS through `repairedFrom`, `repairedAt`, `repairedHops` and `repairedBy` on the all optional provenance column, so no migration, and the confidence is written down to weak whatever the row used to say, because the new id inherits exactly the evidence the old one had while the old row claimed exact. THE CLASS, which is the amendment he asked for: every harvest descriptor must now DECLARE how a derived stream is told from a resumable session, `none` is a claim a person writes down rather than a silence, the pipeline asks it once for every agent before any key is applied, and a GATE FAILS THE BUILD when a descriptor does not answer, so the next agent inherits the protection rather than re-earning it. HIS RULING of 2026-09-06 bounds it: store the correct PARENT id only, and a manifest schema change to keep the whole sub agent tree was offered and DECLINED. THE VERIFIER APPROVED with five named independent methods: its own rollout reader and its own classifier built from a COPY of state_5.sqlite, neither importing the shipping predicate, compared record for record over 25,976 files; eleven hostile arenas including two the builder never tried, being two repairs against one manifest and a parent moving into `archived_sessions` between passes; the repair driven over THREE FRESH COPIES of his live manifest with a per row per column diff of all 213 rows, and a second drive with the state database removed so the rollout was the only voice; the parent commit measured by `git archive`; and the class re-measured against his real deepseek, pi and omp stores rather than read off the descriptor. THE COMMITTER DIED ON A SESSION LIMIT at about 15:15 with the worktree already rebased and clean, so the battery was re-run and the push made by hand: typecheck green with 0 boundary violations and 0 cycles, build green with the contract inventory byte identical, `npm test` 12,188 passed and 2 skipped over 775 files, `smoke:t1` 6 of 6, and `conformance:resume:capture` 7 PASS 0 FAIL 0 BLOCKED in 26.8 s. WHAT IS NOT TRUE: no sub agent is ever offered, hidden or repaired into something it is not, since codex says it cannot be resumed through its parent and Tortie believes it; no row whose parent is gone is repaired, it is left alone and reported; no agent but codex has a row rewritten, because only codex has a proved wrong row on his disk; nothing is written to his agent store; and the full `conformance:resume` roundtrip with real turns was not run in this battery, the capture arm being what the commit gate asks for.
+- 2026-09-07, Phase 219 LANDED at `1daeedf` at version 0.100.0 with NO bump, the fifth nits round, SEVENTEEN commits from `49d5913`, one per item plus the audit rewrite, rebased onto Phase 215's tip. NINE OF THE ELEVEN WERE BUILT: item 1, Add login no longer makes a folder outside the logins root when the provider root is a symbolic link, reproduced at the parent before anything moved; item 3, a record row whose `id` is a JSON number now refuses the WHOLE file instead of letting the stray sweep delete the login it names; item 4, the keychain migration says why it refused, counts only deletes that happened, and reads a home behind a link by asking `realpathSync` SECOND so it can only turn a refusal into a pass, with 4c making the gate NAME its rule at a domain with no `migrate.ts` instead of dying on a raw ENOENT stack; item 5, every tick of the diagnostics live capture reports the interval it is labelled with; item 7, the Electron helper gate's hand list is DELETED and the population derived, with rule 2 now a FLOOR (87 at HEAD, 56 were listed while 87 reached it, so the drift was 30 and not the 18 recorded) that a commit adding a probe raises in the same commit; item 8, Settings says on the face why the Claude meter is not live, read only, opening no keychain and writing no byte; item 9's name column capped at 22ch; item 10, comments stating a parent measurement are dated, INCLUDING two this round wrote itself hours earlier; and item 11, a selection is dropped visibly when Clear takes the history with it. TWO WERE DROPPED because they no longer reproduced, re-derived at HEAD by reading shipping code rather than trusting a lane: item 2, the Phase 204 observe side, closed by the Phase 211 fix round since `defaultStoreDeps` gives `readText` as `readTextNoFollowSync`; and item 6, the Architecture watch, closed by Phase 197 item 7 since `settings/ipc.ts` calls `disarmArchWatch()` on the visibility flip. Item 9's NEWLINE half was dropped the same way, already folded by `oneLine()`, the record having named a renderer file that does not exist. ONE HALF WAS LIFTED OUT and is queued below as Phase 221. THE ROUND'S OWN RE-DERIVATION FOUND TWO THINGS THE LIST HAD MISSED, and they are the transferable part: the stray sweep has a SECOND door through `finishStraysOnce`, which unions the sweep's answer with recorded vault slots that never pass through `strayLoginIds`, so the first fix guarded the caller while the reasoning that justified it named the delete — driven over a real symlink, an id aimed at the delete took a planted victim directory whole, one entry before and zero after; and the lesson under it, that A GUARD WHOSE ONLY WITNESS IS THE GATE SENTENCE THAT REMOVES IT IS NOT PINNED, since taking the first guard out BY HAND left every live rule green because no arm had ever driven a sweep under a link. Every guard in that domain is pinned by BEHAVIOUR now, with the honest half driven in the same breath so a guard that refuses everything cannot read as a pass. THE COMMITTER MOVED ONE HUNK AND REWROTE FIFTEEN HASHES: item 1's own `src/main/logins/dirs.ts` fix had landed inside item 7's commit, which breaks the round's central discipline, so the two were replayed with the hunk where it belongs and the end tree proved byte identical by tree sha `b5c124a`. Battery green after the rebase: typecheck 0 violations and 0 cycles, build green with electron-teardown 87 against a floor of 87 and the contract inventory byte identical, `npm test` 12,229 passed and 2 skipped over 778 files, `smoke:t1` 6 of 6, `smoke:t3` 3 of 3, `conformance:credentials` 53 of 53 ablations red, `conformance:logins` 16 of 16 with hash `72a77146867c` unchanged, `conformance:watcher` PASS with the eight path budget untouched. `src/main/git/__tests__/graph.integration.test.ts` timed out at 5000 ms in 1 run of 6 and passed 20 of 20 alone; it shells out to real git and this round does not touch it. THE AUDIT LIST THIS ROUND READ WAS REWRITTEN IN THE SAME ROUND rather than left stale, which is the defect the round exists to fix. WHAT IS NOT TRUE: nothing was written under his home, no keychain was opened, no `-g` or `-w` was passed to `security`, socket `gmux` was never addressed, and Phase 210's status dots, Phase 194's ruling and Phase 200's heap were excluded on purpose and stay open.
+- 2026-09-07 Phase 221 queued, LIFTED OUT of Phase 219 rather than squeezed into it: the diagnostics sessions table does not fit a narrow editor pane and no column cap can make it. Phase 219 capped the session name at 22ch and MEASURED what that is worth in the running app over a 137 character name — 1255px uncapped, 563px capped, and 455px with the name column driven to ZERO, against a 282px card at `EDITOR_MIN`, which is a real drag floor. So the cap is worth 692px and closes nothing, and the verifier then read the per-column printout the phase had not: every one of the other seven columns is already at its header or content minimum, Project sitting at 56px against its own 22ch cap. Tier 2, one app run, and the independent method is a re-derivation of the eight widths against the table's own `scrollWidth` rather than a photograph, because a `scrollWidth` that fits proves nothing if a column was clipped to reach it. Three answers priced with no assumption, being reflow, drop columns by container query with the values kept on hover, or accept the scrollbar and write the ruling down where the CSS is. The card scrolls and never the tab, the name cap stays, and the Tortie process table is not touched.
