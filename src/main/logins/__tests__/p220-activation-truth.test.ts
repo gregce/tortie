@@ -59,6 +59,7 @@ vi.mock('../../typed-events', () => ({
   }
 }));
 
+import { DEFAULT_LOGIN_NAME } from '../../../shared/logins';
 import type { KeepDeps, LiveSession } from '../../credentials';
 
 const { registerLoginsIpc } = await import('../ipc');
@@ -222,6 +223,29 @@ describe('Phase 220: an account switch says what happened', () => {
     expect(readLoginsFile(root).file.chosen['codex']).toBeUndefined();
   });
 
+  it('a seam that answers something that is not a list has not answered', async () => {
+    // THE FIX ROUND'S ARM (Phase 220). `liveSessionEvidence` guards the answer
+    // with `Array.isArray` as well as catching the rejection, and nothing held
+    // that guard up: removing it left every case in this file green. A seam
+    // that resolves with `undefined`, which is what an injected function that
+    // forgot its return value does, would then be spread into `.some(...)` and
+    // the default lift decided on nothing at all.
+    const { promoted, dir } = await twoCodexAccounts();
+    const before = readIfThere(codexDefault());
+    liveAnswer = (async () => undefined) as unknown as typeof liveAnswer;
+
+    const result = (await handlers.get('logins:choose')?.(null, 'codex', promoted)) as {
+      ok: boolean;
+      reason?: string;
+    };
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain('could not check which sessions are running');
+    expect(existsSync(join(dir, 'auth.json'))).toBe(false);
+    expect(readIfThere(codexDefault())).toBe(before);
+    expect(readLoginsFile(root).file.chosen['codex']).toBeUndefined();
+  });
+
   it('a KNOWN empty answer is not the refusal, so Phase 211 is untouched', async () => {
     const { promoted, dir } = await twoCodexAccounts();
     liveAnswer = async () => [];
@@ -315,6 +339,61 @@ describe('Phase 220: an account switch says what happened', () => {
     // AND THE DEFAULT STORE STILL HOLDS THE ACCOUNT IT HELD, which is the
     // recovery copy: nothing was written over it and nothing was rolled back.
     expect(readIfThere(codexDefault())).toBe(codexCredential('bob', '2'));
+  });
+
+  it('a throw inside a lift that wrote nothing still names the store it was in', async () => {
+    // THE FIX ROUND'S SECOND ARM (Phase 220). `activateLogin` tracks WHICH
+    // store a lift is inside so an unclassified throw can say that this one
+    // store holds either what it held or the chosen account, and nothing held
+    // that up either: never setting it left every case green while the person
+    // was told "nothing was changed" about a store that may have been written.
+    //
+    // The shape is the ordinary re-choose. The login's own store already holds
+    // the account, so the first lift moves nothing, and the default lift is
+    // then the only write there is and it throws.
+    const { promoted, dir } = await twoCodexAccounts();
+    liveAnswer = async () => [{ provider: 'codex', login: null }];
+    // The login's own store already holds the account, the way it does on every
+    // re-choose, and the person's own location still holds the other one.
+    writeFile(join(dir, 'auth.json'), codexCredential('alice', '1'));
+    expect(readIfThere(codexDefault())).toBe(codexCredential('bob', '2'));
+
+    // AND THE RECORD FILE STOPS BEING WRITABLE once the default lift has begun,
+    // which is a throw no branch of the activation classifies. The observe at
+    // the top of `activateLogin` reads the same store first and runs OUTSIDE
+    // the try, so it is the second reading of it that breaks the file.
+    const installed = deps();
+    const target = codexDefault();
+    let readsOfDefault = 0;
+    setKeepDeps({
+      ...installed,
+      stores: {
+        ...installed.stores,
+        readText: async (path) => {
+          if (path.startsWith(target)) {
+            readsOfDefault += 1;
+            if (readsOfDefault === 2) {
+              rmSync(join(root, 'kept.json'), { force: true });
+              mkdirSync(join(root, 'kept.json'), { recursive: true });
+            }
+          }
+          return installed.stores.readText(path);
+        }
+      }
+    });
+
+    const result = (await handlers.get('logins:choose')?.(null, 'codex', promoted)) as {
+      ok: boolean;
+      reason?: string;
+    };
+
+    // NOTHING WAS WRITTEN, so the choice stands as it was and the sentence
+    // names the one store that may have been reached rather than claiming the
+    // whole switch changed nothing.
+    expect(result.ok).toBe(false);
+    expect(String(result.reason)).toContain('Something went wrong');
+    expect(String(result.reason)).toContain(DEFAULT_LOGIN_NAME);
+    expect(String(result.reason)).not.toContain('nothing was changed');
   });
 
   it('partial_activation_reports_the_written_store', async () => {
