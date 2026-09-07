@@ -744,9 +744,23 @@ export function namedLoginIds(root: string): ReadonlySet<string> | null {
   if (!Array.isArray(rows)) return null;
   const known = new Set<string>();
   for (const raw of rows) {
-    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue;
-    const id = (raw as Record<string, unknown>)['id'];
-    if (typeof id === 'string') known.add(id);
+    // A ROW TORTIE DID NOT WRITE ANSWERS NULL, IT IS NOT SKIPPED (Phase 219).
+    // The Phase 206 verifier hand edited one id from `"1234567890123456"` to
+    // the same sixteen digits as a JSON NUMBER. The old loop skipped that row
+    // and answered a set the rest of the file justified, so the directory it
+    // named was in nobody's set, `strayLoginIds` called it a stray, and the
+    // sweep deleted that login's folder and the credential inside it. Skipping
+    // is the one thing this function may never do, because a set that is
+    // missing an id is not a smaller answer, it is a DELETE order.
+    if (
+      raw === null ||
+      typeof raw !== 'object' ||
+      Array.isArray(raw) ||
+      typeof (raw as Record<string, unknown>)['id'] !== 'string'
+    ) {
+      return null;
+    }
+    known.add((raw as Record<string, unknown>)['id'] as string);
   }
   return known;
 }

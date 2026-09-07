@@ -412,6 +412,7 @@ function verdict(d) {
     JSON.stringify(d.hostile),
     JSON.stringify(d.linked),
     JSON.stringify(d.create),
+    JSON.stringify(d.numeric),
     JSON.stringify(d.refusals),
     JSON.stringify(d.chosen),
     JSON.stringify(d.leak),
@@ -508,6 +509,31 @@ if ('error' in live) {
   check(
     !live.create.absentAncestor,
     `${TAG} a provider root that is not there yet reads as a link, so no login could ever be created`
+  );
+
+  // Rule 3d, a record row Tortie did not write (Phase 219, item 3).
+  check(
+    live.numeric.known === null,
+    `${TAG} a record holding a NUMERIC id answered a set rather than null, so it authorised a sweep`
+  );
+  check(
+    live.numeric.strays.length === 0,
+    `${TAG} A HAND EDITED RECORD MADE A NAMED LOGIN A STRAY: ${JSON.stringify(live.numeric.strays)}`
+  );
+  check(
+    live.numeric.credentialSurvives,
+    `${TAG} THE SWEEP DELETED A CREDENTIAL BECAUSE A ROW'S ID WAS A NUMBER`
+  );
+  check(live.numeric.namedFolderSurvives, `${TAG} the sweep deleted a folder the record names`);
+  for (const shape of live.numeric.otherShapes) {
+    check(
+      shape.known === null && shape.strays === 0,
+      `${TAG} a record row spelled ${shape.row} was skipped rather than refused, and it swept ${String(shape.strays)}`
+    );
+  }
+  check(
+    live.numeric.sweepStrays.length === 1 && live.numeric.sweepKnown === 1,
+    `${TAG} a WELL FORMED record named no stray, so the refusals above prove nothing`
   );
 
   check(live.chosen.owned, `${TAG} a chosen login resolved to a directory Tortie does not own`);
@@ -841,6 +867,24 @@ const ABLATIONS = [
         file: 'store.ts',
         from: '  if (loginAncestorIsLink(root, provider)) return [];',
         to: ''
+      }
+    ]
+  },
+  {
+    name: 'a row Tortie did not write skipped rather than refused, which is the Phase 206 finding',
+    edits: [
+      {
+        file: 'store.ts',
+        from:
+          '    ) {\n' +
+          '      return null;\n' +
+          '    }\n' +
+          "    known.add((raw as Record<string, unknown>)['id'] as string);",
+        to:
+          '    ) {\n' +
+          '      continue;\n' +
+          '    }\n' +
+          "    known.add((raw as Record<string, unknown>)['id'] as string);"
       }
     ]
   },

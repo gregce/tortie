@@ -238,6 +238,73 @@ try {
   };
 
   // -------------------------------------------------------------------------
+  // 2d. A NUMERIC ID IN THE RECORD (Phase 219, item 3). Tortie never writes
+  //     that shape, so a file holding one was hand edited and cannot be read.
+  //     The old `namedLoginIds` skipped the row and answered a set the rest of
+  //     the file justified, which made the login that row named a STRAY, and
+  //     the sweep deleted its folder and its credential. The module's own
+  //     stated rule is that a file it cannot read authorises nothing.
+  // -------------------------------------------------------------------------
+  const numericRoot = join(root, 'numeric');
+  const realId = '6939060162ec7922';
+  const numericId = '1234567890123456';
+  mkdirSync(join(numericRoot, 'claude', realId), { recursive: true });
+  mkdirSync(join(numericRoot, 'claude', numericId), { recursive: true });
+  writeFileSync(
+    join(numericRoot, 'claude', numericId, '.credentials.json'),
+    JSON.stringify({ claudeAiOauth: { accessToken: TOKEN } }),
+    'utf8'
+  );
+  writeFileSync(
+    dirs.loginsFileIn(numericRoot),
+    `{"v":1,"chosen":{},"logins":[` +
+      `{"provider":"claude","id":"${realId}","name":"Real","createdAt":1},` +
+      `{"provider":"claude","id":${numericId},"name":"Numeric","createdAt":2}]}`,
+    'utf8'
+  );
+  const numericKnown = store.namedLoginIds(numericRoot);
+  const numericStrays = store.strayLoginIds(numericRoot, 'claude');
+  for (const id of numericStrays) store.removeStrayLoginDir(numericRoot, 'claude', id);
+  // AND THE HONEST HALF AGAIN. A well formed file must still name a stray, or
+  // the sweep has been turned off rather than made careful.
+  const sweepRoot = join(root, 'sweep');
+  const strayId = 'c'.repeat(16);
+  mkdirSync(join(sweepRoot, 'claude', realId), { recursive: true });
+  mkdirSync(join(sweepRoot, 'claude', strayId), { recursive: true });
+  writeFileSync(
+    dirs.loginsFileIn(sweepRoot),
+    `{"v":1,"chosen":{},"logins":[` +
+      `{"provider":"claude","id":"${realId}","name":"Real","createdAt":1}]}`,
+    'utf8'
+  );
+  out['numeric'] = {
+    known: numericKnown === null ? null : [...numericKnown].length,
+    strays: numericStrays,
+    credentialSurvives: existsSync(join(numericRoot, 'claude', numericId, '.credentials.json')),
+    namedFolderSurvives: existsSync(join(numericRoot, 'claude', realId)),
+    // A row that is not an object at all, and a row with no id, are the same
+    // hand edit wearing a different hat.
+    sweepStrays: store.strayLoginIds(sweepRoot, 'claude'),
+    sweepKnown: [...(store.namedLoginIds(sweepRoot) ?? [])].length,
+    otherShapes: (['"not a row"', '{"provider":"claude","name":"NoId"}', 'null', '[]'] as const).map(
+      (row) => {
+        const shapeRoot = join(root, `shape-${Buffer.from(row).toString('hex').slice(0, 8)}`);
+        mkdirSync(join(shapeRoot, 'claude', strayId), { recursive: true });
+        writeFileSync(
+          dirs.loginsFileIn(shapeRoot),
+          `{"v":1,"chosen":{},"logins":[{"provider":"claude","id":"${realId}","name":"Real","createdAt":1},${row}]}`,
+          'utf8'
+        );
+        return {
+          row,
+          known: store.namedLoginIds(shapeRoot) === null ? null : 'a set',
+          strays: store.strayLoginIds(shapeRoot, 'claude').length
+        };
+      }
+    )
+  };
+
+  // -------------------------------------------------------------------------
   // 3. A real login, and the fallback when its directory is gone.
   // -------------------------------------------------------------------------
   rmSync(dirs.loginsFileIn(root), { force: true });
