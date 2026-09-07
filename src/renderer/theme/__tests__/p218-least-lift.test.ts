@@ -4,11 +4,18 @@
  *
  * WHY THIS FILE EXISTS. tokens.css §1.3, presets.ts's `STATUS_PINS_DARK`
  * comment and DESIGN.md §1.3 all asserted a minimality nobody had measured.
- * The least lift at the shipped chroma and hue is `#858c9a`, two eight bit
- * steps lower, and it keeps the same 35 offered cells, so the claim was
- * false. The reason the phase went past it is real and measurable, and it is
- * what this file pins: a margin one eight bit level of the ground eats, and
- * a ΔE2000 from `--text-muted` inside a just noticeable difference.
+ * The least lift at the shipped chroma and hue is `#858c9a`, which is 6, 7
+ * and 7 eight bit levels lower on the three channels and 0.022 of OKLCH
+ * lightness below the shipped grey, and it keeps the same 35 offered cells,
+ * so the claim was false. The reason the phase went past it is real and
+ * measurable, and it is what this file pins: a margin one eight bit level of
+ * the ground eats, and a ΔE2000 from `--text-muted` inside a just noticeable
+ * difference.
+ *
+ * THE MAGNITUDE IS PINNED BELOW rather than left in this comment, because a
+ * sentence that sounds like a measurement is one, and this file's whole job
+ * is that a later colour cannot leave the words standing. The clause said
+ * `two eight bit steps` before the committer's round measured it.
  *
  * These are the sentence's own numbers rather than a restatement of the
  * gate's. `npm run conformance:hue` rule 32 proves the floor is KEPT over
@@ -121,6 +128,25 @@ describe('Phase 218 fix round: the lift is a judgement, not a solved minimum', (
     expect(leastLift).toBe('#858c9a');
     expect(ratio(leastLift, BINDING_FILL)).toBeCloseTo(3.005, 3);
     expect(relativeLuminance(leastLift)).toBeLessThan(relativeLuminance(idle));
+  });
+
+  it('the gap between the two hexes is the one the words above name', () => {
+    const channels = (hex: string): [number, number, number] => {
+      const rgb = toRgb(parse(hex));
+      if (rgb === undefined) throw new Error(`not a colour: ${hex}`);
+      return [
+        Math.round(rgb.r * 255),
+        Math.round(rgb.g * 255),
+        Math.round(rgb.b * 255)
+      ];
+    };
+    const [sr, sg, sb] = channels(idle);
+    const [lr, lg, lb] = channels(leastLift);
+    expect([sr - lr, sg - lg, sb - lb]).toEqual([6, 7, 7]);
+    const shippedL = toOklch(parse(idle))?.l;
+    const leastL = toOklch(parse(leastLift))?.l;
+    if (shippedL === undefined || leastL === undefined) throw new Error('unreadable lightness');
+    expect(shippedL - leastL).toBeCloseTo(0.022, 3);
   });
 
   it('the least lift is refused by a margin one eight bit level of the ground eats', () => {
