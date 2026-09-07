@@ -744,9 +744,13 @@ async function readRenderer(cdp) {
  * its tag and class with the size of the tree hanging off it. A name and a size
  * is what turns a slope into an owner.
  *
- * It is off by default (`P167_CENSUS=1`) because it walks every element in the
- * heap, and it releases its object group before returning, so the census can
- * never be the thing that retains what it is counting.
+ * IT RUNS ON EVERY BLOCK OF EVERY PROFILE, and there is no knob to turn it off:
+ * the count is one of the three numbers the verdict is made of, so a run that
+ * skipped it would be a run that could not answer the question it was written
+ * for. `P167_CENSUS_ROOTS` bounds how many detached roots are NAMED in the
+ * report and changes nothing that is counted. It releases its object group
+ * before returning, so the census can never be the thing that retains what it
+ * is counting.
  */
 async function detachedCensus(cdp) {
   const GROUP = 'p167-census';
