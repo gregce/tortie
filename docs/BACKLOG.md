@@ -22397,153 +22397,137 @@ the tab.
   in the session name and both project fields, which was the other half of Phase 188's line and is
   closed.
 
-## Phase 222 — what continuous phrase level approval of an agent's prose edits would take (operator asked 2026-09-07) RESEARCH ONLY
+## Phase 222 — the redline is a place you accept, reject and type (operator clarified 2026-09-07) RESEARCH ONLY
 
-**Subject.** `docs(research): what continuous phrase level approval would cost`
+**Subject.** `docs(research): what an editable redline would take`
 
-**First body line.** `Phase 222: continuous phrase level approval`
+**First body line.** `Phase 222: an editable redline`
 
 **Semver.** No version change. A research phase ships a document and touches no shipping code.
 
-**Tier 1.** It is a document, and the verifier's job is to attack its recommendation rather than
-photograph anything. But **every number in it is measured or it is not written**, and every claim
+**Tier 1.** It is a document. But every number in it is measured or it is not written, and every claim
 about a library is checked on the day rather than recalled.
 
-**Charter.** This entry, [issue 15](https://github.com/gregce/tortie/issues/15), `docs/ZEN-OF-TORTIE.md`,
-the scope guardrail in CLAUDE.md, `docs/research/74-redline-in-the-diff-view.md`, and the Phase 191
-and 194 entries above. **The Phase 23 refusals bind and are not reopened**: nothing here proposes
-loading third party code into a Tortie process, and no proposal may relax the CSP or the entitlements.
+**Charter.** This entry, [issue 15](https://github.com/gregce/tortie/issues/15), **his clarification of
+2026-09-07 which is what this entry is written to**, `docs/ZEN-OF-TORTIE.md`, the scope guardrail in
+CLAUDE.md, `docs/research/74-redline-in-the-diff-view.md`, and the Phase 191 and 194 entries above. The
+Phase 23 refusals bind and are not reopened.
 
-### What he asked for, in his own words
+### What he actually wants, and it is narrower and clearer than the issue
 
-> We already have word-level diff approval in the codebase itself. What's missing is the ability to
-> surface all agent edits in the UI continuously — updating in real time, not just when there's a git
-> diff associated with the change.
+The issue was written broadly. **He then said what he meant, and this entry follows the clarification
+rather than the issue:**
 
-Three desired behaviours: show all agent edits inline rather than only those tied to a git diff;
-approve and dismiss **phrase by phrase within a paragraph** rather than per line or per file; and an
-approved change is staged and leaves the diff view.
+> for 222 i think the intended idea, is, specifically for prose there is an edit (txt, md) ability
+> similar to cursor to quickly accept and reject changes in our redline mode and probably also edit the
+> source (and it not just be a preview)
 
-He proposed an implementation and the research must treat it as one candidate rather than the answer:
-git worktrees holding a shadow copy, dirty meaning not yet staged, approvals staging progressively,
-and a workaround for the fact that **git staging is line oriented** so a phrase inside a long
-single-line paragraph cannot use git's own granularity.
+So the ask is **three things about a surface that already exists**:
+
+1. **Accept and reject controls on the redline**, the way Cursor puts them on a change — quick, per
+   change, keyboard reachable.
+2. **PROSE ONLY**, being `txt` and `md`. He named the extensions himself, and they are exactly the
+   allowlist the redline already has. **The prose boundary is not a compromise to be widened; it is the
+   ask.**
+3. **The redline becomes an EDITING surface rather than a preview.** You can type in it and change the
+   source, not just look at the change and go elsewhere to act on it.
+
+**What this is NOT**, and the earlier reading of the issue got this wrong: it is not a live stream of an
+agent's edits as they happen. Nothing here asks Tortie to update in real time while an agent types, and
+nothing here asks a person to watch an agent work. That reading collided with the Zen's *"Not a
+supervisor's console"* and it was the wrong reading. **The posture is a person coming back to a change
+and dealing with it quickly**, which is the Zen's own *"come back without reconstruction"* rather than
+against it. The research should note the difference and not re-litigate the streaming version.
 
 ### What already exists, read from the tree on 2026-09-07, so the research does not re-derive it
 
-- **The redline is built and shipping**, from Phase 191 and its own view in Phase 194. It lives at
-  `src/renderer/editor/redline.ts` with `redline-document.ts`, `redline-copy.ts` and `redline.css`,
-  and `npm run conformance:redline` pins fourteen rulings over the shipping module.
-- **It reads a change block, not a line.** Both sides are joined, whitespace including newlines is
-  normalised, and `diffWords` is called once over the pair. That is already word level.
-- **It is PROSE ONLY by a narrow extension allowlist**, being the markdown extensions plus `txt` and
-  `text`, and the reason is measured rather than stylistic: research 74 §2.4 drove a real code change
-  through the word tokenizer and got **311 character level spans of confetti**. A proportional
-  reflowing row destroys the only structure a line of source has.
-- **Pierre cannot draw a redline, it can only hold one.** Every `@pierre/diffs` line is a grid item of
-  a subgrid, so its display is blockified by the CSS specification and no stylesheet can undo it
-  (research 74 §3). The redline lives in a light-DOM annotation row Pierre hands back.
-- **The libraries already in the tree** are `diff@9.0.0`, `@pierre/diffs@1.3.5`, `@pierre/trees` and
-  `monaco-editor`. The research says what, if anything, a new one would buy.
-- **There is a file watcher**, `src/main/watcher/`, and it has a hard constraint: `FSEventStreamSetExclusionPaths`
-  accepts at most EIGHT paths and above that silently applies ZERO, which `npm run conformance:watcher`
-  exists to enforce. Any "continuous, real time" proposal is measured against that budget.
+- **The redline ships**, from Phase 191 with its own view in Phase 194. `src/renderer/editor/redline.ts`
+  with `redline-document.ts`, `redline-copy.ts` and `redline.css`, pinned by
+  `npm run conformance:redline` over fourteen rulings.
+- **It is already word level over a change BLOCK, not a line.** Both sides are joined, whitespace
+  including newlines is normalised, `diffWords` runs once over the pair. Deleted words struck through
+  in red immediately followed by the inserted words, inline, on one flowing line.
+- **It is already prose only, by the allowlist he just named.** Markdown extensions plus `txt` and
+  `text`. The reason is measured: research 74 §2.4 drove a real code change through the word tokenizer
+  and got **311 character level spans of confetti**.
+- **Pierre cannot draw a redline, it can only HOLD one.** Every `@pierre/diffs` line is a grid item of a
+  subgrid so its display is blockified by the CSS specification and no stylesheet can undo it (research
+  74 §3). The redline lives in a light-DOM annotation row Pierre hands back. **That constraint decides
+  where a button can go and whether a caret can live there at all**, and it is the first thing the
+  research must re-measure.
+- **The libraries in the tree** are `diff@9.0.0`, `@pierre/diffs@1.3.5`, `@pierre/trees` and
+  `monaco-editor`. **Monaco is already vendored and is an editing surface**, which may matter a great
+  deal here.
 
 ### The question this phase answers
 
-**What would it take to surface an agent's prose edits continuously and let a person accept or
-dismiss them phrase by phrase, and is that a thing Tortie should do?** The second half is not
-rhetorical and the research must answer it rather than assume it.
-
-### The Zen questions, and they are load bearing
-
-The document answers each of these in its own words before it recommends anything:
-
-1. **Does this serve the work agents actually do, or does it exist because editors have it?** That is
-   the scope guardrail's first rule and it has refused features before.
-2. **Is a view that updates in real time as an agent types a signal, or is it the thing the Zen calls
-   progress theatre?** *"Not a supervisor's console. Tortie never asks the human to watch an agent
-   work."* A surface that streams edits as they happen is exactly that shape, and the research must
-   say why this one is different, or concede it is not.
-3. **Does it protect human attention or spend it?** The Zen's test is that the developer can look
-   away without anxiety and come back without reconstruction. Approving phrases as they arrive is the
-   opposite of looking away; approving them WHEN YOU COME BACK may be the same feature with the
-   opposite posture, and the research should say whether the real ask is the second one.
-4. **What writes, and when?** *"Nothing Tortie draws ever starts a process on its own."* Staging an
-   approval is Tortie WRITING to the person's repository or to a store beside it. That is a bigger
-   step than anything the redline does today, which only reads. Name exactly what is written, where,
-   and what happens when it goes wrong.
-5. **Is the durable part boring, inspectable and older than this product?** If the shadow store is
-   new code holding the only copy of an edit a person half-approved, it is none of the three.
+**What would it take for the redline to be a place a person accepts, rejects and types, for prose
+files?** Not whether Tortie should watch an agent, which is settled and is no.
 
 ### What the research must price, and none of these is assumed to win
 
-**A. The shadow store.** His proposal is a git worktree. Price it against the alternatives, each with
-what it costs, what it breaks and what it cannot represent:
+**A. Where the controls live, and whether they can live there at all.** The Pierre blockification
+constraint is the hard fact. Re-measure it against the vendored `@pierre/diffs@1.3.5` and then price:
+controls inside the annotation row Pierre hands back; controls in a gutter beside it; a keyboard-only
+scheme with no drawn control at all, which the *Just enough words* rule may actually prefer; and a view
+that is not the Pierre diff at all. **Say plainly if the current diff view cannot host this**, because
+that is the finding that decides the shape.
 
-- a **git worktree** holding the shadow copy, which is what he proposed;
-- the **git index alone**, since staging is what he describes and the index already is a staging area;
-- a **plain shadow directory** Tortie owns, outside git entirely;
-- **no store at all**, holding the approved and unapproved state in the manifest or a database beside
-  it and applying it to the file only on a person's word;
-- and the one that must be priced because the tree already leans on it: **what Tortie's existing git
-  layer can already do**, since `src/main/git/` is substantial and the answer may be smaller than a
-  new store.
+**B. What "edit the source" means here, and this is the crux.** A redline row is a computed rendering of
+a change, not the file. Making it typeable means one of:
 
-For each: what happens when the agent writes the file again mid-approval, what happens on a crash,
-what a person sees in `git status` while it is running, and whether it can lose an edit.
+- **Monaco, already vendored**, in an inline-diff or side-by-side mode, with the redline rendered into
+  it as decorations. Price what Monaco gives for free — carets, selection, undo, accessibility — and
+  what it costs, since the redline's whole character is a proportional reflowing line and Monaco is a
+  code editor.
+- **A contenteditable redline row**, which is the smallest change and the largest set of sharp edges.
+  Price the real ones: caret placement across struck-through and inserted runs, undo, IME and
+  composition, and what a paste does.
+- **Editing elsewhere and reflecting it here**, which is not what he asked for but is the cheapest thing
+  that gets close.
 
-**B. Sub-line acceptance, which is the crux and he named it himself.** Git stages lines. A phrase
-inside a 900 character paragraph is not a line. So:
+**C. What accept and reject actually DO to the file.** This is where the earlier reading was right to
+worry, even if it worried about the wrong feature. Accepting a change means Tortie **writes to his
+file**, which is more than the redline has ever done, since it only reads. Name exactly what is written,
+by which process, and what happens when the file changed underneath. **Cursor is the named reference:
+say what Cursor actually does here, checked rather than assumed.**
 
-- how a partial acceptance is REPRESENTED, given the accepted and rejected parts interleave in one
-  line;
-- how it is APPLIED, given `diff@9.0.0` gives word runs and git gives hunks, and something has to
-  turn a subset of word runs into a new file content;
-- what happens to the run ORDER and to overlapping edits, which the redline already had to solve
-  once — `conformance:redline` pins that the run order is kept as jsdiff returns it rather than
-  tidied into pairs;
-- and whether a three way merge, an OT or a CRDT is warranted or is the cleverness the Zen refuses.
-  **Check the real libraries on the day**: `diff-match-patch`, jsdiff's own patch application,
-  Automerge, Yjs, and anything else the research finds, with licence, maintenance and size, and with
-  the Phase 23 refusal applied — a library that would EXECUTE in a Tortie process is refused, a
-  vendored extract in the Pierre and Monaco pattern is the only admissible shape.
+**D. The granularity question, which he raised in the issue and which does not go away.** Accepting a
+whole change block is easy. Accepting one phrase inside a block is the thing git cannot represent,
+because git stages lines and a phrase inside a paragraph is not one. **DEMONSTRATE it rather than
+describing it**: a real paragraph on one long line, a real agent-shaped edit, the shipping `diffWords`
+over it, then accept a subset of the runs by hand and show the resulting file content and what git makes
+of it. Then say whether the first version needs phrase granularity at all, or whether accepting a whole
+change block is what he actually reaches for.
 
-**C. "Continuously, in real time."** What actually delivers it, measured against the watcher's eight
-path exclusion budget and against the `probe:p167` plateau rule, since a surface that redraws on
-every keystroke of an agent is exactly the shape that grew nodes a block in Phase 200. Say what the
-redraw costs and what it holds.
+**E. Undo, and what a person does when they get it wrong.** A quick accept is only quick if it is
+cheap to undo. Say what undo means here and where it lives.
 
-**D. The scope of the file set.** The redline is prose only for a measured reason. Issue 15 says "all
-agent edits". Price whether the answer stays inside the prose allowlist, and if it widens, what
-happens to the 311 spans of confetti.
-
-**E. What a first version would be.** The smallest thing that delivers the person's actual ask, and
-what it deliberately leaves out.
+**F. What a first version is.** The smallest thing that answers his sentence, and what it leaves out.
 
 ### Proof, run rather than read
 
-- **Every claim about a library is checked today**, with licence, latest release, activity and size,
-  and cited with what was read and when. Training recall is not evidence.
-- **The sub-line application problem is DEMONSTRATED, not described.** Take a real paragraph, run the
-  shipping `diffWords` over it, accept a subset of the runs by hand, and show the resulting file
-  content and what git makes of it. That measurement is the heart of the document.
-- **The redline's own constraints are re-measured rather than quoted**, since research 74's numbers
-  are from 1 September and the tree has moved.
-- **THE INDEPENDENT METHOD:** the verifier attacks the recommendation rather than confirming it. If
-  the document recommends building this, the verifier's job is to find the Zen refusal it walked past
-  and the failure mode that loses an edit. If it recommends refusing or narrowing it, the verifier's
-  job is to find the cheaper version that would have served him.
+- **The Pierre constraint is re-measured**, not quoted from research 74, since that is from 1 September
+  and the tree has moved.
+- **The sub-line demonstration is run** with real content and real git output, per D.
+- **What Cursor actually does is checked**, not recalled, and cited with what was read.
+- **Library claims are checked on the day**, with licence, release and size, and with the Phase 23
+  refusal applied: nothing third party executes in a Tortie process, so a library enters only as a
+  vendored extract in the Pierre and Monaco pattern, or not at all.
+- **THE INDEPENDENT METHOD:** the verifier attacks the recommendation. If the document recommends a
+  contenteditable row, the verifier's job is to break the caret and the undo. If it recommends Monaco,
+  the verifier's job is to show what the redline loses by becoming a code editor. If it recommends
+  refusing part of it, the verifier's job is to find the cheaper thing that would have served him.
 - No app run, because nothing is built.
 
 ### What is NOT in this phase
 
 - **No code changes at all.** The output is one document under `docs/research/` and nothing else.
-- **No decision.** The research prices the options and recommends; the operator chooses, and a build
-  phase is queued only at his word.
+- **No live streaming of an agent's edits.** That reading is withdrawn and the Zen settles it.
+- **The prose allowlist is not widened.** He named `txt` and `md` himself; the 311 spans of confetti are
+  why, and a research phase that proposes widening it must carry a new measurement.
 - **No new package is added**, even provisionally. Naming a candidate is not adopting one.
-- **No relaxation of any Phase 23 refusal**, of the CSP, or of the entitlements.
-- **Nothing that writes to his repository is built or trialled.** This phase reads and measures.
+- **No decision.** The research prices and recommends; the operator chooses.
 
 ## Phase 223 — moving work between agents, and letting an agent start one (operator asked 2026-09-07) RESEARCH ONLY
 
@@ -23141,3 +23125,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07, **0.101.0 RELEASED AND PROMOTED**, tag `v0.101.0` on `2555d6e`, website at `33c851b`. Eight phases since ea35fec: 213 light mode, 214 the light face and its lanes, 215 the resume id is the session, 216 the Linux and Windows costing, 217 one tmux, 218 the dots keep their floor, 219 the fifth nits round, and 220 which took the architecture score from 33 to an HONEST 35 of 36 with the split screen memory slope recorded as neither repaired nor explained. THE RELEASE GATE CAUGHT ONE THING AND IT WILL RECUR: `npm run package` notarized and stapled the .app but left the DMG WRAPPER with no ticket of its own, so `verify:signed --expect-notarized` failed on `stapler validate (Tortie-0.101.0-arm64.dmg)`. The fix by hand was `xcrun notarytool submit <dmg> --keychain-profile tortie-notary --wait` then `xcrun stapler staple <dmg>`, after which the gate passed. A later round should make the packaging step staple the DMG itself rather than leaving it to the release driver.
 - 2026-09-07 Phase 222 queued at his ask, research only: what continuous phrase level approval of an agent's prose edits would take, from issue 15. It is grounded in the redline Phases 191 and 194 already shipped, and it must answer the ZEN questions before it recommends anything, being whether a view that streams an agent's edits is a signal or the supervisor's console the Zen refuses, and what exactly WRITES when a phrase is approved. The crux he named himself: git stages LINES and a phrase inside a paragraph is not one, so sub line acceptance is demonstrated with a real paragraph rather than described.
 - 2026-09-07 Phase 223 queued at his ask, research only: what herdr does, how work could TRANSFER between heterogeneous agents which is issue 14, and how an agent could DELEGATE or start a Tortie session. He said explicitly not to read the ask literally, so the need is treated as continue this work somewhere else and resume, replay, summary and re-prompt are all candidates. THE DELEGATION HALF RUNS STRAIGHT INTO PHASE 23'S EIGHTH REFUSAL, that nothing may cause a process to start without a human confirming out of band of an agent turn, and herdr has SHIPPED exactly that shape with `agent start --kind`, so the phase must argue whether the refusal covers it, whether it is a new question deserving its own answer, or whether a propose-and-confirm shape keeps the value with the refusal intact. A research phase that quietly widens a standing refusal has failed. The transfer half is held to Phase 82's standard: a person must never read a continued conversation and get a new one. /Users/gdc/herdr is READ ONLY throughout.
+- 2026-09-07 Phase 222 RESTARTED on his clarification, four minutes in and with no commits lost. The first entry read issue 15 broadly and asked whether a view that streams an agent's edits is the supervisor's console the Zen refuses. THAT WAS THE WRONG READING and he said so: what he wants is Cursor style accept and reject on the REDLINE THAT ALREADY SHIPS, for prose only which is `txt` and `md`, with the redline becoming an EDITING surface rather than a preview. So the streaming question is withdrawn, the prose allowlist is the ask rather than a compromise, and the crux moves to two things: whether the Pierre annotation row can host a control or a caret at all, since every `@pierre/diffs` line is blockified by the CSS specification, and what accept actually WRITES to his file, since the redline has only ever read.
