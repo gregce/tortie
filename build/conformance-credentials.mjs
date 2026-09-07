@@ -114,6 +114,7 @@
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -1949,6 +1950,26 @@ try {
     let applied = true;
     for (const edit of ablation.edits) {
       const target = join(dir, edit.file);
+      if (!existsSync(target)) {
+        // A FILE THE DOMAIN DOES NOT CARRY IS RULE 17's SHAPE, NOT A CRASH.
+        // Every ablation above is a text edit, so a domain missing one of the
+        // files they name used to throw a raw ENOENT out of this line and
+        // ended the gate with a node stack and no rule named. That is exactly
+        // what running this gate at Phase 208's parent did, and it is the
+        // third Phase 208 finding (Phase 219, item 4c): a gate that dies is
+        // not a gate that fails. The reading is a finding now, and the rule 17
+        // arm below still runs and still names itself.
+        //
+        // The sentence deliberately does NOT spell rule 17's own words, which
+        // are pinned further down by a regex over this file. A second copy of
+        // that phrase here would keep that self check green with the real
+        // sentence deleted, which is the guard weakening itself.
+        failures.push(
+          `${TAG} rule 17 has no ${edit.file} to ablate for "${ablation.name}", so this domain cannot run that clause`
+        );
+        applied = false;
+        break;
+      }
       const before = readFileSync(target, 'utf8');
       if (!before.includes(edit.from)) {
         failures.push(
