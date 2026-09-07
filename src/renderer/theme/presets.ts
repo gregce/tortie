@@ -483,11 +483,26 @@ export const STATUS_PINS_LIGHT: readonly ChromaticPin[] = [
  * SHIPPED DEFAULT fell outside it, which is a bug wearing a floor's clothes.
  *
  * So the phase moved the colour instead. `--status-idle` and
- * `--status-exited` went from `#6e7583` to `#8b93a1`, the least lift in
- * OKLCH lightness that clears 3:1 over every offered frame at every contrast
- * level, and the floor went in behind it. Re-derived with both changes: 35
- * cells, the identical table, the default in, and the pair's worst reading
- * 3.281 rather than 2.193.
+ * `--status-exited` went from `#6e7583` to `#8b93a1`, the shipped OKLCH
+ * chroma and hue lifted from L 0.561 to L 0.661, and the floor went in
+ * behind it. Re-derived with both changes: 35 cells, the identical table,
+ * the default in, and the pair's worst reading 3.281 rather than 2.193.
+ *
+ * THIS COMMENT CALLED THAT "the least lift" AND THE FIX ROUND REFUTED IT.
+ * The least lift at that chroma and hue is L 0.639, `#858c9a`: it reads
+ * 3.005 on `#424238` and it keeps the same 35 cells, so a smaller answer
+ * works and the minimality was never measured. What was measured is why it
+ * is not the one taken. Its 0.005 of margin is a ninth of the 0.047 that one
+ * eight bit level of that fill is worth, and it sits dE2000 1.13 from
+ * `--text-muted` `#838996`, about one just noticeable difference, so the
+ * idle dot and the metadata beside it would read as the same grey. `#8b93a1`
+ * carries 0.281 and dE2000 3.44. Where it stops between those is a
+ * JUDGEMENT and not a solved minimum, since `#88909e` already clears the
+ * floor by 0.158 and the muted text by 2.48. `build/p218/least-lift.mts`
+ * prints the whole ladder and
+ * `src/renderer/theme/__tests__/p218-least-lift.test.ts` pins these numbers
+ * against the shipping tokens, so a later colour cannot leave the sentence
+ * standing.
  *
  * TWO TOKENS AND NOT THE WHOLE FAMILY, deliberately. `--status-working` reads
  * 3.540 and `--status-attention` 5.678 over the same walk, so they are clear

@@ -77,10 +77,24 @@
      High over the 35 frames a person may choose, 7 of the 35 under the floor
      at Normal alone and 19 at some contrast level, one of them a single stop
      from the default. #8b93a1 is the same OKLCH chroma and hue lifted to L
-     0.661, which is the least lift that clears 3:1 on EVERY offered frame
-     with slack a rounding cannot eat: worst 3.281 on #424238, the lightest
-     active fill any offered frame reaches, and 4.712 on the shipped one. It
-     is ONE colour for both states because the states are told apart by
+     0.661: worst 3.281 on #424238, the lightest active fill any offered
+     frame reaches, and 4.712 on the shipped one.
+
+     IT IS NOT THE LEAST LIFT, AND THIS COMMENT SAID IT WAS UNTIL THE FIX
+     ROUND MEASURED IT. The least lift at that chroma and hue is L 0.639,
+     #858c9a, which reads 3.005 on the same fill and keeps all 35 cells, so
+     a smaller answer works. Two measurements are why it was not taken. Its
+     0.005 of margin is a ninth of the 0.047 that one eight bit level of
+     that fill is worth, so a ground one level lighter takes it under; and
+     it sits dE2000 1.13 from --text-muted #838996, about one just
+     noticeable difference, so the idle dot and the metadata beside it would
+     read as the same grey. #8b93a1 carries 0.281, about six levels of the
+     ground, at dE2000 3.44. WHERE IT STOPS BETWEEN THOSE TWO IS A JUDGEMENT
+     AND NOT A SOLVED MINIMUM, because #88909e already clears the floor by
+     0.158 and the muted text by 2.48. There is still no darker answer; the
+     arithmetic forbids one.
+
+     It is ONE colour for both states because the states are told apart by
      shape, and the ring is the thinner mark of the two. The floor is now in
      the family, so this pair can never drift back out. */
   --status-working: #4d9de8; /* solid dot; agent producing output              */
