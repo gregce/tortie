@@ -213,22 +213,31 @@
  * WHAT THIS CAP DOES NOT DO, MEASURED RATHER THAN ASSUMED. The first version of
  * this comment said the scrollbar appeared "with seven columns' worth of room
  * going spare", and `npm run probe:p219` refuted it in the running app over a
- * real session with a 137 character name. The readings, all taken in one
- * window so the uncapped one is this build rather than another:
+ * real session with a 137 character name. It read, on 2026-09-07 at `d607dde`,
+ * all in one window so the uncapped reading is this build rather than another:
  *
  *   uncapped, that name          the table wants 1255px
  *   capped at 22ch               the table wants  563px, of which the name is 166
  *   name column driven to zero   the other seven still want 455px
  *   the card at EDITOR_MIN       282px
  *
+ * THOSE FOUR ARE A READING AND NOT A CONSTANT, which Phase 219's verifier
+ * showed by re-running the same probe and getting 1262 / 570 / 461 / 282.
+ * Phase 221 found the whole 11px in ONE CELL: `cpuLabel` answers `0%` for an
+ * idle session and `3.2%` below ten percent, and the CPU column is 39px at the
+ * first and 46px at the second. Nothing enforces these numbers and nothing
+ * should. The rule a gate can hold is the ORDERING, that the table's floor
+ * exceeds the card at EDITOR_MIN, and the sticky rule four rules down is what
+ * one holds instead.
+ *
  * So the cap is worth a real 692px on that name, and it is not the whole
- * finding: with the name column at NOTHING the remaining seven are 173px wider
+ * finding: with the name column at NOTHING the remaining seven are still wider
  * than the card at the narrowest pane the app will give this tab, and it
- * scrolls sideways anyway. The scrollbar half of Phase 188's finding is a
- * layout question about eight nowrap columns in a 282px card, and no column cap
- * can close it. Phase 219 lifted that half out rather than pretending this rule
- * closed it. Do not write a smaller number here and call the scrollbar fixed;
- * run the probe.
+ * scrolls sideways anyway. That half of Phase 188's finding is a layout
+ * question about eight nowrap columns in a 282px card, no column cap can close
+ * it, Phase 219 lifted it out rather than pretending this rule closed it, and
+ * Phase 221 ruled on it below. Do not write a smaller number here and call the
+ * scrollbar fixed; run the probe.
  *
  * IT IS ITS OWN CLASS rather than a rule on `.diag-name`, because `.diag-name`
  * is also the Tortie process table's first column, where the name is a binary
@@ -249,6 +258,60 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/*
+ * PHASE 221. THE RULING, and it answers Phase 188's second finding rather than
+ * working around it: EIGHT COLUMNS OF REAL INFORMATION DO NOT FIT A 282px
+ * CARD. That is a property of the narrowest pane the app offers and not a
+ * defect in this table, so the card scrolls sideways there and is allowed to.
+ * What is NOT allowed is a person scrolled into a row they can no longer name,
+ * so the first column is pinned to the card's left edge and the seven numbers
+ * scroll under a name that stays.
+ *
+ * THE OTHER TWO ANSWERS WERE PRICED AND REFUTED BY MEASUREMENT, not by taste.
+ * Each floor below is read at an 82px card, because a subset measured at 282px
+ * reports the card's width rather than the columns' own:
+ *
+ *   reflow        dropping `nowrap` takes the table's floor from 674px to
+ *                 464px, still 182px over the card, while the body row grows
+ *                 from 27px to 387px. It buys a paragraph and closes nothing.
+ *   drop columns  Session and Project ALONE want 333px against a 282px card,
+ *                 so no keep-set that still names the row fits, whichever
+ *                 number joins them. It would also need four new per-cell
+ *                 hovers, because Agent, Processes, CPU and Memory carry none
+ *                 by design and their header carries the hover instead.
+ *
+ * AND NO CAP REACHES IT EITHER, which is why the rule above is the last one of
+ * its kind: six of the eight columns sit at their own HEADER minimum and their
+ * content never binds, and the two that do not are person-typed strings
+ * already capped at 22ch. 674px is the floor with both of them at that cap.
+ *
+ * Measured in the running app on 2026-09-07 and written up in
+ * docs/research/83-phase-221-narrow-table-measurements.md. `.diag-scroll`
+ * keeps the property it was written for: the CARD scrolls, never the tab.
+ */
+.diag-group-sessions .diag-table th:first-child,
+.diag-group-sessions .diag-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  /*
+   * The CARD's own fill, measured rather than assumed: the card is
+   * `.diag-group`, which is `--bg-raised`. `--bg-canvas` is the tab behind it
+   * and would paint a seam. Both tokens follow the base, so this is right on
+   * paper as well as on dark.
+   */
+  background: var(--bg-raised);
+}
+
+/*
+ * An opaque cell paints OVER the row fill, which is set on the `tr`, so
+ * without this the pinned column would be the one cell that does not light up
+ * with the row it belongs to.
+ */
+.diag-group-sessions .diag-table tbody tr:hover td:first-child {
+  background: var(--bg-active);
 }
 
 /* One level of parent indentation, the Process Explorer shape. */

@@ -446,14 +446,6 @@ missed. All of that is recorded here rather than only in the commits.
 
 ### Still open
 
-- **Phase 188, the narrow pane's horizontal scrollbar.** LIFTED OUT of Phase 219 as its own entry,
-  because it is a layout question and not a nit. Phase 219 capped the session name column at 22ch
-  and MEASURED what that cap is worth, in the running app, in one window: the table wants 1255px
-  with a 137 character name, 563px capped, and 455px with the name column driven to ZERO, against a
-  282px card at `EDITOR_MIN`. So the cap is worth a real 692px and closes nothing — the remaining
-  SEVEN columns are still 173px wider than the card, and every one of them is already at its own
-  header or content minimum, Project sitting at 56px against its own 22ch cap. No column cap can
-  reach this. It needs a layout answer for eight nowrap columns in a 282px card.
 - **Phase 194.** Cmd-A from the Edit menu then Copy yields the interleaved redline text; ruled a
   known limit by the phase that shipped it, and a nits round does not overturn a ruling.
 - **Phase 200.** The split profile, the part of the scale test that splits and closes real shell
@@ -468,13 +460,6 @@ missed. All of that is recorded here rather than only in the commits.
 - **Phase 210.** The idle and exited status dots on the active row fill drop under the 3 to 1
   contrast floor for non-text over 7 of the 35 offered frames, and they cannot be pinned without
   refusing the shipped default. Queued as the operator's call.
-- **The geometry numbers in `src/renderer/diagnostics/diagnostics.css` are a measurement and not a
-  constant.** Phase 219's verifier re-ran the phase's own probe and read 1262 / 570 / 461 / 282
-  against the comment's 1255 / 563 / 455 / 282, a consistent +7px. The conclusion is unaffected, the
-  gap against the card being 179px rather than 173px, and nothing enforces the numbers. A later
-  round should not read them as constants. In the same run `naturalZeroCap` read 461 against 461,
-  which is the table FILLING the card rather than a min-content reading; the load bearing cell,
-  `narrowZeroCap` at 461 against a 282px card, is genuine.
 
 ### Closed by Phase 219, the fifth nits round (2026-09-07)
 
@@ -495,7 +480,8 @@ missed. All of that is recorded here rather than only in the commits.
 - **Phase 188, the newline half.** DROPPED — it no longer reproduced. `oneLine()` in
   `src/main/diagnostics/report-text.ts` already folds a newline in the session name and in both
   project fields on the row a person pastes, pinned by that module's own test. The record named a
-  renderer file that does not exist. The scrollbar half is above, still open.
+  renderer file that does not exist. The scrollbar half was lifted out and Phase 221 ruled on it,
+  one section down.
 - **Phase 192** (`0e5d302`, and `8519845` for two of this round's own). Comments stating a parent
   measurement in the present tense are dated. The rule is that a sentence sounding like a
   measurement gets measured or dated, and the round applied it to sentences it had itself written
@@ -524,6 +510,38 @@ missed. All of that is recorded here rather than only in the commits.
 - **Phase 209** (`4564106`). If Clear dropped the history while a selection was held, copy did
   nothing and said nothing. The selection is now dropped visibly when Clear takes the history with
   it, which was the fix the record preferred over making copy work.
+
+### Closed by Phase 221, the sessions table in a narrow pane (2026-09-07)
+
+- **Phase 188, the narrow pane's horizontal scrollbar. RULED A LIMIT, and the ruling is written
+  where the CSS is.** Eight columns of real information do not fit the 282px card the app's
+  narrowest editor pane gives this tab, and that is a property of the pane rather than a defect in
+  the table. The round priced all three answers the entry named and measured every one of them at an
+  82px card, so each number is a floor and never a fill. The true worst case is 674px and not the
+  563px the entry carried, because `.diag-project`'s 22ch is a MAXIMUM and Phase 219's fixture names
+  its directory `project`: with both person-typed columns at that cap the gap against the card is
+  392px. REFLOW takes the floor to 464px, still 182px over, and grows the row from 27px to 387px.
+  DROPPING COLUMNS cannot work at all — Session and Project ALONE want 333px — and it would need
+  four new per-cell hovers, because Agent, Processes, CPU and Memory carry none by design and their
+  header carries the hover instead. Six of the eight columns are at their own HEADER minimum, so
+  there is no slack anywhere in the row and no cap will ever reach this.
+  **What was fixed is the half that made the scrollbar unusable rather than merely present**: the
+  two columns that NAME a row were the first to scroll away, so at the far end of the scroll a
+  person was reading a row they could no longer identify, every numeric column at 0px on screen.
+  The first column is now pinned to the card's left edge in the card's own fill, scoped to the
+  sessions table so the Tortie process table is untouched, with its own rule keeping the row hover
+  that an opaque cell would otherwise paint over. `.diag-scroll` keeps the property it was written
+  for: the CARD scrolls, never the tab. Driven at `EDITOR_MIN` with the card scrolled to its far
+  end, the head and the cell both hold 0px from the card's left edge and `Last seen` sits 214px in
+  beside the pinned name. The measurements are `docs/research/83-phase-221-narrow-table-measurements.md`.
+- **The geometry numbers in `src/renderer/diagnostics/diagnostics.css` are a measurement and not a
+  constant.** DATED where they sit, and the whole of the verifier's +7px found in ONE CELL:
+  `cpuLabel` answers `0%` for an idle session and `3.2%` below ten percent, and the CPU column is
+  39px wide at the first and 46px at the second, which moves the table's floor from 563px to 570px.
+  Both readings were right. The comment now says so, and what a gate holds is the ORDERING — the
+  table's floor exceeds the card at `EDITOR_MIN` — with the sticky rule pinned by
+  `src/renderer/diagnostics/__tests__/p221-sticky-name.test.tsx` and by `npm run probe:p219`, which
+  gained the ruling's own readings including a sample of the PHOTOGRAPH at the header's hairline.
 
 ### What the round's own re-derivation added to this list
 

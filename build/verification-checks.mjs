@@ -646,6 +646,18 @@ export const CHECKS = [
   // read at the natural pane width and at EDITOR_MIN, the narrowest pane the
   // app will give this tab. It spawns no agent, spends no token, opens no
   // keychain, and never addresses socket gmux.
+  //
+  // PHASE 221 ADDED THE RULING'S OWN READINGS to the same window and made them
+  // EXIT NON ZERO, so it is a check and not a printout: the floor with the
+  // project column at its own 22ch cap, which this fixture's seven character
+  // directory name cannot reach and which is the real worst case; the first
+  // column pinned at EDITOR_MIN with the card scrolled to its far end, being
+  // the head and the cell both holding the card's left edge, the fill being
+  // the card's own and not the canvas behind it, and the rule that keeps the
+  // row hover on that cell; and a sample of the PHOTOGRAPH at the header's
+  // hairline inside the pinned column and beside it, which is the one question
+  // a computed style cannot answer, because border-collapse gives that
+  // hairline to the TABLE and paints it before any cell background.
   electron('probe:p219'),
   electron('probe:p185'),
   electron('probe:p194'),
