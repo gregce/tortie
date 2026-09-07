@@ -22545,6 +22545,164 @@ what it deliberately leaves out.
 - **No relaxation of any Phase 23 refusal**, of the CSP, or of the entitlements.
 - **Nothing that writes to his repository is built or trialled.** This phase reads and measures.
 
+## Phase 223 — moving work between agents, and letting an agent start one (operator asked 2026-09-07) RESEARCH ONLY
+
+**Subject.** `docs(research): transfer, delegation, and what herdr already does`
+
+**First body line.** `Phase 223: transfer and delegation`
+
+**Semver.** No version change. A research phase ships a document and touches no shipping code.
+
+**Tier 1** by the tiering rule, since it is a document. But its subject is the one thing in this
+product with a standing refusal against it, so **the verifier's named job is to attack the
+recommendation**, and every claim about another product is read from that product rather than recalled.
+
+**Charter.** This entry, [issue 14](https://github.com/gregce/tortie/issues/14), his ask of
+2026-09-07, `docs/ZEN-OF-TORTIE.md`, **the Phase 23 refusals in CLAUDE.md which bind this phase harder
+than any other**, `/Users/gdc/herdr` READ ONLY, and the banked research this must not re-derive:
+`docs/research/02-agent-resume.md`, `22-resume-audit.md`, `57-i7-context-on-another-machine.md`,
+`62-session-overview.md`, `81-codex-subagent-resume.md`, plus the Phase 82 entry above which recorded
+cross-machine conversation reconstruction and refused to build it on a fake far side.
+
+### What he asked, and the instruction not to read it literally
+
+He asked for three things and said plainly *"don't necessarily interpret this as written"*:
+
+1. **What does herdr do.** `/Users/gdc/herdr` is a checkout on his machine.
+2. **How could work TRANSFER between sessions**, which is issue 14: hitting a usage limit and having no
+   way to continue in another agent. Its own open questions are how Tortie would detect a limit, and
+   what the UX is. It concedes thinking blocks will not transfer and says that may be good enough.
+3. **How could an agent DELEGATE and START new Tortie sessions**, given the heterogeneous agents
+   Tortie now supports.
+
+He also said resuming is not necessarily the point. So the research treats *continue this work
+somewhere else* as the need, and resume, replay, summary and re-prompt as candidate mechanisms.
+
+### herdr is read ONLY, and it is the whole reason this phase is worth doing
+
+`/Users/gdc/herdr` is his own checkout of another product and this phase **reads it and never writes a
+byte to it**, which is the standing rule for that path. It matters because it already ships the second
+half of his question. From its own README and `docs/next/website/src/content/docs/agent-automation.mdx`,
+read 2026-09-07:
+
+> **agent-native** — agents drive herdr through the cli and socket api: they can spawn panes, prompt
+> each other, and wait until another agent is genuinely blocked.
+
+Its three primitives are layout, pane and agent. `herdr agent start reviewer --kind codex --pane
+"$review_pane"` starts a named agent in an existing shell pane, `agent send-keys` and `agent read`
+drive it, and a wait ends when the far agent is `working`, `blocked`, `done`, `idle` or `unknown`. It
+lists twenty-three supported kinds. **So the delegation half of his question is not hypothetical: a
+comparable product has shipped it, and the research must say what it actually costs rather than
+whether it is possible.**
+
+The document says what herdr does in plain terms, what it refuses, and where its design and Tortie's
+genuinely differ. It is a straight technical reading of another product, not a competitive one.
+
+### The refusal this phase must face rather than route around
+
+**Phase 23's eighth refusal is the reason this needs research rather than a build.** Its own words:
+
+> Nothing may cause a process to start on a configuration change alone. A human confirms the bytes,
+> out of band of any agent turn, and the agreement is bound to a hash of the fields that decide what
+> runs.
+
+And the reasoning under it, which is about this product specifically:
+
+> Tortie runs many agent processes at once under one user account, several deliberately launchable
+> with their safeguards off, all with write access to the home directory. A configuration directory
+> Tortie reads and an agent can write is an increase in privilege rather than a convenience.
+
+**An interface an agent can call to start another agent is that same increase, and larger**, because
+it removes the configuration step entirely. The research must decide, and argue, whether:
+
+- refusal 8 already covers this and the answer is no;
+- refusal 8 was written about third-party CONFIGURATION and an agent-driven spawn is a **different
+  question that deserves its own answer**, in which case the research states that new answer and what
+  bounds it;
+- or there is a shape that gives him the value with the refusal intact — for instance a delegation
+  that PROPOSES a session and a person confirms it, which is the same posture Settings then Agents
+  already takes for a configured agent.
+
+**A research phase that quietly widens a standing refusal has failed.** Whatever it recommends, it
+names the refusal it is touching and says so in its first section.
+
+### What is already true, so the research does not re-derive it
+
+- **Tortie reads agent transcripts across providers already.** `src/main/overview/` and its reader
+  parse many providers' stores, and `npm run conformance:overview` pins the per-provider slot matrix,
+  the keep ratio and the trap count over a committed corpus. Research 62 and 63 are the ground.
+- **Tortie knows how each agent's conversation is stored and resumed.** `src/main/agents/registry.ts`
+  carries per-agent resume argv; `src/main/manifest/harvest/stores.ts` carries the descriptors;
+  **Phase 215 landed yesterday** and made every descriptor declare how a derived stream is told from a
+  resumable session, with codex answered from its own `state_5.sqlite`.
+- **Tortie already runs sessions on another machine**, from Phases 68 to 73, and research 57 covers
+  carrying context there.
+- **Phase 82 is the closest prior art and it was REFUSED for a good reason**: replanting a
+  conversation from machine A into a store on machine B needs a real second machine with a real agent
+  to prove, and *"a half built version is worse than none, because a person would read a continued
+  conversation and get a new one."* That sentence is the standard this phase's transfer half is held to.
+- **The usage meter already exists** and knows about limits per provider, from Phases 181 to 182 and
+  203. Issue 14's first open question — how Tortie detects a limit — may already be half answered.
+
+### What the research must answer
+
+**A. What herdr does**, in plain terms: its session model, how it persists, how it recognises agent
+state, and specifically the shape of its agent-facing API. What it does that Tortie does not, what
+Tortie does that it does not, and which of its choices Tortie could not make without breaking a
+refusal. Read from the checkout, not from memory.
+
+**B. Transfer, which is issue 14.** What can actually move between two heterogeneous agents, measured
+rather than assumed. Take a real conversation from one provider's store in a scratch profile and say
+exactly what survives a move to another: the user's turns, the assistant's turns, tool calls and their
+results, file edits, system prompt, and what is simply lost. Thinking blocks are conceded already; the
+question is what ELSE goes. Then price the mechanisms — a replayed transcript, a summary the model
+writes, a structured handoff prompt, or a store replant of the Phase 82 shape — each with what a
+person would actually get and how they would know it worked. **The standard is Phase 82's: a person
+must never read a continued conversation and get a new one.**
+
+**C. Detecting the limit**, which is issue 14's own open question. What Tortie can already see, what
+each provider actually says when it refuses, and whether a limit is distinguishable from an ordinary
+error without guessing. If it is not reliably detectable, say so — a prompt to transfer that fires on
+a network blip is worse than none.
+
+**D. Delegation and starting sessions.** The refusal question above, answered. Then, if any shape
+survives it: what an agent would actually be able to ask for, what a person confirms and when, what
+the audit trail is, and what happens when a delegated agent delegates. Price the herdr shape, a
+propose-and-confirm shape, and refusing it outright. **Refusing is a real answer here and may be the
+right one.**
+
+**E. The Zen read.** *"Not a supervisor's console"*, *"Protect human attention"*, and *"Anything
+durability-critical should be boring, inspectable and older than this product."* Delegation could
+multiply agents without multiplying attention, which is the Zen's own stated goal, or it could produce
+a tree of agents nobody is watching, which is its nightmare. Say which, and what decides it.
+
+**F. The honest total.** What is worth building, in what order, and what should not be built at all.
+
+### Proof, run rather than read
+
+- **The transfer measurement is taken, not described.** A real conversation, a real move, a real
+  reading of what survived, over FIXTURES or a scratch profile — never his own live sessions and never
+  his agent stores.
+- **Every claim about herdr is cited to a file in the checkout**, with the path, and nothing is written
+  there.
+- **Every claim about a provider's limit behaviour is checked** against what that provider actually
+  emits, or marked UNMEASURED.
+- **THE INDEPENDENT METHOD:** the verifier attacks the recommendation. If the document recommends any
+  form of agent-driven spawning, the verifier's job is to construct the privilege escalation it
+  enables and see whether the proposed confirmation actually stops it. If it recommends refusing, the
+  verifier's job is to find the safe shape it missed.
+- No app run, because nothing is built.
+
+### What is NOT in this phase
+
+- **No code changes at all.** The output is one document under `docs/research/` and nothing else.
+- **Not one byte is written to `/Users/gdc/herdr`**, nor to any of his other repositories.
+- **No standing refusal is widened by this document.** It may RECOMMEND that he widen one, naming it
+  and arguing it; only he can do that.
+- **No decision.** The research prices and recommends; the operator chooses, and a build phase is
+  queued only at his word.
+- **No new package, no API surface, no IPC channel designed in detail.** Shapes, costs and refusals.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -22982,3 +23140,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07, Phase 220 LANDED at `1a290e7` at version 0.100.0 with NO bump, NO tag and NO push, close the three remaining architecture gaps, SEVENTEEN commits from `e896de8` rebased onto Phase 218's tip `662691e`; the brief refuses a tag, a release and a push by name, so the branch sits on origin/main's tip ready for him and nothing was published. **THE SCORE THE EVIDENCE SUPPORTS IS 35 OF 36, AND THE CATEGORY STILL AT 2 IS LIFECYCLE.** ITEM 1, the account switch says what actually happened: an unavailable answer from the live sessions seam is a THIRD STATE asked once above every write instead of the `[]` Phase 211 read it as, so a switch that cannot be checked refuses and says so rather than printing the sentence a switch that worked prints while the running agent keeps the old account, and an unclassified throw inside an activation no longer falls through to `chooseLogin` and record a choice nobody made. ITEM 2, the credential domain settles at quit: admission closes synchronously on the disposer's first line so a list, a choose, the boot observe, a late watch start, the vault migration and a `security` child all begin nothing, the work already accepted is owned and joined before `shutdownGmuxCore()` closes the seam an observe reaches the manifest through, the one bare `execFile` in the product now goes through `proc/guarded` so its child is in the same registry every other child is in, and the only place a write is cancelled on purpose is the wait for a vendor lock, before the mkdir, so a lock this process never took can never be stolen or released out from under Claude Code. ITEM 3, the deadline probe: ITS STATED CAUSE IS REFUTED rather than repaired, since nothing between `84a281d` and `b5cc017` touched it and the two runs pass, so what it gained is the three arms it could not fail before, being a readback of every registration, a deadline it rejects when ablated, and a teardown that holds on the failing path, measured at a 10,003 ms fallback against a 10,000 ms deadline with the healthy far side greeted in 9 ms and 3 pids and 2 dirs held becoming 0 and 0 when an assertion is forced to throw. ITEM 4, the split profile: NOT REPAIRED, and the measure step's own inference that a green run recorded nothing is refuted in research 82, so what landed is a ruler that can name an owner the day the slope returns, being a detached element census in every reading, a workload floor that calls a run INCONCLUSIVE rather than a plateau when too few sessions were discarded, a planted leak arm the grader must reject, and a heap retaining path reader; four green profile-d runs are four green runs and not an explanation of the two failures at `b5cc017`, which is exactly why Lifecycle keeps its 2. ITEM 5, the audit, `docs/audits/2026-09-07-electron-typescript-architecture-0.100.0.md`, all twelve categories at ONE commit with every row run rather than quoted, the nine previous 3s re-established, and a Limitations and a What was not run section. WHAT WAS DROPPED OR LIFTED OUT: the eager-size finding is SUPERSEDED, 450,366 raw and 108,476 gzip bytes of headroom against the 2,232 the 0.99.0 audit read, so no bundle refactor was done and none is owed; the CHANGELOG entry is deliberately NOT written here, because this repository writes one section per release at release time and Phases 213, 214, 218 and 219 all shipped visible behaviour into an unwritten 0.101.0 section the same way, so the truthful switch outcome and the settled quit belong in that entry when the release is cut; and ONE LOW IS LIFTED OUT FOR QUEUING, being that three of the six `trackCredentialWork` call sites, the two in `logins:remove` and the vault migration, can be unwired with the whole battery green, so the family the phase's own third defect came from is closed at one site and not at the shape, which one arm held over a `logins:remove` would close. Battery green at `1a290e7` AFTER the rebase: typecheck 0 violations and 0 cycles, build with the contract inventory byte identical and the electron and background teardown floors held, `npm test` 12,253 passed and 2 skipped over 782 files, `smoke:t1` 6 of 6, `smoke:t3` 3 of 3, `conformance:credentials` 60 of 60 ablations red with 9 of 9 disposer fixtures, `conformance:logins` 16 of 16 with hash `72a77146867c` unchanged, `conformance:machines` PASS and `conformance:watcher` PASS. Nothing was written under his home, no keychain was opened, no `-g` and no `-w` was passed to `security`, socket `gmux` was read for its session count only and read 12 sessions before and after, socket `gmux-p218` was left alone, and no Electron survived any run.
 - 2026-09-07, **0.101.0 RELEASED AND PROMOTED**, tag `v0.101.0` on `2555d6e`, website at `33c851b`. Eight phases since ea35fec: 213 light mode, 214 the light face and its lanes, 215 the resume id is the session, 216 the Linux and Windows costing, 217 one tmux, 218 the dots keep their floor, 219 the fifth nits round, and 220 which took the architecture score from 33 to an HONEST 35 of 36 with the split screen memory slope recorded as neither repaired nor explained. THE RELEASE GATE CAUGHT ONE THING AND IT WILL RECUR: `npm run package` notarized and stapled the .app but left the DMG WRAPPER with no ticket of its own, so `verify:signed --expect-notarized` failed on `stapler validate (Tortie-0.101.0-arm64.dmg)`. The fix by hand was `xcrun notarytool submit <dmg> --keychain-profile tortie-notary --wait` then `xcrun stapler staple <dmg>`, after which the gate passed. A later round should make the packaging step staple the DMG itself rather than leaving it to the release driver.
 - 2026-09-07 Phase 222 queued at his ask, research only: what continuous phrase level approval of an agent's prose edits would take, from issue 15. It is grounded in the redline Phases 191 and 194 already shipped, and it must answer the ZEN questions before it recommends anything, being whether a view that streams an agent's edits is a signal or the supervisor's console the Zen refuses, and what exactly WRITES when a phrase is approved. The crux he named himself: git stages LINES and a phrase inside a paragraph is not one, so sub line acceptance is demonstrated with a real paragraph rather than described.
+- 2026-09-07 Phase 223 queued at his ask, research only: what herdr does, how work could TRANSFER between heterogeneous agents which is issue 14, and how an agent could DELEGATE or start a Tortie session. He said explicitly not to read the ask literally, so the need is treated as continue this work somewhere else and resume, replay, summary and re-prompt are all candidates. THE DELEGATION HALF RUNS STRAIGHT INTO PHASE 23'S EIGHTH REFUSAL, that nothing may cause a process to start without a human confirming out of band of an agent turn, and herdr has SHIPPED exactly that shape with `agent start --kind`, so the phase must argue whether the refusal covers it, whether it is a new question deserving its own answer, or whether a propose-and-confirm shape keeps the value with the refusal intact. A research phase that quietly widens a standing refusal has failed. The transfer half is held to Phase 82's standard: a person must never read a continued conversation and get a new one. /Users/gdc/herdr is READ ONLY throughout.
