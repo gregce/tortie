@@ -448,3 +448,111 @@ if that target is a credential or shutdown file, which it will not be — `Termi
 - **`out/p167/report.json` is overwritten by each run**, so only run 4's structured report survives.
   Runs 2 and 3 are preserved as their full console logs, which carry every number quoted in §5. A
   builder repeating this should set `P167_OUT_DIR` per run.
+
+---
+
+## §10 The split profile, investigated. What it refutes, and what is still open
+
+Added 7 September 2026 by the builder of the phase's two probe items, after §5's
+own instruction that causation "must not be assumed" and must be established
+before any renderer file is edited. It was, and the answer changes what §5 says.
+
+### The subject did not move between the failing runs and these ones
+
+```
+git diff --stat b5cc017 <the commit the probe repairs were built on> \
+  -- src/renderer src/shared src/preload
+(empty)
+```
+
+So every run below drives the same renderer bundle the two failing runs drove.
+Only `src/main`'s credential domain and two files under `build/` moved. A run
+here is a run at the parent for this profile, which is why no separate parent
+build was made.
+
+### Seven runs, none of them reproduced it
+
+| Run | Shape | Heap a block | Nodes | Detached elements | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| A | d, 2 blocks x 3 cycles | 10.0, 10.0 | 448 flat | not yet read | pass |
+| B | d, 3 x 6 | 10.3, 10.0, 10.0 | 448 flat | 0, 0, 0 | pass |
+| C | d, 3 x 6, at a quarter CPU speed | 10.3, 10.0, 10.0 | 448 flat | 0, 0, 0 | pass |
+| D | b, c, d, beside another app doing the same work | 28.5, 28.4, 28.5 | 502 flat | 13, 13, 13 | pass |
+| E | d, 2 x 6, one heap snapshot a block | 10.3, 10.0 | 448 flat | 0, 0 | pass |
+| F | b, c, d, the phase's own final full run | 28.4, 28.4, 28.5 | 502 flat | 13, 13, 13 | pass |
+| G | d, 3 x 6, the first focused final run | 10.3, 10.0, 10.0 | 448 flat | 0, 0, 0 | pass |
+| H | d, 3 x 6, the second focused final run | 10.3, 9.9, 9.9 | 448 flat | 0, 0, 0 | pass |
+
+Neither of the two levers Phase 200 used on the surface profile reproduced it:
+not the CPU throttle, which run C drove at 4x on this profile for the first
+time, and not contention, which run D drove beside a second app doing the same
+work. **No owner was named and no renderer file was changed on a guess.**
+
+### §5's inference about the passing run is REFUTED
+
+§5 read run 4's flat DOM node count as "its workload recorded nothing", and
+built on that a requirement for a floor on work landed. The floor is a good
+requirement and it is now in the probe. The inference behind it is wrong, and it
+matters because it points the next round at the wrong thing.
+
+**Profile d draws no Past Sessions rows at all.** The panel is a modal
+(`src/renderer/app/PastSessionsModal.tsx`, behind `lazy-modals.tsx`) and this
+profile never opens it. The probe's header says the opposite, that the profile's
+node budget is off "because the Past Sessions data that leaves behind grows the
+DOM by design", and that sentence is stale.
+
+The workload in the flat runs landed in full, read three ways:
+
+- block times of 153 to 177 seconds for six cycles, which is real session
+  creation and not a skipped loop;
+- `.xterm >= 4` seen on every cycle, so zero open misses, and `settleSessions`
+  reporting nothing left;
+- and, now that the probe asks the app rather than the DOM,
+  **`sessions.listRemoved` reading 0, then 24, then 48, then 72** — exactly the
+  four sessions each of six cycles creates and kills, recorded as history, in
+  every one of the three final runs.
+
+So a flat node count in this profile is the HEALTHY reading, not an absent
+workload. The +1,020 nodes a block in the failing runs were entirely DETACHED,
+which is why the elements reachable from the document stayed flat beside them,
+and detached elements are never Past Sessions and never drawn. That is the
+discriminator this profile lacked and now has.
+
+### The retaining paths, which is what the brief asked for
+
+`build/heap-retainers.mjs` reads a `.heapsnapshot`, walks breadth first from the
+root so every node carries its shortest retaining path, never lets a `weak` edge
+be a retainer, and reads V8's own `detachedness` field. Over run E's two
+snapshots, taken a block apart with 24 more sessions discarded in between:
+
+| Reading | block 1 | block 2 |
+| --- | ---: | ---: |
+| nodes in the snapshot | 268,088 | 261,029 |
+| objects marked detached | 0 | 0 |
+| Terminal-shaped objects | 74 | 74 |
+| ScrollSurface objects | 5 | 5 |
+| objects named `xterm...` | 56 | 56 |
+
+Every session-shaped count is identical and the total FELL. **There is no
+per-session retention in this tree to attribute**, which is the positive
+statement a slope alone cannot make.
+
+One constant remnant is worth writing down because a later run will see it: when
+the surface profile runs first, one `div.xterm-scrollable-element.mac` of nine
+nodes is left detached and stays detached for the rest of the run. It does not
+grow, it is 9 nodes against the 1,020 the finding is about, and it is under the
+census budget. It is a curiosity, not this finding.
+
+### What this leaves for the phase, and for Lifecycle's score
+
+The brief's rule is explicit: until the split half is repaired or independently
+explained with retaining paths, **Lifecycle stays at 2**. It is not repaired and
+it is not explained. Seven green runs are not proof that an intermittent slope
+ended, and this section is not asking anyone to read them that way.
+
+What changed is that the ruler can now name an owner the day it comes back: the
+detached census in every reading with its own budget, the workload floor under
+it so an empty run is inconclusive rather than green, a heap snapshot a block
+behind `P167_SNAPSHOT=1`, and a planted leak at the end of every run that proves
+the census sees 1,032 planted detached elements, that the grader goes red on
+them, and that the page let all of them go.
