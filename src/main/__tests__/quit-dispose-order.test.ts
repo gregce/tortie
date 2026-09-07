@@ -62,6 +62,20 @@ function flat(body: string): string {
   return body.replace(/\s+/g, ' ');
 }
 
+/**
+ * The same body with its comments gone (Phase 220's fix round).
+ *
+ * Every ordering assertion below is an index comparison, and this file is
+ * written the way the rest of the repository is: the sentence explaining WHY
+ * the credential join sits above the core shutdown contains the word `await`
+ * twice, so a first-await index taken over the commented text reads a comment
+ * rather than a statement. Strings are left alone because no assertion here
+ * looks inside one.
+ */
+function code(body: string): string {
+  return body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+}
+
 describe('disposeMainCapabilities (the quit-time teardown)', () => {
   const body = disposerBody();
 
@@ -85,6 +99,35 @@ describe('disposeMainCapabilities (the quit-time teardown)', () => {
     expect(reap).toBeGreaterThan(-1);
     expect(drain).toBeLessThan(workers);
     expect(workers).toBeLessThan(reap);
+  });
+
+  /**
+   * PHASE 220's FIX ROUND. The credentials domain's two lines, and their
+   * POSITIONS, which are the whole of what they promise.
+   *
+   * `beginCredentialShutdown()` is worth nothing unless it is synchronous and
+   * first: an await in front of it is a window in which a list, a choose, the
+   * boot observe or a late watch start can still be admitted. And the join is
+   * where it is because an observe reaches the manifest through the live
+   * sessions seam, so a credential write must settle BEFORE `shutdownGmuxCore`
+   * closes the owner it asks. Moving the join below that line left the whole
+   * battery green, including the credentials gate's own disposer scanner, which
+   * checked only that the two calls were there and in that function.
+   */
+  it('closes credential admission first and joins before the core is shut down', () => {
+    const bare = code(body);
+    const begin = bare.indexOf('beginCredentialShutdown()');
+    const join = bare.indexOf('await joinCredentialShutdown()');
+    const core = bare.indexOf('shutdownGmuxCore()');
+    const firstAwait = bare.indexOf('await ');
+    expect(begin).toBeGreaterThan(-1);
+    expect(join).toBeGreaterThan(-1);
+    expect(core).toBeGreaterThan(-1);
+    expect(firstAwait).toBeGreaterThan(-1);
+    // Admission closes before anything is awaited at all.
+    expect(begin).toBeLessThan(firstAwait);
+    // And what was accepted settles before its owners close.
+    expect(join).toBeLessThan(core);
   });
 
   // -------------------------------------------------------------------------

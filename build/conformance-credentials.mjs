@@ -1450,7 +1450,16 @@ function disposerRegistersTheOwner(text) {
   if (begin < 0 || join < 0) return false;
   const firstAwait = body.indexOf('await ');
   if (firstAwait >= 0 && begin > firstAwait) return false;
-  return /await\s+joinCredentialShutdown\s*\(/.test(body);
+  if (!/await\s+joinCredentialShutdown\s*\(/.test(body)) return false;
+  // THE POSITION, ADDED BY THE FIX ROUND (Phase 220). The comment beside the
+  // call in `capabilities.ts` says the join is where it is BECAUSE an observe
+  // reaches the manifest through the live sessions seam and a write must settle
+  // before the owner it asks is closed. Nothing checked that: moving the join
+  // below `shutdownGmuxCore()` left this scanner green and every one of its six
+  // fixtures behaving, so the load bearing half of the sentence was documented
+  // rather than guarded. A body that shuts the core down at all must join first.
+  const core = body.indexOf('shutdownGmuxCore(');
+  return core < 0 || join < core;
 }
 
 {
@@ -1479,6 +1488,21 @@ function disposerRegistersTheOwner(text) {
       name: 'the join not awaited, so the disposer resolves while the domain runs',
       text: "export async function disposeMainCapabilities() {\n  beginCredentialShutdown();\n  void joinCredentialShutdown();\n  await other();\n}\n",
       ok: false
+    },
+    {
+      name: 'joined before the core shuts down, which is the shipped order',
+      text: "export async function disposeMainCapabilities() {\n  beginCredentialShutdown();\n  const r = await joinCredentialShutdown();\n  await shutdownGmuxCore();\n}\n",
+      ok: true
+    },
+    {
+      name: 'joined after the core shut down, so a write settles against a closed owner',
+      text: "export async function disposeMainCapabilities() {\n  beginCredentialShutdown();\n  await shutdownGmuxCore();\n  const r = await joinCredentialShutdown();\n}\n",
+      ok: false
+    },
+    {
+      name: 'the core shut down inside a later try, still after the join',
+      text: "export async function disposeMainCapabilities() {\n  beginCredentialShutdown();\n  const r = await joinCredentialShutdown();\n  try {\n    await shutdownGmuxCore();\n  } catch {}\n}\n",
+      ok: true
     },
     {
       name: 'registered in some other function',
