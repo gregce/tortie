@@ -751,6 +751,20 @@ export const CHECKS = [
   // and opens no keychain, and touches `-L gmux` in one place only, a read
   // only session count taken before and after.
   electron('probe:p237'),
+  // PHASE 238's MEASURE STEP. It answers one question with a number: how many
+  // ordinary acts it takes to lose a baseline that only memory holds, which is
+  // the shape research 83 B.3 gives an accept. ONE launch on a scratch profile
+  // with a scratch HOME and its own socket, over a repository it builds itself
+  // holding an UNTRACKED prose file, whose baseline is seeded at the first read
+  // and lives nowhere else. It drives a single Explorer click, the same click
+  // with the tab pinned, files opened for keeps past the ten tab cap, a tab
+  // close and a window reload, and reads the change count, the sentence on the
+  // face and the toasts off the DOM after each; a CONTROL arm under the cap
+  // must SURVIVE, so a detector that only ever says "died" cannot read as a
+  // finding. Outside writes are a synchronous /bin/sh. It creates no session,
+  // spawns no agent, spends no token and opens no keychain, and touches
+  // `-L gmux` in one place only, a read only session count before and after.
+  electron('probe:p238'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the
