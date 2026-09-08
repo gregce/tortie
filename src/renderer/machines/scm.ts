@@ -223,6 +223,20 @@ export function remoteCommitButton(label: string): string {
 }
 
 /**
+ * PHASE 229. The disclosure in front of git's own words after a failed commit.
+ *
+ * Tortie's sentence about what happened stays on the face. git's raw stderr,
+ * which on his Mac Pro was thirteen lines beginning "Author identity unknown"
+ * drawn on the resting face, goes behind this control, the way the clone
+ * dialog on this Mac already keeps git's text behind Show details. The two
+ * labels are that dialog's own words, so the remote face carries nothing the
+ * local one does not.
+ */
+export function remoteCommitDetailsToggle(open: boolean): string {
+  return open ? 'Hide details' : 'Show details';
+}
+
+/**
  * Nothing is staged over there yet, so there is nothing to commit.
  *
  * IT SAYS "yet" NOWHERE AND THE FUNCTION NAME DOES. The name carries the fact

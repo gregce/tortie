@@ -1926,6 +1926,13 @@ body.scm-section-dragging .section-gripper {
    git error is a sentence, and it is capped in height because a hook can print
    8,192 bytes and this column is 300 px wide. The far side caps it before it
    crosses; this caps what one screen has to hold. */
+/* PHASE 229. The disclosure in front of git's words, the clone dialog's own
+   shape: a text button whose label is aligned with the sentences above it. */
+.scm-remote-commit-details-toggle {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--space-3)); /* optical: align the label, not the pad */
+}
+
 .scm-remote-commit-said {
   margin: 0;
   max-height: 160px;

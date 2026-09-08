@@ -77,6 +77,7 @@ import {
   remoteBranchOf,
   useRemoteBranch
 } from './remote-branch';
+import { CommitMachineSaid } from './CommitMachineSaid';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import {
@@ -875,6 +876,14 @@ function RemoteCommitBox({
 
   const found = checkSaid();
 
+  // PHASE 229. git's words start closed, and close again when a new answer
+  // replaces them, so a person never reads the last commit's stderr under the
+  // next commit's sentence.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  useEffect(() => {
+    setDetailsOpen(false);
+  }, [entry.commitMachineSaid]);
+
   return (
     <div className="scm-remote-commit" data-scm-remote-commit="1">
       <textarea
@@ -930,9 +939,11 @@ function RemoteCommitBox({
         </p>
       ))}
       {entry.commitMachineSaid !== null ? (
-        <pre className="scm-remote-commit-said" data-scm-commit-said="1">
-          {entry.commitMachineSaid}
-        </pre>
+        <CommitMachineSaid
+          text={entry.commitMachineSaid}
+          open={detailsOpen}
+          onToggle={() => setDetailsOpen((was) => !was)}
+        />
       ) : null}
       {lost ? (
         <button

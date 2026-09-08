@@ -186,6 +186,10 @@ export interface P104CommitResult {
   commitSentences?: string[];
   /** What that machine said, as the panel drew it, or null. */
   machineSaid?: string | null;
+  /** PHASE 229. Whether git's words are on the face, which needs a press. */
+  machineSaidShown?: boolean;
+  /** PHASE 229. The disclosure's label, or null when there is no disclosure. */
+  detailsToggle?: string | null;
   /** The full sha the store holds for the guard the commit was sent with. */
   guardSha?: string | null;
   /** The sha the last read reported for HEAD over there. */
@@ -448,9 +452,15 @@ export function registerP104CommitDrive(): void {
       commitSentences: Array.from(
         document.querySelectorAll('[data-scm-commit-note="1"]')
       ).map((one) => textOf(one)),
-      machineSaid:
-        (document.querySelector('[data-scm-commit-said="1"]')?.textContent ??
-          null),
+      // PHASE 229. git's words are behind a disclosure, so the DOM holds the
+      // <pre> only while it is open. What the store holds and what the face
+      // shows are read as two facts.
+      machineSaid: entry?.commitMachineSaid ?? null,
+      machineSaidShown:
+        document.querySelector('[data-scm-commit-said="1"]') !== null,
+      detailsToggle:
+        textOf(document.querySelector('[data-scm-commit-details="1"]')) ||
+        null,
       guardSha: entry?.commitGuardSha ?? null,
       headSha: entry?.headSha ?? null,
       checkDrawn: document.querySelector('[data-scm-commit-check="1"]') !== null,
