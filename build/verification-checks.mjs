@@ -723,6 +723,7 @@ export const CHECKS = [
   // synchronous /bin/sh. No agent, no token, no keychain; `-L gmux` touched
   // only by a read-only session count before and after.
   electron('probe:p227'),
+  electron('probe:p240'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository
   // it builds itself. It takes the document's height and every change's

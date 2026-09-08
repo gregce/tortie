@@ -58,6 +58,7 @@
     "probe:p219": "npm run build && node build/harness-socket.mjs --fresh gmux-p219 'node build/probe-p219-geometry.mjs'",
     "probe:p225": "npm run build && node build/harness-socket.mjs --fresh gmux-p225 'node build/probe-p225-baseline.mjs'",
     "probe:p227": "npm run build && node build/harness-socket.mjs --fresh gmux-p227 'node build/probe-p227-rewind.mjs'",
+    "probe:p240": "npm run build && node build/harness-socket.mjs --fresh gmux-p240 'node build/p240/save-choice.mjs'",
     "probe:p236": "npm run build && node build/probe-p236-chip.mjs",
     "probe:p238": "npm run build && node build/harness-socket.mjs --fresh gmux-p238 'node build/probe-p238-accept-lifetime.mjs'",
     "probe:p238u": "npm run build && node build/harness-socket.mjs --fresh gmux-p238u 'node build/probe-p238-undo-after-accept.mjs'",
