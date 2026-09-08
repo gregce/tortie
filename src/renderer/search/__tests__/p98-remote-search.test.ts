@@ -290,6 +290,39 @@ describe('the answer', () => {
     expect(store().remoteMode).toBeNull();
   });
 
+  it('keeps the rows so far on screen while it waits, and nothing when there are none', async () => {
+    // PHASE 228. While a machine is being asked, the view draws what a search
+    // on this Mac draws while it streams, being the rows so far or nothing.
+    // A first search has nothing, and the rows are empty under the one word
+    // the waiting face says; a second search over those rows keeps them until
+    // the answer replaces them, which is rule 5 for a call instead of a
+    // stream. Research 85 section 3.2 measured the header alone for the whole
+    // wait, and this is the store half of the reason it cannot be.
+    holding = true;
+    useSearch.setState({ target: REMOTE });
+    store().setQuery('needle');
+    await vi.advanceTimersByTimeAsync(600);
+    expect(store().status).toBe('searching');
+    expect(store().files).toEqual([]);
+
+    held[0]?.send();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().status).toBe('done');
+    expect(store().files.map((f) => f.relPath)).toEqual(['src/there.ts']);
+
+    // Asked again. The rows stay put under "Searching…" until the answer.
+    store().run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().status).toBe('searching');
+    expect(store().files.map((f) => f.relPath)).toEqual(['src/there.ts']);
+    expect(calls.length).toBe(2);
+
+    held[1]?.send();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().status).toBe('done');
+    expect(store().files.map((f) => f.relPath)).toEqual(['src/there.ts']);
+  });
+
   it('drops the machine note when the target moves back to this Mac', async () => {
     useSearch.setState({ target: REMOTE });
     store().setQuery('needle');
