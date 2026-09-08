@@ -738,6 +738,19 @@ export const CHECKS = [
   electron('probe:p236'),
   electron('probe:p185'),
   electron('probe:p194'),
+  // PHASE 237. Typing in the redline, driven in the real app with real key
+  // events through CDP `Input.dispatchKeyEvent` and `Input.imeSetComposition`,
+  // never `execCommand`, which research 83 records fires no `beforeinput` in
+  // Chromium. One launch on a scratch profile with a scratch HOME and its own
+  // git repository: it types a word and reads it back as an insertion with the
+  // baseline projection and the generation unmoved, presses Enter and reads no
+  // div and no br, saves and reads the FILE off disk, commits a Japanese
+  // composition into the insertion, takes the typing back with ⌘Z, rewinds a
+  // change with ⌥⌫ and puts it back with ⌥⇧⌫, and reads the one line that
+  // names both undos. It creates no session, spawns no agent, spends no token
+  // and opens no keychain, and touches `-L gmux` in one place only, a read
+  // only session count taken before and after.
+  electron('probe:p237'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the

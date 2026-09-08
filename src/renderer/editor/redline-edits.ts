@@ -73,6 +73,15 @@ import { useEditor } from './store';
 import { useApp } from '../state/store';
 import type { EditorTab } from './tab-types';
 
+/**
+ * How long a run of typing stays one undo step. A pause longer than this
+ * starts a new one, which is the boundary a person feels: they stop, think,
+ * and what they type next is a different thought. The number is a judgement
+ * rather than a measurement, and it is on the generous side of the 500 ms most
+ * editors use so a slow typist's sentence is still one ⌘Z.
+ */
+const TYPING_RUN_MS = 1_000;
+
 /** What the view needs back from the hook. */
 export interface RedlineTyping {
   /** The current side to draw, or null when this tab cannot be typed in. */
@@ -138,6 +147,9 @@ export function useRedlineTyping(args: {
   const lastLive = useRef(liveText);
   const written = useRef(0);
   const wanted = useRef<string | null>(null);
+  // Where the last keystroke left the caret and when, so a run of typing is
+  // ONE undo step and a fresh start is a new one. See `continuesTyping`.
+  const lastEdit = useRef<{ at: number; when: number } | null>(null);
 
   const dispatch = useCallback((event: TypingEvent): void => {
     setState((current) => typingStep(current, event));
@@ -180,8 +192,24 @@ export function useRedlineTyping(args: {
     written.current = state.edits;
     wanted.current = state.text;
     const had = getWorkingModel(tabId) !== null;
+    // WHERE ONE UNDO STEP ENDS. A run of typing is one ⌘Z, which is what every
+    // editor does and what monaco does in File mode; a keystroke that does NOT
+    // continue the last one starts a new step, and so does the first keystroke
+    // after a save, because a save is a place a person expects to stop at.
+    // Without this the whole session's typing is one element and one ⌘Z takes
+    // all of it, which the app run read as `"s a throwa"` where it wanted the
+    // saved text back.
+    const live = useEditor.getState().tabs.find((t) => t.id === tabId);
+    const at = state.caret?.focus ?? null;
+    const previous = lastEdit.current;
+    const continues =
+      previous !== null &&
+      at !== null &&
+      live?.dirty === true &&
+      Date.now() - previous.when < TYPING_RUN_MS &&
+      Math.abs(at - previous.at) <= 1;
+    lastEdit.current = at === null ? null : { at, when: Date.now() };
     void (async () => {
-      const live = useEditor.getState().tabs.find((t) => t.id === tabId);
       const model = await ensureWorkingModel(
         tabId,
         live?.savedContents ?? state.text,
@@ -196,7 +224,7 @@ export function useRedlineTyping(args: {
       if (!had) setModelTick((n) => n + 1);
       const want = wanted.current;
       if (want === null) return;
-      applyModelText(model, want, false);
+      applyModelText(model, want, !continues);
       const now = useEditor.getState().tabs.find((t) => t.id === tabId);
       if (now !== undefined) {
         useEditor.getState().markDirty(tabId, want !== now.savedContents);
@@ -214,6 +242,18 @@ export function useRedlineTyping(args: {
     if (model === null) return;
     const sub = model.onDidChangeContent(() => {
       const text = model.getValue();
+      // DIRTY IS TRACKED HERE AND NOT ONLY WHERE THE EDIT IS MADE, because a
+      // change of this buffer is not always an edit of the person's: monaco's
+      // own ⌘Z is one, and the app run caught exactly that. With it counted
+      // only at the keystroke, undoing back to the saved bytes left the tab
+      // dirty for ever, `refreshRepo` went on skipping it, and a rewind
+      // refused with "save or undo your edits first" over a buffer that WAS
+      // the file. It is the same rule ./MonacoHost's own listener applies, and
+      // it is above the early return because our own writes take that return.
+      const live = useEditor.getState().tabs.find((t) => t.id === tabId);
+      if (live !== undefined) {
+        useEditor.getState().markDirty(tabId, text !== live.savedContents);
+      }
       if (text === stateRef.current.text) return;
       dispatch({ kind: 'outside', text, caret: caretNow() });
     });

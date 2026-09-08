@@ -98,6 +98,7 @@
     "probe:p164": "npm run build && node build/harness-socket.mjs --fresh gmux-p164-boot 'node build/probe-p164-boot.mjs'",
     "probe:p165": "npm run build && node build/harness-socket.mjs --fresh gmux-p165-paint 'node build/probe-p165-paint.mjs'",
     "probe:p166": "npm run build && node build/harness-socket.mjs --fresh gmux-p166-cache 'node build/probe-p166-cache.mjs'",
+    "probe:p237": "npm run build && node build/harness-socket.mjs --fresh gmux-p237 'node build/probe-p237-typing.mjs'",
     "probe:p167": "npm run build && node build/harness-socket.mjs --fresh gmux-p167-scale 'node build/probe-p167-scale.mjs'",
     "probe:p1741": "npm run build && node build/harness-socket.mjs gmux-p1741-font 'node build/probe-p1741-font-field.mjs'",
     "probe:p63": "npm run build && node build/harness-socket.mjs gmux-p63-arch 'node build/probe-p63-arch.mjs'",
