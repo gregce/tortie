@@ -17,7 +17,7 @@
  *     methods, and those eighteen are the only extra exported names allowed.
  *
  * REACHABILITY IS PROVED BY THE COMPILER, not by this test. The `Reachable`
- * tuple at the bottom names all 107 through src/shared/ipc/index.ts, so a member
+ * tuple at the bottom names all 112 through src/shared/ipc/index.ts, so a member
  * the barrel stops re-exporting fails `npm run typecheck` and names itself.
  *
  * build/assert-import-boundaries.mjs holds the other half, being that nothing
@@ -156,7 +156,8 @@ const FAMILIES = [
 
 /**
  * Every contract member, by the file it lives in. A reviewer reads this list
- * to see what Phase 125 moved. It was 105 names, 106 since Phase 229 and 107 since Phase 231,
+ * to see what Phase 125 moved. It was 105 names, 106 since Phase 229, 107 since
+ * Phase 231 and 112 since Phase 233,
  * and it is not sorted, because the order is the order the split put them in.
  */
 const MEMBERS: readonly string[] = [
@@ -225,7 +226,8 @@ const MEMBERS: readonly string[] = [
   'REMOTE_IMAGE_MAX_BYTES',
   'MachineImagePutInput',
   'MachineImagePlacement',
-  // scm.ts, 22, and 23 since Phase 229 added MachineGitIdentity
+  // scm.ts, 22, 23 since Phase 229 added MachineGitIdentity, and 28 since
+  // Phase 233 added the five for what one commit changed on a machine
   'MachineReviewInput',
   'MachineReviewFile',
   'MachineReviewList',
@@ -249,6 +251,11 @@ const MEMBERS: readonly string[] = [
   'MachineHistoryMode',
   'MachineHistoryInput',
   'MachineHistoryResult',
+  'MachineCommitFile',
+  'MachineCommitFilesInput',
+  'MachineCommitFilesResult',
+  'MachineCommitFileInput',
+  'MachineCommitFilePair',
   // projects.ts, 8
   'REMOTE_PROJECT_MATCH_MAX',
   'RemoteProjectFindOutcome',
@@ -300,7 +307,7 @@ const isPlumbing = (name: string): boolean =>
   /^Machines[A-Z]\w*(InvokeChannelMap|Api)$/.test(name) && name !== 'MachinesInvokeChannelMap';
 
 describe('the machines contract after the Phase 125 split', () => {
-  it('holds every one of the 107 members, in one file each', () => {
+  it('holds every one of the 112 members, in one file each', () => {
     const found: string[] = [];
     for (const f of FAMILIES) {
       found.push(...(domainExports.get(f) ?? []).filter((n) => !isPlumbing(n)));
