@@ -1311,8 +1311,18 @@ async function cycleSurfaces(cdp, log) {
   if (wantSurface('remote') && remote.projectId !== null) {
     const selectTab = (id) =>
       `(() => { const b = document.querySelector('[data-project-id="${id}"] button.ptab'); if (b === null) return false; b.click(); return true; })()`;
+    // THE RAIL TOGGLES. A rail item whose view is already up and visible
+    // collapses the sidebar when pressed, which is the designed ⌘B toggle in
+    // app/ActivityBar.tsx, and a NEW tab's view is Source control by default
+    // (state/sidebar-views.ts, SIDEBAR_VIEW_DEFAULT). So the first press of
+    // Source control on the remote tab in block 1 took the whole sidebar
+    // away and the open never landed: the fix round's instrumented run read
+    // `.sidebar-view` null and no rail item pressed after 8,006 ms, then
+    // Search landing in 56 ms on the next press. An item that is already
+    // pressed is left alone, so the open condition below reads the view that
+    // is up rather than the sidebar the press would have hidden.
     const rail = (label) =>
-      `(() => { const b = Array.from(document.querySelectorAll('button.ab-item')).find((x) => (x.getAttribute('title') || '').startsWith('${label} (')); if (b === undefined) return false; b.click(); return true; })()`;
+      `(() => { const b = Array.from(document.querySelectorAll('button.ab-item')).find((x) => (x.getAttribute('title') || '').startsWith('${label} (')); if (b === undefined) return false; if (b.getAttribute('aria-pressed') === 'true') return true; b.click(); return true; })()`;
     const focused = `(() => { window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); return true; })()`;
     if (!(await cdpEval(cdp, selectTab(remote.projectId)))) log.openMisses.push('remote tab');
     const views = [
@@ -1323,7 +1333,12 @@ async function cycleSurfaces(cdp, log) {
     ];
     for (const [label, upExpr] of views) {
       if (!(await cdpEval(cdp, rail(label)))) { log.openMisses.push(`remote ${label}`); continue; }
-      if (!(await until(cdp, upExpr, 8000))) log.openMisses.push(`remote ${label}`);
+      if (!(await until(cdp, upExpr, 8000))) {
+        log.openMisses.push(`remote ${label}`);
+        // What was up instead: the view the sidebar holds, or null when the
+        // sidebar itself is hidden, and which rail item is pressed.
+        log.debug.push(await cdpEval(cdp, `({ miss: ${JSON.stringify(`remote ${label}`)}, view: document.querySelector('.sidebar-view')?.dataset.view ?? null, pressed: Array.from(document.querySelectorAll('button.ab-item[aria-pressed="true"]')).map((b) => b.getAttribute('title')) })`));
+      }
       await sleep(120);
       await cdpEval(cdp, focused);
       await sleep(250);
