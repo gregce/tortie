@@ -703,6 +703,13 @@ export const CHECKS = [
   // agent, spends no token, opens no keychain, and touches `-L gmux` in one
   // place only, a read only session count taken before and after.
   electron('probe:p225'),
+  // PHASE 227. The rewind's app run: ONE launch on a scratch profile, a scratch
+  // HOME and its own socket over a repository it builds itself, driving the
+  // keyboard rewind and undo, a stale-file refusal, and the person's own
+  // paragraph, reading the file FROM DISK at each. Outside writes are a
+  // synchronous /bin/sh. No agent, no token, no keychain; `-L gmux` touched
+  // only by a read-only session count before and after.
+  electron('probe:p227'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
