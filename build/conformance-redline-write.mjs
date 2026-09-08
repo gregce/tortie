@@ -417,28 +417,36 @@ function filesNaming(dir, needle) {
 }
 
 // ---------------------------------------------------------------------------
-// Rule 5. THE ONE CALLER. Phase 226 shipped this channel unwired and this rule
-// read "nothing under src/renderer names it". Phase 227 wired the rewind, so
-// the rule was NARROWED rather than deleted, the way conformance:redline's own
-// rule 9 was: the renderer may reach the channel from EXACTLY ONE file, being
-// the redline's one call site, and a SECOND caller is a finding. That keeps
-// the property that mattered, being that this write has one door, checkable
-// after the door opened.
+// Rule 5. THE NAMED CALLERS. Phase 226 shipped this channel unwired and this
+// rule read "nothing under src/renderer names it". Phase 227 wired the rewind,
+// so the rule was NARROWED rather than deleted, the way conformance:redline's
+// own rule 9 was: the renderer reached the channel from EXACTLY ONE file, and
+// a SECOND caller was a finding.
+//
+// PHASE 240 IS THAT SECOND CALLER, and the rule is widened by exactly one NAME
+// rather than to "any number", for the reason its own header gave the first
+// time: what matters is that this write has a countable set of doors, each one
+// declared here, so a third door is still a finding. The two are the redline's
+// rewind and the editor's save, being Sean Johnson's issue 16.
 // ---------------------------------------------------------------------------
 
-const RENDERER_CALLER = 'src/renderer/editor/redline-write.ts';
+const RENDERER_CALLERS = [
+  'src/renderer/editor/redline-write.ts',
+  'src/renderer/editor/save-write.ts'
+];
 {
   const rendererDir = join(repoRoot, 'src/renderer');
   const byChannel = filesNaming(rendererDir, CHANNEL);
   const byMethod = filesNaming(rendererDir, `.${METHOD}(`);
-  const callers = [...new Set([...byChannel, ...byMethod])];
-  if (callers.length !== 1 || callers[0] !== RENDERER_CALLER) {
+  const callers = [...new Set([...byChannel, ...byMethod])].sort();
+  const want = [...RENDERER_CALLERS].sort();
+  if (callers.length !== want.length || callers.some((f, i) => f !== want[i])) {
     fail(
-      `5. the renderer must reach the channel from ${RENDERER_CALLER} alone; ` +
+      `5. the renderer must reach the channel from ${want.join(' and ')} alone; ` +
         `it reaches it from ${callers.join(', ') || 'no file'}`
     );
   } else {
-    say(`5. the renderer reaches the channel from ${RENDERER_CALLER} alone, the redline's one call site`);
+    say(`5. the renderer reaches the channel from ${want.join(' and ')} alone, the redline's rewind and the editor's save`);
   }
 }
 
