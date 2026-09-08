@@ -273,6 +273,7 @@ import {
   noteMachineAnswered,
   noteMachineConnecting,
   noteMachineFeedMissed,
+  noteMachineFeedUnknown,
   noteMachineQuiet,
   closeControlPlane,
   closeEveryControlPlane,
@@ -2993,12 +2994,21 @@ export async function pollEveryRemoteMachine(): Promise<void> {
  * The event kind is `woke` rather than `transport-lost`, because the case table
  * records what happened and a power event is not a link that dropped. Both arms
  * write the same status, and the evidence line is what tells them apart in a log.
+ *
+ * PHASE 231. THE LINK IS NOT MARKED QUIET HERE. It used to be, with "has not
+ * answered since this Mac woke up", BEFORE the poll was issued, so from the
+ * resume event until each machine's list came back, or the ten second cap when
+ * it did not, every far-side channel refused in 0 ms (research 90 section
+ * 3.5). A wake is a power event and not an ssh that failed. The FEED goes to
+ * `unknown`, which is the honest fact, the poll is issued, and the link is
+ * left until an ssh actually fails: the poll's own ssh, if it fails on the
+ * link, or the first verb a person presses.
  */
 export function remoteMachinesWoke(): void {
   const at = Date.now();
   for (const machineId of machines.keys()) {
     applyMachineEvent(machineId, { kind: 'woke', at });
-    noteMachineQuiet(machineId, 'has not answered since this Mac woke up');
+    noteMachineFeedUnknown(machineId);
   }
   announce();
   void pollEveryRemoteMachine().catch(() => undefined);

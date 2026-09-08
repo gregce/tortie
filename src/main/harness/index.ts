@@ -241,6 +241,10 @@
  *                       GMUX_SHOT_JS=<expr> evaluates one expression in the
  *                       driven window and prints its JSON, so a verifier can
  *                       MEASURE the running app and not only photograph it)
+ *  GMUX_SHOT_MACHINE_SEAM=<file>  Phase 231. On a harness launch on a harness
+ *                       profile, the two liveness facts of any machine and a
+ *                       wake come from that JSON file, re-read every 100 ms;
+ *                       see harness/machine-seam.ts. Nothing is sent anywhere.
  */
 
 import type { BrowserWindow } from 'electron';

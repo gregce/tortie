@@ -242,7 +242,7 @@ const {
   stopMachineFeeds
 } = await import('../remote-sessions');
 
-const { resetControlPlanesForTests } = await import('../control-plane');
+const { machineLinkFacts, resetControlPlanesForTests } = await import('../control-plane');
 const {
   issuedRemoteIdHeld,
   issuedRemoteIdsFor,
@@ -1353,6 +1353,46 @@ describe('one machine never moves another machine rows', () => {
 
     for (const row of remoteSessions()) expect(row.status).toBe('unknown');
     expect(remoteMachineFacts('studio').evidence).toContain('power event');
+  });
+
+  // PHASE 231, item 2. A wake used to mark every machine `quiet` BEFORE the
+  // poll was issued, so every far-side verb refused in 0 ms until the list
+  // came back. It marks the FEED unknown now and leaves the LINK alone.
+  it('marks the feed unknown on a wake and leaves the link where it was', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine('studio');
+    expect(machineLinkFacts('studio').link).toBe('polling');
+    expect(machineLinkFacts('studio').feed).toBe('listed');
+
+    remoteMachinesWoke();
+
+    expect(machineLinkFacts('studio').feed).toBe('unknown');
+    expect(machineLinkFacts('studio').link).toBe('polling');
+    expect(machineLinkFacts('studio').reason).toBeNull();
+    // The poll the wake issued completed, so the feed is listed again.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(machineLinkFacts('studio').feed).toBe('listed');
+  });
+
+  it('marks the feed missed on a failed poll and leaves the link where it was', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine('studio');
+    expect(machineLinkFacts('studio').link).toBe('polling');
+
+    answers['list-sessions'] = new Error('killed at the cap, nothing printed');
+    await pollRemoteMachine('studio');
+
+    expect(remoteSessions()[0]?.status).toBe('unknown');
+    expect(machineLinkFacts('studio').feed).toBe('missed');
+    expect(machineLinkFacts('studio').link).toBe('polling');
+  });
+
+  it('takes both facts down when the link itself is marked quiet', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine('studio');
+    markMachineQuiet('studio');
+    expect(machineLinkFacts('studio').link).toBe('quiet');
+    expect(machineLinkFacts('studio').feed).toBe('missed');
   });
 });
 

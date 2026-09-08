@@ -344,6 +344,31 @@ export function noteMachineFeedUnknown(machineId: string): void {
 }
 
 /**
+ * Write the two facts directly (Phase 231). HARNESS ONLY.
+ *
+ * The one caller is `src/main/harness/machine-seam.ts`, which is installed
+ * under `GMUX_SHOT_MACHINE_SEAM` on a harness launch on a harness profile and
+ * nowhere else, so a verifier can make the two facts DISAGREE in every
+ * combination and read what each far-side channel does. No production code
+ * calls this; production writers are the four `note*` functions above, each of
+ * which is one thing that happened.
+ */
+export function setMachineFactsForHarness(
+  machineId: string,
+  over: {
+    readonly link?: MachineLinkKind;
+    readonly feed?: MachineFeedKind;
+    readonly reason?: string | null;
+  }
+): void {
+  const record = recordOf(machineId);
+  if (over.link !== undefined) record.link = over.link;
+  if (over.feed !== undefined) record.feed = over.feed;
+  if (over.reason !== undefined) record.reason = over.reason;
+  announceLink();
+}
+
+/**
  * The gate said no, so Tortie will not sign in to this machine at all.
  *
  * The one caller that knows is the code reading a prepare result, because an

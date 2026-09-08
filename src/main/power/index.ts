@@ -302,7 +302,10 @@ export function installPowerHandlers(deps: PowerHandlerDeps): () => void {
       powerLog.warn(`resume handler failed: ${(err as Error).message}`);
     }
     // Phase 70. Every remote row goes to unknown and every machine with a live
-    // connection is asked again, at once. It runs after `deps.onResume` and in
+    // connection is asked again, at once. Phase 231: the session FEED is what
+    // goes to unknown; the link is left until an ssh actually fails, so a
+    // wake no longer takes every far-side verb dark for as long as the first
+    // poll takes. It runs after `deps.onResume` and in
     // its own try, so a machines layer that throws cannot stop the atlas clear
     // and the local reconcile, which are what the person is looking at.
     fireMachineWake();

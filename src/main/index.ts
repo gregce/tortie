@@ -41,6 +41,7 @@ import { dispatchHarness } from './harness';
 import { installUsageFixture } from './harness/usage-fixture';
 // Phase 208: the scratch keychain seam, for a harness launch and nothing else.
 import { installHarnessKeychain } from './harness/keychain-harness';
+import { installMachineSeam } from './harness/machine-seam';
 // Phase 208: the one observe at boot, after the manifest is open.
 import { observeLoginsAtBoot, startLoginsWatch } from './logins/ipc';
 // Phase 166: the one cache policy, applied before whenReady below.
@@ -475,6 +476,14 @@ app.whenReady().then(async () => {
   // plus one: the keychain file must sit inside the harness directory too. In
   // every ordinary launch it does nothing at all.
   installHarnessKeychain();
+  // PHASE 231. And the LIVENESS seam, under the same three refusals: a
+  // harness launch on a harness profile takes the two machine facts and a
+  // wake from a file, so a verifier can make the link and the feed disagree
+  // in every combination and drive a wake, which no harness launch could
+  // reach before because the power handlers are installed below this line
+  // and only for an ordinary launch. In every ordinary launch it does
+  // nothing at all.
+  installMachineSeam();
 
   // A harness launch (GMUX_SMOKE / GMUX_SHOT) owns the process from here:
   // every harness ends in app.exit, or, for the quit smoke, the real
