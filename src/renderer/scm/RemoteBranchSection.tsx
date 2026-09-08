@@ -23,11 +23,20 @@
  *
  * ## Where each sentence is drawn, and why
  *
- * The band is above the group, so it stays on screen when the group is
- * collapsed, which is what the Changes band above it does. IT IS DRAWN ONLY
- * OVER AN ANSWER THAT NAMED A BRANCH, being `mode: 'ok'`. Its words are past
- * tense, so drawing it over a group nobody expanded, or over an answer where
- * Tortie never reached the machine, would state a read that did not happen.
+ * The band is above the group rather than inside its body, and IT IS DRAWN
+ * ONLY OVER AN ANSWER THAT NAMED A BRANCH, being `mode: 'ok'`, AND ONLY WHILE
+ * THE GROUP IS OPEN. Its words are past tense, so drawing it over an answer
+ * where Tortie never reached the machine would state a read that did not
+ * happen. Until Phase 229 it was drawn over a collapsed group too, on the
+ * reasoning that nothing read the branch without an expand, so a band over a
+ * collapsed group was a band over a read the person had asked for. Phase 229's
+ * commit box reads the branch answer for its identity precheck without any
+ * expand, and the verifier measured the band appearing on the resting remote
+ * Source control face with no press, a sentence the local face does not
+ * carry. The operator's rule for every remote phase is that a remote tab feels
+ * almost identical to a local one, so the band now follows the group's own
+ * fold: a group nobody opened draws its header and nothing else, whatever the
+ * store holds.
  *
  * EVERY SENTENCE THAT DESCRIBES THE ANSWER AS A WHOLE IS DRAWN BELOW THE GROUP
  * AND NOT INSIDE ITS BODY. The body of a group in this column is capped at 45%
@@ -237,7 +246,7 @@ export function RemoteBranchPanel({
 
   return (
     <>
-      {entry.mode === 'ok' ? (
+      {!collapsed && entry.mode === 'ok' ? (
         <p className="scm-remote-band rbranch-band">
           {branchOnMachineBand(label)}
         </p>

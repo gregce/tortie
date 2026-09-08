@@ -561,6 +561,18 @@ describe('what the group admits about its own answer', () => {
       esc(copy.branchOnMachineBand(L))
     );
   });
+
+  it('draws the band only while the group is open (Phase 229)', () => {
+    // The commit box reads the branch answer for its identity precheck with
+    // no expand, so a store holding `ok` no longer means a person opened the
+    // group. The Phase 229 verifier read the band on the resting remote face
+    // with no press, a sentence the local face does not carry, so the band
+    // follows the fold: same answer, collapsed, nothing drawn.
+    const html = draw({}, { collapsed: true });
+    expect(html).not.toContain('rbranch-band');
+    expect(html).not.toContain(esc(copy.branchOnMachineBand(L)));
+    expect(draw({}, { collapsed: false })).toContain('rbranch-band');
+  });
 });
 
 // ---------------------------------------------------------------------------
