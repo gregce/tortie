@@ -1017,4 +1017,19 @@ describe('the sentences Phase 228 took off the remote face are gone', () => {
     expect(source).not.toContain('export const REMOTE_SCM_SECTIONS_NOTE');
     expect(source).not.toContain('It does not show the files one commit');
   });
+
+  it('does not export the search filters note, and does not hold its words', () => {
+    // The three controls it described are three disabled controls with one
+    // short title each, pinned in
+    // src/renderer/machines/__tests__/p228-search-filters.test.ts.
+    const source = MACHINES_SOURCE;
+    expect(source).not.toContain('export const SEARCH_FILTERS_ON_THIS_MAC');
+    expect(source).not.toContain('Include, exclude and the ignore files toggle');
+  });
+
+  it('does not export the grep line, and does not hold its words', () => {
+    const source = MACHINES_SOURCE;
+    expect(source).not.toContain('export function searchOnMachineLine');
+    expect(source).not.toContain("with that machine's own grep");
+  });
 });

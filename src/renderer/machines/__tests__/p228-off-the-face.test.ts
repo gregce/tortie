@@ -101,11 +101,17 @@ const COMPONENTS: readonly string[] = sourcesUnder(RENDERER).filter(
  * was taken off cannot read as the sentence being drawn.
  *
  * It is a plain scan rather than a parser. A block comment runs to the next
- * star slash and a line comment to the end of its line; a string holding
- * either sequence would be cut short, and no component this reads holds one.
+ * star slash and a line comment to the end of its line. A block comment is
+ * read only where one can start, being at the start of a line or after a
+ * space, a brace, a bracket, an equals sign, a comma or a semicolon: the
+ * search view's include field carries the placeholder "src/**, *.ts", and a
+ * scan that read that as a comment opening would hide the field's own title
+ * from this test, which is exactly the place a sentence would come back.
  */
 export function withoutComments(text: string): string {
-  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  return text
+    .replace(/(^|[\s{(=,;])\/\*[\s\S]*?\*\//g, '$1')
+    .replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1');
 }
 
 /** Whether a text names an identifier as a whole word. */
@@ -131,6 +137,35 @@ describe('the scanner can fail', () => {
     expect(namesIdentifier('remoteChangesBandWidth()', 'remoteChangesBand')).toBe(
       false
     );
+  });
+
+  it('does not read a glob placeholder as a comment that hides a title', () => {
+    // The shape src/renderer/search/QueryBlock.tsx really holds: a
+    // placeholder with a slash star in it, then a title on the same control.
+    const field =
+      'placeholder="src/**, *.ts"\n' +
+      'title={onMachine ? SEARCH_FILTERS_ON_THIS_MAC : undefined}\n' +
+      'placeholder="**/dist/**"\n';
+    expect(namesIdentifier(field, 'SEARCH_FILTERS_ON_THIS_MAC')).toBe(true);
+    // And a JSX comment, a leading comment and a trailing line comment are
+    // still comments.
+    const commented =
+      '{/* SEARCH_FILTERS_ON_THIS_MAC */}\n' +
+      '/* SEARCH_FILTERS_ON_THIS_MAC */\n' +
+      'const x = 1; // SEARCH_FILTERS_ON_THIS_MAC\n';
+    expect(namesIdentifier(commented, 'SEARCH_FILTERS_ON_THIS_MAC')).toBe(false);
+  });
+
+  it('holds every sentence the entry names, and no fewer', () => {
+    // Four came off: the band, the sections note, the search filters note
+    // and the grep line. The hooks and signing line MOVED to a title and the
+    // read-at clock STAYS until Phase 230, so neither is here.
+    expect(OFF.map((one) => one.name)).toEqual([
+      'remoteChangesBand',
+      'REMOTE_SCM_SECTIONS_NOTE',
+      'SEARCH_FILTERS_ON_THIS_MAC',
+      'searchOnMachineLine'
+    ]);
   });
 
   it('reads a set of components rather than nothing', () => {

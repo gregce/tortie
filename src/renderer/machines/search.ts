@@ -78,9 +78,9 @@ export const SEARCH_ANSWER_TOO_LARGE =
 /**
  * The three filters that do not reach a machine, as three hover titles.
  *
- * PHASE 228. Include, exclude and the ignore files toggle work on this Mac and
- * do not go to a machine, because a search over there has no glob machinery
- * and its file list comes from git. Until this phase that was a 34 word
+ * PHASE 228. The include field, the exclude field and the ignore files toggle
+ * work on this Mac and do not go to a machine, because a search over there has
+ * no glob machinery and its file list comes from git. Until this phase that was a 34 word
  * paragraph drawn as the idle body of the view, `SEARCH_FILTERS_ON_THIS_MAC`,
  * read before a person typed anything. A limit that is genuinely different is
  * a disabled control with at most one short label, so each control is drawn
