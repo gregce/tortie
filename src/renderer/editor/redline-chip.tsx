@@ -139,7 +139,20 @@ export interface RedlineChipProps {
    * `top` are measured against.
    */
   view: HTMLElement | null;
-  /** Whether this tab has a rewind to undo (./redline-journal). */
+  /**
+   * Whether this TAB has a rewind to undo (./redline-journal).
+   *
+   * THE CHARTER SAID "when the journal holds an entry for THIS change", AND
+   * THAT CONDITION CAN NEVER BE TRUE. A rewind writes the baseline's bytes back
+   * at the change's offset, so the recomposed document draws NO change there:
+   * the entry the journal holds names a place the picture no longer has a
+   * wrapper for, and a chip gated on an offset match would never once offer
+   * Undo. The shipping command is per tab too — ./redline-press takes
+   * `lastRewind(tab.id)` and never looks at the focus — so gating on the change
+   * would also have made the button lie about what it does. It is therefore the
+   * tab's journal depth, and the button says "Undo the last rewind" so the
+   * face claims exactly what the press performs.
+   */
   canUndo: boolean;
   /** Run one command against the change the chip is drawn for. */
   onCommand: (command: RedlineCommand, anchor: HTMLElement) => void;
