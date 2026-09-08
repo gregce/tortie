@@ -40,6 +40,7 @@ import type {
   OpenFileRemoteRef
 } from '../state/open-file';
 import { getWorkingModel, resetWorkingModel } from './monaco-loader';
+import { nextBaseline } from './baseline';
 import { dirOf } from './paths';
 import { fileInRepo } from './tab-identity';
 import type { EditorTab } from './tab-types';
@@ -115,12 +116,23 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     if (!gmux) return;
     try {
       const result = await gmux.fs.readFile(path);
+      // PHASE 225. The first successful read seeds the shadow baseline from
+      // the same bytes `savedContents` gets, HERE and not when Redline mode is
+      // chosen: a baseline captured from whatever the file said when the view
+      // was first opened may be mid rewrite and is then wrong for ever
+      // (research 83 A1.2 property 3). `nextBaseline` refuses every read after
+      // the first, so a re-run of this loader cannot move it either.
+      const baseline = nextBaseline(deps.byId(id)?.baseline, {
+        kind: 'read',
+        contents: result.contents
+      });
       deps.patch(id, {
         savedContents: result.contents,
         truncated: result.truncated,
         loading: false,
         error: null,
-        deleted: false
+        deleted: false,
+        baseline
       });
     } catch (err) {
       deps.patch(id, {

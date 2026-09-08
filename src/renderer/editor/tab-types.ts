@@ -11,6 +11,7 @@
  */
 
 import type { ImageReadResult } from '@shared/image-types';
+import type { BaselineState } from './baseline';
 import type {
   OpenFileCommitRef,
   OpenFileRemoteRef,
@@ -226,4 +227,20 @@ export interface EditorTab {
     /** The one report kind this phase draws. */
     kind: 'report';
   };
+  /**
+   * PHASE 225. The shadow baseline the redline draws against, with the
+   * generation it is at, held in memory and written nowhere.
+   *
+   * Seeded by the first successful read (./tab-io loadContents), re-seeded by
+   * a HEAD version not seen before (loadHead and the watcher tick), and moved
+   * by nothing else: not the file changing, not a save, not a look, not a
+   * tab switch. ./baseline holds the rule. It dies with the tab, on close,
+   * on eviction past MAX_TABS, on reload, quit or crash, and the face says so.
+   *
+   * Optional rather than nullable, for the reason `remote` is optional: every
+   * tab built before this phase, and every fixture in the tests, is still a
+   * valid tab. The store sets it on every tab it creates, and every reader
+   * treats `undefined` as NO_BASELINE.
+   */
+  baseline?: BaselineState;
 }

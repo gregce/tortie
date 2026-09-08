@@ -58,6 +58,7 @@ import { onRepoChanged } from '../state/repo-changed';
 import type { OpenFileRequest } from '../state/open-file';
 import { disposeModels, dropViewState } from './monaco-loader';
 import type { EditorMode, EditorTab } from './tab-types';
+import { NO_BASELINE } from './baseline';
 import {
   ARCH_MAP_TAB_NAME,
   DIAGNOSTICS_TAB_NAME,
@@ -515,6 +516,9 @@ export const useEditor = create<EditorState>((set, get) => {
         error: null,
         savedContents: '',
         headContents: null,
+        // PHASE 225. Nothing read and nothing heard from git yet; the first
+        // successful read seeds it (./tab-io loadContents).
+        baseline: NO_BASELINE,
         lastUsed: now,
         contextEntry: req.contextEntry ?? null,
         // PHASE 63. Non-null makes this a DRAFT: no disk read, dirty from the
