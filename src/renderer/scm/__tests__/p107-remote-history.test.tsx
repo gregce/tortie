@@ -897,17 +897,14 @@ describe('a group nobody opened', () => {
     expect(runs).toBeGreaterThan(branch);
   });
 
-  it('no longer says Tortie cannot show history on another machine', () => {
+  it('is not refused by a sentence under the groups, because there is none', () => {
     // The sentence named three sections it does not show and History was the
-    // last one left. It names the history among the things it DOES show now,
-    // and what it refuses is one read rather than a section.
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
-      /does not show[^.]*\bhistory\b/i
-    );
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bhistory\b/i);
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toContain(
-      'the files one commit changed'
-    );
+    // last one left, and this phase rewrote it to name the history among the
+    // things it DOES show. PHASE 228 TOOK IT OFF THE FACE, because a local
+    // Source control view carries no sentence saying what it shows. The one
+    // read it still refused, the files one commit changed, is a section that
+    // is not there rather than a sentence saying so.
+    expect((copy as Record<string, unknown>).REMOTE_SCM_SECTIONS_NOTE).toBeUndefined();
   });
 });
 
@@ -933,13 +930,12 @@ const EVERY: readonly string[] = [
   copy.historyRefsAreThatMachines(L),
   copy.historyPagesAreFresh(L),
   copy.historyNoWrite(L),
-  copy.historyFilesElsewhere(L),
-  copy.REMOTE_SCM_SECTIONS_NOTE
+  copy.historyFilesElsewhere(L)
 ];
 
 describe('the house writing rules, over every Phase 107 sentence', () => {
   it('reads a set of sentences rather than nothing', () => {
-    expect(EVERY.length).toBe(18);
+    expect(EVERY.length).toBe(17);
   });
 
   it('holds no em dash and no en dash', () => {
@@ -983,12 +979,11 @@ describe('the house writing rules, over every Phase 107 sentence', () => {
 
   it('names the machine by its label in every sentence that has one', () => {
     // The ones that do not name a machine are named here rather than counted.
-    // One is about Tortie's own row limit, one is about this build rather than
-    // about a machine, and one is about what the view shows for any machine.
+    // One is about Tortie's own row limit and one is about this build rather
+    // than about a machine.
     expect(EVERY.filter((one) => !one.includes(L))).toEqual([
       copy.HISTORY_NO_BRIDGE,
-      copy.historyOlderExist(50),
-      copy.REMOTE_SCM_SECTIONS_NOTE
+      copy.historyOlderExist(50)
     ]);
   });
 

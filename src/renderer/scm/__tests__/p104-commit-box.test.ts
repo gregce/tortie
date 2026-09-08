@@ -42,7 +42,6 @@ import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MachineReviewFile } from '@shared/ipc';
 import {
-  REMOTE_SCM_SECTIONS_NOTE,
   commitIdentityFact,
   remoteCommitButton,
   remoteCommitCheckDidNot,
@@ -335,17 +334,6 @@ describe('the three sentences the check leaves', () => {
     );
     // It never says nothing was committed, because nobody read that.
     expect(line).not.toContain('nothing was committed');
-  });
-});
-
-describe('the sentence this phase rewrote', () => {
-  // PHASE 228 TOOK THE BAND OFF. The other sentence this describe pinned,
-  // `remoteChangesBand`, no longer exists; p903-c pins the deletion.
-  it('no longer says staging is the only thing this view changes', () => {
-    expect(REMOTE_SCM_SECTIONS_NOTE).toContain(
-      'which files are staged and whether they are committed'
-    );
-    expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain('The only thing this view');
   });
 });
 

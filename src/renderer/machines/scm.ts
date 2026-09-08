@@ -146,40 +146,17 @@ export function remoteChangesNotRepo(label: string): string {
   return `That folder on ${label} is not a git repository.`;
 }
 
-/**
- * What the Source Control view shows for a folder on another machine, and the
- * one thing it does not.
- *
- * PHASE 107 RENAMED THIS CONSTANT. It was `REMOTE_SCM_SECTIONS_ABSENT` and it
- * was a refusal. It named three sections that are not drawn, and each round
- * that shipped one of them made another clause false. Phase 105 shipped the
- * runs, Phase 106 shipped the branch and Phase 107 shipped the history, so
- * there is no section left to refuse and the name is now `_NOTE`.
- *
- * WHAT IT STILL REFUSES IS SMALLER AND IT IS NAMED. Tortie reads the commits
- * in that folder and it does not read the files one commit changed there. That
- * needs two more reads and this round shipped one. The second half says the
- * thing a person needs before they trust four groups about a computer they are
- * not sitting at, which is that nothing in the folder was changed.
- *
- * THE WORD BRANCH IS SINGULAR ON PURPOSE. Tortie shows the one branch that is
- * checked out over there. It does not list the other branches on that machine,
- * and `branchOnlyCurrent` in ./branch.ts says so inside the group itself.
- *
- * PHASE 103 REPLACED THE LAST CLAUSE AND PHASE 104 REPLACED IT AGAIN. It read
- * "and nothing in this view changes that folder", which Phase 103 made false by
- * adding stage and unstage. Phase 103 wrote that the only thing this view
- * changes is which files are staged, and Phase 104 made that false by adding
- * the commit. The clause now names both things this view can change on that
- * machine, being which files are staged and whether they are committed, and it
- * says that it changes nothing else. It is not a refusal any more and it is not
- * silent either.
+/*
+ * PHASE 228 TOOK THE SECTIONS NOTE OFF. `REMOTE_SCM_SECTIONS_NOTE` was 49
+ * words under the four groups saying what the view shows for a folder on
+ * another machine, that it does not show the files one commit changed there,
+ * and what it can change there. It was `REMOTE_SCM_SECTIONS_ABSENT` until
+ * Phase 107 and a refusal of three sections until Phases 105 to 107 shipped
+ * them one by one. The absence of a File history section is a section that
+ * is not there, the way a folder that is not a repository has no Source
+ * control sections locally, and the local view carries no sentence saying
+ * what it shows. The operator's rule of 2026-09-07 is the reason.
  */
-export const REMOTE_SCM_SECTIONS_NOTE =
-  'Tortie shows the changed files, the history, the branch and the runs for ' +
-  'a folder on another machine. It does not show the files one commit ' +
-  'changed there. What this view can change on that machine is which files ' +
-  'are staged and whether they are committed, and nothing else.';
 
 // -- Source Control, the commit box on a machine tab (Phase 104) -------------
 //

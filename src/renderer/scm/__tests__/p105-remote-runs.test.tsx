@@ -541,21 +541,15 @@ describe('a group nobody opened', () => {
     expect(source.split('ensure(target)').length - 1).toBe(1);
   });
 
-  it('no longer says Tortie cannot show runs on another machine', () => {
+  it('is not refused by a sentence under the groups, because there is none', () => {
     // The sentence used to name three sections it does not show and Runs was
-    // one of them. It names runs among the things it DOES show now.
-    //
-    // PHASE 107 RENAMED THE CONSTANT and rewrote the sentence a third time.
-    // The old name carried the word ABSENT and the sentence was a refusal.
-    // Phase 105 shipped the runs, Phase 106 shipped the branch and Phase 107
-    // shipped the history, so there is no section left to refuse. The two
-    // assertions this test owns are unchanged in what they mean, being that
-    // runs are not refused and that runs are named among what is shown.
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
-      /does not show[^.]*\bruns\b/i
-    );
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bruns\b/i);
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bbranch\b/i);
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bhistory\b/i);
+    // one of them, and Phase 107 rewrote it to name runs among the things it
+    // DOES show. PHASE 228 TOOK IT OFF THE FACE, because a local Source
+    // control view carries no sentence saying what it shows, so the claim
+    // this test owns, that runs are not refused, is now that no such
+    // sentence exists at all.
+    const gone = copy as Record<string, unknown>;
+    expect(gone.REMOTE_SCM_SECTIONS_NOTE).toBeUndefined();
+    expect(gone.REMOTE_SCM_SECTIONS_ABSENT).toBeUndefined();
   });
 });

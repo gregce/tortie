@@ -607,21 +607,12 @@ describe('a group nobody opened', () => {
     );
   });
 
-  it('no longer says Tortie cannot show a branch on another machine', () => {
+  it('is not refused by a sentence under the groups, because there is none', () => {
     // The sentence named three sections it does not show and Branches was one
-    // of them. It names the branch among the things it DOES show now.
-    //
-    // PHASE 107 RENAMED THE CONSTANT and rewrote the sentence again. This test
-    // read `toContain('history')` on the line below, which was the refusal
-    // clause naming the History section. Phase 107 draws a History group for a
-    // folder on another machine, so that clause is gone and the sentence names
-    // the history among the things Tortie does show. What it refuses now is one
-    // read rather than a section, being the files one commit changed.
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
-      /does not show[^.]*\bbranch(es)?\b/i
-    );
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bbranch\b/i);
-    expect(copy.REMOTE_SCM_SECTIONS_NOTE).toMatch(/shows[^.]*\bhistory\b/i);
+    // of them, and Phase 107 rewrote it to name the branch among the things it
+    // DOES show. PHASE 228 TOOK IT OFF THE FACE, because a local Source
+    // control view carries no sentence saying what it shows.
+    expect((copy as Record<string, unknown>).REMOTE_SCM_SECTIONS_NOTE).toBeUndefined();
   });
 
   it('is placed above the Runs group in the view', () => {
@@ -662,13 +653,12 @@ const EVERY: readonly string[] = [
   copy.branchCountsAreThatMachines(L, UP),
   copy.branchNoSwitch(L),
   copy.branchOnlyCurrent(L),
-  copy.BRANCH_NO_BRIDGE,
-  copy.REMOTE_SCM_SECTIONS_NOTE
+  copy.BRANCH_NO_BRIDGE
 ];
 
 describe('the house writing rules, over every Phase 106 sentence', () => {
   it('reads a set of sentences rather than nothing', () => {
-    expect(EVERY.length).toBe(22);
+    expect(EVERY.length).toBe(21);
   });
 
   it('holds no em dash and no en dash', () => {
@@ -699,15 +689,13 @@ describe('the house writing rules, over every Phase 106 sentence', () => {
 
   it('names the machine by its label in every sentence that has one', () => {
     // The ones that do not name a machine are named here rather than counted.
-    // Two are second lines whose first line named the machine, one is about
-    // this build rather than about a machine, and one is about what the view
-    // shows for any machine.
+    // Two are second lines whose first line named the machine, and one is
+    // about this build rather than about a machine.
     expect(EVERY.filter((one) => !one.includes(L))).toEqual([
       copy.branchTip(SHORT),
       copy.branchFollows(BR, UP, 2, 1),
       copy.BRANCH_NOT_LIVE,
-      copy.BRANCH_NO_BRIDGE,
-      copy.REMOTE_SCM_SECTIONS_NOTE
+      copy.BRANCH_NO_BRIDGE
     ]);
   });
 

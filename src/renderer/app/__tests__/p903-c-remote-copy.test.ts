@@ -133,7 +133,6 @@ import {
   runsReadingBranch
 } from '../../machines/runs';
 import {
-  REMOTE_SCM_SECTIONS_NOTE,
   remoteChangesNone,
   remoteChangesNotRepo,
   remoteChangesUnreachable,
@@ -256,55 +255,17 @@ describe('Source Control', () => {
     );
   });
 
-  it('says once what the view shows and what it does not', () => {
-    // PHASE 105 REWROTE THIS ONE, PHASE 106 REWROTE IT AGAIN AND PHASE 107
-    // RENAMED IT. It named three sections that are not drawn for a folder on
-    // another machine, and each round that shipped one of them made another
-    // clause false. All three are drawn now, so the constant stopped being a
-    // refusal and its name lost the word ABSENT. What it refuses now is one
-    // read rather than a section, being the files one commit changed. The word
-    // branch is singular on purpose, because Tortie shows the one branch that
-    // is checked out and does not list the others.
-    // PHASE 102 REWROTE THE LAST CLAUSE. It read "it writes nothing in that
-    // folder", which reads as a claim about Tortie rather than about this
-    // view, and Tortie writes in that folder now.
-    // PHASE 103 REPLACED THE LAST CLAUSE AND PHASE 104 REPLACED IT AGAIN. It
-    // read "and nothing in this view changes that folder", which Phase 103 made
-    // false. Phase 103 wrote that the only thing this view changes is which
-    // files are staged, and Phase 104 made that false by adding the commit. The
-    // clause names both things now and says that it changes nothing else.
-    expect(REMOTE_SCM_SECTIONS_NOTE).toBe(
-      'Tortie shows the changed files, the history, the branch and the runs ' +
-        'for a folder on another machine. It does not show the files one ' +
-        'commit changed there. What this view can change on that machine is ' +
-        'which files are staged and whether they are committed, and nothing ' +
-        'else.'
-    );
-    expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain('writes nothing');
-    expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain(
-      'nothing in this view changes'
-    );
-    // PHASE 104. The Phase 103 clause said staging was the only change this
-    // view makes over there, and that sentence must not come back.
-    expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain('The only thing this view');
-    for (const shipped of ['runs', 'branch', 'history']) {
-      expect(REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
-        new RegExp(`does not show[^.]*\\b${shipped}(es)?\\b`, 'i')
-      );
-    }
-  });
-
   it('has no export left under the old name', () => {
     // PHASE 107 PINS THE RENAME, which is the shape this file already uses for
     // the two constants Phase 97 deleted. A constant that is renamed and left
     // behind under both names is how two surfaces come to say two things.
     const source = MACHINES_SOURCE;
-    // The old name survives in ONE place on purpose, being the comment above
-    // the constant that records the rename. The export itself is gone, and so
-    // is the sentence it used to hold.
+    // The old name survives in ONE place on purpose, being the comment that
+    // records the rename. The export itself is gone, and so is the sentence
+    // it used to hold. PHASE 228 TOOK THE RENAMED ONE OFF TOO, which the
+    // describe at the foot of this file pins.
     expect(source).not.toContain('export const REMOTE_SCM_SECTIONS_ABSENT');
     expect(source).not.toContain('It does not show history there.');
-    expect(source).toContain('export const REMOTE_SCM_SECTIONS_NOTE');
   });
 
   it('no longer says a new file is missing, because it is not missing', () => {
@@ -791,7 +752,6 @@ const EVERY: readonly string[] = [
   remoteChangesNone(L),
   remoteChangesUnreachable(L),
   remoteChangesNotRepo(L),
-  REMOTE_SCM_SECTIONS_NOTE,
   // PHASE 103. Five more, every one of them read by the five rules below.
   remoteWritesNotConfirmed(L),
   remoteStageOutsideRoot(L),
@@ -934,7 +894,6 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       remoteTreeMissingBody(P),
       remoteTreeTruncated(4000, 12500, 4000),
       REMOTE_COPIED_WITH_MACHINE,
-      REMOTE_SCM_SECTIONS_NOTE,
       SYMBOLS_ELSEWHERE_BODY,
       addRemoteRefusal('notAbsolute', P, L),
       addRemoteRefusal('noSuchMachine', P, L),
@@ -1047,5 +1006,11 @@ describe('the sentences Phase 228 took off the remote face are gone', () => {
     const source = MACHINES_SOURCE;
     expect(source).not.toContain('export function remoteChangesBand');
     expect(source).not.toContain('These changes are on ${label}');
+  });
+
+  it('does not export the sections note, and does not hold its words', () => {
+    const source = MACHINES_SOURCE;
+    expect(source).not.toContain('export const REMOTE_SCM_SECTIONS_NOTE');
+    expect(source).not.toContain('It does not show the files one commit');
   });
 });

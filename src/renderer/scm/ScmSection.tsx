@@ -53,7 +53,6 @@ import { Codicon, menuGlyph } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { remoteReadAt } from '../machines/presentation';
 import {
-  REMOTE_SCM_SECTIONS_NOTE,
   remoteChangesNone,
   remoteChangesNotRepo,
   remoteChangesUnreachable,
@@ -1556,11 +1555,10 @@ function RemoteScmSection({
           Refresh button and its own store. PHASE 106 MOVED IT DOWN ONE PLACE
           and changed nothing else about it. */}
       <RemoteRunsSection target={target} label={label} />
-      {/* Said once, under the four groups. PHASE 107 turned this from a
-          refusal into a note. It named three sections that were not drawn, and
-          all three are drawn now. What it still refuses is one read rather than
-          a section, being the files one commit changed. */}
-      <p className="scm-remote-note">{REMOTE_SCM_SECTIONS_NOTE}</p>
+      {/* PHASE 228 TOOK THE SECTIONS NOTE OFF. A sentence saying what this
+          view shows and what it does not sat under the four groups. A section
+          that is not drawn is drawn as absent, the way a folder that is not a
+          repository has no Source control sections locally. */}
     </div>
   );
 }
