@@ -228,6 +228,8 @@ const SURFACES = (
 const wantSurface = (name) => SURFACES.includes(name);
 /** PHASE 227. Outside rewrites of the open file per redline open; 0 turns them off. */
 const REWRITES = Math.max(0, Number(process.env['P167_REWRITES'] ?? '4') || 0);
+/** PHASE 237. Typed-and-taken-back words per redline open; 0 turns them off. */
+const TYPES = Math.max(0, Number(process.env['P167_TYPES'] ?? '2') || 0);
 /**
  * PHASE 230. The seventh surface is the four sidebar views on a tab whose
  * folder is on another machine, being the Explorer, Source control, Search
@@ -916,13 +918,34 @@ const CHORD = {
   arch: { key: 'A', code: 'KeyA', vk: 65, modifiers: 2 | 8 },
   explorer: { key: 'E', code: 'KeyE', vk: 69, modifiers: 8 | 4 },
   closeEditorTab: { key: 'w', code: 'KeyW', vk: 87, modifiers: 4 },
-  nextProject: { key: 'Tab', code: 'Tab', vk: 9, modifiers: 2 }
+  nextProject: { key: 'Tab', code: 'Tab', vk: 9, modifiers: 2 },
+  // PHASE 237. Plain Backspace, which the redline answers as a deletion of
+  // the current side; ⌥⌫ is Rewind and is not what this drive presses.
+  backspace: { key: 'Backspace', code: 'Backspace', vk: 8, modifiers: 0 }
 };
 
 async function press(cdp, { key, code, vk, modifiers }) {
   const base = { key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers };
   await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', ...base });
   await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
+}
+
+/**
+ * PHASE 237. One printable character, as a real key event.
+ *
+ * `Input.dispatchKeyEvent` with `text` set is what produces the char event the
+ * page's `beforeinput` sees. Research 83 records that a scripted `execCommand`
+ * fires NO `beforeinput` in Chromium and produced a wrong conclusion once
+ * already, so nothing here ever reaches for one.
+ */
+async function typeChar(cdp, ch) {
+  await cdp.call('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    text: ch,
+    unmodifiedText: ch,
+    key: ch
+  });
+  await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key: ch });
 }
 
 /** Wait until `expression` is true on the page, or give up after `ms`. */
@@ -1289,6 +1312,51 @@ async function cycleSurfaces(cdp, log) {
       const drawn = await until(cdp, `(() => { const d = document.querySelector('.ed-redline-doc'); return d !== null && d.textContent.includes(${JSON.stringify(word)}); })()`, 8000);
       if (!drawn) log.rewriteMisses.push(word);
     }
+    // PHASE 237. THE SURFACE TYPES UNDER ITSELF AS WELL AS BEING REWRITTEN
+    // UNDER. A keystroke in the redline is a recompose and a rebuild of the
+    // whole run list with the caret put back, which is a DOM churn per
+    // character; a listener or a node kept per keystroke is exactly the shape
+    // this probe's plateau rule exists to catch, and the outside rewrites
+    // above cannot see it because they never open a caret.
+    //
+    // The word is typed and then taken back with the same number of plain
+    // Backspaces, so the buffer ends equal to what is on disk and the tab is
+    // clean again: a dirty tab would refuse the re-read the next cycle needs,
+    // and ⌘W over one is a different journey from the one this probe measures.
+    for (let t = 0; t < TYPES; t += 1) {
+      const word = `typed${String(log.typed)}`;
+      log.typed += 1;
+      await cdpEval(
+        cdp,
+        `(() => {
+          const doc = document.querySelector('.ed-redline-doc');
+          if (doc === null) return false;
+          doc.focus();
+          const range = document.createRange();
+          range.selectNodeContents(doc);
+          range.collapse(true);
+          const sel = getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          return true;
+        })()`,
+        10_000
+      );
+      for (const ch of word) await typeChar(cdp, ch);
+      const drawn = await until(
+        cdp,
+        `(() => { const d = document.querySelector('.ed-redline-doc'); return d !== null && d.textContent.includes(${JSON.stringify(word)}); })()`,
+        8000
+      );
+      if (!drawn) log.typeMisses.push(word);
+      for (let b = 0; b < word.length; b += 1) await press(cdp, CHORD.backspace);
+      const clean = await until(
+        cdp,
+        `(() => { const d = document.querySelector('.ed-redline-doc'); return d !== null && !d.textContent.includes(${JSON.stringify(word)}); })()`,
+        8000
+      );
+      if (!clean) log.typeMisses.push(`${word} (not taken back)`);
+    }
     writeFileSync(readme, standing);
     await press(cdp, CHORD.closeEditorTab);
     await closeOrCount('redline', `document.querySelector('.ed-redline-doc') === null`);
@@ -1557,7 +1625,7 @@ await withElectron(
           continue;
         }
       }
-      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [] };
+      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [], typed: 0, typeMisses: [] };
       const exceptionsBefore = cdp.events().filter((e) => e.method === 'Runtime.exceptionThrown').length;
       const before = await readAll(descriptors);
       say(`\n${NAMES[key]}`);
@@ -1620,6 +1688,13 @@ await withElectron(
         if (log.rewrites === 0 && REWRITES > 0) verdicts.push(`${key}: the redline was opened and never rewritten under, so this run cannot say it plateaus under rewrites`);
         if (log.rewriteMisses.length > 0) verdicts.push(`${key}: ${String(log.rewriteMisses.length)} of ${String(log.rewrites)} outside rewrites never reached the redline's face: ${log.rewriteMisses.slice(0, 5).join(', ')}`);
         else if (log.rewrites > 0) say(`${key}: the redline recomposed under ${String(log.rewrites)} outside rewrites, every one drawn on the face`);
+        // PHASE 237. And it was TYPED IN, which is the other half of the same
+        // question: a keystroke recomposes and rebuilds the whole run list
+        // with the caret put back, so a node or a listener kept per character
+        // is the shape this probe exists to catch.
+        if (log.typed === 0 && TYPES > 0) verdicts.push(`${key}: the redline was opened and never typed in, so this run cannot say it plateaus under typing`);
+        if (log.typeMisses.length > 0) verdicts.push(`${key}: ${String(log.typeMisses.length)} of ${String(log.typed)} typed words never reached the redline's face or were not taken back: ${log.typeMisses.slice(0, 5).join(', ')}`);
+        else if (log.typed > 0) say(`${key}: the redline was typed in ${String(log.typed)} times, every word drawn and taken back`);
       }
       // PHASE 200 fix round. The tripwire readMotion took, judged here.
       if (key === 'c' && wantSurface('diff')) {
