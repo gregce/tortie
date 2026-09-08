@@ -51,11 +51,21 @@ export function lastRewind(tabId: string): RewindJournalEntry | undefined {
   return stack === undefined ? undefined : stack[stack.length - 1];
 }
 
-/** Drop the last rewind of this tab, after its undo has been written. */
-export function popRewind(tabId: string): void {
+/**
+ * Drop one rewind of this tab, after its undo has been written. Given the
+ * entry, it is dropped BY REFERENCE wherever it sits, so an undo pops exactly
+ * the entry it wrote back and never a rewind that landed while it was in
+ * flight (./redline-press); with no entry, the last one goes.
+ */
+export function popRewind(tabId: string, entry?: RewindJournalEntry): void {
   const stack = journals.get(tabId);
   if (stack === undefined) return;
-  stack.pop();
+  if (entry === undefined) stack.pop();
+  else {
+    const at = stack.lastIndexOf(entry);
+    if (at === -1) return;
+    stack.splice(at, 1);
+  }
   if (stack.length === 0) journals.delete(tabId);
 }
 

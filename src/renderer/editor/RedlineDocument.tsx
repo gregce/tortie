@@ -62,13 +62,9 @@ import type { RedlineChange } from './rewind';
 import { installRedlineCommands } from './redline-commands';
 import type { RedlineCommand } from './redline-commands';
 import { applyRewind } from './redline-write';
-import type { RewindOutcome } from './redline-write';
-import {
-  lastRewind,
-  popRewind,
-  recordRewind,
-  rewindJournalDepth
-} from './redline-journal';
+import { pressRedline } from './redline-press';
+import type { PressedChange } from './redline-press';
+import { rewindJournalDepth } from './redline-journal';
 import { redlineRefusalSentence } from './redline-sentences';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
@@ -142,19 +138,14 @@ function DocumentRuns({
   return <>{out}</>;
 }
 
-/**
- * What a press carries, read off the focused wrapper's own attributes rather
- * than off any list in memory, so a press is bound to exactly the picture
- * the person is looking at, generation included (research 83 B.8a).
- */
-export interface PressedChange {
-  off: number;
-  del: string;
-  ins: string;
-  generation: number;
-}
+export type { PressedChange } from './redline-press';
 
-/** The change under focus inside `host`, or null when none holds it. */
+/**
+ * The change under focus inside `host`, or null when none holds it. Read off
+ * the wrapper's own attributes rather than off any list in memory, so a press
+ * is bound to exactly the picture the person is looking at, generation
+ * included (research 83 B.8a).
+ */
 export function focusedChange(host: HTMLElement): PressedChange | null {
   const active = host.ownerDocument.activeElement;
   if (!(active instanceof HTMLElement)) return null;
@@ -253,10 +244,10 @@ export function RedlineDocument({
   }, []);
 
   // PHASE 227. The four commands, from the scroller's own keys and from the
-  // Edit menu through ./redline-commands. Rewind and undo read the change
-  // under focus and hand it to the one press function; until item 4 of the
-  // phase installs it, a press resolves the identity and does nothing more.
-  // A local bump so a rewind or an undo re-renders the journal note at once
+  // Edit menu through ./redline-commands. Rewind and undo hand the live tab,
+  // the focus reader and the one call site to ./redline-press, which owns the
+  // order and moves the journal with the identity the write was made from. A
+  // local bump so a rewind or an undo re-renders the journal note at once
   // rather than waiting for the watcher's recompose.
   const [, bumpJournal] = useReducer((n: number) => n + 1, 0);
   const press = useCallback(
@@ -265,43 +256,26 @@ export function RedlineDocument({
       // prop both trail disk, and the generation guard needs the value now.
       const live = useEditor.getState().tabs.find((t) => t.id === tab.id);
       if (live === undefined) return;
-      // E.6. A rewind written while the tab is dirty is undone by the next
-      // save, so the press is refused with a sentence instead.
-      if (live.dirty) {
-        useApp.getState().toast('info', redlineRefusalSentence('dirty', live.name));
-        return;
-      }
-      // Rewind reads the change under focus; undo pops the last rewind of
-      // this tab from the journal, whose generation guards the write.
-      const entry = kind === 'undo' ? lastRewind(tab.id) : null;
-      const pressed = kind === 'undo' ? entry ?? null : focusedChange(host);
-      if (pressed === null) return;
-      const drawnGeneration =
-        kind === 'undo' ? (entry?.generation ?? 0) : (pressed as { generation: number }).generation;
-      const outcome: RewindOutcome = await applyRewind({
-        root: live.repoPath,
-        path: live.path,
-        baseline: _baseSideForPress(live.baseline, live.headContents),
-        generation: live.baseline?.generation ?? 0,
-        drawnGeneration,
-        pressed: { off: pressed.off, del: pressed.del, ins: pressed.ins },
-        kind
-      });
-      // The sentences are item 6; item 4 said the plain fact so a refusal is
-      // never silent. A success shows nothing on the face: the watcher
-      // recomposes the view, exactly as an outside write does.
-      if ('refused' in outcome) {
-        useApp.getState().toast('info', redlineRefusalSentence(outcome.refused, live.name));
-        return;
-      }
-      // The journal: a rewind is remembered so it can be undone; an undo drops
-      // the entry it just wrote back. Both bump the note.
-      if (kind === 'rewind') {
-        const p = focusedChange(host);
-        if (p !== null) recordRewind(tab.id, { off: p.off, del: p.del, ins: p.ins, generation: p.generation });
-      } else {
-        popRewind(tab.id);
-      }
+      await pressRedline(
+        kind,
+        {
+          id: live.id,
+          root: live.repoPath,
+          path: live.path,
+          baseline: _baseSideForPress(live.baseline, live.headContents),
+          generation: live.baseline?.generation ?? 0,
+          dirty: live.dirty
+        },
+        {
+          focused: () => focusedChange(host),
+          apply: applyRewind,
+          // A refusal is never silent. A success shows nothing on the face:
+          // the watcher recomposes the view, exactly as an outside write does.
+          refuse: (why) => {
+            useApp.getState().toast('info', redlineRefusalSentence(why, live.name));
+          }
+        }
+      );
       bumpJournal();
     },
     [tab.id]

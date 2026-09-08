@@ -10,9 +10,16 @@
  * The module directory is `REWIND_DIR` (default `src/renderer/editor`) so the
  * gate can point the same probe at a copy of the pure chain with one clause
  * ablated. The knob is not `GMUX_` prefixed, because the contract inventory
- * sweeps that prefix. Only the four value modules of the chain are copied by
- * the gate — rewind, redline-document, redline and paths — and their type
- * imports (@shared/fs-ops, @pierre/diffs) are erased by tsx.
+ * sweeps that prefix. Only the value modules of the chain are copied by the
+ * gate — rewind, redline-document, redline and paths, and since the fix round
+ * redline-press and redline-journal — and their type imports (@shared/fs-ops,
+ * @pierre/diffs, ./redline-write) are erased by tsx.
+ *
+ * THE SEVENTH ARM runs the SHIPPING press (redline-press.ts) rather than the
+ * pure decision alone, with a call site that moves the focus while it is
+ * awaited, because that is the shape the verifier drove through the real
+ * chord and the first six arms could not see: they take strings, and the
+ * defect was in what the view read AFTER the strings came back.
  */
 
 import { resolve } from 'node:path';
@@ -25,6 +32,12 @@ const rewind = (await import(
 const document = (await import(
   pathToFileURL(resolve(DIR, 'redline-document.ts')).href
 )) as typeof import('../src/renderer/editor/redline-document');
+const pressModule = (await import(
+  pathToFileURL(resolve(DIR, 'redline-press.ts')).href
+)) as typeof import('../src/renderer/editor/redline-press');
+const journal = (await import(
+  pathToFileURL(resolve(DIR, 'redline-journal.ts')).href
+)) as typeof import('../src/renderer/editor/redline-journal');
 
 const { planRewind, changesOf, rewindRefusalKey } = rewind;
 const { composeRedlineDocument } = document;
@@ -149,6 +162,66 @@ const encoding = {
   clean: say(planRewind(input({ pressed: pressedE4 })))
 };
 
+// ARM 7: the focus moved while the press awaited (the fix round). The
+// SHIPPING press is driven with a call site that moves the focus inside its
+// await, over the pure decision and a fake disk. The journal must hold the
+// identity that was PRESSED, the undo of it must restore the file byte for
+// byte, and with the focus moved onto the pure insertion E6 the undo must not
+// write "exactly " a second time. The first shipped shape read the focus
+// again after the await, and its ablation is that shape put back.
+type PressedChange = import('../src/renderer/editor/redline-press').PressedChange;
+const wrapper = (n: number): PressedChange => {
+  const c = changes[n]!;
+  return { off: c.off, del: c.del, ins: c.ins, generation: GEN };
+};
+async function pressWithFocusMoved(pressedIndex: number, movedIndex: number) {
+  const tabId = `arm7-${String(pressedIndex)}`;
+  const tab = { id: tabId, root: '/repo', path: '/repo/notes.txt', baseline: BASELINE, generation: GEN, dirty: false };
+  const disk = { text: CURRENT, contexts: [] as import('../src/renderer/editor/redline-write').RewindContext[] };
+  let focus: PressedChange | null = wrapper(pressedIndex);
+  const apply = async (ctx: import('../src/renderer/editor/redline-write').RewindContext) => {
+    disk.contexts.push(ctx);
+    await Promise.resolve();
+    focus = wrapper(movedIndex);
+    const plan = planRewind({
+      baseline: ctx.baseline,
+      baselineGeneration: ctx.generation,
+      drawnGeneration: ctx.drawnGeneration,
+      fresh: disk.text,
+      truncated: false,
+      pressed: ctx.pressed,
+      kind: ctx.kind
+    });
+    if (plan.outcome === 'refused') return { refused: plan.why } as const;
+    disk.text = plan.contents;
+    return { wrote: 'sha' } as const;
+  };
+  const deps = { focused: () => focus, apply, refuse: () => undefined };
+  const rewind = await pressModule.pressRedline('rewind', tab, deps);
+  const held = journal.lastRewind(tabId);
+  const pressed = wrapper(pressedIndex);
+  const journalHoldsPressed =
+    held !== undefined && held.off === pressed.off && held.del === pressed.del && held.ins === pressed.ins;
+  const rewound = disk.text !== CURRENT;
+  const undo = await pressModule.pressRedline('undo', tab, deps);
+  journal.forgetRewindJournal(tabId);
+  return {
+    rewindOutcome: rewind.outcome,
+    rewound,
+    journalHoldsPressed,
+    undoOutcome: undo.outcome,
+    restored: disk.text === CURRENT,
+    duplicated: disk.text.includes('exactly exactly'),
+    undoPressedOff: disk.contexts[1]?.pressed.off ?? null
+  };
+}
+const focusMoved = {
+  // E0 pressed, focus moved to E1 (the verifier's M1.h).
+  toNext: await pressWithFocusMoved(0, 1),
+  // E5 pressed, focus moved to the pure insertion E6 (M1.i).
+  toInsertion: await pressWithFocusMoved(5, 6)
+};
+
 console.log(
-  JSON.stringify({ staleDraw, truncated, movedBaseline, outsideRoot, ownInsertion, encoding })
+  JSON.stringify({ staleDraw, truncated, movedBaseline, outsideRoot, ownInsertion, encoding, focusMoved })
 );

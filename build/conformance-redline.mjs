@@ -1140,7 +1140,7 @@ export async function applyRewind(ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// PHASE 227, item 8: six arms on the SHIPPING rewind.ts, one per loss research
+// PHASE 227, item 8: six arms on the SHIPPING rewind.ts, one per loss research 83 measured, and a seventh from the fix round on the SHIPPING press,
 // 83 measured, each a pure computation over two strings through
 // build/redline-rewind-probe.mts. Every arm goes red under an ablation of its
 // clause: the gate copies the four value modules of the pure chain to a dotted
@@ -1148,7 +1148,7 @@ export async function applyRewind(ctx) {
 // unless that arm's reading moves. The copies are removed in a `finally`.
 // ---------------------------------------------------------------------------
 {
-  const CHAIN = ['rewind.ts', 'redline-document.ts', 'redline.ts', 'paths.ts'];
+  const CHAIN = ['rewind.ts', 'redline-document.ts', 'redline.ts', 'paths.ts', 'redline-press.ts', 'redline-journal.ts'];
   const EDITOR = 'src/renderer/editor';
   const runRewindProbe = (dir) => {
     const probe = spawnSync(
@@ -1165,7 +1165,7 @@ export async function applyRewind(ctx) {
     }
   };
 
-  // The six arms, each with the reading the shipping module must print and the
+  // The seven arms, each with the reading the shipping module must print and the
   // one clause whose ablation must move it.
   const ARMS = [
     {
@@ -1209,6 +1209,24 @@ export async function applyRewind(ctx) {
       expect: (a) => a.outcome === 'refused/decodeLoss' && a.clean === 'write',
       from: "if (input.fresh.includes('\uFFFD')) return 'decodeLoss';",
       to: "if (false) return 'decodeLoss';"
+    },
+    // THE SEVENTH ARM, the fix round's. The verifier moved the focus with ⌥↓
+    // while the real press awaited main's read: E0 was rewound and the journal
+    // held E1, so undo refused and E0 was recoverable from nothing; moved onto
+    // the pure insertion E6, undo wrote "exactly " twice. The arm drives the
+    // SHIPPING press with a call site that moves the focus inside its await,
+    // and the ablation is the first shipped shape put back, being the focus
+    // read again after the await to build the journal entry.
+    {
+      name: 'the focus moved while the press awaited: the journal holds what was pressed',
+      key: 'focusMoved',
+      file: 'redline-press.ts',
+      expect: (a) =>
+        a.toNext.rewound === true && a.toNext.journalHoldsPressed === true && a.toNext.restored === true &&
+        a.toInsertion.rewound === true && a.toInsertion.journalHoldsPressed === true &&
+        a.toInsertion.restored === true && a.toInsertion.duplicated === false,
+      from: "if (kind === 'rewind') recordRewind(tab.id, pressed);",
+      to: "if (kind === 'rewind') { const p = deps.focused(); if (p !== null) recordRewind(tab.id, p); }"
     }
   ];
 
@@ -1231,10 +1249,11 @@ export async function applyRewind(ctx) {
         mkdirSync(dir, { recursive: true });
         made.push(dir);
         for (const f of CHAIN) cpSync(join(EDITOR, f), join(dir, f));
-        const target = join(dir, 'rewind.ts');
+        const armFile = arm.file ?? 'rewind.ts';
+        const target = join(dir, armFile);
         const before = readFileSync(target, 'utf8');
         if (!before.includes(arm.from)) {
-          fail(`8. the ablation for "${arm.name}" found nothing to edit in rewind.ts`);
+          fail(`8. the ablation for "${arm.name}" found nothing to edit in ${armFile}`);
           continue;
         }
         writeFileSync(target, before.replace(arm.from, arm.to));
@@ -1247,7 +1266,7 @@ export async function applyRewind(ctx) {
         if (moved) red += 1;
         else fail(`8. the ablation for "${arm.name}" changed nothing this arm reads, so it cannot fail: ${JSON.stringify(ablated[arm.key])}`);
       }
-      say(`8. six arms over the shipping rewind, and ${String(red)} of ${String(ARMS.length)} ablations moved their arm's reading`);
+      say(`8. ${String(ARMS.length)} arms over the shipping rewind and press, and ${String(red)} of ${String(ARMS.length)} ablations moved their arm's reading`);
     } finally {
       for (const dir of made) rmSync(dir, { recursive: true, force: true });
       // A sweep, in case a name from an interrupted run is left.
