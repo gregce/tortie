@@ -81,9 +81,19 @@ describe('the redline draws its own header for the document verb', () => {
     expect(html).not.toContain('<button');
   });
 
-  it('says what it does in one clause and never claims to write anything', () => {
+  it('says what it does, and what it costs, and never claims to write anything', () => {
     const html = markup(OPENED, WRITTEN);
-    expect(html).toContain('Stop marking every change. The file is not touched.');
+    // PHASE 238's FIX ROUND added the second clause. The verifier recorded
+    // that accept-all has no confirmation and no undo and that the face said
+    // neither; both halves are here, behind hover, and both are true.
+    expect(html).toContain(
+      'Stop marking every change. The file is not touched, and there is no undo — only the marking goes.'
+    );
+    // It is on the title and NOT on the resting face, which is the house rule
+    // for explanation: the button itself is still two words.
+    const label = html.match(/<button[^>]*ed-redline-bar-button[^>]*>([^<]*)<\/button>/);
+    expect(label?.[1]).toBe('Accept all');
+    expect(html).not.toContain('>Stop marking every change');
   });
 });
 

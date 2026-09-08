@@ -711,7 +711,14 @@ export function RedlineDocument({
           <button
             type="button"
             className="ed-redline-bar-button"
-            title="Stop marking every change. The file is not touched."
+            // PHASE 238's FIX ROUND. One clause more, behind hover, because
+            // the verifier recorded that accept-all has no confirmation and
+            // no undo and the face said neither. Both halves are here and
+            // both are true: no byte of the file is at risk (research 83
+            // B.5), and what goes is the marking, which is the only thing
+            // this verb can cost (A3.4). It stays on the TITLE and not on the
+            // resting face, which is the house rule for explanation.
+            title="Stop marking every change. The file is not touched, and there is no undo — only the marking goes."
             onClick={() => {
               runCommand('acceptAll');
             }}
