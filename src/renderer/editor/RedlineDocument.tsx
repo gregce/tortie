@@ -40,6 +40,7 @@ import {
   redlineDocumentNote
 } from './redline-document';
 import { useLiveTabText } from './live-text';
+import { redlineBaseSide } from './baseline';
 import type { EditorTab } from './store';
 import './redline.css';
 
@@ -81,13 +82,21 @@ export function RedlineDocument({
     };
   }, []);
 
+  // The skeleton still waits for git's first answer, baseline or not: a
+  // baseline seeded from the read is overtaken by a HEAD version the moment
+  // one lands, and drawing an empty redline for that moment would be a flash.
+  // Every way into this view for a worktree tab asks git first (the store's
+  // setMode loads HEAD when it is null), so the wait always ends.
   const contentsLoading = tab.loading || tab.headContents === null;
+  // PHASE 225. The left side is the tab's shadow baseline (./baseline) when
+  // it holds one, and the diff's HEAD side when it does not, so a tab with no
+  // baseline draws exactly what Phase 194 shipped. The composer takes two
+  // strings and never knew where its left side came from.
+  const baseSide = redlineBaseSide(tab.baseline, tab.headContents);
   const doc = useMemo(
     () =>
-      contentsLoading
-        ? null
-        : composeRedlineDocument(tab.headContents ?? '', workingText),
-    [contentsLoading, tab.headContents, workingText]
+      contentsLoading ? null : composeRedlineDocument(baseSide, workingText),
+    [contentsLoading, baseSide, workingText]
   );
   const note = doc === null ? null : redlineDocumentNote(doc);
   const against =

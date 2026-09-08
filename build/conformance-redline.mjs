@@ -131,7 +131,11 @@ const REDLINE_FILES = [
   'src/renderer/editor/redline.css',
   // Phase 194: the view and the document it draws. Same refusals.
   'src/renderer/editor/redline-document.ts',
-  'src/renderer/editor/RedlineDocument.tsx'
+  'src/renderer/editor/RedlineDocument.tsx',
+  // Phase 225: the shadow baseline the view draws against. Same refusals,
+  // because a module that decides the left side must not be able to write
+  // the right one.
+  'src/renderer/editor/baseline.ts'
 ];
 
 // ---------------------------------------------------------------------------
