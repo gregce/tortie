@@ -195,11 +195,21 @@ import {
   withoutDevRenderer
 } from './electron-run.mjs';
 import { seedArchSwitchOn } from './probe-arch-switch.mjs';
+import {
+  assertReachable,
+  closeMaster,
+  endRecordedPids,
+  gate,
+  listFarSessions,
+  runOnMachine
+} from './real-machine.mjs';
+import { keyscanText } from './ssh-run.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /**
  * PHASE 200. Which of profile c's surfaces this run drives. Five when this
- * was written, six since Phase 225 added the redline.
+ * was written, six since Phase 225 added the redline, seven since Phase 230
+ * added the four sidebar views on a remote tab.
  *
  * The 0.98.0 audit read the combined profile retaining 1,512 DOM nodes and 126
  * listeners a block and could say nothing about WHICH surface did it, because
@@ -210,7 +220,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * the audit measured, with the redline beside the diff it reads.
  */
 const SURFACES = (
-  process.env['P167_SURFACES'] ?? 'overview,arch,file,diff,redline,preview'
+  process.env['P167_SURFACES'] ?? 'overview,arch,file,diff,redline,preview,remote'
 )
   .split(',')
   .map((one) => one.trim())
@@ -218,6 +228,33 @@ const SURFACES = (
 const wantSurface = (name) => SURFACES.includes(name);
 /** PHASE 227. Outside rewrites of the open file per redline open; 0 turns them off. */
 const REWRITES = Math.max(0, Number(process.env['P167_REWRITES'] ?? '4') || 0);
+/**
+ * PHASE 230. The seventh surface is the four sidebar views on a tab whose
+ * folder is on another machine, being the Explorer, Source control, Search
+ * and Context, each of which now re-reads that machine when the window
+ * regains focus through ONE hook, src/renderer/machines/use-remote-reread.ts.
+ * A re-read on focus is a listener on a bus, and a listener attached on mount
+ * and not released on unmount is exactly what this probe's listener count
+ * exists to catch, so the four views are opened and closed on a remote tab
+ * the way the six surfaces above are opened and closed on a local one, with
+ * a window focus fired into each.
+ *
+ * The hook is inert on a tab whose folder is on this Mac, so driving the same
+ * views on repo-a would measure nothing. A remote tab needs a machine that
+ * answers, because main refuses to add a project on a machine it is not
+ * connected to, so this surface is driven only when a person named one
+ * through the same two variables build/real-machine.mjs already reads,
+ * GMUX_REAL_MACHINE_HOST and GMUX_REAL_MACHINE_CONFIRM, and the run says so
+ * in its output and its report either way. Under Phase 224's bounds: every
+ * far write goes under one scratch directory in that person's home, removed
+ * in the finally; the far server this run's scratch socket starts is killed
+ * and its socket file unlinked in the same finally; the far `-L gmux` server
+ * is only ever listed, once before and once after, and both counts are
+ * printed.
+ */
+const REMOTE_HOST = (process.env['GMUX_REAL_MACHINE_HOST'] ?? '').trim();
+const remoteArmed = wantSurface('remote') && REMOTE_HOST !== '';
+const REMOTE_MACHINE_ID = 'p167-machine';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const say = (line) => process.stdout.write(`${line}\n`);
 
@@ -560,6 +597,213 @@ function liveGmuxSessionCount() {
   return r.stdout.split('\n').filter((l) => l.trim() !== '').length;
 }
 const liveBefore = liveGmuxSessionCount();
+
+// ---------------------------------------------------------------------------
+// PHASE 230. The machine, when one is named, and the far scratch it gets
+// ---------------------------------------------------------------------------
+
+/**
+ * Everything the remote surface holds between setup and teardown. `machine`
+ * is null when no machine was named, and every step below is skipped and said
+ * to be skipped.
+ */
+const remote = {
+  machine: null,
+  farRoot: null,
+  projectId: null,
+  farSessionsBefore: null,
+  farSessionsAfter: null,
+  farSocketsBefore: null,
+  farSocketsAfter: null,
+  confirmed: null,
+  teardown: null,
+  skipped: remoteArmed ? null : (wantSurface('remote') ? 'GMUX_REAL_MACHINE_HOST is unset, so no machine was named' : 'not in P167_SURFACES')
+};
+
+/** The far scratch directory, by its exact shape, and nothing else. */
+function assertFarScratch(path) {
+  if (typeof path !== 'string' || !/^\/[^\s]+\/tortie-p167-scratch-\d+$/.test(path)) {
+    throw new Error(`refusing to touch ${String(path)}`);
+  }
+}
+
+/** One shell script on the machine, carried as base64 so no quoting can bend it. */
+function farScript(machine, script, timeoutMs = 120_000) {
+  const b64 = Buffer.from(script, 'utf8').toString('base64');
+  return runOnMachine(machine, `printf %s ${b64} | base64 -d | /bin/sh`, { timeoutMs });
+}
+
+/**
+ * A small repository under that person's home, made by this run and removed
+ * by it: one commit, one modified file and one untracked file, so every one
+ * of the four views has rows to draw. The identity is set INSIDE the
+ * repository, so ~/.gitconfig over there is never written.
+ */
+function setupFarScratch(machine) {
+  const name = `tortie-p167-scratch-${String(process.pid)}`;
+  const out = farScript(
+    machine,
+    [
+      'set -e',
+      'cd "$HOME"',
+      `test ! -e ${name}`,
+      `mkdir -p ${name}/src`,
+      `cd ${name}`,
+      'git init -q -b main',
+      "git config --local user.email 'p167@example.invalid'",
+      "git config --local user.name 'Tortie P167'",
+      'git config --local commit.gpgsign false',
+      "printf '# p167 scratch\n\nOne line.\n' > README.md",
+      "printf 'export const one = 1;\n' > src/app.ts",
+      'git add -A',
+      "git commit -q -m 'p167 base'",
+      "printf '# p167 scratch\n\nOne line.\nA second line.\n' > README.md",
+      "printf 'scratch, untracked\n' > NOTES-untracked.md",
+      'pwd'
+    ].join('\n')
+  );
+  if (out.code !== 0) throw new Error(`the far scratch could not be made: ${out.both.trim()}`);
+  const path = out.stdout.trim().split('\n').pop() ?? '';
+  assertFarScratch(path);
+  return path;
+}
+
+function teardownFarScratch(machine, path) {
+  assertFarScratch(path);
+  return farScript(machine, `rm -rf ${path}\ntest -e ${path} && echo STILL-THERE || echo GONE\n`, 60_000).both.trim();
+}
+
+/** The far `-L gmux` server is only ever listed. */
+function farCounts(machine) {
+  return {
+    sessions: listFarSessions(machine, 'gmux').names,
+    sockets: runOnMachine(machine, "ls /private/tmp/tmux-$(id -u) 2>/dev/null | tr '\\n' ' '").both.trim()
+  };
+}
+
+/**
+ * The far server this run's scratch socket may have started, ended, AND its
+ * socket file unlinked, because `tmux kill-server` does not unlink and Phase
+ * 224 left ten dead sockets under that person's temporary directory.
+ */
+function endFarScratchServer(machine) {
+  if (socket === 'gmux' || socket === 'default' || !socket.startsWith('gmux-')) return 'refused';
+  const out = runOnMachine(
+    machine,
+    `${machine.remoteTmuxPath} -L ${socket} -f /dev/null kill-server 2>&1; rm -f /private/tmp/tmux-$(id -u)/${socket}; echo ended`
+  );
+  return out.both.trim();
+}
+
+/**
+ * The machine row and its identity, written into the scratch profile the way
+ * the Phase 224 probes wrote them, and NEVER into the person's own profile.
+ */
+function writeMachineRow(machine) {
+  mkdirSync(join(profile, 'gmux', 'config'), { recursive: true });
+  mkdirSync(join(profile, 'gmux', 'machines'), { recursive: true });
+  writeFileSync(
+    join(profile, 'gmux', 'config', 'machines.json'),
+    `${JSON.stringify(
+      {
+        schema: 1,
+        machines: [
+          {
+            id: REMOTE_MACHINE_ID,
+            label: 'p167 machine',
+            color: 'orange',
+            host: machine.host,
+            ...(machine.port === 22 ? {} : { port: machine.port }),
+            remoteTmuxPath: machine.remoteTmuxPath
+          }
+        ]
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+  writeFileSync(
+    join(profile, 'gmux', 'machines', 'known-machines'),
+    keyscanText({ host: machine.host, port: machine.port, caller: 'build/probe-p167-scale.mjs' }),
+    'utf8'
+  );
+}
+
+/**
+ * The confirm press, in the Settings window of a FIRST Electron that ends
+ * before the measured one starts. It is the one gate refusal 8 keeps, and it
+ * is pressed here the way a person presses it, on the row's own button.
+ */
+const CONFIRM_DRIVE = `(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    const rail = Array.from(document.querySelectorAll('button, [role="tab"], li, a'))
+      .find((n) => (n.textContent || '').trim() === 'Machines');
+    if (rail) { rail.click(); await wait(900); }
+    for (const t of Array.from(document.querySelectorAll('[data-machines-action="toggle-lines"]'))) {
+      if (t.getAttribute('aria-expanded') !== 'true') { t.click(); await wait(500); }
+    }
+    await wait(800);
+    for (const c of Array.from(document.querySelectorAll('[data-machines-action="confirm"]'))) { c.click(); await wait(1800); }
+    const rows = (await window.gmux.machines.rows()).rows.map((x) => ({ id: x.id, state: x.state }));
+    return JSON.stringify({ rows });
+  } catch (err) { return JSON.stringify({ error: String((err && err.stack) || err) }); }
+})()`;
+
+async function confirmMachineRow() {
+  let out = '';
+  await withElectron(
+    {
+      label: 'p167-confirm',
+      userDataDir: profile,
+      tmuxSocket: null,
+      env: withoutDevRenderer({
+        HOME: home,
+        GMUX_TMUX_SOCKET: socket,
+        GMUX_SHOT: join(outDir, 'p167-remote-confirm.png'),
+        GMUX_SHOT_DELAY_MS: '4000',
+        GMUX_SHOT_SETTINGS: '1',
+        GMUX_SHOT_SETTINGS_JS: CONFIRM_DRIVE
+      }),
+      ceilingMs: 5 * 60 * 1000
+    },
+    (handle) =>
+      new Promise((done) => {
+        const child = handle.child;
+        const take = (c) => { out += String(c); };
+        child.stdout?.on('data', take);
+        child.stderr?.on('data', take);
+        child.on('exit', () => done());
+      })
+  );
+  const marker = '[gmux-shot] driver';
+  const at = out.lastIndexOf(marker);
+  if (at === -1) return { error: `no driver line; tail=${out.slice(-400)}` };
+  const line = out.slice(at + marker.length).split('\n')[0] ?? '';
+  try {
+    let parsed = JSON.parse(line.replace(/^\s*→\s*/, '').trim());
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    return parsed;
+  } catch {
+    return { error: `unparsed driver line: ${line.slice(0, 300)}` };
+  }
+}
+
+/** The remote tab registered from inside the measured app, once it is up. */
+const ADD_REMOTE_DRIVE = (farRoot) => `(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const G = window.gmux;
+  const out = {};
+  try {
+    out.prepare = JSON.stringify(await G.machines.prepare(${JSON.stringify(REMOTE_MACHINE_ID)})).slice(0, 200);
+    const added = await G.projects.addRemote({ machineId: ${JSON.stringify(REMOTE_MACHINE_ID)}, path: ${JSON.stringify(farRoot)} });
+    out.added = JSON.stringify(added).slice(0, 300);
+    out.projectId = added && added.ok ? added.project.id : null;
+    await wait(1500);
+    return out;
+  } catch (e) { out.error = String((e && e.stack) || e); return out; }
+})()`;
 
 // ---------------------------------------------------------------------------
 // Rulers read from outside the app
@@ -1057,6 +1301,36 @@ async function cycleSurfaces(cdp, log) {
     await press(cdp, CHORD.closeEditorTab);
     await closeOrCount('preview', `document.querySelector('.md-content') === null`);
   }
+
+  // PHASE 230. The four sidebar views on the remote tab, each opened by its
+  // own rail button, given one window focus while it is up, and closed by the
+  // next view taking its place; then the local tab again, which unmounts the
+  // last of them. Every view here reads through the one re-read hook, and
+  // the listener count over the blocks is what says whether a mount's
+  // listeners are released by its unmount.
+  if (wantSurface('remote') && remote.projectId !== null) {
+    const selectTab = (id) =>
+      `(() => { const b = document.querySelector('[data-project-id="${id}"] button.ptab'); if (b === null) return false; b.click(); return true; })()`;
+    const rail = (label) =>
+      `(() => { const b = Array.from(document.querySelectorAll('button.ab-item')).find((x) => (x.getAttribute('title') || '').startsWith('${label} (')); if (b === undefined) return false; b.click(); return true; })()`;
+    const focused = `(() => { window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); return true; })()`;
+    if (!(await cdpEval(cdp, selectTab(remote.projectId)))) log.openMisses.push('remote tab');
+    const views = [
+      ['Source control', `document.querySelector('[data-view="scm"] .scm-sections.remote') !== null`],
+      ['Search', `document.querySelector('[data-view="search"] [data-slot="search-body"]') !== null`],
+      ['Context', `document.querySelector('[data-view="context"]') !== null`],
+      ['Explorer', `document.querySelector('[data-view="scm"], [data-view="search"], [data-view="context"]') === null && document.querySelector('[data-slot="tree"]') !== null`]
+    ];
+    for (const [label, upExpr] of views) {
+      if (!(await cdpEval(cdp, rail(label)))) { log.openMisses.push(`remote ${label}`); continue; }
+      if (!(await until(cdp, upExpr, 8000))) log.openMisses.push(`remote ${label}`);
+      await sleep(120);
+      await cdpEval(cdp, focused);
+      await sleep(250);
+    }
+    await drive(cdp, { projectPath: repoA });
+    await closeOrCount('remote', `document.querySelector('.scm-sections.remote') === null && document.querySelector('[data-view="scm"], [data-view="search"], [data-view="context"]') === null`);
+  }
 }
 
 /** One profile d cycle: four real sessions in a grid, then all four killed. */
@@ -1136,6 +1410,31 @@ rmSync(join(profile, 'DevToolsActivePort'), { force: true });
 seedArchSwitchOn(profile);
 say('p167: seeded the Architecture switch on in the scratch profile');
 
+// PHASE 230. The machine, when one is named: the row and its identity into
+// the scratch profile, the far scratch repository, and the confirm press in a
+// first Electron that ends before the measured one starts.
+if (remoteArmed) {
+  remote.machine = await gate('p167');
+  assertReachable(remote.machine);
+  const before = farCounts(remote.machine);
+  remote.farSessionsBefore = before.sessions;
+  remote.farSocketsBefore = before.sockets;
+  say(`p167: the machine ${remote.machine.host} answers; its -L gmux server holds ${String(before.sessions.length)} session(s) [${before.sessions.join(', ')}], sockets: ${before.sockets || 'none'}`);
+  remote.farRoot = setupFarScratch(remote.machine);
+  say(`p167: far scratch repository at ${remote.farRoot}`);
+  writeMachineRow(remote.machine);
+  remote.confirmed = await confirmMachineRow();
+  const row = Array.isArray(remote.confirmed?.rows) ? remote.confirmed.rows.find((r) => r.id === REMOTE_MACHINE_ID) : undefined;
+  if (row === undefined || row.state !== 'confirmed') {
+    failures.push(`remote: the machine row did not confirm (${JSON.stringify(remote.confirmed).slice(0, 300)}), so the remote surface was not driven`);
+    remote.skipped = 'the row did not confirm';
+  } else {
+    say(`p167: the machine row confirmed in the Settings window`);
+  }
+} else {
+  say(`p167: the remote surface is NOT driven (${remote.skipped}); the remote views' listeners were not measured`);
+}
+
 // PHASE 200: say what this shell brought and what was taken out, so a run in
 // the operator's dev terminal and a run in a clean one are visibly the same.
 {
@@ -1147,6 +1446,7 @@ say('p167: seeded the Architecture switch on in the scratch profile');
   );
 }
 
+try {
 await withElectron(
   {
     label: 'p167',
@@ -1185,6 +1485,18 @@ await withElectron(
     // Both projects open as tabs before any cycle, and the boot settled.
     await drive(cdp, { projectPath: repoA });
     await drive(cdp, { projectPath: repoB });
+    // PHASE 230. The remote tab, registered from inside the app once the
+    // machine has signed in, and left for the surface cycle to select.
+    if (remoteArmed && remote.skipped === null) {
+      const added = await cdpEval(cdp, ADD_REMOTE_DRIVE(remote.farRoot), 120_000);
+      remote.projectId = typeof added?.projectId === 'string' ? added.projectId : null;
+      if (remote.projectId === null) {
+        failures.push(`remote: the far scratch folder could not be opened as a tab (${JSON.stringify(added).slice(0, 300)}), so the remote surface was not driven`);
+        remote.skipped = 'the remote tab could not be added';
+      } else {
+        say(`p167: remote tab ${remote.projectId} on ${remote.farRoot}`);
+      }
+    }
     await drive(cdp, { projectPath: repoA });
     await sleep(2000);
     const rendererPid = rendererPidOf(mainPid);
@@ -1399,6 +1711,51 @@ await withElectron(
     cdp.close();
   }
 );
+} finally {
+  // PHASE 230. Whatever happened above: the far scratch directory removed,
+  // the far server on this run's scratch socket ended with its socket file
+  // unlinked, the shared connection closed and every pid this run started
+  // ended, then the far -L gmux server listed once more. The counts before
+  // and after are printed side by side, because that server is the person's
+  // and this probe only ever lists it.
+  if (remote.machine !== null) {
+    const teardown = {};
+    try {
+      if (remote.farRoot !== null) teardown.farScratch = teardownFarScratch(remote.machine, remote.farRoot);
+    } catch (err) {
+      teardown.farScratch = `failed: ${String(err)}`;
+    }
+    try {
+      teardown.farScratchServer = endFarScratchServer(remote.machine);
+    } catch (err) {
+      teardown.farScratchServer = `failed: ${String(err)}`;
+    }
+    try {
+      const after = farCounts(remote.machine);
+      remote.farSessionsAfter = after.sessions;
+      remote.farSocketsAfter = after.sockets;
+    } catch (err) {
+      teardown.farCounts = `failed: ${String(err)}`;
+    }
+    try {
+      teardown.master = closeMaster(remote.machine).both.trim() || 'closed';
+    } catch (err) {
+      teardown.master = `failed: ${String(err)}`;
+    }
+    teardown.endedPids = endRecordedPids(remote.machine);
+    remote.teardown = teardown;
+    say(`p167: far scratch ${String(teardown.farScratch)}; scratch server ${String(teardown.farScratchServer)}`);
+    say(`p167: the machine's -L gmux server held ${String(remote.farSessionsBefore?.length ?? '?')} session(s) before and ${String(remote.farSessionsAfter?.length ?? '?')} after [${(remote.farSessionsAfter ?? []).join(', ')}]; sockets before: ${remote.farSocketsBefore || 'none'}; after: ${remote.farSocketsAfter || 'none'}`);
+    const before = remote.farSessionsBefore ?? [];
+    const afterNames = remote.farSessionsAfter ?? [];
+    if (JSON.stringify(before) !== JSON.stringify(afterNames)) {
+      failures.push(`remote: the machine's -L gmux server listed [${before.join(', ')}] before and [${afterNames.join(', ')}] after; this probe must never touch it`);
+    }
+    if (typeof teardown.farScratch === 'string' && !teardown.farScratch.endsWith('GONE')) {
+      failures.push(`remote: the far scratch directory was not removed (${String(teardown.farScratch)})`);
+    }
+  }
+}
 
 const liveAfter = liveGmuxSessionCount();
 if (liveAfter !== liveBefore) {
@@ -1407,6 +1764,19 @@ if (liveAfter !== liveBefore) {
 report.mainPid = mainPidSeen;
 report.failures = failures;
 report.liveGmuxSessions = { before: liveBefore, after: liveAfter };
+report.remote = {
+  armed: remoteArmed,
+  skipped: remote.skipped,
+  host: remote.machine?.host ?? null,
+  farRoot: remote.farRoot,
+  projectId: remote.projectId,
+  confirmed: remote.confirmed,
+  farSessionsBefore: remote.farSessionsBefore,
+  farSessionsAfter: remote.farSessionsAfter,
+  farSocketsBefore: remote.farSocketsBefore,
+  farSocketsAfter: remote.farSocketsAfter,
+  teardown: remote.teardown
+};
 writeFileSync(join(outDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
 say(`\np167: report written to ${join(outDir, 'report.json')}`);
 if (failures.length > 0) {
