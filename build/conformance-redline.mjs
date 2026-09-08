@@ -1572,6 +1572,16 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
         );
       }
     }
+    // THE ABLATED COPIES ARE SIBLINGS OF THE FILES THEY ABLATE, and the depth
+    // is exact, for the reason `build/conformance-credentials.mjs` states over
+    // its own `.p204-ablation-` copies. The chain reaches `diff`,
+    // `@pierre/diffs` and `@shared/fs-ops`, so a copy in the system temporary
+    // directory cannot resolve any of the three: every ablation would fail to
+    // IMPORT rather than fail the rule it removed, and a suite red for the
+    // wrong reason proves as little as one green for the wrong reason. The
+    // name begins with a dot so neither TypeScript's include globs nor the
+    // test runner picks it up, and the `finally` below removes every one of
+    // them and then sweeps the directory for anything a kill left behind.
     const prefix = `.p237-ablation-${process.pid.toString(36)}-`;
     const made = [];
     let red = 0;

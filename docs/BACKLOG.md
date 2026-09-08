@@ -24130,6 +24130,19 @@ minimap and folding off, and the Redline mode becoming the File editor wearing t
 - **No widening of the prose allowlist.** A source file gets no Redline and so no typing here.
 - **No change to the guarded write channel.** Typing saves through `save`; rewind writes through
   `fs:writeGuarded`; they stay two doors.
+- **No compare-and-swap on ⌘S, AND THAT IS THE LIMIT THIS PHASE SAYS OUT LOUD.** Item 2 above sends
+  typing through the ordinary `save`, and `save` in `src/renderer/editor/tab-io.ts` writes the buffer
+  with no `expect` — only the remote door has one. So if an agent rewrites the file while the person
+  has unsaved typing, ⌘S puts the person's buffer on disk and the agent's arrival is gone, with
+  nothing said. The verifier drove the same sequence in File mode and in Redline mode in one run and
+  BOTH lost it, so it is the tab's oldest behaviour rather than anything typing introduced. What is
+  new is where it now bites, because the redline is exactly the surface a person watches an agent
+  rewrite. The face already says the tab is *"Not refreshed from disk while there are unsaved
+  edits."*; it does not say a save can discard what arrived, and giving `save` a compare-and-swap is
+  a change to the write door this phase refuses to make. **Phase 240, queued the same day from Sean
+  Johnson's issue 16, is where that door is fixed**, by pointing `save` at Phase 226's
+  `fs:writeGuarded` and turning its `stale` answer into a three-way choice with overwrite not the
+  default; this entry's job is to say the window is open until then.
 - **No durable baseline**, still.
 
 ## Phase 238 — accept, so a redline can be cleared without touching the file (operator asked 2026-09-08)
