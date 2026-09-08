@@ -69,6 +69,7 @@ import {
   recordRewind,
   rewindJournalDepth
 } from './redline-journal';
+import { redlineRefusalSentence } from './redline-sentences';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
 import { useApp } from '../state/store';
@@ -267,7 +268,7 @@ export function RedlineDocument({
       // E.6. A rewind written while the tab is dirty is undone by the next
       // save, so the press is refused with a sentence instead.
       if (live.dirty) {
-        useApp.getState().toast('info', `That change was not rewound (dirty).`);
+        useApp.getState().toast('info', redlineRefusalSentence('dirty', live.name));
         return;
       }
       // Rewind reads the change under focus; undo pops the last rewind of
@@ -290,7 +291,7 @@ export function RedlineDocument({
       // never silent. A success shows nothing on the face: the watcher
       // recomposes the view, exactly as an outside write does.
       if ('refused' in outcome) {
-        useApp.getState().toast('info', `That change was not ${kind === 'undo' ? 'undone' : 'rewound'} (${outcome.refused}).`);
+        useApp.getState().toast('info', redlineRefusalSentence(outcome.refused, live.name));
         return;
       }
       // The journal: a rewind is remembered so it can be undone; an undo drops

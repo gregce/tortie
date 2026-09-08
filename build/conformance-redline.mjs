@@ -142,7 +142,9 @@ const REDLINE_FILES = [
   'src/renderer/editor/rewind.ts',
   'src/renderer/editor/redline-write.ts',
   // Phase 227: the undo journal, per tab and in memory. It writes nothing.
-  'src/renderer/editor/redline-journal.ts'
+  'src/renderer/editor/redline-journal.ts',
+  // Phase 227: the refusal sentences. Text for a person, no write.
+  'src/renderer/editor/redline-sentences.ts'
 ];
 
 // ---------------------------------------------------------------------------
