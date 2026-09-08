@@ -24348,6 +24348,201 @@ journal's top entry belongs to, or it moves to the header with Accept all. The r
 - **No typing** (237) and **no new verb** beyond what 227, 236 and 238 already ship.
 - **No native accelerator**, still, because a global Option-Down is taken from every terminal.
 
+## Phase 240 — a save says so when an agent wrote the file while you were typing (issue 16, Sean Johnson, 2026-09-08)
+
+**Subject.** `fix(editor): a save that would overwrite somebody else's write asks first`
+
+**First body line.** `Phase 240: the guarded save`
+
+**Semver.** MINOR. A choice a person is offered where there was none.
+
+**Tier 3.** It is the write path every Cmd-S in the product goes through, and a mistake in it loses
+work rather than annoying somebody. The gates, a matrix over the concurrent-write shapes, TWO
+independent methods one of which is an attack that races a real writer, and a fix round if any
+verdict is needs_work.
+
+**Charter.** This entry, [issue 16](https://github.com/gregce/tortie/issues/16) in Sean Johnson's own
+words, and research 83 sections A4.3, E.4, E.5 and E.7, whose measurements are the reason the fix
+already exists and is pointed somewhere else.
+
+### What he said
+
+> When I edit a file, then save, there's no warning if someone else (presumably an agent) edited it
+> concurrently and I'm overwriting its edits (as VSC does).
+
+### It is real, and it is reachable by design rather than by accident
+
+`save` in `src/renderer/editor/tab-io.ts:693` is `await gmux.fs.writeFile(tab.path, value)` and
+nothing else. Research 83 A4.2 ruling 3 measured what that channel does: **no mtime check, no size
+check, no `O_EXCL`, no `lstat`, and it follows a symlink**, and `fs:writeFile` at
+`src/main/fs/ipc.ts:229-247` calls none of the containment `fs:createFile`, `fs:rename`, `fs:move`
+and `fs:trash` go through.
+
+**And the window is opened deliberately.** `refreshRepo` at `tab-io.ts:616` skips a tab with unsaved
+edits, on purpose, so a person's typing is never overwritten by the watcher (research 83 A4.3). The
+consequence is exactly his report: from the first keystroke, an agent's writes stop arriving, the
+tab holds bytes the disk no longer has, and Cmd-S lands on top of the agent's work with nothing said.
+
+### The mechanism, and most of it is already built
+
+**Phase 226 shipped the answer and Phase 227 pointed it at rewinds only.** `fs:writeGuarded` in
+`src/main/fs/guarded-write.ts`, declared at `src/shared/ipc/files.ts:468`, takes a path, the sha256
+of the bytes the caller read, and the new contents, and answers a WORD rather than throwing:
+`wrote`, `stale`, or `refused` with a reason. It already refuses a path outside every project root,
+a file over the read cap, a decode that lost bytes, a pipe, a read-only target and a change landing
+between its own hash and its rename, and it writes through an unlink-then-exclusive-create with an
+`lstat` before an atomic rename. **Nothing about it is new work here.**
+
+1. **`save` calls `fs:writeGuarded` with the digest of `tab.savedContents`**, which is by definition
+   what Tortie last read, rather than `fs:writeFile`. `fs:writeFile` is NOT changed and NOT removed;
+   other callers keep it.
+2. **`stale` is a CHOICE, not a refusal.** He named VS Code and VS Code offers three: overwrite,
+   compare, cancel. Tortie's answer is the same three in its own words, in the shape the house
+   already uses for a decision, and **the default is not overwrite**. Compare opens the diff Tortie
+   already draws — the tab's own bytes against what is on disk now — because Tortie has a diff view
+   and a redline and should not ask a person to guess.
+3. **Overwrite is a second, deliberate act** and it goes through the same channel with the digest of
+   what was just read, so the second write is guarded too and a third writer between the choice and
+   the click is caught rather than lost.
+4. **The other words get their sentence**, one each, in the vocabulary file the editor's machine
+   sentences already live beside: `refused/outsideRoot`, `overCap`, `decodeLoss`, `io`, `readOnly`,
+   `raced`. Today every one of them is an unhandled throw path with the generic
+   `Could not save this file.`
+5. **The remote save is untouched.** `saveOnMachine` already carries a precondition through
+   `machines:putFile` and answers `stale` — that is where the pattern came from — and this phase
+   only brings the local path level with it.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron on a scratch profile: open a prose file, type, have a plain shell
+  write to it from outside, press Cmd-S and read the choice off the DOM with the file on disk
+  UNCHANGED; press Compare and read both sides; press Cancel and read the file unchanged and the tab
+  still dirty; press Overwrite and read the file holding the typed bytes; then race a writer INTO the
+  window between the choice appearing and Overwrite being pressed and prove the second write is
+  refused rather than landing.
+- **Independent method one, the attack**: a racing writer rewriting the file every few milliseconds
+  through the save sequence, for at least a thousand saves, with the disk read after each. **The pass
+  is that no save ever writes over bytes Tortie had not read**, and the same-size window Phase 226
+  states as its limit is measured and quoted rather than assumed to be absent.
+- **Independent method two, the re-derivation**: scan every renderer-reachable write in `src/main/fs`
+  and prove `save` is no longer among `fs:writeFile`'s callers for a worktree tab, read by matching
+  braces through `functionBodyOf` in `build/scan-source.mjs`, with the scanner proved on a planted
+  fixture that must fail.
+- `npm run conformance:redline-write` stays green unchanged, because the channel does not change.
+- A test pins each of the six answers to its sentence and goes red on ablation.
+
+### What is NOT in this phase
+
+- **No change to `fs:writeGuarded`.** It is used, not modified.
+- **`fs:writeFile` is not removed**; other callers are out of scope and named in the commit body.
+- **No merge.** Compare shows; it does not three-way merge. That is a different product.
+- **No autosave and no lock.** Tortie does not hold a file open against another process.
+- **No change to `refreshRepo`'s dirty-tab rule.** Skipping a dirty tab is correct and is what makes
+  this warning necessary rather than what it replaces.
+- **No new channel**, so `docs/audits/contract-baseline.txt` does not move.
+
+## Phase 241 — right-click in the editor and reshape what is under the cursor (issue 17, Sean Johnson, 2026-09-08)
+
+**Subject.** `feat(editor): a native menu on the editor, and the reshapes an agent's output needs`
+
+**First body line.** `Phase 241: reshape under the cursor`
+
+**Semver.** MINOR.
+
+**Tier 2.** Pure text transformations over the Monaco model plus one native menu. The gates, ONE app
+run, and one independent method, being a round-trip property re-derived over a corpus the verifier
+assembles itself rather than the fixtures the builder wrote.
+
+**Charter.** This entry, [issue 17](https://github.com/gregce/tortie/issues/17), and his instruction
+of 2026-09-08: *"i think we should make it a dynamic right click action under your cursor (and also
+consider a handful of other built-ins for fast re-editing that can help, like pretty print for json
+or otherwise)."*
+
+### What he said
+
+> I'd like a command to pretty print markdown tables (usually an extension in VSC land)
+
+### Two findings from the search, and they shape the phase
+
+**1. THERE IS NO RIGHT-CLICK MENU IN THE EDITOR AT ALL.** `src/renderer/editor/MonacoHost.tsx:105`
+sets `contextmenu: false` with the comment *"context menus are native-only in gmux (DESIGN §3)"*,
+and no native menu was ever put in its place. So the menu is the larger half of this phase, not the
+smaller. It is built the way every other menu in the product is, through the `ui:popupMenu` bridge
+that `src/renderer/tree/use-tree-menu.ts` and seven other call sites already use, and the UI rule
+that a phase adding a surface updates the native menus applies.
+
+**2. THE MARKDOWN TABLE LIBRARY IS ALREADY IN THE TREE.** `markdown-table` 3.0.4, MIT, *"Generate a
+markdown (GFM) table"* — the one remark and prettier both use — is already installed as a transitive
+dependency of `remark-gfm` through `mdast-util-gfm` and `mdast-util-gfm-table`, all of which this
+product already ships for the markdown preview. It is promoted to a direct dependency rather than
+newly added, which is `CLAUDE.md`'s *assemble, never reimplement* rule with nothing to install. The
+parse half is `mdast-util-gfm-table` and `mdast-util-from-markdown`, also present. **Phase 23's
+refusals are not touched by this**: they forbid third-party code loaded at runtime by configuration,
+not npm dependencies compiled into the bundle, and this tree already ships React, Monaco, xterm,
+Pierre, remark and shiki on exactly that basis.
+
+### The mechanism, with the real files
+
+1. **A native context menu on the editor**, through `ui:popupMenu`, composed the way
+   `use-tree-menu.ts` composes the tree's. Its rows are the reshapes below, **each drawn only when
+   it applies to what is under the cursor**, which is his word *dynamic*: a table row appears only
+   with the caret inside a GFM table, a JSON row only in a JSON file or over a selection that parses
+   as JSON, and so on. A menu with nothing to offer draws the ordinary editor rows and no reshape
+   section. Selection beats caret: with a selection, the reshape applies to the selection.
+2. **Format the markdown table under the cursor**, through `markdown-table`, promoted to a direct
+   dependency. Find the table's bounds from the caret, parse with the mdast utilities, re-serialise
+   with alignment preserved, replace that range through `pushEditOperations` so ⌘Z undoes it in one.
+3. **THE REST OF THE LIST IS EARNED OR DROPPED, and the round says which by the Zen's own test**, being
+   *does this serve the agentic-coding workflow, or does it exist because IDEs have it?* The
+   candidates, priced honestly rather than assumed:
+   - **Pretty-print JSON**, which he named. `JSON.parse` and `JSON.stringify(x, null, 2)`, no
+     dependency, and `json5` is already present for a tolerant read of a file with a trailing comma.
+     PASSES: an agent writes a wall of one-line JSON constantly.
+   - **Minify JSON**, the inverse, free once the above exists.
+   - **Pretty-print YAML** through `js-yaml`, already a direct dependency. Priced, and the round may
+     refuse it: a YAML round trip loses comments, which is a real loss and not a tidy.
+   - **Sort lines, unique lines, trim trailing whitespace, change case.** These are IDE furniture by
+     the guardrail's own example list and the round should REFUSE them unless it can say why one of
+     them serves the agentic workflow specifically.
+   - **Reflow a paragraph to the column width**, which is prose and is where Tortie now lives.
+     Priced. It interacts with the redline, since a reflow rewrites bytes a redline is drawn against,
+     and the round says what that does before it builds it.
+   The round builds the table reshape and the JSON pair, prices the rest, and states its refusals with
+   the reason. **A list of eight things nobody asked for is the failure mode here.**
+4. **Every reshape is a pure function** in one module under `src/renderer/editor/`, taking text and
+   answering text or null, with the menu and the model edit as thin callers, so the property below is
+   testable without an Electron.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron on a scratch profile: right-click inside a table and read the menu
+  through `GMUX_SHOT_POPUP_PICK`, press the row, read the model; right-click in ordinary prose and
+  prove no table row is offered; right-click in a JSON file and read the JSON rows; select a JSON
+  fragment inside a markdown fence and prove the selection wins; press ⌘Z once and prove the whole
+  reshape undoes in one step.
+- **The independent method** is a ROUND-TRIP PROPERTY over a corpus the verifier assembles itself
+  from the markdown files in this repository rather than from the builder's fixtures: for every GFM
+  table found, formatting it twice equals formatting it once, and re-parsing the formatted table
+  yields the same cells and the same alignments as the original. Any table where that fails is a
+  finding, and the count of tables tested is printed. Add a hostile set of its own: a table with pipes
+  inside code spans, escaped pipes, a CJK-width cell, a combining mark, a right-to-left run, an empty
+  cell, a ragged row, and one that is not a table at all.
+- A test pins the menu's dynamic rows over at least six caret positions and goes red on ablation.
+- `npm run gate:contract` shows no channel moved; `package.json` gains one dependency line already
+  present in the lockfile, and the commit body says so.
+
+### What is NOT in this phase
+
+- **No Monaco context menu.** `contextmenu: false` stays; the menu is native, per DESIGN §3.
+- **No formatter for source code, no LSP, no prettier.** The scope guardrail names language servers
+  and structural tooling as refused, and a general code formatter is that.
+- **No format-on-save and no format-the-whole-document by default.** Under the cursor, or over the
+  selection, and nothing else.
+- **No new IPC channel**; the popup menu bridge already exists.
+- **No reshape that cannot be undone in one ⌘Z.**
+- **No line-tidying furniture** unless the round can justify it against the Zen's test, and the entry
+  expects it to be refused.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -24822,3 +25017,4 @@ cycle rather than only the evening it was written.
 - 2026-09-08, Phases 238 and 239 QUEUED at his word after Phase 236 landed and he used the chip. 238 is ACCEPT, which REVERSES his ruling of 2026-09-07 and the reversal is his; research 83 B.5 already drove it as the same mix pointed at the baseline, writing no file, and B.8a is why it is Tier 3, because it is the first gesture that makes the generation move often and Phase 227's guard has never been driven from a real accept. Its measure step decides whether accept can honestly ship against a baseline that dies with the tab or whether A3.3's durable step comes first, and it STOPS and says so rather than building it under another name. 239 is the controls ANCHORED where the change is, from his words about Cursor; research 83 E.9 read Cursor on 2026-09-07 and the thing to take is the PLACE and the PERSISTENCE, not the line grain and not the ownership by a turn, and a control in the FLOW of the prose stays refused at 45.12px measured once and 172.63px measured again by Phase 236's verifier. 239 also carries his second ask of the same message, that the redline say what it is showing when a file is just opened, where the face has two answers, names no time, and says nothing at all about an empty redline being empty.
 - 2026-09-08 **Phase 234, Architecture on a machine, BUILT.** `fc7b98c` `752b00b` `0b3b17b` `d02d9a7` `1fdc5a3` after the committer's rebase, 0.101.0, no bump and no tag. The measure step `5a0cd6c` and research 93 are the parent reading: on a tab whose folder is on his Mac Pro the pane drew the word ARCHITECTURE, 12 characters and 0 rows, both header actions disabled, and no far side script was sent. **The seams were already there, so the machine arm is two implementations and no redesign.** Two read scripts join the catalogue and no writer, 26 to 28 once Phase 233's `commit-files` landed under it: `arch-read` stats, reads and lists paths under one confirmed folder with `review-file`'s own traversal refusal and an lstat rule on all three lists, and `arch-git` runs ONE of the five git calls `argv-guard.ts` composes, chosen by a KIND word its own text matches, so the argv is IN THE SCRIPT and nothing a caller sends can become part of a git command line on either computer; it adds `cat-file`, bound to that one script by `EXTRA_GIT_VERBS`, and `ALLOWED_GIT_VERBS` did not grow. `src/main/machines/remote-arch.ts` restates the two interfaces rather than importing them, because the arch facade wall runs between them, and the test assigns one to the other so a drift is red. `src/main/arch/remote-source.ts` is the ONE place a channel's input becomes a source; nothing under `checkers/`, `run.ts`, `scan.ts`, `tree-facts.ts`, `reading.ts`, `sentence.ts` or `map.ts` changed and none of them can tell the two apart. **The mirror is the phase's one honest cost and it is stated:** the scanner hands paths to parser workers and the tree read counts lines with `node:fs`, so the bytes come here rather than a parse going there, incremental on the far side's own stamps, bounded at 20,000 files and 64 MB through the same `overBudget` sentence the local ceiling uses; it is also the STORE KEY, which closes the trap research 93 found, that both his machines put his home at `/Users/gdc` so a remote folder keyed by path would share a fact base with a same-named local one. `ARCH_MAP_ON_THIS_MAC` is deleted and `status: 'elsewhere'` is gone, so the remote face is the local face. **The app run against his Mac Pro is green and it found one defect first:** `requestArchCheck` refuses a repository `watchArchRepo` never armed, so the scan never ran and every remote row read 0 lines; both kinds are registered now, and `watchArchRepo` starts no FSEvents stream, it fills a map whose fan out only a project root can fire. At HEAD the two faces carry the same repository line, "31 files, mostly TypeScript; 5 parts, the biggest src/core (19%); 2 connections between parts; 7 of 7 imports lead inside the repository.", the same five rows with the same sentences and the same 6, 5, 5, 4 and 5 hover facts, the same model slot with 0 buttons, the same two ENABLED header actions with the same titles, and the far side's contract read whole, "5 checks hold, none a promise", "1 broke" at `component:core#boundary`, and "2 files would not load" being the hostile component dropped whole ON THE FAR SIDE. **0 words appear on the remote face that the local one does not**; the nine the other way are the two stated limits, the enrichment pass, which runs an agent, and Accept, which writes `baseline.json`, both absent sections rather than sentences. `conformance:arch` gained the same argv scan over what the arm SENDS with its own blinded control and a row for row comparison of the two arms' 31 verdicts; `conformance:reading` composes all five trees twice, the second from facts that crossed the arm, held against the SAME pins with all 19 ablations red on both. Neither gate spawns anything new. NO CHANNEL WAS ADDED, so `docs/audits/contract-baseline.txt` is byte for byte unchanged; `HELPER_USER_FLOOR` 90 to 91 for the new probe, 90 being where Phase 236 left it. Far side before and after all three runs: `gmux-control` alone, created 1787879931, attached, 2 tmux processes, scratch repository GONE, scratch server killed and its socket unlinked on both machines, `/private/tmp/tmux-501` holding `gmux` alone, his record file 113 bytes and `~/.ssh/known_hosts` 2,215 bytes unmoved, his machines.json and profile not opened, no agent started, no token spent.
 - 2026-09-08, Phase 234 LANDED at `00524b4f` at version 0.101.0 with NO bump and NO tag, Architecture on a machine, EIGHT commits from the measure step `5a0cd6c` to `00524b4f`, being the builder's six and the committer's two, rebased onto origin/main's tip `3a71489` after Phases 230, 233 and 236 landed under it, with three resolutions that are COUNTS rather than text: the remote script catalogue is TWENTY EIGHT because Phase 233's `commit-files` landed beside this phase's two reads and neither side's twenty seven was right, `HELPER_USER_FLOOR` is 91 because Phase 236 had already taken it to 90, and Phase 230's staleness rewrite took off the two `Read at …` sentences the verifier had recorded against that phase. **THE THING IT FIXED, parent and HEAD, read off the DOM in one app run against his Mac Pro**: at the parent `f57f697b` the Architecture pane on a tab whose folder is on that machine drew the word ARCHITECTURE and nothing else, 12 characters, 0 reading rows, no subject, no repository line, no model slot, no contract, both header actions DISABLED and no far side script sent; at HEAD it draws the same repository line as the local tab holding the same repository, "31 files, mostly TypeScript; 5 parts, the biggest src/core (19%); 2 connections between parts; 7 of 7 imports lead inside the repository.", the same five rows with the same ids, labels, weights and sentences and the same 6, 5, 5, 4 and 5 hover facts, the same model slot reading "No model reading yet." with 0 buttons so nothing can spawn from it, both header actions ENABLED with the same titles, the far side's own contract read whole at "5 checks hold, none a promise", "1 broke" and "2 files would not load", and the MAP, which the phase's own probe never opened, drawing the same five boxes with the same 90 characters of label, filled in 1,257 ms and drawn in 503 ms. **THE REMOTE-ONLY SENTENCE SET ON THIS VIEW IS EMPTY**, printed rather than counted: the verifier put the remote face and the local face side by side over one fixture and read every rail view on each, and Architecture is 14 sentences against 15 with NOTHING on the remote one the local one does not carry; the one the local face has alone is "No agent fills this in yet. Pick one in Settings.", the enrichment pass, which runs an agent here and is an absent section rather than a sentence over there. The other views' remote-only lines were Phase 230's `Read at …` clock, absent from this phase's diff and gone from main under it. The verifier's own methods, none of them the builder's: all three `conformance:reading` fixtures materialised as real git repositories ON the Mac Pro and composed through the shipping decoders over real ssh, every box, sentence, word count, hover fact, edge set and the drill byte for byte against the committed pins, with one `\n` appended far side turning it red at 1,526 lines against 1,525; and a COMPLETE far side argv capture by shim rather than a `ps` sample, 66 programs started, being `stat` 16, `tr` 15, `base64` 15, `head` 14, `git` 5 and `ls` 1, with no node, no parser, no agent and no ripgrep, the five git argv byte for byte the local composer's both ways, no contract field in any argv on either computer, no canary fired, five rows dropped whole with file, field and reason identical far and local, and a receive-direction attack in which `../victim`, an absolute path and `ok/../../victim` all landed nowhere. THE COMMITTER'S ROUND took three of the five recorded nits: `syncRemoteArchMirror` published a `written` of 6 while ONE file landed, because `writeMirrored` refused a far side path by returning `void`, so it answers a boolean now and a refusal counts as `skipped`, red on ablation at "expected 7 to be 1"; the ONE line research 85 named, `ArchView.tsx`'s repository key, was pinned by no test and by no commit battery gate, since every other rule renders `ReadingFace` from a model, so rule 5 reads the binding itself and goes red on the parent's own spelling; and the catalogue header's claim that the kind is matched with `case` contradicted `ARCH_GIT`'s own header, which says the arms are an `if` chain because bash 3.2 cannot parse a `case` pattern inside `$( )`. The mirror's unstated limit is now stated rather than fixed: a mirror directory is never removed, only the files inside it are forgotten. Battery on the rebased tree, each run once to a log and all green: typecheck, build with the contract inventory byte for byte and the electron floor at 91 of 91, 12,843 tests over 809 files, smoke:t1 6 of 6, smoke:t3 3 of 3, `conformance:arch`, `conformance:reading` with all 19 ablations red on BOTH arms, `conformance:arch:modules`, `conformance:machines`, `conformance:remoteclose` 11 of 11, `gate:knownhosts` over 284 files with 32 of 36 fixtures red, and `gate:contract`. NO CHANNEL WAS ADDED, so `docs/audits/contract-baseline.txt` is byte for byte unchanged and `package-lock.json` is unmoved. The Mac Pro when everything had run: `-L gmux` holds `gmux-control` created 1787879931 attached and nothing else, no `tortie-p234-scratch-*` directory, no `gmux-p234-*` socket under `/private/tmp/tmux-501`, which holds `gmux` alone, no process of this phase, `~/.gitconfig` 140 bytes at mtime 1715199342 and `~/.ssh` holding `authorized_keys` at 88 bytes and NO `known_hosts` at all. This Mac: 17 sessions on `-L gmux` read and never attached, `/private/tmp/tmux-501` holding `gmux` alone, his `config/machines.json` at `b61831d7`, `known-machines` at `57a29ed8` and `config-confirmations.json` at `c922e480` byte identical, `~/.ssh/known_hosts` 2,215 bytes unmoved, no agent started and no token spent. Still not true: the enrichment pass and Accept are LOCAL and are absent on a remote tab; the mirror ceilings, 20,000 files and 64 MB, are chosen rather than measured, since the largest tree driven is 31 tracked files; a mirror is never reaped; and Catch Me Up, Symbols and logins on a machine are Phase 235's or nobody's.
+- 2026-09-08, Phases 240 and 241 QUEUED from Sean Johnson's issues 16 and 17, both filed the same day, read and confirmed against the tree rather than taken on their word. 240 is the guarded save: `save` at `src/renderer/editor/tab-io.ts:693` is a bare `fs.writeFile` with no precondition of any kind, and the window is opened deliberately, because `refreshRepo` skips a dirty tab so a person's typing is never clobbered, which means an agent's writes stop arriving from the first keystroke and Cmd-S lands on top of them silently; the fix is already built and pointed elsewhere, being Phase 226's `fs:writeGuarded`, which answers `stale` as a word rather than a throw, so this phase points `save` at it and turns `stale` into the three-way choice he named VS Code for, with overwrite NOT the default and Compare opening the diff Tortie already draws. 241 is the reshape menu, and the search found two things that shaped it: THERE IS NO RIGHT-CLICK MENU IN THE EDITOR AT ALL, since `MonacoHost.tsx:105` sets `contextmenu: false` for DESIGN section 3 and nothing native was ever put in its place, so the menu is the larger half; and `markdown-table` 3.0.4 MIT, the library remark and prettier both use, is ALREADY in the tree as a transitive dependency of `remark-gfm`, so it is promoted rather than installed. His word was that the rows be dynamic under the cursor, and the entry makes the round PRICE the other reshapes against the Zen's own test rather than shipping a list of eight nobody asked for: the JSON pair passes, YAML is priced against losing comments, and sort, unique, trim and case are expected to be refused as IDE furniture by the guardrail's own example list.
