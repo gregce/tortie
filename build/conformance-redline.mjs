@@ -206,7 +206,7 @@ const WORST_CASE_CEILING_MS = 400;
 // cannot drift off in silence.
 const REDLINE_DIR = 'src/renderer/editor';
 const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline\.)/;
-const REDLINE_FILES_FLOOR = 20;
+const REDLINE_FILES_FLOOR = 21;
 const REDLINE_FILES = readdirSync(REDLINE_DIR)
   .filter((name) => REDLINE_NAME.test(name))
   .sort()
@@ -257,7 +257,12 @@ const REDLINE_FILES_NAMED = [
   // Phase 239: the current change, held as an identity so it survives the
   // recompose an agent's write causes. It is pure, it reads drawn attributes
   // and answers elements, and it writes nothing.
-  'src/renderer/editor/redline-current.ts'
+  'src/renderer/editor/redline-current.ts',
+  // Phase 238: the accept press. It is ./redline-press's sibling and it is
+  // synchronous, because an accept writes no file (research 83 B.5) and so has
+  // no read and no write to await. It names neither the store nor a bridge:
+  // the advance is injected, exactly as the rewind's one call site is.
+  'src/renderer/editor/redline-accept.ts'
 ];
 
 // ---------------------------------------------------------------------------

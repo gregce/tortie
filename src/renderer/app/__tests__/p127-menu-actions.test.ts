@@ -43,6 +43,10 @@ const ARMS = [
   'redline-prev',
   'redline-rewind',
   'redline-undo',
+  // Phase 238. Edit > Accept Change and Accept All Changes. Neither writes a
+  // file: an accept moves the tab's own in-memory shadow baseline.
+  'redline-accept',
+  'redline-accept-all',
   'toggle-sidebar',
   'toggle-editor-fill',
   'toggle-session-focus',
@@ -85,7 +89,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 42 actions and no more', () => {
+  it('answers all 44 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

@@ -58,7 +58,7 @@ import { onRepoChanged } from '../state/repo-changed';
 import type { OpenFileRequest } from '../state/open-file';
 import { disposeModels, dropViewState } from './monaco-loader';
 import type { EditorMode, EditorTab } from './tab-types';
-import { NO_BASELINE } from './baseline';
+import { NO_BASELINE, nextBaseline } from './baseline';
 import {
   ARCH_MAP_TAB_NAME,
   DIAGNOSTICS_TAB_NAME,
@@ -161,6 +161,23 @@ interface EditorState {
   setMode(id: string, mode: EditorMode): void;
   /** Preview → permanent (first edit, double-click, or an explicit open). */
   pin(id: string): void;
+  /**
+   * PHASE 238. The person accepted, so this tab's shadow baseline becomes
+   * `contents` and its generation moves (./baseline nextBaseline). NOTHING IS
+   * WRITTEN TO DISK on this path — research 83 B.5 measured the file's md5
+   * unchanged across a per-phrase accept — so this is the whole of what an
+   * accept costs.
+   *
+   * IT PINS THE TAB, and that is a correctness step rather than a courtesy.
+   * A redline opened the ordinary way, being ONE single click on an Explorer
+   * row, is the PREVIEW tab, and the next single click on any other file
+   * replaces that tab object and destroys the baseline with it. The Phase 238
+   * measure step drove it in the running app both ways in one session: with
+   * the tab unpinned an accept of 8 changes survived 0 of them, and the
+   * identical click with the tab pinned survived all 8. So an accept pins
+   * what it was made on, the way a first edit does.
+   */
+  acceptBaseline(id: string, contents: string, at: number): void;
   /**
    * MonacoHost calls this after it has revealed, selected and flashed the
    * range — a landing happens once per request, never again on the next
@@ -740,6 +757,17 @@ export const useEditor = create<EditorState>((set, get) => {
     pin(id) {
       const tab = tabById(id);
       if (tab !== undefined && tab.preview) patchTab(id, { preview: false });
+    },
+
+    acceptBaseline(id, contents, at) {
+      const tab = tabById(id);
+      if (tab === undefined) return;
+      // The pin FIRST, so a tab that is replaced between these two lines is
+      // not one this store ever recorded an accept on.
+      get().pin(id);
+      patchTab(id, {
+        baseline: nextBaseline(tab.baseline, { kind: 'accept', contents, at })
+      });
     },
 
     clearPendingSelection(id) {

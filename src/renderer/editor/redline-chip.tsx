@@ -85,7 +85,8 @@
  * button at 20.15px and named it under the target.
  *
  * THE CHORDS ARE ON IT, AND THEY ARE READ FROM THE KEYMAP RATHER THAN TYPED.
- * `keyDisplay` answers ⌥↓, ⌥↑, ⌥⌫ and ⌥⇧⌫ from the four `redline.*` entries in
+ * `keyDisplay` answers ⌥↓, ⌥↑, ⌥⌫, ⌥⇧⌫ and, since Phase 238, ⌥↩ from the
+ * `redline.*` entries in
  * src/shared/keymap.ts, so a chord that is ever re-bound moves here with it and
  * cannot drift. They are drawn in `.key`, the keycap chip the ⌘/ overlay and
  * the popup menus already use, so a person learns the chord by seeing it once —
@@ -321,6 +322,27 @@ export function RedlineChip({
       >
         Rewind
         <span className="key">{keyDisplay('redline.rewind')}</span>
+      </button>
+      {/* PHASE 238. Accept sits AFTER Rewind and not before it, so the two
+          verbs a person already knows the place of do not move. It is the
+          safe one of the pair — research 83 B.5 measured a per-phrase accept
+          leaving the file's md5 unchanged — and the title says so in the four
+          words that fit, because the resting face carries no paragraph.
+
+          It is the LAST button on the chip because Phase 239 moved Undo off
+          it into the note row, where the sentence that explains the undo
+          already is; the chip holds change verbs only, and accept is one. */}
+      <button
+        type="button"
+        className="ed-redline-chip-button ed-redline-chip-verb"
+        tabIndex={-1}
+        title="Accept this change — the file is not touched"
+        onClick={() => {
+          act('accept');
+        }}
+      >
+        Accept
+        <span className="key">{keyDisplay('redline.accept')}</span>
       </button>
     </div>
   );

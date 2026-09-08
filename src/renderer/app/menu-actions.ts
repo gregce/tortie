@@ -210,6 +210,14 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'redline-undo':
       runRedlineCommand('undo');
       return;
+    // Phase 238. Edit > Accept Change and Accept All Changes. Neither writes
+    // a file: an accept moves this tab's own shadow baseline and nothing else.
+    case 'redline-accept':
+      runRedlineCommand('accept');
+      return;
+    case 'redline-accept-all':
+      runRedlineCommand('acceptAll');
+      return;
     case 'toggle-sidebar':
       s.toggleSidebar();
       return;

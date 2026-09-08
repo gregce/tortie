@@ -130,7 +130,7 @@ describe('the resting face', () => {
     baseline: nextBaseline(NO_BASELINE, { kind: 'head', contents: OPENED })
   } as Partial<EditorTab> as EditorTab;
 
-  it('draws the wrapper with tabindex -1 and nothing else: no button, no chip, no control text', () => {
+  it('draws the wrapper with tabindex -1 and nothing else: no chip, no change control', () => {
     const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
     // PHASE 237 gave this element `contentEditable` and `spellCheck`, so it
     // is found by its class rather than by the whole of what it was.
@@ -144,7 +144,18 @@ describe('the resting face', () => {
         '<del data-redline-del="" contentEditable="false">brown</del><ins data-redline-ins="">red</ins></span>' +
         '<span> fox.\n</span>'
     );
-    expect(html).not.toContain('<button');
+    // PHASE 238 NARROWED THIS PIN AND DID NOT DELETE IT. The resting face
+    // still draws no CHANGE control — no chip, no Rewind, no Accept beside a
+    // phrase — which is Phase 236's ruling and the reason the pin exists. What
+    // it now also draws is exactly ONE document control, being Accept all in
+    // the redline's own header, which is a different kind of thing in a
+    // different place and belongs to the document rather than to a change. So
+    // the assertion counts rather than forbidding: one button, and it is that
+    // one.
+    expect(html).not.toContain('ed-redline-chip');
     expect(html).not.toContain('Rewind');
+    const buttons = html.match(/<button[^>]*>/g) ?? [];
+    expect(buttons.length).toBe(1);
+    expect(buttons[0]).toContain('ed-redline-bar-button');
   });
 });

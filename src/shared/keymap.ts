@@ -625,6 +625,33 @@ export const KEYMAP = [
     menuAction: 'redline-undo'
   },
   {
+    // PHASE 238. Accept the change under focus. ⌥↩ against the rewind's ⌥⌫,
+    // which is the pair a person already knows from every other surface: ⌫
+    // takes a thing away and ↩ says yes to it. It is the view's own chord and
+    // NOT a native accelerator, for the same reason the four above are not.
+    //
+    // THERE IS NO CHORD FOR ACCEPT ALL, and that is the ruling rather than an
+    // omission. The entry's rule is that a person must never be one keystroke
+    // from accepting everything by accident, and it offers two ways to meet
+    // it: ask once, or have no chord. Asking once needs a native dialog, which
+    // needs a new invoke channel, and `conformance:redline` rule 9 forbids
+    // every redline module but the one call site from naming the bridge at
+    // all — so the confirmation would have to be routed around the rule the
+    // redline's single write door depends on. Removing the keystroke removes
+    // the danger outright and costs nothing, so Accept All is a button in the
+    // redline's own header and a row in the Edit menu, and nothing else.
+    id: 'redline.accept',
+    keys: [k('Alt+Enter')],
+    action: 'Accept the change',
+    explain:
+      'Stops marking the change under focus: the marking is measured from it from now on. The file is not touched.',
+    group: 'editor',
+    scope: 'editor',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'redline-accept'
+  },
+  {
     // PHASE 237. ⌘Z in the Redline view, which is monaco's undo of the BUFFER
     // and not the journal's undo of a rewind above it. It is here because the
     // face has to name it and this file is the only place a chord is spelled;

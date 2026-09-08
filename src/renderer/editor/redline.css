@@ -264,3 +264,55 @@
   outline: 1px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* PHASE 238. THE REDLINE'S OWN HEADER, holding the document verb.
+   `.ed-diff-bar` is the house shape for a row at the head of a reading
+   surface and this is its sibling: the same 30px, the same hairline under it,
+   the same canvas fill, so the two surfaces read as one product. It is
+   `flex: none` inside the view's column, so the scroller below keeps every
+   pixel the bar does not take and the document's own measure never moves.
+
+   IT DRAWS ONLY WHEN THERE IS SOMETHING TO ACCEPT, which is why it may take
+   height at all: a clean file's redline is still the resting face Phase 194
+   shipped, with no furniture over it.
+
+   Tokens only, per `npm run conformance:redline` rule 8. */
+.ed-redline-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-canvas);
+  /* Tortie's own commentary, never the person's text: the same refusal
+     `.ed-redline-tag` and `.ed-redline-chip` record. */
+  user-select: none;
+}
+
+/* 24px TALL, the same WCAG 2.2 target size the chip's buttons are held to,
+   and the same fill and text tokens, because it is the same kind of thing in
+   a different place. It carries no keycap: there is no chord for accept-all,
+   which is this phase's own answer to "never one keystroke from accepting
+   everything", and a keycap would be a promise of a key that is not there. */
+.ed-redline-bar-button {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ed-redline-bar-button:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}

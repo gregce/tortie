@@ -501,6 +501,13 @@ describe('Phase 156: every menu bar row wears the mark its own surface draws', (
 // under a separator after the seven AppKit roles, bare, and with NO
 // ACCELERATOR, because the chords are the view's own and a native accelerator
 // would take ⌥↓, ⌥↑ and ⌥⌫ from every session's terminal.
+//
+// PHASE 238 ADDED TWO MORE, and the second of them is the one to read twice.
+// Accept Change carries ⌥↩. Accept All Changes carries NO SUBLABEL AT ALL,
+// because it has no chord: the entry's rule is that a person must never be one
+// keystroke from accepting everything, and this round met it by removing the
+// keystroke. A sublabel appearing on that row later would be a promise of a
+// key that is not there, so its absence is asserted rather than assumed.
 // ---------------------------------------------------------------------------
 
 describe('Phase 227: the Redline rows in the Edit menu', () => {
@@ -513,10 +520,12 @@ describe('Phase 227: the Redline rows in the Edit menu', () => {
     ['Next Change', 'redline-next'],
     ['Previous Change', 'redline-prev'],
     ['Rewind Change', 'redline-rewind'],
-    ['Undo Rewind', 'redline-undo']
+    ['Undo Rewind', 'redline-undo'],
+    ['Accept Change', 'redline-accept'],
+    ['Accept All Changes', 'redline-accept-all']
   ];
 
-  it('adds exactly the four rows, in order, after a separator that follows the roles', () => {
+  it('adds exactly the six rows, in order, after a separator that follows the roles', () => {
     const edit = submenuOf('Edit');
     const labels = edit.map((it) => it.label ?? (it.role !== undefined ? `role:${it.role}` : it.type));
     expect(labels).toEqual([
@@ -570,7 +579,14 @@ describe('Phase 236: the Redline rows carry their chord and their state', () => 
     ['Next Change', 'redline-row-next', 'redline.next'],
     ['Previous Change', 'redline-row-prev', 'redline.prev'],
     ['Rewind Change', 'redline-row-rewind', 'redline.rewind'],
-    ['Undo Rewind', 'redline-row-undo', 'redline.undo']
+    ['Undo Rewind', 'redline-row-undo', 'redline.undo'],
+    ['Accept Change', 'redline-row-accept', 'redline.accept']
+  ];
+
+  /** The one row with no chord, held apart because its assertion is inverted. */
+  const NO_CHORD_ROW: readonly [string, string] = [
+    'Accept All Changes',
+    'redline-row-accept-all'
   ];
 
   beforeEach(() => {
@@ -590,11 +606,25 @@ describe('Phase 236: the Redline rows carry their chord and their state', () => 
     }
   );
 
-  it('draws the four glyphs the keymap owns and nothing typed by hand', () => {
+  it('draws the five glyphs the keymap owns and nothing typed by hand', () => {
     const edit = submenuOf('Edit');
     expect(
       ROWS.map(([label]) => edit.find((it) => it.label === label)?.sublabel)
-    ).toEqual(['⌥↓', '⌥↑', '⌥⌫', '⌥⇧⌫']);
+    ).toEqual(['⌥↓', '⌥↑', '⌥⌫', '⌥⇧⌫', '⌥↩']);
+  });
+
+  it('PHASE 238: Accept All Changes carries no sublabel, because it has no chord', () => {
+    const row = submenuOf('Edit').find((it) => it.label === NO_CHORD_ROW[0]);
+    expect(row).toBeDefined();
+    expect(row?.sublabel).toBeUndefined();
+    expect(row?.accelerator).toBeUndefined();
+    expect(row?.id).toBe(NO_CHORD_ROW[1]);
+  });
+
+  it('PHASE 238: and it is enabled and disabled with the others', () => {
+    expect(submenuOf('Edit').find((it) => it.label === NO_CHORD_ROW[0])?.enabled).toBe(false);
+    setRedlineMountedRows(true);
+    expect(submenuOf('Edit').find((it) => it.label === NO_CHORD_ROW[0])?.enabled).toBe(true);
   });
 
   it('is disabled when no view has ever said it is mounted', () => {

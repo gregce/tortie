@@ -341,6 +341,19 @@ describe('the controls can be put away, which is the other half of persistence',
   });
 });
 
+/**
+ * The view with Phase 238's header bar removed, so a rule about the CHANGE
+ * controls is asked of the surface those controls live on. The bar holds
+ * Accept all and nothing else, and it is drawn only while there is something
+ * to accept, so cutting at its closing tag is exact rather than a heuristic.
+ */
+function belowTheBar(html: string): string {
+  const bar = html.indexOf('class="ed-redline-bar"');
+  if (bar === -1) return html;
+  const end = html.indexOf('</div>', bar);
+  return end === -1 ? html : html.slice(end + '</div>'.length);
+}
+
 // ---------------------------------------------------------------------------
 // 2b. The anchor rule, and the resting face.
 // ---------------------------------------------------------------------------
@@ -350,7 +363,11 @@ describe('the current change wins over the pointer, and nothing wins over neithe
     expect(chipAnchorFor(null, null)).toBeNull();
     const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
     expect(html).not.toContain('ed-redline-chip');
-    expect(html).not.toContain('<button');
+    // PHASE 238 put ONE button on the resting face, being Accept all in the
+    // redline's own header, which is a document verb and not a change
+    // control. This rule is about the CHANGE controls, so it asks the
+    // document rather than the whole view: no button below the header bar.
+    expect(belowTheBar(html)).not.toContain('<button');
     expect(html).not.toContain(CURRENT_ATTRIBUTE);
   });
 
@@ -634,7 +651,9 @@ describe('undo of a rewind left the change chip for the row that names it', () =
     const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
     expect(html).not.toContain('ed-redline-note-button');
     expect(html).not.toContain('ed-redline-undo');
-    expect(html).not.toContain('<button');
+    // Phase 238's Accept all is the one button the header may draw; nothing
+    // below it is a control on a resting face.
+    expect(belowTheBar(html)).not.toContain('<button');
   });
 });
 

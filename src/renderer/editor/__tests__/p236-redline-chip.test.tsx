@@ -200,7 +200,12 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
         '<span> fox.\n</span>'
     );
     expect(html).not.toContain('ed-redline-chip');
-    expect(html).not.toContain('<button');
+    // PHASE 238. The resting face draws no CHANGE control, which is what this
+    // pin is for; the one button on it is the document verb in the redline's
+    // own header, which is not drawn on a change and does not move with one.
+    const buttons = html.match(/<button[^>]*>/g) ?? [];
+    expect(buttons.length).toBe(1);
+    expect(buttons[0]).toContain('ed-redline-bar-button');
   });
 
   it('and the document itself is the editable, in plain text only', () => {
@@ -213,8 +218,9 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
   it('never takes focus, or the press would do nothing and the arrows would jump to the top', () => {
     const html = chipMarkup();
     const buttons = html.match(/<button[^>]*>/g) ?? [];
-    // PHASE 239: three, not four. Undo left for the note row.
-    expect(buttons.length).toBe(3);
+    // PHASE 239 left three, Undo having gone to the note row; PHASE 238's
+    // Accept makes four: prev, next, Rewind, Accept.
+    expect(buttons.length).toBe(4);
     for (const button of buttons) expect(button).toContain('tabindex="-1"');
   });
 
@@ -226,13 +232,29 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
     expect(chipMarkup()).not.toContain(keyDisplay('redline.undo'));
   });
 
-  it('carries the three chords the keymap owns and nothing typed by hand', () => {
+  it('PHASE 238: offers Accept beside Rewind, always, because every change has one', () => {
+    // A drawn change is by definition a change there is something to accept,
+    // so Accept is never conditional the way the note row's Undo is.
+    expect(chipMarkup()).toContain('Accept');
+    // And it is AFTER Rewind, so the verb a person already knows the place of
+    // did not move.
     const html = chipMarkup();
-    for (const id of ['redline.prev', 'redline.next', 'redline.rewind'] as const) {
+    expect(html.indexOf('Rewind')).toBeLessThan(html.indexOf('Accept'));
+  });
+
+  it('carries the four chords the keymap owns and nothing typed by hand', () => {
+    const html = chipMarkup();
+    for (const id of [
+      'redline.prev',
+      'redline.next',
+      'redline.rewind',
+      'redline.accept'
+    ] as const) {
       expect(html, id).toContain(`<span class="key">${keyDisplay(id)}</span>`);
     }
     expect(html).toContain('⌥↓');
     expect(html).toContain('⌥⌫');
+    expect(html).toContain('⌥↩');
   });
 });
 

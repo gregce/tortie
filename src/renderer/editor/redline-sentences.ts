@@ -71,3 +71,53 @@ export function redlineUndoNote(
     ? `${keyDisplay('redline.undoTyping')} undoes your typing. ${chord} undoes the last rewind, once your edits are saved.`
     : `Undo the last rewind with ${chord}. It lasts for this session.`;
 }
+
+/**
+ * PHASE 238. The accept's own refusals, which are a NARROWER union than a
+ * rewind's and need their own words.
+ *
+ * An accept reaches no file, so nine of the twelve words above cannot arise
+ * from one: there is no channel to answer `stale`, `raced`, `readOnly`,
+ * `outsideRoot` or `io`, nothing is decoded so there is no `decodeLoss`,
+ * nothing is written so `dirty` is not a hazard (research 83 E.6 refuses a
+ * rewind on a dirty tab because the next save would undo it, and an accept has
+ * no write for a save to undo), and a change that is already back is simply a
+ * change that is no longer drawn. What is left is four, and they are typed as
+ * a union of their own so a word this gesture cannot produce cannot be handed
+ * to this map.
+ *
+ * The sentences say "accept" and not "rewind", which is the whole reason they
+ * are here rather than shared: the two verbs go in opposite directions and a
+ * person told to "look again, then rewind" after an accept was told to do the
+ * destructive one.
+ */
+export type AcceptRefusal = Extract<
+  RewindRefusal,
+  'baselineMoved' | 'fileTooLarge' | 'phraseMoved' | 'ambiguous'
+>;
+
+const ACCEPT_SENTENCES: Record<AcceptRefusal, string> = {
+  baselineMoved: 'The marking moved while you were reading {name}. Look again, then accept.',
+  fileTooLarge: '{name} is too large for Tortie to mark all of, so it cannot be accepted.',
+  phraseMoved: 'That change is no longer in {name}.',
+  ambiguous: 'That change appears more than once in {name}, so it is not clear which to accept.'
+};
+
+/** True when this refusal word is one an accept can produce. */
+export function isAcceptRefusal(why: RewindRefusal): why is AcceptRefusal {
+  return why in ACCEPT_SENTENCES;
+}
+
+/**
+ * One plain sentence for an accept's refusal, with the file's name filled in.
+ * A word an accept cannot produce falls back to the rewind map rather than
+ * answering nothing, because a refusal is never silent.
+ */
+export function redlineAcceptRefusalSentence(
+  why: RewindRefusal,
+  name: string
+): string {
+  return isAcceptRefusal(why)
+    ? ACCEPT_SENTENCES[why].replace('{name}', name)
+    : redlineRefusalSentence(why, name);
+}

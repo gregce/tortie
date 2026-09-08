@@ -377,10 +377,19 @@ const REDLINE_ROWS = [
     keymap: 'redline.rewind',
     id: 'redline-row-rewind'
   },
-  { action: 'redline-undo', keymap: 'redline.undo', id: 'redline-row-undo' }
+  { action: 'redline-undo', keymap: 'redline.undo', id: 'redline-row-undo' },
+  // PHASE 238. Accept carries the view's own ⌥↩ as a sublabel, like the four
+  // above. Accept All carries `keymap: null`, which is not an oversight: the
+  // entry's rule is that a person must never be one keystroke from accepting
+  // everything, and this round's answer to it is that there IS no keystroke,
+  // so there is no chord for a sublabel to read. `redlineRow` draws no
+  // sublabel for a null, which is what makes the absence structural rather
+  // than a string somebody forgot.
+  { action: 'redline-accept', keymap: 'redline.accept', id: 'redline-row-accept' },
+  { action: 'redline-accept-all', keymap: null, id: 'redline-row-accept-all' }
 ] as const satisfies readonly {
   action: MenuActionWithFind;
-  keymap: KeymapId;
+  keymap: KeymapId | null;
   id: string;
 }[];
 
@@ -402,7 +411,7 @@ function redlineRow(
   return {
     ...item(label, action),
     id: row.id,
-    sublabel: keyDisplay(row.keymap),
+    ...(row.keymap === null ? {} : { sublabel: keyDisplay(row.keymap) }),
     enabled: redlineMounted
   };
 }
@@ -740,7 +749,9 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         redlineRow('Next Change', 'redline-next'),
         redlineRow('Previous Change', 'redline-prev'),
         redlineRow('Rewind Change', 'redline-rewind'),
-        redlineRow('Undo Rewind', 'redline-undo')
+        redlineRow('Undo Rewind', 'redline-undo'),
+        redlineRow('Accept Change', 'redline-accept'),
+        redlineRow('Accept All Changes', 'redline-accept-all')
       ]
     },
     // Phase 14. Between Edit and Session, which is where a macOS app puts

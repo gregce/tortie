@@ -138,6 +138,12 @@ export type MenuActionId =
   | 'redline-prev'
   | 'redline-rewind'
   | 'redline-undo'
+  // Phase 238. Edit > Accept Change and Accept All Changes. Accept carries the
+  // view's own ⌥↩ as a hint and not an accelerator, like the four above;
+  // Accept All carries no chord at all, which is the entry's own answer to
+  // "a person must never be one keystroke from accepting everything".
+  | 'redline-accept'
+  | 'redline-accept-all'
   | 'toggle-sidebar'
   | 'attention'
   | 'shortcuts'

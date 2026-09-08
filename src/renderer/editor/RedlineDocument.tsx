@@ -84,6 +84,7 @@ import { installRedlineCommands } from './redline-commands';
 import type { RedlineCommand } from './redline-commands';
 import { applyRewind } from './redline-write';
 import { pressRedline } from './redline-press';
+import { pressAccept } from './redline-accept';
 import type { PressedChange } from './redline-press';
 import { rewindJournalDepth } from './redline-journal';
 import {
@@ -92,6 +93,7 @@ import {
   redlineHintSentence
 } from './redline-hint';
 import {
+  redlineAcceptRefusalSentence,
   redlineRefusalSentence,
   redlineUndoNote
 } from './redline-sentences';
@@ -228,6 +230,10 @@ export function redlineCommandOf(event: {
   if (event.key === 'ArrowDown' && !event.shiftKey) return 'next';
   if (event.key === 'ArrowUp' && !event.shiftKey) return 'prev';
   if (event.key === 'Backspace') return event.shiftKey ? 'undo' : 'rewind';
+  // PHASE 238. ⌥↩ accepts the change under focus, the mirror of ⌥⌫. There is
+  // deliberately no chord for accept-all: see the `redline.accept` entry in
+  // src/shared/keymap.ts for the ruling.
+  if (event.key === 'Enter' && !event.shiftKey) return 'accept';
   return null;
 }
 
@@ -262,6 +268,14 @@ export function RedlineDocument({
   const typing = useRedlineTyping({ tab, liveText: workingText });
   const shownText = typing.text ?? workingText;
   const hostRef = useRef<HTMLDivElement | null>(null);
+  // PHASE 238. The current side, held in a ref so the accept callback reads
+  // the bytes on screen at the moment of the press without being rebuilt on
+  // every keystroke — and so a re-render between the draw and the press
+  // cannot hand it a staler string than the one the picture was composed
+  // from. The generation guard is what catches a moved BASELINE; this is the
+  // other side of the same pair.
+  const shownRef = useRef(shownText);
+  shownRef.current = shownText;
   // PHASE 236. The chip's own boxes. The view is held as STATE rather than a
   // ref, because the chip is placed against it and so has to be re-rendered
   // once the element exists; it is the only positioned box in the view
@@ -411,15 +425,61 @@ export function RedlineDocument({
     },
     [makeCurrent]
   );
+  // PHASE 238. The accept, and it is SYNCHRONOUS. It reaches no bridge and
+  // writes no file (research 83 B.5), so there is nothing to await and no
+  // window for the focus to move in; ./redline-accept owns the decision and
+  // the store's `acceptBaseline` owns the one advance, which also PINS the
+  // tab, because an accept on the preview tab dies on the next Explorer click.
+  const accept = useCallback(
+    (kind: 'one' | 'all', host: HTMLElement): void => {
+      const live = useEditor.getState().tabs.find((t) => t.id === tab.id);
+      if (live === undefined) return;
+      pressAccept(
+        kind,
+        {
+          id: live.id,
+          baseline: _baseSideForPress(live.baseline, live.headContents),
+          generation: live.baseline?.generation ?? 0,
+          // The bytes in front of the person, which is what accept-all means
+          // and what a per-change accept is resolved against.
+          current: shownRef.current,
+          truncated: live.truncated
+        },
+        {
+          // PHASE 239 moved what a chip button acts on from the FOCUSED
+          // wrapper to the CURRENT one, and accept reads it exactly as the
+          // rewind above does: two verbs on one chip that acted on two
+          // different changes would be the research 99 section 7.1 defect
+          // wearing this phase's name.
+          focused: () => {
+            const marked = currentElement(host);
+            return marked === null ? focusedChange(host) : identityOf(marked);
+          },
+          advance: (contents, at) => {
+            useEditor.getState().acceptBaseline(live.id, contents, at);
+          },
+          refuse: (why) => {
+            useApp
+              .getState()
+              .toast('info', redlineAcceptRefusalSentence(why, live.name));
+          },
+          now: () => Date.now()
+        }
+      );
+    },
+    [tab.id]
+  );
   const runCommand = useCallback(
     (command: RedlineCommand): void => {
       const host = hostRef.current;
       if (host === null) return;
       if (command === 'next') step(1);
       else if (command === 'prev') step(-1);
+      else if (command === 'accept') accept('one', host);
+      else if (command === 'acceptAll') accept('all', host);
       else void press(command, host);
     },
-    [press, step]
+    [press, step, accept]
   );
   useEffect(() => installRedlineCommands(runCommand), [runCommand]);
   // PHASE 236. The Edit menu's four rows are enabled only while a view is
@@ -594,6 +654,32 @@ export function RedlineDocument({
         if (pressLetsGo(event.target as HTMLElement | null)) setCurrent(null);
       }}
     >
+      {/* PHASE 238. THE REDLINE'S OWN HEADER, and it holds exactly one thing.
+          Accept All is a DOCUMENT verb rather than a change verb, so it does
+          not belong on the chip, which is drawn for one change and names that
+          change's own two verbs. It is drawn only while there is something to
+          accept, the way ./PierreDiff draws its control row only while there
+          is a diff underneath, so the resting face of a clean file grows no
+          furniture. It carries NO CHORD: the entry's rule is that a person
+          must never be one keystroke from accepting everything, and this round
+          met it by removing the keystroke rather than by adding a question
+          (src/shared/keymap.ts's `redline.accept` entry carries the reasoning).
+          It is outside `.ed-redline-doc`, like the chip, so the four readers
+          of the document never see it and the projection is unchanged. */}
+      {hasChanges ? (
+        <div className="ed-redline-bar" data-redline-tag="">
+          <button
+            type="button"
+            className="ed-redline-bar-button"
+            title="Stop marking every change. The file is not touched."
+            onClick={() => {
+              runCommand('acceptAll');
+            }}
+          >
+            Accept all
+          </button>
+        </div>
+      ) : null}
       <div
         ref={hostRef}
         className="ed-redline-scroll"

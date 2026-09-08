@@ -1,5 +1,6 @@
 /**
- * The redline's four commands, reachable from the native menu (Phase 227).
+ * The redline's commands, reachable from the native menu (Phase 227, and two
+ * more in Phase 238).
  *
  * The Redline view owns its keyboard: next, previous, rewind and undo are
  * chords answered by the scroller's own key handler in ./RedlineDocument,
@@ -19,7 +20,19 @@
  * with the other redline modules to keep it that way.
  */
 
-export type RedlineCommand = 'next' | 'prev' | 'rewind' | 'undo';
+/**
+ * PHASE 238 added two. `accept` is the change under focus, the mirror of
+ * `rewind`; `acceptAll` is the document verb and names no change, which is why
+ * it is the redline's own header button rather than a chip button and why it
+ * carries no chord.
+ */
+export type RedlineCommand =
+  | 'next'
+  | 'prev'
+  | 'rewind'
+  | 'undo'
+  | 'accept'
+  | 'acceptAll';
 
 export type RedlineCommandHandler = (command: RedlineCommand) => void;
 
