@@ -325,6 +325,8 @@ const CMD_W = { key: 'w', code: 'KeyW', vk: 87, modifiers: 4 };
 const CMD_UP = { key: 'ArrowUp', code: 'ArrowUp', vk: 38, modifiers: 4 };
 
 const genOf = (r) => r.tab?.baseline?.generation ?? -1;
+// The selected tab's close button carries the dirty class, EditorTabs.tsx:189.
+const DIRTY_ON_FACE = `document.querySelector('[role="tab"][aria-selected="true"] .ed-tab-close.dirty') !== null`;
 const readings = {};
 const SINCE_COMMIT = 'Marked since the last commit, for as long as this tab is open.';
 const SINCE_OPEN = 'Marked since you opened this file, for as long as this tab is open.';
@@ -418,7 +420,13 @@ await withElectron(
       await sleep(200);
       await press(cdp, CMD_UP);
       for (const ch of 'Person ') await press(cdp, { key: ch, code: ch === ' ' ? 'Space' : 'Key' + ch.toUpperCase(), vk: ch === ' ' ? 32 : ch.toUpperCase().charCodeAt(0), modifiers: 0, text: ch });
-      const dirty = await until(cdp, `(${READ}).tab.dirty === true`, 8000);
+      // Waited for on the DOM and not through the fiber read: READ reaches the
+      // tab through a fiber whose memoizedProps can be the stale alternate, and
+      // pick() chooses by generation, which is monotonic while dirty is not, so
+      // a stale false could win for the whole wait (the verifier read one red
+      // S6.dirty over a tab whose next reading was dirty). The close button's
+      // class is what EditorTabs.tsx draws from tab.dirty, and it is committed.
+      const dirty = await until(cdp, DIRTY_ON_FACE, 8000);
       check('S6.dirty', 'typing made the tab dirty', dirty, '');
       await cdpEval(cdp, clickMode('Redline')); await until(cdp, docSettled, 15000);
       await sleep(700);
@@ -433,7 +441,7 @@ await withElectron(
       check('S6.gen', 'ATTACK typing: generation unchanged', genOf(r) === g1, `${g1} -> ${genOf(r)}`);
       // Save with Cmd-S from the redline view.
       await press(cdp, CMD_S);
-      const saved = await until(cdp, `(${READ}).tab.dirty === false`, 8000);
+      const saved = await until(cdp, `!(${DIRTY_ON_FACE})`, 8000);
       await sleep(700);
       r = readings.S6save = await read(cdp);
       check('S6.saved', "Cmd-S saved and the disk holds the person's word", saved && disk('notes.txt') === V2P, `dirty=${r.tab?.dirty} disk=${disk('notes.txt').slice(0, 20)}`);
