@@ -1,0 +1,26 @@
+THE JSON RESHAPE, WITH THE MINIFY-COMPARISON GUARD IN FRONT
+FORMATS  an ordinary agent wall         
+FORMATS  nested arrays                  
+FORMATS  unicode and escapes            
+FORMATS  already pretty                 
+refuses  integer-like keys              re-serialising would change more than whitespace at offset 2: "10\":\"a\",\"2\":\"b\",\"k\":\"c\"}" would become "2\":\"b\",\"10\":\"a\",\"k\":\"c\"}"
+         (without the guard it would have written: { "2": "b", "10": "a", "k": "c" })
+refuses  duplicate keys                 re-serialising would change more than whitespace at offset 5: "1,\"a\":2}" would become "2}"
+         (without the guard it would have written: { "a": 2 })
+refuses  integer past 2^53              re-serialising would change more than whitespace at offset 23: "890}" would become "000}"
+         (without the guard it would have written: { "id": 12345678901234567000 })
+refuses  decimal past a double          re-serialising would change more than whitespace at offset 23: "789}" would become "8}"
+         (without the guard it would have written: { "x": 0.12345678901234568 })
+refuses  negative zero                  re-serialising would change more than whitespace at offset 5: "-0}" would become "0}"
+         (without the guard it would have written: { "x": 0 })
+refuses  exponent out of range          re-serialising would change more than whitespace at offset 5: "1e400}" would become "null}"
+         (without the guard it would have written: { "x": null })
+refuses  trailing comma (JSON5 only)    not JSON: Expected double-quoted property name in JSON at position 7 (line 1 column 8)
+refuses  a comment (JSON5 only)         not JSON: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+refuses  not JSON at all                not JSON: Unexpected token 'h', "the quick brown fox" is not valid JSON
+
+THE MINIFY ROW, round-tripped
+  an ordinary agent wall         bytes equal: true   values equal: true
+  nested arrays                  bytes equal: true   values equal: true
+  unicode and escapes            bytes equal: false  values equal: true
+  already pretty                 bytes equal: true   values equal: true

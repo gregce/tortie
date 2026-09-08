@@ -1,0 +1,44 @@
+tables tested: 1759
+
+IDEMPOTENT: 1 finding(s)
+  docs/BACKLOG.md:8690: the slice did not reparse as exactly one table
+
+CELLS: 10 finding(s)
+  docs/BACKLOG.md:2363: row 5: ["Research 33 lists the content hash as this phase's mandatory first step. **It is done.** Confirm it"] -> ["Research 33 lists the content hash as this phase's mandatory first step. **It is done.** Confirm it",""] | row 6: ["rather than repeat it."] -> ["rather than repeat it.",""]
+  docs/BACKLOG.md:5271: row 5: ["later","Flows at level 3, SCIP absorption, the Louvain regroup as a diff, Rust and Python resolver arms, a JSON Canvas one-way export","Each its own decision"] -> ["later","Flows at level 3, SCIP absorption, the Louvain regroup as a diff, Rust and Python resolver arms, a JSON Canvas one-way export","Each its own decision",""]
+  docs/BACKLOG.md:18757: row 0: ["Arm","What it drives","Ablated"] -> ["Arm","What it drives","Ablated","",""] | row 1: ["G","the timeline above, 25 times","drop the removal instant: **25 of 25 came back**"] -> ["G","the timeline above, 25 times","drop the removal instant: **25 of 25 came back**","",""]
+  docs/audits/2026-08-20-electron-typescript-architecture.md:250: row 0: ["Priority","Finding","Smallest safe change","Proof required"] -> ["Priority","Finding","Smallest safe change","Proof required","","",""] | row 2: ["P0","Unreachable remote-create confirmation is treated as proven absence","Replace nullable confirmation with `present","provenAbsent","unreachable`; delete only on proven absence and retain unknown declarations across restart.","Let the far-side create succeed, lose its reply, make confirmation unreachable, restart, then prove later reconciliation binds the same immutable id without duplicate creation."] -> ["P0","Unreachable remote-create confirmation is treated as proven absence","Replace nullable confirmation with `present","provenAbsent","unreachable`; delete only on proven absence and retain unknown declarations across restart.","Let the far-side create succeed, lose its reply, make confirmation unreachable, restart, then prove later reconciliation binds the same immutable id without duplicate creation.",""]
+  docs/research/11-specstory-provider-inventory.md:21: row 0: ["id","display name","binary (default argv[0])","launch argv","resume argv","version probe","session store","reconstruct target?"] -> ["id","display name","binary (default argv[0])","launch argv","resume argv","version probe","session store","reconstruct target?","","","",""] | row 1: ["claude","Claude Code","`~/.local/bin/claude` → PATH `claude` → `~/.claude/local/claude` → `claude`","`claude [custom args]`, inherited stdio","append `--resume <sessionID>`","`claude -v`, output must contain \"Claude Code\"","`~/.claude/projects/<dash-encoded realpath cwd>/<sessionID>.jsonl`","yes"] -> ["claude","Claude Code","`~/.local/bin/claude` → PATH `claude` → `~/.claude/local/claude` → `claude`","`claude [custom args]`, inherited stdio","append `--resume <sessionID>`","`claude -v`, output must contain \"Claude Code\"","`~/.claude/projects/<dash-encoded realpath cwd>/<sessionID>.jsonl`","yes","","","",""]
+  docs/research/18-agent-activity.md:463: row 0: ["Agent","Mechanism","Evidence"] -> ["Agent","Mechanism","Evidence","",""] | row 1: ["qwen","`QWEN_CODE_SYSTEM_SETTINGS_PATH=<gmux userData settings.json>` in the tmux session env; Claude-shaped event names (`UserPromptSubmit`, `Notification`, `Stop`)","**VERIFIED end-to-end** — SessionStart, Notification, UserPromptSubmit, Stop all fired on a real turn"] -> ["qwen","`QWEN_CODE_SYSTEM_SETTINGS_PATH=<gmux userData settings.json>` in the tmux session env; Claude-shaped event names (`UserPromptSubmit`, `Notification`, `Stop`)","**VERIFIED end-to-end** — SessionStart, Notification, UserPromptSubmit, Stop all fired on a real turn","",""]
+  docs/research/39-file-preview.md:1709: row 0: ["Flag","Source","Meaning"] -> ["Flag","Source","Meaning","",""] | row 1: ["`markdown`","`isMarkdownPath(req.path)`","Preview is rendered markdown"] -> ["`markdown`","`isMarkdownPath(req.path)`","Preview is rendered markdown","",""]
+  docs/research/55-i1-project-model-and-the-machine.md:75: row 0: ["#","Definition","Files","Command basis"] -> ["#","Definition","Files","Command basis",""] | row 1: ["A","Mentions any of `projectPath`, `project.path`, `projectRoot`","41","grep over `src/renderer/**/*.{ts,tsx}`"] -> ["A","Mentions any of `projectPath`, `project.path`, `projectRoot`","41","grep over `src/renderer/**/*.{ts,tsx}`",""]
+  docs/research/66-plugins-after-launch.md:143: row 0: ["Candidate","Verdict","The evidence"] -> ["Candidate","Verdict","The evidence",""] | row 1: ["**A new agent**","**Real, and it is the only one that matters**","It already works. `resources/config/examples/01-minimal.json` adds a working durable agent in twelve lines of JSON, and `02-resume-with-a-flag.json` adds one that resumes its conversation"] -> ["**A new agent**","**Real, and it is the only one that matters**","It already works. `resources/config/examples/01-minimal.json` adds a working durable agent in twelve lines of JSON, and `02-resume-with-a-flag.json` adds one that resumes its conversation",""]
+  docs/research/79-claude-code-credential-locks-and-cache.md:16: row 0: ["What","Identifier","Offset","Bytes"] -> ["What","Identifier","Offset","Bytes","",""] | row 1: ["The cache bound","`S8t`","158840519","`var S8t=30000;class i{cache={data:null,cachedAt:0};...}`"] -> ["The cache bound","`S8t`","158840519","`var S8t=30000;class i{cache={data:null,cachedAt:0};...}`","",""]
+
+ALIGN: 8 finding(s)
+  docs/BACKLOG.md:18757: [null,null,null] -> [null,null,null,null,null]
+  docs/audits/2026-08-20-electron-typescript-architecture.md:250: [null,null,null,null] -> [null,null,null,null,null,null,null]
+  docs/research/11-specstory-provider-inventory.md:21: [null,null,null,null,null,null,null,null] -> [null,null,null,null,null,null,null,null,null,null,null,null]
+  docs/research/18-agent-activity.md:463: [null,null,null] -> [null,null,null,null,null]
+  docs/research/39-file-preview.md:1709: [null,null,null] -> [null,null,null,null,null]
+  docs/research/55-i1-project-model-and-the-machine.md:75: [null,null,null,null] -> [null,null,null,null,null]
+  docs/research/66-plugins-after-launch.md:143: [null,null,null] -> [null,null,null,null]
+  docs/research/79-claude-code-credential-locks-and-cache.md:16: [null,null,null,null] -> [null,null,null,null,null,null]
+
+THE HOSTILE SET
+  plain                            idempotent=true  cellsKept=true  cols 2/2 -> 2/2
+  every alignment                  idempotent=true  cellsKept=true  cols 3/3 -> 3/3
+  pipe inside a code span          idempotent=true  cellsKept=false cols 2/3 -> 3/3
+      "| id | call        |       |\n| -- | ----------- | ----- |\n| pi | `ctx.on('a' | 'b')` |"
+  escaped pipe                     idempotent=true  cellsKept=true  cols 2/2 -> 2/2
+  CJK width                        idempotent=true  cellsKept=true  cols 2/2 -> 2/2
+  combining marks                  idempotent=true  cellsKept=true  cols 2/2 -> 2/2
+  right-to-left run                idempotent=true  cellsKept=true  cols 2/2 -> 2/2
+  emoji with a joiner              idempotent=true  cellsKept=true  cols 2/2 -> 2/2
+  empty cells                      idempotent=true  cellsKept=true  cols 3/3 -> 3/3
+  a row SHORTER than the header    idempotent=true  cellsKept=false cols 3/1 -> 3/3
+      "| a | b | c |\n| - | - | - |\n| 1 |   |   |"
+  a row LONGER than the header     idempotent=true  cellsKept=false cols 2/3 -> 3/3
+      "| a | b |   |\n| - | - | - |\n| 1 | 2 | 3 |"
+  not a table at all               REFUSED (the slice is not exactly one table)
+  indented inside a list item      idempotent=true  cellsKept=true  cols 2/2 -> 2/2

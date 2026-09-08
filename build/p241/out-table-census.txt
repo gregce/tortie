@@ -1,0 +1,35 @@
+markdown files tracked: 185
+files holding at least one GFM table: 175
+GFM TABLES: 1759
+widest: 12 columns at docs/research/05-terminal-components.md:132
+tallest: 69 rows (header included) at docs/research/84-transfer-and-delegation.md:1715
+
+trait                                    tables  first witness
+pipe inside a code span                     732  BUILD-STATUS.md:115
+escaped pipe in a cell                       53  DESIGN.md:297
+CJK-width cell                                5  DESIGN.md:297
+combining mark                               40  docs/designs/design-a-electron.md:83
+right-to-left run                             0  -
+emoji / astral                              311  DESIGN.md:297
+empty cell                                  130  docs/BACKLOG.md:14
+ragged row (cell count != header)            10  docs/BACKLOG.md:2363
+inline markup in a cell                    1543  BUILD-STATUS.md:115
+a cell over 80 chars                       1096  BUILD-STATUS.md:115
+no alignment row markers (all null)        1631  BUILD-STATUS.md:115
+some column aligned                         128  docs/BACKLOG.md:14
+indented (inside a list item)                 3  docs/BACKLOG.md:8690
+inside a blockquote                           0  -
+
+top files by table count
+   188  docs/BACKLOG.md
+    44  docs/research/39-file-preview.md
+    42  docs/research/63-provider-keep-map.md
+    41  docs/research/49-arch-pane.md
+    38  docs/research/35-home-screen.md
+    28  docs/research/28-remote-sessions.md
+    28  docs/research/81-linux-and-windows.md
+    27  docs/research/29-context-sidebar.md
+    27  docs/research/55-remote-project-folder.md
+    26  docs/research/23-scrollback-limits.md
+    26  docs/research/57-remote-parity.md
+    24  docs/research/19-search.md

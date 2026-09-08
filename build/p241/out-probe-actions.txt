@@ -1,0 +1,180 @@
+[p241] no GMUX_TMUX_SOCKET; wrapping in build/harness-socket.mjs
+[harness-socket] socket gmux-p241-wt-p241-29907, profile /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p241-wt-p241-29907
+[p241] app window at file:///private/tmp/wt-p241/out/renderer/index.html?harness=1, pid 30074
+[p241] monaco up on data.json: true
+[p241] clicked into the editor at {"x":635,"y":127}; hasTextFocus=true
+[p241] notes.md mode control: {"options":["Redline","Preview","Source","Split"],"checked":["Preview"],"mount":false}
+[p241] monaco up on notes.md: true
+[electron-run] p241: ended 1 process the teardown found still running.
+[p241] operator -L gmux sessions: 19 before, 19 after
+[p241] json tab:     131 supported actions, language json
+[p241] markdown tab: 128 supported actions, language markdown
+
+EVERY ACTION getSupportedActions() LISTS ON THE JSON TAB
+id                                                  label
+actions.find                                        Find
+actions.findWithSelection                           Find with Selection
+cursorRedo                                          Cursor Redo
+cursorUndo                                          Cursor Undo
+deleteAllLeft                                       Delete All Left
+deleteAllRight                                      Delete All Right
+deleteInsideWord                                    Delete Word
+editor.action.addCommentLine                        Add Line Comment
+editor.action.addCursorsToBottom                    Add Cursors to Bottom
+editor.action.addCursorsToTop                       Add Cursors to Top
+editor.action.addSelectionToNextFindMatch           Add Selection to Next Find Match
+editor.action.addSelectionToPreviousFindMatch       Add Selection to Previous Find Match
+editor.action.blockComment                          Toggle Block Comment
+editor.action.changeAll                             Change All Occurrences
+editor.action.changeTabDisplaySize                  Change Tab Display Size
+editor.action.clipboardCopyWithSyntaxHighlightingAction Copy with Syntax Highlighting
+editor.action.commentLine                           Toggle Line Comment
+editor.action.copyLinesDownAction                   Copy Line Down
+editor.action.copyLinesUpAction                     Copy Line Up
+editor.action.debugEditorGpuRenderer                Developer: Debug Editor GPU Renderer
+editor.action.deleteLines                           Delete Line
+editor.action.detectIndentation                     Detect Indentation from Content
+editor.action.duplicateSelection                    Duplicate Selection
+editor.action.focusNextCursor                       Focus Next Cursor
+editor.action.focusPreviousCursor                   Focus Previous Cursor
+editor.action.fontZoomIn                            Increase Editor Font Size
+editor.action.fontZoomOut                           Decrease Editor Font Size
+editor.action.fontZoomReset                         Reset Editor Font Size
+editor.action.forceRetokenize                       Developer: Force Retokenize
+editor.action.formatDocument                        Format Document
+editor.action.formatSelection                       Format Selection
+editor.action.gotoLine                              Go to Line/Column...
+editor.action.gotoOffset                            Go to Offset...
+editor.action.hideHover                             Hide Hover
+editor.action.indentationToSpaces                   Convert Indentation to Spaces
+editor.action.indentationToTabs                     Convert Indentation to Tabs
+editor.action.indentLines                           Indent Line
+editor.action.indentUsingSpaces                     Indent Using Spaces
+editor.action.indentUsingTabs                       Indent Using Tabs
+editor.action.inlineSuggest.toggleShowCollapsed     Toggle Inline Suggestions Show Collapsed
+editor.action.inlineSuggest.trigger                 Trigger Inline Suggestion
+editor.action.inPlaceReplace.down                   Replace with Next Value
+editor.action.inPlaceReplace.up                     Replace with Previous Value
+editor.action.insertCursorAbove                     Add Cursor Above
+editor.action.insertCursorAtEndOfEachLineSelected   Add Cursors to Line Ends
+editor.action.insertCursorBelow                     Add Cursor Below
+editor.action.insertFinalNewLine                    Insert Final New Line
+editor.action.insertLineAfter                       Insert Line Below
+editor.action.insertLineBefore                      Insert Line Above
+editor.action.inspectTokens                         Developer: Inspect Tokens
+editor.action.joinLines                             Join Lines
+editor.action.jumpToBracket                         Go to Bracket
+editor.action.marker.next                           Go to Next Problem (Error, Warning, Info)
+editor.action.marker.nextInFiles                    Go to Next Problem in Files (Error, Warning, Info)
+editor.action.marker.prev                           Go to Previous Problem (Error, Warning, Info)
+editor.action.marker.prevInFiles                    Go to Previous Problem in Files (Error, Warning, Info)
+editor.action.moveCarretLeftAction                  Move Selected Text Left
+editor.action.moveCarretRightAction                 Move Selected Text Right
+editor.action.moveLinesDownAction                   Move Line Down
+editor.action.moveLinesUpAction                     Move Line Up
+editor.action.moveSelectionToNextFindMatch          Move Last Selection to Next Find Match
+editor.action.moveSelectionToPreviousFindMatch      Move Last Selection to Previous Find Match
+editor.action.nextMatchFindAction                   Find Next
+editor.action.nextSelectionMatchFindAction          Find Next Selection
+editor.action.openLink                              Open Link
+editor.action.outdentLines                          Outdent Line
+editor.action.pasteAs                               Paste As...
+editor.action.pasteAsText                           Paste as Text
+editor.action.previousMatchFindAction               Find Previous
+editor.action.previousSelectionMatchFindAction      Find Previous Selection
+editor.action.quickCommand                          Command Palette
+editor.action.quickOutline                          Go to Symbol...
+editor.action.reindentlines                         Reindent Lines
+editor.action.reindentselectedlines                 Reindent Selected Lines
+editor.action.removeBrackets                        Remove Brackets
+editor.action.removeCommentLine                     Remove Line Comment
+editor.action.removeDuplicateLines                  Delete Duplicate Lines
+editor.action.resetSuggestSize                      Reset Suggest Widget Size
+editor.action.reverseLines                          Reverse lines
+editor.action.selectHighlights                      Select All Occurrences of Find Match
+editor.action.selectToBracket                       Select to Bracket
+editor.action.setSelectionAnchor                    Set Selection Anchor
+editor.action.showContextMenu                       Show Editor Context Menu
+editor.action.showDefinitionPreviewHover            Show Definition Preview Hover
+editor.action.showHover                             Show or Focus Hover
+editor.action.smartSelect.expand                    Expand Selection
+editor.action.smartSelect.shrink                    Shrink Selection
+editor.action.sortLinesAscending                    Sort Lines Ascending
+editor.action.sortLinesDescending                   Sort Lines Descending
+editor.action.startFindReplaceAction                Replace
+editor.action.toggleHighContrast                    Toggle High Contrast Theme
+editor.action.transformToCamelcase                  Transform to Camel Case
+editor.action.transformToKebabcase                  Transform to Kebab Case
+editor.action.transformToLowercase                  Transform to Lowercase
+editor.action.transformToPascalcase                 Transform to Pascal Case
+editor.action.transformToSnakecase                  Transform to Snake Case
+editor.action.transformToTitlecase                  Transform to Title Case
+editor.action.transformToUppercase                  Transform to Uppercase
+editor.action.transpose                             Transpose Characters around the Cursor
+editor.action.transposeLetters                      Transpose Letters
+editor.action.triggerSuggest                        Trigger Suggest
+editor.action.trimTrailingWhitespace                Trim Trailing Whitespace
+editor.action.wordHighlight.trigger                 Trigger Symbol Highlight
+editor.actions.findWithArgs                         Find with Arguments
+editor.createFoldingRangeFromSelection              Create Folding Range from Selection
+editor.fold                                         Fold
+editor.foldAll                                      Fold All
+editor.foldAllBlockComments                         Fold All Block Comments
+editor.foldAllExcept                                Fold All Except Selected
+editor.foldAllMarkerRegions                         Fold All Regions
+editor.foldLevel1                                   Fold Level 1
+editor.foldLevel2                                   Fold Level 2
+editor.foldLevel3                                   Fold Level 3
+editor.foldLevel4                                   Fold Level 4
+editor.foldLevel5                                   Fold Level 5
+editor.foldLevel6                                   Fold Level 6
+editor.foldLevel7                                   Fold Level 7
+editor.foldRecursively                              Fold Recursively
+editor.gotoNextFold                                 Go to Next Folding Range
+editor.gotoParentFold                               Go to Parent Fold
+editor.gotoPreviousFold                             Go to Previous Folding Range
+editor.removeManualFoldingRanges                    Remove Manual Folding Ranges
+editor.toggleFold                                   Toggle Fold
+editor.toggleFoldRecursively                        Toggle Fold Recursively
+editor.toggleImportFold                             Toggle Import Fold
+editor.unfold                                       Unfold
+editor.unfoldAll                                    Unfold All
+editor.unfoldAllExcept                              Unfold All Except Selected
+editor.unfoldAllMarkerRegions                       Unfold All Regions
+editor.unfoldRecursively                            Unfold Recursively
+expandLineSelection                                 Expand Line Selection
+
+THE ELEVEN ROWS THE ENTRY NAMES — READING 1, getSupportedActions()/getAction()
+row                       id                                        getAction  listed  label
+Cut                       editor.action.clipboardCutAction          false      false   -
+Copy                      editor.action.clipboardCopyAction         false      false   -
+Paste                     editor.action.clipboardPasteAction        false      false   -
+Select All                editor.action.selectAll                   false      false   -
+Undo                      undo                                      false      false   -
+Redo                      redo                                      false      false   -
+Find                      actions.find                              true       true    Find
+Change All Occurrences    editor.action.changeAll                   true       true    Change All Occurrences
+Go to Line                editor.action.gotoLine                    true       true    Go to Line/Column...
+Fold                      editor.fold                               true       true    Fold
+Unfold                    editor.unfold                             true       true    Unfold
+
+THE ELEVEN ROWS — READING 2, WHAT PRESSING IT ACTUALLY DID
+row                       id                                        pressed?  what happened
+Undo                      undo                                      WORKS     model went back to the seed
+Redo                      redo                                      WORKS     model came forward again
+Select All                editor.action.selectAll                   WORKS     editor.action.selectAll selected the whole model
+Change All Occurrences    editor.action.changeAll                   WORKS     3 cursor(s) after the press
+Fold                      editor.fold                               WORKS     0 collapsed chevron(s) and 8 drawn lines before, 1 and 6 after
+Unfold                    editor.unfold                             WORKS     6 drawn lines after the fold, 8 after the unfold
+Cut                       editor.action.clipboardCutAction          WORKS     reached document.execCommand('copy') then document.execCommand('copy'); textFocus=true; commandService says resolved
+Copy                      editor.action.clipboardCopyAction         WORKS     reached document.execCommand('copy') then document.execCommand('copy'); textFocus=true; commandService says resolved
+Paste                     editor.action.clipboardPasteAction        WORKS     reached navigator.clipboard.readText() x2; textFocus=true; commandService says resolved
+Find                      actions.find                              WORKS     the find widget is visible
+Go to Line                editor.action.gotoLine                    WORKS     the quick input widget opened
+
+clipboard doors reached (all recorded, none real): {"cut":0,"copy":4,"paste":0,"writeText":0,"readText":2}
+
+only on the JSON tab: editor.action.formatDocument, editor.action.formatSelection, editor.action.quickOutline
+only on the markdown tab: none
+[p241] written to /private/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p241-wt-p241-29907/p241/actions.json
+[harness-socket] ended the scratch server on -L gmux-p241-wt-p241-29907 (after the harness)

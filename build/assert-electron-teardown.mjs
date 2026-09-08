@@ -146,7 +146,19 @@ const HELPER = 'electron-run.mjs';
  * committed the verifier's own redline probe, at 91 when Phase 234 added
  * `probe-p234-arch.mjs`, the Architecture app run against the operator's Mac
  * Pro, at 92 when Phase 237 added `probe-p237-typing.mjs`, and at 95 the same
- * day when Phase 237's verifier's three attack probes were kept.
+ * day when Phase 237's verifier's three attack probes were kept, and at 96 on
+ * 2026-09-08 when Phase 241's measure step added `probe-p241-actions.mjs`, the
+ * app run that asks the live editor which of its menu rows really do something.
+ *
+ * THAT PROBE WAS WRITTEN UNDER `build/p241/` FIRST AND THIS GATE COULD NOT SEE
+ * IT. `buildFiles()` is a FLAT `readdirSync(buildDir)`, so a script in a phase
+ * subdirectory beside it — `build/p214/`, `build/p218/`, `build/p241/` — is
+ * read by neither rule 1 nor rule 2, and one of those that started an Electron
+ * would be exactly the 2026-08-22 shape with nothing watching it. Today none
+ * of them does, and the answer chosen here was to move the one that does up to
+ * this directory rather than to widen the walk, because widening it would sweep
+ * in fixture trees the rules were never written for. A round that puts an
+ * Electron in a subdirectory has to make the walk recursive first.
  * Lower it ONLY in the same commit
  * that deletes a probe on purpose, and say in the commit body which file went
  * and why. Do not lower it to make a red gate green: red here means either a
@@ -158,7 +170,7 @@ const HELPER = 'electron-run.mjs';
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 99;
+const HELPER_USER_FLOOR = 100;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.
