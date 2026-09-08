@@ -191,7 +191,9 @@
 }
 
 .ed-redline-chip-button:hover {
-  background: var(--bg-raised);
+  /* `--bg-active` and not `--bg-raised`: the keycap chip below IS
+     `--bg-raised`, so a hover fill of the same value would swallow it. */
+  background: var(--bg-active);
   color: var(--text-primary);
 }
 
@@ -199,4 +201,12 @@
    needs and nothing more. */
 .ed-redline-chip-verb {
   padding: 0 var(--space-3);
+}
+
+/* PHASE 236 item 2. The chord, in the keycap chip the ⌘/ overlay and the popup
+   menus already use (`.key` in styles/globals.css), so a person learns it by
+   seeing it once. The string comes from the keymap through `keyDisplay` and is
+   never typed. It is not a click target of its own: the button around it is. */
+.ed-redline-chip-button .key {
+  pointer-events: none;
 }

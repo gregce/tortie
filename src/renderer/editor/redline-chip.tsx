@@ -46,9 +46,20 @@
  *
  * 24px, per WCAG 2.2's target size: research 83 D.2 measured the in-flow
  * button at 20.15px and named it under the target.
+ *
+ * THE CHORDS ARE ON IT, AND THEY ARE READ FROM THE KEYMAP RATHER THAN TYPED.
+ * `keyDisplay` answers ⌥↓, ⌥↑, ⌥⌫ and ⌥⇧⌫ from the four `redline.*` entries in
+ * src/shared/keymap.ts, so a chord that is ever re-bound moves here with it and
+ * cannot drift. They are drawn in `.key`, the keycap chip the ⌘/ overlay and
+ * the popup menus already use, so a person learns the chord by seeing it once —
+ * which is the whole reason this phase exists. The two arrows carry NO word
+ * beside the keycap: the chord IS ⌥ plus the arrow, so a glyph and a hint would
+ * be the same thing said twice, and the verb is on the button's aria-label and
+ * its tooltip instead.
  */
 
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { keyDisplay } from '@shared/keymap';
 import type { RedlineCommand } from './redline-commands';
 
 /** The gap between the change's line box and the chip, in CSS pixels. */
@@ -186,7 +197,7 @@ export function RedlineChip({
           act('prev');
         }}
       >
-        ↑
+        <span className="key">{keyDisplay('redline.prev')}</span>
       </button>
       <button
         type="button"
@@ -198,28 +209,32 @@ export function RedlineChip({
           act('next');
         }}
       >
-        ↓
+        <span className="key">{keyDisplay('redline.next')}</span>
       </button>
       <button
         type="button"
         className="ed-redline-chip-button ed-redline-chip-verb"
         tabIndex={-1}
+        title="Rewind this change"
         onClick={() => {
           act('rewind');
         }}
       >
         Rewind
+        <span className="key">{keyDisplay('redline.rewind')}</span>
       </button>
       {canUndo ? (
         <button
           type="button"
           className="ed-redline-chip-button ed-redline-chip-verb"
           tabIndex={-1}
+          title="Undo the last rewind"
           onClick={() => {
             act('undo');
           }}
         >
           Undo
+          <span className="key">{keyDisplay('redline.undo')}</span>
         </button>
       ) : null}
     </div>
