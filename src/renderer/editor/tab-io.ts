@@ -477,7 +477,18 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       remote.machineId
     );
     if (writeRoot === null || writeRoot.length === 0) {
-      useApp.getState().toast('error', remoteSaveRefused(label), sticky);
+      // PHASE 229. The toast carries the button its own sentence names.
+      // `settings:openWindow` takes no argument, so the button opens the
+      // Settings window and the sentence still says which section.
+      useApp.getState().toast('error', remoteSaveRefused(label), {
+        ...sticky,
+        action: {
+          label: 'Open settings',
+          run: () => {
+            void gmux?.openSettings?.();
+          }
+        }
+      });
       return false;
     }
     // The three tabs that are not edit surfaces on any computer. They are

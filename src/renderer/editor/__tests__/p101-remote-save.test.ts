@@ -42,6 +42,8 @@ vi.mock('../monaco-loader', () => ({
 }));
 
 const writeFile = vi.fn(async () => undefined);
+/** PHASE 229. What the refusal toast's button presses. */
+const openSettings = vi.fn(async () => undefined);
 type PutInput = import('@shared/ipc').MachineFilePutInput;
 type PutResult = import('@shared/ipc').MachineFilePutResult;
 const putFile = vi.fn(
@@ -68,7 +70,8 @@ vi.stubGlobal('window', {
   gmux: {
     fs: { readFile: vi.fn(), writeFile, readDir: vi.fn(), readImage: vi.fn() },
     git: { showHead: vi.fn(), onChanged: () => () => undefined },
-    machines: { reviewFile, putFile }
+    machines: { reviewFile, putFile },
+    openSettings
   }
 });
 vi.stubGlobal('localStorage', {
@@ -125,6 +128,15 @@ function reviewReq(over: Partial<OpenFileRequest> = {}): OpenFileRequest {
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 let toasts: { kind: string; text: string }[] = [];
+/**
+ * PHASE 229. The options each toast was shown with, in the same order, so the
+ * refusal's button can be read and pressed.
+ */
+type ToastOpts = {
+  sticky?: boolean;
+  action?: { label: string; run: () => void };
+};
+let toastOpts: (ToastOpts | undefined)[] = [];
 
 /** Open the tab, with a buffer holding text the person typed. */
 async function openDirty(): Promise<string> {
@@ -135,11 +147,13 @@ async function openDirty(): Promise<string> {
 
 beforeEach(() => {
   toasts = [];
+  toastOpts = [];
   useEditor.setState({ tabs: [], activeId: null, panelOpen: false });
   useApp.setState({
     machineStates: states(null),
-    toast: (kind: string, text: string) => {
+    toast: (kind: string, text: string, opts?: ToastOpts) => {
       toasts.push({ kind, text });
+      toastOpts.push(opts);
     }
   } as never);
   vi.clearAllMocks();
@@ -154,6 +168,30 @@ describe('a machine nobody has let Tortie save on', () => {
     expect(toasts).toEqual([
       { kind: 'error', text: copy.remoteSaveRefused('Studio') }
     ]);
+  });
+
+  /**
+   * PHASE 229. The sentence names Settings, Machines and the machine, and the
+   * toast carries the one button that opens the first of those. Its doc
+   * comment had promised the button since Phase 101 and the call site passed
+   * only `{ sticky: true }`; research 88 section 4.4 read zero action buttons
+   * on the toast at the parent. The refusal stays sticky, because a person
+   * who is told where the door is should not have the sentence fade before
+   * they have read it.
+   */
+  it('carries an Open settings button that opens the Settings window', async () => {
+    await openDirty();
+    await useEditor.getState().save();
+    expect(toastOpts).toHaveLength(1);
+    const opts = toastOpts[0];
+    expect(opts?.sticky).toBe(true);
+    expect(opts?.action?.label).toBe('Open settings');
+    expect(openSettings).not.toHaveBeenCalled();
+    opts?.action?.run();
+    expect(openSettings).toHaveBeenCalledTimes(1);
+    // Nothing was written by the press either.
+    expect(putFile).not.toHaveBeenCalled();
+    expect(writeFile).not.toHaveBeenCalled();
   });
 
   it('reads an empty folder as no folder at all', async () => {

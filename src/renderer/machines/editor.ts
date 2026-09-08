@@ -45,7 +45,11 @@ export function remoteFileChip(label: string): string {
  *
  * The toast that carries it also carries a button labelled Open settings. The
  * sentence still names the path, because a person who reads the sentence
- * somewhere else, e.g. in a screenshot, needs the same answer.
+ * somewhere else, e.g. in a screenshot, needs the same answer. PHASE 229 MADE
+ * THAT SENTENCE TRUE: the one call site, `saveOnMachine` in
+ * `src/renderer/editor/tab-io.ts`, passed only `{ sticky: true }` from
+ * Phase 101 until then, and research 88 section 4.4 read zero action buttons
+ * on the toast.
  */
 export function remoteSaveRefused(label: string): string {
   return (
