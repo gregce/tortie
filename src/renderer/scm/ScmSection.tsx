@@ -63,7 +63,7 @@ import {
   remoteCommitCheckRan,
   remoteCommitDisabledReason,
   commitIdentityFact,
-  remoteCommitStanding,
+  remoteCommitTitle,
   remoteConflictNoVerb,
   remoteIndexWritePartial,
   remoteIndexWriteUnsure,
@@ -736,10 +736,12 @@ function remoteBadge(status: MachineReviewFile['status']): {
  *  2. The button, which names the machine rather than saying "here".
  *  3. The reason it is disabled, when it is. The order of those reasons is in
  *     `remoteCommitDisabledReason` and it is not this file's decision.
- *  4. One standing line about hooks and signing, drawn BEFORE a person commits
- *     rather than after. It is the one visible answer to research 57's second
- *     hazard, which is that Tortie cannot answer a passphrase prompt on a
- *     computer nobody is looking at.
+ *  4. The hooks and signing line, as the button's hover title in every state.
+ *     It is the one visible answer to research 57's second hazard, which is
+ *     that Tortie cannot answer a passphrase prompt on a computer nobody is
+ *     looking at. PHASE 228 MOVED IT OFF THE RESTING FACE, where Phase 104
+ *     had drawn it as standing text under the box; the local box carries no
+ *     such paragraph and the title is where it survives.
  *  5. Whatever main said about the last commit, drawn as main sent it.
  *  6. Whatever THAT MACHINE said, drawn under Tortie's own sentence. A hook
  *     that refuses says why in its own words and no sentence Tortie could
@@ -911,7 +913,7 @@ function RemoteCommitBox({
         className="btn btn-primary scm-commit-btn"
         data-scm-remote-commit-btn="1"
         disabled={disabledReason !== null}
-        title={disabledReason ?? remoteCommitButton(label)}
+        title={remoteCommitTitle(label, disabledReason)}
         onClick={doCommit}
       >
         {running ? <span className="scm-spinner" aria-hidden="true" /> : null}
@@ -922,12 +924,6 @@ function RemoteCommitBox({
           {disabledReason}
         </div>
       ) : null}
-      {/* Standing text, drawn whether or not anything has been pressed. It is
-          the one visible answer to the signing hazard, so it is never hidden
-          behind an outcome. */}
-      <p className="scm-remote-commit-standing" data-scm-commit-standing="1">
-        {remoteCommitStanding(label)}
-      </p>
       {said.map((sentence) => (
         <p
           key={sentence}

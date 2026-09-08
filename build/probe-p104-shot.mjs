@@ -569,19 +569,24 @@ const r5 = await launch({
 const d5 = r5.parsed?.drawn ?? null;
 const afterFive = commitCount(far);
 const headAfterFive = headOf(far);
+// PHASE 228 MOVED THE STANDING LINE INTO THE COMMIT BUTTON'S HOVER TITLE, so
+// it is read off the title rather than off the page text, and `marksOnScreen`
+// cannot see it, because a title is not in innerText.
 const standingOk =
   typeof d5?.standing === 'string' &&
   d5.standing.startsWith(STANDING_MARK) &&
-  (d5?.marksOnScreen ?? []).includes(STANDING_MARK);
+  typeof d5?.buttonTitle === 'string' &&
+  d5.buttonTitle.includes(STANDING_MARK);
 note(
   4,
   'the standing line names the machine by its own label',
   standingOk ? 'pass' : 'FAIL',
-  `it read ${JSON.stringify(d5?.standing ?? null)}. It is drawn BEFORE a ` +
-    'person commits, and it is the one visible answer to the signing hazard. ' +
+  `it read ${JSON.stringify(d5?.standing ?? null)} off the Commit button's ` +
+    'title. It is there BEFORE a person commits, and it is the one visible ' +
+    'answer to the signing hazard. ' +
     `Photograph ${fiveShot} at ${String(photographed(fiveShot))} bytes`
 );
-if (!standingOk) fail('the standing line was not on screen with the real label');
+if (!standingOk) fail('the standing line was not on the Commit button with the real label');
 
 const drewSha = (d5?.commitSentences ?? []).join(' ');
 const committedOk =

@@ -443,9 +443,9 @@ export function registerP104CommitDrive(): void {
       disabledWhy:
         textOf(document.querySelector('[data-scm-remote-commit-why="1"]')) ||
         null,
-      standing:
-        textOf(document.querySelector('[data-scm-commit-standing="1"]')) ||
-        null,
+      // PHASE 228 MOVED THE STANDING LINE INTO THE BUTTON'S TITLE, so this is
+      // the title's last line rather than a paragraph under the box.
+      standing: btn?.getAttribute('title')?.split('\n').at(-1) ?? null,
       typed: input()?.value ?? null,
       pressed,
       commitOutcome: entry?.commitOutcome ?? null,

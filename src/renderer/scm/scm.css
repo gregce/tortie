@@ -1912,15 +1912,6 @@ body.scm-section-dragging .section-gripper {
   flex: 0 0 auto;
 }
 
-/* The standing line about hooks and signing. It is quieter than a sentence
-   about an outcome, because it is true whether or not anything was pressed. */
-.scm-remote-commit-standing {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-}
-
 /* What THAT MACHINE printed, which is the only text on this panel Tortie did
    not write. It is monospaced because it is program output, it wraps because a
    git error is a sentence, and it is capped in height because a hook can print

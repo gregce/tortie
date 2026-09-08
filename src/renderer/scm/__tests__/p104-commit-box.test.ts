@@ -53,6 +53,7 @@ import {
   remoteCommitNotConnected,
   remoteCommitNothingStagedYet,
   remoteCommitStanding,
+  remoteCommitTitle,
   remoteWritesNotConfirmed
 } from '../../machines/scm';
 import type { RemoteCommitFacts } from '../../machines/scm';
@@ -284,6 +285,20 @@ describe('the standing line and the button', () => {
     const line = remoteCommitStanding('Mac Pro');
     expect(line).toContain('Hooks and signing run on Mac Pro.');
     expect(line).toContain('Tortie cannot answer it');
+  });
+
+  it('carries that warning on the button in every state (Phase 228)', () => {
+    // PHASE 228 MOVED THE LINE OFF THE RESTING FACE and into the button's
+    // hover title, which is the one place it survives. An enabled button's
+    // title is the line alone; a disabled button's title puts the reason
+    // first on its own line and keeps the warning under it.
+    const standing = remoteCommitStanding('Mac Pro');
+    expect(remoteCommitTitle('Mac Pro', null)).toBe(standing);
+    const why = remoteWritesNotConfirmed('Mac Pro');
+    expect(remoteCommitTitle('Mac Pro', why)).toBe(`${why}\n${standing}`);
+    expect(remoteCommitTitle('Mac Pro', 'Enter a commit message')).toBe(
+      `Enter a commit message\n${standing}`
+    );
   });
 
   it('names the machine on the button rather than saying here', () => {

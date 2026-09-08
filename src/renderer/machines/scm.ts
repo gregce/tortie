@@ -168,15 +168,20 @@ export function remoteChangesNotRepo(label: string): string {
 // anything. The panel draws main's sentences as main sent them.
 
 /**
- * The standing line under the commit box, drawn BEFORE a person commits.
+ * The hooks and signing line, which is the Commit button's hover title.
  *
  * IT IS THE ONE VISIBLE ANSWER TO THE SIGNING HAZARD. Research 57 section 5.6
  * names it: the prompt guards stop a credential prompt, and neither of them
  * stops a signing program from asking for a passphrase on a computer nobody is
  * looking at. Tortie does not answer a signing passphrase, ever. No prompt is
  * forwarded here, no passphrase is read here and none is cached here. So the
- * honest thing is to say so before the press rather than after it, which is why
- * this line is standing text and not a sentence about an outcome.
+ * honest thing is to say so before the press rather than after it.
+ *
+ * PHASE 228 MOVED IT OFF THE RESTING FACE. Phase 104 drew it as standing text
+ * under the box, and the local commit box carries no such paragraph. It has
+ * to survive somewhere, so it is the hover title of the button that runs the
+ * commit, in every state the button can be in, composed by
+ * `remoteCommitTitle` below.
  *
  * The commit's standard input is /dev/null, so a program that reads a terminal
  * fails at once. A signing program with a window of its own opens that window
@@ -187,6 +192,27 @@ export function remoteCommitStanding(label: string): string {
     `Hooks and signing run on ${label}. If a key there needs a passphrase ` +
     `typed, Tortie cannot answer it and the commit will wait until it gives up.`
   );
+}
+
+/**
+ * The Commit button's hover title, in every state (Phase 228).
+ *
+ * The hooks and signing line is ALWAYS in it, because the title is the one
+ * place that line survives. When the button is disabled, the reason comes
+ * first on a line of its own, so a person who hovers a button they cannot
+ * press reads why before they read what a press would do; the same reason is
+ * drawn as the caption under the button, so nothing a person needs is behind
+ * the hover alone. The local box's title is its reason or its verb, and this
+ * is the one remote title that carries more, for the hazard's sake.
+ */
+export function remoteCommitTitle(
+  label: string,
+  disabledReason: string | null
+): string {
+  const standing = remoteCommitStanding(label);
+  return disabledReason === null
+    ? standing
+    : `${disabledReason}\n${standing}`;
 }
 
 /** The words on the commit button, which name the machine rather than "here". */
