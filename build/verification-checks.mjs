@@ -128,6 +128,12 @@ export const CHECKS = [
   pure('conformance:context'),
   pure('conformance:overview'),
   pure('conformance:redline'),
+  // Phase 226. The guarded write channel: build/conformance-redline-write.mjs
+  // drives the SHIPPING src/main/fs/guarded-write.ts under node over a scratch
+  // directory the probe makes and removes in a finally, one arm per refusal
+  // and per protection, then over ablated copies of the channel one clause
+  // each. It launches no Electron and reads nothing under the person's home.
+  pure('conformance:redline-write'),
   pure('conformance:filehistory'),
   pure('conformance:historysearch'),
   // Phase 202. The logins domain: it runs build/conformance-logins.mjs, which

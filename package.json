@@ -141,6 +141,7 @@
     "conformance:context": "node build/conformance-context.mjs",
     "conformance:overview": "node build/conformance-overview.mjs",
     "conformance:redline": "node build/conformance-redline.mjs",
+    "conformance:redline-write": "node build/conformance-redline-write.mjs",
     "conformance:filehistory": "node build/conformance-filehistory.mjs",
     "conformance:historysearch": "node build/conformance-historysearch.mjs",
     "conformance:logins": "node build/conformance-logins.mjs",

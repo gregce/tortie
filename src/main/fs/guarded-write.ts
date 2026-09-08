@@ -221,9 +221,7 @@ export async function writeGuarded(
   // 2. Containment, through the gate every other mutation asks.
   let abs: string;
   try {
-    const realRoot = await resolveOpenProjectRoot(input.root, () =>
-      deps.listProjectRoots()
-    );
+    const realRoot = await resolveOpenProjectRoot(input.root, () => deps.listProjectRoots());
     abs = (await resolveInsideRoot(realRoot, input.path)).abs;
   } catch (err) {
     return refused('outside', sentenceOf(err));
