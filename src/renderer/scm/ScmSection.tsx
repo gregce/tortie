@@ -54,7 +54,6 @@ import { showOneTimeTip } from '../app/one-time-tip';
 import { remoteReadAt } from '../machines/presentation';
 import {
   REMOTE_SCM_SECTIONS_NOTE,
-  remoteChangesBand,
   remoteChangesNone,
   remoteChangesNotRepo,
   remoteChangesUnreachable,
@@ -1443,11 +1442,12 @@ function RemoteScmSection({
        the closing sentence ended up under a box with `overflow: hidden` where no
        gesture could reach them. */
     <div className="scm-sections remote">
-      {/* The band. It is drawn above the group rather than inside it, so it
-          stays on screen when the group is collapsed. */}
-      <p className="scm-remote-band">{remoteChangesBand(label)}</p>
+      {/* PHASE 228 TOOK THE BAND OFF. A sentence saying whose changes these
+          are sat here on every remote tab; the tab spine and the project
+          header already name the machine, and the local view carries no
+          such line. */}
       {/* PHASE 104. The commit box, drawn ABOVE the Changes group and outside
-          it, which is where the band is and for the same reason: it stays on
+          it, where the band was and for the same reason: it stays on
           screen when the group is collapsed. The local panel puts its own box
           INSIDE the section body, because that body is the local column's only
           scrolling child. This column scrolls as a whole, so a box inside the

@@ -134,7 +134,6 @@ import {
 } from '../../machines/runs';
 import {
   REMOTE_SCM_SECTIONS_NOTE,
-  remoteChangesBand,
   remoteChangesNone,
   remoteChangesNotRepo,
   remoteChangesUnreachable,
@@ -239,20 +238,10 @@ describe('the Explorer', () => {
 });
 
 describe('Source Control', () => {
-  it('says what it can change over there and what it cannot', () => {
-    // PHASE 103 REWROTE THIS ONE AND PHASE 104 REWROTE IT AGAIN. Each rewrite
-    // is a phase. The Phase 90.3 wording said Tortie could show these changes
-    // and could not change them, and Phase 103 made the second half false by
-    // adding stage and unstage. Phase 103 named those two verbs, and Phase 104
-    // made that incomplete by adding the commit. It names all three now and
-    // then names the one thing Tortie still cannot do over there.
-    expect(remoteChangesBand(L)).toBe(
-      'These changes are on Studio. Tortie can stage them, unstage them and ' +
-        'commit them there. It cannot undo a change on that machine.'
-    );
-    expect(remoteChangesBand(L)).not.toContain('cannot change');
-    // The refusal that is permanent is the only one left in this sentence.
-    expect(remoteChangesBand(L)).toContain('cannot undo a change');
+  it('says what a read that found nothing, or no answer, means', () => {
+    // PHASE 228 TOOK THE BAND OFF. `remoteChangesBand` was pinned here through
+    // three rewrites, and the sentence is gone from the face and from the
+    // module, which the describe at the foot of this file holds.
     // PHASE 97 WIDENED THIS ONE. The list now holds both groups, so the
     // sentence for an empty folder has to answer for both.
     expect(remoteChangesNone(L)).toBe(
@@ -799,7 +788,6 @@ const EVERY: readonly string[] = [
   remoteTreeEmpty(L),
   remoteTreeTruncated(4000, 12500, 4000),
   REMOTE_COPIED_WITH_MACHINE,
-  remoteChangesBand(L),
   remoteChangesNone(L),
   remoteChangesUnreachable(L),
   remoteChangesNotRepo(L),
@@ -1043,5 +1031,21 @@ describe('the Files pair Phase 90.1 shipped is gone', () => {
     expect(source).not.toContain(
       'Tortie reads files on this Mac only, so nothing is listed here.'
     );
+  });
+});
+
+describe('the sentences Phase 228 took off the remote face are gone', () => {
+  // THE OPERATOR'S RULE OF 2026-09-07, verbatim: "I DO not want a ton of
+  // explanatory text written into any of the remote machine settings or in
+  // the nav bar windows (just because its a remote machine). It should feel
+  // almost identical to the local experience." A paragraph comes off the face
+  // when a local tab does not carry its equivalent, and a deleted sentence
+  // that is still exported comes back, so the export is pinned gone here the
+  // way the Phase 97, 102 and 90.1 deletions above are. Which component may
+  // import each name is pinned in src/renderer/machines/__tests__/p228-off-the-face.test.ts.
+  it('does not export the Source control band, and does not hold its words', () => {
+    const source = MACHINES_SOURCE;
+    expect(source).not.toContain('export function remoteChangesBand');
+    expect(source).not.toContain('These changes are on ${label}');
   });
 });

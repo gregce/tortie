@@ -10,25 +10,18 @@ import type { MachineGitIdentity } from '@shared/ipc';
 
 // -- Source Control ----------------------------------------------------------
 
-/**
- * The band under the Source Control header, on a tab whose folder is there.
- *
- * PHASE 103 REWROTE IT AND PHASE 104 REWROTE IT AGAIN. Each rewrite is a
- * phase. The Phase 90.3 sentence said Tortie could show these changes and
- * could not change them, and Phase 103 made the second half false by adding
- * stage and unstage. The Phase 103 sentence named those two verbs, and Phase
- * 104 made it incomplete by adding a third, which is the commit. This sentence
- * names all three verbs and then names the one thing Tortie still cannot do
- * there, which is undoing a change. That refusal is permanent and
- * `build/conformance-machines.mjs` condition 83 checks it against every command
- * Tortie can send.
+/*
+ * PHASE 228 TOOK THE BAND OFF. `remoteChangesBand` sat under the Source
+ * Control header on a tab whose folder is on a machine and said the changes
+ * are there, that Tortie can stage, unstage and commit them there, and that
+ * it cannot undo a change there. The tab spine and the project header already
+ * name the machine, the three verbs are the verbs the rows offer, and the
+ * refusal is drawn the way an absent local verb is drawn, which is not at all.
+ * The operator's rule of 2026-09-07 is the reason: a remote view says what
+ * the local view says and nothing more. The refusal itself is permanent and
+ * `build/conformance-machines.mjs` condition 83 still checks it against every
+ * command Tortie can send; only the sentence is gone.
  */
-export function remoteChangesBand(label: string): string {
-  return (
-    `These changes are on ${label}. Tortie can stage them, unstage them and ` +
-    `commit them there. It cannot undo a change on that machine.`
-  );
-}
 
 /**
  * Saving is not turned on for that machine, so nothing was sent (Phase 103).

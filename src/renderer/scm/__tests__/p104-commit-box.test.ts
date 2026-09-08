@@ -44,7 +44,6 @@ import type { MachineReviewFile } from '@shared/ipc';
 import {
   REMOTE_SCM_SECTIONS_NOTE,
   commitIdentityFact,
-  remoteChangesBand,
   remoteCommitButton,
   remoteCommitCheckDidNot,
   remoteCommitCheckNoAnswer,
@@ -339,15 +338,9 @@ describe('the three sentences the check leaves', () => {
   });
 });
 
-describe('the two sentences this phase rewrote', () => {
-  it('names all three verbs in the band and still refuses the undo', () => {
-    const band = remoteChangesBand('Mac Pro');
-    expect(band).toBe(
-      'These changes are on Mac Pro. Tortie can stage them, unstage them and ' +
-        'commit them there. It cannot undo a change on that machine.'
-    );
-  });
-
+describe('the sentence this phase rewrote', () => {
+  // PHASE 228 TOOK THE BAND OFF. The other sentence this describe pinned,
+  // `remoteChangesBand`, no longer exists; p903-c pins the deletion.
   it('no longer says staging is the only thing this view changes', () => {
     expect(REMOTE_SCM_SECTIONS_NOTE).toContain(
       'which files are staged and whether they are committed'
