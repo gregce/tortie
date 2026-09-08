@@ -157,13 +157,25 @@ export function createArchCheckCoordinator(deps: {
   /**
    * Arm whatever this source has, and answer whether this is its first touch.
    *
-   * For a folder on this Mac that is the FSEvents watch and nothing changed.
-   * For a folder on a machine there is no watch, and there must not be one: the
-   * mirror's only writer is Tortie, so a stream on it would re-check the
-   * repository every time the mirror was brought up to date.
+   * BOTH KINDS ARE REGISTERED WITH THE WATCH MODULE, and the first build of
+   * this phase registered only one, which is the defect the app run found: the
+   * remote face drew its boxes from the tracked list and every row read
+   * "0 lines" and "nothing this build reads", because `requestArchCheck`
+   * returns at once for a repository `watchArchRepo` never armed, so the scan
+   * that carries the bytes never ran.
+   *
+   * `watchArchRepo` starts no FSEvents stream. It puts an entry in a map, and
+   * the fan out that fires against that map is `emitRepoChanged`, which the one
+   * RepoWatcher per PROJECT ROOT calls. A mirror lives under
+   * `<userData>/gmux` and is never a project root, so nothing will ever fire
+   * for it and the only thing that can schedule a run on a folder on a machine
+   * is this module: the first load, and the person's own Read the code again.
+   * That is what `source.watchable` records, and it is a fact about the bus
+   * rather than a switch.
    */
   function armSource(source: ArchSource): boolean {
-    if (source.watchable) return watchArchRepo(source.repoPath);
+    const armed = watchArchRepo(source.repoPath);
+    if (source.watchable) return armed;
     if (touched.has(source.repoPath)) return false;
     touched.add(source.repoPath);
     return true;

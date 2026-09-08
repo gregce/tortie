@@ -142,7 +142,10 @@ const HELPER = 'electron-run.mjs';
  * which printed 86 names, re-measured at 87 the same day when Phase 219's
  * fix round added `probe-p219-geometry.mjs`, and at 88 on 2026-09-07 when
  * Phase 225's fix round added `probe-p225-baseline.mjs`, and at 89 on 2026-09-08 when
- * Phase 227 added `probe-p227-rewind.mjs`. Lower it ONLY in the same commit
+ * Phase 227 added `probe-p227-rewind.mjs`, at 90 the same day when Phase 236
+ * committed the verifier's own redline probe, and at 91 when Phase 234 added
+ * `probe-p234-arch.mjs`, the Architecture app run against the operator's Mac
+ * Pro. Lower it ONLY in the same commit
  * that deletes a probe on purpose, and say in the commit body which file went
  * and why. Do not lower it to make a red gate green: red here means either a
  * probe left the tree or a probe stopped routing its launch through the helper,
@@ -153,7 +156,7 @@ const HELPER = 'electron-run.mjs';
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 90;
+const HELPER_USER_FLOOR = 91;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

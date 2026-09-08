@@ -59,6 +59,7 @@
     "probe:p225": "npm run build && node build/harness-socket.mjs --fresh gmux-p225 'node build/probe-p225-baseline.mjs'",
     "probe:p227": "npm run build && node build/harness-socket.mjs --fresh gmux-p227 'node build/probe-p227-rewind.mjs'",
     "probe:p236": "npm run build && node build/probe-p236-chip.mjs",
+    "probe:p234": "npm run build && node build/probe-p234-arch.mjs",
     "probe:p211": "npm run build && node build/harness-socket.mjs --fresh gmux-p211 'node build/probe-p211-switch.mjs'",
     "probe:p185": "npm run build && node build/harness-socket.mjs gmux-p185-drawing 'node build/probe-p185-drawing.mjs'",
     "probe:p194": "npm run build && node build/harness-socket.mjs --fresh gmux-p194-redline 'node build/probe-p194-redline-view.mjs'",

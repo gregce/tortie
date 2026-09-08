@@ -80,7 +80,20 @@ export interface ArchSource {
   readonly machineId: string | null;
   /** The folder itself, which for a machine is a path over there. */
   readonly farPath: string;
-  /** True when an FSEvents watch on {@link repoPath} means anything. */
+  /**
+   * True when a file change under {@link repoPath} can ever reach the arch
+   * watch's bus.
+   *
+   * It is FALSE for a mirror, and the reason is `src/main/watcher/bus.ts`:
+   * `emitRepoChanged` is called by the one RepoWatcher per PROJECT ROOT, and a
+   * mirror is a directory of Tortie's own under `<userData>/gmux`, which is
+   * never a project root. So nothing will ever fire for it, which is exactly
+   * what we want, because Tortie is the only thing that writes to it.
+   *
+   * It does NOT decide whether the repository is registered with the watch
+   * module. Both kinds are, because `requestArchCheck` refuses a repository
+   * that is not, and a folder on a machine still needs its one catch up run.
+   */
   readonly watchable: boolean;
   /** The seam that reads `docs/arch/`, ready to be handed to `loadArchDocument`. */
   fileSystem(): Promise<ArchFileSystem>;

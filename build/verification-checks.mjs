@@ -309,6 +309,18 @@ export const CHECKS = [
   realRemote('probe:realmachine'),
   realRemote('probe:realunknowns'),
   realRemote('probe:remotetree'),
+  // PHASE 234. build/probe-p234-arch.mjs: the Architecture face on a tab whose
+  // folder is on the operator's Mac Pro, beside the SAME repository opened
+  // locally, read off the DOM in one app run and compared row for row. It
+  // builds and removes ONE scratch repository under his home, starts a scratch
+  // tmux server on a socket named for its own pid and unlinks that socket on
+  // both machines in a `finally`, lists his own `-L gmux` server and never
+  // touches it, spawns no agent and spends no token. It EXITS NON ZERO on a
+  // difference between the two faces, including a word the remote face carries
+  // and the local one does not, which is the operator's rule of 2026-09-07 made
+  // a check. `P234_PARENT=1` grades the other way round, for a run at the
+  // parent commit.
+  realRemote('probe:p234'),
 
   // Driver probes: a pinned tsx driver over production modules and real
   // scratch git repositories, no Electron, no tmux, no ssh.
