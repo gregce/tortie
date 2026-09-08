@@ -121,3 +121,19 @@
   overflow-wrap: anywhere;
   cursor: text;
 }
+
+/* PHASE 227. A change under keyboard focus, and NOTHING on the resting face.
+   Each change is one `span.ed-redline-change` with tabindex -1, so it is out of
+   the tab order and reached only by the view's own chords or a click. Research
+   83 D.3 measured that focusing one moved the document by 0.00px, kept the
+   selection and scrolled the change into view on its own; Chromium paints the
+   outline as one box per fragment of a wrapped change, which is the right
+   picture. Tokens only: the same accent ring the scroller wears, with the
+   hairline the row's own tag uses on the inside so the ring reads on the
+   change's own wash. */
+.ed-redline-change:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--r-xs);
+  box-shadow: 0 0 0 1px var(--border-strong) inset;
+}

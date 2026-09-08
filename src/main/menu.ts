@@ -609,11 +609,13 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         }
       ]
     },
-    // NO MARKS ON ANY ROW OF THIS MENU, argued rather than omitted. All seven
-    // are AppKit's own roles, every Mac app draws them bare, and the terminal's
+    // NO MARKS ON ANY ROW OF THIS MENU, argued rather than omitted. The seven
+    // roles are AppKit's own, every Mac app draws them bare, and the terminal's
     // own right click menu already carries the marked versions of Copy, Paste
     // and Select All at terminal-menu.ts:156, :176 and :183 for the surface
-    // where those verbs are not the system's.
+    // where those verbs are not the system's. The four Redline rows under them
+    // are bare too: nothing in Tortie draws a picture for a change, and a mark
+    // on one of four sibling verbs would have to be a lie about the other three.
     {
       label: 'Edit',
       submenu: [
@@ -623,7 +625,19 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'selectAll' }
+        { role: 'selectAll' },
+        { type: 'separator' },
+        // PHASE 227. The Redline view's four verbs, per the rule that a phase
+        // adding a surface updates the native menus. NO ACCELERATOR ON ANY OF
+        // THEM, deliberately: the keymap's ⌥↓, ⌥↑, ⌥⌫ and ⌥⇧⌫ are answered by
+        // the view's own key handler while the keyboard is in it, and a native
+        // accelerator is app-wide, so registering one here would take those
+        // bytes from every session's terminal. The renderer hands each row to
+        // the mounted Redline view and does nothing when none is mounted.
+        item('Next Change', 'redline-next'),
+        item('Previous Change', 'redline-prev'),
+        item('Rewind Change', 'redline-rewind'),
+        item('Undo Rewind', 'redline-undo')
       ]
     },
     // Phase 14. Between Edit and Session, which is where a macOS app puts

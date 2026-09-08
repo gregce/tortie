@@ -42,7 +42,7 @@
  * baseline byte for byte and the non-DEL text the working text.
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { OpeningSkeleton } from './MonacoHost';
 import { RedlineRuns } from './RedlineRow';
 import { handleRedlineCopy } from './redline-copy';
@@ -53,6 +53,8 @@ import {
 import { useLiveTabText } from './live-text';
 import { changesOf } from './rewind';
 import type { RedlineChange } from './rewind';
+import { installRedlineCommands } from './redline-commands';
+import type { RedlineCommand } from './redline-commands';
 import type { RedlineRun } from './redline';
 import {
   baselineName,
@@ -99,6 +101,7 @@ function DocumentRuns({
         <span
           key={`c${String(c)}`}
           className="ed-redline-change"
+          tabIndex={-1}
           role="group"
           aria-label={`Change ${String(c + 1)} of ${String(changes.length)}`}
           data-change={String(c)}
@@ -118,6 +121,82 @@ function DocumentRuns({
     i += 1;
   }
   return <>{out}</>;
+}
+
+/**
+ * What a press carries, read off the focused wrapper's own attributes rather
+ * than off any list in memory, so a press is bound to exactly the picture
+ * the person is looking at, generation included (research 83 B.8a).
+ */
+export interface PressedChange {
+  off: number;
+  del: string;
+  ins: string;
+  generation: number;
+}
+
+/** The change under focus inside `host`, or null when none holds it. */
+export function focusedChange(host: HTMLElement): PressedChange | null {
+  const active = host.ownerDocument.activeElement;
+  if (!(active instanceof HTMLElement)) return null;
+  const el = active.closest<HTMLElement>('.ed-redline-change');
+  if (el === null || !host.contains(el)) return null;
+  const off = Number(el.dataset['changeOff']);
+  const generation = Number(el.dataset['changeGen']);
+  if (!Number.isInteger(off) || !Number.isInteger(generation)) return null;
+  return {
+    off,
+    del: el.dataset['changeDel'] ?? '',
+    ins: el.dataset['changeIns'] ?? '',
+    generation
+  };
+}
+
+/**
+ * The command a key event names, or null. The four chords are the keymap's
+ * `redline.*` entries (src/shared/keymap.ts), answered here and nowhere else:
+ * ⌥↓ next, ⌥↑ previous, ⌥⌫ rewind, ⌥⇧⌫ undo. Anything with ⌘ or ⌃ is not
+ * ours, so the editor panel's and the shell's chords pass untouched.
+ */
+export function redlineCommandOf(event: {
+  key: string;
+  altKey: boolean;
+  shiftKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
+}): RedlineCommand | null {
+  if (!event.altKey || event.metaKey || event.ctrlKey) return null;
+  if (event.key === 'ArrowDown' && !event.shiftKey) return 'next';
+  if (event.key === 'ArrowUp' && !event.shiftKey) return 'prev';
+  if (event.key === 'Backspace') return event.shiftKey ? 'undo' : 'rewind';
+  return null;
+}
+
+/**
+ * Move the keyboard to the next or previous change and answer which one, or
+ * null when the document holds none. From nowhere, next is the first change
+ * and previous the last; at either end the focus stays where it is. `focus()`
+ * alone: research 83 D.3 measured it scrolling a change into view on a
+ * 3,670px document with no `scrollIntoView` call.
+ */
+export function moveFocus(host: HTMLElement, delta: 1 | -1): number | null {
+  const items = Array.from(
+    host.querySelectorAll<HTMLElement>('.ed-redline-change')
+  );
+  if (items.length === 0) return null;
+  const active = host.ownerDocument.activeElement;
+  const current =
+    active instanceof HTMLElement
+      ? items.indexOf(active.closest<HTMLElement>('.ed-redline-change') ?? active)
+      : -1;
+  const next =
+    current === -1
+      ? delta === 1
+        ? 0
+        : items.length - 1
+      : Math.min(items.length - 1, Math.max(0, current + delta));
+  items[next]?.focus();
+  return next;
 }
 
 export function RedlineDocument({
@@ -153,6 +232,26 @@ export function RedlineDocument({
       document.removeEventListener('copy', onCopy);
     };
   }, []);
+
+  // PHASE 227. The four commands, from the scroller's own keys and from the
+  // Edit menu through ./redline-commands. Rewind and undo read the change
+  // under focus and hand it to the one press function; until item 4 of the
+  // phase installs it, a press resolves the identity and does nothing more.
+  const press = useCallback((kind: 'rewind' | 'undo', host: HTMLElement) => {
+    const pressed = kind === 'rewind' ? focusedChange(host) : null;
+    void pressed;
+  }, []);
+  const runCommand = useCallback(
+    (command: RedlineCommand): void => {
+      const host = hostRef.current;
+      if (host === null) return;
+      if (command === 'next') moveFocus(host, 1);
+      else if (command === 'prev') moveFocus(host, -1);
+      else press(command, host);
+    },
+    [press]
+  );
+  useEffect(() => installRedlineCommands(runCommand), [runCommand]);
 
   // The skeleton still waits for git's first answer, baseline or not: a
   // baseline seeded from the read is overtaken by a HEAD version the moment
@@ -201,6 +300,12 @@ export function RedlineDocument({
         onCopy={(event) => {
           const host = hostRef.current;
           if (host !== null) handleRedlineCopy(host, event.nativeEvent);
+        }}
+        onKeyDown={(event) => {
+          const command = redlineCommandOf(event);
+          if (command === null) return;
+          event.preventDefault();
+          runCommand(command);
         }}
       >
         {doc === null ? (

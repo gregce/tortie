@@ -572,6 +572,58 @@ export const KEYMAP = [
     source: 'built-in',
     menuAction: 'close-editor-tab'
   },
+  // PHASE 227. The Redline view's four verbs. THE CHORDS ARE NOT REGISTERED
+  // AS NATIVE ACCELERATORS, on purpose: a native accelerator is app-wide, and
+  // ⌥↓, ⌥↑ and ⌥⌫ are bytes a session's terminal reads when the redline is
+  // not in front. The view's own key handler answers them while the keyboard
+  // is in it; the Edit menu rows carry the verbs with no chord beside them.
+  {
+    id: 'redline.next',
+    keys: [k('Alt+Down')],
+    action: 'Next change',
+    explain:
+      'In the Redline view, moves the focus to the next change so it can be rewound.',
+    group: 'editor',
+    scope: 'editor',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'redline-next'
+  },
+  {
+    id: 'redline.prev',
+    keys: [k('Alt+Up')],
+    action: 'Previous change',
+    explain: 'In the Redline view, moves the focus back to the previous change.',
+    group: 'editor',
+    scope: 'editor',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'redline-prev'
+  },
+  {
+    id: 'redline.rewind',
+    keys: [k('Alt+Backspace')],
+    action: 'Rewind the change',
+    explain:
+      'Puts the change under focus back to what the marking is measured against, and writes the file. Undo brings it back.',
+    group: 'editor',
+    scope: 'editor',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'redline-rewind'
+  },
+  {
+    id: 'redline.undo',
+    keys: [k('Shift+Alt+Backspace')],
+    action: 'Undo the rewind',
+    explain:
+      'Brings back the change you last rewound in this tab. It lasts for this session.',
+    group: 'editor',
+    scope: 'editor',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'redline-undo'
+  },
   {
     id: 'editor.find',
     keys: [k('Cmd+F')],

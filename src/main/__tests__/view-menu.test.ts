@@ -472,3 +472,61 @@ describe('Phase 156: every menu bar row wears the mark its own surface draws', (
     expect(markOf(help.submenu, 'Keyboard Shortcuts')).toBe('keyboard');
   });
 });
+
+// ---------------------------------------------------------------------------
+// PHASE 227: the Redline view's four verbs in the Edit menu
+//
+// The rule that a phase adding a surface updates the native menus. Four rows
+// under a separator after the seven AppKit roles, bare, and with NO
+// ACCELERATOR, because the chords are the view's own and a native accelerator
+// would take ⌥↓, ⌥↑ and ⌥⌫ from every session's terminal.
+// ---------------------------------------------------------------------------
+
+describe('Phase 227: the Redline rows in the Edit menu', () => {
+  beforeEach(() => {
+    setPlatform('darwin');
+    installAppMenu();
+  });
+
+  const ROWS: readonly [string, string][] = [
+    ['Next Change', 'redline-next'],
+    ['Previous Change', 'redline-prev'],
+    ['Rewind Change', 'redline-rewind'],
+    ['Undo Rewind', 'redline-undo']
+  ];
+
+  it('adds exactly the four rows, in order, after a separator that follows the roles', () => {
+    const edit = submenuOf('Edit');
+    const labels = edit.map((it) => it.label ?? (it.role !== undefined ? `role:${it.role}` : it.type));
+    expect(labels).toEqual([
+      'role:undo',
+      'role:redo',
+      'separator',
+      'role:cut',
+      'role:copy',
+      'role:paste',
+      'role:selectAll',
+      'separator',
+      ...ROWS.map(([label]) => label)
+    ]);
+  });
+
+  it('registers no accelerator on any of them, so the terminal keeps its bytes', () => {
+    const edit = submenuOf('Edit');
+    for (const [label] of ROWS) {
+      const row = edit.find((it) => it.label === label);
+      expect(row, label).toBeDefined();
+      expect(row?.accelerator, label).toBeUndefined();
+      expect(row?.icon, label).toBeUndefined();
+    }
+  });
+
+  it.each(ROWS)('forwards %s as %s when clicked', (label, action) => {
+    const win = makeWindow();
+    state.windows = [win];
+    const row = submenuOf('Edit').find((it) => it.label === label);
+    expect(row?.click).toBeDefined();
+    row?.click?.();
+    expect(win.sent).toEqual([[EVT_MENU_ACTION, action]]);
+  });
+});

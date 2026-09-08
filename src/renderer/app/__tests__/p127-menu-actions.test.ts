@@ -36,6 +36,13 @@ const ARMS = [
   'save-file',
   'close-editor-tab',
   'toggle-editor',
+  // Phase 227. Edit > Next Change, Previous Change, Rewind Change and Undo
+  // Rewind, the Redline view's four verbs, each handed to the mounted view
+  // through src/renderer/editor/redline-commands.ts.
+  'redline-next',
+  'redline-prev',
+  'redline-rewind',
+  'redline-undo',
   'toggle-sidebar',
   'toggle-editor-fill',
   'toggle-session-focus',
@@ -78,7 +85,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 38 actions and no more', () => {
+  it('answers all 42 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

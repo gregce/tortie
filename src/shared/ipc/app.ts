@@ -129,6 +129,15 @@ export type MenuActionId =
   | 'save-file'
   | 'close-editor-tab'
   | 'toggle-editor'
+  // Phase 227. Edit > Next Change, Previous Change, Rewind Change and Undo
+  // Rewind, the Redline view's four verbs. They carry no accelerator, because
+  // the chords are the view's own and a native accelerator would take ⌥↓, ⌥↑
+  // and ⌥⌫ from every session's terminal; the renderer hands each to the
+  // mounted Redline view and does nothing when none is mounted.
+  | 'redline-next'
+  | 'redline-prev'
+  | 'redline-rewind'
+  | 'redline-undo'
   | 'toggle-sidebar'
   | 'attention'
   | 'shortcuts'

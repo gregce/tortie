@@ -33,6 +33,9 @@ import { useEditor } from '../editor/store';
 // toggleEditorFill, so the button, Shift+Cmd+B and the menu item cannot drift.
 // PHASE 165: from its own leaf, so the menu reaches it without the panel.
 import { toggleEditorFill } from '../editor/fill';
+// Phase 227. The Redline view's four verbs, through the leaf the view installs
+// its handler on, so the menu reaches the view without loading the panel.
+import { runRedlineCommand } from '../editor/redline-commands';
 import { focusTerminal, jumpToSession } from './session-focus';
 import { runFillChord } from './fill-chord';
 // Phase 137. View > Catch Me Up. The same router the ⇧⌘U chord runs.
@@ -191,6 +194,22 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       if (wasOpen) focusTerminal();
       return;
     }
+    // Phase 227. Edit > Next Change, Previous Change, Rewind Change, Undo
+    // Rewind. Each is handed to the mounted Redline view; with none mounted
+    // the leaf answers false and nothing happens, the way close-editor-tab
+    // returns when no panel is open.
+    case 'redline-next':
+      runRedlineCommand('next');
+      return;
+    case 'redline-prev':
+      runRedlineCommand('prev');
+      return;
+    case 'redline-rewind':
+      runRedlineCommand('rewind');
+      return;
+    case 'redline-undo':
+      runRedlineCommand('undo');
+      return;
     case 'toggle-sidebar':
       s.toggleSidebar();
       return;
