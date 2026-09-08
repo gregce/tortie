@@ -1,6 +1,6 @@
 /**
  * redline-accept-probe.mts. The runtime half of Phase 238's five new arms on
- * `npm run conformance:redline` (rule 18).
+ * `npm run conformance:redline` (rule 19).
  *
  * It runs the SHIPPING accept, being src/renderer/editor/rewind.ts's
  * `acceptChange`, `acceptAll` and `planAccept` and
