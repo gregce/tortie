@@ -116,7 +116,22 @@ try {
     writeFileSync(abs, contents);
     return abs;
   }
-  const bytesOf = (abs: string): string => readFileSync(abs).toString('latin1');
+  /** What is at `abs` right now; a reading, never a throw, so an ablation
+   * that removes the entry moves this rather than crashing the probe. */
+  const entryOf = (abs: string): string => {
+    try {
+      return lstatSync(abs).isSymbolicLink() ? 'still-a-link' : 'a-file';
+    } catch {
+      return 'GONE';
+    }
+  };
+  const bytesOf = (abs: string): string => {
+    try {
+      return readFileSync(abs).toString('latin1');
+    } catch {
+      return '<GONE>';
+    }
+  };
   const tempLeft = (abs: string): boolean => existsSync(swapNameFor(abs));
   const strays = (): string[] =>
     readdirSync(root).filter((n) => n.endsWith(channel.GUARDED_SWAP_SUFFIX));
@@ -282,8 +297,7 @@ try {
     });
     readings['linkAtTarget'] =
       `${word(r)} victim=${bytesOf(victim) === OLD ? 'untouched' : 'WRITTEN'} ` +
-      `entry=${lstatSync(abs).isSymbolicLink() ? 'still-a-link' : 'REPLACED'} ` +
-      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+      `entry=${entryOf(abs)} ${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
   }
   {
     // The race: the file becomes a link AFTER the read and the staging.
@@ -302,8 +316,7 @@ try {
     );
     readings['linkRacedAtTarget'] =
       `${word(r)} victim=${bytesOf(victim) === 'VICTIM' ? 'untouched' : 'WRITTEN'} ` +
-      `entry=${lstatSync(abs).isSymbolicLink() ? 'still-a-link' : 'REPLACED'} ` +
-      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+      `entry=${entryOf(abs)} ${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
   }
   {
     // The other race: the staged copy is swapped for a link after the write.
@@ -322,7 +335,7 @@ try {
     );
     readings['linkRacedAtTemp'] =
       `${word(r)} target=${bytesOf(abs) === OLD ? 'old' : 'CHANGED'} ` +
-      `entry=${lstatSync(abs).isSymbolicLink() ? 'BECAME-A-LINK' : 'a-file'} ` +
+      `entry=${entryOf(abs)} ` +
       `victim=${bytesOf(victim) === 'VICTIM' ? 'untouched' : 'WRITTEN'} ` +
       `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
   }

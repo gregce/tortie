@@ -3,10 +3,10 @@
  * `npm run conformance:redline-write`, the gate on the guarded write channel
  * (Phase 226).
  *
- * About two seconds. It launches no Electron, opens no window, starts no
+ * About seven seconds. It launches no Electron, opens no window, starts no
  * tmux server, spawns no agent, makes no request and reads nothing under the
  * person's home. The only processes it starts are node running the probe
- * through the pinned tsx, and inside the
+ * through the pinned tsx, once live and once per ablation, and inside the
  * probe one node child of itself for the kill arm, which ends by its own
  * SIGKILL and is waited for. Every fixture is written by the probe into a
  * scratch directory it removes in a `finally`, whatever happened. Every
@@ -63,6 +63,11 @@
  *      conformance:redline's rule 9 in the same commit.
  *   6. The gate is named in package.json and in build/verification-checks.mjs,
  *      because a gate nothing names is how a gate decays.
+ *   7. THE ABLATIONS. Eleven copies of the channel, one clause removed each,
+ *      and every one must move at least one reading of rule 1. The gate
+ *      prints which reading moved for which clause.
+ *
+ * `P226_ABLATION_DETAIL=1` prints which reading each ablation moved.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -398,7 +403,148 @@ function filesNaming(dir, needle) {
   say('6. the gate is named in package.json and classified in build/verification-checks.mjs');
 }
 
-const red = 0;
+// ---------------------------------------------------------------------------
+// Rule 7. The ablations.
+// ---------------------------------------------------------------------------
+
+/**
+ * One clause each. `from` is an exact substring of the shipping module and
+ * `to` is that clause removed. The eighth carries two edits on purpose: with
+ * the unlink kept, a planted link is removed before the create and O_EXCL
+ * alone never meets it, so removing O_EXCL alone changes nothing a reading
+ * can see. That is the credentials gate's precedent for its no-follow pair.
+ */
+const ABLATIONS = [
+  {
+    name: 'the root is not asked whether it is open',
+    edits: [{ from: '() => deps.listProjectRoots()', to: 'async () => [input.root]' }]
+  },
+  {
+    name: 'the path is not proved inside the root',
+    edits: [
+      {
+        from: 'abs = (await resolveInsideRoot(realRoot, input.path)).abs;',
+        to: "abs = (await import('node:path')).resolve(realRoot, input.path);"
+      }
+    ]
+  },
+  {
+    name: 'the cap is not asked',
+    edits: [{ from: 'return bytes > READ_CAP_BYTES;', to: 'return false;' }]
+  },
+  {
+    name: 'the digest is not compared',
+    edits: [{ from: 'if (disk !== input.expect) {', to: 'if (false) {' }]
+  },
+  {
+    name: 'the decode round trip is not compared',
+    edits: [{ from: "if (!Buffer.from(text, 'utf8').equals(raw)) {", to: 'if (false) {' }]
+  },
+  {
+    name: 'the read follows a link',
+    edits: [
+      {
+        from: 'constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)',
+        to: 'constants.O_RDONLY'
+      }
+    ]
+  },
+  {
+    name: 'a leftover at the staged name is kept',
+    edits: [{ from: '    unlinkSync(staged);\n  } catch {\n    // Nothing was there', to: '    void staged;\n  } catch {\n    // Nothing was there' }]
+  },
+  {
+    name: 'the staged create follows a link',
+    edits: [
+      { from: '    unlinkSync(staged);\n  } catch {\n    // Nothing was there', to: '    void staged;\n  } catch {\n    // Nothing was there' },
+      {
+        from: 'constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL',
+        to: 'constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC'
+      }
+    ]
+  },
+  {
+    name: 'the target is not asked whether it became a link',
+    edits: [{ from: 'targetIsLink = lstatSync(abs).isSymbolicLink();', to: 'targetIsLink = false;' }]
+  },
+  {
+    name: 'the staged copy is not asked whether it became a link',
+    edits: [{ from: 'if (lstatSync(staged).isSymbolicLink()) {', to: 'if (false) {' }]
+  },
+  {
+    name: 'the write is not staged beside the file',
+    edits: [{ from: 'const staged = swapNameFor(abs);', to: 'const staged = abs;' }]
+  }
+];
+
+/**
+ * THE COPIES LIVE ONE LEVEL UNDER `src/main/`, and the depth is exact. The
+ * module imports `../durable/write` and `../errors`, so a copy anywhere else
+ * fails to IMPORT rather than fail the rule it removed, and a suite red for
+ * the wrong reason proves nothing. Each copy is a sibling of `fs/`, dotted so
+ * no include glob and no test runner picks it up, and removed in the `finally`
+ * whatever happened.
+ */
+const ABLATION_PREFIX = `.p226-ablation-${process.pid.toString(36)}-`;
+const mainDir = join(repoRoot, 'src/main');
+
+function sweepAblations() {
+  for (const name of readdirSync(mainDir)) {
+    if (name.startsWith(ABLATION_PREFIX)) {
+      rmSync(join(mainDir, name), { recursive: true, force: true });
+    }
+  }
+}
+
+const moves = [];
+let red = 0;
+try {
+  const was = verdict(live);
+  for (const [i, ablation] of ABLATIONS.entries()) {
+    const dir = join(mainDir, `${ABLATION_PREFIX}${String(i)}`);
+    mkdirSync(dir, { recursive: true });
+    for (const f of readdirSync(DOMAIN).filter((n) => n.endsWith('.ts'))) {
+      cpSync(join(DOMAIN, f), join(dir, f));
+    }
+    const target = join(dir, MODULE);
+    let applied = true;
+    for (const edit of ablation.edits) {
+      if (!existsSync(target)) {
+        fail(`7. there is no ${MODULE} to ablate for "${ablation.name}"`);
+        applied = false;
+        break;
+      }
+      const before = readFileSync(target, 'utf8');
+      if (!before.includes(edit.from)) {
+        fail(`7. the ablation "${ablation.name}" found nothing to edit in ${MODULE}`);
+        applied = false;
+        break;
+      }
+      writeFileSync(target, before.replace(edit.from, edit.to));
+    }
+    if (!applied) continue;
+    const got = verdict(runProbe(dir));
+    if (got[0] === 'error') {
+      // A PROBE THAT CANNOT RUN IS NOT AN ABLATION THAT WENT RED.
+      fail(`7. the ablation "${ablation.name}" stopped the probe running instead of moving a reading, so it proves nothing`);
+      continue;
+    }
+    const moved = MATRIX.filter((_, at) => got[at] !== was[at]).map(([key], _at) => key);
+    const detail = MATRIX.map(([key], at) => (got[at] !== was[at] ? `${key} -> "${got[at]}"` : null)).filter(Boolean);
+    if (moved.length > 0) {
+      red += 1;
+      moves.push(`${ablation.name} -> ${detail.join(', ')}`);
+    } else {
+      fail(`7. the ablation "${ablation.name}" changed nothing this gate checks, so that rule cannot fail`);
+    }
+  }
+  say(`7. ${String(red)} of ${String(ABLATIONS.length)} ablations went red, one clause each`);
+  if (process.env['P226_ABLATION_DETAIL'] === '1') {
+    for (const line of moves) say(`   ablation ${line}`);
+  }
+} finally {
+  sweepAblations();
+}
 
 // ---------------------------------------------------------------------------
 
@@ -407,6 +553,5 @@ if (failures.length > 0) {
   process.stderr.write(`${TAG} FAILED: ${String(failures.length)} finding(s).\n`);
   process.exit(1);
 }
-void red;
-say(`OK: ${String(MATRIX.length)} readings, every rule passed.`);
+say(`OK: ${String(MATRIX.length)} readings, ${String(red)} of ${String(ABLATIONS.length)} ablations red, every rule passed.`);
 process.exit(0);
