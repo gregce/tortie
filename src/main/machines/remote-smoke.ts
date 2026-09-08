@@ -108,7 +108,9 @@ import {
   CREATE_ANSWER_LOST,
   // PHASE 104. The two door refusals step 10k watches firing for the eighth
   // writer. Both were already reachable and neither was ever watched.
-  MACHINE_NOT_CONNECTED,
+  // PHASE 231. The connected one is composed with the label the context
+  // carries, the way every door refusal is now.
+  machineNotConnected,
   WRITE_THROUGH_READ_DOOR,
   RESTORE_CREATE_UNCONFIRMED,
   RESTORE_FORGOTTEN,
@@ -198,7 +200,7 @@ import { remoteMachineHome } from './remote-image';
 // The folder this Mac keeps copies of session screens in. Step 14 makes it read
 // only for the length of one end, inside this run's own isolated profile.
 import { snapshotsDir } from '../restore/snapshots';
-import { runRemoteRead, runRemoteWrite } from './remote-run';
+import { labelOf, runRemoteRead, runRemoteWrite } from './remote-run';
 // PHASE 90.2. The walk that finds this project on a machine, and the copy that
 // puts it there. Step 20 drives both against the scratch machine.
 import {
@@ -1334,7 +1336,7 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     );
     await assertRefused(
       '10k. git-commit sent while the machine is not answering',
-      MACHINE_NOT_CONNECTED,
+      machineNotConnected(labelOf(ctx)),
       () =>
         runRemoteWrite(ctx, 'git-commit', [
           '/nowhere/p104',

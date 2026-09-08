@@ -65,6 +65,9 @@ vi.mock('../confirm', () => ({
 
 vi.mock('../store', () => ({
   machineRow: () => row,
+  // PHASE 231. The shipping rule: the label, or the host when there is none.
+  machineLabelOf: (one: Record<string, unknown>) =>
+    typeof one['label'] === 'string' && one['label'].length > 0 ? one['label'] : one['host'],
   machineFieldsOf: (one: Record<string, unknown>) => ({
     host: one['host'] ?? '',
     user: null,
@@ -301,6 +304,8 @@ describe('putFileOnMachine', () => {
             (err as Error).message
         )
     );
+    // PHASE 231. It names the machine the way the person did, not by id.
+    expect(said).toContain('studio.example did not answer while this file was being saved');
     expect(said).toContain('may have been saved there');
     expect(said).not.toContain('Nothing was written');
     // Short enough for the renderer to show it rather than its own fallback.

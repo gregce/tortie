@@ -75,6 +75,7 @@ import { gmuxError } from '../errors';
 import { confirmedWriteRoot, relativeUnderRoot } from './remote-file';
 import { runRemoteWrite } from './remote-run';
 import { readyRemoteContext } from './ready-context';
+import { machineLabelOf } from './store';
 
 /**
  * How long one of these two commands gets. 15,000 ms.
@@ -235,7 +236,7 @@ export async function makeRemoteDir(
     // than falling back to its own wording.
     throw gmuxError(
       'INVALID_INPUT',
-      `${row.id} did not answer while that folder was being made, so it may ` +
+      `${machineLabelOf(row)} did not answer while that folder was being made, so it may ` +
         `have been made there. Press Refresh to read that folder again.`,
       String((err as Error).message ?? err)
     );
@@ -333,7 +334,7 @@ export async function renameRemoteEntry(
   } catch (err) {
     throw gmuxError(
       'INVALID_INPUT',
-      `${row.id} did not answer while that was being renamed, so it may have ` +
+      `${machineLabelOf(row)} did not answer while that was being renamed, so it may have ` +
         `been renamed there. Press Refresh to read that folder again.`,
       String((err as Error).message ?? err)
     );

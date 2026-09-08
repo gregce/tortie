@@ -74,7 +74,7 @@ import { machineLinkFacts } from './control-plane';
 import { execRemoteShell, type ExecTmuxOptions } from './exec-plane';
 import { feedAnswering, linkAnswering } from './liveness';
 import {
-  MACHINE_NOT_CONNECTED,
+  machineNotConnected,
   SCRIPT_NOT_IN_CATALOGUE,
   WRITE_THROUGH_READ_DOOR
 } from './remote-copy';
@@ -315,7 +315,9 @@ async function runRemoteScript(
   //    the LINK that is asked, because every script is one ssh running one
   //    program, and the session list has nothing to do with whether that
   //    answers. A caller whose verb is about sessions asked the FEED above.
-  assertMachineLinkAnswering(ctx.machineId, scriptId);
+  //    The refusal names the machine by the label the person gave it, which
+  //    the context has carried since Phase 109 for this.
+  assertMachineLinkAnswering(ctx.machineId, scriptId, labelOf(ctx));
   // 5. The connection this answer will belong to.
   const before = machineGeneration(ctx.machineId).generation;
   // 6. One quoted argument, and a length the far side's shell can accept.
@@ -348,7 +350,7 @@ async function runRemoteScript(
   if (payload === null) {
     throw gmuxError(
       'INVALID_INPUT',
-      MACHINE_NOT_CONNECTED,
+      machineNotConnected(labelOf(ctx)),
       `${ctx.machineId} answered "${scriptId}" with ${String(out.length)} ` +
         `byte(s) and nothing usable between the markers`
     );
@@ -358,7 +360,7 @@ async function runRemoteScript(
   if (after !== before) {
     throw gmuxError(
       'INVALID_INPUT',
-      MACHINE_NOT_CONNECTED,
+      machineNotConnected(labelOf(ctx)),
       `${ctx.machineId} moved from connection ${String(before)} to ` +
         `${String(after)} while "${scriptId}" was in flight, so its answer ` +
         `belongs to a connection Tortie no longer has`
@@ -368,19 +370,37 @@ async function runRemoteScript(
 }
 
 /**
+ * The name a refusal calls the machine (Phase 231): the label the person
+ * typed, and the id when the row carries none, which is every reader's rule
+ * for `label` since Phase 109.
+ */
+export function labelOf(ctx: Pick<RemoteMachineContext, 'machineId' | 'label'>): string {
+  const label = ctx.label ?? null;
+  return label !== null && label.length > 0 ? label : ctx.machineId;
+}
+
+/** What a refusal calls a machine when the caller holds no label. */
+const NO_LABEL = 'that machine';
+
+/**
  * Refuse when the link is not answering. Exported so a caller can ask the
  * same question before it does work it would then throw away.
+ *
+ * PHASE 231. `label` is what the sentence calls the machine. Every caller of
+ * the door holds a context and passes {@link labelOf} of it; a caller with
+ * none gets "that machine", which is the sentence as it was.
  *
  * @throws GmuxError INVALID_INPUT
  */
 export function assertMachineLinkAnswering(
   machineId: string,
-  what: string
+  what: string,
+  label: string = NO_LABEL
 ): void {
   if (machineLinkAnswering(machineId)) return;
   throw gmuxError(
     'INVALID_INPUT',
-    MACHINE_NOT_CONNECTED,
+    machineNotConnected(label),
     `refused "${what}" for machine ${machineId}: its link reads ` +
       `${machineLinkFacts(machineId).link}`
   );
@@ -395,13 +415,14 @@ export function assertMachineLinkAnswering(
  */
 export function assertMachineFeedAnswering(
   machineId: string,
-  what: string
+  what: string,
+  label: string = NO_LABEL
 ): void {
   if (machineFeedAnswering(machineId)) return;
   const facts = machineLinkFacts(machineId);
   throw gmuxError(
     'INVALID_INPUT',
-    MACHINE_NOT_CONNECTED,
+    machineNotConnected(label),
     `refused "${what}" for machine ${machineId}: its link reads ` +
       `${facts.link} and its session feed reads ${facts.feed}`
   );

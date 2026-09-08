@@ -198,7 +198,7 @@ describe('the refusals, in the order they fire', () => {
       link = state;
       sent = [];
       await expect(runRemoteRead(ctx, 'machine-facts', [])).rejects.toThrow(
-        /not connected to that machine/
+        /not connected to pop right now/
       );
       expect(sent, state).toEqual([]);
     }
@@ -218,7 +218,7 @@ describe('the refusals, in the order they fire', () => {
   it('refuses an answer with nothing usable in it', async () => {
     answer = () => 'bash: git: command not found\n';
     await expect(runRemoteRead(ctx, 'review-list', ['/w'])).rejects.toThrow(
-      /not connected to that machine/
+      /not connected to pop right now/
     );
   });
 
@@ -229,7 +229,7 @@ describe('the refusals, in the order they fire', () => {
     // through a link that no longer exists.
     generationAfterSend = 8;
     await expect(runRemoteRead(ctx, 'machine-facts', [])).rejects.toThrow(
-      /not connected to that machine/
+      /not connected to pop right now/
     );
     expect(sent).toHaveLength(1);
   });
@@ -293,17 +293,56 @@ describe('what the door is for other callers', () => {
   it('lets a caller ask the link question before it does the work', () => {
     link = 'quiet';
     expect(() => assertMachineLinkAnswering('pop', 'a harvest pass')).toThrow(
-      /not connected to that machine/
+      /not connected to that machine right now/
     );
     link = 'connected';
     expect(() => assertMachineLinkAnswering('pop', 'a harvest pass')).not.toThrow();
+  });
+
+  // PHASE 231, item 3. The refusal names the machine the way the person
+  // named it, so the sentence Source control draws on a Stage press reads the
+  // same as the one Explorer composes for itself. A context with no label
+  // names the id, which is every reader's rule for `label` since Phase 109.
+  it('names the machine by its label in the refusal, and by its id without one', async () => {
+    link = 'quiet';
+    const labelled = { ...ctx, label: 'Mac Pro' } as RemoteMachineContext;
+    await expect(runRemoteRead(labelled, 'machine-facts', [])).rejects.toThrow(
+      /not connected to Mac Pro right now, so it did not ask it for anything\. What Tortie already knows about Mac Pro is as old as/
+    );
+    await expect(runRemoteRead(ctx, 'machine-facts', [])).rejects.toThrow(
+      /not connected to pop right now/
+    );
+    expect(sent).toEqual([]);
+    expect(() => assertMachineLinkAnswering('pop', 'agents-find', 'Mac Pro')).toThrow(
+      /not connected to Mac Pro right now/
+    );
+    expect(() => assertMachineLinkAnswering('pop', 'agents-find')).toThrow(
+      /not connected to that machine right now/
+    );
+    link = 'connected';
+    feed = 'missed';
+    expect(() => assertMachineFeedAnswering('pop', 'agents-find', 'Mac Pro')).toThrow(
+      /not connected to Mac Pro right now/
+    );
+    // The two later refusals of the door carry the label too: nothing usable
+    // between the markers, and a connection that moved while in flight.
+    feed = 'listed';
+    answer = () => 'bash: git: command not found\n';
+    await expect(runRemoteRead(labelled, 'review-list', ['/w'])).rejects.toThrow(
+      /not connected to Mac Pro right now/
+    );
+    answer = () => printed('ok');
+    generationAfterSend = 8;
+    await expect(runRemoteRead(labelled, 'machine-facts', [])).rejects.toThrow(
+      /not connected to Mac Pro right now/
+    );
   });
 
   it('lets the agent board ask the feed question, and names both facts', () => {
     link = 'connected';
     feed = 'missed';
     expect(() => assertMachineFeedAnswering('pop', 'agents-find')).toThrow(
-      /not connected to that machine/
+      /not connected to that machine right now/
     );
     let detail = '';
     try {

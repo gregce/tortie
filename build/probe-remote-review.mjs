@@ -227,6 +227,7 @@ const remotePath = await import(REPO + '/src/main/machines/remote-path');
 const control = await import(REPO + '/src/main/machines/control-plane');
 const review = await import(REPO + '/src/main/machines/remote-review');
 const copy = await import(REPO + '/src/main/machines/remote-copy');
+const run = await import(REPO + '/src/main/machines/remote-run');
 
 const ctx = {
   kind: 'remote' as const,
@@ -283,7 +284,9 @@ try {
 
 writeFileSync(
   outPath,
-  JSON.stringify({ ...(out as object), notConnected: copy.MACHINE_NOT_CONNECTED }),
+  // PHASE 231. The door names the machine by the label its context carries,
+  // and this context carries none, so the sentence names the id.
+  JSON.stringify({ ...(out as object), notConnected: copy.machineNotConnected(run.labelOf(ctx)) }),
   'utf8'
 );
 process.exit(0);

@@ -1016,9 +1016,13 @@ const MACHINE_REFUSALS = [
       'at once. Without it a harvest could write a conversation id read ' +
       'through a connection Tortie no longer has, and a restore would then ' +
       'type that id into a live agent',
+    // PHASE 231. The sentence is composed with the machine's label, so the
+    // fragments are the static parts around the two holes.
     fragments: [
-      'Tortie is not connected to that machine right now, so it did not ask it ',
-      'for anything. What Tortie already knows about that machine is as old as ',
+      'Tortie is not connected to ',
+      ' right now, so it did not ask it ',
+      'for anything. What Tortie already knows about ',
+      ' is as old as ',
       'the last time it answered. Nothing was sent.'
     ]
   },

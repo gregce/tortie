@@ -68,7 +68,7 @@ import { gmuxError } from '../errors';
 import { assertMachineMayConnect } from './confirm';
 import { readyRemoteContext } from './ready-context';
 import { runRemoteWrite } from './remote-run';
-import { machineFieldsOf, machineRow } from './store';
+import { machineFieldsOf, machineLabelOf, machineRow } from './store';
 
 export { REMOTE_FILE_MAX_BYTES };
 
@@ -306,7 +306,7 @@ export async function putFileOnMachine(
     // back to its own wording.
     throw gmuxError(
       'INVALID_INPUT',
-      `${row.id} did not answer while this file was being saved, so it may ` +
+      `${machineLabelOf(row)} did not answer while this file was being saved, so it may ` +
         `have been saved there. Open it again to read what it says now.`,
       String((err as Error).message ?? err)
     );

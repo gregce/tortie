@@ -69,6 +69,9 @@ vi.mock('../confirm', () => ({
 
 vi.mock('../store', () => ({
   machineRow: () => row,
+  // PHASE 231. The shipping rule: the label, or the host when there is none.
+  machineLabelOf: (one: Record<string, unknown>) =>
+    typeof one['label'] === 'string' && one['label'].length > 0 ? one['label'] : one['host'],
   machineFieldsOf: (one: Record<string, unknown>) => ({
     host: one['host'] ?? '',
     user: null,
@@ -237,7 +240,7 @@ describe('makeRemoteDir', () => {
     answer = '__throw__';
     await expect(
       makeRemoteDir({ machineId: 'studio', path: `${ROOT}/a` })
-    ).rejects.toThrow(/may have been made there/);
+    ).rejects.toThrow(/studio\.example did not answer while that folder was being made, so it may have been made there/);
     expect(remoteEntrySendCount()).toBe(1);
   });
 
@@ -350,7 +353,7 @@ describe('renameRemoteEntry', () => {
         to: `${ROOT}/b.ts`,
         kind: 'file'
       })
-    ).rejects.toThrow(/may have been renamed there/);
+    ).rejects.toThrow(/studio\.example did not answer while that was being renamed, so it may have been renamed there/);
   });
 
   it('throws for a word it does not know rather than guessing', async () => {

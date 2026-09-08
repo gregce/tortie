@@ -58,6 +58,7 @@ import { remoteMachineHomeAnswer } from './remote-image';
 import {
   assertMachineFeedAnswering,
   composeRemoteScriptCommand,
+  labelOf,
   runRemoteRead
 } from './remote-run';
 import {
@@ -453,7 +454,7 @@ export async function scanMachineAgents(
   // The connected gate, asked out loud HERE as well as inside every read, so
   // a Rescan on a machine that stopped answering is a sentence rather than a
   // silent all-unknown view.
-  assertMachineFeedAnswering(machineId, 'agents-find');
+  assertMachineFeedAnswering(machineId, 'agents-find', labelOf(ctx));
   const script = remoteScript('agents-find');
   if (script === null) {
     throw new Error('the catalogue holds no script called agents-find');

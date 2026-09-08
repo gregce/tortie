@@ -398,11 +398,25 @@ export const WRITE_THROUGH_READ_DOOR =
  * again when the connection was replaced while a command was in flight, because
  * an answer from a connection Tortie no longer has is not an answer about the
  * machine Tortie has now.
+ *
+ * PHASE 231 MADE IT A COMPOSER THAT TAKES THE LABEL, the shape
+ * {@link commitOffline} has had since Phase 104. Every caller of the door
+ * already holds the machine's context, and the context has carried the label
+ * since Phase 109 for exactly this, so the sentence Source control draws on a
+ * Stage press names the machine the way Explorer's does. `MACHINE_NOT_CONNECTED`
+ * is the same sentence with "that machine" in the label's place, kept for the
+ * probes under `build/` that read it and for a caller with no context in hand.
  */
-export const MACHINE_NOT_CONNECTED =
-  'Tortie is not connected to that machine right now, so it did not ask it ' +
-  'for anything. What Tortie already knows about that machine is as old as ' +
-  'the last time it answered. Nothing was sent.';
+export function machineNotConnected(label: string): string {
+  return (
+    `Tortie is not connected to ${label} right now, so it did not ask it ` +
+    `for anything. What Tortie already knows about ${label} is as old as ` +
+    `the last time it answered. Nothing was sent.`
+  );
+}
+
+/** {@link machineNotConnected} for a caller that holds no label. */
+export const MACHINE_NOT_CONNECTED = machineNotConnected('that machine');
 
 /**
  * An environment value Tortie will not put on a session on another machine.
