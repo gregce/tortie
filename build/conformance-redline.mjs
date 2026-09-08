@@ -124,6 +124,25 @@
  *      0 characters of error against a hand re-derivation, and a keystroke
  *      folding into the current side with both projections exact — and every
  *      arm goes red under an ablation of its own clause.
+ *  18. THE CURRENT CHANGE (Phase 239). The controls stopped being a pointer's
+ *      guest, and both halves of that can be undone in one line. 18a is a
+ *      SCAN: neither `redline-current.ts` nor the view's own `step` may read
+ *      `document.activeElement`, which is the single word behind both defects
+ *      research 99 measured — reading the position off the focus swallowed the
+ *      first ⌥↓ of a fresh view (§2.2, reproduced in two runs), and holding the
+ *      ELEMENT rather than the identity let an outside write take the person's
+ *      place away while the change was still drawn with the same identity,
+ *      offset and generation (§2.3). `focusedChange` keeps its read, because it
+ *      is the fallback for a hover nobody has stepped from, so the scan is
+ *      aimed at the two places the decision now lives and is proved on three
+ *      plants. 18b DRIVES the shipping module under node over the nine-change
+ *      fixture and the recompose that makes it ten, with seven arms — the step
+ *      from nowhere, the two ends, six positions, the recompose, the identity
+ *      rule with its generation clause, a wrapper carrying no identity, and the
+ *      swallowed press as the number 0, 1, 2 against 0, 0, 0 — and every one
+ *      goes red under an ablation of its own clause. The ablated copies live in
+ *      a scratch directory OUTSIDE `src/`, removed in a `finally`, because this
+ *      module's only import is `import type` and resolves nothing at runtime.
  *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
@@ -1637,6 +1656,202 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// 18. THE CURRENT CHANGE (Phase 239). Two halves, because a later round can
+// undo either without touching the other.
+//
+// 18a is a SCAN: neither the module that decides which change is current nor
+// the view's own step may read `document.activeElement`. That single word is
+// the whole of both defects research 99 measured. Reading the position off the
+// focus is what swallowed the first ⌥↓ of a view (section 2.2, two runs), and
+// holding the ELEMENT rather than the identity is what let an outside write
+// take the person's place away while the change was still drawn with the same
+// identity, offset and generation (section 2.3). `focusedChange` KEEPS its
+// read, because it is the fallback for a hover that has never been stepped
+// from, so the scan is aimed at the two places the decision now lives and is
+// proved on plants that must fail.
+//
+// 18b DRIVES the shipping module under node through
+// build/redline-current-probe.mts and ablates the clause behind each arm. The
+// ablation directories are in the SYSTEM TEMPORARY DIRECTORY and not inside
+// `src/`: this module's only import is `import type`, which is erased, so a
+// copy resolves nothing at runtime and runs exactly where it is put.
+// ---------------------------------------------------------------------------
+{
+  const CURRENT_FILE = 'src/renderer/editor/redline-current.ts';
+  const VIEW_FILE = 'src/renderer/editor/RedlineDocument.tsx';
+
+  // 18a. The scan.
+  const currentSource = readFileSync(CURRENT_FILE, 'utf8');
+  if (stripComments(currentSource).includes('activeElement')) {
+    fail(`18a. ${CURRENT_FILE} names activeElement, so the current change is a focus again and the recompose takes it away (research 99 §2.3)`);
+  }
+  const viewSource = readFileSync(VIEW_FILE, 'utf8');
+  const stepBody = functionBodyOf(stripComments(viewSource), 'step');
+  const arrowStep = /const\s+step\s*=\s*useCallback\(/.test(viewSource);
+  if (stepBody === null && !arrowStep) {
+    fail(`18a. ${VIEW_FILE} declares no step, so the chord walks from something this rule cannot read`);
+  }
+  // The step is an arrow inside useCallback, so its body is read from the
+  // `const step` line to the line that closes the callback at the same indent.
+  const stepText = (() => {
+    const at = viewSource.indexOf('const step = useCallback(');
+    if (at === -1) return null;
+    const end = viewSource.indexOf('\n  );', at);
+    return end === -1 ? null : stripComments(viewSource.slice(at, end));
+  })();
+  if (stepText === null) {
+    fail(`18a. could not read the step's own body out of ${VIEW_FILE}`);
+  } else if (stepText.includes('activeElement')) {
+    fail(`18a. the step in ${VIEW_FILE} reads activeElement, which is the swallowed first press (research 99 §2.2)`);
+  }
+  // The scanner is proved on plants, so a scan that cannot fail is never
+  // mistaken for a scan that passed.
+  const PLANTS = [
+    { name: 'a clean step', text: 'const step = useCallback((d) => { walk(held, d); }\n  );', caught: false },
+    { name: 'the focus put back', text: 'const step = useCallback((d) => { const a = host.ownerDocument.activeElement; walk(a, d); }\n  );', caught: true },
+    { name: 'the focus in a comment only', text: 'const step = useCallback((d) => { /* not activeElement */ walk(held, d); }\n  );', caught: false }
+  ];
+  let plantsOk = 0;
+  for (const plant of PLANTS) {
+    const at = plant.text.indexOf('const step = useCallback(');
+    const end = plant.text.indexOf('\n  );', at);
+    const body = stripComments(plant.text.slice(at, end));
+    if (body.includes('activeElement') === plant.caught) plantsOk += 1;
+    else fail(`18a. the scanner behaved wrongly on the plant "${plant.name}"`);
+  }
+  // And the fallback is still there, or the scan above is a scan of nothing.
+  if (!viewSource.includes('focusedChange')) {
+    fail('18a. the view no longer names focusedChange at all, so a hovered change with no step has no identity to press');
+  }
+  say(`18a. the current change and the step name no activeElement (${String(plantsOk)} of ${String(PLANTS.length)} scanner plants behaved), and the hover fallback is still named`);
+
+  // 18b. The driven half.
+  const runCurrentProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-current-probe.mts'],
+      {
+        encoding: 'utf8',
+        cwd: process.cwd(),
+        maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, CURRENT_DIR: dir }
+      }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const CURRENT_ARMS = [
+    {
+      name: 'from nowhere, next is the first change and previous the last',
+      key: 'fromNowhere',
+      expect: (a) => same(a, [0, 8]),
+      from: '  if (at === null) return delta === 1 ? 0 : count - 1;',
+      to: '  if (at === null) return null;'
+    },
+    {
+      name: 'at either end the position stays, and an empty document steps nowhere',
+      key: 'ends',
+      expect: (a) => same(a, [0, 8, null]),
+      from: '  return Math.min(count - 1, Math.max(0, at + delta));',
+      to: '  return (at + delta + count) % count;'
+    },
+    {
+      name: 'six positions, being the whole of the step',
+      key: 'six',
+      expect: (a) => same(a, [1, 0, 5, 3, 8, 7]),
+      from: 'export function stepIndex(\n  count: number,\n  at: number | null,\n  delta: 1 | -1\n): number | null {\n  if (count <= 0) return null;',
+      to: 'export function stepIndex(\n  count: number,\n  at: number | null,\n  delta: 1 | -1\n): number | null {\n  if (count <= 0) return null;\n  delta = (delta === 1 ? -1 : 1) as 1 | -1;'
+    },
+    {
+      name: 'THE RECOMPOSE: 9 changes become 10 and the place is still found',
+      key: 'recompose',
+      expect: (a) => same(a, { before: 6, sameObject: false, after: 7, rewound: null }),
+      from: '  return a.off === b.off && a.del === b.del && a.ins === b.ins;',
+      to: '  return (a as unknown) === (b as unknown);'
+    },
+    {
+      name: 'the generation is not part of the identity, so a commit keeps your place',
+      key: 'identity',
+      expect: (a) =>
+        same(a, {
+          acrossGenerations: true,
+          differentInsertion: false,
+          differentOffset: false,
+          noIdentity: null
+        }),
+      from: '  return a.off === b.off && a.del === b.del && a.ins === b.ins;\n}',
+      to: '  return a.off === b.off && a.del === b.del && a.ins === b.ins && a.generation === b.generation;\n}'
+    },
+    {
+      name: 'a wrapper with no identity on it is never the current change',
+      key: 'identity',
+      expect: (a) => a !== undefined && a.noIdentity === null,
+      from: '  if (!Number.isInteger(off) || !Number.isInteger(generation)) return null;',
+      to: '  if (false) return null;'
+    },
+    {
+      // RESEARCH 99 §2.2 AS A NUMBER. Three presses from a fresh view read 0,
+      // 1, 2. A rule that reads its position from a focus that never arrived
+      // reads 0, 0, 0 — the chord repeating the first change for ever.
+      name: 'THE SWALLOWED FIRST PRESS: three presses walk 0, 1, 2',
+      key: 'walk',
+      expect: (a) => same(a, [0, 1, 2]),
+      from: '  const next = stepIndex(items.length, indexOfChange(items, id), delta);',
+      to: '  const next = stepIndex(items.length, null, delta);'
+    }
+  ];
+
+  const shippingCurrent = runCurrentProbe('src/renderer/editor');
+  if (shippingCurrent.error !== undefined) {
+    fail(`18b. the current-change probe did not run: ${shippingCurrent.error}`);
+  } else {
+    for (const arm of CURRENT_ARMS) {
+      if (!arm.expect(shippingCurrent[arm.key])) {
+        fail(`18b. the shipping module read the wrong thing for "${arm.name}": ${JSON.stringify(shippingCurrent[arm.key])}`);
+      }
+    }
+    // THE ABLATED COPIES LIVE IN A SCRATCH DIRECTORY OUTSIDE `src/`, removed in
+    // a finally. `redline-current.ts`'s only import is `import type`, erased at
+    // runtime, so a copy anywhere resolves everything it needs, which is
+    // nothing.
+    const scratch = mkdtempSync(join(tmpdir(), 'p239-ablation-'));
+    let red = 0;
+    try {
+      for (const [i, arm] of CURRENT_ARMS.entries()) {
+        const dir = join(scratch, String(i));
+        mkdirSync(dir, { recursive: true });
+        const before = readFileSync(CURRENT_FILE, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`18b. the ablation for "${arm.name}" found nothing to edit in ${CURRENT_FILE}`);
+          continue;
+        }
+        writeFileSync(join(dir, 'redline-current.ts'), before.replace(arm.from, arm.to));
+        const ablated = runCurrentProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(`18b. the ablation for "${arm.name}" stopped the probe running (${ablated.error}), so it proves nothing`);
+          continue;
+        }
+        if (!same(ablated[arm.key], shippingCurrent[arm.key])) red += 1;
+        else {
+          fail(`18b. the ablation for "${arm.name}" changed nothing this arm reads, so it cannot fail: ${JSON.stringify(ablated[arm.key])}`);
+        }
+      }
+      say(`18b. ${String(CURRENT_ARMS.length)} arms over the shipping current change, and ${String(red)} of ${String(CURRENT_ARMS.length)} ablations moved their arm's reading`);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+}
+
 
 if (failures.length > 0) {
   console.error(`${TAG} ${String(failures.length)} failure(s):`);
