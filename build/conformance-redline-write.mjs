@@ -417,18 +417,29 @@ function filesNaming(dir, needle) {
 }
 
 // ---------------------------------------------------------------------------
-// Rule 5. No caller. Phase 227 deletes this rule when it wires the rewind.
+// Rule 5. THE ONE CALLER. Phase 226 shipped this channel unwired and this rule
+// read "nothing under src/renderer names it". Phase 227 wired the rewind, so
+// the rule was NARROWED rather than deleted, the way conformance:redline's own
+// rule 9 was: the renderer may reach the channel from EXACTLY ONE file, being
+// the redline's one call site, and a SECOND caller is a finding. That keeps
+// the property that mattered, being that this write has one door, checkable
+// after the door opened.
 // ---------------------------------------------------------------------------
 
+const RENDERER_CALLER = 'src/renderer/editor/redline-write.ts';
 {
   const rendererDir = join(repoRoot, 'src/renderer');
   const byChannel = filesNaming(rendererDir, CHANNEL);
   const byMethod = filesNaming(rendererDir, `.${METHOD}(`);
   const callers = [...new Set([...byChannel, ...byMethod])];
-  if (callers.length > 0) {
-    fail(`5. the renderer reaches the channel from ${callers.join(', ')}, and this phase ships it unwired`);
+  if (callers.length !== 1 || callers[0] !== RENDERER_CALLER) {
+    fail(
+      `5. the renderer must reach the channel from ${RENDERER_CALLER} alone; ` +
+        `it reaches it from ${callers.join(', ') || 'no file'}`
+    );
+  } else {
+    say(`5. the renderer reaches the channel from ${RENDERER_CALLER} alone, the redline's one call site`);
   }
-  say('5. nothing under src/renderer names the channel or the preload method, so it ships unwired');
 }
 
 // ---------------------------------------------------------------------------

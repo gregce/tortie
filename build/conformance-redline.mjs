@@ -135,7 +135,12 @@ const REDLINE_FILES = [
   // Phase 225: the shadow baseline the view draws against. Same refusals,
   // because a module that decides the left side must not be able to write
   // the right one.
-  'src/renderer/editor/baseline.ts'
+  'src/renderer/editor/baseline.ts',
+  // Phase 227: the pure press and the one call site that writes. rewind.ts
+  // decides and must never write; redline-write.ts holds the single permitted
+  // write channel, which rule 9 was narrowed to allow at exactly one call site.
+  'src/renderer/editor/rewind.ts',
+  'src/renderer/editor/redline-write.ts'
 ];
 
 // ---------------------------------------------------------------------------

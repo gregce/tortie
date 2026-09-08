@@ -55,6 +55,10 @@ import { changesOf } from './rewind';
 import type { RedlineChange } from './rewind';
 import { installRedlineCommands } from './redline-commands';
 import type { RedlineCommand } from './redline-commands';
+import { applyRewind } from './redline-write';
+import { redlineBaseSide as _baseSideForPress } from './baseline';
+import { useEditor } from './store';
+import { useApp } from '../state/store';
 import type { RedlineRun } from './redline';
 import {
   baselineName,
@@ -237,17 +241,42 @@ export function RedlineDocument({
   // Edit menu through ./redline-commands. Rewind and undo read the change
   // under focus and hand it to the one press function; until item 4 of the
   // phase installs it, a press resolves the identity and does nothing more.
-  const press = useCallback((kind: 'rewind' | 'undo', host: HTMLElement) => {
-    const pressed = kind === 'rewind' ? focusedChange(host) : null;
-    void pressed;
-  }, []);
+  const press = useCallback(
+    async (kind: 'rewind' | 'undo', host: HTMLElement) => {
+      // Undo's identity comes from the tab's journal, wired in item 5; until
+      // then Undo does nothing. Rewind reads the change under focus.
+      if (kind === 'undo') return;
+      const pressed = focusedChange(host);
+      if (pressed === null) return;
+      // The LIVE tab, read fresh at the press: savedContents and the drawn
+      // prop both trail disk, and the generation guard needs the value now.
+      const live = useEditor.getState().tabs.find((t) => t.id === tab.id);
+      if (live === undefined) return;
+      const outcome = await applyRewind({
+        root: live.repoPath,
+        path: live.path,
+        baseline: _baseSideForPress(live.baseline, live.headContents),
+        generation: live.baseline?.generation ?? 0,
+        drawnGeneration: pressed.generation,
+        pressed: { off: pressed.off, del: pressed.del, ins: pressed.ins },
+        kind: 'rewind'
+      });
+      // The sentences are item 6; item 4 says the plain fact so a refusal is
+      // never silent. A success shows nothing: the watcher recomposes the
+      // view, exactly as an outside write does.
+      if ('refused' in outcome) {
+        useApp.getState().toast('info', `That change was not rewound (${outcome.refused}).`);
+      }
+    },
+    [tab.id]
+  );
   const runCommand = useCallback(
     (command: RedlineCommand): void => {
       const host = hostRef.current;
       if (host === null) return;
       if (command === 'next') moveFocus(host, 1);
       else if (command === 'prev') moveFocus(host, -1);
-      else press(command, host);
+      else void press(command, host);
     },
     [press]
   );
