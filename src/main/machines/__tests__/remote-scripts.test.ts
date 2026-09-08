@@ -15,7 +15,7 @@
  * in server on 127.0.0.1 and prints what came back.
  */
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -1863,5 +1863,165 @@ describe('the remote history read', () => {
     expect(text).not.toContain('cat ');
     expect(text).not.toContain('head -c');
     expect(text).not.toContain('git show');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The Phase 233 reader, RUN rather than read
+// ---------------------------------------------------------------------------
+
+/**
+ * `commit-files`' two containment lines, driven through `/bin/sh` over a real
+ * repository.
+ *
+ * ## Why this block exists, which is a finding rather than a habit
+ *
+ * The Phase 233 verifier deleted `case "$2" in ''|*[!0-9a-f]*) exit 1;; esac`
+ * from the shipped script and every machine unit test stayed green, and so did
+ * `npm run conformance:machines`. The guard is correct — the verifier drove the
+ * shipped bytes itself and every hostile value it tried exited 1 — but nothing
+ * in the tree could tell whether it was there. A guard that cannot fail is not
+ * a guard, which is this house's own rule, and the answer is the shape the
+ * Phase 104 block above already uses: RUN the bytes.
+ *
+ * Main refuses first, and that refusal is tested elsewhere: `commitNameToSend`
+ * matches the same forty or sixty four hex rule before anything is sent. So
+ * these are the SECOND layer, held for the reason `review-file` holds its path
+ * guard, being that the far side has to enforce it anyway because main is not
+ * the only thing that could ever call it.
+ *
+ * These tests spawn no ssh, contact no machine, and write nothing outside a
+ * temporary folder they remove in a `finally`.
+ */
+describe('the Phase 233 reader, run against a real repository', () => {
+  const GIT_ENV = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'Tortie Test',
+    GIT_AUTHOR_EMAIL: 'test@example.invalid',
+    GIT_COMMITTER_NAME: 'Tortie Test',
+    GIT_COMMITTER_EMAIL: 'test@example.invalid',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_SYSTEM: '/dev/null'
+  };
+
+  /** One commit holding one file, and the sha it was given. */
+  function newRepoWithOneCommit(): { root: string; sha: string } {
+    const root = mkdtempSync(join(tmpdir(), 'p233-script-'));
+    execFileSync('git', ['init', '-q', '--initial-branch=main', root], { env: GIT_ENV });
+    writeFileSync(join(root, 'a.txt'), 'one\n');
+    execFileSync('git', ['-C', root, 'add', 'a.txt'], { env: GIT_ENV });
+    execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'the first one'], {
+      env: GIT_ENV
+    });
+    const sha = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      env: GIT_ENV
+    }).trim();
+    return { root, sha };
+  }
+
+  /** The shipped bytes, run with four positional values. */
+  function runCommitFiles(
+    root: string,
+    commit: string,
+    path: string
+  ): { code: number; out: string } {
+    const text = remoteScript('commit-files')?.text ?? '';
+    const answer = spawnSync('/bin/sh', ['-c', text, 'sh', root, commit, path, '90000'], {
+      encoding: 'utf8',
+      env: GIT_ENV
+    });
+    return { code: answer.status ?? -1, out: answer.stdout ?? '' };
+  }
+
+  // The values that must never reach `git show` as a commit name. Every one of
+  // them is something git itself would happily accept, which is the whole
+  // point: the refusal is this script's and not git's.
+  const REFUSED_COMMITS = [
+    'HEAD',
+    'HEAD~1',
+    '-p',
+    '@{u}',
+    'main..other',
+    'main',
+    '',
+    // Upper case hex is not what git printed there, and these three are the
+    // committer's own finding: under `en_US.UTF-8` the range `[!0-9a-f]`
+    // collates `a A b B c C d D e E f`, so `A1B2C3` passed the guard while
+    // `ABCDEF` and `Ff` did not. The class is a list of characters now, so all
+    // three are refused under every locale and under `dash`.
+    'A1B2C3',
+    'ABCDEF',
+    'Ff',
+    '--output=/dev/null',
+    '$(touch /tmp/p233-should-never-exist)',
+    'a b'
+  ];
+
+  it.each(REFUSED_COMMITS)(
+    'refuses %j as a commit name, exit 1 and nothing printed',
+    (commit) => {
+      const { root } = newRepoWithOneCommit();
+      try {
+        const answer = runCommitFiles(root, commit, '');
+        expect(answer.code).toBe(1);
+        expect(answer.out).toBe('');
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }
+  );
+
+  // `review-file`'s own path line, held here too.
+  const REFUSED_PATHS = ['/etc/passwd', '../a.txt', 'x/../../a', 'a..b'];
+
+  it.each(REFUSED_PATHS)('refuses %j as a path, exit 1 and nothing printed', (path) => {
+    const { root, sha } = newRepoWithOneCommit();
+    try {
+      const answer = runCommitFiles(root, sha, path);
+      expect(answer.code).toBe(1);
+      expect(answer.out).toBe('');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('answers the name-status list for a real sha, which is what makes the refusals mean something', () => {
+    const { root, sha } = newRepoWithOneCommit();
+    try {
+      const answer = runCommitFiles(root, sha, '');
+      expect(answer.code).toBe(0);
+      const found = /__TORTIE_RUN__list (.*)__TORTIE_RUN__/.exec(answer.out);
+      expect(found).not.toBeNull();
+      const payload = found?.[1] ?? '';
+      expect(payload).not.toBe('none');
+      // The far side sends the bytes `parseNameStatusZ` reads, unchanged.
+      const decoded = Buffer.from(payload, 'base64').toString('utf8');
+      expect(decoded.split('\0')).toContain('A');
+      expect(decoded.split('\0')).toContain('a.txt');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('answers both sides of a real file, the added side counted and the absent one zero', () => {
+    const { root, sha } = newRepoWithOneCommit();
+    try {
+      const answer = runCommitFiles(root, sha, 'a.txt');
+      expect(answer.code).toBe(0);
+      const found = /__TORTIE_RUN__file (.*)__TORTIE_RUN__/.exec(answer.out);
+      expect(found).not.toBeNull();
+      const parts = (found?.[1] ?? '').split(' ');
+      expect(parts).toHaveLength(4);
+      // The first parent of a root commit is not there, so side A is empty.
+      expect(parts[0]).toBe('0');
+      expect(parts[2]).toBe('none');
+      // Side B is the file the commit added, four bytes, with its whole size
+      // counted beside it rather than a floor.
+      expect(parts[1]).toBe('4');
+      expect(Buffer.from(parts[3] ?? '', 'base64').toString('utf8')).toBe('one\n');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

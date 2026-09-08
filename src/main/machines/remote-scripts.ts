@@ -1932,6 +1932,20 @@ const REPO_HISTORY = [
  * against the same forty or sixty four hex rule the history reader uses, and
  * the far side holds its own copy of the rule for the reason `review-file`
  * holds its path guard, being that the far side has to enforce it anyway.
+ *
+ * THE CLASS IS SPELLED OUT AND IT IS NOT A RANGE, which is a correction the
+ * Phase 233 committer made after driving the shipped bytes. `[!0-9a-f]` reads
+ * as a COLLATION range rather than a code point one, so under the `en_US.UTF-8`
+ * that `LC_COLLATE` carries on both of his Macs it sorts `a A b B c C d D e E f`
+ * and `A1B2C3` was accepted while `ABCDEF` and `Ff` were refused, because the
+ * range ends at lowercase `f` and upper case `F` falls outside it. Nothing
+ * escaped by it, since the accepted set held no `-`, `/`, `.`, `@` or space and
+ * so could still name no option and no ref expression, but the sentence above
+ * was not true of the bytes and the far side's locale is not ours to choose.
+ * `[!0123456789abcdef]` is a list of characters rather than a range, so no
+ * collation reaches it, and it answers the same way under `dash` and under
+ * `LC_ALL=C`.
+ *
  * `$3` carries `review-file`'s own line, so a path that starts with a slash or
  * holds two dots is refused before `cd` runs. A name holding two dots in a row
  * is refused too, and that false refusal is taken on purpose for the reason
@@ -1947,7 +1961,7 @@ const REPO_HISTORY = [
 const COMMIT_FILES = [
   'set -e',
   'umask 077',
-  "case \"$2\" in ''|*[!0-9a-f]*) exit 1;; esac",
+  "case \"$2\" in ''|*[!0123456789abcdef]*) exit 1;; esac",
   'case "$3" in /*|*..*) exit 1;; esac',
   'cd "$1"',
   'if [ -z "$3" ]; then',
