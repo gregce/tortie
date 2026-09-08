@@ -113,6 +113,17 @@
  *      order, shares a whitespace character at its start or its end, and the
  *      six last word fixtures pin the exact runs: the word struck, the word
  *      inserted, and the line break in the plain run after them.
+ *  17. TYPING (Phase 237). Two halves. 17a is a scan: no typing file may name
+ *      a baseline advance, which is research 83 A2.3 made structural rather
+ *      than promised, proved on four plants of which two must be caught. 17b
+ *      drives the SHIPPING rules under node, one arm per trap research 97
+ *      measured with real CDP key events — Enter arriving as `insertLineBreak`
+ *      and not `insertParagraph`, the outside write HELD while a composition is
+ *      open, `insertCompositionText` ignored because it is the one event no
+ *      `preventDefault` can cancel, the caret coming back through a redraw with
+ *      0 characters of error against a hand re-derivation, and a keystroke
+ *      folding into the current side with both projections exact — and every
+ *      arm goes red under an ablation of its own clause.
  *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
@@ -1343,6 +1354,270 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       for (const name of readdirSync(EDITOR)) {
         if (name.startsWith(prefix) && existsSync(join(EDITOR, name))) {
           rmSync(join(EDITOR, name), { recursive: true, force: true });
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 237, rule 17: TYPING. Two halves, because a later round can undo
+// either without touching the other.
+//
+// 17a is a SCAN. Research 83 A2.3: typing never moves the baseline and never
+// moves the generation, so a rewind drawn before a keystroke must not refuse
+// because of one. The three typing files may not name a baseline advance at
+// all, which is what makes that structural rather than promised, and the
+// scanner is proved on fixtures this file writes so a scan that cannot fail is
+// never mistaken for a scan that passed.
+//
+// 17b DRIVES the shipping rules under node, one arm per trap research 97
+// measured with real CDP key events, and ablates the clause behind each one.
+// ---------------------------------------------------------------------------
+{
+  const TYPING_FILES = [
+    'src/renderer/editor/redline-typing.ts',
+    'src/renderer/editor/redline-caret.ts',
+    'src/renderer/editor/redline-edits.ts'
+  ];
+  // A baseline ADVANCE, never the word: ./redline-edits is allowed to say the
+  // word in a comment and the scan strips comments anyway, but no typing file
+  // may call the one function that moves it or patch the field it lives in.
+  const BASELINE_ADVANCE = /\bnextBaseline\b|\bbaseline\s*:|\bgeneration\s*:|\bheadSeen\b/;
+  const baselineFindings = (files) => {
+    const out = [];
+    for (const [file, source] of files) {
+      for (const [index, line] of stripComments(source).split('\n').entries()) {
+        if (BASELINE_ADVANCE.test(line)) {
+          out.push(`17. ${file} moves the baseline: ${String(index + 1)}: ${line.trim()}`);
+        }
+      }
+    }
+    return out;
+  };
+
+  const shippingTyping = new Map(
+    TYPING_FILES.map((file) => [file, readFileSync(file, 'utf8')])
+  );
+  for (const file of TYPING_FILES) {
+    if (!existsSync(file)) fail(`17. ${file} is not there, so rule 17 proves nothing`);
+  }
+  const found = baselineFindings(shippingTyping);
+  for (const line of found) fail(line);
+
+  // The scanner, proved on four plants, two of which must be caught.
+  const PLANTS = [
+    { name: 'a call that advances it', source: 'const b = nextBaseline(s, e);', caught: true },
+    { name: 'a patch of the field', source: 'patch(id, { baseline: next });', caught: true },
+    { name: 'the word in a comment', source: '// the baseline: never moved here\nconst x = 1;', caught: false },
+    { name: 'an ordinary line', source: "const at = edit.start + edit.text.length;", caught: false }
+  ];
+  let plantsOk = 0;
+  for (const plant of PLANTS) {
+    const hits = baselineFindings(new Map([['plant.ts', plant.source]]));
+    if (hits.length > 0 === plant.caught) plantsOk += 1;
+    else fail(`17. the baseline scanner behaved wrongly on "${plant.name}"`);
+  }
+  say(
+    `17a. ${String(TYPING_FILES.length)} typing files name no baseline advance (${String(plantsOk)} of ${String(PLANTS.length)} scanner fixtures behaved)`
+  );
+
+  // 17b. The arms.
+  const TYPING_CHAIN = [
+    'redline-typing.ts',
+    'text-edit.ts',
+    'redline-document.ts',
+    'redline.ts',
+    'paths.ts',
+    'rewind.ts'
+  ];
+  const EDITOR_DIR = 'src/renderer/editor';
+  const runTypingProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-typing-probe.mts'],
+      {
+        encoding: 'utf8',
+        cwd: process.cwd(),
+        maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, TYPING_DIR: dir }
+      }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const TYPING_ARMS = [
+    {
+      // Research 97 §3 corrects research 83 D.2: under `plaintext-only` a real
+      // Enter reports `insertLineBreak` and NOT `insertParagraph`, so a phase
+      // handling only the latter refuses Enter in silence.
+      name: 'Enter is bytes, and it arrives as insertLineBreak',
+      key: 'enterIsBytes',
+      expect: (a) =>
+        a.lineBreak.answered === true &&
+        a.paragraph.answered === true &&
+        a.onlyANewline === true &&
+        a.lineBreak.caret === a.paragraph.caret,
+      file: 'redline-typing.ts',
+      from: "const LINE_BREAKS = new Set(['insertLineBreak', 'insertParagraph']);",
+      to: "const LINE_BREAKS = new Set(['insertParagraph']);"
+    },
+    {
+      // Research 97 §3.1: a redraw landing inside an open composition breaks
+      // the composition and puts the committed text in a plain span, which
+      // counts on the baseline side too and took the projection out by two.
+      name: 'an outside write is HELD while a composition is open',
+      key: 'compositionHeld',
+      expect: (a) =>
+        a.heldDuring === true &&
+        a.heldApplied === true &&
+        a.currentExact === true &&
+        a.baselineExact === true &&
+        a.japaneseInsideAChange === true,
+      file: 'redline-typing.ts',
+      from:
+        '  if (state.composing !== null) {\n' +
+        '    return state.held === event.text ? state : { ...state, held: event.text };\n' +
+        '  }\n',
+      to: ''
+    },
+    {
+      name: "the input events a composition owns are the composition's",
+      key: 'compositionIgnored',
+      expect: (a) =>
+        a.insertCompositionTextIgnored === true &&
+        a.insertTextIgnored === true &&
+        a.deleteIgnored === true &&
+        a.ignoredWithNoComposition === true,
+      file: 'redline-typing.ts',
+      from: '    if (state.composing !== null) return state;',
+      to: '    if (false) return state;'
+    },
+    {
+      // The one door no `preventDefault` closes, read three times out of three
+      // off the event itself. THE ABLATION CARRIES TWO EDITS ON PURPOSE, the
+      // way conformance:logins' do: this event is guarded twice, once by the
+      // named refusal and once by the default that answers nothing for an
+      // input type nobody measured, so removing either alone changes nothing a
+      // person could see. It plants the shape the rule refuses, being a later
+      // round deciding to insert the composition's own text.
+      name: 'insertCompositionText is ignored even with no composition open',
+      key: 'compositionIgnored',
+      file: 'redline-typing.ts',
+      expect: (a) => a.ignoredWithNoComposition === true,
+      edits: [
+        {
+          from: "    if (event.inputType === 'insertCompositionText') return state;",
+          to: '    if (false) return state;'
+        },
+        {
+          from: "const INSERTS = new Set([\n  'insertText',",
+          to: "const INSERTS = new Set([\n  'insertCompositionText',\n  'insertText',"
+        }
+      ]
+    },
+    {
+      // Research 97 §2.2's eight readings, four shapes with a caret in each.
+      // The expected answer is re-derived in the probe by a hand walk over the
+      // two texts, so this is not the module checking itself.
+      name: 'the caret comes back through a redraw with 0 characters of error',
+      key: 'caretThroughRedraw',
+      expect: (a) =>
+        a.length === 4 &&
+        a.every((one) => one.error === 0) &&
+        // …and the naive answer is really different on three of the four, or
+        // an arm that restores nothing would read as a pass.
+        a.filter((one) => one.naive !== one.got).length === 3,
+      file: 'text-edit.ts',
+      from:
+        '  if (clamped <= prefix) return clamped;\n' +
+        '  if (clamped >= oldEnd) return newText.length - (oldText.length - clamped);\n' +
+        '  return prefix;',
+      to: '  return clamped;'
+    },
+    {
+      // The whole point: a keystroke folds into the CURRENT side, the composer
+      // is handed the SAME baseline, and both projections stay exact.
+      name: 'typing folds into the current side and the baseline does not move',
+      key: 'projection',
+      expect: (a) =>
+        a.baselineBefore === true &&
+        a.baselineAfter === true &&
+        a.currentAfter === true &&
+        a.insideAChange === true &&
+        a.caret === a.expectedCaret &&
+        a.edits === 7 &&
+        JSON.stringify(a.stateKeys) ===
+          JSON.stringify(['caret', 'composing', 'edits', 'held', 'text']),
+      file: 'redline-typing.ts',
+      from: '  return text.slice(0, edit.start) + edit.text + text.slice(edit.end);',
+      to: '  return text.slice(0, edit.start) + edit.text + text.slice(edit.end + 1);'
+    }
+  ];
+
+  const shippingTypingRead = runTypingProbe(EDITOR_DIR);
+  if (shippingTypingRead.error !== undefined) {
+    fail(`17. the typing probe did not run: ${shippingTypingRead.error}`);
+  } else {
+    for (const arm of TYPING_ARMS) {
+      if (!arm.expect(shippingTypingRead[arm.key])) {
+        fail(
+          `17. the shipping typing read the wrong thing for "${arm.name}": ${JSON.stringify(shippingTypingRead[arm.key])}`
+        );
+      }
+    }
+    const prefix = `.p237-ablation-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    try {
+      for (const [i, arm] of TYPING_ARMS.entries()) {
+        const dir = join(EDITOR_DIR, `${prefix}${String(i)}`);
+        mkdirSync(dir, { recursive: true });
+        made.push(dir);
+        for (const f of TYPING_CHAIN) cpSync(join(EDITOR_DIR, f), join(dir, f));
+        const target = join(dir, arm.file);
+        const before = readFileSync(target, 'utf8');
+        const edits = arm.edits ?? [{ from: arm.from, to: arm.to }];
+        let ablated_source = before;
+        let missing = false;
+        for (const edit of edits) {
+          if (!ablated_source.includes(edit.from)) {
+            fail(`17. the ablation for "${arm.name}" found nothing to edit in ${arm.file}`);
+            missing = true;
+            break;
+          }
+          ablated_source = ablated_source.replace(edit.from, edit.to);
+        }
+        if (missing) continue;
+        writeFileSync(target, ablated_source);
+        const ablated = runTypingProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(`17. the ablation for "${arm.name}" stopped the probe running (${ablated.error}), so it proves nothing`);
+          continue;
+        }
+        const moved =
+          JSON.stringify(ablated[arm.key]) !== JSON.stringify(shippingTypingRead[arm.key]);
+        if (moved) red += 1;
+        else {
+          fail(
+            `17. the ablation for "${arm.name}" changed nothing this arm reads, so it cannot fail: ${JSON.stringify(ablated[arm.key])}`
+          );
+        }
+      }
+      say(
+        `17b. ${String(TYPING_ARMS.length)} arms over the shipping typing rules, and ${String(red)} of ${String(TYPING_ARMS.length)} ablations moved their arm's reading`
+      );
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      for (const name of readdirSync(EDITOR_DIR)) {
+        if (name.startsWith(prefix) && existsSync(join(EDITOR_DIR, name))) {
+          rmSync(join(EDITOR_DIR, name), { recursive: true, force: true });
         }
       }
     }
