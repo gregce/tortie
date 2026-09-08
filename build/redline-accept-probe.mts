@@ -353,12 +353,148 @@ const acceptAllEmpty = {
   nonSameRuns: afterAll.runs.filter((r) => r.kind !== 'same').length
 };
 
+// ---------------------------------------------------------------------------
+// ARM 6 (the fix round): THE UNDO OF A REWIND, AFTER AN ACCEPT.
+//
+// The verifier drove this in the app and it is the one place Phase 238 broke a
+// neighbour. A rewind writes the file and the journal keeps its identity as an
+// offset INTO the baseline it was drawn against. An accept then replaces that
+// baseline, so ./redline-write refuses the undo before it reads a byte, which
+// is right — and the FACE went on drawing "Undo the last rewind with ⌥⇧⌫" and
+// the chip went on drawing the button, promising a thing that could only
+// refuse, and the sentence a person got told them to "look again, then
+// rewind", which is the destructive verb rather than the one they pressed.
+//
+// The arm drives the SHIPPING press for the rewind, the SHIPPING accept for
+// the move, and the SHIPPING press again for the undo, and it reads FOUR
+// things: the refusal, that no byte moved, that the journal still holds the
+// entry (nothing is deleted on a baseline move), and what the face's own
+// question `undoableRewind` answers on each side of the accept. The CONTROL is
+// the same undo with no accept between, which must write: a reading that
+// refused whatever happened would prove nothing.
+// ---------------------------------------------------------------------------
+const undoHarness = (start: string, baselineText: string) => {
+  const disk = { text: start };
+  const apply = async (
+    ctx: import('../src/renderer/editor/redline-write').RewindContext
+  ) => {
+    await Promise.resolve();
+    const plan = planRewind({
+      baseline: ctx.baseline,
+      baselineGeneration: ctx.generation,
+      drawnGeneration: ctx.drawnGeneration,
+      fresh: disk.text,
+      truncated: false,
+      pressed: ctx.pressed,
+      kind: ctx.kind
+    });
+    if (plan.outcome === 'refused') return { refused: plan.why } as const;
+    disk.text = plan.contents;
+    return { wrote: sha(plan.contents) } as const;
+  };
+  return { disk, apply, baselineText };
+};
+
+const UNDO_ID = 'p238-undo';
+const CONTROL_ID = 'p238-undo-control';
+const e2 = changes[2]!;
+let undoAfterAccept: Record<string, unknown>;
+try {
+  // 1. The rewind, through the shipping press, at generation GEN.
+  const h = undoHarness(CURRENT, BASELINE);
+  const rewound = await pressModule.pressRedline(
+    'rewind',
+    { id: UNDO_ID, root: '/repo', path: '/repo/notes.txt', baseline: BASELINE, generation: GEN, dirty: false },
+    {
+      focused: () => ({ off: e2.off, del: e2.del, ins: e2.ins, generation: GEN }),
+      apply: h.apply,
+      refuse: () => undefined
+    }
+  );
+  const afterRewind = h.disk.text;
+  const undoableBefore = journal.undoableRewind(UNDO_ID, GEN) !== undefined;
+
+  // 2. The person accepts a DIFFERENT change. The baseline moves, and its
+  //    generation with it, which is the whole of research 83 B.8a.
+  const e5 = changes[5]!;
+  const moved = planAccept({
+    baseline: BASELINE,
+    baselineGeneration: GEN,
+    drawnGeneration: GEN,
+    current: afterRewind,
+    truncated: false,
+    pressed: { off: e5.off, del: e5.del, ins: e5.ins }
+  });
+  const movedBaselineText = moved.outcome === 'accept' ? moved.baseline : BASELINE;
+  const undoableAfter = journal.undoableRewind(UNDO_ID, GEN + 1) !== undefined;
+
+  // 3. The undo, pressed at the new generation.
+  let undoSaid: string | null = null;
+  const undone = await pressModule.pressRedline(
+    'undo',
+    {
+      id: UNDO_ID,
+      root: '/repo',
+      path: '/repo/notes.txt',
+      baseline: movedBaselineText,
+      generation: GEN + 1,
+      dirty: false
+    },
+    {
+      focused: () => null,
+      apply: h.apply,
+      refuse: (why) => {
+        undoSaid = why;
+      }
+    }
+  );
+
+  // THE CONTROL: the same undo with no accept between, which must write.
+  const c = undoHarness(CURRENT, BASELINE);
+  await pressModule.pressRedline(
+    'rewind',
+    { id: CONTROL_ID, root: '/repo', path: '/repo/notes.txt', baseline: BASELINE, generation: GEN, dirty: false },
+    {
+      focused: () => ({ off: e2.off, del: e2.del, ins: e2.ins, generation: GEN }),
+      apply: c.apply,
+      refuse: () => undefined
+    }
+  );
+  const controlAfterRewind = c.disk.text;
+  const controlUndo = await pressModule.pressRedline(
+    'undo',
+    { id: CONTROL_ID, root: '/repo', path: '/repo/notes.txt', baseline: BASELINE, generation: GEN, dirty: false },
+    { focused: () => null, apply: c.apply, refuse: () => undefined }
+  );
+
+  undoAfterAccept = {
+    rewroteFirst: rewound.outcome === 'wrote' && afterRewind !== CURRENT,
+    undoableBefore,
+    undoableAfter,
+    outcome: undone.outcome,
+    why: 'why' in undone ? undone.why : null,
+    said: undoSaid,
+    // No byte moved on the refused undo: the file is what the rewind left.
+    fileUnmoved: h.disk.text === afterRewind,
+    // And nothing was deleted: the entry is still there to be refused again.
+    depthAfter: journal.rewindJournalDepth(UNDO_ID),
+    // The control, so the reader is shown able to see an undo that works.
+    controlWrote: controlUndo.outcome === 'wrote',
+    controlBack: c.disk.text === CURRENT && controlAfterRewind !== CURRENT,
+    controlDepth: journal.rewindJournalDepth(CONTROL_ID)
+  };
+} finally {
+  journal.forgetRewindJournal(UNDO_ID);
+  journal.forgetRewindJournal(CONTROL_ID);
+}
+
 console.log(
   JSON.stringify({
     subsets,
     pressAfterAccept,
     acceptAfterAccept,
     noFileWritten,
-    acceptAllEmpty
+    acceptAllEmpty,
+    undoAfterAccept
   })
 );

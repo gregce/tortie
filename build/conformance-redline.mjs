@@ -163,7 +163,7 @@
  *      171.60 x 30px overlay sitting on the marked-up sentence research 83 D.3
  *      says the view exists so a person can read.
  *
- *  19. ACCEPT (Phase 238). Five arms on the SHIPPING accept, driven under node
+ *  19. ACCEPT (Phase 238). Six arms on the SHIPPING accept, driven under node
  *      by build/redline-accept-probe.mts, and every one goes red under an
  *      ablation of its own clause. 19a is accept over all 256 subsets,
  *      accepted one change at a time with the picture re-derived between —
@@ -179,7 +179,16 @@
  *      digest of a REAL FILE on a real disk before and after an accept, with
  *      a rewind through the same harness in the same breath so the reader is
  *      shown able to see a write. 19e is accept-all leaving a redline of one
- *      run and zero changes, without ever asking what is under focus.
+ *      run and zero changes, without ever asking what is under focus. 19f is
+ *      the fix round's, being the undo of a rewind after an accept refusing,
+ *      writing nothing, keeping its entry and no longer being offered, with a
+ *      control undo that really writes beside it.
+ *
+ *  20. THE KEYBOARD STAYS IN THE VIEW (Phase 238's fix round). An accept
+ *      removes the wrapper the keyboard was on, so the view puts the focus
+ *      back on the scroller — INSIDE the accepted guard and nowhere else, or
+ *      a refused accept would pull the keyboard off the change. A scan of the
+ *      shipping source, proved on five plants of which four must fail.
  *
  *      ITS ABLATION DIRECTORIES ARE NOT INSIDE `src/`. Rules 8 and 17 copy
  *      their chain into a dotted subdirectory of src/renderer/editor, which
@@ -206,7 +215,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { functionBodyOf, stripComments } from './scan-source.mjs';
+import { blockAt, closeOf, functionBodyOf, stripComments } from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
 
 const TAG = '[conformance:redline]';
@@ -2236,6 +2245,37 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       to: `export function acceptAll(current: string): string {
   return current.slice(1);
 }`
+    },
+    {
+      // THE FIX ROUND'S ARM, and it is the one place this phase broke a
+      // neighbour. A rewind's journal entry is an offset INTO the baseline it
+      // was drawn against, so an accept replaces the coordinate system and
+      // ./redline-write refuses the undo before it reads a byte. That refusal
+      // is right and is untouched. What was wrong is that the FACE went on
+      // promising the undo, and the sentence it gave told a person who had
+      // pressed the recovery to press the destructive one. The arm reads the
+      // refusal, that no byte moved, that the entry is still kept rather than
+      // swept, and what the face's own question answers on each side of the
+      // accept — with a CONTROL undo that really writes, so a reading that
+      // refused whatever happened could not pass.
+      name: '19f. the undo of a rewind after an accept refuses, writes nothing, and is no longer offered',
+      key: 'undoAfterAccept',
+      expect: (a) =>
+        a.rewroteFirst === true &&
+        a.undoableBefore === true &&
+        a.undoableAfter === false &&
+        a.outcome === 'refused' &&
+        a.why === 'baselineMoved' &&
+        a.said === 'baselineMoved' &&
+        a.fileUnmoved === true &&
+        a.depthAfter === 1 &&
+        a.controlWrote === true &&
+        a.controlBack === true &&
+        a.controlDepth === 0,
+      file: 'redline-journal.ts',
+      from:
+        '  return entry !== undefined && entry.generation === generation ? entry : undefined;',
+      to: '  return entry;'
     }
   ];
 
@@ -2294,6 +2334,126 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       }
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 238's FIX ROUND, rule 20: THE KEYBOARD STAYS IN THE VIEW.
+//
+// One line in src/renderer/editor/RedlineDocument.tsx's accept callback puts
+// the focus back on the scroller when an accept landed, and it is a DEFECT the
+// builder's own `probe:p167` drive found rather than a nicety: an accept
+// removes the change wrapper the keyboard was on, Chromium sends focus to
+// `document.body` when a focused element leaves the tree, and the scroller's
+// key handler is a React handler ON the scroller — so a keydown at body never
+// reaches it and the NEXT ⌥↓ and ⌥↩ do nothing at all. Driven with two accepts
+// an open, the first landed and the second never fired, six times out of
+// twelve.
+//
+// NOTHING IN THE COMMIT BATTERY PINNED IT. `probe:p167` is the only check that
+// drives it and it is not in the battery, and its accept arm can be turned off
+// with `P167_ACCEPTS=0`. The suite cannot pin it either, because this tree's
+// vitest environment is `node` and there is no DOM to lose a focus in. So it is
+// pinned here, as a scan of the shipping source with its scanner proved on
+// fixtures this file writes, which is the same instrument rules 7 to 9 use.
+//
+// THE GUARD IS PART OF THE RULE. A focus taken unconditionally would pull the
+// keyboard off the change the person is standing on when an accept REFUSES,
+// and research 96 §1.2 measured what that costs: with the focus anywhere else
+// `focusedChange` answers null, so the next press does nothing, and `moveFocus`
+// computes `current === -1`, so the next arrow jumps to the first change rather
+// than the neighbour.
+// ---------------------------------------------------------------------------
+{
+  const VIEW = 'src/renderer/editor/RedlineDocument.tsx';
+  const HOST_FOCUS = 'hostRef.current?.focus(';
+  const ACCEPTED_GUARD = "result.outcome === 'accepted'";
+  /**
+   * What is wrong with this source's accept callback, or an empty list. The
+   * callback is found by name and read by MATCHING PARENTHESES from
+   * `useCallback(`, rather than by a regular expression over lines, so a focus
+   * call that belongs to a different callback of the same file cannot be read
+   * as this one's.
+   */
+  const acceptFocusFindings = (source) => {
+    const code = stripComments(source);
+    const at = code.indexOf('const accept = useCallback(');
+    if (at === -1) return ['no `const accept = useCallback(` in the view'];
+    const open = code.indexOf('(', at + 'const accept = useCallback'.length - 1);
+    const close = closeOf(code, open);
+    if (close === -1) return ['the accept callback is not closed'];
+    const region = code.slice(open, close + 1);
+    if (!region.includes(HOST_FOCUS)) {
+      return ['the accept callback never returns the keyboard to the scroller'];
+    }
+    const guard = region.indexOf(ACCEPTED_GUARD);
+    if (guard === -1) {
+      return ['the accept callback focuses the scroller with no accepted guard'];
+    }
+    const brace = region.indexOf('{', guard);
+    const body = brace === -1 ? null : blockAt(region, brace);
+    if (body === null || !body.includes(HOST_FOCUS)) {
+      return ['the accept callback focuses the scroller outside the accepted guard'];
+    }
+    return [];
+  };
+
+  if (!existsSync(VIEW)) fail(`20. ${VIEW} is not there, so rule 19 proves nothing`);
+  else {
+    for (const line of acceptFocusFindings(readFileSync(VIEW, 'utf8'))) fail(`20. ${line}`);
+  }
+
+  // The scanner, proved on five plants, four of which must be caught.
+  const SHAPE = (inner) =>
+    `const press = useCallback(async () => {\n  hostRef.current?.focus({ preventScroll: true });\n}, []);\n` +
+    `const accept = useCallback((kind, host) => {\n  const result = pressAccept(kind, tabOf(), deps(host));\n${inner}\n}, [tab.id]);\n`;
+  const PLANTS = [
+    {
+      name: 'the shipping shape',
+      source: SHAPE(
+        "  if (result.outcome === 'accepted') {\n    hostRef.current?.focus({ preventScroll: true });\n  }"
+      ),
+      caught: false
+    },
+    {
+      name: 'the focus line deleted',
+      source: SHAPE("  if (result.outcome === 'accepted') {\n    bump();\n  }"),
+      caught: true
+    },
+    {
+      name: 'the focus taken unconditionally, which steals it on a refusal',
+      source: SHAPE('  hostRef.current?.focus({ preventScroll: true });'),
+      caught: true
+    },
+    {
+      name: 'the focus inside the guard but of the wrong element',
+      source: SHAPE(
+        "  if (result.outcome === 'accepted') {\n    chipRef.current?.focus();\n  }"
+      ),
+      caught: true
+    },
+    {
+      // The shape the paren matcher exists for: the only host focus in the
+      // file belongs to the OTHER callback, and a line scan would pass it.
+      name: 'the focus in the rewind callback and not the accept one',
+      source:
+        `const press = useCallback(async () => {\n  if (result.outcome === 'accepted') {\n    hostRef.current?.focus({ preventScroll: true });\n  }\n}, []);\n` +
+        `const accept = useCallback((kind, host) => {\n  const result = pressAccept(kind, tabOf(), deps(host));\n  bump();\n}, [tab.id]);\n`,
+      caught: true
+    }
+  ];
+  let plantsOk = 0;
+  for (const plant of PLANTS) {
+    const hits = acceptFocusFindings(plant.source);
+    if (hits.length > 0 === plant.caught) plantsOk += 1;
+    else {
+      fail(
+        `20. the scanner behaved wrongly on "${plant.name}": ${JSON.stringify(hits)}`
+      );
+    }
+  }
+  say(
+    `20. the accept returns the keyboard to the scroller, inside the accepted guard and nowhere else (${String(plantsOk)} of ${String(PLANTS.length)} scanner fixtures behaved, ${String(PLANTS.filter((q) => q.caught).length)} of them must fail)`
+  );
 }
 
 if (failures.length > 0) {
