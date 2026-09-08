@@ -186,6 +186,163 @@ rows.push([
   controlLeaks.length > 0 ? `caught ${controlLeaks.length}, the scan bites` : 'BLIND'
 ]);
 
+// ---------------------------------------------------------------------------
+// 1r and 2r. The SAME defense on the far side of a link (Phase 234)
+// ---------------------------------------------------------------------------
+//
+// A folder on a machine has TWO argvs. The git command line is one, and it is
+// carried inside the `/bin/sh -c <script>` argument list the exec plane sends,
+// which is the other. The claim is that no field of a contract file reaches a
+// spawned argv, so it has to hold on BOTH or it is no longer the claim.
+//
+// The probe read the whole fixture a second time through the machine arm's two
+// seams, over a runner that answers what the far side would print and starts
+// nothing, and recorded every `(scriptId, args)` it sent. Everything below is
+// the first rule again, over that record.
+
+const remote = data.remote ?? null;
+if (remote === null) {
+  fail(
+    'the probe printed nothing about the machine arm, so the argv defense was ' +
+      'checked on one side of the link only.'
+  );
+} else {
+  /** Every hostile string that appears in any argument sent to the far side. */
+  function leaksInFarCalls(calls) {
+    const found = [];
+    for (const call of calls) {
+      for (const arg of call.args) {
+        for (const hostile of data.hostileStrings) {
+          if (arg.includes(hostile)) {
+            found.push(`${call.scriptId} arg holds "${hostile}" in "${arg}"`);
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  const farLeaks = leaksInFarCalls(remote.farCalls ?? []);
+  for (const leak of farLeaks) fail(`argv defense, far side: ${leak}`);
+  const farControl = leaksInFarCalls(remote.blindedFarCalls ?? []);
+  if (farControl.length === 0) {
+    fail(
+      'control: the blinded far side record carries a hostile anchor on ' +
+        'purpose and the scan did not see it. A scan that cannot fail proves ' +
+        'nothing, and this is the scan that covers the second argv.'
+    );
+  }
+
+  // The git argv the machine arm composed is scanned by the SAME function the
+  // local one is, because it is the same composer: `argv-guard.ts` runs here
+  // and the far side is handed a KIND rather than an argument list.
+  for (const leak of leaksIn(remote.record ?? [])) {
+    fail(`argv defense, the machine arm's own composed calls: ${leak}`);
+  }
+
+  // THE KIND IS THE ONLY THING THAT CROSSES. Every `arch-git` call sends
+  // exactly three arguments, being the folder, the kind and whatever goes to
+  // git's standard input, and not one element of the composed argv.
+  const kinds = new Set();
+  for (const call of remote.farCalls ?? []) {
+    if (call.scriptId !== 'arch-git') continue;
+    if (call.args.length !== 3) {
+      fail(
+        `arch-git was sent ${String(call.args.length)} arguments rather than ` +
+          `three. The third is git's standard input and there is no fourth for ` +
+          `a command line to be written into.`
+      );
+      continue;
+    }
+    kinds.add(call.args[1]);
+    // The FOLDER may name nothing git understands. The third argument is
+    // git's standard input, and it carries the same `HEAD:<path>` requests
+    // `RunGitOptions.stdin` carries here, which is checked as such below.
+    for (const word of data.guard.words) {
+      if (call.args[0].includes(word)) {
+        fail(
+          `arch-git was sent the git word "${word}" in its FOLDER argument. ` +
+            `Only the kind may name anything git understands.`
+        );
+      }
+    }
+    for (const line of (call.args[2] ?? '').split('\n')) {
+      if (line.length === 0) continue;
+      if (!line.startsWith('HEAD:')) {
+        fail(
+          `arch-git was sent "${line}" on git's standard input, which is not a ` +
+            `HEAD read. It is the one place a contract value legitimately ` +
+            `travels, and it travels as a request and nothing else.`
+        );
+      }
+    }
+  }
+  const missingKinds = [
+    'ls-files',
+    'rev-parse-head',
+    'cat-file-batch',
+    'log-name-only',
+    'status-porcelain'
+  ].filter((kind) => !kinds.has(kind));
+  if (missingKinds.length > 0) {
+    fail(
+      `the machine arm never sent ${missingKinds.join(', ')}, so the scan above ` +
+        `covered fewer calls than a real read makes.`
+    );
+  }
+
+  // AND IT READ THE SAME CONTRACT. A defense that held because the arm read
+  // nothing would pass every scan above, so the far read is compared with the
+  // local one row for row.
+  if (remote.contractSubject !== data.document.contract?.subject) {
+    fail(
+      `the machine arm read the subject ${JSON.stringify(remote.contractSubject)} ` +
+        `and the local arm read ${JSON.stringify(data.document.contract?.subject)}. The ` +
+        `two arms read the same directory through two implementations of one ` +
+        `interface, so they answer the same document or one of them is wrong.`
+    );
+  }
+  if (remote.documentProblems !== data.document.problems.length) {
+    fail(
+      `the machine arm reported ${String(remote.documentProblems)} problems and ` +
+        `the local arm reported ${String(data.document.problems.length)}. The drop whole ` +
+        `rule is the same rule on both computers, including the rows this ` +
+        `fixture plants to be dropped.`
+    );
+  }
+  const localVerdicts = (data.verdicts ?? [])
+    .map((v) => `${v.subjectId} ${v.status} ${v.coverage}`)
+    .sort();
+  const farVerdicts = (remote.verdicts ?? [])
+    .map((v) => `${v.subjectId} ${v.status} ${v.coverage}`)
+    .sort();
+  if (JSON.stringify(localVerdicts) !== JSON.stringify(farVerdicts)) {
+    fail(
+      `the two arms judged the same fixture differently. Local: ` +
+        `${localVerdicts.length} verdicts, machine: ${farVerdicts.length}. The ` +
+        `first difference is ` +
+        `${localVerdicts.find((one, at) => one !== farVerdicts[at]) ?? '(a count)'}.`
+    );
+  }
+  rows.push([
+    'argv defense, far side',
+    `${String((remote.farCalls ?? []).length)} script calls sent`,
+    farLeaks.length === 0
+      ? `no hostile string in any argument, ${String(kinds.size)} kinds by name`
+      : `${String(farLeaks.length)} LEAKED`
+  ]);
+  rows.push([
+    'far side scan control',
+    'an argument list with one hostile element',
+    farControl.length > 0 ? `caught ${String(farControl.length)}, the scan bites` : 'BLIND'
+  ]);
+  rows.push([
+    'the two arms agree',
+    `${String(farVerdicts.length)} verdicts, ${String(remote.documentProblems)} problems`,
+    'the same document and the same judgement through two implementations'
+  ]);
+}
+
 // Every stdin the run wrote must be requests and nothing else.
 for (const call of data.record) {
   if (call.stdin === null) continue;

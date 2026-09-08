@@ -133,50 +133,77 @@ function pin(got) {
   if (got === undefined || 'error' in got) {
     return [`the probe answered ${got === undefined ? 'nothing' : got.error}`];
   }
+  // PHASE 234. Every tree is composed TWICE: once from the fixture's own facts
+  // and once from facts that crossed the machine arm. BOTH are held against
+  // the SAME expectations, so a sentence that is right here and wrong on a
+  // folder on another machine is a red pin naming the arm, and an ablation
+  // must turn BOTH red or the second arm is proving nothing.
+  const arms = [];
   for (const tree of TREES) {
+    arms.push({ tree, key: tree, where: tree });
+    arms.push({ tree, key: `${tree}@machine`, where: `${tree}, through the machine arm` });
+  }
+  for (const { tree, key, where } of arms) {
     const want = expected[tree];
-    const have = got[tree];
+    const have = got[key];
     if (have === undefined) {
-      problems.push(`${tree}: not composed`);
+      problems.push(`${where}: not composed`);
       continue;
+    }
+    if (key.endsWith('@machine')) {
+      // A run that carried nothing would agree with an empty expectation and
+      // read as a pass, so what really crossed is asserted before the bytes.
+      const carried = have.carried ?? { trackedFiles: 0, treeFacts: 0 };
+      if (carried.trackedFiles !== want.boxes.reduce((n, b) => n + b.fileCount, 0)) {
+        problems.push(
+          `${where}: the arm carried ${String(carried.trackedFiles)} tracked files and the ` +
+            `fixture's boxes account for ${String(want.boxes.reduce((n, b) => n + b.fileCount, 0))}`
+        );
+      }
+      if (carried.treeFacts === 0) {
+        problems.push(`${where}: the arm carried no file bytes at all`);
+      }
     }
     const wantIds = want.boxes.map((b) => `${b.id}:${b.label}:${b.fileCount}:${b.band}`);
     const haveIds = have.boxes.map((b) => `${b.id}:${b.label}:${b.fileCount}:${b.band}`);
     if (JSON.stringify(wantIds) !== JSON.stringify(haveIds)) {
-      problems.push(`${tree}: rule 1, the box set reads [${haveIds.join(', ')}] and the fixture pins [${wantIds.join(', ')}]`);
+      problems.push(`${where}: rule 1, the box set reads [${haveIds.join(', ')}] and the fixture pins [${wantIds.join(', ')}]`);
     }
     if (have.sentence !== want.sentence) {
-      problems.push(`${tree}: rule 2, rule R reads "${have.sentence}" and the fixture pins "${want.sentence}"`);
+      problems.push(`${where}: rule 2, rule R reads "${have.sentence}" and the fixture pins "${want.sentence}"`);
     }
     if (have.words !== want.words) {
-      problems.push(`${tree}: rule 2, rule R carries ${String(have.words)} words and the fixture pins ${String(want.words)}`);
+      problems.push(`${where}: rule 2, rule R carries ${String(have.words)} words and the fixture pins ${String(want.words)}`);
     }
     for (const wantBox of want.boxes) {
       const haveBox = have.boxes.find((b) => b.id === wantBox.id);
       if (haveBox === undefined) continue;
       if (haveBox.sentence !== wantBox.sentence) {
-        problems.push(`${tree}/${wantBox.id}: rule 2, the sentence reads "${haveBox.sentence}" and the fixture pins "${wantBox.sentence}"`);
+        problems.push(`${where}/${wantBox.id}: rule 2, the sentence reads "${haveBox.sentence}" and the fixture pins "${wantBox.sentence}"`);
       }
       if (haveBox.words !== wantBox.words) {
-        problems.push(`${tree}/${wantBox.id}: rule 2, ${String(haveBox.words)} words against ${String(wantBox.words)} pinned`);
+        problems.push(`${where}/${wantBox.id}: rule 2, ${String(haveBox.words)} words against ${String(wantBox.words)} pinned`);
       }
       if (JSON.stringify(haveBox.facts) !== JSON.stringify(wantBox.facts)) {
-        problems.push(`${tree}/${wantBox.id}: rule 3, the hover facts read [${haveBox.facts.join(' | ')}] and the fixture pins [${wantBox.facts.join(' | ')}]`);
+        problems.push(`${where}/${wantBox.id}: rule 3, the hover facts read [${haveBox.facts.join(' | ')}] and the fixture pins [${wantBox.facts.join(' | ')}]`);
       }
       for (const field of ['languages', 'lines', 'entries']) {
         if (JSON.stringify(haveBox[field]) !== JSON.stringify(wantBox[field])) {
-          problems.push(`${tree}/${wantBox.id}: rule 3, ${field} reads ${JSON.stringify(haveBox[field])} and the fixture pins ${JSON.stringify(wantBox[field])}`);
+          problems.push(`${where}/${wantBox.id}: rule 3, ${field} reads ${JSON.stringify(haveBox[field])} and the fixture pins ${JSON.stringify(wantBox[field])}`);
         }
       }
     }
     if (JSON.stringify(have.edges) !== JSON.stringify(want.edges)) {
-      problems.push(`${tree}: rule 4, the edges read [${have.edges.join(', ')}] and the fixture pins [${want.edges.join(', ')}]`);
+      problems.push(`${where}: rule 4, the edges read [${have.edges.join(', ')}] and the fixture pins [${want.edges.join(', ')}]`);
     }
     if (have.repeatable !== true) {
-      problems.push(`${tree}: rule 5, composed from reversed facts the bytes moved`);
+      problems.push(`${where}: rule 5, composed from reversed facts the bytes moved`);
     }
-    if (JSON.stringify(have.drill) !== JSON.stringify(want.drill)) {
-      problems.push(`${tree}: rule 6, the drill reads ${JSON.stringify(have.drill)} and the fixture pins ${JSON.stringify(want.drill)}`);
+    if (
+      !key.endsWith('@machine') &&
+      JSON.stringify(have.drill) !== JSON.stringify(want.drill)
+    ) {
+      problems.push(`${where}: rule 6, the drill reads ${JSON.stringify(have.drill)} and the fixture pins ${JSON.stringify(want.drill)}`);
     }
   }
   if (JSON.stringify(got.declared) !== JSON.stringify(expected.declared)) {
@@ -242,7 +269,33 @@ try {
     }
   }
 
-  // Rule 9.
+  // Rule 9. PHASE 234 added the machine arm's two decoders, which the reading
+  // now depends on for a folder on another machine. They may open a file and a
+  // directory, because the mirror is theirs, but nothing in that module may
+  // START anything: everything it sends goes through `runRemoteRead`, whose
+  // step 4 is the one gate.
+  const arm = readFileSync(join(repoRoot, 'src', 'main', 'machines', 'remote-arch.ts'), 'utf8');
+  const armImports = [...arm.matchAll(/^import[^;]*?from '([^']+)';/gms)].map((hit) => hit[1]).sort();
+  const armAllowed = [
+    '../arch/argv-guard',
+    './ready-context',
+    './remote-run',
+    './remote-scripts',
+    '@shared/arch',
+    'node:crypto',
+    'node:fs',
+    'node:fs/promises',
+    'node:path'
+  ];
+  for (const one of armImports) {
+    if (!armAllowed.includes(one)) {
+      fail(
+        `rule 9: src/main/machines/remote-arch.ts imports ${one}. Everything it ` +
+          `sends goes through ./remote-run, whose step 4 is the one gate, and ` +
+          `nothing in it may reach a process by any other door.`
+      );
+    }
+  }
   for (const file of ['reading.ts', 'sentence.ts']) {
     const text = readFileSync(join(repoRoot, 'src', 'main', 'arch', file), 'utf8');
     for (const word of ["from 'node:", "from 'electron'", 'child_process', 'require(']) {
@@ -263,4 +316,9 @@ if (failures.length > 0) {
   for (const f of failures) process.stderr.write(`${TAG} FAIL: ${f}\n`);
   process.exit(1);
 }
-say(`${TAG} OK: the box set and every sentence byte for byte on five trees, the rollup, the drill and the declared names, ${String(ABLATIONS.length)} ablations each red, the composer pure, the gate named`);
+say(
+  `${TAG} OK: the box set and every sentence byte for byte on five trees AND on ` +
+    `the same five read through the machine arm, the rollup, the drill and the ` +
+    `declared names, ${String(ABLATIONS.length)} ablations each red, the ` +
+    `composer pure, the gate named`
+);

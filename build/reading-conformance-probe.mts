@@ -23,6 +23,76 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fixturesDir = join(repoRoot, 'build', 'fixtures', 'reading');
 
+/**
+ * THE MACHINE ARM (Phase 234). The two seams `src/main/machines/remote-arch.ts`
+ * implements are what a folder on another machine is read through, and the
+ * reading is the surface a person judges that read by. So every tree below is
+ * composed TWICE: once from the fixture's own facts, and once from facts that
+ * crossed the arm, being the tracked list decoded out of an `arch-git ls-files`
+ * answer and the tree facts rebuilt from bytes decoded out of `arch-read`
+ * records. The gate pins the second against the SAME expectations as the first.
+ *
+ * The runner answers what the far side's scripts would print and STARTS
+ * NOTHING, so this probe is still one plain node. What the scripts themselves
+ * print is proved by `src/main/machines/__tests__/p234-remote-arch.test.ts`,
+ * which runs the shipping text through `/bin/sh` over a real git repository.
+ *
+ * It is imported from the SHIPPING tree rather than from the ablated copy on
+ * purpose: the ablations are about the reading's own clauses, and the transport
+ * is not one of them. What an ablation must move is the SENTENCE, on both arms.
+ */
+type remoteArchTypes = typeof import('../src/main/machines/remote-arch');
+const { readLsFiles } = (await import(
+  join(repoRoot, 'src', 'main', 'arch', 'git-facts.ts')
+)) as typeof import('../src/main/arch/git-facts');
+const remoteArch = (await import(
+  join(repoRoot, 'src', 'main', 'machines', 'remote-arch.ts')
+)) as remoteArchTypes;
+
+const NUL = '\u0000';
+
+/** What `arch-git` prints for one answer: base64 of the bytes and the status. */
+function encodeGitAnswer(stdout: Buffer, code = 0): string {
+  return Buffer.concat([
+    stdout,
+    Buffer.from(`\n__TORTIE_GIT__${String(code)}`, 'latin1')
+  ]).toString('base64');
+}
+
+/**
+ * The text of one tracked file, built to the line count and declared name the
+ * fixture pins, so what comes back through the arm can be held against them.
+ */
+function fileTextFor(path: string, lines: number, declares: string | null): string {
+  const base = declares === null ? '' : manifestText(path, declares);
+  const have = (base.match(/\n/g) ?? []).length;
+  const pad = Math.max(0, lines - have);
+  return base + '\n'.repeat(pad);
+}
+
+/** One manifest declaring one name, in that manifest's own format. */
+function manifestText(path: string, name: string): string {
+  const file = path.split('/').pop() ?? path;
+  if (file === 'package.json') return `{"name":"${name}"}\n`;
+  if (file === 'Cargo.toml' || file === 'pyproject.toml') {
+    return `[package]\nname = "${name}"\n`;
+  }
+  if (file === 'go.mod') return `module ${name}\n`;
+  if (file === 'Package.swift') return `let package = Package(\n  name: "${name}"\n)\n`;
+  return '';
+}
+
+/** What `arch-read` prints for a list of files it read back. */
+function encodeReadAnswer(files: readonly { path: string; text: string }[]): string {
+  const lines: string[] = [];
+  for (const one of files) {
+    const bytes = Buffer.from(one.text, 'utf8');
+    lines.push(`F 1700000000 ${String(bytes.byteLength)} ${one.path}`);
+    lines.push(bytes.toString('base64'));
+  }
+  return lines.length === 0 ? 'none' : `${lines.join('\n')}\n`;
+}
+
 interface Fixture {
   subject: string;
   workspaces: string[];
@@ -135,6 +205,12 @@ async function composeAll(root: string): Promise<Record<string, unknown>> {
   const map = (await import(join(root, 'main', 'arch', 'map.ts'))) as typeof import('../src/main/arch/map');
   const sentence = (await import(join(root, 'main', 'arch', 'sentence.ts'))) as typeof import('../src/main/arch/sentence');
   const tree = (await import(join(root, 'main', 'arch', 'tree-facts.ts'))) as typeof import('../src/main/arch/tree-facts');
+  // The argv composer comes from the copy under test, because it is what the
+  // machine arm is handed and an ablation of it would be a real drift. The
+  // zero separated reader comes from the SHIPPING tree, because `git-facts.ts`
+  // names `../git/exec`, which an ablated copy holding only `main/arch` cannot
+  // resolve, and because no ablation touches it.
+  const guard = (await import(join(root, 'main', 'arch', 'argv-guard.ts'))) as typeof import('../src/main/arch/argv-guard');
   const out: Record<string, unknown> = {};
   const trees: [string, Fixture, string | null][] = [
     ['gmux', fixture('gmux'), 'src-main'],
@@ -174,6 +250,70 @@ async function composeAll(root: string): Promise<Record<string, unknown>> {
         )
       };
     }
+    // ---------------------------------------------------------------------
+    // THE SAME TREE, THROUGH THE MACHINE ARM (Phase 234)
+    // ---------------------------------------------------------------------
+    // The two facts the arm really carries for the reading are the tracked
+    // list, which comes back from `git ls-files -z` over there, and the bytes
+    // of every tracked file, which the mirror brings here for the tree read.
+    // Both cross below and both are rebuilt on this side by the SHIPPING
+    // decoders, and the sentences are then composed from what came back.
+    const farRunner: remoteArchTypes['RemoteArchRunner'] = (scriptId, args) => {
+      if (scriptId === 'arch-git') {
+        const kind = args[1] ?? '';
+        if (kind !== 'ls-files') return Promise.resolve(encodeGitAnswer(Buffer.alloc(0)));
+        return Promise.resolve(
+          encodeGitAnswer(
+            Buffer.from(fx.trackedFiles.map((one) => `${one}${NUL}`).join(''), 'utf8')
+          )
+        );
+      }
+      const wanted = (args[2] ?? '').split('\n').filter((one) => one.length > 0);
+      const byPath = new Map(fx.treeFacts.map((row) => [row.path, row]));
+      return Promise.resolve(
+        encodeReadAnswer(
+          wanted.map((path) => {
+            const row = byPath.get(path);
+            return {
+              path,
+              text:
+                row === undefined
+                  ? ''
+                  : fileTextFor(path, row.lines, row.declares)
+            };
+          })
+        )
+      );
+    };
+    const farGit = remoteArch.createRemoteArchGitRunner(farRunner, '/far/repo');
+    const listed = await farGit.run(guard.lsFilesCall());
+    const farTracked = listed.code === 0 ? readLsFiles(listed.stdout) : [];
+    const farRecords = remoteArch.parseArchReadAnswer(
+      await farRunner('arch-read', [
+        '/far/repo',
+        '',
+        fx.treeFacts.map((row) => row.path).join('\n'),
+        ''
+      ])
+    );
+    // The tree facts REBUILT from the bytes that came back, through the same
+    // two pure readers `readArchTreeFacts` uses on a file it opened here.
+    const farTreeFacts = farRecords
+      .filter((record) => record.kind === 'F' && record.content !== null)
+      .map((record) => ({
+        path: record.path,
+        lines: tree.countLines(record.content as Buffer),
+        declares: tree.declaredNameOf(
+          record.path.split('/').pop() ?? record.path,
+          (record.content as Buffer).toString('utf8')
+        )
+      }));
+    const farComposed = map.composeArchMap({
+      ...input,
+      trackedFiles: farTracked,
+      treeFacts: farTreeFacts
+    });
+
     const composed: Composed = {
       sentence: one.sentence,
       words: sentence.wordCount(one.sentence),
@@ -194,6 +334,33 @@ async function composeAll(root: string): Promise<Record<string, unknown>> {
       drill
     };
     out[name] = composed;
+    // The machine arm's own answer, in the SAME shape, so the gate can pin it
+    // against the SAME expectations rather than against a second table.
+    out[`${name}@machine`] = {
+      sentence: farComposed.sentence,
+      words: sentence.wordCount(farComposed.sentence),
+      boxes: farComposed.groups.map((g) => ({
+        id: g.id,
+        label: g.label,
+        fileCount: g.fileCount,
+        band: g.band,
+        words: sentence.wordCount(`${g.label}: ${g.sentence}`),
+        sentence: g.sentence,
+        facts: g.facts,
+        languages: g.languages,
+        lines: g.lines,
+        entries: g.entries
+      })),
+      edges: farComposed.edges.map((e) => `${e.from}>${e.to}:${String(e.count)}`),
+      repeatable: true,
+      drill: null,
+      // What really crossed, so a run that carried nothing cannot read as a
+      // run that carried everything.
+      carried: {
+        trackedFiles: farTracked.length,
+        treeFacts: farTreeFacts.length
+      }
+    } satisfies Composed & { carried: { trackedFiles: number; treeFacts: number } };
   }
   out['declared'] = MANIFEST_TEXTS.map(([file, text]) => `${file}: ${tree.declaredNameOf(file, text) ?? '(null)'}`);
   return out;

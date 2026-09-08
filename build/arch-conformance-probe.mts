@@ -14,7 +14,7 @@
  * ones a live repository happened to need.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,6 +22,14 @@ import type { ArchGitCall } from '../src/main/arch/argv-guard';
 import { ARCH_ARGV_WORDS, assertArchArgv } from '../src/main/arch/argv-guard';
 import type { ArchGitRunner, ArchGitResult } from '../src/main/arch/git-facts';
 import { createArchFileSystem, loadArchDocument } from '../src/main/arch/load';
+// PHASE 234. The MACHINE arm's two seams. Loading this module starts nothing:
+// every function in it composes an argument list or reads an answer, and the
+// runner it would use in production is injected here instead.
+import {
+  createRemoteArchFileSystem,
+  createRemoteArchGitRunner,
+  type RemoteArchRunner
+} from '../src/main/machines/remote-arch';
 import {
   ARCH_PAYLOAD_MAX_FILES_PER_PART,
   composeArchPayload,
@@ -203,6 +211,76 @@ function fakeGit(record: ArchGitCall[], options?: { uncommittedContract?: boolea
   };
 }
 
+
+/**
+ * The two answer formats the far side's scripts print, composed here so this
+ * gate can drive the machine arm's PARSERS without spawning a shell (Phase
+ * 234). The scripts' own output is proved against these shapes by
+ * `src/main/machines/__tests__/p234-remote-arch.test.ts`, which really runs
+ * them.
+ */
+function encodeArchGitAnswer(answer: ArchGitResult): string {
+  const whole = Buffer.concat([
+    answer.stdout,
+    Buffer.from(`\n__TORTIE_GIT__${String(answer.code)}`, 'latin1')
+  ]);
+  return whole.toString('base64');
+}
+
+/** `arch-read`'s records, over a directory on this Mac standing in for one over there. */
+function encodeArchReadAnswer(
+  rootPath: string,
+  statList: readonly string[],
+  readList: readonly string[],
+  dirList: readonly string[]
+): string {
+  const lines: string[] = [];
+  const refuse = (path: string): boolean =>
+    path.startsWith('/') || path.includes('..');
+  const stampOf = (path: string): { mtime: number; size: number } | null => {
+    try {
+      const st = lstatSync(join(rootPath, path));
+      return st.isFile() ? { mtime: Math.floor(st.mtimeMs / 1000), size: st.size } : null;
+    } catch {
+      return null;
+    }
+  };
+  for (const path of statList) {
+    const stamp = refuse(path) ? null : stampOf(path);
+    lines.push(
+      stamp === null
+        ? `X ${path}`
+        : `S ${String(stamp.mtime)} ${String(stamp.size)} ${path}`
+    );
+  }
+  for (const path of readList) {
+    const stamp = refuse(path) ? null : stampOf(path);
+    if (stamp === null) {
+      lines.push(`X ${path}`);
+      continue;
+    }
+    lines.push(`F ${String(stamp.mtime)} ${String(stamp.size)} ${path}`);
+    lines.push(readFileSync(join(rootPath, path)).toString('base64'));
+  }
+  for (const path of dirList) {
+    let entries: string[] | null = null;
+    if (!refuse(path)) {
+      try {
+        entries = readdirSync(join(rootPath, path));
+      } catch {
+        entries = null;
+      }
+    }
+    if (entries === null) {
+      lines.push(`X ${path}`);
+      continue;
+    }
+    lines.push(`D ${path}`);
+    lines.push(Buffer.from(entries.join('\n'), 'utf8').toString('base64'));
+  }
+  return lines.length === 0 ? 'none' : `${lines.join('\n')}\n`;
+}
+
 async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   // 1. The load, over the fixture's own docs/arch tree
@@ -292,6 +370,73 @@ async function main(): Promise<void> {
     }
     narrowed.push({ value, refused });
   }
+
+  // -------------------------------------------------------------------------
+  // 2.7 THE SAME RUN, THROUGH THE MACHINE ARM (Phase 234)
+  // -------------------------------------------------------------------------
+  //
+  // The claim this gate's first rule keeps is that no field of a contract file
+  // ever reaches a spawned argv. A folder on a machine has TWO argvs, being the
+  // git command line over there and the `/bin/sh -c <script>` argument list
+  // that carries it, so the claim has to hold on both sides or it has stopped
+  // being the claim.
+  //
+  // So the fixture is read a second time through `createRemoteArchFileSystem`
+  // and `createRemoteArchGitRunner`, over a runner that answers exactly the
+  // bytes the far side's script would print and STARTS NOTHING. Every
+  // `(scriptId, args)` the arm sends is recorded whole, and the gate scans
+  // those arguments for the same hostile strings it scans the git argv for.
+  //
+  // The runner emulates the two scripts' ANSWER FORMAT rather than running
+  // them, because this gate is classified `pure` and may not spawn a shell.
+  // What the scripts themselves really print is proved by
+  // `src/main/machines/__tests__/p234-remote-arch.test.ts`, which runs the
+  // shipping text through `/bin/sh` over a real git repository and compares it
+  // to the local runner call for call.
+  const farCalls: { scriptId: string; args: string[] }[] = [];
+  const farGitRecord: ArchGitCall[] = [];
+  const farRunner: RemoteArchRunner = (scriptId, args) => {
+    farCalls.push({ scriptId, args: [...args] });
+    if (scriptId === 'arch-git') {
+      const kind = args[1] ?? '';
+      const stdin = args[2] ?? '';
+      const call = {
+        kind,
+        argv: [],
+        ...(stdin.length === 0 ? {} : { stdin })
+      } as unknown as ArchGitCall;
+      farGitRecord.push(call);
+      return fakeGit(farGitRecord)
+        .run(call)
+        .then((answer) => encodeArchGitAnswer(answer));
+    }
+    return Promise.resolve(
+      encodeArchReadAnswer(
+        args[0] ?? '',
+        (args[1] ?? '').split('\n').filter((one) => one.length > 0),
+        (args[2] ?? '').split('\n').filter((one) => one.length > 0),
+        (args[3] ?? '').split('\n').filter((one) => one.length > 0)
+      )
+    );
+  };
+  const farFs = createRemoteArchFileSystem(farRunner, fixtureRoot);
+  await farFs.prime();
+  const farDocument = await loadArchDocument(farFs);
+  const farRecord: ArchGitCall[] = [];
+  const farResult = await runArchCheck({
+    document: farDocument,
+    git: createRemoteArchGitRunner(farRunner, fixtureRoot),
+    record: farRecord,
+    imports: () =>
+      Promise.resolve({ imports: facts.imports, unparsed: facts.unparsed })
+  });
+
+  // A far side argument list holding a hostile element, so the gate can prove
+  // its second scan bites too.
+  const blindedFarCalls = [
+    ...farCalls.map((one) => ({ scriptId: one.scriptId, args: [...one.args] })),
+    { scriptId: 'arch-read', args: [fixtureRoot, '', 'src/hostile-anchor-63-*', ''] }
+  ];
 
   // A record holding a hostile element, so the gate can prove its scan bites.
   const blindedRecord = [
@@ -1387,6 +1532,28 @@ async function main(): Promise<void> {
           stdin: call.stdin ?? null
         })),
         blindedRecord,
+        // PHASE 234. The machine arm's own reading of the same fixture: what
+        // it SENT, what it got back, and the control that proves the scan of
+        // the sent arguments can fail.
+        remote: {
+          farCalls,
+          blindedFarCalls,
+          record: farRecord.map((call) => ({
+            kind: call.kind,
+            argv: [...call.argv],
+            stdin: call.stdin ?? null
+          })),
+          documentProblems: farDocument.problems.length,
+          componentIds: farDocument.components.map((c) => c.id),
+          contractSubject: farDocument.contract?.subject ?? null,
+          verdicts: (farResult?.verdicts ?? []).map((v) => ({
+            subjectId: v.subjectId,
+            status: v.status,
+            coverage: v.coverage,
+            reason: v.reason
+          })),
+          counts: farResult?.counts ?? null
+        },
         guard: {
           refused: guardRefused,
           message: guardMessage,
