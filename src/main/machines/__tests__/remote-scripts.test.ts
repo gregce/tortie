@@ -143,8 +143,8 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds twenty five scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(25);
+  it('holds twenty six scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(26);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
       // PHASE 104 added `git-commit`, and it WRITES. It is the eighth writer,
       // so the write count below moved from seven to eight. It is the third
@@ -190,6 +190,14 @@ describe('the catalogue', () => {
       // it writes nothing, so the write count below stays at two. It names no
       // git verb, so GIT_VERBS above did not move either.
       'agents-find',
+      // PHASE 233 added `commit-files`, which answers what ONE commit changed
+      // in one folder, or both sides of one file of it out of the object
+      // database, so a remote History row can expand into its files and a
+      // file can open as a two sided diff. It is a read, it writes nothing,
+      // so the write count below stays at eight, and it names one git verb,
+      // `show`, which has been on GIT_VERBS since Phase 73, so that list did
+      // not move either.
+      'commit-files',
       // PHASE 108 added `context-read`, which lists directories and reads
       // files back so the Context view on a tab that lives over there shows
       // what the agents THERE will load. The reader and every parser stay on

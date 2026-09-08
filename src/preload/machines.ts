@@ -5,8 +5,8 @@
  * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105,
  * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
  * call plus one subscription in Phase 109, three more in Phase 101 and two
- * more in Phase 102 and two more in Phase 103 and one more in Phase 104). One
- * object, thirty seven calls
+ * more in Phase 102 and two more in Phase 103 and one more in Phase 104, and
+ * two more in Phase 233). One object, thirty nine calls
  * and three subscriptions,
  * typed from the shared contract. THE COUNT HAD GONE
  * STALE and Phase 108 says so rather than quietly fixing it: this header named
@@ -154,6 +154,15 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // 162,000 bytes. Nothing calls it on a clock, and it does not read the files
   // one commit changed.
   readHistory: (input) => invoke('machines:readHistory', input),
+  // Phase 233. THESE TWO READ. The first asks a machine which files one
+  // commit changed in one folder, the second asks for both sides of one of
+  // those files out of that machine's object database, each cut at the same
+  // ceiling a saved file has. Neither writes on either computer, neither
+  // reads a working tree, and main refuses both while it is not connected to
+  // that machine. Nothing calls either on a clock: a person expands a row or
+  // opens a file, and each of those is one read.
+  readCommitFiles: (input) => invoke('machines:readCommitFiles', input),
+  readCommitFile: (input) => invoke('machines:readCommitFile', input),
   // Phase 108. THIS ONE READS. It asks a machine for the agent configuration
   // its agents will load, being directory listings and file bytes, and the
   // reader that resolves precedence runs on THIS Mac. It writes nothing on

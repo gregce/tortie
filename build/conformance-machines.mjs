@@ -2915,15 +2915,17 @@ const INDEX_PATH_GUARD =
   "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
 
 /**
- * How many scripts the catalogue holds. Twenty five.
+ * How many scripts the catalogue holds. Twenty six.
  *
  * Four later conditions pinned this number as a literal `19` each. Phase 101
  * made them one constant, because four copies of one number is how three of
  * them go stale. Phase 102 moved it from twenty to twenty two by two WRITES,
- * Phase 103 moved it from twenty two to twenty four by two more, and Phase 104
- * moved it from twenty four to twenty five by one more.
+ * Phase 103 moved it from twenty two to twenty four by two more, Phase 104
+ * moved it from twenty four to twenty five by one more, and Phase 233 moved it
+ * from twenty five to twenty six by ONE READ, `commit-files`, which condition
+ * 35's own walk classifies as a read because `ALLOWED_WRITERS` did not grow.
  */
-const REMOTE_SCRIPT_COUNT = 25;
+const REMOTE_SCRIPT_COUNT = 26;
 
 {
   // 35. The catalogue's shape.

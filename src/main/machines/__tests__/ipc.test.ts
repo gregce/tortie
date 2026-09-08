@@ -370,6 +370,14 @@ describe('every channel is registered, and only the ones listed here', () => {
       // machine. Nothing calls it on a clock, and nothing on this path fetches.
       'machines:readBranch',
       // ---- END PHASE 106 ----
+      // ---- PHASE 233 ----
+      // Two READS of one commit in one folder on one machine: which files it
+      // changed, and both sides of one of them out of the object database
+      // over there. Both cross as `commit-files`, chosen by name, both write
+      // nothing on either computer, and nothing calls either on a clock.
+      'machines:readCommitFile',
+      'machines:readCommitFiles',
+      // ---- END PHASE 233 ----
       // ---- PHASE 108 ----
       // One READ of the agent configuration on one machine, being the skills,
       // MCP servers, hooks, plugins and instruction files the agents THERE

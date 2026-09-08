@@ -168,6 +168,8 @@ export const CHANNEL_FACT: Readonly<Record<string, LivenessFact>> = Object.freez
   'machines:searchContent': 'link',
   'machines:readContext': 'link',
   'machines:readHistory': 'link',
+  'machines:readCommitFiles': 'link',
+  'machines:readCommitFile': 'link',
   'machines:readBranch': 'link',
   'machines:readRuns': 'link',
   'machines:reviewFiles': 'link',
@@ -195,6 +197,9 @@ export const MODULE_FACT: Readonly<Record<string, LivenessFact>> = Object.freeze
   'remote-files.ts': 'link',
   'remote-agent-context.ts': 'link',
   'remote-history.ts': 'link',
+  // PHASE 233. The files one commit changed, and one file's two sides. The
+  // list asks the link itself so a row can say not connected as a mode word.
+  'remote-commit-files.ts': 'link',
   'remote-branch.ts': 'link',
   'remote-runs.ts': 'link',
   'remote-search.ts': 'link',

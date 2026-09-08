@@ -741,6 +741,102 @@ export interface MachineHistoryResult {
 
 // ---------------------------------------------------------------------------
 // The channels this family declares
+// ---- PHASE 233 BLOCK ----
+// What ONE commit changed in one folder on another machine, and both sides of
+// one file of it.
+//
+// WHAT THIS IS FOR. Phase 107 drew the commits over there and said on the face
+// that the files one commit changed were not read. Phase 228 took the sentence
+// off and left the row inert. These two reads are what let a remote History
+// row expand into its files and a file open as a two sided diff, which is the
+// gesture the local History row has had since Phase 12.
+//
+// IT CANNOT COMPOSE WHAT IT ASKS. Both crossings are `commit-files` from the
+// frozen catalogue in src/main/machines/remote-scripts.ts, chosen by name, with
+// the folder, the commit, the path and the byte cap arriving there as
+// positional parameters. The commit name is matched on this Mac against the
+// same hex rule the history reader uses and the far side refuses anything
+// else, so no option and no ref expression can reach git as a commit.
+//
+// IT WRITES NOTHING, on either computer. Both sides of a file come out of the
+// object database on that machine, never its working tree, and nothing here
+// can check out, branch, cherry pick or revert.
+
+/** One changed file of one commit, as the far side's `--name-status` said. */
+export interface MachineCommitFile {
+  /** Path relative to the repository root, the NEW path for a rename. */
+  readonly path: string;
+  /** The pre-rename path, for an `R` or a `C` row only. */
+  readonly origPath?: string;
+  readonly status: GitCommitFileState;
+}
+
+/** The files ONE commit changed in one folder on one machine. */
+export interface MachineCommitFilesInput {
+  readonly machineId: string;
+  /** The folder on that machine. Absolute, and never a path on this Mac. */
+  readonly cwd: string;
+  /** The full commit name, as the history read returned it. */
+  readonly sha: string;
+}
+
+/**
+ * What one machine answered about one commit's files.
+ *
+ * Three words. `ok` carries the list, which may be empty for a commit that
+ * changed no file. `notConnected` means nothing was asked. `unreachable` means
+ * the machine did not answer, or answered something this end could not read.
+ * No prose crosses this channel: the renderer draws every sentence from
+ * src/renderer/machines/history.ts, where the vocabulary audit reads it.
+ */
+export interface MachineCommitFilesResult {
+  readonly machineId: string;
+  readonly machineLabel: string;
+  readonly cwd: string;
+  readonly sha: string;
+  readonly mode: 'ok' | 'notConnected' | 'unreachable';
+  readonly files: readonly MachineCommitFile[];
+  /** Bytes that machine's answer carried. */
+  readonly answerBytes: number;
+  readonly elapsedMs: number;
+}
+
+/** Both sides of ONE file of ONE commit on one machine. */
+export interface MachineCommitFileInput {
+  readonly machineId: string;
+  /** The folder on that machine. Absolute, and never a path on this Mac. */
+  readonly cwd: string;
+  /** The full commit name. */
+  readonly sha: string;
+  /** Repository relative path AS OF the commit, the NEW path for a rename. */
+  readonly path: string;
+  /** The pre-rename path, or null. A rename is read at both paths. */
+  readonly origPath: string | null;
+}
+
+/**
+ * The parent to commit content pair for one file on one machine.
+ *
+ * THE SIZES ARE THE WHOLE OBJECTS' and the contents are cut at the ceiling,
+ * which is `REMOTE_FILE_MAX_BYTES`. The renderer refuses a file whose larger
+ * side is over that ceiling with the sentence the editor already uses for a
+ * large remote file, and it can name the real size because the far side
+ * counted it separately from what it sent.
+ */
+export interface MachineCommitFilePair {
+  /** The copy in the first parent. Empty when that side does not exist. */
+  readonly oldContents: string;
+  /** The copy in the commit. Empty when the commit deleted the file. */
+  readonly newContents: string;
+  /** True when either side holds a zero byte in its first 8 KB. */
+  readonly binary: boolean;
+  /** How many bytes the parent's copy holds over there, 0 when absent. */
+  readonly oldBytes: number;
+  /** How many bytes the commit's copy holds over there, 0 when absent. */
+  readonly newBytes: number;
+}
+// ---- END PHASE 233 BLOCK ----
+
 // ---------------------------------------------------------------------------
 
 export interface MachinesScmInvokeChannelMap {
@@ -917,6 +1013,22 @@ export interface MachinesScmInvokeChannelMap {
     req: [input: MachineHistoryInput];
     res: MachineHistoryResult;
   };
+  // PHASE 233. Two READS of ONE commit in one folder on one machine: the list
+  // of files it changed, and both sides of one of them. The command that
+  // crosses is `commit-files` from the frozen catalogue, chosen by name, with
+  // the folder, the commit, the path and the byte cap as positional
+  // parameters. Both sides come out of the object database over there and
+  // never its working tree, and nothing here writes on either computer. The
+  // pair's contents are cut at REMOTE_FILE_MAX_BYTES while its sizes are the
+  // whole objects', so the renderer can refuse a large file naming its size.
+  'machines:readCommitFiles': {
+    req: [input: MachineCommitFilesInput];
+    res: MachineCommitFilesResult;
+  };
+  'machines:readCommitFile': {
+    req: [input: MachineCommitFileInput];
+    res: MachineCommitFilePair;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -961,4 +1073,13 @@ export interface MachinesScmApi {
   // never writes, it is capped at 500 commits in one answer, and it does not
   // read the files one commit changed.
   readHistory(input: MachineHistoryInput): Promise<MachineHistoryResult>;
+  // Phase 233. Reads which files ONE commit changed in one folder on one
+  // machine. It reads and never writes.
+  readCommitFiles(
+    input: MachineCommitFilesInput
+  ): Promise<MachineCommitFilesResult>;
+  // Phase 233. Reads both sides of one file of one commit out of that
+  // machine's object database, each cut at the same ceiling a saved file has.
+  // It reads and never writes.
+  readCommitFile(input: MachineCommitFileInput): Promise<MachineCommitFilePair>;
 }

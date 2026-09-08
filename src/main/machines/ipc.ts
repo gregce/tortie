@@ -138,6 +138,10 @@ import type {
   // ---- PHASE 107 ----
   MachineHistoryInput,
   MachineHistoryResult,
+  MachineCommitFileInput,
+  MachineCommitFilePair,
+  MachineCommitFilesInput,
+  MachineCommitFilesResult,
   // ---- END PHASE 107 ----
   // ---- PHASE 108 ----
   MachineContextInput,
@@ -246,6 +250,10 @@ import { readSessionLinesOnMachine } from './remote-lines';
 // and nothing on either computer is written.
 import { readBranchOnMachine } from './remote-branch';
 import { readHistoryOnMachine } from './remote-history';
+import {
+  readCommitFileOnMachine,
+  readCommitFilesOnMachine
+} from './remote-commit-files';
 // Phase 108. The agent configuration on one machine, being what the agents
 // over there will load. The reader that resolves precedence runs on THIS Mac;
 // the machine only lists directories and sends file bytes back. It reads and
@@ -1601,6 +1609,62 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 107 ----
+
+  // ---- PHASE 233 ----
+  // PHASE 233. Two channels that READ one commit in one folder on one machine:
+  // which files it changed, and both sides of one of them. They are what let
+  // a remote History row expand into its files and a file open as a two sided
+  // diff, which the Phase 107 comment above says was not read.
+  //
+  // THEY CANNOT COMPOSE WHAT THEY ASK. The command that crosses is
+  // `commit-files` from the frozen catalogue in ./remote-scripts.ts, chosen by
+  // name, with the folder, the commit, the path and the byte cap arriving
+  // there as positional parameters. The commit name is matched here against
+  // the same hex rule the history reader uses, and the far side refuses
+  // anything else before `git show` runs.
+  //
+  // THEY WRITE NOTHING, on either computer. Both sides of a file come out of
+  // the object database over there and never its working tree, and each side
+  // is cut at REMOTE_FILE_MAX_BYTES by the far side's own head -c while its
+  // whole size travels beside it, so the renderer refuses a large file naming
+  // its real size with the sentence the editor already uses.
+  //
+  // NOTHING CALLS EITHER ON A CLOCK. A person expands a row or opens a file,
+  // and each of those is one read.
+  //
+  // The list NEVER THROWS for a machine state: not connected and no answer
+  // come back as mode words, and the renderer draws every sentence from
+  // src/renderer/machines/history.ts. The pair throws the way reviewFile
+  // does, because a tab has one error slot and the loader fills it.
+  handle(
+    ipc,
+    'machines:readCommitFiles',
+    async (
+      _event,
+      input: MachineCommitFilesInput
+    ): Promise<MachineCommitFilesResult> =>
+      readCommitFilesOnMachine({
+        machineId: input.machineId,
+        cwd: input.cwd,
+        sha: input.sha
+      })
+  );
+  handle(
+    ipc,
+    'machines:readCommitFile',
+    async (
+      _event,
+      input: MachineCommitFileInput
+    ): Promise<MachineCommitFilePair> =>
+      readCommitFileOnMachine({
+        machineId: input.machineId,
+        cwd: input.cwd,
+        sha: input.sha,
+        path: input.path,
+        origPath: input.origPath
+      })
+  );
+  // ---- END PHASE 233 ----
 
   // ---- PHASE 108 ----
   // PHASE 108. One channel that READS the agent configuration on one machine,

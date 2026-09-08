@@ -119,6 +119,23 @@
  * `head -c` inside it caps every file it reads back at
  * {@link CONTEXT_READ_FILE_MAX_BYTES}.
  *
+ * PHASE 233 ADDED ONE MORE, and it is a read. `commit-files` answers what ONE
+ * commit changed in one folder on a machine, and it answers in two shapes
+ * chosen by whether its third value is empty. With no path it prints the
+ * `--name-status` list for that commit, the same bytes `GitService.commitDetail`
+ * reads on this Mac, so `parseNameStatusZ` in `src/main/git/parse.ts` reads the
+ * answer unchanged and THE MAIN SIDE WRITES NO SECOND PARSER. With a path it
+ * prints both sides of that one file, being the copy in the commit's first
+ * parent and the copy in the commit, each capped by its fourth value, which
+ * main sends as `REMOTE_FILE_MAX_BYTES` from `@shared/ipc`. It also prints each
+ * side's WHOLE size, so a file over the ceiling is refused with its real size
+ * rather than a floor. It adds no git verb, because `show` has been in rule 7
+ * since Phase 73. IT NEVER FETCHES and it reads no working tree file: both
+ * sides come from the object database, so a rename is read at two paths the
+ * way `review-file` reads one. It is what lets a remote History row expand
+ * into its files and a file open as a two sided diff, which the Phase 107
+ * entry asked for and Phase 107 did not ship.
+ *
  * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
  * and folder under one folder on a machine, to a fixed depth, in ONE call. It
  * is what the Explorer draws for a project that lives on another computer.
@@ -1877,6 +1894,79 @@ const REPO_HISTORY = [
 ].join('\n');
 
 /**
+ * What ONE commit changed in one folder on a machine, and both sides of one
+ * file of it (Phase 233, research 85 gap 17).
+ *
+ * ## Two shapes from one text, chosen by the third value
+ *
+ * ```
+ *   $1  the folder on that machine
+ *   $2  the commit, as git printed it there, lowercase hex and nothing else
+ *   $3  a path inside the repository, or EMPTY for the list
+ *   $4  the byte cap per side, read by `head -c`
+ * ```
+ *
+ * With `$3` empty it prints `list <b64>`, where the payload is exactly what
+ * `git show <sha> -z --name-status -M --format= --diff-merges=first-parent --`
+ * prints, which is the argv `GitService.commitDetail` composes on this Mac for
+ * the local History row. `parseNameStatusZ` reads it unchanged. `-M` pairs a
+ * rename explicitly rather than inheriting that machine's `diff.renames`, and
+ * `--diff-merges=first-parent` makes a merge show its diff against its first
+ * parent, which is the local rule and VS Code's.
+ *
+ * With `$3` set it prints `file <sizeA> <sizeB> <b64A> <b64B>`. Side A is the
+ * file in the commit's FIRST PARENT, `"$2^:$3"`, and side B is the file in the
+ * commit, `"$2:$3"`. A side that does not exist, being a root commit's parent,
+ * a file the commit added or a file it deleted, answers `0` and `none`, which
+ * are ordinary states of a changed file rather than failures. THE SIZES ARE
+ * THE WHOLE OBJECT'S, counted by `wc -c` over a second `git show`, while the
+ * payload is cut at `$4`. So a file over the ceiling is refused on this Mac
+ * with its real size, the way the editor refuses a large remote file, and
+ * never with a floor.
+ *
+ * ## Two containment lines, one per value that names something
+ *
+ * `$2` is refused unless it is lowercase hex, so no option and no ref
+ * expression can reach `git show` as a commit name: `-p`, `HEAD`, `@{u}` and
+ * `main..other` all fail the first `case`. Main sends only a name it matched
+ * against the same forty or sixty four hex rule the history reader uses, and
+ * the far side holds its own copy of the rule for the reason `review-file`
+ * holds its path guard, being that the far side has to enforce it anyway.
+ * `$3` carries `review-file`'s own line, so a path that starts with a slash or
+ * holds two dots is refused before `cd` runs. A name holding two dots in a row
+ * is refused too, and that false refusal is taken on purpose for the reason
+ * `review-file` gives.
+ *
+ * ## What it never does
+ *
+ * It reads the object database and never the working tree, it writes nothing
+ * on either computer, it names one git verb and that verb is `show`, which has
+ * been in rule 7 since Phase 73, so this script widens no list. Running it
+ * twice reads the same objects twice.
+ */
+const COMMIT_FILES = [
+  'set -e',
+  'umask 077',
+  "case \"$2\" in ''|*[!0-9a-f]*) exit 1;; esac",
+  'case "$3" in /*|*..*) exit 1;; esac',
+  'cd "$1"',
+  'if [ -z "$3" ]; then',
+  '  l=$(git --no-pager show "$2" -z --name-status -M --format=' +
+    " --diff-merges=first-parent -- 2>/dev/null | base64 | tr -d '\\n' || true)",
+  "  printf '__TORTIE_RUN__list %s__TORTIE_RUN__\\n' \"${l:-none}\"",
+  'else',
+  "  as=$(git --no-pager show \"$2^:$3\" 2>/dev/null | wc -c | tr -d ' ' || true)",
+  '  a=$(git --no-pager show "$2^:$3" 2>/dev/null | head -c "$4" | base64 |' +
+    " tr -d '\\n' || true)",
+  "  bs=$(git --no-pager show \"$2:$3\" 2>/dev/null | wc -c | tr -d ' ' || true)",
+  '  b=$(git --no-pager show "$2:$3" 2>/dev/null | head -c "$4" | base64 |' +
+    " tr -d '\\n' || true)",
+  "  printf '__TORTIE_RUN__file %s %s %s %s__TORTIE_RUN__\\n'" +
+    ' "${as:-0}" "${bs:-0}" "${a:-none}" "${b:-none}"',
+  'fi'
+].join('\n');
+
+/**
  * What one folder on a machine holds and what a list of files there says
  * (Phase 108, research 57 section 7 and research 57 i7).
  *
@@ -2864,6 +2954,16 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'It asks git for the newest commits in one folder and for two anchors ' +
       'around them. It writes nothing, so running it twice reads the same ' +
       'folder twice.'
+  },
+  {
+    id: 'commit-files',
+    mode: 'read',
+    params: 4,
+    text: COMMIT_FILES,
+    reason:
+      'It asks git what one commit changed in one folder, or reads both ' +
+      'sides of one file of that commit out of the object database. It ' +
+      'writes nothing, so running it twice reads the same objects twice.'
   },
   {
     id: 'context-read',

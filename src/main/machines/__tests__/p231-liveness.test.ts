@@ -88,6 +88,8 @@ const CHANNEL_MODULE: Readonly<Record<string, { module: string; asks: 'self' | '
   'machines:searchContent': { module: 'remote-search.ts', asks: 'self' },
   'machines:readContext': { module: 'remote-agent-context.ts', asks: 'self' },
   'machines:readHistory': { module: 'remote-history.ts', asks: 'self' },
+  'machines:readCommitFiles': { module: 'remote-commit-files.ts', asks: 'self' },
+  'machines:readCommitFile': { module: 'remote-commit-files.ts', asks: 'self' },
   'machines:readBranch': { module: 'remote-branch.ts', asks: 'self' },
   'machines:readRuns': { module: 'remote-runs.ts', asks: 'self' },
   'machines:reviewFiles': { module: 'remote-review.ts', asks: 'door' },
@@ -162,10 +164,11 @@ function theVerbMatrix(mod: Liveness): void {
 
 /** Rule 3. The classification, held against the source. */
 function theClassification(mod: Liveness): void {
-  // 3a. Twenty-one channels, and exactly these two are the session's own.
+  // 3a. Twenty-three channels, and exactly these two are the session's own.
+  //     Phase 233 moved this from twenty-one by the two commit reads.
   const channels = Object.keys(mod.CHANNEL_FACT).sort();
   expect(channels).toEqual(Object.keys(CHANNEL_MODULE).sort());
-  expect(channels).toHaveLength(21);
+  expect(channels).toHaveLength(23);
   const feedChannels = channels.filter((one) => mod.CHANNEL_FACT[one] === 'feed');
   expect(feedChannels).toEqual(['machines:agents', 'machines:readSessionLines']);
 
