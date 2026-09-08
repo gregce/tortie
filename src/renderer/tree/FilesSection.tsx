@@ -35,6 +35,7 @@ import {
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
 import {
+  remoteEntryWritesOff,
   remoteTreeCanWrite,
   remoteTreeDenied,
   remoteTreeMissingBody,
@@ -42,7 +43,6 @@ import {
   remoteTreeNotAFolder,
   remoteTreeNotConnected,
   remoteTreeReadAt,
-  remoteTreeReadOnly,
   remoteTreeTruncated,
   remoteTreeUnreachable
 } from '../machines/explorer';
@@ -153,9 +153,13 @@ export function FilesSection({
       machineId: target.machineId,
       label,
       writeRoot,
+      // PHASE 229. With no folder confirmed, the note is the sentence that
+      // names the door, being the same one the disabled New file and New
+      // folder buttons carry, so a person who meets the short menu is told
+      // where saving is turned on rather than told that Tortie only reads.
       readOnlyNote:
         writeRoot === null
-          ? remoteTreeReadOnly(label)
+          ? remoteEntryWritesOff(label)
           : remoteTreeCanWrite(writeRoot, label)
     };
   }, [target, machineStates]);

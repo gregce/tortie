@@ -27,8 +27,8 @@
  * that came with them are the seven refusals a save can meet past the first
  * one, the two refusals an open can meet, the Explorer note for a machine that
  * can be saved to, and the New folder button's own sentence.
- * `remoteTreeReadOnly` is UNCHANGED and is still what a machine with no
- * confirmed folder draws.
+ * `remoteTreeReadOnly` was unchanged by that phase and is still what a machine
+ * with no confirmed folder drew until Phase 229 deleted it.
  *
  * PHASE 102 REPLACED TWO AND ADDED EIGHT. `remoteTreeCanSave` said Tortie can
  * save under one folder, and three verbs cross now rather than one, so
@@ -82,7 +82,6 @@ import {
   remoteTreeNotAFolder,
   remoteTreeNotConnected,
   remoteTreeReadAt,
-  remoteTreeReadOnly,
   remoteTreeTruncated,
   remoteTreeUnreachable,
   remoteWriteDenied
@@ -228,8 +227,10 @@ describe('the Explorer', () => {
     );
   });
 
-  it('says once why the menu is short, and what Copy Path did', () => {
-    expect(remoteTreeReadOnly(L)).toBe('Tortie only reads files on Studio.');
+  it('says what Copy Path did', () => {
+    // PHASE 229. The menu's own note on a machine with no confirmed folder is
+    // `remoteEntryWritesOff`, pinned under the Phase 102 verbs below.
+    // `remoteTreeReadOnly` is deleted.
     expect(REMOTE_COPIED_WITH_MACHINE).toBe(
       'Copied the path with the machine in front of it.'
     );
@@ -535,9 +536,6 @@ describe('the Explorer, on a machine that can be changed', () => {
       'Tortie reads files on Studio and can change what is under /home/greg. ' +
         'It cannot move anything there to the Trash.'
     );
-    // Unchanged by this phase. It is still what a machine with no confirmed
-    // folder draws, which is every machine before Phase 101.
-    expect(remoteTreeReadOnly(L)).toBe('Tortie only reads files on Studio.');
   });
 });
 
@@ -785,7 +783,6 @@ const EVERY: readonly string[] = [
   remoteTreeNotConnected(L),
   remoteTreeEmpty(L),
   remoteTreeTruncated(4000, 12500, 4000),
-  remoteTreeReadOnly(L),
   REMOTE_COPIED_WITH_MACHINE,
   remoteChangesBand(L),
   remoteChangesNone(L),

@@ -73,19 +73,6 @@ export function remoteTreeTruncated(
 }
 
 /**
- * The one disabled row at the end of the tree's menu on a machine's file, when
- * nobody has let Tortie save on that machine.
- *
- * The verbs that write are absent rather than disabled, because none of them
- * may run on a machine with no confirmed folder. This line says once why the
- * menu is short, so the shortness is an answer instead of a puzzle. The sibling
- * below is what the same row draws once a folder is confirmed.
- */
-export function remoteTreeReadOnly(label: string): string {
-  return `Tortie only reads files on ${label}.`;
-}
-
-/**
  * The same line on a machine a person has let Tortie save on.
  *
  * PHASE 102 REPLACED `remoteTreeCanSave`, which said Tortie can save under one
@@ -94,9 +81,12 @@ export function remoteTreeReadOnly(label: string): string {
  * second half names the one thing that is still absent, because a person who
  * reads the first half will look for Move to Trash next.
  *
- * `remoteTreeReadOnly` above is unchanged and is still what a machine with no
- * confirmed folder draws, which is every machine in every build before
- * Phase 101.
+ * PHASE 229 DELETED `remoteTreeReadOnly`, which said Tortie only reads files
+ * on that machine. It named no way to change that and read as a permanent
+ * limit, and it was the title of the disabled New file and New folder buttons
+ * as well as the tree menu's last row. All three draw `remoteEntryWritesOff`
+ * below now, which names the door, so a machine with no confirmed folder
+ * draws one sentence everywhere and that sentence says what to do.
  */
 export function remoteTreeCanWrite(root: string, label: string): string {
   return (

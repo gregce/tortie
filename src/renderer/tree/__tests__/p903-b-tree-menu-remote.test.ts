@@ -28,7 +28,15 @@ import {
   type TreeMenuActions
 } from '../tree-menu';
 
-const NOTE = 'Tortie only reads files on mac-pro.';
+/**
+ * PHASE 229. The note on a machine with no confirmed folder is the sentence
+ * that names the door, being the same one the Explorer's disabled New file and
+ * New folder buttons carry. `remoteTreeReadOnly`, which said Tortie only reads
+ * files there and named no way to change it, is deleted.
+ */
+const NOTE =
+  'Tortie cannot change anything on mac-pro. Open Settings, then Machines, ' +
+  'then mac-pro, and let Tortie save files there. Nothing was changed.';
 /** PHASE 102. What the same row's note says when writing is on. */
 const CAN_WRITE =
   'Tortie reads files on mac-pro and can change what is under /Users/gdc. ' +
