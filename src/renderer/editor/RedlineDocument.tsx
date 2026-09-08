@@ -74,12 +74,14 @@ import {
   redlineHintSeen,
   redlineHintSentence
 } from './redline-hint';
-import { redlineRefusalSentence } from './redline-sentences';
+import {
+  redlineRefusalSentence,
+  redlineUndoNote
+} from './redline-sentences';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
 import { useApp } from '../state/store';
 import { pushRedlineMountedToMenu } from '../app/menu-redline';
-import { keyDisplay } from '@shared/keymap';
 import type { RedlineRun } from './redline';
 import {
   baselineName,
@@ -425,10 +427,11 @@ export function RedlineDocument({
     if (hintNote !== null) markRedlineHintSeen();
   }, [hintNote]);
   const canUndo = rewindJournalDepth(tab.id) > 0;
+  // PHASE 237 item 4. Two undos, kept apart and said so in one line while both
+  // are available. ./redline-sentences owns the words with every other sentence
+  // this view says.
   const undoNote =
-    doc !== null && canUndo
-      ? `Undo the last rewind with ${keyDisplay('redline.undo')}. It lasts for this session.`
-      : null;
+    doc === null ? null : redlineUndoNote(canUndo, typing.canUndoTyping);
 
   return (
     <div

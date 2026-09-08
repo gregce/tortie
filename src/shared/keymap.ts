@@ -625,6 +625,23 @@ export const KEYMAP = [
     menuAction: 'redline-undo'
   },
   {
+    // PHASE 237. ⌘Z in the Redline view, which is monaco's undo of the BUFFER
+    // and not the journal's undo of a rewind above it. It is here because the
+    // face has to name it and this file is the only place a chord is spelled;
+    // it carries no `menuAction`, because the Edit menu's `{ role: 'undo' }`
+    // already draws the row and the view answers the chord in the capture
+    // phase in front of it (src/renderer/editor/redline-edits.ts).
+    id: 'redline.undoTyping',
+    keys: [k('Cmd+Z')],
+    action: 'Undo your typing',
+    explain:
+      'In the Redline view, takes back what you typed. Undoing a rewind is a different key.',
+    group: 'editor',
+    scope: 'editor',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
     id: 'editor.find',
     keys: [k('Cmd+F')],
     action: 'Find in file',
