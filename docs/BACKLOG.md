@@ -22979,6 +22979,13 @@ strictly narrower than today's "since HEAD" and never wider.
 - A test beside `src/renderer/editor/__tests__/` pins the rule, being that the baseline never
   advances on a file change, a look, a save or a tab switch, and DOES advance on an unseen HEAD
   version, and it goes red on each clause ablated.
+- **The fix round added the two pins the verifier found missing**, because with the compose site's
+  one argument put back to the parent's `tab.headContents ?? ''` every gate in the battery stayed
+  green and only an app run saw it. `p225-redline-projection.test.tsx` renders the shipping view
+  under `renderToStaticMarkup` and takes the projection property off the markup over the one shape
+  that tells the two sides apart, an untracked file after its first tick, and goes red on that
+  ablation and on each clause of `redlineWithoutHead`; and the app run above is committed as
+  `build/probe-p225-baseline.mjs`, run as `npm run probe:p225`, outside the commit battery.
 - `npm run conformance:redline` stays green with all sixteen rules, and rule 9 in particular, because
   nothing in this phase writes.
 
@@ -22998,6 +23005,11 @@ strictly narrower than today's "since HEAD" and never wider.
 - **The commit qualification of research 83 A2.2 is not implemented**, because section H records it
   as an inference and not a reading. In this phase a commit moves HEAD and the HEAD rule handles it.
 - **Phase 191's in-diff redline is not touched**; rule 7 keeps it out and he asked for that.
+- **A stated limit, recorded by the verifier and not fixed here**: after its first watcher tick an
+  untracked file's tab grows a Diff option beside Redline, because the tick flips `canDiff` when the
+  frozen `''` HEAD answer differs from the file (`tab-io.ts`, unchanged from the parent), and that
+  Diff is drawn against nothing. The parent does the same, so it is not this phase's regression; the
+  probe prints the options it read at that step so the reading is on the record.
 
 ## Phase 226 — a guarded write channel for the redline, with no interface at all (operator asked 2026-09-07)
 
