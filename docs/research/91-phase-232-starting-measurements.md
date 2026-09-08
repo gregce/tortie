@@ -295,3 +295,55 @@ or committed.
   clock from the drive's start, which began about 1.6 s after `performance.now()` zero in every
   launch; the wall times of the launches are in the report beside it.
 - **Anything on a Linux far side.** One arm64 Mac over Tailscale, 26 files, six commits.
+
+## 9. The builder's reading at HEAD, taken with the same probe unchanged
+
+Taken on 2026-09-08 at `376cfd69`, the fourth of the phase's commits, with
+`.p232/probe-p232-parent.mjs` run exactly as section 4 ran it and the report
+kept as `.p232/report-head-builder.json`. It is the builder's own check and
+not the verifier's proof, which the entry asks for at the parent and at HEAD
+in one window each.
+
+| `machines.json` | Source control's first row on the Mac Pro tab | section 4.1 |
+|---|---|---|
+| the unreachable machine first, then the Mac Pro, launch 1 | **0 ms** (6 rows; the link read `connected` when the drive started) | 20,043 ms |
+| the unreachable machine first, then the Mac Pro, launch 2 | **109 ms** (6 rows) | 20,051 ms |
+| the Mac Pro alone, launch 1 | **111 ms** (6 rows) | 108 ms |
+| the Mac Pro alone, launch 2 | **153 ms** (6 rows) | 205 ms |
+
+At the moment the rows landed the blackhole still read `quiet` with *"has not
+been signed in to in this run"*, being its sign-in still inside the first
+version read, and the Mac Pro read `connected`, which is the pool: the two
+rows are no longer one behind the other.
+
+The bar, read as `.unreachable-strip` on both two-machine launches: on the
+blackhole's own tab, *"Tortie could not reach Unreachable. Sessions you
+started there are not shown here, and Tortie did not end any of them."* plus
+the badge, exactly as at the parent; on the Mac Pro's tab **none**; on the
+local tab **none**. Section 4.2 read the same sentence on all three.
+
+Controls matching `/prepare/i` on the blackhole tab: **one**, `Prepare this
+machine`, drawn under the Explorer's sentence and under the Source control
+Changes group's sentence, one per view; on the Mac Pro's tab **none**; Settings
+still draws its two. The first run read the sentence and the label run
+together in `innerText`, because `.btn` is inline-flex, and `27a14d59` put the
+button on its own line.
+
+The retry, from the first launch's log, held 75,001 ms after the rows: `did not
+prepare at launch; sign-in retry 1 in 30 s`, then `sign-in retry 1 (time,
+after 30 s)`, two failed commands, and `answered version-unmeasured: … ;
+sign-in retry 2 in 60 s`. One attempt inside the hold, as the ladder predicts,
+against zero at the parent. The blackhole's class is still
+`version-unmeasured`, which is why the retry keys on "not prepared".
+
+Far side: `gmux-control` one before and one after, created 1787879931,
+attached; the scratch repository `GONE`; the scratch server on
+`gmux-p232-63423` killed and its socket `SOCKET-GONE`; tmux processes, the
+bundled server pid 1041 before and after; leftover directories `NONE`; `~/.ssh`
+and `~/.gitconfig` unwritten. The far socket directory read `gmux
+gmux-p231-96938` afterwards, which is Phase 231's worktree running its own
+probe at the same time and not this run's. This Mac: 14 sessions on `-L gmux`
+before and after, the local scratch socket unlinked, identity files unmoved,
+no agent started, no token spent. Electrons at the end: 16, being his own
+Tortie and its three helpers, Phase 231's head-run profile and its three
+helpers, and eight crashpads; none on a p232 profile.
