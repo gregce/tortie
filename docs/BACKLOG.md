@@ -22874,6 +22874,352 @@ may be more. Rough phase count so he can judge it against the queue.
 - **No new package and no new dependency**, including anything herdr uses. Naming is not adopting, and
   the Phase 23 refusals are untouched.
 
+## Phase 225 — the redline draws against a shadow baseline, and writes nothing (operator asked 2026-09-07)
+
+**Subject.** `feat(redline): every agent edit to prose shows up, against a baseline Tortie holds`
+
+**First body line.** `Phase 225: the shadow baseline, read only`
+
+**Semver.** MINOR. A prose file with no committed version gets a Redline tab where today it gets
+none, and the tab draws against a baseline of Tortie's rather than git HEAD. No setting, no new
+control, no write.
+
+**Tier 2.** It is a rendered surface with new state that lives in memory and dies with the tab. The
+gates, ONE app run that drives every claim in one session, and one independent method, which is the
+projection property re-derived over the baseline pair off the live DOM rather than under node,
+because research 83 section H says plainly that the real app was never driven and that one app run
+is the first thing a build phase owes.
+
+**Charter.** This entry, `docs/research/83-shadow-baseline.md` in full, and the operator's three
+rulings of 2026-09-07 recorded below. This is the FIRST of three phases that build what research 83
+priced; Phases 226 and 227 are the other two, and each depends on the one before it.
+
+### What the operator ruled, so no round re-opens it
+
+1. **"I don't think we care whose bytes are whose."** The view never tries to tell an agent's write
+   from the person's own typing. Every change since the baseline is drawn the same way and, in
+   Phase 227, gets the same control. Research 83 A8a offered a third answer, being to withhold the
+   rewind control from an insertion the person's own save put there; **it is refused by his word**,
+   and the consequence is recorded in Phase 227: the undo journal is load bearing rather than
+   optional, because rewinding one's own paragraph is now an ordinary press and not a mistake.
+2. **Three phases, not one.** This phase writes nothing to his disk and cannot lose a byte. He looks
+   at it before anything that writes is built.
+3. **No typing and no accept in any of the three.** Research 83 D.5 and F.4 give the reasons and he
+   accepted them: rewind needs no caret, and accept advances the baseline while rewind writes the
+   file, which is two meanings for one surface.
+
+### The rule, which is the whole phase
+
+> **baseline = the newest of { the HEAD version of the file, the last version the person accepted,
+> the last version the person committed }; for a file with no HEAD version, the first bytes Tortie
+> successfully read.** A HEAD version Tortie has not seen before wins outright, whatever its date.
+
+Research 83 A1.1 drove six candidate moments over one realistic day and only two shrink after the
+person has dealt with a change; this rule is those two. The naive reading of "a shadow copy that
+tracks the file" was measured too and it draws NOTHING, ever, because a baseline that follows the
+file always equals it (policy Z). **Whatever advances the baseline, it is never the file changing.**
+
+In THIS phase nothing advances it but a HEAD change, because there is no accept yet (Phase 227
+question) and A2.2's commit qualification is unmeasured (section H). So this phase's baseline is:
+seeded at the first successful read, re-seeded when HEAD moves, and otherwise immutable. That is
+strictly narrower than today's "since HEAD" and never wider.
+
+### The mechanism, with the real files
+
+- **One field on the tab**, the baseline bytes plus a generation counter that increments on every
+  re-seed. The cheapest honest home is in memory on the tab (research 83 A3.3), seeded from
+  `tab.savedContents` at `loadContents`, `src/renderer/editor/store.ts:587`, which is the first
+  successful read and runs when the PERSON opens the file. Not lazily when the Redline tab is
+  chosen: a baseline captured from whatever the file said at that moment may be mid rewrite and is
+  then wrong for ever (A1.2 property 3).
+- **One argument changed** at `src/renderer/editor/RedlineDocument.tsx:89`, being
+  `composeRedlineDocument(baseline ?? tab.headContents ?? '', workingText)`. The composer takes two
+  strings and never knew where its left side came from; research 83 section 1 ran it over non git
+  pairs and it needed no change.
+- **Re-seed on a HEAD change.** `refreshRepo` in `src/renderer/editor/tab-io.ts` already re-runs
+  `git show HEAD:<path>` on every tick at `:640`, fed by the dotgit subscription in
+  `src/main/watcher/repo-watcher.ts`. When the HEAD bytes differ from the last HEAD bytes seen, the
+  baseline becomes the new HEAD version and the generation moves. A branch switch, a pull, a stash
+  and a rebase all turn the picture research 83 A4.1 drew, being the person's own committed word
+  struck through in red, into an empty redline, which is the truthful one.
+- **Ungate the Redline tab for an untracked file.** Today `loadHead` catches git's exit 128 and sets
+  `canDiff: false`, and `src/renderer/editor/EditorPanel.tsx:217` and `:236` hide Redline on it. An
+  untracked prose file that is OPEN when an agent writes to it gets a redline where today it gets
+  none. **The claim is that narrow on purpose**: a file the agent created from nothing is read for
+  the first time after the agent's last write, so its baseline is the final version and the redline
+  is empty, and this phase does not name a second seeding moment for it (A1.2 property 2, corrected
+  by the fix round).
+- **The face names the baseline.** Research 83 A4.2 ruling 1: the view never says an agent did it.
+  It says what changed since a named baseline, being "since the last commit" or "since you opened
+  this file", in the `ed-note` slot `redlineDocumentNote` already draws in, and it says it lasts as
+  long as this tab is open (F.2), never that the old text is kept anywhere (A3.4, which is the one
+  place a copy decision is a correctness decision). It also reports `doc.whole` on its face, because
+  research 83 A2.1 measured that past sixty changes the caps draw whole blocks and a page of red is
+  then a cap firing rather than an agent's rewrite.
+- **A dirty tab is stated as a limit, not hidden.** `refreshRepo` skips a tab with unsaved edits at
+  `tab-io.ts:616`, on purpose, so "every agent edit shows up" is false for exactly as long as the tab
+  is dirty (A4.3). The face says so.
+- **`redline` is added to `P167_SURFACES`** in `build/probe-p167-scale.mjs` in the same commit,
+  because research 83 F.7 measured that the word appears zero times there and Phase 194 shipped a
+  surface the plateau probe never opens.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron on a scratch profile through `build/electron-run.mjs`, ended in a
+  `finally`: open a committed prose file, have a stub write to it from outside, read the redline off
+  the DOM and prove it recomposed with no click; edit one word in Source mode and prove the person's
+  own word is drawn as a change too, which is ruling 1; `git checkout` another branch under it and
+  prove the redline empties and the generation moved; open an UNTRACKED prose file, write to it
+  from outside, and prove it has a Redline tab that draws; close the tab, reopen, and prove the
+  baseline reset to HEAD with the face saying so.
+- **The independent method** is the projection property off the live DOM: concatenating every top
+  level child that is not an `INS` must equal the baseline byte for byte and everything that is not
+  a `DEL` must equal the file, which research 83 D.1 took in a harness page and this phase takes
+  inside the real `EditorPanel` tree.
+- A test beside `src/renderer/editor/__tests__/` pins the rule, being that the baseline never
+  advances on a file change, a look, a save or a tab switch, and DOES advance on an unseen HEAD
+  version, and it goes red on each clause ablated.
+- `npm run conformance:redline` stays green with all sixteen rules, and rule 9 in particular, because
+  nothing in this phase writes.
+
+### What is NOT in this phase
+
+- **No write of any kind.** Not the channel, not rewind, not undo. Rule 9 stays exactly as it is.
+- **No accept, per phrase or whole.** Accept is a baseline advance and belongs with the durable
+  question; see Phase 227's refusals.
+- **No durable baseline.** It dies with the tab, on close, on LRU eviction past `MAX_TABS = 10`, on
+  reload, quit or crash, and the face says so. The durable store's home, mechanism and price are
+  already decided in research 83 A3.3 and are a later phase of its own.
+- **No `fs.watch` on the active file's directory.** The gitignored hole research 83 C.2 measured at 0
+  of 8 stays open and is stated on the face; closing it is its own later phase.
+- **No typing, no control, no hover chip, no focus ring.** The resting face is byte identical to
+  Phase 194's markup.
+- **No author detection**, by his ruling.
+- **The commit qualification of research 83 A2.2 is not implemented**, because section H records it
+  as an inference and not a reading. In this phase a commit moves HEAD and the HEAD rule handles it.
+- **Phase 191's in-diff redline is not touched**; rule 7 keeps it out and he asked for that.
+
+## Phase 226 — a guarded write channel for the redline, with no interface at all (operator asked 2026-09-07)
+
+**Subject.** `feat(fs): a compare-and-swap write for one file, reachable only from the redline`
+
+**First body line.** `Phase 226: the guarded write channel`
+
+**Semver.** MINOR by the contract change. One new invoke channel in `src/shared/ipc/` and one new
+line in `docs/audits/contract-baseline.txt`. Nothing a person can see or press.
+
+**Tier 3** by the tiering rule, because it writes the person's file. The gates, a per shape matrix
+over the four refusals and the three protections, TWO independent methods one of which is an
+attack, and a fix round if any verdict is needs_work. It is invisible to a person, so the gates ARE
+the evidence and the verifier re-derives rather than photographs.
+
+**Charter.** This entry, research 83 sections E.5, E.7a, E.7b and A4.2 ruling 3, and Phase 225 which
+must have landed first. This is the SECOND of three phases and Phase 227 wires a control to it.
+
+### Why a new channel and not a wider `fs:writeFile`
+
+`fs:writeFile` is `await writeFile(abs, contents, 'utf8')` at `src/main/fs/ipc.ts:238`: no mtime
+check, no size check, no `O_EXCL`, no `lstat`, it follows a symlink, and it calls none of the
+containment `fs:createFile`, `fs:rename`, `fs:move` and `fs:trash` all go through (research 83 A4.2
+ruling 3 and E.5). Every Cmd-S in the product goes through it. Adding a precondition to it changes
+the channel saving depends on, and a mistake there breaks saving. A separate channel is one contract
+line, is reachable from nothing until Phase 227 reaches it, and cannot regress the save path.
+
+### The channel
+
+It takes a path, the sha256 of the bytes the caller read, and the new contents. It answers a WORD in
+`putFileOnMachine`'s shape, `src/main/machines/remote-file.ts:255`, being `wrote`, `stale` or
+`refused` with a reason, and it never throws to the renderer for any of the four.
+
+**Four refusals, each a measured loss in research 83, in this order:**
+
+1. **A path outside every open project root** answers `refused`. One call to the same `root()` gate
+   in `src/main/fs/file-ops.ts:149` the four file operations already use. Without it this would be
+   the second channel in the product with no containment, and the one a rewind aims.
+2. **A file over the read cap** answers `refused`. The channel READS the file itself under main and
+   asks `READ_CAP_BYTES`, `src/main/fs/ipc.ts:57`, before it computes anything. Research 83 E.7a
+   drove a rewind over a truncated read and it dropped 98,110 bytes in one arm and reverted a
+   5,895,890 byte document whole in the other, answering `wrote` both times.
+3. **A stale digest** answers `stale`. The sha256 of what main just read must equal the caller's
+   expectation, which is the compare-and-swap the remote path has had since Phase 101 and the local
+   path has never had.
+4. **A decode that lost bytes** answers `refused`. Research 83 E.7b drove a latin-1 `.txt` and three
+   characters outside the rewound span became U+FFFD with the file six bytes larger and nothing
+   said. The guard is one pass, being a read whose UTF-8 decode produced a U+FFFD the bytes on disk
+   did not contain; it is a byte comparison and not a detector, and BOM, CRLF and UTF-16 are stated
+   limits rather than solved ones.
+
+**Three protections, each lifted from a pattern already in the tree and none invented:**
+
+- **No-follow**, from `src/main/credentials/nofollow.ts`: unlink then an exclusive create so a
+  re-planted link fails the write rather than being followed, and an `lstat` in front of the rename.
+- **Atomic replace**, from `src/main/settings/store.ts:657`: write to a temp name then `renameSync`,
+  so a reader sees the old file or the new one and never a partial one. **Two things research 83 E.5
+  says a phase would otherwise discover:** the temp file lands INSIDE the person's repository, so its
+  name must be one `git status` will not tempt anyone to commit and a leftover is cleaned on the
+  next write rather than left; and a system temp directory is NOT the answer, because `rename` is
+  only atomic within a volume.
+- **The rename-over makes an `fs.watch` on the FILE go deaf** (research 83 C.2, measured at 1
+  callback, 1 after a rename-over, 0 thereafter). It is harmless here only because the existing bus
+  watches the directory. Whoever later adds the C.8 directory watch inherits this sentence.
+
+### Proof, run rather than read
+
+- **`npm run conformance:redline-write`, new, in the shape `conformance:credentials` uses for
+  `nofollow.ts`**: launches no Electron, spawns nothing, reads nothing under the person's home, and
+  drives the SHIPPING channel under node over a scratch directory it removes in a `finally`. The
+  matrix is every refusal and every protection: a path outside the root, a file one byte over the
+  cap, a digest one byte stale, a latin-1 fixture that decodes to U+FFFD, a planted symlink at the
+  temp name that must make the write fail, a planted symlink at the target that must be refused by
+  `lstat`, a kill between the temp write and the rename that must leave the old bytes intact, and the
+  ordinary case that must answer `wrote` with the new bytes and no temp file left. Each of the four
+  refusals and each of the three protections goes red under an ablation of its one clause, and the
+  gate fails if an ablation does not.
+- **Rule 9 of `conformance:redline` stays green** and the phase says so, because no redline file
+  names this channel yet. Narrowing it is Phase 227's, the phase that first reaches the channel.
+- **`npm run gate:contract`** shows exactly one line moved, and the commit body says which.
+- **The verifier's two independent methods**: an ATTACK with a hostile fixture set the builder did
+  not write, being at least a link planted at every path the channel touches, a file that grows
+  between the read and the write, and a digest that matches a DIFFERENT file at the same path; and a
+  re-derivation of the containment claim by scanning every renderer-reachable write in `src/main/fs`
+  and proving this is the only one besides `fs:writeFile` and that it asks `root()` first, read by
+  matching braces through `functionBodyOf` in `build/scan-source.mjs`.
+
+### What is NOT in this phase
+
+- **No caller.** Nothing in the renderer reaches this channel until Phase 227. It is proven under
+  node and it ships unwired.
+- **No change to `fs:writeFile`**, by the argument above.
+- **No encoding detection.** Refusal 4 is a byte comparison and the rest is a stated limit.
+- **No batch, no multi-file, no directory write.** One path, one write.
+- **No undo journal.** That is renderer state and belongs in Phase 227.
+
+## Phase 227 — rewind one phrase, and undo the rewind (operator asked 2026-09-07)
+
+**Subject.** `feat(redline): point at a phrase, press a key, it goes back`
+
+**First body line.** `Phase 227: rewind, phrase by phrase`
+
+**Semver.** MINOR. The first control the redline has ever had, keyboard only, and the first write.
+
+**Tier 3.** It writes the person's file on a press. The gates, a matrix over the five losses
+research 83 measured, TWO independent methods one of which is the stale-file attack by name, an app
+run that drives every claim in one session, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry, research 83 sections B, D.3, E.7, E.8, B.8a and F, Phases 225 and 226 both
+landed, and the operator's ruling that whose bytes are whose does not matter. This is the THIRD of
+three phases and it is the real work.
+
+### The rule, stated exactly, and it is research 83 B.3 with B.8a in front of it
+
+A rewind carries `(baseline offset, deleted text, inserted text, baseline generation)`, never a run
+index and never the drawn bytes. At press time, in this order:
+
+1. **If the baseline generation is not the one the view was drawn against, refuse, redraw, and say
+   the baseline moved.** Research 83 B.8a constructed the case: an accept between the draw and the
+   press moved every offset, the identity still resolved to exactly one edit, and the SECOND lorry
+   was rewound instead of the first with the write answering success. One integer closes it.
+2. **Re-read the file at the moment of the press**, never `tab.savedContents`, which is the stale
+   thing. If the read is truncated, refuse with the sentence that the file is too large to rewind.
+3. **Recompose against the baseline and those fresh bytes.**
+4. **Find the change by its own bytes and its own offset.** If it resolves to exactly one edit, write
+   `mix(freshRuns, E' \ {that edit})` through Phase 226's channel with the digest of what was read.
+   If none, refuse and say the phrase moved, with two different sentences for "no longer in the
+   file" and "already back to what it was" (E.7's last two rows). If more than one, refuse as
+   ambiguous.
+
+Research 83 measured that rule at 1,472 of 1,500 proceeding with the arriving work intact, 28
+refusing, 0 ever ambiguous, and 0 producing bytes other than the rewind plus whatever arrived; and it
+measured the naive projection of the drawn list destroying 85 bytes of an agent's work in the first
+case tried while answering success.
+
+### The control, and it is keyboard only
+
+Research 83 D.3 judged four placements against the *just enough words* rule and this is the one that
+should ship first: **nothing drawn on the resting face**, `tabIndex="-1"` on each change, a
+next/previous chord, and one key to rewind the change under focus. Measured on the shipped markup:
+focusing moved the document by 0.00px, the selection survived, the copy answer was unchanged, and
+`focus()` scrolled a change into view on a 3,670px document with no `scrollIntoView` call. Chromium
+paints one focus box per fragment on a wrapped change, which is the correct picture. A control per
+change in the flow is REFUSED because it puts 45px of chrome between the words at every change and
+turns the sentence into a form; a margin is REFUSED because it addresses a line and a line holds up
+to five changes at 520px.
+
+**The grouping** is research 83's own unit, being adjacent non-`same` runs collapsed into one change,
+because a `same` run can never be empty (B.2). The flat DOM gets one wrapper per change so a change
+is a thing that can take focus; the projection property and `redline-copy.ts` must be unchanged by
+the wrapper, and the gate proves both.
+
+**Rule 8 binds the focus ring**: tokens only, and `--accent` and `--border-strong` already cover it.
+
+### The undo journal, and by his ruling it is load bearing
+
+Research 83 E.8 measured that after a rewind the rewound bytes exist in no file, no baseline and no
+redline, and the view cannot undo itself. A3.4 measured that Monaco's own undo stack is destroyed by
+the very reload this feature rides on, because `resetWorkingModel` calls `setValue` and
+`textModel.js:343` follows it with `this._commandManager.clear()`. So a per tab, in memory journal
+of `(baseline offset, deleted, inserted)` per rewind, tens of bytes each, and Undo is another guarded
+write in the other direction through the same channel with the same precondition. **Because the
+operator ruled that whose bytes are whose does not matter, the person's own uncommitted paragraph
+carries the same rewind control as an agent's edit, so pressing it is an ordinary act and not a
+mistake, and research 83 A8a measured 149 bytes gone from every place Tortie holds anything when it
+is pressed.** The journal is the only guard for that case. The face says the undo lasts for the
+session.
+
+### The gate rule that must change deliberately
+
+`npm run conformance:redline` rule 9 prints *no redline file names a bridge, a write or an accept,
+so nothing here can change a file*, and shipping a rewind makes it false. **It is narrowed, never
+deleted**, to the shape `conformance:logins` rule 1 uses for the one deletion in that domain: the
+redline modules may name exactly ONE write channel, being Phase 226's, at exactly ONE call site, and
+the function holding it must ask the generation guard first and the re-read second, read by matching
+braces through `functionBodyOf` and never by searching the file for a word. The phase brief says what
+rule 9 becomes, in words, before any code is written, and the write does not go into a seventh file
+so the scanner misses it.
+
+### Proof, run rather than read
+
+- **Six new arms on `conformance:redline`, one per loss research 83 measured**, each a pure
+  computation over two strings so the gate launches no Electron: the stale draw (B.4d), the truncated
+  read in BOTH shapes because they fail differently (E.7a's exact and `approximate` arms), the moved
+  baseline generation (B.8a), the path outside every root (E.5), the person's own insertion (A8a,
+  which must rewind AND must be undoable from the journal), and the encoding round trip (E.7b, as a
+  refusal). Every arm goes red under an ablation of its clause.
+- **The app run**, one Electron on a scratch profile: draw a redline over an agent shaped edit, jump
+  to it by keyboard, press rewind, read the file from disk and prove the phrase is back and every
+  other edit stands; press undo and prove it returns; have a stub write between the draw and the
+  press and prove the refusal sentence and that the stub's bytes survive; rewind the person's own
+  saved paragraph and undo it, which is ruling 1 driven; and read the resting face to prove nothing
+  is drawn on it.
+- **The verifier's named independent methods**: the STALE-FILE ATTACK, being its own timing of
+  writes landing between the draw, the re-read and the channel call, with at least one arm the
+  builder's gate does not have; and a re-derivation of the mix rule by a hand written LCS over the
+  eight change fixture, the way research 83 section B did, taken off the live DOM this time.
+- `npm run probe:p167` with `redline` in `P167_SURFACES`, driven with a file being rewritten under
+  it, must plateau.
+- `npm run gate:contract` unchanged from Phase 226.
+
+### What is NOT in this phase
+
+- **No typing.** Not a caret, not `beforeinput`, not paste, not IME. Research 83 D.4 drove all three
+  ways and each has a named blocker; if typing is ever wanted Monaco is the front runner on the
+  strength of a 0.44px caret error, with one countable blocker at 26.7% of deleted runs carrying a
+  line break. Its own phase, if ever.
+- **No accept button**, per phrase or whole. Accept writes the baseline and rewind writes the file;
+  two opposite meanings on one surface, and accept implies a durability the in memory baseline does
+  not have. Per phrase accept falls out of the same `mix` for free (B.5) and waits for the durable
+  baseline.
+- **No rewind-all, no rewind of a selection, no multi-select.** Each is a compound write and each
+  multiplies the stale case. One change, one write.
+- **No hover chip.** It is the second affordance, anchored to `getClientRects()[0]` and never the
+  bounding box, because research 83 D.3 measured the union rect 239px left of where a wrapped change
+  starts; its own small phase after this one has been used.
+- **No author detection**, by his ruling. Every change gets the same control.
+- **No widening of the prose allowlist.** Research 83 G.4 measured that reverting one run inside a
+  line of source left a file TypeScript cannot parse in 39 of 169 real rewinds.
+- **No durable baseline and no `fs.watch`**, as in Phase 225.
+- **No live stream, animation, notification or badge.** The view is correct whenever you look at it.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -23326,3 +23672,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07 Phase 223 LANDED, research only, `docs/research/84-transfer-and-delegation.md`, no shipping code touched and no version bump. THREE QUESTIONS, THREE DIFFERENT ANSWERS. **herdr 0.9.0** read only at `a9f3ad5f`: a headless server owning every PTY, a TUI client, and a JSON socket carrying **103 methods** (`Method` enum counted from `src/api/schema.rs`), through which any process of the same user can split panes, set a pane's env, start any of 23 agent kinds, prompt them, wait until one is genuinely blocked, run arbitrary commands, install hooks into the person's OWN `~/.claude/settings.json`, link and run a third party plugin, and stop the server; the only gate is the socket file's `0o600` and there is no token, no peer check, no off switch and no config key that scopes it, so the documented guardrail is a sentence in `skills/herdr/SKILL.md` telling a model to check `HERDR_ENV`. Its durability is weaker in one decisive way, a server restart kills every process because the panes are its children, and it has NO usage limit awareness at all, so the delegation half of his question has shipped in a comparable product and the transfer half has not. **TRANSFER: what moves is PROSE, and the reframing is that the durable state of a coding session is the repository rather than the transcript.** Over a pinned corpus of 60 claude conversations and 60 codex rollouts, digest `ff9b763c126b16b7`, a claude to codex move through the ONLY SHIPPED IMPORTER's own field list keeps 21.43 percent of the bytes and loses 78.57; the importer is real code in `/Users/gdc/codex/codex-rs/external-agent-migration/`, it drops `thinking` with an empty match arm, truncates tool results at 4,000 chars, writes `[external unsupported block: image]`, re-roles a tool result only record from user to assistant, and writes a NEW `ThreadId` with an `<EXTERNAL SESSION IMPORTED>` marker and a ledger row carrying the source path and its sha256, so the vendor that receives the conversation calls it a new thread and so should we. The reasoning is mostly not present to lose, 69.4 percent of claude thinking blocks carrying an empty string and an opaque signature 18.8 times its size, and 0 of 4,373 codex reasoning items carrying a readable `content` array; 88.4 percent of 8,659 measured tool calls act on the working tree, which is still there and fresher. Priced: a structured handoff Tortie composes is ~1.1 KB against a replay's median 170,986 bytes and is 9.7 percent of it, a model written summary is the only other honest candidate and CANNOT be written by the agent that just ran out, and the store replant is REFUSED with Phase 82's sentence intact. **THE LIMIT IS DETECTABLE FOR ONE PROVIDER AND THE UX IS DESIGNED TO THAT** rather than to a wish: claude writes the refusal into the transcript as a structured field, 668 `error=rate_limit` records over 19,194 files, but **193 of them, 28.9 percent, are NOT a time window limit** and eight say `not your usage limit` in Anthropic's own words, so the test is the code AND the sentence together; codex has a better enum, `usage_limit_exceeded` with `limit_id` and `resets_at`, and his corpus holds ZERO of them, 925,056 nulls, so it is UNMEASURED; the other ten providers say nothing, grepping is refused because a text search over his own store overshoots the structured truth NINETEEN TIMES at the file level and the top hits are his own briefs telling agents how to detect a limit. **AND THE PROVIDER TORTIE CAN DETECT BEST IS THE ONE THAT NEEDS TRANSFER LEAST**: 2.1.263 ships `autoContinueAtUsageLimit`, his store carries 53 occurrences of the reset sentence, and the one thing that defeats the wait is the process dying, which is exactly what Tortie already prevents and nobody has told him. **DELEGATION IS REFUSED AND THE REFUSAL IS NAMED IN THE FIRST SECTION.** Refusal 8's LETTER does not reach an agent callable spawn, because it names a configuration change as the trigger, and its REASON reaches it completely, and its confirmation clause names no event at all but says *out of band of any agent turn*, which an agent asking for a session is not. So the document states a NEW ANSWER FOR A NEW QUESTION and widens nothing: no agent issued request may start a process, an agent may only PROPOSE, and the recommendation is that HE adds it to CLAUDE.md as a ninth refusal in his own words. The premise measures larger than the word several suggests, `src/main/agents/flags.ts` carrying **21 danger flags across 10 of the 12 launchable agents, 16 of them read out of the agent's own help text** (corrected in place by the fix round; the first reading summed `AGENT_FLAG_PRESETS` with `NON_REGISTRY_FLAG_PRESETS`, whose three CLIs Tortie cannot launch). Eleven attacks were constructed against the recommendation rather than confirming it, and the two that matter most are new: herdr's `agent.prompt` refuses a blocked agent and **`agent.send_keys` HAS NO SUCH CHECK**, so one agent can press enter on another's approval dialog, which is why REACH is refused permanently rather than confirmably; and **Tortie already binds an agent reachable HTTP surface in `src/main/activity/hooks.ts`**, two routes, a 128 bit token in a `0600` file whose path rides on the agent's own argv, which is the cheapest place in the codebase to add a start route and would bypass the confirm gate by construction, so it is named as REFUSED GROUND before anybody reaches for it. **THE ATTACK THAT LANDS HARDEST IS THAT HE DOES NOT NEED IT**: 792 of his transcript files carry `<teammate-message teammate_id=`, 2,430 occurrences since February, so he is not blocked on delegating and is blind to the teammates he already has. THE HONEST TOTAL: refuse five things, build four small ones being the approaching limit warning, the waiting sentence as a note BESIDE the status and never an eighth `SessionStatus`, the this session has a team bit, and a CHANGELOG line telling him the promise he already has, about one phase each; build the handoff briefing at two phases ONLY IF HE ASKS. Five lanes measured it and the integrator re-derived six claims by hand, of which two lane claims were corrected: the herdr API socket is `herdr.sock` and not the client socket, and the manifest DOES carry `resume_provenance`, which answers how the resume id was learned rather than where the work came from. Nothing was written to `/Users/gdc/herdr`, no herdr binary was built or run, no agent CLI took a turn, no token was spent, no Electron was launched and socket `gmux` was never contacted.
 - 2026-09-07 Phase 223 FIX ROUND, still research only, still no shipping code and no version bump. It corrected FOUR claims of the document's own and one of them had been marked as independently re-derived, which is the lesson rather than the count. **The danger flag premise was arithmetically wrong in five places** including the running log line above, which is corrected in place: `AGENT_FLAG_PRESETS` holds 21 danger flags across 10 of its 12 launchable agents, 16 VERIFIED and 5 RESEARCH, and the `27 / 22 / 13 of 15` that shipped was that constant SUMMED with `NON_REGISTRY_FLAG_PRESETS`, whose amp, opencode and copilot are CLIs Tortie cannot launch and whose own header says so, inside a sentence about nearly every agent Tortie STARTS; the conclusion is proportionally stronger at 10 of 12 and only the boundary moved. **A CATEGORY NOBODY ENUMERATED, and it is the fix round's real finding**: section 2.4 lists what a transfer LOSES and nothing anywhere asked what it WRONGLY CARRIES. A claude transcript is a `parentUuid` DAG, the shipped importer's `read_session_import` walks it line by line and the string `parentUuid` appears ZERO times in its whole module, and it appears **zero times in all of Tortie's `src/`** as well, so the overview reader is line sequential by construction and the recommended briefing would inherit the same blindness. Censused over all 19,194 files of his claude store rather than sampled: **70 files carry a turn he rewound past**, 895 abandoned importable records and 156 abandoned human asks, and the rate is not the finding, the pairs are, being `do all of that and push commits to the CLI` replaced by `do all of that and locally commit first please`, and `slide 4?` replaced by `slide 5?`. A line sequential move carries both halves in his voice with nothing saying which survived, so the second agent is told the thing that was cancelled and neither he nor Tortie can tell. THREE OF MY OWN PASSES WERE ARTIFACTS BEFORE THIS ONE and all three are written into the document, being `progress` records at 23.2 percent, then parallel `tool_use` whose `tool_result` records carry `sourceToolAssistantUUID` at 8.5 percent, then the hand read one. **THE ADVERSARIAL READING WAS APPLIED ONLY TO THE HALF THE DOCUMENT REFUSES**: *poisoned*, *compromised*, *untrusted* and *injection* appeared TWICE in 1,465 lines and never in the transfer half, so new section 2.8 walks the chain that is entirely in the tree today, being 88.4 percent of tool calls reading the working tree, into a store whose only filter is `redact.ts` and is SECRET SHAPES ONLY with no instruction filtering, into a 1.1 KB briefing and a 13 KB model half, into `typeIntoPane(target, text, false)`, into an agent that may carry claude's 2 or codex's 4 danger flags. The document held TWO standards and the lax one was on the recommendation: attack 1 says a confirm that degenerates into Allow Y does not hold, while section 2.6 called the person's Enter press the most ordinary act there is. That sentence is REFUTED in place, the confirmation is the document he opened and not the keystroke, and R2's contradiction with B5 is settled in one sentence that binds the caller absolutely and the content conditionally, so text an agent wrote that no person read never moves. **AND THE PERMITTED SIDE OF THE NEW REFUSAL NOW HAS A MECHANISM**, which it did not: across 1,465 lines the document named exactly one channel and only to refuse it, one paragraph after naming the cheapest place to break the refusal. A proposal is written into the agent's OWN TRANSCRIPT, which `resolveSessionLog` already resolves for eleven of the twelve CLI agents and already reads redacted, so the privilege delta is EXACTLY ZERO and *a proposal starts nothing* becomes a property of the mechanism rather than a promise, with three limits named including that the day a marker carries a flag, a login, a machine or a path it is refusal 2 and refusal 8 at once. Two smaller corrections: R3's recommended wording had dropped the word *conversation* and would have been FALSE in CLAUDE.md, since `defaultStoreTarget` has written the vendor's own default CREDENTIAL store for both providers since Phase 211; and section 1.8's *four hits, all pane graphics* was a search artifact, `rate limit` with a space cannot match `rate_limited`, the honest search returns 35 files of herdr's own one second notification throttle, and the corrected claim is STRONGER because `src/detect/` and all 21 manifests hold zero limit vocabulary of any kind. Nothing was written to `/Users/gdc/herdr`, `/Users/gdc/codex` or `~/.claude`, no agent CLI took a turn, no token was spent, no Electron was launched and socket `gmux` was never contacted.
 - 2026-09-07, Phase 223 LANDED at `5e58025` at version 0.101.0 with NO bump and NO tag, transfer and delegation, THREE commits, being `3fd6a5c`, `70262e1` and `5e58025`, rebased onto origin/main's tip `ad92bd3` where the only conflicts were the two appends to this log, resolved newest last with the fix round's in-place correction of its own flag count kept. Research only: `docs/research/84-transfer-and-delegation.md` at 1,784 lines and `.p223/` scratch it cites are the WHOLE diff, zero shipping code, `package.json` and the lockfile unmoved, `npm run typecheck` green after the rebase. **QUESTION 1, WHAT HERDR DOES**: a headless server owning every PTY with a TUI client over a JSON socket of 103 methods whose only gate is the socket file's `0o600`, so any process of the same user can start any of 23 agent kinds, prompt them, install hooks into his own `~/.claude/settings.json` and stop the server, and it has NO usage limit awareness anywhere, so it has already shipped the delegation half of his question and none of the transfer half. **QUESTION 2, TRANSFER**: what moves is PROSE and the durable state of a coding session is the REPOSITORY rather than the transcript, since a claude to codex move through the only shipped importer keeps 21.43 percent of the bytes, the reasoning is mostly not present to lose at 69.4 percent of thinking blocks empty and 0 of 4,373 codex reasoning items readable, and the working tree the tool calls act on is still there and fresher; a 1.1 KB briefing Tortie composes deterministically is 9.7 percent of a replay and is the recommendation, the store replant stays REFUSED with Phase 82's sentence intact, and the two constraints a build phase must honour are that the asks it carries are the LIVE ones walked along `parentUuid` from the last record and that the briefing is shown to him before it moves. **QUESTION 3, DELEGATION, REFUSED, AND PHASE 23 REFUSAL 8 IS LEFT WHOLLY INTACT**: refusal 8's letter names a configuration change and so does not reach an agent callable spawn, its REASON reaches it completely, and rather than widen it the document states a NEW answer for a NEW question, being that no agent issued request may start a process and an agent may only PROPOSE, with the recommendation that HE writes it into CLAUDE.md as a ninth refusal in his own words; the permitted channel is a marker in the agent's own transcript, whose privilege delta is exactly zero because `resolveSessionLog` already reads eleven of the twelve stores redacted, and Tortie's existing agent reachable loopback in `src/main/activity/hooks.ts` is named as REFUSED GROUND before anybody reaches for it. **THE LIMIT IS DETECTABLE FOR ONE PROVIDER ONLY**, claude writing 668 structured `error=rate_limit` records of which 28.9 percent are not a time window, codex holding a better enum and zero occurrences of it in his corpus, the other ten providers silent, and the sharpest finding is that the provider Tortie can detect best is the one that needs transfer least because 2.1.263 already waits the window out and the only thing that defeats the wait is the process dying, which Tortie already prevents and nobody has told him. THE HONEST TOTAL is refuse five, build four small ones at about a phase each, and build the briefing at two phases ONLY IF HE ASKS. The committer's own step re-derived the load bearing tool call number as a CENSUS rather than a 400 file sample, 19,246 files and 554,625 blocks against the sample's 8,659, and the shipped 88.4 percent is CONSERVATIVE at a true 90.6, and it reproduced a FOURTH artifact of section 2.4b's family found by the verifier, whose cause is that a claude file's chain runs through OTHER files, 1,633 dangling parents in one file against 18 parents with more than one child. Nothing was written to `/Users/gdc/herdr`, which is clean at `a9f3ad5f` with its index untouched at 17:41:19, nor to any other repository of his nor to any provider store; no agent CLI took a turn, no token was spent, no Electron was launched, and socket `gmux` was never contacted, holding thirteen sessions read at the end against the twelve the brief recorded, the thirteenth being his own `shell-1-2` split created at 17:16:17 while this phase ran and every scratch tmux drive having used a per pid socket of its own.
+- 2026-09-07, Phases 225, 226 and 227 QUEUED from research 83 and the operator's three rulings of the same day, being that whose bytes are whose does not matter, that it is three phases and not one so the read only half is looked at before anything writes, and that neither typing nor accept is in any of them. 225 draws the redline against a shadow baseline and writes nothing; 226 is a compare-and-swap write channel reachable from nothing, proved under node; 227 wires a keyboard only rewind to it with the undo journal load bearing by his ruling. 225 and 226 launch now beside 224; 227 waits for both.
