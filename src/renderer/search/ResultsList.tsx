@@ -31,6 +31,9 @@ import { Codicon } from '../icons';
 import { FileIcon } from '../icons/FileIcon';
 import { SEARCH_NO_BRIDGE } from '../machines/search';
 import { useApp } from '../state/store';
+// Phase 232. The one action under the sentence for a machine that did not
+// answer; it draws nothing unless the link reads quiet.
+import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import {
   machineEmptyLine,
   openSearchLine,
@@ -513,6 +516,7 @@ function EmptyResults(): React.JSX.Element {
       return (
         <div className="search-empty">
           <p className="search-empty-title">{refusal}</p>
+          <MachinePrepareAction machineId={target.machineId} />
         </div>
       );
     }

@@ -35,6 +35,9 @@ import {
   targetOfProject
 } from '@shared/workspace-target';
 import { useApp } from '../state/store';
+// Phase 232. The one action under the sentence for a machine that did not
+// answer; it draws nothing unless the link reads quiet.
+import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import {
   machineAnswering,
   machineLabelFor,
@@ -1263,7 +1266,10 @@ function RemoteScmSection({
     }
     if (entry.failed) {
       return (
-        <div className="section-stub">{remoteChangesUnreachable(label)}</div>
+        <div className="section-stub">
+          {remoteChangesUnreachable(label)}
+          <MachinePrepareAction machineId={target.machineId} />
+        </div>
       );
     }
     if (entry.loading || entry.readAt === 0) {

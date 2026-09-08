@@ -1,0 +1,7 @@
+/* Phase 232, item 4. The one action under a machine's sentence on a tab. It is
+   the Settings button in the Settings button's clothes, set on its own line
+   under the sentence it belongs to. */
+.machine-prepare-action {
+  display: inline-flex;
+  margin-top: var(--space-3);
+}

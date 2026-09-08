@@ -84,6 +84,9 @@ import {
 } from '../machines/context';
 import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
+// Phase 232. The one action under the sentence for a machine that did not
+// answer; it draws nothing unless the link reads quiet.
+import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import { openFileAt, requestOpenContext } from './open-detail';
 import {
   CONTEXT_COPY,
@@ -789,6 +792,9 @@ export function ContextSection({
                 ? contextNoHome(machineName)
                 : contextNoAnswer(machineName)}
           </p>
+          {target === null ? null : (
+            <MachinePrepareAction machineId={target.machineId} />
+          )}
         </div>
       );
     }

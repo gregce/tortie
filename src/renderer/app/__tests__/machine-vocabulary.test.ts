@@ -198,6 +198,11 @@ const FILES: readonly string[] = [
   // so a later round cannot type a sentence straight into them.
   'src/renderer/app/AgentGrid.tsx',
   'src/renderer/app/EmptyStates.tsx',
+  // Phase 232. The Prepare action on a project tab: the label and the rule in
+  // the machines directory, and the button that draws them. The label is
+  // Settings' own, imported, and the button says nothing else.
+  'src/renderer/machines/prepare-action.ts',
+  'src/renderer/app/MachinePrepareAction.tsx',
   'src/renderer/app/new-session-menu.ts'
 ];
 

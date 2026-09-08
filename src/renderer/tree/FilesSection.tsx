@@ -33,6 +33,9 @@ import {
   targetOfProject
 } from '@shared/workspace-target';
 import { useApp } from '../state/store';
+// Phase 232. The one action under the sentence for a machine that did not
+// answer; it draws nothing unless the link reads quiet.
+import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import { onRepoChanged } from '../state/repo-changed';
 import {
   remoteEntryWritesOffLabel,
@@ -404,7 +407,12 @@ export function FilesSection({
       // Said BEFORE the skeleton. The machine has answered and its answer is
       // that there is nothing to draw, so a shimmer here would be a promise
       // Tortie cannot keep.
-      body = <div className="section-stub">{remoteRefusal}</div>;
+      body = (
+        <div className="section-stub">
+          {remoteRefusal}
+          <MachinePrepareAction machineId={remote.machineId} />
+        </div>
+      );
     } else if (remote !== null) {
       body =
         !rootLoaded || !sameTarget(root, target) ? (
