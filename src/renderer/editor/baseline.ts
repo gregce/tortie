@@ -121,3 +121,30 @@ export function redlineBaseSide(
 ): string {
   return state?.text ?? headContents ?? '';
 }
+
+/**
+ * What the face calls the baseline, or null when the tab holds none and the
+ * view is drawing what Phase 194 drew. Research 83 A4.2 ruling 1: the view
+ * never says an agent did it, it says what changed since a NAMED baseline.
+ */
+export function baselineName(state: BaselineState | undefined): string | null {
+  if (state === undefined || state.from === null) return null;
+  return state.from === 'commit' ? 'the last commit' : 'you opened this file';
+}
+
+/**
+ * The one sentence under the document, or null when there is no baseline to
+ * name. It names the baseline and says how long the marking lasts, being as
+ * long as this tab is open (research 83 F.2: the baseline dies with the tab,
+ * on close, on eviction, on reload, quit or crash). It never says the old
+ * text is kept anywhere, because a person who believes Tortie is holding
+ * their history stops committing (A3.4), and that is the one place a copy
+ * decision is a correctness decision.
+ */
+export function baselineSentence(
+  state: BaselineState | undefined
+): string | null {
+  const name = baselineName(state);
+  if (name === null) return null;
+  return `Marked since ${name}, for as long as this tab is open.`;
+}

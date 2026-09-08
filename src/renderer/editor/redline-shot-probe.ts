@@ -219,7 +219,10 @@ export async function driveRedlineView(
       present: true,
       runs: runsOf(el),
       pairs: pairsOf(el),
-      note: document.querySelector('.ed-redline-view .ed-note .banner-text')?.textContent ?? null,
+      // The caps note is the one live region; the Phase 225 baseline line
+      // sits beside it in the same slot and is read separately below.
+      note: document.querySelector('.ed-redline-view .ed-note[role="status"] .banner-text')?.textContent ?? null,
+      since: document.querySelector('.ed-redline-view .ed-redline-since .banner-text')?.textContent ?? null,
       // What must NOT be in the tree of this view.
       pierre: document.querySelectorAll('diffs-container').length,
       monaco: document.querySelectorAll('.monaco-editor').length,

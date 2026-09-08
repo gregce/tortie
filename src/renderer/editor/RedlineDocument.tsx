@@ -40,7 +40,11 @@ import {
   redlineDocumentNote
 } from './redline-document';
 import { useLiveTabText } from './live-text';
-import { redlineBaseSide } from './baseline';
+import {
+  baselineName,
+  baselineSentence,
+  redlineBaseSide
+} from './baseline';
 import type { EditorTab } from './store';
 import './redline.css';
 
@@ -99,8 +103,17 @@ export function RedlineDocument({
     [contentsLoading, baseSide, workingText]
   );
   const note = doc === null ? null : redlineDocumentNote(doc);
-  const against =
-    tab.commit !== null ? `commit ${tab.commit.shortSha}` : 'HEAD';
+  // PHASE 225. The face names the baseline. A history tab names its commit;
+  // a worktree tab names the last commit or the moment the file was opened;
+  // a tab with no baseline still says HEAD, which is what it draws against.
+  const name = tab.commit === null ? baselineName(tab.baseline) : null;
+  const label =
+    tab.commit !== null
+      ? `Redline vs commit ${tab.commit.shortSha}`
+      : name !== null
+        ? `Redline since ${name}`
+        : 'Redline vs HEAD';
+  const since = doc === null ? null : baselineSentence(tab.baseline);
 
   return (
     <div className="ed-redline-view">
@@ -109,7 +122,7 @@ export function RedlineDocument({
         className="ed-redline-scroll"
         tabIndex={0}
         role="region"
-        aria-label={`Redline vs ${against}, ${tab.name}`}
+        aria-label={`${label}, ${tab.name}`}
         onCopy={(event) => {
           const host = hostRef.current;
           if (host !== null) handleRedlineCopy(host, event.nativeEvent);
@@ -128,6 +141,17 @@ export function RedlineDocument({
       {note !== null ? (
         <div className="banner ed-note" role="status">
           <span className="banner-text">{note}</span>
+        </div>
+      ) : null}
+      {since !== null ? (
+        // PHASE 225. The baseline's name and its lifetime, in the same slot
+        // and the same tokens as the caps note above, and NOT a live region:
+        // this sentence changes only when the baseline is re-seeded, and a
+        // banner that announced itself would be the notification research 83
+        // C.6 refuses. The caps note keeps its role, because a cap firing is
+        // about the picture in front of the person.
+        <div className="banner ed-note ed-redline-since">
+          <span className="banner-text">{since}</span>
         </div>
       ) : null}
     </div>
