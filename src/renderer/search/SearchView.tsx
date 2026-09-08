@@ -23,17 +23,22 @@
  *
  * PHASE 98 ADDED ONE ROW AND TOOK TWO REFUSALS AWAY. The row is the machine
  * note under the summary, drawn only when the folder being searched is on
- * another machine. It says at most two sentences, being what happened and then
+ * another machine. It said at most two sentences, being what happened and then
  * which program did it, and every one of them is drawn from
  * src/renderer/machines/search.ts. The two refusals were the disabled Refresh
  * and Clear controls Phase 90.3 put on a tab whose folder is over there. Both
  * work now, so neither is drawn off.
+ *
+ * PHASE 228 TOOK THE SECOND SENTENCE OFF. The line naming that machine's own
+ * grep was drawn under every result on a machine and the local view carries
+ * no line under its results at all. What is left is the one state sentence,
+ * when there is one, being which folder was read or which cap cut the list.
  */
 
 import React, { useEffect, useMemo } from 'react';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { Codicon } from '../icons';
-import { SEARCH_STOP_WAITING, searchOnMachineLine } from '../machines/search';
+import { SEARCH_STOP_WAITING } from '../machines/search';
 import { useApp } from '../state/store';
 import { QueryBlock } from './QueryBlock';
 import { ResultsList } from './ResultsList';
@@ -160,13 +165,12 @@ function Summary(): React.JSX.Element | null {
 }
 
 /**
- * The two sentences under the summary, for a folder on another machine.
+ * The one sentence under the summary, for a folder on another machine.
  *
- * PHASE 98. It draws at most two lines and never more. The first is the one
- * state sentence there is, when there is one, and the second names the program
- * that ran, because a search here and a search there are not the same search.
- * The order is deliberate, because a person reads what happened before they
- * read how it was done.
+ * PHASE 98 drew at most two lines here, the one state sentence there is, when
+ * there is one, and then a line naming the program that ran. PHASE 228 TOOK
+ * THE SECOND LINE OFF, because nothing like it sits under a local result, so
+ * this draws the state sentence alone and nothing when there is none.
  *
  * IT IS SILENT FOR THE FOUR REFUSAL WORDS. Each of those means no rows at all,
  * and the results area says the whole sentence there instead. Drawing both
@@ -192,14 +196,11 @@ function MachineNote(): React.JSX.Element | null {
     capped,
     truncated
   });
-  const engineLine =
-    mode === 'repo' || mode === 'walk' ? searchOnMachineLine(name) : null;
-  if (stateLine === null && engineLine === null) return null;
+  if (stateLine === null) return null;
 
   return (
     <div className="search-machine-note" data-slot="search-machine-note">
-      {stateLine !== null ? <p>{stateLine}</p> : null}
-      {engineLine !== null ? <p>{engineLine}</p> : null}
+      <p>{stateLine}</p>
     </div>
   );
 }

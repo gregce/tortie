@@ -143,7 +143,6 @@ const {
   searchFolderMissing,
   searchNoAnswer,
   searchNotConnected,
-  searchOnMachineLine,
   searchPatternRefused
 } = await import('../../machines/search');
 
@@ -321,7 +320,7 @@ describe('the answer', () => {
 describe('the sentence for every one of the six words', () => {
   const L = 'Studio';
 
-  it('says how the folder was read, for the two words that carry rows', () => {
+  it('says how the folder was read, for the two words that carry rows', async () => {
     expect(
       machineNoteLine({
         mode: 'repo',
@@ -340,9 +339,12 @@ describe('the sentence for every one of the six words', () => {
         truncated: false
       })
     ).toBe(SEARCH_NOT_A_REPOSITORY);
-    // The engine line is said for both of them, and it names no program of
-    // this Mac's.
-    expect(searchOnMachineLine(L)).toContain('Studio');
+    // PHASE 228. The engine line that was said under both of them, naming
+    // that machine's own grep, is gone from the face and from the file.
+    expect(
+      ((await import('../../machines/search')) as Record<string, unknown>)
+        .searchOnMachineLine
+    ).toBeUndefined();
   });
 
   it('names whichever cap cut the list', () => {

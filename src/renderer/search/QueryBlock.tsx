@@ -20,6 +20,12 @@
  * ignore files toggle do not. A search over there has no glob machinery, and
  * its file list comes from git. They are drawn OFF rather than removed, which is
  * the rule the rest of this app follows, and their title says why.
+ *
+ * PHASE 228 GAVE EACH OF THE THREE ITS OWN SHORT TITLE. All three carried the
+ * same 34 word paragraph, which was also the idle body of the view. A limit
+ * that is genuinely different is a disabled control with at most one short
+ * label, so each control says its own in a few words and the paragraph is
+ * gone from the face.
  */
 
 import React from 'react';
@@ -27,7 +33,11 @@ import { keyDisplay } from '@shared/keymap';
 import type { KeymapId } from '@shared/keymap';
 import { localPathOf } from '@shared/workspace-target';
 import { Codicon } from '../icons';
-import { SEARCH_FILTERS_ON_THIS_MAC } from '../machines/search';
+import {
+  SEARCH_EXCLUDE_ON_THIS_MAC,
+  SEARCH_IGNORE_ON_THIS_MAC,
+  SEARCH_INCLUDE_ON_THIS_MAC
+} from '../machines/search';
 import { focusResultsList } from './results-focus';
 import { useSearch } from './store';
 
@@ -195,7 +205,7 @@ export function QueryBlock(): React.JSX.Element {
               placeholder="src/**, *.ts"
               value={includes}
               disabled={onMachine}
-              title={onMachine ? SEARCH_FILTERS_ON_THIS_MAC : undefined}
+              title={onMachine ? SEARCH_INCLUDE_ON_THIS_MAC : undefined}
               onChange={(e) => setIncludes(e.target.value)}
             />
           </label>
@@ -209,7 +219,7 @@ export function QueryBlock(): React.JSX.Element {
               placeholder="**/dist/**"
               value={excludes}
               disabled={onMachine}
-              title={onMachine ? SEARCH_FILTERS_ON_THIS_MAC : undefined}
+              title={onMachine ? SEARCH_EXCLUDE_ON_THIS_MAC : undefined}
               onChange={(e) => setExcludes(e.target.value)}
             />
           </label>
@@ -220,7 +230,7 @@ export function QueryBlock(): React.JSX.Element {
             disabled={onMachine}
             title={
               onMachine
-                ? SEARCH_FILTERS_ON_THIS_MAC
+                ? SEARCH_IGNORE_ON_THIS_MAC
                 : useIgnoreFiles
                   ? 'Ignored files are being skipped. Including them is 12–80× slower.'
                   : 'Ignored files are being searched — 12–80× slower than skipping them.'

@@ -29,7 +29,7 @@ import {
 } from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { FileIcon } from '../icons/FileIcon';
-import { SEARCH_FILTERS_ON_THIS_MAC, SEARCH_NO_BRIDGE } from '../machines/search';
+import { SEARCH_NO_BRIDGE } from '../machines/search';
 import { useApp } from '../state/store';
 import {
   machineEmptyLine,
@@ -437,6 +437,37 @@ function ContextRow({
  * "search is broken" is almost always "an include glob from twenty minutes ago
  * is still in force" — VS Code's single most common support question.
  */
+/**
+ * The face before anything is typed. ONE face for a folder on this Mac and a
+ * folder on a machine (Phase 228), because the operator's rule is that a
+ * remote tab feels almost identical to a local one, and the idle body is the
+ * first thing a person reads on the view.
+ */
+function IdleFace({ projectName }: { projectName: string }): React.JSX.Element {
+  return (
+    <div className="search-empty">
+      <p className="search-empty-title">Search across {projectName}</p>
+      <p className="search-empty-body">
+        Matches stream in as they are found. Case, whole word and regular
+        expressions are the three toggles beside the box.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The face while a search runs and no row has landed yet. The same one word
+ * on this Mac and on a machine (Phase 228). Rows from the previous search stay
+ * on screen instead of this, on both, until the new ones replace them.
+ */
+function WaitingFace(): React.JSX.Element {
+  return (
+    <div className="search-empty">
+      <p className="search-empty-body">Searching…</p>
+    </div>
+  );
+}
+
 function EmptyResults(): React.JSX.Element {
   const status = useSearch((s) => s.status);
   const query = useSearch((s) => s.query);
@@ -493,25 +524,16 @@ function EmptyResults(): React.JSX.Element {
         </div>
       );
     }
-    if (status === 'searching') {
-      return (
-        <div className="search-empty">
-          <p className="search-empty-body">Searching…</p>
-        </div>
-      );
-    }
+    // PHASE 228. While it waits and before anything is typed, a folder on a
+    // machine draws exactly what a folder on this Mac draws, being the one
+    // idle face and the one waiting face below. The idle body used to name
+    // the three filters that do not go there, 34 words the local face never
+    // carried; those are the three disabled controls' own titles now.
+    if (status === 'searching') return <WaitingFace />;
     if (query.length === 0 || status === 'idle') {
-      // The body names the three filters rather than the stream, because a
-      // search on another machine arrives in one answer and does not stream,
-      // and because those three are the ones that do not go there.
-      return (
-        <div className="search-empty">
-          <p className="search-empty-title">Search across {projectName}</p>
-          <p className="search-empty-body">{SEARCH_FILTERS_ON_THIS_MAC}</p>
-        </div>
-      );
+      return <IdleFace projectName={projectName} />;
     }
-    // A read that found nothing. The note above says how the folder was read.
+    // A read that found nothing, which is what the panel says for this Mac.
     return (
       <div className="search-empty">
         <p className="search-empty-title">No results found.</p>
@@ -543,24 +565,10 @@ function EmptyResults(): React.JSX.Element {
   }
 
   if (query.length === 0 || status === 'idle') {
-    return (
-      <div className="search-empty">
-        <p className="search-empty-title">Search across {projectName}</p>
-        <p className="search-empty-body">
-          Matches stream in as they are found. Case, whole word and regular
-          expressions are the three toggles beside the box.
-        </p>
-      </div>
-    );
+    return <IdleFace projectName={projectName} />;
   }
 
-  if (status === 'searching') {
-    return (
-      <div className="search-empty">
-        <p className="search-empty-body">Searching…</p>
-      </div>
-    );
-  }
+  if (status === 'searching') return <WaitingFace />;
 
   const filters: string[] = [];
   if (includes.trim().length > 0) filters.push('an include filter');

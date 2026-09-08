@@ -8,7 +8,7 @@
 /**
  * WHAT THIS BLOCK REPLACES. Phase 90.1 gave the Search view two sentences that
  * said it does not reach another machine. Phase 98 makes it reach one, so those
- * two are gone and these eleven take their place. The pair that was deleted is
+ * two are gone and these take their place. The pair that was deleted is
  * described in ./context.ts.
  *
  * NO PROSE CROSSES THE CHANNEL. Main answers a status word and a set of counts
@@ -18,24 +18,18 @@
  * vocabulary audit reads.
  *
  * WHAT THEY MAY CLAIM. A search on this Mac and a search on another machine are
- * not the same search, and these sentences say the two differences rather than
- * hiding them. The first is the program, because the far side uses that
- * machine's own grep and can read a pattern differently. The second is the
- * three file filters, which work here and do not go there.
+ * not the same search, and what a person reads about it is what happened,
+ * being which folder was read, which cap cut the list and which of the four
+ * words meant no rows. PHASE 228 TOOK THE TWO EXPLANATIONS OFF THE FACE. The
+ * idle body said which three filters do not go there and how the folder is
+ * searched instead, and a line under every result said the far side used that
+ * machine's own grep and a pattern can behave differently there. The local
+ * Search view carries no such paragraph, and the operator's rule of
+ * 2026-09-07 is that a remote tab feels almost identical to a local one. The
+ * three filters are drawn OFF with one short title each, below, and the grep
+ * line is gone: a pattern that machine refuses is still answered by
+ * `searchPatternRefused`, which is the one place that difference is read.
  */
-
-/**
- * Under the results, whenever the folder being searched is on a machine.
- *
- * It is the LAST line the note draws, so a person reads what happened before
- * they read how it was done.
- */
-export function searchOnMachineLine(label: string): string {
-  return (
-    `Tortie searched this project on ${label} with that machine's own grep. ` +
-    `A pattern that works here can behave differently there.`
-  );
-}
 
 /**
  * The folder searched is not a git repository.
@@ -82,18 +76,26 @@ export const SEARCH_ANSWER_TOO_LARGE =
   'list stops early. Narrow the search to see the rest.';
 
 /**
- * The three filters that do not reach a machine.
+ * The three filters that do not reach a machine, as three hover titles.
  *
- * IT IS THE IDLE BODY, read before a person types, which is before they can see
- * the note that says a folder is not a repository. So the second sentence has to
- * cover both answers. It said "Tortie searches the files git knows about in the
- * folder" alone, which is true of a repository and false of every other folder,
- * where `repo-search` walks the whole tree instead.
+ * PHASE 228. Include, exclude and the ignore files toggle work on this Mac and
+ * do not go to a machine, because a search over there has no glob machinery
+ * and its file list comes from git. Until this phase that was a 34 word
+ * paragraph drawn as the idle body of the view, `SEARCH_FILTERS_ON_THIS_MAC`,
+ * read before a person typed anything. A limit that is genuinely different is
+ * a disabled control with at most one short label, so each control is drawn
+ * OFF by src/renderer/search/QueryBlock.tsx with its own title, and the
+ * paragraph is gone. They are labels rather than sentences, the way
+ * `SEARCH_STOP_WAITING` is, so they carry no full stop.
  */
-export const SEARCH_FILTERS_ON_THIS_MAC =
-  'Include, exclude and the ignore files toggle work on this Mac only. On ' +
-  'another machine Tortie searches the files git knows about, or every file ' +
-  'in the folder when it is not a repository.';
+export const SEARCH_INCLUDE_ON_THIS_MAC = 'Include filters work on this Mac only';
+
+/** The exclude field's title while its folder is on a machine. */
+export const SEARCH_EXCLUDE_ON_THIS_MAC = 'Exclude filters work on this Mac only';
+
+/** The ignore files toggle's title while its folder is on a machine. */
+export const SEARCH_IGNORE_ON_THIS_MAC =
+  'The ignore files toggle works on this Mac only';
 
 /**
  * The Stop control while a machine is being waited on.

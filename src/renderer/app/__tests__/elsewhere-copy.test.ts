@@ -13,6 +13,15 @@
  * and the Search view now searches that machine's own folder, so both had
  * become false. The eleven sentences that replaced them are pinned below.
  *
+ * PHASE 228 TOOK TWO SEARCH SENTENCES OFF IT, for a different reason. The
+ * idle body naming the three filters and the line naming that machine's grep
+ * were both true and both stood on the remote face with no equivalent on the
+ * local one, and the operator's rule of 2026-09-07 is that a remote tab feels
+ * almost identical to a local one. The three filters are three disabled
+ * controls with one short title each, pinned below and in
+ * ../../machines/__tests__/p228-search-filters.test.ts; the deletions are
+ * pinned in ../../machines/__tests__/p228-off-the-face.test.ts.
+ *
  * PHASE 108 TOOK THE CONTEXT BODY OFF IT, the same move again. It said
  * "Tortie reads skills, servers and hooks from this Mac only, so nothing is
  * listed here", and the Context view now reads a project on a machine, so the
@@ -46,7 +55,9 @@ import {
 } from '../../machines/context';
 import {
   SEARCH_ANSWER_TOO_LARGE,
-  SEARCH_FILTERS_ON_THIS_MAC,
+  SEARCH_EXCLUDE_ON_THIS_MAC,
+  SEARCH_IGNORE_ON_THIS_MAC,
+  SEARCH_INCLUDE_ON_THIS_MAC,
   SEARCH_NO_BRIDGE,
   SEARCH_NOT_A_REPOSITORY,
   SEARCH_STOP_WAITING,
@@ -54,7 +65,6 @@ import {
   searchFolderMissing,
   searchNoAnswer,
   searchNotConnected,
-  searchOnMachineLine,
   searchPatternRefused
 } from '../../machines/search';
 
@@ -149,13 +159,6 @@ describe('what Context says about a project on a machine (Phase 108)', () => {
 });
 
 describe('what Search says about a folder on a machine (Phase 98)', () => {
-  it('names the program that ran, every time', () => {
-    expect(searchOnMachineLine('Studio')).toBe(
-      "Tortie searched this project on Studio with that machine's own grep. " +
-        'A pattern that works here can behave differently there.'
-    );
-  });
-
   it('says what a folder that is not a repository cost', () => {
     expect(SEARCH_NOT_A_REPOSITORY).toBe(
       'This folder is not a git repository, so Tortie searched every file ' +
@@ -190,14 +193,17 @@ describe('what Search says about a folder on a machine (Phase 98)', () => {
     );
   });
 
-  it('says which controls do not go there, and what an old build cannot do', () => {
-    // BOTH ANSWERS, because this is the body a person reads BEFORE they type,
-    // which is before the note that names a folder that is not a repository.
-    expect(SEARCH_FILTERS_ON_THIS_MAC).toBe(
-      'Include, exclude and the ignore files toggle work on this Mac only. ' +
-        'On another machine Tortie searches the files git knows about, or ' +
-        'every file in the folder when it is not a repository.'
+  it('titles each of the three controls that do not go there, in a few words', () => {
+    // PHASE 228. One short label per disabled control, in place of the 34
+    // word paragraph that was the idle body and all three titles at once.
+    expect(SEARCH_INCLUDE_ON_THIS_MAC).toBe('Include filters work on this Mac only');
+    expect(SEARCH_EXCLUDE_ON_THIS_MAC).toBe('Exclude filters work on this Mac only');
+    expect(SEARCH_IGNORE_ON_THIS_MAC).toBe(
+      'The ignore files toggle works on this Mac only'
     );
+  });
+
+  it('says what an old build cannot do', () => {
     expect(SEARCH_NO_BRIDGE).toBe(
       'This build cannot search a folder on another machine.'
     );
@@ -214,6 +220,9 @@ describe('what Search says about a folder on a machine (Phase 98)', () => {
     const copy = (await import('../../machines/search')) as Record<string, unknown>;
     expect(copy.searchElsewhereTitle).toBeUndefined();
     expect(copy.SEARCH_ELSEWHERE_BODY).toBeUndefined();
+    // PHASE 228 took two more off, being the idle body and the grep line.
+    expect(copy.SEARCH_FILTERS_ON_THIS_MAC).toBeUndefined();
+    expect(copy.searchOnMachineLine).toBeUndefined();
   });
 });
 
@@ -255,7 +264,6 @@ describe('the writing rules, over every sentence in src/renderer/machines', () =
       contextCutLine('Studio'),
       contextEmptyOnMachine('Studio'),
       contextRefreshOnMachineTitle('Studio'),
-      searchOnMachineLine('Studio'),
       SEARCH_NOT_A_REPOSITORY,
       searchFolderMissing('Studio'),
       searchPatternRefused('Studio'),
@@ -263,7 +271,6 @@ describe('the writing rules, over every sentence in src/renderer/machines', () =
       searchNoAnswer('Studio'),
       searchFirstMatches(20000),
       SEARCH_ANSWER_TOO_LARGE,
-      SEARCH_FILTERS_ON_THIS_MAC,
       SEARCH_NO_BRIDGE
     ];
     expect(sentences.filter((one) => one.includes(':'))).toEqual([]);
@@ -273,6 +280,15 @@ describe('the writing rules, over every sentence in src/renderer/machines', () =
     // work in progress ends in an ellipsis the way REVIEW_READING does.
     expect(sentences.filter((one) => !one.endsWith('.'))).toEqual([]);
     expect(SEARCH_STOP_WAITING.includes(':')).toBe(false);
+    // PHASE 228. The three filter titles are control labels too.
+    for (const label of [
+      SEARCH_INCLUDE_ON_THIS_MAC,
+      SEARCH_EXCLUDE_ON_THIS_MAC,
+      SEARCH_IGNORE_ON_THIS_MAC
+    ]) {
+      expect(label.includes(':')).toBe(false);
+      expect(label.endsWith('.')).toBe(false);
+    }
     expect(contextReadingOn('Studio').includes(':')).toBe(false);
     expect(contextReadingOn('Studio').endsWith('…')).toBe(true);
   });

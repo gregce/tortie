@@ -56,6 +56,21 @@ const OFF: readonly OffTheFace[] = [
     name: 'remoteChangesBand',
     home: 'scm.ts',
     words: 'These changes are on'
+  },
+  {
+    name: 'REMOTE_SCM_SECTIONS_NOTE',
+    home: 'scm.ts',
+    words: 'It does not show the files one commit'
+  },
+  {
+    name: 'SEARCH_FILTERS_ON_THIS_MAC',
+    home: 'search.ts',
+    words: 'Include, exclude and the ignore files toggle'
+  },
+  {
+    name: 'searchOnMachineLine',
+    home: 'search.ts',
+    words: "with that machine's own grep"
   }
 ];
 
