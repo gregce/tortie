@@ -287,18 +287,22 @@ describe('the standing line and the button', () => {
     expect(line).toContain('Tortie cannot answer it');
   });
 
-  it('carries that warning on the button in every state (Phase 228)', () => {
+  it('carries that warning on the button the moment it can be pressed (Phase 228)', () => {
     // PHASE 228 MOVED THE LINE OFF THE RESTING FACE and into the button's
-    // hover title, which is the one place it survives. An enabled button's
-    // title is the line alone; a disabled button's title puts the reason
-    // first on its own line and keeps the warning under it.
+    // hover title. THE FIX ROUND MADE THE TITLE ONE THING AT A TIME, the way
+    // the local box's is: a pressable button carries the warning alone, and
+    // a disabled button carries its reason alone, because a person who
+    // hovers a button they cannot press reads why, and the hazard is about
+    // the press. The first shape put both on every hover, 52 words in five
+    // sentences.
     const standing = remoteCommitStanding('Mac Pro');
     expect(remoteCommitTitle('Mac Pro', null)).toBe(standing);
     const why = remoteWritesNotConfirmed('Mac Pro');
-    expect(remoteCommitTitle('Mac Pro', why)).toBe(`${why}\n${standing}`);
+    expect(remoteCommitTitle('Mac Pro', why)).toBe(why);
     expect(remoteCommitTitle('Mac Pro', 'Enter a commit message')).toBe(
-      `Enter a commit message\n${standing}`
+      'Enter a commit message'
     );
+    expect(remoteCommitTitle('Mac Pro', why)).not.toContain('\n');
   });
 
   it('names the machine on the button rather than saying here', () => {

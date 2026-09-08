@@ -61,6 +61,7 @@ import {
   remoteCommitCheckDidNot,
   remoteCommitCheckNoAnswer,
   remoteCommitCheckRan,
+  remoteCommitConflicts,
   remoteCommitDisabledReason,
   commitIdentityFact,
   remoteCommitTitle,
@@ -919,7 +920,16 @@ function RemoteCommitBox({
         {running ? <span className="scm-spinner" aria-hidden="true" /> : null}
         {running ? 'Committing…' : remoteCommitButton(label)}
       </button>
-      {disabledReason !== null && !running ? (
+      {/* PHASE 228. The caption follows the local box above, which draws one
+          for the conflict state alone and puts every other reason on the
+          button's title. Until the fix round every disabled reason was drawn
+          here as resting prose, 23 words on his own Source control face for
+          a machine whose writes are not confirmed; the reason is the title
+          now, which is where the local face keeps it. Phase 229 owns the
+          words of that reason and the door it names. */}
+      {disabledReason !== null &&
+      disabledReason === remoteCommitConflicts(label) &&
+      !running ? (
         <div className="scm-commit-caption" data-scm-remote-commit-why="1">
           {disabledReason}
         </div>

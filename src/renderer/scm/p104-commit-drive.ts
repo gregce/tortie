@@ -402,6 +402,15 @@ export function registerP104CommitDrive(): void {
     }
 
     let pressed = false;
+    // PHASE 228. The hooks and signing line is the title of a PRESSABLE
+    // button and nothing else, so it is read at the one moment it is there,
+    // being after the message is typed and before the press lands, after
+    // which the box is disabled again with nothing staged.
+    const pressable = commitBtn();
+    const titleBeforePress =
+      pressable !== null && !pressable.disabled
+        ? pressable.getAttribute('title') || null
+        : null;
     if (spec?.press === true) {
       const btn = commitBtn();
       if (btn !== null && !btn.disabled) {
@@ -440,12 +449,14 @@ export function registerP104CommitDrive(): void {
       button: btn === null ? null : textOf(btn),
       buttonDisabled: btn === null ? null : btn.disabled,
       buttonTitle: btn?.getAttribute('title') ?? null,
+      // PHASE 228. A disabled button's reason is its title, the way the local
+      // box keeps it; the caption under the box is drawn for the conflict
+      // state alone. So the reason is read off the title of a disabled
+      // button, and the standing line, which moved off the resting face into
+      // the title, is read off the title of a pressable one.
       disabledWhy:
-        textOf(document.querySelector('[data-scm-remote-commit-why="1"]')) ||
-        null,
-      // PHASE 228 MOVED THE STANDING LINE INTO THE BUTTON'S TITLE, so this is
-      // the title's last line rather than a paragraph under the box.
-      standing: btn?.getAttribute('title')?.split('\n').at(-1) ?? null,
+        btn !== null && btn.disabled ? btn.getAttribute('title') || null : null,
+      standing: titleBeforePress,
       typed: input()?.value ?? null,
       pressed,
       commitOutcome: entry?.commitOutcome ?? null,

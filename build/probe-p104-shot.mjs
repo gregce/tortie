@@ -547,6 +547,9 @@ if (!savingOn) fail('saving was not turned on, so every row below is about a mac
 // ---------------------------------------------------------------------------
 
 const STANDING_MARK = `Hooks and signing run on ${MACHINE_LABEL}.`;
+const STANDING_MARK_LINE =
+  `${STANDING_MARK} If a key there needs a passphrase typed, Tortie cannot ` +
+  `answer it and the commit will wait until it gives up.`;
 const beforeFive = commitCount(far);
 const headBeforeFive = headOf(far);
 const fiveShot = shotPath('5-committed');
@@ -571,12 +574,14 @@ const afterFive = commitCount(far);
 const headAfterFive = headOf(far);
 // PHASE 228 MOVED THE STANDING LINE INTO THE COMMIT BUTTON'S HOVER TITLE, so
 // it is read off the title rather than off the page text, and `marksOnScreen`
-// cannot see it, because a title is not in innerText.
+// cannot see it, because a title is not in innerText. THE FIX ROUND MADE THE
+// TITLE ONE THING AT A TIME: a pressable button carries the line alone and a
+// disabled one carries its reason alone, so the drive reads the line off the
+// title at the moment the button is pressable, before the press, and after
+// the commit lands the button is disabled again with nothing staged and its
+// title is that reason.
 const standingOk =
-  typeof d5?.standing === 'string' &&
-  d5.standing.startsWith(STANDING_MARK) &&
-  typeof d5?.buttonTitle === 'string' &&
-  d5.buttonTitle.includes(STANDING_MARK);
+  typeof d5?.standing === 'string' && d5.standing === STANDING_MARK_LINE;
 note(
   4,
   'the standing line names the machine by its own label',

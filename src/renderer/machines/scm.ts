@@ -195,24 +195,24 @@ export function remoteCommitStanding(label: string): string {
 }
 
 /**
- * The Commit button's hover title, in every state (Phase 228).
+ * The Commit button's hover title, one sentence per state (Phase 228).
  *
- * The hooks and signing line is ALWAYS in it, because the title is the one
- * place that line survives. When the button is disabled, the reason comes
- * first on a line of its own, so a person who hovers a button they cannot
- * press reads why before they read what a press would do; the same reason is
- * drawn as the caption under the button, so nothing a person needs is behind
- * the hover alone. The local box's title is its reason or its verb, and this
- * is the one remote title that carries more, for the hazard's sake.
+ * THE FIX ROUND MADE IT ONE THING AT A TIME. As first moved, the title
+ * carried the disabled reason AND the hooks and signing line together, 52
+ * words in five sentences on a hover, with the same reason drawn again as a
+ * caption under the button. The local box's title is its reason when it is
+ * disabled and its verb when it is not, and this title is the same shape: a
+ * disabled button says why it cannot be pressed, and a pressable button
+ * carries the hooks and signing line, which is the one moment that hazard
+ * matters, being the moment before the press. The line is still the one
+ * visible answer to research 57 section 5.6, and it is on the button in
+ * exactly the state a press can happen.
  */
 export function remoteCommitTitle(
   label: string,
   disabledReason: string | null
 ): string {
-  const standing = remoteCommitStanding(label);
-  return disabledReason === null
-    ? standing
-    : `${disabledReason}\n${standing}`;
+  return disabledReason ?? remoteCommitStanding(label);
 }
 
 /** The words on the commit button, which name the machine rather than "here". */
