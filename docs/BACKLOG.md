@@ -23220,6 +23220,604 @@ so the scanner misses it.
 - **No durable baseline and no `fs.watch`**, as in Phase 225.
 - **No live stream, animation, notification or badge.** The view is correct whenever you look at it.
 
+## Phase 228 — a remote view says what the local view says, and nothing more (operator's rule, 2026-09-07)
+
+**Subject.** `fix(machines): the remote face carries no paragraph the local face does not`
+
+**First body line.** `Phase 228: the remote face, just enough words`
+
+**Semver.** PATCH. Copy comes off; no surface, setting or channel is added.
+
+**Tier 2.** A rendered surface with no new state. The gates, ONE app run against his Mac Pro that
+reads the remote face and the local face of every view side by side, and one independent method,
+being a word count taken off the DOM by the verifier rather than from the copy files.
+
+**Charter.** This entry, research 85 section 3.3, which measured it, and the operator's rule of
+2026-09-07, verbatim: *"I DO not want a ton of explanatory text written into any of the remote
+machine settings or in the nav bar windows (just because its a remote machine). It should feel
+almost identical to the local experience."* This is the FIRST of the remote build phases because it
+is the smallest, it is the one he named, and every later phase in this group inherits its rule.
+
+### What research 85 measured, so the round does not re-derive it
+
+Counted from the paragraphs captured off the DOM in one app run, remote against local: Explorer
+**35** words of standing prose against **0**; Search **48** against **0**; Source control **138** in
+six paragraphs against **0**. The six on Source control are the band at 6 and 20 words, the changes
+note at 25, the hooks and signing note at 29, the read-at line at 9, and the sections note at 49.
+Refresh controls on the remote Source control view: **five** against local's **two**, and local does
+not need its two. The local search view's own idle text says "Matches stream in as they are found";
+the remote one arrives whole and says nothing while it waits.
+
+### The mechanism, with the real files
+
+The prose lives in the copy modules under `src/renderer/machines/`, one per view, and is drawn by
+the view components:
+
+- `src/renderer/machines/scm.ts`: `remoteChangesBand` (:24), `REMOTE_SCM_SECTIONS_NOTE` (:183),
+  `remoteCommitStanding` (:213), drawn by `src/renderer/scm/ScmSection.tsx`.
+- `src/renderer/machines/explorer.ts`: `remoteTreeReadOnly` (:84), `remoteTreeCanWrite` (:101),
+  `remoteTreeReadAt` (:19), drawn by `src/renderer/tree/FilesSection.tsx` and
+  `src/renderer/app/Sidebar.tsx`.
+- `src/renderer/machines/search.ts`: `searchOnMachineLine` (:33), `SEARCH_FILTERS_ON_THIS_MAC`
+  (:93), drawn by `src/renderer/search/QueryBlock.tsx`.
+- `src/renderer/machines/context.ts` and `src/renderer/machines/presentation.ts`, being
+  `remoteReadAt` (:59) and `machineReadAt` (:64).
+
+**The rule for each paragraph, and it is a decision per paragraph rather than a deletion of the
+file.** A paragraph comes OFF the resting face if a local tab does not carry its equivalent. Where
+the paragraph states a real limit, the limit becomes what it is locally: a disabled control with at
+most one short label, or a hover title, or nothing. Specifically:
+
+- The machine band ("These changes are on X. Tortie can stage them…") comes off. The tab already
+  names the machine in the tab spine and the project header.
+- The sections note (49 words) comes off. The absence of a File history section is a section that is
+  not there, the way a non-repository folder has no Source control sections locally.
+- The hooks and signing line (29 words) moves to a hover title on the Commit button, because it is
+  the one visible answer to a hazard research 57 section 5.6 named and it must survive somewhere; it
+  is not resting prose.
+- The read-at line stays as ONE short clock, the way a local view carries none, ONLY until Phase 230
+  makes the view re-read by itself, at which point Phase 230 removes it. This phase leaves it and
+  says so.
+- The search filters note (22 words) becomes the three disabled controls it describes, with one
+  hover title each, and the note comes off.
+- "Tortie only reads files on X" stays as a hover title on the disabled New file and New folder
+  buttons ONLY until Phase 229 replaces it with the sentence that names the door; this phase does not
+  touch that title, because Phase 229 owns it.
+- The five remote refresh buttons on Source control are not this phase's; Phase 230 removes the need
+  for them and removes them.
+
+Search on a machine draws its idle sentence the way local does, and while it waits it draws what
+local draws while streaming, which is the rows so far or nothing rather than a header alone.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron through `build/electron-run.mjs` on a scratch profile, against his
+  Mac Pro under Phase 224's bounds: the fixture repository made by `.p224/far-fixture.mjs` and
+  removed in a `finally`, sessions on the far gmux socket counted before and after and left as
+  found, `~/.ssh` on both machines never written, ssh agent 22052 empty, every ssh through
+  `build/ssh-run.mjs`, and every scratch tmux socket the run starts UNLINKED in the same `finally`
+  that kills its server, which research 85 section 10 found no probe doing. It opens a remote tab and
+  a local tab on the same fixture, visits all five rail views on each, and captures every paragraph
+  and every button label off the DOM.
+- **The independent method** is the verifier's own word count: for each view, every text node on the
+  remote face that is not a row, a count, a file name or a disabled control's label, against the same
+  on the local face. The phase passes when that set is EMPTY on every view, and the verifier prints
+  the set rather than a count so a stray sentence is named.
+- `npm run conformance:machines` stays green; it scans copy for the naming rule and nothing here
+  may make a sentence name "that machine" where it should name the label.
+- The existing copy tests under `src/renderer/app/__tests__/p903-c-remote-copy.test.ts` and
+  `src/renderer/tree/__tests__/p903-b-tree-menu-remote.test.ts` are updated in the same commit for
+  every sentence that moved, and a test pins that the sentences taken OFF the face are no longer
+  imported by any component, so a later round cannot put one back without the test going red.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.** This phase is that rule applied; the sentence is repeated here so the
+  verifier of every later remote phase reads it in the same words.
+- **Settings, Machines is not touched.** Its explanatory copy is the subject of Phase 229's picker
+  work and of the nits round, and it is a settings page rather than a nav view.
+- **No behaviour changes.** Nothing re-reads, nothing polls, no verb is turned on. Only what is drawn.
+- **The disabled New file and New folder title stays as it is** until Phase 229.
+- **The read-at clock stays** until Phase 230.
+- **Research 57's permanent refusals are untouched**: trash, reveal and discard stay absent, and
+  their absence is drawn the way an absent local verb is drawn, which is not at all.
+
+## Phase 229 — write access turns on, and the control names the door (operator asked 2026-09-07)
+
+**Subject.** `feat(machines): a folder picker for saving, and a commit that checks before the press`
+
+**First body line.** `Phase 229: write access on his machine`
+
+**Semver.** MINOR. A picker where a text field was, a button on a toast, and a commit precheck.
+
+**Tier 3.** It writes his file on another computer. The gates, a per verb matrix driven against his
+Mac Pro, TWO independent methods one of which is an attack on the write root picker, and a fix round
+if any verdict is needs_work.
+
+**Charter.** This entry and research 85 sections 3.5 and 7 phase one, which is *"the whole of what he
+named"*. Phase 228 lands first.
+
+### What research 85 measured
+
+His `config/machines.json` holds one row, `greg-s-mac-pro`, with no `writeRoot`, and his
+`config-confirmations.json` confirms it with exactly two lines and no third line naming a folder. So
+Save, New file, New folder, Rename, Stage, Unstage and Commit all refuse on the only machine he has,
+and every remote file tab is read only. Phases 101 to 104 shipped on 21 August and it has never been
+switched on for him. Every write verb works over the real link when a root is set: putFile 156 ms
+`wrote`, the same call again 56 ms `stale`, makeDir 29 ms, renameEntry 26 ms, stage 88 ms, unstage
+82 ms. Commit fails every time at 123 ms because git on that machine has no global `user.name` and
+no `user.email`; the Commit button is enabled, nothing checks before the press, and git's raw
+"Author identity unknown" text is printed on the resting face.
+
+### The mechanism, with the real files
+
+1. **A picker for the write root.** `src/renderer/settings/MachineRow.tsx:280` onward draws the
+   Saving files disclosure with a plain text field and a 250 ms debounced `readSheet`. The picker
+   already exists: `src/renderer/app/RemoteDirPicker.tsx` over `machines:listDir`, used today by
+   `CreateSessionModal.tsx`, with its copy in `src/renderer/machines/dir-picker.ts`. This phase puts
+   that picker beside the field, opening at the machine's home, so a person browses to the folder
+   rather than typing an absolute far-side path. The confirm sheet, the hash and
+   `describeMachine`'s third line at `src/main/machines/confirm.ts:445` are not touched: choosing a
+   folder in the picker fills the field, and the same sheet is what confirms it.
+2. **The disabled control names the door.** `src/renderer/app/Sidebar.tsx:191` and `:195` make New
+   file and New folder unavailable when the machine has no write root, with `remoteTreeReadOnly`
+   as the title. The title becomes `remoteEntryWritesOff` from `src/renderer/machines/explorer.ts:170`,
+   which already names Settings, Machines and the machine, and the read-only sentence is deleted
+   from `explorer.ts` since nothing draws it after this.
+3. **The save toast gets the button its own comment promises.** `src/renderer/machines/editor.ts:45`
+   says the toast carries an Open settings button; `src/renderer/editor/tab-io.ts:459` passes only
+   `{ sticky: true }`. Another call site in the tree already passes an action with exactly that label;
+   this one does the same.
+4. **The commit asks git for a name once, where Tortie already asks that machine questions.** The
+   read that fills the branch section runs a script on that machine on every refresh; this phase
+   adds `git config user.name` and `git config user.email` to that script's answer, as two fields,
+   so `RemoteCommitFacts` gains `identity: 'known' | 'missing'` and
+   `remoteCommitDisabledReason` at `src/renderer/machines/scm.ts:348` returns a reason for `missing`
+   ABOVE the staged and message checks. The reason is one sentence naming the two settings. The
+   commit script at `src/main/machines/remote-scripts.ts:2905` is not changed.
+5. **Git's raw text comes off the face.** The failure sentence Tortie composes stays; git's own
+   output goes behind a disclosure the way `Show details` already works elsewhere.
+
+### Proof, run rather than read
+
+- **The app run**, against his Mac Pro under Phase 224's bounds exactly, sockets unlinked in the
+  `finally`: open Settings, Machines, his row, press Browse, walk into the fixture folder the run
+  made, choose it, read the sheet, confirm, and read the third line off the sheet; then on the
+  remote tab New file, New folder, Rename, Save, Stage, Unstage, each read back from the far side by
+  `.p224/far-final.mjs`'s method; then Commit with identity missing and read the disabled reason
+  off the button with NOTHING sent, proved by the far side's reflog being unchanged; then the
+  scratch repository given a local `user.name` and `user.email` by the run, inside that scratch
+  repository only, and Commit succeeding and appearing in history. **His `~/.gitconfig` on that
+  machine is never written.** At the end the write root is REMOVED from the profile's machines file
+  so his real row is never changed, and the run says so.
+- **Independent method one, the attack**: the picker offered a path outside the machine's home, a
+  path with a symlink component, a path that does not exist, a path that is a file, and a path
+  containing a newline; each must be refused by the SAME sheet read main already does, and the
+  verifier proves no such path reaches `machines.json`.
+- **Independent method two, the re-derivation**: `npm run conformance:machines` re-run and its
+  confirm hash rule read: the hash MOVES when the write root changes, proved by the verifier
+  computing it independently for the fixture root.
+- The identity precheck is pinned by a test over `remoteCommitDisabledReason` that goes red when
+  the `missing` branch is ablated.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.** The Saving files disclosure keeps its one sentence naming the folder and
+  loses the rest.
+- **Tortie never writes his `~/.gitconfig`**, on either machine. The precheck says what is missing
+  and names the setting; a person sets it.
+- **The confirm gate, the hash and the sheet are not changed.** The picker fills a field.
+- **One write root per machine stays** (research 85 section 6 rows 6 and 7, in between).
+- **The 90,000 byte save ceiling stays** and is a stated limit.
+- **No Stage all and commit**, per research 57.
+- **No commit file diff and no move**; those are Phase 233.
+
+## Phase 230 — a remote view re-reads by itself, and the stale sentence goes (operator reported 2026-09-07)
+
+**Subject.** `fix(machines): a remote view reads again when the machine answers, and reads at the right moments`
+
+**First body line.** `Phase 230: nothing stays stale`
+
+**Semver.** PATCH for the retry; MINOR for the Explorer decorations, so MINOR.
+
+**Tier 2.** Rendered surfaces, no new far-side channel. The gates, ONE app run, and one independent
+method being the verifier's own timing of an outside write to first redraw on both sides.
+
+**Charter.** This entry and research 85 sections 4.1, 3.2 and 7 phase two. Phase 228 lands first.
+
+### What research 85 measured
+
+A file created while the tab was open appeared in the LOCAL Source control view with no press in
+**513 ms**. The same file, written by Tortie's own door on the far machine, **never appeared in 30
+seconds**; pressing Read again showed it in 203 ms. Two views subscribe to the machine answering and
+buy one extra read per sign-in, being Source control and the Explorer's Files section
+(`machineAnswering` at `src/renderer/state/machines-slice.ts:147`, consumed at
+`src/renderer/tree/FilesSection.tsx:233` and `src/renderer/scm/ScmSection.tsx:795`). History,
+Branch, Runs, Context and Search do not; `src/renderer/scm/RemoteRunsSection.tsx:58` records the
+decision. So a sentence saying the machine did not answer was still on screen at 11.5 s with the link
+long since connected, and that is the behaviour of five views today. The Explorer on a machine draws
+no git decorations and no ignored dimming: `src/renderer/app/Sidebar.tsx:344` returns null whenever
+the target has no local path, while `src/renderer/scm/remote-changes.ts` already holds the tracked
+and untracked lists keyed by machine and path.
+
+### The mechanism, with the real files
+
+1. **The eight lines, applied five times.** The `remoteAnswering` and `retried` shape at
+   `FilesSection.tsx:225-250` — one extra read per sign-in, retrying only a connection shaped refusal
+   and never a folder's own answer — goes into `RemoteHistorySection.tsx`, `RemoteBranchSection.tsx`,
+   `RemoteRunsSection.tsx`, the remote arm of `src/renderer/search/store.ts` and the Context view's
+   remote read. Extracted into ONE hook under `src/renderer/machines/` rather than copied five times,
+   per the growth guardrail, and `FilesSection` and `ScmSection` use the hook too.
+2. **Read at the right moments.** A remote view reads when it is opened, when its tab is activated,
+   when the window regains focus, and after Tortie's OWN write to that machine lands (a `putFile`,
+   `makeDir`, `renameEntry`, stage, unstage or commit answers `wrote`, `made`, `moved` or `done`).
+   Nothing polls on a timer, because research 85 section 8 rules that a remote folder will never be a
+   subscription; this is a re-read at moments a person would expect one.
+3. **The stale sentence changes.** "X did not answer" after a successful earlier read becomes what is
+   on screen and when it was read, which is the one clock Phase 228 left, and that clock comes OFF
+   once the re-read moments above are in, because a view that reads when looked at needs no clock.
+4. **Explorer decorations from the remote changes store.** `Sidebar.tsx:344` feeds the tree's
+   decorations from `remote-changes.ts`'s entry for that machine and path when the target has no
+   local path. **The guard is not loosened**: decorating a remote tree with THIS Mac's status is the
+   defect Phase 90.3 removed, so the source is the remote store and only the remote store.
+5. **The five remote refresh buttons become the two local has**, because the other three read by
+   themselves now.
+
+### Proof, run rather than read
+
+- **The app run**, against his Mac Pro under Phase 224's bounds, sockets unlinked in the `finally`:
+  open a remote tab with the machine DOWN (a second scratch machine row at 192.0.2.1, the way
+  `.p224/blackhole.mjs` did), read the sentence, bring the real machine up, and time each of the seven
+  views from `connected` to its first row with no press; then write a file on the far side by
+  Tortie's own door and time the Source control view and the Explorer to the new row with no press;
+  then read the Explorer's row for an untracked file and prove it carries the U mark the local row
+  carries; then count the refresh buttons.
+- **The independent method** is the verifier's own outside write, by ssh through `build/ssh-run.mjs`
+  rather than by Tortie's door, followed by a window focus, timed to the redraw; and the same on a
+  local tab, so the two numbers sit side by side.
+- A test pins the hook: it retries exactly once per sign-in, never on a folder's own refusal, and the
+  test goes red when either clause is ablated.
+- `npm run probe:p167` with the remote views in its surface list must plateau, because a re-read on
+  focus is a place a listener can leak.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.**
+- **No timer poll of a machine.** Research 85 section 8: a remote folder is never a subscription.
+- **No far-side watcher process.** Same reason.
+- **The liveness gate is not touched**; that is Phase 231.
+- **Local views are not changed.**
+
+## Phase 231 — the liveness gate answers per verb, not for all twenty-one at once (operator reported 2026-09-07)
+
+**Subject.** `fix(machines): one slow session poll no longer takes the file tree dark`
+
+**First body line.** `Phase 231: the liveness gate, per verb`
+
+**Semver.** PATCH.
+
+**Tier 3.** It changes which far-side channels are attempted under which link states, which is
+session lifecycle adjacent. The gates, a matrix over link states and verbs, TWO independent methods
+one of which is an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry and research 85 section 6 items 1 and 19 and section 7 phase three. This is
+the refuse-versus-degrade item and it is deliberately AFTER 229 and 230.
+
+### What research 85 measured
+
+`machineIsConnected` at `src/main/machines/remote-run.ts:130` asks a set of two link states,
+`runRemoteScript` asserts it before composing a byte, and eleven more modules ask it at the top of
+their handler. Of 37 machines channels, 21 reach the far side and all 21 are behind that one boolean.
+The boolean is set by a poll that runs one `tmux list-sessions` over ssh with a 10,000 ms cap
+(`src/main/machines/exec-plane.ts:246`), and anything but success or tmux's own no-server sentence
+marks the machine quiet. So one slow answer to a question about tmux sessions turns off Explorer,
+Search, Source control, Context, Quick Open, History, Branch, Runs, the agent scan and every write
+verb in the same frame, and none of those needs the session list. Waking the Mac marks every machine
+quiet and then polls, so closing the lid takes the whole remote surface dark for as long as that poll
+takes. And the two failures do not look alike: Explorer, Search and Quick Open draw their own
+sentence naming the machine, while Source control throws out of the script runner and draws main's
+sentence saying "that machine" with no label, against the naming rule.
+
+### The mechanism, with the real files
+
+1. **Two liveness facts instead of one.** The session feed's health (does `list-sessions` answer)
+   and the link's health (did the last ssh to that machine answer at all) are recorded separately in
+   `src/main/machines/machine-state.ts`. A file verb, a git verb, a search and a context read ask the
+   LINK; only the session list and the agent board ask the FEED. A missed session poll leaves the
+   link fact where it was.
+2. **A wake does not mark a machine quiet before asking it.** The wake path marks the FEED unknown and
+   issues the poll; the link fact is left until an ssh actually fails.
+3. **The runner refuses with a label.** `runRemoteScript`'s not-connected refusal at
+   `remote-run.ts:275` onward composes its sentence with the machine's label, which every caller
+   already has, so the sentence Source control draws names the machine the way Explorer's does.
+4. **A verb that fails on the link marks the link**, so a real outage still takes the surface dark,
+   only now because an attempt failed rather than because a different question went unanswered.
+
+### Proof, run rather than read
+
+- **The app run**, against his Mac Pro under Phase 224's bounds, sockets unlinked in the `finally`:
+  with the link up, make the session poll slow or fail without touching the link (the scratch far-side
+  gmux server on a scratch socket killed mid-poll, or the poll's timeout dropped by the harness knob),
+  and read the Explorer, Search, Source control and Context views: every one still draws rows. Then
+  make ssh itself fail (the blackhole row) and read that every one goes dark, with the sentence naming
+  the machine by label on every view including Source control. Then close and reopen the lid's
+  equivalent by the harness's wake knob and time the surface from wake to first row.
+- **Independent method one, the attack**: the verifier makes the two facts DISAGREE in every
+  combination through the harness seam and reads what each of the 21 channels does, as a matrix, and
+  fails if any read verb is refused on the feed fact alone or any session verb proceeds on the link
+  fact alone.
+- **Independent method two, the re-derivation**: the verifier counts the callers of
+  `machineIsConnected` at the parent and at HEAD by its own grep and by `functionBodyOf`, and proves
+  every caller now asks the fact its verb needs, with the classification printed per call site.
+- `npm run conformance:machines` and `npm run conformance:remoteclose` stay green; the second one is
+  what proves a session removed during a poll is still removed once.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.**
+- **The exec version gate, the confirm gate and the restore gate are not touched** (research 85
+  section 6 rows 11, 12, 13, load bearing).
+- **The control dialect gate and the greeting miss are not touched** (rows 9 and 10, in between).
+- **No new channel.** The 37 stay 37.
+- **Nothing here starts a process.** A refusal that clears itself is a read being attempted; it is
+  not a launch.
+
+## Phase 232 — one machine that does not answer does not cost the one that does (operator reported 2026-09-07)
+
+**Subject.** `fix(machines): sign in to confirmed machines side by side, and scope a failure to its own tab`
+
+**First body line.** `Phase 232: the boot and the bulkhead`
+
+**Semver.** PATCH.
+
+**Tier 3.** It changes the launch sign-in and adds a bounded retry that can start a tmux server on
+another machine. The gates, TWO independent methods one of which is an attack on the retry's
+bounds, a matrix over machine counts and states, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry, research 85 sections 4.2, 4.3, 4.4 and 6 item 2 with its refusal 8
+reasoning stated in full, and section 7 phase four.
+
+### What research 85 measured
+
+Four launches on one profile: with an unreachable machine first and the Mac Pro second, Source
+control's first row came at **19,789 ms and 19,777 ms**; with the Mac Pro alone, 510 ms and 1,280 ms.
+The cause is `signInToConfirmedMachines` at `src/main/sessions/core.ts:1063`, which walks the rows one
+at a time, each `prepareMachine` holding two version reads at `REMOTE_VERSION_TIMEOUT_MS = 10_000`
+(`src/main/machines/prepare.ts:89`). Its own comment says a fleet would otherwise open every
+connection at once. One unreachable machine draws `UnreachableBar` at
+`src/renderer/app/TerminalRegion.tsx:233` onward on EVERY tab, including the Mac Pro's and a local
+one, because nothing filters by the active tab's machine. And a sign-in that fails once at launch
+(`core.ts:1077`, `markMachineQuiet`) is never retried; the only control that reconnects is Prepare in
+Settings, and on a project tab there is none.
+
+### The mechanism, with the real files
+
+1. **Concurrent sign-in with a cap.** `signInToConfirmedMachines` runs `prepareMachine` for confirmed
+   rows with a concurrency of four, which is `CLAUDE.md`'s own probe ceiling and is more than any
+   fleet he has. A machine that has not answered no longer holds the first poll of the one that has.
+2. **The bar is scoped to the tab whose machine failed.** `UnreachableBar` draws on a project tab
+   only when that tab's machine is among the quiet ones, and on a local tab never for a remote
+   machine. The Phase 67 sentence is unchanged; only where it is drawn changes.
+3. **A bounded retry of the launch sign-in**, and its reasoning is stated here because it must be:
+   `prepareMachine` can boot a tmux server on that machine, so a retry does start a process. Phase
+   23 refusal 8 forbids a process starting on a configuration change alone. A retry of a launch
+   sign-in is NOT a configuration change: it is the same act the person authorised when they
+   confirmed the machine, which the launch already performs unprompted for that reason. The shape:
+   triggered by time (a backoff capped at five minutes) or by the machine becoming reachable (a
+   successful ssh to it for any other reason), NEVER by any file changing, and NEVER for a row whose
+   confirmation does not hold at that moment, re-read from disk. A round that cannot state it in those
+   terms does not build it.
+4. **A project tab can reconnect from where the failure is met.** The disabled-machine sentence on a
+   remote tab carries the one action Settings carries, being Prepare, with the same label.
+
+### Proof, run rather than read
+
+- **The app run**, against his Mac Pro under Phase 224's bounds, sockets unlinked in the `finally`:
+  two rows, the blackhole first and the Mac Pro second, timed from launch to Source control's first
+  row at the parent and at HEAD, which is the only honest proof a reported number is fixed; the bar
+  read off a local tab, the Mac Pro's tab and the blackhole's tab; the blackhole row's retry counted
+  and its backoff read from the log; the Prepare action pressed from the remote tab and the machine
+  coming up.
+- **Independent method one, the attack**: the verifier changes an execution-bearing field of the
+  blackhole row on disk WHILE the retry is armed and proves no retry fires afterwards; plants a
+  `machines.json` edit and proves the retry does not read it as a trigger; and drives the backoff
+  past its cap to prove it stops.
+- **Independent method two, the measurement at the parent**: the 19,789 ms reproduced at the parent
+  commit by the verifier's own launch, then HEAD, in one window each.
+- `npm run probe:controldeadline` stays green, because the greeting deadline is next to this.
+- A test pins the retry's three refusals and goes red on each.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.**
+- **`REMOTE_VERSION_TIMEOUT_MS` is not lowered.** Research 85 section 4.5's deadline race is the nits
+  round's, and it is a sentence rather than a number.
+- **No retry of anything but the launch sign-in Tortie already does.** Not a session, not a script,
+  not a write.
+- **The combined agent list from research 85 section 5.1 is NOT built**; the document recommends it
+  be queued at his word as a new surface, and it has not been.
+- **Nothing kills, signals or reconfigures any server on either machine.**
+
+## Phase 233 — the two halves: a commit's files on a remote history row, and move on a remote tree (operator asked 2026-09-07)
+
+**Subject.** `feat(machines): click a remote commit to see its files, and drag a file on a remote tree`
+
+**First body line.** `Phase 233: the two halves`
+
+**Semver.** MINOR. One new read script and one gesture.
+
+**Tier 3** for the move, because it writes on his machine; Tier 2 for the diff. The round tiers per
+item and does not promote itself.
+
+**Charter.** This entry, research 85 section 2 gaps 8 and 17, and section 7 phase five. Phases 228
+and 229 land first.
+
+### What research 85 measured
+
+Gap 17: the remote history graph, lanes, marks and Load 50 more all landed, but clicking a commit
+does nothing and `historyFilesElsewhere` at `src/renderer/scm/RemoteHistorySection.tsx:477` says the
+files one commit changed are not read. The Phase 107 entry's own evidence line asked for it. Gap 8:
+rename landed at `src/renderer/tree/tree-menu.ts:238`, and move did not: `use-tree-model.ts` refuses
+drag at the model for a remote tree, so a remote tree has no move gesture at all, while
+`entry-rename` on the far side already moves a path.
+
+### The mechanism, with the real files
+
+1. **One new read script**, `git-show-files` or similar, in `src/main/machines/remote-scripts.ts`,
+   answering the name-status list for one sha the way `readNameStatusChunk` in
+   `src/main/git/parse.ts` reads it locally, and the Pierre diff for one file of it under the 90,000
+   byte ceiling, refused above it with the same sentence the editor uses. `ALLOWED_WRITERS` does not
+   grow; this is a read.
+2. **A remote history row expands** the way the local one does, into its file list, and a file opens
+   a two-sided diff. `historyFilesElsewhere` is deleted.
+3. **Drag on a remote tree reaches `entry-rename`.** `use-tree-model.ts`'s remote refusal becomes a
+   capability check on `remoteWriteEntries`, and the drop composes the same rename call the menu
+   does, with the same refusals: exists, gone, denied, outside root.
+
+### Proof, run rather than read
+
+- **The app run**, against his Mac Pro under Phase 224's bounds, sockets unlinked in the `finally`:
+  click each of the fixture's three commits and read the file list off the DOM against `git show
+  --name-status` run by ssh; open one file's diff and read both sides; drag a file into a folder and
+  read the far side's tree; drag it outside the root and read the refusal with nothing moved.
+- **The independent method** is the verifier's own `git show` by ssh through `build/ssh-run.mjs` for
+  every sha, compared name for name and status for status.
+- `npm run conformance:machines` stays green and its script count moves from 25 to 26 with the new
+  id classified as a read.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.**
+- **No File history on a remote row and no history search.** Research 85 section 8 says those need a
+  far-side walk that does not exist and are not parity by threading an identity through.
+- **No duplicate**, the one that waits.
+- **Trash, reveal and discard stay absent.**
+- **The 90,000 byte ceiling stays.**
+
+## Phase 234 — Architecture on a machine (operator asked 2026-09-07)
+
+**Subject.** `feat(arch): the reading, the map and the contract for a folder on another machine`
+
+**First body line.** `Phase 234: Architecture on a machine`
+
+**Semver.** MINOR.
+
+**Tier 3.** New far-side channels. The gates, `npm run conformance:arch` and `conformance:reading`
+which must stay green and gain remote arms, TWO independent methods, and a fix round.
+
+**Charter.** This entry, research 85 section 2 new gap 1 and section 7 phase six. It is LAST in this
+group because it is the largest and because it is a view he did not name.
+
+### What research 85 measured
+
+Architecture draws one sentence on a remote tab and nothing else. `src/renderer/arch/ArchView.tsx:182`
+reads `localPathOf(target)`, which is null for a machine, so main is never asked. There is no
+architecture script among the 25 and `src/main/arch/` never names a machine id. On the local tab of
+the same fixture the view drew a full reading in 38 ms.
+
+### The mechanism, with the real files
+
+The checkers under `src/main/arch/` take an injected git seam and read files; both are things Tortie
+can do on a machine through the exec plane. This phase adds the read scripts the skeleton, the tree
+facts and the contract read need, in `remote-scripts.ts`, and a machine arm in `src/main/arch/map.ts`
+that composes the same `ArchLoad` from far-side answers. The reading, the sentence, the boxes and the
+promises are then the same code over the same shapes. `docs/arch/` on that machine is read through
+`machines:readFile`. The model slot, which spawns his confirmed agent, is LOCAL and is fed the
+far-side facts, because nothing spawns on the machine; that is stated on the face as the model's
+answer being about that folder, in one short label, and nowhere else.
+
+### Proof, run rather than read
+
+- **The app run**, against his Mac Pro under Phase 224's bounds, with a copy of a small real
+  repository as the far fixture: open Architecture on the remote tab, read the header, the model slot,
+  every row's sentence and the contract's place off the DOM, and compare row for row to the SAME
+  repository opened locally, which is the parity proof this whole group is for.
+- **Independent method one**: the verifier runs `conformance:reading`'s three fixtures through the
+  remote arm by ssh and pins the sentences byte for byte against the local pins.
+- **Independent method two, the attack**: a contract file on the far side carrying a hostile element,
+  proved never to reach a spawned argv on either machine, which is `conformance:arch`'s first claim
+  extended to the machine arm.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.**
+- **Nothing spawns on the machine.** The model slot runs here.
+- **Symbols stays as it is.** Research 85 says its revisit condition has been met and that the call is
+  his; it has not been made.
+- **Catch Me Up on a remote session is not built** (research 85 section 8).
+
+## Phase 235 — the remote nits round (from research 85, 2026-09-07)
+
+**Subject.** `fix(machines): five findings research 85 recorded, each at its own tier`
+
+**First body line.** `Phase 235: the remote nits`
+
+**Semver.** PATCH.
+
+**Tier 2 per item**, and the round refuses to promote itself. One app run drives every item.
+
+**Charter.** This entry and research 85 section 7's nits paragraph, sections 2 and 4.5.
+
+### The five, each with where it is
+
+1. **Reveal in Finder on a remote editor tab.** `tabMenuItems` in `src/renderer/editor/EditorTabs.tsx:30`
+   never reads `tab.remote`, so a right-click on a remote file tab offers an enabled Reveal over a
+   far-side path and `fs:reveal` opens Finder on this Mac; both homes are `/Users/gdc`, so a colliding
+   path reveals the wrong file. Reveal is absent for a remote tab, the way it is absent from the
+   Explorer menu, Recents and Context.
+2. **Copy Path on the same menu** drops the machine prefix the Explorer adds. It carries it.
+3. **The unreached-versus-unreadable sentence.** A machine at 192.0.2.1 is described as one whose
+   tmux would not report its version, because the real ssh took 10,011 ms against
+   `REMOTE_VERSION_TIMEOUT_MS = 10_000` and the child was killed before stderr was read. The phrase
+   table's unreached branch is reached by reading what stderr HAD said before the kill, or by the
+   timeout answering its own class; the number is not changed.
+4. **A row whose confirm hash moved says the machine did not answer.** Reproduced four times. The
+   project tab says the row needs confirming again and where, with one short sentence and the same
+   action Settings carries.
+5. **The disconnected new-session grid offers more than a connected one.** Connected, 10 of 14 tiles
+   are unavailable on a positive absence; disconnected, all 14 are offered. Disconnected offers what
+   was last known, or nothing, never more.
+
+### Proof, run rather than read
+
+- **The app run**, against his Mac Pro under Phase 224's bounds: each item driven once and read off
+  the DOM or the far side, and the blackhole row for items 3 and 4.
+- **The independent method** is the verifier reading the menus through `GMUX_SHOT_POPUP_PICK` rather
+  than the DOM, since these are native menus.
+- A test pins each item and goes red on ablation.
+
+### What is NOT in this phase
+
+- **No explanatory text in the machine settings or in any nav bar view just because the tab is on a
+  remote machine. A remote tab feels almost identical to a local one. A limit that is genuinely
+  different is a disabled action with at most one short label, never a paragraph, per the *Just
+  enough words* rule.**
+- **`REMOTE_VERSION_TIMEOUT_MS` is not changed.**
+- **Nothing from research 85 section 6's five in-between rows.**
+- **Image preview on a machine is not built** (section 8, bounded by the ceiling).
+- **Logins on a machine are not built** (section 2 new gap 10); it is a stated limit and his call.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -23676,3 +24274,4 @@ cycle rather than only the evening it was written.
 - 2026-09-07 Phase 226 FIX ROUND, the guarded write channel, three findings from the verifier's 38 hostile shapes and every one a clause in the shipping module. A NAMED PIPE at the path hung main for 5,002 ms, because `open(2)` of a FIFO with no writer blocks the calling thread; the read carries `O_NONBLOCK` now and the pipe is refused `io` in 0 ms. THE WINDOW AFTER THE HASH WAS 23.6 MS AT THE CAP AND NOT MICROSECONDS, and a real appender lost lines on 4 of 4 `wrote` answers inside it; the `lstat` in front of the rename now compares inode, size, mtime and ctime with the read's `fstat` and answers `raced`, on the staged copy too, so a regular file swapped in at the staged name is refused as a link was. And a `chmod a-w` file was replaced with `wrote`, because `rename` asks the directory and not the file; it answers `readOnly` now, a new word in the shared type. `conformance:redline-write` grew from 21 readings and 11 ablations to 28 and 15, every one red one clause at a time, the FIFO arm in a child of its own process group ended whole in a `finally`. The module header, research 86 and this file's CLAUDE.md paragraph say the measured number where they said the wrong one. NO version bump, NO tag, nothing under `src/renderer/editor` touched, `fs:writeFile` byte identical, the contract baseline unmoved from the builder's one line.
 - 2026-09-07, Phase 226 LANDED at `bff5450` at version 0.101.0 with NO bump and NO tag, the guarded write channel, SIX commits, being `b07c663`, `9f61ee9`, `820edd0`, `cbaec09`, `eef1cdf` and `bff5450`, pushed onto origin/main's tip `54a5e96` with no rebase needed because neither Phase 224 nor 225 had landed first. The channel `fs:writeGuarded` EXISTS AND NOTHING REACHES IT: no file under `src/renderer` names it, `fs:writeFile` is byte identical, and the contract baseline moved by exactly one line plus its count. It answers a word and never a throw, `wrote`, `stale` or `refused` with one of nine reasons, in this order: outside every open root, over the read cap by reading the file itself first, a stale digest, and a decode that produced a U+FFFD the bytes do not contain; no-follow, atomic replace under a temp name git ignores, and the rename-over's effect on a file watch stated for whoever adds the directory watch. `conformance:redline-write` reads 28 of 28 and 15 OF 15 ABLATIONS RED one clause each in about eighteen seconds under node alone, and `conformance:redline` rule 9 stays green because no redline file names the channel; narrowing it is Phase 227's. The committer re-ran the whole battery to logs, typecheck, build, 12,267 tests, smoke:t1, smoke:t3, gate:contract, both redline gates, all green, with the gmux socket holding the same thirteen sessions before and after and no process of its own left behind. Phase 227 wires the rewind to it.
 - 2026-09-07, Phase 224 LANDED at `36d1cd5` at version 0.101.0 as `docs/research/85-the-remote-gap.md`, no version change, no shipping code touched, `package.json` and the lockfile unmoved, no tag. **THE REMOTE WORK IS NOT HALF BUILT AND THAT IS THE FIRST THING HE SHOULD READ**: of research 57's twenty gaps, THIRTEEN SHIPPED WHOLE and two shipped half, being rename without move, since drag is refused at the model at `use-tree-model.ts:427`, and the history graph without the commit file diff the Phase 107 entry's own evidence line asked for; the catalogue is 25 scripts, 17 read and 8 write, against research 57's plan of exactly six new writes. **RESEARCH 57 CONTRADICTS ITSELF ABOUT SYMBOLS AND THE DOCUMENT DOES NOT RESOLVE IT IN ITS OWN FAVOUR**: its section 0 names four permanent refusals including Symbols while its section 8 table rules Symbols "not now, revisit after save" and counts 15 build, 2 not now and 3 never, so the reading taken is that THREE are permanent, being trash, reveal and discard, and that Symbols' own revisit condition was met when Phase 101 shipped save on 21 August. **HIS MACHINE CANNOT WRITE ANYTHING AND THAT IS THE WHOLE OF WHAT HE NAMED**: `machines.json` holds one row carrying no `writeRoot` and `config-confirmations.json` carries the two-line sheet with no third line naming a folder, so New file, New folder, Rename, Save, Stage, Unstage and Commit are all dark on the only machine he owns, Phases 101 to 104 having all shipped on 21 August and never been switched on for him; the control he can reach is a DEAD END, being two unavailable buttons whose tooltip reads "Tortie only reads files on Greg's Mac Pro" and names no door, while the sentence that does name the door sits behind the menu item those buttons disable, and turning it on is typing an absolute far-side path into a bare text field with no picker although `machines:listDir` already ships. `src/renderer/machines/editor.ts:45` says the save toast "also carries a button labelled Open settings" and `tab-io.ts:459` passes only `{sticky:true}`, which is this house's item-10 shape in the remote domain. **THE MACHINERY IS FAST AND EVERY REFUSAL IS HONEST**, measured over the real link on his Mac Pro with writes he authorised: putFile 156 ms, the same call again `stale` at 56, a new file 54, an outside path `outsideRoot` at 0 with nothing sent, makeDir 29 and `exists` at 27, rename 26, stage 88, unstage 82, searchContent 53, listTree 35, readBranch 72, readHistory 93, readContext 683, against this Mac's `git.status` 24 and `git.branches` 11. **EVERY COMMIT ON HIS MAC PRO FAILS** because git there has no global `user.name` or `user.email`, the Commit button is offered with nothing checked before the press, and git's raw "Author identity unknown" text is printed on the resting face. **THE FOUR CLUNKY VIEWS ARE EXPLORER, SEARCH, SOURCE CONTROL AND CONTEXT, SO HE IS EXACTLY RIGHT, AND THE FIFTH IS ABSENT RATHER THAN CLUNKY**: Architecture draws one sentence on a remote tab because `ArchView.tsx:182` takes `localPathOf` and there is no arch script among the 25 and no machine id anywhere under `src/main/arch/`. **THREE MEASURED CAUSES OF "NOT SMOOTH", RANKED**: nothing polls, a file appearing locally with no press in 513 ms and NEVER in 30 seconds remotely with the press showing it in 203; five of seven views carry no retry when a machine starts answering while Source control and Files carry the same eight lines, so a true sentence outlives its truth, which the Source control fix round already measured at 11.5 s; and ONE shared liveness boolean stands in front of all 21 far-side channels, derived from a `tmux list-sessions` poll none of them needs, so a wake or one slow poll takes Explorer, Search, Source control, Context and every write dark in the same frame. **ONE UNREACHABLE MACHINE COST THE MACHINE THAT ANSWERS 19,789 AND 19,777 ms AT LAUNCH** against 510 and 1,280 ms alone, because `signInToConfirmedMachines` is deliberately sequential, and one machine's failure bar is drawn on every other tab INCLUDING A LOCAL ONE, both of which are herdr's fourth 0.9.0 claim failing. **THE CHARTER'S OWN HYPOTHESIS IS REFUTED**: the version gates Phase 217 landed are no part of this, his `/usr/local/bin/tmux` reporting 3.7c and the running server 3.7b with `decideRemoteVersionGate` and `decideRemoteControlGate` both answering `measured` when RUN rather than read, and the far side holding a live `gmux-control` session created 27 August which only the control plane creates; and Tortie already degrades per action in a dozen places, so refuse-wholesale is ONE GATE rather than a posture and is the third cause and not the first. **THREE SENTENCES THE APP SAYS ARE NOT TRUE**: an unreachable machine is called one whose tmux version could not be read, from an 11 ms race between a measured 10,011 ms ssh and a 10,000 ms cap; a row whose confirm hash moved is called a machine that did not answer, reproduced four times, while it answers ssh in 210 ms; and a DISCONNECTED new-session grid offers every agent while a connected one correctly greys 10 of 14. THE RECOMMENDATION IS SIX PHASES with the two smallest first, being write access with a picker, a door-naming sentence and a git identity precheck, then the eight-line retry on the five stale views with the Explorer's decorations fed from the remote changes store, then the per-verb liveness answer, then the boot bulkhead with a bounded launch-sign-in retry stated so Phase 23 refusal 8 is untouched, then the two half-built gaps, then Architecture. NO REFUSAL WAS WIDENED and none was overturned; the combined agent list, which is the herdr claim Tortie is furthest from, is deliberately NOT queued and is his call. **SAFETY, COUNTED**: his far side held ONE session, `gmux-control` created 27 August, before and after every run, and exactly the two pre-existing tmux processes at the end; the five August sessions an older note names are GONE and that note is stale; every write went into one `~/tortie-p224-scratch-<pid>` per run, all removed in a `finally`, `ls -d /Users/gdc/tortie*` answering nothing; his `authorized_keys` there is unchanged at 88 bytes and there is no `known_hosts` on that machine; Tortie's own record file is 113 bytes and `~/.ssh/known_hosts` 2,215 bytes, both unmoved; the local `gmux` server held 13 sessions throughout and was only ever listed; `/Users/gdc/herdr` printed no `git status --porcelain` line before or after. TEN DEAD ZERO-BYTE TMUX SOCKET FILES WERE LEFT UNDER `/private/tmp/tmux-501` ON HIS MAC PRO, named `gmux-p224*`, because `tmux kill-server` does not unlink its socket and the drives' bounds forbade removing any path there outside their scratch repository; THE COMMITTER REMOVED THEM, eleven entries in that directory before and one after, being his own `gmux` socket, which that prefix cannot match, with `gmux-control` listed before and after and still attached, and a probe that starts a tmux server on another person's computer should unlink its own socket in the same `finally` that kills the server. THE COMMITTER'S ROUND also fixed the verifier's eight findings, all citation or category rather than conclusion, the load-bearing one being a line count of herdr that no span of its file produces and which is now gone rather than re-derived, and defined the "in between" refusal ruling the charter had asked as a binary.
+- 2026-09-07, Phases 228 to 235 QUEUED from research 85 and his instruction of 21:25 the same day, being that after 224 the gap is closed overnight and that no explanatory text goes into the machine settings or any nav bar view just because the tab is remote, a remote tab feeling almost identical to a local one. 228 the remote face just enough words, 229 write access on his machine with a folder picker and a commit precheck, 230 nothing stays stale, 231 the liveness gate per verb, 232 the boot and the bulkhead with the bounded sign-in retry stated against refusal 8, 233 the two halves, 234 Architecture on a machine, 235 the remote nits. Every entry carries his rule as a refusal in the same words and every app run inherits Phase 224's Mac Pro bounds exactly, plus one 224's committer found: a scratch tmux socket is unlinked in the finally that kills its server. 228 and 229 launch now beside 225; the rest fill slots in that order, 227 taking its slot when 225 lands.
