@@ -118,7 +118,16 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { functionBodyOf, stripComments } from './scan-source.mjs';
@@ -1128,6 +1137,127 @@ export async function applyRewind(ctx) {
     else fail(`9. the narrowed scanner misread "${plant.what}": ${JSON.stringify(findings)}`);
   }
   say(`9. the narrowed scanner behaved on ${String(behaved9)} of ${String(PLANTS.length)} planted redline sets`);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 227, item 8: six arms on the SHIPPING rewind.ts, one per loss research
+// 83 measured, each a pure computation over two strings through
+// build/redline-rewind-probe.mts. Every arm goes red under an ablation of its
+// clause: the gate copies the four value modules of the pure chain to a dotted
+// subdir of the editor, edits one clause of the copy's rewind.ts, and fails
+// unless that arm's reading moves. The copies are removed in a `finally`.
+// ---------------------------------------------------------------------------
+{
+  const CHAIN = ['rewind.ts', 'redline-document.ts', 'redline.ts', 'paths.ts'];
+  const EDITOR = 'src/renderer/editor';
+  const runRewindProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-rewind-probe.mts'],
+      { encoding: 'utf8', cwd: process.cwd(), maxBuffer: 32 * 1024 * 1024, env: { ...process.env, REWIND_DIR: dir } }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  // The six arms, each with the reading the shipping module must print and the
+  // one clause whose ablation must move it.
+  const ARMS = [
+    {
+      name: 'the stale draw (B.4d): re-derive at press time keeps the arrival',
+      key: 'staleDraw',
+      expect: (a) => a.outcome === 'write' && a.rewound === true && a.keptArrival === true,
+      from: 'composeRedlineDocument(input.baseline, input.fresh)',
+      to: 'composeRedlineDocument(input.baseline, input.baseline)'
+    },
+    {
+      name: 'the truncated read (E.7a), both shapes, refused before the compose',
+      key: 'truncated',
+      expect: (a) => a.exact === 'refused/fileTooLarge' && a.approx === 'refused/fileTooLarge',
+      from: "if (input.truncated) return 'fileTooLarge';",
+      to: "if (false) return 'fileTooLarge';"
+    },
+    {
+      name: 'the moved baseline generation (B.8a), refused before any read',
+      key: 'movedBaseline',
+      expect: (a) => a.plain === 'refused/baselineMoved' && a.first === 'refused/baselineMoved',
+      from: "if (input.drawnGeneration !== input.baselineGeneration) return 'baselineMoved';",
+      to: "if (false) return 'baselineMoved';"
+    },
+    {
+      name: 'the path outside every root (E.5), surfaced by the view',
+      key: 'outsideRoot',
+      expect: (a) => a.key === 'outsideRoot' && a.wroteKey === null,
+      from: "    case 'outside':\n      return 'outsideRoot';",
+      to: "    case 'outside':\n      return 'io';"
+    },
+    {
+      name: "the person's own insertion (A8a): rewinds AND undoes byte for byte",
+      key: 'ownInsertion',
+      expect: (a) => a.rewindOutcome === 'write' && a.gone === true && a.undoOutcome === 'write' && a.restored === true,
+      from: 'input.fresh.slice(0, loc) + pressed.ins + input.fresh.slice(loc + pressed.del.length)',
+      to: "input.fresh.slice(0, loc) + '' + input.fresh.slice(loc + pressed.del.length)"
+    },
+    {
+      name: 'the encoding round trip (E.7b), decodeLoss refused',
+      key: 'encoding',
+      expect: (a) => a.outcome === 'refused/decodeLoss' && a.clean === 'write',
+      from: "if (input.fresh.includes('\uFFFD')) return 'decodeLoss';",
+      to: "if (false) return 'decodeLoss';"
+    }
+  ];
+
+  const shipping = runRewindProbe(EDITOR);
+  if (shipping.error !== undefined) {
+    fail(`8. the rewind probe did not run: ${shipping.error}`);
+  } else {
+    for (const arm of ARMS) {
+      if (!arm.expect(shipping[arm.key])) {
+        fail(`8. the shipping rewind read the wrong thing for "${arm.name}": ${JSON.stringify(shipping[arm.key])}`);
+      }
+    }
+    // The ablations, one clause each, in a dotted subdir removed in a finally.
+    const prefix = `.p227-ablation-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    try {
+      for (const [i, arm] of ARMS.entries()) {
+        const dir = join(EDITOR, `${prefix}${String(i)}`);
+        mkdirSync(dir, { recursive: true });
+        made.push(dir);
+        for (const f of CHAIN) cpSync(join(EDITOR, f), join(dir, f));
+        const target = join(dir, 'rewind.ts');
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`8. the ablation for "${arm.name}" found nothing to edit in rewind.ts`);
+          continue;
+        }
+        writeFileSync(target, before.replace(arm.from, arm.to));
+        const ablated = runRewindProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(`8. the ablation for "${arm.name}" stopped the probe running (${ablated.error}), so it proves nothing`);
+          continue;
+        }
+        const moved = JSON.stringify(ablated[arm.key]) !== JSON.stringify(shipping[arm.key]);
+        if (moved) red += 1;
+        else fail(`8. the ablation for "${arm.name}" changed nothing this arm reads, so it cannot fail: ${JSON.stringify(ablated[arm.key])}`);
+      }
+      say(`8. six arms over the shipping rewind, and ${String(red)} of ${String(ARMS.length)} ablations moved their arm's reading`);
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      // A sweep, in case a name from an interrupted run is left.
+      for (const name of readdirSync(EDITOR)) {
+        if (name.startsWith(prefix) && existsSync(join(EDITOR, name))) {
+          rmSync(join(EDITOR, name), { recursive: true, force: true });
+        }
+      }
+    }
+  }
 }
 
 if (failures.length > 0) {
