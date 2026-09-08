@@ -24454,37 +24454,56 @@ between its own hash and its rename, and it writes through an unlink-then-exclus
   this warning necessary rather than what it replaces.
 - **No new channel**, so `docs/audits/contract-baseline.txt` does not move.
 
-## Phase 241 — right-click in the editor and reshape what is under the cursor (issue 17, Sean Johnson, 2026-09-08)
+## Phase 241 — a right-click menu on the editor, and reshape what is under the cursor (issue 17, Sean Johnson, and his Cursor comparison, 2026-09-08)
 
-**Subject.** `feat(editor): a native menu on the editor, and the reshapes an agent's output needs`
+**Subject.** `feat(editor): the editor gets its right-click menu, and the reshapes an agent's output needs`
 
-**First body line.** `Phase 241: reshape under the cursor`
+**First body line.** `Phase 241: right-click in the editor`
 
 **Semver.** MINOR.
 
-**Tier 2.** Pure text transformations over the Monaco model plus one native menu. The gates, ONE app
+**Tier 2.** One native menu plus pure text transformations over the Monaco model. The gates, ONE app
 run, and one independent method, being a round-trip property re-derived over a corpus the verifier
 assembles itself rather than the fixtures the builder wrote.
 
-**Charter.** This entry, [issue 17](https://github.com/gregce/tortie/issues/17), and his instruction
-of 2026-09-08: *"i think we should make it a dynamic right click action under your cursor (and also
-consider a handful of other built-ins for fast re-editing that can help, like pretty print for json
-or otherwise)."*
+**Charter.** This entry, [issue 17](https://github.com/gregce/tortie/issues/17), his instruction of
+2026-09-08 that the reshape be *"a dynamic right click action under your cursor"*, and his second
+instruction the same day with a photograph of Cursor's editor menu beside it: *"for the markdown
+table, we should probably have a right click menu in general, that allows you to use the capabilities
+monaco already supports and the dynamic stuff like in issue 17 that is queued… We should just support
+what we already do if possible."*
 
 ### What he said
 
 > I'd like a command to pretty print markdown tables (usually an extension in VSC land)
 
-### Two findings from the search, and they shape the phase
+### The ruling that shapes the whole phase
+
+**THE MENU IS THE PHASE AND THE RESHAPES ARE ROWS ON IT.** His photograph of Cursor shows fourteen
+rows in six groups, and the ones Tortie can honestly draw are the ones it ALREADY DOES. So this round
+adds no capability to reach a row with. Every row is either a Monaco action that is already compiled
+into the bundle, or a Tortie verb that already exists somewhere else in the product, or one of the
+reshapes below. **A row that needs a language server, a chat, a web host or a command palette is
+refused by name in this entry**, because those are exactly the rows in his photograph that Tortie
+does not have and building any of them is a phase of its own.
+
+### Three findings from the search, and they shape the phase
 
 **1. THERE IS NO RIGHT-CLICK MENU IN THE EDITOR AT ALL.** `src/renderer/editor/MonacoHost.tsx:105`
-sets `contextmenu: false` with the comment *"context menus are native-only in gmux (DESIGN §3)"*,
-and no native menu was ever put in its place. So the menu is the larger half of this phase, not the
-smaller. It is built the way every other menu in the product is, through the `ui:popupMenu` bridge
-that `src/renderer/tree/use-tree-menu.ts` and seven other call sites already use, and the UI rule
-that a phase adding a surface updates the native menus applies.
+sets `contextmenu: false` with the comment *"context menus are native-only in gmux (DESIGN §3)"*, and
+no native menu was ever put in its place. So the editor is the one surface in the product where a
+right click does nothing, while the tree, the terminal, the search results, the tabs, the sidebar and
+the split all answer one. That option STAYS false — Monaco's own menu is a DOM menu and DESIGN §3
+forbids it — and the phase puts a native menu in its place, through the `ui:popupMenu` bridge that
+`src/renderer/tree/tree-menu.ts`, `src/renderer/terminal/terminal-menu.ts` and
+`src/renderer/search/result-menu.ts` already compose against.
 
-**2. THE MARKDOWN TABLE LIBRARY IS ALREADY IN THE TREE.** `markdown-table` 3.0.4, MIT, *"Generate a
+**2. MONACO'S OWN ACTIONS ARE ALREADY THERE AND NEED NOTHING BUILT.** A row reaches one with
+`editor.trigger('gmux-menu', '<action id>', null)`, and every action named below is in the standalone
+build this product already ships, with no language server behind it. The menu is a native face on
+machinery that is compiled in.
+
+**3. THE MARKDOWN TABLE LIBRARY IS ALREADY IN THE TREE.** `markdown-table` 3.0.4, MIT, *"Generate a
 markdown (GFM) table"* — the one remark and prettier both use — is already installed as a transitive
 dependency of `remark-gfm` through `mdast-util-gfm` and `mdast-util-gfm-table`, all of which this
 product already ships for the markdown preview. It is promoted to a direct dependency rather than
@@ -24496,16 +24515,40 @@ Pierre, remark and shiki on exactly that basis.
 
 ### The mechanism, with the real files
 
-1. **A native context menu on the editor**, through `ui:popupMenu`, composed the way
-   `use-tree-menu.ts` composes the tree's. Its rows are the reshapes below, **each drawn only when
-   it applies to what is under the cursor**, which is his word *dynamic*: a table row appears only
-   with the caret inside a GFM table, a JSON row only in a JSON file or over a selection that parses
-   as JSON, and so on. A menu with nothing to offer draws the ordinary editor rows and no reshape
-   section. Selection beats caret: with a selection, the reshape applies to the selection.
+1. **A native context menu on the editor**, in one new module beside its siblings, composed the way
+   `tree-menu.ts` composes the tree's and reached from `MonacoHost.tsx`'s `onContextMenu`. The caret
+   moves to the click position first, the way every editor does, so *under the cursor* means what a
+   person expects. It carries FOUR groups, separated:
+
+   **Group A, the reshapes, and it is the only group that is dynamic.** Each row is drawn ONLY when
+   it applies to what is under the cursor, which is his word *dynamic*: the table row appears only
+   with the caret inside a GFM table, the JSON rows only in a JSON file or over a selection that
+   parses as JSON. **A menu with nothing to reshape draws no Group A and no separator for it** — an
+   empty section or a greyed row would be the "tons of words" failure in menu form. Selection beats
+   caret: with a selection, the reshape applies to the selection.
+
+   **Group B, the Monaco actions Tortie already has.** All by `trigger`, all compiled in, none
+   needing a language server: Cut, Copy, Paste (`editor.action.clipboardCutAction`,
+   `…CopyAction`, `…PasteAction`), Select All, Undo, Redo, Find (`actions.find`), Change All
+   Occurrences (`editor.action.changeAll`), Go to Line (`editor.action.gotoLine`), and Fold /
+   Unfold (`editor.fold`, `editor.unfold`). **The round re-derives which of these actually exist in
+   the shipped standalone build by asking `editor.getSupportedActions()` at runtime rather than by
+   reading a docs page**, and drops any that is not there, and says which in the commit body.
+
+   **Group C, the Tortie verbs that already exist elsewhere**, reached through their existing call
+   sites and never re-implemented: **History** for this file, which is `revealFileHistory()` at
+   `src/renderer/tree/use-tree-menu.ts:235` and is Phase 198's walk; **Copy Path** and **Copy
+   Relative Path**, which `tree-menu.ts:295` and `:300` and `result-menu.ts:111` and `:113` already
+   compose; **Save**, which the File menu already draws at `src/main/menu.ts` and which Phase 240
+   is making guarded; and **Reveal in Explorer**, if a reveal already exists to call — the round
+   READS for it and drops the row rather than building one.
+
+   **Group D is the Cursor rows Tortie does not have, and it is empty on purpose.** See the refusals.
+
 2. **Format the markdown table under the cursor**, through `markdown-table`, promoted to a direct
    dependency. Find the table's bounds from the caret, parse with the mdast utilities, re-serialise
    with alignment preserved, replace that range through `pushEditOperations` so ⌘Z undoes it in one.
-3. **THE REST OF THE LIST IS EARNED OR DROPPED, and the round says which by the Zen's own test**, being
+3. **THE RESHAPE LIST IS EARNED OR DROPPED, and the round says which by the Zen's own test**, being
    *does this serve the agentic-coding workflow, or does it exist because IDEs have it?* The
    candidates, priced honestly rather than assumed:
    - **Pretty-print JSON**, which he named. `JSON.parse` and `JSON.stringify(x, null, 2)`, no
@@ -24525,14 +24568,21 @@ Pierre, remark and shiki on exactly that basis.
 4. **Every reshape is a pure function** in one module under `src/renderer/editor/`, taking text and
    answering text or null, with the menu and the model edit as thin callers, so the property below is
    testable without an Electron.
+5. **The redline is not an ordinary editor and the round decides what the menu does there.** Since
+   Phase 237 the redline document is `contenteditable` and Phase 227 gave it its own keyboard verbs.
+   The round says, before it builds, whether the editor menu appears over the redline at all; the
+   entry's expectation is that it does NOT, and that the redline keeps its own controls, because a
+   reshape rewrites bytes the redline is drawn against and a rewind is not an undo.
 
 ### Proof, run rather than read
 
-- **The app run**, one Electron on a scratch profile: right-click inside a table and read the menu
-  through `GMUX_SHOT_POPUP_PICK`, press the row, read the model; right-click in ordinary prose and
-  prove no table row is offered; right-click in a JSON file and read the JSON rows; select a JSON
-  fragment inside a markdown fence and prove the selection wins; press ⌘Z once and prove the whole
-  reshape undoes in one step.
+- **The app run**, one Electron on a scratch profile: right-click inside a table and read the whole
+  menu through `GMUX_SHOT_POPUP_PICK`, press the table row, read the model; right-click in ordinary
+  prose and prove no Group A and no stray separator; right-click in a JSON file and read the JSON
+  rows; select a JSON fragment inside a markdown fence and prove the selection wins; press Copy from
+  the menu with a selection and read the pasteboard, putting the person's own pasteboard back in a
+  `finally`; press Change All Occurrences and read the model; press History and read the walk's rows;
+  press ⌘Z once and prove the whole reshape undoes in one step.
 - **The independent method** is a ROUND-TRIP PROPERTY over a corpus the verifier assembles itself
   from the markdown files in this repository rather than from the builder's fixtures: for every GFM
   table found, formatting it twice equals formatting it once, and re-parsing the formatted table
@@ -24540,18 +24590,32 @@ Pierre, remark and shiki on exactly that basis.
   finding, and the count of tables tested is printed. Add a hostile set of its own: a table with pipes
   inside code spans, escaped pipes, a CJK-width cell, a combining mark, a right-to-left run, an empty
   cell, a ragged row, and one that is not a table at all.
+- **A second independent reading**: every Monaco action id the menu names is asked of the LIVE editor
+  through `getSupportedActions()` in the app run, so a row that would do nothing when pressed is a
+  finding rather than a row. A menu that names an action the build does not carry is the exact defect
+  a docs page cannot catch.
 - A test pins the menu's dynamic rows over at least six caret positions and goes red on ablation.
 - `npm run gate:contract` shows no channel moved; `package.json` gains one dependency line already
   present in the lockfile, and the commit body says so.
 
 ### What is NOT in this phase
 
-- **No Monaco context menu.** `contextmenu: false` stays; the menu is native, per DESIGN §3.
+- **Monaco's own DOM context menu stays off.** `contextmenu: false` does not move; the menu is
+  native, per DESIGN §3, and every row goes through `ui:popupMenu`.
+- **None of the Cursor rows that need machinery Tortie does not have.** Named so a later round does
+  not quietly add one: no *Add Symbol to Chat* and no *Add Symbol to New Chat*, because Tortie has no
+  chat and an agent is a terminal session; no *Create Rule*; no *Refactor…* and no *Go to
+  Definition*, because both need a language server and the scope guardrail refuses LSP by name; no
+  *Open on Remote (Web)* and no *Share*, because neither has a host to point at; no *Copy As*
+  submenu; and **no Command Palette**, because this product has no command palette and building one
+  is a phase of its own rather than a row on a menu.
 - **No formatter for source code, no LSP, no prettier.** The scope guardrail names language servers
   and structural tooling as refused, and a general code formatter is that.
 - **No format-on-save and no format-the-whole-document by default.** Under the cursor, or over the
   selection, and nothing else.
 - **No new IPC channel**; the popup menu bridge already exists.
+- **No new capability behind any Group B or Group C row.** If the verb does not already exist in the
+  tree, the row is dropped rather than built.
 - **No reshape that cannot be undone in one ⌘Z.**
 - **No line-tidying furniture** unless the round can justify it against the Zen's test, and the entry
   expects it to be refused.
@@ -25033,3 +25097,4 @@ cycle rather than only the evening it was written.
 - 2026-09-08, Phases 240 and 241 QUEUED from Sean Johnson's issues 16 and 17, both filed the same day, read and confirmed against the tree rather than taken on their word. 240 is the guarded save: `save` at `src/renderer/editor/tab-io.ts:693` is a bare `fs.writeFile` with no precondition of any kind, and the window is opened deliberately, because `refreshRepo` skips a dirty tab so a person's typing is never clobbered, which means an agent's writes stop arriving from the first keystroke and Cmd-S lands on top of them silently; the fix is already built and pointed elsewhere, being Phase 226's `fs:writeGuarded`, which answers `stale` as a word rather than a throw, so this phase points `save` at it and turns `stale` into the three-way choice he named VS Code for, with overwrite NOT the default and Compare opening the diff Tortie already draws. 241 is the reshape menu, and the search found two things that shaped it: THERE IS NO RIGHT-CLICK MENU IN THE EDITOR AT ALL, since `MonacoHost.tsx:105` sets `contextmenu: false` for DESIGN section 3 and nothing native was ever put in its place, so the menu is the larger half; and `markdown-table` 3.0.4 MIT, the library remark and prettier both use, is ALREADY in the tree as a transitive dependency of `remark-gfm`, so it is promoted rather than installed. His word was that the rows be dynamic under the cursor, and the entry makes the round PRICE the other reshapes against the Zen's own test rather than shipping a list of eight nobody asked for: the JSON pair passes, YAML is priced against losing comments, and sort, unique, trim and case are expected to be refused as IDE furniture by the guardrail's own example list.
 - 2026-09-08, Phase 237 MEASURE STEP ran and the choice is made: OPTION B, the redline document itself made `contenteditable`, and the number that chose is ZERO. Research 83 D.7 left exactly one thing unpriced, being a redraw of the document under a live caret, and the charter's rule was that B is built if the redraw restores the caret and the selection exactly. It does, in 8 readings out of 8, with an offset error of 0 characters: four outside-write shapes (before the caret, after it, inside the very run it is in, and that run deleted whole), each driven with a collapsed caret mid-word and with a selection spanning TWO deletion islands, every one with both projections exact afterwards, the focus kept, the drawn selection text byte for byte what it was, and the caret still inside the same word at `"ps its inden|tation"`; with nothing restored the same rebuild leaves the caret 227 to 474 characters away, anchored on the document element itself rather than in any text. The same redraw turns out to BE the typing mechanism, because a keystroke is an outside write the person made: cancel the `beforeinput`, fold the character into the current side, compose with the shipping composer against the same baseline, redraw, restore, which reads current side exact, baseline delta 0, the typed text one `<ins>` inside a change wrapper, caret 468 of an expected 468, 0 divs and 0 brs, and costs 7.5 ms worst on a 50,000 character document, 4.6 ms at 20,000 and 1.8 ms at 5,000. Research 83 D.2's own policy of inserting the view's own `<ins>` was driven on the Phase 227 markup and leaves the typed characters in three loose `<ins>` elements OUTSIDE every change wrapper with Enter doing nothing, so the recompose is the one to build. Three corrections and one new rule came out of it: under `plaintext-only` a real Enter reports `insertLineBreak` and NOT the `insertParagraph` D.2 recorded under `contenteditable=true`, so a phase handling only the latter silently refuses Enter; `beforeinput` for a composition commit is `insertCompositionText` and is NOT CANCELABLE, which is the one door no `preventDefault` closes; and a redraw landing mid-composition breaks the composition and puts the committed `日本` in a plain span, taking the baseline projection out by two characters, while HOLDING the write until `compositionend` and folding it with the committed text into one current side leaves the composition uninterrupted, the Japanese inside an `<ins>` inside a change, and both projections exact. Option A's blocker re-derived at 26.7 percent EXACTLY, 4 of 15 deleted runs over the same ten real pairs, and the per-line split was driven in a real Monaco: it removes both `␊` glyphs and draws the deleted paragraph's line breaks NOWHERE, three removed lines running together as `stands still.Yellow lorry moves fast.Green lorry `, because injected text attaches to a position in the model and the deleted lines are not in the model. The reload path both options owed is measured rather than read: `model.setValue` moves the caret from 5:7 to 1:1 and leaves ⌘Z nothing, `pushEditOperations` keeps the caret at 5:7 and gives the undo back, and it needs `pushStackElement()` in front of it or one ⌘Z reverts the person's own typing with the agent's write. Written to docs/research/97-phase-237-starting-measurements.md with the harness beside it at `.p237/`; `refreshRepo`'s dirty guard is at `tab-io.ts:752` in this tree and not the 616 research 83 quotes, and `conformance:redline`'s rule 5 is a timing rule that read 438 ms beside a build and 165 ms on a quiet machine.
 - 2026-09-08, Phase 237 LANDED at `53c9cbf` at version 0.101.0 with NO bump and NO tag, TYPING IN THE REDLINE, which reverses his ruling of 2026-09-07 and the reversal is his, NINE commits from the measure step `c47331c` through `b47c296`, `58aa215`, `8841e12`, `f124712`, `4f1b03f`, `24cd82f` and `227f078` to the committer's `53c9cbf`, rebased onto origin/main's tip `24d611e` after Phase 234 landed under it, the one conflict being this log where both sets of lines were kept in date order and the electron teardown floor where both raises were kept, and the full battery re-run on the rebased tree and green. **OPTION B WAS BUILT AND THE NUMBER THAT CHOSE IT IS ZERO.** Research 83 D.4 drove both ways with real keys and left exactly one thing unpriced, being a redraw of the document under a live caret, and the charter's rule was that B is built if the redraw can put the caret and the selection back: the measure step read EIGHT restorations out of eight with an anchor error and a focus error of ZERO characters against a mapping re-derived by a character diff, both projections exact afterwards, so the redline is the document itself now, `contenteditable="plaintext-only"` with every deletion `contenteditable="false"` so a caret steps over a deletion in ONE press rather than four. Option A's blocker held at 26.7 percent exactly, being deleted runs carrying a line break that injected text cannot draw. THE REDRAW IS THE TYPING MECHANISM, which is what the measure step found: a keystroke is an outside write the person made, so both go one way, being fold into the current side, compose with the SHIPPING composer against the SAME baseline, redraw, and put the caret back through the common prefix and suffix. Typing moves no baseline and no generation, which rule 17a makes structural by scanning the three typing files for a baseline advance rather than promising it. Two corrections research 83 D.2 needed: Enter under `plaintext-only` reports `insertLineBreak` and not `insertParagraph`, so a phase written to D.2 alone would have refused Enter in silence, and `insertCompositionText` is NOT cancelable, so an outside write is HELD while a composition is open and folded in at `compositionend`. THE ATTACK IS TWELVE ARMS ACROSS THREE APP RUNS AND NOT ONE OF THE PERSON'S BYTES WAS LOST: mid-word, between a keystroke and its save with no pause, inside a Japanese IME composition where the held write and the committed 日本 folded into one current side with both projections exact, during a rewind press, two writes in one frame, a write removing the run the caret is in, a whole-file replacement with the baseline still the committed bytes, the race between the first keystroke and the moment monaco's model exists, and four rewind arms of which R1 and R2 refused the chord with the dirty sentence in the window the verifier predicted was open. The traps were re-derived against a PLANTED PARENT, being a naive contenteditable cloned from the live document with our `contenteditable="false"` stripped off, because at the real parent the redline is not editable and the traps do not exist to read: a caret crossed a 17 character deletion in 12 presses on the plant and ONE at HEAD, typing at the right edge of a deletion put a character into the BASELINE on the plant and moved it by 0 at HEAD, Enter made a `<div>` and no newline on the plant against 0 divs, 0 brs and one newline at HEAD, and a rich `DataTransfer` through `Input.dispatchDragEvent` added 30 characters and a rich element to the baseline on the plant against 0 and 0 with exactly its 28 plain characters landing at HEAD. **THE ONE LIMIT SAID OUT LOUD RATHER THAN LEFT TO BE FOUND**: Cmd-S over a redline with unsaved typing writes the buffer and the agent's arrival is gone with nothing said, because `save` in tab-io.ts has no `expect` and only the remote door has one; the same sequence loses it in File mode too, so it is the tab's oldest behaviour rather than anything typing introduced, and Phase 240, queued the same day from Sean Johnson's issue 16, is the door that fixes it. Battery on the rebased tree: typecheck, build with the contract inventory byte for byte and `HELPER_USER_FLOOR` 92 to 95 for the verifier's three attack probes kept in the tree, 12,886 tests over 812 files, smoke:t1 6 of 6, smoke:t3 3 of 3, `conformance:redline` every rule with 17a at 4 of 4 scanner fixtures and 17b at 6 of 6 ablations, `probe:p237` at 33 of 33, `probe:p194` at 24 of 24 and `probe:p167`'s redline surface plateauing with typing under itself. His `-L gmux` held 17 sessions before and 17 after every one of the runs, read and never attached, and no Electron of this worktree was left anywhere.
+- 2026-09-08, Phase 241 entry rewritten at his word, the editor gets a right-click menu carrying what Monaco and Tortie already do, with the reshapes as its dynamic group
