@@ -13,6 +13,7 @@
  * HEAD-model registry went with the Monaco diff editor.)
  */
 
+import { rangeEditFor } from './text-edit';
 import type { Monaco } from './monaco-impl';
 import type * as monacoNs from 'monaco-editor';
 
@@ -131,12 +132,64 @@ export function getWorkingModel(
   return model !== undefined && !model.isDisposed() ? model : null;
 }
 
-/** Replace the working model's text in place (external reload, not dirty). */
+/**
+ * Apply `contents` to a live model as ONE range replacement, keeping the undo
+ * stack and the caret (Phase 237, research 97 §5).
+ *
+ * `pushEditOperations` is monaco's own preferred door — `editor.api.d.ts:2352`
+ * says "the edit operations will land on the undo stack", and `:2367` warns
+ * that `applyEdits` "can have dire consequences" on it, so `applyEdits` is not
+ * the door. The range is ./text-edit's common prefix and common suffix, which
+ * is one range whatever the write did.
+ *
+ * `closeUndoGroup` is the second half and it is not optional for a reload:
+ * measured in a real monaco with a real ⌘Z, without `pushStackElement()` in
+ * front of it the outside write merges into the edit element the person was
+ * building and one ⌘Z reverts their own typing along with the agent's write.
+ * A person's own keystroke passes `false`, so a word typed in one go is one
+ * undo step rather than one per character.
+ */
+export function applyModelText(
+  model: monacoNs.editor.ITextModel,
+  contents: string,
+  closeUndoGroup: boolean
+): boolean {
+  const edit = rangeEditFor(model.getValue(), contents);
+  if (edit === null) return false;
+  if (closeUndoGroup) model.pushStackElement();
+  const start = model.getPositionAt(edit.start);
+  const end = model.getPositionAt(edit.end);
+  model.pushEditOperations(
+    null,
+    [
+      {
+        range: {
+          startLineNumber: start.lineNumber,
+          startColumn: start.column,
+          endLineNumber: end.lineNumber,
+          endColumn: end.column
+        },
+        text: edit.text
+      }
+    ],
+    () => null
+  );
+  return true;
+}
+
+/**
+ * Replace the working model's text in place (external reload, not dirty).
+ *
+ * PHASE 237. It called `model.setValue`, and `setValue` reaches
+ * `textModel.js:342-343`'s `this._commandManager.clear()` in the installed
+ * 0.56.0, so a file changing under a resting caret destroyed the undo stack
+ * and moved the caret to 1:1. It is an EDIT now, through `applyModelText`
+ * above, so ⌘Z still reaches back past the agent's write and the caret stays
+ * where it was in text that did not move.
+ */
 export function resetWorkingModel(key: string, contents: string): void {
   const model = getWorkingModel(key);
-  if (model !== null && model.getValue() !== contents) {
-    model.setValue(contents);
-  }
+  if (model !== null) applyModelText(model, contents, true);
 }
 
 /** Dispose the working model for a closed tab. */
