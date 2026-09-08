@@ -35,7 +35,7 @@ import {
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
 import {
-  remoteEntryWritesOff,
+  remoteEntryWritesOffLabel,
   remoteTreeCanWrite,
   remoteTreeDenied,
   remoteTreeMissingBody,
@@ -156,10 +156,12 @@ export function FilesSection({
       // PHASE 229. With no folder confirmed, the note is the sentence that
       // names the door, being the same one the disabled New file and New
       // folder buttons carry, so a person who meets the short menu is told
-      // where saving is turned on rather than told that Tortie only reads.
+      // where saving is turned on rather than told that Tortie only reads. It
+      // is the label form, read before any action, so it does not say that
+      // nothing was changed.
       readOnlyNote:
         writeRoot === null
-          ? remoteEntryWritesOff(label)
+          ? remoteEntryWritesOffLabel(label)
           : remoteTreeCanWrite(writeRoot, label)
     };
   }, [target, machineStates]);

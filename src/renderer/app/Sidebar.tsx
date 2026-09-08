@@ -81,7 +81,7 @@ import { Codicon } from '../icons';
 // drawn here as a 36px row while the projects are on the left, and only
 // one of the two is ever on screen.
 import { ActivityBar } from './ActivityBar';
-import { remoteEntryWritesOff } from '../machines/explorer';
+import { remoteEntryWritesOffLabel } from '../machines/explorer';
 import { REMOTE_BAND_BODY, remoteBandTitle } from '../machines/project-tab';
 import './machine-band.css';
 
@@ -227,7 +227,7 @@ function ExplorerHeader(): React.JSX.Element {
         title={
           machineLabel === null || machine?.writeRoot !== null
             ? 'New file'
-            : remoteEntryWritesOff(machineLabel)
+            : remoteEntryWritesOffLabel(machineLabel)
         }
         disabled={!canCreateFile}
         onClick={() => create('file')}
@@ -241,7 +241,7 @@ function ExplorerHeader(): React.JSX.Element {
         title={
           machineLabel === null || machine?.writeRoot !== null
             ? 'New folder'
-            : remoteEntryWritesOff(machineLabel)
+            : remoteEntryWritesOffLabel(machineLabel)
         }
         disabled={!canCreateFolder}
         onClick={() => create('dir')}

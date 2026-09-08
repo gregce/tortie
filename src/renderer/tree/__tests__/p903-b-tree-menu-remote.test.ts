@@ -36,7 +36,7 @@ import {
  */
 const NOTE =
   'Tortie cannot change anything on mac-pro. Open Settings, then Machines, ' +
-  'then mac-pro, and let Tortie save files there. Nothing was changed.';
+  'then mac-pro, and let Tortie save files there.';
 /** PHASE 102. What the same row's note says when writing is on. */
 const CAN_WRITE =
   'Tortie reads files on mac-pro and can change what is under /Users/gdc. ' +

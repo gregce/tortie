@@ -150,19 +150,35 @@ export function remoteRenameAlreadyDone(label: string): string {
 }
 
 /**
- * Nobody has let Tortie change anything on that machine.
+ * Nobody has let Tortie change anything on that machine, said BEFORE any
+ * action, as the title of a control that is not pressable (Phase 229).
  *
  * It names the three steps to the one surface that turns saving on, because a
- * person who meets this has no other way to find it. It ends by saying that
- * nothing was changed, which is true of every path that reaches it: main
- * answers this before it composes anything and before it sends anything.
+ * person who meets this has no other way to find it. It does NOT say that
+ * nothing was changed, because nothing was attempted: this is the hover title
+ * of the disabled New file and New folder buttons and the note on the short
+ * tree menu, read before a press rather than after one. The Phase 229
+ * verifier read that trailer on the disabled buttons and called it a sentence
+ * about an action nobody had taken.
  */
-export function remoteEntryWritesOff(label: string): string {
+export function remoteEntryWritesOffLabel(label: string): string {
   return (
     `Tortie cannot change anything on ${label}. Open Settings, then ` +
-    `Machines, then ${label}, and let Tortie save files there. Nothing was ` +
-    `changed.`
+    `Machines, then ${label}, and let Tortie save files there.`
   );
+}
+
+/**
+ * Nobody has let Tortie change anything on that machine, said AFTER an action
+ * main refused.
+ *
+ * It is the label above with one more sentence, saying that nothing was
+ * changed, which is true of every path that reaches it: main answers this
+ * before it composes anything and before it sends anything. It is composed
+ * from the label rather than written twice so the two cannot drift.
+ */
+export function remoteEntryWritesOff(label: string): string {
+  return `${remoteEntryWritesOffLabel(label)} Nothing was changed.`;
 }
 
 /**

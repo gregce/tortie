@@ -72,6 +72,7 @@ import {
   remoteEntryLostAnswer,
   remoteEntryOutsideRoot,
   remoteEntryWritesOff,
+  remoteEntryWritesOffLabel,
   remoteParentGone,
   remoteRenameAlreadyDone,
   remoteTreeCanWrite,
@@ -581,6 +582,20 @@ describe('making a folder and renaming an entry on a machine', () => {
     );
   });
 
+  it('carries no trailer on a control nobody has pressed yet (Phase 229)', () => {
+    // The disabled New file and New folder buttons and the short menu's note
+    // are read BEFORE any action, so the sentence about what an action
+    // changed is not on them. The refusal after an action is the label plus
+    // that one sentence, composed from it so the two cannot drift.
+    const label = remoteEntryWritesOffLabel(L);
+    expect(label).toBe(
+      'Tortie cannot change anything on Studio. Open Settings, then Machines, ' +
+        'then Studio, and let Tortie save files there.'
+    );
+    expect(label).not.toContain('Nothing was');
+    expect(remoteEntryWritesOff(L)).toBe(`${label} Nothing was changed.`);
+  });
+
   it('names the confirmed folder when a path falls outside it', () => {
     expect(remoteEntryOutsideRoot(R, L)).toBe(
       'Tortie may only change what is under /home/greg on Studio, and that ' +
@@ -830,6 +845,7 @@ const EVERY: readonly string[] = [
   remoteEntryGone('README.md', L),
   remoteRenameAlreadyDone(L),
   remoteEntryWritesOff(L),
+  remoteEntryWritesOffLabel(L),
   remoteEntryOutsideRoot(R, L),
   remoteEntryLostAnswer(L),
   addRemoteRefusal('missing', P, L),
