@@ -389,8 +389,11 @@ while the file exists. The charter's requirement, "a name `git status` will not 
 commit", is therefore met by the file NOT EXISTING when anyone looks, plus a name that reads as
 alien if it is ever seen, and not by a name git overlooks. Three things buy that:
 
-1. **Lifetime.** The temp exists for one `write` + one `rename`, microseconds, and only a crash
-   between them leaves it. The next write to the same file unlinks it (nofollow.ts's line 76
+1. **Lifetime.** The temp exists for one `write` + one `rename`, and only a crash between them
+   leaves it. THIS SENTENCE FIRST SAID "MICROSECONDS" AND THE PHASE 226 VERIFIER MEASURED IT:
+   the whole call is 23.6 ms for a file at the cap, and the window from the hash to the rename is
+   the time to write the payload, which is why the channel compares the target's inode, size,
+   mtime and ctime in front of the rename rather than trusting the width. The next write to the same file unlinks it (nofollow.ts's line 76
    shape) before staging again, which is the charter's "cleaned on the next write".
 2. **A DETERMINISTIC name per target**, so "the next write" can find the leftover without a
    directory scan. That rules out durable/write.ts's random suffix, whose leftovers are only
