@@ -36,9 +36,24 @@ export const ARCH_VIEW_TITLE = 'Architecture';
 export const ARCH_NO_BRIDGE =
   'This build cannot read a contract. Everything else in Tortie works as it always did.';
 
-/** A project that is not a folder on this computer. */
-export const ARCH_ELSEWHERE =
-  'A contract is read on the computer its repository is on, and this build cannot ask that computer anything.';
+/**
+ * PHASE 228 DELETED `ARCH_ELSEWHERE`. It was the one sentence this view drew
+ * on a tab whose folder is on a machine, "A contract is read on the computer
+ * its repository is on, and this build cannot ask that computer anything.",
+ * 19 words of standing prose with no equivalent on a local tab. The
+ * operator's rule of 2026-09-07 takes it off: on a machine the view draws
+ * nothing, and the one genuinely different limit is the disabled Open the map
+ * control with the label below as its hover title, until Phase 234 reads
+ * a repository on a machine.
+ */
+
+/**
+ * The disabled Open the map control's hover title on a tab whose folder is
+ * on a machine. A label rather than a sentence, in the shape of the three
+ * search filter titles, and true where "This build cannot draw the map" was
+ * not, because the build can and the folder is elsewhere.
+ */
+export const ARCH_MAP_ON_THIS_MAC = 'The map works on this Mac only';
 
 /**
  * PHASE 160, the map's own sentences.

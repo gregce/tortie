@@ -238,3 +238,35 @@ describe('the copy directory no longer exports a sentence that came off', () => 
     });
   }
 });
+
+/**
+ * A sentence that came off from OUTSIDE the copy directory. The Architecture
+ * view keeps its own sentences in src/renderer/arch/copy.ts, and the fix
+ * round took its one remote sentence off the face: "A contract is read on the
+ * computer its repository is on, and this build cannot ask that computer
+ * anything." The view draws nothing on a machine and the disabled Open the
+ * map control carries a label of a few words as its hover title.
+ */
+const OFF_ELSEWHERE: readonly { name: string; file: string; words: string }[] = [
+  {
+    name: 'ARCH_ELSEWHERE',
+    file: 'arch/copy.ts',
+    words: 'cannot ask that computer anything'
+  }
+];
+
+describe('a sentence that came off from outside the copy directory', () => {
+  for (const one of OFF_ELSEWHERE) {
+    it(`${one.name} from ${one.file} is neither exported nor drawn`, () => {
+      const home = resolve(RENDERER, one.file);
+      const source = readFileSync(home, 'utf8');
+      expect(source).not.toMatch(new RegExp(`export (function|const) ${one.name}\\b`));
+      expect(withoutComments(source)).not.toContain(one.words);
+      const importers = COMPONENTS.filter(
+        (path) =>
+          path !== home && namesIdentifier(readFileSync(path, 'utf8'), one.name)
+      ).map((path) => relative(ROOT, path));
+      expect(importers).toEqual([]);
+    });
+  }
+});

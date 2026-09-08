@@ -81,7 +81,6 @@ import {
 } from './ArchVerdicts';
 import type { ScopedView } from './ArchVerdicts';
 import {
-  ARCH_ELSEWHERE,
   ARCH_LAST_VALID,
   ARCH_NO_BRIDGE,
   ARCH_SCOPED_LOADING,
@@ -150,7 +149,7 @@ export function focusedComponentId(selected: readonly string[]): string | null {
 // The view
 // ---------------------------------------------------------------------------
 
-export function ArchView(): React.JSX.Element {
+export function ArchView(): React.JSX.Element | null {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const status = useArch((s) => s.status);
@@ -201,8 +200,14 @@ export function ArchView(): React.JSX.Element {
   if (status === 'unavailable') {
     return <ArchNote text={ARCH_NO_BRIDGE} />;
   }
+  // PHASE 228. A folder on a machine draws NOTHING here, the way a section
+  // that is not there is not drawn. Until this phase the view drew one 19
+  // word sentence about the computer it cannot ask, and the local face draws
+  // no such paragraph. The limit lives on the header's disabled Open the map
+  // control as a short hover title, until Phase 234 reads a repository on a
+  // machine.
   if (status === 'elsewhere') {
-    return <ArchNote text={ARCH_ELSEWHERE} />;
+    return null;
   }
   if (status === 'error' && error !== null) {
     return <ArchNote text={error} />;

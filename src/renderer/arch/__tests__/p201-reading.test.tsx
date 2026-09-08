@@ -152,6 +152,7 @@ describe('the header', () => {
       createElement(ArchHeaderFace, {
         progressLabel: null,
         canDraw: true,
+        onMachine: false,
         canCheck: true,
         onMap: vi.fn(),
         onCheck: vi.fn()
@@ -166,5 +167,41 @@ describe('the header', () => {
     expect(html).toContain(`title="${ARCH_CHECK_BODY}"`);
     // The band carries no words beside its title and no count.
     expect(html).not.toContain('>Open the map<');
+  });
+});
+
+describe('the header on a tab whose folder is on a machine (Phase 228)', () => {
+  it('disables the map with one short label, and never says the build cannot draw', async () => {
+    // PHASE 228 took the 19 word ARCH_ELSEWHERE sentence off the face. The
+    // one genuinely different limit is the disabled Open the map control, and
+    // its hover title is a label of a few words rather than a sentence, and it
+    // is true: the build can draw a map, the folder is elsewhere.
+    const copy = await import('../copy');
+    const html = renderToStaticMarkup(
+      createElement(ArchHeaderFace, {
+        progressLabel: null,
+        canDraw: false,
+        onMachine: true,
+        canCheck: false,
+        onMap: vi.fn(),
+        onCheck: vi.fn()
+      })
+    );
+    expect(html).toContain(`title="${copy.ARCH_MAP_ON_THIS_MAC}"`);
+    expect(html).not.toContain('This build cannot draw the map.');
+    expect(copy.ARCH_MAP_ON_THIS_MAC.split(/\s+/).length).toBeLessThanOrEqual(8);
+    expect(copy.ARCH_MAP_ON_THIS_MAC.endsWith('.')).toBe(false);
+    // The old build with no map channel still says so, on this Mac.
+    const old = renderToStaticMarkup(
+      createElement(ArchHeaderFace, {
+        progressLabel: null,
+        canDraw: false,
+        onMachine: false,
+        canCheck: true,
+        onMap: vi.fn(),
+        onCheck: vi.fn()
+      })
+    );
+    expect(old).toContain('This build cannot draw the map.');
   });
 });

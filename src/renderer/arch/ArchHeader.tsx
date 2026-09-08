@@ -35,6 +35,7 @@ import { mapAvailable } from './bridge';
 import {
   ARCH_CHECK_BODY,
   ARCH_CHECK_LABEL,
+  ARCH_MAP_ON_THIS_MAC,
   ARCH_MAP_OPEN_BODY,
   ARCH_MAP_OPEN_TITLE,
   ARCH_VIEW_TITLE
@@ -46,6 +47,7 @@ import { useArch } from './store';
 export function ArchHeaderFace({
   progressLabel,
   canDraw,
+  onMachine,
   canCheck,
   onMap,
   onCheck
@@ -53,6 +55,8 @@ export function ArchHeaderFace({
   /** What main says it is doing, as a fraction, or null when nothing is in flight. */
   progressLabel: string | null;
   canDraw: boolean;
+  /** True on a tab whose folder is on a machine (Phase 228). */
+  onMachine: boolean;
   canCheck: boolean;
   onMap: () => void;
   onCheck: () => void;
@@ -73,7 +77,13 @@ export function ArchHeaderFace({
         type="button"
         className="icon-btn view-header-action arch-map-open"
         aria-label={ARCH_MAP_OPEN_TITLE}
-        title={canDraw ? ARCH_MAP_OPEN_BODY : 'This build cannot draw the map.'}
+        title={
+          canDraw
+            ? ARCH_MAP_OPEN_BODY
+            : onMachine
+              ? ARCH_MAP_ON_THIS_MAC
+              : 'This build cannot draw the map.'
+        }
         disabled={!canDraw}
         onClick={onMap}
       >
@@ -117,6 +127,7 @@ export function ArchHeader(): React.JSX.Element {
     <ArchHeaderFace
       progressLabel={progressLabel}
       canDraw={repoPath !== null && mapAvailable()}
+      onMachine={status === 'elsewhere'}
       canCheck={status !== 'unavailable' && status !== 'elsewhere' && !checking}
       onMap={() => {
         if (repoPath !== null) openArchMap(repoPath);
