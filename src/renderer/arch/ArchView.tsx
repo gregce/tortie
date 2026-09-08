@@ -61,6 +61,7 @@
 import React, { useEffect, useMemo } from 'react';
 import {
   localPathOf,
+  rootKeyOf,
   targetOfProject
 } from '@shared/workspace-target';
 import { Codicon } from '../icons';
@@ -178,7 +179,18 @@ export function ArchView(): React.JSX.Element | null {
   );
   const components = useMemo(() => load?.components ?? [], [load]);
   const edges = useMemo(() => load?.edges ?? [], [load]);
-  const repoPath = target === null ? null : localPathOf(target);
+  // PHASE 234. The key for everything this view holds per repository, being
+  // the drill, the map and the scoped part. It is `rootKeyOf`, so a folder on
+  // this Mac keys as its own absolute path exactly as it always has, and a
+  // folder on a machine keys as `machine:<id>:<path>` and cannot share a
+  // picture with a same-named folder here. Until this phase it was
+  // `localPathOf`, which was null for a machine and is why the pane drew its
+  // header and nothing under it.
+  const repoKey = target === null ? null : rootKeyOf(target);
+  // The same folder when it is on this Mac, and null when it is not. It is
+  // what the two surfaces that RUN or WRITE something take, being the
+  // enrichment pass and the freshness ribbon it feeds.
+  const localRepoPath = target === null ? null : localPathOf(target);
 
   // Main's two pushes, for as long as the view is mounted. Nothing polls, and
   // a finished re-check announces nothing: it re-reads and the numbers move.
@@ -189,26 +201,24 @@ export function ArchView(): React.JSX.Element | null {
   // disagree about where the person is. Scoping applies only when the pane's
   // repository is the drilled one, which this keying already guarantees.
   const drill = useArch((s) =>
-    repoPath === null ? null : (s.drills[repoPath] ?? null)
+    repoKey === null ? null : (s.drills[repoKey] ?? null)
   );
   const partEntry = useArch((s) =>
-    repoPath === null || drill === null || drill.level === 1
+    repoKey === null || drill === null || drill.level === 1
       ? null
-      : (s.partMaps[partKey(repoPath, drill.groupId)] ?? null)
+      : (s.partMaps[partKey(repoKey, drill.groupId)] ?? null)
   );
 
   if (status === 'unavailable') {
     return <ArchNote text={ARCH_NO_BRIDGE} />;
   }
-  // PHASE 228. A folder on a machine draws NOTHING here, the way a section
-  // that is not there is not drawn. Until this phase the view drew one 19
-  // word sentence about the computer it cannot ask, and the local face draws
-  // no such paragraph. The limit lives on the header's disabled Open the map
-  // control as a short hover title, until Phase 234 reads a repository on a
-  // machine.
-  if (status === 'elsewhere') {
-    return null;
-  }
+  // PHASE 234 DELETED THE `elsewhere` BRANCH. Phase 228 had it draw nothing
+  // at all for a folder on a machine, which was the honest answer while
+  // nothing could read one. The load now names the machine beside the path and
+  // main reads that folder through the same seams, so there is no branch left:
+  // the face below is the face, on either computer. A machine Tortie is not
+  // connected to refuses in main with the sentence Settings carries, and that
+  // arrives here as `error`, exactly as it does for every other remote view.
   if (status === 'error' && error !== null) {
     return <ArchNote text={error} />;
   }
@@ -248,8 +258,8 @@ export function ArchView(): React.JSX.Element | null {
           components each with its sentence. The contract comes LAST, as the
           offer when none exists and as the cockpit when one does, because a
           contract is a promise pane and the first screen is a reading. */}
-      <DrillCrumb repoPath={repoPath} />
-      <Reading repoPath={repoPath} />
+      <DrillCrumb repoKey={repoKey} />
+      <Reading repoKey={repoKey} />
       {noContract ? (
         // No contract: the one way to get one. The verdict machinery below
         // has nothing to say about a repository with no promises, and
@@ -265,8 +275,12 @@ export function ArchView(): React.JSX.Element | null {
           {load?.lastValid === true ? (
             <p className="arch-lastvalid">{ARCH_LAST_VALID}</p>
           ) : null}
-          <PassFace repoPath={repoPath} />
-          <FreshnessRibbon repoPath={repoPath} />
+          {/* PHASE 234. The enrichment pass RUNS AN AGENT and WRITES contract
+              files, so it belongs to a folder on this Mac; both of these take
+              the local path and draw nothing for a folder on a machine, the
+              way a section that is not there is not drawn. */}
+          <PassFace repoPath={localRepoPath} />
+          <FreshnessRibbon repoPath={localRepoPath} />
           {/* PHASE 159. What the last check moved, between the ribbon that
               says how far the code went and the strip that says where the
               promises stand now. Repository wide, like the accepted list:
@@ -276,7 +290,7 @@ export function ArchView(): React.JSX.Element | null {
           <Problems />
           <FailureList
             verdicts={shownVerdicts}
-            repoPath={repoPath}
+            repoKey={repoKey}
             onSelect={select}
             emptyText={failuresEmptyText}
           />
@@ -301,7 +315,7 @@ export function ArchView(): React.JSX.Element | null {
               phase spec before either file was written, because the mount
               point and the component belong to different hands. */}
           <ArchModules
-            cwd={repoPath}
+            repoKey={repoKey}
             componentId={focusedComponentId(selected)}
             componentName={nameOf(focusedComponentId(selected) ?? '')}
             refreshKey={lastCheck?.generation ?? 0}

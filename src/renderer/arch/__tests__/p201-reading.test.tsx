@@ -152,7 +152,6 @@ describe('the header', () => {
       createElement(ArchHeaderFace, {
         progressLabel: null,
         canDraw: true,
-        onMachine: false,
         canCheck: true,
         onMap: vi.fn(),
         onCheck: vi.fn()
@@ -170,33 +169,37 @@ describe('the header', () => {
   });
 });
 
-describe('the header on a tab whose folder is on a machine (Phase 228)', () => {
-  it('disables the map with one short label, and never says the build cannot draw', async () => {
-    // PHASE 228 took the 19 word ARCH_ELSEWHERE sentence off the face. The
-    // one genuinely different limit is the disabled Open the map control, and
-    // its hover title is a label of a few words rather than a sentence, and it
-    // is true: the build can draw a map, the folder is elsewhere.
+describe('the header on a tab whose folder is on a machine (Phase 234)', () => {
+  it('draws the same two controls it draws on this Mac, with the same titles', async () => {
+    // PHASE 228 took the 19 word ARCH_ELSEWHERE sentence off the face and left
+    // the disabled Open the map control with a short label as the one genuinely
+    // different limit. PHASE 234 reads a repository on a machine, so there is
+    // no such limit any more: the map draws, the re-read runs, and both
+    // controls carry the SAME hover titles a folder on this Mac carries. The
+    // face is the local face, which is the operator's rule of 2026-09-07.
     const copy = await import('../copy');
     const html = renderToStaticMarkup(
       createElement(ArchHeaderFace, {
         progressLabel: null,
-        canDraw: false,
-        onMachine: true,
-        canCheck: false,
+        canDraw: true,
+        canCheck: true,
         onMap: vi.fn(),
         onCheck: vi.fn()
       })
     );
-    expect(html).toContain(`title="${copy.ARCH_MAP_ON_THIS_MAC}"`);
+    expect(html).toContain(`title="${ARCH_MAP_OPEN_BODY}"`);
+    expect(html).toContain(`title="${ARCH_CHECK_BODY}"`);
     expect(html).not.toContain('This build cannot draw the map.');
-    expect(copy.ARCH_MAP_ON_THIS_MAC.split(/\s+/).length).toBeLessThanOrEqual(8);
-    expect(copy.ARCH_MAP_ON_THIS_MAC.endsWith('.')).toBe(false);
-    // The old build with no map channel still says so, on this Mac.
+    // The Phase 228 label is gone from the face and from the copy module, so
+    // no round can reach for it again by accident.
+    expect('ARCH_MAP_ON_THIS_MAC' in copy).toBe(false);
+    expect(html).not.toContain('on this Mac');
+
+    // The old build with no map channel still says so, on either computer.
     const old = renderToStaticMarkup(
       createElement(ArchHeaderFace, {
         progressLabel: null,
         canDraw: false,
-        onMachine: false,
         canCheck: true,
         onMap: vi.fn(),
         onCheck: vi.fn()

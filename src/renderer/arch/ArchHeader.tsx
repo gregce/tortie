@@ -28,14 +28,13 @@
  */
 
 import React, { useMemo } from 'react';
-import { localPathOf, targetOfProject } from '@shared/workspace-target';
+import { rootKeyOf, targetOfProject } from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { useApp } from '../state/store';
 import { mapAvailable } from './bridge';
 import {
   ARCH_CHECK_BODY,
   ARCH_CHECK_LABEL,
-  ARCH_MAP_ON_THIS_MAC,
   ARCH_MAP_OPEN_BODY,
   ARCH_MAP_OPEN_TITLE,
   ARCH_VIEW_TITLE
@@ -47,7 +46,6 @@ import { useArch } from './store';
 export function ArchHeaderFace({
   progressLabel,
   canDraw,
-  onMachine,
   canCheck,
   onMap,
   onCheck
@@ -55,8 +53,6 @@ export function ArchHeaderFace({
   /** What main says it is doing, as a fraction, or null when nothing is in flight. */
   progressLabel: string | null;
   canDraw: boolean;
-  /** True on a tab whose folder is on a machine (Phase 228). */
-  onMachine: boolean;
   canCheck: boolean;
   onMap: () => void;
   onCheck: () => void;
@@ -77,13 +73,7 @@ export function ArchHeaderFace({
         type="button"
         className="icon-btn view-header-action arch-map-open"
         aria-label={ARCH_MAP_OPEN_TITLE}
-        title={
-          canDraw
-            ? ARCH_MAP_OPEN_BODY
-            : onMachine
-              ? ARCH_MAP_ON_THIS_MAC
-              : 'This build cannot draw the map.'
-        }
+        title={canDraw ? ARCH_MAP_OPEN_BODY : 'This build cannot draw the map.'}
         disabled={!canDraw}
         onClick={onMap}
       >
@@ -110,9 +100,15 @@ export function ArchHeader(): React.JSX.Element {
   const check = useArch((s) => s.check);
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
-  const repoPath = useMemo(() => {
-    const project = projects.find((p) => p.id === activeProjectId) ?? null;
-    return localPathOf(targetOfProject(project));
+  // PHASE 234. The map draws for a folder on a machine too, so this is the
+  // repository KEY rather than a path on this Mac. A folder here keys as its
+  // own absolute path, so the map tab a local project opens is byte for byte
+  // the tab it opened before.
+  const repoKey = useMemo(() => {
+    const target = targetOfProject(
+      projects.find((p) => p.id === activeProjectId) ?? null
+    );
+    return target === null ? null : rootKeyOf(target);
   }, [projects, activeProjectId]);
 
   // What main says it is doing, as a fraction rather than a spinner. It is the
@@ -126,11 +122,10 @@ export function ArchHeader(): React.JSX.Element {
   return (
     <ArchHeaderFace
       progressLabel={progressLabel}
-      canDraw={repoPath !== null && mapAvailable()}
-      onMachine={status === 'elsewhere'}
-      canCheck={status !== 'unavailable' && status !== 'elsewhere' && !checking}
+      canDraw={repoKey !== null && mapAvailable()}
+      canCheck={status !== 'unavailable' && !checking}
       onMap={() => {
-        if (repoPath !== null) openArchMap(repoPath);
+        if (repoKey !== null) openArchMap(repoKey);
       }}
       onCheck={() => void check()}
     />

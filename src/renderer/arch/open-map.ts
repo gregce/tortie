@@ -18,47 +18,56 @@
  * mounts.
  */
 
-import { localPathOf, targetOfProject } from '@shared/workspace-target';
+import { rootKeyOf, targetOfProject } from '@shared/workspace-target';
 import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
 import { useEditor } from '../editor/store';
 // Phase 175. The Architecture switch, read at the one door below.
 import { archSurfacesOn, useSettingsStore } from '../settings/settings-store';
 
-/** Open the map tab for one repository, or focus it when it is already open. */
-export function openArchMap(repoPath: string): void {
+/**
+ * Open the map tab for one repository, or focus it when it is already open.
+ *
+ * PHASE 234. The argument is the repository KEY, being `rootKeyOf` of the
+ * project's target. A folder on this Mac keys as its own absolute path, so the
+ * tab id, the request and the tooltip are byte for byte what they were; a
+ * folder on a machine keys as `machine:<id>:<path>` and gets a tab of its own
+ * that cannot collide with a same-named folder here.
+ */
+export function openArchMap(repoKey: string): void {
   // Phase 175. The map refuses while Architecture is off in Settings. This
   // is the single door every gesture goes through, so the View menu row, a
   // queued `show-arch-map` and the pane's own control are all refused here
   // in one line.
   if (!archSurfacesOn()) return;
   requestOpenFile({
-    repoPath,
+    repoPath: repoKey,
     // The tab is a reading of the whole repository, not of a file in it. The
     // path is the repository root so the tab needs no invented file name, and
     // the relative path is empty because there is nothing it could name.
     relPath: '',
-    path: repoPath,
+    path: repoKey,
     mode: 'file',
     source: 'tree',
     // For keeps, never the recycled preview slot: a person asked for the map
     // by name, and the next single click on a tree row must not replace it.
     preview: false,
-    archMap: { repoPath }
+    archMap: { repoPath: repoKey }
   });
 }
 
 /**
- * The View menu row's body: the map of the ACTIVE project, or nothing when
- * the active project is not a folder on this computer. A menu click with no
- * local repository has nowhere to draw, and doing nothing is honest where
- * inventing a toast for an edge the pane already explains would not be.
+ * The View menu row's body: the map of the ACTIVE project, on whichever
+ * computer its folder is on (Phase 234), or nothing when there is no project.
+ *
+ * Until this phase it refused a folder on a machine, because the map could not
+ * be drawn for one. It can, so the row does what it says on either computer.
  */
 export function openArchMapForActiveProject(): void {
   const s = useApp.getState();
   const project = s.projects.find((p) => p.id === s.activeProjectId) ?? null;
-  const repoPath = localPathOf(targetOfProject(project));
-  if (repoPath !== null) openArchMap(repoPath);
+  const target = targetOfProject(project);
+  if (target !== null) openArchMap(rootKeyOf(target));
 }
 
 /**

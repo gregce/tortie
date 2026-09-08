@@ -11,10 +11,11 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { localPathOf, sameTarget } from '@shared/workspace-target';
+import { rootKeyOf, sameTarget } from '@shared/workspace-target';
 import { gmuxBridge } from '../../bridge';
 import { archAvailable, archBridge, passBridge } from '../bridge';
 import { reloadScopedReads } from './map-actions';
+import { archKeyOfEvent, archRepoInputOf } from './repo-key';
 import { patchPass, runningStatus } from './pass-actions';
 import { errorText, NO_SELECTION, NONE } from './view-state';
 import type { ArchViewState } from './view-state';
@@ -87,14 +88,11 @@ export const createDocumentActions: StateCreator<
       set({ status: 'unavailable' });
       return;
     }
-    const cwd = localPathOf(target);
-    if (cwd === null) {
-      // Reading a contract on another computer is not in this phase, and the
-      // view says that rather than drawing an empty state that would read as
-      // "this repository has no contract".
-      set({ status: 'elsewhere' });
-      return;
-    }
+    // PHASE 234. A folder on a machine is read through the same channel as a
+    // folder here, with the machine named beside the path. Main decides where
+    // the bytes come from; nothing about this call is different, which is why
+    // the face a person sees is the same face.
+    const input = archRepoInputOf(rootKeyOf(target));
     const api = archBridge();
     if (api === null) {
       set({ status: 'unavailable' });
@@ -102,7 +100,7 @@ export const createDocumentActions: StateCreator<
     }
     set({ status: 'loading', error: null });
     try {
-      const load = await api.load({ cwd });
+      const load = await api.load(input);
       // The project may have changed under a slow read. Land nothing then.
       if (!sameTarget(get().target, target)) return;
       set({ load, lastCheck: null, status: 'ready', error: null });
@@ -116,11 +114,11 @@ export const createDocumentActions: StateCreator<
     const target = get().target;
     const api = archBridge();
     if (target === null || api === null || get().checking) return;
-    const cwd = localPathOf(target);
-    if (cwd === null || typeof api.check !== 'function') return;
+    if (typeof api.check !== 'function') return;
+    const input = archRepoInputOf(rootKeyOf(target));
     set({ checking: true, progress: null });
     try {
-      const result = await api.check({ cwd });
+      const result = await api.check(input);
       if (!sameTarget(get().target, target)) return;
       set({ lastCheck: result, checking: false, progress: null });
     } catch (err) {
@@ -161,12 +159,13 @@ export const createDocumentActions: StateCreator<
             // whether or not it belongs to the active project: a map tab for a
             // background project is still on screen. Nothing is announced; the
             // picture moves the way the numbers do.
-            if (get().maps[event.cwd] !== undefined) {
-              void get().loadMap(event.cwd);
+            const key = archKeyOfEvent(event);
+            if (get().maps[key] !== undefined) {
+              void get().loadMap(key);
             }
-            reloadScopedReads(get(), event.cwd);
+            reloadScopedReads(get(), key);
             const target = get().target;
-            if (target === null || localPathOf(target) !== event.cwd) return;
+            if (target === null || rootKeyOf(target) !== key) return;
             set({ checking: false, progress: null });
             void get().refresh();
           })
@@ -174,7 +173,7 @@ export const createDocumentActions: StateCreator<
     const offProgress =
       typeof api.onProgress === 'function'
         ? api.onProgress((p) => {
-            get().applyProgress(p.cwd, p.done, p.total);
+            get().applyProgress(archKeyOfEvent(p), p.done, p.total);
           })
         : () => undefined;
     // Phase 160. The fact base behind a map moved, being a cold scan landing
@@ -184,8 +183,9 @@ export const createDocumentActions: StateCreator<
     const offMapUpdated =
       typeof api.onMapUpdated === 'function'
         ? api.onMapUpdated((event) => {
-            if (get().maps[event.cwd] !== undefined) {
-              void get().loadMap(event.cwd);
+            const key = archKeyOfEvent(event);
+            if (get().maps[key] !== undefined) {
+              void get().loadMap(key);
             }
             // Phase 161. A scoped picture is a reading of the same fact
             // base, so it moves when the base does. Only the scopes the
@@ -238,7 +238,10 @@ export const createDocumentActions: StateCreator<
                 void get().loadMap(event.cwd);
               }
               const target = get().target;
-              if (target !== null && localPathOf(target) === event.cwd) {
+              // The pass is a folder on this Mac's own, and a local key IS
+              // its path, so this comparison is what it always was and can
+              // never match a folder on a machine.
+              if (target !== null && rootKeyOf(target) === event.cwd) {
                 void get().refresh();
               }
             }
@@ -253,9 +256,9 @@ export const createDocumentActions: StateCreator<
     };
   },
 
-  applyProgress(cwd, done, total) {
+  applyProgress(repoKey, done, total) {
     const target = get().target;
-    if (target === null || localPathOf(target) !== cwd) return;
+    if (target === null || rootKeyOf(target) !== repoKey) return;
     set({ checking: done < total, progress: { done, total } });
   },
 

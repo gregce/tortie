@@ -48,12 +48,14 @@ export const ARCH_NO_BRIDGE =
  */
 
 /**
- * The disabled Open the map control's hover title on a tab whose folder is
- * on a machine. A label rather than a sentence, in the shape of the three
- * search filter titles, and true where "This build cannot draw the map" was
- * not, because the build can and the folder is elsewhere.
+ * PHASE 234 DELETED `ARCH_MAP_ON_THIS_MAC`. It was the disabled Open the map
+ * control's hover title on a tab whose folder is on a machine, "The map works
+ * on this Mac only", and it was the last word on this surface that appeared
+ * only there. The map reads a repository on a machine now, so the control is
+ * enabled and carries the SAME title it carries here. There is no sentence,
+ * no label and no disabled action left on the Architecture face that a folder
+ * on this Mac does not also have.
  */
-export const ARCH_MAP_ON_THIS_MAC = 'The map works on this Mac only';
 
 /**
  * PHASE 160, the map's own sentences.

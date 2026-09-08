@@ -32,18 +32,17 @@ import type {
 } from '../bridge';
 
 /**
- * `elsewhere` carries exactly one meaning, and it is the one Context's store
- * settled on: this build's preload cannot ask another computer anything, so
- * there is nothing to read and the view says so. Reading a contract on a
- * machine is not in this phase.
+ * PHASE 234 REMOVED `elsewhere`.
+ *
+ * It meant "this build's preload cannot ask another computer anything", and
+ * Phase 228 had the view draw nothing at all under it. Architecture reads a
+ * folder on a machine now, through the same channels and the same seams, so
+ * there is no state left for the difference to sit in: a machine Tortie is not
+ * connected to refuses in main with the sentence Settings carries, and that
+ * arrives as `error`, exactly as it does for the Explorer, the Source Control
+ * view and Context.
  */
-export type ArchStatus =
-  | 'idle'
-  | 'loading'
-  | 'ready'
-  | 'error'
-  | 'unavailable'
-  | 'elsewhere';
+export type ArchStatus = 'idle' | 'loading' | 'ready' | 'error' | 'unavailable';
 
 /**
  * What the person has selected, as an ORDERED list of opaque strings.
@@ -401,7 +400,7 @@ export interface ArchViewState {
    * reading a file is a number that moved, not an interruption.
    */
   subscribeEvents(): () => void;
-  applyProgress(cwd: string, done: number, total: number): void;
+  applyProgress(repoKey: string, done: number, total: number): void;
 
   // READONLY on purpose. Every one of these hands back a live reference into
   // the store, and `NONE` below is one frozen array shared by every empty

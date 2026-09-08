@@ -20,8 +20,9 @@ import type {
 } from '@shared/arch';
 import { archViewGapId } from '@shared/arch-ids';
 import { Codicon } from '../icons';
-import { requestOpenFile } from '../state/open-file';
 import { AcceptDivergence, acceptEdgeId, canAcceptOffence } from './ArchPass';
+import { openArchRow } from './open-row';
+import { archMachineOf } from './state/repo-key';
 import { acceptAvailable } from './bridge';
 import type { ArchMapPartResult } from './bridge';
 import {
@@ -373,12 +374,17 @@ export function Problems(): React.JSX.Element | null {
  */
 export function FailureList({
   verdicts,
-  repoPath,
+  repoKey,
   onSelect,
   emptyText
 }: {
   verdicts: readonly ArchVerdict[];
-  repoPath: string | null;
+  /**
+   * The repository key, being `rootKeyOf` of the view's target (Phase 234).
+   * A folder on this Mac keys as its own path, so every open composed here is
+   * what it was; a folder on a machine opens on that machine.
+   */
+  repoKey: string | null;
   onSelect: (id: string) => void;
   /**
    * What no failures means HERE (Phase 161): the whole keeps its sentence,
@@ -420,18 +426,14 @@ export function FailureList({
                   <button
                     type="button"
                     className="arch-offending"
-                    disabled={repoPath === null}
+                    disabled={repoKey === null}
                     title={`Open ${o.fromPath} at line ${String(o.line)}`}
                     onClick={() => {
-                      if (repoPath === null) return;
-                      requestOpenFile({
-                        repoPath,
+                      if (repoKey === null) return;
+                      openArchRow({
+                        repoKey,
                         relPath: o.fromPath,
-                        path: `${repoPath}/${o.fromPath}`,
-                        mode: 'file',
-                        source: 'search',
-                        preview: false,
-                        selection: { line: o.line }
+                        line: o.line
                       });
                     }}
                   >
@@ -456,7 +458,12 @@ export function FailureList({
                       rider: there is no accept control there. An offence
                       with no target path gets no button, because a baseline
                       row could not match it. */}
-                  {repoPath !== null &&
+                  {/* PHASE 234. Accepting a divergence APPENDS to
+                      `docs/arch/baseline.json`, and this build writes no file
+                      on another machine, so the control is absent on a folder
+                      that lives there rather than present and refusing. */}
+                  {repoKey !== null &&
+                  archMachineOf(repoKey) === null &&
                   acceptAvailable() &&
                   canAcceptOffence(o) ? (
                     <AcceptDivergence

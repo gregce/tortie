@@ -62,7 +62,8 @@
 import React, { useEffect, useState } from 'react';
 import type { ArchModulesResult } from '@shared/ipc';
 import { Codicon } from '../icons';
-import { requestOpenFile } from '../state/open-file';
+import { openArchRow } from './open-row';
+import { archRepoInputOf } from './state/repo-key';
 import { unresolvedSentence, verdictWord } from './copy';
 import { moduleKey, useArch } from './store';
 import type { ArchModuleViewEntry } from './store';
@@ -100,8 +101,12 @@ import './arch-modules.css';
  * drive it without the Architecture view around it.
  */
 export interface ArchModulesProps {
-  /** Absolute repository root. Null when the project is on another computer. */
-  cwd: string | null;
+  /**
+   * The repository key, being `rootKeyOf` of the view's target (Phase 234).
+   * Null when there is no project. A folder on this Mac keys as its own
+   * absolute path, so nothing about a local read moved.
+   */
+  repoKey: string | null;
   /** The part to draw, out of `docs/arch/components/`. */
   componentId: string | null;
   /** What to call it on screen, which is the contract's own name. */
@@ -114,11 +119,12 @@ export interface ArchModulesProps {
 }
 
 export function ArchModules({
-  cwd,
+  repoKey,
   componentId,
   componentName,
   refreshKey
 }: ArchModulesProps): React.JSX.Element | null {
+  const cwd = repoKey;
   const [result, setResult] = useState<ArchModulesResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
@@ -139,7 +145,7 @@ export function ArchModules({
     let live = true;
     setLoading(true);
     setFailed(null);
-    void api.modules({ cwd, componentId }).then(
+    void api.modules({ ...archRepoInputOf(cwd), componentId }).then(
       (answer) => {
         if (!live) return;
         setResult(answer);
@@ -280,16 +286,18 @@ function Sentences({ result }: { result: ArchModulesResult }): React.JSX.Element
   );
 }
 
-/** Open one file, at a line when there is one to open it at. */
+/**
+ * Open one file, at a line when there is one to open it at.
+ *
+ * PHASE 234. `cwd` here is the repository KEY, so a folder on this Mac opens
+ * exactly as it did and a folder on a machine opens on that machine, through
+ * the one place that decision is made.
+ */
 function open(cwd: string, relPath: string, line?: number): void {
-  requestOpenFile({
-    repoPath: cwd,
+  openArchRow({
+    repoKey: cwd,
     relPath,
-    path: `${cwd}/${relPath}`,
-    mode: 'file',
-    source: 'search',
-    preview: false,
-    ...(line === undefined ? {} : { selection: { line } })
+    ...(line === undefined ? {} : { line })
   });
 }
 

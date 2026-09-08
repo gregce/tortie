@@ -44,10 +44,12 @@ import { useArch } from './store';
  * carries no control a person has no use for.
  */
 export function DrillCrumb({
-  repoPath
+  repoKey
 }: {
-  repoPath: string | null;
+  /** The repository key, being `rootKeyOf` of the view's target (Phase 234). */
+  repoKey: string | null;
 }): React.JSX.Element | null {
+  const repoPath = repoKey;
   const drill = useArch((s) =>
     repoPath === null ? null : (s.drills[repoPath] ?? null)
   );
@@ -271,10 +273,12 @@ export function ReadingFace({
  * drills the ONE shared record and focuses the map tab, the Phase 161 rule.
  */
 export function Reading({
-  repoPath
+  repoKey
 }: {
-  repoPath: string | null;
+  /** The repository key, being `rootKeyOf` of the view's target (Phase 234). */
+  repoKey: string | null;
 }): React.JSX.Element | null {
+  const repoPath = repoKey;
   const entry = useArch((s) =>
     repoPath === null ? null : (s.maps[repoPath] ?? null)
   );

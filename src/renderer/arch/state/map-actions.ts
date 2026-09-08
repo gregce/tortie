@@ -24,6 +24,7 @@ import {
   ARCH_MAP_ERROR,
   ARCH_MAP_NO_BRIDGE
 } from '../copy';
+import { archRepoInputOf } from './repo-key';
 import {
   canvasKey,
   DRILL_HOME,
@@ -135,7 +136,7 @@ function scheduleCameraSave(
       // Fire and forget: a refused write is logged in main with the field
       // named, and the in-memory camera above is already what draws.
       void api
-        .setCamera({ cwd: repoPath, scope, camera })
+        .setCamera({ ...archRepoInputOf(repoPath), scope, camera })
         .catch(() => undefined);
     }, CAMERA_SAVE_REST_MS)
   );
@@ -176,7 +177,7 @@ export const createMapActions: StateCreator<
       key: repoPath,
       pending: pendingMapReads,
       loading: held?.status === 'loading',
-      read: api === null ? null : () => api.map({ cwd: repoPath }),
+      read: api === null ? null : () => api.map(archRepoInputOf(repoPath)),
       held: held?.model ?? null,
       latest: () => get().maps[repoPath]?.model ?? null,
       patch: (status, model, error) => {
@@ -241,7 +242,10 @@ export const createMapActions: StateCreator<
       key,
       pending: pendingPartReads,
       loading: held?.status === 'loading',
-      read: api === null ? null : () => api.mapPart({ cwd: repoPath, groupId }),
+      read:
+        api === null
+          ? null
+          : () => api.mapPart({ ...archRepoInputOf(repoPath), groupId }),
       held: held?.model ?? null,
       latest: () => get().partMaps[key]?.model ?? null,
       patch: (status, model, error) => {
@@ -280,7 +284,7 @@ export const createMapActions: StateCreator<
       read:
         api === null
           ? null
-          : () => api.moduleFiles({ cwd: repoPath, dir: moduleDir }),
+          : () => api.moduleFiles({ ...archRepoInputOf(repoPath), dir: moduleDir }),
       held: held?.result ?? null,
       latest: () => get().moduleViews[key]?.result ?? null,
       patch: (status, result, error) => {
@@ -342,7 +346,10 @@ export const createMapActions: StateCreator<
       }
     }));
     try {
-      const result = await api.canvasState({ cwd: repoPath, scope });
+      const result = await api.canvasState({
+        ...archRepoInputOf(repoPath),
+        scope
+      });
       set((s) => ({
         canvas: {
           ...s.canvas,
@@ -409,7 +416,11 @@ export const createMapActions: StateCreator<
     // named, and the held entry above still draws. Nothing here can throw at
     // the gesture that caused it.
     void api
-      .setLayout({ cwd: repoPath, scope, positions: [...positions] })
+      .setLayout({
+        ...archRepoInputOf(repoPath),
+        scope,
+        positions: [...positions]
+      })
       .catch(() => undefined);
   },
 
@@ -432,7 +443,7 @@ export const createMapActions: StateCreator<
     const api = canvasBridge();
     if (api === null) return;
     try {
-      await api.clearLayout({ cwd: repoPath, scope });
+      await api.clearLayout({ ...archRepoInputOf(repoPath), scope });
     } catch {
       // The stored rows outlived the click. The held entry is already null,
       // so THIS window re-lays out either way, and the next open pays one

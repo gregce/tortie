@@ -333,6 +333,17 @@ const OFF_ELSEWHERE: readonly { name: string; file: string; words: string }[] = 
     name: 'ARCH_ELSEWHERE',
     file: 'arch/copy.ts',
     words: 'cannot ask that computer anything'
+  },
+  // PHASE 234 TOOK THE LAST ONE OFF. `ARCH_MAP_ON_THIS_MAC`, "The map works
+  // on this Mac only", was the disabled Open the map control's hover title on
+  // a tab whose folder is on a machine, and it was the only word left on this
+  // surface that a folder here does not also carry. The map draws a folder on
+  // a machine now, so the control is enabled with the SAME title it has here
+  // and the label is gone from the copy module and from every component.
+  {
+    name: 'ARCH_MAP_ON_THIS_MAC',
+    file: 'arch/copy.ts',
+    words: 'works on this Mac only'
   }
 ];
 

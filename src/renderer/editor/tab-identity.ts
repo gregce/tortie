@@ -5,6 +5,7 @@
  * down with tests (src/renderer/editor/__tests__/tab-identity.test.ts).
  */
 
+import { targetOfRootKey } from '@shared/workspace-target';
 import type { OpenFileRequest } from '../state/open-file';
 import type { EditorTab } from './tab-types';
 import { reviewTabTooltip } from '../machines/review';
@@ -185,7 +186,11 @@ export function tabTooltipIdentity(tab: EditorTab): string {
   // so the tooltip says what the tab is and which repository it draws instead
   // of showing a directory path that reads as a file that will not open.
   if (tab.archMap !== undefined) {
-    return `The architecture map of ${tab.archMap.repoPath}. Redrawn from the code, so closing it loses nothing.`;
+    // PHASE 234. The map tab is keyed by folder AND computer, so the tooltip
+    // reads the folder back out of the key rather than printing the key. A
+    // folder on this Mac reads as its own path, which is what it always was.
+    const folder = targetOfRootKey(tab.archMap.repoPath).path;
+    return `The architecture map of ${folder}. Redrawn from the code, so closing it loses nothing.`;
   }
   // Phase 163. The report tab's `path` is whatever project was active when it
   // opened, which says nothing about the tab. The tooltip says what it is.

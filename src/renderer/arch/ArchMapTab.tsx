@@ -45,6 +45,8 @@ import React, {
   useState
 } from 'react';
 import { ARCH_CANVAS_ROOT_SCOPE, archCanvasPartScope } from '@shared/ipc';
+import { targetOfRootKey } from '@shared/workspace-target';
+import { archKeyOfEvent } from './state/repo-key';
 import { archBridge } from './bridge';
 import type { ArchMapResult } from './bridge';
 import { ArchMap, type MapViewport } from './map';
@@ -215,7 +217,10 @@ export function ArchMapTab({
     // Display only. The re-read itself rides `arch:mapUpdated`, which the
     // store subscription above already owns, so nothing here can loop.
     return api.onProgress((p) => {
-      if (p.cwd !== repoPath) return;
+      // PHASE 234. The push names a folder and the computer it is on; this
+      // tab is keyed by both. A local key IS its own path, so a local tab
+      // compares exactly what it compared before.
+      if (archKeyOfEvent(p) !== repoPath) return;
       setProgress(
         p.done >= p.total ? null : { done: p.done, total: p.total }
       );
@@ -289,12 +294,19 @@ export function ArchMapTab({
   );
 }
 
-/** The repository's own name for the breadcrumb, from the model or the path. */
+/**
+ * The repository's own name for the breadcrumb, from the model or the path.
+ *
+ * PHASE 234. `repoPath` here is the repository KEY, and the key for a folder on
+ * a machine carries the machine id in front of the path, so the last resort
+ * reads the folder out of it rather than splitting the key on `/`.
+ */
 function subjectOf(entry: ArchMapEntry | null, repoPath: string): string {
   const subject = entry?.model?.subject;
   if (subject !== undefined && subject !== '') return subject;
-  const tail = repoPath.split('/').filter((s) => s !== '').pop();
-  return tail ?? repoPath;
+  const path = targetOfRootKey(repoPath).path;
+  const tail = path.split('/').filter((s) => s !== '').pop();
+  return tail ?? path;
 }
 
 /**
