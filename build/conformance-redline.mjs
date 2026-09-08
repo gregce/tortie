@@ -157,7 +157,7 @@ const WORST_CASE_CEILING_MS = 400;
 // cannot drift off in silence.
 const REDLINE_DIR = 'src/renderer/editor';
 const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline\.)/;
-const REDLINE_FILES_FLOOR = 15;
+const REDLINE_FILES_FLOOR = 16;
 const REDLINE_FILES = readdirSync(REDLINE_DIR)
   .filter((name) => REDLINE_NAME.test(name))
   .sort()
@@ -193,7 +193,10 @@ const REDLINE_FILES_NAMED = [
   // Phase 236: the change chip, being the redline's controls on the face. It
   // draws buttons that call the SAME commands the chord and the Edit menu
   // call, so it names no bridge and reaches no write of its own.
-  'src/renderer/editor/redline-chip.tsx'
+  'src/renderer/editor/redline-chip.tsx',
+  // Phase 236: the first-run line's per-session flag and its sentence. In
+  // memory only, like the journal, and it writes nothing.
+  'src/renderer/editor/redline-hint.ts'
 ];
 
 // ---------------------------------------------------------------------------

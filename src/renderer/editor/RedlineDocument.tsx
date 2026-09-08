@@ -67,6 +67,11 @@ import { applyRewind } from './redline-write';
 import { pressRedline } from './redline-press';
 import type { PressedChange } from './redline-press';
 import { rewindJournalDepth } from './redline-journal';
+import {
+  markRedlineHintSeen,
+  redlineHintSeen,
+  redlineHintSentence
+} from './redline-hint';
 import { redlineRefusalSentence } from './redline-sentences';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
@@ -319,6 +324,10 @@ export function RedlineDocument({
   // focused wrapper), so a chip drawn on a change under the pointer while a
   // DIFFERENT change held focus would name a change the keys do not act on.
   // With nothing focused, the pointer is the whole affordance.
+  // PHASE 236 item 4. Whether this mount may draw the first-run line, decided
+  // ONCE at mount: the flag is marked in an effect below, and reading it again
+  // on a later render would make the line vanish under the person mid-session.
+  const [hintAllowed] = useState(() => !redlineHintSeen());
   const [hovered, setHovered] = useState<HTMLElement | null>(null);
   const [focusedEl, setFocusedEl] = useState<HTMLElement | null>(null);
   const anchor = focusedEl ?? hovered;
@@ -379,6 +388,16 @@ export function RedlineDocument({
   // undo, saying the chord and that it lasts for the session (research 83
   // E.8). It is not a live region: it appears the moment a rewind lands and
   // says nothing on its own.
+  // PHASE 236 item 4. The first redline WITH A CHANGE in this session says
+  // where the controls are, once. A clean file draws no line, because there is
+  // nothing there to point at; the flag is marked only when the line is really
+  // drawn, so the first thing a person sees is never spent on an empty
+  // document.
+  const hasChanges = composed !== null && composed.changes.length > 0;
+  const hintNote = hintAllowed && hasChanges ? redlineHintSentence() : null;
+  useEffect(() => {
+    if (hintNote !== null) markRedlineHintSeen();
+  }, [hintNote]);
   const canUndo = rewindJournalDepth(tab.id) > 0;
   const undoNote =
     doc !== null && canUndo
@@ -482,6 +501,16 @@ export function RedlineDocument({
         // shown only while there is a rewind to undo.
         <div className="banner ed-note ed-redline-undo">
           <span className="banner-text">{undoNote}</span>
+        </div>
+      ) : null}
+      {hintNote !== null ? (
+        // PHASE 236. The first-run line, in the same slot and the same tokens,
+        // LAST so the two sentences above it keep their place, and NOT a live
+        // region for the reason Phase 225 gives above: a banner that announced
+        // itself would be the notification research 83 C.6 refuses. The caps
+        // note is the one `role="status"` in this view and it stays the one.
+        <div className="banner ed-note ed-redline-hint">
+          <span className="banner-text">{hintNote}</span>
         </div>
       ) : null}
     </div>
