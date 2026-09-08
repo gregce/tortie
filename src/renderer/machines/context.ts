@@ -63,11 +63,10 @@ export function contextElsewhereTitle(label: string): string {
  * reads.
  *
  * WHAT THEY MAY CLAIM. A read on another machine is a read and nothing else.
- * So these sentences say the three limits out loud rather than leaving a gap
- * a person would misread:
- *   - installing, enabling and pinning work on this Mac only
- *   - skills kept in folders inside the project are not listed over there
- *   - a read the pass cap cut says that entries can be missing
+ * Until Phase 228 these sentences said three limits out loud under the rows;
+ * since Phase 228 only the one that names a CUT list is drawn, and only when
+ * the read was cut, because the other two were standing prose a local tab
+ * does not carry.
  */
 
 /** The one body `elsewhere` keeps. An older preload cannot ask a machine. */
@@ -101,39 +100,33 @@ export function contextNoHome(label: string): string {
 }
 
 /**
- * The first note line under the sections, whenever the scan came from a
- * machine. It says where the rows came from and where the verbs stayed.
+ * PHASE 228 DELETED TWO NOTE LINES HERE. Phase 108 drew three under the
+ * sections whenever the scan came from a machine: one saying the files were
+ * read on that machine and that installing, enabling and pinning work on this
+ * Mac only, one saying skills kept in folders inside the project are not
+ * listed over there, and the cut line below. The first two were standing
+ * prose a local tab does not carry, so they came off on the operator's rule
+ * of 2026-09-07. The verbs they named are not built into the row menus on a
+ * remote tab (./../context/menus.ts), which is an absent verb drawn as
+ * absent, and the nested walk it does not run is a section that is not
+ * there. The cut line stays, because a cut list drawn as a whole one is the
+ * Phase 99 defect and a local list is never cut.
  */
-export function contextOnMachineLine(label: string): string {
-  return `Tortie read these files on ${label}. Installing, enabling and pinning work on this Mac only.`;
-}
 
 /**
- * The second note line, always drawn with the first.
- *
- * The remote read runs with the nested project walk off, because that walk
- * costs up to three more passes over the link. A gap that is not named draws
- * as a whole list, so this line names it.
- */
-export const CONTEXT_NESTED_NOT_LISTED =
-  'Skills kept in folders inside this project are not listed when the project is on another machine.';
-
-/**
- * The third note line, only when the pass cap ended the read with paths still
- * unread. A cut list must never draw as a whole one.
+ * The one note line under the sections, only when the pass cap ended the
+ * read with paths still unread. A cut list must never draw as a whole one.
  */
 export function contextCutLine(label: string): string {
   return `${label} holds more configuration than Tortie read this time, so some entries can be missing from this list.`;
 }
 
-/**
- * The empty state body on a remote tab, in place of the Find a skill button.
- * Install is refused over there permanently, so the sentence says where
- * adding happens instead of offering a control that could do nothing.
+/*
+ * PHASE 228 DELETED THE REMOTE EMPTY BODY TOO. Phase 108 drew a sentence of
+ * its own in the empty state on a machine, in place of the Find a skill
+ * button, saying where adding happens. The empty state on a machine now
+ * draws the same body as on this Mac, and the button is simply not drawn.
  */
-export function contextEmptyOnMachine(label: string): string {
-  return `Nothing is configured for these agents on ${label}. Adding a skill happens on that machine, or from an agent running there.`;
-}
 
 /**
  * The Refresh tooltip on a remote tab. The local sentence is about this Mac's

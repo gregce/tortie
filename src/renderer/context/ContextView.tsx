@@ -74,15 +74,12 @@ import {
   targetOfProject
 } from '@shared/workspace-target';
 import {
-  CONTEXT_NESTED_NOT_LISTED,
   CONTEXT_NO_BRIDGE,
   contextCutLine,
   contextElsewhereTitle,
-  contextEmptyOnMachine,
   contextNoAnswer,
   contextNoHome,
   contextNotConnected,
-  contextOnMachineLine,
   contextReadingOn
 } from '../machines/context';
 import { machineLabelFor } from '../state/machines-slice';
@@ -802,10 +799,12 @@ export function ContextSection({
         <div className="ctx-empty">
           <p className="ctx-empty-title">{CONTEXT_COPY.emptyTitle}</p>
           <p className="ctx-empty-body">
-            {/* PHASE 108. On a remote tab the body says where adding happens,
-                in place of the Find a skill button below: install is refused
-                over there, so the button would be a dead control. */}
-            {remote ? contextEmptyOnMachine(machineName) : CONTEXT_COPY.emptyBody}
+            {/* PHASE 228. The same body on a machine as on this Mac. Phase 108
+                drew a sentence of its own there saying where adding happens,
+                and the operator's rule of 2026-09-07 takes it off: the Find a
+                skill button below is simply not drawn on a remote tab, which
+                is an absent verb drawn as absent. */}
+            {CONTEXT_COPY.emptyBody}
           </p>
           {/* The one primary §11 item 1 gives this state, and only when
               something is actually wired to it. An empty state whose button
@@ -874,16 +873,20 @@ export function ContextSection({
         ))}
         {sectionDrag.overlay}
       </div>
-      {/* PHASE 108. The note under the sections whenever the scan came from
-          a machine, in the position the search view's note already uses for
-          the same job. The first two lines are always drawn together; the
-          third only when the pass cap cut the read, so a cut list can never
-          draw as a whole one. */}
-      {remote && remoteMode === 'context' ? (
+      {/* PHASE 108 drew three note lines under the sections whenever the
+          scan came from a machine. PHASE 228 KEEPS ONE. The two standing
+          lines, that the files were read on that machine and that installing
+          works on this Mac only, and that nested project skills are not
+          listed, came off on the operator's rule of 2026-09-07: a local tab
+          carries no such paragraph, the verbs that stay on this Mac are not
+          built into the row menus on a remote tab, and a section that is not
+          read is a section that is not there. The cut line stays, drawn only
+          when the pass cap ended the read with paths unread, because a cut
+          list drawn as a whole one is the Phase 99 defect and a local list is
+          never cut. */}
+      {remote && remoteMode === 'context' && remoteCut ? (
         <div className="ctx-remote-note">
-          <p>{contextOnMachineLine(machineName)}</p>
-          <p>{CONTEXT_NESTED_NOT_LISTED}</p>
-          {remoteCut ? <p>{contextCutLine(machineName)}</p> : null}
+          <p>{contextCutLine(machineName)}</p>
         </div>
       ) : null}
       </>

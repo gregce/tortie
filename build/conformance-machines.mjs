@@ -293,9 +293,10 @@
  *     `CONTEXT_READ_FILE_MAX_BYTES` is not 33,554,432 or the `head -c`
  *     literal disagrees with it, `CONTEXT_READ_MAX_PASSES` is not 8, or
  *     `CONTEXT_ENUM_DEPTH` is not 2; or
- *     `src/renderer/context/ContextView.tsx` does not name
- *     `contextOnMachineLine`, `CONTEXT_NESTED_NOT_LISTED` and
- *     `contextCutLine`. THE IMPORT RULES ARE THE POINT: they are the
+ *     `src/renderer/context/ContextView.tsx` does not name `contextCutLine`,
+ *     or names `contextOnMachineLine` or `CONTEXT_NESTED_NOT_LISTED`, the two
+ *     standing note lines Phase 228 took off the remote face. THE IMPORT
+ *     RULES ARE THE POINT: they are the
  *     executable form of "no second table" from research 57 i7 section 6.3,
  *     and `npm run conformance:context` proves the matrix itself.
  *
@@ -5373,8 +5374,17 @@ const P105_CREDENTIAL_WORDS =
         `are asked by name after the manifest parse instead.`
     );
   }
-  // 58h. The renderer's remote note is real, so a remote list cannot draw as
-  // a local one and a cut list cannot draw as a whole one.
+  // 58h. The renderer's cut line is real, so a cut list cannot draw as a
+  // whole one. PHASE 228 INVERTED THE OTHER TWO THIRDS OF THIS CONDITION.
+  // Until then it required the view to name `contextOnMachineLine` and
+  // `CONTEXT_NESTED_NOT_LISTED` as well, two standing note lines under the
+  // rows saying the list came from the machine and that nested project
+  // skills are not listed. The operator's rule of 2026-09-07 is that a
+  // remote tab feels almost identical to a local one, and a local tab draws
+  // no such paragraph, so the two came off the face and out of the copy, and
+  // this condition now fails if either name comes back. The cut line is
+  // different in kind: it is drawn only when the pass cap ended the read with
+  // paths unread, and a cut list drawn as a whole one is the Phase 99 defect.
   if (p108.viewPresent !== true) {
     fail(
       'src/renderer/context/ContextView.tsx is not there, so nothing draws ' +
@@ -5382,21 +5392,24 @@ const P105_CREDENTIAL_WORDS =
     );
   } else {
     const drawn = p108.viewHonestyNames ?? [];
-    const wanted = [
-      'contextOnMachineLine',
-      'CONTEXT_NESTED_NOT_LISTED',
-      'contextCutLine'
-    ];
-    const absent = wanted.filter((one) => !drawn.includes(one));
-    if (absent.length > 0) {
+    if (!drawn.includes('contextCutLine')) {
       fail(
-        `src/renderer/context/ContextView.tsx does not name ` +
-          `${absent.join(', ')}. It names all three. The first says the list ` +
-          `came from the machine and that installing works on this Mac only, ` +
-          `the second says nested project skills are not listed, and the ` +
-          `third says the pass cap cut the list. Phase 99 carried a ` +
-          `truncation flag through main that the panel never read, and a cut ` +
-          `list drew as a whole one.`
+        `src/renderer/context/ContextView.tsx does not name contextCutLine. ` +
+          `It says the pass cap cut the list. Phase 99 carried a truncation ` +
+          `flag through main that the panel never read, and a cut list drew ` +
+          `as a whole one.`
+      );
+    }
+    const returned = ['contextOnMachineLine', 'CONTEXT_NESTED_NOT_LISTED'].filter(
+      (one) => drawn.includes(one)
+    );
+    if (returned.length > 0) {
+      fail(
+        `src/renderer/context/ContextView.tsx names ${returned.join(', ')}. ` +
+          `Phase 228 took the standing note lines off the remote Context face ` +
+          `on the operator's rule of 2026-09-07, because a local tab carries ` +
+          `no such paragraph. A limit that is genuinely different is a ` +
+          `disabled control with one short label, never a paragraph.`
       );
     }
   }
@@ -6078,11 +6091,11 @@ process.stdout.write(
           `${String(p108.listMax)} bytes per call, one file is cut at ` +
           `${String(p108.fileMax)} bytes by head -c, the walk depth is ` +
           `${String(p108.enumDepth)} and the pass cap is ` +
-          `${String(p108.maxPasses)}. The panel names contextOnMachineLine, ` +
-          `CONTEXT_NESTED_NOT_LISTED and contextCutLine, so a remote list ` +
-          `never draws as a local one and a cut list never draws as a whole ` +
-          `one. It writes nothing, and install, enable and pin are refused on ` +
-          `a remote tab permanently.\n`
+          `${String(p108.maxPasses)}. The panel names contextCutLine and ` +
+          `neither standing note line Phase 228 took off, so a cut list never ` +
+          `draws as a whole one and the remote face carries no paragraph the ` +
+          `local face does not. It writes nothing, and install, enable and ` +
+          `pin are refused on a remote tab permanently.\n`
   );
 }
 

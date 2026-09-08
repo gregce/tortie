@@ -29,6 +29,13 @@
  * that machine in every state. The sentences that replaced the body are
  * pinned below.
  *
+ * PHASE 228'S FIX ROUND TOOK THREE OF THOSE OFF AGAIN, for the operator's
+ * reason rather than for falsehood. The two standing note lines under the
+ * sections and the remote empty body were true and stood on the remote face
+ * with no equivalent on the local one. The cut line stays, drawn only when
+ * the read was cut. The deletions are pinned in
+ * ../../machines/__tests__/p228-off-the-face.test.ts.
+ *
  * The strings are pinned here because two builders write against them and
  * because a person reads them. The vocabulary audit next door already covers
  * the forbidden words in this file. This test covers two things that audit
@@ -41,15 +48,12 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
-  CONTEXT_NESTED_NOT_LISTED,
   CONTEXT_NO_BRIDGE,
   contextCutLine,
   contextElsewhereTitle,
-  contextEmptyOnMachine,
   contextNoAnswer,
   contextNoHome,
   contextNotConnected,
-  contextOnMachineLine,
   contextReadingOn,
   contextRefreshOnMachineTitle
 } from '../../machines/context';
@@ -128,26 +132,19 @@ describe('what Context says about a project on a machine (Phase 108)', () => {
     );
   });
 
-  it('names the three limits under every list a machine sent', () => {
-    expect(contextOnMachineLine('Studio')).toBe(
-      'Tortie read these files on Studio. Installing, enabling and pinning ' +
-        'work on this Mac only.'
-    );
-    expect(CONTEXT_NESTED_NOT_LISTED).toBe(
-      'Skills kept in folders inside this project are not listed when the ' +
-        'project is on another machine.'
-    );
+  it('names a cut list under a list a machine sent, and nothing else', () => {
+    // PHASE 228. The two standing lines that stood beside this one came off.
     expect(contextCutLine('Studio')).toBe(
       'Studio holds more configuration than Tortie read this time, so some ' +
         'entries can be missing from this list.'
     );
   });
 
-  it('says where adding happens, in place of a button that could do nothing', () => {
-    expect(contextEmptyOnMachine('Studio')).toBe(
-      'Nothing is configured for these agents on Studio. Adding a skill ' +
-        'happens on that machine, or from an agent running there.'
-    );
+  it('takes the three sentences Phase 228 took off the face out of the file', async () => {
+    const copy = (await import('../../machines/context')) as Record<string, unknown>;
+    expect(copy.contextOnMachineLine).toBeUndefined();
+    expect(copy.CONTEXT_NESTED_NOT_LISTED).toBeUndefined();
+    expect(copy.contextEmptyOnMachine).toBeUndefined();
   });
 
   it('tells the Refresh control the truth about what it cannot see', () => {
@@ -259,10 +256,7 @@ describe('the writing rules, over every sentence in src/renderer/machines', () =
       contextNotConnected('Studio'),
       contextNoAnswer('Studio'),
       contextNoHome('Studio'),
-      contextOnMachineLine('Studio'),
-      CONTEXT_NESTED_NOT_LISTED,
       contextCutLine('Studio'),
-      contextEmptyOnMachine('Studio'),
       contextRefreshOnMachineTitle('Studio'),
       SEARCH_NOT_A_REPOSITORY,
       searchFolderMissing('Studio'),

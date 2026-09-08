@@ -81,6 +81,21 @@ const OFF: readonly OffTheFace[] = [
     name: 'searchOnMachineLine',
     home: 'search.ts',
     words: "with that machine's own grep"
+  },
+  {
+    name: 'contextOnMachineLine',
+    home: 'context.ts',
+    words: 'Installing, enabling and pinning work on this Mac only'
+  },
+  {
+    name: 'CONTEXT_NESTED_NOT_LISTED',
+    home: 'context.ts',
+    words: 'Skills kept in folders inside this project are not listed'
+  },
+  {
+    name: 'contextEmptyOnMachine',
+    home: 'context.ts',
+    words: 'Adding a skill happens on that machine'
   }
 ];
 
@@ -167,19 +182,24 @@ describe('the scanner can fail', () => {
   });
 
   it('holds every sentence the entry names, and no fewer', () => {
-    // Six came off: the two line machine band on every view, which the fix
+    // Nine came off: the two line machine band on every view, which the fix
     // round took off because the tab spine and the project header already
     // name the machine, the Source control band, the sections note, the
-    // search filters note and the grep line. The hooks and signing line
-    // MOVED to a title and the read-at clock STAYS until Phase 230, so
-    // neither is here.
+    // search filters note, the grep line, and the Context view's two
+    // standing note lines and its remote empty body. The hooks and signing
+    // line MOVED to a title and the read-at clock STAYS until Phase 230, so
+    // neither is here; the Context cut line stays because it names a list
+    // that was cut.
     expect(OFF.map((one) => one.name)).toEqual([
       'remoteBandTitle',
       'REMOTE_BAND_BODY',
       'remoteChangesBand',
       'REMOTE_SCM_SECTIONS_NOTE',
       'SEARCH_FILTERS_ON_THIS_MAC',
-      'searchOnMachineLine'
+      'searchOnMachineLine',
+      'contextOnMachineLine',
+      'CONTEXT_NESTED_NOT_LISTED',
+      'contextEmptyOnMachine'
     ]);
   });
 
