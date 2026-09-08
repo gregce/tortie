@@ -23196,7 +23196,9 @@ so the scanner misses it.
   read in BOTH shapes because they fail differently (E.7a's exact and `approximate` arms), the moved
   baseline generation (B.8a), the path outside every root (E.5), the person's own insertion (A8a,
   which must rewind AND must be undoable from the journal), and the encoding round trip (E.7b, as a
-  refusal). Every arm goes red under an ablation of its clause.
+  refusal). Every arm goes red under an ablation of its clause. **The fix round added a seventh**,
+  on the shipping press rather than the pure decision, being the focus moved while the press
+  awaited; see the fix round below.
 - **The app run**, one Electron on a scratch profile: draw a redline over an agent shaped edit, jump
   to it by keyboard, press rewind, read the file from disk and prove the phrase is back and every
   other edit stands; press undo and prove it returns; have a stub write between the draw and the
@@ -23210,6 +23212,70 @@ so the scanner misses it.
 - `npm run probe:p167` with `redline` in `P167_SURFACES`, driven with a file being rewritten under
   it, must plateau.
 - `npm run gate:contract` unchanged from Phase 226.
+
+### The fix round, and it corrected the journal and the gate's reach
+
+The verifier ran both named methods and the builder had done neither. Its stale-file attack, 27
+arms under node in `applyRewind`'s exact order over the shipping `rewind.ts` and the shipping
+channel plus ten more through the real chord with main's `fs:readFile` handler held open, held at
+every arm but one, and that one is the phase's own defect. **The journal recorded the change under
+focus AFTER the write returned, not the identity that was pressed.** `press()` in
+`RedlineDocument.tsx` called `focusedChange(host)` a second time after `await applyRewind(...)` to
+build the entry. A press is two IPC round trips, and with ⌥↓ inside that window E0 was rewound on
+disk and the journal held E1, so ⌥⇧⌫ answered "That change is no longer in notes.txt" and E0's
+rewind was recoverable from nothing Tortie keeps, which is the exact A8a loss the journal exists to
+guard; with the focus moved onto the pure insertion E6 after pressing E5, undo answered `wrote` and
+put "knows exactly exactly what" on disk, bytes never in the file. The press now lives in
+`src/renderer/editor/redline-press.ts`, pure of React and the DOM, taking the focus reader, the one
+call site and the refusal as functions, reading the identity ONCE before any await and moving the
+journal with that same object after the write; an undo pops the entry it wrote back BY REFERENCE
+and never "the top", so a rewind pressed while an undo is in flight keeps its entry. The view hands
+it the live tab and `focusedChange`. `p227-redline-press.test.ts` pins the two verifier shapes and
+the in-flight pop under `npm test`, and **the seventh arm of `conformance:redline` rule 8 drives the
+SHIPPING press under node with a call site that moves the focus inside its await**, reading
+`journalHoldsPressed`, `restored` and `duplicated` for both shapes; its ablation is the first shipped
+shape put back, the focus read again after the await, and it goes red on exactly the verifier's
+readings, being the journal holding E1, undo refused, and "exactly exactly" written. The gate copies
+the press and the journal beside the four value modules for that, still removed in a `finally`.
+
+**Rule 9's reach was a hand list, and the verifier walked past it twice.** A guarded write planted
+in `redline-commands.ts`, a redline file the list did not name, left the gate green, against the
+charter's own sentence that the write does not go into a seventh file so the scanner misses it; and
+a bound copy of the method in the permitted file, `const w = b.fs.writeGuarded; w.call(b.fs, ...)`,
+was not counted because the pattern wanted `.writeGuarded(`. The set rule 9 scans is now DERIVED
+from the directory by name, every file under `src/renderer/editor` beginning `redline`, `Redline`,
+`rewind` or `baseline`, fourteen at this commit and held to a floor of fourteen the way
+`gate:electron` holds its helper population, with the hand list kept as the reasons and asserted to
+be a subset, so a deliberate deletion lowers the floor in its own commit and a file named outside
+the prefix is the stated limit. The write is counted as a MENTION of the name outside a comment and
+not as a call, so an alias, a destructure or a bound copy is a second write. Both plants are
+fixtures now, nine planted sets where there were seven, and both were re-planted by hand on the
+shipping tree and read red on their own sentences.
+
+**The same-size write inside the channel's window is real, it is Phase 226's, and it is stated
+rather than closed.** The verifier's racer rewrote the file every ~50 µs with a monotone counter and
+read back after each write, clock free: 15 of 25 `wrote` answers in one run and 10 of 20 in another
+had written over a racer write that landed between the channel's `lstat` and its `rename`, the
+two-syscall window `guarded-write.ts`'s own header names; `stale` and `raced` caught every write
+outside it. The fix round re-derived it with a racer of its own, ended in a `finally`: 32,921
+same-size rewrites and 13,166 presses in eight seconds, 7,319 `stale`, 79 `raced`, 5 `wrote`, and
+ONE of those five landed on a newer write. No editor and no agent rewrites a file at that rate, the
+close is `renamex_np(RENAME_SWAP)` with a check of the swapped-out inode, which needs a native call
+Node does not expose, and by refusal 6 above and the no-third-party rule that is not a line this
+phase writes. The limit is written into `redline-write.ts`'s header with both numbers, and the
+release that ships this phase carries it in the item's one clause.
+
+**The charter's `probe:p167` line was not what the probe did.** The surface profile opened and
+closed the redline, inherited from Phase 225, whose comment said driving a file being rewritten
+under it was this phase's obligation. It now rewrites README.md from outside `P167_REWRITES` times
+per open, default four, each write a new word waited for on the face, in-process so nothing is
+spawned, and the verdict names a rewrite that never reached the face. The reading is in the running
+log line.
+
+**Not an app-run arm.** The focus-moved shape is pinned under node twice and not through the real
+chord in `probe:p227`, because reproducing it there needs main's read handler held open through the
+inspector, which the verifier's harness did and the shipping probe does not; the natural window is
+the two round trips and the module-level arm is deterministic where the app arm would be a race.
 
 ### What is NOT in this phase
 

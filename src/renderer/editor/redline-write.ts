@@ -28,6 +28,20 @@
  * Undo is the same function pointed the other way (kind: 'undo'): the same
  * generation guard, the same re-read, the same guarded write, its identity
  * coming from the tab's in-memory journal rather than from focus.
+ *
+ * THE STATED LIMIT, and it is the channel's, measured by the Phase 227
+ * verifier and re-derived by its fix round. The precondition closes every
+ * write that lands between the re-read here and the channel's own read, and
+ * the channel's `lstat` closes every write that lands before it; what is left
+ * is the window between that `lstat` and the `rename`, two system calls, and
+ * a write of the SAME SIZE inside it is written over. Under a process
+ * rewriting the file every few microseconds, which no editor and no agent
+ * does, the verifier read 15 of 25 `wrote` answers and the fix round 1 of 5
+ * over 32,921 rewrites in eight seconds landing on top of such a write. It is
+ * `src/main/fs/guarded-write.ts`'s window and is stated in its header; a
+ * `renamex_np(RENAME_SWAP)` with a check of the swapped-out inode would close
+ * it and needs a native call Node does not expose. Everything outside that
+ * window answers `stale` or `raced` and writes nothing.
  */
 
 import { gmuxBridge } from '../bridge';
