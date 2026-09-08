@@ -710,6 +710,20 @@ export const CHECKS = [
   // synchronous /bin/sh. No agent, no token, no keychain; `-L gmux` touched
   // only by a read-only session count before and after.
   electron('probe:p227'),
+  // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
+  // on a scratch profile, a scratch HOME and its own socket over a repository
+  // it builds itself. It takes the document's height and every change's
+  // getClientRects()[0] with no chip and with one, which must be identical to
+  // the pixel, and takes them a third time with a real IN-FLOW copy spliced in,
+  // which must move, so the ruler is proved able to see the shape research 83
+  // refused. It then drives the chip's Rewind and Undo and reads the file FROM
+  // DISK, drags the divider to a 380px pane and proves the chip sits on the
+  // change's first fragment, copies the document to the real pasteboard and
+  // proves no glyph of the chip is in it, and reads the Edit menu out of main.
+  // Outside writes are a synchronous /bin/sh. No agent, no token, no keychain;
+  // `-L gmux` touched only by a read-only session count before and after, and
+  // the person's own pasteboard saved and put back in a finally.
+  electron('probe:p236'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
