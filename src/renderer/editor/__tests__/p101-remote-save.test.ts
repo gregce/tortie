@@ -18,7 +18,7 @@
  * they are driven live by the phase's own probe.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Monaco does not run here, so the working buffer is stubbed. It is the ONE
@@ -86,6 +86,8 @@ vi.stubGlobal('document', {
 const { useEditor } = await import('../store');
 const { useApp } = await import('../../state/store');
 const copy = await import('../../machines/editor');
+const { onRemoteWrite } = await import('../../machines/remote-writes');
+type RemoteWrite = import('../../machines/remote-writes').RemoteWrite;
 type OpenFileRequest = import('../../state/open-file').OpenFileRequest;
 type MachineStateView = import('@shared/ipc').MachineStateView;
 
@@ -318,6 +320,99 @@ describe('a machine that carries a confirmed folder', () => {
     await useEditor.getState().save();
     expect(toasts).toEqual([
       { kind: 'error', text: copy.remoteSaveTooLarge(96_231, 'Studio') }
+    ]);
+  });
+});
+
+/**
+ * PHASE 230, AND THIS BLOCK IS THE FIX ROUND'S. A save that lands on a machine
+ * announces itself, so every remote view of that machine reads again.
+ *
+ * WHY IT IS HERE RATHER THAN IN THE APP RUN. Research 89 section 4.4 measured
+ * a file saved by this door absent from Source control for 30 seconds, and it
+ * is the one write flavour the phase's app run could not reach: Monaco never
+ * mounted under the harness, the verifier read `.ed-host` at 50 ms and then no
+ * editor, and the fix round's own drive read the same, so `Cmd+S` on a real
+ * remote file is measured by nothing live. This file already drives the REAL
+ * `save` in ../tab-io.ts with the buffer stubbed and `putFile` answering, so
+ * the announcement is pinned where the save actually happens. What it does not
+ * prove is the editor, the far side or the redraw; the redraw from an
+ * announcement is ../../machines/__tests__/p230-reread.test.ts's.
+ *
+ * The four cases are the charter's rule, being that a write announces when it
+ * ANSWERS with one of its landing words. A refusal announces nothing, because
+ * nothing changed over there. A lost answer announces nothing either, and that
+ * is deliberate rather than an oversight: `putFile` throwing means the file MAY
+ * have been written, the person is told exactly that, and the view reads again
+ * the moment they look at it, which is the whole of this phase.
+ */
+describe('the announcement a landed save makes (Phase 230)', () => {
+  let heard: RemoteWrite[] = [];
+  let stop: () => void = () => undefined;
+
+  beforeEach(() => {
+    heard = [];
+    stop = onRemoteWrite((one) => {
+      heard.push(one);
+    });
+    useApp.setState({ machineStates: states(ROOT) } as never);
+  });
+  afterEach(() => {
+    stop();
+  });
+
+  it('hands every remote view one write, naming the file and the editor', async () => {
+    await openDirty();
+    await useEditor.getState().save();
+    expect(putFile).toHaveBeenCalledTimes(1);
+    expect(heard).toEqual([
+      {
+        machineId: 'studio',
+        path: '/home/greg/api/src/auth.ts',
+        kind: 'file',
+        by: 'editor'
+      }
+    ]);
+  });
+
+  it('announces nothing when the machine refused the write', async () => {
+    putFile.mockResolvedValueOnce({
+      outcome: 'stale',
+      sha256: null,
+      bytes: null,
+      writeRoot: ROOT
+    });
+    await openDirty();
+    await useEditor.getState().save();
+    expect(toasts).toEqual([
+      { kind: 'error', text: copy.remoteSaveStale('Studio') }
+    ]);
+    expect(heard).toEqual([]);
+  });
+
+  it('announces nothing when no folder was confirmed, because nothing was sent', async () => {
+    useApp.setState({ machineStates: states(null) } as never);
+    await openDirty();
+    await useEditor.getState().save();
+    expect(putFile).not.toHaveBeenCalled();
+    expect(heard).toEqual([]);
+  });
+
+  it('announces nothing when the answer was lost, and says so instead', async () => {
+    // The shape a killed ssh really answers with, the same one the lost
+    // answer case above is driven by, machinery and all.
+    putFile.mockRejectedValueOnce(
+      new Error(
+        'Command failed: /usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=10 ' +
+          '-o StrictHostKeyChecking=yes -o UserKnownHostsFile="/tmp/x" -o ' +
+          'ControlMaster=auto -o ControlPath=/tmp/y -o ControlPersist=60s'
+      )
+    );
+    await openDirty();
+    await useEditor.getState().save();
+    expect(heard).toEqual([]);
+    expect(toasts).toEqual([
+      { kind: 'error', text: copy.remoteSaveLostAnswer('Studio') }
     ]);
   });
 });
