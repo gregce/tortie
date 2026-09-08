@@ -179,8 +179,13 @@
  * (default 200), P167_DETACHED (default 50), P167_CPU, the throttle
  * (default 4; 1 turns it off and the run says so), P167_CPU_PROFILES, which
  * profiles it applies to (default c), P167_SNAPSHOT=1 for a heap snapshot per
- * block, P167_PLANT=0 to skip the planted leak arm, and P167_CENSUS_ROOTS, how
- * many detached tree roots each census line names (default 6).
+ * block, P167_PLANT=0 to skip the planted leak arm, P167_CENSUS_ROOTS, how
+ * many detached tree roots each census line names (default 6), P167_REWRITES,
+ * outside rewrites of the open file per redline open (default 4), P167_TYPES,
+ * typed-and-taken-back words per redline open (default 2), and P167_ACCEPTS,
+ * per-change accepts per redline open (default 2; each moves the tab's shadow
+ * baseline and its generation and rebuilds the whole run list, and none of
+ * them writes a file).
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -230,6 +235,8 @@ const wantSurface = (name) => SURFACES.includes(name);
 const REWRITES = Math.max(0, Number(process.env['P167_REWRITES'] ?? '4') || 0);
 /** PHASE 237. Typed-and-taken-back words per redline open; 0 turns them off. */
 const TYPES = Math.max(0, Number(process.env['P167_TYPES'] ?? '2') || 0);
+/** PHASE 238. Per-change accepts per redline open; 0 turns them off. */
+const ACCEPTS = Math.max(0, Number(process.env['P167_ACCEPTS'] ?? '2') || 0);
 /**
  * PHASE 230. The seventh surface is the four sidebar views on a tab whose
  * folder is on another machine, being the Explorer, Source control, Search
@@ -921,7 +928,13 @@ const CHORD = {
   nextProject: { key: 'Tab', code: 'Tab', vk: 9, modifiers: 2 },
   // PHASE 237. Plain Backspace, which the redline answers as a deletion of
   // the current side; ⌥⌫ is Rewind and is not what this drive presses.
-  backspace: { key: 'Backspace', code: 'Backspace', vk: 8, modifiers: 0 }
+  backspace: { key: 'Backspace', code: 'Backspace', vk: 8, modifiers: 0 },
+  // PHASE 238. ⌥↓ steps to the next change and ⌥↩ accepts the one under
+  // focus. An accept moves the tab's shadow baseline and its generation and
+  // recomposes the whole document; it writes NO file, which is why this drive
+  // can press it repeatedly over the same open without touching the fixture.
+  redlineNext: { key: 'ArrowDown', code: 'ArrowDown', vk: 40, modifiers: 1 },
+  redlineAccept: { key: 'Enter', code: 'Enter', vk: 13, modifiers: 1 }
 };
 
 async function press(cdp, { key, code, vk, modifiers }) {
@@ -1357,6 +1370,64 @@ async function cycleSurfaces(cdp, log) {
       );
       if (!clean) log.typeMisses.push(`${word} (not taken back)`);
     }
+    // PHASE 238. THE SURFACE ACCEPTS UNDER ITSELF as well as being rewritten
+    // under and typed in. An accept moves the tab's SHADOW BASELINE and its
+    // generation, which recomposes the whole document and redraws every change
+    // wrapper with a new `data-change-gen` — a full rebuild of the run list per
+    // press, exactly the churn this probe's plateau rule exists to catch, and
+    // one neither of the loops above can produce: the rewrites move the RIGHT
+    // side and the typing moves the buffer, while this moves the LEFT one.
+    //
+    // Each iteration makes its own change from outside and then accepts it, so
+    // no iteration is a no-op against a document that has already been
+    // narrowed to nothing, and each one also drives the property that matters
+    // beyond the churn: an edit arriving AFTER an accept is drawn against the
+    // ACCEPTED baseline and not the old one, which is what the change count
+    // returning to exactly one says.
+    //
+    // IT WRITES NO FILE ITSELF (research 83 B.5). The `writeFileSync` here is
+    // this process making the change to accept, the same way the rewrite loop
+    // above makes its own, and the file is put back to its standing text below.
+    for (let a = 0; a < ACCEPTS; a += 1) {
+      const word = `accepted${String(log.accepts)}`;
+      log.accepts += 1;
+      writeFileSync(readme, `# p167-a\n\nOne line.\nA second line the diff shows, ${word}.\n`);
+      const drawn = await until(
+        cdp,
+        `(() => { const d = document.querySelector('.ed-redline-doc'); return d !== null && d.textContent.includes(${JSON.stringify(word)}); })()`,
+        8000
+      );
+      if (!drawn) {
+        log.acceptMisses.push(`${word} (never drawn)`);
+        continue;
+      }
+      const before = await cdpEval(
+        cdp,
+        `document.querySelectorAll('.ed-redline-change').length`,
+        10_000
+      );
+      if (typeof before !== 'number' || before < 1) {
+        log.acceptMisses.push(`${word} (nothing to accept, count ${String(before)})`);
+        continue;
+      }
+      // ⌥↓ from nowhere focuses the FIRST change; ⌥↩ accepts it.
+      await press(cdp, CHORD.redlineNext);
+      await press(cdp, CHORD.redlineAccept);
+      const dropped = await until(
+        cdp,
+        `document.querySelectorAll('.ed-redline-change').length === ${String(before - 1)}`,
+        8000
+      );
+      if (!dropped) log.acceptMisses.push(`${word} (count stayed at ${String(before)})`);
+      // And the accepted words are still on the face, now as plain text: an
+      // accept narrows the marking and never removes the person's bytes.
+      const kept = await cdpEval(
+        cdp,
+        `(() => { const d = document.querySelector('.ed-redline-doc'); return d !== null && d.textContent.includes(${JSON.stringify(word)}); })()`,
+        10_000
+      );
+      if (kept !== true) log.acceptMisses.push(`${word} (gone from the face after the accept)`);
+    }
     writeFileSync(readme, standing);
     await press(cdp, CHORD.closeEditorTab);
     await closeOrCount('redline', `document.querySelector('.ed-redline-doc') === null`);
@@ -1625,7 +1696,7 @@ await withElectron(
           continue;
         }
       }
-      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [], typed: 0, typeMisses: [] };
+      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [], typed: 0, typeMisses: [], accepts: 0, acceptMisses: [] };
       const exceptionsBefore = cdp.events().filter((e) => e.method === 'Runtime.exceptionThrown').length;
       const before = await readAll(descriptors);
       say(`\n${NAMES[key]}`);
@@ -1695,6 +1766,11 @@ await withElectron(
         if (log.typed === 0 && TYPES > 0) verdicts.push(`${key}: the redline was opened and never typed in, so this run cannot say it plateaus under typing`);
         if (log.typeMisses.length > 0) verdicts.push(`${key}: ${String(log.typeMisses.length)} of ${String(log.typed)} typed words never reached the redline's face or were not taken back: ${log.typeMisses.slice(0, 5).join(', ')}`);
         else if (log.typed > 0) say(`${key}: the redline was typed in ${String(log.typed)} times, every word drawn and taken back`);
+        // PHASE 238. The accepts, judged the same way: a block that never
+        // accepted cannot say the surface plateaus under an accept.
+        if (log.accepts === 0 && ACCEPTS > 0) verdicts.push(`${key}: the redline was opened and never accepted in, so this run cannot say it plateaus under accepts`);
+        if (log.acceptMisses.length > 0) verdicts.push(`${key}: ${String(log.acceptMisses.length)} of ${String(log.accepts)} accepts never dropped a change from the redline's face: ${log.acceptMisses.slice(0, 5).join(', ')}`);
+        else if (log.accepts > 0) say(`${key}: the redline accepted ${String(log.accepts)} changes, every one gone from the face and no byte written`);
       }
       // PHASE 200 fix round. The tripwire readMotion took, judged here.
       if (key === 'c' && wantSurface('diff')) {

@@ -434,7 +434,7 @@ export function RedlineDocument({
     (kind: 'one' | 'all', host: HTMLElement): void => {
       const live = useEditor.getState().tabs.find((t) => t.id === tab.id);
       if (live === undefined) return;
-      pressAccept(
+      const result = pressAccept(
         kind,
         {
           id: live.id,
@@ -466,6 +466,27 @@ export function RedlineDocument({
           now: () => Date.now()
         }
       );
+      // THE KEYBOARD STAYS IN THE VIEW, and this line is a defect the
+      // `probe:p167` drive found rather than a nicety. An accept removes the
+      // change wrapper the keyboard was on, and Chromium sends focus to
+      // `document.body` when a focused element leaves the tree; the scroller's
+      // key handler is a React handler ON the scroller, so a keydown at body
+      // never reaches it and the NEXT ⌥↓ and ⌥↩ do nothing at all. Driven with
+      // two accepts an open, the first landed and the second never fired, six
+      // times out of twelve.
+      //
+      // The host is focused BEFORE React re-renders, which is why one line is
+      // enough: `pressAccept` is synchronous and the store's set only
+      // schedules the render, so the wrapper is no longer the focused element
+      // by the time it is removed and there is nothing to fall out of.
+      //
+      // THE REWIND HAS THE SAME SHAPE AND IS NOT TOUCHED HERE. Its recompose
+      // arrives through the watcher rather than in this tick, so the fix is
+      // not the same line, and it is Phase 227's surface rather than this
+      // one's; it is recorded here so a later round finds it written down.
+      if (result.outcome === 'accepted') {
+        hostRef.current?.focus({ preventScroll: true });
+      }
     },
     [tab.id]
   );
