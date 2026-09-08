@@ -163,6 +163,33 @@
  *      171.60 x 30px overlay sitting on the marked-up sentence research 83 D.3
  *      says the view exists so a person can read.
  *
+ *  19. ACCEPT (Phase 238). Five arms on the SHIPPING accept, driven under node
+ *      by build/redline-accept-probe.mts, and every one goes red under an
+ *      ablation of its own clause. 19a is accept over all 256 subsets,
+ *      accepted one change at a time with the picture re-derived between —
+ *      which is what the view really does, because every accept moves the
+ *      baseline — landing on the single mix over the whole subset with the
+ *      current text projecting back byte for byte at every one. 19b and 19c
+ *      are research 83 B.8a's own document with a REAL accept moving the
+ *      generation between the draw and the press: the rewind refuses through
+ *      the shipping press with nothing written, the stale accept refuses with
+ *      nothing advanced, and both are held against the reading that makes
+ *      them worth something, being that WITHOUT the guard the same identity
+ *      resolves to exactly one change and it is the SECOND lorry. 19d is a
+ *      digest of a REAL FILE on a real disk before and after an accept, with
+ *      a rewind through the same harness in the same breath so the reader is
+ *      shown able to see a write. 19e is accept-all leaving a redline of one
+ *      run and zero changes, without ever asking what is under focus.
+ *
+ *      ITS ABLATION DIRECTORIES ARE NOT INSIDE `src/`. Rules 8 and 17 copy
+ *      their chain into a dotted subdirectory of src/renderer/editor, which
+ *      works and is untidy; this one uses `.p238-accept-*` at the repository
+ *      root, which .gitignore's own phase-working-directory line already
+ *      covers, so an interrupted run can never leave something committable
+ *      under the source tree. It has to be inside the repository rather than under the OS
+ *      temporary directory, because the copied chain imports `diff` and node
+ *      resolves that by walking up to `node_modules`.
+ *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
 
@@ -2081,6 +2108,193 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
   say(`18c. the view asks chipNeedsMeasure where it finds the mark and the chip's placement depends on the token (${String(wireOk)} of ${String(WIRE_PLANTS.length)} scanner plants behaved, ${String(WIRE_PLANTS.filter((p) => !p.ok).length)} of them must fail)`);
 }
 
+
+
+// ---------------------------------------------------------------------------
+// PHASE 238, rule 19: ACCEPT. Five arms on the SHIPPING accept, driven under
+// node by build/redline-accept-probe.mts, one clause each ablated.
+//
+// This is the rule that makes research 83 B.3 and B.5 executable rather than
+// documented, and 19b is the one that earns the phase its tier: B.8a measured
+// that a baseline moving between a draw and a press makes the pressed identity
+// resolve to exactly one edit that is the WRONG one, with the write answering
+// success and nothing said. Phase 227 shipped the guard against a gesture that
+// did not exist yet; THIS phase is the first thing that moves the generation
+// often, so the guard is driven from a real accept here rather than from a
+// hand-set integer.
+//
+// The chain is copied to `.p238-accept-*` at the REPOSITORY ROOT, which
+// .gitignore's phase-working-directory line covers, and removed in a
+// `finally` with a
+// sweep for a name an interrupted run left. It cannot go under the OS
+// temporary directory, because the copied modules import `diff` and node
+// resolves that by walking up to node_modules.
+// ---------------------------------------------------------------------------
+{
+  const ACCEPT_CHAIN = [
+    'rewind.ts',
+    'redline-document.ts',
+    'redline.ts',
+    'paths.ts',
+    'redline-press.ts',
+    'redline-journal.ts',
+    'redline-accept.ts'
+  ];
+  const SRC = 'src/renderer/editor';
+  const runAcceptProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-accept-probe.mts'],
+      {
+        encoding: 'utf8',
+        cwd: process.cwd(),
+        maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, ACCEPT_DIR: dir }
+      }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const ACCEPT_ARMS = [
+    {
+      name: '19a. accept over all 256 subsets is mix over that subset, and the current text never moves',
+      key: 'subsets',
+      expect: (a) =>
+        a.subsets === 256 &&
+        a.agreed === 256 &&
+        a.countsHeld === 256 &&
+        a.distinct === 256 &&
+        a.currentMoved === 0,
+      file: 'rewind.ts',
+      from: 'return mix(runs, changes, new Set([index]));',
+      to: 'return mix(runs, changes, new Set());'
+    },
+    {
+      name: '19b. B.8a: a rewind drawn before an accept refuses through the SHIPPING press and writes nothing',
+      key: 'pressAfterAccept',
+      expect: (a) =>
+        a.outcome === 'refused' &&
+        a.why === 'baselineMoved' &&
+        a.said === 'baselineMoved' &&
+        a.fileUnmoved === true &&
+        // The trap was really set: without the guard this identity resolves to
+        // exactly one change, and it is the SECOND lorry.
+        a.wouldResolveTo === 1 &&
+        a.wouldBeWrong === true,
+      file: 'rewind.ts',
+      from: "if (input.drawnGeneration !== input.baselineGeneration) return 'baselineMoved';",
+      to: "if (false) return 'baselineMoved';"
+    },
+    {
+      name: '19c. B.8a the other way: an accept drawn before an accept refuses and advances nothing',
+      key: 'acceptAfterAccept',
+      expect: (a) =>
+        a.outcome === 'refused' &&
+        a.why === 'baselineMoved' &&
+        a.said === 'baselineMoved' &&
+        a.advanced === 0,
+      file: 'rewind.ts',
+      from: `  if (input.drawnGeneration !== input.baselineGeneration) {
+    return { outcome: 'refused', why: 'baselineMoved' };
+  }`,
+      to: '  if (false) { return { outcome: \'refused\', why: \'baselineMoved\' }; }'
+    },
+    {
+      name: '19d. an accept writes NO FILE, by a digest of a real file before and after',
+      key: 'noFileWritten',
+      expect: (a) =>
+        a.acceptFileDigestMoved === false &&
+        // The reader is shown able to see a write, in the same breath.
+        a.rewindFileDigestMoved === true &&
+        a.acceptedIsMixOfOne === true &&
+        typeof a.acceptedBaselineSha === 'string',
+      file: 'redline-accept.ts',
+      from: '  deps.advance(plan.baseline, deps.now());',
+      to: '  deps.advance(plan.baseline.slice(1), deps.now());'
+    },
+    {
+      name: '19e. accept-all leaves a redline of one run and zero changes, and never asks what is focused',
+      key: 'acceptAllEmpty',
+      expect: (a) =>
+        a.outcome === 'accepted' &&
+        a.askedFocus === false &&
+        a.baselineIsCurrent === true &&
+        a.sameAsAcceptAll === true &&
+        a.changesLeft === 0 &&
+        a.runs === 1 &&
+        a.nonSameRuns === 0,
+      file: 'rewind.ts',
+      from: `export function acceptAll(current: string): string {
+  return current;
+}`,
+      to: `export function acceptAll(current: string): string {
+  return current.slice(1);
+}`
+    }
+  ];
+
+  const shippingAccept = runAcceptProbe(SRC);
+  if (shippingAccept.error !== undefined) {
+    fail(`19. the accept probe did not run: ${shippingAccept.error}`);
+  } else {
+    for (const arm of ACCEPT_ARMS) {
+      if (!arm.expect(shippingAccept[arm.key] ?? {})) {
+        fail(`19. the shipping accept read the wrong thing for "${arm.name}": ${JSON.stringify(shippingAccept[arm.key])}`);
+      }
+    }
+    const prefix = `.p238-accept-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    try {
+      for (const [i, arm] of ACCEPT_ARMS.entries()) {
+        const dir = `${prefix}${String(i)}`;
+        mkdirSync(dir, { recursive: true });
+        made.push(dir);
+        for (const f of ACCEPT_CHAIN) cpSync(join(SRC, f), join(dir, f));
+        const target = join(dir, arm.file);
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`19. the ablation for "${arm.name}" found nothing to edit in ${arm.file}`);
+          continue;
+        }
+        writeFileSync(target, before.replace(arm.from, arm.to));
+        const ablated = runAcceptProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(`19. the ablation for "${arm.name}" stopped the probe running (${ablated.error}), so it proves nothing`);
+          continue;
+        }
+        const moved =
+          JSON.stringify(ablated[arm.key]) !== JSON.stringify(shippingAccept[arm.key]);
+        if (moved) red += 1;
+        else {
+          fail(`19. the ablation for "${arm.name}" changed nothing this arm reads, so it cannot fail: ${JSON.stringify(ablated[arm.key])}`);
+        }
+      }
+      say(
+        `19. ${String(ACCEPT_ARMS.length)} arms over the shipping accept, and ${String(red)} of ${String(ACCEPT_ARMS.length)} ablations moved their arm's reading`
+      );
+      if (shippingAccept.pressAfterAccept?.wouldResolveTo === 1) {
+        say(
+          "19b. and the guard is not a tautology: with it removed the same identity resolves to exactly one change, which is the SECOND lorry (research 83 B.8a)"
+        );
+      }
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      // A sweep, in case a name from an interrupted run is left at the root.
+      for (const name of readdirSync('.')) {
+        if (name.startsWith(prefix) && existsSync(name)) {
+          rmSync(name, { recursive: true, force: true });
+        }
+      }
+    }
+  }
+}
 
 if (failures.length > 0) {
   console.error(`${TAG} ${String(failures.length)} failure(s):`);
