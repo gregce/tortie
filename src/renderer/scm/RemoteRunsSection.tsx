@@ -13,10 +13,12 @@
  *    local Runs section's own rule and it matters more here, because the first
  *    read crosses a link and then starts a gh process. A tab nobody expanded
  *    asks nothing of anybody.
- * 2. NO TIMER, ANYWHERE. A read happens on the first expand and when a person
- *    presses Refresh. Nothing polls the machine and nothing polls GitHub, and
- *    there is no watch, because main cannot see a push made on another
- *    computer. The panel says on screen that the list does not refresh.
+ * 2. NO TIMER, ANYWHERE. A read happens on the first expand, when a person
+ *    presses Refresh, and, since Phase 230, at the moments the one shared hook
+ *    names, being the machine starting to answer over a refused read, the
+ *    group being opened again, and the window regaining focus. Nothing polls
+ *    the machine and nothing polls GitHub, and there is no watch, because main
+ *    cannot see a push made on another computer.
  * 3. A ROW OPENS ON GITHUB AND DOES NOT EXPAND. Reading a run's jobs is a
  *    second channel and a second gh process for every row, and this phase has
  *    one channel. The row's own label says it opens the run, no chevron is
@@ -55,13 +57,13 @@
  *
  * ## What is NOT true, said plainly
  *
- * There is no automatic second read when a machine starts answering. The
- * Changes group beside this one carries one, because Phase 90.3 shipped without
- * a Refresh button and the only way back from a failed read was to switch tabs.
- * This section has a Refresh button in its header from the first commit, so a
- * person who expanded it before their machine had connected reads a sentence
- * saying so and presses Refresh. The cost is one press, and it is recorded here
- * rather than left to be discovered.
+ * PHASE 230 CLOSED THE GAP THIS PHASE RECORDED. There was no automatic second
+ * read when a machine started answering, and the cost was one press in each
+ * of five places after a sentence that was true when it was written and was
+ * not true any more (research 85 section 4.1). The group reads again through
+ * ../machines/use-remote-reread.ts now, the same hook every remote view uses.
+ * It reads for NONE of Tortie's own writes, because a commit made over there
+ * is not a push and GitHub has nothing new to say about it.
  */
 
 import React, { useEffect, useMemo } from 'react';
@@ -81,6 +83,8 @@ import {
   runsReadAt,
   runsReadingBranch
 } from '../machines/runs';
+import { heldOfMode } from '../machines/reread';
+import { useRemoteReread } from '../machines/use-remote-reread';
 import { RunRow } from './RunRow';
 import {
   machineAnsweredRuns,
@@ -315,6 +319,15 @@ export function RemoteRunsSection({
   useEffect(() => {
     if (!collapsed && available) ensure(target);
   }, [collapsed, target, ensure, available]);
+
+  // PHASE 230. The other moments this group reads at; the header says which.
+  useRemoteReread({
+    target,
+    held: heldOfMode(entry.mode, entry.loading || entry.refreshing),
+    active: !collapsed && available,
+    writes: [],
+    read: () => void refresh(target)
+  });
 
   return (
     <RemoteRunsPanel

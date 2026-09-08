@@ -13,10 +13,13 @@
  *    expanded asks nothing of anybody. That is the rule the two groups below it
  *    already follow and it matters more here, because this read is the largest
  *    one the product makes over a link.
- * 2. NO TIMER, ANYWHERE. A read happens on the first expand, on Load more and
- *    when a person presses Refresh. Nothing polls the machine, and there is no
- *    watch, because main cannot see a commit made on another computer. The
- *    group says on screen that it does not refresh.
+ * 2. NO TIMER, ANYWHERE. A read happens on the first expand, on Load more,
+ *    when a person presses Refresh, and, since Phase 230, at the moments the
+ *    one shared hook names, being the machine starting to answer over a
+ *    refused read, the group being opened again, the window regaining focus,
+ *    and a commit Tortie itself made over there. Nothing polls the machine,
+ *    and there is no watch, because main cannot see a commit made on another
+ *    computer.
  * 3. IT NEVER OFFERS A VERB THAT WRITES. There is no checkout, no branch, no
  *    cherry pick and no revert. The local History has all four. Each of them
  *    would have to write on somebody else's computer, and the group says on
@@ -98,10 +101,13 @@
  * in `historyRefsAreThatMachines`, that the marks are that machine's own copies
  * and that Tortie did not read when it last fetched.
  *
- * THERE IS NO AUTOMATIC SECOND READ WHEN A MACHINE STARTS ANSWERING. Phase 105
- * and Phase 106 both left this open on purpose and this phase leaves it open
- * too. A person who expands before their machine has connected reads the
- * sentence saying so and presses Refresh, which costs one press.
+ * PHASE 230 CLOSED THE GAP PHASES 105, 106 AND 107 LEFT OPEN. There was no
+ * automatic second read when a machine started answering, and research 85
+ * section 4.1 measured what that cost: a sentence saying the machine did not
+ * answer still on screen with the link long since connected. The group reads
+ * again through ../machines/use-remote-reread.ts now, the same hook every
+ * remote view uses, and reads only for a COMMIT among Tortie's own writes,
+ * because a saved file and a staged one move no commit.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -124,6 +130,8 @@ import {
   historyReading
 } from '../machines/history';
 import { machineReadAt } from '../machines/presentation';
+import { heldOfMode } from '../machines/reread';
+import { useRemoteReread } from '../machines/use-remote-reread';
 import { CommitGraph, CommitGraphSpacer, useLaneCap } from './graph/CommitGraph';
 import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
 import type { CappedRow, GraphLayout, GraphRow } from './graph';
@@ -734,6 +742,15 @@ export function RemoteHistorySection({
   useEffect(() => {
     if (!collapsed && available) ensure(target);
   }, [collapsed, target, ensure, available]);
+
+  // PHASE 230. The other moments this group reads at; the header says which.
+  useRemoteReread({
+    target,
+    held: heldOfMode(entry.mode, entry.loading || entry.refreshing),
+    active: !collapsed && available,
+    writes: ['commit'],
+    read: () => void refresh(target)
+  });
 
   return (
     <RemoteHistoryPanel

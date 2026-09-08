@@ -35,6 +35,14 @@
  * a number. A count that keeps climbing at C is the opposite failure, being a
  * timer, and this drive fails on that just as loudly.
  *
+ * PHASE 230 COUNTS FIVE MORE STORES the same way, being History, Branch, Runs,
+ * Search and Context, because every remote view reads through one hook now
+ * (../machines/use-remote-reread.ts) and the claim "one extra read per sign
+ * in and never on a timer" has to be a count for each of them rather than a
+ * sentence. A store whose view is not mounted, or whose group is collapsed,
+ * reads 0 at every moment, which is the right answer: nothing asks for a
+ * group nobody opened.
+ *
  * ## What it does NOT prove, and the report has to say so
  *
  * The machine it injects is not a machine. It has an id nothing is signed in
@@ -57,6 +65,11 @@ import type { MachineStateView } from '@shared/ipc';
 import { targetKey, type WorkspaceTarget } from '@shared/workspace-target';
 import { useFileTree } from '../tree/store';
 import { useRemoteChanges } from '../scm/remote-changes';
+import { useRemoteHistory } from '../scm/remote-history';
+import { useRemoteBranch } from '../scm/remote-branch';
+import { useRemoteRuns } from '../scm/remote-runs';
+import { useSearch } from '../search/store';
+import { useContext } from '../context/store';
 import { useApp } from '../state/store';
 
 export interface RemoteBootProbeSpec {
@@ -65,7 +78,7 @@ export interface RemoteBootProbeSpec {
   /** The label that machine reports. Defaults to `Probe Machine`. */
   label?: string;
   /** Which sidebar to hold open, because only a mounted view reads. */
-  view?: 'explorer' | 'scm';
+  view?: 'explorer' | 'scm' | 'search' | 'context';
   /** Milliseconds to let each moment settle. Defaults to 900. */
   settleMs?: number;
   /** Milliseconds of no link change at moment C. Defaults to 2,500. */
@@ -79,6 +92,13 @@ export interface RemoteBootReading {
   treeReads: number;
   /** Reads the Source Control store started, since the tab was opened. */
   changesReads: number;
+  /** PHASE 230. Reads the History, Branch and Runs groups started. */
+  historyReads: number;
+  branchReads: number;
+  runsReads: number;
+  /** PHASE 230. Searches the Search store started, and Context reads. */
+  searchReads: number;
+  contextReads: number;
   /** What the tree store's last answer was, or null on a local tab. */
   treeStatus: string | null;
   /** True when the Source Control store's last read did not land. */
@@ -176,8 +196,18 @@ export function registerRemoteBootDrive(): void {
      */
     let treeReads = 0;
     let changesReads = 0;
+    let historyReads = 0;
+    let branchReads = 0;
+    let runsReads = 0;
+    let searchReads = 0;
+    let contextReads = 0;
     let treeBusy = false;
     let changesBusy = false;
+    let historyBusy = false;
+    let branchBusy = false;
+    let runsBusy = false;
+    let searchBusy = false;
+    let contextBusy = false;
     const stop = [
       useFileTree.subscribe((now) => {
         const busy = now.remote?.loading === true;
@@ -189,6 +219,34 @@ export function registerRemoteBootDrive(): void {
         const busy = one !== undefined && (one.loading || one.refreshing);
         if (busy && !changesBusy) changesReads += 1;
         changesBusy = busy;
+      }),
+      useRemoteHistory.subscribe((now) => {
+        const one = now.byTarget[key];
+        const busy = one !== undefined && (one.loading || one.refreshing);
+        if (busy && !historyBusy) historyReads += 1;
+        historyBusy = busy;
+      }),
+      useRemoteBranch.subscribe((now) => {
+        const one = now.byTarget[key];
+        const busy = one !== undefined && (one.loading || one.refreshing);
+        if (busy && !branchBusy) branchReads += 1;
+        branchBusy = busy;
+      }),
+      useRemoteRuns.subscribe((now) => {
+        const one = now.byTarget[key];
+        const busy = one !== undefined && (one.loading || one.refreshing);
+        if (busy && !runsBusy) runsReads += 1;
+        runsBusy = busy;
+      }),
+      useSearch.subscribe((now) => {
+        const busy = now.status === 'searching';
+        if (busy && !searchBusy) searchReads += 1;
+        searchBusy = busy;
+      }),
+      useContext.subscribe((now) => {
+        const busy = now.status === 'loading';
+        if (busy && !contextBusy) contextReads += 1;
+        contextBusy = busy;
       })
     ];
 
@@ -198,6 +256,11 @@ export function registerRemoteBootDrive(): void {
         name,
         treeReads,
         changesReads,
+        historyReads,
+        branchReads,
+        runsReads,
+        searchReads,
+        contextReads,
         treeStatus: useFileTree.getState().remote?.status ?? null,
         changesFailed: one?.failed === true,
         sentences: readSentences()

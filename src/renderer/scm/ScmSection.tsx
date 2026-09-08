@@ -55,6 +55,8 @@ import type { PendingOp, ScmGroups } from '../state/git';
 import { Codicon, menuGlyph } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { remoteReadAt } from '../machines/presentation';
+import { useRemoteReread } from '../machines/use-remote-reread';
+import type { RereadHeld } from '../machines/reread';
 import {
   remoteChangesNone,
   remoteChangesNotRepo,
@@ -1126,48 +1128,46 @@ function RemoteScmSection({
   }, [target, ensure]);
 
   /**
-   * PHASE 90.3 FIX ROUND. One more read, the moment that machine starts
-   * answering.
+   * PHASE 90.3 FIX ROUND, LIFTED BY PHASE 230. One more read the moment that
+   * machine starts answering, and a read at the three other moments a person
+   * would expect one.
    *
-   * THE BUG THIS CLOSES, with the numbers. On a cold boot with a remote tab
-   * active this view asks before any machine has answered. Measured on
-   * 2026-08-19: the read failed, main logged that no program search list is
-   * recorded for that machine's current connection, this view drew the sentence
-   * saying the machine did not answer, and that sentence was still on screen at
-   * 11.5 s with the link long since connected. Switching tabs away and back
-   * fixed it, so a person who never did that was shown a false statement for
-   * the whole run.
+   * THE BUG THE FIRST MOMENT CLOSES, with the numbers. On a cold boot with a
+   * remote tab active this view asks before any machine has answered.
+   * Measured on 2026-08-19: the read failed, main logged that no program
+   * search list is recorded for that machine's current connection, this view
+   * drew the sentence saying the machine did not answer, and that sentence
+   * was still on screen at 11.5 s with the link long since connected.
    *
-   * IT IS NOT A TIMER. The trigger is the link moving into answering, which
-   * happens once per sign in. `retried` holds the target the retry was already
-   * spent on and is cleared only when that machine stops answering, so one sign
-   * in buys exactly one extra read. A read that fails again leaves the sentence
-   * up until a person presses Refresh, which is the honest outcome.
+   * The eight lines that closed it lived here and in tree/FilesSection.tsx,
+   * and research 85 section 4.1 measured the five views that did not carry
+   * them. They live in ../machines/reread.ts now and every remote view reads
+   * through ../machines/use-remote-reread.ts. This group folds its entry into
+   * the hook's four words: `failed` is the link's refusal, because main's
+   * runner throws for a machine it is not connected to, and a read that
+   * landed is an answer whether it found rows, no rows or no repository.
+   *
+   * THE READ is the Changes read alone. Phase 229's branch re-read stays
+   * bound to the Refresh press, and the Branch group hears a commit through
+   * the same hook on its own. The group names itself `changes` so the re-read
+   * ../scm/remote-changes.ts already runs after its own stage, unstage and
+   * commit is not run twice.
    */
-  const answering = machineAnswering(machineStates, target.machineId);
-  const retried = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!answering) {
-      retried.current = null;
-      return;
-    }
-    if (!remoteChangesAvailable()) return;
-    if (!entry.failed || entry.loading || entry.refreshing) return;
-    const key = targetKey(target);
-    if (retried.current === key) return;
-    retried.current = key;
-    // The Changes read alone. The sign-in retry is one extra read of THIS
-    // group and Phase 229's branch re-read is bound to the Refresh press.
-    void refreshChanges(target);
-  }, [
+  const held: RereadHeld =
+    entry.loading || entry.refreshing
+      ? 'reading'
+      : entry.failed
+        ? 'refused'
+        : entry.readAt === 0
+          ? 'none'
+          : 'answered';
+  useRemoteReread({
     target,
-    answering,
-    entry.failed,
-    entry.loading,
-    entry.refreshing,
-    refreshChanges
-  ]);
+    held,
+    active: !collapsed,
+    self: 'changes',
+    read: () => void refreshChanges(target)
+  });
 
   /**
    * PHASE 103. The tracked rows, split by which side of the pair moved.

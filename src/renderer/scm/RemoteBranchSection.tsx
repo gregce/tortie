@@ -12,10 +12,12 @@
  * 1. IT SHIPS COLLAPSED AND READS NOTHING UNTIL THE FIRST EXPAND. A tab nobody
  *    expanded asks nothing of anybody. That is the local Runs section's own
  *    rule and it matters more here, because a read crosses a link.
- * 2. NO TIMER, ANYWHERE. A read happens on the first expand and when a person
- *    presses Refresh. Nothing polls the machine, and there is no watch, because
- *    main cannot see a branch switched on another computer. The group says on
- *    screen that it does not refresh.
+ * 2. NO TIMER, ANYWHERE. A read happens on the first expand, when a person
+ *    presses Refresh, and, since Phase 230, at the moments the one shared hook
+ *    names, being the machine starting to answer over a refused read, the
+ *    group being opened again, the window regaining focus, and a commit
+ *    Tortie itself made over there. Nothing polls the machine, and there is
+ *    no watch, because main cannot see a branch switched on another computer.
  * 3. IT NEVER OFFERS TO SWITCH. There is no row to click, no checkout verb and
  *    no menu item. Switching a branch on another machine is a write and no
  *    write phase has run. The group says on screen that Tortie changes nothing
@@ -61,17 +63,16 @@
  *
  * ## What is NOT true, said plainly
  *
- * THERE IS NO AUTOMATIC SECOND READ WHEN A MACHINE STARTS ANSWERING, and that
- * is a choice rather than an oversight. The Changes group beside this one
- * carries one, because Phase 90.3 shipped with no Refresh button and the only
- * way back from a failed read was to switch tabs. This group has a Refresh
- * button from its first commit. A person who expands it before their machine
- * has connected reads the sentence saying so and presses Refresh, which costs
- * one press. Closing the gap means a read that a person did not ask for,
- * triggered by a connection event, and the rule for this group is that a read
- * happens when a person opens it and when they press Refresh and at no other
- * time. Phase 105 left the same nit open and this phase leaves it open on
- * purpose.
+ * PHASE 230 CLOSED THE GAP PHASES 105 AND 106 LEFT OPEN. There was no
+ * automatic second read when a machine started answering, by choice: the rule
+ * was that a read happens when a person opens the group and presses Refresh
+ * and at no other time. Research 85 section 4.1 measured what that rule cost,
+ * being a sentence saying the machine did not answer still on screen with the
+ * link long since connected, and the operator's rule of 2026-09-07 is that a
+ * remote tab feels almost identical to a local one. The group reads again
+ * through ../machines/use-remote-reread.ts now, the same hook every remote
+ * view uses, and reads for a COMMIT among Tortie's own writes, because a
+ * commit moves the ahead count and a saved or staged file does not.
  */
 
 import React, { useEffect, useMemo } from 'react';
@@ -94,6 +95,8 @@ import {
   branchUpstreamGone
 } from '../machines/branch';
 import { machineReadAt } from '../machines/presentation';
+import { heldOfMode } from '../machines/reread';
+import { useRemoteReread } from '../machines/use-remote-reread';
 import {
   machineAnsweredBranch,
   remoteBranchAvailable,
@@ -351,6 +354,15 @@ export function RemoteBranchSection({
   useEffect(() => {
     if (!collapsed && available) ensure(target);
   }, [collapsed, target, ensure, available]);
+
+  // PHASE 230. The other moments this group reads at; the header says which.
+  useRemoteReread({
+    target,
+    held: heldOfMode(entry.mode, entry.loading || entry.refreshing),
+    active: !collapsed && available,
+    writes: ['commit'],
+    read: () => void refresh(target)
+  });
 
   return (
     <RemoteBranchPanel

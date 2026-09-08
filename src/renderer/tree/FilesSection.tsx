@@ -17,12 +17,16 @@
  * comes from src/renderer/machines/explorer.ts, which is where the machine
  * vocabulary audit reads them; this module writes none of its own.
  *
- * REFRESH IS THE ONLY THING THAT RE-READS A MACHINE. There is no timer in this
- * component for a remote tab, and the repository watcher is not subscribed for
- * one either, because that watcher reports paths on THIS Mac.
+ * THERE IS NO TIMER FOR A REMOTE TAB, and the repository watcher is not
+ * subscribed for one either, because that watcher reports paths on THIS Mac.
+ * PHASE 230. What re-reads a machine is the one hook every remote view shares,
+ * ../machines/use-remote-reread.ts: once when the machine starts answering
+ * over a refused read, when this section is opened or its tab activated, when
+ * the window regains focus, and when one of Tortie's own writes lands over
+ * there. Refresh is still the press that reads on demand.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { REMOTE_TREE_MAX_ENTRIES } from '@shared/ipc';
 import type { GitFileStatus } from '@shared/types';
 import {
@@ -49,11 +53,9 @@ import {
   remoteTreeTruncated,
   remoteTreeUnreachable
 } from '../machines/explorer';
-import {
-  machineAnswering,
-  machineLabelFor,
-  machineWriteRootFor
-} from '../state/machines-slice';
+import { machineLabelFor, machineWriteRootFor } from '../state/machines-slice';
+import { useRemoteReread } from '../machines/use-remote-reread';
+import type { RereadHeld } from '../machines/reread';
 import { Codicon } from '../icons';
 import { useTreeDensity } from './density';
 import { useTreeGitStatus } from './git-status';
@@ -214,58 +216,61 @@ export function FilesSection({
   }, [project, target, localPath, setRoot, setRepo, externalStatus]);
 
   /**
-   * PHASE 90.3 FIX ROUND. One more read, the moment that machine starts
-   * answering.
+   * PHASE 90.3 FIX ROUND, LIFTED BY PHASE 230. One more read the moment that
+   * machine starts answering, and a read at the three other moments a person
+   * would expect one.
    *
-   * THE BUG THIS CLOSES, with the numbers. On a cold boot with a remote tab
-   * active the window is drawn before any machine has answered. Measured on
-   * 2026-08-19: the link read `quiet` at 1 ms, the Explorer's first read was
-   * refused, the section drew the sentence saying Tortie is not connected to
-   * that machine, and the link read `connected` at 504 ms. Nothing re-read the
-   * folder, so the same sentence and zero rows were still on screen at
-   * 44,694 ms. Pressing Refresh fixed it in 200 ms, which is exactly the point:
-   * a person who never pressed it was shown a false statement for the whole
-   * run.
+   * THE BUG THE FIRST MOMENT CLOSES, with the numbers. On a cold boot with a
+   * remote tab active the window is drawn before any machine has answered.
+   * Measured on 2026-08-19: the link read `quiet` at 1 ms, the Explorer's
+   * first read was refused, the section drew the sentence saying Tortie is
+   * not connected to that machine, and the link read `connected` at 504 ms.
+   * Nothing re-read the folder, so the same sentence and zero rows were still
+   * on screen at 44,694 ms. Pressing Refresh fixed it in 200 ms.
    *
-   * IT IS NOT A TIMER AND IT DOES NOT BECOME ONE. The trigger is the link
-   * moving into answering, which happens once per sign in. `retried` holds the
-   * target the retry was already spent on, and it is cleared only when that
-   * machine stops answering, so one sign in buys exactly one extra read. A read
-   * that fails again leaves the sentence up until a person presses Refresh.
+   * The eight lines that closed it lived here and in scm/ScmSection.tsx, and
+   * research 85 section 4.1 measured the five views that did not carry them.
+   * They live in ../machines/reread.ts now and every remote view reads
+   * through ../machines/use-remote-reread.ts. This section folds the tree
+   * store's one remote slot into the hook's four words: nothing asked until
+   * the store's root is this tab's target, in flight while the listing is on
+   * the wire, refused for a link shaped answer, and answered for everything
+   * the machine itself said, including that the folder is missing, which is
+   * an answer asking again would repeat.
    *
-   * IT ONLY RETRIES A CONNECTION SHAPED REFUSAL. A folder that is missing, is
-   * not a folder, or cannot be read is that machine's own answer about the
-   * folder, and asking again would give the same answer.
+   * THE READ is the Refresh button's own remote arm, being the one call to
+   * that machine followed by the reconcile Phase 155 added, so a row the
+   * re-read found is drawn for the same reason a pressed Refresh draws it.
+   * The Explorer names itself `explorer` so the re-read tree/tree-ops.ts
+   * already runs after its own folder and rename is not run twice.
    */
-  const remoteAnswering = useMemo(
-    () =>
-      remote === null ? false : machineAnswering(machineStates, remote.machineId),
-    [remote, machineStates]
-  );
-  const retried = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (remote === null || target === null) {
-      retried.current = null;
-      return;
+  const remoteHeld = useMemo((): RereadHeld => {
+    if (remote === null || target === null || remoteRead === null) {
+      return 'none';
     }
-    if (!remoteAnswering) {
-      // The next sign in to this machine buys one more read.
-      retried.current = null;
-      return;
-    }
-    if (remoteRead === null || remoteRead.loading) return;
+    if (!sameTarget(root, target)) return 'none';
+    if (remoteRead.loading) return 'reading';
     if (
-      remoteRead.status !== 'unreachable' &&
-      remoteRead.status !== 'notConnected'
+      remoteRead.status === 'unreachable' ||
+      remoteRead.status === 'notConnected'
     ) {
-      return;
+      return 'refused';
     }
-    const key = targetKey(target);
-    if (retried.current === key) return;
-    retried.current = key;
-    void refreshLoaded();
-  }, [remote, target, remoteAnswering, remoteRead, refreshLoaded]);
+    return 'answered';
+  }, [remote, target, root, remoteRead]);
+
+  useRemoteReread({
+    target: remote === null ? null : target,
+    held: remoteHeld,
+    active: !collapsed,
+    writes: ['file'],
+    self: 'explorer',
+    read: () => {
+      void refreshLoaded().finally(() => {
+        useTreeHandle.getState().handle?.reconcile();
+      });
+    }
+  });
 
   // External decoration source (SCM store) — no fetching. The store drops a
   // target that is not local, because the SCM store reads this Mac only.

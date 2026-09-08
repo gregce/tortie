@@ -36,9 +36,16 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { localPathOf, targetOfProject } from '@shared/workspace-target';
+import {
+  localPathOf,
+  sameTarget,
+  targetOfProject
+} from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { SEARCH_STOP_WAITING } from '../machines/search';
+import { heldOfMode } from '../machines/reread';
+import type { RereadHeld } from '../machines/reread';
+import { useRemoteReread } from '../machines/use-remote-reread';
 import { useApp } from '../state/store';
 import { QueryBlock } from './QueryBlock';
 import { ResultsList } from './ResultsList';
@@ -210,6 +217,9 @@ export function SearchSection(): React.JSX.Element {
   const status = useSearch((s) => s.status);
   const syncProject = useSearch((s) => s.syncProject);
   const noteRepoChanged = useSearch((s) => s.noteRepoChanged);
+  const storeTarget = useSearch((s) => s.target);
+  const remoteMode = useSearch((s) => s.remoteMode);
+  const run = useSearch((s) => s.run);
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
 
@@ -224,6 +234,41 @@ export function SearchSection(): React.JSX.Element {
   useEffect(() => {
     syncProject(target);
   }, [target, syncProject]);
+
+  /**
+   * PHASE 230. The held query runs again at the moments every remote view
+   * reads at: once when the machine starts answering over a refused answer,
+   * when the view is opened with an answer on screen, when the window regains
+   * focus, and when Tortie itself wrote a file over there. Research 89
+   * section 4.3 measured the sentence saying Tortie was not connected still
+   * under the query 61 s after the link came up, while a new query typed at
+   * that moment answered in 608 ms.
+   *
+   * A search on this Mac is untouched: the hook is inert for a local target,
+   * and the local view keeps its own rule of never re-running itself.
+   *
+   * The store holds ONE answer and its target, so an answer that belongs to
+   * the tab a person just left is `none` here, and a switch back to a machine
+   * tab does not re-run a query the switch itself blanked, which is what the
+   * local view does too.
+   */
+  const held: RereadHeld = !sameTarget(storeTarget, target)
+    ? 'none'
+    : status === 'searching'
+      ? 'reading'
+      : status === 'error'
+        ? 'refused'
+        : status === 'done'
+          ? remoteMode === null
+            ? 'answered'
+            : heldOfMode(remoteMode, false)
+          : 'none';
+  useRemoteReread({
+    target,
+    held,
+    writes: ['file'],
+    read: () => run()
+  });
 
   // Staleness rides the SAME repo watcher git already uses — one FSEvents
   // subscription per repo, two consumers (src/main/watcher/bus.ts).

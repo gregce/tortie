@@ -70,9 +70,13 @@ import {
 } from '../scm/sections';
 import {
   localPathOf,
+  sameTarget,
   targetKey,
   targetOfProject
 } from '@shared/workspace-target';
+import { heldOfMode } from '../machines/reread';
+import type { RereadHeld } from '../machines/reread';
+import { useRemoteReread } from '../machines/use-remote-reread';
 import {
   CONTEXT_NO_BRIDGE,
   contextCutLine,
@@ -492,6 +496,7 @@ export function ContextSection({
   const sessionId = useContext((s) => s.sessionId);
   const syncProject = useContext((s) => s.syncProject);
   const refresh = useContext((s) => s.refresh);
+  const storeTarget = useContext((s) => s.target);
 
   // PHASE 108. The machine's name for every sentence about it: the machine's
   // own label once an answer landed, the sidebar's list before that.
@@ -512,6 +517,40 @@ export function ContextSection({
   useEffect(() => {
     syncProject(target);
   }, [target, syncProject]);
+
+  /**
+   * PHASE 230. A project on another machine is read again at the moments
+   * every remote view reads at: once when the machine starts answering over a
+   * refused read, when the view is opened with an answer on screen, when the
+   * window regains focus, and when Tortie itself wrote a file over there.
+   * Research 89 section 4.3 measured the not-connected sentence still on this
+   * view 45 s after the link came up. Rule 5 in ./store.ts stands: the store
+   * itself still reads on a target and on Refresh and at no other time, and
+   * this is one more caller of its Refresh.
+   *
+   * The hook is inert for a folder on this Mac, whose watcher already re-reads
+   * through `onContextChanged` below. The store holds ONE answer and its
+   * target, so an answer that belongs to the tab a person just left is `none`
+   * here and the switch reads once, through `syncProject`.
+   */
+  const held: RereadHeld =
+    !remote || !sameTarget(storeTarget, target)
+      ? 'none'
+      : status === 'loading'
+        ? 'reading'
+        : status === 'error'
+          ? 'refused'
+          : status === 'ready'
+            ? remoteMode === null
+              ? 'answered'
+              : heldOfMode(remoteMode, false)
+            : 'none';
+  useRemoteReread({
+    target: remote ? target : null,
+    held,
+    writes: ['file'],
+    read: refresh
+  });
 
   // The watcher re-reads. It never announces: no toast, no badge, no dot on a
   // session tab. A user who edits `.mcp.json` while three sessions run sees

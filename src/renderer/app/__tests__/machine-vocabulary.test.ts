@@ -64,6 +64,12 @@ const FILES: readonly string[] = [
   'src/renderer/machines/search.ts',
   'src/renderer/machines/session-badge.ts',
   'src/renderer/machines/session-restore.ts',
+  // Phase 230. The one hook every remote view re-reads through, its pure
+  // gate and the bus that carries Tortie's own writes. They compose no
+  // sentence, and they are read so a later round cannot put one in them.
+  'src/renderer/machines/reread.ts',
+  'src/renderer/machines/remote-writes.ts',
+  'src/renderer/machines/use-remote-reread.ts',
   'src/renderer/app/MachineBadge.tsx',
   'src/renderer/app/CreateSessionModal.tsx',
   'src/renderer/app/session-actions.tsx',
