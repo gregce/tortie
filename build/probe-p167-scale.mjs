@@ -198,18 +198,19 @@ import { seedArchSwitchOn } from './probe-arch-switch.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /**
- * PHASE 200. Which of profile c's five surfaces this run drives.
+ * PHASE 200. Which of profile c's surfaces this run drives. Five when this
+ * was written, six since Phase 225 added the redline.
  *
  * The 0.98.0 audit read the combined profile retaining 1,512 DOM nodes and 126
  * listeners a block and could say nothing about WHICH surface did it, because
  * one cycle opens and closes all five. One at a time is what turns a slope into
  * a name, and it is how Phase 200 found that the whole of it is Diff.
  *
- * The default is all five, so the ordinary command is the combined profile the
- * audit measured.
+ * The default is all of them, so the ordinary command is the combined profile
+ * the audit measured, with the redline beside the diff it reads.
  */
 const SURFACES = (
-  process.env['P167_SURFACES'] ?? 'overview,arch,file,diff,preview'
+  process.env['P167_SURFACES'] ?? 'overview,arch,file,diff,redline,preview'
 )
   .split(',')
   .map((one) => one.trim())
@@ -967,7 +968,7 @@ async function cycleSwitch(cdp, log) {
   if (end !== start) log.switchMisses += 1;
 }
 
-/** One profile c cycle: five surfaces opened and closed by real gestures. */
+/** One profile c cycle: six surfaces opened and closed by real gestures. */
 async function cycleSurfaces(cdp, log) {
   const closeOrCount = async (name, goneExpr) => {
     if (!(await until(cdp, goneExpr, 8000))) {
@@ -975,7 +976,8 @@ async function cycleSurfaces(cdp, log) {
     }
   };
   // PHASE 200: each surface is skippable, so one run can be one surface. The
-  // default drives all five, which is the combined profile the audit measured.
+  // default drives all six, which is the combined profile the audit measured
+  // plus the redline Phase 225 added.
 
   // Catch Me Up, and Escape.
   if (wantSurface('overview')) {
@@ -1013,6 +1015,20 @@ async function cycleSurfaces(cdp, log) {
     log.motion.push(await readMotion(cdp));
     await press(cdp, CHORD.closeEditorTab);
     await closeOrCount('diff', `document.querySelector('diffs-container') === null`);
+  }
+
+  // PHASE 225. The redline: the same file as the diff, read as one document
+  // with its changes marked in place, drawn against the tab's shadow
+  // baseline. Research 83 F.7 measured that this word appeared zero times
+  // here, so Phase 194 shipped a surface this probe never opened; the phase
+  // that makes it recompose against a baseline of its own adds it. It is
+  // opened and closed here, not rewritten under; driving a file being
+  // rewritten under it is Phase 227's obligation.
+  if (wantSurface('redline')) {
+    await drive(cdp, { projectPath: repoA, openRel: 'README.md', mode: 'diff', editorMode: 'redline' });
+    if (!(await until(cdp, `document.querySelector('.ed-redline-doc') !== null`, 15000))) log.openMisses.push('redline');
+    await press(cdp, CHORD.closeEditorTab);
+    await closeOrCount('redline', `document.querySelector('.ed-redline-doc') === null`);
   }
 
   // A rendered markdown page.
