@@ -32,6 +32,25 @@
  *      and its width no longer grows with the journal, so it fits at every one
  *      of them. The ablation is the four-button chip at 380px.
  *
+ * THE FIX ROUND ADDED THREE MORE, one per defect the verifier measured in the
+ * app and nothing in this tree pinned in either direction:
+ *
+ *   5. A CHANGE IS THE SPAN OF BASELINE IT COVERS. Phase 237 ships typing in
+ *      this document two commits before this phase, and typing rewrites the
+ *      inserted side on every keystroke, so an identity carrying `ins` is not
+ *      stable under the product's own typing: three characters into the change
+ *      the controls were drawn on took the chip away and left 0 changes
+ *      marked, 3 runs of 3, where the parent kept them 3 of 3.
+ *   6. A CARET THE VIEW PUT BACK IS NOT THE PERSON MOVING IT. The restore is
+ *      by current-side offset, so a write ABOVE the caret leaves that offset
+ *      on different text: the mark, the chip and the ⌥⌫ target all walked to
+ *      the change a `/bin/sh` had just made while the held change was still
+ *      drawn two rows below, unchanged in every field.
+ *   7. THE CONTROLS CAN BE PUT AWAY. Persistence is not the same as being
+ *      unable to dismiss: clicking plain prose far from any change left the
+ *      chip drawn on change 0 where the parent read it gone, over a
+ *      171.60 x 30px overlay sitting on the marked-up sentence.
+ *
  * WHAT THIS FILE CANNOT DO, stated rather than hidden: this repository carries
  * no jsdom, so nothing here focuses, hovers or lays anything out. The rectangle
  * readings are the app run's and the parent numbers they are compared against
@@ -53,12 +72,17 @@ vi.mock('../live-text', () => ({
 const { RedlineDocument, chipAnchorFor } = await import('../RedlineDocument');
 const { chipPlace } = await import('../redline-chip');
 const {
+  CHANGE_SELECTOR,
   CURRENT_ATTRIBUTE,
+  DOC_SELECTOR,
+  caretMoveOf,
   identityOf,
   indexOfChange,
+  pressLetsGo,
   sameChange,
   stepIndex
 } = await import('../redline-current');
+const { resolvePress } = await import('../rewind');
 const { NO_BASELINE, nextBaseline } = await import('../baseline');
 const { forgetRewindJournal, recordRewind } = await import('../redline-journal');
 const { keyDisplay } = await import('@shared/keymap');
@@ -205,10 +229,109 @@ describe('the current change survives the recompose an outside write causes', ()
     expect(after.generation).toBe(3);
   });
 
-  it('but a different phrase at the same offset is a different change', () => {
+  it('but a different span of the BASELINE is a different change', () => {
     const a = identityOf(wrapper(10, 'keeps', 'holds')) as ChangeIdentity;
-    expect(sameChange(a, identityOf(wrapper(10, 'keeps', 'kept')) as ChangeIdentity)).toBe(false);
+    expect(sameChange(a, identityOf(wrapper(10, 'kept', 'holds')) as ChangeIdentity)).toBe(false);
     expect(sameChange(a, identityOf(wrapper(11, 'keeps', 'holds')) as ChangeIdentity)).toBe(false);
+  });
+
+  // THE FIX ROUND'S FINDING 1. Phase 237 ships typing in this document, two
+  // commits before this phase, and typing rewrites the INSERTED side on every
+  // keystroke. With `ins` in the identity the verifier typed three characters
+  // into the change the controls were drawn on and read the chip GONE with 0
+  // changes marked, three runs of three, where the PARENT commit kept the
+  // controls on that same change three of three — the change still drawn and
+  // the caret still in it.
+  it('THE INSERTION IS NOT PART OF THE IDENTITY, so typing keeps your place', () => {
+    const before = identityOf(
+      wrapper(78, 'quick brown foxes', 'swift crimson hounds')
+    ) as ChangeIdentity;
+    const typed = identityOf(
+      wrapper(78, 'quick brown foxes', 'swift crimszqxon hounds')
+    ) as ChangeIdentity;
+    expect(sameChange(before, typed)).toBe(true);
+    // And the picture still finds it, which is what puts the mark back.
+    expect(
+      indexOfChange(
+        [
+          wrapper(10, 'keeps', 'holds'),
+          wrapper(78, 'quick brown foxes', 'swift crimszqxon hounds')
+        ],
+        before
+      )
+    ).toBe(1);
+    // The PRESS is unmoved: ./rewind resolves all three fields off the drawn
+    // wrapper, so a rewind still acts on exactly the phrase that was drawn.
+    expect(resolvePress(
+      [{ off: 78, del: 'quick brown foxes', ins: 'swift crimszqxon hounds', runs: [0] }],
+      { off: 78, del: 'quick brown foxes', ins: 'swift crimson hounds' }
+    )).toEqual({ kind: 'none' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2a. THE FIX ROUND. What moves the controls, and what puts them away.
+// ---------------------------------------------------------------------------
+
+describe('a caret the VIEW put back is not the person moving it', () => {
+  const PUT = { anchor: 128, focus: 128 };
+  const some = wrapper(190, 'calm', 'serene');
+
+  // THE FIX ROUND'S FINDING 2, measured in the app: the controls were held on
+  // the change at baseline offset 78, a plain `/bin/sh` prepended one line,
+  // the change was still drawn at index 2 with the same offset, deleted text
+  // and inserted text — and the mark, the chip and the ⌥⌫ target had all moved
+  // to index 0, the change the shell had just made. ./redline-edits restores
+  // the caret by current-side OFFSET after every recompose, and a write ABOVE
+  // it leaves that offset on different text.
+  it('the restore itself says nothing at all', () => {
+    expect(caretMoveOf({ restored: PUT, now: PUT, change: some })).toBeNull();
+  });
+
+  it('but a caret the person put somewhere else is a move', () => {
+    expect(caretMoveOf({ restored: PUT, now: { anchor: 400, focus: 400 }, change: some }))
+      .toEqual({ change: some });
+    expect(caretMoveOf({ restored: null, now: { anchor: 1, focus: 1 }, change: some }))
+      .toEqual({ change: some });
+  });
+
+  it('a caret in plain prose is a move onto no change, which is how the view lets go', () => {
+    expect(caretMoveOf({ restored: null, now: { anchor: 12, focus: 12 }, change: null }))
+      .toEqual({ change: null });
+  });
+
+  it('a caret that is not in this document is silence, never a move out of a change', () => {
+    // The chord focuses the wrapper it steps to, which can take the selection
+    // out of the editing host; reading that as "the person left" would let go
+    // of the change they had just stepped to.
+    expect(caretMoveOf({ restored: PUT, now: null, change: null })).toBeNull();
+  });
+});
+
+describe('the controls can be put away, which is the other half of persistence', () => {
+  const press = (inside: string[]): { closest: (s: string) => Element | null } => ({
+    closest: (s: string) => (inside.includes(s) ? ({} as Element) : null)
+  });
+
+  // THE FIX ROUND'S FINDING 3: clicking plain prose far from any change left
+  // the chip still drawn on change 0 with the mark still on it, where the
+  // PARENT commit read it gone. The chip is a 171.60 x 30px out-of-flow
+  // overlay drawn over the line above or below its change — the marked-up
+  // sentence research 83 D.3 says this view exists so a person can read.
+  it('a press on the document’s own prose, on no change, lets go', () => {
+    expect(pressLetsGo(press([DOC_SELECTOR]))).toBe(true);
+  });
+
+  it('a press on a change keeps it, because that is arriving rather than leaving', () => {
+    expect(pressLetsGo(press([DOC_SELECTOR, CHANGE_SELECTOR]))).toBe(false);
+  });
+
+  it('and a press on Tortie’s own chrome keeps it, the chip included', () => {
+    // The chip lives OUTSIDE `.ed-redline-doc` (Phase 236), so a rule that
+    // only asked "not a change" would put the controls away every time
+    // somebody reached for them.
+    expect(pressLetsGo(press([]))).toBe(false);
+    expect(pressLetsGo(null)).toBe(false);
   });
 
   it('a wrapper with no identity on it is never current', () => {

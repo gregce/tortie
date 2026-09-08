@@ -136,13 +136,32 @@
  *      is the fallback for a hover nobody has stepped from, so the scan is
  *      aimed at the two places the decision now lives and is proved on three
  *      plants. 18b DRIVES the shipping module under node over the nine-change
- *      fixture and the recompose that makes it ten, with seven arms — the step
+ *      fixture and the recompose that makes it ten, with TEN arms — the step
  *      from nowhere, the two ends, six positions, the recompose, the identity
- *      rule with its generation clause, a wrapper carrying no identity, and the
- *      swallowed press as the number 0, 1, 2 against 0, 0, 0 — and every one
- *      goes red under an ablation of its own clause. The ablated copies live in
- *      a scratch directory OUTSIDE `src/`, removed in a `finally`, because this
- *      module's only import is `import type` and resolves nothing at runtime.
+ *      rule with its generation clause, a wrapper carrying no identity, the
+ *      swallowed press as the number 0, 1, 2 against 0, 0, 0, and the FIX
+ *      ROUND'S THREE — and every one goes red under an ablation of its own
+ *      clause. The ablated copies live in a scratch directory OUTSIDE `src/`,
+ *      removed in a `finally`, because this module's only import is
+ *      `import type` and resolves nothing at runtime.
+ *
+ *      THE FIX ROUND'S THREE ARMS ARE THE THREE THINGS THE VERIFIER MEASURED
+ *      AND NOTHING PINNED. A change is the span of BASELINE it covers, being
+ *      `off` and `del`, because Phase 237 ships typing in this document and
+ *      typing rewrites `ins` on every keystroke: with `ins` in the identity,
+ *      three characters typed into the change the controls were drawn on took
+ *      the chip away and left 0 changes marked, 3 runs of 3, where the parent
+ *      commit kept them 3 of 3. A caret the VIEW put back after a recompose is
+ *      not a move, because the restore is by current-side offset and a write
+ *      ABOVE the caret leaves that offset on different text: the mark, the
+ *      chip and the ⌥⌫ target all walked to the change a `/bin/sh` had just
+ *      made while the held change was still drawn two rows below with the same
+ *      offset, the same deleted text and the same inserted text. And a press
+ *      on the document's own prose LETS GO, because the controls could be
+ *      summoned and never put away — clicking plain prose far from any change
+ *      left the chip drawn on change 0 where the parent read it gone, over a
+ *      171.60 x 30px overlay sitting on the marked-up sentence research 83 D.3
+ *      says the view exists so a person can read.
  *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
@@ -1775,21 +1794,35 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       name: 'THE RECOMPOSE: 9 changes become 10 and the place is still found',
       key: 'recompose',
       expect: (a) => same(a, { before: 6, sameObject: false, after: 7, rewound: null }),
-      from: '  return a.off === b.off && a.del === b.del && a.ins === b.ins;',
+      from: '  return a.off === b.off && a.del === b.del;',
       to: '  return (a as unknown) === (b as unknown);'
     },
     {
-      name: 'the generation is not part of the identity, so a commit keeps your place',
+      name: 'a change is the span of baseline it covers, so a commit keeps your place',
       key: 'identity',
       expect: (a) =>
         same(a, {
           acrossGenerations: true,
-          differentInsertion: false,
+          typedInto: true,
+          differentBaselineSpan: false,
           differentOffset: false,
           noIdentity: null
         }),
-      from: '  return a.off === b.off && a.del === b.del && a.ins === b.ins;\n}',
-      to: '  return a.off === b.off && a.del === b.del && a.ins === b.ins && a.generation === b.generation;\n}'
+      from: '  return a.off === b.off && a.del === b.del;\n}',
+      to: '  return a.off === b.off && a.del === b.del && a.generation === b.generation;\n}'
+    },
+    {
+      // THE FIX ROUND'S FINDING 1, AS THE CLAUSE THAT CAUSED IT. Phase 237
+      // ships typing in this document, and typing rewrites `ins` on every
+      // keystroke: with `ins` in the identity the verifier typed three
+      // characters into the change the controls were drawn on and read the
+      // chip GONE with 0 changes marked, 3 runs of 3, where the parent commit
+      // kept them 3 of 3. The ablation is exactly the clause that shipped.
+      name: 'THE TYPED-INTO CHANGE: three characters do not move the controls',
+      key: 'identity',
+      expect: (a) => a !== undefined && a.typedInto === true,
+      from: '  return a.off === b.off && a.del === b.del;\n}',
+      to: '  return a.off === b.off && a.del === b.del && a.ins === b.ins;\n}'
     },
     {
       name: 'a wrapper with no identity on it is never the current change',
@@ -1807,6 +1840,40 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       expect: (a) => same(a, [0, 1, 2]),
       from: '  const next = stepIndex(items.length, indexOfChange(items, id), delta);',
       to: '  const next = stepIndex(items.length, null, delta);'
+    },
+    {
+      // THE FIX ROUND'S FINDING 2. The view restores the caret after every
+      // recompose, by current-side offset; a write ABOVE it leaves those
+      // offsets on different text, and reading the `selectionchange` that
+      // follows as the person's own move put the mark, the chip and the ⌥⌫
+      // target on the change a shell had just made while the held change was
+      // still drawn two rows below. The ablation is the restore comparison
+      // taken out, which is what shipped.
+      name: 'THE RESTORED CARET IS NOT A MOVE, and a caret elsewhere is silence',
+      key: 'caret',
+      expect: (a) =>
+        same(a, {
+          person: 'moved, on calm',
+          restore: 'no move',
+          elsewhere: 'no move',
+          onProse: 'moved, on no change',
+          firstEver: 'moved, on quick brown foxes'
+        }),
+      from: '  if (restored !== null && restored.anchor === now.anchor && restored.focus === now.focus) {\n    return null;\n  }',
+      to: '  if (false) {\n    return null;\n  }'
+    },
+    {
+      // THE FIX ROUND'S FINDING 3. The controls could be summoned and never
+      // put away: the verifier clicked plain prose far from any change and
+      // read the chip still drawn on change 0, where the parent read it gone.
+      // The ablation is the chrome clause, because a rule that only asked
+      // "not a change" would put the controls away every time somebody
+      // reached for the chip, which lives outside the document.
+      name: 'A PRESS ON THE PROSE LETS GO, and a press on the chrome does not',
+      key: 'letGo',
+      expect: (a) => same(a, { prose: true, change: false, chip: false, nothing: false }),
+      from: '  return target.closest(DOC_SELECTOR) !== null;',
+      to: '  return true;'
     }
   ];
 

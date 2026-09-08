@@ -73,6 +73,7 @@ import {
   CURRENT_ATTRIBUTE,
   currentElement,
   identityOf,
+  pressLetsGo,
   sameChange,
   stepChange
 } from './redline-current';
@@ -516,9 +517,18 @@ export function RedlineDocument({
   // focused wrapper makes (./redline-caret changeAtCaret). Moving it INTO a
   // change makes that change current; moving it anywhere else leaves the
   // current one alone, which is the persistence this phase is for.
+  //
+  // THE FIX ROUND CHANGED WHAT COUNTS AS MOVING IT. This read
+  // `typing.caretChange` on every `selectionchange`, and ./redline-edits
+  // restores the caret after every recompose by current-side OFFSET, so a
+  // write ABOVE the caret put the mark, the chip and the ⌥⌫ target on the
+  // change the shell had just made while the held change was still drawn two
+  // rows below. ./redline-current `caretMoveOf` is the rule and
+  // ./redline-edits hands it the readings; a restore produces no move at all.
   useEffect(() => {
-    makeCurrent(typing.caretChange);
-  }, [makeCurrent, typing.caretChange]);
+    if (typing.caretMove === null) return;
+    makeCurrent(typing.caretMove.change);
+  }, [makeCurrent, typing.caretMove]);
   const canUndo = rewindJournalDepth(tab.id) > 0;
   // PHASE 237 item 4. Two undos, kept apart and said so in one line while both
   // are available. ./redline-sentences owns the words with every other sentence
@@ -543,6 +553,18 @@ export function RedlineDocument({
       }}
       onPointerLeave={() => {
         setHovered(null);
+      }}
+      // THE FIX ROUND. A press on the document's own prose, on no change, LETS
+      // GO. Persistence is what this phase is for, and as first built it had
+      // no other side: the controls could be summoned and never put away, and
+      // an out-of-flow chip is drawn OVER the line above or below the change
+      // it belongs to, which is 171.60 x 30px of the marked-up sentence
+      // research 83 D.3 says the view exists so a person can read. The rule is
+      // ./redline-current `pressLetsGo` and the reasoning for both of its
+      // clauses is there; it is a POINTER press rather than the caret because
+      // a commit tab is read only and has no caret to leave with.
+      onPointerDown={(event) => {
+        if (pressLetsGo(event.target as HTMLElement | null)) setCurrent(null);
       }}
     >
       <div

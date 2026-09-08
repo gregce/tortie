@@ -90,18 +90,51 @@ export function identityOf(el: HTMLElement): ChangeIdentity | null {
 /**
  * Are these the same change?
  *
- * THE GENERATION IS DELIBERATELY NOT COMPARED, and that is the whole point of
- * the rule. A recompose caused by an agent's write does not move the baseline
- * (research 83 policy Z, ./baseline), so the same change comes back with the
- * same generation and this is trivially true; but a COMMIT does move it, and a
- * person looking at the same phrase after a commit is still looking at the
- * same phrase. What must never be stale is the generation a PRESS carries, and
- * that is read fresh off the drawn wrapper at the press rather than out of
- * this state, so a moved baseline is refused by the guard in ./redline-write
- * exactly as it was before.
+ * **A CHANGE IS THE SPAN OF BASELINE IT COVERS**, being `off` and `del`, and
+ * nothing else. Two clauses of the obvious answer are deliberately left out
+ * and each one is a defect that was measured rather than reasoned about.
+ *
+ * THE GENERATION IS NOT COMPARED. A recompose caused by an agent's write does
+ * not move the baseline (research 83 policy Z, ./baseline), so the same change
+ * comes back with the same generation and comparing it would be trivially
+ * true; but a COMMIT does move it, and a person looking at the same phrase
+ * after a commit is still looking at the same phrase. What must never be stale
+ * is the generation a PRESS carries, and that is read fresh off the drawn
+ * wrapper at the press rather than out of this state, so a moved baseline is
+ * refused by the guard in ./redline-write exactly as it was before.
+ *
+ * THE INSERTION IS NOT COMPARED EITHER, AND THAT IS PHASE 239'S FIX ROUND.
+ * Phase 237 shipped typing into this document two commits before this one, and
+ * every keystroke rewrites the inserted side. The verifier drew the controls
+ * on a change, typed three characters into it and read the chip GONE and zero
+ * changes marked, three runs of three, where the PARENT commit kept the
+ * controls on that same change three of three — a regression this phase
+ * introduced by choosing an identity the product's own typing moves:
+ *
+ * ```
+ * sameChange({off: 78, del: 'quick brown foxes', ins: 'swift crimson hounds'},
+ *            {off: 78, del: 'quick brown foxes', ins: 'swift crimszqxon hounds'})
+ * ```
+ *
+ * read false, and the change was still drawn with the caret still in it.
+ *
+ * **The span is an identity and not a guess**, and the measurement is already
+ * in this tree: ./rewind's own header records offsets strictly increasing
+ * across one draw over 2,998 draws with 0 non-increasing pairs, so an offset
+ * names at most one change in a picture, and `del` is the baseline text that
+ * offset covers. A person typing into a phrase has not moved to another
+ * phrase, and an agent rewriting the phrase has not moved the baseline under
+ * it.
+ *
+ * **What still carries the whole triple is a PRESS**, which is the thing that
+ * writes: ./redline-press reads the identity off the drawn wrapper once,
+ * before any await, and `resolvePress` in ./rewind matches `off`, `del` AND
+ * `ins`, so a rewind still acts on exactly the phrase that was drawn and
+ * refuses a phrase that moved. This function decides where the CONTROLS are,
+ * not what they do.
  */
 export function sameChange(a: ChangeIdentity, b: ChangeIdentity): boolean {
-  return a.off === b.off && a.del === b.del && a.ins === b.ins;
+  return a.off === b.off && a.del === b.del;
 }
 
 /** Every change wrapper drawn inside `host`, in document order. */
@@ -174,4 +207,123 @@ export const CURRENT_ATTRIBUTE = 'data-current';
 /** The drawn wrapper wearing the mark, or null when the picture lost it. */
 export function currentElement(host: Element): HTMLElement | null {
   return host.querySelector<HTMLElement>(`${CHANGE_SELECTOR}[${CURRENT_ATTRIBUTE}]`);
+}
+
+/**
+ * The document element itself, which is what `.ed-redline-change` sits inside.
+ * It is named here beside {@link CHANGE_SELECTOR} so the let-go rule below and
+ * the view's own markup cannot drift apart.
+ */
+export const DOC_SELECTOR = '.ed-redline-doc';
+
+/** The one thing {@link pressLetsGo} asks of a pressed element. */
+export interface PressTarget {
+  closest: (selector: string) => Element | null;
+}
+
+/**
+ * DOES THIS PRESS LET GO OF THE CURRENT CHANGE?
+ *
+ * PHASE 239'S FIX ROUND, AND IT IS THE OTHER HALF OF THE PERSISTENCE THIS
+ * PHASE IS FOR. Persistence means the controls survive a pointer leaving, a
+ * recompose an agent caused and the keyboard going elsewhere. It does NOT mean
+ * they cannot be put away, and as first built they could not: the verifier
+ * clicked plain prose far from any change and read the chip still drawn on
+ * change 0 with the mark still on it, where the PARENT commit read it gone,
+ * and the only exit left was to leave the view. The chip is an out-of-flow
+ * overlay at 0.00px of layout cost, which is the one placement research 83 D.3
+ * accepted, and the price of out-of-flow is that it is drawn OVER the line
+ * above or below the change — 171.60 x 30px of it, over the marked-up sentence
+ * D.3 says the view exists to let a person read. A thing drawn over the prose
+ * has to be dismissible.
+ *
+ * The rule is the narrowest one that can mean it: **a press on the document's
+ * own prose, on no change, lets go.** A press on a change keeps it, because
+ * that is the person arriving rather than leaving. A press on anything that is
+ * not the document keeps it too — the chip itself, the note row's Undo, the
+ * banner, the scrollbar — because Tortie's own chrome is not a place in the
+ * text and pressing it is not the person saying they are done with a change.
+ * That last clause is why the question is asked of BOTH selectors and not just
+ * of the change: the chip lives outside `.ed-redline-doc` (Phase 236), so a
+ * rule that only asked "not a change" would put the controls away every time
+ * somebody reached for them.
+ *
+ * It is asked of a pointer press rather than of the caret because it must work
+ * on a redline that has no caret at all: a commit tab is read only, so
+ * ./redline-edits hands back nothing, and a rule written on the caret alone
+ * would leave those tabs with no way out.
+ */
+export function pressLetsGo(target: PressTarget | null): boolean {
+  if (target === null) return false;
+  if (target.closest(CHANGE_SELECTOR) !== null) return false;
+  return target.closest(DOC_SELECTOR) !== null;
+}
+
+/**
+ * A caret move the PERSON made: the change it landed in, or null for a caret
+ * that landed in the document and in no change at all.
+ *
+ * It is an object rather than a bare element so that every move is a new value
+ * and the view's effect runs once per move rather than once per distinct
+ * landing place.
+ */
+export interface CaretMove {
+  change: HTMLElement | null;
+}
+
+/** Two current-side offsets, being ./redline-typing's `CurrentSelection`. */
+export interface CaretOffsets {
+  anchor: number;
+  focus: number;
+}
+
+/**
+ * WAS THIS `selectionchange` THE PERSON MOVING THE CARET, OR THE VIEW PUTTING
+ * IT BACK?
+ *
+ * PHASE 239'S FIX ROUND, and the defect it closes was measured in the app.
+ * The controls were held on `quick brown foxes… -> swift crimson hounds…` at
+ * baseline offset 78; a plain `/bin/sh` prepended one line to the file; the
+ * change was still drawn at index 2 with the same offset, the same deleted
+ * text and the same inserted text — and the mark, the chip and therefore the
+ * ⌥⌫ target had all moved to index 0, the change the shell had just made. The
+ * press would have rewound `"" -> "A line the shell added at the very top."`
+ * rather than the phrase the person was on.
+ *
+ * The mechanism is not the identity and not the recompose. It is that
+ * ./redline-edits restores the caret after every recompose, by current-side
+ * OFFSET (research 97 §2.3), and a write ABOVE the caret leaves that offset
+ * pointing at different text; the `selectionchange` the restore causes is
+ * indistinguishable from the person clicking there, so the view adopted it.
+ *
+ * So the restore is MARKED, and a `selectionchange` whose selection is exactly
+ * what was just put back is not a move. Two clauses beside it, each one a real
+ * shape rather than defensiveness:
+ *
+ *   - A selection that is NOT IN THIS DOCUMENT is silence, never a move out of
+ *     a change. The chord focuses the change wrapper it steps to, which can
+ *     take the selection out of the editing host altogether, and reading that
+ *     as "the person left every change" would let go of the change they had
+ *     just stepped to.
+ *   - The mark is consumed whether it matched or not, so it can swallow at
+ *     most the one event the restore caused. The stated limit is that a
+ *     restore which moves nothing fires no event and leaves the mark standing,
+ *     so a person whose very next act puts the caret at exactly those two
+ *     offsets is not heard once — which is a caret landing where the caret
+ *     already was, and looks like nothing on the face.
+ */
+export function caretMoveOf(args: {
+  /** What the view last put back, or null when it has put nothing back. */
+  restored: CaretOffsets | null;
+  /** Where the selection is now, or null when it is not in this document. */
+  now: CaretOffsets | null;
+  /** The change the caret is in, from ./redline-caret `changeAtCaret`. */
+  change: HTMLElement | null;
+}): CaretMove | null {
+  const { restored, now, change } = args;
+  if (now === null) return null;
+  if (restored !== null && restored.anchor === now.anchor && restored.focus === now.focus) {
+    return null;
+  }
+  return { change };
 }

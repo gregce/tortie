@@ -63,6 +63,8 @@ import {
   spanOfInput,
   textOfInput
 } from './redline-caret';
+import { caretMoveOf } from './redline-current';
+import type { CaretMove } from './redline-current';
 import { initialTyping, typingStep } from './redline-typing';
 import type {
   CurrentSelection,
@@ -98,8 +100,18 @@ export interface RedlineTyping {
     suppressContentEditableWarning?: true;
     spellCheck?: false;
   };
-  /** The change the caret is in, so the chip is drawn where the keys act. */
-  caretChange: HTMLElement | null;
+  /**
+   * WHERE THE PERSON LAST MOVED THE CARET, as an EVENT rather than a place:
+   * the change it landed in, or null for a caret that landed in the document
+   * and in no change at all. It is null while nothing the person did has moved
+   * it, and — the fix round's finding — a restore this hook performs after a
+   * recompose produces none, because a write above the caret leaves its
+   * current-side offset pointing at different text and the view was reading
+   * that as the person walking to another change. The rule is
+   * ./redline-current `caretMoveOf`, which is pure and is ablated by
+   * `npm run conformance:redline` rule 18b.
+   */
+  caretMove: CaretMove | null;
   /** Whether the person has typing of their own to undo with ⌘Z. */
   canUndoTyping: boolean;
 }
@@ -138,7 +150,11 @@ export function useRedlineTyping(args: {
 
   const [doc, setDoc] = useState<HTMLElement | null>(null);
   const [state, setState] = useState<TypingState>(() => initialTyping(liveText));
-  const [caretChange, setCaretChange] = useState<HTMLElement | null>(null);
+  const [caretMove, setCaretMove] = useState<CaretMove | null>(null);
+  // What the restore below last put back, so the selection listener can tell
+  // this view's own act from the person's. It is consumed on the first
+  // `selectionchange` after it is set, whether that event matched it or not.
+  const restored = useRef<CurrentSelection | null>(null);
   // Bumped when this hook has made a working model, so the effect that
   // listens to it re-runs instead of polling for one.
   const [modelTick, setModelTick] = useState(0);
@@ -168,7 +184,8 @@ export function useRedlineTyping(args: {
     written.current = 0;
     wanted.current = null;
     setState(initialTyping(liveText));
-    setCaretChange(null);
+    setCaretMove(null);
+    restored.current = null;
     // The seed is the live text at the moment the tab changed; a later change
     // of that text is an outside write and is the next effect's.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,11 +352,17 @@ export function useRedlineTyping(args: {
     };
   }, [editable, doc, tabId]);
 
-  // Which change the caret is in, so the chip and the chords name one change.
+  // WHICH CHANGE THE CARET IS IN, AND ONLY WHEN THE PERSON PUT IT THERE. The
+  // rule is ./redline-current `caretMoveOf` and its whole reasoning is there;
+  // this listener only hands it the three readings it asks for.
   useEffect(() => {
     if (!editable || doc === null) return;
     const onSelectionChange = (): void => {
-      setCaretChange(changeAtCaret(doc));
+      const now = readCurrentSelection(doc);
+      const put = restored.current;
+      restored.current = null;
+      const move = caretMoveOf({ restored: put, now, change: changeAtCaret(doc) });
+      if (move !== null) setCaretMove(move);
     };
     document.addEventListener('selectionchange', onSelectionChange);
     return () => {
@@ -355,10 +378,13 @@ export function useRedlineTyping(args: {
     if (!editable || doc === null || state.caret === null) return;
     const active = doc.ownerDocument.activeElement;
     if (active === null || !doc.contains(active)) return;
+    // MARKED BEFORE THE CALL. `selectionchange` is queued rather than
+    // dispatched synchronously, so the listener above always reads this.
+    restored.current = state.caret;
     restoreCurrentSelection(doc, state.caret);
   }, [editable, doc, state]);
 
-  if (!editable) return { text: null, docProps: { ref: setDoc }, caretChange: null, canUndoTyping: false };
+  if (!editable) return { text: null, docProps: { ref: setDoc }, caretMove: null, canUndoTyping: false };
   return {
     text: state.text,
     docProps: {
@@ -367,7 +393,7 @@ export function useRedlineTyping(args: {
       suppressContentEditableWarning: true,
       spellCheck: false
     },
-    caretChange,
+    caretMove,
     canUndoTyping: tab.dirty
   };
 }

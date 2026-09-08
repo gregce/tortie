@@ -32,7 +32,15 @@ const current = (await import(
   pathToFileURL(resolve(DIR, 'redline-current.ts')).href
 )) as typeof import('../src/renderer/editor/redline-current');
 
-const { identityOf, indexOfChange, sameChange, stepChange, stepIndex } = current;
+const {
+  caretMoveOf,
+  identityOf,
+  indexOfChange,
+  pressLetsGo,
+  sameChange,
+  stepChange,
+  stepIndex
+} = current;
 
 type Identity = import('../src/renderer/editor/redline-current').ChangeIdentity;
 
@@ -80,6 +88,26 @@ const TEN = [
 });
 
 const held = identityOf(NINE[6] as HTMLElement);
+
+/** What the view last put the caret back at, in current-side offsets. */
+const PUT = { anchor: 128, focus: 128 };
+
+/** A move, as the name of the change it landed in, so the JSON is readable. */
+const named = (move: { change: HTMLElement | null } | null): string =>
+  move === null
+    ? 'no move'
+    : move.change === null
+      ? 'moved, on no change'
+      : `moved, on ${String(move.change.dataset['changeDel'])}`;
+
+/**
+ * A pressed element, as far as the shipping `pressLetsGo` is concerned: it
+ * asks `closest` twice and nothing else. `[]` is the chip, which lives OUTSIDE
+ * `.ed-redline-doc` and therefore answers neither.
+ */
+const target = (inside: string[]): { closest: (s: string) => Element | null } => ({
+  closest: (s: string) => (inside.includes(s) ? ({} as Element) : null)
+});
 
 /**
  * THE SWALLOWED FIRST PRESS, as a number rather than a sentence.
@@ -132,16 +160,28 @@ console.log(
       // A change the picture no longer holds, which is what a rewind leaves.
       rewound: indexOfChange(NINE.slice(1), identityOf(NINE[0] as HTMLElement))
     },
-    // 5. The generation is NOT part of the identity, so a commit keeps your
-    //    place; a different phrase at the same offset is a different change.
+    // 5. A CHANGE IS THE SPAN OF BASELINE IT COVERS. The generation is not
+    //    part of it, so a commit keeps your place; the INSERTION is not part
+    //    of it either, which is the fix round's finding 1, being that Phase
+    //    237's typing rewrites `ins` on every keystroke and took the controls
+    //    off the change the person was typing into, 3 runs of 3.
     identity: {
       acrossGenerations: sameChange(
         identityOf(wrapper(10, 'keeps', 'holds', 2)) as Identity,
         identityOf(wrapper(10, 'keeps', 'holds', 3)) as Identity
       ),
-      differentInsertion: sameChange(
+      // THE VERIFIER'S OWN KEYSTROKES, at the offset and on the phrase it
+      // typed into: three characters landing mid-insertion are the same
+      // change and the controls stay on it.
+      typedInto: sameChange(
+        identityOf(wrapper(78, 'quick brown foxes', 'swift crimson hounds')) as Identity,
+        identityOf(wrapper(78, 'quick brown foxes', 'swift crimszqxon hounds')) as Identity
+      ),
+      // But a different span of the BASELINE at the same offset is a
+      // different change, and so is the same phrase at another offset.
+      differentBaselineSpan: sameChange(
         identityOf(wrapper(10, 'keeps', 'holds')) as Identity,
-        identityOf(wrapper(10, 'keeps', 'kept')) as Identity
+        identityOf(wrapper(10, 'kept', 'holds')) as Identity
       ),
       differentOffset: sameChange(
         identityOf(wrapper(10, 'keeps', 'holds')) as Identity,
@@ -151,6 +191,34 @@ console.log(
       noIdentity: identityOf({ dataset: {} } as unknown as HTMLElement)
     },
     // 6. The walk, from a fresh view: three presses, three changes.
-    walk: walk(3)
+    walk: walk(3),
+    // 7. THE RESTORED CARET IS NOT A MOVE (the fix round's finding 2). The
+    //    view puts the caret back at two current-side offsets after every
+    //    recompose; a write ABOVE it leaves those offsets on different text,
+    //    and the `selectionchange` that follows was being read as the person
+    //    walking to the change the shell had just made.
+    caret: {
+      // The person clicked somewhere the restore did not put them.
+      person: named(caretMoveOf({ restored: PUT, now: { anchor: 400, focus: 400 }, change: NINE[2] as HTMLElement })),
+      // The restore itself, byte for byte what was put back: silence.
+      restore: named(caretMoveOf({ restored: PUT, now: PUT, change: NINE[0] as HTMLElement })),
+      // A caret that is not in this document at all: silence, never a move
+      // OUT of a change, because the chord's own focus can take it out.
+      elsewhere: named(caretMoveOf({ restored: PUT, now: null, change: null })),
+      // The person put the caret in plain prose. That IS a move, and it is
+      // what lets the view let go.
+      onProse: named(caretMoveOf({ restored: null, now: { anchor: 12, focus: 12 }, change: null })),
+      // Nothing has been restored yet, so nothing can be mistaken for one.
+      firstEver: named(caretMoveOf({ restored: null, now: { anchor: 1, focus: 1 }, change: NINE[1] as HTMLElement }))
+    },
+    // 8. WHICH PRESS LETS GO (the fix round's finding 3). A press on the
+    //    document's own prose, on no change, puts the controls away; a press
+    //    on a change or on any of Tortie's own chrome does not.
+    letGo: {
+      prose: pressLetsGo(target(['.ed-redline-doc'])),
+      change: pressLetsGo(target(['.ed-redline-doc', '.ed-redline-change'])),
+      chip: pressLetsGo(target([])),
+      nothing: pressLetsGo(null)
+    }
   })
 );
