@@ -140,7 +140,9 @@ const REDLINE_FILES = [
   // decides and must never write; redline-write.ts holds the single permitted
   // write channel, which rule 9 was narrowed to allow at exactly one call site.
   'src/renderer/editor/rewind.ts',
-  'src/renderer/editor/redline-write.ts'
+  'src/renderer/editor/redline-write.ts',
+  // Phase 227: the undo journal, per tab and in memory. It writes nothing.
+  'src/renderer/editor/redline-journal.ts'
 ];
 
 // ---------------------------------------------------------------------------

@@ -42,7 +42,13 @@
  * baseline byte for byte and the non-DEL text the working text.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef
+} from 'react';
 import { OpeningSkeleton } from './MonacoHost';
 import { RedlineRuns } from './RedlineRow';
 import { handleRedlineCopy } from './redline-copy';
@@ -56,9 +62,17 @@ import type { RedlineChange } from './rewind';
 import { installRedlineCommands } from './redline-commands';
 import type { RedlineCommand } from './redline-commands';
 import { applyRewind } from './redline-write';
+import type { RewindOutcome } from './redline-write';
+import {
+  lastRewind,
+  popRewind,
+  recordRewind,
+  rewindJournalDepth
+} from './redline-journal';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
 import { useApp } from '../state/store';
+import { keyDisplay } from '@shared/keymap';
 import type { RedlineRun } from './redline';
 import {
   baselineName,
@@ -241,32 +255,53 @@ export function RedlineDocument({
   // Edit menu through ./redline-commands. Rewind and undo read the change
   // under focus and hand it to the one press function; until item 4 of the
   // phase installs it, a press resolves the identity and does nothing more.
+  // A local bump so a rewind or an undo re-renders the journal note at once
+  // rather than waiting for the watcher's recompose.
+  const [, bumpJournal] = useReducer((n: number) => n + 1, 0);
   const press = useCallback(
     async (kind: 'rewind' | 'undo', host: HTMLElement) => {
-      // Undo's identity comes from the tab's journal, wired in item 5; until
-      // then Undo does nothing. Rewind reads the change under focus.
-      if (kind === 'undo') return;
-      const pressed = focusedChange(host);
-      if (pressed === null) return;
       // The LIVE tab, read fresh at the press: savedContents and the drawn
       // prop both trail disk, and the generation guard needs the value now.
       const live = useEditor.getState().tabs.find((t) => t.id === tab.id);
       if (live === undefined) return;
-      const outcome = await applyRewind({
+      // E.6. A rewind written while the tab is dirty is undone by the next
+      // save, so the press is refused with a sentence instead.
+      if (live.dirty) {
+        useApp.getState().toast('info', `That change was not rewound (dirty).`);
+        return;
+      }
+      // Rewind reads the change under focus; undo pops the last rewind of
+      // this tab from the journal, whose generation guards the write.
+      const entry = kind === 'undo' ? lastRewind(tab.id) : null;
+      const pressed = kind === 'undo' ? entry ?? null : focusedChange(host);
+      if (pressed === null) return;
+      const drawnGeneration =
+        kind === 'undo' ? (entry?.generation ?? 0) : (pressed as { generation: number }).generation;
+      const outcome: RewindOutcome = await applyRewind({
         root: live.repoPath,
         path: live.path,
         baseline: _baseSideForPress(live.baseline, live.headContents),
         generation: live.baseline?.generation ?? 0,
-        drawnGeneration: pressed.generation,
+        drawnGeneration,
         pressed: { off: pressed.off, del: pressed.del, ins: pressed.ins },
-        kind: 'rewind'
+        kind
       });
-      // The sentences are item 6; item 4 says the plain fact so a refusal is
-      // never silent. A success shows nothing: the watcher recomposes the
-      // view, exactly as an outside write does.
+      // The sentences are item 6; item 4 said the plain fact so a refusal is
+      // never silent. A success shows nothing on the face: the watcher
+      // recomposes the view, exactly as an outside write does.
       if ('refused' in outcome) {
-        useApp.getState().toast('info', `That change was not rewound (${outcome.refused}).`);
+        useApp.getState().toast('info', `That change was not ${kind === 'undo' ? 'undone' : 'rewound'} (${outcome.refused}).`);
+        return;
       }
+      // The journal: a rewind is remembered so it can be undone; an undo drops
+      // the entry it just wrote back. Both bump the note.
+      if (kind === 'rewind') {
+        const p = focusedChange(host);
+        if (p !== null) recordRewind(tab.id, { off: p.off, del: p.del, ins: p.ins, generation: p.generation });
+      } else {
+        popRewind(tab.id);
+      }
+      bumpJournal();
     },
     [tab.id]
   );
@@ -317,6 +352,14 @@ export function RedlineDocument({
   // person's buffer and not the disk for as long as it stays dirty; the
   // sentence states that limit rather than hiding it.
   const since = doc === null ? null : baselineSentence(tab.baseline, tab.dirty);
+  // PHASE 227. One short sentence, shown only when this tab has a rewind to
+  // undo, saying the chord and that it lasts for the session (research 83
+  // E.8). It is not a live region: it appears the moment a rewind lands and
+  // says nothing on its own.
+  const undoNote =
+    doc !== null && rewindJournalDepth(tab.id) > 0
+      ? `Undo the last rewind with ${keyDisplay('redline.undo')}. It lasts for this session.`
+      : null;
 
   return (
     <div className="ed-redline-view">
@@ -365,6 +408,13 @@ export function RedlineDocument({
         // about the picture in front of the person.
         <div className="banner ed-note ed-redline-since">
           <span className="banner-text">{since}</span>
+        </div>
+      ) : null}
+      {undoNote !== null ? (
+        // PHASE 227. The undo sentence, in the same slot and the same tokens,
+        // shown only while there is a rewind to undo.
+        <div className="banner ed-note ed-redline-undo">
+          <span className="banner-text">{undoNote}</span>
         </div>
       ) : null}
     </div>

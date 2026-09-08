@@ -163,9 +163,12 @@ export function resolvePress(
  * Why a rewind or an undo did not happen, each a word so the view can say the
  * right sentence (./redline-copy). The first six are this module's own, over
  * the baseline and the fresh bytes; the last five are the channel's own words,
- * mapped through {@link rewindRefusalKey} so the view surfaces them.
+ * mapped through {@link rewindRefusalKey} so the view surfaces them. `dirty`
+ * is the view's own, being research 83 E.6: a rewind written while the tab has
+ * unsaved edits is undone by the next save, so the press is refused instead.
  */
 export type RewindRefusal =
+  | 'dirty'
   | 'baselineMoved'
   | 'fileTooLarge'
   | 'decodeLoss'
