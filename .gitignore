@@ -31,3 +31,8 @@ docs/arch/
 # by timestamp and referenced by nothing. Three were committed by accident on
 # 2026-08-19 and are removed here.
 .playwright-mcp/
+
+# Phase working directories. Agents bank their measurement scripts and outputs
+# here; the finished research goes to docs/research/ and the reusable helpers to
+# build/pNNN/. Nothing under here is ever part of the product.
+.p[0-9]*/
