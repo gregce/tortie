@@ -330,6 +330,7 @@ export interface FsGuardedWriteInput {
  *  - `outside`   the root is not open, the path escapes it, or it names `.git`
  *  - `missing`   there is no file at that path
  *  - `link`      the file is a symbolic link; Tortie will not turn it into a file
+ *  - `readOnly`  the file's owner write bit is clear; a person marked it read-only
  *  - `tooLarge`  the file, or the new contents, is over READ_CAP_BYTES
  *  - `notUtf8`   decoding the file produced a U+FFFD the bytes do not contain
  *  - `raced`     something replaced the file between the read and the swap
@@ -340,6 +341,7 @@ export type FsGuardedWriteRefusal =
   | 'outside'
   | 'missing'
   | 'link'
+  | 'readOnly'
   | 'tooLarge'
   | 'notUtf8'
   | 'raced'

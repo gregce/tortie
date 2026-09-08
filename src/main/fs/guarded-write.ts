@@ -24,7 +24,17 @@
  *     `fs:createFile`, `fs:rename`, `fs:move` and `fs:trash` ask, and the path
  *     must resolve inside it with `.git` refused at any depth.  `refused/outside`
  *  3. The file is opened for reading with `O_NOFOLLOW`, so a link at the
- *     path is a file that is not there.               `refused/missing | link`
+ *     path is a file that is not there, and with `O_NONBLOCK`, because the
+ *     open runs on main's thread and `open(2)` of a NAMED PIPE with no writer
+ *     BLOCKS UNTIL ONE ARRIVES: the Phase 226 verifier planted a FIFO at the
+ *     path and one call froze the whole app for 5,002 ms until it was killed.
+ *     Under `O_NONBLOCK` the same open returns at once (measured 0 ms), a
+ *     regular file reads exactly as before, and the pipe is refused by the
+ *     regular-file check below. A file whose owner write bit is clear is
+ *     refused too, because `rename` needs the DIRECTORY's permission and not
+ *     the file's, so without this clause a `chmod a-w` file was replaced
+ *     with `wrote` where a plain save answers EACCES.
+ *                                     `refused/missing | link | io | readOnly`
  *  4. Its size is asked BEFORE anything is read or hashed, and a file over
  *     READ_CAP_BYTES is refused, because the caller's read of such a file
  *     was truncated by `fs:readFile` and a write composed over a truncated
@@ -47,19 +57,34 @@
  *     link re-planted between the two makes the create fail rather than be
  *     followed. Lifted from `src/main/credentials/nofollow.ts`, whose header
  *     carries the defect it exists for.
- *  8. `lstat` of the TARGET: if what is there now is a link, or nothing, the
- *     file changed under the write and the staged copy is discarded.
- *     `lstat` of the STAGED copy: if it is a link, somebody swapped it and it
- *     is discarded. `lstat` reports on the entry and never on what it points
- *     at.                                                        `refused/raced`
+ *  8. `lstat` of the TARGET, compared with the `fstat` the read took: if what
+ *     is there now is nothing, a link, or a regular file that is not THE
+ *     SAME ENTRY, being the same inode with the same size, mtime and ctime,
+ *     then the file changed under the write and the staged copy is
+ *     discarded. A link is its own inode, so it is one case of "not the same
+ *     entry" and needs no clause of its own; an append moves size and mtime;
+ *     a swap moves the inode; a `chmod` moves ctime alone, and it is refused
+ *     too, because the staged copy carries the mode the read saw and would
+ *     put it back. `lstat` of the STAGED copy, compared with the `fstat` of
+ *     the descriptor that wrote it: if it is a link or not the file Tortie
+ *     wrote, somebody swapped it and it is discarded. `lstat` reports on the
+ *     entry and never on what it points at.                      `refused/raced`
  *  9. `rename` of the staged copy onto the file, which is atomic on one
  *     volume, so a reader sees the old file or the new one and never a
  *     partial one. Lifted from `src/main/settings/store.ts`.        `wrote`
  *
  * Steps 3 to 9 are SYNCHRONOUS on purpose. There is no await between the
  * digest comparison and the rename, so nothing else in main can run in that
- * window; the window that remains is the operating system's own, and it is
- * the same one the remote path's far side has.
+ * window. THE WINDOW IS NOT MICROSECONDS. As first shipped this paragraph
+ * called what remained "the operating system's own", and the Phase 226
+ * verifier measured it: the time from the hash to the rename is the time to
+ * WRITE THE PAYLOAD, 23.6 ms for a file at the cap, and under a real process
+ * appending to the file every `wrote` answered inside it, 4 of 4, lost lines.
+ * Step 8's comparison is what closes it: the window that remains is the one
+ * from that `lstat` to the `rename`, two system calls with nothing between
+ * them, which is the same one the remote path's far side has. A change of
+ * the same size inside one timestamp tick is the stated limit, and on APFS
+ * the tick is a nanosecond.
  *
  * ## THE STAGED NAME, and why it is this one
  *
@@ -68,10 +93,12 @@
  * `git status` shows an untracked dotfile exactly as any other, `git add -A`
  * stages it and `git clean` takes it. So the requirement, a name nobody is
  * tempted to commit, is met by LIFETIME rather than by a name git overlooks.
- * The file exists for one write and one rename, microseconds, and only a
- * crash between them leaves it; the name is deterministic per target, so the
- * next write to the same file finds the leftover at step 7 and removes it
- * without a directory scan; the dot keeps it out of `ls` and most pickers;
+ * The file exists for one write and one rename, 23.6 ms for a file at the
+ * cap by the verifier's measurement and not the microseconds this sentence
+ * first claimed, and only a crash between them leaves it; the name is
+ * deterministic per target, so the next write to the same file finds the
+ * leftover at step 7 and removes it without a directory scan; the dot keeps
+ * it out of `ls` and most pickers;
  * and the suffix is Tortie's own, different from the credentials domain's
  * `.tortie-pending` on purpose so neither domain's sweep can mistake the
  * other's file. It sits in the SAME directory as the target because `rename`
@@ -85,6 +112,21 @@
  * existing bus watches the DIRECTORY. Whoever adds the C.8 directory watch
  * with a basename filter inherits this sentence, and whoever ever watches a
  * FILE by name must not, or a rewind will silently stop their updates.
+ *
+ * ## STATED LIMITS, measured by the Phase 226 verifier and kept on purpose
+ *
+ * A HARD-LINKED target is replaced at this name only: the rename puts a new
+ * inode here and the other name keeps the old bytes, exactly as
+ * `settings/store.ts` does, and a write that edited the shared inode in
+ * place would not be atomic. A DIRECTORY planted at the staged name is
+ * refused `io` (EEXIST) and left where it is, because Tortie did not make it.
+ * A file owned by SOMEBODY ELSE with its owner bit set is written if the
+ * directory allows the rename, where a plain save would answer EACCES; the
+ * read-only refusal reads the owner bit and not the caller's rights, so it
+ * is the same answer under every uid. A lone surrogate in the CONTENTS lands
+ * as U+FFFD, which is the caller's own bytes; Phase 227 cannot produce one
+ * from a decoded file. A read-only file is refused before its digest is
+ * compared, so a caller holding a stale digest of one hears `readOnly`.
  *
  * ## WHAT IS DELIBERATELY NOT HERE
  *
@@ -107,6 +149,7 @@ import {
   unlinkSync,
   writeSync
 } from 'node:fs';
+import type { BigIntStats } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import type {
   FsGuardedWriteInput,
@@ -159,6 +202,22 @@ function errnoOf(err: unknown): string {
 /** ONE predicate for the cap, asked of the file's size and of the payload. */
 function overCap(bytes: number): boolean {
   return bytes > READ_CAP_BYTES;
+}
+
+/**
+ * Whether two readings describe THE SAME ENTRY: one inode, unchanged size,
+ * unchanged mtime and ctime. An append, a swap, a link put at the name, a
+ * rewrite of the same size and a bare `chmod` each move at least one of the
+ * four; a rewrite of the same size inside one timestamp tick moves none, and
+ * that is the stated limit. Bigint stats, because `mtimeMs` is a double.
+ */
+function sameEntry(seen: BigIntStats, now: BigIntStats): boolean {
+  return (
+    seen.ino === now.ino &&
+    seen.size === now.size &&
+    seen.mtimeNs === now.mtimeNs &&
+    seen.ctimeNs === now.ctimeNs
+  );
 }
 
 /** Read a descriptor to EOF, starting from what `fstat` said it holds. */
@@ -233,9 +292,15 @@ export async function writeGuarded(
   // 3 to 6. The read, and the three refusals decided on what it found.
   let raw: Buffer;
   let mode: number;
+  let seen: BigIntStats;
   let fd: number;
   try {
-    fd = openSync(abs, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    // O_NONBLOCK: a named pipe with no writer blocks open(2) until one
+    // arrives, and this runs on main's thread. See the header, step 3.
+    fd = openSync(
+      abs,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | constants.O_NONBLOCK
+    );
   } catch (err) {
     const code = errnoOf(err);
     if (code === 'ENOENT') return refused('missing', `${name} is no longer there.`);
@@ -245,18 +310,23 @@ export async function writeGuarded(
     return refused('io', `${name} could not be opened (${code}).`);
   }
   try {
-    const stat = fstatSync(fd);
+    const stat = fstatSync(fd, { bigint: true });
     if (!stat.isFile()) {
       return refused('io', `${name} is not a regular file.`);
     }
-    mode = stat.mode & 0o7777;
-    if (overCap(stat.size)) {
+    mode = Number(stat.mode) & 0o7777;
+    if ((mode & 0o200) === 0) {
+      return refused('readOnly', `${name} is marked read-only, so Tortie left it alone.`);
+    }
+    const size = Number(stat.size);
+    if (overCap(size)) {
       return refused('tooLarge', `${name} is too large for Tortie to rewrite whole.`);
     }
     if (overCap(payload.length)) {
       return refused('tooLarge', `The new contents of ${name} are too large to write.`);
     }
-    raw = readAllSync(fd, stat.size);
+    seen = stat;
+    raw = readAllSync(fd, size);
     if (overCap(raw.length)) {
       return refused('tooLarge', `${name} is too large for Tortie to rewrite whole.`);
     }
@@ -301,6 +371,7 @@ export async function writeGuarded(
   } catch (err) {
     return refused('io', `${name} could not be staged for writing (${errnoOf(err)}).`);
   }
+  let stagedSeen: BigIntStats;
   try {
     // The mode on the DESCRIPTOR, so the umask cannot narrow an executable
     // and no second path is resolved to set it.
@@ -309,6 +380,7 @@ export async function writeGuarded(
     while (written < payload.length) {
       written += writeSync(out, payload, written, payload.length - written, written);
     }
+    stagedSeen = fstatSync(out, { bigint: true });
   } catch (err) {
     closeSync(out);
     discard(staged);
@@ -318,20 +390,26 @@ export async function writeGuarded(
 
   deps.afterStage?.(staged, abs);
 
-  // 8 and 9. Ask the target and the staged copy what they are now, then swap.
+  // 8 and 9. Ask the target and the staged copy whether each is still the
+  // entry this call read or wrote, then swap.
   try {
-    let targetIsLink: boolean;
+    let now: BigIntStats;
     try {
-      targetIsLink = lstatSync(abs).isSymbolicLink();
+      now = lstatSync(abs, { bigint: true });
     } catch {
       discard(staged);
       return refused('raced', `${name} went away while Tortie was writing it.`);
     }
-    if (targetIsLink) {
+    if (!sameEntry(seen, now)) {
       discard(staged);
-      return refused('raced', `${name} became a link while Tortie was writing it.`);
+      return refused(
+        'raced',
+        now.isSymbolicLink()
+          ? `${name} became a link while Tortie was writing it.`
+          : `${name} changed while Tortie was writing it, so nothing was written.`
+      );
     }
-    if (lstatSync(staged).isSymbolicLink()) {
+    if (!sameEntry(stagedSeen, lstatSync(staged, { bigint: true }))) {
       discard(staged);
       return refused('raced', `The staged copy of ${name} is not the file Tortie wrote.`);
     }

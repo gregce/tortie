@@ -6,8 +6,11 @@
  * and removes in a `finally`, one arm per refusal and per protection, and
  * prints ONE JSON line last. It reads nothing under the person's home: every
  * fixture is written here, the project root list is a function answering the
- * scratch root, and the only process it starts is one node child of itself
- * for the kill arm, waited for synchronously and ended by its own SIGKILL.
+ * scratch root, and the only processes it starts are `mkfifo` for one
+ * fixture and two node children of itself: one for the kill arm, waited for
+ * synchronously and ended by its own SIGKILL, and one for the FIFO arm, in
+ * its own process group, which the parent ends whole in a `finally` whatever
+ * it answered.
  *
  * The module is loaded from `P226_MODULES` (default `src/main/fs`) so the gate
  * can point the same probe at an ablated copy of the channel. The knob is not
@@ -16,12 +19,16 @@
  * `--kill-child <root> <path> <expect> <contentsFile>` is the child mode for
  * the kill arm: it runs one write whose `afterStage` seam kills the process
  * with SIGKILL, which is a real kill between the temp write and the rename
- * rather than a thrown error dressed as one.
+ * rather than a thrown error dressed as one. `--fifo-child <root> <path>` is
+ * the child mode for the FIFO arm: one write aimed at a named pipe, printing
+ * the word it answered, so a channel that blocks in the open blocks a child
+ * and not the probe.
  */
 
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  appendFileSync,
   chmodSync,
   existsSync,
   lstatSync,
@@ -42,6 +49,12 @@ import { pathToFileURL } from 'node:url';
 import { tsxCli } from './ts-runner.mjs';
 
 const MODULES = process.env['P226_MODULES'] ?? 'src/main/fs';
+/**
+ * How long the FIFO arm waits for its child before reading it as hung. The
+ * shipping channel answers in the time tsx takes to start, well under a
+ * second; only a channel that blocks in the open reaches this.
+ */
+const FIFO_DEADLINE_MS = 8_000;
 
 const channel = (await import(
   pathToFileURL(resolve(MODULES, 'guarded-write.ts')).href
@@ -89,6 +102,27 @@ if (process.argv[2] === '--kill-child') {
 }
 
 // ---------------------------------------------------------------------------
+// Child mode: one write aimed at a named pipe. In its own process because a
+// channel that blocks on the open blocks the thread it runs on, and the arm
+// exists to prove it does not; the parent ends the whole process group if the
+// child does not answer.
+// ---------------------------------------------------------------------------
+
+if (process.argv[2] === '--fifo-child') {
+  const [root, path] = process.argv.slice(3);
+  if (!root || !path) {
+    process.stderr.write('fifo-child: two arguments are required\n');
+    process.exit(2);
+  }
+  const r = await writeGuarded(
+    { listProjectRoots: async () => [root] },
+    { root, path, expect: sha(''), contents: 'x' }
+  );
+  process.stdout.write(`${word(r)}\n`);
+  process.exit(0);
+}
+
+// ---------------------------------------------------------------------------
 // The arms.
 // ---------------------------------------------------------------------------
 
@@ -130,6 +164,30 @@ try {
       return readFileSync(abs).toString('latin1');
     } catch {
       return '<GONE>';
+    }
+  };
+  /** The entry's mode as octal, or GONE; a reading and never a throw. */
+  const modeOf = (abs: string): string => {
+    try {
+      return (statSync(abs).mode & 0o777).toString(8);
+    } catch {
+      return 'GONE';
+    }
+  };
+  /** The entry's size, or -1 when it is gone. */
+  const sizeOf = (abs: string): number => {
+    try {
+      return statSync(abs).size;
+    } catch {
+      return -1;
+    }
+  };
+  /** The bytes at `abs`, or none when it is gone; a reading, never a throw. */
+  const rawOf = (abs: string): Buffer => {
+    try {
+      return readFileSync(abs);
+    } catch {
+      return Buffer.alloc(0);
     }
   };
   const tempLeft = (abs: string): boolean => existsSync(swapNameFor(abs));
@@ -181,8 +239,8 @@ try {
       expect: sha(over),
       contents: 'short'
     });
-    readings['overCap'] = `${word(r)} ${statSync(abs).size === CAP + 1 ? 'untouched' : 'WRITTEN'}`;
-    unlinkSync(abs);
+    readings['overCap'] = `${word(r)} ${sizeOf(abs) === CAP + 1 ? 'untouched' : 'WRITTEN'}`;
+    rmSync(abs, { force: true });
   }
   {
     const at = Buffer.alloc(CAP, 0x62);
@@ -194,7 +252,7 @@ try {
       contents: 'short'
     });
     readings['atCap'] = `${word(r)} ${bytesOf(abs) === 'short' ? 'new' : 'old'}`;
-    unlinkSync(abs);
+    rmSync(abs, { force: true });
   }
   {
     const abs = fresh('payload.txt');
@@ -237,8 +295,8 @@ try {
       contents: latin1.toString('utf8').replace('huit', 'neuf')
     });
     readings['latin1'] =
-      `${word(r)} ${readFileSync(abs).equals(latin1) ? 'untouched' : 'WRITTEN'} ` +
-      `${latin1.length}B->${statSync(abs).size}B`;
+      `${word(r)} ${rawOf(abs).equals(latin1) ? 'untouched' : 'WRITTEN'} ` +
+      `${latin1.length}B->${sizeOf(abs)}B`;
   }
   {
     // A file that legitimately holds U+FFFD round trips, which is what makes
@@ -262,7 +320,7 @@ try {
       expect: sha(bom),
       contents: '﻿hello\r\nthere\r\n'
     });
-    readings['bomCrlf'] = `${word(r)} ${readFileSync(abs).equals(Buffer.from('﻿hello\r\nthere\r\n')) ? 'new-bytes-exact' : 'bytes-differ'}`;
+    readings['bomCrlf'] = `${word(r)} ${rawOf(abs).equals(Buffer.from('﻿hello\r\nthere\r\n')) ? 'new-bytes-exact' : 'bytes-differ'}`;
   }
 
   // -- protection: no-follow at the staged name ----------------------------
@@ -340,6 +398,173 @@ try {
       `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
   }
 
+  // -- the verifier's shapes (fix round): the window after the hash --------
+  {
+    // Research 83 E.7's loss, driven through the seam: an agent appends to
+    // the file after the digest matched and before the rename. The identity
+    // comparison in front of the rename is what refuses it.
+    const abs = fresh('appended.md');
+    const r = await writeGuarded(
+      {
+        ...deps,
+        afterStage: (_staged, target) => {
+          appendFileSync(target, 'An agent wrote this line.\n');
+        }
+      },
+      { root, path: 'appended.md', expect: oldSha, contents: NEW }
+    );
+    readings['appendRaced'] =
+      `${word(r)} target=${bytesOf(abs) === `${OLD}An agent wrote this line.\n` ? 'appended-kept' : 'APPEND-LOST'} ` +
+      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+  }
+  {
+    // The file is replaced whole, different bytes, new inode, after the hash.
+    const abs = fresh('swapped.md');
+    const r = await writeGuarded(
+      {
+        ...deps,
+        afterStage: (_staged, target) => {
+          unlinkSync(target);
+          writeFileSync(target, 'AGENT');
+        }
+      },
+      { root, path: 'swapped.md', expect: oldSha, contents: NEW }
+    );
+    readings['swapRaced'] =
+      `${word(r)} target=${bytesOf(abs) === 'AGENT' ? 'agent-kept' : 'AGENT-LOST'} ` +
+      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+  }
+  {
+    // The same inode, the same size, different bytes: OLD and NEW are both 33
+    // bytes, so only the timestamps can see this one.
+    const abs = fresh('rewritten.md');
+    const r = await writeGuarded(
+      {
+        ...deps,
+        afterStage: (_staged, target) => {
+          writeFileSync(target, 'Notes\n\nThe meeting is on Sunday.\n');
+        }
+      },
+      { root, path: 'rewritten.md', expect: oldSha, contents: NEW }
+    );
+    readings['rewriteRaced'] =
+      `${word(r)} target=${bytesOf(abs) === 'Notes\n\nThe meeting is on Sunday.\n' ? 'agent-kept' : 'AGENT-LOST'} ` +
+      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+  }
+  {
+    // Only the mode moves. The staged copy carries the mode the read saw and
+    // a rename would put it back, so ctime is in the comparison.
+    const abs = fresh('chmodded.md');
+    const r = await writeGuarded(
+      {
+        ...deps,
+        afterStage: (_staged, target) => {
+          chmodSync(target, 0o600);
+        }
+      },
+      { root, path: 'chmodded.md', expect: oldSha, contents: NEW }
+    );
+    readings['chmodRaced'] =
+      `${word(r)} target=${bytesOf(abs) === OLD ? 'old' : 'CHANGED'} ` +
+      `mode=${modeOf(abs)} ${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+  }
+  {
+    // The staged copy is swapped for a REGULAR file after the write, which no
+    // link check can see; the descriptor's own fstat is what refuses it.
+    const abs = fresh('swappedtemp.md');
+    const r = await writeGuarded(
+      {
+        ...deps,
+        afterStage: (staged) => {
+          unlinkSync(staged);
+          writeFileSync(staged, 'VICTIM');
+        }
+      },
+      { root, path: 'swappedtemp.md', expect: oldSha, contents: NEW }
+    );
+    readings['swapRacedAtTemp'] =
+      `${word(r)} target=${bytesOf(abs) === OLD ? 'old' : 'CHANGED'} ` +
+      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+  }
+
+  // -- the verifier's shapes (fix round): what the file is -----------------
+  {
+    // `rename` asks the directory's permission and not the file's, so a file
+    // a person marked read-only was replaced with `wrote` where a plain save
+    // answers EACCES. The owner write bit is asked before the digest is.
+    const abs = fresh('readonly.md');
+    chmodSync(abs, 0o444);
+    const r = await writeGuarded(deps, {
+      root,
+      path: 'readonly.md',
+      expect: oldSha,
+      contents: NEW
+    });
+    readings['readOnly'] =
+      `${word(r)} ${bytesOf(abs) === OLD ? 'untouched' : 'WRITTEN'} ` +
+      `mode=${modeOf(abs)} ${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+  }
+  {
+    // A named pipe at the path. `open(2)` of a FIFO with no writer blocks
+    // until one arrives, on whatever thread called it, which in the product
+    // is main's. So the write is driven in a child of its own process group,
+    // and a child that has not answered by the deadline is read as hung and
+    // the whole group is ended, tsx's node and the node it started, because a
+    // signal to the outer one alone leaves the inner one blocked in the open
+    // and reparented to launchd, which is how the verifier found it.
+    const pipe = join(root, 'pipe.md');
+    const made = spawnSync('mkfifo', [pipe], { encoding: 'utf8' });
+    if (made.status !== 0) {
+      readings['fifo'] = `no-mkfifo(${String(made.status)})`;
+    } else {
+      const fifoChild = spawn(
+        process.execPath,
+        [
+          tsxCli(),
+          '--tsconfig',
+          'tsconfig.node.json',
+          'build/redline-write-probe.mts',
+          '--fifo-child',
+          root,
+          'pipe.md'
+        ],
+        {
+          cwd: process.cwd(),
+          env: process.env,
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe']
+        }
+      );
+      let out = '';
+      fifoChild.stdout.on('data', (chunk: Buffer | string) => {
+        out += String(chunk);
+      });
+      try {
+        const answered = await new Promise<boolean>((resolveTo) => {
+          const deadline = setTimeout(() => resolveTo(false), FIFO_DEADLINE_MS);
+          fifoChild.on('close', () => {
+            clearTimeout(deadline);
+            resolveTo(true);
+          });
+        });
+        readings['fifo'] = answered
+          ? `answered ${out.trim()} pipe=${lstatSync(pipe).isFIFO() ? 'still-a-pipe' : 'REPLACED'}`
+          : 'HUNG-past-deadline';
+      } finally {
+        // Whatever was read, end the group. A group that already ended
+        // answers ESRCH, which is the answer wanted.
+        // NEVER kill(0): a pid the spawn did not give is not a group to end.
+        if (typeof fifoChild.pid === 'number' && fifoChild.pid > 0) {
+          try {
+            process.kill(-fifoChild.pid, 'SIGKILL');
+          } catch {
+            // Already gone.
+          }
+        }
+      }
+    }
+  }
+
   // -- protection: a kill between the temp write and the rename -----------
   {
     const abs = fresh('killed.md');
@@ -401,7 +626,7 @@ try {
     const said = r.outcome === 'wrote' ? `${r.sha256 === newSha ? 'sha-of-new' : 'sha-wrong'} ${String(r.bytes)}B` : '';
     readings['ordinary'] =
       `${word(r)} ${bytesOf(abs) === NEW ? 'new' : 'old'} ${said} ` +
-      `mode=${(statSync(abs).mode & 0o777).toString(8)} ${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+      `mode=${modeOf(abs)} ${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
   }
   {
     // A second write handing back the digest the first answered.

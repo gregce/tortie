@@ -3,12 +3,17 @@
  * `npm run conformance:redline-write`, the gate on the guarded write channel
  * (Phase 226).
  *
- * About seven seconds. It launches no Electron, opens no window, starts no
- * tmux server, spawns no agent, makes no request and reads nothing under the
- * person's home. The only processes it starts are node running the probe
- * through the pinned tsx, once live and once per ablation, and inside the
- * probe one node child of itself for the kill arm, which ends by its own
- * SIGKILL and is waited for. Every fixture is written by the probe into a
+ * About eighteen seconds, measured at 17.8 s after the fix round, eight of
+ * them the one ablation whose child is left to hang until the deadline. It
+ * launches no Electron, opens no window, starts no tmux server, spawns no
+ * agent, makes no request and reads nothing under the person's home. The
+ * only processes it starts are node running the probe through the pinned
+ * tsx, once live and once per ablation, and inside the probe `mkfifo` for
+ * one fixture and two node children of itself: one for the kill arm, which
+ * ends by its own SIGKILL and is waited for, and one for the FIFO arm, in a
+ * process group of its own that the probe ends whole in a `finally`, because
+ * a signal to tsx's node alone leaves the node it started blocked in the
+ * open and reparented to launchd. Every fixture is written by the probe into a
  * scratch directory it removes in a `finally`, whatever happened. Every
  * runtime number here came from the SHIPPING channel,
  * src/main/fs/guarded-write.ts, run under node by build/redline-write-probe.mts.
@@ -40,6 +45,17 @@
  *      and the staged copy behind, cleaned by the next write; and the
  *      ordinary write answering `wrote` with the digest of the new bytes,
  *      the file's mode kept, and no staged file left.
+ *      THE FIX ROUND'S ARMS, every one a shape the Phase 226 verifier drove
+ *      past the channel as first shipped: an append, a whole swap, a same-
+ *      size rewrite in place and a bare chmod, each landing in the window
+ *      after the digest matched, all refused `raced` with the agent's bytes
+ *      kept, where the shipped channel answered `wrote` over them 4 of 4
+ *      under a real appender; the staged copy swapped for a REGULAR file,
+ *      which no link check sees; a file whose owner write bit is clear,
+ *      refused `readOnly` where the shipped channel replaced it because
+ *      `rename` asks the directory and not the file; and a NAMED PIPE at the
+ *      path, answered `io` at once in a child of its own process group,
+ *      where the shipped `open(2)` blocked main's thread for 5,002 ms.
  *   2. THE CAP IS ONE NUMBER. `READ_CAP_BYTES` is declared exactly once under
  *      src/, in the shared contract, and both the editor read and the guarded
  *      write import it, so `fs:readFile` truncates at exactly the size
@@ -63,9 +79,12 @@
  *      conformance:redline's rule 9 in the same commit.
  *   6. The gate is named in package.json and in build/verification-checks.mjs,
  *      because a gate nothing names is how a gate decays.
- *   7. THE ABLATIONS. Eleven copies of the channel, one clause removed each,
+ *   7. THE ABLATIONS. Fifteen copies of the channel, one clause removed each,
  *      and every one must move at least one reading of rule 1. The gate
- *      prints which reading moved for which clause.
+ *      prints which reading moved for which clause. The identity comparison
+ *      in front of the rename is ablated whole AND by its ctime clause alone,
+ *      because ctime is the one of its four fields that decides on its own:
+ *      every write moves it too, and a bare chmod moves nothing else.
  *
  * `P226_ABLATION_DETAIL=1` prints which reading each ablation moved.
  */
@@ -116,6 +135,13 @@ const MATRIX = [
   ['linkAtTarget', 'refused/link victim=untouched entry=still-a-link no-temp', 'protection: a link at the target is refused, not turned into a file'],
   ['linkRacedAtTarget', 'refused/raced victim=untouched entry=still-a-link no-temp', 'protection: a link planted at the target after staging is refused by lstat'],
   ['linkRacedAtTemp', 'refused/raced target=old entry=a-file victim=untouched no-temp', 'protection: a link swapped in at the staged copy is refused by lstat'],
+  ['appendRaced', 'refused/raced target=appended-kept no-temp', 'the window after the hash: an append in it is refused and kept'],
+  ['swapRaced', 'refused/raced target=agent-kept no-temp', 'the window after the hash: a file swapped whole in it is refused and kept'],
+  ['rewriteRaced', 'refused/raced target=agent-kept no-temp', 'the window after the hash: a same-size rewrite in place is refused by its timestamps'],
+  ['chmodRaced', 'refused/raced target=old mode=600 no-temp', 'the window after the hash: a chmod in it is refused by ctime, and not put back'],
+  ['swapRacedAtTemp', 'refused/raced target=old no-temp', 'the window after the hash: the staged copy swapped for a regular file is refused by fstat'],
+  ['readOnly', 'refused/readOnly untouched mode=444 no-temp', 'a file whose owner write bit is clear is refused, not replaced by rename'],
+  ['fifo', 'answered refused/io pipe=still-a-pipe', 'a named pipe at the path is refused at once rather than blocking the thread'],
   ['killed', 'killed target=old-intact temp=left-with-new then wrote target=new no-temp', 'protection: a SIGKILL between the staged write and the rename'],
   ['ordinary', 'wrote new sha-of-new 33B mode=755 no-temp', 'the ordinary case, mode kept, digest of the new bytes answered'],
   ['twice', 'wrote wrote back', 'the digest a write answers is the next write\'s expect'],
@@ -249,6 +275,7 @@ function orderFindings(source) {
   const renames = body.split('renameSync(').length - 1;
   if (renames !== 1) out.push(`${String(renames)} renameSync calls, and there must be exactly one`);
   if (!/O_NOFOLLOW/.test(body)) out.push('the read does not carry O_NOFOLLOW');
+  if (!/O_NONBLOCK/.test(body)) out.push('the read does not carry O_NONBLOCK, so a named pipe blocks the thread');
   if (!/O_EXCL/.test(body)) out.push('the staged create does not carry O_EXCL');
   if (/\bwriteFile(Sync)?\s*\(/.test(code)) out.push('the module calls writeFile or writeFileSync, which follow a link');
   return out;
@@ -261,7 +288,7 @@ const ORDER_FIXTURES = [
     text: `export async function ${METHOD}(deps, input) {
   const realRoot = await resolveOpenProjectRoot(input.root, () => deps.listProjectRoots());
   const abs = (await resolveInsideRoot(realRoot, input.path)).abs;
-  const fd = openSync(abs, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  const fd = openSync(abs, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | constants.O_NONBLOCK);
   const disk = sha256Of(raw);
   const out = openSync(staged, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, mode);
   if (lstatSync(abs).isSymbolicLink()) return refused('raced', 'x');
@@ -322,6 +349,19 @@ const ORDER_FIXTURES = [
 }`
   },
   {
+    name: 'the shape without O_NONBLOCK, which is the FIFO hang',
+    mustPass: false,
+    text: `export async function ${METHOD}(deps, input) {
+  const realRoot = await resolveOpenProjectRoot(input.root, () => deps.listProjectRoots());
+  const abs = (await resolveInsideRoot(realRoot, input.path)).abs;
+  const fd = openSync(abs, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  const disk = sha256Of(raw);
+  const out = openSync(staged, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, mode);
+  if (lstatSync(abs).isSymbolicLink()) return refused('raced', 'x');
+  renameSync(staged, abs);
+}`
+  },
+  {
     name: 'O_NOFOLLOW only in a comment',
     mustPass: false,
     text: `export async function ${METHOD}(deps, input) {
@@ -346,7 +386,7 @@ const ORDER_FIXTURES = [
   }
   const findings = orderFindings(readFileSync(join(DOMAIN, MODULE), 'utf8'));
   for (const f of findings) fail(`3. src/main/fs/${MODULE}: ${f}`);
-  say(`3. ${METHOD} is a declaration whose body asks the gate before the open, the open before the hash, the hash before the one rename, with an lstat in front of it, O_NOFOLLOW on the read, O_EXCL on the create and no writeFile anywhere (${String(behaved)} of ${String(ORDER_FIXTURES.length)} scanner fixtures behaved)`);
+  say(`3. ${METHOD} is a declaration whose body asks the gate before the open, the open before the hash, the hash before the one rename, with an lstat in front of it, O_NOFOLLOW and O_NONBLOCK on the read, O_EXCL on the create and no writeFile anywhere (${String(behaved)} of ${String(ORDER_FIXTURES.length)} scanner fixtures behaved)`);
 }
 
 // ---------------------------------------------------------------------------
@@ -464,12 +504,32 @@ const ABLATIONS = [
     ]
   },
   {
-    name: 'the target is not asked whether it became a link',
-    edits: [{ from: 'targetIsLink = lstatSync(abs).isSymbolicLink();', to: 'targetIsLink = false;' }]
+    name: 'the target is not asked whether it is still the entry that was read',
+    edits: [{ from: 'if (!sameEntry(seen, now)) {', to: 'if (false) {' }]
   },
   {
-    name: 'the staged copy is not asked whether it became a link',
-    edits: [{ from: 'if (lstatSync(staged).isSymbolicLink()) {', to: 'if (false) {' }]
+    // ctime is the one field of the four that decides ALONE, because every
+    // write moves it too; a bare chmod moves nothing else.
+    name: 'ctime is left out of what makes two readings the same entry',
+    edits: [{ from: ' &&\n    seen.ctimeNs === now.ctimeNs', to: '' }]
+  },
+  {
+    name: 'the staged copy is not asked whether it is still the file Tortie wrote',
+    edits: [
+      { from: 'if (!sameEntry(stagedSeen, lstatSync(staged, { bigint: true }))) {', to: 'if (false) {' }
+    ]
+  },
+  {
+    name: 'the read blocks on a named pipe',
+    edits: [{ from: ' | constants.O_NONBLOCK', to: '' }]
+  },
+  {
+    name: 'the owner write bit is not asked',
+    edits: [{ from: 'if ((mode & 0o200) === 0) {', to: 'if (false) {' }]
+  },
+  {
+    name: 'the new contents are not held to the cap',
+    edits: [{ from: 'if (overCap(payload.length)) {', to: 'if (false) {' }]
   },
   {
     name: 'the write is not staged beside the file',
