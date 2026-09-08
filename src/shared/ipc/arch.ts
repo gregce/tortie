@@ -86,8 +86,26 @@ export * from './arch-map';
 
 /** Every arch channel is asked about ONE repository, named by its absolute path. */
 export interface ArchRepoInput {
-  /** Absolute path of the project root. The repository, never a file inside it. */
+  /**
+   * Absolute path of the project root. The repository, never a file inside it.
+   *
+   * PHASE 234: when {@link ArchRepoInput.machineId} names a machine this is a
+   * path ON THAT MACHINE, and it is what every `cwd` in the answer and in every
+   * event carries back, so the view keys on the folder a person named and never
+   * on anything of Tortie's own.
+   */
   cwd: string;
+  /**
+   * The machine the folder lives on (Phase 234), or absent for a folder on
+   * this Mac.
+   *
+   * It is one optional field rather than a second channel, because everything
+   * these channels answer is the same on both sides: the same contract read,
+   * the same five git calls, the same checkers and the same reading. What
+   * changes is where the bytes come from, and that is one decision inside
+   * `src/main/arch/remote-source.ts`.
+   */
+  machineId?: string | null;
 }
 
 /**
@@ -516,6 +534,12 @@ export const EVT_ARCH_PROGRESS = 'arch:progress' as const;
  */
 export interface ArchCheckedEvent {
   cwd: string;
+  /**
+   * The machine the folder is on (Phase 234), or absent for this Mac. The
+   * renderer keys its held pictures by folder AND computer, so a push has to
+   * say which computer it is about.
+   */
+  machineId?: string | null;
   checkedAtCommit: string;
   generation: number;
   broke: number;
@@ -525,6 +549,8 @@ export interface ArchCheckedEvent {
 /** How far a check has got, one message per repository per 120 ms. */
 export interface ArchProgressEvent {
   cwd: string;
+  /** The machine the folder is on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   done: number;
   total: number;
 }

@@ -68,6 +68,7 @@ import { handle } from '../typed-ipc';
 import { getLog } from '../log';
 import { shutdownSharedSymbolPool } from '../symbols/shared-pool';
 import { ArchStore, archRepoKey } from './db';
+import { archRepoPathOf } from './remote-source';
 import { readArchModuleFiles, readArchModules } from './modules';
 import { disarmArchWatch, startArchWatch, stopArchWatch } from './watch';
 
@@ -156,9 +157,13 @@ export function registerArchIpc(ipc: IpcMain): void {
   // disposable database whose loss costs a re-layout: no git call, no scan,
   // no file under the person's repository, no session. An invalid value
   // refuses the whole write with the field named, never a partial merge.
+  // PHASE 234. `archRepoPathOf` is what a folder on a machine is keyed by,
+  // being the mirror rather than a path on that machine, so a canvas row and a
+  // fact row for the same folder key alike. For a folder on this Mac it is the
+  // folder, so every stored row keeps its key byte for byte.
   handle(ipc, 'arch:canvasState', async (_event, input) => {
     const { camera, positions } = archStore().canvasState(
-      archRepoKey(input.cwd),
+      archRepoKey(archRepoPathOf(input)),
       input.scope
     );
     return {
@@ -170,20 +175,26 @@ export function registerArchIpc(ipc: IpcMain): void {
   });
   handle(ipc, 'arch:setCamera', async (_event, input) =>
     canvasWrite(
-      archStore().saveCamera(archRepoKey(input.cwd), input.scope, input.camera)
+      archStore().saveCamera(
+        archRepoKey(archRepoPathOf(input)),
+        input.scope,
+        input.camera
+      )
     )
   );
   handle(ipc, 'arch:setLayout', async (_event, input) =>
     canvasWrite(
       archStore().saveLayout(
-        archRepoKey(input.cwd),
+        archRepoKey(archRepoPathOf(input)),
         input.scope,
         input.positions
       )
     )
   );
   handle(ipc, 'arch:clearLayout', async (_event, input) =>
-    canvasWrite(archStore().clearLayout(archRepoKey(input.cwd), input.scope))
+    canvasWrite(
+      archStore().clearLayout(archRepoKey(archRepoPathOf(input)), input.scope)
+    )
   );
   // The one path in (Phase 158). `arch:seed` writes the deterministic
   // skeleton through the one writer module. `arch:enrich` is the ONE channel

@@ -52,12 +52,9 @@ import {
   type ArchRepoState,
   type ArchStore
 } from './db';
-import { createArchGitRunner, readLsFiles } from './git-facts';
-import {
-  createArchFileSystem,
-  keepLastValid,
-  loadArchDocument
-} from './load';
+import { readLsFiles } from './git-facts';
+import { keepLastValid, loadArchDocument } from './load';
+import { archSourceOf, localArchSource, type ArchSource } from './remote-source';
 import { composeArchMap, composeArchMapPart } from './map';
 import type { ArchMapComposeInput, ArchMapPartVerdictFact } from './map';
 import { gatherFacts } from './run';
@@ -118,6 +115,60 @@ export function createArchCheckCoordinator(deps: {
   /** When each repository last had a progress message sent, for the throttle. */
   const lastProgressAt = new Map<string, number>();
 
+  /**
+   * WHERE EACH REPOSITORY'S BYTES COME FROM (Phase 234).
+   *
+   * Keyed by `source.repoPath`, which is the folder itself for a folder on this
+   * Mac and the MIRROR for a folder on a machine. It exists because
+   * `runOneCheck` is also reached from the watcher's own callback, which knows
+   * a path and nothing else, so a run scheduled by `requestArchCheck` has to be
+   * able to find the source the load registered. A path this map does not hold
+   * is a folder on this Mac, which is what every path was before this phase.
+   */
+  const sources = new Map<string, ArchSource>();
+
+  /**
+   * The repositories this session has already touched.
+   *
+   * `watchArchRepo` answers true the first time it arms a repository, and the
+   * launch catch up rides that answer. A folder on a machine has no watch to
+   * arm, so this set gives it the same ONE run per session: the first load
+   * schedules the catch up and every load after it reads what the store holds.
+   * Everything after that is the person's own `Read the code again`, which is
+   * the local face's own control and needs no new word on the face.
+   */
+  const touched = new Set<string>();
+
+  /**
+   * The source for one channel's input, remembered so a scheduled run can find
+   * it again.
+   */
+  function sourceFor(input: { cwd: string; machineId?: string | null }): ArchSource {
+    const source = archSourceOf(input);
+    sources.set(source.repoPath, source);
+    return source;
+  }
+
+  /** The source a scheduled run belongs to, or a folder on this Mac. */
+  function sourceOf(repoPath: string): ArchSource {
+    return sources.get(repoPath) ?? localArchSource(repoPath);
+  }
+
+  /**
+   * Arm whatever this source has, and answer whether this is its first touch.
+   *
+   * For a folder on this Mac that is the FSEvents watch and nothing changed.
+   * For a folder on a machine there is no watch, and there must not be one: the
+   * mirror's only writer is Tortie, so a stream on it would re-check the
+   * repository every time the mirror was brought up to date.
+   */
+  function armSource(source: ArchSource): boolean {
+    if (source.watchable) return watchArchRepo(source.repoPath);
+    if (touched.has(source.repoPath)) return false;
+    touched.add(source.repoPath);
+    return true;
+  }
+
   // -------------------------------------------------------------------------
   // The read
   // -------------------------------------------------------------------------
@@ -145,9 +196,10 @@ export function createArchCheckCoordinator(deps: {
    * call exactly as a first load does.
    */
   async function readArch(input: ArchRepoInput): Promise<ArchLoadResult> {
-    const repoPath = input.cwd;
-    const armed = watchArchRepo(repoPath);
-    const fresh = await loadArchDocument(createArchFileSystem(repoPath));
+    const source = sourceFor(input);
+    const repoPath = source.repoPath;
+    const armed = armSource(source);
+    const fresh = await loadArchDocument(await source.fileSystem());
     const previous = lastValid.get(repoPath) ?? null;
     const document = keepLastValid(previous, fresh);
     const showingLastValid = fresh.contract === null && document.contract !== null;
@@ -178,7 +230,9 @@ export function createArchCheckCoordinator(deps: {
     }
 
     return {
-      cwd: repoPath,
+      // The folder the person named, never the mirror a machine folder is read
+      // through. Every `cwd` that leaves this module is the outward one.
+      cwd: source.farPath,
       present: fresh.contract !== null || fresh.problems.length > 0,
       contract: document.contract,
       components: document.components,
@@ -210,7 +264,7 @@ export function createArchCheckCoordinator(deps: {
    * store holds.
    */
   async function checkNow(input: ArchRepoInput): Promise<ArchCheckResult> {
-    const result = await runOneCheck(input.cwd, null);
+    const result = await runOneCheck(sourceFor(input).repoPath, null);
     if (result !== null) return result;
     // A repository with no contract, or a run a newer one superseded. Neither
     // is an error, and both answer with what the store holds rather than
@@ -244,12 +298,13 @@ export function createArchCheckCoordinator(deps: {
     signal: AbortSignal | null
   ): Promise<ArchCheckResult | null> {
     const started = Date.now();
+    const source = sourceOf(repoPath);
     const db = archStore();
     const repoKey = archRepoKey(repoPath);
     const before = db.repoState(repoKey);
     const document = keepLastValid(
       lastValid.get(repoPath) ?? null,
-      await loadArchDocument(createArchFileSystem(repoPath))
+      await loadArchDocument(await source.fileSystem())
     );
     if (document.contract === null) {
       // THE FACT-ONLY LEG (Phase 160). The map draws for any repository, so a
@@ -258,13 +313,13 @@ export function createArchCheckCoordinator(deps: {
       // checker path reads. No checker runs, no verdict is composed, no
       // generation is claimed and nothing is published, so a contract added
       // later reuses every fact this leg wrote.
-      await scanFactsOnly(repoPath, db, repoKey, before, signal);
+      await scanFactsOnly(source, db, repoKey, before, signal);
       return null;
     }
     lastValid.set(repoPath, document);
 
     const generation = db.claimGeneration(repoKey, repoPath);
-    const git = createArchGitRunner(repoPath);
+    const git = source.git();
     const record: ArchGitCall[] = [];
     let overBudget: string | null = null;
     let scannedFiles = 0;
@@ -281,6 +336,16 @@ export function createArchCheckCoordinator(deps: {
         record.push(call);
         const listed = await git.run(call);
         const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
+        // PHASE 234. For a folder on this Mac this does nothing at all. For a
+        // folder on a machine it brings the mirror up to what that machine
+        // holds, because the scanner hands paths to parser workers and the tree
+        // read counts lines with `node:fs`, and parsing over there would be a
+        // process on that machine.
+        const synced = await source.syncTree({
+          trackedFiles,
+          ...(signal === null ? {} : { signal })
+        });
+        if (synced.overBudget !== null) overBudget = synced.overBudget;
         const scan = await scanArchImports({
           repoPath,
           repoKey,
@@ -376,7 +441,8 @@ export function createArchCheckCoordinator(deps: {
       (v) => v.coverage === 'unverifiable'
     ).length;
     broadcastEvent(EVT_ARCH_CHECKED, {
-      cwd: repoPath,
+      cwd: source.farPath,
+      machineId: source.machineId,
       checkedAtCommit,
       generation,
       broke,
@@ -386,7 +452,8 @@ export function createArchCheckCoordinator(deps: {
     // verdict colours riding the edges, and the map tab is not always the
     // surface that asked for the run.
     broadcastEvent(EVT_ARCH_MAP_UPDATED, {
-      cwd: repoPath,
+      cwd: source.farPath,
+      machineId: source.machineId,
       scannedAtCommit: wireScannedAt(db.repoState(repoKey).scannedAtCommit)
     });
 
@@ -395,18 +462,26 @@ export function createArchCheckCoordinator(deps: {
     // to the runner only when an agent is chosen and nothing is held. It is
     // not awaited: the check is finished, and the pass is the runner's.
     const drift = readArchDrift(document, settled.publish, freshness);
-    void deps.repairDrift({
-      repoPath,
-      document,
-      facts,
-      held: settled.held,
-      verdicts: settled.publish,
-      freshness,
-      drift
-    });
+    // NOT FOR A FOLDER ON A MACHINE, and it is a refusal rather than an
+    // oversight (Phase 234). The pass WRITES contract files, and the only
+    // thing this Mac can write is the mirror, which nothing reads back and
+    // which the next sync overwrites. A repair that silently went nowhere is
+    // worse than no repair, so the trigger is not fired at all and nothing on
+    // the face claims it was.
+    if (source.machineId === null) {
+      void deps.repairDrift({
+        repoPath,
+        document,
+        facts,
+        held: settled.held,
+        verdicts: settled.publish,
+        freshness,
+        drift
+      });
+    }
 
     return {
-      cwd: repoPath,
+      cwd: source.farPath,
       verdicts: settled.publish,
       freshness,
       counts,
@@ -433,15 +508,22 @@ export function createArchCheckCoordinator(deps: {
    * `building` true and the next run reads the rest.
    */
   async function scanFactsOnly(
-    repoPath: string,
+    source: ArchSource,
     db: ArchStore,
     repoKey: string,
     before: ArchRepoState,
     signal: AbortSignal | null
   ): Promise<void> {
-    const git = createArchGitRunner(repoPath);
+    const repoPath = source.repoPath;
+    const git = source.git();
     const listed = await git.run(lsFilesCall());
     const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
+    // PHASE 234, the same one line the checker leg carries: a no-op on this
+    // Mac, and the mirror brought up to date for a folder on a machine.
+    await source.syncTree({
+      trackedFiles,
+      ...(signal === null ? {} : { signal })
+    });
     const scan = await scanArchImports({
       repoPath,
       repoKey,
@@ -483,7 +565,8 @@ export function createArchCheckCoordinator(deps: {
       );
     }
     broadcastEvent(EVT_ARCH_MAP_UPDATED, {
-      cwd: repoPath,
+      cwd: source.farPath,
+      machineId: source.machineId,
       scannedAtCommit: wireScannedAt(db.repoState(repoKey).scannedAtCommit)
     });
   }
@@ -503,7 +586,7 @@ export function createArchCheckCoordinator(deps: {
    * -z`, and a pure compose over stored rows, measured in milliseconds.
    */
   async function readArchMap(input: ArchMapInput): Promise<ArchMapResult> {
-    const { envelope, compose } = await archMapReadFacts(input.cwd);
+    const { envelope, compose } = await archMapReadFacts(sourceFor(input));
     return { ...envelope, ...composeArchMap(compose) };
   }
 
@@ -514,7 +597,7 @@ export function createArchCheckCoordinator(deps: {
    * the stored facts plus the one fixed `git ls-files -z`. It NEVER waits for
    * a scan.
    */
-  async function archMapReadFacts(repoPath: string): Promise<{
+  async function archMapReadFacts(source: ArchSource): Promise<{
     envelope: { cwd: string; building: boolean; scannedAtCommit: string | null };
     compose: ArchMapComposeInput & {
       /**
@@ -525,7 +608,8 @@ export function createArchCheckCoordinator(deps: {
       verdicts: readonly ArchMapPartVerdictFact[];
     };
   }> {
-    const armed = watchArchRepo(repoPath);
+    const repoPath = source.repoPath;
+    const armed = armSource(source);
     const db = archStore();
     const repoKey = archRepoKey(repoPath);
     const state = db.repoState(repoKey);
@@ -536,27 +620,31 @@ export function createArchCheckCoordinator(deps: {
     // already owes, so opening the map twice costs one run and not two.
     if (armed || building) requestArchCheck(repoPath);
 
-    const fresh = await loadArchDocument(createArchFileSystem(repoPath));
+    const fresh = await loadArchDocument(await source.fileSystem());
     const document = keepLastValid(lastValid.get(repoPath) ?? null, fresh);
     if (document.contract !== null && fresh.contract !== null) {
       lastValid.set(repoPath, document);
     }
-    const listed = await createArchGitRunner(repoPath).run(lsFilesCall());
+    const listed = await source.git().run(lsFilesCall());
     const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
     const manifests = readArchManifests(repoPath);
     return {
       envelope: {
-        cwd: repoPath,
+        cwd: source.farPath,
         building,
         scannedAtCommit: wireScannedAt(state.scannedAtCommit)
       },
       compose: {
         // Rule R (Phase 201): the package name, then the root crate's own
         // name, then the checkout directory.
+        // Rule R's last resort is the checkout DIRECTORY, and for a folder on
+        // a machine that is the folder over there rather than the mirror it is
+        // read through, whose name is a digest and names nothing a person has
+        // ever seen.
         subject:
           manifests.packageName ??
           manifests.crateName ??
-          repoPath.split('/').pop() ??
+          source.farPath.split('/').filter((part) => part.length > 0).pop() ??
           'this project',
         trackedFiles,
         imports: db.imports(repoKey),
@@ -588,7 +676,7 @@ export function createArchCheckCoordinator(deps: {
   async function readArchMapPart(
     input: ArchMapPartInput
   ): Promise<ArchMapPartResult> {
-    const { envelope, compose } = await archMapReadFacts(input.cwd);
+    const { envelope, compose } = await archMapReadFacts(sourceFor(input));
     return {
       ...envelope,
       ...composeArchMapPart({ ...compose, groupId: input.groupId })
@@ -601,7 +689,13 @@ export function createArchCheckCoordinator(deps: {
     const last = lastProgressAt.get(repoPath) ?? 0;
     if (done < total && now - last < ARCH_PROGRESS_THROTTLE_MS) return;
     lastProgressAt.set(repoPath, now);
-    broadcastEvent(EVT_ARCH_PROGRESS, { cwd: repoPath, done, total });
+    const source = sourceOf(repoPath);
+    broadcastEvent(EVT_ARCH_PROGRESS, {
+      cwd: source.farPath,
+      machineId: source.machineId,
+      done,
+      total
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -626,22 +720,24 @@ export function createArchCheckCoordinator(deps: {
   async function composePayload(
     input: ArchComposePayloadInput
   ): Promise<ArchComposePayloadResult> {
-    const repoPath = input.cwd;
+    const source = sourceFor(input);
+    const repoPath = source.repoPath;
     const document = keepLastValid(
       lastValid.get(repoPath) ?? null,
-      await loadArchDocument(createArchFileSystem(repoPath))
+      await loadArchDocument(await source.fileSystem())
     );
     const db = archStore();
     const repoKey = archRepoKey(repoPath);
     const state = db.repoState(repoKey);
-    const listed = await createArchGitRunner(repoPath).run(lsFilesCall());
+    const listed = await source.git().run(lsFilesCall());
     const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
     const block = composeArchPayload({
       // The repository's own folder name, never a path. A block is read by an
       // agent whose working directory is already the repository, and on a
       // session running on another machine a local absolute path names nothing.
       repoName:
-        repoPath.split('/').filter((part) => part.length > 0).pop() ?? repoPath,
+        source.farPath.split('/').filter((part) => part.length > 0).pop() ??
+        source.farPath,
       document,
       trackedFiles,
       verdicts: db.verdicts(repoKey),
@@ -654,12 +750,14 @@ export function createArchCheckCoordinator(deps: {
         verdictIds: input.verdictIds
       }
     });
-    return { cwd: repoPath, ...block };
+    return { cwd: source.farPath, ...block };
   }
 
   function dispose(): void {
     lastValid.clear();
     lastProgressAt.clear();
+    sources.clear();
+    touched.clear();
   }
 
   return {

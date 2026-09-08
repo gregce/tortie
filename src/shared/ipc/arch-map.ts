@@ -187,6 +187,8 @@ export interface ArchMapModel {
 /** The map is asked about ONE repository, by its absolute path. */
 export interface ArchMapInput {
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
 }
 
 /**
@@ -214,6 +216,8 @@ export const EVT_ARCH_MAP_UPDATED = 'arch:mapUpdated' as const;
 /** What moved. */
 export interface ArchMapUpdatedEvent {
   cwd: string;
+  /** The machine the folder is on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   /** The commit the fact base is now scanned at, or null when still partial. */
   scannedAtCommit: string | null;
 }
@@ -323,6 +327,8 @@ export interface ArchMapPartModel {
 /** The scoped map is asked about ONE part of ONE repository. */
 export interface ArchMapPartInput {
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   /** The level 1 group id a person clicked. */
   groupId: string;
 }
@@ -393,6 +399,8 @@ export function archCanvasPartScope(groupId: string): string {
 /** One scope of one repository, the key every canvas call carries. */
 export interface ArchCanvasStateInput {
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   scope: string;
 }
 
@@ -409,6 +417,8 @@ export interface ArchCanvasStateResult {
 /** Save the scope's camera. Written at rest, never per frame. */
 export interface ArchSetCameraInput {
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   scope: string;
   camera: ArchCameraState;
 }
@@ -416,6 +426,8 @@ export interface ArchSetCameraInput {
 /** Replace the scope's kept layout whole, in one transaction. */
 export interface ArchSetLayoutInput {
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   scope: string;
   positions: ArchNodePosition[];
 }
@@ -423,6 +435,8 @@ export interface ArchSetLayoutInput {
 /** Drop the scope's kept layout: re-layout as an explicit act. */
 export interface ArchClearLayoutInput {
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   scope: string;
 }
 

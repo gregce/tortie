@@ -131,6 +131,8 @@ export interface ArchModuleTop {
 export interface ArchModulesInput {
   /** Absolute path of the project root. */
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   /** The component id out of `docs/arch/components/`. */
   componentId: string;
 }
@@ -215,6 +217,8 @@ export interface ArchModuleUnparsed {
 export interface ArchModuleFilesInput {
   /** Absolute path of the project root. */
   cwd: string;
+  /** The machine the folder lives on (Phase 234), or absent for this Mac. */
+  machineId?: string | null;
   /** The module's directory, repository relative, out of the level 2 map. */
   dir: string;
 }

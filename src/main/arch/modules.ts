@@ -68,8 +68,9 @@ import { lsFilesCall } from './argv-guard';
 import { componentFiles } from './checkers/glob';
 import type { ArchImportEdge, ArchStore } from './db';
 import { archRepoKey } from './db';
-import { createArchGitRunner, readLsFiles } from './git-facts';
-import { createArchFileSystem, loadArchDocument } from './load';
+import { readLsFiles } from './git-facts';
+import { loadArchDocument } from './load';
+import { archSourceOf } from './remote-source';
 
 // ---------------------------------------------------------------------------
 // The pure core
@@ -404,19 +405,22 @@ export interface ArchModulesReadInput extends ArchModulesInput {
 export async function readArchModules(
   input: ArchModulesReadInput
 ): Promise<ArchModulesResult> {
-  const repoPath = input.cwd;
+  // PHASE 234. Where the bytes come from is one decision, in
+  // `./remote-source.ts`, and this function does not know which answer it got.
+  const source = archSourceOf(input);
+  const repoPath = source.repoPath;
   const document =
-    input.document ?? (await loadArchDocument(createArchFileSystem(repoPath)));
+    input.document ?? (await loadArchDocument(await source.fileSystem()));
   const component =
     document.components.find((c) => c.id === input.componentId) ?? null;
 
-  const git = createArchGitRunner(repoPath);
+  const git = source.git();
   const listed = await git.run(lsFilesCall());
   const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
   const repoKey = archRepoKey(repoPath);
 
   return computeArchModules({
-    cwd: repoPath,
+    cwd: source.farPath,
     componentId: input.componentId,
     component,
     trackedFiles,
@@ -475,16 +479,16 @@ export interface ArchModuleFilesReadInput extends ArchModuleFilesInput {
 export async function readArchModuleFiles(
   input: ArchModuleFilesReadInput
 ): Promise<ArchModuleFilesResult> {
-  const repoPath = input.cwd;
+  const source = archSourceOf(input);
   const component = moduleDirComponent(input.dir);
 
-  const git = createArchGitRunner(repoPath);
+  const git = source.git();
   const listed = await git.run(lsFilesCall());
   const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
-  const repoKey = archRepoKey(repoPath);
+  const repoKey = archRepoKey(source.repoPath);
 
   const result = computeArchModules({
-    cwd: repoPath,
+    cwd: source.farPath,
     componentId: component.id,
     component,
     trackedFiles,
