@@ -41,7 +41,7 @@ let connected = new Set<string>();
 let contextReady = new Set<string>();
 
 vi.mock('../remote-run', () => ({
-  machineIsConnected: (machineId: string) => connected.has(machineId),
+  machineLinkAnswering: (machineId: string) => connected.has(machineId),
   runRemoteRead: (
     _ctx: unknown,
     script: string,

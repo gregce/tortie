@@ -145,7 +145,7 @@ import {
   parseMachineFacts,
   REMOTE_FACTS_TIMEOUT_MS
 } from './remote-image';
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineLinkAnswering, runRemoteRead } from './remote-run';
 import {
   CONTEXT_READ_FILE_MAX_BYTES,
   CONTEXT_READ_LIST_MAX_BYTES
@@ -464,7 +464,7 @@ export async function readContextOnMachine(
   input: MachineContextInput
 ): Promise<MachineContextResult> {
   const started = Date.now();
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return answerWithout(input, 'notConnected', started, 0, 0);
   }
   let ctx: RemoteMachineContext;

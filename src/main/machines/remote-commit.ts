@@ -126,7 +126,7 @@ import {
 } from './remote-copy';
 import { confirmedWriteRoot } from './remote-file';
 import { reviewFilesOn } from './remote-review';
-import { machineIsConnected, runRemoteWrite } from './remote-run';
+import { machineLinkAnswering, runRemoteWrite } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { rootHolds } from './remote-stage';
 import { machineLabelOf, machineRow } from './store';
@@ -398,7 +398,7 @@ export async function commitOnMachine(
 
   // 4. The connection, asked before the read so a machine that is not answering
   //    reads as offline rather than as a read that threw.
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return answer('offline', [commitOffline(label)]);
   }
   let ctx;

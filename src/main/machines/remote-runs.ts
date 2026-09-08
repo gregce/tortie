@@ -133,7 +133,7 @@ import {
 } from '../actions/runs-read';
 import { normalizeGitHubRemote } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineLinkAnswering, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
@@ -335,7 +335,7 @@ export async function readRunsOnMachine(
   if (typeof input.cwd !== 'string' || !input.cwd.startsWith('/')) {
     return answerWithout(input, 'missing', started, null, null);
   }
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return answerWithout(input, 'notConnected', started, null, null);
   }
   let ctx: RemoteMachineContext;

@@ -128,7 +128,7 @@ import type {
 import type { GitBranchInfo } from '@shared/types';
 import { parseForEachRefBranches } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineLinkAnswering, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
@@ -372,7 +372,7 @@ export async function readBranchOnMachine(
   if (typeof input.cwd !== 'string' || !input.cwd.startsWith('/')) {
     return answerWithout(input, 'missing', started);
   }
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return answerWithout(input, 'notConnected', started);
   }
   let ctx: RemoteMachineContext;

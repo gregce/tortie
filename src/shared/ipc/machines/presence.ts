@@ -42,6 +42,21 @@ export type MachineLink =
   | 'refused';
 
 /**
+ * PHASE 231. The session feed's own fact, recorded beside the link's.
+ *
+ *  - `listed` is a session poll that completed, with rows or with the
+ *    machine's own no-server answer.
+ *  - `unknown` is no poll completed yet, since Tortie started or since this
+ *    Mac woke.
+ *  - `missed` is the last session poll not answering.
+ *
+ * It is a second fact and not a second link. A missed poll leaves `link`
+ * where it was, so a tab on that machine keeps reading its files while the
+ * session rows read `unknown`; only a failed ssh moves `link`.
+ */
+export type MachineFeed = 'listed' | 'unknown' | 'missed';
+
+/**
  * One machine's link state, composed in main.
  *
  * WHY THIS EXISTS AND WHY IT IS NOT A ROW. Tortie keeps no record on this Mac
@@ -59,6 +74,11 @@ export interface MachineStateView {
   readonly label: string;
   readonly color: MachineColor;
   readonly link: MachineLink;
+  /**
+   * PHASE 231. The session feed's fact. Optional, and absent reads as
+   * `unknown`, so a view written before the field existed is still a view.
+   */
+  readonly feed?: MachineFeed;
   /** True once any list completed for this machine in this run. */
   readonly everAnswered: boolean;
   /** Local epoch ms of the last completed list, or null. */

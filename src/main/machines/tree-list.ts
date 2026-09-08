@@ -42,7 +42,7 @@ import {
   type RemoteTreeListing
 } from '@shared/ipc';
 import type { RemoteMachineContext } from './context';
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineLinkAnswering, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 
 /**
@@ -146,7 +146,7 @@ export async function listRemoteTree(input: {
     // far side's shell to resolve it against whatever folder it started in.
     return { status: 'missing', root };
   }
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return { status: 'notConnected', root };
   }
   let ctx: RemoteMachineContext;

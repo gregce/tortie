@@ -79,7 +79,7 @@ vi.mock('../control-plane', () => ({
 }));
 
 vi.mock('../remote-run', () => ({
-  machineIsConnected: (machineId: string) => connected.has(machineId),
+  machineFeedAnswering: (machineId: string) => connected.has(machineId),
   runRemoteRead: (
     _ctx: unknown,
     scriptId: string,

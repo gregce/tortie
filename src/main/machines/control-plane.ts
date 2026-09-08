@@ -138,32 +138,38 @@ export const CONTROL_GREETING_DEADLINE_REASON =
 // The link, as a surface reads it
 // ---------------------------------------------------------------------------
 
-export type MachineLinkKind =
-  /** A live control connection. */
-  | 'connected'
-  /** Answering, on the timer feed. */
-  | 'polling'
-  /** Signing in right now. */
-  | 'connecting'
-  /** Confirmed, and the last attempt got no answer. */
-  | 'quiet'
-  /** The gate or the version list said no. */
-  | 'refused';
+/**
+ * PHASE 231. The two kinds and the facts shape live in `./liveness.ts`, which
+ * is pure, so a verb can ask its question without importing this module and
+ * a test can ask the whole table without a machine. They are re-exported here
+ * because every reader of the link has imported them from this file since
+ * Phase 71.
+ */
+export type {
+  MachineFeedKind,
+  MachineLinkFacts,
+  MachineLinkKind
+} from './liveness';
+import type {
+  MachineFeedKind,
+  MachineLinkFacts,
+  MachineLinkKind
+} from './liveness';
 
-export interface MachineLinkFacts {
-  readonly machineId: string;
-  readonly link: MachineLinkKind;
-  /** True once any list completed for this machine in this run. */
-  readonly everAnswered: boolean;
-  /** Local epoch ms of the last completed list, or null. */
-  readonly lastAnsweredAt: number | null;
-  /** Why the link is not connected. One clause, no transport words. */
-  readonly reason: string | null;
-}
-
-/** What this module remembers about one machine. */
+/**
+ * What this module remembers about one machine.
+ *
+ * PHASE 231. TWO FACTS, recorded separately. `link` is whether the last ssh to
+ * that machine answered at all, and `feed` is whether the last session poll
+ * completed. A missed session poll moves `feed` and leaves `link` where it was,
+ * which is the whole of research 85 section 6 item 1: one slow
+ * `list-sessions` used to take every far-side channel dark in the same frame,
+ * measured in research 90 section 3.2, and none of the file, git, search or
+ * context verbs needed the session list.
+ */
 interface LinkRecord {
   link: MachineLinkKind;
+  feed: MachineFeedKind;
   everAnswered: boolean;
   lastAnsweredAt: number | null;
   reason: string | null;
@@ -197,6 +203,7 @@ function recordOf(machineId: string): LinkRecord {
   if (found !== undefined) return found;
   const fresh: LinkRecord = {
     link: 'connecting',
+    feed: 'unknown',
     everAnswered: false,
     lastAnsweredAt: null,
     reason: 'has not answered since Tortie started'
@@ -224,6 +231,7 @@ export function machineLinkFacts(machineId: string): MachineLinkFacts {
     return {
       machineId,
       link: 'quiet',
+      feed: 'unknown',
       everAnswered: false,
       lastAnsweredAt: null,
       reason: 'has not been signed in to in this run'
@@ -232,6 +240,7 @@ export function machineLinkFacts(machineId: string): MachineLinkFacts {
   return {
     machineId,
     link: record.link,
+    feed: record.feed,
     everAnswered: record.everAnswered,
     lastAnsweredAt: record.lastAnsweredAt,
     reason: record.reason
@@ -277,14 +286,61 @@ export function noteMachineAnswered(machineId: string, at: number): void {
   const record = recordOf(machineId);
   record.everAnswered = true;
   record.lastAnsweredAt = at;
+  // PHASE 231. A completed list is an ssh that answered AND a feed that
+  // listed, so both facts move here. It is the only writer that takes the
+  // feed to `listed`.
+  record.feed = 'listed';
   const live = clients.get(machineId)?.connected === true;
   setLink(machineId, live ? 'connected' : 'polling', null);
   announceLink();
 }
 
-/** The machine did not answer. */
+/**
+ * The machine did not answer. BOTH facts go, because this is the link's own
+ * verdict and the feed runs over the link.
+ *
+ * PHASE 231. Every caller of this is a link failing: a sign in that failed at
+ * launch, a remote attach that exited unexpectedly, a live connection that
+ * ended, a verb whose ssh did not answer. A session poll that did not answer
+ * is NOT one of them and calls {@link noteMachineFeedMissed} instead.
+ */
 export function noteMachineQuiet(machineId: string, reason: string): void {
+  const record = recordOf(machineId);
+  const feedMoved = record.feed !== 'missed';
+  record.feed = 'missed';
   setLink(machineId, 'quiet', reason);
+  if (feedMoved) announceLink();
+}
+
+/**
+ * The session poll did not answer, and nothing else is known (Phase 231).
+ *
+ * THE LINK IS LEFT WHERE IT WAS. This is the one line research 85 section 6
+ * item 1 asked for: one slow `list-sessions` moves the session list to
+ * `unknown` and nothing else, and Explorer, Search, Source control and Context
+ * keep drawing rows over the same link 38 ms later.
+ */
+export function noteMachineFeedMissed(machineId: string): void {
+  const record = recordOf(machineId);
+  if (record.feed === 'missed') return;
+  record.feed = 'missed';
+  announceLink();
+}
+
+/**
+ * This Mac woke, so the last list is about a world that may no longer be the
+ * current one (Phase 231).
+ *
+ * The feed reads `unknown` until the poll the wake issues completes. The link
+ * is NOT touched: a wake is a power event and not an ssh that failed, and a
+ * link marked quiet here took every far-side verb dark for as long as the
+ * first poll took, which is research 90 section 3.5.
+ */
+export function noteMachineFeedUnknown(machineId: string): void {
+  const record = recordOf(machineId);
+  if (record.feed === 'unknown') return;
+  record.feed = 'unknown';
+  announceLink();
 }
 
 /**

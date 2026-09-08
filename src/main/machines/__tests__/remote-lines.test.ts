@@ -45,7 +45,7 @@ vi.mock('../exec-plane', () => ({
 }));
 
 vi.mock('../remote-run', () => ({
-  machineIsConnected: (machineId: string) => connected.has(machineId)
+  machineFeedAnswering: (machineId: string) => connected.has(machineId)
 }));
 
 vi.mock('../remote-sessions', () => ({

@@ -29,6 +29,8 @@ let handed: { timeoutMs?: number; execution?: unknown }[] = [];
 let answer: (command: string) => string | Promise<string> = () => '';
 /** The link state per machine. */
 let link = 'connected';
+/** PHASE 231. The session feed's own fact, beside the link's. */
+let feed = 'listed';
 /** The connection number, and what it becomes while a command is in flight. */
 let generation = 7;
 let generationAfterSend: number | null = null;
@@ -51,6 +53,7 @@ vi.mock('../control-plane', () => ({
   machineLinkFacts: (machineId: string) => ({
     machineId,
     link,
+    feed,
     everAnswered: true,
     lastAnsweredAt: 1,
     reason: null
@@ -63,9 +66,11 @@ vi.mock('../context', async () => ({
 
 const {
   REMOTE_RUN_TIMEOUT_MS,
-  assertMachineIsConnected,
+  assertMachineFeedAnswering,
+  assertMachineLinkAnswering,
   composeRemoteScriptCommand,
-  machineIsConnected,
+  machineFeedAnswering,
+  machineLinkAnswering,
   parseRemoteScriptAnswer,
   remoteScriptName,
   runRemoteRead,
@@ -92,6 +97,7 @@ beforeEach(() => {
   sent = [];
   handed = [];
   link = 'connected';
+  feed = 'listed';
   generation = 7;
   generationAfterSend = null;
   answer = () => printed('ok');
@@ -236,21 +242,79 @@ describe('the refusals, in the order they fire', () => {
 });
 
 describe('what the door is for other callers', () => {
-  it('answers whether a machine is connected without sending anything', () => {
+  it('answers the LINK question without sending anything', () => {
     link = 'polling';
-    expect(machineIsConnected('pop')).toBe(true);
+    expect(machineLinkAnswering('pop')).toBe(true);
     link = 'quiet';
-    expect(machineIsConnected('pop')).toBe(false);
+    expect(machineLinkAnswering('pop')).toBe(false);
     expect(sent).toEqual([]);
   });
 
-  it('lets a caller ask the same question before it does the work', () => {
+  // PHASE 231. The two questions, and the one cell that used to be wrong. A
+  // missed session poll used to move the ONE fact, so every file verb was
+  // refused while ssh answered on the same link. The link question now
+  // proceeds on a missed feed; only the feed question refuses.
+  it('answers the LINK question the same whatever the feed says', () => {
+    for (const state of ['listed', 'unknown', 'missed']) {
+      feed = state;
+      link = 'connected';
+      expect(machineLinkAnswering('pop'), `feed ${state}`).toBe(true);
+      link = 'quiet';
+      expect(machineLinkAnswering('pop'), `feed ${state}`).toBe(false);
+    }
+    expect(sent).toEqual([]);
+  });
+
+  it('answers the FEED question only when both facts answer', () => {
+    link = 'connected';
+    feed = 'listed';
+    expect(machineFeedAnswering('pop')).toBe(true);
+    for (const state of ['unknown', 'missed']) {
+      feed = state;
+      expect(machineFeedAnswering('pop'), `feed ${state}`).toBe(false);
+    }
+    feed = 'listed';
+    for (const state of ['connecting', 'quiet', 'refused']) {
+      link = state;
+      expect(machineFeedAnswering('pop'), `link ${state}`).toBe(false);
+    }
+    expect(sent).toEqual([]);
+  });
+
+  it('lets the door send a script on a link that answers while the feed missed', async () => {
+    link = 'polling';
+    feed = 'missed';
+    await expect(runRemoteRead(ctx, 'machine-facts', [])).resolves.toEqual(
+      expect.objectContaining({ payload: 'ok' })
+    );
+    expect(sent).toHaveLength(1);
+  });
+
+  it('lets a caller ask the link question before it does the work', () => {
     link = 'quiet';
-    expect(() => assertMachineIsConnected('pop', 'a harvest pass')).toThrow(
+    expect(() => assertMachineLinkAnswering('pop', 'a harvest pass')).toThrow(
       /not connected to that machine/
     );
     link = 'connected';
-    expect(() => assertMachineIsConnected('pop', 'a harvest pass')).not.toThrow();
+    expect(() => assertMachineLinkAnswering('pop', 'a harvest pass')).not.toThrow();
+  });
+
+  it('lets the agent board ask the feed question, and names both facts', () => {
+    link = 'connected';
+    feed = 'missed';
+    expect(() => assertMachineFeedAnswering('pop', 'agents-find')).toThrow(
+      /not connected to that machine/
+    );
+    let detail = '';
+    try {
+      assertMachineFeedAnswering('pop', 'agents-find');
+    } catch (err) {
+      detail = (err as Error).message;
+    }
+    expect(detail).toContain('its link reads connected');
+    expect(detail).toContain('its session feed reads missed');
+    feed = 'listed';
+    expect(() => assertMachineFeedAnswering('pop', 'agents-find')).not.toThrow();
   });
 
   it('gives one command 15 s unless the caller says otherwise', () => {

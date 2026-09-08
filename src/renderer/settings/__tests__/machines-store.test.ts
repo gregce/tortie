@@ -775,7 +775,7 @@ describe('the one call that reaches another computer', () => {
   });
 
   it('draws main’s sentence and NOT the payload it travelled in', async () => {
-    // The shape a real refusal has. `assertMachineIsConnected` throws a
+    // The shape a real refusal has. `assertMachineLinkAnswering` throws a
     // GmuxError whose message is the JSON of {code, message, detail}, and
     // Electron puts its own prefix on the front. A person must read the
     // message field alone: not the code, not the braces, not the internal

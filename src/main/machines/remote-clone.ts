@@ -108,7 +108,7 @@ import {
   remoteRepoKey,
   walkRemoteRepos
 } from './project-counterpart';
-import { machineIsConnected, runRemoteWrite } from './remote-run';
+import { machineLinkAnswering, runRemoteWrite } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
@@ -228,7 +228,7 @@ export async function cloneProjectOnMachine(
   });
 
   // 1. Connected only, asked before anything is read or composed.
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return answer('offline', '', '', [cloneOffline(label)]);
   }
   let ctx: RemoteMachineContext;

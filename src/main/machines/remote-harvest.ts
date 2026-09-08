@@ -84,7 +84,7 @@ import { onMachineLinkChanged } from './control-plane';
 import { remoteRecordOf, writeRemoteHarvest } from './remote-record';
 // The second door. It is the ONLY way a command that is not a tmux verb reaches
 // a machine, and connected-only lives inside it for every caller at once.
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineFeedAnswering, runRemoteRead } from './remote-run';
 // The one word every script prints when it looked and found nothing. It is not
 // a failure, and it must never be read as a payload.
 import { REMOTE_SCRIPT_EMPTY } from './remote-scripts';
@@ -340,7 +340,11 @@ export async function harvestMachineOnce(machineId: string): Promise<number> {
   if (inFlight.has(machineId)) return 0;
   // CONNECTED ONLY, asked here as well as inside the door, so a pass that
   // cannot run costs nothing at all rather than costing a refusal per read.
-  if (!machineIsConnected(machineId)) return 0;
+  // PHASE 231. It is the FEED that is asked, because the targets below are
+  // the session rows the last list produced and what this pass writes is a
+  // resume id against one of those rows; a list that did not arrive is a
+  // stale target list. The door asks the LINK again for every read.
+  if (!machineFeedAnswering(machineId)) return 0;
 
   let ctx;
   try {
@@ -366,7 +370,7 @@ export async function harvestMachineOnce(machineId: string): Promise<number> {
       // Asked again before EVERY session. A link that drops halfway through a
       // pass stops the pass here rather than after another five reads.
       if (machineGeneration(machineId).generation !== generation) break;
-      if (!machineIsConnected(machineId)) break;
+      if (!machineFeedAnswering(machineId)) break;
       lastAskedAt.set(target.id, Date.now());
       const claim = await harvestOneSession(ctx, machineId, generation, target, machineFacts);
       if (claim === null) continue;

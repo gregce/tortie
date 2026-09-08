@@ -72,7 +72,7 @@ import {
   type MachineFileListResult
 } from '@shared/ipc';
 import type { RemoteMachineContext } from './context';
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineLinkAnswering, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
@@ -222,7 +222,7 @@ export async function listFilesOnMachine(
   if (typeof input.cwd !== 'string' || !input.cwd.startsWith('/')) {
     return emptyResult(input, 'missing', started);
   }
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return emptyResult(input, 'notConnected', started);
   }
   let ctx: RemoteMachineContext;

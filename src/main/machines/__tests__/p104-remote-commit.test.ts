@@ -55,7 +55,7 @@ let listing: {
 let reads = 0;
 
 vi.mock('../remote-run', () => ({
-  machineIsConnected: (): boolean => connected,
+  machineLinkAnswering: (): boolean => connected,
   runRemoteWrite: async (
     _ctx: unknown,
     id: string,

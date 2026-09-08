@@ -17,7 +17,7 @@
  *     methods, and those eighteen are the only extra exported names allowed.
  *
  * REACHABILITY IS PROVED BY THE COMPILER, not by this test. The `Reachable`
- * tuple at the bottom names all 106 through src/shared/ipc/index.ts, so a member
+ * tuple at the bottom names all 107 through src/shared/ipc/index.ts, so a member
  * the barrel stops re-exporting fails `npm run typecheck` and names itself.
  *
  * build/assert-import-boundaries.mjs holds the other half, being that nothing
@@ -53,6 +53,7 @@ import type {
   MachineKeyInstallInput,
   MachineKeyInstallResult,
   MachineLink,
+  MachineFeed,
   MachineStateView,
   EVT_MACHINE_STATE,
   MachineAgentPresence,
@@ -155,7 +156,7 @@ const FAMILIES = [
 
 /**
  * Every contract member, by the file it lives in. A reviewer reads this list
- * to see what Phase 125 moved. It was 105 names and is 106 since Phase 229,
+ * to see what Phase 125 moved. It was 105 names, 106 since Phase 229 and 107 since Phase 231,
  * and it is not sorted, because the order is the order the split put them in.
  */
 const MEMBERS: readonly string[] = [
@@ -183,8 +184,9 @@ const MEMBERS: readonly string[] = [
   'MachineKeySheet',
   'MachineKeyInstallInput',
   'MachineKeyInstallResult',
-  // presence.ts, 8
+  // presence.ts, 9
   'MachineLink',
+  'MachineFeed',
   'MachineStateView',
   'EVT_MACHINE_STATE',
   'MachineAgentPresence',
@@ -298,7 +300,7 @@ const isPlumbing = (name: string): boolean =>
   /^Machines[A-Z]\w*(InvokeChannelMap|Api)$/.test(name) && name !== 'MachinesInvokeChannelMap';
 
 describe('the machines contract after the Phase 125 split', () => {
-  it('holds every one of the 106 members, in one file each', () => {
+  it('holds every one of the 107 members, in one file each', () => {
     const found: string[] = [];
     for (const f of FAMILIES) {
       found.push(...(domainExports.get(f) ?? []).filter((n) => !isPlumbing(n)));
@@ -369,6 +371,7 @@ export type Reachable = [
   MachineKeyInstallInput,
   MachineKeyInstallResult,
   MachineLink,
+  MachineFeed,
   MachineStateView,
   typeof EVT_MACHINE_STATE,
   MachineAgentPresence,

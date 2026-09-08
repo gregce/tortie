@@ -30,7 +30,7 @@ let connected = new Set<string>();
 let contextReady = new Set<string>();
 
 vi.mock('../remote-run', () => ({
-  machineIsConnected: (machineId: string) => connected.has(machineId),
+  machineLinkAnswering: (machineId: string) => connected.has(machineId),
   runRemoteRead: async (): Promise<never> => {
     throw new Error('these tests drive the runner seam, never the door');
   }

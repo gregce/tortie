@@ -45,7 +45,7 @@ let connected = true;
 let execution: unknown = null;
 
 vi.mock('../remote-run', () => ({
-  machineIsConnected: (): boolean => connected,
+  machineLinkAnswering: (): boolean => connected,
   runRemoteRead: (
     _ctx: unknown,
     script: string,

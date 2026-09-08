@@ -94,7 +94,7 @@ vi.mock('../remote-run', async (importOriginal) => ({
   // The REAL composer, so every byte the chunker counts is a byte the door
   // would send. Only the wire and the connected gate are replaced.
   ...(await importOriginal<typeof import('../remote-run')>()),
-  assertMachineIsConnected: (machineId: string, what: string) => {
+  assertMachineFeedAnswering: (machineId: string, what: string) => {
     if (!seam.connected) {
       throw new Error(`refused "${what}" for machine ${machineId}`);
     }

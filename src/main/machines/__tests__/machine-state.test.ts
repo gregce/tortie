@@ -40,6 +40,7 @@ function facts(over: Partial<MachineLinkFacts> = {}): MachineLinkFacts {
   return {
     machineId: 'studio',
     link: 'connected',
+    feed: 'listed',
     everAnswered: true,
     lastAnsweredAt: 1_700_000_000_000,
     reason: null,
@@ -114,6 +115,8 @@ describe('machineStateViewOf', () => {
       label: 'Studio',
       color: 'orange',
       link: 'connected',
+      // PHASE 231. The second fact, carried beside the first.
+      feed: 'listed',
       everAnswered: true,
       lastAnsweredAt: 1_700_000_000_000,
       detail: null,

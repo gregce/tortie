@@ -422,6 +422,7 @@ export {
   isRemoteSessionId,
   machineCanHoldSession,
   machineTombstonePlan,
+  markMachineFeedMissed,
   markMachineQuiet,
   nameOf,
   notifyRemoteRowsChanged,

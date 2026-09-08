@@ -157,7 +157,7 @@ import { REMOTE_HISTORY_MAX_COMMITS, REMOTE_HISTORY_PAGE } from '@shared/ipc';
 import type { GitGraphLogEntry } from '@shared/types';
 import { annotateDivergence, parseGraphLog, parseLeftRight } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineLinkAnswering, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
@@ -362,7 +362,7 @@ export async function readHistoryOnMachine(
   if (typeof input.cwd !== 'string' || !input.cwd.startsWith('/')) {
     return answerWithout(input, 'missing', maxCount, started);
   }
-  if (!machineIsConnected(input.machineId)) {
+  if (!machineLinkAnswering(input.machineId)) {
     return answerWithout(input, 'notConnected', maxCount, started);
   }
   let ctx: RemoteMachineContext;

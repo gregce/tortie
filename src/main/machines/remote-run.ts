@@ -72,6 +72,7 @@ import { shellQuoteArgv } from '../restore/command';
 import { machineGeneration, type RemoteMachineContext } from './context';
 import { machineLinkFacts } from './control-plane';
 import { execRemoteShell, type ExecTmuxOptions } from './exec-plane';
+import { feedAnswering, linkAnswering } from './liveness';
 import {
   MACHINE_NOT_CONNECTED,
   SCRIPT_NOT_IN_CATALOGUE,
@@ -117,18 +118,33 @@ export interface RemoteRunResult {
 }
 
 /**
- * The two link states that mean the machine is answering.
+ * THE LINK QUESTION (Phase 231). True while the last ssh to this machine
+ * answered, which is a link of `connected` or `polling`.
  *
- * `connected` is a live connection and `polling` is a machine answering on the
- * timer feed. Both are a machine that answered recently. `connecting`, `quiet`
- * and `refused` are not, and a read under any of them would be a claim about a
- * machine Tortie cannot see.
+ * This is what a file verb, a git verb, a search, quick open and a context
+ * read ask, and it is what step 4 of the door asks for every script at once.
+ * `connecting`, `quiet` and `refused` are not answering, and a read under any
+ * of them would be a claim about a machine Tortie cannot see.
+ *
+ * Until this phase there was ONE question, `machineIsConnected`, and it was
+ * moved by the session poll alone, so one slow `list-sessions` refused every
+ * one of these verbs while ssh answered on the same link (research 90
+ * section 3.2). The table in `./liveness.ts` is the whole rule.
  */
-const ANSWERING = new Set(['connected', 'polling']);
+export function machineLinkAnswering(machineId: string): boolean {
+  return linkAnswering(machineLinkFacts(machineId));
+}
 
-/** True while this machine's link is `connected` or `polling`. */
-export function machineIsConnected(machineId: string): boolean {
-  return ANSWERING.has(machineLinkFacts(machineId).link);
+/**
+ * THE FEED QUESTION (Phase 231). True while the link answers AND the last
+ * session poll completed.
+ *
+ * This is what the session list's own family asks: the lines of one session,
+ * the agent board, and the two passes that walk the session rows. A missed
+ * poll refuses them and nothing else.
+ */
+export function machineFeedAnswering(machineId: string): boolean {
+  return feedAnswering(machineLinkFacts(machineId));
 }
 
 /**
@@ -295,8 +311,11 @@ async function runRemoteScript(
         `was given ${String(args.length)}`
     );
   }
-  // 4. Connected-only, for every caller of this door at once.
-  assertMachineIsConnected(ctx.machineId, scriptId);
+  // 4. Connected-only, for every caller of this door at once. PHASE 231: it is
+  //    the LINK that is asked, because every script is one ssh running one
+  //    program, and the session list has nothing to do with whether that
+  //    answers. A caller whose verb is about sessions asked the FEED above.
+  assertMachineLinkAnswering(ctx.machineId, scriptId);
   // 5. The connection this answer will belong to.
   const before = machineGeneration(ctx.machineId).generation;
   // 6. One quoted argument, and a length the far side's shell can accept.
@@ -349,20 +368,41 @@ async function runRemoteScript(
 }
 
 /**
- * Refuse when the machine is not answering. Exported so a caller can ask the
+ * Refuse when the link is not answering. Exported so a caller can ask the
  * same question before it does work it would then throw away.
  *
  * @throws GmuxError INVALID_INPUT
  */
-export function assertMachineIsConnected(
+export function assertMachineLinkAnswering(
   machineId: string,
   what: string
 ): void {
-  if (machineIsConnected(machineId)) return;
+  if (machineLinkAnswering(machineId)) return;
   throw gmuxError(
     'INVALID_INPUT',
     MACHINE_NOT_CONNECTED,
     `refused "${what}" for machine ${machineId}: its link reads ` +
       `${machineLinkFacts(machineId).link}`
+  );
+}
+
+/**
+ * Refuse when the session feed is not answering (Phase 231). The one caller
+ * is the agent board, whose scan is a statement about what that machine can
+ * run and is read once the machine's list has come back.
+ *
+ * @throws GmuxError INVALID_INPUT
+ */
+export function assertMachineFeedAnswering(
+  machineId: string,
+  what: string
+): void {
+  if (machineFeedAnswering(machineId)) return;
+  const facts = machineLinkFacts(machineId);
+  throw gmuxError(
+    'INVALID_INPUT',
+    MACHINE_NOT_CONNECTED,
+    `refused "${what}" for machine ${machineId}: its link reads ` +
+      `${facts.link} and its session feed reads ${facts.feed}`
   );
 }

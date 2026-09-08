@@ -44,6 +44,9 @@ import {
   onMachineLinkChanged,
   type MachineLinkFacts
 } from './control-plane';
+// PHASE 231. The two questions are pure and live beside the two kinds, so a
+// verb can ask one without this module and a test can ask the whole table.
+export { feedAnswering, linkAnswering } from './liveness';
 import {
   currentMachines,
   machineColorOf,
@@ -147,6 +150,11 @@ export function machineStateViewOf(
     label: row.label,
     color: row.color,
     link,
+    // PHASE 231. The second fact, carried beside the first. The sentence
+    // below is the LINK's alone: a feed that missed while the link answers
+    // draws no words here, because the session rows already read `unknown`
+    // and a third statement of the same thing is the Phase 67 nit repeated.
+    feed: facts?.feed ?? 'unknown',
     everAnswered: facts?.everAnswered ?? false,
     lastAnsweredAt: facts?.lastAnsweredAt ?? null,
     detail: machineDetailSentence(row.label, link, reason),

@@ -272,6 +272,7 @@ import {
 import {
   noteMachineAnswered,
   noteMachineConnecting,
+  noteMachineFeedMissed,
   noteMachineQuiet,
   closeControlPlane,
   closeEveryControlPlane,
@@ -2322,7 +2323,15 @@ async function onePass(
       printed = '';
       event = { kind: 'no-server', at: snapshotAt };
     } else {
-      markMachineQuiet(machineId, classOfListFailure(err));
+      // PHASE 231. A list that did not come back moves the FEED and leaves
+      // the LINK where it was. This one call used to be `markMachineQuiet`,
+      // and research 90 section 3.2 measured what that cost: one slow
+      // `list-sessions`, with ssh and every other verb answering on the same
+      // link 38 ms later, refused fourteen of seventeen far-side channels in
+      // 0 ms and took Explorer, Search, Source control and Context dark for
+      // about twenty seconds. The session rows go to `unknown`, which is the
+      // honest reading of a list that did not arrive, and nothing else moves.
+      markMachineFeedMissed(machineId, classOfListFailure(err));
       return;
     }
   }
@@ -2713,6 +2722,41 @@ export function markMachineQuiet(machineId: string, errorClass = 'no answer'): v
     errorClass
   });
   noteMachineQuiet(machineId, 'did not answer the last time Tortie asked');
+  announce();
+}
+
+/**
+ * The session poll did not answer, and that is all that is known (Phase 231).
+ *
+ * Every row on this machine goes to `unknown` exactly as {@link markMachineQuiet}
+ * writes it, through the same `transport-lost` verdict, because a list that
+ * did not arrive says nothing about which sessions are running. THE LINK IS
+ * NOT TOUCHED. `list-sessions` is one question about tmux, and a slow answer
+ * to it is not evidence about whether ssh answers, which research 90 section
+ * 3.2 measured: the folder verb answered on the same link 38 ms after the poll
+ * that used to take the whole surface dark.
+ *
+ * The one caller is the poll. A verb whose ssh did not answer reaches
+ * {@link markMachineQuiet} instead, because that IS evidence about the link.
+ */
+export function markMachineFeedMissed(
+  machineId: string,
+  errorClass = 'no answer'
+): void {
+  const state = stateOf(machineId);
+  if (state.answering) {
+    machinesLog.warn(
+      `${machineId} did not answer the last list. Its sessions are untouched ` +
+        `and Tortie cannot see them; its files, its repository and its search ` +
+        `are still read over the link.`
+    );
+  }
+  applyMachineEvent(machineId, {
+    kind: 'transport-lost',
+    at: Date.now(),
+    errorClass
+  });
+  noteMachineFeedMissed(machineId);
   announce();
 }
 

@@ -98,7 +98,7 @@ import {
   resetRemoteStoreRecordsForTests,
   type RemoteStoreRecord
 } from './remote-record';
-import { machineIsConnected, runRemoteRead } from './remote-run';
+import { machineFeedAnswering, runRemoteRead } from './remote-run';
 // The one word every script prints when it looked and found nothing.
 import { REMOTE_SCRIPT_EMPTY } from './remote-scripts';
 import { readyRemoteContext } from './ready-context';
@@ -338,14 +338,15 @@ export async function syncEveryMachine(): Promise<number> {
 /**
  * One pass over one machine. Returns how many files it copied.
  *
- * CONNECTED ONLY, twice. The pass refuses at once when the link is not live,
- * and every read goes through the door in ./remote-run.ts, which refuses again
- * and also discards an answer whose connection was replaced while the read was
- * in flight.
+ * CONNECTED ONLY, twice. The pass asks the FEED question at once, because its
+ * targets are the session rows the last list produced and a list that did not
+ * arrive is a stale target list (Phase 231), and every read goes through the
+ * door in ./remote-run.ts, which asks the LINK again and also discards an
+ * answer whose connection was replaced while the read was in flight.
  */
 export async function syncMachineOnce(machineId: string): Promise<number> {
   if (inFlight.has(machineId)) return 0;
-  if (!machineIsConnected(machineId)) return 0;
+  if (!machineFeedAnswering(machineId)) return 0;
   let ctx;
   try {
     ctx = readyRemoteContext(machineId);
@@ -363,7 +364,7 @@ export async function syncMachineOnce(machineId: string): Promise<number> {
   try {
     for (const claim of targets) {
       if (machineGeneration(machineId).generation !== generation) break;
-      if (!machineIsConnected(machineId)) break;
+      if (!machineFeedAnswering(machineId)) break;
       const record = await copyOne(ctx, claim);
       if (record === null) continue;
       noteRemoteStoreRecord(record);

@@ -88,7 +88,7 @@ import {
   readOriginUrl,
   remoteCloneUrl
 } from '../machines/project-counterpart';
-import { machineIsConnected } from '../machines/remote-run';
+import { machineLinkAnswering } from '../machines/remote-run';
 // The two sentences this phase pins, imported from the modules that produce
 // them so a rewording that forgets this harness fails the gate.
 import { REMOTE_EXEC_SHUTDOWN } from '../machines/execution-ledger';
@@ -427,7 +427,7 @@ export async function runP118PrepSmoke(): Promise<void> {
     if (prepared.class !== 'prepared') {
       fail(`the prepare answered ${prepared.class}: ${prepared.detail}`);
     }
-    if (!machineIsConnected(CLONE_ID)) {
+    if (!machineLinkAnswering(CLONE_ID)) {
       fail(
         `${CLONE_LABEL} is not connected, so the copy would answer offline ` +
           `and nothing below would be measuring an ssh child at all`

@@ -84,7 +84,7 @@ import { execOn } from './exec-plane';
 // The composer the background copy already uses, reused unchanged. See the
 // header for the `-J` ruling.
 import { remoteCaptureArgs } from './remote-capsule';
-import { machineIsConnected } from './remote-run';
+import { machineFeedAnswering } from './remote-run';
 import { readyRemoteContext, remoteSessionRow } from './remote-sessions';
 import { machineLabelOf, machineRow } from './store';
 
@@ -210,7 +210,7 @@ export async function readSessionLinesOnMachine(
     return emptyResult(input.sessionId, null, 'noSession', asked, startedAt);
   }
   const machineId = row.machineId;
-  if (!machineIsConnected(machineId)) {
+  if (!machineFeedAnswering(machineId)) {
     return emptyResult(
       input.sessionId,
       machineId,
