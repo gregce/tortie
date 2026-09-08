@@ -77,7 +77,10 @@ const tab = {
 
 /** The document element's own markup, from its opening tag to its close. */
 function documentOf(html: string): string {
-  const start = html.indexOf('<div class="ed-redline ed-redline-doc" data-redline="">');
+  // PHASE 237 gave the document element two attributes of its own,
+  // `contentEditable="plaintext-only"` and `spellCheck="false"`, so the open
+  // tag is matched by its class and not by the whole of what it was.
+  const start = html.indexOf('<div class="ed-redline ed-redline-doc"');
   if (start < 0) throw new Error('no document drawn');
   const inner = html.slice(start).replace(/^<div[^>]*>/, '');
   return inner.slice(0, inner.indexOf('</div>'));
@@ -174,16 +177,28 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
     expect(chipAnchorFor(null, hovered)).toBe(hovered);
   });
 
-  it('the resting face of the SHIPPING view is byte for byte what Phase 227 drew', () => {
+  it('the resting face of the SHIPPING view is what Phase 227 drew, plus the island', () => {
     const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
+    // PHASE 237. One attribute moved in this markup and it is the deletion's
+    // `contenteditable="false"`, which is what makes a deletion an atomic
+    // island the caret steps over in one press. Everything else, being the
+    // wrapper, its identity, its generation and the runs at the leaves, is
+    // byte for byte what Phase 227 drew.
     expect(documentOf(html)).toBe(
       '<span>The quick </span>' +
         '<span class="ed-redline-change" tabindex="-1" role="group" aria-label="Change 1 of 1" data-change="0" data-change-off="10" data-change-del="brown" data-change-ins="red" data-change-gen="1">' +
-        '<del data-redline-del="">brown</del><ins data-redline-ins="">red</ins></span>' +
+        '<del data-redline-del="" contentEditable="false">brown</del><ins data-redline-ins="">red</ins></span>' +
         '<span> fox.\n</span>'
     );
     expect(html).not.toContain('ed-redline-chip');
     expect(html).not.toContain('<button');
+  });
+
+  it('and the document itself is the editable, in plain text only', () => {
+    const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
+    expect(html).toContain(
+      '<div class="ed-redline ed-redline-doc" data-redline="" contentEditable="plaintext-only" spellCheck="false">'
+    );
   });
 
   it('never takes focus, or the press would do nothing and the arrows would jump to the top', () => {

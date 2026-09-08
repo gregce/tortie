@@ -157,7 +157,7 @@ const WORST_CASE_CEILING_MS = 400;
 // cannot drift off in silence.
 const REDLINE_DIR = 'src/renderer/editor';
 const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline\.)/;
-const REDLINE_FILES_FLOOR = 16;
+const REDLINE_FILES_FLOOR = 19;
 const REDLINE_FILES = readdirSync(REDLINE_DIR)
   .filter((name) => REDLINE_NAME.test(name))
   .sort()
@@ -196,7 +196,15 @@ const REDLINE_FILES_NAMED = [
   'src/renderer/editor/redline-chip.tsx',
   // Phase 236: the first-run line's per-session flag and its sentence. In
   // memory only, like the journal, and it writes nothing.
-  'src/renderer/editor/redline-hint.ts'
+  'src/renderer/editor/redline-hint.ts',
+  // Phase 237: typing. The rules are pure and hold no baseline; the caret is
+  // the DOM half and decides nothing; the wiring joins them to the tab and
+  // writes the tab's own monaco buffer, which is the same buffer ⌘S writes.
+  // None of the three may reach a file: a typed character is saved through
+  // the ordinary save path and never through a door of its own.
+  'src/renderer/editor/redline-typing.ts',
+  'src/renderer/editor/redline-caret.ts',
+  'src/renderer/editor/redline-edits.ts'
 ];
 
 // ---------------------------------------------------------------------------

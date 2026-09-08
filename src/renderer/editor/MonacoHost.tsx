@@ -14,11 +14,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import type * as monacoNs from 'monaco-editor';
-import type { Monaco } from './monaco-impl';
 import { monacoThemeNameFor } from './monaco-theme-name';
 import { useChromeTheme } from '../theme/chrome-theme';
 import {
   getLoadedMonaco,
+  languageFor,
   loadMonaco,
   rememberLoaded,
   saveViewState,
@@ -463,21 +463,6 @@ export function MonacoHost({
       {!ready || !contentReady ? <OpeningSkeleton /> : null}
     </div>
   );
-}
-
-function languageFor(m: Monaco, path: string): string {
-  const name = path.slice(path.lastIndexOf('/') + 1).toLowerCase();
-  const dot = name.lastIndexOf('.');
-  const ext = dot === -1 ? '' : name.slice(dot);
-  for (const lang of m.languages.getLanguages()) {
-    if (ext !== '' && lang.extensions?.some((e) => e.toLowerCase() === ext)) {
-      return lang.id;
-    }
-    if (lang.filenames?.some((f) => f.toLowerCase() === name)) {
-      return lang.id;
-    }
-  }
-  return 'plaintext';
 }
 
 /**

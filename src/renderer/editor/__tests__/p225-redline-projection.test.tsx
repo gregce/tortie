@@ -97,7 +97,11 @@ const unescape = (s: string): string =>
  * and nothing nested, which research 83 D.1 measured on the live DOM.
  */
 function runs(html: string): Array<{ kind: 'span' | 'del' | 'ins'; text: string }> {
-  const start = html.indexOf('<div class="ed-redline ed-redline-doc" data-redline="">');
+  // PHASE 237 gave the document element `contentEditable` and `spellCheck` and
+  // every deletion `contentEditable="false"`, so the open tag is found by its
+  // class and a run's own attributes are read past. The property below is
+  // unchanged: it is still every non-INS leaf and every non-DEL leaf.
+  const start = html.indexOf('<div class="ed-redline ed-redline-doc"');
   if (start < 0) throw new Error('no document drawn');
   // The document's children are flat, so its first closing div is its own;
   // the baseline sentence below it is a span too and must not be read as a run.

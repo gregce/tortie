@@ -69,7 +69,9 @@ const unescape = (s: string): string =>
 
 /** The document's markup, from its opening tag to its own closing tag. */
 function documentOf(html: string): string {
-  const start = html.indexOf('<div class="ed-redline ed-redline-doc" data-redline="">');
+  // PHASE 237 gave this element `contentEditable` and `spellCheck`, so it is
+  // found by its class rather than by the whole of what it was.
+  const start = html.indexOf('<div class="ed-redline ed-redline-doc"');
   if (start < 0) throw new Error('no document drawn');
   const inner = html.slice(start).replace(/^<div[^>]*>/, '');
   return inner.slice(0, inner.indexOf('</div>'));

@@ -132,13 +132,16 @@ describe('the resting face', () => {
 
   it('draws the wrapper with tabindex -1 and nothing else: no button, no chip, no control text', () => {
     const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
-    const start = html.indexOf('<div class="ed-redline ed-redline-doc" data-redline="">');
+    // PHASE 237 gave this element `contentEditable` and `spellCheck`, so it
+    // is found by its class rather than by the whole of what it was.
+    const start = html.indexOf('<div class="ed-redline ed-redline-doc"');
     const inner = html.slice(start).replace(/^<div[^>]*>/, '');
     const body = inner.slice(0, inner.indexOf('</div>'));
     expect(body).toBe(
       '<span>The quick </span>' +
         '<span class="ed-redline-change" tabindex="-1" role="group" aria-label="Change 1 of 1" data-change="0" data-change-off="10" data-change-del="brown" data-change-ins="red" data-change-gen="1">' +
-        '<del data-redline-del="">brown</del><ins data-redline-ins="">red</ins></span>' +
+        // PHASE 237: the deletion is an atomic island the caret steps over.
+        '<del data-redline-del="" contentEditable="false">brown</del><ins data-redline-ins="">red</ins></span>' +
         '<span> fox.\n</span>'
     );
     expect(html).not.toContain('<button');

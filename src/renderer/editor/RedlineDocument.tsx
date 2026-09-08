@@ -58,6 +58,8 @@ import {
   redlineDocumentNote
 } from './redline-document';
 import { useLiveTabText } from './live-text';
+import { changeAtCaret } from './redline-caret';
+import { useRedlineTyping } from './redline-edits';
 import { changesOf } from './rewind';
 import type { RedlineChange } from './rewind';
 import { RedlineChip } from './redline-chip';
@@ -156,8 +158,15 @@ export type { PressedChange } from './redline-press';
  */
 export function focusedChange(host: HTMLElement): PressedChange | null {
   const active = host.ownerDocument.activeElement;
-  if (!(active instanceof HTMLElement)) return null;
-  const el = active.closest<HTMLElement>('.ed-redline-change');
+  // PHASE 237. With the document editable a person's attention is where the
+  // CARET is, and a caret inside a change is the same claim a focused wrapper
+  // makes: ./redline-caret's `changeAtCaret` answers it, and it is asked only
+  // when no wrapper holds the focus itself, so a keyboard walk with ⌥↓ reads
+  // exactly what it read before.
+  const el =
+    (active instanceof HTMLElement
+      ? active.closest<HTMLElement>('.ed-redline-change')
+      : null) ?? changeAtCaret(host);
   if (el === null || !host.contains(el)) return null;
   const off = Number(el.dataset['changeOff']);
   const generation = Number(el.dataset['changeGen']);
@@ -238,6 +247,11 @@ export function RedlineDocument({
 }: RedlineDocumentProps): React.JSX.Element {
   const historical = tab.commit !== null;
   const workingText = useLiveTabText(tab.id, tab.savedContents, !historical);
+  // PHASE 237. Typing. The hook owns the caret, the buffer and every default
+  // behaviour of a contenteditable; `typing.text` is the current side the
+  // person has, which is the live text until they type into it.
+  const typing = useRedlineTyping({ tab, liveText: workingText });
+  const shownText = typing.text ?? workingText;
   const hostRef = useRef<HTMLDivElement | null>(null);
   // PHASE 236. The chip's own boxes. The view is held as STATE rather than a
   // ref, because the chip is placed against it and so has to be re-rendered
@@ -342,7 +356,7 @@ export function RedlineDocument({
   const [focusedEl, setFocusedEl] = useState<HTMLElement | null>(null);
   // PHASE 236. Which change the chip is drawn for; the rule is
   // `chipAnchorFor` above, and focus wins over the pointer.
-  const anchor = chipAnchorFor(focusedEl, hovered);
+  const anchor = chipAnchorFor(focusedEl ?? typing.caretChange, hovered);
   const forgetAnchor = useCallback((): void => {
     setHovered(null);
     setFocusedEl(null);
@@ -376,9 +390,9 @@ export function RedlineDocument({
   // the wrappers and the runs they hold can never come from two pictures.
   const composed = useMemo(() => {
     if (contentsLoading) return null;
-    const doc = composeRedlineDocument(baseSide, workingText);
+    const doc = composeRedlineDocument(baseSide, shownText);
     return { doc, changes: changesOf(doc.runs) };
-  }, [contentsLoading, baseSide, workingText]);
+  }, [contentsLoading, baseSide, shownText]);
   const doc = composed === null ? null : composed.doc;
   const generation = tab.baseline?.generation ?? 0;
   const note = doc === null ? null : redlineDocumentNote(doc);
@@ -471,7 +485,10 @@ export function RedlineDocument({
         ) : (
           // One `data-redline` element for the whole document, so the copy
           // handler's containment rule covers any selection inside it.
-          <div className="ed-redline ed-redline-doc" data-redline="">
+          <div className="ed-redline ed-redline-doc"
+            data-redline=""
+            {...typing.docProps}
+          >
             <DocumentRuns
               runs={doc.runs}
               changes={composed?.changes ?? []}

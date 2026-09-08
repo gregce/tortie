@@ -63,7 +63,14 @@ export function RedlineRuns({
     <>
       {runs.map((run, index) =>
         run.kind === 'del' ? (
-          <del key={index} data-redline-del="">
+          // PHASE 237. `contenteditable="false"` makes a deletion an atomic
+          // island: research 83 D.2 measured four arrow presses to cross a
+          // four-character deletion without it and ONE with it, and research
+          // 97 §2.4 re-derived that on this markup. It is on every deletion
+          // and not only the document's, because the attribute means nothing
+          // outside an editable ancestor and the row and the document draw
+          // one change from one piece of code.
+          <del key={index} data-redline-del="" contentEditable={false}>
             {run.text}
           </del>
         ) : run.kind === 'ins' ? (

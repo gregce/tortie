@@ -192,6 +192,64 @@ export function resetWorkingModel(key: string, contents: string): void {
   if (model !== null) applyModelText(model, contents, true);
 }
 
+/**
+ * The monaco language id for a path, or `plaintext`.
+ *
+ * PHASE 237 MOVED IT HERE from ./MonacoHost, unchanged. The Redline view
+ * creates the working model itself when a person types into a file whose File
+ * view has never been mounted, and a model's language is fixed at creation, so
+ * both creators must ask the same question or the same file gets highlighting
+ * in one order of opening and none in the other.
+ */
+export function languageFor(m: Monaco, path: string): string {
+  const name = path.slice(path.lastIndexOf('/') + 1).toLowerCase();
+  const dot = name.lastIndexOf('.');
+  const ext = dot === -1 ? '' : name.slice(dot);
+  for (const lang of m.languages.getLanguages()) {
+    if (ext !== '' && lang.extensions?.some((e) => e.toLowerCase() === ext)) {
+      return lang.id;
+    }
+    if (lang.filenames?.some((f) => f.toLowerCase() === name)) {
+      return lang.id;
+    }
+  }
+  return 'plaintext';
+}
+
+/**
+ * The working model for a tab, creating it — and loading the monaco chunk —
+ * if nothing has yet.
+ *
+ * PHASE 237. The Redline view is a text surface with no monaco under it, so a
+ * person can type into a file whose File view has never mounted. The buffer
+ * they type into has to be the SAME buffer ⌘S writes and File mode shows,
+ * which is this one: `save` in ./tab-io reads exactly this registry, and a
+ * second buffer beside it would be a second answer to "what is in this file".
+ * Nothing is loaded until the first keystroke, so a redline that is only read
+ * still pays nothing for monaco.
+ *
+ * Answers null when the chunk fails to load, which the caller says out loud
+ * rather than swallowing.
+ */
+export async function ensureWorkingModel(
+  key: string,
+  contents: string,
+  path: string
+): Promise<monacoNs.editor.ITextModel | null> {
+  const existing = getWorkingModel(key);
+  if (existing !== null) return existing;
+  let m = getLoadedMonaco();
+  if (m === null) {
+    try {
+      m = await loadMonaco();
+    } catch {
+      return null;
+    }
+    rememberLoaded(m);
+  }
+  return workingModel(m, key, contents, languageFor(m, path));
+}
+
 /** Dispose the working model for a closed tab. */
 export function disposeModels(key: string): void {
   workingModels.get(key)?.dispose();
