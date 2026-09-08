@@ -37,10 +37,13 @@
  * measurements by `build/probe-p104-commit.mjs`.
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MachineReviewFile } from '@shared/ipc';
 import {
   REMOTE_SCM_SECTIONS_NOTE,
+  commitIdentityFact,
   remoteChangesBand,
   remoteCommitButton,
   remoteCommitCheckDidNot,
@@ -184,6 +187,27 @@ describe('why the commit button is disabled', () => {
     // One sentence: no full stop inside it and none at the end, which is the
     // shape of every other caption on this button.
     expect(said).not.toContain('. ');
+  });
+
+  it('composes the identity fact from the branch answer (Phase 229)', () => {
+    // The Phase 229 verifier found this composition pinned by no unit test,
+    // the app run alone proving it. It is one function now: `missing` is the
+    // one answer that disables a press, `known` is known, and `unknown` and a
+    // target with no store entry are composed as `known`, because a press is
+    // never disabled by a question nobody answered.
+    expect(commitIdentityFact('missing')).toBe('missing');
+    expect(commitIdentityFact('known')).toBe('known');
+    expect(commitIdentityFact('unknown')).toBe('known');
+    expect(commitIdentityFact(undefined)).toBe('known');
+    // And the box hands that function the branch store's own field rather
+    // than composing a ternary of its own, read off the source of the section
+    // the way the Phase 106 expand guard is.
+    const source = readFileSync(
+      resolve(__dirname, '../ScmSection.tsx'),
+      'utf8'
+    );
+    expect(source).toContain('identity: commitIdentityFact(branch.identity),');
+    expect(source).not.toMatch(/identity:\s*branch\.identity\s*===/);
   });
 
   it('puts the identity above the folder facts and the box', () => {

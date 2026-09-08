@@ -6,6 +6,8 @@
  * they are drawn in is described in ./project-tab.ts.
  */
 
+import type { MachineGitIdentity } from '@shared/ipc';
+
 // -- Source Control ----------------------------------------------------------
 
 /**
@@ -359,6 +361,23 @@ export interface RemoteCommitFacts {
   staged: number;
   /** The text in the box, untrimmed. */
   message: string;
+}
+
+/**
+ * The identity fact the commit box hands `remoteCommitDisabledReason`, from
+ * the branch read's answer (Phase 229).
+ *
+ * `missing` is the one answer that disables a press. `known` is known, and
+ * `unknown`, being a read that did not ask or has not landed, is composed as
+ * `known` on purpose: a press is never disabled by a question nobody
+ * answered. So is `undefined`, which is what a target with no store entry
+ * reads. This is a function rather than a ternary in the box so the rule is
+ * pinned by a test and not only by the app run.
+ */
+export function commitIdentityFact(
+  identity: MachineGitIdentity | undefined
+): RemoteCommitFacts['identity'] {
+  return identity === 'missing' ? 'missing' : 'known';
 }
 
 /**

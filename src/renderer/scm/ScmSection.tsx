@@ -64,6 +64,7 @@ import {
   remoteCommitCheckNoAnswer,
   remoteCommitCheckRan,
   remoteCommitDisabledReason,
+  commitIdentityFact,
   remoteCommitStanding,
   remoteConflictNoVerb,
   remoteIndexWritePartial,
@@ -820,7 +821,7 @@ function RemoteCommitBox({
     writesConfirmed:
       machineWriteRootFor(machineStates, target.machineId) !== null,
     connected,
-    identity: branch.identity === 'missing' ? 'missing' : 'known',
+    identity: commitIdentityFact(branch.identity),
     conflicted,
     staged: groups.staged.length,
     message
