@@ -54,6 +54,11 @@ import {
 } from '../machines/explorer';
 import { machineLabelFor, machineWriteRootFor } from '../state/machines-slice';
 import { useRemoteReread } from '../machines/use-remote-reread';
+import {
+  remoteChangesAvailable,
+  remoteStatusFilesOf,
+  useRemoteChanges
+} from '../scm/remote-changes';
 import type { RereadHeld } from '../machines/reread';
 import { Codicon } from '../icons';
 import { useTreeDensity } from './density';
@@ -73,6 +78,9 @@ import './tree.css';
 
 // Collapse persistence (spec: "collapse state persists per project").
 const LS_COLLAPSED = 'gmux.filesCollapsed';
+
+/** PHASE 230. One empty list, so a tree with no decorations keeps one prop. */
+const NO_STATUS: readonly GitFileStatus[] = [];
 
 function loadCollapsedMap(): Record<string, boolean> {
   try {
@@ -179,6 +187,26 @@ export function FilesSection({
   const refreshLoaded = useFileTree((s) => s.refreshLoaded);
 
   const storeFiles = useTreeGitStatus((s) => s.files);
+  /**
+   * PHASE 230. The decorations for a folder on a machine come from the
+   * remote Changes store's entry for THIS target, and from nothing else.
+   * `remoteStatusFilesOf` says why that keeps the Phase 90.3 guard, and what
+   * it does not carry. The entry is read once here for the target, so a
+   * re-read that changes nothing re-renders nothing.
+   */
+  const remoteEntry = useRemoteChanges((s) =>
+    remote === null || target === null
+      ? null
+      : (s.byTarget[targetKey(target)] ?? null)
+  );
+  const rereadChanges = useRemoteChanges((s) => s.reread);
+  const remoteStatusFiles = useMemo(
+    () =>
+      remoteEntry === null || target === null
+        ? NO_STATUS
+        : remoteStatusFilesOf(remoteEntry, target.path),
+    [remoteEntry, target]
+  );
   const isRepo = useTreeGitStatus((s) => s.isRepo);
   const setRepo = useTreeGitStatus((s) => s.setRepo);
   const refreshStatus = useTreeGitStatus((s) => s.refresh);
@@ -265,11 +293,30 @@ export function FilesSection({
     writes: ['file'],
     self: 'explorer',
     read: () => {
-      void refreshLoaded().finally(() => {
+      // PHASE 230. The rows and their decorations, which is what the local
+      // section reads on a watcher tick too (refreshLoaded and refreshStatus
+      // below). The decorations read is the one the Changes group runs, over
+      // the same entry, and it clears none of that group's sentences.
+      void Promise.all([
+        refreshLoaded(),
+        target === null ? Promise.resolve() : rereadChanges(target)
+      ]).finally(() => {
         useTreeHandle.getState().handle?.reconcile();
       });
     }
   });
+
+  // PHASE 230. The decorations' first read, once per target. The local tree's
+  // status is read for the active project whatever view is up, so the remote
+  // tree's is too, rather than only once Source control has been opened. The
+  // store reads once and never on a clock; a target it already holds costs
+  // nothing.
+  const remoteId = remote === null ? null : remote.machineId;
+  useEffect(() => {
+    if (remoteId === null || target === null) return;
+    if (!remoteChangesAvailable()) return;
+    useRemoteChanges.getState().ensure(target);
+  }, [remoteId, target]);
 
   // External decoration source (SCM store) — no fetching. The store drops a
   // target that is not local, because the SCM store reads this Mac only.
@@ -424,10 +471,17 @@ export function FilesSection({
             key={`${targetKey(target)}:${density}`}
             rootPath={target.path}
             remote={remote}
-            // A folder on another machine has no decorations from this Mac.
-            // The Source Control view for that tab reads that machine
-            // separately, and it does not feed this tree.
-            statusFiles={[]}
+            // A folder on another machine has no decorations from this Mac,
+            // which is the Phase 90.3 guard: the `statusFiles` prop the
+            // sidebar hands this section is never read here. PHASE 230 feeds
+            // the lane from that machine's own answer instead, being the
+            // remote Changes store's entry for this target, so an untracked
+            // file over there carries the U the local row carries. `isRepo`
+            // stays false because it only decides whether this Mac's git is
+            // asked what the folder ignores, and it must not be asked about
+            // a folder that is not here; a remote tree is therefore not
+            // dimmed, which remoteStatusFilesOf states as the limit.
+            statusFiles={remoteStatusFiles}
             isRepo={false}
             density={density}
           />

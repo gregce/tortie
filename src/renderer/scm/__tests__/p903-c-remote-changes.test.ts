@@ -284,10 +284,13 @@ describe('the two groups Phase 97 added', () => {
 });
 
 describe('the whole surface, counted', () => {
-  it('offers exactly eight functions and no ninth', () => {
-    // PHASE 103 CHANGED THIS COUNT FROM THREE TO FIVE AND PHASE 104 CHANGED IT
-    // FROM FIVE TO EIGHT. The point of counting is unchanged: a verb cannot be
-    // added to this store without a reader of this file seeing it happen.
+  it('offers exactly nine functions and no tenth', () => {
+    // PHASE 103 CHANGED THIS COUNT FROM THREE TO FIVE, PHASE 104 CHANGED IT
+    // FROM FIVE TO EIGHT, AND PHASE 230 FROM EIGHT TO NINE, the ninth being
+    // `reread`, a read of the same door as `refresh` that clears none of the
+    // write sentences, for the Explorer's decorations. The point of counting
+    // is unchanged: a verb cannot be added to this store without a reader of
+    // this file seeing it happen. Nothing here writes that the eight did not.
     const state = useRemoteChanges.getState() as unknown as Record<
       string,
       unknown
@@ -301,6 +304,7 @@ describe('the whole surface, counted', () => {
       'ensure',
       'forget',
       'refresh',
+      'reread',
       'setMessage',
       'stage',
       'unstage'

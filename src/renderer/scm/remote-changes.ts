@@ -94,6 +94,7 @@ import type {
   MachineReviewFile,
   MachineReviewList
 } from '@shared/ipc';
+import type { GitFileStatus } from '@shared/types';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { targetKey } from '@shared/workspace-target';
 import { gmuxBridge } from '../bridge';
@@ -325,6 +326,68 @@ export function remoteChangesOf(
   return byTarget[targetKey(target)] ?? EMPTY;
 }
 
+/**
+ * PHASE 230. The Explorer's decorations for a folder on a machine, out of this
+ * store's entry for that folder and nothing else.
+ *
+ * THE PHASE 90.3 GUARD IS NOT LOOSENED. `useGit` holds status read on THIS
+ * Mac, and decorating a remote tree with it was the wrong machine defect that
+ * phase removed; app/Sidebar.tsx still hands the tree nothing for a target
+ * with no local path. What the remote tree draws its badges from is this
+ * entry, being the tracked and untracked lists that machine's own porcelain
+ * reported, folded into the shape the tree's git lane already reads
+ * (tree/decorations.ts), so an untracked file over there carries the U the
+ * local row carries and a modified one the M.
+ *
+ * THE PATHS ARE REBASED ONTO THE TAB'S FOLDER. Main reports repository
+ * relative paths and the tree's lane wants paths relative to its root, which
+ * is the tab's folder; the two differ when the tab was opened inside a
+ * repository rather than at its root. A file outside the tab's folder is
+ * dropped, because the tree has no row for it, and a rename whose old name
+ * is outside it is drawn as a rename with no old name.
+ *
+ * NOTHING BEFORE THE FIRST GOOD READ, and nothing for a folder that is not a
+ * repository, which is what the local tree draws for a plain folder too.
+ *
+ * WHAT THIS DOES NOT CARRY, stated rather than hidden: ignored file dimming.
+ * The list that machine sends never names an ignored file, and `git
+ * check-ignore` runs on this Mac only, so a remote tree is not dimmed. That
+ * is the one decoration the local tree has and the remote one does not.
+ */
+export function remoteStatusFilesOf(
+  entry: RemoteChangesEntry,
+  folder: string
+): GitFileStatus[] {
+  if (entry.readAt === 0 || entry.notRepo || entry.repoPath.length === 0) {
+    return [];
+  }
+  let prefix: string;
+  if (folder === entry.repoPath) {
+    prefix = '';
+  } else if (folder.startsWith(entry.repoPath + '/')) {
+    prefix = folder.slice(entry.repoPath.length + 1) + '/';
+  } else {
+    return [];
+  }
+  const out: GitFileStatus[] = [];
+  for (const file of [...entry.files, ...entry.untracked]) {
+    if (!file.path.startsWith(prefix)) continue;
+    const path = file.path.slice(prefix.length);
+    if (path.length === 0) continue;
+    const orig =
+      file.origPath !== null && file.origPath.startsWith(prefix)
+        ? file.origPath.slice(prefix.length)
+        : null;
+    out.push({
+      path,
+      ...(orig !== null && orig.length > 0 ? { origPath: orig } : {}),
+      indexState: file.indexState,
+      worktreeState: file.worktreeState
+    });
+  }
+  return out;
+}
+
 interface RemoteChangesState {
   /** Keyed by `targetKey`, so two machines at one path are two entries. */
   byTarget: Record<string, RemoteChangesEntry>;
@@ -341,6 +404,15 @@ interface RemoteChangesState {
   ensure(target: WorkspaceTarget): void;
   /** Read now. This is the Refresh button and nothing else calls it. */
   refresh(target: WorkspaceTarget): Promise<void>;
+  /**
+   * PHASE 230. Read again without clearing what the last write left.
+   *
+   * The Explorer reads this store for its decorations, and it re-reads it at
+   * the moments the shared hook names and after its own writes. Those are not
+   * a press of Refresh, so the sentence a stage or a commit left beside the
+   * Changes rows stays where it is; `refresh` above is the press.
+   */
+  reread(target: WorkspaceTarget): Promise<void>;
   /**
    * PHASE 103. Put these paths in the index of that repository on that machine.
    *
@@ -638,6 +710,10 @@ export const useRemoteChanges = create<RemoteChangesState>((set, get) => {
       const entry = get().byTarget[targetKey(target)];
       if (entry !== undefined && (entry.readAt > 0 || entry.loading)) return;
       void read(target);
+    },
+
+    async reread(target) {
+      await read(target);
     },
 
     async refresh(target) {

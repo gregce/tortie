@@ -19,6 +19,7 @@ import type {
   MachineMakeDirResult,
   MachineRenameResult
 } from '@shared/ipc';
+import { workspaceTarget } from '@shared/workspace-target';
 import { gmuxBridge } from '../bridge';
 import { entryNameVerdict } from './entry-name';
 import type { EntryNameVerdict } from './entry-name';
@@ -30,9 +31,29 @@ import {
 import { resolveTreeEditor } from './rename-view';
 import type { TreeEditorBridge } from './rename-view';
 import { useFileTree } from './store';
+import { useRemoteChanges } from '../scm/remote-changes';
 import { createTreeOps } from './tree-ops';
 import { baseNameOf, parentOf } from './tree-paths';
 import type { TreeModelBridge, TreeRemote } from './use-tree-model';
+
+/**
+ * PHASE 230. What the Explorer reads again after its own write landed on a
+ * machine: the rows, as before, and the decorations beside them, which come
+ * from the remote Changes store's entry for that folder (FilesSection.tsx
+ * says why). The Explorer names itself to the shared re-read hook so its own
+ * write does not read the tree twice, and this is the one read it does run.
+ */
+async function refreshRemoteTree(
+  rootPath: string,
+  machineId: string
+): Promise<void> {
+  await Promise.all([
+    useFileTree.getState().refreshLoaded(),
+    useRemoteChanges
+      .getState()
+      .reread(workspaceTarget(rootPath, machineId))
+  ]);
+}
 
 /** Where the reason for a bad name is drawn, and what it says. */
 export interface TreeNameError {
@@ -116,7 +137,7 @@ export function useTreeRename({
               });
             },
             refresh: async (): Promise<void> => {
-              await useFileTree.getState().refreshLoaded();
+              await refreshRemoteTree(rootPath, machineId);
             }
           };
     // PHASE 102. The sibling member that says where a new folder and a rename
@@ -139,7 +160,7 @@ export function useTreeRename({
             ): Promise<MachineRenameResult> =>
               renameRemoteEntry({ machineId, from: fromAbs, to: toAbs, kind }),
             refresh: async (): Promise<void> => {
-              await useFileTree.getState().refreshLoaded();
+              await refreshRemoteTree(rootPath, machineId);
             }
           };
     opsRef.current = createTreeOps({

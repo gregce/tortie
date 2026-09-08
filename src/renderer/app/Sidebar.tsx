@@ -315,6 +315,11 @@ export function Sidebar(): React.JSX.Element {
   // is on another machine must find nothing here: a local repository at the same
   // path would otherwise decorate that machine's rows with this Mac's changes,
   // which is the wrong machine defect this phase exists to remove.
+  //
+  // PHASE 230. A remote tree draws decorations now, and they do not pass
+  // through here: tree/FilesSection.tsx reads them from the remote Changes
+  // store's entry for that machine and folder (scm/remote-changes.ts,
+  // `remoteStatusFilesOf`). This guard is unchanged and still answers null.
   const localRepoPath = useMemo(
     () => localPathOf(targetOfProject(project)),
     [project]
