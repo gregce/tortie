@@ -139,8 +139,16 @@ beforeEach(() => {
 
 describe('nextBaseline, one clause a test', () => {
   it('the first successful read seeds the baseline, named as the read', () => {
-    const next = nextBaseline(NO_BASELINE, { kind: 'read', contents: 'a\n' });
-    expect(next).toEqual({ text: 'a\n', from: 'read', generation: 1, headSeen: null });
+    // PHASE 239 added `takenAt`, which moves with the generation and never
+    // otherwise, so the seed is handed its own clock here.
+    const next = nextBaseline(NO_BASELINE, { kind: 'read', contents: 'a\n' }, 111);
+    expect(next).toEqual({
+      text: 'a\n',
+      from: 'read',
+      generation: 1,
+      headSeen: null,
+      takenAt: 111
+    });
   });
 
   it('a later read never advances it, whatever the bytes', () => {
@@ -161,9 +169,15 @@ describe('nextBaseline, one clause a test', () => {
   });
 
   it('a HEAD version not seen before wins outright', () => {
-    const seeded = nextBaseline(NO_BASELINE, { kind: 'read', contents: 'file\n' });
-    const head = nextBaseline(seeded, { kind: 'head', contents: 'HEAD\n' });
-    expect(head).toEqual({ text: 'HEAD\n', from: 'commit', generation: 2, headSeen: 'HEAD\n' });
+    const seeded = nextBaseline(NO_BASELINE, { kind: 'read', contents: 'file\n' }, 111);
+    const head = nextBaseline(seeded, { kind: 'head', contents: 'HEAD\n' }, 222);
+    expect(head).toEqual({
+      text: 'HEAD\n',
+      from: 'commit',
+      generation: 2,
+      headSeen: 'HEAD\n',
+      takenAt: 222
+    });
   });
 
   it('a HEAD answer already seen moves nothing', () => {

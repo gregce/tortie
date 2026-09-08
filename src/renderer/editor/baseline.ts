@@ -55,6 +55,20 @@ export interface BaselineState {
    * because every tick overwrites it. Null until git has answered once.
    */
   headSeen: string | null;
+  /**
+   * PHASE 239. The wall clock moment the baseline was last seeded, in
+   * milliseconds, or null when nothing has seeded it. It moves with
+   * `generation` and never otherwise, so it is the same fact said in a unit a
+   * person can read.
+   *
+   * IT EXISTS BECAUSE THE FACE COULD NOT SAY WHEN. Research 99 section 6.4
+   * measured the two answers `baselineName` has, being `the last commit` and
+   * `you opened this file`, and NEITHER CARRIES A TIME: a tab opened this
+   * morning and a tab opened a minute ago drew the same 67 characters. This is
+   * the one field that separates them, it is read by ./baseline alone, it
+   * reaches no bridge and it is written nowhere.
+   */
+  takenAt: number | null;
 }
 
 /** A tab that has read nothing and heard nothing from git. */
@@ -62,7 +76,8 @@ export const NO_BASELINE: BaselineState = Object.freeze({
   text: null,
   from: null,
   generation: 0,
-  headSeen: null
+  headSeen: null,
+  takenAt: null
 });
 
 /**
@@ -84,7 +99,11 @@ export type BaselineEvent =
  */
 export function nextBaseline(
   state: BaselineState | undefined,
-  event: BaselineEvent
+  event: BaselineEvent,
+  // PHASE 239. The moment a seed happens, handed in so this module stays
+  // pinnable to the millisecond; the default is the only impurity and every
+  // test passes its own.
+  now: number = Date.now()
 ): BaselineState {
   const current = state ?? NO_BASELINE;
   if (event.kind === 'read') {
@@ -95,7 +114,8 @@ export function nextBaseline(
       text: event.contents,
       from: 'read',
       generation: current.generation + 1,
-      headSeen: current.headSeen
+      headSeen: current.headSeen,
+      takenAt: now
     };
   }
   // A HEAD answer already seen moves nothing.
@@ -109,7 +129,8 @@ export function nextBaseline(
     text: event.contents,
     from: 'commit',
     generation: current.generation + 1,
-    headSeen: event.contents
+    headSeen: event.contents,
+    takenAt: now
   };
 }
 
@@ -164,6 +185,27 @@ export function baselineName(state: BaselineState | undefined): string | null {
 }
 
 /**
+ * The clock time of a moment, `HH:MM` on the twenty four hour clock.
+ *
+ * Written by hand rather than through `toLocaleTimeString` so the sentence can
+ * be pinned character for character in a test that does not have to know the
+ * runner's locale, and so it is the same four digits on every machine. It is
+ * the shortest form that says WHEN, which is the whole reason `takenAt` exists.
+ */
+export function clockTime(ms: number): string {
+  const at = new Date(ms);
+  const hours = String(at.getHours()).padStart(2, '0');
+  const minutes = String(at.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/** What the face is being asked about: whether the picture holds any mark. */
+export interface BaselineFace {
+  /** True when the composed document draws no change at all. */
+  empty?: boolean;
+}
+
+/**
  * The one sentence under the document, or null when there is no baseline to
  * name. It names the baseline and says how long the marking lasts, being as
  * long as this tab is open (research 83 F.2: the baseline dies with the tab,
@@ -176,15 +218,83 @@ export function baselineName(state: BaselineState | undefined): string | null {
  * a dirty tab on purpose (./tab-io refreshRepo), so "every agent edit shows
  * up" is false for exactly as long as the tab is dirty (research 83 A4.3),
  * and the face says so rather than a bug report discovering it.
+ *
+ * ## PHASE 239: THE EMPTY FACE, WHICH IS THE ONE HE MET
+ *
+ * The operator asked on 2026-09-08 for *"clarity in the redline view about
+ * what it is showing you if you open a new file"*. Research 99 section 6.2
+ * read all three opening faces off the running app and measured what was
+ * wrong: a file just opened draws a document with NO MARKS IN IT and says
+ * `Marked since you opened this file, for as long as this tab is open.`,
+ * which is a promise about the future rather than a statement about the
+ * picture. A person cannot tell "nothing has changed" from "nothing is being
+ * compared", and the untracked face and the agent-created face were **the
+ * same 67 characters**, byte for byte.
+ *
+ * So an EMPTY picture gets its own sentence, and it says the two things a
+ * person can act on: that nothing has changed, and WHEN the comparison starts
+ * from. `takenAt` is what makes the second half possible.
+ *
+ * **THE UNTRACKED FILE AND THE AGENT-CREATED FILE GET THE SAME SENTENCE, ON
+ * PURPOSE.** Research 99 section 6.4 finding 3 measured that Tortie holds no
+ * fact that separates them: both are untracked, both seed `from: 'read'`, and
+ * nothing in the tab records whether the bytes arrived before or after the
+ * project was opened. The mtime heuristic reads identically for a file the
+ * person edited in another editor a minute earlier. And the extra claim is the
+ * one research 83 A4.2 ruling 1 already forbids this view from making, being
+ * that an agent did it. What a person can ACT on is identical in both cases,
+ * being that there is no commit to compare against and the marking starts from
+ * the bytes that were on disk at the moment the tab opened — which is exactly
+ * why the agent-created file draws nothing, because it was finished before
+ * that moment. The TIME is what says so, and it is what both faces now carry.
  */
 export function baselineSentence(
   state: BaselineState | undefined,
-  dirty: boolean
+  dirty: boolean,
+  face: BaselineFace = {}
 ): string | null {
   const name = baselineName(state);
   if (name === null) return null;
-  const since = `Marked since ${name}, for as long as this tab is open.`;
+  // PHASE 239. `takenAt` is null only for a baseline seeded before this field
+  // existed or by a caller that passed no clock; the sentence degrades to the
+  // words without a time rather than printing a wrong one.
+  const at = state?.takenAt ?? null;
+  const since =
+    face.empty === true
+      ? `Nothing has changed since ${
+          state?.from === 'commit' || at === null
+            ? name
+            : `${name} at ${clockTime(at)}`
+        }.`
+      : `Marked since ${name}, for as long as this tab is open.`;
   return dirty
     ? `${since} Not refreshed from disk while there are unsaved edits.`
     : since;
+}
+
+/**
+ * The longer explanation, for a hover or a disclosure and never for the
+ * resting face (the operator's *just enough words* rule of 2026-08-28: "TONS
+ * of words, bad"). Null exactly when `baselineSentence` is null.
+ *
+ * It is the place the lifetime claim goes when the visible line is the empty
+ * one, and the place the untracked file is told WHY it has nothing to compare
+ * against, which is the sentence a person who opened an agent-created file
+ * needs and which no face said before.
+ */
+export function baselineDetail(
+  state: BaselineState | undefined,
+  face: BaselineFace = {}
+): string | null {
+  const name = baselineName(state);
+  if (name === null) return null;
+  const lasts = 'The marking lasts for as long as this tab is open.';
+  if (state?.from === 'commit') {
+    return face.empty === true
+      ? `This file is the same as its last committed version. ${lasts}`
+      : `Every change since the last commit is marked. ${lasts}`;
+  }
+  return face.empty === true
+    ? `There is no committed version to compare against, so the marking starts from the bytes that were on disk when this tab opened. Anything written before then is not marked. ${lasts}`
+    : `There is no committed version, so every change since this tab opened is marked. ${lasts}`;
 }

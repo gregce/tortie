@@ -127,7 +127,11 @@ const nonIns = (html: string): string =>
 const nonDel = (html: string): string =>
   runs(html).filter((r) => r.kind !== 'del').map((r) => r.text).join('');
 const since = (html: string): string | null => {
-  const m = html.match(/ed-redline-since"><span class="banner-text">([^<]*)<\/span>/);
+  // PHASE 239 gave the row a `title` carrying the longer explanation, so the
+  // opening tag no longer ends at the class name.
+  const m = html.match(
+    /ed-redline-since"[^>]*><span class="banner-text">([^<]*)<\/span>/
+  );
   return m === null ? null : unescape(m[1] ?? '');
 };
 const aria = (html: string): string | null => {
@@ -174,7 +178,11 @@ describe('the projection property off the rendered view', () => {
     expect(runs(html).every((r) => r.kind === 'span')).toBe(true);
     expect(nonIns(html)).toBe(WRITTEN);
     expect(html).not.toContain('role="status"');
-    expect(html).toContain('<div class="banner ed-note ed-redline-since"><span');
+    expect(html).toContain('<div class="banner ed-note ed-redline-since"');
+    // PHASE 239 item 5. An empty picture says so, and the explanation is on
+    // the hover rather than on the face (p239-opening-sentences pins both).
+    expect(since(html)).toBe('Nothing has changed since the last commit.');
+    expect(html).toContain('title="This file is the same as its last committed version.');
   });
 
   it('a tab with no baseline draws exactly what Phase 194 drew: against HEAD, with no baseline line', () => {

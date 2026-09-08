@@ -89,6 +89,7 @@ import { useApp } from '../state/store';
 import { pushRedlineMountedToMenu } from '../app/menu-redline';
 import type { RedlineRun } from './redline';
 import {
+  baselineDetail,
   baselineName,
   baselineSentence,
   redlineBaseSide
@@ -413,10 +414,6 @@ export function RedlineDocument({
       : name !== null
         ? `Redline since ${name}`
         : 'Redline vs HEAD';
-  // A dirty tab is not re-read by the watcher, so the right side is the
-  // person's buffer and not the disk for as long as it stays dirty; the
-  // sentence states that limit rather than hiding it.
-  const since = doc === null ? null : baselineSentence(tab.baseline, tab.dirty);
   // PHASE 227. One short sentence, shown only when this tab has a rewind to
   // undo, saying the chord and that it lasts for the session (research 83
   // E.8). It is not a live region: it appears the moment a rewind lands and
@@ -427,6 +424,21 @@ export function RedlineDocument({
   // drawn, so the first thing a person sees is never spent on an empty
   // document.
   const hasChanges = composed !== null && composed.changes.length > 0;
+  // A dirty tab is not re-read by the watcher, so the right side is the
+  // person's buffer and not the disk for as long as it stays dirty; the
+  // sentence states that limit rather than hiding it.
+  //
+  // PHASE 239 item 5. An EMPTY picture gets its own sentence, which says that
+  // nothing has changed and, for a file with no committed version, the clock
+  // time the comparison starts from. Research 99 section 6.2 read the three
+  // opening faces off the running app and found one sentence on all three,
+  // with the untracked and the agent-created faces byte for byte identical.
+  // The longer explanation goes on the hover and never on the resting face
+  // ("TONS of words, bad", 2026-08-28).
+  const face = { empty: !hasChanges };
+  const since =
+    doc === null ? null : baselineSentence(tab.baseline, tab.dirty, face);
+  const sinceDetail = doc === null ? null : baselineDetail(tab.baseline, face);
   const hintNote = hintAllowed && hasChanges ? redlineHintSentence() : null;
   useEffect(() => {
     if (hintNote !== null) markRedlineHintSeen();
@@ -529,7 +541,13 @@ export function RedlineDocument({
         // banner that announced itself would be the notification research 83
         // C.6 refuses. The caps note keeps its role, because a cap firing is
         // about the picture in front of the person.
-        <div className="banner ed-note ed-redline-since">
+        <div
+          className="banner ed-note ed-redline-since"
+          // PHASE 239 item 5. The one line is on the face; the explanation a
+          // person might want is behind the hover, which is where the
+          // operator's rule of 2026-08-28 puts it.
+          {...(sinceDetail === null ? {} : { title: sinceDetail })}
+        >
           <span className="banner-text">{since}</span>
         </div>
       ) : null}
