@@ -49,6 +49,9 @@ vi.mock('../exec-plane', () => ({
   }
 }));
 
+/** PHASE 231, item 4. Every link failure the door reported, in order. */
+let linkFailed: [string, string][] = [];
+
 vi.mock('../control-plane', () => ({
   machineLinkFacts: (machineId: string) => ({
     machineId,
@@ -57,7 +60,11 @@ vi.mock('../control-plane', () => ({
     everAnswered: true,
     lastAnsweredAt: 1,
     reason: null
-  })
+  }),
+  noteMachineLinkFailed: (machineId: string, errorClass: string) => {
+    linkFailed.push([machineId, errorClass]);
+    link = 'quiet';
+  }
 }));
 
 vi.mock('../context', async () => ({
@@ -78,6 +85,9 @@ const {
 } = await import('../remote-run');
 const { REMOTE_SCRIPT_MARKER, remoteScript } = await import('../remote-scripts');
 const { shellQuoteArgv } = await import('../../restore/command');
+const { gmuxError } = await import('../../errors');
+const { noteMachineClass } = await import('../errors');
+const { LINK_FAILURE_CLASSES } = await import('../liveness');
 
 const ctx = {
   kind: 'remote',
@@ -96,6 +106,7 @@ function printed(payload: string, noise = ''): string {
 beforeEach(() => {
   sent = [];
   handed = [];
+  linkFailed = [];
   link = 'connected';
   feed = 'listed';
   generation = 7;
@@ -288,6 +299,55 @@ describe('what the door is for other callers', () => {
       expect.objectContaining({ payload: 'ok' })
     );
     expect(sent).toHaveLength(1);
+  });
+
+  // PHASE 231, item 4. A verb that fails ON THE LINK marks the link. Only the
+  // three classes where ssh never got a session count, so a real outage still
+  // takes the surface dark while a slow script, a refused key and tmux's own
+  // sentences fail their one verb and leave the link where it was.
+  it('marks the link when its ssh never got a session, and throws on unchanged', async () => {
+    for (const cls of LINK_FAILURE_CLASSES) {
+      link = 'connected';
+      linkFailed = [];
+      const failure = noteMachineClass(
+        gmuxError('TMUX_UNREACHABLE', 'Tortie could not reach pop.', `${cls}: ssh`),
+        cls as 'unreachable'
+      );
+      answer = () => {
+        throw failure;
+      };
+      await expect(runRemoteRead(ctx, 'machine-facts', [])).rejects.toBe(failure);
+      expect(linkFailed, cls).toEqual([['pop', cls]]);
+      // The next verb is refused in 0 ms, with the label, and sends nothing.
+      sent = [];
+      await expect(runRemoteRead(ctx, 'machine-facts', [])).rejects.toThrow(
+        /not connected to pop right now/
+      );
+      expect(sent, cls).toEqual([]);
+    }
+  });
+
+  it('leaves the link alone for every failure that is not the link\'s own', async () => {
+    const notTheLink: [string, Error][] = [
+      // A slow script killed at the cap, nothing printed: no class at all.
+      ['a timeout', gmuxError('UNKNOWN', 'pop: tmux the login shell failed: killed')],
+      // A machine that answered and said no.
+      ['auth-refused', noteMachineClass(gmuxError('INVALID_INPUT', 'no', 'auth-refused: x'), 'auth-refused')],
+      ['host-key-changed', noteMachineClass(gmuxError('INVALID_INPUT', 'no', 'host-key-changed: x'), 'host-key-changed')],
+      // tmux's own answer, which is an answer.
+      ['no-server', noteMachineClass(gmuxError('TMUX_UNREACHABLE', 'no server', 'no-server: x'), 'no-server')],
+      // Something that is not even an object.
+      ['a plain error', new Error('exit 1')]
+    ];
+    for (const [name, failure] of notTheLink) {
+      link = 'connected';
+      answer = () => {
+        throw failure;
+      };
+      await expect(runRemoteRead(ctx, 'machine-facts', [])).rejects.toBe(failure);
+      expect(linkFailed, name).toEqual([]);
+      expect(link, name).toBe('connected');
+    }
   });
 
   it('lets a caller ask the link question before it does the work', () => {

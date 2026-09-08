@@ -106,6 +106,7 @@ const {
   isControlPlaneLive,
   machineLinkFacts,
   noteMachineAnswered,
+  noteMachineLinkFailed,
   noteMachineRefused,
   missedGreetingThisRun,
   openControlPlane,
@@ -263,6 +264,7 @@ describe('the link a surface reads', () => {
       connected: () => undefined,
       sessionsChanged: () => undefined,
       sessionRenamed: () => undefined,
+      linkFailed: () => undefined,
       lost: (id) => lost.push(id)
     });
     await openControlPlane('studio');
@@ -274,6 +276,31 @@ describe('the link a surface reads', () => {
     expect(lost).toEqual(['studio']);
     expect(machineLinkFacts('studio').link).toBe('quiet');
     expect(isControlPlaneLive('studio')).toBe(false);
+  });
+
+  // PHASE 231, item 4. A verb's ssh that never got a session reaches the
+  // feed through the sink, so the rows and both facts move together; with no
+  // sink registered it takes both facts down itself.
+  it('hands a link failure to the feed, and takes both facts down without one', () => {
+    noteMachineAnswered('studio', 1);
+    expect(machineLinkFacts('studio').feed).toBe('listed');
+    noteMachineLinkFailed('studio', 'no answer');
+    expect(machineLinkFacts('studio').link).toBe('quiet');
+    expect(machineLinkFacts('studio').feed).toBe('missed');
+
+    noteMachineAnswered('attic', 1);
+    const failed: [string, string][] = [];
+    setControlPlaneSink({
+      connected: () => undefined,
+      sessionsChanged: () => undefined,
+      sessionRenamed: () => undefined,
+      linkFailed: (id, errorClass) => failed.push([id, errorClass]),
+      lost: () => undefined
+    });
+    noteMachineLinkFailed('attic', 'refused');
+    expect(failed).toEqual([['attic', 'refused']]);
+    // The feed's arm owns the facts when it is there, so nothing moved here.
+    expect(machineLinkFacts('attic').link).toBe('polling');
   });
 
   it('records the answer time from when the command was issued', () => {
@@ -324,6 +351,7 @@ describe('a connection that is never greeted', () => {
       connected: () => undefined,
       sessionsChanged: () => undefined,
       sessionRenamed: () => undefined,
+      linkFailed: () => undefined,
       lost: (id, reason) => lost.push({ id, reason })
     });
     await openControlPlane('studio');

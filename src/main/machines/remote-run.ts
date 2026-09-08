@@ -35,7 +35,10 @@
  *     caller at once.** Item 1's harvest, item 3's image upload and item 4's
  *     review all get it from here rather than each holding its own copy.
  *  5. Read the connection generation and keep it.
- *  6. Compose ONE quoted argument and send it.
+ *  6. Compose ONE quoted argument and send it. PHASE 231: an ssh that never
+ *     got a session, being no route, a refused port or a name that did not
+ *     resolve, marks the LINK on its way out, so the next verb is refused in
+ *     0 ms with the label instead of waiting on a machine that is gone.
  *  7. Read the payload between the marker pair. Markers that never arrived, and
  *     markers that arrived empty, are one answer to the caller, being a refusal
  *     rather than a guess. That is `./remote-path.ts`'s own rule, reused here
@@ -48,9 +51,10 @@
  *
  * ## What may import this, and what may not
  *
- * This module imports `machineLinkFacts` from `./control-plane.ts` and
- * `machineGeneration` from `./context.ts`. Neither of those imports this one,
- * so there is no cycle. `./carriage.ts`, `./context.ts`, `./exec-plane.ts` and
+ * This module imports `machineLinkFacts` and `noteMachineLinkFailed` from
+ * `./control-plane.ts`, `machineGeneration` from `./context.ts`, and the pure
+ * `./liveness.ts` and `./errors.ts`. None of those imports this one, so there
+ * is no cycle. `./carriage.ts`, `./context.ts`, `./exec-plane.ts` and
  * `./control-plane.ts` must never import this module, and
  * `build/conformance-machines.mjs` condition 40 fails when one of them does.
  *
@@ -70,9 +74,10 @@
 import { gmuxError } from '../errors';
 import { shellQuoteArgv } from '../restore/command';
 import { machineGeneration, type RemoteMachineContext } from './context';
-import { machineLinkFacts } from './control-plane';
+import { machineLinkFacts, noteMachineLinkFailed } from './control-plane';
 import { execRemoteShell, type ExecTmuxOptions } from './exec-plane';
-import { feedAnswering, linkAnswering } from './liveness';
+import { machineClassOf } from './errors';
+import { feedAnswering, isLinkFailure, linkAnswering } from './liveness';
 import {
   machineNotConnected,
   SCRIPT_NOT_IN_CATALOGUE,
@@ -339,12 +344,25 @@ async function runRemoteScript(
         `reaches the far side as one argument of its own login shell.`
     );
   }
-  const out = await execRemoteShell(ctx, command, {
-    timeoutMs: options.timeoutMs ?? REMOTE_RUN_TIMEOUT_MS,
-    // PHASE 118. The caller's own name for the work, or nothing, which the
-    // ledger reads as `command`.
-    ...(options.execution !== undefined ? { execution: options.execution } : {})
-  });
+  let out: string;
+  try {
+    out = await execRemoteShell(ctx, command, {
+      timeoutMs: options.timeoutMs ?? REMOTE_RUN_TIMEOUT_MS,
+      // PHASE 118. The caller's own name for the work, or nothing, which the
+      // ledger reads as `command`.
+      ...(options.execution !== undefined ? { execution: options.execution } : {})
+    });
+  } catch (err) {
+    // PHASE 231, item 4. A verb that fails ON THE LINK marks the link, so a
+    // real outage still takes the surface dark, because this attempt failed
+    // rather than because a different question went unanswered. Only the
+    // three classes where ssh never got a session count; a slow script, a
+    // refused key and tmux's own sentences fail this verb alone. The error
+    // is thrown on unchanged either way.
+    const cls = machineClassOf(err);
+    if (isLinkFailure(cls)) noteMachineLinkFailed(ctx.machineId, cls ?? 'no answer');
+    throw err;
+  }
   // 7. An answer with nothing between the markers is a refusal, not a guess.
   const payload = parseRemoteScriptAnswer(out);
   if (payload === null) {

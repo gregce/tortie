@@ -1387,6 +1387,32 @@ describe('one machine never moves another machine rows', () => {
     expect(machineLinkFacts('studio').link).toBe('polling');
   });
 
+  // PHASE 231, item 4. The poll's OWN ssh never getting a session is the
+  // link's failure and not the feed's, and it marks the link the way a verb's
+  // would; every other failed list still moves the feed alone.
+  it('marks the link when the poll itself never got a session', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine('studio');
+    expect(machineLinkFacts('studio').link).toBe('polling');
+
+    const { noteMachineClass } = await import('../errors');
+    answers['list-sessions'] = noteMachineClass(
+      new GmuxError('TMUX_UNREACHABLE', 'Tortie could not reach studio.', 'unreachable: No route to host'),
+      'unreachable'
+    );
+    await pollRemoteMachine('studio');
+
+    expect(remoteSessions()[0]?.status).toBe('unknown');
+    expect(machineLinkFacts('studio').link).toBe('quiet');
+    expect(machineLinkFacts('studio').feed).toBe('missed');
+
+    // The next completed list brings both back.
+    answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+    await pollRemoteMachine('studio');
+    expect(machineLinkFacts('studio').link).toBe('polling');
+    expect(machineLinkFacts('studio').feed).toBe('listed');
+  });
+
   it('takes both facts down when the link itself is marked quiet', async () => {
     answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
     await pollRemoteMachine('studio');

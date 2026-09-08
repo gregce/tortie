@@ -89,7 +89,9 @@
  *  5. Failure classification. A local failure keeps `classifyTmuxFailure` byte
  *     for byte. A remote failure is read through the machine taxonomy first and
  *     then mapped onto the same codes, so a caller written against the local
- *     door reads the same codes.
+ *     door reads the same codes. PHASE 231: the taxonomy class is recorded
+ *     beside the error through `noteMachineClass`, so the second door and the
+ *     session poll can mark the LINK for the three classes that are its own.
  *
  * ## SIGKILL is load bearing and it stays for both kinds
  *
@@ -132,7 +134,7 @@ import {
   type MachineContext,
   type RemoteMachineContext
 } from './context';
-import { classifyMachineOutput } from './errors';
+import { classifyMachineOutput, noteMachineClass } from './errors';
 import {
   admitRemoteExecution,
   type RemoteExecutionHold,
@@ -811,10 +813,16 @@ function classifyExecFailure(
   }
   const cls = classifyMachineOutput(stderr);
   if (cls !== 'unknown') {
-    return gmuxError(
-      MACHINE_CLASS_CODES[cls] ?? 'TMUX_UNREACHABLE',
-      `Tortie could not reach ${ctx.machineId}.`,
-      `${cls}: ${firstLine(stderr) || e.message}`
+    // PHASE 231. The class rides beside the error, so the door and the poll
+    // can tell an ssh that never got a session from every other failure and
+    // mark the LINK for exactly those. See `LINK_FAILURE_CLASSES`.
+    return noteMachineClass(
+      gmuxError(
+        MACHINE_CLASS_CODES[cls] ?? 'TMUX_UNREACHABLE',
+        `Tortie could not reach ${ctx.machineId}.`,
+        `${cls}: ${firstLine(stderr) || e.message}`
+      ),
+      cls
     );
   }
   return classifyTmuxFailure(

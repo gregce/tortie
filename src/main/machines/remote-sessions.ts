@@ -162,6 +162,8 @@ import type {
   SessionStatus
 } from '@shared/types';
 import { gmuxError, isGmuxError, GmuxError } from '../errors';
+import { machineClassOf } from './errors';
+import { isLinkFailure } from './liveness';
 import { getLog } from '../log';
 import { managedPaneEnv } from '../tmux/env';
 // The one judgement about a failed list, shared with the local reconcile. Only a
@@ -2332,6 +2334,15 @@ async function onePass(
       // 0 ms and took Explorer, Search, Source control and Context dark for
       // about twenty seconds. The session rows go to `unknown`, which is the
       // honest reading of a list that did not arrive, and nothing else moves.
+      //
+      // ITEM 4. Unless the poll's own ssh never got a session, which is the
+      // link's own failure and not the feed's: no route, a refused port, a
+      // name that did not resolve. That is an attempt that failed on the
+      // link, and it marks the link the way a verb's would.
+      if (isLinkFailure(machineClassOf(err))) {
+        markMachineQuiet(machineId, classOfListFailure(err));
+        return;
+      }
       markMachineFeedMissed(machineId, classOfListFailure(err));
       return;
     }
@@ -2737,8 +2748,10 @@ export function markMachineQuiet(machineId: string, errorClass = 'no answer'): v
  * 3.2 measured: the folder verb answered on the same link 38 ms after the poll
  * that used to take the whole surface dark.
  *
- * The one caller is the poll. A verb whose ssh did not answer reaches
- * {@link markMachineQuiet} instead, because that IS evidence about the link.
+ * The one caller is the poll, and only for a failure that is not the link's
+ * own. A poll or a verb whose ssh never got a session reaches
+ * {@link markMachineQuiet} instead, the verb through the sink's `linkFailed`
+ * arm, because that IS evidence about the link.
  */
 export function markMachineFeedMissed(
   machineId: string,
@@ -2798,6 +2811,11 @@ function installControlSink(): void {
     },
     sessionRenamed(machineId: string): void {
       void pollRemoteMachine(machineId).catch(() => undefined);
+    },
+    // PHASE 231, item 4. A verb whose ssh did not answer at all. The rows and
+    // both facts move together, exactly as a failed sign-in moves them.
+    linkFailed(machineId: string, errorClass: string): void {
+      markMachineQuiet(machineId, errorClass);
     },
     lost(machineId: string, reason: string): void {
       const state = stateOf(machineId);

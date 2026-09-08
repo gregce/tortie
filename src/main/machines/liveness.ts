@@ -29,7 +29,9 @@
  * A missed session poll moves the FEED and leaves the LINK where it was. A
  * verb that fails on the link moves the LINK, and a link that is down takes the
  * feed with it, because the feed runs over the link. A wake marks the FEED
- * unknown and leaves the LINK until an ssh actually fails.
+ * unknown and leaves the LINK until an ssh actually fails. Which failures are
+ * the link's own is {@link LINK_FAILURE_CLASSES}, and the poll's own ssh
+ * failing is one of them.
  *
  * ## The rule, in one table
  *
@@ -115,6 +117,33 @@ export function feedAnswering(
 
 /** Which of the two facts a verb asks. */
 export type LivenessFact = 'link' | 'feed';
+
+/**
+ * The failures that are the LINK's own (Phase 231, item 4).
+ *
+ * These are the three classes of `classifyMachineOutput` where ssh never got
+ * a session at all: no route, a refused port, a name that did not resolve.
+ * A verb that fails with one of them marks the link, so a real outage still
+ * takes the surface dark, because an attempt failed rather than because a
+ * different question went unanswered.
+ *
+ * NOT here, on purpose. `auth-refused` and `host-key-changed` are a machine
+ * that answered and said no, which the prepare path reports in its own words.
+ * A timeout with nothing printed is a verb that was slow, and reading it as
+ * the link is what took every view dark on one slow `list-sessions`. tmux's
+ * own `no-server` is an answer. Every one of those leaves the link where it
+ * was and fails its own verb alone.
+ */
+export const LINK_FAILURE_CLASSES: readonly string[] = Object.freeze([
+  'unreachable',
+  'refused',
+  'not-resolved'
+]);
+
+/** True when this class means the last ssh did not answer at all. */
+export function isLinkFailure(cls: string | null): boolean {
+  return cls !== null && LINK_FAILURE_CLASSES.includes(cls);
+}
 
 /**
  * Every far-side machines channel, and the fact its verb asks.

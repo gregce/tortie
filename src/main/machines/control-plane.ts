@@ -313,6 +313,29 @@ export function noteMachineQuiet(machineId: string, reason: string): void {
 }
 
 /**
+ * A verb's ssh to this machine did not answer at all (Phase 231, item 4).
+ *
+ * This is the one writer a verb reaches, and it is what keeps a real outage
+ * taking the surface dark now that a missed session poll no longer does: the
+ * first file, git, search or context read that fails on the link marks the
+ * link, and every read after it is refused in 0 ms with the label until the
+ * next completed list brings it back. Which failures qualify is
+ * `LINK_FAILURE_CLASSES` in `./liveness.ts`, and the caller asks that before
+ * calling this.
+ *
+ * It goes through the feed's sink when one is registered, so the session rows
+ * read `unknown` at the same moment, and takes both facts down itself when
+ * none is, which is the smoke and the tests.
+ */
+export function noteMachineLinkFailed(machineId: string, errorClass: string): void {
+  if (sink !== null) {
+    sink.linkFailed(machineId, errorClass);
+    return;
+  }
+  noteMachineQuiet(machineId, 'did not answer the last time Tortie asked');
+}
+
+/**
  * The session poll did not answer, and nothing else is known (Phase 231).
  *
  * THE LINK IS LEFT WHERE IT WAS. This is the one line research 85 section 6
@@ -397,6 +420,13 @@ export interface ControlPlaneSink {
   sessionRenamed(machineId: string): void;
   /** The connection went. Arm the timer and write `unknown` on every row. */
   lost(machineId: string, reason: string): void;
+  /**
+   * PHASE 231. A verb's ssh to that machine did not answer at all. Write
+   * `unknown` on every row and take both facts down, through the feed's own
+   * `markMachineQuiet`, so the rows and the link move together the way they do
+   * for a failed sign-in. `errorClass` is the row verdict's own word.
+   */
+  linkFailed(machineId: string, errorClass: string): void;
 }
 
 let sink: ControlPlaneSink | null = null;

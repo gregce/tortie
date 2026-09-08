@@ -516,3 +516,31 @@ function composeUnmeasuredDetail(facts: {
     ? `${refusal} ${MACHINE_VERSION_ACCEPT_OFFER}`
     : refusal;
 }
+
+// ---------------------------------------------------------------------------
+// Which class built an error (Phase 231, item 4)
+// ---------------------------------------------------------------------------
+
+/**
+ * The class that built one error, kept beside the error and never in its
+ * payload, so a caller that sees the error can ask what ssh said without
+ * parsing the detail and the payload's shape does not move.
+ *
+ * The one writer is `classifyExecFailure` in `./exec-plane.ts`, for the
+ * machine taxonomy branch. A reader asks {@link machineClassOf} and gets null
+ * for every error nothing recorded, which is every local failure, every
+ * timeout with nothing printed, and every tmux sentence.
+ */
+const classOfError = new WeakMap<object, MachineTestClass>();
+
+/** Record the class beside the error, and hand the error back. */
+export function noteMachineClass<T extends object>(err: T, cls: MachineTestClass): T {
+  classOfError.set(err, cls);
+  return err;
+}
+
+/** The class that built this error, or null when none was recorded. */
+export function machineClassOf(err: unknown): MachineTestClass | null {
+  if (err === null || typeof err !== 'object') return null;
+  return classOfError.get(err) ?? null;
+}
