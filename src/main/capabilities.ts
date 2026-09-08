@@ -83,6 +83,8 @@ import {
   stopRemoteStoreSync
 } from './machines/remote-store-sync';
 import { stopMachinesWatch } from './machines/store';
+// PHASE 232. The launch sign-in's retry timers, stopped first at quit.
+import { stopSignInRetries } from './machines/sign-in-retry';
 import { installAppMenu, installDiagnosticsDoor } from './menu';
 import { registerNoticeIpc } from './notice/ipc';
 import {
@@ -425,6 +427,13 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // a slow interval, and both must be released whatever the rest of teardown
   // does. It is synchronous and cannot throw.
   stopLoginsWatch();
+  // PHASE 232. Then stop the launch sign-in's retries: every timer cleared, the
+  // link subscription released and any new arm refused, synchronously and
+  // before the first await below, so no retry can start a process once the
+  // quit has begun. An attempt already inside prepareMachine runs to its
+  // answer and schedules nothing; its ssh children are the execution ledger's
+  // to end, further down this function.
+  stopSignInRetries();
   // PHASE 220. Then join what was already accepted: the observation in flight
   // and the one a change replaced, an activation, the migration, and this
   // domain's own `security` children, which are ended by the handle that

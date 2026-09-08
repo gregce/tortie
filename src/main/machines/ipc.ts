@@ -261,6 +261,7 @@ import { findProjectOnMachine } from './project-counterpart';
 // a script the frozen catalogue holds.
 import { cloneProjectOnMachine } from './remote-clone';
 import { prepareMachine } from './prepare';
+import { stopSignInRetry } from './sign-in-retry';
 import { validateMachinesFile } from './schema';
 // Phase 72, made one transaction in Phase 118: the whole of a removal. It
 // writes every tombstone in one durable transaction, and only when that has
@@ -936,6 +937,8 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     // server, and reads nothing there. Row 10 of the fault matrix is the
     // measurement of that.
     const forgotten = removeMachineCompletely(id);
+    // PHASE 232. A removed machine is never asked again.
+    stopSignInRetry(id, 'removed');
     if (forgotten.tombstoned > 0) {
       console.log(
         `[gmux] ${id} was removed. ${String(forgotten.tombstoned)} session ` +
@@ -962,7 +965,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       // feed until Tortie was quit, and there was no way back from inside the
       // app. Nothing is sent to the machine by this call.
       allowControlPlaneAgain(row.id);
-      return prepareMachine({
+      const result = await prepareMachine({
         machineId: row.id,
         fields: machineFieldsOf(row),
         // PHASE 109. The label the person typed, or the host when they typed
@@ -979,6 +982,12 @@ export function registerMachinesIpc(ipc: IpcMain): void {
         // graph of the manifest.
         identityFile: machineKeyPairPresent(row.id) ? machineKeyPath(row.id) : null
       });
+      // PHASE 232. A person's press that prepared the machine ends the launch
+      // sign-in's retry for it, so the retry does not ask the same machine
+      // again on its next tick. A press that did not prepare it leaves the
+      // retry as it is.
+      if (result.class === 'prepared') stopSignInRetry(row.id, 'prepared');
+      return result;
     }
   );
 

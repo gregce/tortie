@@ -157,6 +157,10 @@ import { localReassertOptions } from '../tmux/server-options';
 // one module there that spawns a pty.
 import { isMachineConfirmed } from '../machines/confirm';
 import { prepareMachine } from '../machines/prepare';
+// PHASE 232. A row that did not prepare at launch is asked again, on a backoff
+// and when its link answers, never on a file change; the module header says
+// why that is not refusal 8's line.
+import { armSignInRetry } from '../machines/sign-in-retry';
 import {
   currentMachines,
   machineFieldsOf,
@@ -1101,6 +1105,7 @@ export class GmuxCore {
             `${row.id} answered ${result.class} at launch: ${result.detail}`
           );
           markMachineQuiet(row.id);
+          armSignInRetry(row.id);
           return;
         }
         // PHASE 84, item 4. The `await startRemotePoll(row.id)` that used to
@@ -1115,6 +1120,7 @@ export class GmuxCore {
           `signing in to ${row.id} failed: ${(err as Error).message}`
         );
         markMachineQuiet(row.id);
+        armSignInRetry(row.id);
       }
     };
     // One worker per slot, each taking the next row in file order until none
