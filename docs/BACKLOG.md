@@ -23948,6 +23948,190 @@ answer being about that folder, in one short label, and nowhere else.
 - **Image preview on a machine is not built** (section 8, bounded by the ceiling).
 - **Logins on a machine are not built** (section 2 new gap 10); it is a stated limit and his call.
 
+## Phase 236 — the redline's controls are on the face, not only under a key (operator asked 2026-09-08)
+
+**Subject.** `feat(redline): a control appears on the change you are on, and the menu says the key`
+
+**First body line.** `Phase 236: the redline's controls, visible`
+
+**Semver.** MINOR. A drawn control where there was none.
+
+**Tier 2.** A rendered surface over state Phase 227 already holds. The gates, ONE app run, and one
+independent method, being the verifier's own measurement of the document's layout before and after
+the control appears, because research 83 D.2 measured that an in-flow control moves the text and
+D.3 measured that an out-of-flow one does not, and the number is the whole ruling.
+
+**Charter.** This entry, research 83 sections D.2 and D.3, and his words of 2026-09-08: *"feels like
+the commands should be more visual in the interface itself actually. also i don't know if having them
+in edit view makes sense."* Phase 227 landed the keyboard control and nothing on the face says the
+keys; this phase puts the control where a person looks.
+
+### What research 83 measured, so the round does not re-derive it
+
+**A control per change in the flow is REFUSED** (D.3 option 1): eight inline buttons added 1.42px of
+height and pushed the following text 45.12px sideways at every change, permanently, mid-sentence,
+which turns a sentence into a form. **A margin is REFUSED** (option 4): the free space left of the
+column is 147.59px at 900px, 47.59px at 700px and 0.00px at 520px, and a margin marker addresses a
+line where a line holds up to five changes at 520px. **Hover or focus reveal as an out-of-flow overlay
+is ACCEPTED** (option 2): an absolutely positioned overlay moved the text by 0.00px and stayed out of
+the copy. **One rule is mandatory and it is the finding: anchor to `getClientRects()[0]`, never to
+`getBoundingClientRect()`**, because at a 380px pane the union rect of a wrapped change sat 239.29px
+to the left of where the change actually starts. And from D.2: a control's glyph enters the clipboard
+unless it carries `data-redline-tag`, enters the DOM projection unless the reader skips it, and at
+20.15px is under WCAG 2.2's 24px target.
+
+### The mechanism, with the real files
+
+1. **A chip on the focused change.** When a change under `.ed-redline-change` in
+   `src/renderer/editor/RedlineDocument.tsx` has focus or is hovered, ONE small overlay appears beside
+   it, absolutely positioned, anchored to the change's first client rect, carrying two actions being
+   Rewind and, when the journal holds an entry for this change, Undo, plus the two arrows as a way to
+   step. It is 24px tall, tokens only per rule 8, `data-redline-tag` so `redline-copy.ts` skips it and
+   the projection reader skips it, and it lives OUTSIDE the document element so the flat DOM the
+   projection property reads is unchanged. The chip's buttons call the same commands
+   `redline-commands.ts` already answers; nothing new is wired to the write.
+2. **The keys are on the chip as hints**, the way the menu shows ⌘W beside Close: ⌥↓ ⌥↑ ⌥⌫ ⌥⇧⌫, drawn
+   as the small hint text the house already uses, so a person learns the chord by seeing it once.
+3. **The Edit menu's four rows carry their key as a HINT and are enabled only while a redline is
+   mounted.** `src/main/menu.ts:637-640` gains `hint` from the keymap's display string for each
+   `redline.*` entry and NO accelerator, for the reason the comment there already gives, being that a
+   native accelerator is app-wide and would take ⌥↓ from every terminal. The renderer tells main
+   whether a redline is mounted through the existing menu-state push, and the four rows are disabled
+   otherwise, the way Architecture's row is gated on `anyConfirmedMachine()` at `menu.ts:567`.
+4. **A first-time line in the `ed-note` slot**, once, the first time a redline with at least one
+   change is drawn in a session: one short sentence naming the chip, per *just enough words*, and it
+   does not return.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron on a scratch profile: draw a redline over an agent shaped edit, hover
+  a change and read the chip off the DOM at the change's first client rect; press the chip's Rewind
+  and read the file from disk; press Undo and read it back; do the same on a WRAPPED change at a
+  380px pane and prove the chip sits at the change's first fragment, not 239px left of it; copy the
+  document and prove the chip's glyphs are not in the clipboard; read the Edit menu through
+  `GMUX_SHOT_POPUP_PICK` with a redline mounted and prove the four rows are enabled with their hints,
+  then with a File tab and prove they are disabled.
+- **The independent method** is the verifier's own layout measurement: the document's height and
+  every change's `getClientRects()[0]` taken before the chip appears and after, and the two must be
+  identical to the pixel, because a control that moves the text is the shape research 83 refused.
+- The projection property test `p225-redline-projection.test.tsx` and `p227-redline-changes.test.tsx`
+  stay green unchanged, which is what proves the chip is outside the document.
+- `npm run conformance:redline` stays green; rule 9's file set floor moves only if a file is added.
+
+### What is NOT in this phase
+
+- **No typing.** That is Phase 237.
+- **No accept.** Accept advances the baseline and belongs with the durable question.
+- **No control in the flow and no margin gutter**, by research 83 D.3's measurements.
+- **No native accelerator on the Edit rows**, for the terminal's sake.
+- **No chip on the resting face.** It appears on hover or focus and goes when they go.
+
+## Phase 237 — type in the redline, so you never switch to Source (operator asked 2026-09-08)
+
+**Subject.** `feat(redline): typing in the redline view, and what it does to the marks`
+
+**First body line.** `Phase 237: typing in the redline`
+
+**Semver.** MINOR.
+
+**Tier 3.** It writes the person's file on every keystroke's save and it puts a caret over a document
+whose bytes another process rewrites. The gates, a matrix over the typing shapes research 83 D.2
+measured, TWO independent methods one of which is the attack of the file changing under a live
+caret, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry, research 83 sections D.2, D.4, D.5, D.7, B.6 and A3.4, and his words of
+2026-09-08: *"allows for edits in redline mode so you don't need to keep switching to source."* **This
+reverses his ruling of 2026-09-07 that no typing is in the redline phases, and the reversal is his.**
+
+### What research 83 measured, and the decision it left open
+
+Three ways were driven, not reasoned. **Monaco with the redline as decorations** (D.4 option A): the
+caret error over a proportional font was 0.44px against 0.43px for Menlo, deletions can be drawn as
+injected text without touching `getValue()`, and word wrap at 420px overflowed nothing; **what
+breaks is that injected content must be one line and 26.7 percent of real deleted runs carry a line
+break**, rendering `\n` as the glyph `␊`, and injected text cannot be selected. **A contenteditable
+document view** (option B): everything works out of the box and everything is wrong by default, and
+two fixes measured with real key events close all of it, being `contenteditable="false"` on every
+`<del>` so a deletion is an atomic island the caret steps over in one press, and cancelling every
+`beforeinput` and re-applying it as the view's own `<ins>`, after which 21 top-level nodes stayed
+intact, Enter was refused, the baseline projection was exact and a typed character became a new
+insertion; **IME composed and committed inside the `<ins>`**, which is the thing everybody assumes
+breaks. `plaintext-only` flattens a rich paste for free. **What is UNPRICED for option B**, and it is
+the one thing D.7 names: a redraw of the document while a caret is in it, when the file changes
+underneath, because the view owns its own DOM and nothing existing refreshes it under a selection.
+**What is bad for option A**: the tab's reload path is `resetWorkingModel` calling `model.setValue`,
+which `textModel.js:343` follows with `this._commandManager.clear()`, so a file changing under a
+resting caret destroys the undo stack and moves the caret; a phase choosing Monaco owns changing that
+to `pushEditOperations`.
+
+**The decision rule this phase runs on, so the choice is measured rather than argued.** The measure
+step drives BOTH: option B's redraw under a live caret and selection, with an outside write landing
+mid-word, and option A's multi-line deletion split into per-line injected decorations. If B's redraw
+can restore the caret and selection exactly over a re-composed run list in the cases measured, B is
+built, because it is the redline itself and not an editor wearing marks. If it cannot, A is built with
+the per-line split, because 0.44px is the number that made it the front-runner. The measure step
+writes the number that decided it.
+
+### The mechanism, with the real files
+
+Whichever option wins, four things are the same:
+
+1. **The tab's reload path stops destroying undo.** `resetWorkingModel` at
+   `src/renderer/editor/monaco-loader.ts:135-138` applies the new contents as an edit through
+   `pushEditOperations` rather than `setValue`, so a file changing under a caret keeps ⌘Z and keeps
+   the caret where it was in text that did not move. B.6 names this as the same fix for the undo
+   question and it is owed whichever option is chosen.
+2. **A dirty redline refreshes like a dirty File tab, and says so.** `refreshRepo` at
+   `src/renderer/editor/tab-io.ts:616` skips a dirty tab on purpose; a redline with unsaved typing is a
+   dirty tab and the note Phase 225 draws already says *"Not refreshed from disk while there are
+   unsaved edits."* Save writes the file through the ordinary `save` path, which is what the person
+   asked for, and the redline recomposes against the SAME baseline, so what they typed is drawn as an
+   insertion and the agent's later edits arrive after the save.
+3. **Typing never moves the baseline** (research 83 A2.3) and never touches the rewind identity of a
+   change the person did not type in. The generation counter does not move on a keystroke.
+4. **Two undos, kept apart and said so.** ⌘Z is the editor's own undo of typing; ⌥⇧⌫ is the journal's
+   undo of a rewind. They do not merge in this phase and the face says which is which in one short
+   line when both are available.
+
+Under option B additionally: `contenteditable="plaintext-only"` on the document, `false` on every
+`<del>`, every `beforeinput` cancelled and re-applied as an `<ins>` the composer would have drawn,
+Enter inserting a paragraph as bytes rather than a `<div>`, and the redraw path that restores caret
+and selection over the recomposed run list. Under option A additionally: the redline's runs drawn as
+Monaco decorations over the File model with deletions as injected text split per line, the gutter,
+minimap and folding off, and the Redline mode becoming the File editor wearing the marks.
+
+### Proof, run rather than read
+
+- **The measure step's two drives**, written up before a line is built, with the number that chose.
+- **The app run**, one Electron on a scratch profile: type a word into the redline and prove it draws
+  as an insertion with the baseline unmoved and the generation unmoved; save and read the disk; have a
+  plain shell write to the file while the caret is mid-word and prove the caret is where it was in
+  text that did not move, the selection survives, and nothing typed was lost; type Enter and prove a
+  paragraph as bytes; paste rich text and prove it flattened; compose Japanese through the harness's
+  IME and prove it landed in the insertion; ⌘Z the typing and ⌥⇧⌫ a rewind and prove they are two
+  different undos; rewind a change the person typed and prove the journal restores it.
+- **Independent method one, the attack**: the verifier's own outside writes landing at every point in
+  a typing sequence, being mid-word, mid-composition, between a keystroke and its save, and during a
+  rewind press, with the disk read after each and ZERO bytes lost as the pass, the same standard
+  Phase 227's stale-file attack held.
+- **Independent method two**: the projection property re-derived off the live DOM WITH a caret in the
+  document and after every one of D.2's five default-behaviour traps has been driven with real key
+  events through CDP, never `execCommand`, because research 83 recorded that `execCommand` fires no
+  `beforeinput` and produced a wrong conclusion once already.
+- `npm run conformance:redline` gains an arm per trap and each goes red under ablation; rule 9's one
+  call site stays one; `probe:p167`'s redline surface types under itself as well as rewriting.
+
+### What is NOT in this phase
+
+- **No accept.** Typing draws an insertion; nothing advances the baseline.
+- **No merging of the two undos.**
+- **No typing on a truncated tab** (over the 5 MB cap), which stays read-only as `save` already
+  refuses it.
+- **No widening of the prose allowlist.** A source file gets no Redline and so no typing here.
+- **No change to the guarded write channel.** Typing saves through `save`; rewind writes through
+  `fs:writeGuarded`; they stay two doors.
+- **No durable baseline**, still.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -24413,3 +24597,4 @@ cycle rather than only the evening it was written.
 - 2026-09-08, Phase 227 LANDED at `f76bbda` at version 0.101.0 with NO bump and NO tag, rewind phrase by phrase, FIFTEEN commits from the measure step `8c94c15` to `f76bbda`, rebased clean onto origin/main's tip `e85e34e` after Phases 228 and 229 landed under it, no conflict because the two sides' edits to this file sit in different entries. **THE REDLINE HAS ITS FIRST CONTROL AND ITS FIRST WRITE, AND BOTH ARE KEYBOARD ONLY**: ⌥↓ and ⌥↑ move between the changes, ⌥⌫ rewinds the one under focus so that phrase goes back while every other edit in the file stands, and ⌥⇧⌫ undoes the rewind from a per tab journal that lasts for the session; nothing is drawn on the resting face, and by ruling 1 the person's own saved paragraph carries the same control and the same undo, which is what the journal is for. The press is bound to the baseline generation it was drawn against, re-reads the file at the moment of the press and never `savedContents`, recomposes against the fresh bytes, resolves the pressed `(offset, deleted, inserted)` to exactly one edit and writes `mix` through Phase 226's channel with the digest of what it read; none, more than one, a moved baseline, a truncated read, a decode loss and each of the channel's own words get one sentence each, "no longer in the file" and "already back to what it was" being two different sentences. THE STALE-FILE ATTACK, the verifier's own and re-run by it on the fixed tree: 28 arms under node in `applyRewind`'s exact order over the shipping `rewind.ts` and the shipping channel plus 10 through the real chord with main's read handler held open, 38 arms, and **0 bytes of arriving work lost in any arm**, against the 85 research 83 measured the naive projection destroying in the first case it tried; the one arm that failed at the builder's tip was the journal reading the focus AFTER the await, so ⌥↓ inside a press's two round trips left E0 rewound on disk and E1 in the journal, fixed in `redline-press.ts` which reads the identity once before any await and pops by reference, pinned twice under node. `conformance:redline` rule 9 narrowed and never deleted, 14 redline files derived by name at a floor of 14 and one guarded write at one call site whose function asks the guard first and the re-read second, 9 planted sets red; rule 8 is 7 arms over the shipping rewind and press with **7 of 7 ablations red**; `conformance:redline-write` unchanged at 28 readings and 15 of 15. THE ONE STATED LIMIT IS THE CHANNEL'S: a write of the SAME SIZE landing between the channel's `lstat` and its `rename` is written over, 6 of 20 `wrote` answers in the verifier's re-derivation over 143,376 same-size rewrites in one run, a rate no editor and no agent writes at; the close needs a native swap Node does not expose and it is written into the call site's header and the release note rather than closed. `probe:p167` with `redline` in the surfaces, the file rewritten under the open redline: the redline recomposed under 72 outside rewrites, every one drawn on the face, worst block to block growth 0.2 MB of heap, 0 nodes, 0 listeners, every descriptor held. The committer re-ran the whole battery to logs on the rebased tree, typecheck, build with the contract baseline byte identical and the electron floor at 89 of 89, 12,353 tests, smoke:t1, smoke:t3, both redline gates, `probe:p227` at 17 of 17 on a scratch profile, with the gmux socket holding the same thirteen sessions before and after and no process of its own left behind. NOT IN IT, by his three rulings: no typing, no accept, no author detection; and no rewind-all, no hover chip, no durable baseline.
 - 2026-09-08, Phase 231 LANDED at `0cfb80e` at version 0.101.0 with NO bump and NO tag, the liveness gate answering per verb, SEVEN commits, being the builder's research `7328c01`, the four fixes `eb2b561`, `0d9ee55`, `705a22c` and `336da38`, the test round `c70c9d9` and the committer's `0cfb80e` carrying the verifier's probe and both of its reports, rebased clean onto origin/main's tip `6ff120b` after Phase 227 landed under it with no file in common. THE VERIFIER'S OWN RUN WAS CUT OFF inside its second launch with no verdict and no `finally`, so the committer removed what it left on both machines by this phase's prefix alone, being the far scratch repository, the far scratch server with its socket, a local yard server and a dead local socket, with his `-L gmux` list read before and after, then ran the verifier's probe at HEAD and at the parent one after the other and never at once. THE THING IT FIXED, same probe, same fixture, same machine, one `slow-list` flag placed through Tortie's own `putFile` while `listDir` answered 5 entries on the same link 40 ms and 114 ms later: at the parent `8acf45ad` the link fell to `quiet` at **24,988 ms**, 20 of 21 channels refused in 0 ms with nothing sent, and Explorer, Search and Source control read 0 rows, 0 rows and 0 Stage buttons under their labelled sentences; at HEAD the link STAYED `connected`, the feed read `missed` at 15,273 ms, **2 of 21 refused**, being the two session verbs, 19 proceeded, Explorer 10 rows, Search 8, Source control 4 Stage buttons and a Stage press moved a row in 304 ms. The attack over nine seam cells and 21 channels, 189 readings, put every read verb through on link-up feed-down and refused every verb on link-down; the wake knob read the feed `unknown` at 79 ms and `listed` at 181 ms with the link never moving and `listDir` answering during; ssh itself failing on a loopback row took the link down through the verb in 9 ms and every verb after it was refused in 0 ms naming the machine by its label, main's own sentence included; and the classification re-derived by grep and by `functionBodyOf` at both trees agrees with `liveness.ts` site for site, with no file naming `machineIsConnected` at HEAD against fourteen at the parent. THE REMOTE-ONLY SENTENCE SET IS EMPTY: side by side with the local face over the same fixture, the remote-only lines are identical at the parent and at HEAD, being the scratch session row and its action, the Commit button's label and the read-at clock Phase 230 owns, and none of them is a sentence. Battery on the rebased tree green: typecheck, build with the contract inventory byte for byte, the one moved line being `GMUX_SHOT_MACHINE_SEAM` with the 37 channels still 37, 12,505 tests, smoke:t1 6 of 6, smoke:t3 3 of 3, `conformance:machines` PASS, `conformance:remoteclose` 11 of 11, `gate:knownhosts` 279 files. The Mac Pro when everything had run: `-L gmux` holds `gmux-control created 1787879931 attached 1` and nothing else, as before, no `gmux-p231-*` socket, no `tortie-p231-scratch-*` directory, no process of this phase, `~/.gitconfig` 140 bytes and `~/.ssh` 96 bytes unmoved; this Mac's `-L gmux` 14 sessions before and after, no `gmux-p231` socket left, ssh agent empty, his `machines.json` at `b61831d7`, `known-machines` at `57a29ed8` and confirmations at `c922e480` byte identical, `~/.ssh/known_hosts` 2,215 bytes, and the Electron count once at the end 16 with none this phase's. Still not true: a verb that is merely SLOW, a child killed at the cap with nothing printed, fails alone and leaves the link up, so a machine that hangs rather than refuses costs each press its own wait until a poll or a real refusal moves the link; killing the far tmux server ends the live connection and takes the link down for about a hundred milliseconds, which is a link event and not the poll; and the boot, the bulkhead and the retry are Phase 232's.
 - 2026-09-08, Phase 232 LANDED at `878c838` at version 0.101.0 with NO bump and NO tag, the boot and the bulkhead, EIGHT commits from the measure step `87c2c44` to `878c838`, being the builder's seven and the committer's one carrying the verifier's probe, its forwarder and its three readings, rebased clean onto origin/main's tip `4bd2404` after Phase 231 landed under it, no file shared and no conflict, the retry still hooked to the LINK fact Phase 231 split from the feed, and the full battery re-run on the rebased tree and green, being typecheck, build with the contract inventory byte identical, 800 test files and 12,601 tests, smoke:t1 6/6, smoke:t3 3/3, conformance:machines PASS, conformance:remoteclose, gate:knownhosts and probe:controldeadline. THE THING IT FIXED, read by the verifier's own launches of the parent `75adcd5` and of HEAD from one profile against his Mac Pro with an unreachable machine listed first in machines.json: launch to Source control's first row on the Mac Pro tab read **22,338 ms and 22,037 ms at the parent and 2,128 ms and 2,512 ms at HEAD**, the Mac Pro alone 2,444 ms, fourth behind three unanswering rows 2,278 ms, and FIFTH behind four 22,455 ms, which is the pool of four and the stated limit. The bar naming the failed machine on that machine's tab only, none on the Mac Pro's and none on a local one, where the parent drew it on all three. The retry attacked over one 21 minute session with four armed rows: a port rewritten on disk while armed stopped it at the next tick as confirmation-moved with no ssh after, a label edit was reloaded by the watcher and fired nothing, a remove mid backoff stopped it as removed, the ladder read 30, 60, 120, 240, 300, 300 s with the delay held at five minutes and the attempts continuing, and a forwarder to the Mac Pro brought up twelve seconds after a launch that found it down was prepared on retry 1 at 34.7 s with the retry then stopped; Prepare pressed from the tab took the machine to connected in 2,439 ms with the bar and the button gone and six rows drawn. **THE REMOTE-ONLY SENTENCE SET WAS NOT EMPTY AND NONE OF IT IS THIS PHASE'S**: five texts on the Mac Pro tab and not the local one, being the read-at line on Explorer and Source control, the greyed-agent sentence on all four views, the singular Branch and Runs labels and Context's None here, every one present at the parent build in the same run; this phase added no sentence to any face, its only copy being Settings' own Prepare this machine label and a hover title, and the five belong to Phase 230's staleness rewrite and Phase 235's nits. Four findings recorded and none fixed here: after a Prepare pressed from the tab brought the machine up, the Explorer stayed on its not-connected sentence with no button left while Source control recovered at once, the Explorer's one read per sign-in appearing to race the prepare, left to Phase 230 which is rewriting that exact branch; the reachable trigger fires during a person's own Prepare press so two prepares run at once and the log reads stopped after 1 attempt rather than 0, two extra version reads and nothing started twice; the fifth-machine wait above; and the five pre-existing sentences. Far side before and after both of the verifier's runs and at the committer's close: `gmux-control` alone, created 1787879931, attached, scratch repositories GONE, scratch servers killed and their sockets unlinked on both machines, no p232 process, `~/.ssh` and `~/.gitconfig` unwritten, the `gmux-p230-*` server seen there being Phase 230's concurrent run and untouched. This Mac: 14 sessions on `-L gmux` before and after, only listed, `/private/tmp/tmux-501` holding `gmux` alone at the end, his real machine row `b61831d7`, confirmations `c922e480` and known-machines `57a29ed8` unmoved, the ssh agent empty, Electrons 11 at the end and none on a p232 profile, no agent started, no token spent.
+- 2026-09-08, Phases 236 and 237 QUEUED at his word after using the rewind: the four keys are on no face and the Edit menu's four rows show no key and are enabled in every mode. 236 puts a chip on the focused change anchored to its first client rect per research 83 D.3, gives the Edit rows their hint and gates them on a mounted redline. 237 is typing in the redline, which REVERSES his ruling of the night before and the reversal is his; the measure step drives both of research 83 D.4's options and the number decides. Both queue behind 235.
