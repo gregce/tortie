@@ -64,6 +64,28 @@ export function canWriteEntries(): boolean {
 }
 
 /**
+ * PHASE 233. May the WRITE GESTURES run on this mounted tree at all?
+ *
+ * ONE PREDICATE FOR THREE GESTURES, being the menu's Rename, F2, and now a
+ * drag. Phase 102 composed it inline in ./use-tree-model.ts for the first two
+ * and Phase 233 needed the same answer at four more places, being `canDrag`,
+ * `canDrop`, and the two doors in ./use-tree-drag.ts, so it is written once
+ * here beside the flag it reads. A tree on THIS Mac answers true always. A
+ * tree on a machine answers true only when that machine carries a folder the
+ * person confirmed and this build can reach both entry writes.
+ *
+ * IT IS NOT A PERMISSION. Main refuses the write on the row on disk at call
+ * time, against the confirmed folder, and nothing chosen in the renderer can
+ * widen that. This only decides whether a gesture is offered.
+ */
+export function mayWriteEntriesHere(
+  isRemote: boolean,
+  remoteWriteRoot: string | null
+): boolean {
+  return !isRemote || (remoteWriteRoot !== null && canWriteEntries());
+}
+
+/**
  * Make one folder on one machine.
  *
  * It carries the absolute path on that machine and no folder of its own. The

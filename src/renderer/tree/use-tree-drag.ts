@@ -225,13 +225,17 @@ export function useTreeDrag({
       // A refusal shows up as a prevented default — `.git`, an out-of-root
       // row, or a drag attempted while the filter is narrowing the tree.
       // PHASE 90.3. `canDrag` already refuses in the model, which is what
-      // prevents the default here. This is the second door, and it is the one
-      // that matters: `beginTreeDrag` arms the terminal pane's ATTACH contract
-      // with ABSOLUTE PATHS, and an absolute path from another machine names a
-      // file on this Mac or nothing at all. PHASE 154 leaves this first gate
-      // alone deliberately, so the drag out inherits every refusal the move
-      // and the attach already have, including the remote one.
-      if (e.defaultPrevented || isRemote) {
+      // prevents the default here. PHASE 233 narrowed the remote half of this
+      // door to the thing it was actually protecting. `beginTreeDrag` arms the
+      // terminal pane's ATTACH contract with ABSOLUTE PATHS, and an absolute
+      // path from another machine names a file on this Mac or nothing at all,
+      // so a remote drag still arms NOTHING; it returns below, after the
+      // dragged set is resolved and before the drag out and the attach. What
+      // it no longer does is cancel the gesture, because Pierre's own move is
+      // what the drop lands on and that move now reaches `entry-rename` on the
+      // machine. `canDrag` in ./use-tree-model.ts is where a machine with no
+      // confirmed folder is refused, and it refuses this event's default.
+      if (e.defaultPrevented) {
         dragPathsRef.current = [];
         return;
       }
@@ -247,6 +251,18 @@ export function useTreeDrag({
       if (pendingCreate !== null && dragged.includes(pendingCreate)) {
         e.preventDefault();
         dragPathsRef.current = [];
+        return;
+      }
+
+      // PHASE 233. A REMOTE TREE STOPS HERE, holding the dragged set so the
+      // host's own empty space drop still means "move to the root of this
+      // folder", and arming neither of the two contracts below. The drag out
+      // hands Chromium a promised FILE, which would be a file on this Mac at a
+      // path from another machine, and `beginTreeDrag` hands the terminal pane
+      // the same absolute paths for an attach. Pierre's own transfer is
+      // untouched, which is what carries the move.
+      if (isRemote) {
+        dragPathsRef.current = dragged;
         return;
       }
 

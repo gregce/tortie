@@ -542,7 +542,8 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     sourceCanonical: string,
     destCanonical: string,
     kind: 'file' | 'dir',
-    release: () => void
+    release: () => void,
+    modelHoldsTheMove = true
   ): void => {
     const move: PathMove = { from: sourceCanonical, to: destCanonical };
     const fromAbs = absOf(ctx.rootPath, sourceCanonical);
@@ -552,7 +553,7 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       .renameEntry(fromAbs, toAbs, kind)
       .then((result) => {
         if (result.outcome !== 'moved' && result.outcome !== 'done') {
-          revertModel([move]);
+          if (modelHoldsTheMove) revertModel([move]);
           release();
           app().toast(
             'error',
@@ -566,6 +567,28 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
             { sticky: true }
           );
           return;
+        }
+        if (!modelHoldsTheMove) {
+          // PHASE 233. Pierre refused the gesture in its own store, so this
+          // verb owns the model update, exactly as `applyMove` does on the
+          // same branch. The displaced row is removed first for the reason it
+          // gives there; over here the machine has already answered `moved` or
+          // `done`, so a row still sitting at the destination is this end's
+          // stale picture rather than a file.
+          const ops: FileTreeBatchOperation[] = [];
+          if (ctx.model.getItem(destCanonical) !== null) {
+            ops.push({
+              type: 'remove',
+              path: destCanonical,
+              recursive: isDirPath(destCanonical)
+            });
+          }
+          ops.push({ type: 'move', from: sourceCanonical, to: destCanonical });
+          try {
+            ctx.model.batch(ops);
+          } catch {
+            /* the refresh below is the backstop */
+          }
         }
         rebaseFed([move]);
         followMoves([
@@ -585,10 +608,53 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
         void remote.refresh().finally(release);
       })
       .catch(() => {
-        revertModel([move]);
+        if (modelHoldsTheMove) revertModel([move]);
         release();
         app().toast('error', remoteEntryLostAnswer(label), { sticky: true });
       });
+  };
+
+  /**
+   * PHASE 233. A DROP on a tree whose folder is on another machine.
+   *
+   * IT IS THE MENU'S RENAME, ONCE PER DRAGGED PATH, and that is the whole
+   * design. `applyMove` below sends one `fs:move` to THIS Mac for the whole
+   * drop, and there is no such verb for a machine: the catalogue's write is
+   * `entry-rename`, which moves one path, and it is the same call
+   * `finishRemoteRename` makes for F2 and for the menu's Rename. So the four
+   * refusals a person can read are the four that verb already answers, being
+   * exists, gone, writes off and outside root, surfaced by the same
+   * `renameRefusal` in the same sticky toast, and no fifth sentence exists
+   * anywhere on this path.
+   *
+   * WHAT IS DIFFERENT FROM A LOCAL DROP, said plainly rather than hidden.
+   * There is no Replace question. `fs:move` answers `would-overwrite` for the
+   * whole drop and asks once; `entry-rename` refuses a destination that is
+   * taken, so a colliding name is a refusal naming that name, which is what
+   * the menu's Rename has done on a machine since Phase 102 and what a person
+   * has already met there. And the moves are independent rather than atomic,
+   * for the same reason a delete is per entry: one refused path leaves the
+   * others where they landed, and every one of them says which it was.
+   *
+   * The kind is read off the canonical spelling, which is where every other
+   * verb in this file reads it and which `finishRemoteRename`'s own note about
+   * a stale row applies to unchanged.
+   */
+  const applyRemoteMove = (
+    remote: NonNullable<TreeOpsContext['remoteEntry']>,
+    moves: readonly PathMove[],
+    modelHoldsTheMove: boolean
+  ): void => {
+    for (const move of moves) {
+      finishRemoteRename(
+        remote,
+        move.from,
+        move.to,
+        isDirPath(move.from) ? 'dir' : 'file',
+        ctx.hold([move.from, move.to]),
+        modelHoldsTheMove
+      );
+    }
   };
 
   const finishCreate = (
@@ -1129,6 +1195,17 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       // Everything was already where it landed: Pierre allows the gesture,
       // the disk would be a no-op, and there is nothing to reconcile.
       if (moves.length === 0) return;
+      // PHASE 233. The fourth door, and until this phase it was silent. Every
+      // refusal above it was a refusal at the GESTURE, so a drop that reached
+      // here on a remote tree would have handed a path from another machine to
+      // `fs:move` on this Mac, which is the file of that name here or nothing
+      // at all. It is asked the same way `renameOne` asks it, being the one
+      // question that decides which computer the write lands on.
+      const remote = ctx.remoteEntry;
+      if (remote !== undefined) {
+        applyRemoteMove(remote, moves, modelAlreadyMoved);
+        return;
+      }
       applyMove(moves, destDirCanonical, modelAlreadyMoved, false);
     },
 

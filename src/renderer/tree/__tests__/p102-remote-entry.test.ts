@@ -21,7 +21,6 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FileTreeRenameEvent } from '@pierre/trees';
 import type {
   MachineMakeDirResult,
   MachineRenameResult
@@ -74,197 +73,27 @@ vi.mock('../tree-menu', () => ({
   describeEntries: () => ''
 }));
 
-import { createTreeOps } from '../tree-ops';
-import type { TreeOps, TreeOpsContext } from '../tree-ops';
-import type { TreeRenameView } from '../rename-view';
-
-const ROOT = '/home/greg/api';
-const WRITE_ROOT = '/home/greg';
-
-interface FakeView extends TreeRenameView {
-  path: string | null;
-  value: string;
-}
-
-function makeView(): FakeView {
-  const view: FakeView = {
-    path: null,
-    value: '',
-    getPath: () => view.path,
-    getValue: () => view.value,
-    isActive: () => view.path !== null,
-    setValue: (value: string) => {
-      view.value = value;
-    },
-    cancel: () => {
-      view.path = null;
-    },
-    commit: () => {
-      view.path = null;
-    }
-  };
-  return view;
-}
-
-/** The slice of the Pierre model these two verbs touch, over a path set. */
-function makeModel(view: FakeView): {
-  rows: Set<string>;
-  model: TreeOpsContext['model'];
-  batch: ReturnType<typeof vi.fn>;
-} {
-  const rows = new Set<string>();
-  const batch = vi.fn((ops: { from?: string; to?: string }[]) => {
-    // Pierre's own inverse batch, enough of it to see a revert happen.
-    for (const op of ops) {
-      if (op.from === undefined || op.to === undefined) continue;
-      rows.delete(op.from);
-      rows.add(op.to);
-    }
-  });
-  const model = {
-    add: (path: string) => {
-      rows.add(path);
-    },
-    remove: (path: string) => {
-      rows.delete(path);
-    },
-    getItem: (path: string) => (rows.has(path) ? ({} as never) : null),
-    startRenaming: (path: string) => {
-      view.path = path;
-      view.value = path.endsWith('/')
-        ? (path.slice(0, -1).split('/').pop() ?? '')
-        : (path.split('/').pop() ?? '');
-      return true;
-    },
-    batch,
-    resetPaths: vi.fn(),
-    focusPath: vi.fn(),
-    getSelectedPaths: () => [] as string[]
-  };
-  return { rows, model: model as unknown as TreeOpsContext['model'], batch };
-}
-
-interface Rig {
-  ops: TreeOps;
-  view: FakeView;
-  rows: Set<string>;
-  fed: () => Set<string>;
-  makeDirCalls: string[];
-  renameCalls: { from: string; to: string; kind: 'file' | 'dir' }[];
-  refreshes: () => number;
-  makeDirAnswer: { value: Promise<MachineMakeDirResult> | null };
-  renameAnswer: { value: Promise<MachineRenameResult> | null };
-}
-
-function makeRig(): Rig {
-  const view = makeView();
-  const { rows, model } = makeModel(view);
-  let fed = new Set<string>();
-  let refreshed = 0;
-  const makeDirCalls: string[] = [];
-  const renameCalls: { from: string; to: string; kind: 'file' | 'dir' }[] = [];
-  const makeDirAnswer: Rig['makeDirAnswer'] = { value: null };
-  const renameAnswer: Rig['renameAnswer'] = { value: null };
-  const ctx: TreeOpsContext = {
-    rootPath: ROOT,
-    model,
-    readFed: () => fed,
-    writeFed: (next) => {
-      fed = next;
-    },
-    hold: () => () => undefined,
-    renameView: () => view,
-    selectOnly: () => undefined,
-    remoteEntry: {
-      machineId: 'm1',
-      makeDir: (absPath) => {
-        makeDirCalls.push(absPath);
-        return makeDirAnswer.value ?? Promise.reject(new Error('no answer'));
-      },
-      renameEntry: (fromAbs, toAbs, kind) => {
-        renameCalls.push({ from: fromAbs, to: toAbs, kind });
-        return renameAnswer.value ?? Promise.reject(new Error('no answer'));
-      },
-      refresh: async () => {
-        refreshed += 1;
-      }
-    }
-  };
-  return {
-    ops: createTreeOps(ctx),
-    view,
-    rows,
-    fed: () => fed,
-    makeDirCalls,
-    renameCalls,
-    refreshes: () => refreshed,
-    makeDirAnswer,
-    renameAnswer
-  };
-}
-
-const madeAnswer = (
-  outcome: MachineMakeDirResult['outcome'],
-  mode: string | null = null
-): MachineMakeDirResult => ({
-  outcome,
-  mode,
-  writeRoot: WRITE_ROOT,
-  tookMs: 12
-});
-
-const renamedAnswer = (
-  outcome: MachineRenameResult['outcome'],
-  kind: 'file' | 'dir' = 'file'
-): MachineRenameResult => ({
-  outcome,
-  from: `${ROOT}/README.md`,
-  to: `${ROOT}/readme.md`,
-  kind,
-  writeRoot: WRITE_ROOT,
-  tookMs: 14
-});
-
-function renameEvent(
-  sourcePath: string,
-  destinationPath: string,
-  isFolder: boolean
-): FileTreeRenameEvent {
-  return { sourcePath, destinationPath, isFolder } as FileTreeRenameEvent;
-}
-
-const flush = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await new Promise((resolve) => setTimeout(resolve, 0));
-};
-
 /**
- * Type a name into the open create editor and commit it.
- *
- * @pierre/trees moves the placeholder row onto the typed name BEFORE any
- * callback fires, which is the optimistic mutation the whole module is built
- * around, so the fake model is moved the same way here. Without it a refusal
- * would have nothing to take back out and the test would prove nothing.
+ * PHASE 233 MOVED THE RIG. Every fake below used to live in this file and a
+ * second phase needed the same ones for a DROP, so `makeRig`, the fake model
+ * and the answer builders are in ./remote-tree-rig.ts now and this file drives
+ * exactly what it drove. The `vi.mock` calls above stay here, because a mock
+ * belongs to the test file's own module graph.
  */
-function commitCreate(rig: Rig, placeholder: string, typed: string): void {
-  rig.rows.delete(placeholder);
-  rig.rows.add(`${typed}/`);
-  rig.ops.onRenameCommitted(renameEvent(placeholder, typed, true));
-}
-
-/** The same optimistic move, for a rename of a row that already existed. */
-function commitRename(
-  rig: Rig,
-  source: string,
-  dest: string,
-  isFolder: boolean
-): void {
-  const from = isFolder ? `${source}/` : source;
-  const to = isFolder ? `${dest}/` : dest;
-  rig.rows.delete(from);
-  rig.rows.add(to);
-  rig.ops.onRenameCommitted(renameEvent(source, dest, isFolder));
-}
+import {
+  ROOT,
+  WRITE_ROOT,
+  commitCreate,
+  makeModel,
+  makeView,
+  commitRename,
+  flush,
+  madeAnswer,
+  makeRig,
+  renameEvent,
+  renamedAnswer
+} from './remote-tree-rig';
+import { createTreeOps } from '../tree-ops';
 
 const toasts = (): { level: string; text: string }[] =>
   h.toast.mock.calls.map((call) => ({

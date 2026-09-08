@@ -45,7 +45,7 @@ import { FILTER_SANCTION_MS } from './filter-guard';
 import { expandedDirs } from './header-actions';
 import { ignoredDotSuppressionCss, ignoredOnlyAncestors, useTreeIgnored } from './ignored';
 import { FOLDER_ICON_CSS, getPierreTreeIcons } from './pierre-icons';
-import { canWriteEntries } from './remote-bridge';
+import { mayWriteEntriesHere } from './remote-bridge';
 import { useFileTree } from './store';
 import { useTreeHandle } from './tree-handle';
 import type { TreeOps } from './tree-ops';
@@ -307,7 +307,9 @@ export function useTreeModel({
   const rootLoaded = useFileTree((s) => s.rootLoaded);
   const loadDir = useFileTree((s) => s.loadDir);
   /**
-   * PHASE 102. May a rename gesture start on this tree at all?
+   * PHASE 102. May a WRITE GESTURE start on this tree at all? PHASE 233 made
+   * the drag ask the same question, and moved the composition itself into
+   * ./remote-bridge.ts so the two cannot answer differently.
    *
    * THE DEFECT THIS CLOSES was reachable in every build from Phase 90.3 to
    * Phase 101. `renaming.canRename` asked whether the verbs existed and whether
@@ -322,12 +324,15 @@ export function useTreeModel({
    * build can reach the channel, and the commit then lands on
    * `machines:renameEntry` and never on `fs:rename`.
    *
+   * PHASE 233 gave `canDrag` and `canDrop` below the same answer, so a machine
+   * with no confirmed folder never starts a drag at all, which is the same
+   * nothing an absent Rename item is, and no path is sent anywhere.
+   *
    * It is read through a ref because @pierre/trees captures its options once at
    * construction, and a person can confirm a folder in Settings while this tree
    * is mounted.
    */
-  const canRenameHere =
-    !isRemote || (remoteWriteRoot !== null && canWriteEntries());
+  const canRenameHere = mayWriteEntriesHere(isRemote, remoteWriteRoot);
   const canRenameHereRef = useRef(canRenameHere);
   canRenameHereRef.current = canRenameHere;
   const storeKey = useMemo(
@@ -417,20 +422,32 @@ export function useTreeModel({
    */
   const canDrag = useCallback(
     (paths: readonly string[]): boolean => {
-      // PHASE 90.3, and PHASE 102 REWROTE THE REASON. It read "there is no
-      // write script for another machine", and Phase 102 shipped one that
-      // moves an entry. The refusal stays, and its reason is the second half
-      // alone. `beginTreeDrag` arms the terminal pane's ATTACH contract with
-      // ABSOLUTE paths, and an absolute path from another machine names a file
-      // on this Mac or nothing at all. Refusing at the SOURCE is what keeps a
-      // drag from arming that contract. The drop half refuses again below.
-      if (isRemote) return false;
+      // PHASE 90.3 REFUSED EVERY REMOTE DRAG, PHASE 102 REWROTE THE REASON,
+      // AND PHASE 233 REPLACED IT WITH THE CAPABILITY.
+      //
+      // The refusal read "there is no write script for another machine", and
+      // Phase 102 shipped one that moves an entry, so from that phase the
+      // reason was the ATTACH contract alone: `beginTreeDrag` arms the
+      // terminal pane's contract with ABSOLUTE paths, and an absolute path
+      // from another machine names a file on this Mac or nothing at all. That
+      // is a reason to keep the DRAG OUT of a remote tree, which is where it
+      // now lives (./use-tree-drag.ts's third door, which no longer arms that
+      // contract for a machine), and it was never a reason to refuse the move.
+      //
+      // So the question here is the one the menu's Rename already asks, being
+      // `canRenameHere`: this machine carries a confirmed folder and this
+      // build can reach the channel. A machine with no write root answers
+      // false and the gesture never starts, which is the same nothing the
+      // absent Rename item is, and nothing is sent. It is read through the ref
+      // for the reason the file's header gives: the options are captured once
+      // and a person can confirm a folder in Settings while the tree is up.
+      if (!canRenameHereRef.current) return false;
       const ops = opsRef.current;
       if (ops === null || paths.some(isProtectedFsPath)) return false;
       const pending = ops.pendingPath();
       return pending === null || !paths.includes(pending);
     },
-    [isRemote]
+    []
   );
 
   /**
@@ -439,13 +456,16 @@ export function useTreeModel({
    */
   const canDropInto = useCallback(
     (event: FileTreeDropContext): boolean => {
-      if (isRemote) return false;
+      // PHASE 233. The same capability at the destination as at the source,
+      // for the reason the pair of `.git` refusals below share: one door is
+      // not a door.
+      if (!canRenameHereRef.current) return false;
       const dir = event.target.directoryPath;
       if (dir === null) return true;
       if (isProtectedFsPath(dir)) return false;
       return dir !== opsRef.current?.pendingPath();
     },
-    [isRemote]
+    []
   );
 
   /** Pierre moved its own rows first; the disk is asked second. */
