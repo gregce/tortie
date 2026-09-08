@@ -342,6 +342,16 @@ const STATUS_POLL_IDLE_MS = 2_000;
 const CREATE_IN_FLIGHT_MAX_MS = 60_000;
 
 /**
+ * How many machines the launch sign-in talks to at once (Phase 232).
+ *
+ * Four is CLAUDE.md's own ceiling for probes running side by side, and it is
+ * more than any fleet the operator has. It is a headroom number rather than a
+ * safety number: the safety is that every row still passes the confirm gate
+ * inside `prepareMachine` before anything is composed.
+ */
+export const LAUNCH_SIGN_IN_CONCURRENCY = 4;
+
+/**
  * The answer for a session with no pane of its own on this Mac (Phase 95).
  *
  * It is a fact rather than a failure, so it is a value rather than a throw.
@@ -1056,14 +1066,26 @@ export class GmuxCore {
    * `prepareMachine`, before any process exists. A machine running a tmux
    * version nobody measured refuses there too, and nothing is started on it.
    *
-   * Sequential rather than parallel. A person with a fleet would otherwise open
-   * every connection at once at launch, and the first poll of the first machine
-   * is what they are waiting to see.
+   * PHASE 232. Side by side, at most {@link LAUNCH_SIGN_IN_CONCURRENCY} at
+   * once, rather than one after another. The sequential shape this replaced
+   * was written so that a person with a fleet would not open every connection
+   * at once at launch, and it cost the machine that answers the whole deadline
+   * of the machine that does not: research 85 section 4.2 measured Source
+   * control's first row on the Mac Pro at 19,789 ms with an unreachable row
+   * listed first in machines.json, against 510 ms with the Mac Pro alone, and
+   * research 91 section 4.1 read 20,043 ms and 20,051 ms against 108 ms and
+   * 205 ms at this phase's parent. The two version reads inside
+   * `prepareMachine` each hold `REMOTE_VERSION_TIMEOUT_MS`, and the loop held
+   * every later row behind them. A pool of four keeps the fleet bound the old
+   * comment wanted and lets a machine that has not answered hold nothing but
+   * its own slot. The rows are still taken in file order.
    */
   private async signInToConfirmedMachines(): Promise<void> {
-    for (const row of currentMachines().rows) {
+    const rows = currentMachines().rows;
+    let next = 0;
+    const signIn = async (row: (typeof rows)[number]): Promise<void> => {
       const fields = machineFieldsOf(row);
-      if (!isMachineConfirmed(row.id, fields)) continue;
+      if (!isMachineConfirmed(row.id, fields)) return;
       try {
         // Phase 109 fix round. The label rides along here the way it does on
         // the ipc door, so a refusal composed after a boot sign-in names the
@@ -1079,7 +1101,7 @@ export class GmuxCore {
             `${row.id} answered ${result.class} at launch: ${result.detail}`
           );
           markMachineQuiet(row.id);
-          continue;
+          return;
         }
         // PHASE 84, item 4. The `await startRemotePoll(row.id)` that used to
         // stand here is gone. `prepareMachine` starts the feed itself now, in
@@ -1094,7 +1116,19 @@ export class GmuxCore {
         );
         markMachineQuiet(row.id);
       }
-    }
+    };
+    // One worker per slot, each taking the next row in file order until none
+    // is left. A slot whose machine is at its deadline holds only that slot.
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        const row = rows[next];
+        next += 1;
+        if (row === undefined) return;
+        await signIn(row);
+      }
+    };
+    const slots = Math.min(LAUNCH_SIGN_IN_CONCURRENCY, rows.length);
+    await Promise.all(Array.from({ length: slots }, () => worker()));
   }
 
   /**
