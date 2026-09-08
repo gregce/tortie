@@ -47,7 +47,8 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
-  useRef
+  useRef,
+  useState
 } from 'react';
 import { OpeningSkeleton } from './MonacoHost';
 import { RedlineRuns } from './RedlineRow';
@@ -59,6 +60,7 @@ import {
 import { useLiveTabText } from './live-text';
 import { changesOf } from './rewind';
 import type { RedlineChange } from './rewind';
+import { RedlineChip } from './redline-chip';
 import { installRedlineCommands } from './redline-commands';
 import type { RedlineCommand } from './redline-commands';
 import { applyRewind } from './redline-write';
@@ -215,6 +217,14 @@ export function RedlineDocument({
   const historical = tab.commit !== null;
   const workingText = useLiveTabText(tab.id, tab.savedContents, !historical);
   const hostRef = useRef<HTMLDivElement | null>(null);
+  // PHASE 236. The chip's own boxes. The view is held as STATE rather than a
+  // ref, because the chip is placed against it and so has to be re-rendered
+  // once the element exists; it is the only positioned box in the view
+  // (research 96 §1.4) and therefore the containing block. `chipRef` is held
+  // here so the pointer handler below can tell "the pointer moved onto the
+  // chip" from "the pointer left the change".
+  const [viewEl, setViewEl] = useState<HTMLDivElement | null>(null);
+  const chipRef = useRef<HTMLDivElement | null>(null);
 
   // Opening the view is an attention switch, the same as opening the diff:
   // focus the scroller so the keyboard scrolls it and Esc can close the panel.
@@ -292,6 +302,33 @@ export function RedlineDocument({
   );
   useEffect(() => installRedlineCommands(runCommand), [runCommand]);
 
+  // PHASE 236. Which change the chip is drawn for. FOCUS WINS over the
+  // pointer, and that is a truthfulness rule rather than a taste: ⌥⌫ acts on
+  // `document.activeElement` (./redline-press reads the identity off the
+  // focused wrapper), so a chip drawn on a change under the pointer while a
+  // DIFFERENT change held focus would name a change the keys do not act on.
+  // With nothing focused, the pointer is the whole affordance.
+  const [hovered, setHovered] = useState<HTMLElement | null>(null);
+  const [focusedEl, setFocusedEl] = useState<HTMLElement | null>(null);
+  const anchor = focusedEl ?? hovered;
+  const forgetAnchor = useCallback((): void => {
+    setHovered(null);
+    setFocusedEl(null);
+  }, []);
+  // A chip button focuses the change it is drawn for and then runs the SAME
+  // command the chord and the Edit menu run. Research 96 §1.2 is why the
+  // focus comes first: with the focus anywhere else, `focusedChange` answers
+  // null and the press does nothing, and `moveFocus` jumps to the first
+  // change instead of the neighbour. `preventScroll` because the change the
+  // person is pointing at is on screen by definition.
+  const runFromChip = useCallback(
+    (command: RedlineCommand, el: HTMLElement): void => {
+      el.focus({ preventScroll: true });
+      runCommand(command);
+    },
+    [runCommand]
+  );
+
   // The skeleton still waits for git's first answer, baseline or not: a
   // baseline seeded from the read is overtaken by a HEAD version the moment
   // one lands, and drawing an empty redline for that moment would be a flash.
@@ -331,13 +368,31 @@ export function RedlineDocument({
   // undo, saying the chord and that it lasts for the session (research 83
   // E.8). It is not a live region: it appears the moment a rewind lands and
   // says nothing on its own.
+  const canUndo = rewindJournalDepth(tab.id) > 0;
   const undoNote =
-    doc !== null && rewindJournalDepth(tab.id) > 0
+    doc !== null && canUndo
       ? `Undo the last rewind with ${keyDisplay('redline.undo')}. It lasts for this session.`
       : null;
 
   return (
-    <div className="ed-redline-view">
+    <div
+      className="ed-redline-view"
+      ref={setViewEl}
+      // PHASE 236. One handler for the whole view, because `pointerover`
+      // bubbles from every element the pointer enters: a move onto the chip
+      // KEEPS the chip (the chip is not inside the scroller, so leaving the
+      // change would otherwise unmount it before it could be clicked), a move
+      // onto a change draws it there, and a move onto anything else clears it.
+      onPointerOver={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target === null) return;
+        if (chipRef.current?.contains(target) === true) return;
+        setHovered(target.closest<HTMLElement>('.ed-redline-change'));
+      }}
+      onPointerLeave={() => {
+        setHovered(null);
+      }}
+    >
       <div
         ref={hostRef}
         className="ed-redline-scroll"
@@ -354,6 +409,20 @@ export function RedlineDocument({
           event.preventDefault();
           runCommand(command);
         }}
+        // PHASE 236. React's onFocus and onBlur are focusin and focusout, so
+        // they see a change taking the keyboard from the chords, from a click
+        // or from the chip's own buttons. The scroller taking focus on mount
+        // answers null here, which is the resting face.
+        onFocus={(event) => {
+          setFocusedEl(
+            (event.target as HTMLElement).closest<HTMLElement>(
+              '.ed-redline-change'
+            )
+          );
+        }}
+        onBlur={() => {
+          setFocusedEl(null);
+        }}
       >
         {doc === null ? (
           <OpeningSkeleton />
@@ -369,6 +438,18 @@ export function RedlineDocument({
           </div>
         )}
       </div>
+      {/* PHASE 236. OUTSIDE `.ed-redline-doc`, and after the scroller: the
+          four readers of the document walk that element's own children, and
+          `p225-redline-projection.test.tsx`'s aria() reads the FIRST
+          aria-label in the markup, which must stay the scroller's. */}
+      <RedlineChip
+        anchor={anchor}
+        view={viewEl}
+        canUndo={canUndo}
+        onCommand={runFromChip}
+        chipRef={chipRef}
+        onDetached={forgetAnchor}
+      />
       {note !== null ? (
         <div className="banner ed-note" role="status">
           <span className="banner-text">{note}</span>

@@ -137,3 +137,66 @@
   border-radius: var(--r-xs);
   box-shadow: 0 0 0 1px var(--border-strong) inset;
 }
+
+/* PHASE 236. The change chip: the redline's controls, on the change you are
+   on. Research 83 D.3 accepted exactly one placement, being a hover or focus
+   reveal as an OUT OF FLOW overlay, because it moved the text by 0.00px; a
+   control per change in the flow pushed the following text 45.12px sideways at
+   every change, and a margin has 0.00px to live in at the editor pane's floor.
+   So this is `position: absolute` inside `.ed-redline-view`, which is the only
+   positioned box in the view, and it is laid out by ./redline-chip from the
+   change's FIRST client rect.
+
+   Tokens only, per `npm run conformance:redline` rule 8. The surface is the
+   app's own overlay fill and hairline with the elevation the editor's other
+   overlays use, so the chip reads as chrome floating over the document rather
+   than as part of the sentence. */
+.ed-redline-chip {
+  position: absolute;
+  z-index: var(--z-editor-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-2);
+  /* The document is `pre-wrap`; the chip is chrome and must not inherit it. */
+  white-space: nowrap;
+  /* Tortie's own commentary, never the person's text: a drag across the view
+     must not take it, the same refusal `.ed-redline-tag` above records. */
+  user-select: none;
+}
+
+/* 24px TALL, which is WCAG 2.2's target size. Research 83 D.2 measured the
+   in-flow button it refused at 20.15px and named it under the target, so the
+   number is the ruling and not a preference. */
+.ed-redline-chip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ed-redline-chip-button:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+/* A verb reads as a word rather than a glyph, so it gets the room a word
+   needs and nothing more. */
+.ed-redline-chip-verb {
+  padding: 0 var(--space-3);
+}

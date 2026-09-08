@@ -157,7 +157,7 @@ const WORST_CASE_CEILING_MS = 400;
 // cannot drift off in silence.
 const REDLINE_DIR = 'src/renderer/editor';
 const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline\.)/;
-const REDLINE_FILES_FLOOR = 14;
+const REDLINE_FILES_FLOOR = 15;
 const REDLINE_FILES = readdirSync(REDLINE_DIR)
   .filter((name) => REDLINE_NAME.test(name))
   .sort()
@@ -189,7 +189,11 @@ const REDLINE_FILES_NAMED = [
   // and the one call site and moves the journal. It names no bridge.
   'src/renderer/editor/redline-press.ts',
   // Phase 194: the harness probe that reads the view. It names no write.
-  'src/renderer/editor/redline-shot-probe.ts'
+  'src/renderer/editor/redline-shot-probe.ts',
+  // Phase 236: the change chip, being the redline's controls on the face. It
+  // draws buttons that call the SAME commands the chord and the Edit menu
+  // call, so it names no bridge and reaches no write of its own.
+  'src/renderer/editor/redline-chip.tsx'
 ];
 
 // ---------------------------------------------------------------------------
@@ -613,7 +617,9 @@ say('7. the diff surface and its control row name no redline module, slot or pre
 for (const file of [
   'src/renderer/editor/RedlineRow.tsx',
   'src/renderer/editor/RedlineDocument.tsx',
-  'src/renderer/editor/redline.css'
+  'src/renderer/editor/redline.css',
+  // Phase 236: the chip is a fourth drawn thing and is held to the same rule.
+  'src/renderer/editor/redline-chip.tsx'
 ]) {
   const hits = findColourLiterals(sources.get(file) ?? '');
   if (hits.length > 0) {
