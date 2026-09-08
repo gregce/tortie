@@ -96,7 +96,33 @@ const OFF: readonly OffTheFace[] = [
     name: 'contextEmptyOnMachine',
     home: 'context.ts',
     words: 'Adding a skill happens on that machine'
-  }
+  },
+  // The three Source control groups, History, Branch and Runs. Each drew a
+  // band above the group and standing lines under it, and the Branch group
+  // drew its facts as sentences. The fix round took them off: twelve
+  // paragraphs of 245 words when the three were expanded on his Mac Pro, and
+  // the local groups carry none.
+  { name: 'historyOnMachineBand', home: 'history.ts', words: 'for the commits in this folder' },
+  { name: 'historyNotLive', home: 'history.ts', words: 'to see anything committed on' },
+  { name: 'historyOlderExist', home: 'history.ts', words: 'commits in that folder. There are older ones' },
+  { name: 'historyRefsAreThatMachines', home: 'history.ts', words: 'did not read when that machine last fetched' },
+  { name: 'historyPagesAreFresh', home: 'history.ts', words: 'again for every page' },
+  { name: 'historyNoWrite', home: 'history.ts', words: 'no checkout, no branch and no cherry pick' },
+  { name: 'historyFilesElsewhere', home: 'history.ts', words: 'The files one commit changed are not read' },
+  { name: 'branchOnMachineBand', home: 'branch.ts', words: 'which branch is checked out in this folder' },
+  { name: 'branchNameOn', home: 'branch.ts', words: 'The branch checked out on' },
+  { name: 'branchTip', home: 'branch.ts', words: 'Its newest commit is' },
+  { name: 'branchNoUpstream', home: 'branch.ts', words: 'follows no other branch on' },
+  { name: 'BRANCH_NOT_LIVE', home: 'branch.ts', words: 'whether the branch over there has moved' },
+  { name: 'branchCountsAreThatMachines', home: 'branch.ts', words: 'Tortie counted against the copy of' },
+  { name: 'branchNoSwitch', home: 'branch.ts', words: 'does not change what is checked out on' },
+  { name: 'branchOnlyCurrent', home: 'branch.ts', words: 'does not list the other branches there' },
+  { name: 'runsOnMachineBand', home: 'runs.ts', words: 'sent no sign in details to' },
+  { name: 'RUNS_NOT_LIVE', home: 'runs.ts', words: 'This list does not refresh' },
+  { name: 'runsBranchAt', home: 'runs.ts', words: 'The branch checked out on' },
+  { name: 'runsNewest', home: 'runs.ts', words: 'runs for that branch and its newest commit' },
+  { name: 'runsNotGitHub', home: 'runs.ts', words: 'has no GitHub address for its origin' },
+  { name: 'RUNS_STEPS_ELSEWHERE', home: 'runs.ts', words: 'The steps inside a run are not shown' }
 ];
 
 /** Every .ts and .tsx file under a directory, recursively. */
@@ -182,14 +208,16 @@ describe('the scanner can fail', () => {
   });
 
   it('holds every sentence the entry names, and no fewer', () => {
-    // Nine came off: the two line machine band on every view, which the fix
-    // round took off because the tab spine and the project header already
-    // name the machine, the Source control band, the sections note, the
-    // search filters note, the grep line, and the Context view's two
-    // standing note lines and its remote empty body. The hooks and signing
-    // line MOVED to a title and the read-at clock STAYS until Phase 230, so
-    // neither is here; the Context cut line stays because it names a list
-    // that was cut.
+    // Thirty came off: the two line machine band on every view, which the
+    // fix round took off because the tab spine and the project header
+    // already name the machine, the Source control band, the sections note,
+    // the search filters note, the grep line, the Context view's two standing
+    // note lines and its remote empty body, and the twenty one sentences the
+    // three Source control groups drew as bands, standing lines and facts.
+    // The hooks and signing line MOVED to a title, the read-at clock STAYS
+    // until Phase 230, and the history ceiling became a disabled control's
+    // label, so none of those is here; the Context cut line and the history
+    // marks cut line stay because each names a list on screen that was cut.
     expect(OFF.map((one) => one.name)).toEqual([
       'remoteBandTitle',
       'REMOTE_BAND_BODY',
@@ -199,7 +227,28 @@ describe('the scanner can fail', () => {
       'searchOnMachineLine',
       'contextOnMachineLine',
       'CONTEXT_NESTED_NOT_LISTED',
-      'contextEmptyOnMachine'
+      'contextEmptyOnMachine',
+      'historyOnMachineBand',
+      'historyNotLive',
+      'historyOlderExist',
+      'historyRefsAreThatMachines',
+      'historyPagesAreFresh',
+      'historyNoWrite',
+      'historyFilesElsewhere',
+      'branchOnMachineBand',
+      'branchNameOn',
+      'branchTip',
+      'branchNoUpstream',
+      'BRANCH_NOT_LIVE',
+      'branchCountsAreThatMachines',
+      'branchNoSwitch',
+      'branchOnlyCurrent',
+      'runsOnMachineBand',
+      'RUNS_NOT_LIVE',
+      'runsBranchAt',
+      'runsNewest',
+      'runsNotGitHub',
+      'RUNS_STEPS_ELSEWHERE'
     ]);
   });
 

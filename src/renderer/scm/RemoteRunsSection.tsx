@@ -72,18 +72,12 @@ import { useNow } from '../format';
 import { Codicon } from '../icons';
 import {
   RUNS_NO_BRIDGE,
-  RUNS_NOT_LIVE,
-  RUNS_STEPS_ELSEWHERE,
-  runsBranchAt,
   runsFolderDenied,
   runsFolderMissing,
-  runsNewest,
   runsNoAnswer,
   runsNoBranch,
   runsNotConnected,
-  runsNotGitHub,
   runsNotRepo,
-  runsOnMachineBand,
   runsReadAt,
   runsReadingBranch
 } from '../machines/runs';
@@ -92,7 +86,6 @@ import {
   machineAnsweredRuns,
   remoteRunsAvailable,
   remoteRunsOf,
-  shortSha,
   useRemoteRuns
 } from './remote-runs';
 import type { RemoteRunsEntry } from './remote-runs';
@@ -103,10 +96,13 @@ import './runs.css';
 /**
  * The one sentence that stands in place of rows, or null when there are rows.
  *
- * Every mode except `ok` has exactly one sentence and it is written in
- * presentation.ts. This function is the whole mapping, so a mode that gains a
- * sentence gains it in one place and the test reads the same table the section
- * draws from.
+ * Every mode except `ok` and `notGitHub` has exactly one sentence and it is
+ * written in presentation.ts. This function is the whole mapping, so a mode
+ * that gains a sentence gains it in one place and the test reads the same
+ * table the section draws from. PHASE 228 MADE `notGitHub` SILENT: a
+ * repository with no GitHub origin draws no Runs group at all, which is what
+ * the local section does for the same repository, so there is no body to put
+ * a sentence in.
  */
 export function runsModeSentence(
   mode: MachineRunsMode | null,
@@ -115,11 +111,10 @@ export function runsModeSentence(
   switch (mode) {
     case null:
     case 'ok':
+    case 'notGitHub':
       return null;
     case 'notRepo':
       return runsNotRepo(label);
-    case 'notGitHub':
-      return runsNotGitHub(label);
     case 'noBranch':
       return runsNoBranch(label);
     case 'missing':
@@ -162,14 +157,21 @@ export function RemoteRunsPanel({
   collapsed,
   onToggle,
   onRefresh
-}: RemoteRunsPanelProps): React.JSX.Element {
+}: RemoteRunsPanelProps): React.JSX.Element | null {
   const runs = entry.runs;
   const health = healthNote(entry.health);
   const hidden = hiddenNotes(entry.issues);
   const sentence = runsModeSentence(entry.mode, label);
   const answered = machineAnsweredRuns(entry.mode);
-  const sha = shortSha(entry.headSha);
   const busy = entry.loading || entry.refreshing;
+  // PHASE 228. A repository with no GitHub origin has no runs to show and the
+  // local section is not drawn for one (./RunsSection.tsx returns null for
+  // it), so neither is this group. The answer is known only after the first
+  // read, which happens on the first expand, so the group is there until a
+  // person opens it and gone once the machine has said there is nothing to
+  // list, which is a section that is not there rather than a sentence saying
+  // so.
+  if (entry.mode === 'notGitHub') return null;
   // True on the one path where the body draws rows, being a live bridge, an
   // answer that came back, and a mode that has no sentence of its own. The
   // three list sentences below the group are drawn on that path and on no
@@ -217,9 +219,6 @@ export function RemoteRunsPanel({
 
   return (
     <>
-      {entry.mode === 'ok' ? (
-        <p className="scm-remote-band runs-band">{runsOnMachineBand(label)}</p>
-      ) : null}
       <section
         className={`section-scm-remote-runs${collapsed ? ' collapsed' : ''}`}
         data-section-root="remote-runs"
@@ -258,17 +257,14 @@ export function RemoteRunsPanel({
           <div className="section-body runs-body">{body()}</div>
         ) : null}
       </section>
-      {/* THE SENTENCES BELOW THE GROUP. Every one of them describes the list as
-          a whole rather than one row, so none of them may sit inside a body
-          that scrolls. Two of them did until the fix round, and the defect was
-          measured off the live document at ten rows. The body was 310 px tall
-          over 352 px of content, the "newest N" sentence spanned y 683 to 727,
-          and the body ended at y 691, so 36 of its 44 px were hidden. The
-          sentence saying the list was cut was itself cut. They are here now,
-          beside the three that were already outside. The group gives up height
-          for them, and that is the trade this section wants. A person may lose
-          a row off the bottom of a list that scrolls. A person must not lose
-          the sentence saying the list is short. */}
+      {/* THE LINES BELOW THE GROUP, outside the body that scrolls, because a
+          line about the list as a whole must not sit under its own fold; the
+          fix round of Phase 105 measured 36 of the 44 px of one hidden there.
+          PHASE 228 TOOK FIVE SENTENCES OUT OF THIS PLACE, being the band
+          above the group and the four standing lines under it, because the
+          local Runs section carries no paragraph; the record is in
+          ../machines/runs.ts. The hidden row notes stay, because the local
+          section draws the same ones from the same file. */}
       {!collapsed && rowsRead
         ? hidden.map((line) => (
             <p className="scm-remote-note runs-hidden" key={line}>
@@ -276,38 +272,12 @@ export function RemoteRunsPanel({
             </p>
           ))
         : null}
-      {!collapsed && rowsRead && runs.length > 0 ? (
-        <p className="scm-remote-note runs-steps-elsewhere">
-          {RUNS_STEPS_ELSEWHERE}
-        </p>
-      ) : null}
-      {/* The row limit was reached, so there are older runs and they are not
-          here. Phase 99 carried a cut through main that the panel never drew,
-          and this is the sentence that stops the same shape happening. Phase
-          120 made the comparison `>=` rather than `===`, because the cap in
-          main keeps a run at the branch tip past the limit, so the merged
-          list can hold one row more than the limit in exactly the case that
-          has extra rows. */}
-      {!collapsed &&
-      rowsRead &&
-      entry.limit > 0 &&
-      runs.length >= entry.limit ? (
-        <p className="scm-remote-note runs-newest">{runsNewest(runs.length)}</p>
-      ) : null}
-      {!collapsed && entry.branch !== null && sha !== '' ? (
-        <p className="scm-remote-note runs-branch-line">
-          {runsBranchAt(entry.branch, label, sha)}
-        </p>
-      ) : null}
       {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
           reads again by itself when it is looked at. */}
       {!collapsed && answered && entry.readAt > 0 ? (
         <p className="scm-remote-note runs-read-at">
           {runsReadAt(label, entry.readAt)}
         </p>
-      ) : null}
-      {!collapsed && entry.mode === 'ok' ? (
-        <p className="scm-remote-note runs-not-live">{RUNS_NOT_LIVE}</p>
       ) : null}
     </>
   );

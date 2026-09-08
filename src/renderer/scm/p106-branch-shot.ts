@@ -109,8 +109,6 @@ export interface RemoteBranchReading {
   present: boolean;
   /** True when the group is open. */
   expanded: boolean;
-  /** The band above the group, or the empty string when it is not drawn. */
-  band: string;
   /** Every line drawn INSIDE the group's scrolling body, in order. */
   bodyLines: string[];
   /** The bottom edge of the group's body, in pixels. -1 when it is not drawn. */
@@ -230,12 +228,6 @@ function clippedSentences(): string[] {
   return out;
 }
 
-/** The text of one node, or the empty string when it is not there. */
-function textOf(selector: string): string {
-  const el = document.querySelector<HTMLElement>(selector);
-  return (el?.textContent ?? '').trim();
-}
-
 /** Read the group back out of the document. */
 function readSection(mode: MachineBranchMode): RemoteBranchReading {
   const root = document.querySelector('[data-section-root="remote-branch"]');
@@ -276,7 +268,6 @@ function readSection(mode: MachineBranchMode): RemoteBranchReading {
     mode,
     present: root !== null,
     expanded: toggle?.getAttribute('aria-expanded') === 'true',
-    band: textOf('.rbranch-band'),
     bodyLines,
     bodyBottom: bodyBox === null ? -1 : Math.round(bodyBox.bottom),
     below,

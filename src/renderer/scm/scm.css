@@ -1850,24 +1850,15 @@ body.scm-section-dragging .section-gripper {
 }
 
 /* A SENTENCE IS NEVER SQUASHED, and `flex: 0 0 auto` is the whole of that rule.
-   Both of these are direct children of `.scm-sections`, which is a flex column,
-   so without it a column with more content than height shrinks them and their
-   own text draws over the sentence beneath. A sentence a person cannot read is
-   the defect Phase 105 and Phase 107 each fixed once, and two sentences drawn on
-   top of each other is a third way to reach it. With this rule the group that
-   holds rows is the one thing that gives way, down to the floor its own file
-   sets, and past that the column runs off the bottom where it can be seen and
-   measured rather than overlapping in place. */
-.scm-remote-band {
-  margin: 0;
-  padding: var(--space-3) var(--space-5);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  border-bottom: 1px solid var(--border);
-  flex: 0 0 auto;
-}
-
+   This is a direct child of `.scm-sections`, which is a flex column, so without
+   it a column with more content than height shrinks it and its own text draws
+   over the sentence beneath. A sentence a person cannot read is the defect
+   Phase 105 and Phase 107 each fixed once, and two sentences drawn on top of
+   each other is a third way to reach it. With this rule the group that holds
+   rows is the one thing that gives way, down to the floor its own file sets,
+   and past that the column runs off the bottom where it can be seen and
+   measured rather than overlapping in place. PHASE 228 REMOVED `.scm-remote-band`
+   from beside this rule, because no band is drawn over any group any more. */
 .scm-remote-note {
   margin: 0;
   padding: var(--space-3) var(--space-5);
@@ -1898,7 +1889,7 @@ body.scm-section-dragging .section-gripper {
    box would ride over the History, Branch and Runs groups below it as a person
    scrolls past them. It scrolls with the band above it instead.
 
-   `flex: 0 0 auto` for the reason `.scm-remote-band` carries it, written out at
+   `flex: 0 0 auto` for the reason `.scm-remote-note` carries it, written out at
    that rule: this is a direct child of a flex column, and without the line a
    column with more content than height squashes it and the text below draws
    over it. */

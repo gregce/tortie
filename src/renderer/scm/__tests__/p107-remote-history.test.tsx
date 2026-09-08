@@ -598,33 +598,43 @@ describe('the three honesty fields, each drawn', () => {
     }
   });
 
-  it('says older commits exist, and offers the one control that reads them', () => {
+  it('offers the one control that reads older commits, and no sentence beside it', () => {
+    // PHASE 228. The Load more button is the local shape for a list with
+    // more behind it, and the sentence that said the same thing came off.
     const html = draw({ hasMore: true });
-    expect(html).toContain(esc(copy.historyOlderExist(3)));
     expect(html).toContain('rhist-more');
     expect(html).toContain(esc(copy.HISTORY_LOAD_MORE));
+    expect(html).not.toContain('rhist-older');
+    expect(html).not.toContain('There are older ones');
   });
 
-  it('draws neither the sentence nor the control over a whole list', () => {
+  it('draws no control over a whole list', () => {
     const html = draw({ hasMore: false });
     expect(html).not.toContain('rhist-older');
     expect(html).not.toContain('rhist-more');
   });
 
-  it('at the ceiling it says so and takes the control away', () => {
+  it('at the ceiling the control stays, cannot be pressed, and says why on hover', () => {
     // THE FAR END. There are older commits and Tortie does not read them here.
-    // A button that could be pressed again would be a button that does nothing.
+    // PHASE 228 made this the disabled control with one short label rather
+    // than a three sentence paragraph under the group.
     const html = draw({ hasMore: true, atCeiling: true });
-    expect(html).toContain(esc(copy.historyCeiling(REMOTE_HISTORY_MAX_COMMITS, L)));
-    expect(html).not.toContain('rhist-more');
-    expect(html).not.toContain(esc(copy.historyOlderExist(3)));
+    expect(html).toContain('rhist-more');
+    expect(html).toContain(`title="${esc(copy.historyCeiling(REMOTE_HISTORY_MAX_COMMITS))}"`);
+    expect(html).not.toContain('rhist-ceiling');
+    const button = html.slice(html.indexOf('class="rhist-more"') - 80, html.indexOf('class="rhist-more"') + 200);
+    expect(button).toContain('disabled=""');
+    // A label of a few words, not a sentence.
+    expect(copy.historyCeiling(REMOTE_HISTORY_MAX_COMMITS).endsWith('.')).toBe(false);
+    expect(copy.historyCeiling(REMOTE_HISTORY_MAX_COMMITS).split(/\s+/).length).toBeLessThanOrEqual(10);
   });
 
   it('reads the ceiling out of the answer rather than writing the number', () => {
     // The number main applies and the number on screen are one number. A
-    // sentence that wrote its own would drift the first time the rule moved.
+    // label that wrote its own would drift the first time the rule moved.
     const html = draw({ hasMore: true, atCeiling: true, ceiling: 250 });
-    expect(html).toContain(esc(copy.historyCeiling(250, L)));
+    expect(html).toContain(esc(copy.historyCeiling(250)));
+    expect(copy.historyCeiling(250)).toContain('250');
   });
 
   it('says the ahead and behind marks were cut, when they were', () => {
@@ -672,32 +682,34 @@ describe('what the group admits about its own answer', () => {
     }
   });
 
-  it('says the answer does not refresh', () => {
-    expect(draw()).toContain(esc(copy.historyNotLive(L)));
-  });
-
-  it('says a page is read fresh, so the lines on the left can move', () => {
-    // `layoutGraph` asks its caller to hold the ref set still between pages and
-    // this door cannot carry one, because the far side resolves its own refs on
-    // every read. The whole list is replaced so nothing tears, and the picture
-    // can still be drawn differently.
-    expect(draw()).toContain(esc(copy.historyPagesAreFresh(L)));
-  });
-
-  it('says what the ref marks are, and what Tortie did not read', () => {
-    // The pill for a branch on a server carries a tooltip ending in when this
-    // clone last fetched, and there is no such reading for a folder on another
-    // machine. This is that gap in words.
-    expect(draw()).toContain(esc(copy.historyRefsAreThatMachines(L)));
-    expect(copy.historyRefsAreThatMachines(L)).toContain('did not read when');
-  });
-
-  it('says Tortie changes nothing over there, and draws no way to', () => {
+  it('draws no standing sentence under the group (Phase 228)', () => {
+    // PHASE 228 TOOK SIX SENTENCES OFF THIS GROUP, being the band above it
+    // and the five standing lines under it, on the operator's rule of
+    // 2026-09-07. The local History carries no paragraph, so neither does
+    // this one. The words are pinned gone in
+    // ../../machines/__tests__/p228-off-the-face.test.ts; here the classes
+    // are pinned gone from the markup.
     const html = draw({ hasMore: true });
-    expect(html).toContain(esc(copy.historyNoWrite(L)));
-    // The sentence counted rather than trusted. With older commits behind the
-    // page the group draws exactly three buttons, being the collapse toggle,
-    // Refresh and Load more.
+    for (const cls of [
+      'rhist-band',
+      'rhist-not-live',
+      'rhist-older',
+      'rhist-ceiling',
+      'rhist-refs',
+      'rhist-pages-fresh',
+      'rhist-no-write',
+      'rhist-files'
+    ]) {
+      expect(html).not.toContain(cls);
+    }
+    expect(html).not.toContain('This does not refresh');
+  });
+
+  it('draws no way to change anything over there', () => {
+    const html = draw({ hasMore: true });
+    // Counted rather than trusted. With older commits behind the page the
+    // group draws exactly three buttons, being the collapse toggle, Refresh
+    // and Load more.
     expect(html.split('<button').length - 1).toBe(3);
     expect(draw().split('<button').length - 1).toBe(2);
     // The four verbs the LOCAL History row menu offers, read against the
@@ -713,10 +725,13 @@ describe('what the group admits about its own answer', () => {
     }
   });
 
-  it('says the files one commit changed are not read', () => {
-    // THE GAP THIS PHASE LEAVES OPEN, ON SCREEN. A row does not expand and
-    // clicking one opens nothing, so the sentence says where to go instead.
-    expect(draw()).toContain(esc(copy.historyFilesElsewhere(L)));
+  it('draws a row that does not expand as a row that does not expand', () => {
+    // THE GAP PHASE 107 LEFT OPEN is still open, and since Phase 228 nothing
+    // says so on the face: a row carries no chevron and no control, the way
+    // an absent verb is drawn locally.
+    const html = draw();
+    expect(html).not.toContain('rhist-files');
+    expect(html).not.toContain('chevron-right');
   });
 
   it('draws every sentence about the whole answer outside the scrolling body', () => {
@@ -731,16 +746,9 @@ describe('what the group admits about its own answer', () => {
       markedCount: 2
     });
     const inside = bodyOnly(html);
-    const outside = [
-      copy.machineReadAt(L, AT),
-      copy.historyNotLive(L),
-      copy.historyOlderExist(3),
-      copy.historyMarksCut(2, L),
-      copy.historyRefsAreThatMachines(L),
-      copy.historyPagesAreFresh(L),
-      copy.historyNoWrite(L),
-      copy.historyFilesElsewhere(L)
-    ];
+    // PHASE 228. Two lines are left under the group, the clock and the marks
+    // cut sentence; the rest came off.
+    const outside = [copy.machineReadAt(L, AT), copy.historyMarksCut(2, L)];
     for (const sentence of outside) {
       expect(html).toContain(esc(sentence));
       expect(inside).not.toContain(esc(sentence));
@@ -751,19 +759,15 @@ describe('what the group admits about its own answer', () => {
     expect(inside).toContain('rhist-more');
   });
 
-  it('draws the band only over an answer that carried commits', () => {
-    // The band is past tense in both halves, so it is drawn for the one state
-    // where both halves happened.
-    expect(draw()).toContain(esc(copy.historyOnMachineBand(L)));
-    expect(draw({ mode: 'notRepo', entries: [] })).not.toContain(
-      esc(copy.historyOnMachineBand(L))
-    );
-    expect(draw({ mode: 'noCommits', entries: [] })).not.toContain(
-      esc(copy.historyOnMachineBand(L))
-    );
-    expect(draw({ mode: null, loading: true, entries: [] })).not.toContain(
-      esc(copy.historyOnMachineBand(L))
-    );
+  it('draws no band over any answer (Phase 228)', () => {
+    for (const over of [
+      {},
+      { mode: 'notRepo' as MachineHistoryMode, entries: [] },
+      { mode: null, loading: true, entries: [] }
+    ]) {
+      expect(draw(over)).not.toContain('scm-remote-band');
+      expect(draw(over)).not.toContain('Tortie asked');
+    }
   });
 });
 
@@ -823,12 +827,13 @@ describe('the height rules this column runs under', () => {
   });
 
   it('never lets a sentence between the groups be squashed', () => {
-    // Both classes are direct children of the flex column. Without this a column
-    // with more content than height shrinks them and one sentence draws over the
+    // The class is a direct child of the flex column. Without this a column
+    // with more content than height shrinks it and one sentence draws over the
     // next, which is a third way to reach a sentence a person cannot read.
-    for (const selector of ['.scm-remote-band {', '.scm-remote-note {']) {
-      expect(ruleOf(cssOf('scm.css'), selector)).toContain('flex: 0 0 auto;');
-    }
+    // PHASE 228 removed `.scm-remote-band` from beside it, because no band is
+    // drawn over any group any more, and pins that it stays gone.
+    expect(ruleOf(cssOf('scm.css'), '.scm-remote-note {')).toContain('flex: 0 0 auto;');
+    expect(cssOf('scm.css')).not.toContain('.scm-remote-band {');
   });
 
   it('scrolls the column for a folder on another machine, and only that one', () => {
@@ -858,8 +863,8 @@ describe('a group nobody opened', () => {
     expect(html).toContain('data-section="remote-history"');
     expect(html).toContain('Refresh history');
     expect(html).not.toContain('rhist-row');
-    expect(html).not.toContain(esc(copy.historyNotLive(L)));
-    expect(html).not.toContain(esc(copy.historyNoWrite(L)));
+    expect(html).not.toContain('rhist-read-at');
+    expect(html).not.toContain('rhist-marks-cut');
   });
 
   it('reads nothing until it is opened, and the guard is in the source', () => {
@@ -922,20 +927,17 @@ const EVERY: readonly string[] = [
   copy.historyNotConnected(L),
   copy.historyNoAnswer(L),
   copy.HISTORY_NO_BRIDGE,
-  copy.historyOnMachineBand(L),
-  copy.historyNotLive(L),
-  copy.historyOlderExist(50),
-  copy.historyCeiling(REMOTE_HISTORY_MAX_COMMITS, L),
-  copy.historyMarksCut(50, L),
-  copy.historyRefsAreThatMachines(L),
-  copy.historyPagesAreFresh(L),
-  copy.historyNoWrite(L),
-  copy.historyFilesElsewhere(L)
+  copy.historyMarksCut(50, L)
 ];
+
+/** The one label, which is a control's hover title and not a sentence. */
+const LABELS: readonly string[] = [copy.historyCeiling(REMOTE_HISTORY_MAX_COMMITS)];
 
 describe('the house writing rules, over every Phase 107 sentence', () => {
   it('reads a set of sentences rather than nothing', () => {
-    expect(EVERY.length).toBe(17);
+    // PHASE 228 took seven off, so seventeen became nine, plus one label.
+    expect(EVERY.length).toBe(9);
+    expect(LABELS.length).toBe(1);
   });
 
   it('holds no em dash and no en dash', () => {
@@ -978,13 +980,18 @@ describe('the house writing rules, over every Phase 107 sentence', () => {
   });
 
   it('names the machine by its label in every sentence that has one', () => {
-    // The ones that do not name a machine are named here rather than counted.
-    // One is about Tortie's own row limit and one is about this build rather
-    // than about a machine.
+    // The one that does not name a machine is named here rather than counted.
+    // It is about this build rather than about a machine.
     expect(EVERY.filter((one) => !one.includes(L))).toEqual([
-      copy.HISTORY_NO_BRIDGE,
-      copy.historyOlderExist(50)
+      copy.HISTORY_NO_BRIDGE
     ]);
+    // The label is a label: no full stop, no colon, no dash, no "remote".
+    for (const label of LABELS) {
+      expect(label.endsWith('.')).toBe(false);
+      expect(label.includes(':')).toBe(false);
+      expect(/—|–/.test(label)).toBe(false);
+      expect(/\bremote\b/i.test(label)).toBe(false);
+    }
   });
 
   it('writes the button label as one plain instruction', () => {

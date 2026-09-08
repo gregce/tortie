@@ -18,26 +18,25 @@ import { commitCount } from './presentation';
  * reads about them is here, which is the shape `machines:readBranch` and
  * `machines:readRuns` already use.
  *
- * SIX SENTENCES SAY WHAT IS NOT TRUE, and each of them exists because a person
- * cannot see the mechanism.
+ * PHASE 107 DREW SEVEN SENTENCES UNDER THE GROUP SAYING WHAT IS NOT TRUE, and
+ * PHASE 228 TOOK SIX OF THEM OFF, on the operator's rule of 2026-09-07 that a
+ * remote tab feels almost identical to a local one. The band saying who was
+ * asked, the line saying nothing refreshes, the line saying older commits
+ * exist beside the Load more button that already says it, the line about a
+ * page being read fresh, the line about what the ref marks are, the line
+ * saying the group writes nothing, and the line saying the files one commit
+ * changed are not read: every one of them was true, and every one of them
+ * was a paragraph the local History does not carry. A verb the group does
+ * not offer is drawn as absent, a row that does not expand is a row that does
+ * not expand, and the clock under the group stays until Phase 230 removes it.
  *
- * 1. The answer is one read at one instant and nothing refreshes it, because
- *    main cannot see a commit made on another computer.
- * 2. The page holds the newest commits and older ones exist behind it.
- * 3. Tortie reads at most a fixed number of commits from another machine, and
- *    a person who needs more opens a session over there.
- * 4. The unpushed and unpulled marks are read for the page and no further, so
- *    an older row can be drawn without a mark whether it has one or not.
- * 5. Every page is read fresh, so the lines on the left can be drawn
- *    differently after Load more.
- * 6. The files one commit changed are not read at all.
- *
- * A SEVENTH SENTENCE IS ABOUT THE MARKS ON A ROW, and Phase 107 added it after
- * reading what the pill's own tooltip says. `remoteRefTitle` in
- * ../scm/freshness.ts ends every branch mark with when this clone last fetched,
- * and Tortie does not read that on another machine. So the group says once, in
- * words, that the marks are that machine's own copies and that Tortie did not
- * read when it last fetched.
+ * TWO THINGS STAY, because they say a list ON SCREEN is incomplete, and a
+ * cut list drawn as a whole one is the Phase 99 defect while a local list is
+ * never cut. The far end, where Tortie has read every commit it will read
+ * from another machine and older ones remain, is the Load more control drawn
+ * disabled with a label of a few words as its hover title. And the marks cut
+ * sentence stays as it was, drawn only when the mark read came back at its
+ * own cap.
  */
 
 /** While the read of that machine's commits is in flight. */
@@ -90,60 +89,20 @@ export function historyNoAnswer(label: string): string {
 export const HISTORY_NO_BRIDGE =
   'This build cannot read the history for a folder on another machine.';
 
-/**
- * The band above the group. It says who was asked and what was changed.
- *
- * Both halves are past tense, so it is drawn only over an answer that carried
- * commits. The second half is the refusal a person needs before they trust a
- * picture of somebody else's repository.
- */
-export function historyOnMachineBand(label: string): string {
-  return (
-    `Tortie asked ${label} for the commits in this folder. It read that ` +
-    `machine's own answer and it changed nothing there.`
-  );
-}
-
 /** The one control under the rows. The number is the page and it is fixed. */
 export const HISTORY_LOAD_MORE = 'Load 50 more';
 
-/** Under the group, always, over an answer. Nothing polls that machine. */
-export function historyNotLive(label: string): string {
-  return (
-    `This does not refresh. Read it again to see anything committed on ` +
-    `${label} since.`
-  );
-}
-
 /**
- * THE FIRST CUT, ON SCREEN. The walk found more commits than the page holds.
- *
- * Drawn whenever there are older commits and the ceiling has not been reached,
- * which is also exactly when the Load more button is drawn. The count is never
- * one, because the page is fifty and it grows by fifty.
+ * THE FAR END, as the hover title of the Load more control drawn disabled.
+ * Every commit Tortie will read from another machine has been read and older
+ * ones are still there. PHASE 228 MADE IT A LABEL: it was a three sentence
+ * paragraph under the group, and a limit that is genuinely different is a
+ * disabled control with at most one short label. The number comes from the
+ * answer rather than from this file, so the label cannot drift away from the
+ * rule main applies.
  */
-export function historyOlderExist(shown: number): string {
-  return (
-    `These are the newest ${shown.toLocaleString()} commits in that folder. ` +
-    `There are older ones.`
-  );
-}
-
-/**
- * THE FAR END, ON SCREEN. Every commit Tortie will read from another machine
- * has been read and older ones are still there.
- *
- * The number comes from the answer rather than from this file, so the sentence
- * cannot drift away from the rule main applies. It names the one thing a person
- * can do instead, which is to open a session on that machine.
- */
-export function historyCeiling(ceiling: number, label: string): string {
-  return (
-    `Tortie reads at most ${ceiling.toLocaleString()} commits from another ` +
-    `machine and it has read them all. There are older commits in that folder ` +
-    `and Tortie does not read them here. Open a session on ${label} to read ` +
-    `further.`
-  );
+export function historyCeiling(ceiling: number): string {
+  return `Tortie reads at most ${ceiling.toLocaleString()} commits from another machine`;
 }
 
 /**
@@ -164,59 +123,3 @@ export function historyMarksCut(marked: number, label: string): string {
   );
 }
 
-/**
- * THE THIRD THING THAT IS NOT TRUE, ON SCREEN. A page is read fresh.
- *
- * The far side resolves its own branches, tags and remote branches on every
- * read. The layout the picture is drawn from asks its caller to hold the ref
- * set still between pages, and this door cannot. The whole list is replaced
- * rather than added to, so no row tears, and the lines on the left can still
- * move after Load more.
- */
-export function historyPagesAreFresh(label: string): string {
-  return (
-    `Tortie reads the branches on ${label} again for every page. If a branch ` +
-    `there changed in between, the lines on the left can be drawn differently ` +
-    `after Load more.`
-  );
-}
-
-/**
- * What the marks on a row are, and the one thing Tortie did not read.
- *
- * A mark naming a branch on a server is that machine's own copy of it, and it
- * is only as fresh as the last fetch somebody ran over there. Tortie does not
- * fetch on that machine and it does not read when that machine last did, so
- * this sentence says both rather than leaving the pill's own tooltip to be the
- * only place a person meets the question.
- */
-export function historyRefsAreThatMachines(label: string): string {
-  return (
-    `The marks on a row name branches and tags as ${label} holds them. ` +
-    `Tortie did not read when that machine last fetched from a server.`
-  );
-}
-
-/** Under the group, always, over an answer. This group has no verb that writes. */
-export function historyNoWrite(label: string): string {
-  return (
-    `Tortie does not change anything in that folder on ${label}. This group ` +
-    `only reads, so it offers no checkout, no branch and no cherry pick.`
-  );
-}
-
-/**
- * THE GAP THIS PHASE LEAVES OPEN, ON SCREEN.
- *
- * The local History expands a row into the files that commit changed. Reading
- * those on another machine is a second read for the list and a third for the
- * two sides of a file, and this round shipped one read. So a row does not
- * expand, clicking one opens nothing, and the sentence says where to go
- * instead rather than leaving a person clicking a row that never answers.
- */
-export function historyFilesElsewhere(label: string): string {
-  return (
-    `The files one commit changed are not read for a folder on another ` +
-    `machine. Open a session on ${label} to read them.`
-  );
-}

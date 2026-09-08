@@ -311,7 +311,9 @@ describe('every mode says its own sentence, and it comes from machines/presentat
   const table: [MachineRunsMode, string | null][] = [
     ['ok', null],
     ['notRepo', copy.runsNotRepo(L)],
-    ['notGitHub', copy.runsNotGitHub(L)],
+    // PHASE 228. A repository with no GitHub origin draws no group at all,
+    // the way the local section is not drawn for one, so it has no sentence.
+    ['notGitHub', null],
     ['noBranch', copy.runsNoBranch(L)],
     ['missing', copy.runsFolderMissing(L)],
     ['denied', copy.runsFolderDenied(L)],
@@ -326,7 +328,14 @@ describe('every mode says its own sentence, and it comes from machines/presentat
     expect(runsModeSentence(null, L)).toBe(null);
   });
 
-  it('draws each of the seven that stand in place of rows', () => {
+  it('draws nothing at all for a repository with no GitHub origin (Phase 228)', () => {
+    // The local Runs section returns null for a repository whose origin is
+    // not github.com. So does this group once the machine has said so.
+    const html = draw({ mode: 'notGitHub', runs: [], branch: null, headSha: null });
+    expect(html).toBe('');
+  });
+
+  it('draws each of the six that stand in place of rows', () => {
     for (const [mode, sentence] of table) {
       if (sentence === null) continue;
       const html = draw({ mode, runs: [], branch: null, headSha: null });
@@ -356,22 +365,17 @@ describe('every mode says its own sentence, and it comes from machines/presentat
 // ---------------------------------------------------------------------------
 
 describe('what the panel admits about its own answer', () => {
-  it('names the machine, the branch and the commit checked out over there', () => {
+  it('names no branch under the rows, because the Branch group beside it does (Phase 228)', () => {
     const html = draw();
-    expect(html).toContain(copy.runsBranchAt('main', L, '1f2e3d4'));
-    expect(shortSha(SHA)).toBe('1f2e3d4');
-  });
-
-  it('draws no branch sentence when there is no branch to name', () => {
-    const html = draw({ mode: 'noBranch', runs: [], branch: null, headSha: null });
     expect(html).not.toContain('The branch checked out on');
+    expect(html).not.toContain('runs-branch-line');
+    expect(shortSha(SHA)).toBe('1f2e3d4');
   });
 
   it('says when it was read, for every mode the machine answered', () => {
     for (const mode of [
       'ok',
       'notRepo',
-      'notGitHub',
       'noBranch',
       'missing',
       'denied'
@@ -379,6 +383,9 @@ describe('what the panel admits about its own answer', () => {
       expect(machineAnsweredRuns(mode)).toBe(true);
       expect(draw({ mode, runs: [] })).toContain(copy.runsReadAt(L, AT));
     }
+    // `notGitHub` is an answer too, and the store says so; the group is not
+    // drawn for it, so there is no clock to read (Phase 228).
+    expect(machineAnsweredRuns('notGitHub')).toBe(true);
   });
 
   it('claims no read for the two modes where nothing was read', () => {
@@ -394,35 +401,46 @@ describe('what the panel admits about its own answer', () => {
     }
   });
 
-  it('says the list does not refresh, wherever there is a list', () => {
-    expect(draw()).toContain(copy.RUNS_NOT_LIVE);
-  });
-
-  it('says once that the steps are not shown here', () => {
-    expect(draw()).toContain(copy.RUNS_STEPS_ELSEWHERE);
-    // No rows, nothing to say about their steps.
-    expect(draw({ runs: [] })).not.toContain(copy.RUNS_STEPS_ELSEWHERE);
-  });
-
-  it('says the rows are the newest ones when the limit was reached', () => {
+  it('draws no standing sentence under the rows (Phase 228)', () => {
+    // PHASE 228 TOOK FIVE SENTENCES OFF THIS GROUP, being the band above it
+    // and the four standing lines under it, on the operator's rule of
+    // 2026-09-07. The local Runs section carries no paragraph and is cut the
+    // same way without saying so. The words are pinned gone in
+    // ../../machines/__tests__/p228-off-the-face.test.ts; here the classes
+    // are pinned gone from the markup.
     const three = [run({ id: 1 }), run({ id: 2 }), run({ id: 3 })];
-    expect(draw({ runs: three, limit: 3 })).toContain(copy.runsNewest(3));
+    const html = draw({ runs: three, limit: 3 });
+    for (const cls of [
+      'runs-band',
+      'runs-not-live',
+      'runs-steps-elsewhere',
+      'runs-newest',
+      'runs-branch-line'
+    ]) {
+      expect(html).not.toContain(cls);
+    }
+    expect(html).not.toContain('does not refresh');
+    expect(html).not.toContain('There are older ones');
+  });
+
+  it('keeps the rows when the limit was reached, with no sentence about it', () => {
+    const three = [run({ id: 1 }), run({ id: 2 }), run({ id: 3 })];
+    expect(draw({ runs: three, limit: 3 }).split('runs-item').length - 1).toBe(3);
     // One under the limit means there is nothing older to warn about.
     expect(draw({ runs: three, limit: 4 })).not.toContain('These are the newest');
   });
 
-  it('still says it when the list is longer than the limit', () => {
+  it('keeps every row when the list is longer than the limit', () => {
     // PHASE 120. The cap in main keeps a run at the branch tip past the
-    // limit, so the merged list can hold one row more than the limit. The
-    // caption used strict equality, which would have dropped the sentence in
-    // exactly the case that has extra rows.
+    // limit, so the merged list can hold one row more than the limit, and
+    // every one of them is drawn.
     const four = [
       run({ id: 1 }),
       run({ id: 2 }),
       run({ id: 3 }),
       run({ id: 4 })
     ];
-    expect(draw({ runs: four, limit: 3 })).toContain(copy.runsNewest(4));
+    expect(draw({ runs: four, limit: 3 }).split('runs-item').length - 1).toBe(4);
   });
 
   it('says which rows GitHub sent that the parser refused', () => {
@@ -445,14 +463,9 @@ describe('what the panel admits about its own answer', () => {
     const three = [run({ id: 1 }), run({ id: 2 }), run({ id: 3 })];
     const html = draw({ runs: three, limit: 3, issues });
     const inside = bodyOnly(html);
-    const outside = [
-      copy.RUNS_STEPS_ELSEWHERE,
-      copy.runsNewest(3),
-      copy.RUNS_NOT_LIVE,
-      copy.runsBranchAt('main', L, '1f2e3d4'),
-      copy.runsReadAt(L, AT),
-      hiddenNotes(issues)[0] as string
-    ];
+    // PHASE 228. Two kinds of line are left under the group, the hidden row
+    // notes the local section draws from the same file, and the clock.
+    const outside = [copy.runsReadAt(L, AT), hiddenNotes(issues)[0] as string];
     for (const sentence of outside) {
       expect(html).toContain(sentence);
       expect(inside).not.toContain(sentence);
@@ -470,16 +483,11 @@ describe('what the panel admits about its own answer', () => {
     );
   });
 
-  it('draws the band only where both halves of it are true', () => {
-    // The band says Tortie asked that machine AND asked GitHub. Both are past
-    // tense, so it is drawn for the one mode where both happened.
-    expect(draw()).toContain(copy.runsOnMachineBand(L));
-    expect(draw({ mode: 'notGitHub', runs: [] })).not.toContain(
-      copy.runsOnMachineBand(L)
-    );
-    expect(draw({ mode: null, runs: [], loading: true })).not.toContain(
-      copy.runsOnMachineBand(L)
-    );
+  it('draws no band over any answer (Phase 228)', () => {
+    for (const over of [{}, { mode: null, runs: [], loading: true }]) {
+      expect(draw(over)).not.toContain('scm-remote-band');
+      expect(draw(over)).not.toContain('Tortie asked');
+    }
   });
 });
 
@@ -525,7 +533,7 @@ describe('a group nobody opened', () => {
     expect(html).toContain('data-section="remote-runs"');
     expect(html).toContain('Refresh runs');
     expect(html).not.toContain('runs-list');
-    expect(html).not.toContain(copy.RUNS_NOT_LIVE);
+    expect(html).not.toContain('runs-read-at');
   });
 
   it('reads nothing until it is opened, and the guard is in the source', () => {

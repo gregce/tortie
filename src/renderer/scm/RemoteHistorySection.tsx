@@ -106,21 +106,14 @@ import {
   HISTORY_LOAD_MORE,
   HISTORY_NO_BRIDGE,
   historyCeiling,
-  historyFilesElsewhere,
   historyFolderDenied,
   historyFolderMissing,
   historyMarksCut,
   historyNoAnswer,
   historyNoCommits,
   historyNotConnected,
-  historyNotLive,
   historyNotRepo,
-  historyNoWrite,
-  historyOlderExist,
-  historyOnMachineBand,
-  historyPagesAreFresh,
-  historyReading,
-  historyRefsAreThatMachines
+  historyReading
 } from '../machines/history';
 import { machineReadAt } from '../machines/presentation';
 import { CommitGraph, CommitGraphSpacer, useLaneCap } from './graph/CommitGraph';
@@ -221,8 +214,6 @@ export function RemoteHistoryPanel({
   // answer that came back, and the mode that has no sentence of its own. Every
   // sentence below the group is drawn on that path and on no other.
   const factsRead = available && entry.mode === 'ok' && !entry.loading;
-  /** True on the one path where the body holds commit rows. */
-  const drawsRows = factsRead && entry.entries.length > 0;
 
   // -- the picture ----------------------------------------------------------
   //
@@ -329,8 +320,9 @@ export function RemoteHistoryPanel({
         <span className="rhist-space" />
         {/* The pill for a branch on a server carries a tooltip ending in when
             this clone last fetched, and there is no such reading over there.
-            Null is the honest value and `historyRefsAreThatMachines` under the
-            group is where a person reads what it means. */}
+            Null is the honest value. Phase 107 drew a sentence under the group
+            saying what it means, and Phase 228 took it off, because the local
+            History carries no paragraph about its marks either. */}
         <RefPills badges={badges} lastFetchedAt={null} now={now} />
         <span className="rhist-age num">{age}</span>
       </div>
@@ -350,11 +342,18 @@ export function RemoteHistoryPanel({
     return (
       <div role="list" className="rhist-list">
         {entry.entries.map(renderRow)}
-        {entry.hasMore && !entry.atCeiling ? (
+        {/* PHASE 228. THE FAR END IS THIS CONTROL DRAWN DISABLED. Every commit
+            Tortie will read from another machine has been read and older ones
+            remain, so the button stays where it was, cannot be pressed, and
+            says why in a label of a few words on hover. It was a three
+            sentence paragraph under the group, and the local History carries
+            no paragraph about how far it reads. */}
+        {entry.hasMore || entry.atCeiling ? (
           <button
             type="button"
             className="rhist-more"
-            disabled={busy}
+            disabled={busy || entry.atCeiling}
+            {...(entry.atCeiling ? { title: historyCeiling(entry.ceiling) } : {})}
             onClick={onLoadMore}
           >
             {/* The open lanes run THROUGH the paging row, so the picture reads
@@ -384,11 +383,6 @@ export function RemoteHistoryPanel({
 
   return (
     <>
-      {drawsRows ? (
-        <p className="scm-remote-band rhist-band">
-          {historyOnMachineBand(label)}
-        </p>
-      ) : null}
       <section
         className={`section-scm-remote-history${collapsed ? ' collapsed' : ''}`}
         data-section-root="remote-history"
@@ -426,11 +420,14 @@ export function RemoteHistoryPanel({
           </div>
         ) : null}
       </section>
-      {/* THE SENTENCES BELOW THE GROUP. Every one of them describes the answer
-          as a whole rather than one row, so none of them may sit inside a body
-          that scrolls. This body holds fifty rows at the first read, which is
-          the tallest thing this column draws, so a sentence placed inside it
-          would be hidden on the ordinary path rather than on a rare one. */}
+      {/* THE TWO LINES BELOW THE GROUP. Each describes the answer as a whole
+          rather than one row, so neither may sit inside a body that scrolls.
+          This body holds fifty rows at the first read, which is the tallest
+          thing this column draws, so a line placed inside it would be hidden
+          on the ordinary path rather than on a rare one. PHASE 228 TOOK SIX
+          SENTENCES OUT OF THIS PLACE, being the band above the group and the
+          five standing lines under it, because the local History carries no
+          paragraph; the record is in ../machines/history.ts. */}
       {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
           reads again by itself when it is looked at. */}
       {!collapsed && answered && entry.readAt > 0 ? (
@@ -438,45 +435,12 @@ export function RemoteHistoryPanel({
           {machineReadAt(label, entry.readAt)}
         </p>
       ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rhist-not-live">{historyNotLive(label)}</p>
-      ) : null}
-      {/* THE FIRST CUT. Older commits exist and the ceiling is not in the way,
-          so the count is named and the button under the rows is drawn. */}
-      {!collapsed && factsRead && entry.hasMore && !entry.atCeiling ? (
-        <p className="scm-remote-note rhist-older">
-          {historyOlderExist(entry.entries.length)}
-        </p>
-      ) : null}
-      {/* THE FAR END. Every commit Tortie will read has been read and there are
-          still older ones. The button is gone and this says what to do. */}
-      {!collapsed && factsRead && entry.atCeiling ? (
-        <p className="scm-remote-note rhist-ceiling">
-          {historyCeiling(entry.ceiling, label)}
-        </p>
-      ) : null}
-      {/* THE SECOND CUT. The marks were read for the page and no further. */}
+      {/* THE SECOND CUT. The marks were read for the page and no further. It
+          stays because it says a list on screen is incomplete, and a cut list
+          drawn as a whole one is the Phase 99 defect. */}
       {!collapsed && factsRead && entry.divergenceTruncated ? (
         <p className="scm-remote-note rhist-marks-cut">
           {historyMarksCut(entry.markedCount, label)}
-        </p>
-      ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rhist-refs">
-          {historyRefsAreThatMachines(label)}
-        </p>
-      ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rhist-pages-fresh">
-          {historyPagesAreFresh(label)}
-        </p>
-      ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rhist-no-write">{historyNoWrite(label)}</p>
-      ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rhist-files">
-          {historyFilesElsewhere(label)}
         </p>
       ) : null}
     </>

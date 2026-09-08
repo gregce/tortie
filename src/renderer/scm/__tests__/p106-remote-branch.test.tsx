@@ -393,11 +393,28 @@ describe('every mode says its own sentence, and it comes from machines/presentat
 // ---------------------------------------------------------------------------
 
 describe('what the group draws when a branch was read', () => {
-  it('names the branch, the commit and what it follows', () => {
+  it('draws the branch as one row, in the shape the local header draws it (Phase 228)', () => {
+    // PHASE 228. The body drew three sentences, "The branch checked out on X
+    // is main.", "Its newest commit is abc." and what it follows. The local
+    // branch header draws a name and its arrows, so the group draws ONE ROW:
+    // the name, the short commit muted beside it, the arrows, and the follows
+    // sentence as the row's hover title rather than on the face.
     const html = draw();
-    expect(html).toContain(esc(copy.branchNameOn(BR, L)));
-    expect(html).toContain(esc(copy.branchTip(SHORT)));
-    expect(html).toContain(esc(copy.branchFollows(BR, UP, 2, 1)));
+    const row = html.slice(html.indexOf('class="rbranch-row"') - 200, html.indexOf('</div></div>', html.indexOf('class="rbranch-row"')));
+    expect(html).toContain('role="listitem"');
+    expect(row).toContain(`class="rbranch-branch">${esc(BR)}<`);
+    expect(row).toContain(`class="rbranch-sha num">${SHORT}<`);
+    expect(row).toContain('class="branch-arrows num">↑2 ↓1<');
+    expect(row).toContain(`title="${esc(copy.branchFollows(BR, UP, 2, 1))}"`);
+    expect(html).not.toContain('The branch checked out on');
+    expect(html).not.toContain('Its newest commit is');
+    expect(html).not.toContain('rbranch-fact');
+  });
+
+  it('draws no arrows for a level branch, and keeps the sentence on hover', () => {
+    const html = draw({ ahead: 0, behind: 0 });
+    expect(html).not.toContain('branch-arrows');
+    expect(html).toContain(`title="${esc(copy.branchFollows(BR, UP, 0, 0))}"`);
   });
 
   it('writes the counts out, and is singular at one', () => {
@@ -421,9 +438,11 @@ describe('what the group draws when a branch was read', () => {
     expect(branchFollowSentence(base, L)).toBe(
       copy.branchFollows(BR, UP, 2, 1)
     );
-    expect(
-      branchFollowSentence(entry({ upstream: null }), L)
-    ).toBe(copy.branchNoUpstream(BR, L));
+    // PHASE 228. A branch that follows nothing says nothing, the way the
+    // local header draws no arrows for one.
+    expect(branchFollowSentence(entry({ upstream: null }), L)).toBe(null);
+    expect(draw({ upstream: null })).not.toContain('follows');
+    expect(draw({ upstream: null })).not.toContain('branch-arrows');
     expect(
       branchFollowSentence(entry({ upstreamGone: true }), L)
     ).toBe(copy.branchUpstreamGone(BR, UP, L));
@@ -452,9 +471,9 @@ describe('what the group draws when a branch was read', () => {
     expect(html).not.toContain(esc('commits ahead'));
   });
 
-  it('draws no commit line when there is no commit to name', () => {
-    expect(draw({ shortSha: null })).not.toContain('rbranch-tip');
-    expect(draw({ shortSha: '' })).not.toContain('rbranch-tip');
+  it('draws no commit when there is no commit to name', () => {
+    expect(draw({ shortSha: null })).not.toContain('rbranch-sha');
+    expect(draw({ shortSha: '' })).not.toContain('rbranch-sha');
   });
 });
 
@@ -488,43 +507,34 @@ describe('what the group admits about its own answer', () => {
     }
   });
 
-  it('says the answer does not refresh', () => {
-    expect(draw()).toContain(esc(copy.BRANCH_NOT_LIVE));
-  });
-
-  it('says the counts came from a copy that machine holds', () => {
-    // THE SENTENCE THIS PHASE EXISTS TO GET RIGHT. Tortie never fetches over
-    // there, so the two counts are measured against whatever that machine last
-    // fetched and can be stale at the moment they are read.
+  it('draws no standing sentence under the group (Phase 228)', () => {
+    // PHASE 228 TOOK FIVE SENTENCES OFF THIS GROUP, being the band above it
+    // and the four standing lines under it, on the operator's rule of
+    // 2026-09-07. The words are pinned gone in
+    // ../../machines/__tests__/p228-off-the-face.test.ts; here the classes
+    // are pinned gone from the markup. Tortie still never fetches over
+    // there, and the counts on the row are that machine's own, the way the
+    // local header's arrows are this Mac's own.
     const html = draw();
-    expect(html).toContain(esc(copy.branchCountsAreThatMachines(L, UP)));
-    expect(copy.branchCountsAreThatMachines(L, UP)).toContain('does not fetch');
-  });
-
-  it('draws that sentence only where there are two counts to explain', () => {
-    for (const over of [
-      { upstream: null },
-      { upstreamGone: true },
-      { trackUnreadable: true },
-      { mode: 'noBranch' as MachineBranchMode, branch: null }
+    for (const cls of [
+      'rbranch-band',
+      'rbranch-not-live',
+      'rbranch-counts',
+      'rbranch-no-switch',
+      'rbranch-only-current'
     ]) {
-      expect(draw(over)).not.toContain('rbranch-counts');
+      expect(html).not.toContain(cls);
     }
+    expect(html).not.toContain('This does not refresh');
   });
 
-  it('says Tortie changes nothing over there, and draws no way to', () => {
+  it('draws no way to change what is checked out over there', () => {
     const html = draw();
-    expect(html).toContain(esc(copy.branchNoSwitch(L)));
-    // The sentence counted rather than trusted. The group draws exactly two
-    // buttons, being the collapse toggle and Refresh, and no row at all.
+    // Counted rather than trusted. The group draws exactly two buttons, being
+    // the collapse toggle and Refresh, and one row that is not a control.
     expect(html.split('<button').length - 1).toBe(2);
-    expect(html).not.toContain('role="listitem"');
     expect(html).not.toContain('checkout');
     expect(html.toLowerCase()).not.toContain('switch to');
-  });
-
-  it('says only the checked out branch is read', () => {
-    expect(draw()).toContain(esc(copy.branchOnlyCurrent(L)));
   });
 
   it('draws every sentence about the whole answer outside the scrolling body', () => {
@@ -534,44 +544,41 @@ describe('what the group admits about its own answer', () => {
     // sentence saying the list was cut was itself cut.
     const html = draw();
     const inside = bodyOnly(html);
-    const outside = [
-      copy.machineReadAt(L, AT),
-      copy.BRANCH_NOT_LIVE,
-      copy.branchCountsAreThatMachines(L, UP),
-      copy.branchNoSwitch(L),
-      copy.branchOnlyCurrent(L)
-    ];
+    // PHASE 228. One line is left under the group, the clock.
+    const outside = [copy.machineReadAt(L, AT)];
     for (const sentence of outside) {
       expect(html).toContain(esc(sentence));
       expect(inside).not.toContain(esc(sentence));
     }
-    // The facts themselves stay inside, because the body is what scrolls.
-    expect(inside).toContain(esc(copy.branchNameOn(BR, L)));
-    expect(inside).toContain(esc(copy.branchFollows(BR, UP, 2, 1)));
+    // The row itself stays inside, because the body is what scrolls.
+    expect(inside).toContain('rbranch-row');
+    expect(inside).toContain(esc(BR));
   });
 
-  it('draws the band only over an answer that named a branch', () => {
-    // The band is past tense in both halves, so it is drawn for the one mode
-    // where both halves happened.
-    expect(draw()).toContain(esc(copy.branchOnMachineBand(L)));
-    expect(draw({ mode: 'notRepo', branch: null })).not.toContain(
-      esc(copy.branchOnMachineBand(L))
-    );
-    expect(draw({ mode: null, loading: true })).not.toContain(
-      esc(copy.branchOnMachineBand(L))
-    );
+  it('draws no band over any answer (Phase 228)', () => {
+    for (const over of [
+      {},
+      { mode: 'notRepo' as MachineBranchMode, branch: null },
+      { mode: null, loading: true }
+    ]) {
+      expect(draw(over)).not.toContain('scm-remote-band');
+      expect(draw(over)).not.toContain('Tortie asked');
+    }
   });
 
-  it('draws the band only while the group is open (Phase 229)', () => {
-    // The commit box reads the branch answer for its identity precheck with
-    // no expand, so a store holding `ok` no longer means a person opened the
-    // group. The Phase 229 verifier read the band on the resting remote face
-    // with no press, a sentence the local face does not carry, so the band
-    // follows the fold: same answer, collapsed, nothing drawn.
-    const html = draw({}, { collapsed: true });
-    expect(html).not.toContain('rbranch-band');
-    expect(html).not.toContain(esc(copy.branchOnMachineBand(L)));
-    expect(draw({}, { collapsed: false })).toContain('rbranch-band');
+  it('draws no band whether the group is open or collapsed (Phase 229, then 228)', () => {
+    // PHASE 229. The commit box reads the branch answer for its identity
+    // precheck with no expand, so a store holding `ok` no longer means a
+    // person opened the group. Its verifier read the band on the resting
+    // remote face with no press, a sentence the local face does not carry,
+    // so the band followed the fold: same answer, collapsed, nothing drawn.
+    // PHASE 228 then took the band off outright, so the collapsed reading
+    // Phase 229 pinned still holds and the open one now reads the same.
+    for (const collapsed of [true, false]) {
+      const html = draw({}, { collapsed });
+      expect(html).not.toContain('rbranch-band');
+      expect(html).not.toContain('Tortie asked');
+    }
   });
 });
 
@@ -584,9 +591,8 @@ describe('a group nobody opened', () => {
     const html = draw({}, { collapsed: true });
     expect(html).toContain('data-section="remote-branch"');
     expect(html).toContain('Refresh branch');
-    expect(html).not.toContain('rbranch-fact');
-    expect(html).not.toContain(esc(copy.BRANCH_NOT_LIVE));
-    expect(html).not.toContain(esc(copy.branchNoSwitch(L)));
+    expect(html).not.toContain('rbranch-row');
+    expect(html).not.toContain('rbranch-read-at');
   });
 
   it('reads nothing until it is opened, and the guard is in the source', () => {
@@ -637,28 +643,21 @@ const EVERY: readonly string[] = [
   copy.branchNotConnected(L),
   copy.branchNoAnswer(L),
   copy.machineReadAt(L, AT),
-  copy.branchOnMachineBand(L),
   copy.branchNotRepo(L),
   copy.branchNone(L),
   copy.branchNoDetails(L),
   copy.branchFolderMissing(L),
   copy.branchFolderDenied(L),
-  copy.branchNameOn(BR, L),
-  copy.branchTip(SHORT),
   copy.branchFollows(BR, UP, 2, 1),
-  copy.branchNoUpstream(BR, L),
   copy.branchUpstreamGone(BR, UP, L),
   copy.branchTrackUnreadable(BR, L),
-  copy.BRANCH_NOT_LIVE,
-  copy.branchCountsAreThatMachines(L, UP),
-  copy.branchNoSwitch(L),
-  copy.branchOnlyCurrent(L),
   copy.BRANCH_NO_BRIDGE
 ];
 
 describe('the house writing rules, over every Phase 106 sentence', () => {
   it('reads a set of sentences rather than nothing', () => {
-    expect(EVERY.length).toBe(21);
+    // PHASE 228 took eight off, so twenty one became thirteen.
+    expect(EVERY.length).toBe(13);
   });
 
   it('holds no em dash and no en dash', () => {
@@ -689,12 +688,10 @@ describe('the house writing rules, over every Phase 106 sentence', () => {
 
   it('names the machine by its label in every sentence that has one', () => {
     // The ones that do not name a machine are named here rather than counted.
-    // Two are second lines whose first line named the machine, and one is
-    // about this build rather than about a machine.
+    // One is the row's hover title, which names the branch and what it
+    // follows, and one is about this build rather than about a machine.
     expect(EVERY.filter((one) => !one.includes(L))).toEqual([
-      copy.branchTip(SHORT),
       copy.branchFollows(BR, UP, 2, 1),
-      copy.BRANCH_NOT_LIVE,
       copy.BRANCH_NO_BRIDGE
     ]);
   });

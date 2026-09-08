@@ -50,18 +50,32 @@
   color: var(--text-muted);
 }
 
-/* A line of fact rather than a line of prose about the read, so it takes the
-   secondary text colour the row lists beside it use. */
-.rbranch-fact {
-  padding: var(--space-2) var(--space-5) var(--space-2) var(--space-7);
+/* PHASE 228. The branch is one row, in the shape the local branch header
+   draws it: the name, the short commit muted beside it, and the header's own
+   arrows when the branch follows one. It replaced three sentences of fact. */
+.rbranch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-5) var(--space-1) var(--space-7);
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  min-width: 0;
 }
 
-/* The branch name is the one fact this group exists for, so it is the one line
-   that is not muted. */
-.rbranch-name {
-  color: var(--text-primary);
+.rbranch-branch {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rbranch-sha {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.rbranch-row .branch-arrows {
+  color: var(--text-secondary);
+  flex: 0 0 auto;
 }

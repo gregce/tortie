@@ -9,9 +9,9 @@
  *
  * Seven things are read off the image and every one of them is a sentence or a
  * position that a person has to be able to find. A unit test can assert that a
- * string is in the markup. It cannot say whether the band above the group is
- * legible, whether the six honesty sentences fit under the rows without being
- * clipped, whether a run row reads as a thing that opens rather than a thing
+ * string is in the markup. It cannot say whether the lines under the rows fit
+ * without being clipped (Phase 228 took the band and the standing sentences
+ * off, so those lines are the hidden row notes and the clock), whether a run row reads as a thing that opens rather than a thing
  * that expands, or whether this group's spacing matches the Changes group three
  * inches above it. So the picture is taken of the real section over the real
  * layout, and this hook is what gets the section open and settled first.
@@ -94,8 +94,6 @@ export interface RemoteRunsReading {
   present: boolean;
   /** True when the group is open. */
   expanded: boolean;
-  /** The band above the group, or the empty string when it is not drawn. */
-  band: string;
   /** The count in the header, as text. */
   count: string;
   /** One entry per run row, being the row's own label. */
@@ -263,7 +261,6 @@ function readSection(): RemoteRunsReading {
   return {
     present: root !== null,
     expanded: toggle?.getAttribute('aria-expanded') === 'true',
-    band: textOf('.runs-band'),
     count: textOf('[data-section="remote-runs"] .section-count'),
     rowLabels: rows.map((r) => r.getAttribute('aria-label') ?? ''),
     chevrons: rows.filter(

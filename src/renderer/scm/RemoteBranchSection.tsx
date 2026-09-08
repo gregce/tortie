@@ -23,20 +23,20 @@
  *
  * ## Where each sentence is drawn, and why
  *
- * The band is above the group rather than inside its body, and IT IS DRAWN
- * ONLY OVER AN ANSWER THAT NAMED A BRANCH, being `mode: 'ok'`, AND ONLY WHILE
- * THE GROUP IS OPEN. Its words are past tense, so drawing it over an answer
- * where Tortie never reached the machine would state a read that did not
- * happen. Until Phase 229 it was drawn over a collapsed group too, on the
- * reasoning that nothing read the branch without an expand, so a band over a
- * collapsed group was a band over a read the person had asked for. Phase 229's
- * commit box reads the branch answer for its identity precheck without any
- * expand, and the verifier measured the band appearing on the resting remote
- * Source control face with no press, a sentence the local face does not
- * carry. The operator's rule for every remote phase is that a remote tab feels
- * almost identical to a local one, so the band now follows the group's own
- * fold: a group nobody opened draws its header and nothing else, whatever the
- * store holds.
+ * THERE IS NO BAND ABOVE THE GROUP ANY MORE. Phase 106 drew one over an
+ * answer that named a branch, being `mode: 'ok'`, and Phase 229 narrowed it to
+ * the open group alone, because its commit box reads the branch answer for its
+ * identity precheck without any expand and the verifier measured the band
+ * appearing on the resting remote Source control face with no press, a
+ * sentence the local face does not carry. Phase 228 then took the band off
+ * outright, with every other standing sentence of this group, because the
+ * operator's rule for every remote phase is that a remote tab feels almost
+ * identical to a local one and the local branch header carries no such line;
+ * `branchOnMachineBand` is gone from ../machines/branch.ts and
+ * ../machines/__tests__/p228-off-the-face.test.ts pins that nothing draws it
+ * again. What Phase 229 wanted still holds, and more simply: a group nobody
+ * opened draws its header and nothing else, whatever the store holds, and so
+ * does an open one until it has an answer to draw.
  *
  * EVERY SENTENCE THAT DESCRIBES THE ANSWER AS A WHOLE IS DRAWN BELOW THE GROUP
  * AND NOT INSIDE ITS BODY. The body of a group in this column is capped at 45%
@@ -81,23 +81,15 @@ import type { MachineBranchMode } from '@shared/ipc';
 import { Codicon } from '../icons';
 import {
   BRANCH_NO_BRIDGE,
-  BRANCH_NOT_LIVE,
-  branchCountsAreThatMachines,
   branchFolderDenied,
   branchFolderMissing,
   branchFollows,
-  branchNameOn,
   branchNoAnswer,
   branchNoDetails,
   branchNone,
-  branchNoSwitch,
   branchNotConnected,
   branchNotRepo,
-  branchNoUpstream,
-  branchOnlyCurrent,
-  branchOnMachineBand,
   branchReading,
-  branchTip,
   branchTrackUnreadable,
   branchUpstreamGone
 } from '../machines/branch';
@@ -147,15 +139,17 @@ export function branchModeSentence(
 }
 
 /**
- * The one sentence about what the branch follows, or null when there is no
- * branch to say it about.
+ * The one sentence about what the branch follows, or null when there is
+ * nothing to say.
  *
  * FOUR ANSWERS AND THEY ARE ORDERED. A branch that follows nothing has no pair
- * of counts at all. A branch whose upstream that machine no longer has cannot
- * be counted against it. A tracking answer this end could not read must not be
- * drawn as zero and zero, because zero and zero is also what a level branch
- * says. Only when none of those three holds are the two counts a fact, and only
- * then are they drawn.
+ * of counts at all, and since Phase 228 it says nothing either, the way the
+ * local header draws no arrows for one. A branch whose upstream that machine
+ * no longer has cannot be counted against it. A tracking answer this end could
+ * not read must not be drawn as zero and zero, because zero and zero is also
+ * what a level branch says. Only when none of those three holds are the two
+ * counts a fact, and only then are they drawn; the sentence for that case is
+ * the row's hover title rather than a line on the face.
  */
 export function branchFollowSentence(
   entry: RemoteBranchEntry,
@@ -163,7 +157,7 @@ export function branchFollowSentence(
 ): string | null {
   const branch = entry.branch;
   if (branch === null) return null;
-  if (entry.upstream === null) return branchNoUpstream(branch, label);
+  if (entry.upstream === null) return null;
   if (entry.upstreamGone) {
     return branchUpstreamGone(branch, entry.upstream, label);
   }
@@ -225,20 +219,49 @@ export function RemoteBranchPanel({
     if (sentence !== null) {
       return <div className="rbranch-note">{sentence}</div>;
     }
+    // PHASE 228. THE BRANCH IS ONE ROW, in the shape the local branch header
+    // draws it: the name, the short commit beside it, and the local header's
+    // own arrows when the branch follows one, with the follows sentence as
+    // the row's hover title. Until this phase the body drew three sentences,
+    // "The branch checked out on X is main.", "Its newest commit is abc."
+    // and what it follows, and the local face draws no such paragraph. A
+    // read failure about the counts is one line under the row, because zero
+    // and zero is also what a level branch answers.
+    const failure =
+      entry.upstreamGone || entry.trackUnreadable ? follows : null;
+    const arrows =
+      countsDrawn && (entry.ahead > 0 || entry.behind > 0)
+        ? `${entry.ahead > 0 ? `↑${String(entry.ahead)}` : ''}${
+            entry.ahead > 0 && entry.behind > 0 ? ' ' : ''
+          }${entry.behind > 0 ? `↓${String(entry.behind)}` : ''}`
+        : null;
+    const sha =
+      entry.shortSha !== null && entry.shortSha !== '' ? entry.shortSha : null;
     return (
       <>
         {entry.branch !== null ? (
-          <div className="rbranch-fact rbranch-name">
-            {branchNameOn(entry.branch, label)}
+          <div role="list" className="rbranch-list">
+            <div
+              role="listitem"
+              className="rbranch-row"
+              aria-label={`${entry.branch}${sha !== null ? `, at ${sha}` : ''}${
+                arrows !== null ? `, ${arrows}` : ''
+              }`}
+              {...(countsDrawn && follows !== null ? { title: follows } : {})}
+            >
+              <Codicon name="git-branch" size="sm" />
+              <span className="rbranch-branch">{entry.branch}</span>
+              {sha !== null ? (
+                <span className="rbranch-sha num">{sha}</span>
+              ) : null}
+              {arrows !== null ? (
+                <span className="branch-arrows num">{arrows}</span>
+              ) : null}
+            </div>
           </div>
         ) : null}
-        {entry.shortSha !== null && entry.shortSha !== '' ? (
-          <div className="rbranch-fact rbranch-tip">
-            {branchTip(entry.shortSha)}
-          </div>
-        ) : null}
-        {follows !== null ? (
-          <div className="rbranch-fact rbranch-follows">{follows}</div>
+        {failure !== null ? (
+          <div className="rbranch-note rbranch-failure">{failure}</div>
         ) : null}
       </>
     );
@@ -246,11 +269,6 @@ export function RemoteBranchPanel({
 
   return (
     <>
-      {!collapsed && entry.mode === 'ok' ? (
-        <p className="scm-remote-band rbranch-band">
-          {branchOnMachineBand(label)}
-        </p>
-      ) : null}
       <section
         className={`section-scm-remote-branch${collapsed ? ' collapsed' : ''}`}
         data-section-root="remote-branch"
@@ -286,39 +304,15 @@ export function RemoteBranchPanel({
           <div className="section-body rbranch-body">{body()}</div>
         ) : null}
       </section>
-      {/* THE SENTENCES BELOW THE GROUP. Every one of them describes the answer
-          as a whole rather than one fact, so none of them may sit inside a body
-          that scrolls. The group below this one shipped two of its own inside
-          its body for one round, and the verifier measured 36 of the 44 px of
-          one of them hidden under its own fold. A person may scroll a body to
-          find a line. A person cannot scroll to find a sentence they do not
-          know is there. */}
+      {/* THE ONE LINE BELOW THE GROUP, outside the body that scrolls. PHASE
+          228 TOOK FIVE SENTENCES OUT OF THIS PLACE, being the band above the
+          group and the four standing lines under it, because the local face
+          carries no paragraph; the record is in ../machines/branch.ts. */}
       {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
           reads again by itself when it is looked at. */}
       {!collapsed && answered && entry.readAt > 0 ? (
         <p className="scm-remote-note rbranch-read-at">
           {machineReadAt(label, entry.readAt)}
-        </p>
-      ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rbranch-not-live">{BRANCH_NOT_LIVE}</p>
-      ) : null}
-      {/* Drawn with the counts and never without them. It says what the two
-          numbers were measured against, and there are no two numbers on the
-          other three paths. */}
-      {!collapsed && countsDrawn && entry.upstream !== null ? (
-        <p className="scm-remote-note rbranch-counts">
-          {branchCountsAreThatMachines(label, entry.upstream)}
-        </p>
-      ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rbranch-no-switch">
-          {branchNoSwitch(label)}
-        </p>
-      ) : null}
-      {!collapsed && factsRead ? (
-        <p className="scm-remote-note rbranch-only-current">
-          {branchOnlyCurrent(label)}
         </p>
       ) : null}
     </>

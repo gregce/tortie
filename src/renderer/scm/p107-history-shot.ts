@@ -154,8 +154,6 @@ export interface RemoteHistoryReading {
   present: boolean;
   /** True when the group is open. */
   expanded: boolean;
-  /** The band above the group, or the empty string when it is not drawn. */
-  band: string;
   /** How many commit rows are drawn. */
   rows: number;
   /** How many rows carry a drawn graph gutter. It must equal `rows`. */
@@ -487,7 +485,6 @@ function readSection(
     stage,
     present: root !== null,
     expanded: toggle?.getAttribute('aria-expanded') === 'true',
-    band: textOf('.rhist-band'),
     rows: document.querySelectorAll('.rhist-row').length,
     gutters: document.querySelectorAll('.rhist-row > .scm-graph').length,
     bodyNote: textOf('.rhist-note'),

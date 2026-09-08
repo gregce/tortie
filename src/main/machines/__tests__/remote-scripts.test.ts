@@ -1707,9 +1707,11 @@ describe('the remote branch read', () => {
   });
 
   it('never fetches, and this is the executable form of a sentence on screen', () => {
-    // `branchCountsAreThatMachines` tells a person the counts are measured
-    // against the copy of the upstream that machine last fetched. Condition 56i
-    // of build/conformance-machines.mjs asserts the same three names from
+    // The counts the Branch group draws are measured against the copy of the
+    // upstream that machine last fetched, and Tortie never fetches there.
+    // Phase 106 said so in a sentence under the group and Phase 228 took the
+    // sentence off; the rule is this test and condition 56i of
+    // build/conformance-machines.mjs, which asserts the same three names from
     // outside the test runner.
     const text = branch?.text ?? '';
     for (const verb of ['git fetch', 'git pull', 'git remote update']) {

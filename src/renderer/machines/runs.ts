@@ -29,23 +29,25 @@ import { machineReadAt } from './presentation';
  * already use, and it keeps every sentence about a machine inside the one file
  * the vocabulary audit reads.
  *
- * WHAT IS NOT TRUE, and four of the sentences below exist to say so. The list
- * is one read at one instant and nothing refreshes it, because main cannot see
- * a push made on another computer. The rows can be the newest few rather than
- * all of them. The branch over there can move after the read. The steps inside
- * a run are not read at all, so a row opens on GitHub instead of expanding.
- * Phase 99 carried a cut through main that the panel never drew, so a list that
- * had been cut was drawn as if it were whole. These four sentences are what
- * stops the same shape happening here.
+ * PHASE 105 DREW A BAND AND FOUR SENTENCES UNDER THE ROWS SAYING WHAT IS NOT
+ * TRUE, and PHASE 228 TOOK THEM OFF, on the operator's rule of 2026-09-07
+ * that a remote tab feels almost identical to a local one. The band saying
+ * where each half of the answer came from, the line saying the list does not
+ * refresh, the line saying the rows are the newest few, the line naming the
+ * branch and its commit, and the line saying a run opens on GitHub rather
+ * than expanding: every one was true and every one was a paragraph the local
+ * Runs section does not carry. The local list is cut the same way and says
+ * nothing, the Branch group beside this one names the branch, a row that
+ * opens on GitHub says so in its own label, and the clock under the rows
+ * stays until Phase 230 removes it. What still crosses the link is unchanged:
+ * Tortie asks the machine which branch is checked out and which repository
+ * the folder is, asks GitHub from this Mac, and sends no sign in details to
+ * the machine.
+ *
+ * A REPOSITORY WITH NO GITHUB ORIGIN DRAWS NO RUNS GROUP AT ALL, which is
+ * what the local section does for the same repository: the sentence that
+ * stood in place of rows there is gone with the group.
  */
-
-/** The band above the runs group. It says where each half of the answer came from. */
-export function runsOnMachineBand(label: string): string {
-  return (
-    `Tortie asked ${label} which branch is checked out. It asked GitHub from ` +
-    `this Mac, and it sent no sign in details to ${label}.`
-  );
-}
 
 /**
  * While the read of that machine's branch is in flight.
@@ -72,27 +74,6 @@ export function runsReadAt(label: string, at: number): string {
   return machineReadAt(label, at);
 }
 
-/** Under the rows, always, beside the sentence above. */
-export const RUNS_NOT_LIVE =
-  'This list does not refresh. Read it again to see anything that has run since.';
-
-/** What is checked out over there, so a person can tell what the rows are for. */
-export function runsBranchAt(
-  branch: string,
-  label: string,
-  shortSha: string
-): string {
-  return `The branch checked out on ${label} is ${branch} at ${shortSha}.`;
-}
-
-/** The row limit was reached, so older runs exist and are not here. */
-export function runsNewest(shown: number): string {
-  return (
-    `These are the newest ${shown.toLocaleString()} runs for that branch ` +
-    `and its newest commit. There are older ones.`
-  );
-}
-
 /** There is a repository and no branch name. Both causes are named. */
 export function runsNoBranch(label: string): string {
   return (
@@ -105,14 +86,6 @@ export function runsNoBranch(label: string): string {
 /** The folder is there and git does not track it. */
 export function runsNotRepo(label: string): string {
   return `That folder on ${label} is not a git repository, so it has no runs.`;
-}
-
-/** The repository has no github.com address. */
-export function runsNotGitHub(label: string): string {
-  return (
-    `The repository in that folder on ${label} has no GitHub address for its ` +
-    `origin, so there are no runs to show.`
-  );
 }
 
 /** There is no folder at that path on that machine. */
@@ -146,11 +119,6 @@ export function runsNotConnected(label: string): string {
 export function runsNoAnswer(label: string): string {
   return branchNoAnswer(label);
 }
-
-/** A row opens on GitHub and does not expand. Said once, under the rows. */
-export const RUNS_STEPS_ELSEWHERE =
-  'The steps inside a run are not shown for a folder on another machine. ' +
-  'Open a run on GitHub to read them.';
 
 /** An older preload has no way to ask a machine anything. */
 export const RUNS_NO_BRIDGE =

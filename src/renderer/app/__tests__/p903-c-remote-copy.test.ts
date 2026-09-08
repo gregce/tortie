@@ -115,18 +115,12 @@ import {
 import { reviewUntrackedTitle } from '../../machines/review';
 import {
   RUNS_NO_BRIDGE,
-  RUNS_NOT_LIVE,
-  RUNS_STEPS_ELSEWHERE,
-  runsBranchAt,
   runsFolderDenied,
   runsFolderMissing,
-  runsNewest,
   runsNoAnswer,
   runsNoBranch,
   runsNotConnected,
-  runsNotGitHub,
   runsNotRepo,
-  runsOnMachineBand,
   runsReadAt,
   runsReadingBranch
 } from '../../machines/runs';
@@ -633,46 +627,21 @@ describe('the tab, and sessions in it', () => {
 });
 
 describe('the runs for a folder that is on a machine (Phase 105)', () => {
-  it('says where each half of the answer came from, and what never crossed', () => {
-    // THE BAND IS THE WHOLE DESIGN IN ONE SENTENCE. Tortie asks the machine
-    // which branch is checked out, and it asks GitHub from this Mac with the gh
-    // this Mac already has. No token and no sign in details go to the machine.
-    expect(runsOnMachineBand(L)).toBe(
-      'Tortie asked Studio which branch is checked out. It asked GitHub from ' +
-        'this Mac, and it sent no sign in details to Studio.'
-    );
-  });
-
+  // PHASE 228 TOOK THE BAND AND FOUR STANDING LINES OFF THIS GROUP. What
+  // still crosses the link is unchanged: Tortie asks the machine which branch
+  // is checked out and which repository the folder is, asks GitHub from this
+  // Mac with the gh this Mac already has, and sends no token and no sign in
+  // details to the machine. The deletions are pinned below and in
+  // src/renderer/machines/__tests__/p228-off-the-face.test.ts.
   it('says a read is in flight rather than showing an empty list', () => {
     expect(runsReadingBranch(L)).toBe('Tortie is reading the branch on Studio.');
   });
 
-  it('says when it read, and says the list will not refresh on its own', () => {
+  it('says when it read', () => {
     // Nothing polls the machine and nothing polls GitHub, because main cannot
-    // see a push made on another computer. Both facts are on screen.
+    // see a push made on another computer. The clock is the one line that
+    // says so, until Phase 230 removes it.
     expect(runsReadAt(L, AT)).toBe('Tortie read this from Studio at 14:32.');
-    expect(RUNS_NOT_LIVE).toBe(
-      'This list does not refresh. Read it again to see anything that has run ' +
-        'since.'
-    );
-  });
-
-  it('names the branch and the commit checked out over there', () => {
-    expect(runsBranchAt('main', L, '1f2e3d4')).toBe(
-      'The branch checked out on Studio is main at 1f2e3d4.'
-    );
-  });
-
-  it('says the rows are the newest ones when the limit was reached', () => {
-    // PHASE 99 IS WHY THIS SENTENCE EXISTS. It carried a cut through main that
-    // the panel never drew, so a list that had been cut was drawn as if it were
-    // whole. A row count equal to the limit gets this sentence under it.
-    // PHASE 120 WIDENED THE READ. The list now merges the branch query with a
-    // query at the branch's newest commit, so the sentence names both.
-    expect(runsNewest(10)).toBe(
-      'These are the newest 10 runs for that branch and its newest commit. ' +
-        'There are older ones.'
-    );
   });
 
   it('names both causes when there is no branch to ask GitHub about', () => {
@@ -683,13 +652,11 @@ describe('the runs for a folder that is on a machine (Phase 105)', () => {
     );
   });
 
-  it('answers each of the five words that mean no rows', () => {
+  it('answers each of the four words that mean no rows', () => {
+    // PHASE 228. A repository with no GitHub origin has no sentence, because
+    // the group is not drawn for one, the way the local section is not.
     expect(runsNotRepo(L)).toBe(
       'That folder on Studio is not a git repository, so it has no runs.'
-    );
-    expect(runsNotGitHub(L)).toBe(
-      'The repository in that folder on Studio has no GitHub address for its ' +
-        'origin, so there are no runs to show.'
     );
     expect(runsFolderMissing(L)).toBe(
       'There is no folder at this path on Studio, so there are no runs to show.'
@@ -702,13 +669,6 @@ describe('the runs for a folder that is on a machine (Phase 105)', () => {
     );
     expect(runsNoAnswer(L)).toBe(
       'Studio did not answer, so Tortie could not read the branch.'
-    );
-  });
-
-  it('says once that a run opens on GitHub rather than expanding', () => {
-    expect(RUNS_STEPS_ELSEWHERE).toBe(
-      'The steps inside a run are not shown for a folder on another machine. ' +
-        'Open a run on GitHub to read them.'
     );
   });
 
@@ -794,21 +754,16 @@ const EVERY: readonly string[] = [
   createInRemoteProject(L),
   remoteTabOpened(P, L),
   // PHASE 105. Fifteen sentences about the runs for a folder on another
-  // machine. Every one of them is read by the four rules below.
-  runsOnMachineBand(L),
+  // machine, NINE since Phase 228 took six off. Every one of them is read by
+  // the four rules below.
   runsReadingBranch(L),
   runsReadAt(L, AT),
-  RUNS_NOT_LIVE,
-  runsBranchAt('main', L, '1f2e3d4'),
-  runsNewest(10),
   runsNoBranch(L),
   runsNotRepo(L),
-  runsNotGitHub(L),
   runsFolderMissing(L),
   runsFolderDenied(L),
   runsNotConnected(L),
   runsNoAnswer(L),
-  RUNS_STEPS_ELSEWHERE,
   RUNS_NO_BRIDGE
 ];
 
@@ -882,12 +837,8 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       SYMBOLS_ELSEWHERE_BODY,
       addRemoteRefusal('notAbsolute', P, L),
       addRemoteRefusal('noSuchMachine', P, L),
-      // PHASE 105. Four of the fifteen name no machine. Two are second lines
-      // whose first line named one, one is about Tortie's own row limit, and
-      // one is about this build rather than about a machine.
-      RUNS_NOT_LIVE,
-      runsNewest(10),
-      RUNS_STEPS_ELSEWHERE,
+      // PHASE 105. One of the nine names no machine, and it is about this
+      // build rather than about a machine.
       RUNS_NO_BRIDGE
     ]);
   });
@@ -1024,5 +975,21 @@ describe('the sentences Phase 228 took off the remote face are gone', () => {
     const source = MACHINES_SOURCE;
     expect(source).not.toContain('export function searchOnMachineLine');
     expect(source).not.toContain("with that machine's own grep");
+  });
+
+  it('does not export the three group bands, and does not hold their words', () => {
+    // THE FIX ROUND TOOK THE GROUP SENTENCES OFF. History, Branch and Runs
+    // each drew a band above the group and standing lines under it, twelve
+    // paragraphs of 245 words when the three were expanded, and the local
+    // groups carry none. The full list is in
+    // src/renderer/machines/__tests__/p228-off-the-face.test.ts.
+    const source = MACHINES_SOURCE;
+    for (const name of ['historyOnMachineBand', 'branchOnMachineBand', 'runsOnMachineBand']) {
+      expect(source).not.toContain(`export function ${name}`);
+    }
+    expect(source).not.toContain('It read that machine');
+    expect(source).not.toContain('sent no sign in details');
+    expect(source).not.toContain('This does not refresh');
+    expect(source).not.toContain('This list does not refresh');
   });
 });

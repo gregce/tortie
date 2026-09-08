@@ -28,14 +28,19 @@ import { commitCount } from './presentation';
  * person reads about them is here, which is the shape `machines:readRuns` and
  * `machines:readSessionLines` already use.
  *
- * FOUR SENTENCES SAY WHAT IS NOT TRUE, and each of them exists because a
- * person cannot see the mechanism. The answer is one read at one instant and
- * nothing refreshes it, because main cannot see a branch switched on another
- * computer. The two counts are measured against the copy of the followed
- * branch that machine last fetched, and Tortie never fetches over there, so
- * the answer can be stale at the moment it is read. Tortie changes nothing
- * over there. Only the checked out branch is read, and the other branches on
- * that machine are not listed.
+ * PHASE 106 DREW FOUR SENTENCES UNDER THE GROUP SAYING WHAT IS NOT TRUE, and
+ * a band above it, and three fact sentences inside it. PHASE 228 TOOK THEM
+ * ALL OFF, on the operator's rule of 2026-09-07 that a remote tab feels
+ * almost identical to a local one. The local branch header draws the branch
+ * as a name with its arrows, so the group draws the branch as ONE ROW, being
+ * its name, its short commit and, when it follows a branch, the local
+ * header's own arrows, with the follows sentence as the row's hover title.
+ * A branch that follows nothing draws no counts and says nothing, the way
+ * the local header draws no arrows for one. The two READ FAILURES stay as
+ * one line each under the row, because zero and zero is what a level branch
+ * answers and also what an unread answer leaves behind, and the two cannot
+ * be told apart from the picture. The clock under the group stays until
+ * Phase 230 removes it.
  */
 
 /** While the read of that machine's branch is in flight. */
@@ -51,20 +56,6 @@ export function branchNotConnected(label: string): string {
 /** The machine did not answer. */
 export function branchNoAnswer(label: string): string {
   return `${label} did not answer, so Tortie could not read the branch.`;
-}
-
-/**
- * The band above the group. It says who was asked and what was changed.
- *
- * Both halves are past tense, so it is drawn only over an answer that machine
- * actually gave. The second half is the refusal a person needs before they
- * trust a group that names a branch on a computer they are not sitting at.
- */
-export function branchOnMachineBand(label: string): string {
-  return (
-    `Tortie asked ${label} which branch is checked out in this folder. It ` +
-    `read that machine's own answer and it changed nothing there.`
-  );
 }
 
 /** The folder is there and git does not track it. */
@@ -107,18 +98,10 @@ export function branchFolderDenied(label: string): string {
   return `Tortie cannot read that folder on ${label}, so it cannot read the branch.`;
 }
 
-/** The one fact this group exists for. */
-export function branchNameOn(branch: string, label: string): string {
-  return `The branch checked out on ${label} is ${branch}.`;
-}
-
-/** The commit that branch points at, shortened the way git shortens one. */
-export function branchTip(shortSha: string): string {
-  return `Its newest commit is ${shortSha}.`;
-}
-
 /**
- * The branch it follows and how far apart the two are.
+ * The branch it follows and how far apart the two are, which since Phase 228
+ * is the hover title of the row that draws the name, the commit and the
+ * arrows, rather than a sentence on the face.
  *
  * The counts are written out for every value, including zero, because a number
  * says more than the word level does.
@@ -132,14 +115,6 @@ export function branchFollows(
   return (
     `${branch} follows ${upstream}. It is ${commitCount(ahead)} ahead and ` +
     `${commitCount(behind)} behind.`
-  );
-}
-
-/** The branch follows nothing, so there is no pair of counts to draw. */
-export function branchNoUpstream(branch: string, label: string): string {
-  return (
-    `${branch} follows no other branch on ${label}, so there is nothing to ` +
-    `count it against.`
   );
 }
 
@@ -171,48 +146,16 @@ export function branchTrackUnreadable(branch: string, label: string): string {
   );
 }
 
-/** Under the group, always. Nothing polls that machine. */
-export const BRANCH_NOT_LIVE =
-  'This does not refresh. Read it again to see whether the branch over there ' +
-  'has moved.';
-
-/**
- * Under the group, wherever there is an upstream to count against.
- *
- * THIS IS THE SENTENCE THIS PHASE EXISTS TO GET RIGHT. The two counts are
- * measured against a copy of the followed branch that lives on that machine,
- * and that copy is only as fresh as the last fetch somebody ran over there.
- * Tortie never fetches on that machine, and `build/conformance-machines.mjs`
- * fails the build if the script ever names a verb that would. So the answer
- * can be stale at the moment it is read, which is a different kind of stale
- * from the group going out of date afterwards, and it gets its own sentence.
+/*
+ * PHASE 228 DELETED FOUR SENTENCES HERE: the line saying nothing refreshes,
+ * the line saying the counts were measured against the copy of the followed
+ * branch that machine holds, the line saying the group changes nothing, and
+ * the line saying only the checked out branch is read. Tortie still never
+ * fetches on that machine, and `build/conformance-machines.mjs` still fails
+ * the build if the script ever names a verb that would; the counts on the row
+ * are that machine's own, the way the local header's arrows are this Mac's
+ * own, and neither face says so in a paragraph.
  */
-export function branchCountsAreThatMachines(
-  label: string,
-  upstream: string
-): string {
-  return (
-    `Tortie counted against the copy of ${upstream} that ${label} holds. ` +
-    `Tortie does not fetch on ${label}, so that copy can be older than what ` +
-    `is on the server, and the two counts can be wrong by that much.`
-  );
-}
-
-/** Under the group, always. This group has no verb that writes. */
-export function branchNoSwitch(label: string): string {
-  return (
-    `Tortie does not change what is checked out on ${label}. This group only ` +
-    `reads.`
-  );
-}
-
-/** Under the group, always. The header says Branch and it means one branch. */
-export function branchOnlyCurrent(label: string): string {
-  return (
-    `Tortie reads only the branch that is checked out on ${label}. It does ` +
-    `not list the other branches there.`
-  );
-}
 
 /** An older preload has no way to ask a machine anything. */
 export const BRANCH_NO_BRIDGE =
