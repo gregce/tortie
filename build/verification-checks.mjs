@@ -765,6 +765,23 @@ export const CHECKS = [
   // spawns no agent, spends no token and opens no keychain, and touches
   // `-L gmux` in one place only, a read only session count before and after.
   electron('probe:p238'),
+  // PHASE 238's FIX ROUND. The app run behind the one defect this phase put
+  // into a neighbouring feature: after an accept, the undo of a rewind can
+  // only refuse, and the face went on promising it. One launch on a scratch
+  // profile with a scratch HOME opens a committed prose file in Redline,
+  // rewinds a change through the real chord and reads the file FROM DISK,
+  // accepts a DIFFERENT change and reads the digest unmoved, reads the undo
+  // sentence and the chip's Undo button gone, presses ⌥⇧⌫ anyway and reads
+  // the refusal sentence with the file still where the rewind left it — with
+  // a CONTROL rewind and undo, no accept between, that must WRITE and come
+  // back byte for byte, so a reading that refused whatever happened could not
+  // pass. It also measures where the keyboard lands on the first two ⌥↓ and
+  // reports it. Outside writes are a synchronous /bin/sh. It creates no
+  // session, spawns no agent, spends no token and opens no keychain, and
+  // touches `-L gmux` in one place only, a read only session count before and
+  // after. `--self-test` proves its grader on ten fixtures and launches
+  // nothing.
+  electron('probe:p238u'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the
