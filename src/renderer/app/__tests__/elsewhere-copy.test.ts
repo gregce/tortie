@@ -54,8 +54,7 @@ import {
   contextNoAnswer,
   contextNoHome,
   contextNotConnected,
-  contextReadingOn,
-  contextRefreshOnMachineTitle
+  contextReadingOn
 } from '../../machines/context';
 import {
   SEARCH_ANSWER_TOO_LARGE,
@@ -147,11 +146,13 @@ describe('what Context says about a project on a machine (Phase 108)', () => {
     expect(copy.contextEmptyOnMachine).toBeUndefined();
   });
 
-  it('tells the Refresh control the truth about what it cannot see', () => {
-    expect(contextRefreshOnMachineTitle('Studio')).toBe(
-      'Read the files on Studio again. Tortie cannot see a change made on ' +
-        'that machine until you press this.'
-    );
+  it('takes the Refresh hover Phase 230 found stale out of the file too', async () => {
+    // "Tortie cannot see a change made on that machine until you press this"
+    // stopped being true when every remote view began reading again when
+    // looked at; ../../machines/__tests__/p228-off-the-face.test.ts pins the
+    // words off every component.
+    const copy = (await import('../../machines/context')) as Record<string, unknown>;
+    expect(copy.contextRefreshOnMachineTitle).toBeUndefined();
   });
 });
 
@@ -257,7 +258,6 @@ describe('the writing rules, over every sentence in src/renderer/machines', () =
       contextNoAnswer('Studio'),
       contextNoHome('Studio'),
       contextCutLine('Studio'),
-      contextRefreshOnMachineTitle('Studio'),
       SEARCH_NOT_A_REPOSITORY,
       searchFolderMissing('Studio'),
       searchPatternRefused('Studio'),

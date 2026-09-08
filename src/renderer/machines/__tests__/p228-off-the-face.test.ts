@@ -141,7 +141,13 @@ const OFF: readonly OffTheFace[] = [
   { name: 'remoteReadAt', home: 'presentation.ts', words: 'Read at ${readClockTime' },
   { name: 'machineReadAt', home: 'presentation.ts', words: 'read this from ${label} at ${readClockTime' },
   { name: 'remoteTreeReadAt', home: 'explorer.ts', words: 'Read at ${readClockTime' },
-  { name: 'runsReadAt', home: 'runs.ts', words: 'read this from ${label} at ${readClockTime' }
+  { name: 'runsReadAt', home: 'runs.ts', words: 'read this from ${label} at ${readClockTime' },
+  // PHASE 230 FIX ROUND ADDED THE CONTEXT REFRESH HOVER. Phase 228 recorded
+  // it for the next round: 21 words in two sentences on the remote Refresh
+  // control, the second saying Tortie cannot see a change on that machine
+  // until the control is pressed, which the re-read moments made false. The
+  // verifier read it as the one sentence only the remote face carried.
+  { name: 'contextRefreshOnMachineTitle', home: 'context.ts', words: 'cannot see a change made on that machine' }
 ];
 
 /** Every .ts and .tsx file under a directory, recursively. */
@@ -237,7 +243,8 @@ describe('the scanner can fail', () => {
     // became a disabled control's label, so neither is here; the Context cut
     // line and the history marks cut line stay because each names a list on
     // screen that was cut. The read-at clock STAYED until Phase 230 took it
-    // off, and its four names are the last four.
+    // off, and its four names follow; the last one is the Context Refresh
+    // hover Phase 230's fix round took off.
     expect(OFF.map((one) => one.name)).toEqual([
       'remoteBandTitle',
       'REMOTE_BAND_BODY',
@@ -272,7 +279,8 @@ describe('the scanner can fail', () => {
       'remoteReadAt',
       'machineReadAt',
       'remoteTreeReadAt',
-      'runsReadAt'
+      'runsReadAt',
+      'contextRefreshOnMachineTitle'
     ]);
   });
 

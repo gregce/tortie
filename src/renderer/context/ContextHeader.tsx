@@ -19,10 +19,8 @@
 
 import React, { useEffect } from 'react';
 import { localPathOf } from '@shared/workspace-target';
-import { contextRefreshOnMachineTitle } from '../machines/context';
 import { AgentIcon, agentMenuIcon, Codicon, warmAgentMenuIcons } from '../icons';
 import { agentShortLabel } from '../state/agents';
-import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { useContext } from './store';
@@ -40,26 +38,23 @@ import { useContext } from './store';
  */
 export function ContextHeader(): React.JSX.Element {
   const setMenu = useApp((s) => s.setMenu);
-  const machineStates = useApp((s) => s.machineStates);
   const scan = useContext((s) => s.scan);
   const agentId = useContext((s) => s.agentId);
   const setAgent = useContext((s) => s.setAgent);
   const refresh = useContext((s) => s.refresh);
   const status = useContext((s) => s.status);
   const target = useContext((s) => s.target);
-  const machineLabel = useContext((s) => s.machineLabel);
   const mode = useContext((s) => s.mode);
   const sessionName = useContext((s) => s.sessionName);
   const exitSessionMode = useContext((s) => s.exitSessionMode);
 
   const agents = scan?.agents ?? [];
 
-  // PHASE 108. Whether the files this view describes are on another machine,
-  // and what that machine is called. The machine's own label from its answer
-  // wins; before an answer lands the sidebar's list supplies the name.
+  // PHASE 108. Whether the files this view describes are on another machine.
+  // The machine's label was read here for the Refresh hover until the Phase
+  // 230 fix round took that hover off; nothing in this header names the
+  // machine now, the way the local header names no machine.
   const remote = target !== null && localPathOf(target) === null;
-  const remoteLabel =
-    machineLabel ?? machineLabelFor(machineStates, target?.machineId ?? '');
 
   useEffect(() => {
     void warmAgentMenuIcons(agents.map((a) => a.agent));
@@ -153,14 +148,24 @@ export function ContextHeader(): React.JSX.Element {
           is never in `elsewhere` any more, so Refresh works there and triggers
           the read. A remote tab this build cannot read stays `elsewhere`, and
           a control that could do nothing stays disabled rather than erroring
-          when pressed. */}
+          when pressed.
+
+          THE HOVER ON A MACHINE IS THE LABEL AND NOTHING MORE (Phase 230 fix
+          round). The local sentence is about this Mac's watcher, which does
+          not run over there, and the two sentence remote hover Phase 108 wrote
+          in its place said the view could not see a change until pressed,
+          which stopped being true when Phase 230 made every remote view read
+          again when it is looked at. The verifier read those 21 words as the
+          one sentence only the remote face carried, and the operator's rule
+          is that a remote tab feels almost identical to a local one, so the
+          control keeps its verb and loses its explanation. */}
       <button
         type="button"
         className="icon-btn view-header-action"
         aria-label="Read the configuration again"
         title={
           remote
-            ? contextRefreshOnMachineTitle(remoteLabel)
+            ? 'Read the configuration again.'
             : 'Read the configuration again. The watcher cannot see a directory that did not exist when this view opened.'
         }
         disabled={status === 'unavailable' || status === 'elsewhere'}

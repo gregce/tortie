@@ -128,11 +128,17 @@ export function contextCutLine(label: string): string {
  * draws the same body as on this Mac, and the button is simply not drawn.
  */
 
-/**
- * The Refresh tooltip on a remote tab. The local sentence is about this Mac's
- * watcher, and no watcher runs on the machine, so the remote sentence says
- * what is true instead: nothing over there re-reads on its own.
+/*
+ * PHASE 230 FIX ROUND DELETED THE REMOTE REFRESH TITLE. Phase 108 gave the
+ * Refresh control on a machine a two sentence hover, being "Read the files on
+ * X again. Tortie cannot see a change made on that machine until you press
+ * this." The second sentence was true when it was written and is not true
+ * now: a remote view reads again when it is looked at, when the window comes
+ * back and after Tortie's own write, at the moments ./use-remote-reread.ts
+ * names. Phase 228 recorded the 21 words for the next round and the Phase
+ * 230 verifier read them still on the face. The control's hover on a machine
+ * is now its own label and nothing more, drawn in
+ * ../context/ContextHeader.tsx; the local hover is unchanged, because it is
+ * about this Mac's watcher and this phase changes no local view.
+ * ./__tests__/p228-off-the-face.test.ts pins the name and the words off.
  */
-export function contextRefreshOnMachineTitle(label: string): string {
-  return `Read the files on ${label} again. Tortie cannot see a change made on that machine until you press this.`;
-}
