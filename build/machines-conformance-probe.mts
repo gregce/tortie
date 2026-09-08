@@ -1192,8 +1192,27 @@ const {
   // against the `head -c` literal inside the script text. Both are compiled
   // constants in a module that imports nothing.
   CONTEXT_READ_LIST_MAX_BYTES,
-  CONTEXT_READ_FILE_MAX_BYTES
+  CONTEXT_READ_FILE_MAX_BYTES,
+  // Phase 234, condition 87. The three ceilings the two Architecture reads
+  // carry, read here so the gate can compare each against the literal inside
+  // the script text it belongs to.
+  ARCH_GIT_MAX_BYTES,
+  ARCH_READ_FILE_MAX_BYTES,
+  ARCH_READ_LIST_MAX_BYTES
 } = await import('../src/main/machines/remote-scripts');
+// Phase 234, condition 87. The five argv composers the Architecture checkers
+// use on THIS Mac, so the gate can read the same five command lines out of the
+// far side script's own text and fail when one drifts. Loading this module
+// spawns nothing: every function in it composes a frozen array of compiled in
+// words and the guard refuses anything else.
+const {
+  ARCH_GIT_CALL_KINDS,
+  catFileBatchCall,
+  logNameOnlyCall,
+  lsFilesCall,
+  revParseHeadCall,
+  statusPorcelainCall
+} = await import('../src/main/arch/argv-guard');
 const { composeRemoteScriptCommand, remoteScriptName } = await import(
   '../src/main/machines/remote-run'
 );
@@ -2922,6 +2941,26 @@ process.stdout.write(
     // seed. Everything here is decided in this process: no command runs, no
     // machine is asked anything and no file is opened except to be read as
     // text.
+    // --- Phase 234, condition 87 ------------------------------------------
+    // The five git command lines the Architecture checkers compose on THIS
+    // Mac. `arch-git` carries the same five in its own text, chosen by a KIND
+    // word, so this is what lets the gate read one against the other.
+    phase234: {
+      kinds: [...ARCH_GIT_CALL_KINDS],
+      argv: {
+        'ls-files': [...lsFilesCall().argv],
+        'cat-file-batch': [...catFileBatchCall(['HEAD:a']).argv],
+        'log-name-only': [...logNameOnlyCall().argv],
+        'status-porcelain': [...statusPorcelainCall().argv],
+        'rev-parse-head': [...revParseHeadCall().argv]
+      },
+      // The one call that carries values, and it carries them on stdin.
+      catFileStdin: catFileBatchCall(['HEAD:a', 'HEAD:b']).stdin ?? '',
+      gitMaxBytes: ARCH_GIT_MAX_BYTES,
+      readFileMaxBytes: ARCH_READ_FILE_MAX_BYTES,
+      readListMaxBytes: ARCH_READ_LIST_MAX_BYTES
+    },
+
     phase117: (() => {
       const sessionsPath = join(machinesDir, 'remote-sessions.ts');
       const recordPath = join(machinesDir, 'remote-record.ts');

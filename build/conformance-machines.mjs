@@ -2831,13 +2831,27 @@ const ALLOWED_GIT_VERBS_SORTED = [
  * the two prompt names of it as of every bound verb, condition 53j exempts a
  * bound verb on a read script from its all-reads check, and condition 56k
  * reads each `git config` line for `--get` of exactly those two keys.
+ *
+ * PHASE 234 ADDED ONE TO A READ, being `cat-file` in `arch-git` alone, and it
+ * is the second entry here belonging to a read script. The Architecture view's
+ * evidence checker reads file bytes at HEAD, and on this Mac it does it with
+ * `git cat-file --batch` through the five fixed argv `src/main/arch/argv-guard.ts`
+ * composes; the machine arm runs THE SAME WORDS out of the script's own text.
+ * `cat-file` reads the object database and reaches no server, so it meets the
+ * test `ALLOWED_GIT_VERBS` states. It is still NOT added there, for the reason
+ * `config` was not: a verb allowed everywhere is a verb any future script can
+ * use, and one script needing it is not a reason for all of them to have it.
+ * Binding it here means condition 49 asks the two prompt names of it as of
+ * every bound verb, which is why the `cat-file` arm of `ARCH_GIT` carries
+ * `GCM_INTERACTIVE=never` while the four arms naming read verbs do not.
  */
 const EXTRA_GIT_VERBS = {
   'git-clone': ['ls-remote', 'clone'],
   'git-stage': ['add'],
   'git-unstage': ['restore', 'rm'],
   'git-commit': ['commit'],
-  'repo-branch': ['config']
+  'repo-branch': ['config'],
+  'arch-git': ['cat-file']
 };
 
 /** Every verb in that map, so the second loop of condition 49 reads one list. */
@@ -2915,7 +2929,7 @@ const INDEX_PATH_GUARD =
   "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
 
 /**
- * How many scripts the catalogue holds. Twenty six.
+ * How many scripts the catalogue holds. Twenty eight.
  *
  * Four later conditions pinned this number as a literal `19` each. Phase 101
  * made them one constant, because four copies of one number is how three of
@@ -2924,8 +2938,10 @@ const INDEX_PATH_GUARD =
  * moved it from twenty four to twenty five by one more, and Phase 233 moved it
  * from twenty five to twenty six by ONE READ, `commit-files`, which condition
  * 35's own walk classifies as a read because `ALLOWED_WRITERS` did not grow.
+ * PHASE 234 MOVED IT FROM TWENTY SIX TO TWENTY EIGHT BY TWO MORE READS, being
+ * `arch-read` and `arch-git`, and `ALLOWED_WRITERS` did not grow for either.
  */
-const REMOTE_SCRIPT_COUNT = 26;
+const REMOTE_SCRIPT_COUNT = 28;
 
 {
   // 35. The catalogue's shape.
@@ -7601,6 +7617,198 @@ process.stdout.write(
         `  WHAT NOTHING CHECKS: the writes gate is not in the door. Eight ` +
         `callers each ask confirmedWriteRoot, which is a discipline rather ` +
         `than a door.\n`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 87. Phase 234. The Architecture arm's two reads, and the argv that must not
+//     drift
+// ---------------------------------------------------------------------------
+//
+// `arch-git` runs ONE of the five git calls `src/main/arch/argv-guard.ts`
+// composes, chosen by a KIND word this script matches with an `if` chain. That
+// is what makes the argv defense a fact about the far side too: the words over
+// there are compiled into the script text, so no value a caller sends, and
+// therefore no field of a contract file, can become part of a git command line
+// on either computer.
+//
+// A gate that read only "the script names `git`" would let the two sides drift
+// the day somebody adds a flag on this Mac. So this condition reads each arm of
+// the script against the composer's OWN argv, element for element, and it fails
+// when an arm is missing, when an arm names words the composer did not, and
+// when a kind exists on this Mac with no arm over there.
+//
+// It also reads the three ceilings out of the script texts and compares each
+// against the exported constant it belongs to, which is the same rule
+// conditions 52, 53 and 58g keep for the search, the file list and the context
+// read.
+//
+// Pure. It reads two compiled script texts and five frozen argvs. It starts
+// nothing, opens no file under the person's home and contacts no machine.
+
+{
+  const arch = data.phase234 ?? null;
+  const archGit = scripts.find((row) => row.id === 'arch-git') ?? null;
+  const archRead = scripts.find((row) => row.id === 'arch-read') ?? null;
+  if (arch === null || archGit === null || archRead === null) {
+    fail(
+      'the probe printed nothing about the Architecture arm, or the catalogue ' +
+        'holds no arch-git and no arch-read, so condition 87 checked nothing.'
+    );
+  } else {
+    // 87a. Both are reads, and neither may ever become a write.
+    for (const row of [archGit, archRead]) {
+      if (row.mode !== 'read') {
+        fail(
+          `remote script ${row.id} is a ${row.mode}. The Architecture arm reads ` +
+            `a folder on another machine and writes nothing there, and a write ` +
+            `mode would put it behind runRemoteWrite with the eight writers.`
+        );
+      }
+    }
+
+    // 87b. Every kind this Mac composes has an arm, spelled with the SAME
+    //      words the composer proved, and no arm names a word it did not.
+    const text = String(archGit.text ?? '');
+    const armStarts = [...text.matchAll(/\[ "\$k" = ([a-z-]+) \]/g)].map((hit) => ({
+      kind: hit[1] ?? '',
+      at: hit.index ?? 0
+    }));
+    const armed = armStarts.map((one) => one.kind);
+    const kinds = [...(arch.kinds ?? [])].map(String);
+    const missing = kinds.filter((kind) => !armed.includes(kind));
+    const extra = armed.filter((kind) => !kinds.includes(kind));
+    if (missing.length > 0 || extra.length > 0) {
+      fail(
+        `arch-git answers the kinds ${armed.join(', ') || 'none'} and ` +
+          `src/main/arch/argv-guard.ts composes ${kinds.join(', ')}. ` +
+          `${missing.length > 0 ? `Missing over there: ${missing.join(', ')}. ` : ''}` +
+          `${extra.length > 0 ? `Named over there and nowhere here: ${extra.join(', ')}. ` : ''}` +
+          `A kind with no arm runs nothing and answers 127, and an arm with no ` +
+          `kind is a git command line nothing on this Mac composes.`
+      );
+    }
+    for (let at = 0; at < armStarts.length; at += 1) {
+      const arm = armStarts[at];
+      const end = at + 1 < armStarts.length ? armStarts[at + 1].at : text.length;
+      const body = text.slice(arm.at, end);
+      const wanted = (arch.argv ?? {})[arm.kind];
+      if (wanted === undefined) continue;
+      const line = `git ${wanted.join(' ')}`;
+      if (!body.includes(line)) {
+        fail(
+          `the ${arm.kind} arm of arch-git does not carry "${line}", which is ` +
+            `what src/main/arch/argv-guard.ts composes on this Mac. Every git ` +
+            `argv the machine arm sends is the local arm's argv byte for byte, ` +
+            `and this is the check that keeps it so.`
+        );
+      }
+      // No positional of the script may reach a git command line. The one
+      // value any call carries goes to standard input, which is what the local
+      // call does with it too.
+      const gitLines = body
+        .split('\n')
+        .filter((one) => one.includes(' git ') || one.trimStart().startsWith('git '));
+      for (const one of gitLines) {
+        // The command line is what stands between the word `git` and the
+        // shell's own `|| s=$?`, which is this script's status keeping and not
+        // part of anything git is handed.
+        const afterGit = one.slice(one.indexOf(' git ') + 5);
+        const cut = afterGit.indexOf('||');
+        const composed = (cut < 0 ? afterGit : afterGit.slice(0, cut)).trim();
+        if (composed !== wanted.join(' ')) {
+          fail(
+            `the ${arm.kind} arm of arch-git hands git "${composed}" and ` +
+              `src/main/arch/argv-guard.ts composes "${wanted.join(' ')}". ` +
+              `Every git argv the machine arm sends is the local arm's argv ` +
+              `byte for byte.`
+          );
+        }
+        if (composed.includes('$')) {
+          fail(
+            `the ${arm.kind} arm of arch-git puts a "$" on a git command line, ` +
+              `in "${one.trim()}". Nothing a caller sends may become part of a ` +
+              `git command line: cat-file's requests are piped into git's ` +
+              `standard input by the script, exactly as RunGitOptions.stdin ` +
+              `carries them on this Mac.`
+          );
+        }
+      }
+    }
+
+    // 87c. The one call that carries values carries them on stdin, and the
+    //      script pipes its third parameter in rather than naming it.
+    if (!text.includes('printf \'%s\' "$i" |')) {
+      fail(
+        'arch-git does not pipe its third parameter into git. The cat-file ' +
+          'requests are the one value any of the five calls carries, and they ' +
+          'go to standard input on both computers.'
+      );
+    }
+    const stdin = String(arch.catFileStdin ?? '');
+    if (!stdin.endsWith('\n') || !stdin.includes('HEAD:a\nHEAD:b')) {
+      fail(
+        `catFileBatchCall composes ${JSON.stringify(stdin)} for two requests. ` +
+          `The far side pipes that text in unchanged, so one request per line ` +
+          `has to be what the local composer writes.`
+      );
+    }
+
+    // 87d. The three ceilings, each read out of the text it bounds.
+    const gitCut = Number(arch.gitMaxBytes ?? 0) + 1;
+    if (!text.includes(`head -c ${String(gitCut)}`)) {
+      fail(
+        `arch-git does not cut its stream at ${String(gitCut)} bytes, which is ` +
+          `ARCH_GIT_MAX_BYTES plus one. The script reads one byte past the cap ` +
+          `for the reason repo-files does: the cut is told rather than inferred, ` +
+          `because a cut stream has lost its status line and is read as a failed ` +
+          `call rather than as a shorter answer.`
+      );
+    }
+    const readText = String(archRead.text ?? '');
+    const fileCap = Number(arch.readFileMaxBytes ?? 0);
+    if (!readText.includes(`head -c ${String(fileCap)}`)) {
+      fail(
+        `arch-read does not cut one file at ${String(fileCap)} bytes, which is ` +
+          `ARCH_READ_FILE_MAX_BYTES and is MAX_READ_BYTES in ` +
+          `src/main/arch/tree-facts.ts. A file this Mac would not read is not ` +
+          `carried across either.`
+      );
+    }
+    if (Number(arch.readListMaxBytes ?? 0) <= 0) {
+      fail('ARCH_READ_LIST_MAX_BYTES is not a positive number of bytes.');
+    }
+
+    // 87e. Neither read follows a link, and neither opens a path that is
+    //      absolute or holds `..`. Both are the review-file line reused.
+    if (!readText.includes('case "$p" in /*|*..*)')) {
+      fail(
+        'arch-read does not refuse an absolute path and a path holding "..". ' +
+          'That line is review-file\'s own and it is what keeps a read inside ' +
+          'the folder the person confirmed.'
+      );
+    }
+    if ((readText.match(/\[ ! -h "\$p" \]/g) ?? []).length !== 3) {
+      fail(
+        'arch-read does not test all three of its lists for a symbolic link. ' +
+          'Following one would read wherever it points, outside the folder ' +
+          'included, which is the lstat rule src/main/arch/tree-facts.ts keeps ' +
+          'on this Mac.'
+      );
+    }
+
+    process.stdout.write(
+      `the Architecture arm sends two reads. arch-git carries ` +
+        `${String(armed.length)} git command lines in its own text, chosen by a ` +
+        `kind word, and every one of them is byte for byte what ` +
+        `src/main/arch/argv-guard.ts composes on this Mac: ` +
+        `${kinds.map((kind) => `${kind} = git ${((arch.argv ?? {})[kind] ?? []).join(' ')}`).join('; ')}. ` +
+        `Nothing a caller sends reaches a git command line; the cat-file ` +
+        `requests are piped into standard input on both computers. arch-read ` +
+        `cuts one file at ${String(fileCap)} bytes, arch-git cuts its stream at ` +
+        `${String(gitCut)}, and neither follows a link or opens a path outside ` +
+        `the folder.\n`
     );
   }
 }

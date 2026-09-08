@@ -93,7 +93,14 @@ const CLONE_VERBS = ['ls-remote', 'clone'];
  * keys.
  */
 const READ_BOUND_VERBS: Readonly<Record<string, readonly string[]>> = {
-  'repo-branch': ['config']
+  'repo-branch': ['config'],
+  // PHASE 234. `arch-git` runs one of the five calls
+  // `src/main/arch/argv-guard.ts` composes, and one of them is
+  // `git cat-file --batch`, which reads file bytes at HEAD for the evidence
+  // checker. `cat-file` reads the object database and reaches no server, and
+  // it does NOT join GIT_VERBS above for the reason `config` did not: one
+  // script needing a verb is not a reason for every script to have it.
+  'arch-git': ['cat-file']
 };
 
 function words(text: string): string[] {
@@ -143,8 +150,8 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds twenty six scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(26);
+  it('holds twenty eight scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(28);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
       // PHASE 104 added `git-commit`, and it WRITES. It is the eighth writer,
       // so the write count below moved from seven to eight. It is the third
@@ -190,14 +197,6 @@ describe('the catalogue', () => {
       // it writes nothing, so the write count below stays at two. It names no
       // git verb, so GIT_VERBS above did not move either.
       'agents-find',
-      // PHASE 233 added `commit-files`, which answers what ONE commit changed
-      // in one folder, or both sides of one file of it out of the object
-      // database, so a remote History row can expand into its files and a
-      // file can open as a two sided diff. It is a read, it writes nothing,
-      // so the write count below stays at eight, and it names one git verb,
-      // `show`, which has been on GIT_VERBS since Phase 73, so that list did
-      // not move either.
-      'commit-files',
       // PHASE 108 added `context-read`, which lists directories and reads
       // files back so the Context view on a tab that lives over there shows
       // what the agents THERE will load. The reader and every parser stay on
@@ -242,6 +241,26 @@ describe('the catalogue', () => {
       // writes nothing, and `git-clone`, which is the SECOND write in this
       // catalogue and the second write this product can make on another
       // computer.
+      // PHASE 234 added `arch-git` and `arch-read`, and both are reads. The
+      // Architecture view's two seams, being the read of `docs/arch/` and the
+      // five fixed git calls, are implemented over the exec plane by
+      // `../remote-arch.ts`, so a folder on a machine is read by the same
+      // checkers and drawn by the same reading as a folder on this Mac.
+      // `arch-git` carries the five git command lines IN ITS OWN TEXT and picks
+      // one by a KIND word, so nothing a caller sends can become part of a git
+      // command line. It adds ONE git verb, being `cat-file`, bound to that one
+      // script in READ_BOUND_VERBS above and not joining GIT_VERBS. Neither
+      // writes, so the write count below stays at eight.
+      'arch-git',
+      'arch-read',
+      // PHASE 233 added `commit-files`, which answers what ONE commit changed
+      // in one folder, or both sides of one file of it out of the object
+      // database, so a remote History row can expand into its files and a
+      // file can open as a two sided diff. It is a read, it writes nothing,
+      // so the write count below stays at eight, and it names one git verb,
+      // `show`, which has been on GIT_VERBS since Phase 73, so that list did
+      // not move either.
+      'commit-files',
       'context-read',
       'dir-list',
       'dir-new',

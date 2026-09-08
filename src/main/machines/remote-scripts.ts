@@ -150,6 +150,21 @@
  * of a list of folders, which is how Tortie finds an agent on a machine whose
  * login shell does not have that agent on its list. Both write nothing.
  *
+ * PHASE 234 ADDED TWO MORE, and both are reads. `arch-read` answers the two
+ * questions the Architecture view's contract reader asks, being one file's
+ * bytes and one directory's entries under one confirmed folder, plus the stat
+ * of a list of paths, so the reader can bring only what drifted across the
+ * link. `arch-git` runs ONE of the five git calls `src/main/arch/argv-guard.ts`
+ * composes locally, chosen by KIND, with every argv written into this text
+ * byte for byte as the local composer writes it; the kind is a word this
+ * script matches with `case`, so no caller can compose a git command line and
+ * the gate proves each line against the local composer. It adds ONE git verb,
+ * being `cat-file`, bound to this one script alone by `EXTRA_GIT_VERBS`: it
+ * reads the object database, reaches no server, and is not added to the
+ * verbs every script may name. Both write nothing, and both are how the
+ * reading, the map and the contract of a folder on a machine are read from
+ * THIS Mac: no parser, no checker and no agent runs on the machine.
+ *
  * PHASE 109 ADDED ONE MORE, and it is a read. `agents-find` asks one machine,
  * in ONE call, which of the agents Tortie can launch exist there, so the
  * create sheet on a tab whose files live over there can grey the tiles that
@@ -493,6 +508,33 @@ export const CONTEXT_READ_LIST_MAX_BYTES = 100_000;
  * does to the same file.
  */
 export const CONTEXT_READ_FILE_MAX_BYTES = 33_554_432;
+
+/**
+ * The most bytes the three lists of one `arch-read` call may hold together.
+ * 100,000, the same number `context-read` takes per list, for the same reason:
+ * the whole command is one argument of the far login shell under
+ * {@link REMOTE_SCRIPT_MAX_BYTES}, and a longer list becomes more calls. The
+ * driver in `./remote-arch.ts` enforces it; this file only states the number.
+ */
+export const ARCH_READ_LIST_MAX_BYTES = 100_000;
+
+/**
+ * The most bytes of git output one `arch-git` call carries back before it is
+ * cut, being 8,388,608, and the script reads one byte past it for the reason
+ * `repo-files` does: the cut is told rather than inferred. The literal in the
+ * `ARCH_GIT` text is this number plus one, and condition 87 of
+ * `build/conformance-machines.mjs` asserts the two agree.
+ */
+export const ARCH_GIT_MAX_BYTES = 8_388_608;
+
+/**
+ * The most bytes of one file `arch-read` sends back, being 4,000,000. It is
+ * `MAX_READ_BYTES` in `src/main/arch/tree-facts.ts`, the largest file the
+ * local read opens, so a file this Mac would not read is not carried across.
+ * The literal in the `ARCH_READ` text is this number, and condition 87 asserts
+ * the two agree.
+ */
+export const ARCH_READ_FILE_MAX_BYTES = 4_000_000;
 
 // ---------------------------------------------------------------------------
 // The scripts. THIS DIVIDER HAD GONE STALE TWICE and Phase 103 says so rather
@@ -2790,18 +2832,159 @@ const GIT_COMMIT = [
 ].join('\n');
 
 /**
- * The whole catalogue. Twenty five scripts, and this release holds no others.
+ * The Architecture view's read of one folder on a machine (Phase 234).
+ *
+ * `$1` is the repository root on that machine. `$2` is a newline separated
+ * list of paths to STAT, `$3` a list of paths to READ back, and `$4` a list of
+ * directories to LIST. Every path is relative to the root, and one that is
+ * absolute or holds `..` answers `X` rather than being opened, the same line
+ * `review-file` carries. A symbolic link is never followed and answers `X`,
+ * which is the lstat rule `src/main/arch/tree-facts.ts` keeps on this Mac.
+ *
+ * The records, one per line:
+ *
+ *   S <mtime> <size> <path>            the file's stamp, for the stat list
+ *   F <mtime> <size> <path>            a file read back; the NEXT line is its
+ *                                      bytes as base64, empty for an empty file
+ *   D <path>                           a directory; the NEXT line is its
+ *                                      entries, newline joined, as base64
+ *   X <path>                           not there, refused, or not a plain file
+ *
+ * `head -c 4000000` is the same ceiling `MAX_READ_BYTES` in
+ * `src/main/arch/tree-facts.ts` puts on a local read, so a file this Mac
+ * would not read is not carried across either; the reader on this side drops
+ * a file whose stamp says it is over that size before it asks. Three lists
+ * cross as three parameters because the whole command is one argument of the
+ * far login shell, and `./remote-arch.ts` splits a longer list into more
+ * calls under {@link ARCH_READ_LIST_MAX_BYTES}.
+ */
+const ARCH_READ = [
+  'set -e',
+  'umask 077',
+  'set -f',
+  'cd "$1"',
+  'sl="$2"',
+  'rl="$3"',
+  'dl="$4"',
+  "IFS='",
+  "'",
+  'n=0',
+  'for p in $sl; do if [ -n "$p" ]; then n=1; fi; done',
+  'for p in $rl; do if [ -n "$p" ]; then n=1; fi; done',
+  'for p in $dl; do if [ -n "$p" ]; then n=1; fi; done',
+  "printf '__TORTIE_RUN__'",
+  'if [ "$n" = 0 ]; then',
+  "  printf 'none'",
+  'else',
+  '  for p in $sl; do',
+  '    [ -n "$p" ] || continue',
+  '    case "$p" in /*|*..*) printf \'X %s\\n\' "$p"; continue;; esac',
+  '    if [ ! -h "$p" ] && [ -f "$p" ]; then',
+  "      m=$(stat -c '%Y %s' \"$p\" 2>/dev/null || true)",
+  "      if [ -z \"$m\" ]; then m=$(stat -f '%m %z' \"$p\" 2>/dev/null || true); fi",
+  "      printf 'S %s %s\\n' \"${m:-0 0}\" \"$p\"",
+  '    else',
+  "      printf 'X %s\\n' \"$p\"",
+  '    fi',
+  '  done',
+  '  for p in $rl; do',
+  '    [ -n "$p" ] || continue',
+  '    case "$p" in /*|*..*) printf \'X %s\\n\' "$p"; continue;; esac',
+  '    if [ ! -h "$p" ] && [ -f "$p" ] && [ -r "$p" ]; then',
+  "      m=$(stat -c '%Y %s' \"$p\" 2>/dev/null || true)",
+  "      if [ -z \"$m\" ]; then m=$(stat -f '%m %z' \"$p\" 2>/dev/null || true); fi",
+  "      printf 'F %s %s\\n' \"${m:-0 0}\" \"$p\"",
+  "      head -c 4000000 \"$p\" | base64 | tr -d '\\n' || true",
+  "      printf '\\n'",
+  '    else',
+  "      printf 'X %s\\n' \"$p\"",
+  '    fi',
+  '  done',
+  '  for p in $dl; do',
+  '    [ -n "$p" ] || continue',
+  '    case "$p" in /*|*..*) printf \'X %s\\n\' "$p"; continue;; esac',
+  '    if [ ! -h "$p" ] && [ -d "$p" ] && [ -r "$p" ] && [ -x "$p" ]; then',
+  "      printf 'D %s\\n' \"$p\"",
+  "      ls -A \"$p\" 2>/dev/null | base64 | tr -d '\\n' || true",
+  "      printf '\\n'",
+  '    else',
+  "      printf 'X %s\\n' \"$p\"",
+  '    fi',
+  '  done',
+  'fi',
+  "printf '__TORTIE_RUN__\\n'"
+].join('\n');
+
+/**
+ * ONE of the Architecture checkers' five git calls, run in one folder on a
+ * machine (Phase 234).
+ *
+ * `$1` is the repository root on that machine. `$2` is the KIND of the call,
+ * one of the five names `ARCH_GIT_CALL_KINDS` in `src/main/arch/argv-guard.ts`
+ * lists, and `$3` is what the call writes to git's standard input, which only
+ * `cat-file-batch` reads. THE ARGV IS THIS TEXT. Each arm below carries the
+ * words the local composer composes, in the local order, so the command git
+ * runs over there is byte for byte the one it runs here, and no caller can
+ * hand this script a word: a kind that matches no arm runs nothing and
+ * answers status 127. The arms are an `if` chain rather than a `case`,
+ * because bash 3.2, which is `/bin/sh` on a Mac, cannot parse a `case`
+ * pattern's closing parenthesis inside `$( )`, measured on 2026-09-08. Condition 87 of `build/conformance-machines.mjs` reads
+ * each arm against the local composer's argv and fails when one drifts.
+ *
+ * Every arm carries `GIT_OPTIONAL_LOCKS=0` and `GIT_TERMINAL_PROMPT=0`, which
+ * is exactly the environment `src/main/git/exec.ts` gives the same call on
+ * this Mac, so a background read over there never takes the index lock from
+ * under an agent's own git either. `cat-file` also carries
+ * `GCM_INTERACTIVE=never`, because it is the one verb here bound by
+ * `EXTRA_GIT_VERBS` rather than allowed everywhere, and every bound verb
+ * carries both prompt names.
+ *
+ * THE ANSWER IS ONE BASE64 WORD holding git's standard output followed by
+ * one line naming its exit status, `__TORTIE_GIT__<n>`, so the status crosses
+ * inside the same stream as the bytes and no second channel is needed. The
+ * stream is cut at 8,388,609 bytes; a cut stream has lost its status line,
+ * and `./remote-arch.ts` reads that as a failed call rather than as a shorter
+ * answer, because a half read `cat-file` batch would parse as the wrong file.
+ */
+const ARCH_GIT = [
+  'set -e',
+  'umask 077',
+  'cd "$1"',
+  'k="$2"',
+  'i="$3"',
+  'o=$( {',
+  '  s=0',
+  '  if [ "$k" = ls-files ]; then',
+  '    GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 git ls-files -z || s=$?',
+  '  elif [ "$k" = cat-file-batch ]; then',
+  '    printf \'%s\' "$i" | GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git cat-file --batch || s=$?',
+  '  elif [ "$k" = log-name-only ]; then',
+  '    GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 git log --format=%H --name-only --no-renames -z || s=$?',
+  '  elif [ "$k" = status-porcelain ]; then',
+  '    GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 git status --porcelain -z || s=$?',
+  '  elif [ "$k" = rev-parse-head ]; then',
+  '    GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 git rev-parse HEAD || s=$?',
+  '  else',
+  '    s=127',
+  '  fi',
+  "  printf '\\n__TORTIE_GIT__%s' \"$s\"",
+  "} 2>/dev/null | head -c 8388609 | base64 | tr -d '\\n' )",
+  "printf '__TORTIE_RUN__%s__TORTIE_RUN__\\n' \"${o:-none}\""
+].join('\n');
+
+/**
+ * The whole catalogue. Twenty seven scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * EIGHT of the twenty five write, being `image-put`, `git-clone`, `file-put`,
+ * EIGHT of the twenty seven write, being `image-put`, `git-clone`, `file-put`,
  * `dir-new`, `entry-rename`, `git-stage`, `git-unstage` and `git-commit`, and
  * they are in that order in this array. {@link remoteWriteScripts} returns them
  * in it.
  * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105,
- * PHASE 106, PHASE 107, PHASE 108 AND PHASE 109. PHASE 101 MOVED IT FROM TWO TO
+ * PHASE 106, PHASE 107, PHASE 108, PHASE 109 AND PHASE 234, WHICH ADDED TWO. PHASE 101 MOVED IT FROM TWO TO
  * THREE, once and on purpose, because saving a file a person is editing is a
  * write and there is no honest way to write it as a read. PHASE 102 MOVED IT
  * FROM THREE TO FIVE, once and on purpose, because making a folder is a write
@@ -3065,6 +3248,25 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'read, and the first run moves HEAD. So a second run of the same ' +
       'request finds HEAD moved, commits nothing, and answers moved instead ' +
       'of adding a second commit.'
+  },
+  {
+    id: 'arch-read',
+    mode: 'read',
+    params: 4,
+    text: ARCH_READ,
+    reason:
+      'It stats, reads and lists paths under one folder and writes nothing. ' +
+      'Running it twice reads the same paths twice.'
+  },
+  {
+    id: 'arch-git',
+    mode: 'read',
+    params: 3,
+    text: ARCH_GIT,
+    reason:
+      'It runs one of five read only git calls in one folder, chosen by a ' +
+      'word this text matches, and writes nothing. Running it twice asks ' +
+      'git the same question twice.'
   }
 ];
 
