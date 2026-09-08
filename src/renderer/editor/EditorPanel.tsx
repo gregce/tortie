@@ -9,7 +9,7 @@
  *   preview  rendered markdown, no Monaco (Phase 12 item 6)
  *   split    Source and Preview side by side
  *   redline  the whole document as prose with every change marked in place,
- *            read-only, no Pierre (Phase 194)
+ *            no Pierre (Phase 194); typed in since Phase 237
  *
  * Tabs ACCUMULATE (Phase 12 item 5): a single click opens a preview tab
  * (italic, recycled by the next single click), a double-click or the first
@@ -242,10 +242,14 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
       mode: 'redline',
       label: 'Redline',
       icon: 'strikethrough',
+      // PHASE 237. It is no longer read-only for a worktree tab, at the
+      // operator's word of 2026-09-08: a typo in a paragraph you are looking
+      // at should not mean switching to Source, finding it and switching
+      // back. A commit tab is still the past and says so.
       title:
         tab.commit !== null
           ? `The document with what commit ${tab.commit.shortSha} changed marked in place (read-only)`
-          : 'The document with its changes marked in place (read-only)'
+          : 'The document with its changes marked in place, and you can type in it'
     });
   }
   // An SVG takes markdown's control unchanged — it is the same question

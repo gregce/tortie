@@ -25,7 +25,9 @@
  *    3  THE NEW PROJECTION: the runs without the deletions        node + DOM
  *       equal the new file byte for byte, every fixture
  *    4  no Pierre, no Monaco, no line number and no rendered      the document
- *       markdown in the view's tree, and nothing editable
+ *       markdown, the document is the ONE editable thing, and
+ *       every deletion inside it is an atomic island (Phase 237
+ *       reversed this row's "nothing editable" half)
  *    5  deletions are --error and struck through, insertions      getComputedStyle
  *       are --success and not, from the live tokens
  *    6  the document keeps its whitespace (pre-wrap) and is       getComputedStyle
@@ -570,6 +572,15 @@ if (reading === null || typeof reading !== 'object') {
   }
 
   // -- 4. nothing that is not the document is in the tree --------------------
+  //
+  // PHASE 237 REVERSED HALF OF THIS ROW, at the operator's word of 2026-09-08:
+  // the document is `contenteditable="plaintext-only"` now, so "nothing
+  // editable" is no longer what must be true. What must be true instead is
+  // that the document is the ONLY editable thing, that every
+  // `[contenteditable]` inside it is a DELETION carrying `false`, which is the
+  // atomic island the caret steps over in one press, and that there is no
+  // textarea and no input anywhere in the view. The rest of the row, being no
+  // Pierre, no Monaco, no line number and no rendered markdown, is unchanged.
   {
     const bad = [];
     for (const rel of PROSE) {
@@ -579,17 +590,24 @@ if (reading === null || typeof reading !== 'object') {
         d.monaco !== 0 ||
         d.lineNumbers !== 0 ||
         d.renderedMarkdown !== 0 ||
-        d.contentEditable !== false ||
-        d.editableInside !== 0
+        d.contentEditable !== true ||
+        d.contentEditableAttr !== 'plaintext-only' ||
+        d.editableInside !== 0 ||
+        d.delsNotEditable !== true ||
+        d.editableDescendants !== d.dels
       ) {
-        bad.push(`${rel}: pierre ${String(d.pierre)} monaco ${String(d.monaco)} numbers ${String(d.lineNumbers)} md ${String(d.renderedMarkdown)} editable ${String(d.contentEditable)}/${String(d.editableInside)}`);
+        bad.push(
+          `${rel}: pierre ${String(d.pierre)} monaco ${String(d.monaco)} numbers ${String(d.lineNumbers)} md ${String(d.renderedMarkdown)} editable ${String(d.contentEditable)}/${String(d.contentEditableAttr)} fields ${String(d.editableInside)} dels ${String(d.dels)} islands ${String(d.delsNotEditable)}/${String(d.editableDescendants)}`
+        );
       }
     }
     check(
       4,
-      'no Pierre, no Monaco, no line number and no rendered markdown in the view, and nothing editable',
+      'no Pierre, no Monaco, no line number and no rendered markdown, the document is the one editable, and every deletion inside it is an atomic island',
       bad.length === 0,
-      bad.length === 0 ? 'zero of each, every fixture' : bad.join(' | ')
+      bad.length === 0
+        ? `zero of each, plaintext-only, and every deletion an island over ${String(PROSE.length)} fixtures`
+        : bad.join(' | ')
     );
   }
 

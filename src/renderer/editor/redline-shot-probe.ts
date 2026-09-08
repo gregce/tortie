@@ -240,9 +240,17 @@ export async function driveRedlineView(
       monaco: document.querySelectorAll('.monaco-editor').length,
       renderedMarkdown: document.querySelectorAll('.md-content').length,
       lineNumbers: shadowOf()?.querySelectorAll('[data-column-number]').length ?? 0,
-      // Read only: nothing editable, no caret host.
+      // PHASE 237. The document IS editable now, at the operator's word, and
+      // what must still be true is that nothing else in the view is: no
+      // textarea, no input, and every `[contenteditable]` inside it is a
+      // deletion carrying `false`, which is the atomic island the caret steps
+      // over in one press.
       contentEditable: el.isContentEditable,
-      editableInside: el.querySelectorAll('[contenteditable], textarea, input').length,
+      contentEditableAttr: el.getAttribute('contenteditable'),
+      editableInside: el.querySelectorAll('textarea, input').length,
+      dels: dels.length,
+      delsNotEditable: dels.every((d) => d.getAttribute('contenteditable') === 'false'),
+      editableDescendants: el.querySelectorAll('[contenteditable]').length,
       focused: document.activeElement?.className ?? null,
       // Layout and colour, from computed style and rectangles.
       whiteSpace: getComputedStyle(el).whiteSpace,

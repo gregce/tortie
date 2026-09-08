@@ -18,9 +18,14 @@
  *   - A markdown file shows its redlined SOURCE. Rendering markdown with
  *     marks inside it is a different and much harder feature, and this view
  *     does not attempt it.
- *   - It is READ ONLY. Nothing here is editable and no caret is offered. The
- *     text selects and copies, and a copy yields the NEW text through
- *     ./redline-copy, which is what a person pastes somewhere else.
+ *   - It WAS read only, and PHASE 237 REVERSED THAT AT THE OPERATOR'S WORD of
+ *     2026-09-08, *"allows for edits in redline mode so you don't need to keep
+ *     switching to source"*, which reverses his own ruling of the day before.
+ *     The document is `contenteditable` for a worktree tab and ./redline-edits
+ *     owns every default behaviour of one; a commit tab, a tab on another
+ *     machine and a truncated tab are still read only. The copy answer did not
+ *     move: the text still selects and a copy still yields the NEW text
+ *     through ./redline-copy.
  *   - No accept and no reject. Accepting a change writes a file, which is a
  *     feature with different risks, and nothing here reaches a bridge.
  *
