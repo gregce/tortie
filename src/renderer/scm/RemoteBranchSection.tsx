@@ -293,6 +293,8 @@ export function RemoteBranchPanel({
           one of them hidden under its own fold. A person may scroll a body to
           find a line. A person cannot scroll to find a sentence they do not
           know is there. */}
+      {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
+          reads again by itself when it is looked at. */}
       {!collapsed && answered && entry.readAt > 0 ? (
         <p className="scm-remote-note rbranch-read-at">
           {machineReadAt(label, entry.readAt)}

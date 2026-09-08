@@ -1524,6 +1524,9 @@ function RemoteScmSection({
       {entry.note !== null ? (
         <p className="scm-remote-note">{entry.note}</p>
       ) : null}
+      {/* PHASE 228 LEFT THIS LINE AS THE ONE SHORT CLOCK, and PHASE 230
+          REMOVES IT once this view reads again by itself when it is looked
+          at. A local Source control view carries no clock. */}
       {entry.readAt > 0 ? (
         <p className="scm-remote-note">{remoteReadAt(entry.readAt)}</p>
       ) : null}

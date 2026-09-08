@@ -186,6 +186,10 @@ describe('the band, which is on every view and never goes away', () => {
 
 describe('the Explorer', () => {
   it('says which moment the rows are from', () => {
+    // PHASE 228 LEFT THIS LINE ON THE FACE AS THE ONE SHORT CLOCK, because
+    // nothing re-reads that machine yet, and PHASE 230 REMOVES IT once every
+    // remote view reads again when it is looked at. Until then it is pinned
+    // at these words so nothing is added to it in between.
     expect(readClockTime(AT)).toBe('14:32');
     expect(remoteReadAt(AT)).toBe(
       'Read at 14:32. Press Refresh to read it again.'

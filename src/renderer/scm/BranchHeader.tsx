@@ -352,6 +352,9 @@ export function BranchHeader(): React.JSX.Element {
           {project.name}
         </span>
         <span className="branch-spacer" />
+        {/* The clock, as "14:32" with the sentence on hover. PHASE 228 LEFT IT
+            and PHASE 230 REMOVES IT with the sentence, once the view reads
+            again by itself when it is looked at. */}
         {remoteEntry.readAt > 0 ? (
           <span className="scm-remote-read" title={remoteReadAt(remoteEntry.readAt)}>
             {readClockTime(remoteEntry.readAt)}

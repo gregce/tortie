@@ -431,6 +431,8 @@ export function RemoteHistoryPanel({
           that scrolls. This body holds fifty rows at the first read, which is
           the tallest thing this column draws, so a sentence placed inside it
           would be hidden on the ordinary path rather than on a rare one. */}
+      {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
+          reads again by itself when it is looked at. */}
       {!collapsed && answered && entry.readAt > 0 ? (
         <p className="scm-remote-note rhist-read-at">
           {machineReadAt(label, entry.readAt)}

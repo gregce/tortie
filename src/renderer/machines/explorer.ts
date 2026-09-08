@@ -16,6 +16,8 @@ import { remoteReadAt } from './presentation';
  * so the person is told which moment they are looking at. An alias rather than a
  * second copy, so the two can never drift apart.
  */
+// PHASE 228 LEFT IT AND PHASE 230 REMOVES IT, with the definition; the reason
+// is on `remoteReadAt` in ./presentation.ts.
 export const remoteTreeReadAt = remoteReadAt;
 
 /** The folder named by the tab is not on that machine. */

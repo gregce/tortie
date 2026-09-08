@@ -55,12 +55,26 @@ export function readClockTime(at: number): string {
  * The time is on screen because nothing polls that machine. A file an agent
  * writes over there does not appear until Refresh is pressed, so the person is
  * told which moment they are looking at.
+ *
+ * PHASE 228 LEFT THIS ONE ON THE FACE, AND PHASE 230 REMOVES IT. The operator's
+ * rule of 2026-09-07 is that a remote tab feels almost identical to a local
+ * one, and a local view carries no clock. This line stays as the one short
+ * clock only because nothing re-reads that machine yet, so a person needs to
+ * know which moment they are looking at. Phase 230 makes every remote view
+ * read again when it is looked at, and it takes this line and `machineReadAt`
+ * below off in the same round, because a view that reads when looked at needs
+ * no clock. Do not add words to it in between.
  */
 export function remoteReadAt(at: number): string {
   return `Read at ${readClockTime(at)}. Press Refresh to read it again.`;
 }
 
-/** When the answer arrived, drawn under any group whose machine answered. */
+/**
+ * When the answer arrived, drawn under any group whose machine answered.
+ *
+ * The same clock as `remoteReadAt`, said for a group. PHASE 230 REMOVES IT
+ * with that one, for the reason given there.
+ */
 export function machineReadAt(label: string, at: number): string {
   return `Tortie read this from ${label} at ${readClockTime(at)}.`;
 }

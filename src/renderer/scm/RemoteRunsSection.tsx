@@ -299,6 +299,8 @@ export function RemoteRunsPanel({
           {runsBranchAt(entry.branch, label, sha)}
         </p>
       ) : null}
+      {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
+          reads again by itself when it is looked at. */}
       {!collapsed && answered && entry.readAt > 0 ? (
         <p className="scm-remote-note runs-read-at">
           {runsReadAt(label, entry.readAt)}

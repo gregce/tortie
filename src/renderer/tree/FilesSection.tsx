@@ -366,6 +366,10 @@ export function FilesSection({
    * a clock, so a file an agent writes over there does not appear until Refresh
    * is pressed. Saying when the rows are from is what keeps that from reading
    * as a tree that is simply wrong.
+   *
+   * PHASE 228 LEFT THIS LINE ON THE FACE AS THE ONE SHORT CLOCK, and PHASE 230
+   * REMOVES IT once this view reads again by itself when it is looked at. A
+   * local Explorer carries no clock. Nothing is added to it in between.
    */
   const readLine =
     collapsed ||
