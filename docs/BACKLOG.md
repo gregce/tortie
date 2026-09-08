@@ -24620,6 +24620,115 @@ Pierre, remark and shiki on exactly that basis.
 - **No line-tidying furniture** unless the round can justify it against the Zen's test, and the entry
   expects it to be refused.
 
+## Phase 242 — the remote write path, rehearsed against the real machine and handed to him to accept (operator asked 2026-09-08)
+
+**Subject.** `test(machines): the write path driven end to end against the real machine`
+
+**First body line.** `Phase 242: the write root, rehearsed`
+
+**Semver.** PATCH. No user-facing surface changes unless the rehearsal finds a defect.
+
+**Tier 3.** It drives every write verb Tortie has against a real machine over a real link, and the
+whole family can lose or corrupt work. The gates, real data rather than a fixture, TWO independent
+methods one of which is an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry and his word of 2026-09-08, after he read what a write root is: *"ok yes lets
+queue a small phase to address that alongside the 235 remote nits."* Research 85 sections 6 and 8,
+and the Phase 101, 102, 103, 104 and 233 entries, whose verbs this rehearses.
+
+### What is NOT missing, checked before this entry was written
+
+**The setting UI exists.** `src/renderer/settings/MachineRow.tsx:262-320` carries the field and a
+picker that lists folders on that machine, and its `Use this folder` button is off until a listing
+answered, so a chosen path exists and is a folder on that machine at the moment it was chosen. Main's
+validator draws its own sentence for a folder it refuses.
+
+**The refusal already points at it.** Phase 229 made a save on a machine with no write root raise a
+sticky toast carrying an **Open settings** button (`tab-io.ts:573-587`).
+
+**Containment already has three layers** (`remote-file.ts:35-47`): the schema refuses a root that is
+not absolute, holds a single quote, holds a `..` segment or ends in a slash; the far-side script
+refuses the same shapes so the rule holds when main is bypassed; and `relativeUnderRoot` resolves
+both paths and requires the file's resolved path to start with the resolved root PLUS a separator,
+without which a root of `/Users/gdc` would contain `/Users/gdcx`.
+
+**So this phase builds none of that.** An entry that added a write-root control would be inventing
+work, and this one says so rather than finding out in its measure step.
+
+### What IS missing, and it is the whole phase
+
+**EVERY PROOF THE REMOTE WRITE PATH HAS IS FROM A SCRATCH PROFILE WITH A SCRATCH ROOT.** Phases 101
+to 104 and 233 each drove their verb against a machine row a probe wrote into a scratch
+`machines.json`, pointed at a scratch repository the probe created under `~/tortie-pN-scratch-<pid>`,
+with a write root the probe chose. That is correct for a phase and it is not the same thing as the
+path working on the row he actually uses, under a root he actually chose, over a tree he actually
+cares about.
+
+**And he has not set one.** His real Mac Pro row carries no write root today, which is what every row
+on every machine says, so on his own machine every write verb is refused and always has been. The
+whole family — save, stage, unstage, commit, rename, move, the drag-and-drop Phase 233 shipped — has
+never once run for him.
+
+**Setting it is HIS act and no agent may do it.** It is the sixth execution-bearing field, so it is
+inside the confirm hash, and a human clicks through a sheet whose line reads *"May replace files under
+this folder on that machine: `<path>`"*. That gate is Phase 23's refusal 8 and it does not move for
+convenience. **This phase therefore ends in an acceptance checklist he runs by hand, and the phase is
+not complete until he has run it.**
+
+### The mechanism
+
+1. **A REHEARSAL that is as close to his real row as the bounds allow.** A scratch profile, its own
+   `machines.json`, but pointing at the REAL host `gregs-mac-pro.tail2ddfe1.ts.net` over the real
+   link, with a write root at `~/tortie-p242-scratch-<pid>` on that machine — a real absolute path
+   under his real home, created and removed in a `finally`. Every ssh through `build/ssh-run.mjs`.
+   **His real machine row is never read for writing and never changed.**
+2. **EVERY WRITE VERB IN ONE RUN**, because they have only ever been driven one phase at a time and
+   nothing has asked whether they compose: open a file and save it; stage and unstage; commit;
+   rename; move by drag; create a file and a folder; and save a file the redline is drawn against,
+   which is the surface Phases 237 to 240 have been building all day and which no remote drive has
+   ever touched. Read every result FROM THAT MACHINE with a separate ssh rather than from Tortie's
+   own answer.
+3. **THE CONTAINMENT ATTACK, and it is the reason this is Tier 3.** Aim every one of those verbs at a
+   path OUTSIDE the write root and require a refusal with nothing changed, counted on the far side
+   before and after: `..` in the middle, an absolute path elsewhere, a path that resolves out, a
+   sibling whose name extends the root (`<root>x`, which is what the separator rule exists for), and
+   **a symlink inside the root pointing out of it, which the module's own header states is NOT
+   covered and which this phase measures rather than assumes.** Whatever the symlink arm reads is a
+   stated limit or a defect, and the phase says which.
+4. **THE ACCEPTANCE CHECKLIST**, written to `docs/` in his terms, being the exact clicks to set the
+   write root on his real Mac Pro row, what the confirmation sheet will say, what he should see
+   afterwards on a real save, and how to take it back off. It names what the rehearsal proved and
+   what only he can prove, because the rehearsal runs under a scratch profile and his own row is a
+   different row.
+5. **Nothing is fixed that is not found.** If the rehearsal is clean, this phase ships a probe, a
+   research document and a checklist and no product change, and that is a complete phase.
+
+### Proof, run rather than read
+
+- **The rehearsal above IS the proof**, and it is real data rather than a fixture: a real machine, a
+  real link, a real absolute root under his real home.
+- **Independent method one, the attack** in item 3, with the far side counted before and after by
+  `ssh` that Tortie did not compose.
+- **Independent method two**: re-derive `relativeUnderRoot`'s answer by a second implementation of
+  the verifier's own over at least 200 path pairs including every shape in item 3, and require it to
+  agree with the shipping one on every pair. Where they disagree, the shipping one is read first and
+  the disagreement is a finding either way.
+- The Mac Pro counted at the end: `-L gmux` holding `gmux-control` and nothing else, no
+  `tortie-p242-scratch-*` directory, no `gmux-p242-*` socket, no process of this phase, `~/.ssh` and
+  `~/.gitconfig` unmoved by byte and mtime.
+
+### What is NOT in this phase
+
+- **No agent sets his write root.** It is his confirm and this phase ends with a checklist, not an act.
+- **No change to his real machine row, his `machines.json`, or his confirmations file.**
+- **No new write verb and no new channel.** This drives what exists.
+- **No write-root UI work**, because the picker, the validator and the refusal toast all already
+  exist, as recorded above.
+- **No widening of the Mac Pro bounds.** Same bounds every remote phase has inherited since Phase 224.
+- **No resolution of a far-side symlink.** The module states why — resolving one means a second round
+  trip and a second answer that can be stale by the time the write lands. This phase MEASURES what
+  happens, and the answer becomes a stated limit rather than a fix.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -25098,3 +25207,4 @@ cycle rather than only the evening it was written.
 - 2026-09-08, Phase 237 MEASURE STEP ran and the choice is made: OPTION B, the redline document itself made `contenteditable`, and the number that chose is ZERO. Research 83 D.7 left exactly one thing unpriced, being a redraw of the document under a live caret, and the charter's rule was that B is built if the redraw restores the caret and the selection exactly. It does, in 8 readings out of 8, with an offset error of 0 characters: four outside-write shapes (before the caret, after it, inside the very run it is in, and that run deleted whole), each driven with a collapsed caret mid-word and with a selection spanning TWO deletion islands, every one with both projections exact afterwards, the focus kept, the drawn selection text byte for byte what it was, and the caret still inside the same word at `"ps its inden|tation"`; with nothing restored the same rebuild leaves the caret 227 to 474 characters away, anchored on the document element itself rather than in any text. The same redraw turns out to BE the typing mechanism, because a keystroke is an outside write the person made: cancel the `beforeinput`, fold the character into the current side, compose with the shipping composer against the same baseline, redraw, restore, which reads current side exact, baseline delta 0, the typed text one `<ins>` inside a change wrapper, caret 468 of an expected 468, 0 divs and 0 brs, and costs 7.5 ms worst on a 50,000 character document, 4.6 ms at 20,000 and 1.8 ms at 5,000. Research 83 D.2's own policy of inserting the view's own `<ins>` was driven on the Phase 227 markup and leaves the typed characters in three loose `<ins>` elements OUTSIDE every change wrapper with Enter doing nothing, so the recompose is the one to build. Three corrections and one new rule came out of it: under `plaintext-only` a real Enter reports `insertLineBreak` and NOT the `insertParagraph` D.2 recorded under `contenteditable=true`, so a phase handling only the latter silently refuses Enter; `beforeinput` for a composition commit is `insertCompositionText` and is NOT CANCELABLE, which is the one door no `preventDefault` closes; and a redraw landing mid-composition breaks the composition and puts the committed `日本` in a plain span, taking the baseline projection out by two characters, while HOLDING the write until `compositionend` and folding it with the committed text into one current side leaves the composition uninterrupted, the Japanese inside an `<ins>` inside a change, and both projections exact. Option A's blocker re-derived at 26.7 percent EXACTLY, 4 of 15 deleted runs over the same ten real pairs, and the per-line split was driven in a real Monaco: it removes both `␊` glyphs and draws the deleted paragraph's line breaks NOWHERE, three removed lines running together as `stands still.Yellow lorry moves fast.Green lorry `, because injected text attaches to a position in the model and the deleted lines are not in the model. The reload path both options owed is measured rather than read: `model.setValue` moves the caret from 5:7 to 1:1 and leaves ⌘Z nothing, `pushEditOperations` keeps the caret at 5:7 and gives the undo back, and it needs `pushStackElement()` in front of it or one ⌘Z reverts the person's own typing with the agent's write. Written to docs/research/97-phase-237-starting-measurements.md with the harness beside it at `.p237/`; `refreshRepo`'s dirty guard is at `tab-io.ts:752` in this tree and not the 616 research 83 quotes, and `conformance:redline`'s rule 5 is a timing rule that read 438 ms beside a build and 165 ms on a quiet machine.
 - 2026-09-08, Phase 237 LANDED at `f0b30ca` at version 0.101.0 with NO bump and NO tag, TYPING IN THE REDLINE, which reverses his ruling of 2026-09-07 and the reversal is his, NINE commits from the measure step `adc14b5` through `0722478`, `fd70048`, `ff9d817`, `1c76711`, `a5a2cef`, `87d2925` and `cbf192d` to the committer's `f0b30ca`, rebased onto origin/main's tip `8e811c0` after Phase 234 landed under it, the one conflict being this log where both sets of lines were kept in date order and the electron teardown floor where both raises were kept, and the full battery re-run on the rebased tree and green. **OPTION B WAS BUILT AND THE NUMBER THAT CHOSE IT IS ZERO.** Research 83 D.4 drove both ways with real keys and left exactly one thing unpriced, being a redraw of the document under a live caret, and the charter's rule was that B is built if the redraw can put the caret and the selection back: the measure step read EIGHT restorations out of eight with an anchor error and a focus error of ZERO characters against a mapping re-derived by a character diff, both projections exact afterwards, so the redline is the document itself now, `contenteditable="plaintext-only"` with every deletion `contenteditable="false"` so a caret steps over a deletion in ONE press rather than four. Option A's blocker held at 26.7 percent exactly, being deleted runs carrying a line break that injected text cannot draw. THE REDRAW IS THE TYPING MECHANISM, which is what the measure step found: a keystroke is an outside write the person made, so both go one way, being fold into the current side, compose with the SHIPPING composer against the SAME baseline, redraw, and put the caret back through the common prefix and suffix. Typing moves no baseline and no generation, which rule 17a makes structural by scanning the three typing files for a baseline advance rather than promising it. Two corrections research 83 D.2 needed: Enter under `plaintext-only` reports `insertLineBreak` and not `insertParagraph`, so a phase written to D.2 alone would have refused Enter in silence, and `insertCompositionText` is NOT cancelable, so an outside write is HELD while a composition is open and folded in at `compositionend`. THE ATTACK IS TWELVE ARMS ACROSS THREE APP RUNS AND NOT ONE OF THE PERSON'S BYTES WAS LOST: mid-word, between a keystroke and its save with no pause, inside a Japanese IME composition where the held write and the committed 日本 folded into one current side with both projections exact, during a rewind press, two writes in one frame, a write removing the run the caret is in, a whole-file replacement with the baseline still the committed bytes, the race between the first keystroke and the moment monaco's model exists, and four rewind arms of which R1 and R2 refused the chord with the dirty sentence in the window the verifier predicted was open. The traps were re-derived against a PLANTED PARENT, being a naive contenteditable cloned from the live document with our `contenteditable="false"` stripped off, because at the real parent the redline is not editable and the traps do not exist to read: a caret crossed a 17 character deletion in 12 presses on the plant and ONE at HEAD, typing at the right edge of a deletion put a character into the BASELINE on the plant and moved it by 0 at HEAD, Enter made a `<div>` and no newline on the plant against 0 divs, 0 brs and one newline at HEAD, and a rich `DataTransfer` through `Input.dispatchDragEvent` added 30 characters and a rich element to the baseline on the plant against 0 and 0 with exactly its 28 plain characters landing at HEAD. **THE ONE LIMIT SAID OUT LOUD RATHER THAN LEFT TO BE FOUND**: Cmd-S over a redline with unsaved typing writes the buffer and the agent's arrival is gone with nothing said, because `save` in tab-io.ts has no `expect` and only the remote door has one; the same sequence loses it in File mode too, so it is the tab's oldest behaviour rather than anything typing introduced, and Phase 240, queued the same day from Sean Johnson's issue 16, is the door that fixes it. Battery on the rebased tree: typecheck, build with the contract inventory byte for byte and `HELPER_USER_FLOOR` 92 to 95 for the verifier's three attack probes kept in the tree, 12,886 tests over 812 files, smoke:t1 6 of 6, smoke:t3 3 of 3, `conformance:redline` every rule with 17a at 4 of 4 scanner fixtures and 17b at 6 of 6 ablations, `probe:p237` at 33 of 33, `probe:p194` at 24 of 24 and `probe:p167`'s redline surface plateauing with typing under itself. His `-L gmux` held 17 sessions before and 17 after every one of the runs, read and never attached, and no Electron of this worktree was left anywhere.
 - 2026-09-08, Phase 241 entry rewritten at his word, the editor gets a right-click menu carrying what Monaco and Tortie already do, with the reshapes as its dynamic group
+- 2026-09-08, Phase 242 QUEUED at his word beside the 235 remote nits, the remote write path rehearsed against his real Mac Pro and handed to him to accept. WHAT THE ENTRY FOUND BEFORE IT WAS WRITTEN: there is NOTHING TO BUILD, because `MachineRow.tsx:262-320` already carries the write root field and a picker whose `Use this folder` is off until a listing answered, Phase 229 already gives a refused remote save a sticky toast with an Open settings button at `tab-io.ts:573-587`, and containment already sits in three places per `remote-file.ts:35-47`, being the schema, the far side script and `relativeUnderRoot`s resolved prefix plus separator. What IS missing is that EVERY PROOF THE WRITE PATH HAS IS FROM A SCRATCH PROFILE WITH A SCRATCH ROOT, and his own row carries no write root at all, so save, stage, unstage, commit, rename, move and the Phase 233 drag have never once run for him. Setting it is HIS act and no agent may do it, being the sixth execution bearing field inside the confirm hash whose sheet reads "May replace files under this folder on that machine", which is refusal 8 and does not move for convenience. So the phase rehearses every write verb IN ONE RUN against the real host over the real link with a real absolute root under his real home, including a save of a file the redline is drawn against which no remote drive has ever touched, attacks containment with five shapes including the SYMLINK the module header says is NOT covered and which the phase measures rather than assumes, re-derives `relativeUnderRoot` by a second implementation over 200 path pairs, and ends in an acceptance checklist he runs by hand. A clean rehearsal ships a probe, a research document and a checklist and NO product change, and that is a complete phase.
