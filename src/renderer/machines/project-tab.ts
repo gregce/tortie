@@ -31,34 +31,16 @@
  */
 
 
-// -- the label band, which is permanent --------------------------------------
-
-/**
- * The band at the top of every view of a tab whose folder is on a machine.
- *
- * It is drawn on all four views and it never goes away. Research 54 finding 15
- * is the reason: a person looking at a sidebar had no way to tell whose files
- * they were reading, and one wrong assumption there is a change made on the
- * wrong computer.
- */
-export function remoteBandTitle(label: string): string {
-  return `Files live on ${label}.`;
-}
-
-/**
- * The band's second line. It says what Tortie does with that folder.
- *
- * PHASE 102 REWROTE IT. It read "It never writes there", and the band is drawn
- * on all four views of every tab whose folder is on a machine. So on a machine
- * a person has let Tortie save on, that sentence sat directly above a New
- * folder button they could press and above a folder Tortie had made. The
- * replacement is the same shape as `openRemoteHonesty` below, and it is true
- * on a machine with no confirmed folder as well, because there is nowhere on
- * that machine the person has let Tortie save.
- */
-export const REMOTE_BAND_BODY =
-  'Tortie reads what is in this folder on that machine. It writes there only ' +
-  'where you have let it save.';
+// -- the label band, which Phase 228 took off ---------------------------------
+//
+// Phase 90.3 drew a two line band under the header of every view of a tab
+// whose folder is on a machine, a title naming the machine and a body saying
+// what Tortie does with that folder, for research 54 finding 15. Phase 102
+// rewrote the body. PHASE 228 DELETED BOTH, on the operator's rule of
+// 2026-09-07 that a remote tab feels almost identical to a local one: the tab
+// spine and the project header already name the machine, so the band said it
+// a third time in 26 words on every view. The sentences are gone rather than
+// left unimported, and ./__tests__/p228-off-the-face.test.ts pins that.
 
 // -- opening a folder on a machine -------------------------------------------
 

@@ -82,8 +82,6 @@ import { Codicon } from '../icons';
 // one of the two is ever on screen.
 import { ActivityBar } from './ActivityBar';
 import { remoteEntryWritesOffLabel } from '../machines/explorer';
-import { REMOTE_BAND_BODY, remoteBandTitle } from '../machines/project-tab';
-import './machine-band.css';
 
 /**
  * The machine a tab's folder is on, as a label, or null when it is this Mac.
@@ -111,34 +109,17 @@ function useMachineWrite(): { label: string; writeRoot: string | null } | null {
   };
 }
 
-/**
- * The label alone, for the band, which asks nothing about saving.
- *
- * It is expressed in terms of the hook above so the sidebar makes ONE lookup
- * against the machine list and the band and the two buttons can never disagree
- * about which machine this tab is on.
+/*
+ * PHASE 228 TOOK THE MACHINE BAND OFF EVERY VIEW. Phase 90.3 drew a two line
+ * band, "Files live on X" and what Tortie does there, under the header of all
+ * five views of a tab whose folder is on a machine, for research 54 finding 15.
+ * The operator's rule of 2026-09-07 is that a remote tab feels almost identical
+ * to a local one, and the tab already names the machine in the tab spine and
+ * in the project header, so the band said it a third time in 26 words on every
+ * view. Nothing replaces it; the sentences are gone from machines/project-tab.ts
+ * and ../machines/__tests__/p228-off-the-face.test.ts pins that no component
+ * draws them again.
  */
-function useMachineLabel(): string | null {
-  return useMachineWrite()?.label ?? null;
-}
-
-/**
- * The band that says whose files the view below is showing (Phase 90.3).
- *
- * Drawn under the header of ALL FOUR views and never dismissible. The sidebars
- * do not follow the focused session, they follow the tab, so this one line is
- * true for the whole life of the tab. It renders nothing at all for a folder on
- * this Mac, which is every tab in every build before this phase.
- */
-function MachineBand({ label }: { label: string | null }): React.JSX.Element | null {
-  if (label === null) return null;
-  return (
-    <div className="machine-band" data-slot="machine-band" role="note">
-      <span className="machine-band-title">{remoteBandTitle(label)}</span>
-      <span className="machine-band-body">{REMOTE_BAND_BODY}</span>
-    </div>
-  );
-}
 
 /**
  * Explorer view header — the band slice above the tree ([h:36], S3B).
@@ -326,8 +307,6 @@ export function Sidebar(): React.JSX.Element {
     [projects, activeProjectId]
   );
 
-  const machineLabel = useMachineLabel();
-
   // One status source for the whole sidebar: the SCM store's list feeds the
   // tree's decorations (null → the tree fetches for itself, e.g. non-repo).
   //
@@ -423,7 +402,6 @@ export function Sidebar(): React.JSX.Element {
         <div className="sidebar-view" data-view="scm" tabIndex={-1}>
           {/* Band: ⎇ branch · ↑↓ ahead/behind · refresh ([h:36], S3A). */}
           <BranchHeaderLazy />
-          <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             <ScmSectionLazy />
           </div>
@@ -434,7 +412,6 @@ export function Sidebar(): React.JSX.Element {
         // scrollbars and break the sticky "Show more" footer.
         <div className="sidebar-view" data-view="search" tabIndex={-1}>
           <SearchHeaderLazy />
-          <MachineBand label={machineLabel} />
           <SearchSectionLazy />
         </div>
       ) : view === 'context' ? (
@@ -445,7 +422,6 @@ export function Sidebar(): React.JSX.Element {
         // Search's exception.
         <div className="sidebar-view" data-view="context" tabIndex={-1}>
           <ContextHeaderLazy />
-          <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             {/* SEAM 3, closed. The door mounts the section WITH its actions
                 object, built by context/ContextSubject.tsx inside the chunk,
@@ -462,7 +438,6 @@ export function Sidebar(): React.JSX.Element {
         // Context use rather than with Search's exception.
         <div className="sidebar-view" data-view="arch" tabIndex={-1}>
           <ArchHeaderLazy />
-          <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             <ArchViewLazy />
           </div>
@@ -470,7 +445,6 @@ export function Sidebar(): React.JSX.Element {
       ) : (
         <div className="sidebar-view" data-view="explorer" tabIndex={-1}>
           <ExplorerHeader />
-          <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             {/* Decorations fed from the SCM store's status list. */}
             <FilesSectionLazy

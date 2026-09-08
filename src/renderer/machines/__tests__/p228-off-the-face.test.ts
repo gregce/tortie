@@ -53,6 +53,16 @@ interface OffTheFace {
 /** Every sentence Phase 228 took off, in the order the entry names them. */
 const OFF: readonly OffTheFace[] = [
   {
+    name: 'remoteBandTitle',
+    home: 'project-tab.ts',
+    words: 'Files live on'
+  },
+  {
+    name: 'REMOTE_BAND_BODY',
+    home: 'project-tab.ts',
+    words: 'Tortie reads what is in this folder on that machine'
+  },
+  {
     name: 'remoteChangesBand',
     home: 'scm.ts',
     words: 'These changes are on'
@@ -157,10 +167,15 @@ describe('the scanner can fail', () => {
   });
 
   it('holds every sentence the entry names, and no fewer', () => {
-    // Four came off: the band, the sections note, the search filters note
-    // and the grep line. The hooks and signing line MOVED to a title and the
-    // read-at clock STAYS until Phase 230, so neither is here.
+    // Six came off: the two line machine band on every view, which the fix
+    // round took off because the tab spine and the project header already
+    // name the machine, the Source control band, the sections note, the
+    // search filters note and the grep line. The hooks and signing line
+    // MOVED to a title and the read-at clock STAYS until Phase 230, so
+    // neither is here.
     expect(OFF.map((one) => one.name)).toEqual([
+      'remoteBandTitle',
+      'REMOTE_BAND_BODY',
       'remoteChangesBand',
       'REMOTE_SCM_SECTIONS_NOTE',
       'SEARCH_FILTERS_ON_THIS_MAC',

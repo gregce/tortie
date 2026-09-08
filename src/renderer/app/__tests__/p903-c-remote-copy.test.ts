@@ -96,8 +96,6 @@ import {
   OPEN_REMOTE_TITLE,
   openRemoteFolderLabel,
   openRemoteHonesty,
-  REMOTE_BAND_BODY,
-  remoteBandTitle,
   remoteProjectAlreadyOpen,
   remoteTabCloseBody,
   remoteTabCloseTitle,
@@ -169,20 +167,6 @@ const MAX = 90_000;
 
 /** One fixed instant, so the clock sentences are pinned rather than sampled. */
 const AT = new Date(2026, 7, 18, 14, 32, 0).getTime();
-
-describe('the band, which is on every view and never goes away', () => {
-  it('says whose files these are and what Tortie does with them', () => {
-    expect(remoteBandTitle(L)).toBe('Files live on Studio.');
-    // PHASE 102 REWROTE THE BODY. It read "It never writes there", and this
-    // band is drawn above the New folder button on a machine a person has let
-    // Tortie save on.
-    expect(REMOTE_BAND_BODY).toBe(
-      'Tortie reads what is in this folder on that machine. It writes there ' +
-        'only where you have let it save.'
-    );
-    expect(REMOTE_BAND_BODY).not.toContain('never writes');
-  });
-});
 
 describe('the Explorer', () => {
   it('says which moment the rows are from', () => {
@@ -741,8 +725,6 @@ describe('the runs for a folder that is on a machine (Phase 105)', () => {
 
 /** Every sentence above, composed once with the same two values. */
 const EVERY: readonly string[] = [
-  remoteBandTitle(L),
-  REMOTE_BAND_BODY,
   remoteReadAt(AT),
   remoteTreeMissingTitle(L),
   remoteTreeMissingBody(P),
@@ -893,7 +875,6 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
     // lines whose first line named the machine one line above.
     const withoutLabel = EVERY.filter((one) => !one.includes(L));
     expect(withoutLabel).toEqual([
-      REMOTE_BAND_BODY,
       remoteReadAt(AT),
       remoteTreeMissingBody(P),
       remoteTreeTruncated(4000, 12500, 4000),
@@ -1006,6 +987,18 @@ describe('the sentences Phase 228 took off the remote face are gone', () => {
   // that is still exported comes back, so the export is pinned gone here the
   // way the Phase 97, 102 and 90.1 deletions above are. Which component may
   // import each name is pinned in src/renderer/machines/__tests__/p228-off-the-face.test.ts.
+  it('does not export the machine band, and does not hold its words', () => {
+    // THE FIX ROUND TOOK THIS ONE OFF. The two line band Phase 90.3 drew under
+    // the header of every view was not in the entry's mechanism, and without it
+    // no view could read zero; the tab spine and the project header already
+    // name the machine.
+    const source = MACHINES_SOURCE;
+    expect(source).not.toContain('export function remoteBandTitle');
+    expect(source).not.toContain('Files live on ${label}');
+    expect(source).not.toContain('export const REMOTE_BAND_BODY');
+    expect(source).not.toContain('Tortie reads what is in this folder on that machine');
+  });
+
   it('does not export the Source control band, and does not hold its words', () => {
     const source = MACHINES_SOURCE;
     expect(source).not.toContain('export function remoteChangesBand');
