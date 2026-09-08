@@ -162,7 +162,16 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         // addition — the Phase 11 carried finding (a).
         path: tab.origRelPath ?? tab.relPath
       });
-      deps.patch(id, { headContents: head });
+      // PHASE 225. A HEAD version not seen before becomes the baseline
+      // outright. Read the tab again after the await, because the read may
+      // have seeded it meanwhile and the two loaders land in either order.
+      deps.patch(id, {
+        headContents: head,
+        baseline: nextBaseline(deps.byId(id)?.baseline, {
+          kind: 'head',
+          contents: head
+        })
+      });
     } catch (err) {
       // Diff base unavailable (repo vanished, git failed): fall back to a
       // plain editor rather than a broken diff, and say so in sentences a
@@ -655,7 +664,20 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         });
         const current = deps.byId(tab.id);
         if (current === undefined) continue;
-        const patch: Partial<EditorTab> = { headContents: head };
+        // PHASE 225. When the HEAD bytes differ from the last HEAD bytes seen
+        // for this tab, the baseline becomes the new HEAD version and the
+        // generation moves. A branch switch, a pull, a stash and a rebase all
+        // turn the picture research 83 A4.1 drew, the person's own committed
+        // word struck through, into an empty redline. The file re-read above
+        // never touches it: whatever advances the baseline, it is never the
+        // file changing.
+        const patch: Partial<EditorTab> = {
+          headContents: head,
+          baseline: nextBaseline(current.baseline, {
+            kind: 'head',
+            contents: head
+          })
+        };
         if (!current.canDiff && head !== current.savedContents) {
           patch.canDiff = true;
         }
