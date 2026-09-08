@@ -216,6 +216,8 @@ const SURFACES = (
   .map((one) => one.trim())
   .filter((one) => one !== '');
 const wantSurface = (name) => SURFACES.includes(name);
+/** PHASE 227. Outside rewrites of the open file per redline open; 0 turns them off. */
+const REWRITES = Math.max(0, Number(process.env['P167_REWRITES'] ?? '4') || 0);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const say = (line) => process.stdout.write(`${line}\n`);
 
@@ -1021,12 +1023,29 @@ async function cycleSurfaces(cdp, log) {
   // with its changes marked in place, drawn against the tab's shadow
   // baseline. Research 83 F.7 measured that this word appeared zero times
   // here, so Phase 194 shipped a surface this probe never opened; the phase
-  // that makes it recompose against a baseline of its own adds it. It is
-  // opened and closed here, not rewritten under; driving a file being
-  // rewritten under it is Phase 227's obligation.
+  // that makes it recompose against a baseline of its own adds it.
+  //
+  // PHASE 227 REWRITES THE FILE UNDER IT, which its charter names and Phase
+  // 225 left to it: with the redline open, README.md is rewritten from
+  // outside `P167_REWRITES` times a cycle (default 4), each write a different
+  // word so every one recomposes the document through the watcher, and the
+  // last one is waited for on the face before the tab closes. The writes are
+  // this process's own `writeFileSync`, so nothing is spawned and nothing
+  // needs ending. The file is put back to its standing modified text after,
+  // so the diff surface keeps its rows.
   if (wantSurface('redline')) {
     await drive(cdp, { projectPath: repoA, openRel: 'README.md', mode: 'diff', editorMode: 'redline' });
     if (!(await until(cdp, `document.querySelector('.ed-redline-doc') !== null`, 15000))) log.openMisses.push('redline');
+    const readme = join(repoA, 'README.md');
+    const standing = readFileSync(readme, 'utf8');
+    for (let w = 0; w < REWRITES; w += 1) {
+      const word = `rewrite${String(log.rewrites)}`;
+      log.rewrites += 1;
+      writeFileSync(readme, `# p167-a\n\nOne line.\nA second line the diff shows, ${word}.\n`);
+      const drawn = await until(cdp, `(() => { const d = document.querySelector('.ed-redline-doc'); return d !== null && d.textContent.includes(${JSON.stringify(word)}); })()`, 8000);
+      if (!drawn) log.rewriteMisses.push(word);
+    }
+    writeFileSync(readme, standing);
     await press(cdp, CHORD.closeEditorTab);
     await closeOrCount('redline', `document.querySelector('.ed-redline-doc') === null`);
   }
@@ -1211,7 +1230,7 @@ await withElectron(
           continue;
         }
       }
-      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [] };
+      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [] };
       const exceptionsBefore = cdp.events().filter((e) => e.method === 'Runtime.exceptionThrown').length;
       const before = await readAll(descriptors);
       say(`\n${NAMES[key]}`);
@@ -1267,6 +1286,14 @@ await withElectron(
       const verdicts = judge(key, before, blocks, budgets, rules);
       if (log.openMisses.length > 0) verdicts.push(`${key}: ${String(log.openMisses.length)} surface open(s) did not land: ${[...new Set(log.openMisses)].join(', ')}`);
       if (log.closeMisses.length > 0) verdicts.push(`${key}: ${String(log.closeMisses.length)} surface close(s) did not land: ${[...new Set(log.closeMisses)].join(', ')}`);
+      // PHASE 227. The redline was rewritten under, and every rewrite must
+      // have reached the face, or the profile drove a surface that was not
+      // recomposing and can say nothing about it.
+      if (key === 'c' && wantSurface('redline')) {
+        if (log.rewrites === 0 && REWRITES > 0) verdicts.push(`${key}: the redline was opened and never rewritten under, so this run cannot say it plateaus under rewrites`);
+        if (log.rewriteMisses.length > 0) verdicts.push(`${key}: ${String(log.rewriteMisses.length)} of ${String(log.rewrites)} outside rewrites never reached the redline's face: ${log.rewriteMisses.slice(0, 5).join(', ')}`);
+        else if (log.rewrites > 0) say(`${key}: the redline recomposed under ${String(log.rewrites)} outside rewrites, every one drawn on the face`);
+      }
       // PHASE 200 fix round. The tripwire readMotion took, judged here.
       if (key === 'c' && wantSurface('diff')) {
         const read = log.motion.filter((m) => m !== null && m !== undefined);
