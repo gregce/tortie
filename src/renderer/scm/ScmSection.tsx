@@ -72,6 +72,11 @@ import {
   remoteWritesNotConfirmed
 } from '../machines/scm';
 import type { RemoteCommitFacts } from '../machines/scm';
+import {
+  remoteBranchAvailable,
+  remoteBranchOf,
+  useRemoteBranch
+} from './remote-branch';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import {
@@ -769,6 +774,27 @@ function RemoteCommitBox({
   const checkCommit = useRemoteChanges((s) => s.checkCommit);
   const machineStates = useApp((s) => s.machineStates);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const connected = machineAnswering(machineStates, target.machineId);
+
+  /**
+   * PHASE 229. Whether git over there can commit at all, read BEFORE the
+   * press.
+   *
+   * The branch read's answer carries `user.name` and `user.email` as git on
+   * that machine would use them. The Branch group reads on its first expand
+   * and at no other moment, so a person who never opened it would meet git's
+   * refusal after the press exactly as before; this box therefore asks for the
+   * same one read per target when it is drawn on a machine that is answering.
+   * The box is drawn only after the Changes read landed, so the folder is a
+   * repository and the machine has answered once already. An answer that has
+   * not landed, or did not ask, is composed as `known` below, so a read in
+   * flight never disables a press.
+   */
+  const ensureBranch = useRemoteBranch((s) => s.ensure);
+  const branch = useRemoteBranch((s) => remoteBranchOf(s.byTarget, target));
+  useEffect(() => {
+    if (connected && remoteBranchAvailable()) ensureBranch(target);
+  }, [target, connected, ensureBranch]);
 
   // Auto-grow 1 to 5 lines, which is the local box's own rule and its own
   // numbers.
@@ -792,7 +818,8 @@ function RemoteCommitBox({
     // its own. This decides whether a button is pressable and nothing more.
     writesConfirmed:
       machineWriteRootFor(machineStates, target.machineId) !== null,
-    connected: machineAnswering(machineStates, target.machineId),
+    connected,
+    identity: branch.identity === 'missing' ? 'missing' : 'known',
     conflicted,
     staged: groups.staged.length,
     message
@@ -1039,13 +1066,40 @@ function RemoteScmSection({
   const label = machineLabelFor(machineStates, target.machineId);
   const entry = useRemoteChanges((s) => remoteChangesOf(s.byTarget, target));
   const ensure = useRemoteChanges((s) => s.ensure);
-  const refresh = useRemoteChanges((s) => s.refresh);
+  const refreshChanges = useRemoteChanges((s) => s.refresh);
   const stage = useRemoteChanges((s) => s.stage);
   const unstage = useRemoteChanges((s) => s.unstage);
   const setMenu = useApp((s) => s.setMenu);
   const [collapsed, setCollapsed] = usePersistedBool(
     `gmux.scm.changesCollapsed.${targetKey(target)}`,
     false
+  );
+  /**
+   * PHASE 229. Refresh here re-reads the branch as well, when the branch has
+   * been read for this target.
+   *
+   * The commit box above the group disables the press while git over there
+   * has no name or no address, and the person fixes that ON THAT MACHINE. A
+   * disabled control with no way back from where it is met is the defect
+   * item 2 of the same phase removed from the Explorer, so the one Refresh a
+   * person reaches from the box re-asks the question. It is a re-read of a
+   * thing already read, at a press, and never a timer. A target whose branch
+   * was never read is left alone, because a group nobody expanded and a box
+   * that was never drawn asked nothing.
+   */
+  const refreshBranch = useRemoteBranch((s) => s.refresh);
+  const branchMode = useRemoteBranch(
+    (s) => remoteBranchOf(s.byTarget, target).mode
+  );
+  const refresh = useCallback(
+    async (at: WorkspaceTarget): Promise<void> => {
+      const reads = [refreshChanges(at)];
+      if (branchMode !== null && remoteBranchAvailable()) {
+        reads.push(refreshBranch(at));
+      }
+      await Promise.all(reads);
+    },
+    [refreshChanges, refreshBranch, branchMode]
   );
 
   useEffect(() => {
@@ -1084,14 +1138,16 @@ function RemoteScmSection({
     const key = targetKey(target);
     if (retried.current === key) return;
     retried.current = key;
-    void refresh(target);
+    // The Changes read alone. The sign-in retry is one extra read of THIS
+    // group and Phase 229's branch re-read is bound to the Refresh press.
+    void refreshChanges(target);
   }, [
     target,
     answering,
     entry.failed,
     entry.loading,
     entry.refreshing,
-    refresh
+    refreshChanges
   ]);
 
   /**

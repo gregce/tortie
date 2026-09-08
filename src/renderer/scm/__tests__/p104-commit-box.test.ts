@@ -48,6 +48,7 @@ import {
   remoteCommitCheckRan,
   remoteCommitConflicts,
   remoteCommitDisabledReason,
+  remoteCommitIdentityMissing,
   remoteCommitNotConnected,
   remoteCommitNothingStagedYet,
   remoteCommitStanding,
@@ -131,6 +132,7 @@ const READY: RemoteCommitFacts = {
   committing: false,
   writesConfirmed: true,
   connected: true,
+  identity: 'known',
   conflicted: false,
   staged: 2,
   message: 'a real message'
@@ -162,6 +164,51 @@ describe('why the commit button is disabled', () => {
     ).toBe(remoteCommitNotConnected('Mac Pro'));
   });
 
+  /**
+   * PHASE 229. THE PRECHECK, pinned so it goes red when the `missing` branch
+   * of `remoteCommitDisabledReason` is ablated. Every commit on his Mac Pro
+   * failed after the press because git there had no name and no address, and
+   * nothing asked before it. The reason is one sentence naming the two
+   * settings and the machine, and it is drawn ABOVE the staged and message
+   * checks, because staging and typing would change nothing.
+   */
+  it('says git there has no name or address, and names the two settings', () => {
+    const said = remoteCommitDisabledReason(
+      { ...READY, identity: 'missing' },
+      'Mac Pro'
+    );
+    expect(said).toBe(remoteCommitIdentityMissing('Mac Pro'));
+    expect(said).toBe('Set user.name and user.email in git on Mac Pro first');
+    expect(said).toContain('user.name');
+    expect(said).toContain('user.email');
+    // One sentence: no full stop inside it and none at the end, which is the
+    // shape of every other caption on this button.
+    expect(said).not.toContain('. ');
+  });
+
+  it('puts the identity above the folder facts and the box', () => {
+    expect(
+      remoteCommitDisabledReason(
+        { ...READY, identity: 'missing', conflicted: true, staged: 0, message: '' },
+        'Mac Pro'
+      )
+    ).toBe(remoteCommitIdentityMissing('Mac Pro'));
+    // And below the machine facts, which are the two things nothing on that
+    // machine can change.
+    expect(
+      remoteCommitDisabledReason(
+        { ...READY, identity: 'missing', connected: false },
+        'Mac Pro'
+      )
+    ).toBe(remoteCommitNotConnected('Mac Pro'));
+    expect(
+      remoteCommitDisabledReason(
+        { ...READY, identity: 'missing', writesConfirmed: false },
+        'Mac Pro'
+      )
+    ).toBe(remoteWritesNotConfirmed('Mac Pro'));
+  });
+
   it('says the conflicts have to be resolved over there', () => {
     expect(
       remoteCommitDisabledReason({ ...READY, conflicted: true }, 'Mac Pro')
@@ -191,6 +238,9 @@ describe('why the commit button is disabled', () => {
       remoteCommitDisabledReason({ ...empty, connected: false }, 'Mac Pro')
     ).toBe(remoteCommitNotConnected('Mac Pro'));
     expect(
+      remoteCommitDisabledReason({ ...empty, identity: 'missing' }, 'Mac Pro')
+    ).toBe(remoteCommitIdentityMissing('Mac Pro'));
+    expect(
       remoteCommitDisabledReason({ ...empty, staged: 0 }, 'Mac Pro')
     ).toBe(remoteCommitNothingStagedYet('Mac Pro'));
   });
@@ -199,6 +249,7 @@ describe('why the commit button is disabled', () => {
     const said = [
       remoteWritesNotConfirmed('Mac Pro'),
       remoteCommitNotConnected('Mac Pro'),
+      remoteCommitIdentityMissing('Mac Pro'),
       remoteCommitConflicts('Mac Pro'),
       remoteCommitNothingStagedYet('Mac Pro')
     ];

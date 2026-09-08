@@ -398,6 +398,8 @@ export async function driveRemoteBranch(
           ahead: ok ? (spec.ahead ?? 2) : 0,
           behind: ok ? (spec.behind ?? 1) : 0,
           trackUnreadable: ok ? (spec.trackUnreadable ?? false) : false,
+          // PHASE 229. A seeded photograph is of a git that knows who it is.
+          identity: 'known',
           loading: false,
           refreshing: false,
           readAt: now,

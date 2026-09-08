@@ -1563,7 +1563,7 @@ const REPO_FACTS = [
  * shape research 57 section 5.3 refused. So each group pays for itself and a
  * collapsed group costs nothing.
  *
- * ## The six answers
+ * ## The six answers, and the four words every one of them is
  *
  * | First word | Meaning |
  * | --- | --- |
@@ -1573,6 +1573,23 @@ const REPO_FACTS = [
  * | `notrepo` | the folder is there and git does not track it |
  * | `missing` | there is no folder at that path |
  * | `denied` | the folder is there and the account cannot read it |
+ *
+ * PHASE 229 MADE EVERY ANSWER FOUR WORDS. The third and fourth are the name
+ * and the address git on that machine would commit as, being `user.name` and
+ * `user.email` as `git config --get` answers them across the system, global
+ * and local files, each base64 or the word `none` when nothing is set. They
+ * are read once the folder is known to be a repository, so `repo`, `nobranch`
+ * and `nodetails` carry them and the other three print `none none`. The
+ * commit box on this Mac reads them BEFORE the press: every commit on his Mac
+ * Pro failed after the press because git there had neither, and this is the
+ * read that already asks that machine questions (research 85 section 3.5).
+ * An EMPTY value is printed as the base64 of a newline, `Cg==`, and main trims
+ * it to missing, because git refuses to commit under an empty name as it
+ * refuses under none. What is NOT read is `GIT_AUTHOR_NAME` and its three
+ * siblings in the far side's environment, which would satisfy git without any
+ * config; the charter names the two settings and a person who commits by
+ * environment variable over ssh is a person this precheck disables wrongly,
+ * and the sentence on the button says what to set.
  *
  * `nodetails` exists so an old git names the right cause. `%(upstream:track)`
  * takes the `nobracket` option only from git 2.13. An older git refuses the
@@ -1627,24 +1644,32 @@ const REPO_FACTS = [
  * | a folder that is not there | 0 | none |
  * | a folder the account cannot read | 0 | none |
  * | a folder git does not track | 1 | git rev-parse |
- * | a detached head, or no commits | 2 | git rev-parse twice |
- * | a branch is checked out | 5 | git rev-parse twice, git for-each-ref once, base64 once, tr once |
+ * | a detached head, or no commits | 8 | git rev-parse twice, git config twice, base64 twice, tr twice |
+ * | a branch is checked out | 11 | git rev-parse twice, git config twice, git for-each-ref once, base64 three times, tr three times |
  *
  * `printf`, `cd`, `case` and `[` are builtins in dash and in bash, so a counting
  * wrapper on PATH never sees them and they are not in those numbers. Row 12 of
  * `node build/probe-p106-branch.mjs` measures the same thing again on every run.
+ * PHASE 229 RE-MEASURED THE LAST TWO ROWS the same way on 2026-09-08, with
+ * counting wrappers on PATH ahead of git, base64 and tr over the shipped text:
+ * they were 2 and 5, and the identity read adds six programs to each, being
+ * git, base64 and tr for the name and the same three for the address.
  *
  * ## The catalogue rules, one at a time
  *
  * The text holds no backtick and no caller value. The only positional is `"$1"`,
- * read double quoted at four places, and `g`, `h` and `r` are local names. It
- * begins `set -e` and then `umask 077`. Every answer is printed between the
- * marker pair, and there are six pairs. It names none of the eleven mutating
- * programs: it names `git`, `printf`, `base64`, `tr`, `cd` and `test`. Every `>`
- * in it is part of `2>/dev/null`, and there are THREE of those. It is a `read`,
- * so the two writers in this catalogue do not move. It names two git verbs,
- * being `rev-parse` and `for-each-ref`, and the second is the one this phase
- * added to rule 7.
+ * read double quoted at four places, and `g`, `h`, `r`, `n` and `e` are local
+ * names. It begins `set -e` and then `umask 077`. Every answer is printed
+ * between the marker pair, and there are six pairs. It names none of the eleven
+ * mutating programs: it names `git`, `printf`, `base64`, `tr`, `cd` and `test`.
+ * Every `>` in it is part of `2>/dev/null`, and there are FIVE of those since
+ * Phase 229. It is a `read`, so the writers in this catalogue do not move. It
+ * names three git verbs, being `rev-parse`, `for-each-ref` and, since Phase
+ * 229, `config`, and the third is bound to THIS script alone by
+ * `EXTRA_GIT_VERBS` in the gate rather than added to the read set, because a
+ * bare `git config` writes and a verb allowed everywhere is a verb any future
+ * script can use; condition 56k reads every `git config` line here and fails
+ * unless it is `--get` of `user.name` or `user.email` and nothing else.
  *
  * Running it twice reads the same folder twice. It writes nothing on either
  * computer.
@@ -1653,15 +1678,27 @@ const REPO_BRANCH = [
   'set -e',
   'umask 077',
   'if [ ! -d "$1" ]; then',
-  "  printf '__TORTIE_RUN__missing none__TORTIE_RUN__\\n'",
+  "  printf '__TORTIE_RUN__missing none none none__TORTIE_RUN__\\n'",
   'elif [ ! -r "$1" ] || [ ! -x "$1" ]; then',
-  "  printf '__TORTIE_RUN__denied none__TORTIE_RUN__\\n'",
+  "  printf '__TORTIE_RUN__denied none none none__TORTIE_RUN__\\n'",
   'else',
   '  cd "$1"',
   '  g=$(git rev-parse --git-common-dir 2>/dev/null || true)',
   '  if [ -z "$g" ]; then',
-  "    printf '__TORTIE_RUN__notrepo none__TORTIE_RUN__\\n'",
+  "    printf '__TORTIE_RUN__notrepo none none none__TORTIE_RUN__\\n'",
   '  else',
+  // PHASE 229. The name and the address git there would commit as, read
+  // once the folder is known to be a repository. `--get` prints the value
+  // that wins across the system, global and local files, which is what a
+  // commit would use, and prints nothing with exit 1 when none is set. The
+  // two names in front of git are the gate's price for a verb outside the
+  // read set (condition 49); `git config --get` reaches no server.
+  '    n=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git config --get ' +
+    "user.name 2>/dev/null | base64 | tr -d '\\n' || true)",
+  '    e=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git config --get ' +
+    "user.email 2>/dev/null | base64 | tr -d '\\n' || true)",
+  '    [ -n "$n" ] || n=none',
+  '    [ -n "$e" ] || e=none',
   '    h=$(git rev-parse --symbolic-full-name HEAD 2>/dev/null || true)',
   '    r=',
   '    case "$h" in',
@@ -1671,13 +1708,16 @@ const REPO_BRANCH = [
     "%(upstream:track,nobracket)%1f' \"$h\" 2>/dev/null" +
     " | base64 | tr -d '\\n' || true)",
   '        if [ -z "$r" ]; then',
-  "          printf '__TORTIE_RUN__nodetails none__TORTIE_RUN__\\n'",
+  "          printf '__TORTIE_RUN__nodetails none %s %s__TORTIE_RUN__\\n' " +
+    '"$n" "$e"',
   '        else',
-  "          printf '__TORTIE_RUN__repo %s__TORTIE_RUN__\\n' \"$r\"",
+  "          printf '__TORTIE_RUN__repo %s %s %s__TORTIE_RUN__\\n' " +
+    '"$r" "$n" "$e"',
   '        fi',
   '        ;;',
   '      *)',
-  "        printf '__TORTIE_RUN__nobranch none__TORTIE_RUN__\\n'",
+  "        printf '__TORTIE_RUN__nobranch none %s %s__TORTIE_RUN__\\n' " +
+    '"$n" "$e"',
   '        ;;',
   '    esac',
   '  fi',
@@ -2811,9 +2851,9 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     params: 1,
     text: REPO_BRANCH,
     reason:
-      'It asks git two questions about one folder and reads one line about ' +
-      'one branch. It writes nothing, so running it twice reads the same ' +
-      'folder twice.'
+      'It asks git two questions about one folder, reads one line about one ' +
+      'branch, and reads the name and email address git there would commit ' +
+      'as. It writes nothing, so running it twice reads the same folder twice.'
   },
   {
     id: 'repo-history',

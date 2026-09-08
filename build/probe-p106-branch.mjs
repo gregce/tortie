@@ -821,9 +821,13 @@ if (scriptText.length === 0) {
   step(12, 'the external programs the far side runs', 'SKIPPED. The driver returned no script text, so nothing was measured. A skipped row is not a pass.');
   fail('the shipped script text did not reach this probe, so the spawn count was never measured.');
 } else {
+  // PHASE 229 moved the first two from 5 and 2 to 11 and 8: the identity read
+  // is git, base64 and tr for user.name and the same three for user.email,
+  // run once the folder is known to be a repository. Measured 2026-09-08 with
+  // the same wrappers over the shipped text before the header was rewritten.
   const shapes = [
-    ['a branch is checked out', work, 5],
-    ['a repository with no commits', empty, 2],
+    ['a branch is checked out', work, 11],
+    ['a repository with no commits', empty, 8],
     ['a folder git does not track', plain, 1],
     ['a folder that is not there', absent, 0]
   ];

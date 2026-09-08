@@ -27,9 +27,10 @@
  *   ────────                              ───────────
  *   machines:readBranch ──▶ this module
  *                             │ one read of 'repo-branch', one value
- *                             └──────────▶ git rev-parse x2, git for-each-ref,
- *                                          base64, tr
+ *                             └──────────▶ git rev-parse x2, git config --get x2,
+ *                                          git for-each-ref, base64 x3, tr x3
  *                             ◀────────── <mode word> <base64 or none>
+ *                                          <name base64 or none> <email ...>
  *                             │
  *                             │ parseForEachRefBranches (../git/parsers)
  *                             ▼
@@ -61,12 +62,32 @@
  *
  * Research 57 section 5.1 priced this read at 3, counting git alone. MEASURED
  * on 2026-08-20 with counting wrappers on PATH ahead of git, base64 and tr: a
- * folder with a branch checked out runs FIVE programs, being git twice for
- * `rev-parse`, git once for `for-each-ref`, `base64` once and `tr` once. A
- * detached head runs 2, a folder git does not track runs 1, and a folder that is
- * missing or unreadable runs 0. `printf`, `cd`, `case` and `[` are shell
+ * folder with a branch checked out ran FIVE programs, being git twice for
+ * `rev-parse`, git once for `for-each-ref`, `base64` once and `tr` once, and a
+ * detached head ran 2. PHASE 229 RE-MEASURED BOTH the same way on 2026-09-08
+ * after the identity read joined the script: a branch checked out runs ELEVEN,
+ * being the five above plus git, `base64` and `tr` for `user.name` and the same
+ * three for `user.email`, and a detached head or a repository with no commits
+ * runs 8. A folder git does not track runs 1 and a folder that is missing or
+ * unreadable runs 0, both unchanged, because the identity is read only once the
+ * folder is known to be a repository. `printf`, `cd`, `case` and `[` are shell
  * builtins, so a counting wrapper never sees them. Row 12 of
  * `node build/probe-p106-branch.mjs` measures it again on every run.
+ *
+ * ## PHASE 229. The name and the address, read before the press
+ *
+ * Every commit on his Mac Pro failed AFTER the press because git there has no
+ * `user.name` and no `user.email`, and nothing checked before it (research 85
+ * section 3.5). This read already asks that machine questions, so the script
+ * answers two more fields, and `identity` on the result says `known` when both
+ * are non-empty, `missing` when either is not, and `unknown` when the question
+ * was not asked. The commit box on this Mac disables the press for `missing`
+ * with a sentence naming the two settings. The commit script itself is not
+ * changed, so a press that does land still meets git's own refusal and main's
+ * `commitIdentityUnset` sentence for it. `git config --get` is bound to this
+ * one script by `EXTRA_GIT_VERBS` in the gate, since a bare `git config`
+ * writes, and condition 56k reads every such line for `--get` of exactly those
+ * two keys.
  *
  * ## What it does not do
  *
@@ -99,7 +120,11 @@
  * `src/renderer/machines/branch.ts`. No prose crosses this boundary.
  */
 
-import type { MachineBranchInput, MachineBranchResult } from '@shared/ipc';
+import type {
+  MachineBranchInput,
+  MachineBranchResult,
+  MachineGitIdentity
+} from '@shared/ipc';
 import type { GitBranchInfo } from '@shared/types';
 import { parseForEachRefBranches } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
@@ -156,6 +181,38 @@ export interface RepoBranchAnswer {
    * one this end could not read. Both parse to 0 and 0.
    */
   readonly track: string | null;
+  /**
+   * PHASE 229. Whether git there has both a name and an address to commit as.
+   *
+   * `unknown` on the three words printed before the folder is known to be a
+   * repository, where the far side prints `none none` without asking.
+   */
+  readonly identity: MachineGitIdentity;
+}
+
+/** The words the far side prints before the folder is known to be a repository. */
+const WORDS_WITHOUT_IDENTITY: ReadonlySet<RepoBranchWord> = new Set([
+  'notrepo',
+  'missing',
+  'denied'
+]);
+
+/**
+ * One identity word into the value it carries, or null when the word is not
+ * one the far side prints. PURE.
+ *
+ * `none` is what the script prints when `git config --get` printed nothing.
+ * Anything else is base64 of what it printed, newline included, and the same
+ * rule as the branch payload applies: the word is checked against the base64
+ * alphabet BEFORE it is decoded, because `Buffer.from` drops a character it
+ * does not know and hands back plausible nonsense. An EMPTY value arrives as
+ * the base64 of a lone newline and is trimmed to nothing here, because git
+ * refuses to commit under an empty name exactly as it refuses under none.
+ */
+function identityValue(word: string): string | null {
+  if (word === 'none') return '';
+  if (word.length === 0 || !BASE64_ONLY.test(word)) return null;
+  return Buffer.from(word, 'base64').toString('utf8').trim();
 }
 
 /**
@@ -173,18 +230,39 @@ export interface RepoBranchAnswer {
  * the caller reads as the machine not having answered. That is the same
  * treatment `./remote-runs.ts` gives a malformed field, and it is louder than a
  * half read answer.
+ *
+ * PHASE 229 MADE IT FOUR WORDS. The answer is
+ * `<word> <base64 or none> <name base64 or none> <email base64 or none>`, and
+ * an answer of any other length is refused whole. The three words printed
+ * before the folder is known to be a repository carry `none none` and answer
+ * `identity: 'unknown'`; the other three carry what `git config --get` said
+ * and answer `known` only when BOTH values are non-empty.
  */
 export function parseRepoBranchAnswer(payload: string): RepoBranchAnswer | null {
   const words = payload.trim().split(/[ \t\n]+/);
-  if (words.length !== 2) return null;
+  if (words.length !== 4) return null;
   const mode = MODE_WORDS[words[0] ?? ''];
   if (mode === undefined) return null;
+  const nameWord = words[2] ?? '';
+  const emailWord = words[3] ?? '';
+  let identity: MachineGitIdentity;
+  if (WORDS_WITHOUT_IDENTITY.has(mode)) {
+    // The far side never asked, and prints `none none` to say so. Anything
+    // else there is a shape this module does not recognise.
+    if (nameWord !== 'none' || emailWord !== 'none') return null;
+    identity = 'unknown';
+  } else {
+    const name = identityValue(nameWord);
+    const email = identityValue(emailWord);
+    if (name === null || email === null) return null;
+    identity = name.length > 0 && email.length > 0 ? 'known' : 'missing';
+  }
   if (mode !== 'repo') {
-    // The far side prints one `none` word on all five of its other branches,
-    // and an answer carrying anything else there is a shape this module does
-    // not recognise.
+    // The far side prints one `none` word in the payload place on all five of
+    // its other branches, and an answer carrying anything else there is a
+    // shape this module does not recognise.
     if (words[1] !== 'none') return null;
-    return { mode, row: null, track: null };
+    return { mode, row: null, track: null, identity };
   }
   const word = words[1] ?? '';
   if (word === 'none' || word.length === 0 || !BASE64_ONLY.test(word)) {
@@ -197,7 +275,7 @@ export function parseRepoBranchAnswer(payload: string): RepoBranchAnswer | null 
   // The same line the shared parser just read, for the one field it folds away.
   const line = decoded.split('\n').find((one) => one.length > 0) ?? '';
   const track = line.split(FIELD_SEPARATOR)[TRACK_FIELD] ?? '';
-  return { mode, row, track };
+  return { mode, row, track, identity };
 }
 
 /**
@@ -244,11 +322,17 @@ function labelOf(machineId: string): string {
   return row === null ? machineId : machineLabelOf(row);
 }
 
-/** Everything but the branch, for the seven answers that carry none. */
+/**
+ * Everything but the branch, for the seven answers that carry none.
+ *
+ * `identity` is `unknown` unless the far side read it, which it does for
+ * `nobranch` and `nodetails` because both mean the folder is a repository.
+ */
 function answerWithout(
   input: MachineBranchInput,
   mode: MachineBranchResult['mode'],
-  started: number
+  started: number,
+  identity: MachineGitIdentity = 'unknown'
 ): MachineBranchResult {
   const now = Date.now();
   return {
@@ -264,6 +348,7 @@ function answerWithout(
     ahead: 0,
     behind: 0,
     trackUnreadable: false,
+    identity,
     readAt: now,
     elapsedMs: now - started
   };
@@ -316,14 +401,15 @@ export async function readBranchOnMachine(
   if (answer.mode === 'notrepo') return answerWithout(input, 'notRepo', started);
   if (answer.mode === 'nobranch') {
     // A detached head and a repository with no commits both land here, and the
-    // sentence on screen names both.
-    return answerWithout(input, 'noBranch', started);
+    // sentence on screen names both. The folder is a repository, so the
+    // identity was read and travels with the answer.
+    return answerWithout(input, 'noBranch', started, answer.identity);
   }
   if (answer.mode === 'nodetails' || answer.row === null) {
     // The branch name was read over there and its details were not. A git older
     // than 2.13 refuses the whole format, which is the reason the far side has
     // a word for this rather than printing an empty payload.
-    return answerWithout(input, 'noDetails', started);
+    return answerWithout(input, 'noDetails', started, answer.identity);
   }
   const row = answer.row;
   const unreadable = trackWasUnreadable(answer.track);
@@ -344,6 +430,7 @@ export async function readBranchOnMachine(
     ahead: unreadable ? 0 : row.ahead,
     behind: unreadable ? 0 : row.behind,
     trackUnreadable: unreadable,
+    identity: answer.identity,
     readAt: now,
     elapsedMs: now - started
   };

@@ -244,6 +244,21 @@ export function remoteCommitNotConnected(label: string): string {
 }
 
 /**
+ * PHASE 229. git on that machine has no name or no address to commit as.
+ *
+ * ONE SENTENCE NAMING THE TWO SETTINGS, and it is a caption in a column 300 px
+ * wide, so it names them and stops. It is drawn BEFORE the press: every commit
+ * on his Mac Pro failed after the press with git's own "Author identity
+ * unknown" on the resting face, because nothing had asked (research 85
+ * section 3.5). The branch read asks now, in the same script that reads the
+ * branch, and this is what the button says while the answer is `missing`.
+ * Tortie never writes `~/.gitconfig` on either machine; a person sets them.
+ */
+export function remoteCommitIdentityMissing(label: string): string {
+  return `Set user.name and user.email in git on ${label} first`;
+}
+
+/**
  * The link failed before main answered at all, which is rarer than a lost
  * commit and is not the same thing.
  *
@@ -316,6 +331,14 @@ export interface RemoteCommitFacts {
   writesConfirmed: boolean;
   /** True when that machine is answering right now. */
   connected: boolean;
+  /**
+   * PHASE 229. Whether git there has a name and an address to commit as.
+   *
+   * `missing` is the branch read's answer that one or both are unset. A read
+   * that has not landed, or did not ask, is composed as `known`, so a press is
+   * never disabled by a question nobody answered.
+   */
+  identity: 'known' | 'missing';
   /** True when that folder holds a conflicted file. */
   conflicted: boolean;
   /** How many paths the panel drew in its Staged group. */
@@ -336,14 +359,20 @@ export interface RemoteCommitFacts {
  *  1. A commit is already running.
  *  2. Tortie has no permission to write on that machine.
  *  3. That machine is not answering.
- *  4. That folder holds a conflicted file.
- *  5. Nothing is staged over there.
- *  6. The box is empty.
+ *  4. git on that machine has no name or no email address to commit as
+ *     (Phase 229). It sits with the machine facts and ABOVE the staged and
+ *     message checks, because staging and typing would change nothing until
+ *     the person sets the two settings over there.
+ *  5. That folder holds a conflicted file.
+ *  6. Nothing is staged over there.
+ *  7. The box is empty.
  *
  * THE PERMISSION READ HERE IS PRESENTATIONAL AND IT IS NEVER THE SAFEGUARD.
  * Main reads the confirmed folder off the record on disk at call time and
  * refuses there, with a sentence of its own. This decides whether a button is
- * pressable, and nothing more.
+ * pressable, and nothing more. The identity read is presentational the same
+ * way: the commit script is unchanged and git's own refusal still stands
+ * behind a press that lands.
  */
 export function remoteCommitDisabledReason(
   facts: RemoteCommitFacts,
@@ -352,6 +381,7 @@ export function remoteCommitDisabledReason(
   if (facts.committing) return 'Committing…';
   if (!facts.writesConfirmed) return remoteWritesNotConfirmed(label);
   if (!facts.connected) return remoteCommitNotConnected(label);
+  if (facts.identity === 'missing') return remoteCommitIdentityMissing(label);
   if (facts.conflicted) return remoteCommitConflicts(label);
   if (facts.staged === 0) return remoteCommitNothingStagedYet(label);
   if (facts.message.trim().length === 0) return 'Enter a commit message';

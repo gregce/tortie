@@ -136,6 +136,7 @@ function entry(over: Record<string, unknown> = {}): Parameters<
     ahead: 2,
     behind: 1,
     trackUnreadable: false,
+    identity: 'known',
     loading: false,
     refreshing: false,
     readAt: AT,
@@ -193,6 +194,7 @@ function answer(over: Record<string, unknown> = {}): MachineBranchResult {
     ahead: 2,
     behind: 1,
     trackUnreadable: false,
+    identity: 'known',
     readAt: AT,
     elapsedMs: 318,
     ...over

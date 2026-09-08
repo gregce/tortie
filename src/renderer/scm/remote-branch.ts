@@ -33,7 +33,8 @@ import { create } from 'zustand';
 import type {
   InstalledGmuxApi,
   MachineBranchMode,
-  MachineBranchResult
+  MachineBranchResult,
+  MachineGitIdentity
 } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { targetKey } from '@shared/workspace-target';
@@ -80,6 +81,14 @@ export interface RemoteBranchEntry {
   behind: number;
   /** True when a tracking answer arrived and this end could not read it. */
   trackUnreadable: boolean;
+  /**
+   * PHASE 229. Whether git there has a name and an address to commit as.
+   *
+   * `unknown` until an answer that asked arrives. The commit box reads it and
+   * treats `unknown` as known, so a read that has not landed never disables a
+   * press.
+   */
+  identity: MachineGitIdentity;
   /** True only while a read with nothing yet is in flight. */
   loading: boolean;
   /** True while a read is running over an answer that is already on screen. */
@@ -103,6 +112,7 @@ const EMPTY: RemoteBranchEntry = {
   ahead: 0,
   behind: 0,
   trackUnreadable: false,
+  identity: 'unknown',
   loading: false,
   refreshing: false,
   readAt: 0,
@@ -142,7 +152,11 @@ interface RemoteBranchState {
    * Read once for a target that has never been read.
    *
    * The group calls this on its FIRST EXPAND and at no other moment. It is not
-   * called on mount, because a collapsed group must ask nothing.
+   * called on mount, because a collapsed group must ask nothing. PHASE 229
+   * ADDED A SECOND CALLER: the commit box calls it when it is drawn on a
+   * machine that is answering, because the answer carries whether git there
+   * can commit at all, and the box needs that BEFORE the press. It is the same
+   * one read per target; a group expanded afterwards finds the answer waiting.
    */
   ensure(target: WorkspaceTarget): void;
   /** Read now. This is the Refresh button and nothing else calls it. */
@@ -193,6 +207,7 @@ export const useRemoteBranch = create<RemoteBranchState>((set, get) => {
         ahead: answer.ahead,
         behind: answer.behind,
         trackUnreadable: answer.trackUnreadable,
+        identity: answer.identity,
         loading: false,
         refreshing: false,
         readAt: answer.readAt,
@@ -214,6 +229,7 @@ export const useRemoteBranch = create<RemoteBranchState>((set, get) => {
         ahead: 0,
         behind: 0,
         trackUnreadable: false,
+        identity: 'unknown',
         loading: false,
         refreshing: false,
         readAt: 0

@@ -515,6 +515,20 @@ export type MachineBranchMode =
   /** The machine did not answer, or answered something unreadable. */
   | 'unreachable';
 
+/**
+ * Whether git on that machine has a name and an email address to commit as
+ * (Phase 229).
+ *
+ * `known` means both `user.name` and `user.email` answered a non-empty value
+ * to `git config --get` over there, which is what a commit would use.
+ * `missing` means at least one did not, so a commit there would fail after
+ * the press with git's own "Author identity unknown". `unknown` means the
+ * question was not asked, because the folder is not a repository, the
+ * machine was not reached, or the answer could not be read; the commit box
+ * treats it as known, so a read that did not land never disables a press.
+ */
+export type MachineGitIdentity = 'known' | 'missing' | 'unknown';
+
 /** One branch read against one folder on one machine. */
 export interface MachineBranchInput {
   readonly machineId: string;
@@ -558,6 +572,14 @@ export interface MachineBranchResult {
    * as a whole one. This one is drawn.
    */
   readonly trackUnreadable: boolean;
+  /**
+   * PHASE 229. Whether git there has a name and an address to commit as.
+   *
+   * Read by the same script, once the folder is known to be a repository, so
+   * the commit box can disable the press with the reason BEFORE anything is
+   * sent. `unknown` for every mode where the question was not asked.
+   */
+  readonly identity: MachineGitIdentity;
   /** Epoch ms ON THIS MAC when the answer arrived. */
   readonly readAt: number;
   /** Wall time from the call to the answer, in ms. The round trip is in it. */

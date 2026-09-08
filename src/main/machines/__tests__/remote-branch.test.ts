@@ -84,9 +84,40 @@ function line(over: Partial<Record<string, string>> = {}): string {
   return [f.name, f.head, f.sha, f.shortSha, f.upstream, f.track, ''].join(US);
 }
 
-/** One `repo` answer, composed the way the far side composes it. */
-function repoAnswer(text: string): string {
-  return `repo ${Buffer.from(`${text}\n`, 'utf8').toString('base64')}`;
+/** One identity word, composed the way the far side composes it. */
+function ident(value: string | null): string {
+  return value === null
+    ? 'none'
+    : Buffer.from(`${value}\n`, 'utf8').toString('base64');
+}
+
+/**
+ * One `repo` answer, composed the way the far side composes it.
+ *
+ * PHASE 229. Four words: the identity rides along as base64 or `none`, and the
+ * default is a git that knows who it is.
+ */
+function repoAnswer(
+  text: string,
+  name: string | null = 'Greg',
+  email: string | null = 'greg@example.com'
+): string {
+  return (
+    `repo ${Buffer.from(`${text}\n`, 'utf8').toString('base64')} ` +
+    `${ident(name)} ${ident(email)}`
+  );
+}
+
+/** One of the five other answers, with the identity words the far side prints. */
+function otherAnswer(
+  word: string,
+  name: string | null = 'Greg',
+  email: string | null = 'greg@example.com'
+): string {
+  if (word === 'notrepo' || word === 'missing' || word === 'denied') {
+    return `${word} none none none`;
+  }
+  return `${word} none ${ident(name)} ${ident(email)}`;
 }
 
 beforeEach(() => {
@@ -163,47 +194,56 @@ describe('reading what the machine answered', () => {
   });
 
   it('reads the five words that carry one none field', () => {
-    for (const word of [
-      'nobranch',
-      'nodetails',
-      'notrepo',
-      'missing',
-      'denied'
-    ] as const) {
-      expect(parseRepoBranchAnswer(`${word} none`)).toEqual({
+    for (const word of ['nobranch', 'nodetails'] as const) {
+      expect(parseRepoBranchAnswer(otherAnswer(word))).toEqual({
         mode: word,
         row: null,
-        track: null
+        track: null,
+        identity: 'known'
+      });
+    }
+    for (const word of ['notrepo', 'missing', 'denied'] as const) {
+      expect(parseRepoBranchAnswer(otherAnswer(word))).toEqual({
+        mode: word,
+        row: null,
+        track: null,
+        identity: 'unknown'
       });
     }
   });
 
   it('reads an answer with newlines and extra spacing between the words', () => {
-    const payload = `\n repo \t ${Buffer.from(`${line()}\n`, 'utf8').toString('base64')} \n`;
+    const payload =
+      `\n repo \t ${Buffer.from(`${line()}\n`, 'utf8').toString('base64')} ` +
+      `\n ${ident('Greg')}\t${ident('greg@example.com')} \n`;
     expect(parseRepoBranchAnswer(payload)?.row?.name).toBe('main');
   });
 
   it('refuses a word the script never prints', () => {
-    expect(parseRepoBranchAnswer('ok none')).toBeNull();
-    expect(parseRepoBranchAnswer('none none')).toBeNull();
+    expect(parseRepoBranchAnswer('ok none none none')).toBeNull();
+    expect(parseRepoBranchAnswer('none none none none')).toBeNull();
     expect(parseRepoBranchAnswer('')).toBeNull();
   });
 
   it('refuses an answer with a field missing or a field too many', () => {
     expect(parseRepoBranchAnswer('repo')).toBeNull();
     expect(parseRepoBranchAnswer('missing')).toBeNull();
+    // The two word shape every build before Phase 229 printed.
+    expect(parseRepoBranchAnswer('missing none')).toBeNull();
     expect(parseRepoBranchAnswer('missing none none')).toBeNull();
+    expect(parseRepoBranchAnswer('missing none none none none')).toBeNull();
+    expect(parseRepoBranchAnswer(`${repoAnswer(line())} extra`)).toBeNull();
   });
 
   it('refuses a word holding a character base64 does not use', () => {
     // `Buffer.from` DROPS such a character and hands back plausible nonsense,
     // and a person reading a branch name cannot tell nonsense from a branch.
-    expect(parseRepoBranchAnswer('repo %%%%')).toBeNull();
-    expect(parseRepoBranchAnswer('repo not-base64!')).toBeNull();
+    expect(parseRepoBranchAnswer('repo %%%% none none')).toBeNull();
+    expect(parseRepoBranchAnswer('repo not-base64! none none')).toBeNull();
   });
 
   it('refuses a repo answer carrying the none word instead of a payload', () => {
-    expect(parseRepoBranchAnswer('repo none')).toBeNull();
+    expect(parseRepoBranchAnswer('repo none none none')).toBeNull();
   });
 
   it('refuses a decoded line with fewer than the seven fields', () => {
@@ -213,8 +253,86 @@ describe('reading what the machine answered', () => {
 
   it('refuses a refusal word carrying a payload', () => {
     expect(
-      parseRepoBranchAnswer(`missing ${Buffer.from('x').toString('base64')}`)
+      parseRepoBranchAnswer(
+        `missing ${Buffer.from('x').toString('base64')} none none`
+      )
     ).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2b. PHASE 229. The name and the address git there would commit as
+// ---------------------------------------------------------------------------
+
+describe('the identity git there would commit as', () => {
+  it('is known when both the name and the address are set', () => {
+    expect(parseRepoBranchAnswer(repoAnswer(line()))?.identity).toBe('known');
+    expect(
+      parseRepoBranchAnswer(repoAnswer(line(), 'Greg C', 'g@x.io'))?.identity
+    ).toBe('known');
+  });
+
+  it('is missing when either is unset, which the far side prints as none', () => {
+    expect(
+      parseRepoBranchAnswer(repoAnswer(line(), null, 'g@x.io'))?.identity
+    ).toBe('missing');
+    expect(
+      parseRepoBranchAnswer(repoAnswer(line(), 'Greg', null))?.identity
+    ).toBe('missing');
+    expect(parseRepoBranchAnswer(repoAnswer(line(), null, null))?.identity).toBe(
+      'missing'
+    );
+  });
+
+  it('is missing when either is set to nothing, which arrives as a lone newline', () => {
+    // MEASURED 2026-09-08: `git config --get user.email` over an empty value
+    // prints one newline, so the far side sends `Cg==`, and git refuses to
+    // commit under an empty address exactly as it refuses under none.
+    expect(parseRepoBranchAnswer(repoAnswer(line(), 'Greg', ''))?.identity).toBe(
+      'missing'
+    );
+    expect(
+      parseRepoBranchAnswer(repoAnswer(line(), '   ', 'g@x.io'))?.identity
+    ).toBe('missing');
+  });
+
+  it('rides along with a detached head and with an old git', () => {
+    expect(parseRepoBranchAnswer(otherAnswer('nobranch', null, null))).toEqual(
+      { mode: 'nobranch', row: null, track: null, identity: 'missing' }
+    );
+    expect(parseRepoBranchAnswer(otherAnswer('nodetails'))).toEqual({
+      mode: 'nodetails',
+      row: null,
+      track: null,
+      identity: 'known'
+    });
+  });
+
+  it('is unknown for the three words printed before the folder is a repository', () => {
+    for (const word of ['notrepo', 'missing', 'denied'] as const) {
+      expect(parseRepoBranchAnswer(otherAnswer(word))?.identity).toBe('unknown');
+      // Those three never ask, so an identity word there is a shape this end
+      // does not recognise.
+      expect(
+        parseRepoBranchAnswer(`${word} none ${ident('Greg')} none`)
+      ).toBeNull();
+    }
+  });
+
+  it('refuses an identity word holding a character base64 does not use', () => {
+    expect(parseRepoBranchAnswer(`${repoAnswer(line(), null, null).slice(0, -9)} %%% none`)).toBeNull();
+    expect(
+      parseRepoBranchAnswer(`nobranch none ${ident('Greg')} not-base64!`)
+    ).toBeNull();
+  });
+
+  it('reads a name holding a space and an address holding a plus', () => {
+    // Base64 exists for exactly this, and nothing here is drawn on screen, so
+    // the parser keeps only whether each is empty.
+    expect(
+      parseRepoBranchAnswer(repoAnswer(line(), 'Greg Ceccarelli', 'greg+x@y.z'))
+        ?.identity
+    ).toBe('known');
   });
 });
 
@@ -310,22 +428,51 @@ describe('the read itself', () => {
   });
 
   it('carries the five far side words straight to their own modes', async () => {
-    for (const [word, mode] of [
-      ['missing', 'missing'],
-      ['denied', 'denied'],
-      ['notrepo', 'notRepo'],
-      ['nobranch', 'noBranch'],
-      ['nodetails', 'noDetails']
+    for (const [word, mode, identity] of [
+      ['missing', 'missing', 'unknown'],
+      ['denied', 'denied', 'unknown'],
+      ['notrepo', 'notRepo', 'unknown'],
+      ['nobranch', 'noBranch', 'known'],
+      ['nodetails', 'noDetails', 'known']
     ] as const) {
       reads = [];
-      readAnswer = () => `${word} none`;
+      readAnswer = () => otherAnswer(word);
       const out = await readBranchOnMachine({ machineId: 'far', cwd: '/w' });
       expect(out.mode).toBe(mode);
       expect(out.branch).toBeNull();
       expect(out.ahead).toBe(0);
       expect(out.behind).toBe(0);
+      // PHASE 229. The identity travels with the two words that read it, and
+      // is unknown on the three that never asked.
+      expect(out.identity).toBe(identity);
       expect(reads).toHaveLength(1);
     }
+  });
+
+  it('answers missing when git there has no name or no address (Phase 229)', async () => {
+    readAnswer = () => repoAnswer(line(), null, null);
+    const out = await readBranchOnMachine({ machineId: 'far', cwd: '/w' });
+    expect(out.mode).toBe('ok');
+    expect(out.branch).toBe('main');
+    expect(out.identity).toBe('missing');
+    readAnswer = () => otherAnswer('nobranch', 'Greg', null);
+    expect(
+      (await readBranchOnMachine({ machineId: 'far', cwd: '/w' })).identity
+    ).toBe('missing');
+  });
+
+  it('answers unknown for the identity on every answer that sent nothing', async () => {
+    connected = new Set();
+    let out = await readBranchOnMachine({ machineId: 'far', cwd: '/w' });
+    expect(out.mode).toBe('notConnected');
+    expect(out.identity).toBe('unknown');
+    connected = new Set(['far']);
+    readAnswer = () => {
+      throw new Error('link dropped');
+    };
+    out = await readBranchOnMachine({ machineId: 'far', cwd: '/w' });
+    expect(out.mode).toBe('unreachable');
+    expect(out.identity).toBe('unknown');
   });
 
   it('answers the branch, the commit, the upstream and the two counts', async () => {
@@ -352,7 +499,8 @@ describe('the read itself', () => {
       upstreamGone: false,
       ahead: 2,
       behind: 1,
-      trackUnreadable: false
+      trackUnreadable: false,
+      identity: 'known'
     });
     expect(out.elapsedMs).toBeGreaterThanOrEqual(0);
     expect(out.readAt).toBeGreaterThan(0);

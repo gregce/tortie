@@ -223,7 +223,10 @@
  *     ON: gh runs on this Mac and never leaves it.
  *
  * 56. `repo-branch` is not a one value read in the catalogue; it names a git
- *     verb other than `rev-parse` and `for-each-ref`; the format inside its text
+ *     verb other than `rev-parse`, `for-each-ref` and `config` (PHASE 229 added
+ *     the third, bound to this one script by `EXTRA_GIT_VERBS` and never added
+ *     to the read set, and 56k reads every `git config` line for `--get` of
+ *     exactly `user.name` or `user.email`); the format inside its text
  *     plus `%(subject)` is not exactly `BRANCH_FORMAT` from
  *     `src/main/git/parse.ts`; `ALLOWED_GIT_VERBS` is not exactly
  *     the eight members of `ALLOWED_GIT_VERBS`; the script
@@ -2815,12 +2818,25 @@ const ALLOWED_GIT_VERBS_SORTED = [
  * list in condition 38. `ALLOWED_GIT_VERBS` does not grow, for the same reason:
  * a verb allowed everywhere is a verb any future script can use, and `commit`
  * is not a read.
+ *
+ * PHASE 229 ADDED ONE TO A READ, being `config` in `repo-branch` alone, and
+ * it is the first entry here that belongs to a read script. The branch read
+ * asks `git config --get user.name` and `user.email` so the commit box can
+ * disable the press before it is made, and `--get` reads three files and
+ * reaches no server. It is NOT added to `ALLOWED_GIT_VERBS`, although the
+ * measure step recommended that, because a bare `git config` WRITES and the
+ * read set's whole promise is that no member can be turned into a write by
+ * any flag; binding it here keeps it to one script, condition 49 then asks
+ * the two prompt names of it as of every bound verb, condition 53j exempts a
+ * bound verb on a read script from its all-reads check, and condition 56k
+ * reads each `git config` line for `--get` of exactly those two keys.
  */
 const EXTRA_GIT_VERBS = {
   'git-clone': ['ls-remote', 'clone'],
   'git-stage': ['add'],
   'git-unstage': ['restore', 'rm'],
-  'git-commit': ['commit']
+  'git-commit': ['commit'],
+  'repo-branch': ['config']
 };
 
 /** Every verb in that map, so the second loop of condition 49 reads one list. */
@@ -4231,11 +4247,23 @@ const P99_FORBIDDEN = P98_FORBIDDEN;
   //      fails here rather than in review.
   const readVerbs = [...(p99.gitVerbsAcrossReads ?? [])].sort();
   const allowed = [...ALLOWED_GIT_VERBS].sort();
+  // PHASE 229. A verb EXTRA_GIT_VERBS binds to a script that is a read is
+  // answered by that binding and by condition 49's per script loop, not here;
+  // this loop is about the read set staying the read set. The exemption is
+  // computed from the catalogue's own modes rather than named, so a bound
+  // verb on a WRITE script gains nothing from it.
+  const boundToARead = new Set(
+    Object.entries(EXTRA_GIT_VERBS)
+      .filter(([id]) => scripts.find((row) => row.id === id)?.mode === 'read')
+      .flatMap(([, verbs]) => verbs)
+  );
   for (const verb of readVerbs) {
     if (allowed.includes(verb)) continue;
+    if (boundToARead.has(verb)) continue;
     fail(
       `a read script names git ${verb}, which is not one of ` +
-        `${allowed.join(', ')}. Phase 99 widened that list by nothing and no ` +
+        `${allowed.join(', ')} and is bound to no read script by ` +
+        `EXTRA_GIT_VERBS. Phase 99 widened that list by nothing and no ` +
         `later phase may widen it here without saying so.`
     );
   }
@@ -4644,14 +4672,70 @@ const P105_CREDENTIAL_WORDS =
           `the folder on that machine.`
       );
     }
-    // 56b. Two git verbs, and no third.
+    // 56b. Three git verbs, and no fourth. PHASE 229 added config.
     const verbs = [...(p106.gitVerbs ?? [])].sort();
-    if (JSON.stringify(verbs) !== JSON.stringify(['for-each-ref', 'rev-parse'])) {
+    if (
+      JSON.stringify(verbs) !==
+      JSON.stringify(['config', 'for-each-ref', 'rev-parse'])
+    ) {
       fail(
         `repo-branch names git ${verbs.join(', ') || 'nothing'}. It names ` +
-          `exactly rev-parse, twice, and for-each-ref, once. rev-parse answers ` +
-          `where the git directory is and what HEAD names, and for-each-ref ` +
-          `answers everything about the branch in one line.`
+          `exactly rev-parse, twice, for-each-ref, once, and config, twice. ` +
+          `rev-parse answers where the git directory is and what HEAD names, ` +
+          `for-each-ref answers everything about the branch in one line, and ` +
+          `config --get answers the name and the address git there would ` +
+          `commit as, so the commit box can refuse before the press.`
+      );
+    }
+    // 56k. PHASE 229. Every `git config` in the text is `--get` of exactly one
+    // of the two identity keys, with nothing else on the git command. A bare
+    // `git config` writes, `--global` and `--file` aim it, and `--unset` and
+    // `--add` are writes with a read's name, so the line is read whole rather
+    // than the verb being trusted. The binding itself is asserted too, so a
+    // round that moves `config` into the read set fails here and not only in
+    // review.
+    const configLines = p106.configLines ?? [];
+    const CONFIG_LINE =
+      /^[ne]=\$\(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git config --get user\.(?:name|email) 2>\/dev\/null \| base64 \| tr -d '\\n' \|\| true\)$/;
+    if (configLines.length !== 2) {
+      fail(
+        `repo-branch carries ${String(configLines.length)} git config line(s). ` +
+          `It carries exactly two, one for user.name and one for user.email.`
+      );
+    }
+    const keysRead = [];
+    for (const one of configLines) {
+      const hit = /--get user\.(name|email)/.exec(one);
+      if (hit !== null) keysRead.push(hit[1]);
+      if (!CONFIG_LINE.test(one)) {
+        fail(
+          `repo-branch runs git config as ${JSON.stringify(one)}. The only ` +
+            `shape it may take is --get of user.name or user.email, with the ` +
+            `two prompt names in front, stderr dropped and the value base64. ` +
+            `Anything else on that line is a write wearing a read's name.`
+        );
+      }
+    }
+    if (JSON.stringify(keysRead.sort()) !== JSON.stringify(['email', 'name'])) {
+      fail(
+        `repo-branch reads git config keys ${keysRead.join(', ') || 'none'}. ` +
+          `It reads user.name and user.email, once each.`
+      );
+    }
+    if (
+      JSON.stringify(EXTRA_GIT_VERBS['repo-branch']) !== JSON.stringify(['config'])
+    ) {
+      fail(
+        `EXTRA_GIT_VERBS binds ${JSON.stringify(EXTRA_GIT_VERBS['repo-branch'])} ` +
+          `to repo-branch. It binds exactly config, because a bare git config ` +
+          `writes and the verb belongs to this one script.`
+      );
+    }
+    if (ALLOWED_GIT_VERBS.includes('config')) {
+      fail(
+        'ALLOWED_GIT_VERBS holds config. It never does: a bare git config ' +
+          'writes, and a verb allowed everywhere is a verb any future script ' +
+          'can use. Phase 229 bound it to repo-branch alone.'
       );
     }
     // 56d. ONE FORMAT, IN ONE PLACE.

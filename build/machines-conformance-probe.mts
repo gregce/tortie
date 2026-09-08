@@ -2590,6 +2590,14 @@ process.stdout.write(
         // 56i. THE EXECUTABLE FORM OF A SENTENCE ON SCREEN. The panel tells a
         // person Tortie does not fetch on their machine.
         fetchVerbsInScript: FETCH_VERBS.filter((verb) => text.includes(verb)),
+        // 56k. PHASE 229. Every line that names `git config`, so the gate can
+        // read each one for `--get` of exactly the two identity keys. A bare
+        // `git config` writes, which is why the verb is bound to this script
+        // and read line by line rather than allowed.
+        configLines: text
+          .split('\n')
+          .filter((one) => /\bgit config\b/.test(one))
+          .map((one) => one.trim()),
         // 56g and 56j. What the module does, counted in its own text.
         remoteReads: [...source.matchAll(/runRemoteRead\(/g)].length,
         callsRemoteWrite: source.includes('runRemoteWrite'),
