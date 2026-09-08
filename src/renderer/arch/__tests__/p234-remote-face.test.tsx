@@ -315,6 +315,59 @@ describe("the operator's rule, over the whole Architecture surface", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Rule 5. The one line research 85 named, pinned where a revert can be seen
+// ---------------------------------------------------------------------------
+
+/**
+ * The defect research 85 measured was ONE binding: `ArchView.tsx` composed the
+ * repository key it holds everything by with `localPathOf`, which is null for
+ * a folder on a machine, so main was never asked and the pane drew its header
+ * and nothing under it.
+ *
+ * Every other rule in this suite renders `ReadingFace` from a model, so all of
+ * them stay green if that binding is put back. This one reads the binding
+ * itself, because the composer a component chooses is not something a render
+ * of one of its children can see, and the two spellings differ by a name.
+ *
+ * It is a scan, so it is proved on both spellings below: a scan that cannot
+ * fail is not a scan.
+ */
+function repoKeyBinding(source: string): string | null {
+  const at = source.indexOf('const repoKey =');
+  if (at < 0) return null;
+  const end = source.indexOf(';', at);
+  return end < 0 ? null : source.slice(at, end + 1);
+}
+
+describe('the pane composes its repository key from the target, not from a local path', () => {
+  it('binds repoKey through the key composer', () => {
+    const binding = repoKeyBinding(readFileSync(join(ARCH_DIR, 'ArchView.tsx'), 'utf8'));
+    expect(binding).not.toBeNull();
+    expect(binding).toContain('rootKeyOf');
+    expect(binding).not.toContain('localPathOf');
+  });
+
+  it('still reads the local path for the two surfaces that run or write', () => {
+    // `localPathOf` has not left the file: it is what the enrichment pass and
+    // the freshness ribbon take, and those are LOCAL by the phase's charter.
+    const view = readFileSync(join(ARCH_DIR, 'ArchView.tsx'), 'utf8');
+    expect(view).toContain('const localRepoPath =');
+    expect(view).toContain('localPathOf(target)');
+  });
+
+  it('proves the scan can fail', () => {
+    // The spelling that shipped before this phase, run through the same reader.
+    const parent = repoKeyBinding(
+      'const repoKey = target === null ? null : localPathOf(target);\n'
+    );
+    expect(parent).toContain('localPathOf');
+    expect(parent).not.toContain('rootKeyOf');
+    // And a file with no such binding at all reads as null rather than as a pass.
+    expect(repoKeyBinding('const other = 1;')).toBeNull();
+  });
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
 });

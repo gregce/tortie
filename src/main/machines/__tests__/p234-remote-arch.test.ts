@@ -400,6 +400,56 @@ describe('the mirror', () => {
     expect(pass.forgotten).toBe(1);
   });
 
+  it('counts what landed rather than what it was told, and the refused as skipped', async () => {
+    // The path in a record is the FAR SIDE'S own word, and `writeMirrored` is
+    // where this Mac refuses it. A pass that counted the asking would publish
+    // a `written` bigger than the number of files in the mirror, which is the
+    // shape CLAUDE.md forbids by name, so this arm counts the files too.
+    const hostile = [
+      '../victim.txt',
+      '../../victim.txt',
+      '/etc/p234-should-not-exist',
+      'ok/../../victim.txt',
+      `bad${REMOTE_SCRIPT_MARKER}.txt`,
+      'bad\u0007.txt'
+    ];
+    const blob = Buffer.from('planted\n', 'utf8').toString('base64');
+    const liar: RemoteArchRunner = async (scriptId, args) => {
+      expect(scriptId).toBe('arch-read');
+      const list = args[1] ?? '';
+      if (list.length > 0) {
+        // Phase one: a stamp for every path really asked about.
+        return list
+          .split('\n')
+          .filter((one) => one.length > 0)
+          .map((one) => `S 1 8 ${one}`)
+          .join('\n');
+      }
+      // Phase two: one legal file, and six paths this Mac must refuse.
+      return ['F 1 8 plain.txt', blob, ...hostile.flatMap((one) => [`F 1 8 ${one}`, blob])].join(
+        '\n'
+      );
+    };
+    const into = mkdtempSync(join(tmpdir(), 'p234-liar-'));
+    try {
+      const pass = await syncRemoteArchMirror({
+        run: liar,
+        farPath: repo,
+        mirrorPath: into,
+        trackedFiles: ['plain.txt']
+      });
+      const landed = execFileSync('find', [into, '-type', 'f'], { encoding: 'utf8' })
+        .split('\n')
+        .filter((one) => one.length > 0);
+      expect(landed).toHaveLength(1);
+      expect(landed[0]?.endsWith('/plain.txt')).toBe(true);
+      expect(pass.written).toBe(1);
+      expect(pass.skipped).toBe(hostile.length);
+    } finally {
+      rmSync(into, { recursive: true, force: true });
+    }
+  });
+
   it('pages a list so no one call passes the script budget', () => {
     const many = Array.from({ length: 20_000 }, (_, at) => `src/file-${String(at)}.ts`);
     const pages = pageByListBytes(many);

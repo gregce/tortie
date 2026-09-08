@@ -492,8 +492,18 @@ export function archMirrorPath(root: string, machineId: string, farPath: string)
  * the same way `scanArchImports` forgets a row for a file that is gone.
  *
  * IT NEVER THROWS FOR ANYTHING THE MACHINE SAID. A call that fails throws from
- * the door, which is the caller's to catch; a record that comes back refused
- * leaves that file out of the mirror and out of the counts.
+ * the door, which is the caller's to catch; a record whose path the far side
+ * chose and this Mac refuses leaves that file out of the mirror and is counted
+ * as `skipped`, never as `written`, so `written` is always the number of files
+ * that really landed.
+ *
+ * THE ONE STATED LIMIT: a mirror is never removed. The directory survives the
+ * project being closed and the machine row being removed, and only the FILES
+ * inside it are forgotten, when the folder stops tracking them. So a machine
+ * that has been read once holds up to {@link ARCH_MIRROR_BYTES_CEILING} under
+ * `<userData>/gmux/arch-machines/<digest>` for as long as that profile lives.
+ * Reaping one belongs with the rest of that directory's housekeeping and is
+ * not in this phase.
  */
 export async function syncRemoteArchMirror(input: {
   run: RemoteArchRunner;
@@ -591,8 +601,14 @@ export async function syncRemoteArchMirror(input: {
     for (const payload of answers) {
       for (const record of parseArchReadAnswer(payload)) {
         if (record.kind !== 'F' || record.content === null) continue;
-        await writeMirrored(mirrorPath, record.path, record.content, record.mtimeSec);
-        written += 1;
+        const landed = await writeMirrored(
+          mirrorPath,
+          record.path,
+          record.content,
+          record.mtimeSec
+        );
+        if (landed) written += 1;
+        else skipped += 1;
       }
     }
   }
@@ -700,14 +716,22 @@ function forgetMirrored(mirrorPath: string, paths: readonly string[]): number {
   return gone;
 }
 
-/** Write one mirrored file, stamped with the far side's own modification time. */
+/**
+ * Write one mirrored file, stamped with the far side's own modification time.
+ *
+ * It ANSWERS whether the file landed, because the path in a record is the far
+ * side's own word and this is the one place that word is refused. A caller
+ * that counted the asking rather than the doing would publish a `written` that
+ * is larger than the number of files in the mirror, which is the shape
+ * CLAUDE.md forbids by name.
+ */
 async function writeMirrored(
   mirrorPath: string,
   relPath: string,
   content: Buffer,
   mtimeSec: number
-): Promise<void> {
-  if (!archPathIsSendable(relPath)) return;
+): Promise<boolean> {
+  if (!archPathIsSendable(relPath)) return false;
   const abs = join(mirrorPath, relPath);
   await mkdir(dirname(abs), { recursive: true });
   await writeFile(abs, content);
@@ -716,4 +740,5 @@ async function writeMirrored(
   } catch {
     // A stamp that will not set means the next pass carries this file again.
   }
+  return true;
 }

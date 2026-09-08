@@ -157,8 +157,10 @@
  * link. `arch-git` runs ONE of the five git calls `src/main/arch/argv-guard.ts`
  * composes locally, chosen by KIND, with every argv written into this text
  * byte for byte as the local composer writes it; the kind is a word this
- * script matches with `case`, so no caller can compose a git command line and
- * the gate proves each line against the local composer. It adds ONE git verb,
+ * script matches with a literal `[ "$k" = ... ]` test, one arm per kind and an
+ * `if` chain rather than a `case` for the bash 3.2 reason {@link ARCH_GIT}'s
+ * own header gives, so no caller can compose a git command line and the gate
+ * proves each line against the local composer. It adds ONE git verb,
  * being `cat-file`, bound to this one script alone by `EXTRA_GIT_VERBS`: it
  * reads the object database, reaches no server, and is not added to the
  * verbs every script may name. Both write nothing, and both are how the
