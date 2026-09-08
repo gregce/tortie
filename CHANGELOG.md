@@ -14,6 +14,12 @@ This release is about the redline you can rewind. Every edit to a prose file sho
 - Point at a change in the redline with Option-Down and Option-Up, press Option-Delete, and that one phrase goes back to what it was while every other edit in the file stands. Your own paragraph carries the same control as an agent's, so a rewind can be undone with Shift-Option-Delete for as long as the tab is open ([`a25128d`](https://github.com/gregce/tortie/commit/a25128d)), ([`e69cc43`](https://github.com/gregce/tortie/commit/e69cc43)), ([`5701f97`](https://github.com/gregce/tortie/commit/5701f97)), ([`861dd3f`](https://github.com/gregce/tortie/commit/861dd3f))
 - A rewind is written only if the file still holds exactly what Tortie read when you pressed. If something wrote to it in between, or the phrase is no longer there, nothing is written and the redline says which, though a write of exactly the same size landing in the same instant as the rewind can still be written over ([`9f61ee9`](https://github.com/gregce/tortie/commit/9f61ee9)), ([`eef1cdf`](https://github.com/gregce/tortie/commit/eef1cdf))
 
+### Fixed
+
+- Tortie now signs in to your machines side by side when it starts, so a machine that is off or asleep no longer holds up the one that answers, though a fifth machine waiting behind four that do not answer still waits for them. A machine that did not answer at launch is asked again on its own, first after half a minute and then less often up to every five minutes, and at once when it starts answering ([`72bb7ebb`](https://github.com/gregce/tortie/commit/72bb7ebb)), ([`cef1e1eb`](https://github.com/gregce/tortie/commit/cef1e1eb))
+- The bar saying a machine could not be reached now appears on that machine's own tab only, and no longer on another machine's tab or on a local one ([`7b02150e`](https://github.com/gregce/tortie/commit/7b02150e))
+- A tab whose machine did not answer now carries Prepare this machine, the same control Settings has, so you can reconnect from where you are ([`f31f2b97`](https://github.com/gregce/tortie/commit/f31f2b97)), ([`45d4287d`](https://github.com/gregce/tortie/commit/45d4287d))
+
 ## 0.101.0 (2026-09-07)
 
 This release is about light mode. The whole app can now sit on paper rather than graphite, terminal and editor and diffs included, and the frame controls work the same way on both. A codex session you restore after a reboot now opens instead of refusing, and a development build no longer disagrees with the installed app about which tmux to use.
