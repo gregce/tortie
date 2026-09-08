@@ -134,6 +134,7 @@ export const CHECKS = [
   // and per protection, then over ablated copies of the channel one clause
   // each. It launches no Electron and reads nothing under the person's home.
   pure('conformance:redline-write'),
+  pure('conformance:save'),
   pure('conformance:filehistory'),
   pure('conformance:historysearch'),
   // Phase 202. The logins domain: it runs build/conformance-logins.mjs, which

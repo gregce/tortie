@@ -371,6 +371,30 @@ function statementFrom(code, from) {
 function bodyAfter(code, afterParams) {
   let i = afterParams + 1;
   while (i < code.length && /\s/.test(code[i])) i += 1;
+  // A TYPESCRIPT RETURN TYPE SITS HERE, and until Phase 240 this reader stopped
+  // dead on one. `const save = async (id: string): Promise<boolean> => {…}` is
+  // the ordinary shape of every arrow bound function in src/, and this returned
+  // null for all of them, so `namedFunctions` could read a gate script and not
+  // a source file. Nothing under build/ has an annotation in this position, so
+  // the two spawn gates that share this helper read exactly what they read
+  // before. The scan stops at the first `=>` OUTSIDE any bracket, so a type
+  // that is itself a function, e.g. `(): (() => void) =>`, is not mistaken for
+  // the arrow, and a `;` outside any bracket abandons the attempt rather than
+  // running away down the file.
+  if (code[i] === ':') {
+    let depth = 0;
+    let j = i + 1;
+    for (; j < code.length; j += 1) {
+      const c = code[j];
+      if (c === '(' || c === '[' || c === '{') depth += 1;
+      else if (c === ')' || c === ']' || c === '}') depth -= 1;
+      else if (depth === 0 && c === ';') return null;
+      if (depth === 0 && code.startsWith('=>', j)) break;
+      if (depth < 0) return null;
+    }
+    if (j >= code.length) return null;
+    i = j;
+  }
   if (code.startsWith('=>', i)) {
     i += 2;
     while (i < code.length && /\s/.test(code[i])) i += 1;
