@@ -51,6 +51,15 @@ vi.mock('../monaco-loader', () => ({
 const readFile = vi.fn();
 const showHead = vi.fn();
 const writeFile = vi.fn(async () => undefined);
+// PHASE 240. A save of a file inside an open project goes through the guarded
+// channel now, with the digest of `savedContents` as its precondition. This
+// file's subject is the BASELINE and not the door, so the stub answers `wrote`
+// and the assertion below moved from one channel to the other.
+const writeGuarded = vi.fn(async () => ({
+  outcome: 'wrote' as const,
+  sha256: 'deadbeef',
+  bytes: 1
+}));
 const readDir = vi.fn();
 const readImage = vi.fn(async () => ({ status: 'ok' }));
 
@@ -59,7 +68,7 @@ vi.stubGlobal('window', {
   removeEventListener() {},
   dispatchEvent: () => true,
   gmux: {
-    fs: { readFile, readImage, writeFile, readDir },
+    fs: { readFile, readImage, writeFile, writeGuarded, readDir },
     git: { showHead, onChanged: () => () => undefined }
   }
 });
@@ -317,7 +326,8 @@ describe('the shipping store and tab IO: what never moves the baseline, and what
 
     buffer.text = 'file v1, and my own paragraph\n';
     expect(await io.save(tabAt('/repo/notes.md').id)).toBe(true);
-    expect(writeFile).toHaveBeenCalledTimes(1);
+    expect(writeGuarded).toHaveBeenCalledTimes(1);
+    expect(writeFile).not.toHaveBeenCalled();
     const tab = tabAt('/repo/notes.md');
     expect(tab.savedContents).toBe('file v1, and my own paragraph\n');
     expect(tab.baseline).toBe(before);

@@ -26,6 +26,28 @@
  * one channel that can write there. A review tab whose machine carries none is
  * refused, out loud, exactly as it was. Nothing about a history tab moved: the
  * past is not an edit surface on any computer.
+ *
+ * PHASE 240 SPLIT THE LOCAL HALF IN TWO AS WELL, and it is issue 16, Sean
+ * Johnson: "When I edit a file, then save, there's no warning if someone else
+ * (presumably an agent) edited it concurrently and I'm overwriting its edits
+ * (as VSC does)." A file inside an open project is saved through Phase 226's
+ * `fs:writeGuarded`, with the digest of `tab.savedContents` — by definition
+ * what Tortie last read — as the precondition, so a save that would land on
+ * top of somebody else's write is answered `stale` and asks first. A file
+ * outside every open project root keeps the unguarded `fs:writeFile` it has
+ * always had, because the guarded channel would refuse such a path outright
+ * and that would take away a save a person has today.
+ *
+ * THE REMOTE SAVE IS UNTOUCHED by that. `saveOnMachine` has carried a
+ * precondition through `machines:putFile` since Phase 101 and this is where
+ * the pattern came from; Phase 240 only brings the local path level with it,
+ * and it deliberately borrows the remote family's sentences rather than
+ * inventing a second vocabulary (./save-sentences).
+ *
+ * `refreshRepo`'s dirty-tab rule is NOT touched either. Skipping a dirty tab
+ * is correct — it is what stops the watcher overwriting a person's typing —
+ * and it is what makes the warning necessary rather than what the warning
+ * replaces.
  */
 
 import { REMOTE_FILE_MAX_BYTES } from '@shared/ipc';
@@ -39,6 +61,7 @@ import {
   remoteSaveRefused
 } from '../machines/editor';
 import { announceRemoteWrite } from '../machines/remote-writes';
+import { requestOpenFile } from '../state/open-file';
 import type {
   OpenFileCommitRef,
   OpenFileRemoteRef
@@ -47,6 +70,14 @@ import { getWorkingModel, resetWorkingModel } from './monaco-loader';
 import { nextBaseline } from './baseline';
 import { dirOf } from './paths';
 import { fileInRepo } from './tab-identity';
+import { guardedSave } from './save-write';
+import {
+  SAVE_COMPARE_LABEL,
+  SAVE_OVERWRITE_LABEL,
+  STALE_SAVE_BODY,
+  saveRefusalSentence,
+  staleSaveTitle
+} from './save-sentences';
 import type { EditorTab } from './tab-types';
 import { gmuxBridge } from '../bridge';
 
@@ -656,7 +687,217 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     }
   };
 
-  /** Write one tab to disk. Resolves false when nothing was written. */
+  /**
+   * The save this product has had since Phase 5, unchanged (Phase 240).
+   *
+   * `fs:writeFile` is NOT removed and NOT modified. It is what a file OUTSIDE
+   * every open project root takes — the Context detail tab on a global
+   * `~/.claude/CLAUDE.md` is the ordinary case — because the guarded channel
+   * would refuse such a path `outside`, and refusing it here would take away a
+   * save a person has today.
+   *
+   * It is ALSO the fallback for a file that is a symbolic link, and for a page
+   * with no digest program. See ./save-sentences `SaveRefusalWord` for the
+   * link decision and why it is the only one. THE STATED LIMIT is that neither
+   * shape gets a staleness check, which is exactly what both have today.
+   */
+  const saveOutsideProject = async (
+    id: string,
+    tab: EditorTab,
+    value: string
+  ): Promise<boolean> => {
+    if (!gmux) return false;
+    try {
+      await gmux.fs.writeFile(tab.path, value);
+      deps.patch(id, { savedContents: value, dirty: false });
+      return true;
+    } catch (err) {
+      useApp
+        .getState()
+        .toast(
+          'error',
+          `Could not save this file. ${errorSentence(err, 'The write failed.')}`,
+          { sticky: true }
+        );
+      return false;
+    }
+  };
+
+  /**
+   * PHASE 240. Open the comparison a `stale` answer offers, being what the
+   * file says on disk RIGHT NOW against the buffer that was refused.
+   *
+   * The disk side is read here rather than carried from the refusal, because
+   * the person may have read the dialog for a while and the honest left side
+   * is the one at the moment they pressed Compare. Nothing is written by any
+   * path through this function.
+   */
+  const openCompare = async (tab: EditorTab, value: string): Promise<void> => {
+    if (!gmux) return;
+    let disk;
+    try {
+      disk = await gmux.fs.readFile(tab.path);
+    } catch {
+      useApp
+        .getState()
+        .toast('error', saveRefusalSentence('io', tab.name), { sticky: true });
+      return;
+    }
+    if (disk.truncated) {
+      // A partial left side would read as "the agent deleted the second half",
+      // which is a worse answer than saying the file is too large.
+      useApp
+        .getState()
+        .toast('error', saveRefusalSentence('tooLarge', tab.name), {
+          sticky: true
+        });
+      return;
+    }
+    requestOpenFile({
+      repoPath: tab.repoPath,
+      relPath: tab.relPath,
+      path: tab.path,
+      mode: 'diff',
+      source: 'tree',
+      // Never a preview tab: it would be consumed by the next single click,
+      // and a person reading a comparison is deciding something.
+      preview: false,
+      compare: { left: disk.contents, right: value }
+    });
+  };
+
+  /**
+   * PHASE 240 ITEM 2. `stale` IS A CHOICE, NOT A REFUSAL.
+   *
+   * He named VS Code and VS Code offers three: overwrite, compare, cancel.
+   * This is the same three in Tortie's own words, in the shape the house
+   * already has for a decision — `ConfirmSpec.altLabel`, whose one other user
+   * is `promptDirtyClose` and whose comment reads "the one dialog in gmux with
+   * three answers. A two-button destructive confirm on a dirty buffer can only
+   * lose work." That is this dialog's argument word for word.
+   *
+   * THE DEFAULT IS NOT OVERWRITE, and the layout is forced by `ConfirmDialog`:
+   * it focuses the confirm button on open and a bare Return runs it. So
+   * Compare is the confirm, Overwrite is the alt drawn leading-left away from
+   * it, and Cancel sits between them and is what Escape and a scrim click
+   * already do. Nothing is `destructive`, because the primary is a look.
+   *
+   * ITEM 3. OVERWRITE IS A SECOND, DELIBERATE ACT and it goes through the SAME
+   * channel with the digest of what was JUST READ, which the channel hands
+   * back on `stale` for exactly this reason. So a THIRD writer arriving
+   * between the dialog appearing and the button being pressed is answered
+   * `stale` again and offered the same choice against the newer bytes, rather
+   * than being written over. The loop terminates because every round needs
+   * another write to arrive.
+   */
+  const offerStaleChoice = (
+    id: string,
+    tab: EditorTab,
+    value: string,
+    onDisk: string
+  ): void => {
+    useApp.getState().setConfirm({
+      title: staleSaveTitle(tab.name),
+      body: STALE_SAVE_BODY,
+      confirmLabel: SAVE_COMPARE_LABEL,
+      onConfirm: () => {
+        void openCompare(tab, value);
+      },
+      altLabel: SAVE_OVERWRITE_LABEL,
+      onAlt: () => {
+        void overwrite(id, tab, value, onDisk);
+      }
+    });
+  };
+
+  /** The deliberate second write, guarded against what was just read. */
+  const overwrite = async (
+    id: string,
+    tab: EditorTab,
+    value: string,
+    onDisk: string
+  ): Promise<boolean> => {
+    const result = await guardedSave({
+      root: tab.repoPath,
+      path: tab.path,
+      expect: onDisk,
+      contents: value
+    });
+    if (result.outcome === 'wrote') {
+      deps.patch(id, { savedContents: value, dirty: false });
+      return true;
+    }
+    if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value);
+    if (result.outcome === 'stale') {
+      offerStaleChoice(id, tab, value, result.sha256);
+      return false;
+    }
+    useApp
+      .getState()
+      .toast('error', saveRefusalSentence(result.why, tab.name), {
+        sticky: true
+      });
+    return false;
+  };
+
+  /**
+   * PHASE 240 ITEM 1. Save a file INSIDE an open project through the guarded
+   * channel, with the digest of `tab.savedContents` as the precondition.
+   *
+   * `savedContents` is BY DEFINITION what Tortie last read, so the digest of
+   * it is the answer to "is the file still what the buffer was built from".
+   * That is the whole of issue 16: `refreshRepo` deliberately stops re-reading
+   * a tab from the first keystroke (research 83 A4.3), so from that moment the
+   * tab holds bytes the disk no longer has, and the old save landed on top of
+   * whatever an agent had written with nothing said.
+   *
+   * The digest is computed here rather than in ./save-write because
+   * `saveOnMachine` above already has one for the remote precondition, and a
+   * third copy of a sha256 helper is the growth guardrail's own example. A
+   * page with no digest program at all cannot be guarded and takes the old
+   * door, exactly as it does today.
+   */
+  const saveInProject = async (
+    id: string,
+    tab: EditorTab,
+    value: string
+  ): Promise<boolean> => {
+    const expect = await sha256Hex(tab.savedContents);
+    if (expect === null) return saveOutsideProject(id, tab, value);
+    const result = await guardedSave({
+      root: tab.repoPath,
+      path: tab.path,
+      expect,
+      contents: value
+    });
+    if (result.outcome === 'wrote') {
+      deps.patch(id, { savedContents: value, dirty: false });
+      return true;
+    }
+    // The one fallback: a symbolic link, which saves today and loses nothing
+    // by saving. ./save-sentences SaveRefusalWord carries the argument.
+    if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value);
+    if (result.outcome === 'stale') {
+      offerStaleChoice(id, tab, value, result.sha256);
+      return false;
+    }
+    useApp
+      .getState()
+      .toast('error', saveRefusalSentence(result.why, tab.name), {
+        sticky: true
+      });
+    return false;
+  };
+
+  /**
+   * Write one tab to disk. Resolves false when nothing was written.
+   *
+   * PHASE 240: this function no longer names a write at all. It is the ladder
+   * of refusals it has always been, and the write itself is one of the three
+   * doors below — the machine, the guarded channel, or the plain one. That is
+   * what `npm run conformance:save` reads by matching braces: `save`'s own
+   * body must not name `fs:writeFile`.
+   */
   const save = async (id: string): Promise<boolean> => {
     const tab = deps.byId(id);
     if (!gmux || tab === undefined) return false;
@@ -695,20 +936,20 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     const model = getWorkingModel(id);
     if (model === null) return false;
     const value = model.getValue();
-    try {
-      await gmux.fs.writeFile(tab.path, value);
-      deps.patch(id, { savedContents: value, dirty: false });
-      return true;
-    } catch (err) {
-      useApp
-        .getState()
-        .toast(
-          'error',
-          `Could not save this file. ${errorSentence(err, 'The write failed.')}`,
-          { sticky: true }
-        );
-      return false;
-    }
+    // PHASE 240. TWO DOORS, and which one a save takes is decided by a
+    // predicate that already ships. `fs:writeGuarded` requires an OPEN project
+    // root with the path inside it, resolved through the same gate
+    // `fs:createFile`, `fs:rename`, `fs:move` and `fs:trash` ask. Two shapes
+    // of tab save fine today and would be refused `outside` if every save went
+    // through it (research 100 §2.1): a Context detail tab on a global
+    // `~/.claude/CLAUDE.md`, which `openFileAt` opens as an ordinary editable
+    // tab carrying the project's `repoPath`, and any file outside the
+    // repository. `fileInRepo` is the discriminator `refreshRepo` already uses
+    // to decide which tabs may be asked about HEAD, and it is the same
+    // question here.
+    return fileInRepo(tab.repoPath, tab.path)
+      ? saveInProject(id, tab, value)
+      : saveOutsideProject(id, tab, value);
   };
 
 
