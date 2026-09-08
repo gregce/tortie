@@ -66,7 +66,9 @@ const { closeSession, sessionMenuItems } = await import('../session-actions');
 const { RegionBars, UNREACHABLE_BAR_TEXT, UnreachableBar } = await import(
   '../TerminalRegion'
 );
-const { silentMachines, useApp } = await import('../../state/store');
+const { silentMachines, silentMachinesForTab, useApp } = await import(
+  '../../state/store'
+);
 const { paneRefusesInput } = await import('../../terminal/TerminalPane');
 const { paneAccepts } = await import('../../terminal/drop/target');
 
@@ -287,7 +289,7 @@ describe('the bar for a machine with no rows at all', () => {
     // a machine that was down when Tortie started contributes no row and every
     // row-derived condition is silent.
     const html = renderToStaticMarkup(
-      <RegionBars sessions={[]} silent={[QUIET_STUDIO]} />
+      <RegionBars sessions={[]} machineId="studio" silent={[QUIET_STUDIO]} />
     );
     expect(html).toContain('Tortie could not reach Studio.');
     expect(html).toContain('did not end any of them');
@@ -298,6 +300,7 @@ describe('the bar for a machine with no rows at all', () => {
     const html = renderToStaticMarkup(
       <RegionBars
         sessions={[sess({ id: 'a', status: 'unknown' })]}
+        machineId="studio"
         silent={[QUIET_STUDIO]}
       />
     );
@@ -314,7 +317,7 @@ describe('the bar for a machine with no rows at all', () => {
       sess({ id: 'c', status: 'restorable' })
     ];
     const html = renderToStaticMarkup(
-      <RegionBars sessions={rows} silent={[QUIET_STUDIO]} />
+      <RegionBars sessions={rows} machineId="studio" silent={[QUIET_STUDIO]} />
     );
     expect(html).toContain('Tortie could not reach Studio.');
     expect(html).not.toContain('Restore all');
@@ -325,9 +328,82 @@ describe('the bar for a machine with no rows at all', () => {
     // asked anything, so nothing about it may claim Tortie could not reach it.
     const refused = { ...QUIET_STUDIO, link: 'refused' as const };
     const html = renderToStaticMarkup(
-      <RegionBars sessions={[]} silent={silentMachines([refused])} />
+      <RegionBars
+        sessions={[]}
+        machineId="studio"
+        silent={silentMachines([refused])}
+      />
     );
     expect(html).not.toContain('Tortie could not reach');
+  });
+
+  /**
+   * PHASE 232, item 2. The bar is scoped to the tab whose machine failed.
+   *
+   * Research 85 section 4.3 photographed one unreachable machine's bar on that
+   * machine's tab, on the Mac Pro's tab and on a local tab, and research 91
+   * section 4.2 read the same sentence off all three at this phase's parent.
+   * The three tab shapes are pinned here: the failed machine's own tab draws
+   * it, another machine's tab does not, and a local tab never draws it for a
+   * remote machine. The Phase 67 and Phase 71 sentences do not move; only
+   * where they are drawn does.
+   */
+  it('is drawn on the failed machine\'s own tab and on no other', () => {
+    const quietLoft = { ...QUIET_STUDIO, id: 'loft', label: 'Loft' };
+    const silent = [QUIET_STUDIO, quietLoft];
+    // The failed machine's own tab.
+    const own = renderToStaticMarkup(
+      <RegionBars sessions={[]} machineId="studio" silent={silent} />
+    );
+    expect(own).toContain('Tortie could not reach Studio.');
+    expect(own).not.toContain('Loft');
+    // Another machine's tab, whose own machine is answering.
+    const other = renderToStaticMarkup(
+      <RegionBars sessions={[]} machineId="macpro" silent={silent} />
+    );
+    expect(other).not.toContain('Tortie could not reach');
+    expect(other).not.toContain('machine-badge');
+    // A local tab, with the field absent and with the word the type allows.
+    for (const local of [undefined, 'local']) {
+      const html = renderToStaticMarkup(
+        <RegionBars sessions={[]} machineId={local} silent={silent} />
+      );
+      expect(html).not.toContain('Tortie could not reach');
+      expect(html).not.toContain('machine-badge');
+    }
+  });
+
+  it('scopes the badges beside the unknown-row sentence the same way', () => {
+    // A row on this tab reads unknown, so the binding sentence is drawn. The
+    // quiet machine behind the badge is this tab's machine; another quiet
+    // machine gets no badge here, because it is not this tab's failure.
+    const quietLoft = { ...QUIET_STUDIO, id: 'loft', label: 'Loft' };
+    const html = renderToStaticMarkup(
+      <RegionBars
+        sessions={[sess({ id: 'a', status: 'unknown' })]}
+        machineId="studio"
+        silent={[QUIET_STUDIO, quietLoft]}
+      />
+    );
+    expect(html).toContain(UNREACHABLE_BAR_TEXT);
+    expect(html).toContain('Studio');
+    expect(html).not.toContain('Loft');
+  });
+
+  it('answers the pure question the same way the component does', () => {
+    const quietLoft = { ...QUIET_STUDIO, id: 'loft', label: 'Loft' };
+    const silent = [QUIET_STUDIO, quietLoft];
+    expect(silentMachinesForTab(silent, 'studio')).toEqual([QUIET_STUDIO]);
+    expect(silentMachinesForTab(silent, 'macpro')).toEqual([]);
+    expect(silentMachinesForTab(silent, 'local')).toEqual([]);
+    expect(silentMachinesForTab(silent, undefined)).toEqual([]);
+  });
+
+  it('hands the active project\'s machine to the region bars', () => {
+    const region = readFileSync(join(HERE, '..', 'TerminalRegion.tsx'), 'utf8');
+    expect(region).toContain(
+      '<RegionBars sessions={projectSessions} machineId={project.machineId} />'
+    );
   });
 
   /**

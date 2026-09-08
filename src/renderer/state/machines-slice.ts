@@ -83,6 +83,31 @@ export function silentMachines(
 }
 
 /**
+ * The quiet machines a PROJECT TAB may name (Phase 232, item 2).
+ *
+ * THE DEFECT, photographed in research 85 section 4.3 and read again at this
+ * phase's parent in research 91 section 4.2: with one machine unreachable, the
+ * bar saying Tortie could not reach it was drawn on that machine's tab, on the
+ * Mac Pro's tab and on a local tab, identically, because the region's bar slot
+ * read every quiet machine in the file and nothing about the tab in front of
+ * the person. A tab is a folder on ONE machine, so the only failure a tab can
+ * carry is its own machine's. A local tab carries none, because this Mac is
+ * not in the machines file. The window states that draw no tab at all, being
+ * the first-run board and the no-project region, keep the global statement,
+ * because there is no tab to scope to.
+ *
+ * `machineId` is the project's own field, which is absent or the word `local`
+ * for a folder on this Mac.
+ */
+export function silentMachinesForTab(
+  silent: readonly MachineStateView[],
+  machineId: string | undefined
+): MachineStateView[] {
+  if (machineId === undefined || machineId === 'local') return [];
+  return silent.filter((one) => one.id === machineId);
+}
+
+/**
  * One quiet machine as the badge draws it.
  *
  * `answering` is false because that is what the badge dims on, and the badge's

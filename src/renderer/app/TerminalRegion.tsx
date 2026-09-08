@@ -25,6 +25,7 @@ import {
   badgeMachineOf,
   effectiveStatusOf,
   silentMachines,
+  silentMachinesForTab,
   useApp
 } from '../state/store';
 import { useLayout } from '../state/layout';
@@ -377,9 +378,17 @@ export function MachineStatement(): React.JSX.Element | null {
 
 export function RegionBars({
   sessions,
+  machineId,
   silent: given
 }: {
   sessions: Session[];
+  /**
+   * The machine the active tab's folder is on, or absent for this Mac (Phase
+   * 232, item 2). The quiet set below is scoped to it, so a machine that did
+   * not answer is named on its own tab and on no other; see
+   * `silentMachinesForTab`.
+   */
+  machineId?: string;
   /**
    * The quiet machines, when the caller already has them.
    *
@@ -393,7 +402,10 @@ export function RegionBars({
   silent?: readonly MachineStateView[];
 }): React.JSX.Element | null {
   const machineStates = useApp((s) => s.machineStates);
-  const silent = given ?? silentMachines(machineStates);
+  const silent = silentMachinesForTab(
+    given ?? silentMachines(machineStates),
+    machineId
+  );
   if (machineUnreachable(sessions)) {
     return (
       <UnreachableBar
@@ -606,7 +618,7 @@ export function TerminalRegion(): React.JSX.Element {
   return (
     <main className="center" data-slot="terminal-stack">
       {band}
-      <RegionBars sessions={projectSessions} />
+      <RegionBars sessions={projectSessions} machineId={project.machineId} />
       {projectSessions.length === 0 ? (
         <NoSessions />
       ) : grouped && activeSurface ? (

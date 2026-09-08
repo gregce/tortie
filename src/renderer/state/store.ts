@@ -78,7 +78,11 @@ export {
 export { nextOrdinal } from './sessions-slice';
 // Phase 71: the two pure reads over the machine link state, exported from the
 // facade so a surface imports one module for the store and its helpers.
-export { badgeMachineOf, silentMachines } from './machines-slice';
+export {
+  badgeMachineOf,
+  silentMachines,
+  silentMachinesForTab
+} from './machines-slice';
 
 /**
  * The sidebar hosts ONE view at a time (round 1, activity bar).
