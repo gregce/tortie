@@ -24132,6 +24132,222 @@ minimap and folding off, and the Redline mode becoming the File editor wearing t
   `fs:writeGuarded`; they stay two doors.
 - **No durable baseline**, still.
 
+## Phase 238 — accept, so a redline can be cleared without touching the file (operator asked 2026-09-08)
+
+**Subject.** `feat(redline): accept one change or all of them, and the baseline moves`
+
+**First body line.** `Phase 238: accept`
+
+**Semver.** MINOR.
+
+**Tier 3.** It moves the baseline, which is the coordinate system every drawn rewind identity is
+an offset into, and research 83 B.8a measured that a baseline moving between a draw and a press
+rewinds the WRONG phrase with the write answering success. The gates, a matrix over the accept and
+rewind interleavings, TWO independent methods one of which is an attack that accepts between a draw
+and a press, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry, research 83 sections B.3, B.5, B.8a, A2.2, A2.3, A3.2, A3.3 and A3.4, and
+his words of 2026-09-08: *"we need an idea of an accept."* **This reverses his ruling of 2026-09-07
+that no accept is in the redline phases, and the reversal is his.** Phases 225, 226, 227 and 236
+are landed and this builds on all four.
+
+### What research 83 measured, so the round does not re-derive it
+
+**Accept is the same function as rewind pointed at the other destination**, and it is one line of
+state. From B.3: rewinding edit `e` writes THE FILE as `mix(runs, E \ {e})` and leaves the baseline;
+accepting edit `e` writes THE BASELINE as `mix(runs, {e})` and leaves the file. Accepting everything
+is `baseline := the bytes you are looking at`. B.5 drove it: after a per-phrase accept the file's
+md5 was unchanged, the accepted phrase was gone from the redline and 7 of 8 edits stood, and **not
+one byte of the file changed**. That asymmetry is why accept is the safe half: **a rewind writes his
+prose file; an accept writes only Tortie's own shadow copy.**
+
+**And it is why accept is dangerous in a different way.** B.8a: a per-phrase accept between a draw
+and a press moves every baseline offset, the pressed identity then resolves to exactly one edit that
+is the WRONG one, and the write succeeds silently. Phase 227 shipped the guard — a generation counter
+the drawn list carries and the press checks BEFORE it reads anything — and this phase is the first
+thing that makes the generation move often. **The guard is not new work; proving it holds under a
+gesture designed to move the generation is.**
+
+**The honest limit, from A3.2 and F.2, and it is what the surface must say.** The baseline lives in
+memory on the tab. It dies on tab close, on LRU eviction past `MAX_TABS = 10`, on window reload, on
+quit and on crash. So an accept lasts *as long as this tab is open*, and opening an eleventh prose
+tab is an ordinary mid-session act nobody would connect to losing it. **A3.4 is why that is survivable
+and not a betrayal**: losing the baseline loses the NARROWING and nothing on disk, because accept
+writes no file. But research 83 A3.3 also says the durable step is a phase of its own, priced at
+9.0 ms median for 126 KB through `src/main/durable`, with the key shape `(repo_path, rel_path)` and
+`SNAPSHOT_GENERATIONS = 3` already decided next door. **This phase must decide, and say in the entry
+it writes, whether accept ships against the in-memory baseline with the honest sentence, or whether
+the durable step comes first.** The measure step answers it with a number: how often a person doing
+an ordinary afternoon would lose an accept.
+
+### The mechanism, with the real files
+
+1. **`acceptChange` and `acceptAll` in `src/renderer/editor/rewind.ts`**, beside `mix` and
+   `planRewind`, pure, taking the same `(runs, baseline, current)` and returning the new BASELINE
+   text. `acceptAll` is `baseline := current`. Nothing writes a file. Pin both over the eight-change
+   fixture and all 256 subsets the way `p227-rewind.test.ts` pins the mix.
+2. **The baseline advances through the ONE place that already owns it**, `nextBaseline` in
+   `src/renderer/editor/baseline.ts`, gaining an `accept` origin beside `commit` and the first read,
+   and the generation moving on every accept exactly as it moves on a re-seed. `baselineName` and
+   `baselineSentence` gain the accept wording, being *"since you accepted"* with its time, which
+   research 83 A4.2 ruling 1 already names as the sentence the face should carry.
+3. **THE PRESS ORDER IS UNCHANGED AND THAT IS THE POINT.** `redline-press.ts` reads the identity
+   ONCE before any await and `redline-write.ts`'s `applyRewind` asks the generation guard before the
+   re-read before the write. An accept moves the generation, so a rewind drawn before it refuses with
+   the sentence that already exists and redraws. Do not weaken, reorder or special-case that guard.
+4. **The controls.** Accept joins Rewind on the chip Phase 236 draws, and Accept all joins the
+   redline's own header rather than the chip, because it is a document verb and not a change verb.
+   Keyboard: one chord for accept in the keymap's `redline.*` family beside the four Phase 227 owns,
+   and the Edit menu gains its rows with hints and no accelerators, gated on a mounted redline the
+   way Phase 236 gated the other four. **A person must never be one keystroke from accepting
+   everything by accident**: Accept all asks once, in the shape the house already uses for a
+   destructive-looking act, or it is a control with no chord at all. The round chooses and says why.
+5. **The face says what accept did**, in one short line: the redline is now against what you
+   accepted, at that time, and it lasts as long as the tab is open. *Just enough words.*
+6. **`conformance:redline` gains its arms**: accept over the 256 subsets; an accept between a draw
+   and a press refusing rather than rewinding the wrong phrase (B.8a's shape, driven through the
+   SHIPPING press); accept writing NO file, proved by a digest of the file before and after; and
+   accept-all leaving a redline with zero changes. Each goes red under an ablation of its clause.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron on a scratch profile: accept one change from the chip and read the
+  file from disk UNCHANGED and the redline with that change gone and the others standing; accept all
+  and read an empty redline with the file still unchanged; then have a shell write to the file and
+  prove the new edit is drawn against the accepted baseline and not the old one; close the tab,
+  reopen, and prove the baseline is back to HEAD with the face saying so.
+- **Independent method one, THE ATTACK**: accept a change between the draw and the press of a rewind
+  aimed at a DIFFERENT change, in the app through the real chords, and prove the rewind refuses with
+  the baseline-moved sentence and writes nothing — B.8a's exact shape, which Phase 227 guarded and
+  nothing has yet driven from a real accept. Then the same with accept-all. Then a rewind and an
+  accept pressed within one animation frame of each other, both orders.
+- **Independent method two, the re-derivation**: a hand-written mix of the verifier's own over the
+  eight-change fixture, computing the expected baseline for every one of the 256 accept subsets and
+  comparing to the shipping `acceptChange` byte for byte, taken off the live DOM for at least twenty
+  of them.
+- `npm run probe:p167`'s redline surface accepts under itself as well as rewriting, and must plateau.
+
+### What is NOT in this phase
+
+- **No durable baseline** unless the measure step's number says accept cannot honestly ship without
+  it, in which case the round STOPS and says so rather than building it under another name.
+- **No typing.** That is Phase 237.
+- **No author detection**, by his standing ruling.
+- **No accept of a selection or a range.** One change, or all of them.
+- **No change to the guarded write channel**, which accept does not use because it writes no file.
+- **No weakening of the generation guard.** It is what makes this phase safe.
+
+## Phase 239 — the redline's controls sit where the change is, the way an inline diff does (operator asked 2026-09-08)
+
+**Subject.** `feat(redline): the controls anchor to the change rather than floating over it`
+
+**First body line.** `Phase 239: the controls, anchored`
+
+**Semver.** PATCH. The controls exist; where and when they are drawn changes.
+
+**Tier 2.** A rendered surface over state Phases 227, 236 and 238 already hold. The gates, ONE app
+run, and one independent method, which is the SAME layout measurement Phase 236's verifier built and
+proved on a planted in-flow control: document height and every change's `getClientRects()[0]` with
+the controls and without, identical to the pixel, with the planted refused shape driven to prove the
+ruler can still see it.
+
+**Charter.** This entry, research 83 sections D.2, D.3 and E.9, Phase 236 which landed the chip, and
+his words of 2026-09-08: *"i also want the controls to work more like cursor ide.. today they sort of
+just hover, did / does and sort of show near the line they are for the actual actions you can take."*
+
+### What he is comparing it to, measured rather than recalled
+
+Research 83 E.9 read Cursor on 2026-09-07. **Cursor draws per-change Keep and Undo in the file at
+LINE grain, owned by the agent turn, over a whole-workspace non-git snapshot it calls a checkpoint.**
+The controls sit at the change, in the flow of the document, and they persist while the turn's
+changes are pending rather than appearing under a pointer. Three dated forum threads are people
+losing those controls at a boundary — a commit, an update, a settings default — which is the axis
+Tortie deliberately differs on, because its baseline belongs to the file and not to a turn.
+
+**So the thing to take is the PLACE and the PERSISTENCE, not the grain and not the ownership.**
+Tortie stays per phrase and stays owned by the file. What changes is that the controls stop being
+something a pointer summons.
+
+### The mechanism, and the one measured constraint it must not break
+
+**The refusal that stands.** Research 83 D.2 measured a control per change IN THE FLOW at 1.42px of
+added height and **45.12px of sideways displacement at every change, permanently, mid-sentence**, and
+D.3 refused it because the redline exists so a person reads the marked-up sentence. Phase 236's
+verifier re-measured that plant at **+591.33px of height and 172.63px of sideways displacement** and
+its ruler is committed. **A control in the flow of the prose is still refused and this phase does not
+reopen it.**
+
+**What the round is asked to find is the shape that reads as anchored without being in the flow.**
+It prices at least these and says which it built and why, with the layout number beside each:
+
+1. **Persistent rather than summoned.** The controls for the change under the caret stay drawn while
+   that change is the current one, rather than appearing on hover and vanishing on the way to them.
+   Stepping with the chord moves them. This alone is most of what he described and costs nothing new.
+2. **Anchored to the change's own line box**, drawn in the right-hand space of the line the change
+   ends on rather than beside the phrase, so a wrapped change has one obvious home. The free space
+   there was measured at 147.59px at 900px and **0.00px at 520px**, so a narrow pane needs an answer
+   and the round measures it rather than assuming one.
+3. **A block affordance for a change that is a whole paragraph**, where the flow objection is
+   weakest, if the round can state the rule for which changes qualify without it becoming a second
+   grain.
+4. **The current change marked** in the document itself — a rail, a tint, a rule — so a person can
+   see which change the controls belong to without following a line to a floating box. Tokens only
+   per rule 8.
+
+**Whatever is chosen keeps three things from Phase 236 unchanged**: the anchor is
+`getClientRects()[0]` and never the bounding box, which its verifier read at 197.52px of error on a
+real three-fragment change at a 380px pane; the controls carry `data-redline-tag` and stay out of the
+clipboard and out of the projection; and the resting face with nothing focused draws no control.
+
+**5. THE VIEW SAYS WHAT IT IS SHOWING, AND HE ASKED FOR THIS BY NAME on 2026-09-08:** *"there
+should be clarity in the redline view about what it is showing you if you open a new file (since the
+last time it was loaded)."* Today `baselineSentence` in `src/renderer/editor/baseline.ts:180` draws
+one line, *"Marked since the last commit, for as long as this tab is open."* or *"Marked since you
+opened this file, …"*, and `baselineName` at `:161` has exactly two answers. Three things are wrong
+with that for a file just opened. **It does not say WHEN**: "you opened this file" carries no time,
+so a tab opened this morning and one opened a minute ago read identically. **It does not say the
+redline is EMPTY and why**, which is the ordinary state of a file the person just opened, where the
+baseline is the bytes on disk and there is nothing to draw; the view shows a document with no marks
+and says nothing about whether that means nothing changed or nothing is being compared. **And it does
+not distinguish a file the agent made from a file that was open when the agent wrote**, which
+research 83 A1.2 property 2 measured as a real difference: `loadContents` runs when the PERSON opens
+the file, so a file an agent created and finished before it was ever opened has its final bytes as
+its baseline and can only ever draw an empty redline until something writes to it again. The round
+gives the face a sentence a person can act on for each of those three, in *just enough words*, and
+the empty case is the one to get right because it is the one he met.
+
+**And it closes Phase 236's own recorded finding**, which is his to rule on: the chip's Undo means
+the last rewind in the tab, not the change it sits beside, so it can be drawn next to a phrase it
+will not act on. Either it is labelled for what it does, or it is drawn only on the change the
+journal's top entry belongs to, or it moves to the header with Accept all. The round picks one.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron on a scratch profile: step through the changes with the chord and
+  read the controls' position against each change's first client rect at 900px, 700px, 520px and
+  380px; hover away and prove the current change's controls stay; read the resting face with nothing
+  focused; select all and copy and prove no control text reaches the clipboard; press every control
+  and read the file or the baseline as the verb requires.
+- **THE THREE OPENING SHAPES, read off the face and quoted in the report**, because item 5 is his:
+  a file with a HEAD version opened cold and unchanged; a file with no HEAD version opened cold; and
+  a file an agent CREATED and finished before it was ever opened. All three draw an empty redline
+  today and say the same thing. Read what each says at HEAD, then have a shell write to each and
+  read what it says once there is something to draw.
+- **The independent method** is Phase 236's layout measurement re-run — height and every rect with
+  the controls and without, identical to the pixel — INCLUDING its planted in-flow ablation, so the
+  ruler is proved able to see the refused shape in this phase's own run rather than in a past one.
+- A screenshot at each of the four pane widths, kept, because this is a phase about where a thing
+  sits and the numbers alone do not settle whether it reads as anchored.
+
+### What is NOT in this phase
+
+- **No control in the flow of the prose.** Measured and refused twice.
+- **No line grain.** Tortie is per phrase; that is the whole difference from what he is comparing to.
+- **No ownership by a turn.** The baseline belongs to the file, which is the axis research 83 E.9
+  names as the real difference from Cursor and the reason three of its forum threads exist.
+- **No typing** (237) and **no new verb** beyond what 227, 236 and 238 already ship.
+- **No native accelerator**, still, because a global Option-Down is taken from every terminal.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -24603,3 +24819,4 @@ cycle rather than only the evening it was written.
 - 2026-09-08, Phase 230 FIX ROUND, nothing stays stale, SIX commits on top of the builder's seven, no version change, `package.json` and the lockfile unmoved, no tag. The verifier's verdict was needs_work on three counts and every one is closed by measurement rather than by argument. (1) BLOCKING, `npm run probe:p167` with the remote views in its surface list printed `FAIL c: 1 surface open(s) did not land: remote Source control` while every plateau held, and the wip commit that added the surface had run no gate; the fix round re-derived the miss rather than widening the budget. An instrumented run over one cycle read no `.sidebar-view` at all and no rail item pressed after 8,006 ms, then Search landing in 56 ms on the next press. The mechanism is two designed things meeting: a NEW tab's sidebar view is Source control by default, and a rail item whose view is already up and visible COLLAPSES the sidebar when pressed, which is the Cmd+B toggle, so the probe's own first press on the remote tab in block 1 put the whole sidebar away and the open spent 8 s waiting for a view the press had hidden, while blocks 2 and 3 entered with the Explorer up and landed in 2 ms. Not a product defect and not a budget. The rail helper now reads `aria-pressed` and leaves a pressed item alone, and a miss records what the sidebar holds and which item is pressed rather than a landing time. The run at HEAD on his Mac Pro is GREEN on all three profiles with `openMisses` EMPTY on every one and `failures` empty: b heap 8.0, 8.0 and 8.0 MB with nodes 461, 461 and 461 and listeners 231, 231 and 231; c at a quarter CPU speed heap 27.2, 28.4 and 28.5 MB with nodes 987, 987 and 987 and listeners 310, 310 and 310, worst growth heap 1.2 MB and 0 nodes and 0 listeners; d heap 29.4, 29.4 and 29.5 MB with nodes 522, 522 and 522 and listeners 271, 271 and 271 and ptmx 0 and ttys 0 throughout; c's blocks ran 70.2, 72.0 and 70.4 s against 78.4 s in the failing block 1, the detached census read 4 elements a block on c and 13 on d against a budget of 50, and the planted leak was seen at 1,032 elements with 1 finding raised and 0 still held, so the ruler was armed. (2) BLOCKING under the operator's rule, the one sentence the verifier's text node walk found only on the remote face that was not a disabled control's label: the remote Context Refresh hover ran 21 words in two sentences, and its second sentence, that Tortie cannot see a change made on that machine until you press this, is FALSE at this phase's HEAD, because every remote view now reads again when it is looked at. It comes off rather than being argued for. The hover on a machine is the control's own verb, `Read the configuration again.`, which is the local hover minus the sentence about this Mac's watcher, `contextRefreshOnMachineTitle` is deleted, `ContextHeader.tsx` no longer reads the machine label or the machine states because nothing in that header names the machine now, and `p228-off-the-face` pins the name and the words off every component and out of the domain's exports, red on exactly that entry when planted back. (3) The running log carried no Phase 230 line at all and now carries the started one. THE FIX ROUND ALSO CLOSED FINDING 4, which is a measurement gap rather than a defect: five of the six write sites are driven live, the Explorer's New file typed into the inline row drawing its row in 52 ms and its U mark in 257 ms against local's 51 and 516 with Source control holding it when looked at, and the sixth, being Cmd+S on a remote file, is driven by nobody, because Monaco never mounted under the CDP harness in three attempts, `.ed-host` at 50 ms and then no editor, on the LOCAL tab exactly as on the remote one, so it is not a remote limit. The source scan that stood for that site is replaced by a behavioural pin in `p101-remote-save.test.ts`, which drives the REAL save with Monaco's buffer stubbed: a landing save hands every remote view exactly one write naming the machine, the far path, `file` and `editor`; a refused save announces nothing because nothing changed over there; a machine with no confirmed folder announces nothing because nothing was sent; and a LOST answer announces nothing either, which is deliberate, since the person is told the file may have been saved and the view reads again the moment they look at it. The ablation of the announce call turns 3 of 53 red. Finding 5 is Phase 231's labels and not this phase's. THE LIVE Cmd+S ON A REMOTE FILE STAYS UNMEASURED and is his to confirm. The `wip` commit is gone: item 6 is reworded as `test(probe): the remote views join the plateau probe's surface list` over the same tree, with the one verifier file it had swept in left untracked for this round's own artifact commit. Gates green: typecheck 0, build 0 with the contract inventory byte identical, `npm test` 791 files and 12,538 tests passed with 1 file and 2 tests skipped, smoke:t1 6 of 6, and `conformance:machines`, `conformance:remoteclose` and `gate:knownhosts` on the commits that earned them. The Mac Pro counted before and after: `-L gmux` holds `gmux-control created 1787879931 attached 1` and nothing else both times, the socket directory `gmux` alone both times, no `tortie-p167-scratch-*` and no `tortie-p230-scratch-*` directory, no process of this phase, `~/.ssh` at 96 bytes and `~/.gitconfig` at 140 bytes unmoved, and the probe's own teardown read farScratch GONE with its scratch server ended, its socket unlinked, the master closed and no recorded pid left. Here: his `machines.json` `b61831d7`, `config-confirmations.json` `c922e480`, `known-machines` `57a29ed8`, `package.json` `b49e5d0d` and the lockfile `6fab5929` byte identical to the verifier's own after-reading, `~/.ssh/known_hosts` 2,215 bytes, the ssh agent empty, `/private/tmp/tmux-501` holding `gmux` alone with this run's scratch socket unlinked, and version 0.101.0 with no bump and no tag.
 - 2026-09-08, Phase 230 LANDED at `ecc3f3d` at version 0.101.0 with NO bump and NO tag, nothing stays stale, FOURTEEN commits from the measure step `5b9c379` to `ecc3f3d`, being the builder's seven, the fix round's six and the committer's one, rebased onto origin/main's tip `8e77ee8` after Phases 227, 231, 232 and 233 all landed under it. THE THING IT FIXED, measured on his Mac Pro with the same fixture on both faces: at the parent, research 85 wrote a file through Tortie's own door on the far machine while the Source control view was open and it **NEVER APPEARED IN 30 SECONDS**, the press of Read again showing it in 203 ms, while the same write on a LOCAL tab drew in 513 ms with no press; and five of the seven views subscribed to nothing at all, so a sentence saying the machine did not answer was still on screen at 11.5 s with the link long since connected. At HEAD the re-verifier read all seven views stale at 10.2 s while the machine was down, then, with NO press, the first row at **203 ms on Changes and 305 ms on History, Branch and Runs** after `connected`, the Explorer at 204 ms and Search re-running its held query at 102 ms for 8 rows; and a write made from OUTSIDE Tortie by ssh, which is the verifier's own independent method rather than Tortie's door, reached Source control at **358 ms** and the Explorer at **257 ms** on a real focus event with nothing pressed, against the local tab's 509 ms and 513 ms through this Mac's watcher, which is the two numbers side by side the entry asked for. The Explorer on a machine now draws that machine's own git marks, `NOTES-untracked.md` untracked and `helper1.ts` and `core1.ts` modified, read the same on the remote row and the local one, from the remote changes store and only ever from it, so Phase 90.3's refusal to decorate a remote tree with THIS Mac's status is untouched. The five remote refresh controls are the two local has, being 2 against 2 on Source control with Explorer, Context and Search identical, the read-at clock is off every view, and the stale sentence is gone. **THE REMOTE-ONLY SENTENCE SET IS EMPTY OF ANYTHING THIS PHASE PUT THERE**: side by side, the remote face carries 3 visible text nodes the local one does not, of which 1 is a sentence, being `<PROJECT>`, the one-word `Branch` heading and the `None here.` stub a local empty group draws too, which is the same three Phase 228 accepted; every remote-only hover is a disabled action's label, a path or a row label, and the remote Context Refresh hover is now `Read the configuration again.`, byte for byte the control's own label and a strict subset of local's, which was the fix round's own finding. `probe:p167` with the four remote views in its surface list plateaued on all three profiles, worst growth 0 on project switches, 1.1 MB of heap and 0 nodes and 0 listeners on the surfaces at a quarter CPU and 0 on split and reattach with every descriptor held, `failures []` and `openMisses []`, with the planted leak seen at 1,032 elements so the ruler was armed. Nothing polls: `probe:remoteproject`, re-run after the rebase because 231, 232 and 233 all landed in the same stores, reads 1 machine read at quiet, 2 at connected, 2 after 2,500 ms of nothing happening and 3 at the second sign-in for the tree and the changes store alike, so the 150 ms coalescing timeout adds no read and never re-arms and a remote folder is still never a subscription. The rebase met three conflicts and a fourth only a typecheck could see: Phase 233's four new `RemoteHistoryPanel` props against this phase's removal of `onRefresh` from the same destructuring, resolved by keeping both meanings; Phase 227's `REWRITES` beside this phase's remote surface block in the plateau probe, both kept with the surface count sentence corrected from six to seven; this log twice, both sides kept in date order; and this phase's own refresh-controls test, which rendered that panel without 233's props and read `TS2739` under `tsc -b` alone, fixed in the commit that added it. The whole battery re-run on the rebased tree and green: typecheck, build with the contract inventory byte for byte, 807 test files and 12,778 tests with nothing red, smoke:t1 6 of 6, smoke:t3 3 of 3, `conformance:machines` PASS, `conformance:remoteclose` 11 of 11, `gate:knownhosts` 281 files with 19 through the helper. The Mac Pro when everything had run: `-L gmux` holds `gmux-control created 1787879931 attached 1` and nothing else, exactly as before, the socket directory `gmux` alone with no `gmux-p230-*` file, no `tortie-p230-scratch-*` directory, no process of this phase, `~/.ssh` 96 bytes, `authorized_keys` 88 and `~/.gitconfig` 140 unmoved with their mtimes; this Mac's `-L gmux` 16 sessions before and 16 after, only listed, `/private/tmp/tmux-501` holding `gmux` alone, his `machines.json` `b61831d7`, confirmations `c922e480` and `known-machines` `57a29ed8` byte identical, `known_hosts` 2,215 bytes, the ssh agent empty, and the Electron count once at the end with none this phase's. Still not true: the remote Search idle face still borrows local's `Matches stream in as they are found`, which on a machine they do not and which Phase 228 recorded for a later round, and it is on BOTH faces so it breaks no remote-only rule; the live Cmd+S announcement is pinned where the save happens and is unmeasured on the face; and the liveness gate, the boot and the bulkhead, the two halves and the nits are 231, 232, 233 and 235's.
 - 2026-09-08, Phase 236 LANDED at `229950b` at version 0.101.0 with NO bump and NO tag, the redline's controls visible, SEVEN commits, being the builder's measure step `19b5dcc`, its five `86a5b93`, `cdf1913`, `b23a15a`, `e75e734` and `696bbf7` with the note `485c864`, and the committer's `229950b` carrying the verifier's own app run, rebased onto origin/main's tip `44c9aff` after Phases 230, 233 and 234 landed under it, the one conflict being the generated contract baseline's channel count, resolved by regenerating it at 226 with `ui:redlineMounted` in place. **A CHANGE YOU ARE ON NOW CARRIES ITS OWN CONTROL AND THE MENU SAYS THE KEY.** The chip is an out-of-flow overlay anchored to the change's `getClientRects()[0]`, which is the mandatory rule research 83 D.3 measured, and IT MOVED THE DOCUMENT BY 0.00px: the verifier's own layout reading took the document's height and every change's first client rect with nothing hovered and with the chip drawn and they were identical to the pixel over 30 changes at a height of 1912.296875px, with the ruler's OWN ABLATION proving it can see the shape D.3 refused, a real in-flow copy of the chip spliced after every change moving the document +591.33px and pushing the worst change 172.63px sideways. The app run is 55 arms and 0 failures on one Electron on a scratch profile: at a real 380px pane reached by a real divider drag, change 11 has three client rects and its bounding box begins 197.52px left of where the change begins, and the chip sits on the first rect 183px right of where `getBoundingClientRect()` would have put it; the chip's Rewind pressed with a real mouse produced a file byte identical to the expected rewind with all six other agent edits standing, and its Undo returned the file byte for byte; the window's own Copy really reached the system pasteboard and read 4172 bytes that are the working file exactly, with no `Rewind`, no `Undo` and none of `⌥⌫↑↓⇧` in them; and the Edit menu read out of MAIN over the node inspector shows the four rows enabled with `⌥↓ ⌥↑ ⌥⌫ ⌥⇧⌫` as sublabels and `accelerator: null` on all four with a redline up, disabled with a File tab in front, which is the terminal's ⌥↓ kept. The resting face draws no chip and no `<button>` at all, and the first redline of a session says in one sentence where the controls are and does not say it again. Gates green on the rebased tree: typecheck, build with the contract baseline byte for byte, `npm test` at 807 files and 12,808 tests, smoke:t1, smoke:t3 and `conformance:redline` every rule including rule 8 tokens only and rule 9 one guarded write at one call site, the write untouched by this phase. WHAT IS STILL NOT TRUE: the chip's Undo is the TAB's last rewind rather than the change's, because a rewound change leaves no wrapper to gate on, so it is drawn beside a change it does not act on and the verifier measured exactly that, and the label is his call; there is no typing in the redline, which is Phase 237, and no accept.
+- 2026-09-08, Phases 238 and 239 QUEUED at his word after Phase 236 landed and he used the chip. 238 is ACCEPT, which REVERSES his ruling of 2026-09-07 and the reversal is his; research 83 B.5 already drove it as the same mix pointed at the baseline, writing no file, and B.8a is why it is Tier 3, because it is the first gesture that makes the generation move often and Phase 227's guard has never been driven from a real accept. Its measure step decides whether accept can honestly ship against a baseline that dies with the tab or whether A3.3's durable step comes first, and it STOPS and says so rather than building it under another name. 239 is the controls ANCHORED where the change is, from his words about Cursor; research 83 E.9 read Cursor on 2026-09-07 and the thing to take is the PLACE and the PERSISTENCE, not the line grain and not the ownership by a turn, and a control in the FLOW of the prose stays refused at 45.12px measured once and 172.63px measured again by Phase 236's verifier. 239 also carries his second ask of the same message, that the redline say what it is showing when a file is just opened, where the face has two answers, names no time, and says nothing at all about an empty redline being empty.
