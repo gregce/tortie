@@ -269,11 +269,14 @@ export const WITHDRAW_VERSION_EXPLAIN =
 export const SAVING_TITLE = 'Saving files';
 
 /**
- * What the block says while Tortie may save nothing on this machine.
+ * What turning saving on would mean, including the check that makes it safe,
+ * which is that Tortie reads the file and compares its contents before it
+ * replaces anything.
  *
- * It says the state first and then what turning it on would mean, including
- * the check that makes it safe, which is that Tortie reads the file and
- * compares its contents before it replaces anything.
+ * PHASE 229 MOVED IT BEHIND HOVER. It was a paragraph on the block's resting
+ * face and it is now the title of the button that reveals the folder field,
+ * because a remote machine's settings carry no explanatory prose a local one
+ * would not, per the Just enough words rule. The sentence itself did not move.
  */
 export function savingOffExplain(label: string): string {
   return (
@@ -301,13 +304,16 @@ export function savingOnLine(root: string, label: string): string {
 }
 
 /**
- * Drawn above the button that turns saving off, because it does two things.
+ * The title of the button that turns saving off, because it does two things.
  *
  * The folder is one of the facts the confirmation covers, so it cannot be
  * dropped on its own. This is the same shape, and the same cost, as withdrawing
  * an accepted version. The rejected alternative was a call that clears the
  * folder and records the agreement again on its own, and it is rejected because
  * Tortie would then be writing down an agreement nobody read.
+ *
+ * PHASE 229 MOVED IT BEHIND HOVER, from a paragraph above the button to the
+ * button's own title, for the reason `savingOffExplain` gives.
  */
 export const STOP_SAVING_EXPLAIN =
   'Turning saving off also withdraws your confirmation of this machine, ' +

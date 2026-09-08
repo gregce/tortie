@@ -19,6 +19,14 @@
  * The vitest environment is node, so these read static markup from
  * react-dom/server rather than a mounted DOM. Effects do not run, which is what
  * makes the field's own read of the sheet absent here and deterministic.
+ *
+ * PHASE 229 TOOK THE PARAGRAPHS OFF THE BLOCK'S FACE. What turning saving on
+ * means and what turning it off costs are now the hover titles of the two
+ * buttons that do those things, and the honesty paragraph is drawn by the
+ * confirm sheet alone, which is the door that grants replacement. The block
+ * keeps its heading, one sentence naming the folder, and its buttons. The
+ * Browse button and the picker sit behind the field, which static markup
+ * cannot open, so they are read by the app run and not here.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -72,9 +80,21 @@ function draw(over: Partial<MachineRowView> = {}): string {
 describe('the Saving files block, while Tortie may save nothing there', () => {
   const html = draw();
 
-  it('says the state and what turning it on would mean', () => {
+  it('says what turning it on would mean on the button, and not on the face', () => {
     expect(html).toContain(SAVING_TITLE);
-    expect(html).toContain(savingOffExplain('mac-pro'));
+    expect(html).toContain(`title="${savingOffExplain('mac-pro')}"`);
+    expect(html).not.toContain(`>${savingOffExplain('mac-pro')}<`);
+  });
+
+  it('carries no paragraph on the resting face', () => {
+    // PHASE 229. The block is a heading and a button while saving is off. A
+    // remote machine's settings carry no explanatory prose a local one would
+    // not, so anything a person might want to read is behind hover.
+    const from = html.indexOf('data-machines-writes=');
+    const to = html.indexOf('data-machines-action="open-writes"');
+    expect(from).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    expect(html.slice(from, to)).not.toContain('<p');
   });
 
   it('offers the one button that reveals the folder field', () => {
@@ -98,16 +118,23 @@ describe('the Saving files block, once a folder is confirmed', () => {
     expect(html).toContain(savingOnLine('/Users/gdc', 'mac-pro'));
   });
 
-  it('says what turning it off costs, before the button that does it', () => {
-    expect(html).toContain(STOP_SAVING_EXPLAIN);
+  it('says what turning it off costs on the button that does it, not beside it', () => {
     expect(html).toContain(BTN_STOP_SAVING);
-    expect(html.indexOf(STOP_SAVING_EXPLAIN)).toBeLessThan(
-      html.indexOf(BTN_STOP_SAVING)
-    );
+    expect(html).toContain(`title="${STOP_SAVING_EXPLAIN}"`);
+    expect(html).not.toContain(`>${STOP_SAVING_EXPLAIN}<`);
   });
 
-  it('draws the paragraph that says what a replacement costs', () => {
-    expect(html).toContain(HONESTY);
+  it('keeps one sentence on the face, the one naming the folder', () => {
+    // PHASE 229. The honesty paragraph is the confirm sheet's, which is the
+    // door that grants replacement; the block that reports the grant carries
+    // the folder sentence and the button and nothing else.
+    const from = html.indexOf('data-machines-writes=');
+    const to = html.indexOf('data-machines-action="stop-saving"');
+    expect(to).toBeGreaterThan(from);
+    const block = html.slice(from, to);
+    expect(block.split('<p').length - 1).toBe(1);
+    expect(block).toContain(savingOnLine('/Users/gdc', 'mac-pro'));
+    expect(block).not.toContain(HONESTY);
   });
 });
 
@@ -115,9 +142,10 @@ describe('the ordinary re-confirm sheet, which is the second door', () => {
   it('draws the paragraph when the row carries a folder', () => {
     const html = draw({ writeRoot: '/Users/gdc', writeHonesty: HONESTY });
     expect(html).toContain('data-machine-write-honesty');
-    // Twice on this row, once on the confirm sheet and once on the block, and
-    // both are wanted. A person reads it wherever they are looking.
-    expect(html.split(HONESTY).length - 1).toBe(2);
+    // Once on this row, on the confirm sheet, which is the door that grants
+    // replacement. PHASE 229 took the block's copy of it off the face; before
+    // that it was drawn twice.
+    expect(html.split(HONESTY).length - 1).toBe(1);
   });
 
   it('draws nothing when the row carries none', () => {

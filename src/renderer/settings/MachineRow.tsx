@@ -65,6 +65,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { MachinePrepareResult, MachineRowView } from '@shared/ipc';
 import { ConnectionTestView, Remedy } from './ConnectionTestView';
+import { RemoteDirPicker } from '../app/RemoteDirPicker';
+import { DIR_PICKER_OPEN } from '../machines/dir-picker';
 import {
   ACCEPTED_VERSION_LABEL,
   ACCEPTED_VERSION_NONE,
@@ -267,6 +269,21 @@ function Lines({
  * arrives with the sheet and says what a replacement costs. It is drawn
  * wherever it is not null, and the answer to whether it is null is made in
  * main, so no surface can forget it.
+ *
+ * PHASE 229 PUT A PICKER BESIDE THE FIELD AND TOOK THE PARAGRAPHS OFF THE
+ * FACE. The field is still the only thing this surface decides, and the sheet
+ * read is unchanged: choosing a folder in the picker FILLS THE FIELD, and the
+ * same debounced `readSheet` draws the same sheet for it. The picker is
+ * `RemoteDirPicker` over `machines:listDir`, the one the create sheet already
+ * uses, opening at the machine's own home when the field is empty. Its
+ * `Use this folder` is off until a listing answered, so a path chosen through
+ * it exists and is a folder on that machine at the moment it was chosen.
+ *
+ * The block now carries its heading, one sentence naming the folder once one
+ * is confirmed, the field and its buttons. What turning saving on means and
+ * what turning it off costs are the hover titles of the two buttons that do
+ * those things, per the Just enough words rule: a remote machine's settings
+ * carry no explanatory prose on the resting face.
  */
 function SavingFiles({
   row,
@@ -287,6 +304,7 @@ function SavingFiles({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const root =
     row.writeRoot === undefined || row.writeRoot === null || row.writeRoot === ''
@@ -320,15 +338,12 @@ function SavingFiles({
         <p className="mach-prepare-explain" data-machine-write-root={root}>
           {savingOnLine(root, row.label)}
         </p>
-        {row.writeHonesty === undefined || row.writeHonesty === null ? null : (
-          <p className="set-config-warning">{row.writeHonesty}</p>
-        )}
-        <p className="mach-prepare-explain">{STOP_SAVING_EXPLAIN}</p>
         <button
           type="button"
           className="btn btn-secondary"
           disabled={busy}
           data-machines-action="stop-saving"
+          title={STOP_SAVING_EXPLAIN}
           onClick={() => {
             onError(null);
             void forget(row.id).then(onError);
@@ -343,7 +358,6 @@ function SavingFiles({
   return (
     <div className="mach-writes" data-machines-writes={row.id}>
       <div className="mach-lines-label">{SAVING_TITLE}</div>
-      <p className="mach-prepare-explain">{savingOffExplain(row.label)}</p>
       {open ? (
         <>
           <label className="mach-field-row">
@@ -358,7 +372,28 @@ function SavingFiles({
               data-machines-field="write-root"
               onChange={(e) => setDraft(e.currentTarget.value)}
             />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              aria-expanded={pickerOpen}
+              data-machines-action="browse-writes"
+              onClick={() => setPickerOpen((v) => !v)}
+            >
+              {DIR_PICKER_OPEN}
+            </button>
           </label>
+          {pickerOpen ? (
+            <RemoteDirPicker
+              machineId={row.id}
+              machineLabel={row.label}
+              initialPath={draft.trim()}
+              onChoose={(path) => {
+                setDraft(path);
+                setPickerOpen(false);
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          ) : null}
           {fieldError !== null ? (
             <div className="set-row-error">{fieldError}</div>
           ) : null}
@@ -380,6 +415,7 @@ function SavingFiles({
                     onError(message);
                     if (message === null) {
                       setOpen(false);
+                      setPickerOpen(false);
                       setDraft('');
                     }
                   });
@@ -396,6 +432,7 @@ function SavingFiles({
           className="btn btn-secondary"
           disabled={busy}
           data-machines-action="open-writes"
+          title={savingOffExplain(row.label)}
           onClick={() => setOpen(true)}
         >
           {BTN_ALLOW_WRITES}
