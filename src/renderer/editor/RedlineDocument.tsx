@@ -29,6 +29,17 @@
  * File mode shows up here the moment the view is opened again. A history tab
  * takes both sides from its commit and tracks nothing, exactly as PierreDiff
  * does.
+ *
+ * PHASE 227 GAVE EVERY CHANGE ONE ELEMENT. Research 83 D.1 measured the flat
+ * DOM Phase 194 drew, one element per run and no element that means "this
+ * change": a `del` and its `ins` were siblings, adjacent by convention. The
+ * document now wraps each change, being research 83 B.2's unit, in one
+ * `span.ed-redline-change` carrying the change's identity as data attributes,
+ * so a change is a thing that can take focus. The wrapper carries neither
+ * `data-redline` nor `data-redline-del`, so ./redline-copy's containment rule
+ * and its clone still answer exactly what they answered, and the projection
+ * property is unchanged: read at the LEAVES, the non-INS text is still the
+ * baseline byte for byte and the non-DEL text the working text.
  */
 
 import React, { useEffect, useMemo, useRef } from 'react';
@@ -40,6 +51,9 @@ import {
   redlineDocumentNote
 } from './redline-document';
 import { useLiveTabText } from './live-text';
+import { changesOf } from './rewind';
+import type { RedlineChange } from './rewind';
+import type { RedlineRun } from './redline';
 import {
   baselineName,
   baselineSentence,
@@ -50,6 +64,60 @@ import './redline.css';
 
 export interface RedlineDocumentProps {
   tab: EditorTab;
+}
+
+/**
+ * The document's runs with every change wrapped (Phase 227).
+ *
+ * A plain run is the bare `<span>` Phase 194 drew. A change is one wrapper
+ * around exactly its own runs, drawn by the same `RedlineRuns` the row uses,
+ * so the marks inside it are byte for byte what they were. The wrapper's
+ * attributes are the change's identity, being the baseline offset, the
+ * deleted text, the inserted text and the baseline generation the picture was
+ * drawn against, which is what a press carries and never a run index.
+ *
+ * The attribute names begin `data-change` and NOT `data-redline`: the copy
+ * handler removes every `[data-redline-del]` from a clone, and a wrapper
+ * named that way would take the inserted words off the clipboard with it.
+ */
+function DocumentRuns({
+  runs,
+  changes,
+  generation
+}: {
+  runs: readonly RedlineRun[];
+  changes: readonly RedlineChange[];
+  generation: number;
+}): React.JSX.Element {
+  const out: React.ReactNode[] = [];
+  let i = 0;
+  let c = 0;
+  while (i < runs.length) {
+    const change = changes[c];
+    if (change !== undefined && change.runs[0] === i) {
+      out.push(
+        <span
+          key={`c${String(c)}`}
+          className="ed-redline-change"
+          role="group"
+          aria-label={`Change ${String(c + 1)} of ${String(changes.length)}`}
+          data-change={String(c)}
+          data-change-off={String(change.off)}
+          data-change-del={change.del}
+          data-change-ins={change.ins}
+          data-change-gen={String(generation)}
+        >
+          <RedlineRuns runs={change.runs.map((k) => runs[k] as RedlineRun)} />
+        </span>
+      );
+      i += change.runs.length;
+      c += 1;
+      continue;
+    }
+    out.push(<span key={i}>{runs[i]?.text}</span>);
+    i += 1;
+  }
+  return <>{out}</>;
 }
 
 export function RedlineDocument({
@@ -97,11 +165,15 @@ export function RedlineDocument({
   // baseline draws exactly what Phase 194 shipped. The composer takes two
   // strings and never knew where its left side came from.
   const baseSide = redlineBaseSide(tab.baseline, tab.headContents);
-  const doc = useMemo(
-    () =>
-      contentsLoading ? null : composeRedlineDocument(baseSide, workingText),
-    [contentsLoading, baseSide, workingText]
-  );
+  // PHASE 227. The changes are grouped in the same memo as the compose, so
+  // the wrappers and the runs they hold can never come from two pictures.
+  const composed = useMemo(() => {
+    if (contentsLoading) return null;
+    const doc = composeRedlineDocument(baseSide, workingText);
+    return { doc, changes: changesOf(doc.runs) };
+  }, [contentsLoading, baseSide, workingText]);
+  const doc = composed === null ? null : composed.doc;
+  const generation = tab.baseline?.generation ?? 0;
   const note = doc === null ? null : redlineDocumentNote(doc);
   // PHASE 225. The face names the baseline. A history tab names its commit;
   // a worktree tab names the last commit or the moment the file was opened;
@@ -137,7 +209,11 @@ export function RedlineDocument({
           // One `data-redline` element for the whole document, so the copy
           // handler's containment rule covers any selection inside it.
           <div className="ed-redline ed-redline-doc" data-redline="">
-            <RedlineRuns runs={doc.runs} />
+            <DocumentRuns
+              runs={doc.runs}
+              changes={composed?.changes ?? []}
+              generation={generation}
+            />
           </div>
         )}
       </div>

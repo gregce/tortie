@@ -102,7 +102,14 @@ function runs(html: string): Array<{ kind: 'span' | 'del' | 'ins'; text: string 
   // The document's children are flat, so its first closing div is its own;
   // the baseline sentence below it is a span too and must not be read as a run.
   const inner = html.slice(start).replace(/^<div[^>]*>/, '');
-  const body = inner.slice(0, inner.indexOf('</div>'));
+  const wrapped = inner.slice(0, inner.indexOf('</div>'));
+  // PHASE 227. Each change is wrapped in one `span.ed-redline-change`, so the
+  // leaves are read: the wrapper's opening tag goes, and its closing tag is
+  // the `</span>` that directly follows a `</del>` or `</ins>`, which a bare
+  // run span never contains. The property is unchanged and read at the leaves.
+  const body = wrapped
+    .replace(/<span class="ed-redline-change"[^>]*>/g, '')
+    .replace(/(<\/(?:del|ins)>)<\/span>/g, '$1');
   const out: Array<{ kind: 'span' | 'del' | 'ins'; text: string }> = [];
   const re = /<(span|del|ins)(?: [^>]*)?>([\s\S]*?)<\/\1>/g;
   let m: RegExpExecArray | null;

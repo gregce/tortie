@@ -264,7 +264,10 @@ const READ = `(() => {
   const button = fiberTab(document.querySelector('[role="tab"][aria-selected="true"]'));
   const tab = drawn ?? chip ?? button;
   const doc = document.querySelector('.ed-redline-doc');
-  const runs = doc ? Array.from(doc.childNodes).map((n) => ({ kind: n.nodeType === 1 ? (n.tagName === 'DEL' ? 'del' : n.tagName === 'INS' ? 'ins' : 'same') : 'same', text: n.textContent ?? '' })) : null;
+  // PHASE 227 wrapped each change in one span.ed-redline-change, so the
+  // projection is read at the LEAVES: a wrapper contributes its children.
+  const leaves = (el) => Array.from(el.childNodes).flatMap((n) => (n.nodeType === 1 && n.classList.contains('ed-redline-change') ? Array.from(n.childNodes) : [n]));
+  const runs = doc ? leaves(doc).map((n) => ({ kind: n.nodeType === 1 ? (n.tagName === 'DEL' ? 'del' : n.tagName === 'INS' ? 'ins' : 'same') : 'same', text: n.textContent ?? '' })) : null;
   const buttons = Array.from(document.querySelectorAll('.ed-tabs-actions .ed-mode [role="radio"]'));
   return {
     tab: tab ? { id: tab.id, name: tab.name, mode: tab.mode, dirty: tab.dirty, canDiff: tab.canDiff, savedContents: tab.savedContents, headContents: tab.headContents, baseline: tab.baseline ?? null } : null,

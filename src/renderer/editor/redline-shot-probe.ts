@@ -156,8 +156,20 @@ export async function driveRedlineView(
     }
   };
 
+  /**
+   * The document's leaves. Phase 227 wrapped each change in one
+   * `span.ed-redline-change`, so a wrapper contributes its children and the
+   * readers below see the flat run list Phase 194 drew.
+   */
+  const leavesOf = (el: HTMLElement): Node[] =>
+    Array.from(el.childNodes).flatMap((node) =>
+      node instanceof HTMLElement && node.classList.contains('ed-redline-change')
+        ? Array.from(node.childNodes)
+        : [node]
+    );
+
   const runsOf = (el: HTMLElement): DrawnRun[] =>
-    Array.from(el.childNodes).map((node) => {
+    leavesOf(el).map((node) => {
       const tag = node.nodeType === Node.ELEMENT_NODE ? (node as Element).tagName.toLowerCase() : '#text';
       return {
         kind: tag === 'del' ? 'del' : tag === 'ins' ? 'ins' : 'same',
@@ -172,7 +184,7 @@ export async function driveRedlineView(
    * break in the deletion, so the insertion dropped to the next line.
    */
   const pairsOf = (el: HTMLElement): Record<string, unknown>[] => {
-    const nodes = Array.from(el.childNodes);
+    const nodes = leavesOf(el);
     const out: Record<string, unknown>[] = [];
     for (let i = 1; i < nodes.length; i++) {
       const a = nodes[i - 1];
@@ -481,7 +493,7 @@ export async function driveRedlineView(
     } else if (which === 'pair') {
       // From the first deletion to the first insertion after it, whatever
       // sits between them.
-      const kids = Array.from(el.childNodes);
+      const kids = leavesOf(el);
       const d = kids.findIndex((k) => (k as Element).tagName?.toLowerCase() === 'del');
       const i = kids.findIndex(
         (k, at) => at > d && (k as Element).tagName?.toLowerCase() === 'ins'
@@ -499,7 +511,7 @@ export async function driveRedlineView(
       // selecting them gets (./redline-copy).
       const first = el.querySelector('del');
       const textNode = first?.firstChild ?? null;
-      const kids = Array.from(el.childNodes);
+      const kids = leavesOf(el);
       if (first !== null && textNode !== null) {
         const range = document.createRange();
         range.setStart(textNode, 0);
