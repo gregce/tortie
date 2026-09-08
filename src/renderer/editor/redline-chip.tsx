@@ -49,6 +49,30 @@
  * element wearing `data-current`, which the render puts back. The placement
  * rule below, being the change's FIRST client rect, is untouched.
  *
+ * PHASE 239 TOOK UNDO OFF THIS CHIP, AND IT IS PHASE 236'S OWN RECORDED
+ * FINDING CLOSED. The chip's Undo means the last rewind IN THE TAB, never the
+ * change it sits beside, and research 99 section 7.1 drove it rather than
+ * reasoning about it: `keeps`→`holds` was rewound, the chip was then opened on
+ * `changes`→`changed` eight paragraphs away, its Undo was clicked, and the
+ * file came back to the agent's version byte for byte — `holds` restored,
+ * `changed` untouched. The button a person pressed beside one phrase acted on
+ * another, and the only place the truth was written was its `title`, which a
+ * pointer user reaches last and a keyboard user never.
+ *
+ * The three answers were priced in section 7.3 and the third is the one that
+ * shipped. LABELLING IT IN PLACE costs the chip its home: relabelling the
+ * shipping button measured 299.07px, 321.04px and 341.15px against 260.80px
+ * today, and the right margin holds 200.09px at a 900px pane and 100.09px at
+ * 700px, so a chip that says what it does cannot sit beside the column at any
+ * pane width. DRAWING IT ONLY ON THE CHANGE THE JOURNAL NAMES is impossible,
+ * because a rewind writes the baseline's bytes back and the change stops being
+ * a change — confirmed at ten changes becoming nine. So it MOVED, to the note
+ * row where the sentence that already tells the truth already is:
+ * `Undo the last rewind with ⌥⇧⌫. It lasts for this session.` Nothing new is
+ * drawn, the chip stays at 171.60px, which is the only width that fits the
+ * pane the operator works in, and the chip now means one thing: it is the
+ * CHANGE's toolbar, and undo of a rewind is the TAB's.
+ *
  * 24px, per WCAG 2.2's target size: research 83 D.2 measured the in-flow
  * button at 20.15px and named it under the target.
  *
@@ -144,21 +168,6 @@ export interface RedlineChipProps {
    * `top` are measured against.
    */
   view: HTMLElement | null;
-  /**
-   * Whether this TAB has a rewind to undo (./redline-journal).
-   *
-   * THE CHARTER SAID "when the journal holds an entry for THIS change", AND
-   * THAT CONDITION CAN NEVER BE TRUE. A rewind writes the baseline's bytes back
-   * at the change's offset, so the recomposed document draws NO change there:
-   * the entry the journal holds names a place the picture no longer has a
-   * wrapper for, and a chip gated on an offset match would never once offer
-   * Undo. The shipping command is per tab too — ./redline-press takes
-   * `lastRewind(tab.id)` and never looks at the focus — so gating on the change
-   * would also have made the button lie about what it does. It is therefore the
-   * tab's journal depth, and the button says "Undo the last rewind" so the
-   * face claims exactly what the press performs.
-   */
-  canUndo: boolean;
   /** Run one command against the change the chip is drawn for. */
   onCommand: (command: RedlineCommand, anchor: HTMLElement) => void;
   /**
@@ -176,7 +185,6 @@ export interface RedlineChipProps {
 export function RedlineChip({
   anchor,
   view,
-  canUndo,
   onCommand,
   chipRef,
   onDetached
@@ -221,7 +229,7 @@ export function RedlineChip({
       window.removeEventListener('resize', put);
       observer?.disconnect();
     };
-  }, [anchor, view, canUndo, chipRef]);
+  }, [anchor, view, chipRef]);
 
   const act = useCallback(
     (command: RedlineCommand): void => {
@@ -291,20 +299,6 @@ export function RedlineChip({
         Rewind
         <span className="key">{keyDisplay('redline.rewind')}</span>
       </button>
-      {canUndo ? (
-        <button
-          type="button"
-          className="ed-redline-chip-button ed-redline-chip-verb"
-          tabIndex={-1}
-          title="Undo the last rewind"
-          onClick={() => {
-            act('undo');
-          }}
-        >
-          Undo
-          <span className="key">{keyDisplay('redline.undo')}</span>
-        </button>
-      ) : null}
     </div>
   );
 }

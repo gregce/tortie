@@ -60,6 +60,8 @@ const {
   stepIndex
 } = await import('../redline-current');
 const { NO_BASELINE, nextBaseline } = await import('../baseline');
+const { forgetRewindJournal, recordRewind } = await import('../redline-journal');
+const { keyDisplay } = await import('@shared/keymap');
 type EditorTab = import('../tab-types').EditorTab;
 type ChipRect = import('../redline-chip').ChipRect;
 type ChangeIdentity = import('../redline-current').ChangeIdentity;
@@ -451,5 +453,63 @@ describe('the narrow pane answer: the chip fits at every width the pane offers',
     // which is what says which change the chip belongs to when the clamp has
     // moved it (research 99 section 5, shape 4).
     expect(near.left).toBe(380 - THREE.width);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Phase 236's own recorded finding, closed: Undo is the TAB's verb.
+// ---------------------------------------------------------------------------
+
+describe('undo of a rewind left the change chip for the row that names it', () => {
+  /** The face with a rewind in this tab's journal, so the note row is drawn. */
+  function withRewind(): string {
+    forgetRewindJournal('t1');
+    recordRewind('t1', { off: 10, del: 'brown', ins: 'red', generation: 1 });
+    try {
+      return renderToStaticMarkup(createElement(RedlineDocument, { tab }));
+    } finally {
+      forgetRewindJournal('t1');
+    }
+  }
+
+  it('the note row is drawn, with the sentence that already told the truth', () => {
+    const html = withRewind();
+    expect(html).toContain('ed-redline-undo');
+    expect(html).toContain(
+      `Undo the last rewind with ${keyDisplay('redline.undo')}. It lasts for this session.`
+    );
+  });
+
+  it('THE VERB IS IN THAT ROW AND NOWHERE ELSE, which is research 99 section 7.3', () => {
+    const html = withRewind();
+    // Exactly one control for it on the whole face.
+    expect((html.match(/ed-redline-note-button/g) ?? [])).toHaveLength(1);
+    expect(html).toContain('aria-label="Undo the last rewind"');
+    expect(html).toContain('title="Undo the last rewind"');
+    // It says the chord, read from the keymap and never typed.
+    expect(html).toContain(`<span class="key">${keyDisplay('redline.undo')}</span>`);
+  });
+
+  it('it carries data-redline-tag, so no control glyph can reach a clipboard', () => {
+    const html = withRewind();
+    const button = /<button[^>]*ed-redline-note-button[^>]*>/.exec(html)?.[0] ?? '';
+    expect(button).toContain('data-redline-tag=""');
+  });
+
+  it('and the row is OUTSIDE the document, so the projections never see it', () => {
+    const html = withRewind();
+    expect(documentOf(html)).not.toContain('ed-redline-note-button');
+    const flat = leaves(documentOf(html));
+    expect(flat.filter((r) => r.kind !== 'ins').map((r) => r.text).join('')).toBe(OPENED);
+    expect(flat.filter((r) => r.kind !== 'del').map((r) => r.text).join('')).toBe(WRITTEN);
+    expect(copyAnswer(documentOf(html))).toBe(WRITTEN);
+  });
+
+  it('THE RESTING FACE DRAWS NEITHER, because there is no rewind to undo', () => {
+    forgetRewindJournal('t1');
+    const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
+    expect(html).not.toContain('ed-redline-note-button');
+    expect(html).not.toContain('ed-redline-undo');
+    expect(html).not.toContain('<button');
   });
 });

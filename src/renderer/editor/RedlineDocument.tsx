@@ -47,6 +47,7 @@
  * baseline byte for byte and the non-DEL text the working text.
  */
 
+import { keyDisplay } from '@shared/keymap';
 import React, {
   useCallback,
   useEffect,
@@ -603,7 +604,6 @@ export function RedlineDocument({
       <RedlineChip
         anchor={anchor}
         view={viewEl}
-        canUndo={canUndo}
         onCommand={runFromChip}
         chipRef={chipRef}
         onDetached={forgetAnchor}
@@ -633,8 +633,37 @@ export function RedlineDocument({
       {undoNote !== null ? (
         // PHASE 227. The undo sentence, in the same slot and the same tokens,
         // shown only while there is a rewind to undo.
+        //
+        // PHASE 239 item 5 MADE THIS ROW'S WORDS A CONTROL, which is Phase
+        // 236's own recorded finding closed. The chip's Undo meant the last
+        // rewind in the TAB and could be drawn beside a phrase it would not
+        // act on; research 99 section 7.1 drove exactly that and the file came
+        // back to the agent's version with the phrase the person was pointing
+        // at untouched. Here the sentence beside the button already says what
+        // the button does, so the label is true for the first time, and the
+        // chip keeps the 171.60px that fits the pane he works in.
         <div className="banner ed-note ed-redline-undo">
           <span className="banner-text">{undoNote}</span>
+          <button
+            type="button"
+            className="ed-redline-note-button"
+            // Tortie's own control and never the person's text, the same
+            // refusal the chip and the spacing tag record.
+            data-redline-tag=""
+            aria-label="Undo the last rewind"
+            title="Undo the last rewind"
+            // It runs the SAME command the chord and the Edit menu run, so
+            // there is still exactly one road to the one call site.
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={() => {
+              runCommand('undo');
+            }}
+          >
+            Undo
+            <span className="key">{keyDisplay('redline.undo')}</span>
+          </button>
         </div>
       ) : null}
       {hintNote !== null ? (

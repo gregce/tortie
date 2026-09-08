@@ -126,14 +126,20 @@ function copyAnswer(body: string): string {
   return unescape(stripped);
 }
 
-/** The chip's own markup, as the shipping component draws it. */
-function chipMarkup(canUndo: boolean): string {
+/**
+ * The chip's own markup, as the shipping component draws it.
+ *
+ * PHASE 239 TOOK THE `canUndo` PROP OFF IT, because undo of a rewind is the
+ * TAB's verb and not the change's: research 99 section 7.1 drove the chip's
+ * own Undo acting on a phrase eight paragraphs from the one it was drawn
+ * beside. `p239-anchored-controls` pins where it went.
+ */
+function chipMarkup(): string {
   const anchor = { getClientRects: () => [] } as unknown as HTMLElement;
   return renderToStaticMarkup(
     createElement(RedlineChip, {
       anchor,
       view: null,
-      canUndo,
       onCommand: () => undefined,
       chipRef: { current: null },
       onDetached: () => undefined
@@ -153,7 +159,6 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
         createElement(RedlineChip, {
           anchor: null,
           view: null,
-          canUndo: false,
           onCommand: () => undefined,
           chipRef: { current: null },
           onDetached: () => undefined
@@ -163,7 +168,7 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
   });
 
   it('draws for the anchor when there is one', () => {
-    expect(chipMarkup(false)).toContain('class="ed-redline-chip"');
+    expect(chipMarkup()).toContain('class="ed-redline-chip"');
   });
 
   it('FOCUS WINS over the pointer, so the chip names the change the keys act on', () => {
@@ -202,29 +207,28 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
   });
 
   it('never takes focus, or the press would do nothing and the arrows would jump to the top', () => {
-    const html = chipMarkup(true);
+    const html = chipMarkup();
     const buttons = html.match(/<button[^>]*>/g) ?? [];
-    expect(buttons.length).toBe(4);
+    // PHASE 239: three, not four. Undo left for the note row.
+    expect(buttons.length).toBe(3);
     for (const button of buttons) expect(button).toContain('tabindex="-1"');
   });
 
-  it('offers Undo only while the journal holds a rewind', () => {
-    expect(chipMarkup(false)).not.toContain('Undo');
-    expect(chipMarkup(true)).toContain('Undo');
+  it('PHASE 239: it does NOT offer Undo, whatever the journal holds', () => {
+    // The chip is the CHANGE's toolbar and undo of a rewind is the TAB's.
+    // Research 99 section 7.1 drove the old button: pressed beside
+    // `changes`→`changed`, it restored `keeps`→`holds` eight paragraphs away.
+    expect(chipMarkup()).not.toContain('Undo');
+    expect(chipMarkup()).not.toContain(keyDisplay('redline.undo'));
   });
 
-  it('carries the four chords the keymap owns and nothing typed by hand', () => {
-    const html = chipMarkup(true);
-    for (const id of [
-      'redline.prev',
-      'redline.next',
-      'redline.rewind',
-      'redline.undo'
-    ] as const) {
+  it('carries the three chords the keymap owns and nothing typed by hand', () => {
+    const html = chipMarkup();
+    for (const id of ['redline.prev', 'redline.next', 'redline.rewind'] as const) {
       expect(html, id).toContain(`<span class="key">${keyDisplay(id)}</span>`);
     }
     expect(html).toContain('⌥↓');
-    expect(html).toContain('⌥⇧⌫');
+    expect(html).toContain('⌥⌫');
   });
 });
 
@@ -234,13 +238,13 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
 
 describe('the chip carries the attribute the copy handler removes', () => {
   it('is a data-redline-tag element', () => {
-    expect(chipMarkup(true)).toContain('data-redline-tag=""');
+    expect(chipMarkup()).toContain('data-redline-tag=""');
   });
 
   it('is NOT a data-redline element, which would be a second document', () => {
     const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
     expect((html.match(/ data-redline=""/g) ?? []).length).toBe(1);
-    expect((chipMarkup(true).match(/ data-redline=""/g) ?? []).length).toBe(0);
+    expect((chipMarkup().match(/ data-redline=""/g) ?? []).length).toBe(0);
   });
 });
 
@@ -251,7 +255,7 @@ describe('the chip carries the attribute the copy handler removes', () => {
 describe('the projection and the copy are unchanged with the chip mounted', () => {
   const html = renderToStaticMarkup(createElement(RedlineDocument, { tab }));
   const bare = documentOf(html);
-  const chip = chipMarkup(true);
+  const chip = chipMarkup();
   /** The chip where the view really puts it: OUTSIDE the document. */
   const outside = bare;
   /** The ablation: the same chip INSIDE the document, which is refused. */

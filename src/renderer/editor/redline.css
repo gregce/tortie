@@ -221,6 +221,46 @@
    menus already use (`.key` in styles/globals.css), so a person learns it by
    seeing it once. The string comes from the keymap through `keyDisplay` and is
    never typed. It is not a click target of its own: the button around it is. */
-.ed-redline-chip-button .key {
+.ed-redline-chip-button .key,
+.ed-redline-note-button .key {
   pointer-events: none;
+}
+
+/* PHASE 239 item 5. Undo of a rewind is the TAB's verb, not the change's, so
+   it sits in the note row where the sentence that says what it does already
+   is, rather than on the change chip where research 99 section 7.1 drove it
+   acting on a phrase eight paragraphs from the one it was drawn beside.
+
+   `.banner` is already a flex row whose `.banner-text` takes `flex: 1`, so the
+   button needs no layout of its own — only the chip button's own metrics, kept
+   here rather than shared so a change to one cannot silently move the other.
+   24px tall, per WCAG 2.2's target size, which is the same ruling. */
+.ed-redline-note-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+  /* Tortie's own commentary, never the person's text. */
+  user-select: none;
+}
+
+.ed-redline-note-button:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.ed-redline-note-button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
 }
