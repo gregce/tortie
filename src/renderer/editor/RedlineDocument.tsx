@@ -50,6 +50,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -67,6 +68,14 @@ import { changeAtCaret } from './redline-caret';
 import { useRedlineTyping } from './redline-edits';
 import { changesOf } from './rewind';
 import type { RedlineChange } from './rewind';
+import {
+  CURRENT_ATTRIBUTE,
+  currentElement,
+  identityOf,
+  sameChange,
+  stepChange
+} from './redline-current';
+import type { ChangeIdentity } from './redline-current';
 import { RedlineChip } from './redline-chip';
 import { installRedlineCommands } from './redline-commands';
 import type { RedlineCommand } from './redline-commands';
@@ -118,11 +127,14 @@ export interface RedlineDocumentProps {
 function DocumentRuns({
   runs,
   changes,
-  generation
+  generation,
+  current
 }: {
   runs: readonly RedlineRun[];
   changes: readonly RedlineChange[];
   generation: number;
+  /** PHASE 239. The change the controls belong to, marked in the document. */
+  current: ChangeIdentity | null;
 }): React.JSX.Element {
   const out: React.ReactNode[] = [];
   let i = 0;
@@ -130,6 +142,14 @@ function DocumentRuns({
   while (i < runs.length) {
     const change = changes[c];
     if (change !== undefined && change.runs[0] === i) {
+      // PHASE 239 shape 4. The mark is put on by the RENDER and never by a
+      // mutation, so it comes back on its own after the recompose an agent's
+      // write causes — which is the whole of research 99 section 2.3's
+      // finding. It is an attribute rather than a class so the stylesheet's
+      // one selector cannot drift from the anchor's one query.
+      const isCurrent =
+        current !== null &&
+        sameChange(current, { off: change.off, del: change.del, ins: change.ins, generation });
       out.push(
         <span
           key={`c${String(c)}`}
@@ -142,6 +162,7 @@ function DocumentRuns({
           data-change-del={change.del}
           data-change-ins={change.ins}
           data-change-gen={String(generation)}
+          {...(isCurrent ? { [CURRENT_ATTRIBUTE]: '' } : {})}
         >
           <RedlineRuns runs={change.runs.map((k) => runs[k] as RedlineRun)} />
         </span>
@@ -208,46 +229,23 @@ export function redlineCommandOf(event: {
 }
 
 /**
- * Move the keyboard to the next or previous change and answer which one, or
- * null when the document holds none. From nowhere, next is the first change
- * and previous the last; at either end the focus stays where it is. `focus()`
- * alone: research 83 D.3 measured it scrolling a change into view on a
- * 3,670px document with no `scrollIntoView` call.
- */
-export function moveFocus(host: HTMLElement, delta: 1 | -1): number | null {
-  const items = Array.from(
-    host.querySelectorAll<HTMLElement>('.ed-redline-change')
-  );
-  if (items.length === 0) return null;
-  const active = host.ownerDocument.activeElement;
-  const current =
-    active instanceof HTMLElement
-      ? items.indexOf(active.closest<HTMLElement>('.ed-redline-change') ?? active)
-      : -1;
-  const next =
-    current === -1
-      ? delta === 1
-        ? 0
-        : items.length - 1
-      : Math.min(items.length - 1, Math.max(0, current + delta));
-  items[next]?.focus();
-  return next;
-}
-
-/**
- * Which change the chip is drawn for (Phase 236). FOCUS WINS OVER THE POINTER,
- * and that is a truthfulness rule rather than a taste: ⌥⌫ acts on
- * `document.activeElement`, because ./redline-press reads the identity off the
- * focused wrapper, so a chip drawn on a change under the pointer while a
- * DIFFERENT change held focus would name a change the keys do not act on. With
- * nothing focused the pointer is the whole affordance, and with neither there
- * is no chip at all, which is the resting face.
+ * Which change the chip is drawn for. THE CURRENT CHANGE WINS OVER THE
+ * POINTER, and that is a truthfulness rule rather than a taste: ⌥⌫ acts on the
+ * change the view holds as current, so a chip drawn on a change under the
+ * pointer while a DIFFERENT one was current would name a change the keys do
+ * not act on. With no current change the pointer is the whole affordance, and
+ * with neither there is no chip at all, which is the resting face.
+ *
+ * PHASE 239 changed what the first argument IS and not what this rule says.
+ * Phase 236 passed `document.activeElement`'s wrapper, which research 99
+ * section 2.3 measured being destroyed by every recompose; it is now the
+ * element wearing the current mark, which the render puts back.
  */
 export function chipAnchorFor(
-  focused: HTMLElement | null,
+  current: HTMLElement | null,
   hovered: HTMLElement | null
 ): HTMLElement | null {
-  return focused ?? hovered;
+  return current ?? hovered;
 }
 
 export function RedlineDocument({
@@ -269,6 +267,37 @@ export function RedlineDocument({
   // chip" from "the pointer left the change".
   const [viewEl, setViewEl] = useState<HTMLDivElement | null>(null);
   const chipRef = useRef<HTMLDivElement | null>(null);
+  const [hovered, setHovered] = useState<HTMLElement | null>(null);
+  // PHASE 239 shape 1. THE CURRENT CHANGE IS STATE, KEYED ON ITS IDENTITY, and
+  // it is the whole of what the operator asked for. Phase 236 held
+  // `document.activeElement`'s wrapper, and research 99 section 2.3 measured
+  // an outside write taking the person's place away: the wrapper is replaced
+  // by the recompose, focus goes with it, the chip goes with the focus — while
+  // the change itself was still drawn with the same identity, the same offset
+  // and the same generation. Held as an identity it survives, because the
+  // render puts the mark back on whichever wrapper is that change now.
+  const [current, setCurrent] = useState<ChangeIdentity | null>(null);
+  const currentRef = useRef<ChangeIdentity | null>(null);
+  currentRef.current = current;
+  const [currentEl, setCurrentEl] = useState<HTMLElement | null>(null);
+  // A new tab is a new document and a new place in it: the resting face draws
+  // no control (Phase 236's rule, which this phase keeps).
+  useEffect(() => {
+    setCurrent(null);
+  }, [tab.id]);
+  // PHASE 236. Which change the chip is drawn for; the rule is
+  // `chipAnchorFor` above, and the current change wins over the pointer.
+  const anchor = chipAnchorFor(currentEl, hovered);
+  const forgetAnchor = useCallback((): void => {
+    setHovered(null);
+    setCurrent(null);
+  }, []);
+  /** Make one drawn wrapper the current change. */
+  const makeCurrent = useCallback((el: HTMLElement | null): void => {
+    if (el === null) return;
+    const id = identityOf(el);
+    if (id !== null) setCurrent(id);
+  }, []);
 
   // Opening the view is an attention switch, the same as opening the diff:
   // focus the scroller so the keyboard scrolls it and Esc can close the panel.
@@ -321,7 +350,16 @@ export function RedlineDocument({
           dirty: live.dirty
         },
         {
-          focused: () => focusedChange(host),
+          // PHASE 239. The press acts on the change the person SEES marked.
+          // The identity is read off that wrapper's own attributes, generation
+          // included, so a moved baseline is still refused by the guard in
+          // ./redline-write (research 83 B.8a); the held state is a place and
+          // never a stale generation. With nothing current — a hover with no
+          // step yet — the DOM answer stands, exactly as Phase 236 left it.
+          focused: () => {
+            const marked = currentElement(host);
+            return marked === null ? focusedChange(host) : identityOf(marked);
+          },
           apply: applyRewind,
           // A refusal is never silent. A success shows nothing on the face:
           // the watcher recomposes the view, exactly as an outside write does.
@@ -334,15 +372,38 @@ export function RedlineDocument({
     },
     [tab.id]
   );
+  /**
+   * PHASE 239. Step to the next or previous change and MAKE IT CURRENT.
+   *
+   * The position is computed from the held identity through
+   * ./redline-current's pure `stepIndex` and never from
+   * `document.activeElement`, which is the fix for research 99 section 2.2's
+   * swallowed first press: the first ⌥↓ of a fresh view left the focus on the
+   * editing host and drew nothing at all, reproduced in two runs. The wrapper
+   * is still focused, for the ring and for the scroll-into-view research 83
+   * D.3 measured on a 3,670px document, but the state moves whatever the focus
+   * does.
+   */
+  const step = useCallback(
+    (delta: 1 | -1): void => {
+      const host = hostRef.current;
+      if (host === null) return;
+      const el = stepChange(host, currentRef.current, delta);
+      if (el === null) return;
+      makeCurrent(el);
+      el.focus();
+    },
+    [makeCurrent]
+  );
   const runCommand = useCallback(
     (command: RedlineCommand): void => {
       const host = hostRef.current;
       if (host === null) return;
-      if (command === 'next') moveFocus(host, 1);
-      else if (command === 'prev') moveFocus(host, -1);
+      if (command === 'next') step(1);
+      else if (command === 'prev') step(-1);
       else void press(command, host);
     },
-    [press]
+    [press, step]
   );
   useEffect(() => installRedlineCommands(runCommand), [runCommand]);
   // PHASE 236. The Edit menu's four rows are enabled only while a view is
@@ -360,15 +421,6 @@ export function RedlineDocument({
   // ONCE at mount: the flag is marked in an effect below, and reading it again
   // on a later render would make the line vanish under the person mid-session.
   const [hintAllowed] = useState(() => !redlineHintSeen());
-  const [hovered, setHovered] = useState<HTMLElement | null>(null);
-  const [focusedEl, setFocusedEl] = useState<HTMLElement | null>(null);
-  // PHASE 236. Which change the chip is drawn for; the rule is
-  // `chipAnchorFor` above, and focus wins over the pointer.
-  const anchor = chipAnchorFor(focusedEl ?? typing.caretChange, hovered);
-  const forgetAnchor = useCallback((): void => {
-    setHovered(null);
-    setFocusedEl(null);
-  }, []);
   // A chip button focuses the change it is drawn for and then runs the SAME
   // command the chord and the Edit menu run. Research 96 §1.2 is why the
   // focus comes first: with the focus anywhere else, `focusedChange` answers
@@ -377,10 +429,17 @@ export function RedlineDocument({
   // person is pointing at is on screen by definition.
   const runFromChip = useCallback(
     (command: RedlineCommand, el: HTMLElement): void => {
+      // PHASE 239. The chip's own change becomes the current one BEFORE the
+      // command runs, so a button pressed on a hovered change acts on that
+      // change and a step walks from it. Phase 236 did this with `focus()`
+      // alone, which a `contenteditable` host can swallow (research 99
+      // section 2.2); the focus is still moved, for the ring and the
+      // scroll-into-view, but nothing depends on it landing.
+      makeCurrent(el);
       el.focus({ preventScroll: true });
       runCommand(command);
     },
-    [runCommand]
+    [makeCurrent, runCommand]
   );
 
   // The skeleton still waits for git's first answer, baseline or not: a
@@ -443,6 +502,22 @@ export function RedlineDocument({
   useEffect(() => {
     if (hintNote !== null) markRedlineHintSeen();
   }, [hintNote]);
+  // PHASE 239. The mark and the chip's anchor are THE SAME ELEMENT, found
+  // after every render rather than remembered across one: a recompose replaces
+  // the wrapper, and the render puts `data-current` back on whichever wrapper
+  // is that change now. It answers null when the picture no longer holds the
+  // change at all, which is the ordinary answer after a rewind.
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    setCurrentEl(host === null ? null : currentElement(host));
+  }, [current, composed]);
+  // PHASE 237 gave the document a caret, and a caret is the same claim a
+  // focused wrapper makes (./redline-caret changeAtCaret). Moving it INTO a
+  // change makes that change current; moving it anywhere else leaves the
+  // current one alone, which is the persistence this phase is for.
+  useEffect(() => {
+    makeCurrent(typing.caretChange);
+  }, [makeCurrent, typing.caretChange]);
   const canUndo = rewindJournalDepth(tab.id) > 0;
   // PHASE 237 item 4. Two undos, kept apart and said so in one line while both
   // are available. ./redline-sentences owns the words with every other sentence
@@ -485,19 +560,22 @@ export function RedlineDocument({
           event.preventDefault();
           runCommand(command);
         }}
-        // PHASE 236. React's onFocus and onBlur are focusin and focusout, so
-        // they see a change taking the keyboard from the chords, from a click
-        // or from the chip's own buttons. The scroller taking focus on mount
-        // answers null here, which is the resting face.
+        // PHASE 236. React's onFocus is focusin, so it sees a change taking
+        // the keyboard from the chords, from a click or from the chip's own
+        // buttons. The scroller taking focus on mount names no change, which
+        // is the resting face.
+        //
+        // PHASE 239 REMOVED THE onBlur THAT CLEARED IT, and that removal is
+        // the operator's ask: "today the they sort of just hover". The
+        // controls now belong to the change the person went to and stay there
+        // until they go somewhere else, rather than being surrendered the
+        // moment the keyboard leaves the document.
         onFocus={(event) => {
-          setFocusedEl(
+          makeCurrent(
             (event.target as HTMLElement).closest<HTMLElement>(
               '.ed-redline-change'
             )
           );
-        }}
-        onBlur={() => {
-          setFocusedEl(null);
         }}
       >
         {doc === null ? (
@@ -513,6 +591,7 @@ export function RedlineDocument({
               runs={doc.runs}
               changes={composed?.changes ?? []}
               generation={generation}
+              current={current}
             />
           </div>
         )}

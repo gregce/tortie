@@ -35,14 +35,19 @@
  * from its clone, so a chip that ever did end up inside a Range still cannot
  * put its glyphs on the clipboard.
  *
- * IT NEVER TAKES FOCUS, and that is not styling. Both `focusedChange` and
- * `moveFocus` in ./RedlineDocument read `document.activeElement`: a button
- * that took focus would make `focusedChange` answer null, so a press would do
- * nothing at all, and would make `moveFocus` compute `current === -1`, so an
- * arrow would jump to the FIRST change rather than the neighbour. So every
- * button is `tabIndex={-1}` and the chip cancels `mousedown`, and each button
- * FOCUSES THE CHANGE THE CHIP IS DRAWN FOR and then runs the same command the
- * chord and the Edit menu already run. Nothing new is wired to the write.
+ * IT NEVER TAKES FOCUS, and that is not styling. `focusedChange` in
+ * ./RedlineDocument reads `document.activeElement`, so a button that took
+ * focus would make it answer null and a press would do nothing at all. So
+ * every button is `tabIndex={-1}` and the chip cancels `mousedown`, and each
+ * button MAKES THE CHANGE THE CHIP IS DRAWN FOR THE CURRENT ONE and then runs
+ * the same command the chord and the Edit menu already run. Nothing new is
+ * wired to the write.
+ *
+ * PHASE 239 MOVED WHAT THE CHIP IS ANCHORED TO AND NOT WHERE IT SITS. It was
+ * anchored on `document.activeElement`'s wrapper, which research 99 section
+ * 2.3 measured being destroyed by every recompose; it is now anchored on the
+ * element wearing `data-current`, which the render puts back. The placement
+ * rule below, being the change's FIRST client rect, is untouched.
  *
  * 24px, per WCAG 2.2's target size: research 83 D.2 measured the in-flow
  * button at 20.15px and named it under the target.

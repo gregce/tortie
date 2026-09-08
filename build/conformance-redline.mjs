@@ -168,7 +168,7 @@ const WORST_CASE_CEILING_MS = 400;
 // cannot drift off in silence.
 const REDLINE_DIR = 'src/renderer/editor';
 const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline\.)/;
-const REDLINE_FILES_FLOOR = 19;
+const REDLINE_FILES_FLOOR = 20;
 const REDLINE_FILES = readdirSync(REDLINE_DIR)
   .filter((name) => REDLINE_NAME.test(name))
   .sort()
@@ -215,7 +215,11 @@ const REDLINE_FILES_NAMED = [
   // the ordinary save path and never through a door of its own.
   'src/renderer/editor/redline-typing.ts',
   'src/renderer/editor/redline-caret.ts',
-  'src/renderer/editor/redline-edits.ts'
+  'src/renderer/editor/redline-edits.ts',
+  // Phase 239: the current change, held as an identity so it survives the
+  // recompose an agent's write causes. It is pure, it reads drawn attributes
+  // and answers elements, and it writes nothing.
+  'src/renderer/editor/redline-current.ts'
 ];
 
 // ---------------------------------------------------------------------------

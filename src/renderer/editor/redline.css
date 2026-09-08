@@ -131,7 +131,21 @@
    picture. Tokens only: the same accent ring the scroller wears, with the
    hairline the row's own tag uses on the inside so the ring reads on the
    change's own wash. */
-.ed-redline-change:focus-visible {
+/* PHASE 239 shape 4. THE CURRENT CHANGE IS MARKED, AND THE MARK PERSISTS.
+   `[data-current]` is put on by the render (./redline-current, ./RedlineDocument
+   DocumentRuns), so it comes back on its own after the recompose an agent's
+   write causes — which is the defect research 99 section 2.3 measured, where
+   the change survived and the person's place in it did not.
+
+   IT IS THE SAME DECLARATIONS THE FOCUS RING ALREADY DREW, which is why it
+   costs nothing: research 99 section 5 priced six decorations on both rulers
+   and this one reads 0 findings on every change rect AND on all 34 line edges.
+   The one form a person reaches for first, a `border-left` rail, costs 2.00px
+   of real reflow that only the line-edge reading names, so it is refused. What
+   is new is not the picture but WHEN it is drawn: the ring used to leave with
+   the keyboard and now stays on the change the controls belong to. */
+.ed-redline-change:focus-visible,
+.ed-redline-change[data-current] {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
   border-radius: var(--r-xs);
