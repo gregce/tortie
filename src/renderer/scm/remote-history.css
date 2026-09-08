@@ -5,11 +5,16 @@
  * file. The row metrics copy the local History exactly, because the picture in
  * the gutter is drawn by the same code and it is built for a 24 px row.
  *
- * THE ROW IS NOT AN AFFORDANCE. It has no hover fill, no selected fill and no
- * pointer cursor, because there is nothing to press. The local History row has
- * all three and it opens the files that commit changed. This group does not
- * read those, the group says so under itself, and a row that lit up under the
- * pointer would promise something that never happens.
+ * THE ROW IS THE LOCAL ROW. PHASE 233 made a remote row expand into its files
+ * and open a diff, so it wears `.scm-hrow`, `.scm-hchevron`, `.scm-hsubject`,
+ * `.scm-hfile` and the rest from ./scm.css rather than a second set of rules
+ * here, and the hover fill, the selected fill and the chevron are the local
+ * ones because they are the same rules. This file no longer carries a row rule
+ * at all; what is left is the group's own box, the note, the paging control and
+ * the tail. `.rhist-row` stays in the markup as a MARKER with no declaration
+ * behind it, because the probes and ./__tests__/p107-remote-history.test.tsx
+ * read the rows by that name and the two Histories are drawn in one column
+ * where `.scm-hrow` alone would not tell them apart.
  *
  * The group has no hue of its own, for the same reason the three groups beside
  * it have none. The folder being on another computer is the ordinary state of
@@ -82,65 +87,6 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--text-muted);
-}
-
-/* 24 px, and it is not a taste. The gutter SVG is drawn at exactly that height
-   by ./graph/geometry.ts, so a taller row would leave the lanes with a gap
-   between them and the picture would read as broken history. */
-.rhist-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 24px;
-  flex: 0 0 24px;
-  padding-right: var(--space-4);
-  padding-left: 0;
-  min-width: 0;
-  cursor: default;
-  user-select: none;
-}
-
-/* Work this end holds that the followed branch does not is the ordinary case
-   and it takes no treatment. Work the followed branch holds and this end does
-   not is a lightness step rather than a hue, so it survives greyscale and
-   colour blindness, and it is the same step the local History takes. */
-.rhist-row[data-sync='unpulled'] .rhist-subject {
-  color: var(--text-secondary);
-}
-
-.rhist-subject {
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 0 4 auto;
-  min-width: 48px;
-}
-
-.rhist-author {
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Sheds before the subject, which shrinks at 4 above. */
-  flex: 0 8 auto;
-  min-width: 0;
-}
-
-.rhist-space {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.rhist-age {
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  color: var(--text-muted);
-  flex: 0 0 auto;
 }
 
 /* The one control under the rows. It sits inside the list that scrolls, which

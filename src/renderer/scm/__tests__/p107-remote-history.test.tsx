@@ -50,12 +50,21 @@ import type { GitGraphLogEntry } from '@shared/types';
 const ROOT = resolve(import.meta.dirname, '../../../..');
 
 const readHistory = vi.fn();
+// PHASE 233. The second read, and the only other thing this store asks for.
+const readCommitFiles = vi.fn();
 
 // The store reads window.gmux while zustand builds its initial state, so the
 // globals have to exist before the modules under test are ever imported.
+/** PHASE 233. Every open request the group sends, in order. */
+const opened: unknown[] = [];
+
 vi.stubGlobal('window', {
   addEventListener() {},
   removeEventListener() {},
+  dispatchEvent: (e: { detail?: unknown }) => {
+    opened.push(e.detail);
+    return true;
+  },
   setTimeout,
   clearTimeout,
   requestAnimationFrame: () => 0,
@@ -70,7 +79,7 @@ vi.stubGlobal('window', {
       discard: () => Promise.resolve()
     },
     setSessionsPosition: () => Promise.resolve(),
-    machines: { readHistory }
+    machines: { readHistory, readCommitFiles }
   }
 });
 vi.stubGlobal('requestAnimationFrame', () => 0);
@@ -90,12 +99,16 @@ vi.stubGlobal('document', {
 const { RemoteHistoryPanel, historyModeSentence } = await import(
   '../RemoteHistorySection'
 );
+// PHASE 233. ONE composer, beside the local file row's own.
+const { requestRemoteCommitFileOpen } = await import('../open-commit-file');
 const {
   machineAnsweredHistory,
   nextLimit,
+  remoteDetailKey,
   remoteHistoryAvailable,
   useRemoteHistory
 } = await import('../remote-history');
+type RemoteCommitDetail = import('../remote-history').RemoteCommitDetail;
 // Three files. The history's own words are in machines/history.ts, the note above
 // the groups is in machines/scm.ts, and the instant every group prints is in
 // machines/presentation.ts.
@@ -211,6 +224,17 @@ function draw(
       onToggle={() => undefined}
       onRefresh={() => undefined}
       onLoadMore={() => undefined}
+      // PHASE 233. A row expands into the files its commit changed, so the
+      // panel takes the open set, what each open commit changed, and the two
+      // gestures. The defaults are "nothing is open", which is the resting
+      // face this file was written against, so every assertion above this
+      // phase reads exactly what it read before.
+      expanded={(props.expanded as ReadonlySet<string>) ?? new Set<string>()}
+      details={
+        (props.details as Readonly<Record<string, RemoteCommitDetail>>) ?? {}
+      }
+      onToggleRow={() => undefined}
+      onOpenFile={() => undefined}
       {...props}
     />
   );
@@ -260,10 +284,27 @@ function answer(over: Record<string, unknown> = {}): MachineHistoryResult {
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
-  useRemoteHistory.setState({ byTarget: {} });
+  useRemoteHistory.setState({ byTarget: {}, details: {} });
   readHistory.mockReset();
   readHistory.mockResolvedValue(answer());
+  readCommitFiles.mockReset();
+  readCommitFiles.mockResolvedValue(filesAnswer());
 });
+
+/** What one machine answers about one commit's files (Phase 233). */
+function filesAnswer(over: Record<string, unknown> = {}): unknown {
+  return {
+    machineId: 'studio',
+    machineLabel: L,
+    cwd: '/home/greg/api',
+    sha: hashOf(1),
+    mode: 'ok',
+    files: [{ path: 'docs/changelog.md', status: 'A' }],
+    answerBytes: 42,
+    elapsedMs: 7,
+    ...over
+  };
+}
 
 // ---------------------------------------------------------------------------
 // The store: who asks, how often, for how many, and under which key
@@ -473,13 +514,156 @@ describe('the store asks once, and only when it is asked to', () => {
     ]) {
       expect(source).not.toContain(timer);
     }
+    // PHASE 233 ADDED TWO AND NEITHER WRITES. `details` holds what one commit
+    // changed and `detail` reads it once, on the FIRST EXPAND of a row and at
+    // no other moment, which is why the three timer names above still appear
+    // nowhere in this file.
     expect(Object.keys(useRemoteHistory.getState()).sort()).toEqual([
       'byTarget',
+      'detail',
+      'details',
       'ensure',
       'forget',
       'loadMore',
       'refresh'
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 233. The files one commit changed, read once, on the first expand
+// ---------------------------------------------------------------------------
+
+describe('what one commit changed, read once', () => {
+  it('asks the machine once and holds the answer under target and commit', async () => {
+    const held = await useRemoteHistory.getState().detail(STUDIO, hashOf(1));
+    expect(readCommitFiles).toHaveBeenCalledTimes(1);
+    expect(readCommitFiles).toHaveBeenCalledWith({
+      machineId: 'studio',
+      cwd: '/home/greg/api',
+      sha: hashOf(1)
+    });
+    expect(held?.files).toEqual([{ path: 'docs/changelog.md', status: 'A' }]);
+    expect(
+      useRemoteHistory.getState().details[remoteDetailKey(STUDIO, hashOf(1))]
+    ).toBe(held);
+  });
+
+  it('asks nothing the second time the same row is expanded', async () => {
+    await useRemoteHistory.getState().detail(STUDIO, hashOf(1));
+    await useRemoteHistory.getState().detail(STUDIO, hashOf(1));
+    expect(readCommitFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends ONE read when two expands land in the same tick', async () => {
+    const both = await Promise.all([
+      useRemoteHistory.getState().detail(STUDIO, hashOf(1)),
+      useRemoteHistory.getState().detail(STUDIO, hashOf(1))
+    ]);
+    expect(readCommitFiles).toHaveBeenCalledTimes(1);
+    expect(both[0]).toBe(both[1]);
+  });
+
+  it('keys by the folder as well as the commit', async () => {
+    await useRemoteHistory.getState().detail(STUDIO, hashOf(1));
+    await useRemoteHistory.getState().detail(ATTIC, hashOf(1));
+    // The same commit name in two folders is two answers, which is the
+    // collision research 55 section 9.2 found for the editor's own tab ids.
+    expect(readCommitFiles).toHaveBeenCalledTimes(2);
+    expect(Object.keys(useRemoteHistory.getState().details).sort()).toEqual([
+      remoteDetailKey(ATTIC, hashOf(1)),
+      remoteDetailKey(STUDIO, hashOf(1))
+    ].sort());
+  });
+
+  it('holds nothing a machine refused, so the next expand asks again', async () => {
+    readCommitFiles.mockResolvedValue(
+      filesAnswer({ mode: 'unreachable', files: [] })
+    );
+    expect(await useRemoteHistory.getState().detail(STUDIO, hashOf(1))).toBe(
+      null
+    );
+    expect(useRemoteHistory.getState().details).toEqual({});
+    await useRemoteHistory.getState().detail(STUDIO, hashOf(1));
+    expect(readCommitFiles).toHaveBeenCalledTimes(2);
+  });
+
+  it('turns a channel that threw into null and not a crash', async () => {
+    readCommitFiles.mockRejectedValueOnce(new Error('no'));
+    expect(await useRemoteHistory.getState().detail(STUDIO, hashOf(1))).toBe(
+      null
+    );
+    expect(useRemoteHistory.getState().details).toEqual({});
+  });
+
+  it('drops a target\'s commit details when the target is forgotten', async () => {
+    await useRemoteHistory.getState().detail(STUDIO, hashOf(1));
+    await useRemoteHistory.getState().detail(ATTIC, hashOf(1));
+    useRemoteHistory.getState().forget(STUDIO);
+    expect(Object.keys(useRemoteHistory.getState().details)).toEqual([
+      remoteDetailKey(ATTIC, hashOf(1))
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 233. What a file row asks the editor for
+// ---------------------------------------------------------------------------
+
+describe('opening one file of one commit over there', () => {
+  beforeEach(() => {
+    opened.length = 0;
+  });
+
+  it('carries BOTH the commit and the machine, so the editor asks that machine', () => {
+    requestRemoteCommitFileOpen(
+      STUDIO.machineId,
+      L,
+      STUDIO.path,
+      { path: 'docs/changelog.md', status: 'A' },
+      commits(3)[1]!,
+      true
+    );
+    expect(opened).toHaveLength(1);
+    const req = opened[0] as Record<string, unknown>;
+    expect(req.repoPath).toBe('/home/greg/api');
+    expect(req.relPath).toBe('docs/changelog.md');
+    expect(req.path).toBe('/home/greg/api/docs/changelog.md');
+    expect(req.mode).toBe('diff');
+    expect(req.source).toBe('history');
+    expect(req.preview).toBe(true);
+    // THE COMMIT decides which two blobs are diffed.
+    expect(req.commit).toEqual({
+      sha: hashOf(1),
+      shortSha: hashOf(1).slice(0, 7),
+      status: 'A',
+      subject: 'Commit number 2'
+    });
+    // THE MACHINE decides which computer holds them.
+    expect(req.remote).toEqual({
+      machineId: 'studio',
+      machineLabel: L,
+      repoPath: '/home/greg/api'
+    });
+  });
+
+  it('carries the pre-rename path on both halves, or on neither', () => {
+    requestRemoteCommitFileOpen(
+      STUDIO.machineId,
+      L,
+      STUDIO.path,
+      {
+        path: 'docs/design-renamed.md',
+        origPath: 'docs/design.md',
+        status: 'R'
+      },
+      commits(3)[1]!,
+      false
+    );
+    const req = opened[0] as Record<string, Record<string, unknown>>;
+    expect(req.commit!.origPath).toBe('docs/design.md');
+    expect(req.remote!.origPath).toBe('docs/design.md');
+    expect(req.preview).toBe(false);
   });
 });
 
@@ -544,7 +728,10 @@ describe('every mode says its own sentence, and it comes from machines/presentat
 describe('what the group draws when commits were read', () => {
   it('draws one row per commit, with its subject, author and age', () => {
     const html = draw();
-    expect(html.split('class="rhist-row"').length - 1).toBe(3);
+    // PHASE 233 gave the row the LOCAL row's classes, so `rhist-row` is one
+    // name in a list rather than the whole attribute. The marker is counted
+    // where it is, which is what the probes read off the DOM too.
+    expect(html.split('rhist-row').length - 1).toBe(3);
     expect(html).toContain('Commit number 3');
     expect(html).toContain('Commit number 1');
     expect(html).toContain('Robin');
@@ -572,14 +759,72 @@ describe('what the group draws when commits were read', () => {
     expect(html).toContain('not pushed yet');
   });
 
-  it('never gives a row a control or a menu', () => {
-    // A ROW IS NOT AN AFFORDANCE. Reading the files one commit changed is a
-    // second read this phase does not make, so a row that could be pressed
-    // would promise something that never happens.
+  it('gives a row the local row\'s control, and still no menu', () => {
+    // PHASE 233 INVERTED THE FIRST HALF OF THIS TEST AND KEPT THE SECOND. A
+    // row expands into the files its commit changed, so it is an `option` in
+    // a `listbox` carrying `aria-expanded`, exactly as the local History row
+    // is. What it still has is no menu, because every verb on the local row's
+    // menu writes on the other computer and rule 3 of the component holds.
     const html = draw();
-    expect(html).not.toContain('role="option"');
-    expect(html).not.toContain('aria-expanded="false" class="rhist-row"');
-    expect(html).not.toContain('onclick');
+    expect(html).toContain('role="option"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('role="listbox"');
+    // The four verbs the LOCAL row's menu offers appear nowhere.
+    for (const verb of ['checkout', 'cherry', 'revert', 'create branch']) {
+      expect(html.toLowerCase()).not.toContain(verb);
+    }
+  });
+
+  it('expands one row into the files that commit changed', () => {
+    // The whole of gap 17, read off the markup: an open row draws a file row
+    // per name-status line, with the local badge letter, the local word and
+    // the local title, and a rename says where it came from.
+    const html = draw(
+      {},
+      {
+        expanded: new Set([hashOf(1)]),
+        details: {
+          [hashOf(1)]: {
+            files: [
+              { path: 'docs/changelog.md', status: 'A' },
+              {
+                path: 'docs/design-renamed.md',
+                origPath: 'docs/design.md',
+                status: 'R'
+              },
+              { path: 'tests/core.test.ts', status: 'D' }
+            ]
+          }
+        }
+      }
+    );
+    expect(html).toContain('aria-expanded="true"');
+    expect(html.split('class="scm-hfile"').length - 1).toBe(3);
+    expect(html).toContain('changelog.md');
+    expect(html).toContain('design-renamed.md');
+    expect(html).toContain(esc('docs/design-renamed.md'));
+    // The rename's title is the LOCAL one, composed by ../format.ts.
+    expect(html).toContain(esc('renamed from docs/design.md'));
+    // A deletion is struck through by the local class, not by a sentence.
+    expect(html).toContain('scm-row-name deleted');
+  });
+
+  it('draws the waiting shape while a row\'s files are being read', () => {
+    // Expanded with nothing held is the local skeleton, not a sentence, and
+    // not an empty list pretending the commit changed nothing.
+    const html = draw({}, { expanded: new Set([hashOf(1)]) });
+    expect(html).toContain('scm-hfile-loading');
+    expect(html).toContain('scm-skeleton-row');
+    expect(html).not.toContain('scm-hfile-empty');
+  });
+
+  it('says a commit changed nothing in the local three words', () => {
+    const html = draw(
+      {},
+      { expanded: new Set([hashOf(1)]), details: { [hashOf(1)]: { files: [] } } }
+    );
+    expect(html).toContain('scm-hfile-empty');
+    expect(html).toContain('No files changed');
   });
 });
 
@@ -725,13 +970,23 @@ describe('what the group admits about its own answer', () => {
     }
   });
 
-  it('draws a row that does not expand as a row that does not expand', () => {
-    // THE GAP PHASE 107 LEFT OPEN is still open, and since Phase 228 nothing
-    // says so on the face: a row carries no chevron and no control, the way
-    // an absent verb is drawn locally.
-    const html = draw();
-    expect(html).not.toContain('rhist-files');
-    expect(html).not.toContain('chevron-right');
+  it('draws a row that expands the way the local row expands', () => {
+    // THE GAP PHASE 107 LEFT OPEN IS CLOSED. Phase 233 gave the row the local
+    // chevron, which is the affordance, and it points down when the row is
+    // open. There is still no second set of file-row classes: the rows are
+    // `.scm-hfile` from ./scm.css, so the two Histories cannot drift apart.
+    const closed = draw();
+    expect(closed).toContain('chevron-right');
+    expect(closed).not.toContain('rhist-files');
+    const open = draw(
+      {},
+      {
+        expanded: new Set([hashOf(1)]),
+        details: { [hashOf(1)]: { files: [{ path: 'a.ts', status: 'M' }] } }
+      }
+    );
+    expect(open).toContain('chevron-down');
+    expect(open).not.toContain('rhist-files');
   });
 
   it('draws every sentence about the whole answer outside the scrolling body', () => {
@@ -927,7 +1182,11 @@ const EVERY: readonly string[] = [
   copy.historyNotConnected(L),
   copy.historyNoAnswer(L),
   copy.HISTORY_NO_BRIDGE,
-  copy.historyMarksCut(50, L)
+  copy.historyMarksCut(50, L),
+  // PHASE 233. The one sentence the file half added, and it is a TOAST
+  // rather than a line on the face: the local History says
+  // "Could not load the commit" the same way when its own detail read fails.
+  copy.historyFilesNoAnswer(L)
 ];
 
 /** The one label, which is a control's hover title and not a sentence. */
@@ -936,7 +1195,8 @@ const LABELS: readonly string[] = [copy.historyCeiling(REMOTE_HISTORY_MAX_COMMIT
 describe('the house writing rules, over every Phase 107 sentence', () => {
   it('reads a set of sentences rather than nothing', () => {
     // PHASE 228 took seven off, so seventeen became nine, plus one label.
-    expect(EVERY.length).toBe(9);
+    // PHASE 233 added one, the toast a failed file read raises.
+    expect(EVERY.length).toBe(10);
     expect(LABELS.length).toBe(1);
   });
 

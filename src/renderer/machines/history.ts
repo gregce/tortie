@@ -85,6 +85,18 @@ export function historyNoAnswer(label: string): string {
   return `${label} did not answer, so Tortie could not read the history.`;
 }
 
+/**
+ * PHASE 233. The machine did not answer when a row was expanded, or answered
+ * something this end cannot read.
+ *
+ * It is a toast rather than a sentence on the face, which is where the local
+ * History puts the same failure. The row keeps the waiting shape it has
+ * locally, and expanding it again asks again.
+ */
+export function historyFilesNoAnswer(label: string): string {
+  return `${label} did not answer, so Tortie could not read what that commit changed.`;
+}
+
 /** An older preload has no way to ask a machine anything. */
 export const HISTORY_NO_BRIDGE =
   'This build cannot read the history for a folder on another machine.';

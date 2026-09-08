@@ -43,11 +43,20 @@
  * NO SENTENCE IS COMPOSED HERE. Every word a person reads about this answer is
  * a named export in src/renderer/machines/history.ts, which is the file the
  * vocabulary audit reads.
+ *
+ * PHASE 233 ADDED THE FILES ONE COMMIT CHANGED, keyed the way `depth.ts` keys
+ * its `details`, being the target and the commit. `detail` is read on the
+ * FIRST EXPAND of a row and cached on success, so a row expanded twice asks
+ * once, and a row whose read failed asks again the next time it is expanded,
+ * which is what the local `depth.detail` does. It is still no timer: a person
+ * expands a row, and that is one read.
  */
 
 import { create } from 'zustand';
 import type {
   InstalledGmuxApi,
+  MachineCommitFile,
+  MachineCommitFilesResult,
   MachineHistoryMode,
   MachineHistoryResult
 } from '@shared/ipc';
@@ -56,6 +65,8 @@ import type { GitGraphLogEntry } from '@shared/types';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { targetKey } from '@shared/workspace-target';
 import { gmuxBridge } from '../bridge';
+import { useApp } from '../state/store';
+import { historyFilesNoAnswer, historyNotConnected } from '../machines/history';
 
 /** The machines bridge, or null on a build without one. */
 function machinesBridge(): InstalledGmuxApi['machines'] | null {
@@ -146,6 +157,23 @@ const EMPTY: RemoteHistoryEntry = {
   elapsedMs: 0
 };
 
+/**
+ * PHASE 233. What one commit changed, as the far side's `--name-status` said.
+ *
+ * Held per target and commit, the way `depth.ts` holds a local commit's
+ * detail, so a row expanded twice asks once. Only a good answer is held: a
+ * row whose read failed has no entry and asks again on its next expand.
+ */
+export interface RemoteCommitDetail {
+  readonly files: readonly MachineCommitFile[];
+}
+
+/** The key one commit's detail is held under: the target, then the commit. */
+export const remoteDetailKey = (
+  target: WorkspaceTarget,
+  sha: string
+): string => `${targetKey(target)}\0${sha}`;
+
 /** The entry for one target, or an empty one. Pure, so a render may call it. */
 export function remoteHistoryOf(
   byTarget: Record<string, RemoteHistoryEntry>,
@@ -199,6 +227,23 @@ interface RemoteHistoryState {
   loadMore(target: WorkspaceTarget): Promise<void>;
   /** Drop one target's answer, e.g. when its tab is closed. */
   forget(target: WorkspaceTarget): void;
+  /**
+   * PHASE 233. The files one commit changed, keyed by `remoteDetailKey`.
+   *
+   * A row reads its entry off this map while it is expanded. Absent means
+   * nothing has been read yet, or the last read failed, and the row draws
+   * the same skeleton the local row draws while it waits.
+   */
+  details: Record<string, RemoteCommitDetail>;
+  /**
+   * PHASE 233. Read what one commit changed, once.
+   *
+   * Called on the FIRST EXPAND of a row and at no other moment. Cached on
+   * success, so a second expand asks nothing. Resolves null on a failure the
+   * person has already been told about in a toast, which is `depth.detail`'s
+   * own contract.
+   */
+  detail(target: WorkspaceTarget, sha: string): Promise<RemoteCommitDetail | null>;
 }
 
 export const useRemoteHistory = create<RemoteHistoryState>((set, get) => {
@@ -213,6 +258,9 @@ export const useRemoteHistory = create<RemoteHistoryState>((set, get) => {
       }
     }));
   };
+
+  /** One detail read per commit at a time, so two expands send one ask. */
+  const inflightDetails = new Map<string, Promise<RemoteCommitDetail | null>>();
 
   const read = async (
     target: WorkspaceTarget,
@@ -293,6 +341,7 @@ export const useRemoteHistory = create<RemoteHistoryState>((set, get) => {
 
   return {
     byTarget: {},
+    details: {},
 
     ensure(target) {
       const entry = get().byTarget[targetKey(target)];
@@ -313,11 +362,69 @@ export const useRemoteHistory = create<RemoteHistoryState>((set, get) => {
     forget(target) {
       const key = targetKey(target);
       set((s) => {
-        if (s.byTarget[key] === undefined) return s;
+        // PHASE 233. The two maps are dropped INDEPENDENTLY. Until this phase
+        // there was one and the early return asked about it; a target whose
+        // walk was never held but whose rows had been expanded would have kept
+        // its commits' files for the life of the window, which is a leak with
+        // a path a person walks (open the group, expand a row, close the tab
+        // before the walk ever answered).
+        const prefix = `${key}\0`;
+        const details = { ...s.details };
+        let dropped = 0;
+        for (const held of Object.keys(details)) {
+          if (held.startsWith(prefix)) {
+            delete details[held];
+            dropped += 1;
+          }
+        }
+        const hadEntry = s.byTarget[key] !== undefined;
+        if (!hadEntry && dropped === 0) return s;
         const next = { ...s.byTarget };
         delete next[key];
-        return { byTarget: next };
+        return { byTarget: next, details };
       });
+    },
+
+    detail(target, sha) {
+      const key = remoteDetailKey(target, sha);
+      const cached = get().details[key];
+      if (cached !== undefined) return Promise.resolve(cached);
+      const inflight = inflightDetails.get(key);
+      if (inflight !== undefined) return inflight;
+      const bridge = machinesBridge();
+      if (bridge === null || typeof bridge.readCommitFiles !== 'function') {
+        return Promise.resolve(null);
+      }
+      const toast = useApp.getState().toast;
+      // The label main sent with the last history answer, or the id until it
+      // has. A sentence about a machine names the machine.
+      const labelOf = (answered: string): string =>
+        answered !== ''
+          ? answered
+          : get().byTarget[targetKey(target)]?.machineLabel || target.machineId;
+      const run = bridge
+        .readCommitFiles({ machineId: target.machineId, cwd: target.path, sha })
+        .then((answer: MachineCommitFilesResult): RemoteCommitDetail | null => {
+          if (answer.mode === 'ok') {
+            const held: RemoteCommitDetail = { files: answer.files };
+            set((s) => ({ details: { ...s.details, [key]: held } }));
+            return held;
+          }
+          toast(
+            'error',
+            answer.mode === 'notConnected'
+              ? historyNotConnected(labelOf(answer.machineLabel))
+              : historyFilesNoAnswer(labelOf(answer.machineLabel))
+          );
+          return null;
+        })
+        .catch(() => {
+          toast('error', historyFilesNoAnswer(labelOf('')));
+          return null;
+        })
+        .finally(() => inflightDetails.delete(key));
+      inflightDetails.set(key, run);
+      return run;
     }
   };
 });

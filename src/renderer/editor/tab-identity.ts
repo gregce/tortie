@@ -64,6 +64,26 @@ export function remoteTabId(
 }
 
 /**
+ * PHASE 233. The identity of a tab showing one file OF ONE COMMIT on another
+ * machine.
+ *
+ * It is `remoteTabId` with the commit in it, for the reason the local history
+ * id carries the sha: a file as it was at one commit and the same file's
+ * working copy on that machine are two readings with two buffers, and the
+ * review tab of `src/a.ts` must not be replaced by the history tab of it.
+ * The tab follower never rekeys a commit tab, so a rename over there leaves
+ * this id alone, which is right, because history is immutable.
+ */
+export function remoteCommitTabId(
+  machineId: string,
+  repoPath: string,
+  sha: string,
+  relPath: string
+): string {
+  return `machine:${machineId}:${repoPath}:${sha}:${relPath}`;
+}
+
+/**
  * The identity of a repository's ARCHITECTURE MAP tab (Phase 160), and the
  * name the strip shows on it.
  *
@@ -172,7 +192,13 @@ export function tabTooltipIdentity(tab: EditorTab): string {
   if (tab.diagnostics !== undefined) {
     return 'What Tortie is running right now. One capture, taken when you asked for it, so closing it loses nothing.';
   }
-  if (tab.remote !== undefined) {
+  // PHASE 233. A tab carrying BOTH is one file of one COMMIT on that machine,
+  // and it wears the history line rather than the review one. The review
+  // line's second sentence says the view is read only, which is true of a
+  // commit tab on either computer and which the local commit tab does not
+  // say; drawing it here and not there would be a sentence a person reads
+  // only because the folder is on another machine.
+  if (tab.remote !== undefined && tab.commit === null) {
     return reviewTabTooltip(tab.name, tab.remote.machineLabel);
   }
   if (tab.commit !== null) {

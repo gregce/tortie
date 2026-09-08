@@ -64,6 +64,7 @@ import {
   DIAGNOSTICS_TAB_NAME,
   fileInRepo,
   leftPathFor,
+  remoteCommitTabId,
   remoteTabId,
   tabIdFor
 } from './tab-identity';
@@ -381,7 +382,16 @@ export const useEditor = create<EditorState>((set, get) => {
       const id =
         req.remote === undefined
           ? tabIdFor(req)
-          : remoteTabId(req.remote.machineId, req.remote.repoPath, req.relPath);
+          : req.commit !== undefined
+            ? // PHASE 233. One file of one commit on a machine is its own tab,
+              // beside the review tab of the same file.
+              remoteCommitTabId(
+                req.remote.machineId,
+                req.remote.repoPath,
+                req.commit.sha,
+                req.relPath
+              )
+            : remoteTabId(req.remote.machineId, req.remote.repoPath, req.relPath);
       const now = Date.now();
       const redoubled = lastOpen.id === id && now - lastOpen.at < DOUBLE_OPEN_MS;
       lastOpen = { id, at: now };
@@ -572,6 +582,11 @@ export const useEditor = create<EditorState>((set, get) => {
         // `dirty` goes true because it has: closing the tab prompts to save,
         // which is what makes "Tortie wrote nothing" survivable.
         patchTab(id, { loading: false, dirty: true, savedContents: '' });
+      } else if (req.remote !== undefined && commit !== null) {
+        // PHASE 233. One file of one commit on a machine. One call to main
+        // fills BOTH sides out of that machine's object database, never its
+        // working tree and never this Mac's git.
+        void io.loadRemoteCommitDiff(id, req.remote, commit);
       } else if (req.remote !== undefined) {
         // Phase 73. One call to main fills BOTH sides, from the machine. The
         // worktree loaders are deliberately not run: this file is not on this

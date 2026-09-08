@@ -14,6 +14,9 @@
  *   worktree — loadContents + loadHead, refreshed by `refreshRepo`
  *   history  — loadCommitDiff fills both sides once and nothing else runs
  *   review   — loadRemoteDiff fills both sides once, from another computer
+ *   history on a machine (Phase 233) — loadRemoteCommitDiff fills both sides
+ *              once, from that computer's object database; the tab carries
+ *              both `commit` and `remote` and every refusal of either applies
  * Which is why `refreshRepo` refuses a history tab and a review tab: it is
  * cheaper to state that twice, right where the write would happen, than to
  * rely on every caller remembering.
@@ -98,6 +101,16 @@ export interface TabIo {
    * this Mac is read, and nothing is written on either computer.
    */
   loadRemoteDiff(id: string, remote: OpenFileRemoteRef): Promise<void>;
+  /**
+   * Both sides of one file OF ONE COMMIT on another machine (Phase 233), the
+   * commit's first parent against the commit, out of that machine's object
+   * database. No working tree on either computer is read.
+   */
+  loadRemoteCommitDiff(
+    id: string,
+    remote: OpenFileRemoteRef,
+    commit: OpenFileCommitRef
+  ): Promise<void>;
   /** The working copy of an image (Phase 12.10) — never the text reader. */
   loadImage(id: string, path: string): Promise<void>;
   /** The same image at HEAD — the BEFORE side of the comparison. */
@@ -347,6 +360,86 @@ export function createTabIo(deps: TabIoDeps): TabIo {
           err,
           'That file could not be read on the machine.'
         )
+      });
+    }
+  };
+
+  /**
+   * A HISTORY tab whose commit lives on another machine (Phase 233).
+   *
+   * It is `loadCommitDiff` with one call swapped, exactly as `loadRemoteDiff`
+   * is: the two content fields, the binary answer and the error sentence are
+   * the ones a local commit tab has had since Phase 12, and the one call asks
+   * that machine's object database for `<sha>^` and `<sha>` rather than this
+   * Mac's git. `tab.origRelPath` is the pre-rename path, so the old side is
+   * read at the old path, which is the Phase 11 carried finding (a).
+   *
+   * THE CEILING. Each side crosses cut at REMOTE_FILE_MAX_BYTES, and the far
+   * side counts each side's WHOLE size beside it with a second read, so the
+   * number in the refusal is a measurement and never a floor. A file whose
+   * larger side is over the ceiling is refused with the sentence the editor
+   * already uses for a large remote file, naming that size, and the tab shows
+   * nothing else.
+   *
+   * IT IS REFUSED WHETHER OR NOT SAVING IS ON, which is where it parts from
+   * the review tab above. That refusal exists so a person is not handed a tab
+   * whose every save would be refused, so with saving off it does not apply
+   * and the whole 2 MiB read is shown. Here BOTH SIDES ARE CUT at the ceiling
+   * by the script itself, so a file over it cannot be shown whole at all and
+   * a tab drawn from the cut bytes would be a diff of two files neither of
+   * which is the one that was asked for.
+   */
+  const loadRemoteCommitDiff = async (
+    id: string,
+    remote: OpenFileRemoteRef,
+    commit: OpenFileCommitRef
+  ): Promise<void> => {
+    const machines = gmux ? gmux.machines : undefined;
+    const tab = deps.byId(id);
+    if (tab === undefined) return;
+    if (
+      machines === undefined ||
+      typeof machines.readCommitFile !== 'function'
+    ) {
+      deps.patch(id, {
+        loading: false,
+        error: 'This build cannot show files from another machine.'
+      });
+      return;
+    }
+    try {
+      const pair = await machines.readCommitFile({
+        machineId: remote.machineId,
+        cwd: remote.repoPath,
+        sha: commit.sha,
+        path: tab.relPath,
+        origPath: tab.origRelPath
+      });
+      if (pair.binary) {
+        deps.patch(id, {
+          loading: false,
+          error: binaryFileNote(tab.name)
+        });
+        return;
+      }
+      const bytes = Math.max(pair.oldBytes, pair.newBytes);
+      if (bytes > REMOTE_FILE_MAX_BYTES) {
+        deps.patch(id, {
+          loading: false,
+          error: remoteOpenTooLarge(bytes, remote.machineLabel)
+        });
+        return;
+      }
+      deps.patch(id, {
+        headContents: pair.oldContents,
+        savedContents: pair.newContents,
+        loading: false,
+        error: null
+      });
+    } catch (err) {
+      deps.patch(id, {
+        loading: false,
+        error: errorSentence(err, 'The commit could not be read.')
       });
     }
   };
@@ -704,6 +797,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     loadHead,
     loadCommitDiff,
     loadRemoteDiff,
+    loadRemoteCommitDiff,
     loadImage,
     loadImageHead,
     save,

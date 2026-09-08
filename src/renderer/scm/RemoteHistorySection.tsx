@@ -21,11 +21,19 @@
  *    cherry pick and no revert. The local History has all four. Each of them
  *    would have to write on somebody else's computer, and the group says on
  *    screen that it changes nothing over there.
- * 4. A ROW IS NOT A CONTROL. It does not expand, clicking it opens nothing and
- *    it has no menu. Reading the files one commit changed needs two more reads
- *    and this round shipped one, so a row that lit up under the pointer would
- *    promise something that never happens. `historyFilesElsewhere` says so
- *    under the group.
+ * 4. A ROW IS THE LOCAL CONTROL, AND NOTHING MORE. PHASE 233 MADE IT ONE. A
+ *    click, Enter or the right arrow expands it into the files that commit
+ *    changed, read once from that machine through `useRemoteHistory.detail`,
+ *    and a file row opens the two sided diff of the commit's first parent
+ *    against the commit through the same request a local file row sends, with
+ *    the machine on it so the editor asks that machine rather than this Mac.
+ *    The row wears the local row's own classes, `scm-hrow` and `scm-hfile`,
+ *    so the two cannot drift apart in shape, and the keyboard is the local
+ *    list's, being up, down, Enter, right and left. WHAT IT STILL DOES NOT
+ *    HAVE is a menu, because every verb on the local row's menu writes, and
+ *    rule 3 above holds. Until Phase 233 this rule read the other way, that
+ *    a row was not a control, because the files were not read; Phase 228 had
+ *    already taken the sentence saying so off the face.
  *
  * ## The three honesty fields, and why the count is three
  *
@@ -96,9 +104,9 @@
  * sentence saying so and presses Refresh, which costs one press.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GitGraphLogEntry } from '@shared/types';
-import type { MachineHistoryMode } from '@shared/ipc';
+import type { MachineCommitFile, MachineHistoryMode } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { targetKey } from '@shared/workspace-target';
 import { Codicon } from '../icons';
@@ -121,14 +129,17 @@ import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
 import type { CappedRow, GraphLayout, GraphRow } from './graph';
 import { badgesFromRefs, RefPills, refsAriaClause } from './ref-badges';
 import type { RefBadge } from './ref-badges';
-import { formatRelative, shortSha } from './format';
+import { fileBadge } from './file-badge';
+import { formatRelative, renamedFromTitle, shortSha, splitPath } from './format';
+import { requestRemoteCommitFileOpen } from './open-commit-file';
 import {
   machineAnsweredHistory,
   remoteHistoryAvailable,
   remoteHistoryOf,
   useRemoteHistory
 } from './remote-history';
-import type { RemoteHistoryEntry } from './remote-history';
+import type { RemoteCommitDetail, RemoteHistoryEntry } from './remote-history';
+import { remoteDetailKey } from './remote-history';
 import { usePersistedBool } from './sections';
 import './remote-history.css';
 
@@ -176,7 +187,28 @@ export interface RemoteHistoryPanelProps {
   onToggle: () => void;
   onRefresh: () => void;
   onLoadMore: () => void;
+  /** PHASE 233. The commits whose file rows are drawn. */
+  expanded: ReadonlySet<string>;
+  /** PHASE 233. What each expanded commit changed, keyed by its sha. */
+  details: Readonly<Record<string, RemoteCommitDetail>>;
+  /** PHASE 233. A row was pressed. The section reads on the first expand. */
+  onToggleRow: (sha: string) => void;
+  /** PHASE 233. A file row was pressed. `preview` is single against double. */
+  onOpenFile: (file: MachineCommitFile, commit: GitGraphLogEntry, preview: boolean) => void;
 }
+
+/** The keyboard model, being the local History's own three kinds of row. */
+type HistItem =
+  | { kind: 'commit'; sha: string }
+  | { kind: 'file'; sha: string; index: number }
+  | { kind: 'more' };
+
+const itemId = (item: HistItem): string =>
+  item.kind === 'commit'
+    ? `c:${item.sha}`
+    : item.kind === 'file'
+      ? `f:${item.sha}:${item.index}`
+      : 'more';
 
 /**
  * The whole group, pure over its props.
@@ -195,8 +227,15 @@ export function RemoteHistoryPanel({
   now,
   onToggle,
   onRefresh,
-  onLoadMore
+  onLoadMore,
+  expanded,
+  details,
+  onToggleRow,
+  onOpenFile
 }: RemoteHistoryPanelProps): React.JSX.Element {
+  /** PHASE 233. The row the keyboard is on, as the local list keeps it. */
+  const [cursor, setCursor] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   /**
    * The list's own node, held in state rather than in a ref.
    *
@@ -268,9 +307,94 @@ export function RemoteHistoryPanel({
     return map;
   }, [entry.entries]);
 
+  // -- the keyboard, the local list's own -----------------------------------
+  const items = useMemo<HistItem[]>(() => {
+    const list: HistItem[] = [];
+    for (const commit of entry.entries) {
+      list.push({ kind: 'commit', sha: commit.hash });
+      if (expanded.has(commit.hash)) {
+        const detail = details[commit.hash];
+        if (detail !== undefined) {
+          detail.files.forEach((_f, i) =>
+            list.push({ kind: 'file', sha: commit.hash, index: i })
+          );
+        }
+      }
+    }
+    if (entry.hasMore && !entry.atCeiling) list.push({ kind: 'more' });
+    return list;
+  }, [entry.entries, entry.hasMore, entry.atCeiling, expanded, details]);
+
+  const entryBySha = useMemo(() => {
+    const map = new Map<string, GitGraphLogEntry>();
+    for (const commit of entry.entries) map.set(commit.hash, commit);
+    return map;
+  }, [entry.entries]);
+
+  const moveCursor = useCallback(
+    (delta: 1 | -1): void => {
+      if (items.length === 0) return;
+      const idx = items.findIndex((it) => itemId(it) === cursor);
+      const nextIdx =
+        idx === -1
+          ? delta === 1
+            ? 0
+            : items.length - 1
+          : Math.min(Math.max(idx + delta, 0), items.length - 1);
+      const next = items[nextIdx];
+      if (next === undefined) return;
+      const id = itemId(next);
+      setCursor(id);
+      listRef.current
+        ?.querySelector(`[data-hist="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    },
+    [items, cursor]
+  );
+
+  const onListKeyDown = (e: React.KeyboardEvent): void => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveCursor(e.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    const current = items.find((it) => itemId(it) === cursor) ?? items[0];
+    if (current === undefined) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (current.kind === 'commit') onToggleRow(current.sha);
+      else if (current.kind === 'file') {
+        const file = details[current.sha]?.files[current.index];
+        const commit = entryBySha.get(current.sha);
+        // Enter is an explicit activation, so the tab is kept, as locally.
+        if (file !== undefined && commit !== undefined) {
+          onOpenFile(file, commit, false);
+        }
+      } else if (!busy) onLoadMore();
+    } else if (e.key === 'ArrowRight' && current.kind === 'commit') {
+      e.preventDefault();
+      if (!expanded.has(current.sha)) onToggleRow(current.sha);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (current.kind === 'commit' && expanded.has(current.sha)) {
+        onToggleRow(current.sha);
+      } else if (current.kind === 'file') {
+        const id = itemId({ kind: 'commit', sha: current.sha });
+        setCursor(id);
+        listRef.current
+          ?.querySelector(`[data-hist="${CSS.escape(id)}"]`)
+          ?.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  };
+
   const renderRow = (commit: GitGraphLogEntry): React.JSX.Element => {
-    const graph = graphBySha.get(commit.hash);
-    const badges = badgesBySha.get(commit.hash) ?? [];
+    const sha = commit.hash;
+    const graph = graphBySha.get(sha);
+    const badges = badgesBySha.get(sha) ?? [];
+    const isExpanded = expanded.has(sha);
+    const id = itemId({ kind: 'commit', sha });
+    const detail = details[sha];
     const sync =
       commit.unpushed === true
         ? 'unpushed'
@@ -285,47 +409,141 @@ export function RemoteHistoryPanel({
           ? 'not pulled yet'
           : '';
     const age = formatRelative(commit.authorDate, now);
+    /**
+     * The gutter for this commit's file rows: every lane still live below it,
+     * drawn as a plain pass through, so expanding a commit does not sever the
+     * spine. It is the local row's own rule.
+     */
+    const laneSpacer =
+      graph === undefined ? null : (
+        <CommitGraphSpacer lanes={graph.full.out} columns={columns} />
+      );
     return (
-      <div
-        key={commit.hash}
-        role="listitem"
-        // The gutter is aria-hidden and the age can be shed for width, so the
-        // accessible name is where the whole row lives.
-        aria-label={`${commit.subject}, ${commit.authorName}, ${age}${
-          commit.parents.length > 1
-            ? `, merge of ${String(commit.parents.length)} parents`
-            : ''
-        }${refsAriaClause(badges)}${sync !== undefined ? `, ${syncWord}` : ''}${
-          graph !== undefined && graph.capped.bundleColumn >= 0
-            ? ', more branches than fit'
-            : ''
-        }`}
-        className="rhist-row"
-        data-rhist={shortSha(commit.hash)}
-        {...(sync !== undefined ? { 'data-sync': sync } : {})}
-      >
-        {graph !== undefined ? (
-          <CommitGraph
-            row={graph.capped}
-            sha={commit.hash}
-            parentCount={commit.parents.length}
-            columns={columns}
-            color={graph.full.color}
-            isHead={entry.headSha !== null && commit.hash === entry.headSha}
-            unpushed={commit.unpushed === true}
-          />
-        ) : null}
-        <span className="rhist-subject">{commit.subject}</span>
-        <span className="rhist-author">{commit.authorName}</span>
-        <span className="rhist-space" />
-        {/* The pill for a branch on a server carries a tooltip ending in when
-            this clone last fetched, and there is no such reading over there.
-            Null is the honest value. Phase 107 drew a sentence under the group
-            saying what it means, and Phase 228 took it off, because the local
-            History carries no paragraph about its marks either. */}
-        <RefPills badges={badges} lastFetchedAt={null} now={now} />
-        <span className="rhist-age num">{age}</span>
-      </div>
+      <React.Fragment key={sha}>
+        <div
+          role="option"
+          aria-selected={cursor === id}
+          aria-expanded={isExpanded}
+          // The gutter is aria-hidden and the age can be shed for width, so
+          // the accessible name is where the whole row lives.
+          aria-label={`${commit.subject}, ${commit.authorName}, ${age}${
+            commit.parents.length > 1
+              ? `, merge of ${String(commit.parents.length)} parents`
+              : ''
+          }${refsAriaClause(badges)}${sync !== undefined ? `, ${syncWord}` : ''}${
+            graph !== undefined && graph.capped.bundleColumn >= 0
+              ? ', more branches than fit'
+              : ''
+          }`}
+          // The local row's own classes, so the two rows share one shape in
+          // ./scm.css; `rhist-row` is the marker the probes and tests read.
+          className={[
+            'scm-hrow',
+            'rhist-row',
+            cursor === id ? 'selected' : '',
+            isExpanded ? 'expanded' : ''
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-hist={id}
+          data-rhist={shortSha(sha)}
+          {...(sync !== undefined ? { 'data-sync': sync } : {})}
+          onClick={() => {
+            setCursor(id);
+            onToggleRow(sha);
+          }}
+        >
+          {graph !== undefined ? (
+            <CommitGraph
+              row={graph.capped}
+              sha={sha}
+              parentCount={commit.parents.length}
+              columns={columns}
+              color={graph.full.color}
+              isHead={entry.headSha !== null && sha === entry.headSha}
+              unpushed={commit.unpushed === true}
+            />
+          ) : null}
+          <span className="scm-hchevron" aria-hidden="true">
+            <Codicon
+              name={isExpanded ? 'chevron-down' : 'chevron-right'}
+              size="sm"
+            />
+          </span>
+          <span className="scm-hsubject">{commit.subject}</span>
+          <span className="scm-hauthor">{commit.authorName}</span>
+          <span className="scm-row-space" />
+          {/* The pill for a branch on a server carries a tooltip ending in when
+              this clone last fetched, and there is no such reading over there.
+              Null is the honest value. Phase 107 drew a sentence under the group
+              saying what it means, and Phase 228 took it off, because the local
+              History carries no paragraph about its marks either. */}
+          <RefPills badges={badges} lastFetchedAt={null} now={now} />
+          <span className="scm-hage num">{age}</span>
+        </div>
+        {isExpanded
+          ? detail === undefined
+            ? (
+              <div className="scm-hfile scm-hfile-loading" aria-hidden="true">
+                {laneSpacer}
+                <span className="scm-skeleton-row" style={{ width: '56%' }} />
+              </div>
+            )
+            : detail.files.length === 0
+              ? (
+                <div className="scm-hfile scm-hfile-empty">
+                  {laneSpacer}
+                  No files changed
+                </div>
+              )
+              : detail.files.map((file, index) => {
+                  const fid = itemId({ kind: 'file', sha, index });
+                  const badge = fileBadge(file.status);
+                  const { dir, base } = splitPath(file.path);
+                  return (
+                    <div
+                      key={fid}
+                      role="option"
+                      aria-selected={cursor === fid}
+                      aria-label={`${base}, ${badge.word}`}
+                      data-hist={fid}
+                      data-rhist-file={shortSha(sha)}
+                      className={`scm-hfile${cursor === fid ? ' selected' : ''}`}
+                      title={
+                        file.origPath !== undefined
+                          ? renamedFromTitle(file.path, file.origPath, file.status)
+                          : file.path
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCursor(fid);
+                        onOpenFile(file, commit, true);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onOpenFile(file, commit, false);
+                      }}
+                    >
+                      {laneSpacer}
+                      <span
+                        className={`scm-badge ${badge.cls}`}
+                        aria-hidden="true"
+                      >
+                        {badge.letter}
+                      </span>
+                      <span
+                        className={`scm-row-name${file.status === 'D' ? ' deleted' : ''}`}
+                      >
+                        {base}
+                      </span>
+                      {dir !== '' ? (
+                        <span className="scm-row-dir">{dir}</span>
+                      ) : null}
+                    </div>
+                  );
+                })
+          : null}
+      </React.Fragment>
     );
   };
 
@@ -340,7 +558,14 @@ export function RemoteHistoryPanel({
       return <div className="rhist-note">{sentence}</div>;
     }
     return (
-      <div role="list" className="rhist-list">
+      <div
+        ref={listRef}
+        role="listbox"
+        aria-label="Commit history"
+        tabIndex={0}
+        className="rhist-list"
+        onKeyDown={onListKeyDown}
+      >
         {entry.entries.map(renderRow)}
         {/* PHASE 228. THE FAR END IS THIS CONTROL DRAWN DISABLED. Every commit
             Tortie will read from another machine has been read and older ones
@@ -466,6 +691,35 @@ export function RemoteHistorySection({
   const ensure = useRemoteHistory((s) => s.ensure);
   const refresh = useRemoteHistory((s) => s.refresh);
   const loadMore = useRemoteHistory((s) => s.loadMore);
+  const detail = useRemoteHistory((s) => s.detail);
+  const heldDetails = useRemoteHistory((s) => s.details);
+  // PHASE 233. Which rows are open, per mount, exactly as the local section
+  // keeps its own set. Nothing about it is persisted.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggleRow = useCallback(
+    (sha: string): void => {
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(sha)) {
+          next.delete(sha);
+        } else {
+          next.add(sha);
+          void detail(target, sha);
+        }
+        return next;
+      });
+    },
+    [detail, target]
+  );
+  // The details this target holds, keyed by sha for the panel.
+  const details = useMemo(() => {
+    const out: Record<string, RemoteCommitDetail> = {};
+    for (const sha of expanded) {
+      const held = heldDetails[remoteDetailKey(target, sha)];
+      if (held !== undefined) out[sha] = held;
+    }
+    return out;
+  }, [expanded, heldDetails, target]);
   // Read once per mount. The bridge is a property of the build, not of state.
   const available = useMemo(() => remoteHistoryAvailable(), []);
   // Collapsed by default, per target, exactly like the local History section.
@@ -497,6 +751,22 @@ export function RemoteHistorySection({
       onToggle={() => setCollapsed(!collapsed)}
       onRefresh={() => void refresh(target)}
       onLoadMore={() => void loadMore(target)}
+      expanded={expanded}
+      details={details}
+      onToggleRow={toggleRow}
+      onOpenFile={(file, commit, preview) =>
+        // ONE COMPOSER, in ./open-commit-file.ts, which is where the LOCAL
+        // file row's open is composed too. The label is the one that machine
+        // sent with the last answer, or the tab's own until it has.
+        requestRemoteCommitFileOpen(
+          target.machineId,
+          entry.machineLabel !== '' ? entry.machineLabel : label,
+          target.path,
+          file,
+          commit,
+          preview
+        )
+      }
     />
   );
 }

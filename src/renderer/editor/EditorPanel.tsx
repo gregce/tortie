@@ -946,7 +946,9 @@ activeTab.error !== null ? (
               read-only.
             </span>
           </div>
-        ) : activeTab.remote !== undefined && remoteWriteRoot === null ? (
+        ) : activeTab.remote !== undefined &&
+          activeTab.commit === null &&
+          remoteWriteRoot === null ? (
           // PHASE 90.3. The fourth read-only reason, and the only one whose
           // file is not on this Mac. It says two things and both are needed.
           // The file is over there, which is why the bytes on screen may be
@@ -957,6 +959,12 @@ activeTab.error !== null ? (
           // PHASE 101 MADE IT CONDITIONAL. A tab on a machine a person has let
           // Tortie save on draws NO band at all, and behaves like a tab on this
           // Mac. The tab tooltip still names the machine, so nothing is hidden.
+          //
+          // PHASE 233 ASKS THE COMMIT FIRST. A tab carrying both is one file of
+          // one commit on that machine, and it draws the commit band below,
+          // which is the sentence the LOCAL commit tab draws, word for word. A
+          // remote-only band over a remote-only reason would be a sentence a
+          // person reads only because the folder is elsewhere.
           // A band saying the file cannot be saved, over an editor whose dirty
           // dot clears on Save, would be a sentence contradicting the thing
           // beside it, and two behaviours on one surface are harder to learn
