@@ -1,5 +1,6 @@
 /**
- * Rewind, phrase by phrase: the pure half (Phase 227).
+ * Rewind, phrase by phrase: the pure half (Phase 227), and accept, which is
+ * the same function pointed at the other destination (Phase 238).
  *
  * Research 83 section B measured the rule and this module is that rule ported
  * as it was proved, from `.p222/fix/mix.ts` and the fix round scripts beside
@@ -344,4 +345,104 @@ export function rewindRefusalKey(result: FsGuardedWriteResult): RewindRefusal | 
     default:
       return 'io';
   }
+}
+
+/**
+ * ACCEPT (Phase 238): the same function pointed at the other destination.
+ *
+ * Research 83 B.3 stated the rule as one table and B.5 drove it. Rewinding a
+ * change writes THE FILE as `mix(runs, E \ {e})` and leaves the baseline where
+ * it is; accepting a change writes THE BASELINE as `mix(runs, {e})` and leaves
+ * the file exactly as it was, md5 unchanged. That asymmetry is the whole
+ * safety argument for this half: a rewind writes the person's prose file, and
+ * an accept writes only Tortie's own shadow copy, so the worst an accept can
+ * cost is the narrowing (research 83 A3.4) and never a byte on disk.
+ *
+ * `acceptChange` is therefore `mix` with a take set of exactly one, which is
+ * why it needs neither the baseline nor the current text as an argument: the
+ * run list IS the pair, `mix(∅) === baseline` and `mix(all) === current`, both
+ * pinned by p227-rewind.test.ts and re-derived here over all 256 subsets.
+ */
+export function acceptChange(
+  runs: readonly RedlineRun[],
+  changes: readonly RedlineChange[],
+  index: number
+): string {
+  return mix(runs, changes, new Set([index]));
+}
+
+/**
+ * Accepting everything is one assignment: the baseline becomes the bytes the
+ * person is looking at (research 83 B.5, `ACCEPT ALL : baseline := mix(runs,
+ * E) === the file bytes`, and the recomposed redline is then empty).
+ *
+ * It takes the CURRENT text rather than composing `mix(runs, changes, all)`,
+ * and that is deliberate. The two are equal — the test pins them equal over
+ * the fixture — but they are not equally safe: `composeRedlineDocument` has
+ * caps, and a picture drawn under a cap that a later round changed would make
+ * the composed form drift from the bytes in front of the person, while this
+ * form cannot drift from them at all.
+ */
+export function acceptAll(current: string): string {
+  return current;
+}
+
+/** Everything the accept decision needs, so a gate can drive it over strings. */
+export interface AcceptInput {
+  /** The shadow baseline the picture was drawn against. */
+  baseline: string;
+  /** The baseline generation now, read fresh at the press. */
+  baselineGeneration: number;
+  /** The generation the picture the person pressed was drawn against. */
+  drawnGeneration: number;
+  /** The text in front of the person: the live buffer, never savedContents. */
+  current: string;
+  /** Whether the tab's read was truncated by the read cap. */
+  truncated: boolean;
+  /** The change pressed, or null for accept-all, which names no change. */
+  pressed: PressedIdentity | null;
+}
+
+export type AcceptPlan =
+  | { outcome: 'accept'; baseline: string }
+  | { outcome: 'refused'; why: RewindRefusal };
+
+/**
+ * THE ACCEPT DECISION, pure over the baseline and the bytes on screen.
+ *
+ * THE GENERATION GUARD IS FIRST AND FOR THE SAME REASON IT IS FIRST IN
+ * `planRewind` (research 83 B.8a). An accept is the FIRST gesture in this
+ * product that moves the baseline often, so two accepts pressed against one
+ * drawn picture are an ordinary sequence rather than a contrived one: the
+ * second press carries offsets into a coordinate system the first press moved,
+ * and without the guard it would resolve to whichever change now happens to
+ * sit at that offset. It refuses and the view redraws.
+ *
+ * A TRUNCATED READ IS REFUSED, because the right-hand side of a truncated tab
+ * is not the file. Accepting it would move the baseline to bytes that are a
+ * prefix of the document, and every later redline would then draw the unread
+ * tail as an arrival. Nothing is written either way, so the cost of the
+ * refusal is a sentence.
+ *
+ * There is no `decodeLoss` branch and no re-read, because nothing here reaches
+ * a file: this decision's whole output is a string that becomes the tab's own
+ * in-memory baseline.
+ */
+export function planAccept(input: AcceptInput): AcceptPlan {
+  if (input.drawnGeneration !== input.baselineGeneration) {
+    return { outcome: 'refused', why: 'baselineMoved' };
+  }
+  if (input.truncated) return { outcome: 'refused', why: 'fileTooLarge' };
+  if (input.pressed === null) {
+    return { outcome: 'accept', baseline: acceptAll(input.current) };
+  }
+  const doc = composeRedlineDocument(input.baseline, input.current);
+  const changes = changesOf(doc.runs);
+  const resolution = resolvePress(changes, input.pressed);
+  if (resolution.kind === 'many') return { outcome: 'refused', why: 'ambiguous' };
+  if (resolution.kind === 'none') return { outcome: 'refused', why: 'phraseMoved' };
+  return {
+    outcome: 'accept',
+    baseline: acceptChange(doc.runs, changes, resolution.index)
+  };
 }

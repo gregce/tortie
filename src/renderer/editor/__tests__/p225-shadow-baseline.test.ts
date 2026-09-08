@@ -140,14 +140,16 @@ beforeEach(() => {
 describe('nextBaseline, one clause a test', () => {
   it('the first successful read seeds the baseline, named as the read', () => {
     // PHASE 239 added `takenAt`, which moves with the generation and never
-    // otherwise, so the seed is handed its own clock here.
+    // otherwise, so the seed is handed its own clock here. PHASE 238 added
+    // `acceptedAt`, which only an accept fills in.
     const next = nextBaseline(NO_BASELINE, { kind: 'read', contents: 'a\n' }, 111);
     expect(next).toEqual({
       text: 'a\n',
       from: 'read',
       generation: 1,
       headSeen: null,
-      takenAt: 111
+      takenAt: 111,
+      acceptedAt: null
     });
   });
 
@@ -176,7 +178,8 @@ describe('nextBaseline, one clause a test', () => {
       from: 'commit',
       generation: 2,
       headSeen: 'HEAD\n',
-      takenAt: 222
+      takenAt: 222,
+      acceptedAt: null
     });
   });
 

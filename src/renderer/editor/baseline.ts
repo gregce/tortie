@@ -9,11 +9,21 @@
  *   with no HEAD version, the first bytes Tortie successfully read. A HEAD
  *   version Tortie has not seen before wins outright, whatever its date.
  *
- * In THIS phase there is no accept, so the baseline is seeded at the first
- * successful read, re-seeded when HEAD moves, and otherwise immutable. What
- * advances it is never the file changing (research 83 policy Z: a baseline
- * that follows the file always equals it and draws nothing, ever), never the
- * person typing or saving, never a look at the view, never a tab switch.
+ * PHASE 238 ADDED THE ACCEPT, which is research 83 A2.2's second advancing
+ * gesture and the one the person makes deliberately. So the baseline is
+ * seeded at the first successful read, re-seeded when HEAD moves, moved by an
+ * accept, and otherwise immutable. What advances it is never the file changing
+ * (research 83 policy Z: a baseline that follows the file always equals it and
+ * draws nothing, ever), never the person typing or saving (Phase 237, and
+ * `conformance:redline` rule 17 scans the typing files for it), never a look
+ * at the view, never a tab switch.
+ *
+ * THE GENERATION MOVES ON AN ACCEPT exactly as it moves on a re-seed, and
+ * that is the whole of research 83 B.8a: every drawn rewind identity is an
+ * offset INTO the baseline, so a baseline that moved under a drawn picture
+ * moved that picture's coordinate system. An accept is the first gesture in
+ * this product that moves it often, which is why the guard is proved under
+ * one rather than merely shipped beside it.
  *
  * This module is pure on purpose. It takes the state a tab holds and one
  * event, and answers the next state, so the rule can be pinned clause by
@@ -35,7 +45,7 @@ import { fileInRepo } from './tab-identity';
 import type { EditorTab } from './tab-types';
 
 /** Where the baseline's bytes came from, which is what the face names. */
-export type BaselineOrigin = 'commit' | 'read';
+export type BaselineOrigin = 'commit' | 'read' | 'accept';
 
 export interface BaselineState {
   /** The bytes the redline draws against, or null while nothing has seeded it. */
@@ -69,6 +79,18 @@ export interface BaselineState {
    * reaches no bridge and it is written nowhere.
    */
   takenAt: number | null;
+  /**
+   * PHASE 238. When the person accepted, so the face can say *"since you
+   * accepted, 14:02"* (research 83 A4.2 ruling 1). Null for every other
+   * origin, because only an accept is an act with a moment.
+   *
+   * IT IS NOT A SECOND CLOCK. Phases 238 and 239 landed a day apart and each
+   * added a moment to this state; the accept branch below writes ONE number
+   * into both fields, so `acceptedAt` is `takenAt` narrowed to the one origin
+   * that is a person's act, and the two sentences the face can draw can never
+   * name different times for the same seed.
+   */
+  acceptedAt: number | null;
 }
 
 /** A tab that has read nothing and heard nothing from git. */
@@ -77,7 +99,8 @@ export const NO_BASELINE: BaselineState = Object.freeze({
   from: null,
   generation: 0,
   headSeen: null,
-  takenAt: null
+  takenAt: null,
+  acceptedAt: null
 });
 
 /**
@@ -90,7 +113,16 @@ export const NO_BASELINE: BaselineState = Object.freeze({
  */
 export type BaselineEvent =
   | { kind: 'read'; contents: string }
-  | { kind: 'head'; contents: string };
+  | { kind: 'head'; contents: string }
+  /**
+   * PHASE 238. The person accepted: one change, in which case `contents` is
+   * `mix(runs, {e})`, or all of them, in which case it is the bytes in front
+   * of them. Either way the baseline becomes those bytes and the generation
+   * moves EXACTLY as it moves on a re-seed, because a moved baseline is a
+   * moved coordinate system whatever moved it (research 83 B.8a). Nothing is
+   * written to disk on this path, which is what makes it the safe half.
+   */
+  | { kind: 'accept'; contents: string; at: number };
 
 /**
  * The next baseline state. Answers the SAME object when nothing changed, so a
@@ -115,7 +147,20 @@ export function nextBaseline(
       from: 'read',
       generation: current.generation + 1,
       headSeen: current.headSeen,
-      takenAt: now
+      takenAt: now,
+      acceptedAt: null
+    };
+  }
+  if (event.kind === 'accept') {
+    return {
+      text: event.contents,
+      from: 'accept',
+      generation: current.generation + 1,
+      headSeen: current.headSeen,
+      // The accept's own moment is the seed's moment. One number, two fields,
+      // so no face can name two times for one accept.
+      takenAt: event.at,
+      acceptedAt: event.at
     };
   }
   // A HEAD answer already seen moves nothing.
@@ -130,7 +175,8 @@ export function nextBaseline(
     from: 'commit',
     generation: current.generation + 1,
     headSeen: event.contents,
-    takenAt: now
+    takenAt: now,
+    acceptedAt: null
   };
 }
 
@@ -181,6 +227,16 @@ export function redlineWithoutHead(
  */
 export function baselineName(state: BaselineState | undefined): string | null {
   if (state === undefined || state.from === null) return null;
+  // PHASE 238. An accept names its own moment, because a person who accepted
+  // twice this afternoon needs to know which one they are looking at, and
+  // research 83 A4.2 ruling 1 already wrote the words: *"since you accepted,
+  // 14:02"*. The other two origins have no moment to name — "the last commit"
+  // is git's and "you opened this file" is the tab's.
+  if (state.from === 'accept') {
+    return state.acceptedAt === null
+      ? 'you accepted'
+      : `you accepted at ${clockTime(state.acceptedAt)}`;
+  }
   return state.from === 'commit' ? 'the last commit' : 'you opened this file';
 }
 
@@ -191,6 +247,11 @@ export function baselineName(state: BaselineState | undefined): string | null {
  * be pinned character for character in a test that does not have to know the
  * runner's locale, and so it is the same four digits on every machine. It is
  * the shortest form that says WHEN, which is the whole reason `takenAt` exists.
+ *
+ * THERE IS ONE CLOCK IN THIS MODULE AND THAT IS THE POINT. Phase 238 wrote a
+ * locale one for the accept sentence and Phase 239 wrote this one for the
+ * opening sentence; two would put `2:02 PM` and `14:02` on the same face, so
+ * the accept reads this one too.
  */
 export function clockTime(ms: number): string {
   const at = new Date(ms);
@@ -259,13 +320,17 @@ export function baselineSentence(
   // existed or by a caller that passed no clock; the sentence degrades to the
   // words without a time rather than printing a wrong one.
   const at = state?.takenAt ?? null;
+  // PHASE 238. An accept's name ALREADY carries its moment, because that is
+  // the one origin a person made themselves and the moment is half of what
+  // they are being told. Appending the time again would read "since you
+  // accepted at 14:02 at 14:02".
+  const named =
+    state?.from === 'commit' || state?.from === 'accept' || at === null
+      ? name
+      : `${name} at ${clockTime(at)}`;
   const since =
     face.empty === true
-      ? `Nothing has changed since ${
-          state?.from === 'commit' || at === null
-            ? name
-            : `${name} at ${clockTime(at)}`
-        }.`
+      ? `Nothing has changed since ${named}.`
       : `Marked since ${name}, for as long as this tab is open.`;
   return dirty
     ? `${since} Not refreshed from disk while there are unsaved edits.`
@@ -289,6 +354,15 @@ export function baselineDetail(
   const name = baselineName(state);
   if (name === null) return null;
   const lasts = 'The marking lasts for as long as this tab is open.';
+  // PHASE 238. An accepted baseline is neither the commit nor the bytes the
+  // tab opened on, so it gets its own two sentences rather than being told it
+  // has no committed version to compare against, which after an accept is
+  // beside the point whether or not it is true.
+  if (state?.from === 'accept') {
+    return face.empty === true
+      ? `Everything in this file has been accepted, so there is nothing left to mark. ${lasts}`
+      : `Only what changed since you accepted is marked. ${lasts}`;
+  }
   if (state?.from === 'commit') {
     return face.empty === true
       ? `This file is the same as its last committed version. ${lasts}`

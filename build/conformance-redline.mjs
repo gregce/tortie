@@ -370,8 +370,22 @@ function findRedlineMounts(source) {
 // be named ONLY in the one permitted file, where the guarded write is reached.
 const CALL_SITE_FILE = 'src/renderer/editor/redline-write.ts';
 const CALL_SITE_FN = 'applyRewind';
+// PHASE 238 TOOK `acceptChange` OUT OF THIS LIST, AND THE REASON IS THE
+// PARAGRAPH RATHER THAN THE EDIT. The word was here as a PROXY for "an accept
+// writes a file", which was true while there was no accept: Phase 227's own
+// header said "Accepting a change writes a file, which is a feature with
+// different risks". Research 83 B.3 and B.5 measured the opposite and Phase
+// 238 shipped it: accepting change `e` writes THE BASELINE as `mix(runs, {e})`
+// and the file's md5 is unchanged, so `acceptChange` in ./rewind.ts is a pure
+// string function and banning its NAME bans the safe half of the feature while
+// banning nothing dangerous. What replaced the proxy is the real property,
+// asked two ways. Structurally, an accept that wrote a file would have to name
+// `writeFile`, an `fs:` channel or the bridge, and all three still fail here
+// and in every redline file but the one call site — the plants below drive
+// exactly that shape. Behaviourally, rule 18c runs the SHIPPING accept over a
+// real file on disk and compares its sha256 before and after.
 const FORBIDDEN_WRITE =
-  /\b(writeFile|writeFileSync|acceptChange|rejectChange|applyChange)\b|['"`]fs:[a-zA-Z]/;
+  /\b(writeFile|writeFileSync|rejectChange|applyChange)\b|['"`]fs:[a-zA-Z]/;
 const NAMES_BRIDGE = /\bgmuxBridge\b/;
 // A MENTION and not a call. The verifier aliased the method in the permitted
 // file, `const w = b.fs.writeGuarded; w.call(b.fs, ...)`, and a pattern that
@@ -696,7 +710,7 @@ for (const finding of rule9Findings(sources)) fail(finding);
 say(
   `9. the redline names one guarded write at one call site (${CALL_SITE_FILE}), ` +
     `whose function asks the baseline generation guard before the re-read before the write, ` +
-    `and no forbidden write and no accept anywhere`
+    `and no forbidden write anywhere`
 );
 
 // -- rule 10: the gate is named ---------------------------------------------
@@ -1236,8 +1250,22 @@ export async function applyRewind(ctx) {
       wantFail: true
     },
     {
-      what: 'an accept in a redline file',
-      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/redline.ts', `export function acceptChange(b) { return b; }`]],
+      // PHASE 238. The accept that SHIPS is a pure string function and must
+      // pass, or the gate bans the safe half of the feature.
+      what: 'the shipping accept: a pure baseline computation in rewind.ts',
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/rewind.ts', `export function acceptChange(runs, changes, index) { return mix(runs, changes, new Set([index])); }`]],
+      wantFail: false
+    },
+    {
+      // And an accept that reaches a file is still caught, which is what the
+      // removed word used to stand in for.
+      what: 'an accept that writes a file',
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/redline-accept.ts', `export async function acceptChange(p, b) { await gmux.fs.writeFile(p, b); }`]],
+      wantFail: true
+    },
+    {
+      what: 'an accept that reaches the bridge from a second file',
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/redline-accept.ts', `import { gmuxBridge } from '../bridge';\nexport function accept() { return gmuxBridge(); }`]],
       wantFail: true
     },
     {
