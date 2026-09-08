@@ -121,3 +121,64 @@ export function redlineAcceptRefusalSentence(
     ? ACCEPT_SENTENCES[why].replace('{name}', name)
     : redlineRefusalSentence(why, name);
 }
+
+/**
+ * PHASE 238's FIX ROUND. THE UNDO'S OWN REFUSALS, for the same reason the
+ * accept has them one paragraph above: the two verbs go in opposite
+ * directions, and a person whose UNDO refused was being told to "look again,
+ * then rewind", which is the destructive one and is not what they pressed.
+ *
+ * An undo is a narrower union than a rewind by exactly two words. It never
+ * calls `resolvePress`, because its identity comes from the journal and its
+ * span is located directly (./rewind `planRewind`, the `kind === 'undo'`
+ * branch), so `alreadyBack` and `ambiguous` cannot arise from one. Everything
+ * else can: the view's own `dirty`, the guard's `baselineMoved`, the pure
+ * decision's `fileTooLarge`, `decodeLoss` and `phraseMoved`, and the channel's
+ * five.
+ *
+ * `baselineMoved` IS THE ONE THAT CHANGED MEANING AND IT IS WHY THIS MAP
+ * EXISTS. For a rewind or an accept the marking moving is a stale PICTURE and
+ * "look again" is the fix, because the change is still there to press. For an
+ * undo it is not: the journal entry's offset is into a baseline that has been
+ * replaced, so looking again brings nothing back and this sentence says the
+ * plain thing instead of a false instruction. The face does not normally reach
+ * it, because ./redline-journal's `undoableRewind` stops the note and the
+ * chip's button being drawn at all once the generation has moved; this is the
+ * sentence for the press that was already in the person's fingers.
+ */
+export type UndoRefusal = Exclude<RewindRefusal, 'alreadyBack' | 'ambiguous'>;
+
+const UNDO_SENTENCES: Record<UndoRefusal, string> = {
+  dirty: 'Save or undo your edits to {name} first, then undo the rewind.',
+  baselineMoved:
+    'The marking moved, so the last rewind of {name} can no longer be undone.',
+  fileTooLarge: '{name} is too large for Tortie to undo a rewind in.',
+  decodeLoss: '{name} is not UTF-8 text, and rewriting it whole would damage it.',
+  phraseMoved:
+    'The rewound text is no longer where it was in {name}, so it cannot be put back.',
+  stale: '{name} changed as you pressed, so nothing was written. Look again, then undo.',
+  raced:
+    'Something wrote to {name} as you pressed, so nothing was written. Look again, then undo.',
+  readOnly: '{name} is read-only, so the rewind cannot be undone.',
+  outsideRoot: '{name} is not in an open project, so the rewind cannot be undone.',
+  io: 'The rewind of {name} could not be put back.'
+};
+
+/** True when this refusal word is one an undo can produce. */
+export function isUndoRefusal(why: RewindRefusal): why is UndoRefusal {
+  return why in UNDO_SENTENCES;
+}
+
+/**
+ * One plain sentence for an undo's refusal, with the file's name filled in. A
+ * word an undo cannot produce falls back to the rewind map rather than
+ * answering nothing, because a refusal is never silent.
+ */
+export function redlineUndoRefusalSentence(
+  why: RewindRefusal,
+  name: string
+): string {
+  return isUndoRefusal(why)
+    ? UNDO_SENTENCES[why].replace('{name}', name)
+    : redlineRefusalSentence(why, name);
+}

@@ -86,7 +86,7 @@ import { applyRewind } from './redline-write';
 import { pressRedline } from './redline-press';
 import { pressAccept } from './redline-accept';
 import type { PressedChange } from './redline-press';
-import { rewindJournalDepth } from './redline-journal';
+import { undoableRewind } from './redline-journal';
 import {
   markRedlineHintSeen,
   redlineHintSeen,
@@ -95,7 +95,8 @@ import {
 import {
   redlineAcceptRefusalSentence,
   redlineRefusalSentence,
-  redlineUndoNote
+  redlineUndoNote,
+  redlineUndoRefusalSentence
 } from './redline-sentences';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
@@ -393,8 +394,18 @@ export function RedlineDocument({
           apply: applyRewind,
           // A refusal is never silent. A success shows nothing on the face:
           // the watcher recomposes the view, exactly as an outside write does.
+          // PHASE 238's FIX ROUND. THE SENTENCE IS THE VERB'S OWN. An undo
+          // refused with `baselineMoved` used to be answered with the rewind
+          // map's "Look again, then rewind", which told a person who pressed
+          // the recovery to press the destructive one, and which is false
+          // besides: looking again cannot bring back an offset into a
+          // baseline that has been replaced.
           refuse: (why) => {
-            useApp.getState().toast('info', redlineRefusalSentence(why, live.name));
+            const say =
+              kind === 'undo'
+                ? redlineUndoRefusalSentence(why, live.name)
+                : redlineRefusalSentence(why, live.name);
+            useApp.getState().toast('info', say);
           }
         }
       );
@@ -637,7 +648,15 @@ export function RedlineDocument({
     if (typing.caretMove === null) return;
     makeCurrent(typing.caretMove.change);
   }, [makeCurrent, typing.caretMove]);
-  const canUndo = rewindJournalDepth(tab.id) > 0;
+  // PHASE 238's FIX ROUND. THE UNDO IS OFFERED ONLY WHILE IT CAN BE DONE.
+  // The journal entry's offset is into the baseline the rewind was drawn
+  // against, so once the baseline has moved ./redline-write refuses the undo
+  // before it reads a byte (research 83 B.8a) — and the face was still
+  // drawing the sentence and the row's button for it. An accept is the first
+  // gesture that moves the baseline often, so this phase turned a rare lie
+  // into the ordinary one; ./redline-journal's `undoableRewind` is the whole
+  // fix and the refusal itself is untouched.
+  const canUndo = undoableRewind(tab.id, generation) !== undefined;
   // PHASE 237 item 4. Two undos, kept apart and said so in one line while both
   // are available. ./redline-sentences owns the words with every other sentence
   // this view says.
