@@ -6,7 +6,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## Unreleased
 
-This release is about the redline you can rewind. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at goes back with one key and comes back with another.
+This release is about the redline you can rewind, and now type in. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at goes back with one key and comes back with another.
 
 ### Added
 
@@ -14,6 +14,7 @@ This release is about the redline you can rewind. Every edit to a prose file sho
 - Point at a change in the redline with Option-Down and Option-Up, press Option-Delete, and that one phrase goes back to what it was while every other edit in the file stands. Your own paragraph carries the same control as an agent's, so a rewind can be undone with Shift-Option-Delete for as long as the tab is open ([`a25128d`](https://github.com/gregce/tortie/commit/a25128d)), ([`e69cc43`](https://github.com/gregce/tortie/commit/e69cc43)), ([`5701f97`](https://github.com/gregce/tortie/commit/5701f97)), ([`861dd3f`](https://github.com/gregce/tortie/commit/861dd3f))
 - A rewind is written only if the file still holds exactly what Tortie read when you pressed. If something wrote to it in between, or the phrase is no longer there, nothing is written and the redline says which, though a write of exactly the same size landing in the same instant as the rewind can still be written over ([`9f61ee9`](https://github.com/gregce/tortie/commit/9f61ee9)), ([`eef1cdf`](https://github.com/gregce/tortie/commit/eef1cdf))
 - The redline now says what its keys are. Point at a change, or step to it, and a small panel appears beside it offering Rewind and Undo with the keys written next to them, and the Edit menu shows the same keys and is available only while a redline is open, though Undo there always means the last rewind in the tab rather than the change you are pointing at ([`86a5b93`](https://github.com/gregce/tortie/commit/86a5b93)), ([`cdf1913`](https://github.com/gregce/tortie/commit/cdf1913)), ([`b23a15a`](https://github.com/gregce/tortie/commit/b23a15a)), ([`e75e734`](https://github.com/gregce/tortie/commit/e75e734))
+- You can type in the redline now, so a typo you notice while reading a file no longer means switching to Source to fix it and switching back. What you type is drawn as an insertion like any other change, Command-Z takes it back, and Command-S writes the file — though a save writes what is in front of you over anything an agent wrote to that file while you were typing ([`b47c296`](https://github.com/gregce/tortie/commit/b47c296)), ([`58aa215`](https://github.com/gregce/tortie/commit/58aa215)), ([`8841e12`](https://github.com/gregce/tortie/commit/8841e12)), ([`227f078`](https://github.com/gregce/tortie/commit/227f078))
 
 ### Fixed
 
