@@ -113,7 +113,10 @@ export function RedlineDocument({
       : name !== null
         ? `Redline since ${name}`
         : 'Redline vs HEAD';
-  const since = doc === null ? null : baselineSentence(tab.baseline);
+  // A dirty tab is not re-read by the watcher, so the right side is the
+  // person's buffer and not the disk for as long as it stays dirty; the
+  // sentence states that limit rather than hiding it.
+  const since = doc === null ? null : baselineSentence(tab.baseline, tab.dirty);
 
   return (
     <div className="ed-redline-view">

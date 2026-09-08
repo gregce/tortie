@@ -140,11 +140,20 @@ export function baselineName(state: BaselineState | undefined): string | null {
  * text is kept anywhere, because a person who believes Tortie is holding
  * their history stops committing (A3.4), and that is the one place a copy
  * decision is a correctness decision.
+ *
+ * While the tab has unsaved edits it says one thing more. The watcher skips
+ * a dirty tab on purpose (./tab-io refreshRepo), so "every agent edit shows
+ * up" is false for exactly as long as the tab is dirty (research 83 A4.3),
+ * and the face says so rather than a bug report discovering it.
  */
 export function baselineSentence(
-  state: BaselineState | undefined
+  state: BaselineState | undefined,
+  dirty: boolean
 ): string | null {
   const name = baselineName(state);
   if (name === null) return null;
-  return `Marked since ${name}, for as long as this tab is open.`;
+  const since = `Marked since ${name}, for as long as this tab is open.`;
+  return dirty
+    ? `${since} Not refreshed from disk while there are unsaved edits.`
+    : since;
 }
