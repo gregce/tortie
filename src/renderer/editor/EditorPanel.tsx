@@ -66,7 +66,7 @@ import { MonacoHost } from './MonacoHost';
 import { PierreDiff } from './PierreDiff';
 import { RedlineDocument } from './RedlineDocument';
 import { isRedlinePath } from './redline';
-import { fileInRepo } from './tab-identity';
+import { redlineWithoutHead } from './baseline';
 import { MarkdownPreview } from './markdown';
 import { ImageCompare, ImageView } from './image';
 import { HtmlPreview, tabRendersHtml } from './html';
@@ -213,30 +213,6 @@ interface ModeOption {
  */
 function hasRenderedForm(tab: EditorTab): boolean {
   return tab.markdown || tab.svg || tabRendersHtml(tab);
-}
-
-/**
- * PHASE 225. Can this tab draw the redline without a HEAD version?
- *
- * Yes for a worktree tab inside its repository that holds a shadow baseline
- * (./baseline), which every such tab does from its first successful read. So
- * an untracked prose file that is open when an agent writes to it gets a
- * redline where before it got none. A file the agent created before the
- * person opened it is read for the first time after the agent's last write,
- * so its baseline is that version and its redline is empty, which is correct;
- * this phase names no second seeding moment for it.
- *
- * Never for a history tab or a review tab, whose two sides come from the
- * commit or the machine and which hold no baseline, and never outside the
- * repository, where the store's setMode refuses the mode anyway.
- */
-function redlineWithoutHead(tab: EditorTab): boolean {
-  return (
-    tab.baseline?.text != null &&
-    tab.commit === null &&
-    tab.remote === undefined &&
-    fileInRepo(tab.repoPath, tab.path)
-  );
 }
 
 function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {

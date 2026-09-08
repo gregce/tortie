@@ -31,6 +31,9 @@
  * whose baseline is then its first read rather than its (empty) HEAD version.
  */
 
+import { fileInRepo } from './tab-identity';
+import type { EditorTab } from './tab-types';
+
 /** Where the baseline's bytes came from, which is what the face names. */
 export type BaselineOrigin = 'commit' | 'read';
 
@@ -120,6 +123,34 @@ export function redlineBaseSide(
   headContents: string | null
 ): string {
   return state?.text ?? headContents ?? '';
+}
+
+/**
+ * Can this tab draw the redline without a HEAD version?
+ *
+ * Yes for a worktree tab inside its repository that holds a shadow baseline,
+ * which every such tab does from its first successful read. So an untracked
+ * prose file that is open when an agent writes to it gets a redline where
+ * before it got none. A file the agent created before the person opened it is
+ * read for the first time after the agent's last write, so its baseline is
+ * that version and its redline is empty, which is correct; this phase names
+ * no second seeding moment for it (research 83 A1.2 property 2).
+ *
+ * Never for a history tab or a review tab, whose two sides come from the
+ * commit or the machine and which hold no baseline, and never outside the
+ * repository, where the store's setMode refuses the mode anyway. The mode
+ * chip offers Redline on this answer and the panel falls back on its
+ * negation, so the two cannot disagree.
+ */
+export function redlineWithoutHead(
+  tab: Pick<EditorTab, 'baseline' | 'commit' | 'remote' | 'repoPath' | 'path'>
+): boolean {
+  return (
+    tab.baseline?.text != null &&
+    tab.commit === null &&
+    tab.remote === undefined &&
+    fileInRepo(tab.repoPath, tab.path)
+  );
 }
 
 /**

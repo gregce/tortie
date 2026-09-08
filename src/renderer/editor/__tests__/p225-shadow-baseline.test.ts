@@ -231,6 +231,11 @@ describe('the shipping store and tab IO: what never moves the baseline, and what
     expect(tab.savedContents).toBe('file v1\n');
     expect(tab.baseline?.text).toBe('HEAD v1\n');
     expect(tab.baseline?.from).toBe('commit');
+    // The read landed first and seeded at 1; HEAD then won at 2. A loader
+    // that read the tab BEFORE its own await would hand the rule the empty
+    // state and land at 1, overwriting the read's seed rather than following
+    // it, so the generation is the clause that pins "either order".
+    expect(tab.baseline?.generation).toBe(2);
 
     // The other order: the read lands after git has answered.
     useEditor.setState({ tabs: [], activeId: null, panelOpen: false });
@@ -241,11 +246,14 @@ describe('the shipping store and tab IO: what never moves the baseline, and what
     await flush();
     tab = tabAt('/repo/notes.md');
     expect(tab.baseline?.text).toBe('HEAD v1\n');
+    expect(tab.baseline?.generation).toBe(1);
     await later(undefined, 10);
     tab = tabAt('/repo/notes.md');
     expect(tab.savedContents).toBe('file v1\n');
     expect(tab.baseline?.text).toBe('HEAD v1\n');
     expect(tab.baseline?.from).toBe('commit');
+    // HEAD seeded at 1 and the late read moved nothing.
+    expect(tab.baseline?.generation).toBe(1);
   });
 
   it('a file change on the watcher tick never moves it', async () => {
