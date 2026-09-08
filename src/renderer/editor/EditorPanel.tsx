@@ -66,6 +66,7 @@ import { MonacoHost } from './MonacoHost';
 import { PierreDiff } from './PierreDiff';
 import { RedlineDocument } from './RedlineDocument';
 import { isRedlinePath } from './redline';
+import { fileInRepo } from './tab-identity';
 import { MarkdownPreview } from './markdown';
 import { ImageCompare, ImageView } from './image';
 import { HtmlPreview, tabRendersHtml } from './html';
@@ -214,6 +215,30 @@ function hasRenderedForm(tab: EditorTab): boolean {
   return tab.markdown || tab.svg || tabRendersHtml(tab);
 }
 
+/**
+ * PHASE 225. Can this tab draw the redline without a HEAD version?
+ *
+ * Yes for a worktree tab inside its repository that holds a shadow baseline
+ * (./baseline), which every such tab does from its first successful read. So
+ * an untracked prose file that is open when an agent writes to it gets a
+ * redline where before it got none. A file the agent created before the
+ * person opened it is read for the first time after the agent's last write,
+ * so its baseline is that version and its redline is empty, which is correct;
+ * this phase names no second seeding moment for it.
+ *
+ * Never for a history tab or a review tab, whose two sides come from the
+ * commit or the machine and which hold no baseline, and never outside the
+ * repository, where the store's setMode refuses the mode anyway.
+ */
+function redlineWithoutHead(tab: EditorTab): boolean {
+  return (
+    tab.baseline?.text != null &&
+    tab.commit === null &&
+    tab.remote === undefined &&
+    fileInRepo(tab.repoPath, tab.path)
+  );
+}
+
 function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
   const options: ModeOption[] = [];
   if (tab.canDiff) {
@@ -228,22 +253,24 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
             ? 'This image before and after (read-only)'
             : 'Changes vs HEAD (read-only)'
     });
-    // Phase 194. The same two sides the diff holds, read as one document
-    // with the changes marked in place. Prose only, by ./redline's own
-    // allowlist: reflowing a line of source destroys the only structure it
-    // has. It sits beside Diff because it is the other reading of the same
-    // change, and it is never the default.
-    if (isRedlinePath(tab.path)) {
-      options.push({
-        mode: 'redline',
-        label: 'Redline',
-        icon: 'strikethrough',
-        title:
-          tab.commit !== null
-            ? `The document with what commit ${tab.commit.shortSha} changed marked in place (read-only)`
-            : 'The document with its changes marked in place (read-only)'
-      });
-    }
+  }
+  // Phase 194. The same two sides the diff holds, read as one document
+  // with the changes marked in place. Prose only, by ./redline's own
+  // allowlist: reflowing a line of source destroys the only structure it
+  // has. It sits beside Diff because it is the other reading of the same
+  // change, and it is never the default.
+  // Phase 225: offered where Diff is offered, and also for a prose file with
+  // no HEAD version once the tab holds a baseline of its own.
+  if (isRedlinePath(tab.path) && (tab.canDiff || redlineWithoutHead(tab))) {
+    options.push({
+      mode: 'redline',
+      label: 'Redline',
+      icon: 'strikethrough',
+      title:
+        tab.commit !== null
+          ? `The document with what commit ${tab.commit.shortSha} changed marked in place (read-only)`
+          : 'The document with its changes marked in place (read-only)'
+    });
   }
   // An SVG takes markdown's control unchanged — it is the same question
   // ("the picture or the markup?") with a different renderer behind Preview.
@@ -287,7 +314,9 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
         title: 'The working copy on its own'
       });
     }
-  } else if (tab.canDiff) {
+  } else if (tab.canDiff || redlineWithoutHead(tab)) {
+    // Phase 225: a plain prose file (.txt) whose only other view is the
+    // redline still needs the way back to its editor.
     options.push({
       mode: 'file',
       label: 'File',
@@ -681,10 +710,14 @@ export function EditorPanel(): React.JSX.Element | null {
       : machineWriteRootFor(machineStates, activeTab.remote.machineId);
 
   // A view that needs a HEAD version falls back when there is none. The
-  // redline is one of those (Phase 194): it reads the diff's two sides.
+  // redline was one of those (Phase 194); since Phase 225 it draws against
+  // the tab's own baseline and needs HEAD only when it holds none, so it
+  // falls back exactly when the mode chip would not offer it.
+  const needsHead =
+    activeTab.mode === 'diff' ||
+    (activeTab.mode === 'redline' && !redlineWithoutHead(activeTab));
   const mode: EditorMode =
-    (activeTab.mode === 'diff' || activeTab.mode === 'redline') &&
-    !activeTab.canDiff
+    needsHead && !activeTab.canDiff
       ? activeTab.image && !activeTab.svg
         ? 'image'
         : 'file'
