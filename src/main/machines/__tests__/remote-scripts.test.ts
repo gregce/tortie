@@ -81,6 +81,21 @@ const GIT_VERBS = [
 /** The two more verbs `git-clone` may name, and no other script may. */
 const CLONE_VERBS = ['ls-remote', 'clone'];
 
+/**
+ * PHASE 229. The one more verb `repo-branch` may name, and no other READ may.
+ *
+ * `git config --get user.name` and `user.email` answer whether git on that
+ * machine can commit at all, so the commit box can refuse before the press.
+ * `config` does NOT join GIT_VERBS above, because a bare `git config` writes
+ * and a verb allowed everywhere is a verb any future script can use; it is
+ * bound to this one script here as `EXTRA_GIT_VERBS` binds it in the gate,
+ * and the branch tests below read each line for `--get` of exactly those two
+ * keys.
+ */
+const READ_BOUND_VERBS: Readonly<Record<string, readonly string[]>> = {
+  'repo-branch': ['config']
+};
+
 function words(text: string): string[] {
   return text.split(/[\s;|&(){}]+/).filter((word) => word.length > 0);
 }
@@ -687,12 +702,24 @@ describe('a read script', () => {
     for (const script of reads) {
       if (!script.text.includes('git ')) continue;
       // Every word after the program name and its one flag is checked against
-      // the three verbs, so a later edit cannot add `commit` or `checkout`.
+      // the read verbs plus the one a read may be bound to, so a later edit
+      // cannot add `commit` or `checkout`.
+      const allowed = [...GIT_VERBS, ...(READ_BOUND_VERBS[script.id] ?? [])];
       for (const match of script.text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)) {
-        expect(GIT_VERBS, `${script.id} runs git ${String(match[1])}`).toContain(
+        expect(allowed, `${script.id} runs git ${String(match[1])}`).toContain(
           match[1]
         );
       }
+    }
+  });
+
+  it('binds config to the branch read alone, and never to the read set', () => {
+    // PHASE 229. A bare git config writes. The gate's condition 56k reads the
+    // same two lines; this is the same rule under npm test.
+    expect(GIT_VERBS).not.toContain('config');
+    for (const script of reads) {
+      const names = /\bgit config\b/.test(script.text);
+      expect(names, script.id).toBe(script.id === 'repo-branch');
     }
   });
 
@@ -1573,7 +1600,7 @@ describe('the remote branch read', () => {
     expect(branch?.params).toBe(1);
   });
 
-  it('names two git verbs and one of them is the verb this phase added', () => {
+  it('names three git verbs, the third bound to it alone since Phase 229', () => {
     const verbs = [
       ...new Set(
         [...(branch?.text ?? '').matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
@@ -1581,13 +1608,40 @@ describe('the remote branch read', () => {
         )
       )
     ].sort();
-    expect(verbs).toEqual(['for-each-ref', 'rev-parse']);
-    for (const verb of verbs) expect(GIT_VERBS).toContain(verb);
+    expect(verbs).toEqual(['config', 'for-each-ref', 'rev-parse']);
+    for (const verb of verbs) {
+      expect([...GIT_VERBS, ...(READ_BOUND_VERBS['repo-branch'] ?? [])]).toContain(verb);
+    }
   });
 
-  it('runs two rev-parse processes and one for-each-ref, and no more', () => {
+  it('runs two rev-parse, one for-each-ref and two config --get, and no more', () => {
     expect([...(branch?.text ?? '').matchAll(/git rev-parse/g)]).toHaveLength(2);
     expect([...(branch?.text ?? '').matchAll(/git for-each-ref/g)]).toHaveLength(1);
+    expect([...(branch?.text ?? '').matchAll(/git config/g)]).toHaveLength(2);
+  });
+
+  it('reads the identity with --get of exactly the two keys, and nothing else (Phase 229)', () => {
+    // A bare `git config` writes, `--global` and `--file` aim it, and
+    // `--unset` and `--add` are writes with a read's name, so each line is
+    // read whole. Condition 56k of the gate reads the same two lines.
+    const lines = (branch?.text ?? '')
+      .split('\n')
+      .filter((one) => /\bgit config\b/.test(one))
+      .map((one) => one.trim());
+    expect(lines).toEqual([
+      "n=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git config --get user.name 2>/dev/null | base64 | tr -d '\\n' || true)",
+      "e=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git config --get user.email 2>/dev/null | base64 | tr -d '\\n' || true)"
+    ]);
+    // Both are read only once the folder is known to be a repository, so a
+    // folder git does not track never pays for them.
+    const text = branch?.text ?? '';
+    expect(text.indexOf('git config')).toBeGreaterThan(
+      text.indexOf('notrepo none none none')
+    );
+    expect(text.indexOf('git config')).toBeLessThan(text.indexOf('case "$h" in'));
+    // And an empty value becomes the word none rather than an empty field.
+    expect(text).toContain('[ -n "$n" ] || n=none');
+    expect(text).toContain('[ -n "$e" ] || e=none');
   });
 
   it('asks with a format that is BRANCH_FORMAT minus the subject', () => {
@@ -1617,16 +1671,30 @@ describe('the remote branch read', () => {
     // it begins refs/heads/, and everything else prints `nobranch`.
     expect(branch?.text).toContain('case "$h" in');
     expect(branch?.text).toContain('      refs/heads/*)');
-    expect(branch?.text).toContain('__TORTIE_RUN__nobranch none__TORTIE_RUN__');
+    expect(branch?.text).toContain(
+      '__TORTIE_RUN__nobranch none %s %s__TORTIE_RUN__'
+    );
   });
 
-  it('answers one of exactly six words, and none on five of them', () => {
-    for (const word of ['missing', 'denied', 'notrepo', 'nodetails', 'nobranch']) {
-      expect(branch?.text).toContain(`__TORTIE_RUN__${word} none__TORTIE_RUN__`);
+  it('answers one of exactly six words, four words each, and none in the payload place on five of them', () => {
+    // PHASE 229. Every answer is four words. The three printed before the
+    // folder is known to be a repository carry `none none` for the identity;
+    // the other three carry what git config --get said.
+    for (const word of ['missing', 'denied', 'notrepo']) {
+      expect(branch?.text).toContain(
+        `__TORTIE_RUN__${word} none none none__TORTIE_RUN__`
+      );
+    }
+    for (const word of ['nodetails', 'nobranch']) {
+      expect(branch?.text).toContain(
+        `__TORTIE_RUN__${word} none %s %s__TORTIE_RUN__`
+      );
     }
     expect(branch?.text).toContain(
-      "printf '__TORTIE_RUN__repo %s__TORTIE_RUN__"
+      "printf '__TORTIE_RUN__repo %s %s %s__TORTIE_RUN__"
     );
+    // The two word shape every build before Phase 229 printed is gone.
+    expect(branch?.text).not.toMatch(/__TORTIE_RUN__\w+ none__TORTIE_RUN__/);
   });
 
   it('has a word for a git too old to answer the format', () => {
@@ -1655,9 +1723,10 @@ describe('the remote branch read', () => {
     expect(branch?.text).toContain('| base64 | tr -d ');
   });
 
-  it('redirects nothing except the three noise silencers', () => {
+  it('redirects nothing except the five noise silencers', () => {
+    // Three until Phase 229, which added one on each git config --get.
     const text = branch?.text ?? '';
-    expect([...text.matchAll(/2>\/dev\/null/g)]).toHaveLength(3);
+    expect([...text.matchAll(/2>\/dev\/null/g)]).toHaveLength(5);
     expect(text.split('2>/dev/null').join('')).not.toContain('>');
   });
 
