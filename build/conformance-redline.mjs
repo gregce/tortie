@@ -141,7 +141,28 @@ const say = (line) => console.log(`${TAG} ${line}`);
 /** Milliseconds the worst case the caps allow may cost. */
 const WORST_CASE_CEILING_MS = 400;
 
-const REDLINE_FILES = [
+// THE SET IS DERIVED, AND THE LIST BELOW IS THE REASONS. The Phase 227
+// verifier planted a guarded write in `redline-commands.ts`, a redline file
+// this list did not name, and rule 9 stayed green: the charter's own sentence
+// is that "the write does not go into a seventh file so the scanner misses
+// it", and a hand list is exactly how a seventh file gets missed. So the files
+// rule 9 scans are every file under src/renderer/editor whose name begins
+// `redline`, `Redline`, `rewind` or `baseline` (the last two the bare module
+// names, the first two a prefix), read from the directory, and
+// the count is held to a floor the way `gate:electron` holds its helper
+// population: adding a redline file can never turn this gate red, deleting or
+// renaming one does, and a deliberate deletion lowers the floor in the same
+// commit. A file named outside the prefix is the stated limit, and the hand
+// list is asserted to be a SUBSET of the derived set so a file it names
+// cannot drift off in silence.
+const REDLINE_DIR = 'src/renderer/editor';
+const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline\.)/;
+const REDLINE_FILES_FLOOR = 14;
+const REDLINE_FILES = readdirSync(REDLINE_DIR)
+  .filter((name) => REDLINE_NAME.test(name))
+  .sort()
+  .map((name) => `${REDLINE_DIR}/${name}`);
+const REDLINE_FILES_NAMED = [
   'src/renderer/editor/redline.ts',
   'src/renderer/editor/redline-copy.ts',
   'src/renderer/editor/RedlineRow.tsx',
@@ -161,7 +182,14 @@ const REDLINE_FILES = [
   // Phase 227: the undo journal, per tab and in memory. It writes nothing.
   'src/renderer/editor/redline-journal.ts',
   // Phase 227: the refusal sentences. Text for a person, no write.
-  'src/renderer/editor/redline-sentences.ts'
+  'src/renderer/editor/redline-sentences.ts',
+  // Phase 227: the road from the native menu to the mounted view. No write.
+  'src/renderer/editor/redline-commands.ts',
+  // Phase 227 fix round: the press, which owns the order between the chord
+  // and the one call site and moves the journal. It names no bridge.
+  'src/renderer/editor/redline-press.ts',
+  // Phase 194: the harness probe that reads the view. It names no write.
+  'src/renderer/editor/redline-shot-probe.ts'
 ];
 
 // ---------------------------------------------------------------------------
@@ -277,7 +305,12 @@ const CALL_SITE_FN = 'applyRewind';
 const FORBIDDEN_WRITE =
   /\b(writeFile|writeFileSync|acceptChange|rejectChange|applyChange)\b|['"`]fs:[a-zA-Z]/;
 const NAMES_BRIDGE = /\bgmuxBridge\b/;
-const WRITE_CALL = /\.writeGuarded\s*\(/g;
+// A MENTION and not a call. The verifier aliased the method in the permitted
+// file, `const w = b.fs.writeGuarded; w.call(b.fs, ...)`, and a pattern that
+// wanted `.writeGuarded(` counted it as nothing. Every appearance of the name
+// outside a comment is counted, so an alias, a destructure or a bound copy is
+// a second write and fails.
+const WRITE_CALL = /\bwriteGuarded\b/g;
 
 /**
  * Every finding rule 9 has over a set of redline sources (a Map of relative
@@ -307,7 +340,7 @@ function rule9Findings(files) {
     }
   }
   if (writeCalls !== 1) {
-    out.push(`9. the redline names ${String(writeCalls)} guarded write call(s); it must name exactly one`);
+    out.push(`9. the redline names the guarded write ${String(writeCalls)} time(s); it must name it exactly once`);
   } else if (writeCallFile !== CALL_SITE_FILE) {
     out.push(`9. the one guarded write is in ${writeCallFile}, and it must be ${CALL_SITE_FILE}`);
   } else {
@@ -318,7 +351,7 @@ function rule9Findings(files) {
     } else {
       const guard = body.search(/drawnGeneration[\s\S]{0,40}generation/);
       const read = body.indexOf('readFile(');
-      const write = body.indexOf('.writeGuarded(');
+      const write = body.search(/\bwriteGuarded\b/);
       if (guard === -1) out.push(`9. ${CALL_SITE_FN} does not ask the baseline generation guard`);
       else if (read === -1) out.push(`9. ${CALL_SITE_FN} does not re-read the file`);
       else if (!(guard < read && read < write)) {
@@ -555,6 +588,15 @@ const sources = new Map();
 for (const file of REDLINE_FILES) {
   sources.set(file, readFileSync(file, 'utf8'));
 }
+if (REDLINE_FILES.length < REDLINE_FILES_FLOOR) {
+  fail(`9. ${String(REDLINE_FILES.length)} redline files under ${REDLINE_DIR}, under the floor of ${String(REDLINE_FILES_FLOOR)}: a redline file was deleted or renamed, and a deliberate deletion lowers the floor in the same commit`);
+}
+for (const file of REDLINE_FILES_NAMED) {
+  if (!REDLINE_FILES.includes(file)) {
+    fail(`9. ${file} is named in the reasons list and not found by the derivation, so the list and the tree disagree`);
+  }
+}
+say(`9. ${String(REDLINE_FILES.length)} redline files scanned, derived by name from ${REDLINE_DIR} (floor ${String(REDLINE_FILES_FLOOR)}), ${String(REDLINE_FILES_NAMED.length)} of them with a reason in the list`);
 for (const file of [
   'src/renderer/editor/PierreDiff.tsx',
   'src/renderer/editor/DiffControls.tsx'
@@ -1126,6 +1168,17 @@ export async function applyRewind(ctx) {
     {
       what: 'an accept in a redline file',
       files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/redline.ts', `export function acceptChange(b) { return b; }`]],
+      wantFail: true
+    },
+    {
+      what: "the verifier's alias: a bound copy of the method in the permitted file, called without its name",
+      files: [[CALL, SHIPPING_CALL + `
+export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeGuarded; return w.call(b.fs, { root: ctx.root, path: ctx.path, contents: 'y' }); }`]],
+      wantFail: true
+    },
+    {
+      what: "the verifier's seventh file: a guarded write in redline-commands.ts",
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/redline-commands.ts', `import { gmuxBridge } from '../bridge';\nexport function run() { return gmuxBridge()?.fs.writeGuarded({ root: '/', path: '/x', contents: 'y' }); }`]],
       wantFail: true
     }
   ];
