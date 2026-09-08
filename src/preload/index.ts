@@ -161,6 +161,10 @@ const api: InstalledGmuxApi = {
   // main where the project tabs just moved, so the View-menu radios cannot go
   // stale when the titlebar's own button (not the menu) is what moved them.
   setProjectsPosition: (position) => invoke('ui:projectsPosition', position),
+  // Phase 236 required extra, the third of the same family: the Redline view
+  // tells main it is mounted, so the Edit menu's four redline rows are enabled
+  // only while there is a view for them to reach.
+  setRedlineMounted: (mounted) => invoke('ui:redlineMounted', mounted),
   // Phase 163 required extra: the Settings window's door to the diagnostics
   // report tab. Main forwards the Help menu's own action to the app window,
   // so the row in Settings and the menu row end in one place.

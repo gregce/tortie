@@ -61,7 +61,8 @@ import type { MenuActionWithFind } from '@shared/ipc';
 // Every accelerator below comes from the ONE keymap (Phase 12.12). Do not
 // type a chord string into this file — add it to src/shared/keymap.ts and
 // read it back, or the menu and the ⌘/ overlay start drifting again.
-import { accelerator as accel } from '@shared/keymap';
+import { accelerator as accel, keyDisplay } from '@shared/keymap';
+import type { KeymapId } from '@shared/keymap';
 // PHASE 156. A row's mark, decoded once from the build time set in
 // ./menu-icons.generated.ts. The names are the ONE closed table in
 // @shared/menu-codicons, so a row here and a row in a right click menu cannot
@@ -345,6 +346,91 @@ export function setSessionsPositionRadios(position: SessionsPosition): void {
     const item = menu.getMenuItemById(radio.id);
     if (item !== null) item.checked = true;
   }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 236: whether a Redline view is mounted, which is what the Edit menu's
+// four `redline-*` rows are enabled from.
+//
+// The SAME ONE DIRECTION as the radios above, and the same reason. Main knows
+// nothing about which editor tab is open or what mode it is in: `buildTemplate`
+// reads its state synchronously from main's own sources, and until now nothing
+// in src/shared/ipc carried the editor's mode at all. So the view pushes over
+// `ui:redlineMounted` on mount and on unmount, main caches that below, and the
+// template is built FROM the cache. Main never asks.
+//
+// The cache is what makes a rebuild safe, which is the lesson the radios above
+// record: `rebuildAppMenu()` runs on every hotkey change, and a template that
+// hardcoded its answer would silently re-enable four rows that reach nothing.
+// ---------------------------------------------------------------------------
+
+/**
+ * The Edit menu's four Redline rows, as data: the menu action the row forwards,
+ * the keymap entry its chord is READ from, and the menu item id a live menu is
+ * found again by. One table so the row builder and the enabler cannot disagree.
+ */
+const REDLINE_ROWS = [
+  { action: 'redline-next', keymap: 'redline.next', id: 'redline-row-next' },
+  { action: 'redline-prev', keymap: 'redline.prev', id: 'redline-row-prev' },
+  {
+    action: 'redline-rewind',
+    keymap: 'redline.rewind',
+    id: 'redline-row-rewind'
+  },
+  { action: 'redline-undo', keymap: 'redline.undo', id: 'redline-row-undo' }
+] as const satisfies readonly {
+  action: MenuActionWithFind;
+  keymap: KeymapId;
+  id: string;
+}[];
+
+/** Menu ids for those four rows, derived so the list cannot drift. */
+const REDLINE_ROW_IDS: readonly string[] = REDLINE_ROWS.map((row) => row.id);
+
+/**
+ * One Redline row: the label, the chord as a `sublabel` and never an
+ * accelerator, the id a live menu is found by, and the enabled state read from
+ * the cache below. It goes through `item()` so the click path is the one every
+ * other forwarding row uses.
+ */
+function redlineRow(
+  label: string,
+  action: (typeof REDLINE_ROWS)[number]['action']
+): MenuItemConstructorOptions {
+  const row = REDLINE_ROWS.find((r) => r.action === action);
+  if (row === undefined) throw new Error(`Tortie menu: no redline row ${action}`);
+  return {
+    ...item(label, action),
+    id: row.id,
+    sublabel: keyDisplay(row.keymap),
+    enabled: redlineMounted
+  };
+}
+
+/** Last answer the Redline view gave. A cache, never an authority. */
+let redlineMounted = false;
+
+/**
+ * A Redline view mounted or unmounted (src/renderer/editor/RedlineDocument).
+ * Called from the ui:redlineMounted handler in src/main/ipc.ts.
+ *
+ * The live menu is updated in place the way `setSessionsPositionRadios` does
+ * it, because nothing else rebuilds the menu when an editor tab changes mode
+ * and the rows would not move until something unrelated did.
+ */
+export function setRedlineMountedRows(mounted: boolean): void {
+  redlineMounted = mounted;
+  const menu = Menu.getApplicationMenu();
+  if (menu === null) return; // no menu yet — the next build reads the cache
+  for (const id of REDLINE_ROW_IDS) {
+    const item = menu.getMenuItemById(id);
+    if (item !== null) item.enabled = mounted;
+  }
+}
+
+/** The cached answer the four Redline rows are drawn from (exported for tests). */
+export function redlineRowsEnabled(): boolean {
+  return redlineMounted;
 }
 
 /** The cached position the radios are drawn from (exported for tests). */
@@ -634,10 +720,27 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // accelerator is app-wide, so registering one here would take those
         // bytes from every session's terminal. The renderer hands each row to
         // the mounted Redline view and does nothing when none is mounted.
-        item('Next Change', 'redline-next'),
-        item('Previous Change', 'redline-prev'),
-        item('Rewind Change', 'redline-rewind'),
-        item('Undo Rewind', 'redline-undo')
+        //
+        // PHASE 236 GAVE EACH ROW ITS CHORD AND A STATE. The chord is a
+        // `sublabel` and NOT an accelerator, which is the whole point: Electron's
+        // one documented "display only" flag, `MenuItem.registerAccelerator`, is
+        // Linux and Windows only (this tree records that at src/main/tray/index.ts
+        // and src/main/harness/p156-menus.ts), so on darwin an accelerator here
+        // would really be registered app-wide. `sublabel` draws a second grey line
+        // under the label, which is not the right-hand keycap column a native
+        // accelerator gives, and that is the stated cost; it has a precedent in
+        // this tree at src/main/menu/open-recent-menu.ts. The string is
+        // `keyDisplay`'s, so it cannot drift from the keymap, and the label is
+        // left exactly as it was because harness and test lookups match on it.
+        //
+        // ENABLED ONLY WHILE A REDLINE IS MOUNTED, from the cache above, the way
+        // Open Folder on a Machine… is enabled from `anyConfirmedMachine()`. A row
+        // that is always enabled and reaches nothing is a promise with no
+        // explanation beside it.
+        redlineRow('Next Change', 'redline-next'),
+        redlineRow('Previous Change', 'redline-prev'),
+        redlineRow('Rewind Change', 'redline-rewind'),
+        redlineRow('Undo Rewind', 'redline-undo')
       ]
     },
     // Phase 14. Between Edit and Session, which is where a macOS app puts

@@ -523,6 +523,16 @@ export interface ViewMenuInvokeChannelMap {
    * where the tabs are, so there is still one writer and one truth.
    */
   'ui:projectsPosition': { req: [position: ProjectsPosition]; res: void };
+  /**
+   * PHASE 236. The Redline view mounted or unmounted; enable or disable the
+   * Edit menu's four `redline-*` rows to match. The same ONE DIRECTION as the
+   * two lines above and for the same reason: main knows nothing about which
+   * editor tab is open or what mode it is in, nothing in this contract carried
+   * it, and a row that is always enabled is a promise with nothing behind it.
+   * Main never asks whether a redline is mounted, so there is still one writer
+   * and one truth. MAIN: src/main/menu.ts → setRedlineMountedRows().
+   */
+  'ui:redlineMounted': { req: [mounted: boolean]; res: void };
 }
 
 /**
@@ -541,6 +551,12 @@ export interface GmuxViewMenuExtras {
    * preload ships in the same asar as the store that calls it.
    */
   setProjectsPosition(position: ProjectsPosition): Promise<void>;
+  /**
+   * Phase 236, and required for the same reason as the two lines above it.
+   * The Redline view says on mount that it is there and on unmount that it is
+   * not, and the Edit menu's four rows are enabled from that and nothing else.
+   */
+  setRedlineMounted(mounted: boolean): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

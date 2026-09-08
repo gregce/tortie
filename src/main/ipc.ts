@@ -21,6 +21,7 @@ import type {
 // a change that did not come from the menu itself.
 import {
   setProjectsPositionRadios,
+  setRedlineMountedRows,
   setSessionsPositionRadios
 } from './menu';
 import { registerPopupMenuHandler } from './menu-popup';
@@ -106,6 +107,13 @@ export function registerIpcHandlers(): void {
   // behind all three), and main's only job is to keep its radios rendering it.
   handle('ui:projectsPosition', (_e, position) => {
     setProjectsPositionRadios(position);
+  });
+
+  // Phase 236: the same one job for the Redline view. It mounted or it
+  // unmounted, and main's only job is to keep the Edit menu's four redline
+  // rows enabled from that. Main never asks.
+  handle('ui:redlineMounted', (_e, mounted) => {
+    setRedlineMountedRows(mounted);
   });
 
   handle('sessions:create', async (_e, input) =>

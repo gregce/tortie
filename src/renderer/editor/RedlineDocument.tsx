@@ -71,6 +71,7 @@ import { redlineRefusalSentence } from './redline-sentences';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
 import { useApp } from '../state/store';
+import { pushRedlineMountedToMenu } from '../app/menu-redline';
 import { keyDisplay } from '@shared/keymap';
 import type { RedlineRun } from './redline';
 import {
@@ -301,6 +302,16 @@ export function RedlineDocument({
     [press]
   );
   useEffect(() => installRedlineCommands(runCommand), [runCommand]);
+  // PHASE 236. The Edit menu's four rows are enabled only while a view is
+  // mounted for them to reach. Its own effect with no dependencies, so a
+  // change of tab re-installs the handler above without pushing a false and a
+  // true at main for nothing.
+  useEffect(() => {
+    pushRedlineMountedToMenu(true);
+    return () => {
+      pushRedlineMountedToMenu(false);
+    };
+  }, []);
 
   // PHASE 236. Which change the chip is drawn for. FOCUS WINS over the
   // pointer, and that is a truthfulness rule rather than a taste: ⌥⌫ acts on

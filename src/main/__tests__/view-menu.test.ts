@@ -35,7 +35,7 @@
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { accelerator } from '@shared/keymap';
+import { accelerator, keyDisplay } from '@shared/keymap';
 import { EVT_MENU_ACTION } from '@shared/ipc';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,10 @@ interface FakeItem {
   role?: string;
   type?: string;
   accelerator?: string;
+  /** PHASE 236. The chord as a second line, which is never registered. */
+  sublabel?: string;
+  /** PHASE 236. The four Redline rows are enabled only while a view is up. */
+  enabled?: boolean;
   /**
    * PHASE 156. The real menu.ts spreads a NativeImage in here for a row that
    * has a mark, and no key at all for a row that does not, which is what lets
@@ -65,8 +69,24 @@ interface FakeItem {
 
 class FakeMenu {
   constructor(readonly template: FakeItem[]) {}
-  getMenuItemById(): FakeItem | null {
-    return null;
+  /**
+   * PHASE 236 made this real. It answered null always, which was enough while
+   * nothing in this suite moved a live menu; the four Redline rows are enabled
+   * IN PLACE when the view mounts, so a fake that finds nothing would let a
+   * broken live update read as a pass.
+   */
+  getMenuItemById(id: string): FakeItem | null {
+    const walk = (items: FakeItem[]): FakeItem | null => {
+      for (const item of items) {
+        if (item.id === id) return item;
+        if (Array.isArray(item.submenu)) {
+          const found = walk(item.submenu);
+          if (found !== null) return found;
+        }
+      }
+      return null;
+    };
+    return walk(this.template);
   }
 }
 
@@ -150,7 +170,8 @@ vi.mock('../manifest/reconstruct-operator', () => ({
   runOperatorReconstruction: () => Promise.resolve()
 }));
 
-const { installAppMenu, rebuildAppMenu } = await import('../menu');
+const { installAppMenu, rebuildAppMenu, setRedlineMountedRows } =
+  await import('../menu');
 
 // ---------------------------------------------------------------------------
 
@@ -528,5 +549,82 @@ describe('Phase 227: the Redline rows in the Edit menu', () => {
     expect(row?.click).toBeDefined();
     row?.click?.();
     expect(win.sent).toEqual([[EVT_MENU_ACTION, action]]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 236: the four Redline rows say their chord and are enabled only while
+// a Redline view is mounted.
+//
+// The operator could not find the keys, which is the whole reason this phase
+// exists. The chord is a `sublabel` and NOT an accelerator: Electron's one
+// documented display-only flag is Linux and Windows only, so an accelerator on
+// darwin would really register app-wide and take ⌥↓ from every session's
+// terminal. And main learns whether a view is mounted from the renderer's push
+// over `ui:redlineMounted` and from nothing else, so the rows are disabled
+// until it is told.
+// ---------------------------------------------------------------------------
+
+describe('Phase 236: the Redline rows carry their chord and their state', () => {
+  const ROWS: readonly [string, string, string][] = [
+    ['Next Change', 'redline-row-next', 'redline.next'],
+    ['Previous Change', 'redline-row-prev', 'redline.prev'],
+    ['Rewind Change', 'redline-row-rewind', 'redline.rewind'],
+    ['Undo Rewind', 'redline-row-undo', 'redline.undo']
+  ];
+
+  beforeEach(() => {
+    setPlatform('darwin');
+    setRedlineMountedRows(false);
+    installAppMenu();
+  });
+
+  it.each(ROWS)(
+    '%s carries the keymap chord as a sublabel and still registers no accelerator',
+    (label, _id, keymapId) => {
+      const row = submenuOf('Edit').find((it) => it.label === label);
+      expect(row?.sublabel, label).toBe(
+        keyDisplay(keymapId as Parameters<typeof keyDisplay>[0])
+      );
+      expect(row?.accelerator, label).toBeUndefined();
+    }
+  );
+
+  it('draws the four glyphs the keymap owns and nothing typed by hand', () => {
+    const edit = submenuOf('Edit');
+    expect(
+      ROWS.map(([label]) => edit.find((it) => it.label === label)?.sublabel)
+    ).toEqual(['⌥↓', '⌥↑', '⌥⌫', '⌥⇧⌫']);
+  });
+
+  it('is disabled when no view has ever said it is mounted', () => {
+    for (const [label, id] of ROWS) {
+      const row = submenuOf('Edit').find((it) => it.label === label);
+      expect(row?.id, label).toBe(id);
+      expect(row?.enabled, label).toBe(false);
+    }
+  });
+
+  it('enables the rows IN PLACE when a view mounts, with no rebuild', () => {
+    setRedlineMountedRows(true);
+    for (const [label] of ROWS) {
+      expect(submenuOf('Edit').find((it) => it.label === label)?.enabled, label).toBe(true);
+    }
+  });
+
+  it('disables them again when the view unmounts', () => {
+    setRedlineMountedRows(true);
+    setRedlineMountedRows(false);
+    for (const [label] of ROWS) {
+      expect(submenuOf('Edit').find((it) => it.label === label)?.enabled, label).toBe(false);
+    }
+  });
+
+  it('a rebuild reproduces the last answer rather than resetting it', () => {
+    setRedlineMountedRows(true);
+    rebuildAppMenu();
+    for (const [label] of ROWS) {
+      expect(submenuOf('Edit').find((it) => it.label === label)?.enabled, label).toBe(true);
+    }
   });
 });
