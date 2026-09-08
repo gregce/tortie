@@ -4,6 +4,16 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## Unreleased
+
+This release is about the redline you can rewind. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at goes back with one key and comes back with another.
+
+### Added
+
+- The Redline tab for a Markdown or text file now marks every change since the last commit, or since you opened the file when it is not in git, and it redraws by itself when an agent writes to the file. The marking lasts as long as the tab is open, and it waits while you have unsaved edits ([`8f31bb4`](https://github.com/gregce/tortie/commit/8f31bb4)), ([`872599b`](https://github.com/gregce/tortie/commit/872599b)), ([`d8b8805`](https://github.com/gregce/tortie/commit/d8b8805))
+- Point at a change in the redline with Option-Down and Option-Up, press Option-Delete, and that one phrase goes back to what it was while every other edit in the file stands. Your own paragraph carries the same control as an agent's, so a rewind can be undone with Shift-Option-Delete for as long as the tab is open ([`a25128d`](https://github.com/gregce/tortie/commit/a25128d)), ([`e69cc43`](https://github.com/gregce/tortie/commit/e69cc43)), ([`5701f97`](https://github.com/gregce/tortie/commit/5701f97)), ([`861dd3f`](https://github.com/gregce/tortie/commit/861dd3f))
+- A rewind is written only if the file still holds exactly what Tortie read when you pressed. If something wrote to it in between, or the phrase is no longer there, nothing is written and the redline says which, though a write of exactly the same size landing in the same instant as the rewind can still be written over ([`9f61ee9`](https://github.com/gregce/tortie/commit/9f61ee9)), ([`eef1cdf`](https://github.com/gregce/tortie/commit/eef1cdf))
+
 ## 0.101.0 (2026-09-07)
 
 This release is about light mode. The whole app can now sit on paper rather than graphite, terminal and editor and diffs included, and the frame controls work the same way on both. A codex session you restore after a reboot now opens instead of refusing, and a development build no longer disagrees with the installed app about which tmux to use.
