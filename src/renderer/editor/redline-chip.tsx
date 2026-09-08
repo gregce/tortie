@@ -66,9 +66,64 @@ import type { RedlineCommand } from './redline-commands';
 const CHIP_GAP = 4;
 
 /** What the chip is drawn at, in the view's own coordinates. */
-interface ChipPlace {
+export interface ChipPlace {
   left: number;
   top: number;
+}
+
+/**
+ * The parts of a rectangle this module reads. Structural rather than `DOMRect`
+ * so the rule below can be driven under node with the real numbers research 96
+ * §4.3 measured, without a DOM.
+ */
+export interface ChipRect {
+  left: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * THE MANDATORY RULE, IN ONE PLACE SO IT CAN BE ASKED.
+ *
+ * The chip's anchor is the change's FIRST client rect and never its bounding
+ * box. Research 96 §4.5 drove both on the shipped view: at the wide 871px pane
+ * change 12's first rect began at 1185.82 while its union began at 750.09, so
+ * the bounding box is 435.73px to the LEFT of where the change actually
+ * starts, and a chip anchored on it points at empty margin nearly half a column
+ * away. It is worse at the wide pane than at the narrow one, because a wider
+ * column means a longer wrap-back.
+ *
+ * `rects[0]` is the anchor POINT and not the change's extent: research 96 §4.5
+ * measured ten of fifteen wide changes carrying two or three rects on ONE line
+ * box, because a wrapper holding a `<del>` and an `<ins>` fragments its inline
+ * box around them. So the chip is placed at where the change STARTS, which is
+ * a question `rects[0]` answers exactly.
+ */
+export function chipAnchorRect(el: {
+  getClientRects: () => ArrayLike<ChipRect>;
+}): ChipRect | undefined {
+  return el.getClientRects()[0];
+}
+
+/**
+ * Where the chip goes, in the view's own coordinates: above the change's line
+ * box when there is room and below it when there is not, clamped to the view.
+ * The clamp is the chip's own because it lives OUTSIDE the scroller, so the
+ * scroller neither scrolls it nor clips it (research 96 §1.4's two limits).
+ */
+export function chipPlace(
+  rect: ChipRect,
+  box: ChipRect,
+  size: { width: number; height: number }
+): ChipPlace {
+  const above = rect.top - box.top - size.height - CHIP_GAP;
+  const raw = above >= 0 ? above : rect.bottom - box.top + CHIP_GAP;
+  return {
+    left: Math.max(0, Math.min(rect.left - box.left, box.width - size.width)),
+    top: Math.max(0, Math.min(raw, box.height - size.height))
+  };
 }
 
 export interface RedlineChipProps {
@@ -121,25 +176,20 @@ export function RedlineChip({
       return;
     }
     const put = (): void => {
-      // THE MANDATORY RULE. The FIRST client rect, never the bounding box.
-      const rect = anchor.getClientRects()[0];
+      // THE MANDATORY RULE, asked through `chipAnchorRect` so there is exactly
+      // one place in the tree that decides it.
+      const rect = chipAnchorRect(anchor);
       if (rect === undefined || !view.contains(anchor)) {
         detached.current();
         return;
       }
-      const box = view.getBoundingClientRect();
       const el = chipRef.current;
-      const w = el?.offsetWidth ?? 0;
-      const h = el?.offsetHeight ?? 0;
-      // Above the change's own line box when there is room, below it when
-      // there is not. The chip is not clipped by the scroller either, so it
-      // owns its own clamp to the view's box.
-      const above = rect.top - box.top - h - CHIP_GAP;
-      const raw = above >= 0 ? above : rect.bottom - box.top + CHIP_GAP;
-      setPlace({
-        left: Math.max(0, Math.min(rect.left - box.left, box.width - w)),
-        top: Math.max(0, Math.min(raw, box.height - h))
-      });
+      setPlace(
+        chipPlace(rect, view.getBoundingClientRect(), {
+          width: el?.offsetWidth ?? 0,
+          height: el?.offsetHeight ?? 0
+        })
+      );
     };
     put();
     const scroller = view.querySelector('.ed-redline-scroll');

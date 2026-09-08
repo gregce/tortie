@@ -217,6 +217,22 @@ export function moveFocus(host: HTMLElement, delta: 1 | -1): number | null {
   return next;
 }
 
+/**
+ * Which change the chip is drawn for (Phase 236). FOCUS WINS OVER THE POINTER,
+ * and that is a truthfulness rule rather than a taste: ⌥⌫ acts on
+ * `document.activeElement`, because ./redline-press reads the identity off the
+ * focused wrapper, so a chip drawn on a change under the pointer while a
+ * DIFFERENT change held focus would name a change the keys do not act on. With
+ * nothing focused the pointer is the whole affordance, and with neither there
+ * is no chip at all, which is the resting face.
+ */
+export function chipAnchorFor(
+  focused: HTMLElement | null,
+  hovered: HTMLElement | null
+): HTMLElement | null {
+  return focused ?? hovered;
+}
+
 export function RedlineDocument({
   tab
 }: RedlineDocumentProps): React.JSX.Element {
@@ -318,19 +334,15 @@ export function RedlineDocument({
     };
   }, []);
 
-  // PHASE 236. Which change the chip is drawn for. FOCUS WINS over the
-  // pointer, and that is a truthfulness rule rather than a taste: ⌥⌫ acts on
-  // `document.activeElement` (./redline-press reads the identity off the
-  // focused wrapper), so a chip drawn on a change under the pointer while a
-  // DIFFERENT change held focus would name a change the keys do not act on.
-  // With nothing focused, the pointer is the whole affordance.
   // PHASE 236 item 4. Whether this mount may draw the first-run line, decided
   // ONCE at mount: the flag is marked in an effect below, and reading it again
   // on a later render would make the line vanish under the person mid-session.
   const [hintAllowed] = useState(() => !redlineHintSeen());
   const [hovered, setHovered] = useState<HTMLElement | null>(null);
   const [focusedEl, setFocusedEl] = useState<HTMLElement | null>(null);
-  const anchor = focusedEl ?? hovered;
+  // PHASE 236. Which change the chip is drawn for; the rule is
+  // `chipAnchorFor` above, and focus wins over the pointer.
+  const anchor = chipAnchorFor(focusedEl, hovered);
   const forgetAnchor = useCallback((): void => {
     setHovered(null);
     setFocusedEl(null);
