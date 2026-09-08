@@ -127,6 +127,14 @@ export interface ContextViewState {
   machineLabel: string | null;
   /** PHASE 108. The pass cap ended the read with paths still unread. */
   remoteCut: boolean;
+  /**
+   * PHASE 230. True when the LAST read of a machine was refused by the link
+   * while an earlier scan is still held. The rows on screen are that scan and
+   * the view draws no sentence over them; the shared hook reads this as
+   * `refused` and reads again when the machine starts answering. Rule 2
+   * above, that a failed read never blanks the panel, now holds over there.
+   */
+  remoteRefused: boolean;
 
   /** §5.3 — one filter across every section. */
   filter: string;
@@ -250,17 +258,30 @@ export const useContext = create<ContextViewState>((set, get) => {
         error: null,
         remoteMode: null,
         machineLabel: null,
-        remoteCut: false
+        remoteCut: false,
+        remoteRefused: false
       });
       return;
     }
     const started = get().epoch + 1;
+    // PHASE 230. Whether a scan from that machine is on screen right now, so
+    // a re-read the link refuses can leave it there rather than blanking it.
+    const held = get().status === 'ready' && get().scan !== null;
     set({ status: 'loading', epoch: started });
     void machines
       .readContext({ machineId: target.machineId, cwd: target.path })
       .then((answer) => {
         // A late answer for a project the user has left must never paint.
         if (get().epoch !== started || !sameTarget(get().target, target)) return;
+        if (
+          held &&
+          (answer.mode === 'notConnected' || answer.mode === 'unreachable')
+        ) {
+          // PHASE 230. THE STALE SENTENCE BECOMES NOTHING: the last scan
+          // stays, marked refused, until the machine answers again.
+          set({ status: 'ready', error: null, remoteRefused: true });
+          return;
+        }
         set({
           status: 'ready',
           scan: answer.mode === 'context' ? answer.scan : null,
@@ -268,11 +289,17 @@ export const useContext = create<ContextViewState>((set, get) => {
           remoteMode: answer.mode,
           machineLabel: answer.machineLabel,
           remoteCut: answer.mode === 'context' ? answer.cut : false,
+          remoteRefused: false,
           pins: new Map()
         });
       })
       .catch((err: unknown) => {
         if (get().epoch !== started || !sameTarget(get().target, target)) return;
+        if (held) {
+          // PHASE 230. As above: the last scan stays, marked refused.
+          set({ status: 'ready', error: null, remoteRefused: true });
+          return;
+        }
         set({
           status: 'error',
           error: err instanceof Error ? err.message : String(err)
@@ -320,7 +347,8 @@ export const useContext = create<ContextViewState>((set, get) => {
           // rows read on this Mac.
           remoteMode: null,
           machineLabel: null,
-          remoteCut: false
+          remoteCut: false,
+          remoteRefused: false
         });
         void recheckPins(scan, started);
       })
@@ -341,6 +369,7 @@ export const useContext = create<ContextViewState>((set, get) => {
     remoteMode: null,
     machineLabel: null,
     remoteCut: false,
+    remoteRefused: false,
     filter: '',
     agentId: null,
     mode: 'browse',
@@ -374,6 +403,7 @@ export const useContext = create<ContextViewState>((set, get) => {
         remoteMode: null,
         machineLabel: null,
         remoteCut: false,
+        remoteRefused: false,
         filter: '',
         agentId,
         // The readout belongs to a session in the project you left.

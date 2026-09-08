@@ -80,14 +80,12 @@ import {
   runsNoBranch,
   runsNotConnected,
   runsNotRepo,
-  runsReadAt,
   runsReadingBranch
 } from '../machines/runs';
 import { heldOfMode } from '../machines/reread';
 import { useRemoteReread } from '../machines/use-remote-reread';
 import { RunRow } from './RunRow';
 import {
-  machineAnsweredRuns,
   remoteRunsAvailable,
   remoteRunsOf,
   useRemoteRuns
@@ -166,7 +164,6 @@ export function RemoteRunsPanel({
   const health = healthNote(entry.health);
   const hidden = hiddenNotes(entry.issues);
   const sentence = runsModeSentence(entry.mode, label);
-  const answered = machineAnsweredRuns(entry.mode);
   const busy = entry.loading || entry.refreshing;
   // PHASE 228. A repository with no GitHub origin has no runs to show and the
   // local section is not drawn for one (./RunsSection.tsx returns null for
@@ -276,13 +273,8 @@ export function RemoteRunsPanel({
             </p>
           ))
         : null}
-      {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
-          reads again by itself when it is looked at. */}
-      {!collapsed && answered && entry.readAt > 0 ? (
-        <p className="scm-remote-note runs-read-at">
-          {runsReadAt(label, entry.readAt)}
-        </p>
-      ) : null}
+      {/* PHASE 228 LEFT THE READ-AT CLOCK HERE and PHASE 230 TOOK IT OFF,
+          because the group reads again by itself when it is looked at. */}
     </>
   );
 }
@@ -323,7 +315,12 @@ export function RemoteRunsSection({
   // PHASE 230. The other moments this group reads at; the header says which.
   useRemoteReread({
     target,
-    held: heldOfMode(entry.mode, entry.loading || entry.refreshing),
+    held:
+      entry.loading || entry.refreshing
+        ? 'reading'
+        : entry.refused
+          ? 'refused'
+          : heldOfMode(entry.mode, false),
     active: !collapsed && available,
     writes: [],
     read: () => void refresh(target)

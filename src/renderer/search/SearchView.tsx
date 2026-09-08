@@ -219,6 +219,7 @@ export function SearchSection(): React.JSX.Element {
   const noteRepoChanged = useSearch((s) => s.noteRepoChanged);
   const storeTarget = useSearch((s) => s.target);
   const remoteMode = useSearch((s) => s.remoteMode);
+  const remoteRefused = useSearch((s) => s.remoteRefused);
   const run = useSearch((s) => s.run);
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
@@ -250,13 +251,15 @@ export function SearchSection(): React.JSX.Element {
    * The store holds ONE answer and its target, so an answer that belongs to
    * the tab a person just left is `none` here, and a switch back to a machine
    * tab does not re-run a query the switch itself blanked, which is what the
-   * local view does too.
+   * local view does too. A run the link refused over rows of the same query
+   * leaves the rows on screen and is `refused` here, so the sign in retry
+   * runs it once more; the store's header says why no sentence is drawn.
    */
   const held: RereadHeld = !sameTarget(storeTarget, target)
     ? 'none'
     : status === 'searching'
       ? 'reading'
-      : status === 'error'
+      : status === 'error' || (status === 'done' && remoteRefused)
         ? 'refused'
         : status === 'done'
           ? remoteMode === null

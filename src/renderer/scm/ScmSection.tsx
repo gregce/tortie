@@ -54,7 +54,6 @@ import type { MachineIndexWriteOutcome } from '@shared/ipc';
 import type { PendingOp, ScmGroups } from '../state/git';
 import { Codicon, menuGlyph } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
-import { remoteReadAt } from '../machines/presentation';
 import { useRemoteReread } from '../machines/use-remote-reread';
 import type { RereadHeld } from '../machines/reread';
 import {
@@ -1264,7 +1263,11 @@ function RemoteScmSection({
         </div>
       );
     }
-    if (entry.failed) {
+    if (entry.failed && entry.readAt === 0) {
+      // PHASE 230. Only when nothing was ever read. A re-read the link
+      // refused leaves the last good rows on screen with no sentence over
+      // them, the way a local Changes group keeps its rows when git is slow,
+      // and the shared hook reads again when the machine starts answering.
       return (
         <div className="section-stub">
           {remoteChangesUnreachable(label)}
@@ -1540,12 +1543,9 @@ function RemoteScmSection({
       {entry.note !== null ? (
         <p className="scm-remote-note">{entry.note}</p>
       ) : null}
-      {/* PHASE 228 LEFT THIS LINE AS THE ONE SHORT CLOCK, and PHASE 230
-          REMOVES IT once this view reads again by itself when it is looked
-          at. A local Source control view carries no clock. */}
-      {entry.readAt > 0 ? (
-        <p className="scm-remote-note">{remoteReadAt(entry.readAt)}</p>
-      ) : null}
+      {/* PHASE 228 LEFT THE READ-AT CLOCK HERE AS THE ONE SHORT LINE, and
+          PHASE 230 TOOK IT OFF, because this view reads again by itself when
+          it is looked at and a local Source control view carries no clock. */}
       {/* PHASE 107. The second group this view draws for a folder on another
           machine, and its place is the place the local panel already gives
           History, being under Changes and above Branch. One order rather than

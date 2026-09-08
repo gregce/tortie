@@ -132,6 +132,14 @@ export interface RemoteHistoryEntry {
   readAt: number;
   /** How long the whole call took, round trip included. */
   elapsedMs: number;
+  /**
+   * PHASE 230. True when the LAST read was refused by the link, being
+   * `notConnected`, `unreachable` or a thrown call, while an earlier answer
+   * is still held. The rows on screen are the last good answer and the group
+   * draws no sentence over them; the shared hook reads this as `refused` and
+   * reads again when the machine starts answering.
+   */
+  refused: boolean;
 }
 
 const EMPTY: RemoteHistoryEntry = {
@@ -154,7 +162,8 @@ const EMPTY: RemoteHistoryEntry = {
   loading: false,
   refreshing: false,
   readAt: 0,
-  elapsedMs: 0
+  elapsedMs: 0,
+  refused: false
 };
 
 /**
@@ -285,6 +294,22 @@ export const useRemoteHistory = create<RemoteHistoryState>((set, get) => {
         cwd: target.path,
         maxCount: limit
       });
+      if (
+        had &&
+        (answer.mode === 'notConnected' || answer.mode === 'unreachable')
+      ) {
+        // PHASE 230. THE STALE SENTENCE BECOMES NOTHING. A re-read the link
+        // refused leaves the last good answer on screen, the way a local
+        // History keeps its rows when git is slow, and marks the entry so the
+        // shared hook reads again when the machine starts answering.
+        patch(key, {
+          machineLabel: answer.machineLabel,
+          loading: false,
+          refreshing: false,
+          refused: true
+        });
+        return;
+      }
       patch(key, {
         machineLabel: answer.machineLabel,
         mode: answer.mode,
@@ -309,16 +334,20 @@ export const useRemoteHistory = create<RemoteHistoryState>((set, get) => {
         loading: false,
         refreshing: false,
         readAt: answer.readAt,
-        elapsedMs: answer.elapsedMs
+        elapsedMs: answer.elapsedMs,
+        refused: false
       });
     } catch {
+      if (had) {
+        // PHASE 230. As above: the last good answer stays, marked refused.
+        patch(key, { loading: false, refreshing: false, refused: true });
+        return;
+      }
       // The channel itself failed, which is a different fact from the machine
       // not answering, and there is no third sentence for it. `unreachable` is
       // the mode whose sentence says the history could not be read, which is
       // what happened, and `machineAnsweredHistory` keeps the read time off the
-      // screen for it. Every row and every flag a previous answer left behind
-      // is cleared, because a picture under a sentence saying nothing was read
-      // is exactly the claim this phase is trying not to make.
+      // screen for it. With no earlier answer there is nothing to keep.
       patch(key, {
         mode: 'unreachable',
         entries: [],

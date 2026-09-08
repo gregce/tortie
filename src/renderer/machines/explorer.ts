@@ -6,19 +6,9 @@
  * they are drawn in is described in ./project-tab.ts.
  */
 
-import { remoteReadAt } from './presentation';
-
-/**
- * The same sentence under the name the Explorer imports it by.
- *
- * ONE DEFINITION, TWO NAMES. The Explorer and Source Control say the same thing
- * after a good read, because it is the same fact: nothing polls that machine,
- * so the person is told which moment they are looking at. An alias rather than a
- * second copy, so the two can never drift apart.
- */
-// PHASE 228 LEFT IT AND PHASE 230 REMOVES IT, with the definition; the reason
-// is on `remoteReadAt` in ./presentation.ts.
-export const remoteTreeReadAt = remoteReadAt;
+// PHASE 230 TOOK `remoteTreeReadAt` OFF, the Explorer's name for the read-at
+// clock that ./presentation.ts defined once for it and Source control. The
+// record is on that file's header, and the Explorer reads again by itself now.
 
 /** The folder named by the tab is not on that machine. */
 export function remoteTreeMissingTitle(label: string): string {

@@ -497,6 +497,7 @@ export function ContextSection({
   const syncProject = useContext((s) => s.syncProject);
   const refresh = useContext((s) => s.refresh);
   const storeTarget = useContext((s) => s.target);
+  const remoteRefused = useContext((s) => s.remoteRefused);
 
   // PHASE 108. The machine's name for every sentence about it: the machine's
   // own label once an answer landed, the sidebar's list before that.
@@ -538,7 +539,7 @@ export function ContextSection({
       ? 'none'
       : status === 'loading'
         ? 'reading'
-        : status === 'error'
+        : status === 'error' || (status === 'ready' && remoteRefused)
           ? 'refused'
           : status === 'ready'
             ? remoteMode === null

@@ -157,7 +157,7 @@ let pollTimer: number | null = null;
  * The time is recorded when the call GOES OUT rather than when it lands, so two
  * warms in the same second cost one command on that machine instead of two.
  */
-const remoteReadAt = new Map<string, number>();
+const remoteWarmedAt = new Map<string, number>();
 
 /**
  * The last answer for each root on a machine.
@@ -324,12 +324,12 @@ export const useQuickOpen = create<QuickOpenState>((set, get) => {
     isActive: boolean
   ): void => {
     const now = Date.now();
-    if (now - (remoteReadAt.get(key) ?? 0) < QUICK_OPEN_WARM_STALE_MS) {
+    if (now - (remoteWarmedAt.get(key) ?? 0) < QUICK_OPEN_WARM_STALE_MS) {
       const last = remoteAnswers.get(key);
       if (isActive && last !== undefined) set({ elsewhereRead: last });
       return;
     }
-    remoteReadAt.set(key, now);
+    remoteWarmedAt.set(key, now);
 
     const machines = machinesBridge();
     if (machines === null || typeof machines.listFiles !== 'function') {

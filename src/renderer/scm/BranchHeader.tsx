@@ -37,7 +37,6 @@ import {
   honestSyncTooltip
 } from './freshness';
 import { remoteChangesOf, useRemoteChanges } from './remote-changes';
-import { readClockTime, remoteReadAt } from '../machines/presentation';
 import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
@@ -352,23 +351,14 @@ export function BranchHeader(): React.JSX.Element {
           {project.name}
         </span>
         <span className="branch-spacer" />
-        {/* The clock, as "14:32" with the sentence on hover. PHASE 228 LEFT IT
-            and PHASE 230 REMOVES IT with the sentence, once the view reads
-            again by itself when it is looked at. */}
-        {remoteEntry.readAt > 0 ? (
-          <span className="scm-remote-read" title={remoteReadAt(remoteEntry.readAt)}>
-            {readClockTime(remoteEntry.readAt)}
-          </span>
-        ) : null}
+        {/* PHASE 228 LEFT THE CLOCK HERE, as "14:32" with the sentence on
+            hover, and PHASE 230 TOOK IT OFF with the sentence, because the
+            view reads again by itself when it is looked at. */}
         <button
           type="button"
           className={`icon-btn branch-refresh${busy ? ' busy' : ''}`}
           aria-label="Read what changed on that machine again"
-          title={
-            remoteEntry.readAt > 0
-              ? remoteReadAt(remoteEntry.readAt)
-              : 'Read what changed on that machine'
-          }
+          title="Read what changed on that machine"
           disabled={busy}
           onClick={() => void refreshRemote(target)}
         >

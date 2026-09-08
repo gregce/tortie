@@ -94,11 +94,9 @@ import {
   branchTrackUnreadable,
   branchUpstreamGone
 } from '../machines/branch';
-import { machineReadAt } from '../machines/presentation';
 import { heldOfMode } from '../machines/reread';
 import { useRemoteReread } from '../machines/use-remote-reread';
 import {
-  machineAnsweredBranch,
   remoteBranchAvailable,
   remoteBranchOf,
   useRemoteBranch
@@ -196,7 +194,6 @@ export function RemoteBranchPanel({
   onRefresh
 }: RemoteBranchPanelProps): React.JSX.Element {
   const sentence = branchModeSentence(entry.mode, label);
-  const answered = machineAnsweredBranch(entry.mode);
   const busy = entry.loading || entry.refreshing;
   // True on the one path where the body draws facts, being a live bridge, an
   // answer that came back, and a mode that has no sentence of its own. The
@@ -311,13 +308,8 @@ export function RemoteBranchPanel({
           228 TOOK FIVE SENTENCES OUT OF THIS PLACE, being the band above the
           group and the four standing lines under it, because the local face
           carries no paragraph; the record is in ../machines/branch.ts. */}
-      {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
-          reads again by itself when it is looked at. */}
-      {!collapsed && answered && entry.readAt > 0 ? (
-        <p className="scm-remote-note rbranch-read-at">
-          {machineReadAt(label, entry.readAt)}
-        </p>
-      ) : null}
+      {/* PHASE 228 LEFT THE READ-AT CLOCK HERE and PHASE 230 TOOK IT OFF,
+          because the group reads again by itself when it is looked at. */}
     </>
   );
 }
@@ -358,7 +350,12 @@ export function RemoteBranchSection({
   // PHASE 230. The other moments this group reads at; the header says which.
   useRemoteReread({
     target,
-    held: heldOfMode(entry.mode, entry.loading || entry.refreshing),
+    held:
+      entry.loading || entry.refreshing
+        ? 'reading'
+        : entry.refused
+          ? 'refused'
+          : heldOfMode(entry.mode, false),
     active: !collapsed && available,
     writes: ['commit'],
     read: () => void refresh(target)

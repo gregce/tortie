@@ -13,15 +13,14 @@ import { commitCount } from './presentation';
  * Runs group's own sentence, or open a session and type. This block holds every
  * sentence the Branch group draws.
  *
- * FOUR OF THESE ARE THE PRIMARY AND PHASE 105 NOW CALLS THEM. `branchReading`,
- * `branchNotConnected`, `branchNoAnswer` and `machineReadAt` say nothing about
- * runs, and the Runs group in ./runs.ts says exactly the same four things.
- * Writing a
+ * THREE OF THESE ARE THE PRIMARY AND PHASE 105 NOW CALLS THEM. `branchReading`,
+ * `branchNotConnected` and `branchNoAnswer` say nothing about runs, and the
+ * Runs group in ./runs.ts says exactly the same three things. Writing a
  * second copy of one sentence is how the two go out of step, so the neutral
- * name is the primary here and `runsReadingBranch`, `runsNotConnected`,
- * `runsNoAnswer` and `runsReadAt` are wrappers over them. `machineReadAt` moved
- * to ./presentation.ts in Phase 142 for the same reason, being that every group
- * composes with it. One string, two names, no drift.
+ * name is the primary here and `runsReadingBranch`, `runsNotConnected` and
+ * `runsNoAnswer` are wrappers over them. One string, two names, no drift.
+ * There were four until Phase 230 took the read-at clock off every group;
+ * the record is on ./presentation.ts.
  *
  * NO PROSE CROSSES THE CHANNEL. Main answers a mode word, a branch name, two
  * commit strings, an upstream name, two counts and two flags. Every sentence a
@@ -39,8 +38,8 @@ import { commitCount } from './presentation';
  * the local header draws no arrows for one. The two READ FAILURES stay as
  * one line each under the row, because zero and zero is what a level branch
  * answers and also what an unread answer leaves behind, and the two cannot
- * be told apart from the picture. The clock under the group stays until
- * Phase 230 removes it.
+ * be told apart from the picture. PHASE 230 TOOK THE CLOCK UNDER THE GROUP
+ * OFF, because the group reads again by itself when it is looked at.
  */
 
 /** While the read of that machine's branch is in flight. */

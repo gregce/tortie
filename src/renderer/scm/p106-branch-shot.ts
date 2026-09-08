@@ -394,7 +394,8 @@ export async function driveRemoteBranch(
           loading: false,
           refreshing: false,
           readAt: now,
-          elapsedMs: 318
+          elapsedMs: 318,
+          refused: false
         }
       }
     }));

@@ -1868,17 +1868,6 @@ body.scm-section-dragging .section-gripper {
   flex: 0 0 auto;
 }
 
-/* The time of the last read, in the header band beside Refresh. Nothing polls
-   that machine, so this number is the answer to "how old is what I am
-   looking at". */
-.scm-remote-read {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  padding-right: var(--space-2);
-  user-select: none;
-}
-
 /* ---------------------------------------------------------------------------
    The commit box on a tab whose folder is on another machine (Phase 104)
 --------------------------------------------------------------------------- */

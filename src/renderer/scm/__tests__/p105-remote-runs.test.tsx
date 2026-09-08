@@ -145,6 +145,7 @@ function entry(over: Record<string, unknown> = {}): Parameters<
     refreshing: false,
     readAt: AT,
     elapsedMs: 400,
+    refused: false,
     ...over
   } as Parameters<typeof RemoteRunsPanel>[0]['entry'];
 }
@@ -289,6 +290,37 @@ describe('the store asks once, and only when it is asked to', () => {
     const held = useRemoteRuns.getState().byTarget['studio:/home/greg/api'];
     expect(held?.mode).toBe('unreachable');
     expect(held?.readAt).toBe(0);
+    expect(held?.refused).toBe(false);
+  });
+
+  it('keeps the last good answer when a re-read is refused by the link (Phase 230)', async () => {
+    // THE STALE SENTENCE BECOMES NOTHING. Rows that were read stay on screen
+    // with no sentence over them, marked refused so the shared hook reads
+    // again when the machine starts answering; a good answer clears the mark.
+    await useRemoteRuns.getState().refresh(STUDIO);
+    readRuns.mockRejectedValueOnce(new Error('no'));
+    await useRemoteRuns.getState().refresh(STUDIO);
+    let held = useRemoteRuns.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.mode).toBe('ok');
+    expect(held?.runs).toHaveLength(1);
+    expect(held?.readAt).toBe(AT);
+    expect(held?.refused).toBe(true);
+    expect(held?.refreshing).toBe(false);
+    readRuns.mockResolvedValueOnce(answer({ mode: 'notConnected', runs: [] }));
+    await useRemoteRuns.getState().refresh(STUDIO);
+    held = useRemoteRuns.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.mode).toBe('ok');
+    expect(held?.runs).toHaveLength(1);
+    expect(held?.refused).toBe(true);
+    await useRemoteRuns.getState().refresh(STUDIO);
+    held = useRemoteRuns.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.refused).toBe(false);
+    // The folder's own answer is not a refusal and replaces the rows.
+    readRuns.mockResolvedValueOnce(answer({ mode: 'notRepo', runs: [] }));
+    await useRemoteRuns.getState().refresh(STUDIO);
+    held = useRemoteRuns.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.mode).toBe('notRepo');
+    expect(held?.runs).toHaveLength(0);
   });
 
   it('forgets one target and keeps the other', async () => {
@@ -372,7 +404,12 @@ describe('what the panel admits about its own answer', () => {
     expect(shortSha(SHA)).toBe('1f2e3d4');
   });
 
-  it('says when it was read, for every mode the machine answered', () => {
+  it('draws no clock for any mode the machine answered (Phase 230)', () => {
+    // PHASE 228 LEFT "Tortie read this from Studio at 14:32." UNDER THE GROUP
+    // AS THE ONE SHORT CLOCK, and PHASE 230 TOOK IT OFF, because the group
+    // reads again by itself when it is looked at and the local Runs section
+    // carries no clock. `machineAnsweredRuns` still says which modes are an
+    // answer, because the store's readAt follows it.
     for (const mode of [
       'ok',
       'notRepo',
@@ -381,11 +418,12 @@ describe('what the panel admits about its own answer', () => {
       'denied'
     ] as MachineRunsMode[]) {
       expect(machineAnsweredRuns(mode)).toBe(true);
-      expect(draw({ mode, runs: [] })).toContain(copy.runsReadAt(L, AT));
+      const html = draw({ mode, runs: [] });
+      expect(html).not.toContain('Tortie read this from');
+      expect(html).not.toContain('runs-read-at');
     }
-    // `notGitHub` is an answer too, and the store says so; the group is not
-    // drawn for it, so there is no clock to read (Phase 228).
     expect(machineAnsweredRuns('notGitHub')).toBe(true);
+    expect((copy as Record<string, unknown>).runsReadAt).toBeUndefined();
   });
 
   it('claims no read for the two modes where nothing was read', () => {
@@ -463,9 +501,10 @@ describe('what the panel admits about its own answer', () => {
     const three = [run({ id: 1 }), run({ id: 2 }), run({ id: 3 })];
     const html = draw({ runs: three, limit: 3, issues });
     const inside = bodyOnly(html);
-    // PHASE 228. Two kinds of line are left under the group, the hidden row
-    // notes the local section draws from the same file, and the clock.
-    const outside = [copy.runsReadAt(L, AT), hiddenNotes(issues)[0] as string];
+    // PHASE 228. Two kinds of line were left under the group, the hidden row
+    // notes the local section draws from the same file, and the clock; PHASE
+    // 230 took the clock off, so the notes are what is left.
+    const outside = [hiddenNotes(issues)[0] as string];
     for (const sentence of outside) {
       expect(html).toContain(sentence);
       expect(inside).not.toContain(sentence);

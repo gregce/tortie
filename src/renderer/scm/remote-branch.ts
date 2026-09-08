@@ -97,6 +97,12 @@ export interface RemoteBranchEntry {
   readAt: number;
   /** How long the whole call took, round trip included. */
   elapsedMs: number;
+  /**
+   * PHASE 230. True when the LAST read was refused by the link while an
+   * earlier answer is still held; the row on screen is that answer and the
+   * shared hook reads again when the machine starts answering.
+   */
+  refused: boolean;
 }
 
 const EMPTY: RemoteBranchEntry = {
@@ -116,7 +122,8 @@ const EMPTY: RemoteBranchEntry = {
   loading: false,
   refreshing: false,
   readAt: 0,
-  elapsedMs: 0
+  elapsedMs: 0,
+  refused: false
 };
 
 /** The entry for one target, or an empty one. Pure, so a render may call it. */
@@ -196,6 +203,21 @@ export const useRemoteBranch = create<RemoteBranchState>((set, get) => {
         machineId: target.machineId,
         cwd: target.path
       });
+      if (
+        had &&
+        (answer.mode === 'notConnected' || answer.mode === 'unreachable')
+      ) {
+        // PHASE 230. THE STALE SENTENCE BECOMES NOTHING. A re-read the link
+        // refused leaves the last good answer on screen and marks the entry
+        // so the shared hook reads again when the machine starts answering.
+        patch(key, {
+          machineLabel: answer.machineLabel,
+          loading: false,
+          refreshing: false,
+          refused: true
+        });
+        return;
+      }
       patch(key, {
         machineLabel: answer.machineLabel,
         mode: answer.mode,
@@ -211,9 +233,15 @@ export const useRemoteBranch = create<RemoteBranchState>((set, get) => {
         loading: false,
         refreshing: false,
         readAt: answer.readAt,
-        elapsedMs: answer.elapsedMs
+        elapsedMs: answer.elapsedMs,
+        refused: false
       });
     } catch {
+      if (had) {
+        // PHASE 230. As above: the last good answer stays, marked refused.
+        patch(key, { loading: false, refreshing: false, refused: true });
+        return;
+      }
       // The channel itself failed, which is a different fact from the machine
       // not answering, and there is no third sentence for it. `unreachable` is
       // the mode whose sentence says the branch could not be read, which is

@@ -49,7 +49,6 @@ import {
   remoteTreeMissingTitle,
   remoteTreeNotAFolder,
   remoteTreeNotConnected,
-  remoteTreeReadAt,
   remoteTreeTruncated,
   remoteTreeUnreachable
 } from '../machines/explorer';
@@ -360,45 +359,43 @@ export function FilesSection({
       case 'denied':
         return remoteTreeDenied(at, label);
       case 'unreachable':
-        return remoteTreeUnreachable(label);
+        // PHASE 230. THE STALE SENTENCE BECOMES NOTHING. A re-read the link
+        // refused after a good read leaves the rows on screen and draws no
+        // sentence over them, the way a local Explorer keeps its rows, and
+        // the shared hook reads again when the machine starts answering.
+        // `readAt` is null until the first good read lands, so a folder that
+        // was never read still says so.
+        return remoteRead.readAt === null ? remoteTreeUnreachable(label) : null;
       case 'notConnected':
-        return remoteTreeNotConnected(label);
+        return remoteRead.readAt === null
+          ? remoteTreeNotConnected(label)
+          : null;
     }
   }, [remote, remoteRead]);
 
   /**
-   * PHASE 90.3. The one line that says when this folder was last read, and the
-   * one that says the answer was capped.
+   * PHASE 90.3. The one line that says the answer was capped.
    *
-   * IT IS THE HONEST HALF OF HAVING NO TIMER. Nothing re-reads that machine on
-   * a clock, so a file an agent writes over there does not appear until Refresh
-   * is pressed. Saying when the rows are from is what keeps that from reading
-   * as a tree that is simply wrong.
-   *
-   * PHASE 228 LEFT THIS LINE ON THE FACE AS THE ONE SHORT CLOCK, and PHASE 230
-   * REMOVES IT once this view reads again by itself when it is looked at. A
-   * local Explorer carries no clock. Nothing is added to it in between.
+   * It stays because it names a list on screen that was cut, which is the
+   * Phase 99 defect. PHASE 228 LEFT THE READ-AT CLOCK BESIDE IT AS THE ONE
+   * SHORT LINE, and PHASE 230 TOOK THE CLOCK OFF, because this section reads
+   * again by itself when it is looked at and a local Explorer carries none.
    */
   const readLine =
     collapsed ||
     remote === null ||
     remoteRead === null ||
     remoteRead.status !== 'ok' ||
-    remoteRead.readAt === null
+    remoteRead.readAt === null ||
+    !remoteRead.truncated
       ? null
       : (
           <p className="files-remote-note">
-            {remoteTreeReadAt(remoteRead.readAt)}
-            {remoteRead.truncated ? (
-              <>
-                <br />
-                {remoteTreeTruncated(
-                  remoteRead.shown,
-                  remoteRead.total,
-                  REMOTE_TREE_MAX_ENTRIES
-                )}
-              </>
-            ) : null}
+            {remoteTreeTruncated(
+              remoteRead.shown,
+              remoteRead.total,
+              REMOTE_TREE_MAX_ENTRIES
+            )}
           </p>
         );
 

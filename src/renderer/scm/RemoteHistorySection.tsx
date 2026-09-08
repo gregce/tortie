@@ -129,7 +129,6 @@ import {
   historyNotRepo,
   historyReading
 } from '../machines/history';
-import { machineReadAt } from '../machines/presentation';
 import { heldOfMode } from '../machines/reread';
 import { useRemoteReread } from '../machines/use-remote-reread';
 import { CommitGraph, CommitGraphSpacer, useLaneCap } from './graph/CommitGraph';
@@ -141,7 +140,6 @@ import { fileBadge } from './file-badge';
 import { formatRelative, renamedFromTitle, shortSha, splitPath } from './format';
 import { requestRemoteCommitFileOpen } from './open-commit-file';
 import {
-  machineAnsweredHistory,
   remoteHistoryAvailable,
   remoteHistoryOf,
   useRemoteHistory
@@ -255,7 +253,6 @@ export function RemoteHistoryPanel({
   const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
 
   const sentence = historyModeSentence(entry.mode, label);
-  const answered = machineAnsweredHistory(entry.mode);
   const busy = entry.loading || entry.refreshing;
   // True on the one path where the body draws rows, being a live bridge, an
   // answer that came back, and the mode that has no sentence of its own. Every
@@ -661,13 +658,8 @@ export function RemoteHistoryPanel({
           SENTENCES OUT OF THIS PLACE, being the band above the group and the
           five standing lines under it, because the local History carries no
           paragraph; the record is in ../machines/history.ts. */}
-      {/* PHASE 228 LEFT THIS CLOCK and PHASE 230 REMOVES IT, once the group
-          reads again by itself when it is looked at. */}
-      {!collapsed && answered && entry.readAt > 0 ? (
-        <p className="scm-remote-note rhist-read-at">
-          {machineReadAt(label, entry.readAt)}
-        </p>
-      ) : null}
+      {/* PHASE 228 LEFT THE READ-AT CLOCK HERE and PHASE 230 TOOK IT OFF,
+          because the group reads again by itself when it is looked at. */}
       {/* THE SECOND CUT. The marks were read for the page and no further. It
           stays because it says a list on screen is incomplete, and a cut list
           drawn as a whole one is the Phase 99 defect. */}
@@ -746,7 +738,12 @@ export function RemoteHistorySection({
   // PHASE 230. The other moments this group reads at; the header says which.
   useRemoteReread({
     target,
-    held: heldOfMode(entry.mode, entry.loading || entry.refreshing),
+    held:
+      entry.loading || entry.refreshing
+        ? 'reading'
+        : entry.refused
+          ? 'refused'
+          : heldOfMode(entry.mode, false),
     active: !collapsed && available,
     writes: ['commit'],
     read: () => void refresh(target)

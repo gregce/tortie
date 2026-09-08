@@ -87,6 +87,8 @@ vi.stubGlobal('CustomEvent', FakeCustomEvent);
 
 /** Set by a test to shape the next answer. */
 let shape: Partial<MachineSearchResult> = {};
+/** PHASE 230. Set by a test to make the next call throw instead of answer. */
+let rejectNext: Error | null = null;
 
 vi.stubGlobal('window', {
   addEventListener() {},
@@ -107,6 +109,11 @@ vi.stubGlobal('window', {
     machines: {
       searchContent: (input: MachineSearchInput) => {
         calls.push(input);
+        if (rejectNext !== null) {
+          const err = rejectNext;
+          rejectNext = null;
+          return Promise.reject(err);
+        }
         if (!holding) return Promise.resolve(answer(input, shape));
         return new Promise<MachineSearchResult>((resolve) => {
           held.push({ input, send: () => resolve(answer(input, shape)) });
@@ -158,6 +165,7 @@ beforeEach(() => {
   opens = [];
   holding = false;
   shape = {};
+  rejectNext = null;
   store().clear();
   useSearch.setState({ target: null, remoteMode: null, machineLabel: null });
 });
@@ -430,6 +438,98 @@ describe('the sentence for every one of the six words', () => {
       const empty = machineEmptyLine(mode, L);
       expect(note === null || empty === null).toBe(true);
     }
+  });
+});
+
+describe('a run the link refused, over rows of the same query (Phase 230)', () => {
+  // THE STALE SENTENCE BECOMES NOTHING. Research 89 section 4.3 measured the
+  // sentence saying Tortie was not connected under the query 61 s after the
+  // link came up. The rows of the query in the box now stay on screen when a
+  // run of that same query is refused by the link, marked so the shared hook
+  // runs it again when the machine starts answering; the folder's own answers
+  // and a refusal over rows of a DIFFERENT query paint the way they always did.
+  it('keeps the rows and marks the store refused, for a refusal word and a thrown call', async () => {
+    useSearch.setState({ target: REMOTE });
+    store().setQuery('needle');
+    await vi.advanceTimersByTimeAsync(600);
+    expect(store().files).toHaveLength(1);
+    expect(store().remoteRefused).toBe(false);
+
+    shape = { mode: 'notConnected', files: [], totalMatches: 0, totalFiles: 0 };
+    store().run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().status).toBe('done');
+    expect(store().files.map((f) => f.relPath)).toEqual(['src/there.ts']);
+    expect(store().remoteMode).toBe('repo');
+    expect(store().remoteRefused).toBe(true);
+    expect(store().error).toBeNull();
+
+    shape = {};
+    rejectNext = new Error('the door fell over');
+    store().run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().status).toBe('done');
+    expect(store().files).toHaveLength(1);
+    expect(store().remoteRefused).toBe(true);
+    expect(store().error).toBeNull();
+
+    // A good answer clears the mark.
+    store().run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().remoteRefused).toBe(false);
+    expect(store().files).toHaveLength(1);
+  });
+
+  it('paints the refusal when no rows are held, or when the rows are of another query', async () => {
+    useSearch.setState({ target: REMOTE });
+    shape = { mode: 'notConnected', files: [], totalMatches: 0, totalFiles: 0 };
+    store().setQuery('needle');
+    await vi.advanceTimersByTimeAsync(600);
+    expect(store().remoteMode).toBe('notConnected');
+    expect(store().files).toEqual([]);
+    expect(store().remoteRefused).toBe(false);
+
+    shape = {};
+    store().run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().remoteMode).toBe('repo');
+    expect(store().files).toHaveLength(1);
+
+    // The query moves and the run for the new one is refused. Rows for the
+    // old query are never kept under the new one.
+    shape = { mode: 'unreachable', files: [], totalMatches: 0, totalFiles: 0 };
+    store().setQuery('haystack');
+    await vi.advanceTimersByTimeAsync(600);
+    expect(store().remoteMode).toBe('unreachable');
+    expect(store().files).toEqual([]);
+    expect(store().remoteRefused).toBe(false);
+  });
+
+  it("replaces the rows with the folder's own answer, which is not a refusal", async () => {
+    useSearch.setState({ target: REMOTE });
+    store().setQuery('needle');
+    await vi.advanceTimersByTimeAsync(600);
+    expect(store().files).toHaveLength(1);
+
+    shape = { mode: 'missing', files: [], totalMatches: 0, totalFiles: 0 };
+    store().run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().remoteMode).toBe('missing');
+    expect(store().files).toEqual([]);
+    expect(store().remoteRefused).toBe(false);
+  });
+
+  it('blanks the mark with the rows on clear', async () => {
+    useSearch.setState({ target: REMOTE });
+    store().setQuery('needle');
+    await vi.advanceTimersByTimeAsync(600);
+    shape = { mode: 'notConnected', files: [], totalMatches: 0, totalFiles: 0 };
+    store().run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store().remoteRefused).toBe(true);
+    store().clear();
+    expect(store().remoteRefused).toBe(false);
+    expect(store().files).toEqual([]);
   });
 });
 

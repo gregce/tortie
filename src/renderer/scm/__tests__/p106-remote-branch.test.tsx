@@ -141,6 +141,7 @@ function entry(over: Record<string, unknown> = {}): Parameters<
     refreshing: false,
     readAt: AT,
     elapsedMs: 318,
+    refused: false,
     ...over
   } as Parameters<typeof RemoteBranchPanel>[0]['entry'];
 }
@@ -284,12 +285,39 @@ describe('the store asks once, and only when it is asked to', () => {
     const held = useRemoteBranch.getState().byTarget['studio:/home/greg/api'];
     expect(held?.mode).toBe('unreachable');
     expect(held?.readAt).toBe(0);
-    // The counts a previous answer left behind must not survive a failed read,
-    // because 2 ahead and 1 behind under a sentence saying nothing was read is
-    // exactly the claim this phase is trying not to make.
+    // With no earlier answer there is nothing to keep, so the sentence is
+    // drawn over nothing.
     expect(held?.ahead).toBe(0);
     expect(held?.behind).toBe(0);
     expect(held?.branch).toBe(null);
+    expect(held?.refused).toBe(false);
+  });
+
+  it('keeps the last good answer when a re-read is refused by the link (Phase 230)', async () => {
+    // THE STALE SENTENCE BECOMES NOTHING. The row that was read stays on
+    // screen with no sentence over it, marked refused so the shared hook
+    // reads again when the machine starts answering. Before this phase 2
+    // ahead and 1 behind were cleared under a sentence saying nothing was
+    // read; now no sentence is drawn and the counts are the last read ones.
+    await useRemoteBranch.getState().refresh(STUDIO);
+    readBranch.mockRejectedValueOnce(new Error('no'));
+    await useRemoteBranch.getState().refresh(STUDIO);
+    let held = useRemoteBranch.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.mode).toBe('ok');
+    expect(held?.branch).toBe(BR);
+    expect(held?.ahead).toBe(2);
+    expect(held?.refused).toBe(true);
+    readBranch.mockResolvedValueOnce(
+      answer({ mode: 'unreachable', branch: null, ahead: 0, behind: 0 })
+    );
+    await useRemoteBranch.getState().refresh(STUDIO);
+    held = useRemoteBranch.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.branch).toBe(BR);
+    expect(held?.refused).toBe(true);
+    await useRemoteBranch.getState().refresh(STUDIO);
+    expect(
+      useRemoteBranch.getState().byTarget['studio:/home/greg/api']?.refused
+    ).toBe(false);
   });
 
   it('keeps every field main sent, unchanged', async () => {
@@ -492,8 +520,13 @@ describe('what the group admits about its own answer', () => {
       'denied'
     ] as MachineBranchMode[]) {
       expect(machineAnsweredBranch(mode)).toBe(true);
-      expect(draw({ mode })).toContain(esc(copy.machineReadAt(L, AT)));
+      // PHASE 230 TOOK THE CLOCK OFF: the group reads again by itself when
+      // it is looked at and the local branch header carries none.
+      const html = draw({ mode });
+      expect(html).not.toContain('Tortie read this from');
+      expect(html).not.toContain('rbranch-read-at');
     }
+    expect((copy as Record<string, unknown>).machineReadAt).toBeUndefined();
   });
 
   it('claims no read for the two modes where nothing was read', () => {
@@ -544,12 +577,9 @@ describe('what the group admits about its own answer', () => {
     // sentence saying the list was cut was itself cut.
     const html = draw();
     const inside = bodyOnly(html);
-    // PHASE 228. One line is left under the group, the clock.
-    const outside = [copy.machineReadAt(L, AT)];
-    for (const sentence of outside) {
-      expect(html).toContain(esc(sentence));
-      expect(inside).not.toContain(esc(sentence));
-    }
+    // PHASE 228 left one line under the group, the clock, and PHASE 230 took
+    // it off, so nothing is drawn under the group at all.
+    expect(html).not.toContain('scm-remote-note');
     // The row itself stays inside, because the body is what scrolls.
     expect(inside).toContain('rbranch-row');
     expect(inside).toContain(esc(BR));
@@ -642,7 +672,6 @@ const EVERY: readonly string[] = [
   copy.branchReading(L),
   copy.branchNotConnected(L),
   copy.branchNoAnswer(L),
-  copy.machineReadAt(L, AT),
   copy.branchNotRepo(L),
   copy.branchNone(L),
   copy.branchNoDetails(L),
@@ -656,8 +685,9 @@ const EVERY: readonly string[] = [
 
 describe('the house writing rules, over every Phase 106 sentence', () => {
   it('reads a set of sentences rather than nothing', () => {
-    // PHASE 228 took eight off, so twenty one became thirteen.
-    expect(EVERY.length).toBe(13);
+    // PHASE 228 took eight off, so twenty one became thirteen, and PHASE 230
+    // took the clock off, so twelve.
+    expect(EVERY.length).toBe(12);
   });
 
   it('holds no em dash and no en dash', () => {
@@ -667,9 +697,9 @@ describe('the house writing rules, over every Phase 106 sentence', () => {
   });
 
   it('holds no colon, because not one of them introduces a list', () => {
-    // ONE sentence is exempt and it is named rather than filtered out by a
-    // pattern. It holds a clock time, and a clock time is not punctuation.
-    const exempt = [copy.machineReadAt(L, AT)];
+    // Nothing is exempt since Phase 230 took the clock off; the exempt list
+    // stays so a later clock has to be named here rather than slip through.
+    const exempt: string[] = [];
     expect(
       EVERY.filter((one) => !exempt.includes(one) && one.includes(':'))
     ).toEqual([]);
@@ -696,12 +726,11 @@ describe('the house writing rules, over every Phase 106 sentence', () => {
     ]);
   });
 
-  it('reuses one string for the four sentences Phase 105 also says', () => {
+  it('reuses one string for the three sentences Phase 105 also says', () => {
     // ONE STRING, TWO NAMES, NO DRIFT. A second copy of a sentence is how two
     // groups come to say slightly different things about the same failure.
     expect(copy.runsReadingBranch(L)).toBe(copy.branchReading(L));
     expect(copy.runsNotConnected(L)).toBe(copy.branchNotConnected(L));
     expect(copy.runsNoAnswer(L)).toBe(copy.branchNoAnswer(L));
-    expect(copy.runsReadAt(L, AT)).toBe(copy.machineReadAt(L, AT));
   });
 });

@@ -82,12 +82,12 @@ import {
   remoteTreeMissingTitle,
   remoteTreeNotAFolder,
   remoteTreeNotConnected,
-  remoteTreeReadAt,
   remoteTreeTruncated,
   remoteTreeUnreachable,
   remoteWriteDenied
 } from '../../machines/explorer';
-import { readClockTime, remoteReadAt } from '../../machines/presentation';
+import * as presentation from '../../machines/presentation';
+import { readClockTime } from '../../machines/presentation';
 import {
   addRemoteRefusal,
   createInRemoteProject,
@@ -121,7 +121,6 @@ import {
   runsNoBranch,
   runsNotConnected,
   runsNotRepo,
-  runsReadAt,
   runsReadingBranch
 } from '../../machines/runs';
 import {
@@ -163,18 +162,17 @@ const MAX = 90_000;
 const AT = new Date(2026, 7, 18, 14, 32, 0).getTime();
 
 describe('the Explorer', () => {
-  it('says which moment the rows are from', () => {
-    // PHASE 228 LEFT THIS LINE ON THE FACE AS THE ONE SHORT CLOCK, because
-    // nothing re-reads that machine yet, and PHASE 230 REMOVES IT once every
-    // remote view reads again when it is looked at. Until then it is pinned
-    // at these words so nothing is added to it in between.
+  it('no longer says which moment the rows are from (Phase 230)', () => {
+    // PHASE 228 LEFT "Read at 14:32. Press Refresh to read it again." ON THE
+    // FACE AS THE ONE SHORT CLOCK, because nothing re-read that machine, and
+    // PHASE 230 TOOK IT OFF, because every remote view reads again by itself
+    // when it is looked at and a local Explorer carries no clock. The clock
+    // fragment stays for Quick Open; the two sentences are gone by name, and
+    // ../../machines/__tests__/p228-off-the-face.test.ts pins their words.
     expect(readClockTime(AT)).toBe('14:32');
-    expect(remoteReadAt(AT)).toBe(
-      'Read at 14:32. Press Refresh to read it again.'
-    );
-    // One definition, two names. The Explorer and Source Control say the same
-    // thing after a good read, so they can never drift apart.
-    expect(remoteTreeReadAt).toBe(remoteReadAt);
+    const gone = presentation as Record<string, unknown>;
+    expect(gone.remoteReadAt).toBeUndefined();
+    expect(gone.machineReadAt).toBeUndefined();
   });
 
   it('says each of the five ways a read does not land', () => {
@@ -637,13 +635,6 @@ describe('the runs for a folder that is on a machine (Phase 105)', () => {
     expect(runsReadingBranch(L)).toBe('Tortie is reading the branch on Studio.');
   });
 
-  it('says when it read', () => {
-    // Nothing polls the machine and nothing polls GitHub, because main cannot
-    // see a push made on another computer. The clock is the one line that
-    // says so, until Phase 230 removes it.
-    expect(runsReadAt(L, AT)).toBe('Tortie read this from Studio at 14:32.');
-  });
-
   it('names both causes when there is no branch to ask GitHub about', () => {
     expect(runsNoBranch(L)).toBe(
       'Tortie read no branch name for that folder on Studio. That happens ' +
@@ -685,7 +676,6 @@ describe('the runs for a folder that is on a machine (Phase 105)', () => {
 
 /** Every sentence above, composed once with the same two values. */
 const EVERY: readonly string[] = [
-  remoteReadAt(AT),
   remoteTreeMissingTitle(L),
   remoteTreeMissingBody(P),
   remoteTreeNotAFolder(P, L),
@@ -757,7 +747,6 @@ const EVERY: readonly string[] = [
   // machine, NINE since Phase 228 took six off. Every one of them is read by
   // the four rules below.
   runsReadingBranch(L),
-  runsReadAt(L, AT),
   runsNoBranch(L),
   runsNotRepo(L),
   runsFolderMissing(L),
@@ -779,16 +768,13 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
   });
 
   it('holds no colon, because not one of them introduces a list', () => {
-    // TWO sentences are exempt and both are named rather than filtered out by
-    // a pattern. Each holds a clock time, and a clock time is not punctuation.
-    // PHASE 99 ADDED THE SECOND ONE, which is Quick Open saying when it read
-    // the file names. Every other sentence must hold no colon at all.
-    // PHASE 105 ADDED THE THIRD, which is the runs group saying when it read.
-    const exempt = [
-      remoteReadAt(AT),
-      quickOpenNamesFrom(L, AT),
-      runsReadAt(L, AT)
-    ];
+    // ONE sentence is exempt and it is named rather than filtered out by a
+    // pattern. It holds a clock time, and a clock time is not punctuation.
+    // PHASE 99 ADDED IT, being Quick Open saying when it read the file
+    // names. There were three until Phase 230 took the read-at clock off the
+    // Explorer, Source control and the runs group. Every other sentence must
+    // hold no colon at all.
+    const exempt = [quickOpenNamesFrom(L, AT)];
     expect(
       EVERY.filter((one) => !exempt.includes(one) && one.includes(':'))
     ).toEqual([]);
@@ -830,7 +816,6 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
     // lines whose first line named the machine one line above.
     const withoutLabel = EVERY.filter((one) => !one.includes(L));
     expect(withoutLabel).toEqual([
-      remoteReadAt(AT),
       remoteTreeMissingBody(P),
       remoteTreeTruncated(4000, 12500, 4000),
       REMOTE_COPIED_WITH_MACHINE,

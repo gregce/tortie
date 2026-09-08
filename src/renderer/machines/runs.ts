@@ -6,7 +6,6 @@
  */
 
 import { branchNoAnswer, branchNotConnected, branchReading } from './branch';
-import { machineReadAt } from './presentation';
 
 /**
  * WHAT THIS BLOCK REPLACES. Phase 90.3 wrote one sentence saying that Tortie
@@ -62,17 +61,8 @@ export function runsReadingBranch(label: string): string {
   return branchReading(label);
 }
 
-/**
- * Under the rows, whenever there is an answer.
- *
- * PHASE 106 MADE THIS A WRAPPER, over `machineReadAt` in ./presentation.ts, for
- * the reason
- * given on `runsReadingBranch` above. The sentence says nothing about runs, so
- * the neutral name is the primary and this one calls it.
- */
-export function runsReadAt(label: string, at: number): string {
-  return machineReadAt(label, at);
-}
+// PHASE 230 TOOK `runsReadAt` OFF, the wrapper over the read-at clock in
+// ./presentation.ts. The record is on that file's header.
 
 /** There is a repository and no branch name. Both causes are named. */
 export function runsNoBranch(label: string): string {

@@ -381,7 +381,8 @@ export async function driveRemoteRuns(
         loading: false,
         refreshing: false,
         readAt: now,
-        elapsedMs: 512
+        elapsedMs: 512,
+        refused: false
       }
     }
   }));

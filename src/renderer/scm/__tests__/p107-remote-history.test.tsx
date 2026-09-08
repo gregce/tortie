@@ -205,6 +205,7 @@ function entry(over: Record<string, unknown> = {}): Parameters<
     refreshing: false,
     readAt: AT,
     elapsedMs: 412,
+    refused: false,
     ...over
   } as Parameters<typeof RemoteHistoryPanel>[0]['entry'];
 }
@@ -438,21 +439,55 @@ describe('the store asks once, and only when it is asked to', () => {
   });
 
   it('turns a channel that threw into a state and not a crash', async () => {
-    await useRemoteHistory.getState().refresh(STUDIO);
     readHistory.mockRejectedValueOnce(new Error('no'));
     await useRemoteHistory.getState().refresh(STUDIO);
     const held = useRemoteHistory.getState().byTarget['studio:/home/greg/api'];
     expect(held?.mode).toBe('unreachable');
     expect(held?.readAt).toBe(0);
-    // Every row and every flag a previous answer left behind is cleared. A
-    // picture under a sentence saying nothing was read is exactly the claim
-    // this phase is trying not to make.
+    // With no earlier answer there is nothing to keep, so the sentence is
+    // drawn over nothing.
     expect(held?.entries).toEqual([]);
     expect(held?.hasMore).toBe(false);
     expect(held?.atCeiling).toBe(false);
     expect(held?.divergenceTruncated).toBe(false);
     expect(held?.markedCount).toBe(0);
     expect(held?.headSha).toBe(null);
+    expect(held?.refused).toBe(false);
+  });
+
+  it('keeps the last good answer when a re-read is refused by the link (Phase 230)', async () => {
+    // THE STALE SENTENCE BECOMES NOTHING. Until this phase every row and flag
+    // was cleared on a thrown re-read, because a picture under a sentence
+    // saying nothing was read was a claim the group would not make. No
+    // sentence is drawn now: the rows stay, marked refused so the shared hook
+    // reads again when the machine starts answering, and a good answer
+    // clears the mark.
+    await useRemoteHistory.getState().refresh(STUDIO);
+    readHistory.mockRejectedValueOnce(new Error('no'));
+    await useRemoteHistory.getState().refresh(STUDIO);
+    let held = useRemoteHistory.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.mode).toBe('ok');
+    expect(held?.entries).toHaveLength(3);
+    expect(held?.headSha).toBe(HEAD);
+    expect(held?.readAt).toBe(AT);
+    expect(held?.refused).toBe(true);
+    expect(held?.refreshing).toBe(false);
+    readHistory.mockResolvedValueOnce(
+      answer({ mode: 'notConnected', entries: [], headSha: null })
+    );
+    await useRemoteHistory.getState().refresh(STUDIO);
+    held = useRemoteHistory.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.entries).toHaveLength(3);
+    expect(held?.refused).toBe(true);
+    await useRemoteHistory.getState().refresh(STUDIO);
+    held = useRemoteHistory.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.refused).toBe(false);
+    // The folder's own answer is not a refusal and replaces the rows.
+    readHistory.mockResolvedValueOnce(answer({ mode: 'noCommits', entries: [] }));
+    await useRemoteHistory.getState().refresh(STUDIO);
+    held = useRemoteHistory.getState().byTarget['studio:/home/greg/api'];
+    expect(held?.mode).toBe('noCommits');
+    expect(held?.entries).toHaveLength(0);
   });
 
   it('keeps every field main sent, unchanged', async () => {
@@ -908,10 +943,13 @@ describe('what the group admits about its own answer', () => {
       'denied'
     ] as MachineHistoryMode[]) {
       expect(machineAnsweredHistory(mode)).toBe(true);
-      expect(draw({ mode, entries: mode === 'ok' ? commits(3) : [] })).toContain(
-        esc(copy.machineReadAt(L, AT))
-      );
+      // PHASE 230 TOOK THE CLOCK OFF: the group reads again by itself when
+      // it is looked at and the local History carries none.
+      const html = draw({ mode, entries: mode === 'ok' ? commits(3) : [] });
+      expect(html).not.toContain('Tortie read this from');
+      expect(html).not.toContain('rhist-read-at');
     }
+    expect((copy as Record<string, unknown>).machineReadAt).toBeUndefined();
   });
 
   it('claims no read for the two modes where nothing was read', () => {
@@ -1001,9 +1039,10 @@ describe('what the group admits about its own answer', () => {
       markedCount: 2
     });
     const inside = bodyOnly(html);
-    // PHASE 228. Two lines are left under the group, the clock and the marks
-    // cut sentence; the rest came off.
-    const outside = [copy.machineReadAt(L, AT), copy.historyMarksCut(2, L)];
+    // PHASE 228. Two lines were left under the group, the clock and the marks
+    // cut sentence; PHASE 230 took the clock off, so the marks cut sentence
+    // is what is left, because it names a list on screen that was cut.
+    const outside = [copy.historyMarksCut(2, L)];
     for (const sentence of outside) {
       expect(html).toContain(esc(sentence));
       expect(inside).not.toContain(esc(sentence));

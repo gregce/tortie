@@ -48,6 +48,7 @@ import type { WorkspaceTarget } from '@shared/workspace-target';
 import {
   localPathOf,
   sameTarget,
+  targetKey,
   targetOfProject
 } from '@shared/workspace-target';
 import {
@@ -172,6 +173,16 @@ export interface SearchState {
   machineLabel: string | null;
   /** PHASE 98. The size ceiling on that machine's one answer cut this list. */
   truncated: boolean;
+  /**
+   * PHASE 230. The last run of the query on screen was refused by the LINK,
+   * being `notConnected`, `unreachable` or a thrown call, while the rows of
+   * that same query are still on screen. The rows stay and no sentence is
+   * drawn over them, the way a local search keeps its rows; the shared hook
+   * (../machines/use-remote-reread.ts) reads this as `refused` and runs the
+   * query again when the machine starts answering. It is false the moment an
+   * answer lands or the results are blanked.
+   */
+  remoteRefused: boolean;
 
   /** Groups the user collapsed. Everything else is open. */
   collapsed: Set<string>;
@@ -252,6 +263,13 @@ interface Live {
    * more when it lands. Once, not once per keystroke.
    */
   remoteAgain: boolean;
+  /**
+   * PHASE 230. Which query the rows on screen answer, as `queryKeyOf` spells
+   * it, or null when no machine answer is on screen. A refused re-run keeps
+   * the rows only when the run was of this same query; rows for a query that
+   * is no longer in the box are never kept under a newer one.
+   */
+  answeredKey: string | null;
 }
 
 const live: Live = {
@@ -261,8 +279,23 @@ const live: Live = {
   debounce: null,
   replaceOnNextFrame: false,
   remoteInflight: false,
-  remoteAgain: false
+  remoteAgain: false,
+  answeredKey: null
 };
+
+/**
+ * PHASE 230. One query as the machine was asked it, so a refused re-run can
+ * tell whether the rows on screen are of the query in the box.
+ */
+function queryKeyOf(target: WorkspaceTarget, state: SearchState): string {
+  return JSON.stringify([
+    targetKey(target),
+    state.query,
+    state.isRegex,
+    state.isCaseSensitive,
+    state.matchWholeWord
+  ]);
+}
 
 function newSearchId(): string {
   try {
@@ -328,7 +361,8 @@ export const useSearch = create<SearchState>((set, get) => {
       // about a set that is no longer on screen.
       remoteMode: null,
       machineLabel: null,
-      truncated: false
+      truncated: false,
+      remoteRefused: false
     };
   }
 
@@ -349,7 +383,8 @@ export const useSearch = create<SearchState>((set, get) => {
    * answer. Everything keyed to the previous set goes with it, exactly as the
    * first frame of a local search takes it.
    */
-  function applyRemote(answer: MachineSearchResult): void {
+  function applyRemote(answer: MachineSearchResult, key: string): void {
+    live.answeredKey = key;
     set({
       status: 'done',
       files: answer.files,
@@ -361,6 +396,7 @@ export const useSearch = create<SearchState>((set, get) => {
       machineLabel: answer.machineLabel,
       elapsedMs: answer.elapsedMs,
       error: null,
+      remoteRefused: false,
       stale: false,
       collapsed: new Set<string>(),
       expanded: new Set<string>(),
@@ -380,9 +416,31 @@ export const useSearch = create<SearchState>((set, get) => {
     }
     const state = get();
     const limit = options?.limit ?? state.resultLimit;
+    const key = queryKeyOf(target, state);
 
     stopLive();
     const epoch = live.epoch;
+
+    /**
+     * PHASE 230. THE STALE SENTENCE BECOMES NOTHING. A run of the query on
+     * screen that the link refused, being a refusal word or a thrown call,
+     * leaves the rows of that query where they are and marks the store so
+     * the shared hook runs it again when the machine starts answering. The
+     * folder's own answers, being missing, not a repository, a refused
+     * pattern and an answer too large, replace the rows as before, because
+     * asking again would say the same thing. Rows of a different query are
+     * never kept: the run then paints the refusal the way it always did.
+     */
+    const keepOverRefusal = (): boolean => {
+      const now = get();
+      return (
+        live.answeredKey === key &&
+        now.remoteMode !== null &&
+        now.remoteMode !== 'notConnected' &&
+        now.remoteMode !== 'unreachable' &&
+        sameTarget(now.target, target)
+      );
+    };
 
     if (live.remoteInflight) {
       // One call at a time. The answer on the wire is already superseded by
@@ -429,12 +487,24 @@ export const useSearch = create<SearchState>((set, get) => {
         (answer) => {
           // Rule 3. A stale answer never paints, and this is the only thing
           // that stops it, because the scan over there cannot be called back.
-          if (live.epoch === epoch) applyRemote(answer);
+          if (live.epoch === epoch) {
+            const refusedByLink =
+              answer.mode === 'notConnected' || answer.mode === 'unreachable';
+            if (refusedByLink && keepOverRefusal()) {
+              set({ status: 'done', error: null, remoteRefused: true });
+            } else {
+              applyRemote(answer, key);
+            }
+          }
           settle();
         },
         (err: unknown) => {
           if (live.epoch === epoch) {
-            set({ status: 'error', error: messageOf(err) });
+            if (keepOverRefusal()) {
+              set({ status: 'done', error: null, remoteRefused: true });
+            } else {
+              set({ status: 'error', error: messageOf(err) });
+            }
           }
           settle();
         }
@@ -465,6 +535,7 @@ export const useSearch = create<SearchState>((set, get) => {
     remoteMode: null,
     machineLabel: null,
     truncated: false,
+    remoteRefused: false,
 
     collapsed: new Set<string>(),
     expanded: new Set<string>(),

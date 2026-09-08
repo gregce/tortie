@@ -160,6 +160,7 @@ beforeEach(() => {
     remoteMode: null,
     machineLabel: null,
     remoteCut: false,
+    remoteRefused: false,
     agentId: null,
     filter: '',
     mode: 'browse',
@@ -222,6 +223,43 @@ describe('a remote target with the bridge', () => {
     await switchTo(REMOTE);
     expect(store().status).toBe('error');
     expect(store().error).toBe('the door fell over');
+  });
+
+  it('keeps the last scan when a re-read is refused by the link (Phase 230)', async () => {
+    // THE STALE SENTENCE BECOMES NOTHING, and rule 2 holds over there: a
+    // failed read never blanks the panel. The rows stay, marked refused so
+    // the shared hook reads again when the machine starts answering, and a
+    // good answer clears the mark. The folder's own refusal, `noHome`, is an
+    // answer and replaces the scan as before.
+    await switchTo(REMOTE);
+    expect(store().scan?.entries).toHaveLength(1);
+    const settle = async (): Promise<void> => {
+      for (let i = 0; i < 4; i += 1) await Promise.resolve();
+    };
+    shape = { mode: 'notConnected', scan: null, cut: false };
+    store().refresh();
+    await settle();
+    expect(store().status).toBe('ready');
+    expect(store().scan?.entries).toHaveLength(1);
+    expect(store().remoteMode).toBe('context');
+    expect(store().remoteRefused).toBe(true);
+    rejectNext = new Error('the door fell over');
+    store().refresh();
+    await settle();
+    expect(store().status).toBe('ready');
+    expect(store().scan?.entries).toHaveLength(1);
+    expect(store().error).toBeNull();
+    expect(store().remoteRefused).toBe(true);
+    shape = {};
+    store().refresh();
+    await settle();
+    expect(store().remoteRefused).toBe(false);
+    shape = { mode: 'noHome', scan: null, cut: false };
+    store().refresh();
+    await settle();
+    expect(store().scan).toBeNull();
+    expect(store().remoteMode).toBe('noHome');
+    expect(store().remoteRefused).toBe(false);
   });
 });
 

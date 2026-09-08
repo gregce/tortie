@@ -611,7 +611,8 @@ function seedEntry(
     loading: false,
     refreshing: false,
     readAt: Date.now(),
-    elapsedMs: 412
+    elapsedMs: 412,
+    refused: false
   };
 }
 

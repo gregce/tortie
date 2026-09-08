@@ -25,6 +25,11 @@
  * line that is now the Commit button's hover title and the three short
  * labels on the disabled search filters, are pinned where they are drawn and
  * in ../../app/__tests__/p903-c-remote-copy.test.ts.
+ *
+ * PHASE 230 ADDED THE READ-AT CLOCK to the list, the one line Phase 228 left
+ * on every remote view because nothing re-read a machine. It is pinned here
+ * rather than in a file of its own because it is the same rule, being that a
+ * sentence the local face does not carry stays off the remote one.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -122,7 +127,21 @@ const OFF: readonly OffTheFace[] = [
   { name: 'runsBranchAt', home: 'runs.ts', words: 'The branch checked out on' },
   { name: 'runsNewest', home: 'runs.ts', words: 'runs for that branch and its newest commit' },
   { name: 'runsNotGitHub', home: 'runs.ts', words: 'has no GitHub address for its origin' },
-  { name: 'RUNS_STEPS_ELSEWHERE', home: 'runs.ts', words: 'The steps inside a run are not shown' }
+  { name: 'RUNS_STEPS_ELSEWHERE', home: 'runs.ts', words: 'The steps inside a run are not shown' },
+  // PHASE 230. The read-at clock, which Phase 228 left as the one short line
+  // because nothing re-read a machine: "Read at 14:32. Press Refresh to read
+  // it again." under the Explorer and the Changes group and in the branch
+  // header, and "Tortie read this from X at 14:32." under the three Source
+  // control groups. Every remote view reads again by itself now, at the
+  // moments ../use-remote-reread.ts names, and a view that reads when looked
+  // at needs no clock; a local view carries none. The words are the source
+  // form of each sentence, because the two fragments a person read are also
+  // fragments of sentences that stay, being "Press Refresh to read it again"
+  // on the missing folder and "Tortie read this from" on a file's read line.
+  { name: 'remoteReadAt', home: 'presentation.ts', words: 'Read at ${readClockTime' },
+  { name: 'machineReadAt', home: 'presentation.ts', words: 'read this from ${label} at ${readClockTime' },
+  { name: 'remoteTreeReadAt', home: 'explorer.ts', words: 'Read at ${readClockTime' },
+  { name: 'runsReadAt', home: 'runs.ts', words: 'read this from ${label} at ${readClockTime' }
 ];
 
 /** Every .ts and .tsx file under a directory, recursively. */
@@ -214,10 +233,11 @@ describe('the scanner can fail', () => {
     // the search filters note, the grep line, the Context view's two standing
     // note lines and its remote empty body, and the twenty one sentences the
     // three Source control groups drew as bands, standing lines and facts.
-    // The hooks and signing line MOVED to a title, the read-at clock STAYS
-    // until Phase 230, and the history ceiling became a disabled control's
-    // label, so none of those is here; the Context cut line and the history
-    // marks cut line stay because each names a list on screen that was cut.
+    // The hooks and signing line MOVED to a title and the history ceiling
+    // became a disabled control's label, so neither is here; the Context cut
+    // line and the history marks cut line stay because each names a list on
+    // screen that was cut. The read-at clock STAYED until Phase 230 took it
+    // off, and its four names are the last four.
     expect(OFF.map((one) => one.name)).toEqual([
       'remoteBandTitle',
       'REMOTE_BAND_BODY',
@@ -248,7 +268,11 @@ describe('the scanner can fail', () => {
       'runsBranchAt',
       'runsNewest',
       'runsNotGitHub',
-      'RUNS_STEPS_ELSEWHERE'
+      'RUNS_STEPS_ELSEWHERE',
+      'remoteReadAt',
+      'machineReadAt',
+      'remoteTreeReadAt',
+      'runsReadAt'
     ]);
   });
 

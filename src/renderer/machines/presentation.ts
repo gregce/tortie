@@ -26,13 +26,24 @@
  * names the transport, the program Tortie runs on the far side, or any of its
  * verbs.
  *
- * WHY THESE FOUR MEMBERS STAY HERE. They are fragments rather than sentences.
+ * WHY THESE TWO MEMBERS STAY HERE. They are fragments rather than sentences.
  * `readClockTime` returns "14:32" and `commitCount` returns "3 commits".
- * `remoteReadAt` and `machineReadAt` are the two names for one sentence about
- * which moment the reader is looking at. Every subject beside this file
- * composes with them and none of them belongs to one surface. They change when
- * the way Tortie states a moment changes, which is one reason and it is not any
- * of the other nineteen.
+ * Every subject beside this file composes with them and none of them belongs
+ * to one surface. They change when the way Tortie states a moment changes,
+ * which is one reason and it is not any of the other nineteen.
+ *
+ * PHASE 230 TOOK THE CLOCK OFF. `remoteReadAt`, "Read at 14:32. Press Refresh
+ * to read it again.", and `machineReadAt`, "Tortie read this from X at
+ * 14:32.", were the two names for one sentence about which moment the reader
+ * was looking at, drawn under the Explorer, the Changes group, the branch
+ * header and the three Source control groups. Phase 228 left them as the one
+ * short clock, because nothing re-read a machine and a person needed to know
+ * which moment they were looking at. Every remote view reads again by itself
+ * now, when the machine starts answering, when the view is looked at, when
+ * the window regains focus and after Tortie's own writes
+ * (./use-remote-reread.ts), and a view that reads when looked at needs no
+ * clock; a local view carries none. `../machines/__tests__/p228-off-the-face.test.ts`
+ * pins that neither comes back. `readClockTime` stays for Quick Open.
  */
 
 /**
@@ -47,36 +58,6 @@ export function readClockTime(at: number): string {
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
-}
-
-/**
- * After a good read, with the time it happened.
- *
- * The time is on screen because nothing polls that machine. A file an agent
- * writes over there does not appear until Refresh is pressed, so the person is
- * told which moment they are looking at.
- *
- * PHASE 228 LEFT THIS ONE ON THE FACE, AND PHASE 230 REMOVES IT. The operator's
- * rule of 2026-09-07 is that a remote tab feels almost identical to a local
- * one, and a local view carries no clock. This line stays as the one short
- * clock only because nothing re-reads that machine yet, so a person needs to
- * know which moment they are looking at. Phase 230 makes every remote view
- * read again when it is looked at, and it takes this line and `machineReadAt`
- * below off in the same round, because a view that reads when looked at needs
- * no clock. Do not add words to it in between.
- */
-export function remoteReadAt(at: number): string {
-  return `Read at ${readClockTime(at)}. Press Refresh to read it again.`;
-}
-
-/**
- * When the answer arrived, drawn under any group whose machine answered.
- *
- * The same clock as `remoteReadAt`, said for a group. PHASE 230 REMOVES IT
- * with that one, for the reason given there.
- */
-export function machineReadAt(label: string, at: number): string {
-  return `Tortie read this from ${label} at ${readClockTime(at)}.`;
 }
 
 /**
