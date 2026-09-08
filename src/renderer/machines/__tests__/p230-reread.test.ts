@@ -265,6 +265,36 @@ describe('the seven views reach the hook (clause 8)', () => {
   });
 });
 
+describe('every write that lands announces itself (the write moment)', () => {
+  const SITES: [string, string, number][] = [
+    // file, announcer, how many landing sites
+    ['src/renderer/editor/tab-io.ts', 'editor', 1],
+    ['src/renderer/tree/tree-ops.ts', 'explorer', 3],
+    ['src/renderer/scm/remote-changes.ts', 'changes', 2]
+  ];
+  for (const [file, by, count] of SITES) {
+    it(`${file} announces as ${by} at ${String(count)} site(s)`, () => {
+      const text = code(read(file));
+      expect(text.split('announceRemoteWrite({').length - 1).toBe(count);
+      expect(text.split(`by: '${by}'`).length - 1).toBe(count);
+    });
+  }
+
+  it('the six sites are the six write words the charter names', () => {
+    // putFile → wrote (the editor's save and the Explorer's new file), makeDir
+    // → made, renameEntry → moved or done, stage and unstage, commit.
+    const tabIo = code(read('src/renderer/editor/tab-io.ts'));
+    expect(tabIo).toMatch(/outcome === 'wrote'[\s\S]{0,600}announceRemoteWrite/);
+    const ops = code(read('src/renderer/tree/tree-ops.ts'));
+    expect(ops).toMatch(/outcome !== 'wrote'[\s\S]{0,900}announceRemoteWrite/);
+    expect(ops).toMatch(/outcome !== 'made'[\s\S]{0,900}announceRemoteWrite/);
+    expect(ops).toMatch(/outcome !== 'moved' && result.outcome !== 'done'[\s\S]{0,1600}announceRemoteWrite/);
+    const changes = code(read('src/renderer/scm/remote-changes.ts'));
+    expect(changes).toMatch(/outcome === 'done' \|\| outcome === 'partial'[\s\S]{0,200}kind: 'index'/);
+    expect(changes).toMatch(/outcome === 'committed'[\s\S]{0,200}kind: 'commit'/);
+  });
+});
+
 describe('the hook has one timer and no interval (clause 9)', () => {
   it('names setTimeout once, for the coalescing window, and setInterval never', () => {
     const hook = code(read('src/renderer/machines/use-remote-reread.ts'));

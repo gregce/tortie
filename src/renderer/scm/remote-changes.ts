@@ -61,13 +61,22 @@
  * local tab and a machine tab at the same path show each other's rows, which is
  * the wrong machine defect the whole round exists to remove.
  *
- * NO TIMER, ANYWHERE. A read happens when the tab is opened and when a person
- * presses Refresh, and at no other moment. Research 55 section 5.4 offered a
- * two second poll and this phase refuses it, because nothing counts calls in
- * flight to one machine and the far machine's effective ceiling is 10 (research
- * 56 section 1.5). The cost is that a file an agent changes over there does not
- * appear until Refresh is pressed, and the view says so with the time of the
- * last read.
+ * NO TIMER, ANYWHERE. A read happens when the tab is opened, when a person
+ * presses Refresh, after this store's own verbs, and, since Phase 230, at the
+ * moments the one shared hook names (src/renderer/machines/use-remote-reread.ts):
+ * the machine starting to answer over a refused read, the view being opened
+ * or its tab activated, the window regaining focus, and one of Tortie's own
+ * writes landing on that machine. Research 55 section 5.4 offered a two
+ * second poll and this phase refuses it, because nothing counts calls in
+ * flight to one machine and the far machine's effective ceiling is 10
+ * (research 56 section 1.5). The cost is that a file an agent changes over
+ * there does not appear until the view is looked at again.
+ *
+ * PHASE 230. AFTER A VERB LANDS THIS STORE ANNOUNCES IT, through
+ * src/renderer/machines/remote-writes.ts, naming itself `changes`, so the
+ * Branch group hears a commit and moves its ahead count, the History group
+ * hears it and draws the new row, and this store's own hook leaves the
+ * announcement alone because the re-read below already ran.
  *
  * WHAT IS NOT HERE, AND IT IS A DEPARTURE FROM THE SPEC WORTH NAMING. The
  * branch name and the ahead and behind counts are not in this store, because
@@ -88,6 +97,7 @@ import type {
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { targetKey } from '@shared/workspace-target';
 import { gmuxBridge } from '../bridge';
+import { announceRemoteWrite } from '../machines/remote-writes';
 import { errorPayload } from '../state/errors';
 import { groupRemoteFiles } from './groups';
 
@@ -514,6 +524,15 @@ export const useRemoteChanges = create<RemoteChangesState>((set, get) => {
       writeRefusal: refusal
     });
     await read(target);
+    // PHASE 230. Something in that index moved. `partial` moved some of it.
+    if (outcome === 'done' || outcome === 'partial') {
+      announceRemoteWrite({
+        machineId: target.machineId,
+        path: target.path,
+        kind: 'index',
+        by: 'changes'
+      });
+    }
   };
 
   /**
@@ -600,6 +619,15 @@ export const useRemoteChanges = create<RemoteChangesState>((set, get) => {
       commitMachineSaid: machineSaid
     });
     await read(target);
+    // PHASE 230. HEAD moved over there, so the history and the branch did.
+    if (outcome === 'committed') {
+      announceRemoteWrite({
+        machineId: target.machineId,
+        path: target.path,
+        kind: 'commit',
+        by: 'changes'
+      });
+    }
   };
 
   return {

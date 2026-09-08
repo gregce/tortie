@@ -45,6 +45,7 @@ const {
   remoteIndexWriteAvailable,
   useRemoteChanges
 } = await import('../remote-changes');
+const { onRemoteWrite } = await import('../../machines/remote-writes');
 
 const STUDIO = { machineId: 'studio', path: '/home/greg/api' };
 const ATTIC = { machineId: 'attic', path: '/home/greg/api' };
@@ -469,6 +470,56 @@ describe('the two verbs Phase 103 added', () => {
     expect(entry.writing).toBe(false);
     expect(entry.writeVerb).toBeNull();
     expect(entry.writeOutcome).toBeNull();
+  });
+});
+
+describe('a verb that landed is announced (Phase 230)', () => {
+  // The Branch group hears a commit and the History group draws its row
+  // through src/renderer/machines/use-remote-reread.ts; this store names
+  // itself so its own hook leaves the announcement alone, because the
+  // re-read above already ran.
+  it('announces a stage that moved the index, after the re-read, once', async () => {
+    const heard: unknown[] = [];
+    const off = onRemoteWrite((w) => heard.push({ ...w, reads: reviewFiles.mock.calls.length }));
+    try {
+      await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    } finally {
+      off();
+    }
+    expect(heard).toEqual([
+      { machineId: 'studio', path: '/home/greg/api', kind: 'index', by: 'changes', reads: 1 }
+    ]);
+  });
+
+  it('announces an unstage the same way, and a partial one', async () => {
+    const heard: string[] = [];
+    const off = onRemoteWrite((w) => heard.push(`${w.kind}:${w.by}`));
+    try {
+      await useRemoteChanges.getState().unstage(STUDIO, ['src/auth.ts']);
+      stage.mockResolvedValueOnce(wrote({ outcome: 'partial' }));
+      await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    } finally {
+      off();
+    }
+    expect(heard).toEqual(['index:changes', 'index:changes']);
+  });
+
+  it('announces nothing for a write that was refused or lost', async () => {
+    const heard: string[] = [];
+    const off = onRemoteWrite((w) => heard.push(w.kind));
+    try {
+      stage.mockResolvedValueOnce(wrote({ outcome: 'writesOff', chunks: 0 }));
+      await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+      stage.mockResolvedValueOnce(wrote({ outcome: 'nothingToDo', chunks: 0 }));
+      await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+      stage.mockRejectedValueOnce(new Error('gone'));
+      await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    } finally {
+      off();
+    }
+    expect(heard).toEqual([]);
+    // Every one of them still cost the one read the header promises.
+    expect(reviewFiles).toHaveBeenCalledTimes(3);
   });
 });
 

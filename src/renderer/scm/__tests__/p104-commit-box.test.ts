@@ -70,6 +70,7 @@ vi.stubGlobal('window', {
 const { remoteCommitAvailable, useRemoteChanges } = await import(
   '../remote-changes'
 );
+const { onRemoteWrite } = await import('../../machines/remote-writes');
 
 const STUDIO = { machineId: 'studio', path: '/home/greg/api' };
 const ATTIC = { machineId: 'attic', path: '/home/greg/api' };
@@ -384,6 +385,34 @@ describe('the verb', () => {
     ]);
     expect(sent['repoPath']).toBeUndefined();
     expect(sent['root']).toBeUndefined();
+  });
+
+  it('announces a commit that ran, after the re-read, and no other answer (Phase 230)', async () => {
+    useRemoteChanges.getState().ensure(STUDIO);
+    await flush();
+    useRemoteChanges.getState().setMessage(STUDIO, 'a real message');
+    const heard: unknown[] = [];
+    const off = onRemoteWrite((w) =>
+      heard.push({ ...w, reads: reviewFiles.mock.calls.length })
+    );
+    try {
+      await useRemoteChanges.getState().commit(STUDIO);
+      // The History group draws the row and the Branch group moves its count
+      // through the hook; the announcement is what they hear.
+      expect(heard).toEqual([
+        { machineId: 'studio', path: '/home/greg/api', kind: 'commit', by: 'changes', reads: 2 }
+      ]);
+      useRemoteChanges.getState().setMessage(STUDIO, 'again');
+      commit.mockResolvedValueOnce(
+        committed({ outcome: 'moved', sha: '', sentences: ['Something else.'] })
+      );
+      await useRemoteChanges.getState().commit(STUDIO);
+      commit.mockRejectedValueOnce(new Error('gone'));
+      await useRemoteChanges.getState().commit(STUDIO);
+    } finally {
+      off();
+    }
+    expect(heard).toHaveLength(1);
   });
 
   it('sends nothing at all when the box is empty', async () => {

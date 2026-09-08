@@ -48,6 +48,7 @@ import { followMoves } from './editor-follow';
 import * as fsOps from './fs-ops-bridge';
 import { requestOpenFile } from './open-file';
 import { remoteSaveRefusal } from '../machines/editor';
+import { announceRemoteWrite } from '../machines/remote-writes';
 import {
   remoteEntryExists,
   remoteEntryGone,
@@ -370,6 +371,14 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
         ctx.selectOnly(canonical);
         ctx.model.focusPath(canonical);
         void remote.refresh().finally(release);
+        // PHASE 230. The tree re-reads itself on the line above and names
+        // itself here, so it does not read twice; Source control hears it.
+        announceRemoteWrite({
+          machineId: remote.machineId,
+          path: abs,
+          kind: 'file',
+          by: 'explorer'
+        });
         // The same half gesture rule as a create on this Mac: a New File that
         // leaves you looking at the tree is half of one. The tab carries the
         // machine, so the editor reads it from over there and knows it may
@@ -505,6 +514,13 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
         ctx.selectOnly(canonical);
         ctx.model.focusPath(canonical);
         void remote.refresh().finally(release);
+        // PHASE 230. As for a new file above.
+        announceRemoteWrite({
+          machineId: remote.machineId,
+          path: abs,
+          kind: 'file',
+          by: 'explorer'
+        });
       })
       .catch(() => {
         undo();
@@ -606,6 +622,13 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
         // those keys name a path that is not on that machine any more.
         if (result.kind === 'dir') files().forgetUnder([fromAbs]);
         void remote.refresh().finally(release);
+        // PHASE 230. As for a new file above; `done` landed too, by end state.
+        announceRemoteWrite({
+          machineId: remote.machineId,
+          path: toAbs,
+          kind: 'file',
+          by: 'explorer'
+        });
       })
       .catch(() => {
         if (modelHoldsTheMove) revertModel([move]);

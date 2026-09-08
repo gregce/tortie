@@ -38,6 +38,7 @@ import {
   remoteSaveRefusal,
   remoteSaveRefused
 } from '../machines/editor';
+import { announceRemoteWrite } from '../machines/remote-writes';
 import type {
   OpenFileCommitRef,
   OpenFileRemoteRef
@@ -611,6 +612,16 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       });
       if (result.outcome === 'wrote') {
         deps.patch(id, { savedContents: value, dirty: false });
+        // PHASE 230. The one write in this product that re-read nothing
+        // afterwards: research 89 section 4.4 measured a file saved by this
+        // door absent from Source control for 30 s and from the Explorer when
+        // it was looked at. Every remote view on that machine hears this.
+        announceRemoteWrite({
+          machineId: remote.machineId,
+          path: tab.path,
+          kind: 'file',
+          by: 'editor'
+        });
         return true;
       }
       useApp
