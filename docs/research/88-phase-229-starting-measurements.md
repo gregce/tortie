@@ -1,6 +1,6 @@
 # 88. Phase 229, starting measurements
 
-Phase 229 measure step. Written 2026-09-07 against the tree at `52a43cf` (`docs(backlog): the remote
+Phase 229 measure step. Written 2026-09-07 against the tree at `88dcfad` (`docs(backlog): the remote
 gap in phases`), driven against `gregs-mac-pro.tail2ddfe1.ts.net` under Phase 224's bounds plus the
 one its committer added. Nothing here is built. This document says what the charter cites and
 whether the tree still says it, what the parent draws, which numbers the phase must move, and where a
@@ -42,7 +42,7 @@ commit battery fails.
 
 ## 2. What the charter cites, and whether the tree still says it
 
-| Charter says | Tree at 52a43cf | Drift |
+| Charter says | Tree at 88dcfad | Drift |
 |---|---|---|
 | `MachineRow.tsx:280` onward draws Saving files with a text field and a 250 ms debounced `readSheet` | `SavingFiles` opens at :271, `readSheet` at :280, the 250 ms timer at :309, the `<input type="text">` at :353 | none |
 | `RemoteDirPicker.tsx` over `machines:listDir`, used by `CreateSessionModal.tsx`, copy in `dir-picker.ts` | `RemoteDirPicker` (stateful) and `RemoteDirPickerView` (pure), mounted at `CreateSessionModal.tsx:1391` with `initialPath={cwd.trim()}`; `DIR_PICKER_OPEN = 'Browse…'` at `dir-picker.ts:16` | none |
@@ -77,7 +77,7 @@ ScmSection.RemoteCommitBox ◀── facts from remote-changes + machineStates (
 
 ## 3. The p224 probes, and which of them the verifier can re-run for the parent reading
 
-| Probe | What it read at ad92bd3 | Re-runnable for 229 |
+| Probe | What it read at 761776a | Re-runnable for 229 |
 |---|---|---|
 | `probe-p224d.mjs` arm C, `writeControlsDriver` in `driver2.mjs:195` | the Explorer header titles WITH a write root, a real Stage press (255 ms), a real Commit press, `afterCommitBody` carrying `Author identity unknown` on the face, the five refresh buttons | yes, whole. It is the commit half of this phase's parent reading and it confirmed the same body text here |
 | `probe-p224d.mjs` launch A | confirming a row and turning saving on through the real controls, `openWrites` → `type` → `allow-writes` | yes; `.p229/probe-p229-parent.mjs` launch C is that arm under this phase's fixture |
@@ -93,7 +93,7 @@ One reading the verifier should take that no probe has: the shipped `p104-commit
 real button in `seed` mode with no far side at all, which is the cheapest way to photograph the new
 `identity: 'missing'` reason and the disclosure without a machine.
 
-## 4. The parent reading, taken 2026-09-07 at 52a43cf against his Mac Pro
+## 4. The parent reading, taken 2026-09-07 at 88dcfad against his Mac Pro
 
 Two runs, `/private/tmp/p229-run-87152` and `/private/tmp/p229b-run-90808`, six Electrons in all,
 one after another and never at once, each on a scratch profile and the scratch socket

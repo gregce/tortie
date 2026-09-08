@@ -1,6 +1,6 @@
 # Research 97 — typing in the redline, and the number that chose
 
-Phase 237's measure step, 2026-09-08, at `3a714890`. It builds no shipping code. It drives both of
+Phase 237's measure step, 2026-09-08, at `710b47a6`. It builds no shipping code. It drives both of
 research 83 D.4's options with real key events and writes the reading that decides between them.
 
 ## The decision, and the number that made it
@@ -326,7 +326,7 @@ shipping `rebuildCopyText` answering the copy:
 | copy of a selection spanning two deletions | `". It is fast, it is quiet, and it never asks to be w"`, equal to the current-side slice |
 | resting markup | 2,799 characters, first change drawn as `<span class="ed-redline-change" tabindex="-1" role="group" data-change="0" data-change-off="75" data-change-del="gone" …>` |
 
-`npm run conformance:redline` is green at `3a714890`, sixteen rules, in about 3 s. **One caution for
+`npm run conformance:redline` is green at `710b47a6`, sixteen rules, in about 3 s. **One caution for
 the builder: its rule 5 is a TIMING rule** (the worst case the caps allow, against a 400 ms ceiling)
 and it read 438 ms while a build was running beside it and 165 ms on a quiet machine. Do not run it
 next to `npm run build`.

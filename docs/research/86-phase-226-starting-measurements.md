@@ -1,6 +1,6 @@
 # 86. The write channel, starting measurements (Phase 226, measure step)
 
-Read from the tree at `54a5e96` on 2026-09-07, in the worktree `/private/tmp/wt-p226`. Nothing was
+Read from the tree at `29b6296` on 2026-09-07, in the worktree `/private/tmp/wt-p226`. Nothing was
 built. Every line number below was read from the file it names, not remembered. The three gate
 runs are in `.p226/`, and the temp-name measurement ran in a scratch repository under the session
 scratchpad, never in the operator's checkout, which was opened read only for one `check-ignore`.
@@ -353,7 +353,7 @@ which the charter forbids. It is green at the parent with all sixteen rules
 
 ## 6. The three gates at the parent, green
 
-Run at `54a5e96` in the worktree, output written to files and read, not piped to `tail`.
+Run at `29b6296` in the worktree, output written to files and read, not piped to `tail`.
 
 | gate | log | result |
 | --- | --- | --- |

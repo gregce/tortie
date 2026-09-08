@@ -1,7 +1,7 @@
 # 91. Phase 232, starting measurements
 
 The measure step for Phase 232, the boot and the bulkhead. Taken on 2026-09-08 at the parent
-commit `6ff120b4`, in the worktree `/private/tmp/wt-p232`, against the operator's Mac Pro under
+commit `8e5694c3`, in the worktree `/private/tmp/wt-p232`, against the operator's Mac Pro under
 Phase 224's bounds exactly, plus the two the later committers added, being that a scratch tmux
 socket on EITHER machine is unlinked in the `finally` that kills its server, after `lsof` says
 nothing holds it. Nothing here builds anything. It confirms what the charter cites, draws the data
@@ -21,7 +21,7 @@ thing this step got wrong and corrected.
 The entry names six places and one document. Four still say what the entry says, two line numbers
 have drifted, and one names the wrong component.
 
-| The entry says | What the tree says at `6ff120b4` | Drift |
+| The entry says | What the tree says at `8e5694c3` | Drift |
 |---|---|---|
 | `signInToConfirmedMachines` at `src/main/sessions/core.ts:1063` walks the rows one at a time, and its own comment says a fleet would otherwise open every connection at once | `private async signInToConfirmedMachines()` is at line 1063; the `for (const row of currentMachines().rows)` loop `await`s each `prepareMachine` in turn; the comment at 1058 reads "Sequential rather than parallel. A person with a fleet would otherwise open every connection at once at launch"; it is called unawaited from `boot()` at 1047 | none |
 | each `prepareMachine` holds two version reads at `REMOTE_VERSION_TIMEOUT_MS = 10_000` (`src/main/machines/prepare.ts:89`) | line 89 exactly; `readRemoteTmuxVersion` at 173 to 205 runs `display-message -p '#{version}'` through `execOn` and then `<program> -V` through `execRemoteShell`, each with `timeoutMs: REMOTE_VERSION_TIMEOUT_MS`, the second one in a `catch` that classifies the failure | none |
@@ -99,7 +99,7 @@ follows the call in the same commit.
 
 ## 4. The parent reading
 
-`.p232/report-parent.json`, taken at `6ff120b4`, one profile, six launches one at a time. The
+`.p232/report-parent.json`, taken at `8e5694c3`, one profile, six launches one at a time. The
 scratch profile carried two rows in `machines.json`, `p232-unreachable` at 192.0.2.1 FIRST and
 `greg-s-mac-pro` second, both confirmed through the real Settings buttons (2 confirm presses), the
 Mac Pro given the scratch repository as its write root exactly as p224d did, both prepared once
@@ -177,7 +177,7 @@ not book it to this phase.
 
 ## 5. The gates at the parent, run to logs
 
-All under `.p232/logs/`, run one after another at `6ff120b4` before the probe so the timings were
+All under `.p232/logs/`, run one after another at `8e5694c3` before the probe so the timings were
 not shared with an Electron; `gates-index.txt` has the start and end of each.
 
 | Gate | Log | Result |
@@ -223,7 +223,7 @@ under `src/main/machines/prepare.ts`, `remote-server.ts`, `exec-plane.ts` or the
   it was read. **Those are exactly the seven places mechanism 4 puts its action.** Whichever lands
   second rebases the refusal branches; the safe order is the sentence first (230) and the action
   beside it (232), and if 232 lands first its action must be one component the 230 rewrite can keep.
-- **Phase 231** (`/private/tmp/wt-p231`, at `e85e34e7`, its measure doc `docs/research/90` untracked,
+- **Phase 231** (`/private/tmp/wt-p231`, at `41405d73`, its measure doc `docs/research/90` untracked,
   clean tree) is queued to touch `src/main/machines/control-plane.ts` (the `LinkRecord` gains a
   second fact), `machine-state.ts`, `remote-run.ts`, `remote-copy.ts` and `remote-sessions.ts`'s
   `markMachineQuiet`. The retry hooks `control-plane.ts`'s `noteMachineAnswered` /
@@ -235,14 +235,14 @@ under `src/main/machines/prepare.ts`, `remote-server.ts`, `exec-plane.ts` or the
   after which the blackhole's launch class becomes `timed-out` rather than `version-unmeasured`. A
   retry keyed to the class sees a different class after 235; a retry keyed to "not prepared" does
   not. Section 1 asks the builder to state which.
-- **Phase 227** landed at `6ff120b4`, which is this parent; **228** at `4f1e4fa`, **229** at
-  `fc7555b`; no worktree among them carries uncommitted work. **233** and **234** touch
+- **Phase 227** landed at `8e5694c3`, which is this parent; **228** at `b53e665`, **229** at
+  `2202fae`; no worktree among them carries uncommitted work. **233** and **234** touch
   `remote-scripts.ts`, `use-tree-model.ts`, `RemoteHistorySection.tsx` and `src/main/arch/`; only
   `RemoteHistorySection.tsx` is shared, at its refusal branch.
 - Last movers: `core.ts` by `e85b647a`, `prepare.ts` and `machine-state.ts` and `machines-slice.ts`
   by `1bff0451` (Phase 101), `TerminalRegion.tsx` by `6efbf860`, `control-plane.ts` by `069ef77c`
   (Phase 217), `remote-sessions.ts` by `87e55331` (Phase 187, which carries the
-  `conformance:remoteclose` rule), `FilesSection.tsx` by `bc8d5b97` (Phase 228).
+  `conformance:remoteclose` rule), `FilesSection.tsx` by `77a94409` (Phase 228).
 
 ## 7. What this step did on his machines, counted before and after
 

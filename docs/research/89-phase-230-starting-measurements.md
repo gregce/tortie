@@ -1,6 +1,6 @@
 # Research 89: Phase 230, the starting measurements
 
-**Date.** 2026-09-08. **Tree.** `/private/tmp/wt-p230` detached at `e85e34e`, which is the tip of
+**Date.** 2026-09-08. **Tree.** `/private/tmp/wt-p230` detached at `41405d7`, which is the tip of
 `main` after Phase 228 landed. **Machine.** The operator's Mac Pro, `gregs-mac-pro.tail2ddfe1.ts.net`,
 under Phase 224's bounds plus the socket unlink Phase 228's committer added. **Phase.** 230, nothing
 stays stale. **Charter.** `docs/BACKLOG.md` "Phase 230 — a remote view re-reads by itself, and the
@@ -40,11 +40,11 @@ guard is at `Sidebar.tsx:323` and there is a SECOND one at `FilesSection.tsx:417
 refresh labels in the source and two on this fixture; and after a write only the verb's own store
 re-reads today, so the write moment is a new fan-out and not a wiring.
 
-## 2. The charter's citations, re-read against `e85e34e`
+## 2. The charter's citations, re-read against `41405d7`
 
 Every file and line the Phase 230 entry names, read again in this tree, with what it says now.
 
-| the entry says | the tree at `e85e34e` | drift |
+| the entry says | the tree at `41405d7` | drift |
 |---|---|---|
 | `machineAnswering` at `src/renderer/state/machines-slice.ts:147` | `export function machineAnswering(` is line 147; answers true for `connected` and `polling` and nothing else | none |
 | consumed at `src/renderer/tree/FilesSection.tsx:233` | the call is at line 239, inside the `useMemo` at 237; the effect that spends the one retry runs 244 to 265 | six lines, same code |
@@ -253,7 +253,7 @@ verifier can re-run to take the parent reading of what THIS phase fixes:
 
 ## 7. The gates at the parent, run to log files
 
-All at `e85e34e`, logs under `.p230/logs/`, nothing piped to `tail`.
+All at `41405d7`, logs under `.p230/logs/`, nothing piped to `tail`.
 
 | gate | log | result |
 |---|---|---|
@@ -295,9 +295,9 @@ Renderer only, plus one probe. Nothing under `src/main` and no channel, so no co
 
 ### Where a rebase may conflict
 
-- **Phase 227 (redline, in flight at `/private/tmp/wt-p227`, head `eb5ac08`, not in main):** touches `build/probe-p167-scale.mjs` (35 lines since its base `112189d`: the redline surface) and `build/conformance-redline.mjs`. THE ONE SHARED FILE IS `build/probe-p167-scale.mjs`, and both phases edit near the `SURFACES` default at line 212. Everything else 227 touches is `src/renderer/editor/`, `src/main/menu.ts`, `src/renderer/app/menu-actions.ts`, `src/shared/keymap.ts`, `src/shared/ipc/app.ts`, `package.json`, none of which this phase touches.
-- **Phase 231 (the liveness gate, worktree at `/private/tmp/wt-p231`, still at `e85e34e` with a clean tree, its measure step running against the Mac Pro on `gmux-p231-78176` while this step ran):** its charter is main only, `src/main/machines/remote-run.ts`, `machine-state.ts`, `exec-plane.ts`. No file in common. BUT its item 3 gives the not-connected refusal a label and its item 1 splits the link fact in two, and this phase's hook keys on `machineAnswering`, which reads ONE link fact from `MachineStateView.link`; if 231 lands first with a second fact on the view, the hook should ask the LINK fact, and if 230 lands first, 231's split must keep `machineAnswering` answering the link. Say so in the commit body whichever lands second.
-- **Phase 229 landed at `fc7555b` and Phase 228 at `4f1e4fa`:** both already under this tree. 229's identity precheck at `ScmSection.tsx:780-799` is the second `machineAnswering` consumer and must keep its `connected &&` guard when the retry above it moves into the hook.
+- **Phase 227 (redline, in flight at `/private/tmp/wt-p227`, head `eb5ac08`, not in main):** touches `build/probe-p167-scale.mjs` (35 lines since its base `6b8b1c1`: the redline surface) and `build/conformance-redline.mjs`. THE ONE SHARED FILE IS `build/probe-p167-scale.mjs`, and both phases edit near the `SURFACES` default at line 212. Everything else 227 touches is `src/renderer/editor/`, `src/main/menu.ts`, `src/renderer/app/menu-actions.ts`, `src/shared/keymap.ts`, `src/shared/ipc/app.ts`, `package.json`, none of which this phase touches.
+- **Phase 231 (the liveness gate, worktree at `/private/tmp/wt-p231`, still at `41405d7` with a clean tree, its measure step running against the Mac Pro on `gmux-p231-78176` while this step ran):** its charter is main only, `src/main/machines/remote-run.ts`, `machine-state.ts`, `exec-plane.ts`. No file in common. BUT its item 3 gives the not-connected refusal a label and its item 1 splits the link fact in two, and this phase's hook keys on `machineAnswering`, which reads ONE link fact from `MachineStateView.link`; if 231 lands first with a second fact on the view, the hook should ask the LINK fact, and if 230 lands first, 231's split must keep `machineAnswering` answering the link. Say so in the commit body whichever lands second.
+- **Phase 229 landed at `2202fae` and Phase 228 at `b53e665`:** both already under this tree. 229's identity precheck at `ScmSection.tsx:780-799` is the second `machineAnswering` consumer and must keep its `connected &&` guard when the retry above it moves into the hook.
 - **Phase 235 (nits) and 233 (the two halves):** queued, not started; 235 item 4 rewrites the confirm-hash-moved sentence in the same `machines/*.ts` files this phase edits, and 233 touches the History rows. Neither has a worktree.
 
 ## 9. What this step did on his machines, counted before and after

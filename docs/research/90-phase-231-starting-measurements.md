@@ -1,7 +1,7 @@
 # 90. Phase 231, starting measurements
 
 The measure step for Phase 231, the liveness gate answering per verb. Taken on 2026-09-08 at the
-parent commit `e85e34e`, in the worktree `/private/tmp/wt-p231`, against the operator's Mac Pro
+parent commit `41405d7`, in the worktree `/private/tmp/wt-p231`, against the operator's Mac Pro
 under Phase 224's bounds exactly plus the two later committers added, being that a scratch tmux
 socket on EITHER machine is unlinked in the `finally` that kills its server. Nothing here builds
 anything. It confirms what the charter cites, draws the data flow, names what the verifier can
@@ -18,7 +18,7 @@ started and no token spent, and section 6 counts what was left on both sides.
 
 The entry names seven places. Five still say what the entry says, one line number has drifted, and one is narrower on the face than the entry says.
 
-| The entry says | What the tree says at `e85e34e` | Drift |
+| The entry says | What the tree says at `41405d7` | Drift |
 |---|---|---|
 | `machineIsConnected` at `src/main/machines/remote-run.ts:130` asks a set of two link states | `const ANSWERING = new Set(['connected', 'polling'])` at line 127, the function at 130 to 132, reading `machineLinkFacts(machineId).link` | none |
 | `runRemoteScript` asserts it before composing a byte | step 4 of the eight, `assertMachineIsConnected(ctx.machineId, scriptId)` at line 299, before the command is composed at step 6 | none |
@@ -174,7 +174,7 @@ the first poll takes.
 
 ## 4. The gates at the parent, run to logs
 
-All green at `e85e34e`, the first five before the probe ran and the smoke after it. Logs under the session scratchpad
+All green at `41405d7`, the first five before the probe ran and the smoke after it. Logs under the session scratchpad
 `scratchpad/p231/`; the lines that matter are quoted.
 
 | Gate | Result |
@@ -227,9 +227,9 @@ exists today is `src/main/machines/__tests__/remote-run.test.ts:50`, which mocks
 
 ### 5.3 Where a rebase may conflict
 
-- **Phase 230**, `/private/tmp/wt-p230`, at `e85e34e` and clean when this was written, is queued to touch `src/renderer/tree/FilesSection.tsx`, `src/renderer/scm/ScmSection.tsx`, `RemoteHistorySection.tsx`, `RemoteBranchSection.tsx`, `RemoteRunsSection.tsx`, `src/renderer/search/store.ts`, the Context view's remote read, `src/renderer/app/Sidebar.tsx`, `src/renderer/scm/remote-changes.ts`, and to extract the `machineAnswering` retry into one hook under `src/renderer/machines/`. Every renderer consumer of the link fact this phase might touch is on that list, and `state/machines-slice.ts:147` is what both read. **A Phase 230 probe was running against his Mac Pro while this reading was taken**, on the far socket `gmux-p230-49518`, which section 6 counts.
+- **Phase 230**, `/private/tmp/wt-p230`, at `41405d7` and clean when this was written, is queued to touch `src/renderer/tree/FilesSection.tsx`, `src/renderer/scm/ScmSection.tsx`, `RemoteHistorySection.tsx`, `RemoteBranchSection.tsx`, `RemoteRunsSection.tsx`, `src/renderer/search/store.ts`, the Context view's remote read, `src/renderer/app/Sidebar.tsx`, `src/renderer/scm/remote-changes.ts`, and to extract the `machineAnswering` retry into one hook under `src/renderer/machines/`. Every renderer consumer of the link fact this phase might touch is on that list, and `state/machines-slice.ts:147` is what both read. **A Phase 230 probe was running against his Mac Pro while this reading was taken**, on the far socket `gmux-p230-49518`, which section 6 counts.
 - **Phase 227**, `/private/tmp/wt-p227`, has uncommitted work in `build/conformance-redline.mjs`, `build/redline-rewind-probe.mts`, `src/renderer/editor/RedlineDocument.tsx`, `redline-journal.ts` and a new `redline-press.ts`. No overlap with this phase's files; the only shared surface is `build/` for `gate:knownhosts` and `gate:electron`, and `HELPER_USER_FLOOR` if both add a probe.
-- **Phase 225** landed at `112189d` and **Phase 229** at `fc7555b`; **Phase 228** landed at `4f1e4fa`. Their `.p22x/` directories and `docs/BACKLOG.md`'s running log are where the committer's line lands beside theirs, in date order.
+- **Phase 225** landed at `6b8b1c1` and **Phase 229** at `2202fae`; **Phase 228** landed at `b53e665`. Their `.p22x/` directories and `docs/BACKLOG.md`'s running log are where the committer's line lands beside theirs, in date order.
 - `src/main/machines/remote-sessions.ts` was last moved by Phase 187 (`87e5533`) and carries the `conformance:remoteclose` rule; `remote-run.ts` by Phase 104 (`e03af86`); `control-plane.ts` by Phase 217 (`069ef77`); `machine-state.ts` by Phase 101 (`1bff045`). Nothing in flight names them.
 
 ## 6. What was left on both sides

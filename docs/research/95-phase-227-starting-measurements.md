@@ -1,6 +1,6 @@
 # 95. Rewind, starting measurements (Phase 227, measure step)
 
-Read from the tree at `112189d` on 2026-09-07, in the worktree `/private/tmp/wt-p227`, which holds
+Read from the tree at `6b8b1c1` on 2026-09-07, in the worktree `/private/tmp/wt-p227`, which holds
 Phase 225 (the shadow baseline, read only) and Phase 226 (the guarded write channel). Nothing was
 built. Every line number below was read from the file it names in this tree, not remembered. The
 gate and test logs are in `.p227/` in the worktree, which is untracked and is not committed; the two
@@ -422,7 +422,7 @@ named attack is its OWN timing of that write, with at least one arm the builder'
 8. **`gate:contract` must not move.** The contract line for `fs:writeGuarded` is already in
    `docs/audits/contract-baseline.txt` from Phase 226, and this phase adds no channel, no env name
    and no smoke mode. A journal is renderer state and needs none.
-9. **Rule 25-style bytes:** `src/main` and `src/shared` should be byte identical to `112189d`
+9. **Rule 25-style bytes:** `src/main` and `src/shared` should be byte identical to `6b8b1c1`
    after this phase unless section 2.3's option (b) is chosen, in which case the brief says so
    before any code is written.
 10. **What was left running.** The operator's own Tortie was up throughout: the Electron count by

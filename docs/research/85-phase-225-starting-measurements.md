@@ -1,7 +1,7 @@
 # 85. The redline baseline: starting measurements for Phase 225
 
 The measure step of Phase 225, taken on 2026-09-07 in the worktree `/private/tmp/wt-p225` at
-`54a5e96`, which is the parent every number below is a reading of. Nothing was built. No Electron
+`29b6296`, which is the parent every number below is a reading of. Nothing was built. No Electron
 was launched, socket `gmux` was never addressed, no agent took a turn, nothing under the person's
 home was written, `package.json` and the lockfile did not move. One scratch git repository was made
 under the worktree's `.p225/` for one measurement and removed in the same command; one throwaway
@@ -51,7 +51,7 @@ touch.
    `file` whenever `!canDiff`, which the charter's two named gates at `:219` and `:236` do not
    cover; ungating the option without ungating the fallback draws Source under a Redline chip.
 
-## 1. The drift list, every citation against `54a5e96`
+## 1. The drift list, every citation against `29b6296`
 
 | Cited | At this tree | Holds |
 | --- | --- | --- |
@@ -147,7 +147,7 @@ naming the baseline includes that label.
 
 ## 4. The parent readings
 
-`npm run conformance:redline` at `54a5e96`, log at `.p225/parent-conformance-redline.log`, load
+`npm run conformance:redline` at `29b6296`, log at `.p225/parent-conformance-redline.log`, load
 average 5.30 at the start: **sixteen rules, every rule passed, exit 0**. Rule 5's wall clock read
 **157 ms against the 400 ms ceiling**, which sits beside research 83's 156 ms at load 4.98 and its
 487 to 695 ms at load 97.48; a red rule 5 is a question about the machine first. Rule 9 printed its

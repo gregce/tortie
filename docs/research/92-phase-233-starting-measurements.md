@@ -1,6 +1,6 @@
 # 92. Phase 233, starting measurements
 
-Phase 233 measure step. Written 2026-09-08 against the tree at `4bd2404` (`docs(backlog): the
+Phase 233 measure step. Written 2026-09-08 against the tree at `a03e472` (`docs(backlog): the
 liveness gate, per verb`), driven against `gregs-mac-pro.tail2ddfe1.ts.net` under Phase 224's bounds
 plus the two its later committers added, being that a scratch tmux socket on EITHER machine is
 unlinked in the same `finally` that kills its server. Nothing here is built. This document says what
@@ -58,7 +58,7 @@ local half of that sentence is a limit of the probe rather than a reading of the
 
 ## 2. What the charter cites, and whether the tree still says it
 
-| Charter says | Tree at 4bd2404 | Drift |
+| Charter says | Tree at a03e472 | Drift |
 |---|---|---|
 | `historyFilesElsewhere` at `RemoteHistorySection.tsx:477` says the files are not read | the identifier is in no component; the file is 502 lines, its header rule 4 (:24-28) says "A ROW IS NOT A CONTROL" and names the export in prose; `machines/history.ts:27` records the deletion; `p228-off-the-face.test.ts:111` and `:237` forbid its return | **already deleted by Phase 228.** Mechanism 2's "is deleted" is done; the header rule and the two p107 tests are what change |
 | the row does nothing when clicked | `renderRow` at :237-297 draws a `div role="listitem"` with `data-rhist`, no `onClick`, no `aria-expanded`; `remote-history.css:90-99` sets `cursor: default` and its header says "THE ROW IS NOT AN AFFORDANCE" | none |
@@ -93,7 +93,7 @@ local half of that sentence is a limit of the probe rather than a reading of the
 - `.p224/far-final.mjs` and `far-sockets-remove.mjs` are the closing count and the socket sweep; the `.p233` probe's `finally` does both for its own socket on both machines, the way `.p231`'s did.
 - Nothing in `.p224` clicks a History row or dispatches a drag. Those two arms are new in `.p233/probe-p233-parent.mjs` (`HISTORY_ARM`, `TREE_ARM`) and are what the verifier re-runs at HEAD: `GMUX_REAL_MACHINE_HOST=… GMUX_REAL_MACHINE_CONFIRM=… node .p233/probe-p233-parent.mjs`, then read `C.remoteHistory.rows[*].afterClick` against `C.localHistory.rows[*].afterClick`, `C.remoteHistory.rows[*].fileRowsAfterClick` against `farNameStatus[<sha>]`, and `C.remoteTree.dragstartPrevented` with `farTreeAfter`.
 
-## 4. The parent reading, taken 2026-09-08 at 4bd2404 against his Mac Pro
+## 4. The parent reading, taken 2026-09-08 at a03e472 against his Mac Pro
 
 Three launches on one scratch profile and the socket `gmux-p233-79732`: A confirmed the row and turned saving on for the scratch folder through the real Settings controls (`sheetLines` read `May replace files under this folder on that machine: /Users/gdc/tortie-p233-scratch-79732`, the row `confirmed`, `usable: true`, `writeRoot` set); B registered the local and the remote project; C drove both halves on both tabs in 58 s of wall time. The link read `connected` 0 ms after the tab was selected.
 
@@ -193,10 +193,10 @@ Far side: `gmux-control created 1787879931 attached 1` before and after, ONE ses
 
 ### Where another phase in flight is likely to touch the same lines
 
-- **Phase 230**, `/private/tmp/wt-p230` at `6c41b4c4`, five commits above merge-base `e85e34e`, plus untracked verify files, and NOT landed. It touches, against this phase's set: `src/renderer/scm/RemoteHistorySection.tsx` (66 lines: removes `onRefresh` and the Refresh button, removes the read-at clock, adds `useRemoteReread`, rewrites header rules 2 and the last paragraph), `src/renderer/scm/remote-history.ts` (39 lines: adds `refused` to the entry and the store's two refused paths), `src/renderer/tree/tree-ops.ts` (23 lines: `announceRemoteWrite` after a remote create, folder and rename land, which a remote MOVE should announce too), `src/renderer/tree/use-tree-rename.ts` (25 lines: `refreshRemoteTree` re-reads the decorations with the rows), `src/renderer/tree/FilesSection.tsx` (218 lines), `src/renderer/scm/ScmSection.tsx` (146 lines), `build/conformance-machines.mjs` (12 lines) and `src/renderer/machines/__tests__/p228-off-the-face.test.ts` (36 lines). **Every renderer file this phase's history half edits is on that list.** Whichever lands second rebases across the other's header rewrite of `RemoteHistorySection.tsx`, and if 233 lands first, 230's removal of `onRefresh` meets 233's new row props in the same component signature.
-- **Phase 232**, `/private/tmp/wt-p232` at `982153c5`, five commits above `6ff120b`, not landed. It touches `src/main/machines/ipc.ts` (11 lines), `src/main/sessions/core.ts`, `src/main/machines/sign-in-retry.ts` (new), `src/renderer/scm/ScmSection.tsx` (8 lines), `src/renderer/tree/FilesSection.tsx` (10 lines) and `src/renderer/state/machines-slice.ts`. The `ipc.ts` overlap is one registration block each and should merge clean; nothing else meets this phase.
-- **Phase 227** landed at `f76bbda` and **Phase 225** at `4860380`; their redline files do not meet this phase. The only shared surface is `build/` for `gate:knownhosts` and `gate:electron`, and `HELPER_USER_FLOOR` in `build/assert-electron-teardown.mjs` if the phase adds a probe under `build/` rather than under `.p233/`.
-- Last commits to the shared files at `4bd2404`: `RemoteHistorySection.tsx` by `e32dae3b` (Phase 228), `use-tree-model.ts` and `use-tree-drag.ts` by `aca5af4f`, `remote-scripts.ts` by `3f98a685` (Phase 229). In `wt-p230`, `RemoteHistorySection.tsx` by `71e9049b` and `tree-ops.ts` by `81689392`.
+- **Phase 230**, `/private/tmp/wt-p230` at `6c41b4c4`, five commits above merge-base `41405d7`, plus untracked verify files, and NOT landed. It touches, against this phase's set: `src/renderer/scm/RemoteHistorySection.tsx` (66 lines: removes `onRefresh` and the Refresh button, removes the read-at clock, adds `useRemoteReread`, rewrites header rules 2 and the last paragraph), `src/renderer/scm/remote-history.ts` (39 lines: adds `refused` to the entry and the store's two refused paths), `src/renderer/tree/tree-ops.ts` (23 lines: `announceRemoteWrite` after a remote create, folder and rename land, which a remote MOVE should announce too), `src/renderer/tree/use-tree-rename.ts` (25 lines: `refreshRemoteTree` re-reads the decorations with the rows), `src/renderer/tree/FilesSection.tsx` (218 lines), `src/renderer/scm/ScmSection.tsx` (146 lines), `build/conformance-machines.mjs` (12 lines) and `src/renderer/machines/__tests__/p228-off-the-face.test.ts` (36 lines). **Every renderer file this phase's history half edits is on that list.** Whichever lands second rebases across the other's header rewrite of `RemoteHistorySection.tsx`, and if 233 lands first, 230's removal of `onRefresh` meets 233's new row props in the same component signature.
+- **Phase 232**, `/private/tmp/wt-p232` at `982153c5`, five commits above `8e5694c`, not landed. It touches `src/main/machines/ipc.ts` (11 lines), `src/main/sessions/core.ts`, `src/main/machines/sign-in-retry.ts` (new), `src/renderer/scm/ScmSection.tsx` (8 lines), `src/renderer/tree/FilesSection.tsx` (10 lines) and `src/renderer/state/machines-slice.ts`. The `ipc.ts` overlap is one registration block each and should merge clean; nothing else meets this phase.
+- **Phase 227** landed at `e5300ec` and **Phase 225** at `c8855fe`; their redline files do not meet this phase. The only shared surface is `build/` for `gate:knownhosts` and `gate:electron`, and `HELPER_USER_FLOOR` in `build/assert-electron-teardown.mjs` if the phase adds a probe under `build/` rather than under `.p233/`.
+- Last commits to the shared files at `a03e472`: `RemoteHistorySection.tsx` by `7ad54d71` (Phase 228), `use-tree-model.ts` and `use-tree-drag.ts` by `aca5af4f`, `remote-scripts.ts` by `43f8dd70` (Phase 229). In `wt-p230`, `RemoteHistorySection.tsx` by `71e9049b` and `tree-ops.ts` by `81689392`.
 
 ## 7. What was not measured
 

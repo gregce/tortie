@@ -1,7 +1,7 @@
 # 93. Phase 234, starting measurements
 
 The measure step for Phase 234, Architecture on a machine. Written 2026-09-08 against the tree at
-`f57f697b`, which is the parent every number here was read at. The charter is the Phase 234 entry in
+`cb83d5df`, which is the parent every number here was read at. The charter is the Phase 234 entry in
 docs/BACKLOG.md and research 85 section 2 new gap 1 and section 7 phase six. Nothing here was built.
 The tree was read, the far side was driven once under Phase 224's bounds, and the gates the charter
 names were run to log files.
@@ -32,9 +32,9 @@ ssh" needs a materialiser nobody has written.
 
 ## 2. The charter's citations, checked against the tree
 
-| Charter says | Tree at `f57f697b` | Drift |
+| Charter says | Tree at `cb83d5df` | Drift |
 |---|---|---|
-| "Architecture draws one sentence on a remote tab and nothing else" | Since `c75be4cb` (Phase 228, fix round finding 3) `ArchView.tsx:209` returns `null` when `status === 'elsewhere'`; `ARCH_ELSEWHERE` was deleted from `src/renderer/arch/copy.ts`. The pane draws its header and nothing under it. Measured: 12 characters of text, which is the header word | The sentence is gone. The defect is the empty pane and the two disabled controls, not a sentence |
+| "Architecture draws one sentence on a remote tab and nothing else" | Since `dcdb0081` (Phase 228, fix round finding 3) `ArchView.tsx:209` returns `null` when `status === 'elsewhere'`; `ARCH_ELSEWHERE` was deleted from `src/renderer/arch/copy.ts`. The pane draws its header and nothing under it. Measured: 12 characters of text, which is the header word | The sentence is gone. The defect is the empty pane and the two disabled controls, not a sentence |
 | `src/renderer/arch/ArchView.tsx:182` reads `localPathOf(target)` | Line 181 now: `const repoPath = target === null ? null : localPathOf(target);`. The store's own read is `src/renderer/arch/state/document-actions.ts:88-96`, where `refresh()` sets `status: 'elsewhere'` when `localPathOf(target)` is null and never calls `api.load` | Off by one line; the load-refusal lives in the store, not the view |
 | "main is never asked" | True. `document-actions.ts:95` returns before `archBridge()`; the B2 log holds no far side script for the arch view | Holds |
 | "no architecture script among the 25" | `REMOTE_SCRIPTS` at `src/main/machines/remote-scripts.ts:2715` holds 25 ids, `machine-facts` through `git-commit`; none reads a tree for imports or a `docs/arch/` | Holds |
@@ -228,7 +228,7 @@ All eight run to log files under `.p234/logs/`, none piped through `tail`.
 
 ### Where another phase in flight is likely to touch the same lines
 
-- **Phase 233**, `/private/tmp/wt-p233` at `d92f1e96`, one research commit above `4bd24042`, at its
+- **Phase 233**, `/private/tmp/wt-p233` at `d92f1e96`, one research commit above `a03e472b`, at its
   measure step and NOT landed. Its own file list (research 92 section 6) names `remote-scripts.ts`
   (one new read script appended to the catalogue tail), `build/conformance-machines.mjs`
   (`REMOTE_SCRIPT_COUNT` 25 → 26 at `:2926`), `docs/audits/contract-baseline.txt` (regenerated),
@@ -240,11 +240,11 @@ All eight run to log files under `.p234/logs/`, none piped through `tail`.
   catalogue rather than either phase's arithmetic. Phase 233's renderer files, `RemoteHistorySection.tsx`,
   `remote-history.ts`, `use-tree-model.ts`, `use-tree-drag.ts` and `tree-ops.ts`, do not meet this
   phase.
-- **Phases 225, 226 and 227** landed at `4860380`, `df8046cc` and `f76bbda`; the redline files do not
+- **Phases 225, 226 and 227** landed at `c8855fe`, `f4bd7d92` and `e5300ec`; the redline files do not
   meet this phase. The only shared surface is `build/` for `gate:knownhosts`, `gate:electron` and
   `gate:background`, and `HELPER_USER_FLOOR` if both add a probe under `build/`.
 - **Phases 228 to 232** are all in this tree. Nothing else is in flight on `src/main/arch/` or
-  `src/renderer/arch/`; the last commit to either is `c75be4cb` (Phase 228).
+  `src/renderer/arch/`; the last commit to either is `dcdb0081` (Phase 228).
 - **Phase 235**, the nits round, is queued and not started; item 5 touches the new-session grid and
   items 1 and 2 `EditorTabs.tsx`, none of which this phase names.
 

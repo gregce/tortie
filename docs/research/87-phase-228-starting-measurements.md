@@ -1,6 +1,6 @@
 # 87. Phase 228, starting measurements
 
-The measure step for Phase 228, the remote face, just enough words. Taken at `52a43cf`, the parent
+The measure step for Phase 228, the remote face, just enough words. Taken at `88dcfad`, the parent
 of the phase, on 2026-09-07 between 22:20 and 22:30. Nothing was built. The charter is the Phase 228
 entry in docs/BACKLOG.md and research 85 section 3.3; this document says what the tree holds against
 that entry, what the verifier can re-run, what the remote face reads on his Mac Pro today, that the
@@ -16,7 +16,7 @@ DOM. The gate logs are under `.p228/logs/`.
 
 Every file and line the entry cites still says what the entry says it says.
 
-| cited | in the tree at `52a43cf` | holds |
+| cited | in the tree at `88dcfad` | holds |
 |---|---|---|
 | `src/renderer/machines/scm.ts` `remoteChangesBand` :24 | :24 | yes, 25 words |
 | `scm.ts` `REMOTE_SCM_SECTIONS_NOTE` :183 | :183 | yes, 49 words |

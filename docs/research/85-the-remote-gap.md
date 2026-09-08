@@ -1,6 +1,6 @@
 # 85. The remote gap, measured against local and against herdr 0.9.0
 
-Phase 224. Written 2026-09-07 against the tree at `ad92bd3`, driven against
+Phase 224. Written 2026-09-07 against the tree at `761776a`, driven against
 `gregs-mac-pro.tail2ddfe1.ts.net`, and compared with `/Users/gdc/herdr` at `a9f3ad5f`, which is
 version 0.9.0.
 
@@ -34,7 +34,7 @@ would remove most of what he is feeling.
 ## 2. Where the work landed
 
 Research 57 is from 19 August and twenty-one phases have landed since, so its rulings are checked
-here rather than repeated. The table is read from the tree at `ad92bd3` and confirmed by driving
+here rather than repeated. The table is read from the tree at `761776a` and confirmed by driving
 where driving could reach it.
 
 | # | Gap | Research 57 ruling | Today | Read at |
