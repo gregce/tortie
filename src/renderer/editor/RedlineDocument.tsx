@@ -71,6 +71,7 @@ import { changesOf } from './rewind';
 import type { RedlineChange } from './rewind';
 import {
   CURRENT_ATTRIBUTE,
+  chipNeedsMeasure,
   currentElement,
   identityOf,
   pressLetsGo,
@@ -290,6 +291,19 @@ export function RedlineDocument({
   // PHASE 236. Which change the chip is drawn for; the rule is
   // `chipAnchorFor` above, and the current change wins over the pointer.
   const anchor = chipAnchorFor(currentEl, hovered);
+  // THE COMMITTER'S ROUND. Both are read INSIDE the layout effect below, which
+  // needs the anchor as it stands in the render it follows: `currentEl` has not
+  // been updated at that point, so `anchorRef.current` is exactly "the element
+  // the chip is drawn on now", which is the question ./redline-current
+  // `chipNeedsMeasure` asks. Neither is a dependency, so neither adds a pass.
+  const anchorRef = useRef<HTMLElement | null>(null);
+  anchorRef.current = anchor;
+  const hoveredRef = useRef<HTMLElement | null>(null);
+  hoveredRef.current = hovered;
+  // The chip's placement token. It moves ONLY when the wrapper the chip is
+  // anchored on survived a recompose, which is the one case nothing else
+  // re-measures; the whole reason is in `chipNeedsMeasure`'s own header.
+  const [placement, remeasure] = useReducer((n: number) => n + 1, 0);
   const forgetAnchor = useCallback((): void => {
     setHovered(null);
     setCurrent(null);
@@ -509,9 +523,22 @@ export function RedlineDocument({
   // the wrapper, and the render puts `data-current` back on whichever wrapper
   // is that change now. It answers null when the picture no longer holds the
   // change at all, which is the ordinary answer after a rewind.
+  //
+  // THE COMMITTER'S ROUND ADDED THE SECOND LINE, AND IT IS THIS PHASE'S OWN
+  // SUBJECT. When the recompose REUSES the wrapper — an agent's write that
+  // merges into a change rather than adding one — the element this puts back
+  // is `Object.is`-equal, React re-renders nothing, and the chip's anchor prop
+  // never moves, so its placement effect never runs and the controls stay at
+  // the pixel the old layout put them at: measured 25.44px from the change they
+  // name, a whole line above it, over unrelated prose. `chipNeedsMeasure` is
+  // the rule and it bumps a token the chip depends on.
   useLayoutEffect(() => {
     const host = hostRef.current;
-    setCurrentEl(host === null ? null : currentElement(host));
+    const el = host === null ? null : currentElement(host);
+    setCurrentEl(el);
+    if (chipNeedsMeasure(chipAnchorFor(el, hoveredRef.current), anchorRef.current)) {
+      remeasure();
+    }
   }, [current, composed]);
   // PHASE 237 gave the document a caret, and a caret is the same claim a
   // focused wrapper makes (./redline-caret changeAtCaret). Moving it INTO a
@@ -626,6 +653,7 @@ export function RedlineDocument({
       <RedlineChip
         anchor={anchor}
         view={viewEl}
+        placement={placement}
         onCommand={runFromChip}
         chipRef={chipRef}
         onDetached={forgetAnchor}

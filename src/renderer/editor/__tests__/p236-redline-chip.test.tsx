@@ -142,7 +142,10 @@ function chipMarkup(): string {
       view: null,
       onCommand: () => undefined,
       chipRef: { current: null },
-      onDetached: () => undefined
+      onDetached: () => undefined,
+      // PHASE 239'S COMMITTER'S ROUND. The placement token; nothing here lays
+      // anything out, so any value draws the same markup.
+      placement: 0
     })
   );
 }
@@ -161,7 +164,8 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
           view: null,
           onCommand: () => undefined,
           chipRef: { current: null },
-          onDetached: () => undefined
+          onDetached: () => undefined,
+          placement: 0
         })
       )
     ).toBe('');

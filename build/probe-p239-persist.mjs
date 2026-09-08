@@ -9,6 +9,11 @@
  *
  *   B. AN OUTSIDE WRITE ABOVE THE PLACE, being research 99 §2.3's own drive
  *      with the write landing above the change rather than below it.
+ *   D. AN OUTSIDE WRITE THAT MERGES INTO A CHANGE, so the change COUNT does
+ *      not move. This is the committer's round and it is the shape B cannot
+ *      make: every write in B adds a change, which replaces the wrapper and
+ *      moves the chip's anchor prop with it, and React reuses the wrapper when
+ *      the count is unchanged.
  *   C. DISMISSAL. Once the controls are drawn, is there any way to put them
  *      away short of leaving the tab?
  *   A. TYPING. The controls are drawn on a change, the person types three
@@ -29,8 +34,20 @@
  *      3 — the identity carried `ins` and typing rewrites it.
  *   C: the chip still drawn on change 0 with the mark still on it, against the
  *      parent's chip GONE — persistence had been built with no other side.
+ *   D: the mark and the press were RIGHT and the rectangle was STALE — chip
+ *      bottom 622.24 unmoved while the change it names moved to top 647.69, a
+ *      gap of 25.44px against the 4.00px it is drawn with, a whole line above
+ *      the phrase, over unrelated prose, still there four seconds later.
  *
- * Both are checks here, so the arms that measured them can fail again.
+ * All three are checks here, so the arms that measured them can fail again.
+ *
+ * ## ARM D IS THE ONE WITH A GAP IN IT, AND THE GAP IS THE READING
+ *
+ * `chipOn` above answers WHICH change the chip's box is drawn against, within
+ * 0.6px of the placement rule; a stale chip belongs to no change and answers
+ * -1. Arm D reads that AND the raw gap, because -1 says the placement is wrong
+ * and the number says by how much, and a phase about where a thing sits should
+ * publish the pixels rather than a boolean.
  *
  * One Electron on a scratch profile with a scratch HOME and its own tmux
  * socket, through build/electron-run.mjs, ended in its `finally`. No agent, no
@@ -56,6 +73,10 @@ const check = (step, claim, pass, detail) => {
   if (!pass) failures.push(`${step}. ${claim} — ${detail}`);
   say(`${pass ? 'pass' : 'FAIL'}  ${step}. ${claim} — ${detail}`);
 };
+
+/** Which arm to drive, or every one of them. `P239_ONLY=D` is the finding. */
+const ONLY = (process.env['P239_ONLY'] ?? '').trim();
+const wants = (arm) => ONLY === '' || ONLY === arm;
 
 const socket = (process.env['GMUX_TMUX_SOCKET'] ?? '').trim();
 if (socket === '') {
@@ -102,6 +123,17 @@ const V1 = (() => {
   return out.join('\n');
 })();
 const V2 = SECTIONS.flatMap((s) => [[s.a, s.b], [s.pa, s.pb]]).reduce((t, [a, b]) => t.split(a).join(b), V1);
+/**
+ * ARM D'S WRITE, AND THE WHOLE POINT OF IT IS THAT THE CHANGE COUNT DOES NOT
+ * MOVE. The extra words land INSIDE the first change's own insertion, so the
+ * baseline still reads `keeps` at the same offset and the picture still holds
+ * four changes: React keys its wrappers by change index, so every one of them
+ * is the same DOM node afterwards and the chip's anchor prop is
+ * `Object.is`-equal. The clause is long enough to wrap section 1's opening
+ * sentence onto another line, which is what moves everything below it.
+ */
+const MERGED = 'holds tightly and unmistakably and permanently and irreversibly and thoroughly and repeatedly and deliberately and continuously';
+const V3 = V2.replace('Tortie holds every session alive', `Tortie ${MERGED} every session alive`);
 writeFileSync(join(project, 'notes.txt'), V1);
 git('init', '-q', '-b', 'main'); git('config', 'user.email', 'p@example.invalid'); git('config', 'user.name', 'p'); git('add', '.'); git('commit', '-q', '-m', 'first');
 
@@ -136,10 +168,21 @@ const FACE = `(() => {
     caretIdx = w === null ? -1 : wraps.indexOf(w);
   }
   const marked = wraps.findIndex((w) => w.hasAttribute('data-current'));
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const markedRect = wraps[marked] === undefined ? null : (wraps[marked].getClientRects()[0] ?? null);
   const name = (i) => (i < 0 || wraps[i] === undefined) ? null : ((wraps[i].dataset.changeDel || '(nothing)') + ' -> ' + (wraps[i].dataset.changeIns || '(nothing)')).slice(0, 60);
   return {
-    chip: c === null ? null : { left: c.left, top: c.top, width: c.width },
+    chip: c === null ? null : { left: round2(c.left), top: round2(c.top), bottom: round2(c.bottom), width: round2(c.width) },
     chipOn: idx, chipName: name(idx),
+    // WHERE THE MARKED CHANGE ACTUALLY IS, and how far the chip is from it.
+    // chipOn is a verdict and this is the number behind it: a phase about
+    // where a thing sits publishes the pixels. The chip is drawn above the
+    // change when there is room and below when there is not, so the gap is
+    // measured to whichever side it is on, and it is CHIP_GAP (4.00) when the
+    // placement is right.
+    markedTop: markedRect === null ? null : round2(markedRect.top),
+    gap: (markedRect === null || c === null) ? null
+      : round2(markedRect.top >= c.bottom ? markedRect.top - c.bottom : c.top - markedRect.bottom),
     marked, markedName: name(marked),
     caretOn: caretIdx, caretName: name(caretIdx),
     count: wraps.length,
@@ -240,7 +283,7 @@ await withElectron(
       // on purpose (research 83 A4.3), so an outside write never arrives after
       // it. Run the other way round this arm reads 4 -> 4 changes and proves
       // nothing at all, which is what it did before the fix round reordered it.
-      for (const round of (process.env['P239_ONLY'] === 'A' ? [] : [1, 2])) {
+      for (const round of (wants('B') ? [1, 2] : [])) {
         shellWrite('notes.txt', V2);
         await sleep(800);
         await remount(cdp);
@@ -259,7 +302,7 @@ await withElectron(
       }
 
       // ---- ARM C. DISMISSAL ----
-      if (process.env['P239_ONLY'] !== 'A') {
+      if (wants('C')) {
       shellWrite('notes.txt', V2);
       await sleep(800);
       await remount(cdp);
@@ -303,9 +346,60 @@ await withElectron(
         c3.chip !== null, `chip ${c3.chip === null ? 'still GONE' : `on ${String(c3.chipOn)} "${String(c3.chipName)}"`}`);
       }
 
+      // ---- ARM D. AN OUTSIDE WRITE THAT MERGES INTO A CHANGE ----
+      //
+      // THE COMMITTER'S ROUND, AND IT IS THE SHAPE ARM B CANNOT MAKE. Every
+      // write above ADDS a change, which shifts React's keys, replaces the
+      // wrapper the controls are on and moves the chip's anchor prop with it,
+      // so the placement re-runs for free. A write that MERGES into an
+      // existing change keeps the count: the very same DOM node comes back,
+      // the prop is `Object.is`-equal, React re-renders nothing, and the
+      // chip's own placement effect never runs again. The mark and the press
+      // stayed RIGHT the whole time; what went stale was the rectangle. It was
+      // read at bottom 622.24 while the change it names had moved to top
+      // 647.69 — 25.44px, a whole line above the phrase, over unrelated prose.
+      if (wants('D')) {
+        shellWrite('notes.txt', V2);
+        await sleep(800);
+        await remount(cdp);
+        await cdpEval(cdp, focusHost); await sleep(300);
+        // Four presses, so the controls land on the phrase in section 2 and
+        // the write lands in section 1, ABOVE it.
+        for (let k = 0; k < 4; k += 1) { await press(cdp, ALT_DOWN); await sleep(280); }
+        await sleep(500);
+        const d0 = await face(cdp);
+        shellWrite('notes.txt', V3);
+        await sleep(2500);
+        const d1 = await face(cdp);
+        // AND AGAIN A MOMENT LATER, because a chip that is merely late is not
+        // the same defect as a chip that is in the wrong place: the verifier
+        // read the stale one still standing four seconds on.
+        await sleep(4000);
+        const d2 = await face(cdp);
+        check('D0', 'the controls were drawn on the phrase the person stepped to',
+          d0.chip !== null && d0.marked >= 0 && d0.chipOn === d0.marked,
+          `chip on ${String(d0.chipOn)} "${String(d0.chipName)}", marked ${String(d0.marked)}, gap ${String(d0.gap)}px`);
+        check('D1', 'THE WRITE MERGED: the change count did not move, so React reuses the wrapper',
+          d1.count === d0.count && d1.count > 0,
+          `${String(d0.count)} -> ${String(d1.count)} changes`);
+        check('D2', 'and the document really reflowed underneath the controls',
+          d0.markedTop !== null && d1.markedTop !== null && Math.abs(d1.markedTop - d0.markedTop) > 1,
+          `the marked change's first rect moved ${String(d0.markedTop)} -> ${String(d1.markedTop)}`);
+        check('D3', 'the identity is still the phrase the person was on, which is what this phase built',
+          d1.markedName === d0.markedName,
+          `"${String(d0.markedName)}" -> "${String(d1.markedName)}"`);
+        check('D4', 'THE CONTROLS FOLLOWED IT: the chip is drawn on the change it names',
+          d1.chip !== null && d1.marked >= 0 && d1.chipOn === d1.marked,
+          `chip ${d1.chip === null ? 'GONE' : `on ${String(d1.chipOn)}`}, marked ${String(d1.marked)}, chip bottom ${String(d1.chip === null ? null : d1.chip.bottom)} against the change's top ${String(d1.markedTop)}, gap ${String(d1.gap)}px`);
+        check('D5', 'and it is still there four seconds later, so this is a place and not a race',
+          d2.chip !== null && d2.marked >= 0 && d2.chipOn === d2.marked,
+          `chip ${d2.chip === null ? 'GONE' : `on ${String(d2.chipOn)}`}, marked ${String(d2.marked)}, gap ${String(d2.gap)}px`);
+        await shotTo(cdp, 'merged');
+      }
+
       // ---- ARM A. TYPING, three times over. LAST, because it leaves the tab
       //      dirty and `refreshRepo` skips a dirty tab on purpose. ----
-      for (const round of [1, 2, 3]) {
+      for (const round of (wants('A') ? [1, 2, 3] : [])) {
         await remount(cdp);
         await cdpEval(cdp, focusHost); await sleep(300);
         await press(cdp, ALT_DOWN); await sleep(300);

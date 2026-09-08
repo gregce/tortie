@@ -327,3 +327,54 @@ export function caretMoveOf(args: {
   }
   return { change };
 }
+
+/**
+ * MUST THE CHIP BE MEASURED AGAIN AFTER THIS DRAW?
+ *
+ * PHASE 239'S COMMITTER'S ROUND, and the defect it closes is this phase's own
+ * subject read back in a shape none of its arms could produce. Every outside
+ * write the fix round drove ADDS a change, so the wrapper the controls are on
+ * is replaced and React hands the chip a different element; the verifier drove
+ * a write that MERGED into an existing change instead, so the count did not
+ * move, React reused the very same DOM node, and this happened:
+ *
+ * | | the chip's box | the marked change's first rect | gap |
+ * | --- | --- | --- | --- |
+ * | before any write | bottom 600.80 | top 604.80 | 4.00 |
+ * | a write that adds a change | bottom 622.24 | top 626.24 | 4.00 |
+ * | **a write that merges into one** | **bottom 622.24, unmoved** | **top 647.69** | **25.44** |
+ *
+ * The mark was still on the right phrase and the press would still have acted
+ * on it — the identity above works — but the controls were drawn a whole line
+ * above the change they name, over unrelated prose, and stayed there. It is
+ * reachable only BECAUSE this phase made them persist: at Phase 236 an outside
+ * write took the chip away entirely (research 99 §2.3 read `the chip: none`),
+ * so a stale one could not be seen.
+ *
+ * The mechanism is React's own bail-out. The view finds the marked wrapper
+ * after every draw and puts it in state; when the recompose reuses the node,
+ * that state is `Object.is`-equal, React re-renders nothing, the chip's anchor
+ * prop never moves and its placement effect never runs again. Nothing else
+ * re-measures either: the chip listens for a scroll, a window resize and a
+ * `ResizeObserver` on the VIEW, and the view's own box did not change.
+ *
+ * So the view asks this after every draw, and the answer is deliberately NOT
+ * "did anything change":
+ *
+ *   - **The same element survived, so measure again.** No prop moved, so
+ *     nothing else will.
+ *   - **A different element, so do not.** The anchor prop moved with it and
+ *     the chip's own effect re-measures on that, and asking for a second pass
+ *     would only spend a render.
+ *   - **Nothing is drawn, so do not.** There is no chip to place.
+ *
+ * It is asked of the ANCHOR and not of the current change, because the chip
+ * also draws for a hovered change when nothing is current (Phase 236's rule),
+ * and a hovered wrapper survives a recompose exactly the same way.
+ */
+export function chipNeedsMeasure(
+  now: HTMLElement | null,
+  before: HTMLElement | null
+): boolean {
+  return now !== null && now === before;
+}

@@ -76,6 +76,7 @@ const {
   CURRENT_ATTRIBUTE,
   DOC_SELECTOR,
   caretMoveOf,
+  chipNeedsMeasure,
   identityOf,
   indexOfChange,
   pressLetsGo,
@@ -634,5 +635,51 @@ describe('undo of a rewind left the change chip for the row that names it', () =
     expect(html).not.toContain('ed-redline-note-button');
     expect(html).not.toContain('ed-redline-undo');
     expect(html).not.toContain('<button');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. THE COMMITTER'S ROUND. Persisting is not the same as FOLLOWING.
+// ---------------------------------------------------------------------------
+
+describe('the controls follow the change when the wrapper survives a recompose', () => {
+  /**
+   * Every outside write this phase drove ADDS a change, which replaces the
+   * wrapper and moves the chip's anchor prop with it. A write that MERGES into
+   * a change keeps the count, React reuses the very same DOM node, the prop is
+   * `Object.is`-equal and this component re-renders nothing — and the chip was
+   * read at bottom 622.24 while the change it names had moved to top 647.69, a
+   * gap of 25.44px against the 4.00px it is drawn with, a whole line above the
+   * phrase and over unrelated prose, still there four seconds later.
+   *
+   * The mark and the press were both right the whole time, which is why no arm
+   * above sees it: what was stale was only the RECTANGLE.
+   */
+  const a = { id: 'a' } as unknown as HTMLElement;
+  const b = { id: 'b' } as unknown as HTMLElement;
+
+  it('the same wrapper coming back is the one case nothing else re-measures', () => {
+    expect(chipNeedsMeasure(a, a)).toBe(true);
+  });
+
+  it('a wrapper that was REPLACED needs nothing, because its own prop moved', () => {
+    expect(chipNeedsMeasure(b, a)).toBe(false);
+  });
+
+  it('and a face with no controls on it is never measured at all', () => {
+    expect(chipNeedsMeasure(null, a)).toBe(false);
+    expect(chipNeedsMeasure(a, null)).toBe(false);
+    expect(chipNeedsMeasure(null, null)).toBe(false);
+  });
+
+  it('THE WIRING, because a rule nothing calls is a rule that shipped the defect', () => {
+    // This repository carries no jsdom, so nothing here can run a layout
+    // effect: the two ends are read out of the shipping source instead, which
+    // is what `npm run conformance:redline` rule 18c ablates.
+    const view = readFileSync('src/renderer/editor/RedlineDocument.tsx', 'utf8');
+    const chip = readFileSync('src/renderer/editor/redline-chip.tsx', 'utf8');
+    expect(view).toContain('chipNeedsMeasure(');
+    expect(view).toContain('placement={placement}');
+    expect(chip).toContain('}, [anchor, view, chipRef, placement]);');
   });
 });

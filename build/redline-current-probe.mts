@@ -34,6 +34,7 @@ const current = (await import(
 
 const {
   caretMoveOf,
+  chipNeedsMeasure,
   identityOf,
   indexOfChange,
   pressLetsGo,
@@ -205,8 +206,11 @@ console.log(
       // A caret that is not in this document at all: silence, never a move
       // OUT of a change, because the chord's own focus can take it out.
       elsewhere: named(caretMoveOf({ restored: PUT, now: null, change: null })),
-      // The person put the caret in plain prose. That IS a move, and it is
-      // what lets the view let go.
+      // The person put the caret in plain prose: a move, onto no change. It
+      // is NOT what lets the view let go — `makeCurrent` returns at once on a
+      // null element, so the controls stay exactly where they are and only
+      // `pressLetsGo` below puts them away. The reading is here because a move
+      // that landed nowhere must still be told apart from silence.
       onProse: named(caretMoveOf({ restored: null, now: { anchor: 12, focus: 12 }, change: null })),
       // Nothing has been restored yet, so nothing can be mistaken for one.
       firstEver: named(caretMoveOf({ restored: null, now: { anchor: 1, focus: 1 }, change: NINE[1] as HTMLElement }))
@@ -219,6 +223,19 @@ console.log(
       change: pressLetsGo(target(['.ed-redline-doc', '.ed-redline-change'])),
       chip: pressLetsGo(target([])),
       nothing: pressLetsGo(null)
+    },
+    // 9. MUST THE CHIP BE MEASURED AGAIN (the committer's round). A write that
+    //    MERGES into a change keeps the change count, so React reuses the
+    //    wrapper and the anchor prop never moves; nothing else re-measures,
+    //    and the chip was read 25.44px from the change it names, a whole line
+    //    above it, over unrelated prose. The same element surviving is the one
+    //    case the view has to answer for itself.
+    measure: {
+      survived: chipNeedsMeasure(NINE[2] as HTMLElement, NINE[2] as HTMLElement),
+      replaced: chipNeedsMeasure(NINE[2] as HTMLElement, NINE[3] as HTMLElement),
+      goneNow: chipNeedsMeasure(null, NINE[2] as HTMLElement),
+      fresh: chipNeedsMeasure(NINE[2] as HTMLElement, null),
+      neither: chipNeedsMeasure(null, null)
     }
   })
 );

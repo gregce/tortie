@@ -1874,6 +1874,35 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       expect: (a) => same(a, { prose: true, change: false, chip: false, nothing: false }),
       from: '  return target.closest(DOC_SELECTOR) !== null;',
       to: '  return true;'
+    },
+    {
+      // THE COMMITTER'S ROUND, AND IT IS THIS PHASE'S OWN SUBJECT IN A SHAPE
+      // NO ARM ABOVE COULD PRODUCE. Every outside write the arms above drive
+      // ADDS a change, so the wrapper is replaced and the chip's anchor prop
+      // moves with it. A write that MERGES into a change keeps the count,
+      // React reuses the very same DOM node, the prop is `Object.is`-equal and
+      // nothing re-measures: the chip's bottom stood at 622.24 while the change
+      // it names moved to 647.69, a gap of 25.44px against the 4.00px it is
+      // drawn with, a whole line above the phrase, over unrelated prose, and it
+      // was still there four seconds later. The ablation is what shipped.
+      name: 'THE MERGED WRITE: a wrapper that SURVIVED the recompose is measured again',
+      key: 'measure',
+      expect: (a) => a !== undefined && a.survived === true,
+      from: '  return now !== null && now === before;\n}',
+      to: '  return false;\n}'
+    },
+    {
+      // And the other side of it, because a rule that answered "yes" to
+      // everything would spend a whole extra render on every draw and would
+      // ask the chip to measure an element React is in the middle of
+      // replacing. A DIFFERENT element needs nothing, because its own prop
+      // moved; nothing drawn needs nothing, because there is no chip.
+      name: 'and a REPLACED wrapper is not, nor is a face with no controls on it',
+      key: 'measure',
+      expect: (a) =>
+        same(a, { survived: true, replaced: false, goneNow: false, fresh: false, neither: false }),
+      from: '  return now !== null && now === before;',
+      to: '  return now === before;'
     }
   ];
 
@@ -1917,6 +1946,106 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       rmSync(scratch, { recursive: true, force: true });
     }
   }
+
+  // 18c. THE WIRING, WHICH 18b CANNOT SEE.
+  //
+  // `chipNeedsMeasure` is a pure function and this repository carries no jsdom,
+  // so nothing in `npm test` and nothing in 18b can tell a rule that is CALLED
+  // from a rule that merely compiles. The defect it exists for is exactly a
+  // wiring one: the answer was always available and nobody asked for it, and
+  // the chip stayed 25.44px from the change it names. So the two ends are read
+  // out of the real source — the view must ask the question in the same layout
+  // effect that finds the marked wrapper, and the chip's placement effect must
+  // DEPEND on the token the answer moves, because a token nothing depends on
+  // re-measures nothing. The scanner is proved on plants that must fail.
+  const CHIP_FILE = 'src/renderer/editor/redline-chip.tsx';
+  /** Every `useLayoutEffect` in a source, as its body text and its deps text. */
+  const layoutEffects = (text) => {
+    const out = [];
+    let at = text.indexOf('useLayoutEffect(');
+    while (at !== -1) {
+      const close = text.indexOf('}, [', at);
+      if (close === -1) break;
+      const end = text.indexOf(']', close);
+      out.push({
+        body: text.slice(at, close),
+        deps: end === -1 ? '' : text.slice(close + 4, end)
+      });
+      at = text.indexOf('useLayoutEffect(', close);
+    }
+    return out;
+  };
+  const chipSource = readFileSync(CHIP_FILE, 'utf8');
+  const chipEffects = layoutEffects(stripComments(chipSource));
+  const placing = chipEffects.find((e) => e.body.includes('chipAnchorRect('));
+  if (placing === undefined) {
+    fail(`18c. ${CHIP_FILE} has no layout effect that places the chip, so this rule reads nothing`);
+  } else if (!/\bplacement\b/.test(placing.deps)) {
+    fail(`18c. the chip's placement effect does not depend on the view's placement token (deps: ${placing.deps.trim()}), so a wrapper that SURVIVED a recompose is never measured again — the 25.44px the committer's round measured`);
+  }
+  const marking = layoutEffects(stripComments(viewSource)).find((e) =>
+    e.body.includes('setCurrentEl(')
+  );
+  if (marking === undefined) {
+    fail(`18c. ${VIEW_FILE} has no layout effect that finds the marked wrapper, so this rule reads nothing`);
+  } else if (!marking.body.includes('chipNeedsMeasure(')) {
+    fail(`18c. ${VIEW_FILE} finds the marked wrapper and never asks chipNeedsMeasure, so a reused wrapper leaves the controls at the pixel the old layout put them at`);
+  }
+  if (!/placement=\{/.test(viewSource)) {
+    fail(`18c. ${VIEW_FILE} never hands the chip a placement token at all`);
+  }
+  // The scanner, proved on plants. Three of the five must fail, and each one
+  // is a real way a later round takes this out: the dep dropped, the ask
+  // dropped, and the name left in a comment where it means nothing.
+  const WIRE_PLANTS = [
+    {
+      name: 'the shipping shape',
+      chip: 'useLayoutEffect(() => { const rect = chipAnchorRect(anchor); put(rect);\n  }, [anchor, view, chipRef, placement]);',
+      view: 'useLayoutEffect(() => { setCurrentEl(el); if (chipNeedsMeasure(a, b)) remeasure();\n  }, [current, composed]);',
+      ok: true
+    },
+    {
+      name: 'the token dropped from the deps',
+      chip: 'useLayoutEffect(() => { const rect = chipAnchorRect(anchor); put(rect);\n  }, [anchor, view, chipRef]);',
+      view: 'useLayoutEffect(() => { setCurrentEl(el); if (chipNeedsMeasure(a, b)) remeasure();\n  }, [current, composed]);',
+      ok: false
+    },
+    {
+      name: 'the question never asked',
+      chip: 'useLayoutEffect(() => { const rect = chipAnchorRect(anchor); put(rect);\n  }, [anchor, view, chipRef, placement]);',
+      view: 'useLayoutEffect(() => { setCurrentEl(el);\n  }, [current, composed]);',
+      ok: false
+    },
+    {
+      name: 'the token named only in a comment',
+      chip: 'useLayoutEffect(() => { const rect = chipAnchorRect(anchor); put(rect);\n  }, [anchor, view, chipRef /* placement */]);',
+      view: 'useLayoutEffect(() => { setCurrentEl(el); if (chipNeedsMeasure(a, b)) remeasure();\n  }, [current, composed]);',
+      ok: false
+    },
+    {
+      name: 'a second effect beside the placing one, which must not answer for it',
+      chip: 'useLayoutEffect(() => { measureNothing();\n  }, [placement]);\nuseLayoutEffect(() => { const rect = chipAnchorRect(anchor); put(rect);\n  }, [anchor, view, chipRef, placement]);',
+      view: 'useLayoutEffect(() => { setCurrentEl(el); if (chipNeedsMeasure(a, b)) remeasure();\n  }, [current, composed]);',
+      ok: true
+    }
+  ];
+  let wireOk = 0;
+  for (const plant of WIRE_PLANTS) {
+    const c = layoutEffects(stripComments(plant.chip)).find((e) =>
+      e.body.includes('chipAnchorRect(')
+    );
+    const v = layoutEffects(stripComments(plant.view)).find((e) =>
+      e.body.includes('setCurrentEl(')
+    );
+    const passes =
+      c !== undefined &&
+      v !== undefined &&
+      /\bplacement\b/.test(c.deps) &&
+      v.body.includes('chipNeedsMeasure(');
+    if (passes === plant.ok) wireOk += 1;
+    else fail(`18c. the scanner behaved wrongly on the plant "${plant.name}"`);
+  }
+  say(`18c. the view asks chipNeedsMeasure where it finds the mark and the chip's placement depends on the token (${String(wireOk)} of ${String(WIRE_PLANTS.length)} scanner plants behaved, ${String(WIRE_PLANTS.filter((p) => !p.ok).length)} of them must fail)`);
 }
 
 

@@ -49,6 +49,14 @@
  * element wearing `data-current`, which the render puts back. The placement
  * rule below, being the change's FIRST client rect, is untouched.
  *
+ * AND ITS COMMITTER'S ROUND GAVE THE PLACEMENT A TOKEN TO FOLLOW, because
+ * persisting is not the same as following. A write that MERGES into a change
+ * keeps the change count, so React reuses the wrapper, the anchor prop is the
+ * same object, this component re-renders nothing and the chip stayed at the
+ * pixel the old layout put it at while the document reflowed 21.44px beneath
+ * it. The `placement` prop is the view's answer and it is in the dependency
+ * list below; ./redline-current `chipNeedsMeasure` carries the measurement.
+ *
  * PHASE 239 TOOK UNDO OFF THIS CHIP, AND IT IS PHASE 236'S OWN RECORDED
  * FINDING CLOSED. The chip's Undo means the last rewind IN THE TAB, never the
  * change it sits beside, and research 99 section 7.1 drove it rather than
@@ -180,6 +188,20 @@ export interface RedlineChipProps {
    * element it was drawn for is no longer in the tree. The view forgets it.
    */
   onDetached: () => void;
+  /**
+   * PHASE 239'S COMMITTER'S ROUND. The view's placement token, which moves
+   * when the wrapper this chip is anchored on SURVIVED a recompose. The
+   * anchor prop cannot answer that on its own: a reused DOM node is the same
+   * object, React bails, and the placement below would never run again while
+   * the document reflowed underneath it — measured at 25.44px, a whole line
+   * above the change the chip names. ./redline-current `chipNeedsMeasure` is
+   * the rule that moves it and carries the numbers.
+   *
+   * It is bumped from the view's OWN layout effect, which runs after this
+   * component's, so by the time the token arrives the anchor beside it is the
+   * element that is really in the tree. Nothing here ever measures a stale one.
+   */
+  placement: number;
 }
 
 export function RedlineChip({
@@ -187,7 +209,8 @@ export function RedlineChip({
   view,
   onCommand,
   chipRef,
-  onDetached
+  onDetached,
+  placement
 }: RedlineChipProps): React.JSX.Element | null {
   const [place, setPlace] = useState<ChipPlace | null>(null);
   // The place is computed after layout and re-computed on scroll and on
@@ -229,7 +252,7 @@ export function RedlineChip({
       window.removeEventListener('resize', put);
       observer?.disconnect();
     };
-  }, [anchor, view, chipRef]);
+  }, [anchor, view, chipRef, placement]);
 
   const act = useCallback(
     (command: RedlineCommand): void => {
