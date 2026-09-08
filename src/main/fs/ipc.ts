@@ -11,6 +11,8 @@
  *                  files (NUL byte in the head) are refused with a
  *                  friendly FS_FAILED                            [editor]
  *   - fs:writeFile ⌘S save from the editor                       [editor]
+ *   - fs:writeGuarded compare-and-swap write for the redline's rewind
+ *                  (Phase 226; guarded-write.ts owns the rules)  [redline]
  *   - fs:createFile / fs:createFolder / fs:rename / fs:move / fs:trash
  *                  the tree's file operations (Phase 12.9). Every path is
  *                  proven to be inside an OPEN PROJECT root, `.git` is
@@ -25,6 +27,9 @@ import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 import { open as openFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, resolve as resolvePath } from 'node:path';
 import type { FsDirEntry, ReadFileResult } from '@shared/types';
+// Phase 226 moved READ_CAP_BYTES to the shared contract so the guarded write
+// asks the same number this file truncates at, and there is still one number.
+import { READ_CAP_BYTES } from '@shared/fs-ops';
 import { gmuxError } from '../errors';
 import { handle } from '../typed-ipc';
 import type { FileOpsDeps } from './file-ops';
@@ -33,6 +38,7 @@ import type { OpenWithDeps } from './open-with';
 import { createOpenWith, defaultOpenWithDeps } from './open-with';
 import type { DragOutDeps } from './drag-out';
 import { createDragOut } from './drag-out';
+import { writeGuarded } from './guarded-write';
 
 
 function entryKind(d: {
@@ -48,13 +54,6 @@ function entryKind(d: {
   if (d.isFile()) return 'file';
   return 'other';
 }
-
-/**
- * Editor read cap: 5 MB is far beyond any file a human reviews in a diff,
- * and keeps a mis-click on a bundle/minified artifact from freezing the
- * renderer. Truncated reads open read-only in the editor.
- */
-const READ_CAP_BYTES = 5 * 1024 * 1024;
 
 /** Bytes sniffed for NUL to classify a file as binary (git's heuristic). */
 const BINARY_SNIFF_BYTES = 8192;
@@ -178,7 +177,8 @@ export function registerFsIpc(
   openWithDeps?: OpenWithDeps,
   dragOutDeps?: DragOutDeps
 ): void {
-  const fileOps = createFileOps(deps ?? defaultFileOpsDeps());
+  const fsDeps = deps ?? defaultFileOpsDeps();
+  const fileOps = createFileOps(fsDeps);
 
   handle(ipc, 'fs:readDir', async (_e, dirPath) => {
     if (typeof dirPath !== 'string' || dirPath.trim().length === 0) {
@@ -256,6 +256,15 @@ export function registerFsIpc(
   handle(ipc, 'fs:duplicate', (_e, input) => fileOps.duplicate(input));
   handle(ipc, 'fs:move', (_e, input) => fileOps.move(input));
   handle(ipc, 'fs:trash', (_e, input) => fileOps.trash(input));
+
+  // ----- Phase 226 the guarded write -------------------------------------
+  // Thin for the same reason: the containment, the cap, the digest, the
+  // decode check and the no-follow swap all live in guarded-write.ts, which
+  // the conformance gate runs under node. It answers a word and never throws
+  // for a refusal. Nothing in the renderer calls it until Phase 227.
+  handle(ipc, 'fs:writeGuarded', (_e, input) =>
+    writeGuarded({ listProjectRoots: () => fsDeps.listProjectRoots() }, input)
+  );
 
   // ----- Phase 154 the drop from outside ---------------------------------
   // Thin for the same reason as the block above: the source guard, the

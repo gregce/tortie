@@ -283,3 +283,78 @@ export interface FsStartDragInput {
   /** Absolute inside `root`, or relative to it. */
   paths: readonly string[];
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 226 (the guarded write channel). Append only, per the
+// src/shared rule.
+// ---------------------------------------------------------------------------
+
+/**
+ * Editor read cap: 5 MB is far beyond any file a human reviews in a diff, and
+ * keeps a mis-click on a bundle/minified artifact from freezing the renderer.
+ * Truncated reads open read-only in the editor.
+ *
+ * It lived as a private const in src/main/fs/ipc.ts from Phase 5 to Phase
+ * 226, and moved here because a second reader now asks it: the guarded write
+ * reads a file itself under main and refuses one over this cap, so the number
+ * has to be ONE number in one place rather than two that drift. `fs:readFile`
+ * truncates at exactly this size and `fs:writeGuarded` refuses at exactly
+ * this size, which is what makes "the redline saw the whole file" the same
+ * question on both sides.
+ */
+export const READ_CAP_BYTES = 5 * 1024 * 1024;
+
+/**
+ * A compare-and-swap write of ONE file (Phase 226).
+ *
+ * The caller read the file, hashed the BYTES it read, and now asks for the
+ * file to be replaced only if it still holds exactly those bytes. Main reads
+ * the file itself, so nothing here trusts a flag the renderer sends.
+ */
+export interface FsGuardedWriteInput {
+  /** The open project root, absolute. Refused unless Tortie has it open. */
+  root: string;
+  /** Absolute inside `root`, or relative to it. `.git` is refused at any depth. */
+  path: string;
+  /** Lowercase hex sha256 of the bytes on disk when the caller read them. */
+  expect: string;
+  /** The whole new contents, written as UTF-8. */
+  contents: string;
+}
+
+/**
+ * Why a guarded write did not happen. Each is a word so the caller can say
+ * the right sentence, and `reason` beside it is that sentence already written.
+ *
+ *  - `input`     a field was missing or malformed
+ *  - `outside`   the root is not open, the path escapes it, or it names `.git`
+ *  - `missing`   there is no file at that path
+ *  - `link`      the file is a symbolic link; Tortie will not turn it into a file
+ *  - `tooLarge`  the file, or the new contents, is over READ_CAP_BYTES
+ *  - `notUtf8`   decoding the file produced a U+FFFD the bytes do not contain
+ *  - `raced`     something replaced the file between the read and the swap
+ *  - `io`        the operating system refused a step; `reason` carries which
+ */
+export type FsGuardedWriteRefusal =
+  | 'input'
+  | 'outside'
+  | 'missing'
+  | 'link'
+  | 'tooLarge'
+  | 'notUtf8'
+  | 'raced'
+  | 'io';
+
+/**
+ * The answer is a WORD and never a throw, in `machines:putFile`'s shape.
+ *
+ *  - `wrote`   the file now holds the new bytes; `sha256` is their digest, so
+ *              the caller can hand it back as the next write's `expect`
+ *  - `stale`   the file does not hold the bytes the caller read; `sha256` is
+ *              what it holds now, and nothing was written
+ *  - `refused` one of the refusals above; nothing was written
+ */
+export type FsGuardedWriteResult =
+  | { outcome: 'wrote'; sha256: string; bytes: number }
+  | { outcome: 'stale'; sha256: string; reason: string }
+  | { outcome: 'refused'; why: FsGuardedWriteRefusal; reason: string };

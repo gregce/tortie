@@ -37,7 +37,11 @@ export const fs: InstalledFsApi = {
   // outside the root. `startDrag` hands rows to the operating system's own
   // drag, which a renderer cannot begin at all.
   importPaths: (input) => invoke('fs:importPaths', input),
-  startDrag: (input) => invoke('fs:startDrag', input)
+  startDrag: (input) => invoke('fs:startDrag', input),
+  // Phase 226. The compare-and-swap write for the redline's rewind. Nothing
+  // in the renderer calls it until Phase 227; it is here because the closure
+  // test asks that every declared channel has exactly one preload call.
+  writeGuarded: (input) => invoke('fs:writeGuarded', input)
 };
 
 /**

@@ -433,3 +433,51 @@ export interface GmuxFsImportExtras {
   importPaths(input: FsImportInput): Promise<FsImportResult>;
   startDrag(input: FsStartDragInput): Promise<void>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 226 (the guarded write channel) — one new invoke channel
+// and one preload extra. Append only, per the src/shared rule.
+//
+// fs:writeGuarded — replace ONE file's contents only if the file still holds
+//   the bytes the caller read, given as their sha256. It is a NEW verb rather
+//   than a widened fs:writeFile for one reason: fs:writeFile is the channel
+//   every Cmd-S goes through and it has no precondition of any kind, so a
+//   precondition added to it changes the channel saving depends on, and a
+//   mistake there breaks saving. This one is reachable from nothing until
+//   Phase 227 wires the redline's rewind to it, and it cannot regress the save
+//   path.
+//
+//   It answers a WORD and never throws for a refusal: `wrote`, `stale` when
+//   the digest no longer matches, or `refused` with a reason. Main reads the
+//   file ITSELF and refuses one over the read cap, refuses a path outside the
+//   open project root through the same gate every other mutation asks, and
+//   refuses a file whose UTF-8 decode would lose bytes. The write stages
+//   beside the file and renames over it, never following a link at either
+//   name. See src/main/fs/guarded-write.ts for the order and the reasons.
+//   MAIN: src/main/fs/ipc.ts → src/main/fs/guarded-write.ts.
+//
+// It goes on the existing `fs` object for the reason Phase 154 gave: it is a
+// question about a file inside a project root.
+// ---------------------------------------------------------------------------
+
+import type { FsGuardedWriteInput, FsGuardedWriteResult } from '../fs-ops';
+
+/** The one channel Phase 226 adds. */
+export interface FsGuardedWriteInvokeChannelMap {
+  /** Compare-and-swap one file; answers wrote, stale or refused. */
+  'fs:writeGuarded': {
+    req: [input: FsGuardedWriteInput];
+    res: FsGuardedWriteResult;
+  };
+}
+
+/**
+ * Extension to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it.
+ */
+export interface GmuxFsGuardedWriteExtras {
+  writeGuarded(input: FsGuardedWriteInput): Promise<FsGuardedWriteResult>;
+}
