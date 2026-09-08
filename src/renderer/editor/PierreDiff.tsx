@@ -111,8 +111,12 @@ export function PierreDiff({
 
   // The RIGHT side. A history tab has no live buffer to track (and must not
   // adopt one) — its contents came from the commit and cannot change.
-  const historical = tab.commit !== null;
-  const workingText = useLiveTabText(tab.id, tab.savedContents, !historical);
+  // PHASE 240: a compare tab is the same shape for a stronger reason. Both its
+  // sides were handed in at open and neither is what the file says now, so
+  // adopting a live model would draw the person's current buffer against a
+  // snapshot of the disk and quietly stop being the comparison they pressed.
+  const fixedPair = tab.commit !== null || tab.compare !== undefined;
+  const workingText = useLiveTabText(tab.id, tab.savedContents, !fixedPair);
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -220,7 +224,11 @@ export function PierreDiff({
   const contentsLoading = tab.loading || tab.headContents === null;
   /** What the two sides are, in one phrase — used by the label and states. */
   const against =
-    tab.commit !== null ? `commit ${tab.commit.shortSha}` : 'HEAD';
+    tab.commit !== null
+      ? `commit ${tab.commit.shortSha}`
+      : tab.compare !== undefined
+        ? 'what is on disk'
+        : 'HEAD';
   const unchanged = !contentsLoading && meta === null && exact;
   // Diff still being computed, or the pool has not resolved yet — the diff
   // instance must not be created before the pool is in context.
@@ -260,7 +268,9 @@ export function PierreDiff({
         aria-label={
           tab.commit !== null
             ? `Changes in commit ${tab.commit.shortSha} — ${tab.name}`
-            : `Changes vs HEAD — ${tab.name}`
+            : tab.compare !== undefined
+              ? `Your unsaved version against what is on disk — ${tab.compare.fileName}`
+              : `Changes vs HEAD — ${tab.name}`
         }
       >
         <div className="ed-pierre-content" ref={contentRef}>
@@ -274,7 +284,13 @@ export function PierreDiff({
                   ? tab.origRelPath !== null
                     ? `${tab.name} was renamed from ${tab.origRelPath} in ${against} — its contents did not change.`
                     : `${tab.name} is identical either side of ${against}.`
-                  : `${tab.name} matches HEAD. Edits made in File mode will show up here.`}
+                  : tab.compare !== undefined
+                    ? // PHASE 240. Reachable: something wrote to the file and
+                      // then put it back, or wrote exactly what the person had
+                      // typed. Saying so is the honest answer and it tells them
+                      // there is nothing to lose by saving.
+                      `${tab.compare.fileName} on disk already says exactly what your version says.`
+                    : `${tab.name} matches HEAD. Edits made in File mode will show up here.`}
               </div>
             </div>
           ) : meta !== null ? (

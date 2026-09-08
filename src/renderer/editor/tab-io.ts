@@ -674,6 +674,12 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // Phase 163. The diagnostics report is a capture, not a file, and its
     // path is a project root. Refused silently for the map's reason.
     if (tab.diagnostics !== undefined) return false;
+    // PHASE 240. A comparison holds two versions of a file and NEITHER is what
+    // the file says now: the left is what was on disk when a save was refused,
+    // the right is the buffer that was refused. Writing either one back would
+    // be this phase's own defect wearing a different tab. Refused silently,
+    // like the map, because the tab can never be dirty.
+    if (tab.compare !== undefined) return false;
     // PHASE 90.3. A review tab was refused here silently since Phase 73, so a
     // person who typed and pressed Save was told nothing at all, which reads as
     // a save that worked. It was refused OUT LOUD from that phase, naming the

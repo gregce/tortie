@@ -168,7 +168,13 @@ export function tabIsReadOnly(
   tab: EditorTab,
   remoteWriteRoot: string | null
 ): boolean {
-  if (tab.deleted || tab.truncated || tab.commit !== null) return true;
+  // PHASE 240: a compare tab holds two versions and neither is on disk, so
+  // there is nothing under it a keystroke could legitimately change. It never
+  // reaches File mode — its mode chip offers nothing and setMode refuses — and
+  // this is the same belt-and-braces the commit tab has carried since Phase 12.
+  if (tab.deleted || tab.truncated || tab.commit !== null || tab.compare !== undefined) {
+    return true;
+  }
   if (tab.remote === undefined) return false;
   return remoteWriteRoot === null || remoteWriteRoot.length === 0;
 }

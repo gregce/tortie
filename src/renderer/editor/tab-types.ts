@@ -228,6 +228,31 @@ export interface EditorTab {
     kind: 'report';
   };
   /**
+   * PHASE 240. This tab is a COMPARISON of two strings handed in at open, and
+   * of nothing on disk (issue 16).
+   *
+   * Present means the two sides are `headContents` on the left and
+   * `savedContents` on the right, both filled once when the tab opened and
+   * moved by nothing after: no watcher refresh, no HEAD read, no buffer of its
+   * own. Every reader treats it the way it treats `commit` — read-only, never
+   * dirty, save refused — for the stronger reason that neither side is what
+   * the file says now, so a save could only ever write a dead version over a
+   * live file. Identity is `compare:<path>` so a second Compare of one file
+   * replaces its sides rather than stacking a tab.
+   *
+   * Optional rather than nullable, for the reason `remote` is optional: every
+   * tab built before this phase, and every fixture in the tests, is still a
+   * valid tab.
+   */
+  compare?: {
+    /**
+     * The file's OWN name. The tab's `name` is `compareTabName` of it, because
+     * a second tab reading `notes.md` beside the `notes.md` it was opened from
+     * would be a puzzle, so the plain name has nowhere else to live.
+     */
+    fileName: string;
+  };
+  /**
    * PHASE 225. The shadow baseline the redline draws against, with the
    * generation it is at, held in memory and written nowhere.
    *

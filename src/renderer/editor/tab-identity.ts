@@ -9,6 +9,7 @@ import { targetOfRootKey } from '@shared/workspace-target';
 import type { OpenFileRequest } from '../state/open-file';
 import type { EditorTab } from './tab-types';
 import { reviewTabTooltip } from '../machines/review';
+import { compareTabTooltip } from './save-sentences';
 
 /**
  * The identity a request opens into: one tab per absolute path for the
@@ -33,6 +34,12 @@ export function tabIdFor(req: OpenFileRequest): string {
   // from the tree and reached from the Context view are two different readings
   // of one file, and only one of them wears the header card. `entry.id` is
   // already `${category}|${identity}` and is stable across scans.
+  // PHASE 240. A comparison of two strings is keyed by the FILE they are two
+  // versions of, so pressing Compare a second time on the same refused save
+  // replaces the sides in the tab that is already open rather than stacking a
+  // second one. It is asked before the context rule because a Compare of a
+  // context detail tab's file is still a comparison and never a detail card.
+  if (req.compare !== undefined) return compareTabId(req.path);
   const entryId = contextEntryId(req.contextEntry);
   if (entryId !== null) return `context:${entryId}`;
   return req.commit !== undefined
@@ -115,6 +122,20 @@ export const DIAGNOSTICS_TAB_NAME = 'Diagnostics report';
 export const DIAGNOSTICS_TAB_ID = 'diagnostics:report';
 
 /**
+ * The identity of a COMPARE tab (Phase 240), one file's disk version against
+ * the unsaved version in the editor.
+ *
+ * Keyed by the file, for the reason the map tab is keyed by the repository: a
+ * person who presses Compare, reads it, presses Cancel, types more and presses
+ * Save again wants the SAME tab to say the new answer, not a pile of them. The
+ * `compare:` prefix keeps it away from the worktree tab of that path, whose id
+ * is the bare path, exactly as `context:` and `machine:` do.
+ */
+export function compareTabId(path: string): string {
+  return `compare:${path}`;
+}
+
+/**
  * The `id` of a context entry carried on a request, or null when there is none.
  *
  * The request types this field as `unknown`, because the open bus is shared with
@@ -182,6 +203,10 @@ export function leftPathFor(req: OpenFileRequest): string | null {
  * its own absolute path on this Mac.
  */
 export function tabTooltipIdentity(tab: EditorTab): string {
+  // PHASE 240. A compare tab's `path` names the live file, and the tab is not
+  // that file: it is two versions of it, neither of which is on disk. Asked
+  // first, for the map tab's reason.
+  if (tab.compare !== undefined) return compareTabTooltip(tab.compare.fileName);
   // Phase 160. The map tab's `path` is a repository root rather than a file,
   // so the tooltip says what the tab is and which repository it draws instead
   // of showing a directory path that reads as a file that will not open.

@@ -67,6 +67,7 @@ import { PierreDiff } from './PierreDiff';
 import { RedlineDocument } from './RedlineDocument';
 import { isRedlinePath } from './redline';
 import { redlineWithoutHead } from './baseline';
+import { COMPARE_BAND_SENTENCE } from './save-sentences';
 import { MarkdownPreview } from './markdown';
 import { ImageCompare, ImageView } from './image';
 import { HtmlPreview, tabRendersHtml } from './html';
@@ -217,6 +218,11 @@ function hasRenderedForm(tab: EditorTab): boolean {
 
 function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
   const options: ModeOption[] = [];
+  // PHASE 240. A comparison has exactly one reading, being the two sides it
+  // was opened with. There is no file under it to edit, no HEAD version to
+  // fetch and no baseline to redline, so it offers no control at all rather
+  // than a row of them that would each draw one dead side as if it were live.
+  if (tab.compare !== undefined) return options;
   if (tab.canDiff) {
     options.push({
       mode: 'diff',
@@ -978,6 +984,15 @@ activeTab.error !== null ? (
             <span className="banner-text">
               {remoteFileChip(activeTab.remote.machineLabel)}
             </span>
+          </div>
+        ) : activeTab.compare !== undefined ? (
+          // PHASE 240. The fifth read-only reason, and the only one where
+          // NEITHER side is on disk. It says which side is which, because a
+          // person who pressed Compare on a refused save is about to decide
+          // whether to overwrite and the direction is the whole decision.
+          <div className="banner ed-banner-readonly">
+            <Codicon name="lock" size="md" />
+            <span className="banner-text">{COMPARE_BAND_SENTENCE}</span>
           </div>
         ) : activeTab.commit !== null ? (
           // The third read-only reason (MonacoHost sets readOnly whenever

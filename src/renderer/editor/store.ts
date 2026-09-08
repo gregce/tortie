@@ -68,6 +68,7 @@ import {
   remoteTabId,
   tabIdFor
 } from './tab-identity';
+import { compareTabName } from './save-sentences';
 import { createTabIo } from './tab-io';
 // Direct module import, not the ./markdown barrel: the barrel re-exports the
 // preview component, whose skeleton comes from MonacoHost, which imports this
@@ -292,7 +293,12 @@ export const useEditor = create<EditorState>((set, get) => {
           t.commit === null &&
           t.remote === undefined &&
           t.archMap === undefined &&
-          t.diagnostics === undefined
+          t.diagnostics === undefined &&
+          // PHASE 240: a compare tab holds two versions handed in at open and
+          // neither is what the file says now. Re-reading the file into it
+          // would replace one of them with the live bytes and destroy the very
+          // comparison the person opened it to read.
+          t.compare === undefined
       )
   });
 
@@ -417,6 +423,16 @@ export const useEditor = create<EditorState>((set, get) => {
 
       const existing = tabById(id);
       if (existing !== undefined) {
+        // PHASE 240. Compare is keyed by the file, so a second press lands
+        // here. Its sides are the two versions AT THAT MOMENT, so they are
+        // replaced rather than left: raising a tab holding a comparison from
+        // two saves ago would be the stale answer this phase exists to stop.
+        if (req.compare !== undefined) {
+          patchTab(id, {
+            headContents: req.compare.left,
+            savedContents: req.compare.right
+          });
+        }
         get().activate(id);
         if (req.preview === false || redoubled) get().pin(id);
         // Rule (b). This path used to only raise the tab, which is exactly
@@ -487,14 +503,24 @@ export const useEditor = create<EditorState>((set, get) => {
             : // Phase 163. The report tab's path is a project root too.
               req.diagnostics !== undefined
               ? DIAGNOSTICS_TAB_NAME
-              : baseName(req.path),
+              : // PHASE 240. A compare tab sits beside the tab of the file it
+                // compares, and two tabs reading `notes.md` would be a puzzle,
+                // so it names both sides instead.
+                req.compare !== undefined
+                ? compareTabName(baseName(req.path))
+                : baseName(req.path),
         // A .md file with tracked changes still opens as a diff — that is
         // the P4 gesture, and it is why the file was clicked. Everything
         // else markdown opens rendered. A history open is ALWAYS a diff:
         // clicking a file in a commit means "what did this commit do to it".
         mode: navigate
           ? 'file'
-          : wantsDiff || commit !== null || req.remote !== undefined
+          : // PHASE 240. A comparison has exactly one reading and it is the
+            // diff, whatever the file's extension would otherwise choose.
+            req.compare !== undefined ||
+              wantsDiff ||
+              commit !== null ||
+              req.remote !== undefined
             ? 'diff'
             : markdown
               ? readMarkdownMode()
@@ -505,7 +531,11 @@ export const useEditor = create<EditorState>((set, get) => {
                 : image
                   ? 'image'
                   : 'file',
-        canDiff: wantsDiff || commit !== null || req.remote !== undefined,
+        canDiff:
+          req.compare !== undefined ||
+          wantsDiff ||
+          commit !== null ||
+          req.remote !== undefined,
         markdown,
         image,
         svg,
@@ -529,6 +559,12 @@ export const useEditor = create<EditorState>((set, get) => {
         ...(req.diagnostics !== undefined
           ? { diagnostics: req.diagnostics }
           : {}),
+        // PHASE 240. Present only for a comparison of two strings. Read by
+        // every seam the way `commit` is: read-only, never dirty, save
+        // refused, no watcher refresh, no HEAD read.
+        ...(req.compare !== undefined
+          ? { compare: { fileName: baseName(req.path) } }
+          : {}),
         pendingSelection: navigate ? selection : null,
         // Only ever false while there is a selection waiting to be consumed,
         // so a tab can never get stuck refusing focus: the landing resets it.
@@ -539,10 +575,17 @@ export const useEditor = create<EditorState>((set, get) => {
         // Phase 160. The map tab has nothing to load through this store: its
         // model lives in main's fact base and the map body fetches it itself.
         // Every other tab starts loading until its reader lands.
-        loading: req.archMap === undefined && req.diagnostics === undefined,
+        loading:
+          req.archMap === undefined &&
+          req.diagnostics === undefined &&
+          // PHASE 240: both sides arrived with the request, so nothing loads.
+          req.compare === undefined,
         error: null,
-        savedContents: '',
-        headContents: null,
+        // PHASE 240. A comparison's two sides arrive with the request and are
+        // moved by nothing after: LEFT is what the file said on disk, RIGHT is
+        // the buffer the refused save would have written.
+        savedContents: req.compare?.right ?? '',
+        headContents: req.compare?.left ?? null,
         // PHASE 225. Nothing read and nothing heard from git yet; the first
         // successful read seeds it (./tab-io loadContents).
         baseline: NO_BASELINE,
@@ -584,7 +627,15 @@ export const useEditor = create<EditorState>((set, get) => {
         return { tabs, activeId: tab.id, panelOpen: true };
       });
 
-      if (req.archMap !== undefined || req.diagnostics !== undefined) {
+      if (
+        req.archMap !== undefined ||
+        req.diagnostics !== undefined ||
+        // PHASE 240. NOTHING RUNS for a comparison either. Both sides came
+        // with the request; a read here would replace one of them with what
+        // the file says now, which is not what the person pressed Compare to
+        // see.
+        req.compare !== undefined
+      ) {
         // Phase 160. NOTHING RUNS. The map tab reads no file, so every loader
         // below would land an error on a tab whose id names no file. The map
         // body asks main for the model itself, over the arch bridge, which is
@@ -713,6 +764,12 @@ export const useEditor = create<EditorState>((set, get) => {
     setMode(id, mode) {
       const tab = tabById(id);
       if (tab === undefined || tab.mode === mode) return;
+      // PHASE 240. A comparison has one reading. There is no file under it to
+      // edit, no HEAD version to fetch and no baseline to redline, so every
+      // other mode would draw one of the two dead sides as if it were live.
+      // The mode chip offers nothing on such a tab; this refuses it anyway,
+      // the way the rule below refuses a mode no control offers.
+      if (tab.compare !== undefined) return;
       // Phase 26 item 1, second half: the rule decided at creation holds for
       // the tab's whole life. A worktree tab outside the repository can never
       // enter diff mode, whoever asks — such a tab never has `canDiff`, so no
@@ -792,11 +849,15 @@ export const useEditor = create<EditorState>((set, get) => {
       // legitimately mark it dirty, and a dirty map tab would prompt to save
       // a drawing over a repository root on close.
       // Phase 163: the report tab has no text under it either.
+      // Phase 240: a compare tab holds two versions of a file and neither is
+      // what the file says now, so a dirty one would prompt on close to save a
+      // dead version over a live file.
       if (
         tab.commit !== null ||
         tab.remote !== undefined ||
         tab.archMap !== undefined ||
-        tab.diagnostics !== undefined
+        tab.diagnostics !== undefined ||
+        tab.compare !== undefined
       ) {
         return;
       }

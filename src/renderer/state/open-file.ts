@@ -283,6 +283,34 @@ export interface OpenFileRequest {
   diagnostics?: {
     kind: 'report';
   };
+  /**
+   * PHASE 240. Present means "open a COMPARISON of these two strings", which
+   * is what Compare does when a save is refused because the file changed on
+   * disk (issue 16). Both sides are handed in here and NOTHING refreshes them,
+   * which is the whole point: the person is looking at the two versions that
+   * existed at the moment of the refusal.
+   *
+   * It is the same additive shape as `commit`, `remote` and `draft` before it,
+   * and a request without it behaves exactly as it did. The editor keys the tab
+   * `compare:<path>`, so pressing Compare twice replaces the sides rather than
+   * stacking a second tab, and the tab is read-only in every surface for the
+   * reasons a history tab is: nothing on either side is on disk, and a save
+   * would write one of two dead versions over the live file.
+   *
+   * WHY THE SIDES ARE HANDED IN RATHER THAN READ. Research 100 §5.2 measured
+   * the alternative in the running app: `refreshRepo` re-runs `git show HEAD:`
+   * on every watcher tick for a worktree tab and does NOT skip a dirty one, so
+   * `headContents` on the live tab moved from 455 B to 476 B while the tab was
+   * dirty and HEAD moved under it. A Compare that wrote the disk bytes there
+   * would be overwritten within a tick and the person would be reading HEAD
+   * while the dialog said "disk".
+   */
+  compare?: {
+    /** The LEFT side: what the file said on disk at the moment of the refusal. */
+    left: string;
+    /** The RIGHT side: the buffer the save would have written. */
+    right: string;
+  };
 }
 
 /** Emit an open request (fire-and-forget). */
