@@ -57,8 +57,15 @@
  *      read no redline preference, so the diff draws only what Pierre draws
  *      and the redline has exactly one home, which is its own view.
  *   8. No colour literal in the row's own component or stylesheet.
- *   9. No write path anywhere in the redline files. Accepting a change means
- *      writing a file and this phase refuses it by name.
+ *   9. THE ONE WRITE (Phase 227, narrowed from "no write anywhere"). The
+ *      redline modules may name exactly ONE write channel, Phase 226's
+ *      guarded write, at exactly ONE call site in exactly one file, and the
+ *      declared function holding it must ask the baseline generation guard
+ *      first and re-read the file second, read by matching braces through
+ *      functionBodyOf and never by searching for a word. A forbidden write
+ *      (writeFile, an accept, an `fs:` channel string) anywhere, a second
+ *      call site, or the bridge reached from any other redline file is a
+ *      failure, so the write still has exactly one reviewed door.
  *  10. The gate is named in package.json and in build/verification-checks.mjs,
  *      because a gate nothing names is how a gate decays.
  *  11. A WHITESPACE ONLY CHANGE IS FLAGGED. Two sides that hold the same words
@@ -114,6 +121,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { functionBodyOf, stripComments } from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
 
 const TAG = '[conformance:redline]';
@@ -247,20 +255,69 @@ function findRedlineMounts(source) {
   return found;
 }
 
-/** Anything that could write a file, which this phase refuses outright. */
-const WRITE_WORDS =
-  /\b(gmuxBridge|writeFile|writeFileSync|acceptChange|rejectChange|applyChange)\b|['"`]fs:[a-zA-Z]/;
+// PHASE 227 NARROWED RULE 9. The redline may name exactly one write, being
+// Phase 226's guarded write, at one call site, and the function holding it
+// asks the generation guard before the re-read before the write.
+//
+// A forbidden write fails EVERYWHERE, the permitted file included: a plain
+// writeFile, an accept, or an `fs:` channel string is never allowed here,
+// because they follow a link or reach a second channel. The bridge itself may
+// be named ONLY in the one permitted file, where the guarded write is reached.
+const CALL_SITE_FILE = 'src/renderer/editor/redline-write.ts';
+const CALL_SITE_FN = 'applyRewind';
+const FORBIDDEN_WRITE =
+  /\b(writeFile|writeFileSync|acceptChange|rejectChange|applyChange)\b|['"`]fs:[a-zA-Z]/;
+const NAMES_BRIDGE = /\bgmuxBridge\b/;
+const WRITE_CALL = /\.writeGuarded\s*\(/g;
 
-function findWritePaths(source) {
-  const found = [];
-  for (const [index, line] of source.split('\n').entries()) {
-    const bare = line.replace(/\/\*[\s\S]*?\*\//g, '');
-    if (bare.trimStart().startsWith('*') || bare.trimStart().startsWith('//')) {
-      continue;
+/**
+ * Every finding rule 9 has over a set of redline sources (a Map of relative
+ * path to source). Empty means the redline has exactly one reviewed write and
+ * the guard in front of it. Written so it CAN fail, and proved on fixtures.
+ */
+function rule9Findings(files) {
+  const out = [];
+  let writeCalls = 0;
+  let writeCallFile = null;
+  for (const [file, source] of files) {
+    const permitted = file === CALL_SITE_FILE;
+    const calls = (stripComments(source).match(WRITE_CALL) ?? []).length;
+    if (calls > 0) {
+      writeCalls += calls;
+      writeCallFile = file;
     }
-    if (WRITE_WORDS.test(bare)) found.push(`${String(index + 1)}: ${line.trim()}`);
+    for (const [index, line] of source.split('\n').entries()) {
+      const bare = line.replace(/\/\*[\s\S]*?\*\//g, '');
+      if (bare.trimStart().startsWith('*') || bare.trimStart().startsWith('//')) continue;
+      if (FORBIDDEN_WRITE.test(bare)) {
+        out.push(`9. ${file} names a forbidden write: ${String(index + 1)}: ${line.trim()}`);
+      }
+      if (!permitted && NAMES_BRIDGE.test(bare)) {
+        out.push(`9. ${file} reaches the bridge, which only ${CALL_SITE_FILE} may: ${String(index + 1)}: ${line.trim()}`);
+      }
+    }
   }
-  return found;
+  if (writeCalls !== 1) {
+    out.push(`9. the redline names ${String(writeCalls)} guarded write call(s); it must name exactly one`);
+  } else if (writeCallFile !== CALL_SITE_FILE) {
+    out.push(`9. the one guarded write is in ${writeCallFile}, and it must be ${CALL_SITE_FILE}`);
+  } else {
+    // The order, read from the call site's own braces.
+    const body = functionBodyOf(stripComments(files.get(CALL_SITE_FILE) ?? ''), CALL_SITE_FN);
+    if (body === null) {
+      out.push(`9. ${CALL_SITE_FN} is not a declared function, so the guard order cannot be read by braces`);
+    } else {
+      const guard = body.search(/drawnGeneration[\s\S]{0,40}generation/);
+      const read = body.indexOf('readFile(');
+      const write = body.indexOf('.writeGuarded(');
+      if (guard === -1) out.push(`9. ${CALL_SITE_FN} does not ask the baseline generation guard`);
+      else if (read === -1) out.push(`9. ${CALL_SITE_FN} does not re-read the file`);
+      else if (!(guard < read && read < write)) {
+        out.push(`9. ${CALL_SITE_FN} does not ask the guard before the re-read before the write`);
+      }
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -514,13 +571,12 @@ for (const file of [
 }
 say('8. the row and the view draw from tokens only, with no colour literal in a component or the stylesheet');
 
-for (const file of REDLINE_FILES) {
-  const hits = findWritePaths(sources.get(file) ?? '');
-  if (hits.length > 0) {
-    fail(`9. ${file} names a write path: ${hits.join(' | ')}`);
-  }
-}
-say('9. no redline file names a bridge, a write or an accept, so nothing here can change a file');
+for (const finding of rule9Findings(sources)) fail(finding);
+say(
+  `9. the redline names one guarded write at one call site (${CALL_SITE_FILE}), ` +
+    `whose function asks the baseline generation guard before the re-read before the write, ` +
+    `and no forbidden write and no accept anywhere`
+);
 
 // -- rule 10: the gate is named ---------------------------------------------
 {
@@ -974,24 +1030,10 @@ say('9. no redline file names a bridge, a write or an accept, so nothing here ca
         want: false
       },
       {
-        what: 'a module reaching the bridge',
-        file: 'bad-write.ts',
-        body: "await gmuxBridge.invoke('fs:write', { path, text });",
-        run: (s) => findWritePaths(s).length > 0,
-        want: true
-      },
-      {
-        what: 'a module accepting a change',
-        file: 'bad-accept.ts',
-        body: 'export function acceptChange(block) { return block; }',
-        run: (s) => findWritePaths(s).length > 0,
-        want: true
-      },
-      {
-        what: 'a module that only reads',
-        file: 'good-read.ts',
-        body: 'export function newTextOf(runs) { return runs.join(""); }',
-        run: (s) => findWritePaths(s).length > 0,
+        what: 'a diff surface that only says where the redline went (second copy)',
+        file: 'good-surface2.tsx',
+        body: "// see ./redline for lineAnnotations\n<FileDiff options={options} />",
+        run: (s) => findRedlineMounts(s).length > 0,
         want: false
       }
     ];
@@ -1009,6 +1051,83 @@ say('9. no redline file names a bridge, a write or an accept, so nothing here ca
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 9's narrowed scanner, proved on planted redline sets. A scan that
+// cannot fail proves nothing, so the shape that ships passes and four shapes
+// a later round might write must each be caught: a second call site, a write
+// in another redline file, the guard after the read, and no guard at all.
+// ---------------------------------------------------------------------------
+{
+  const SHIPPING_CALL = `import { gmuxBridge } from '../bridge';
+export async function applyRewind(ctx) {
+  if (ctx.drawnGeneration !== ctx.generation) return { refused: 'baselineMoved' };
+  const bridge = gmuxBridge();
+  const read = await bridge.fs.readFile(ctx.path);
+  const result = await bridge.fs.writeGuarded({ root: ctx.root, path: ctx.path, contents: 'x' });
+  return result;
+}`;
+  const cleanReader = `export function changesOf(runs) { return runs; }`;
+  const map = (entries) => new Map(entries);
+  const CALL = 'src/renderer/editor/redline-write.ts';
+  const PLANTS = [
+    {
+      what: 'the shipping shape: one guarded call, guard before read before write',
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/rewind.ts', cleanReader]],
+      wantFail: false
+    },
+    {
+      what: 'a second call site in the permitted file',
+      files: [[CALL, SHIPPING_CALL + `
+export async function again(ctx) { const b = gmuxBridge(); return b.fs.writeGuarded({ root: ctx.root, path: ctx.path, contents: 'y' }); }`]],
+      wantFail: true
+    },
+    {
+      what: 'a write in another redline file',
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/rewind.ts', `export async function sneak() { await gmux.fs.writeFile('/x', 'y'); }`]],
+      wantFail: true
+    },
+    {
+      what: 'the guard after the read',
+      files: [[CALL, `import { gmuxBridge } from '../bridge';
+export async function applyRewind(ctx) {
+  const bridge = gmuxBridge();
+  const read = await bridge.fs.readFile(ctx.path);
+  if (ctx.drawnGeneration !== ctx.generation) return { refused: 'baselineMoved' };
+  return bridge.fs.writeGuarded({ root: ctx.root, path: ctx.path, contents: 'x' });
+}`]],
+      wantFail: true
+    },
+    {
+      what: 'no guard at all',
+      files: [[CALL, `import { gmuxBridge } from '../bridge';
+export async function applyRewind(ctx) {
+  const bridge = gmuxBridge();
+  const read = await bridge.fs.readFile(ctx.path);
+  return bridge.fs.writeGuarded({ root: ctx.root, path: ctx.path, contents: 'x' });
+}`]],
+      wantFail: true
+    },
+    {
+      what: 'the bridge named in another redline file',
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/RedlineDocument.tsx', `import { gmuxBridge } from '../bridge';\nexport function View() { return null; }`]],
+      wantFail: true
+    },
+    {
+      what: 'an accept in a redline file',
+      files: [[CALL, SHIPPING_CALL], ['src/renderer/editor/redline.ts', `export function acceptChange(b) { return b; }`]],
+      wantFail: true
+    }
+  ];
+  let behaved9 = 0;
+  for (const plant of PLANTS) {
+    const findings = rule9Findings(map(plant.files));
+    const failed = findings.length > 0;
+    if (failed === plant.wantFail) behaved9 += 1;
+    else fail(`9. the narrowed scanner misread "${plant.what}": ${JSON.stringify(findings)}`);
+  }
+  say(`9. the narrowed scanner behaved on ${String(behaved9)} of ${String(PLANTS.length)} planted redline sets`);
 }
 
 if (failures.length > 0) {
