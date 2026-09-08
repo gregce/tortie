@@ -191,7 +191,6 @@ export interface RemoteHistoryPanelProps {
   /** Epoch ms, so every relative age in one render reads off one clock. */
   now: number;
   onToggle: () => void;
-  onRefresh: () => void;
   onLoadMore: () => void;
   /** PHASE 233. The commits whose file rows are drawn. */
   expanded: ReadonlySet<string>;
@@ -232,7 +231,6 @@ export function RemoteHistoryPanel({
   collapsed,
   now,
   onToggle,
-  onRefresh,
   onLoadMore,
   expanded,
   details,
@@ -633,16 +631,9 @@ export function RemoteHistoryPanel({
             History
           </button>
           <span className="section-spacer" />
-          <button
-            type="button"
-            className="icon-btn scm-action"
-            aria-label="Refresh history"
-            title="Refresh history"
-            disabled={!available || busy}
-            onClick={onRefresh}
-          >
-            <Codicon name="refresh" size="md" />
-          </button>
+          {/* PHASE 230 TOOK THE GROUP'S REFRESH BUTTON OFF. The local History
+              group carries none, and this one reads again by itself at the
+              moments ../machines/use-remote-reread.ts names. */}
         </div>
         {!collapsed ? (
           <div className="section-body rhist-body" ref={setListEl}>
@@ -763,7 +754,6 @@ export function RemoteHistorySection({
       // measured against two different instants.
       now={Date.now()}
       onToggle={() => setCollapsed(!collapsed)}
-      onRefresh={() => void refresh(target)}
       onLoadMore={() => void loadMore(target)}
       expanded={expanded}
       details={details}

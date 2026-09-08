@@ -620,7 +620,10 @@ describe('a group nobody opened', () => {
   it('draws its header and none of the body', () => {
     const html = draw({}, { collapsed: true });
     expect(html).toContain('data-section="remote-branch"');
-    expect(html).toContain('Refresh branch');
+    // PHASE 230. The local Branches group's own label, so the two faces read
+    // the same; it was "Refresh branch".
+    expect(html).toContain('aria-label="Refresh branches"');
+    expect(html).toContain('title="Refresh branches"');
     expect(html).not.toContain('rbranch-row');
     expect(html).not.toContain('rbranch-read-at');
   });

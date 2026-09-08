@@ -140,7 +140,6 @@ export interface RemoteRunsPanelProps {
   available: boolean;
   collapsed: boolean;
   onToggle: () => void;
-  onRefresh: () => void;
 }
 
 /**
@@ -157,22 +156,22 @@ export function RemoteRunsPanel({
   now,
   available,
   collapsed,
-  onToggle,
-  onRefresh
+  onToggle
 }: RemoteRunsPanelProps): React.JSX.Element | null {
   const runs = entry.runs;
   const health = healthNote(entry.health);
   const hidden = hiddenNotes(entry.issues);
   const sentence = runsModeSentence(entry.mode, label);
-  const busy = entry.loading || entry.refreshing;
   // PHASE 228. A repository with no GitHub origin has no runs to show and the
   // local section is not drawn for one (./RunsSection.tsx returns null for
-  // it), so neither is this group. The answer is known only after the first
-  // read, which happens on the first expand, so the group is there until a
-  // person opens it and gone once the machine has said there is nothing to
-  // list, which is a section that is not there rather than a sentence saying
-  // so.
-  if (entry.mode === 'notGitHub') return null;
+  // it), so neither is this group. PHASE 230: the answer is known only after
+  // the first read, and that read used to happen on the first expand, so the
+  // group was there until a person opened it and gone once they had, which
+  // research 85's verifier read as a heading that vanished when opened. The
+  // section reads once when it mounts now, the way the local section's
+  // origin check runs whatever is expanded, and the heading is drawn only
+  // once that read has answered, so a heading that is there stays there.
+  if (entry.mode === null || entry.mode === 'notGitHub') return null;
   // True on the one path where the body draws rows, being a live bridge, an
   // answer that came back, and a mode that has no sentence of its own. The
   // three list sentences below the group are drawn on that path and on no
@@ -243,16 +242,10 @@ export function RemoteRunsPanel({
             </span>
           </button>
           <span className="section-spacer" />
-          <button
-            type="button"
-            className="icon-btn scm-action"
-            aria-label="Refresh runs"
-            title="Refresh runs"
-            disabled={!available || busy}
-            onClick={onRefresh}
-          >
-            <Codicon name="refresh" size="md" />
-          </button>
+          {/* PHASE 230 TOOK THE GROUP'S REFRESH BUTTON OFF. The group reads
+              again by itself at the moments ../machines/use-remote-reread.ts
+              names, and the remote view keeps the two refresh controls the
+              local view keeps and no more. */}
         </div>
         {!collapsed ? (
           <div className="section-body runs-body">{body()}</div>
@@ -308,9 +301,13 @@ export function RemoteRunsSection({
     true
   );
 
+  // PHASE 230. Once per target when the section mounts, collapsed or not,
+  // because the heading is drawn only once the machine has answered whether
+  // there is a GitHub origin at all, and that answer is carried by this read
+  // and by no other. For a GitHub origin it costs what the first expand cost.
   useEffect(() => {
-    if (!collapsed && available) ensure(target);
-  }, [collapsed, target, ensure, available]);
+    if (available) ensure(target);
+  }, [target, ensure, available]);
 
   // PHASE 230. The other moments this group reads at; the header says which.
   useRemoteReread({
@@ -338,7 +335,6 @@ export function RemoteRunsSection({
       available={available}
       collapsed={collapsed}
       onToggle={() => setCollapsed(!collapsed)}
-      onRefresh={() => void refresh(target)}
     />
   );
 }

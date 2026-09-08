@@ -5127,8 +5127,8 @@ const P105_CREDENTIAL_WORDS =
     fail(
       `src/renderer/scm/remote-history.ts names ` +
         `${p107.storeTimers.join(', ')}. It names none of them. A read happens ` +
-        `on the first expand, on Load more, on Refresh, and at the moments ` +
-        `Phase 230's shared hook names (src/renderer/machines/use-remote-reread.ts), ` +
+        `on the first expand, on Load more, and at the moments Phase 230's ` +
+        `shared hook names (src/renderer/machines/use-remote-reread.ts), ` +
         `every one of them caused by something outside the store. Main cannot ` +
         `see a commit made on another computer, so there is nothing for a ` +
         `timer to notice and everything for it to cost.`

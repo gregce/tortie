@@ -1094,33 +1094,10 @@ function RemoteScmSection({
     `gmux.scm.changesCollapsed.${targetKey(target)}`,
     false
   );
-  /**
-   * PHASE 229. Refresh here re-reads the branch as well, when the branch has
-   * been read for this target.
-   *
-   * The commit box above the group disables the press while git over there
-   * has no name or no address, and the person fixes that ON THAT MACHINE. A
-   * disabled control with no way back from where it is met is the defect
-   * item 2 of the same phase removed from the Explorer, so the one Refresh a
-   * person reaches from the box re-asks the question. It is a re-read of a
-   * thing already read, at a press, and never a timer. A target whose branch
-   * was never read is left alone, because a group nobody expanded and a box
-   * that was never drawn asked nothing.
-   */
-  const refreshBranch = useRemoteBranch((s) => s.refresh);
-  const branchMode = useRemoteBranch(
-    (s) => remoteBranchOf(s.byTarget, target).mode
-  );
-  const refresh = useCallback(
-    async (at: WorkspaceTarget): Promise<void> => {
-      const reads = [refreshChanges(at)];
-      if (branchMode !== null && remoteBranchAvailable()) {
-        reads.push(refreshBranch(at));
-      }
-      await Promise.all(reads);
-    },
-    [refreshChanges, refreshBranch, branchMode]
-  );
+  // PHASE 229 GAVE THIS GROUP'S REFRESH A BRANCH RE-READ, and PHASE 230 TOOK
+  // THE GROUP'S OWN REFRESH BUTTON OFF, because the local Changes group has
+  // none: the one press the remote view keeps is the branch header's, with
+  // the local header's label, and ./remote-refresh.ts is what it reads.
 
   useEffect(() => {
     if (remoteChangesAvailable()) ensure(target);
@@ -1506,23 +1483,12 @@ function RemoteScmSection({
             </span>
           </button>
           <span className="section-spacer" />
-          {/* PHASE 90.3 FIX ROUND. The one affordance that re-reads that
-              machine, and until now this view had none at all. The store's own
-              header said a read happens when the tab is opened and when a
-              person presses Refresh, and there was no Refresh to press: the
-              only way back from a failed read was to switch tabs away and
-              back. It is disabled on a build with no machines bridge, for the
-              same reason the Explorer's is. */}
-          <button
-            type="button"
-            className="icon-btn scm-action"
-            aria-label="Refresh changes"
-            title="Refresh changes"
-            disabled={!remoteChangesAvailable() || entry.loading || entry.refreshing}
-            onClick={() => void refresh(target)}
-          >
-            <Codicon name="refresh" size="md" />
-          </button>
+          {/* PHASE 90.3's fix round put the one affordance that re-read that
+              machine here, because until then this view had none at all.
+              PHASE 230 TOOK IT OFF: the group reads again by itself at the
+              moments the shared hook names, and the local Changes group
+              carries no refresh of its own. The one press the remote view
+              keeps is in the branch header above, under the local label. */}
         </div>
         {!collapsed ? (
           <div className="section-body scm-body">{body()}</div>

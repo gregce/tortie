@@ -223,7 +223,6 @@ function draw(
       collapsed={false}
       now={NOW}
       onToggle={() => undefined}
-      onRefresh={() => undefined}
       onLoadMore={() => undefined}
       // PHASE 233. A row expands into the files its commit changed, so the
       // panel takes the open set, what each open commit changed, and the two
@@ -991,10 +990,10 @@ describe('what the group admits about its own answer', () => {
   it('draws no way to change anything over there', () => {
     const html = draw({ hasMore: true });
     // Counted rather than trusted. With older commits behind the page the
-    // group draws exactly three buttons, being the collapse toggle, Refresh
-    // and Load more.
-    expect(html.split('<button').length - 1).toBe(3);
-    expect(draw().split('<button').length - 1).toBe(2);
+    // group draws exactly two buttons, being the collapse toggle and Load
+    // more; they were three until Phase 230 took the group's Refresh off.
+    expect(html.split('<button').length - 1).toBe(2);
+    expect(draw().split('<button').length - 1).toBe(1);
     // The four verbs the LOCAL History row menu offers, read against the
     // GROUP's own markup rather than the whole render. The sentence below the
     // group names three of them on purpose, which is why the search is bounded
@@ -1155,7 +1154,10 @@ describe('a group nobody opened', () => {
   it('draws its header and none of the body', () => {
     const html = draw({}, { collapsed: true });
     expect(html).toContain('data-section="remote-history"');
-    expect(html).toContain('Refresh history');
+    // PHASE 230 TOOK THE BUTTON OFF. The group reads again by itself, and the
+    // local History group carries none.
+    expect(html).not.toContain('Refresh history');
+    expect(html).not.toContain('codicon-refresh');
     expect(html).not.toContain('rhist-row');
     expect(html).not.toContain('rhist-read-at');
     expect(html).not.toContain('rhist-marks-cut');

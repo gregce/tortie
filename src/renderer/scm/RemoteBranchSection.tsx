@@ -292,8 +292,8 @@ export function RemoteBranchPanel({
           <button
             type="button"
             className="icon-btn scm-action"
-            aria-label="Refresh branch"
-            title="Refresh branch"
+            aria-label="Refresh branches"
+            title="Refresh branches"
             disabled={!available || busy}
             onClick={onRefresh}
           >

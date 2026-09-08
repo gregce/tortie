@@ -163,7 +163,6 @@ function draw(
       available={true}
       collapsed={false}
       onToggle={() => undefined}
-      onRefresh={() => undefined}
       {...props}
     />
   );
@@ -377,10 +376,22 @@ describe('every mode says its own sentence, and it comes from machines/presentat
     }
   });
 
-  it('says a read is in flight rather than drawing an empty list', () => {
-    expect(draw({ mode: null, runs: [], loading: true })).toContain(
-      copy.runsReadingBranch(L)
-    );
+  it('draws nothing before the first read has answered (Phase 230)', () => {
+    // The local Runs section is hidden once the origin is known not to be
+    // GitHub, and that check runs whatever is expanded. Over there the only
+    // read that carries the answer is this group's own, so the section asks
+    // once when it mounts and the heading waits for the answer, rather than
+    // being drawn and then vanishing when opened, which is what research 85's
+    // verifier read at the parent.
+    expect(draw({ mode: null, runs: [], loading: true })).toBe('');
+    expect(draw({ mode: null, runs: [], loading: false })).toBe('');
+  });
+
+  it('says a re-read is in flight rather than drawing an empty list', () => {
+    // A read over an answer already on screen keeps the answer's mode, so the
+    // sentence for a read in flight is drawn only on the path that has no
+    // answer yet, which the section no longer draws at all; the rows stay.
+    expect(draw({ mode: 'ok', runs: [], refreshing: true })).toContain(RUNS_EMPTY);
   });
 
   it('says a build with no bridge cannot do this at all', () => {
@@ -567,23 +578,29 @@ describe('a run row opens the run and does not expand it', () => {
 // ---------------------------------------------------------------------------
 
 describe('a group nobody opened', () => {
-  it('draws its header and none of the body', () => {
+  it('draws its header and none of the body, and no refresh button of its own', () => {
     const html = draw({}, { collapsed: true });
     expect(html).toContain('data-section="remote-runs"');
-    expect(html).toContain('Refresh runs');
+    // PHASE 230 TOOK THE BUTTON OFF. The group reads again by itself, and the
+    // remote view keeps the two refresh controls the local view keeps.
+    expect(html).not.toContain('Refresh runs');
+    expect(html).not.toContain('codicon-refresh');
     expect(html).not.toContain('runs-list');
     expect(html).not.toContain('runs-read-at');
   });
 
-  it('reads nothing until it is opened, and the guard is in the source', () => {
+  it('reads once when it mounts, and the guard is in the source (Phase 230)', () => {
     // The effect is what a running app runs, and there is no document here to
-    // run it in. The guard is read off the source instead, and row 1 of
-    // build/probe-p105-runs.mjs is the same claim measured in a real window.
+    // run it in. The guard is read off the source instead. Until Phase 230 it
+    // read `if (!collapsed && available) ensure(target);`, one read on the
+    // first expand; the heading now waits for the first answer, so the read
+    // is on mount, collapsed or not, and still once per target.
     const source = readFileSync(
       resolve(ROOT, 'src/renderer/scm/RemoteRunsSection.tsx'),
       'utf8'
     );
-    expect(source).toContain('if (!collapsed && available) ensure(target);');
+    expect(source).toContain('if (available) ensure(target);');
+    expect(source).not.toContain('if (!collapsed && available) ensure(target);');
     // `ensure` is called from exactly one place.
     expect(source.split('ensure(target)').length - 1).toBe(1);
   });

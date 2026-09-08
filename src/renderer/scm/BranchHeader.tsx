@@ -37,6 +37,7 @@ import {
   honestSyncTooltip
 } from './freshness';
 import { remoteChangesOf, useRemoteChanges } from './remote-changes';
+import { refreshRemoteScm } from './remote-refresh';
 import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
@@ -85,7 +86,6 @@ export function BranchHeader(): React.JSX.Element {
 
   const machineStates = useApp((s) => s.machineStates);
   const remoteEntry = useRemoteChanges((s) => remoteChangesOf(s.byTarget, target));
-  const refreshRemote = useRemoteChanges((s) => s.refresh);
   const ensureRemote = useRemoteChanges((s) => s.ensure);
   const onMachine = project !== null && target !== null && repoPath === null;
 
@@ -353,14 +353,18 @@ export function BranchHeader(): React.JSX.Element {
         <span className="branch-spacer" />
         {/* PHASE 228 LEFT THE CLOCK HERE, as "14:32" with the sentence on
             hover, and PHASE 230 TOOK IT OFF with the sentence, because the
-            view reads again by itself when it is looked at. */}
+            view reads again by itself when it is looked at. THE SAME ROUND
+            GAVE THIS BUTTON THE LOCAL HEADER'S OWN LABEL AND TITLE, below,
+            in place of "Read what changed on that machine again": it is the
+            one press the remote view keeps in this band, the way the local
+            band keeps one, and what it reads is in ./remote-refresh.ts. */}
         <button
           type="button"
           className={`icon-btn branch-refresh${busy ? ' busy' : ''}`}
-          aria-label="Read what changed on that machine again"
-          title="Read what changed on that machine"
+          aria-label="Refresh git status"
+          title="Refresh"
           disabled={busy}
-          onClick={() => void refreshRemote(target)}
+          onClick={() => void refreshRemoteScm(target)}
         >
           <Codicon name="refresh" size="md" />
         </button>
