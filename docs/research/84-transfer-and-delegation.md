@@ -657,6 +657,20 @@ mechanical. Pass 3 keys a rewind on a HUMAN ASK — `type: user`, real text, no 
 the file, and every rewind above was then read by hand in the raw records before the number was
 written down. **Every intermediate rate was an artifact of the definition and each looked plausible.**
 
+**[C] A fourth was produced independently after the fix round, which is the corroboration this
+section wanted.** The verifier attacked pass 3 with a different definition — records not on the
+ancestor chain of the file's LAST record, which is the definition that most directly answers what a
+line-sequential importer wrongly carries — and read **86.74% of 504,799 importable records as
+abandoned**, over the same 8,237 chained files pass 3 measured, so the two agree exactly on the corpus
+boundary and disagree only on the definition. The committer re-ran it and reproduced that rate, then
+measured the cause on the file it names as worst: of its 15,139 conversation records, **1,633 carry a
+`parentUuid` that is not in the file at all** and **only 18 parents in it have more than one child**.
+A claude file is a forest because its chain runs THROUGH other files, not because the person rewound,
+so the last record's ancestor walk abandons almost everything and the rate is an artifact for a fourth
+reason. Pass 3's ask-keyed definition is the robust one, and the reason to record this is that the
+fourth wrong answer was found by somebody else, by a method chosen to disagree, and still looked
+plausible.
+
 **What follows for the mechanisms.** (d) the store replant is unaffected, being refused already. (a)
 verbatim replay carries every abandoned branch by construction and this is a second reason to refuse
 it as a default. (c) the deterministic handoff is **the one that must change**: composed from the asks
@@ -671,6 +685,17 @@ build phase composes the artifact from a line-sequential reader it already has.
 Over 8,659 tool calls in 400 real claude transcripts: **Bash 35.9%, Read 24.5%, Edit 14.4%, Grep 8.7%,
 Write 2.9%, Glob 2.0% — 88.4% of all tool traffic acts on the working tree.** WebSearch and WebFetch
 together are 2.2%.
+
+**[C] That number is a 400-file sample and the census says it is conservative.** It is load-bearing
+for §2.8 and for the conclusion, so the committer re-derived it by a different frame: no size filter,
+no sample, the whole store walked recursively rather than the top level of each project directory.
+**19,246 files, 554,625 `tool_use` blocks, 64 times the sample, and the same six tools read 90.6%.**
+The claim holds and the shipped 88.4% is low by 2.2 points. The per-tool mix does move — Bash 54.7%
+against 35.9%, Read 17.4% against 24.5% — because the sampled frame excludes the sub-agent files where
+Bash dominates. Nothing in this document rests on the mix, only on the aggregate, so the headline
+number stays as it was measured rather than being restated from a wider frame. His store is live and
+grew by one file and 170 blocks between the verifier's run and the committer's half an hour later,
+which is why a census here is a reading with a timestamp and not a constant.
 
 That is the reframing this section exists to produce. **The durable state of a coding session is the
 repository, not the transcript.** A second agent opened in the same cwd already has everything those
@@ -1684,7 +1709,8 @@ Stated per conclusion, because a recommendation that cannot be falsified is an o
 Every claim, where it came from, and how it was taken. Nothing below was recalled. Rows marked **[I]**
 were re-derived by the integrator rather than accepted from a lane. Rows marked **[F]** were measured
 or re-measured by the FIX ROUND, and where a fix-round row corrects an earlier one it says what it
-corrects and where the earlier reading went wrong.
+corrects and where the earlier reading went wrong. A row marked **[C]** was measured by the COMMITTER,
+and there is one, being the census behind §2.5.
 
 | Claim | How it was taken |
 | --- | --- |
@@ -1721,12 +1747,14 @@ corrects and where the earlier reading went wrong.
 | Interactive sessions at 1.7% portable | `.p223/handoff2.py` over 500 random transcripts |
 | **[F]** The importer never reads `parentUuid`; Tortie never reads it either | `read_session_import`, `records_cla.rs:97-152` read in full; `grep -rn parentUuid` over `/Users/gdc/codex/codex-rs/external-agent-migration/src/sessions/` and over `src/`, zero hits in both |
 | **[F]** 70 files carry a genuine rewind, 895 abandoned importable records, 156 abandoned asks | whole-store census, not a sample: `.p223/fix/rewind-split.py` over all 19,194 files, output `.p223/fix/out-rewind-split.txt`. Three earlier passes of my own were artifacts and are recorded in §2.4b and in the script's own header |
+| **[C]** The fourth artifact, reproduced, and its cause | `.p223/rv/chain.py` re-run by the committer: 86.740% of 504,799 importable records off the last record's ancestor chain, 8,237 chained files agreeing with the fix round's boundary. Cause measured on the file it names worst: 1,633 dangling `parentUuid` references and 18 parents with more than one child, over the same `type`/`isSidechain` filter the script uses |
 | **[F]** Every rewind quoted in §2.4b was read in the raw records | `.p223/fix/inspect2.py` over the named files; the branch head, its timestamp and the ask that replaced it printed side by side |
 | **[F]** `redact.ts` is secret shapes only, with no instruction filtering | `src/main/overview/redact.ts` read in full, 81 lines, 9 `SECRET_PATTERNS` plus 2 `TORTIE_PATTERNS` |
 | **[F]** The words *poisoned*, *compromised*, *untrusted*, *injection* appeared twice in 1,465 lines | `grep -cEi` over this document at the parent commit; §3.4 and the head of §4.3 |
 | **[F]** `defaultStoreTarget` writes the vendor's own default credential store | `src/main/credentials/stores.ts:311`, read with its header; why R3's wording needed the word *conversation* |
 | **[F]** `resolveSessionLog` has a case for 11 of the 12 CLI agents | `case '` over `src/main/overview/reader/resolve.ts`; droid answers `no-store` by design |
 | Tool name distribution | `.p223/toolscan.py` over 400 transcripts, 8,659 `tool_use` blocks |
+| **[C]** The same six tools read 90.6% over the whole store, so §2.5's 88.4% is conservative | census rather than sample: `.p223/rv/tools.py`, 19,246 files and 554,625 `tool_use` blocks, no size filter and a recursive walk. The per-tool mix moves and the aggregate does not; the sampled number is kept as measured |
 | 480 compact summaries, median 13,031 chars | `.p223/compactscan.py` over 9,615 transcripts |
 | 0 of 568 codex compactions carry prose | `.p223/codexcompact2.py` over 195 rollouts |
 | The receiving window, 258,400 and 272,000 | `model_context_window` over the pinned corpus |
