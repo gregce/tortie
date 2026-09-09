@@ -802,12 +802,17 @@ export const CHECKS = [
   electron('probe:p240'),
   // PHASE 247. A path in a transcript, pressed: ONE launch on a scratch
   // profile, a scratch HOME and its own socket, over a project it builds
-  // itself, with a plain shell echoing four paths into the transcript. It
+  // itself, with a plain shell echoing SEVEN paths into the transcript. It
   // hovers the cell tmux says each path occupies and presses it. NOTHING IS
   // EVER OPENED BY macOS: GMUX_PATH_OPEN_RECORD is set for the whole run, so
   // the external door records the path and starts nothing. No agent, no
   // token, no keychain, no request; `-L gmux` touched only by a read-only
-  // session count before and after.
+  // session count before and after. THE FIX ROUND gave every arm its own
+  // geometry and its own capture, because an open editor tab narrows the pane
+  // from 144 columns to 78 and tmux reflows its history underneath: arms C, D
+  // and E had been pressing a stale cell and passing by pressing nothing.
+  // Arm F is the fix round's own, and reads the cell rule off the running app
+  // — 2 findings at the parent and 0 at HEAD.
   electron('probe:p247'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository
