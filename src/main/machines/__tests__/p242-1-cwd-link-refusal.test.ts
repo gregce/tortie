@@ -292,12 +292,30 @@ describe('the refusal did not get wider than the hole', () => {
     expect(stagedIn(root)).toEqual(['sub/inside.txt']);
   });
 
-  it('a folder inside the confirmed folder that holds a link ELSEWHERE is not refused', () => {
-    // The walk asks about the components of the tab's own folder and about
-    // nothing else. A link sitting beside it changes no answer.
+  it('a link INSIDE the tab\'s own folder is not what the walk asks about', () => {
+    // The walk asks about the COMPONENTS of the tab's own folder and about
+    // nothing else, so a link sitting INSIDE that folder is off the path it
+    // walks. THE ARM ABOVE DRIVES THE SAME CALL WITH NEITHER LINK PLANTED, so
+    // the two differ by the links rather than by their text; an earlier draft
+    // of this arm planted nothing and was byte for byte the arm above it, which
+    // meant it could not fail for the reason it names.
+    symlinkSync(sibling, join(root, 'sub', 'beside'));
     const said = run('git-stage', [root, 'sub/inside.txt', root, 'sub']);
     expect(said.word).toBe('0');
     expect(stagedIn(root)).toEqual(['sub/inside.txt']);
+  });
+
+  it('a link that points BACK INSIDE the confirmed folder is refused too, and that is deliberate', () => {
+    // The stated over-refusal, in `../remote-stage.ts`'s header. Telling this
+    // apart from the escape needs a `readlink` and a comparison of a RESOLVED
+    // path, which is `../remote-record.ts`'s standing refusal, and Phase 242
+    // shipped exactly this for the three verbs that take a path. It is pinned
+    // here so a later round that changes it changes a measurement rather than a
+    // sentence.
+    symlinkSync(join(root, 'sub'), join(root, 'inward'));
+    const said = run('git-stage', [root, 'sub/inside.txt', root, 'inward']);
+    expect(said.word).toBe(REMOTE_INDEX_WRITE_OUTSIDE);
+    expect(stagedIn(root)).toEqual([]);
   });
 
   it('a SYMBOLIC LINK inside the repository is still a file git may stage', () => {
