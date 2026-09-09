@@ -41,7 +41,11 @@ export const fs: InstalledFsApi = {
   // Phase 226. The compare-and-swap write for the redline's rewind. Nothing
   // in the renderer calls it until Phase 227; it is here because the closure
   // test asks that every declared channel has exactly one preload call.
-  writeGuarded: (input) => invoke('fs:writeGuarded', input)
+  writeGuarded: (input) => invoke('fs:writeGuarded', input),
+  // Phase 247. The one door that leaves Tortie. Main re-asks every question
+  // about the path before LaunchServices sees a byte of it, so what crosses
+  // here is a spelling and nothing more.
+  openExternalPath: (path) => invoke('fs:openExternalPath', path)
 };
 
 /**

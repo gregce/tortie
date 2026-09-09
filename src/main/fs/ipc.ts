@@ -13,6 +13,13 @@
  *   - fs:writeFile ⌘S save from the editor                       [editor]
  *   - fs:writeGuarded compare-and-swap write for the redline's rewind
  *                  (Phase 226; guarded-write.ts owns the rules)  [redline]
+ *   - fs:openExternalPath  hand ONE path to macOS (Phase 247). It is the only
+ *                  thing here that lets a path an AGENT wrote reach
+ *                  LaunchServices, and main re-asks the whole door sequence
+ *                  before it does: an allowlist of ONE extension, no
+ *                  executable bit, no bundle, no secret by name, every
+ *                  question asked of the realpath. path-open.ts owns the
+ *                  rules and holds the domain's only shell.openPath.
  *   - fs:createFile / fs:createFolder / fs:rename / fs:move / fs:trash
  *                  the tree's file operations (Phase 12.9). Every path is
  *                  proven to be inside an OPEN PROJECT root, `.git` is
@@ -39,6 +46,8 @@ import { createOpenWith, defaultOpenWithDeps } from './open-with';
 import type { DragOutDeps } from './drag-out';
 import { createDragOut } from './drag-out';
 import { writeGuarded } from './guarded-write';
+import type { PathOpenDeps } from './path-open';
+import { defaultPathOpenDeps, openPathExternally } from './path-open';
 
 
 function entryKind(d: {
@@ -175,7 +184,8 @@ export function registerFsIpc(
   ipc: IpcMain,
   deps?: FileOpsDeps,
   openWithDeps?: OpenWithDeps,
-  dragOutDeps?: DragOutDeps
+  dragOutDeps?: DragOutDeps,
+  pathOpenDeps?: PathOpenDeps
 ): void {
   const fsDeps = deps ?? defaultFileOpsDeps();
   const fileOps = createFileOps(fsDeps);
@@ -264,6 +274,16 @@ export function registerFsIpc(
   // for a refusal. Nothing in the renderer calls it until Phase 227.
   handle(ipc, 'fs:writeGuarded', (_e, input) =>
     writeGuarded({ listProjectRoots: () => fsDeps.listProjectRoots() }, input)
+  );
+
+  // ----- Phase 247 the one door that leaves Tortie ------------------------
+  // Thin on purpose, and thinner than every block above it. Nothing is decided
+  // here: path-open.ts re-asks the whole door sequence, holds the domain's
+  // only shell.openPath, and answers a WORD for every refusal rather than
+  // throwing. The handler's whole job is to not add a shortcut.
+
+  handle(ipc, 'fs:openExternalPath', (_e, path) =>
+    openPathExternally(path, pathOpenDeps ?? defaultPathOpenDeps())
   );
 
   // ----- Phase 154 the drop from outside ---------------------------------

@@ -41,6 +41,15 @@
  *      of extensions, membership is asked with `.has(`, and no file in the
  *      domain spells a denylist. Its size is pinned, so widening it is a
  *      deliberate edit to this gate and never a quiet one.
+ *   4. THE ONE DOOR THAT LEAVES RE-ASKS EVERYTHING. `openPathExternally` asks
+ *      the sequence BEFORE it reaches its `open` seam, opens on `'mac'`
+ *      alone, and hands over the path the SEQUENCE resolved rather than the
+ *      spelling the renderer sent — which is what a link planted between the
+ *      underline and the click would have changed. Read by matching braces.
+ *   5. THE POPULATION OF DOORS TO LaunchServices IS THE DECLARED ONE. Every
+ *      `shell.openPath` and `shell.openExternal` under src/main is named
+ *      here, and a new one is a finding rather than a thing this gate says
+ *      nothing about.
  *   6. A HOVER NEVER WRITES AND NEVER READS A BYTE. The classify arm of
  *      `drop:prepare` is a function of its own, read by matching braces, and
  *      it names no `copyFile`, no `open`, no `readHead`, no `writeFile` and
@@ -63,7 +72,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsxCli } from './ts-runner.mjs';
 import { functionBodyOf, stripComments } from './scan-source.mjs';
@@ -80,6 +89,28 @@ const DOOR = 'src/main/fs/path-door.ts';
 
 const source = (rel) => readFileSync(join(repoRoot, rel), 'utf8');
 const code = (rel) => stripComments(source(rel));
+
+/** Every production TypeScript file under `dir`, tests left out. */
+function walk(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+      out.push(...walk(full));
+    } else if (/\.[cm]?tsx?$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+/** ...and the ones whose code, comments stripped, names `needle`. */
+function filesNaming(dir, needle) {
+  return walk(dir)
+    .filter((f) => !/__tests__|\.test\./.test(f))
+    .filter((f) => stripComments(readFileSync(f, 'utf8')).includes(needle))
+    .map((f) => relative(repoRoot, f))
+    .sort();
+}
 
 // ---------------------------------------------------------------------------
 // The probe. One line of JSON, the shipping sequence or an ablated copy.
@@ -226,6 +257,127 @@ if (live.error !== undefined) {
   }
   if (failures.every((f) => !f.includes(' 3. '))) {
     say('3. one extension may leave Tortie, spelled as a literal set and asked by membership; no denylist anywhere in the domain');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 4. The one door that leaves re-asks everything.
+// ---------------------------------------------------------------------------
+
+/**
+ * What is wrong with the external door, as a list of sentences. Written as a
+ * function so it can be PROVED ON FIXTURES below: a scan that cannot fail is
+ * never mistaken for a scan that passed.
+ */
+function externalDoorFindings(text) {
+  const out = [];
+  const body = functionBodyOf(stripComments(text), 'openPathExternally');
+  if (body === null) {
+    out.push('there is no openPathExternally, so this rule read nothing');
+    return out;
+  }
+  const asked = body.indexOf('answerPathDoor(');
+  const opened = body.indexOf('deps.open(');
+  if (asked === -1) {
+    out.push('the external door never asks the sequence, so nothing bounds what reaches macOS');
+  } else if (opened === -1) {
+    out.push('the external door never reaches its open seam, so this rule cannot see the order');
+  } else if (asked > opened) {
+    out.push('the external door opens BEFORE it asks the sequence, which is the whole capability unguarded');
+  }
+  if (!/answer\.door !== 'mac'/.test(body)) {
+    out.push("the external door does not refuse every door but 'mac', so a kind Tortie draws could leave");
+  }
+  if (opened !== -1 && !/deps\.open\(answer\.path\)/.test(body)) {
+    out.push('the external door hands over something other than the path the sequence resolved');
+  }
+  return out;
+}
+
+{
+  const OPEN = 'src/main/fs/path-open.ts';
+  const openCode = source(OPEN);
+  for (const finding of externalDoorFindings(openCode)) fail(`4. ${finding}`);
+
+  // The seam that lets a probe read what macOS would have been handed without
+  // macOS being handed it. Without it, an app run has to really open something.
+  if (!/GMUX_PATH_OPEN_RECORD/.test(code(OPEN))) {
+    fail('4. src/main/fs/path-open.ts carries no record seam, so an app run would have to really open something');
+  }
+
+  // The scanner, proved. Five of these six must be caught.
+  const SHIPPED = `async function openPathExternally(raw, deps) {
+  const answer = await answerPathDoor(raw);
+  if (answer.door === null) return { status: 'refused', reason: answer.refusal };
+  if (answer.door !== 'mac') return { status: 'refused', reason: 'tortie-draws-it' };
+  const message = await deps.open(answer.path);
+  return message.length > 0 ? { status: 'failed', message } : { status: 'opened' };
+}`;
+  const PLANTS = [
+    ['the shipping shape', SHIPPED, 0],
+    ['the sequence is never asked', SHIPPED.replace('await answerPathDoor(raw)', '{ door: "mac", path: raw }'), 1],
+    [
+      'it opens before it asks',
+      `async function openPathExternally(raw, deps) {
+  const message = await deps.open(answer.path);
+  const answer = await answerPathDoor(raw);
+  if (answer.door !== 'mac') return { status: 'refused', reason: 'tortie-draws-it' };
+  return { status: 'opened' };
+}`,
+      1
+    ],
+    ['every door leaves', SHIPPED.replace("if (answer.door !== 'mac') return { status: 'refused', reason: 'tortie-draws-it' };", ''), 1],
+    ['the SPELLING is handed over, not the realpath', SHIPPED.replace('deps.open(answer.path)', 'deps.open(raw)'), 1],
+    ['there is no such function at all', 'export const nothing = 1;', 1]
+  ];
+  let caught = 0;
+  for (const [why, text, want] of PLANTS) {
+    const got = externalDoorFindings(text).length;
+    if ((got > 0 ? 1 : 0) !== want) {
+      fail(`4. the scanner read "${why}" as ${got > 0 ? 'a finding' : 'clean'}, and it must read the other way`);
+    } else if (want === 1) caught += 1;
+  }
+  if (failures.every((f) => !f.includes(' 4. '))) {
+    say(
+      `4. the external door asks the sequence first, opens on 'mac' alone, and hands over the realpath the sequence resolved; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 5. The population of doors to LaunchServices is the declared one.
+// ---------------------------------------------------------------------------
+
+{
+  /**
+   * Every file under src/main that names `shell.openPath` or
+   * `shell.openExternal`, with the reason each is allowed to.
+   *
+   * The three research 107 section 8 counted open DIRECTORIES TORTIE ITSELF
+   * MADE, which is why they were never a precedent for this phase. The fourth
+   * is this phase's, and it is the only one that takes a path a person did not
+   * pick out of a surface Tortie drew.
+   */
+  const DECLARED = new Map([
+    ['src/main/config/guide.ts', 'the configuration folder Tortie made'],
+    ['src/main/log/ipc.ts', 'the log directory Tortie made'],
+    ['src/main/migrate/notice.ts', 'the migration notice’s own folder'],
+    ['src/main/fs/path-open.ts', 'PHASE 247, and it re-asks the whole sequence'],
+    ['src/main/security/trusted-window.ts', 'an https URL through setWindowOpenHandler, which is not a path']
+  ]);
+  const found = filesNaming(join(repoRoot, 'src/main'), 'shell.open').sort();
+  const undeclared = found.filter((f) => !DECLARED.has(f));
+  const gone = [...DECLARED.keys()].filter((f) => !found.includes(f));
+  for (const f of undeclared) {
+    fail(`5. ${f} names shell.open* and is not declared here. A new door to LaunchServices is a finding`);
+  }
+  for (const f of gone) {
+    fail(`5. ${f} is declared as a shell.open* site and no longer names one; a deliberate deletion removes the row in the same commit`);
+  }
+  if (undeclared.length === 0 && gone.length === 0) {
+    say(
+      `5. ${String(found.length)} files under src/main reach shell.open*, every one of them declared, and exactly one takes a path an agent wrote`
+    );
   }
 }
 

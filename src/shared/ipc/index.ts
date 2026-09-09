@@ -74,10 +74,12 @@ import type {
   FileOpsInvokeChannelMap,
   FsDuplicateInvokeChannelMap,
   FsGuardedWriteInvokeChannelMap,
+  PathOpenInvokeChannelMap,
   FsImportInvokeChannelMap,
   GmuxFsDuplicateExtras,
   GmuxFsExtras,
   GmuxFsGuardedWriteExtras,
+  GmuxPathOpenExtras,
   GmuxFsImportExtras,
   GmuxFsOpsExtras,
   GmuxOpenWithExtras,
@@ -300,6 +302,7 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   FsImportInvokeChannelMap &
   // Phase 226. The redline's compare-and-swap write, unwired until Phase 227.
   FsGuardedWriteInvokeChannelMap &
+  PathOpenInvokeChannelMap &
   // Phase 63. The standing contract's three reads.
   ArchInvokeChannelMap &
   // Phase 163. A capture window's two ends, and the opt in heap snapshot.
@@ -404,7 +407,8 @@ export type InstalledFsApi = GmuxApi['fs'] &
   GmuxImageExtras &
   GmuxOpenWithExtras &
   GmuxFsImportExtras &
-  GmuxFsGuardedWriteExtras;
+  GmuxFsGuardedWriteExtras &
+  GmuxPathOpenExtras;
 
 /** The `term` object the preload installs: base plus acks and exit notices. */
 export type InstalledTermApi = GmuxApi['term'] & GmuxTermStreamExtras;

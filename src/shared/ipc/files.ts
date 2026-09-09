@@ -481,3 +481,60 @@ export interface FsGuardedWriteInvokeChannelMap {
 export interface GmuxFsGuardedWriteExtras {
   writeGuarded(input: FsGuardedWriteInput): Promise<FsGuardedWriteResult>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 247 (a path in a transcript opens) — one new invoke
+// channel and one preload extra. Append only, per the src/shared rule.
+//
+// fs:openExternalPath — hand ONE path to macOS, and it is the only thing in
+//   this product that ever hands a path an AGENT wrote to LaunchServices.
+//
+//   It is a new verb rather than a widened fs:openWith for the reason research
+//   111 section 5.3 measured: fs:openWith's `resolveTarget` requires an OPEN
+//   PROJECT ROOT and proves the file inside it, so reusing it would mean
+//   deleting `resolveOpenProjectRoot` from the one call site research 107
+//   section 8 cites as the argument against this whole capability. A new
+//   narrow channel that re-asks everything is strictly safer than widening
+//   that one.
+//
+//   MAIN RE-ASKS THE WHOLE SEQUENCE and trusts nothing the renderer sends
+//   beyond the spelling: the renderer's copy of the answer is a HOVER answer
+//   and the file at a spelling can be replaced between the underline and the
+//   click. Only `door: 'mac'` opens, which today is one extension, and what
+//   is handed on is the REALPATH the sequence resolved. Everything else
+//   answers a refusal WORD and starts nothing.
+//   MAIN: src/main/fs/ipc.ts → src/main/fs/path-open.ts.
+// ---------------------------------------------------------------------------
+
+import type { PathDoorRefusal } from '../path-doors';
+
+/**
+ * What an external open did. A refusal REPORTS rather than throws, matching
+ * the fs:openWith precedent: a file replaced since the underline was drawn is
+ * an environmental fact, not a programming error.
+ *
+ * `tortie-draws-it` is the answer for a kind Tortie opens itself. The renderer
+ * routes those without asking, so it should never be seen — main answers it
+ * rather than assuming the caller behaved.
+ */
+export type PathOpenOutcome =
+  | { status: 'opened' }
+  | { status: 'refused'; reason: PathDoorRefusal | 'tortie-draws-it' }
+  | { status: 'failed'; message: string };
+
+/** The one channel Phase 247 adds. */
+export interface PathOpenInvokeChannelMap {
+  /** Hand one path to macOS, after main re-asks every question about it. */
+  'fs:openExternalPath': { req: [path: string]; res: PathOpenOutcome };
+}
+
+/**
+ * Extension to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it makes
+ * one `exposeInMainWorld` call, so the whole bridge can be absent and, when it
+ * is present, these members are present with it.
+ */
+export interface GmuxPathOpenExtras {
+  openExternalPath(path: string): Promise<PathOpenOutcome>;
+}
