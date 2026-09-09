@@ -2961,6 +2961,28 @@ process.stdout.write(
       readListMaxBytes: ARCH_READ_LIST_MAX_BYTES
     },
 
+    // --- Phase 242, condition 88 -------------------------------------------
+    // The three writers that take a PATH, and the link refusal each one
+    // carries. PURE: it reads three compiled script texts and nothing else.
+    //
+    // Why the whole text crosses rather than a set of booleans. A boolean the
+    // gate cannot see the reasoning behind is a check that stops failing the
+    // day somebody rewrites the line it was reading, and this refusal is the
+    // only thing standing between a link inside the confirmed folder and a
+    // write outside it. The gate does every piece of arithmetic itself.
+    phase242: (() => {
+      const textOf = (id: string): string =>
+        REMOTE_SCRIPTS.find((row) => row.id === id)?.text ?? '';
+      return {
+        filePut: textOf('file-put'),
+        dirNew: textOf('dir-new'),
+        entryRename: textOf('entry-rename'),
+        // The two Phase 102 writers' ids, so the gate names what it read
+        // rather than what it assumed was there.
+        ids: REMOTE_SCRIPTS.map((row) => row.id)
+      };
+    })(),
+
     phase117: (() => {
       const sessionsPath = join(machinesDir, 'remote-sessions.ts');
       const recordPath = join(machinesDir, 'remote-record.ts');

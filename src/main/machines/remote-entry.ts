@@ -44,10 +44,22 @@
  * root plus a separator as a prefix. A RENAME HAS TWO PATHS AND BOTH ARE
  * CHECKED. Either one outside the folder refuses the whole call.
  *
- * WHAT NONE OF THE THREE COVERS. A symlink on that machine is not resolved by
- * any of them and cannot be, because resolving one means a second round trip
- * and a second answer that can be stale by the time the write lands.
- * Containment here is over the path text.
+ * WHAT NONE OF THE THREE COVERS, AND WHAT PHASE 242 ADDED BECAUSE OF IT. All
+ * three compare path TEXT, so none of them can see a symbolic link. Research
+ * 102 section 5.2 drove that at the operator's own Mac Pro: a link inside the
+ * confirmed folder pointing out of it let `dir-new` make a folder outside it
+ * and let `entry-rename` take a file OUT of the folder the person confirmed.
+ *
+ * So there is a fourth layer and it lives where the write does. `noLinkWalk` in
+ * `./remote-scripts.ts` asks the shell's own `-L` about every directory
+ * component, once per guarded value, in the same call that would otherwise have
+ * moved something. It resolves NOTHING, so the objection above still holds and
+ * is still the reason main does not try. A rename's LAST component is
+ * deliberately still allowed to be a link, because renaming a link is what this
+ * script's `[ -e ] || [ -L ]` presence test was written for and `mv` renames
+ * the link rather than following it. The word both scripts print is
+ * {@link REMOTE_ENTRY_OUTSIDE} and it lands on the `outsideRoot` outcome they
+ * already had.
  *
  * ## A failure is NOT proof that nothing happened
  *
@@ -87,11 +99,28 @@ import { machineLabelOf } from './store';
  */
 export const REMOTE_ENTRY_TIMEOUT_MS = 15_000;
 
-/** The four words `dir-new` prints. */
-export type MakeDirWord = 'made' | 'exists' | 'denied' | 'noparent';
+/**
+ * The word both scripts print when a directory component of a path they were
+ * given is a symbolic link (Phase 242).
+ *
+ * IT IS NOT AN OUTCOME AND IT NEVER REACHES THE RENDERER. It is mapped onto
+ * `outsideRoot`, which is the outcome these two verbs already have and whose
+ * sentence already says Tortie may only change what is under that folder and
+ * that nothing was changed. That is exactly what happened, so no new word
+ * crosses the channel and no new sentence is written.
+ *
+ * Why the far side has to say it rather than main: main compares path TEXT and
+ * cannot see a link on another computer. `noLinkWalk` in `./remote-scripts.ts`
+ * has the measurement and the reason this is a refusal rather than the
+ * resolution the headers refuse.
+ */
+export const REMOTE_ENTRY_OUTSIDE = 'outside';
 
-/** The four words `entry-rename` prints. */
-export type RenameWord = 'moved' | 'done' | 'exists' | 'gone';
+/** The four words `dir-new` prints, plus Phase 242's refusal. */
+export type MakeDirWord = 'made' | 'exists' | 'denied' | 'noparent' | 'outside';
+
+/** The four words `entry-rename` prints, plus Phase 242's refusal. */
+export type RenameWord = 'moved' | 'done' | 'exists' | 'gone' | 'outside';
 
 /** What the far side printed after it was asked to make one folder. */
 export interface RemoteMakeDirAnswer {
@@ -105,8 +134,20 @@ export interface RemoteRenameAnswer {
   readonly word: RenameWord;
 }
 
-const MAKE_DIR_WORDS = new Set<string>(['made', 'exists', 'denied', 'noparent']);
-const RENAME_WORDS = new Set<string>(['moved', 'done', 'exists', 'gone']);
+const MAKE_DIR_WORDS = new Set<string>([
+  'made',
+  'exists',
+  'denied',
+  'noparent',
+  REMOTE_ENTRY_OUTSIDE
+]);
+const RENAME_WORDS = new Set<string>([
+  'moved',
+  'done',
+  'exists',
+  'gone',
+  REMOTE_ENTRY_OUTSIDE
+]);
 
 /**
  * One `dir-new` payload into its two values, or null. PURE.
@@ -254,6 +295,12 @@ export async function makeRemoteDir(
       )}`
     );
   }
+  // PHASE 242. The far side's own containment refusal, mapped onto the outcome
+  // this verb already has. `noLinkWalk` prints it above the `mkdir` and never
+  // below it, so nothing was made.
+  if (said.word === REMOTE_ENTRY_OUTSIDE) {
+    return answer('outsideRoot', null, writeRoot);
+  }
   return answer(said.word, said.mode, writeRoot);
 }
 
@@ -352,5 +399,9 @@ export async function renameRemoteEntry(
       )}`
     );
   }
+  // PHASE 242. The far side's own containment refusal, mapped onto the outcome
+  // this verb already has. `noLinkWalk` prints it above the `mv` and never
+  // below it, so nothing was moved.
+  if (said.word === REMOTE_ENTRY_OUTSIDE) return answer('outsideRoot', writeRoot);
   return answer(said.word, writeRoot);
 }

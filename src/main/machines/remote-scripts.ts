@@ -2189,6 +2189,77 @@ const CONTEXT_READ = [
 ].join('\n');
 
 /**
+ * The refusal that stops a symbolic link being a way out of the confirmed
+ * folder (Phase 242).
+ *
+ * ## What it is for, measured rather than argued
+ *
+ * `docs/research/102-phase-242-starting-measurements.md` section 5.2 drove ten
+ * containment shapes at the operator's own Mac Pro over the real link. Four
+ * refused correctly. A symbolic link INSIDE the confirmed folder pointing out
+ * of it carried three write verbs straight through, and one of them replaced a
+ * file outside the folder and answered `wrote` while naming the confirmed
+ * folder as the place the bytes had landed. `a4` and `a5a` in that table are
+ * the same file on disk: named directly it answers `outsideRoot`, and reached
+ * through a link inside the root it was replaced.
+ *
+ * ## Why this is not the resolution the module headers refuse
+ *
+ * `./remote-file.ts` and the three script headers say a link is not RESOLVED,
+ * because resolving one means a second round trip and a second answer that can
+ * be stale by the time the write lands. That argument is about resolving and it
+ * is still true, and nothing here resolves anything: there is no `readlink`, no
+ * `realpath`, no `cd -P` and no second call. This is a REFUSAL, asked with the
+ * shell's own `-L` in the same call that would otherwise have written, so its
+ * answer cannot be stale by the time the write lands because it IS the moment
+ * the write lands. The product already draws this distinction in the domain
+ * that writes credentials: `src/main/credentials/nofollow.ts` exists because a
+ * link planted at a staged name took a whole write.
+ *
+ * ## What it walks, and what it deliberately does not
+ *
+ * Every DIRECTORY component of the relative path, from the confirmed folder
+ * down, and never the last component. `$1/a/b/c` asks about `$1/a` and
+ * `$1/a/b`. The last component is left to each script, because the three want
+ * different things from it and saying so once here is better than three
+ * silences:
+ *
+ *  - `file-put` refuses a last component that is a link as well, in its own
+ *    two lines below, because a link there means the file the person is
+ *    replacing is not under the folder they confirmed, and the checksum arm
+ *    would read the outside file and then `mv` over the link.
+ *  - `entry-rename` allows one, and must: renaming a symbolic link is what its
+ *    `[ -e "$x" ] || [ -L "$x" ]` presence test was written for, and `mv`
+ *    renames the link itself rather than following it.
+ *  - `dir-new`'s last component is the folder being made, which is not there.
+ *
+ * ## The word it prints
+ *
+ * `outside`, which main maps onto the `outsideRoot` outcome every one of these
+ * three verbs already has. NO NEW OUTCOME WORD CROSSES THE CHANNEL and no new
+ * sentence is written: the sentence a person reads is the one that already
+ * says Tortie may only change what is under that folder and that nothing was
+ * changed, which is exactly what happened. The field count differs per script
+ * because the catalogue's rule is a fixed field count per script, so it is a
+ * parameter here rather than three copies.
+ *
+ * `build/conformance-machines.mjs` condition 84 pins these lines on all three
+ * scripts and goes red when any one of them is taken out.
+ */
+const noLinkWalk = (value: string, fields: 2 | 3): readonly string[] => [
+  `lr="${value}"`,
+  'lp="$1"',
+  'while [ "$lr" != "${lr#*/}" ]; do',
+  '  lp="$lp/${lr%%/*}"',
+  '  lr="${lr#*/}"',
+  '  if [ -L "$lp" ]; then',
+  `    printf '__TORTIE_RUN__outside ${fields === 3 ? 'none none' : 'none'}__TORTIE_RUN__\\n'`,
+  '    exit 0',
+  '  fi',
+  'done'
+];
+
+/**
  * The third write, and the first one that can replace a file a person already
  * had (Phase 101).
  *
@@ -2297,10 +2368,12 @@ const CONTEXT_READ = [
  * `MACHINE_WRITE_HONESTY` in `./confirm.ts`, drawn beside every sheet that
  * grants file replacement, and it is deliberately not in the hashed lines.
  *
- * Containment here is over the PATH TEXT. No symlink on that machine is
- * resolved by this script, by the schema or by main, and it cannot be, because
- * resolving one means a second round trip and a second answer that can be stale
- * by the time the write lands.
+ * Containment over the PATH TEXT is the schema's, main's and the two `case`
+ * lines' half, and no symlink is RESOLVED by any of them, for the reason
+ * {@link noLinkWalk} gives. Since Phase 242 this script also REFUSES one: the
+ * walk above `p=` asks about every directory component of `$2`, and the pair
+ * below `t=` asks about the file being replaced and about the staged name,
+ * which the redirection would otherwise follow.
  */
 const FILE_PUT = [
   'set -e',
@@ -2308,6 +2381,7 @@ const FILE_PUT = [
   'case "$1" in /*) ;; *) exit 1;; esac',
   'case "$1" in *..*) exit 1;; esac',
   'case "$2" in /*|*..*) exit 1;; esac',
+  ...noLinkWalk('$2', 3),
   'p=$(command -v shasum 2>/dev/null || true)',
   'if [ -z "$p" ]; then p=$(command -v sha256sum 2>/dev/null || true); fi',
   'a=',
@@ -2321,6 +2395,17 @@ const FILE_PUT = [
   'fi',
   'f="$1/$2"',
   't="$f.tortie-part"',
+  // PHASE 242. The last component and the staged name, which the walk above
+  // deliberately does not ask about. A link at "$f" means the file this call
+  // would replace is not under the confirmed folder: the checksum arm reads it
+  // through the link and the `mv` then lands on the link rather than on what
+  // was read. A link at "$t" is `nofollow.ts`'s shape exactly, because the
+  // redirection below FOLLOWS one and would put the payload outside the folder
+  // before the `mv` ran at all.
+  'if [ -L "$f" ] || [ -L "$t" ]; then',
+  "  printf '__TORTIE_RUN__outside none none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
   'm=',
   'if [ "$3" = new ]; then',
   '  if [ -f "$f" ]; then',
@@ -2454,6 +2539,7 @@ const DIR_NEW = [
   'case "$1" in /*) ;; *) exit 1;; esac',
   'case "$1" in *..*) exit 1;; esac',
   WRITE_PATH_GUARD_2,
+  ...noLinkWalk('$2', 2),
   'd="$1/$2"',
   'p="${d%/*}"',
   'if [ ! -d "$p" ]; then',
@@ -2548,6 +2634,8 @@ const ENTRY_RENAME = [
   'case "$1" in *..*) exit 1;; esac',
   WRITE_PATH_GUARD_2,
   WRITE_PATH_GUARD_3,
+  ...noLinkWalk('$2', 2),
+  ...noLinkWalk('$3', 2),
   's="$1/$2"',
   't="$1/$3"',
   'sp=0',

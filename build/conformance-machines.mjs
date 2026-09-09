@@ -7813,6 +7813,317 @@ process.stdout.write(
   }
 }
 
+// Phase 242, condition 88. A LINK INSIDE THE CONFIRMED FOLDER IS NOT A WAY OUT
+// OF IT.
+//
+// WHY THIS CONDITION EXISTS, measured rather than argued. Research 102 section
+// 5.2 drove ten containment shapes at the operator's own Mac Pro over the real
+// link. Four refused correctly. A symbolic link INSIDE the confirmed folder
+// pointing out of it carried three of the write verbs straight through:
+// `file-put` REPLACED a file outside the folder and answered `wrote` with the
+// confirmed folder named beside it, `dir-new` made a folder outside it, and
+// `entry-rename` took a file OUT of the folder the person confirmed. The same
+// file reached by its own name answers `outsideRoot`, so the separator rule and
+// the two `case` lines were both doing their job over the path TEXT, and the
+// text is not what `mv` resolves.
+//
+// WHAT THIS CONDITION IS NOT. It is not a demand that anything be resolved.
+// Every header in this domain says a link is not RESOLVED, because resolving
+// one means a second round trip and a second answer that can be stale by the
+// time the write lands, and that is still true and still the reason main does
+// not try. This reads a REFUSAL, asked with the shell's own `-L` in the same
+// call that would otherwise have written.
+//
+// EVERY PIECE OF ARITHMETIC IS DONE HERE. The probe hands over three script
+// texts and no verdicts, so a rewrite of the lines below cannot quietly turn a
+// boolean true. And every rule is proved to be capable of failing, on planted
+// texts written by this gate, before it is trusted on the real ones.
+{
+  const p242 = data.phase242 ?? null;
+  if (p242 === null) {
+    fail(
+      'the probe printed nothing about the three writers that take a path, so ' +
+        'condition 88 checked nothing at all.'
+    );
+  } else {
+    /**
+     * The walk over one guarded value, read out of a script's own text.
+     *
+     * It answers the four things that have to be true together, because any
+     * one of them alone is a line that looks like a guard and is not one:
+     * the value is the one it claims to guard, the walk starts at the
+     * CONFIRMED FOLDER rather than anywhere else, it climbs one component at a
+     * time, and the `-L` test refuses by printing a word and leaving rather
+     * than by falling through.
+     */
+    const walkFor = (text, value) => {
+      const lines = text.split('\n');
+      const at = lines.findIndex((line) => line === `lr="${value}"`);
+      if (at < 0) return null;
+      const body = lines.slice(at, at + 10).join('\n');
+      return {
+        at,
+        fromRoot: lines[at + 1] === 'lp="$1"',
+        climbs:
+          body.includes('while [ "$lr" != "${lr#*/}" ]; do') &&
+          body.includes('lp="$lp/${lr%%/*}"') &&
+          body.includes('lr="${lr#*/}"'),
+        tests: body.includes('if [ -L "$lp" ]; then'),
+        refuses: /printf '__TORTIE_RUN__outside (none none|none)__TORTIE_RUN__/.test(body),
+        leaves: body.includes('exit 0')
+      };
+    };
+
+    /** Every line index that writes something on that machine. */
+    const writeLinesOf = (text) => {
+      const lines = text.split('\n');
+      const out = [];
+      lines.forEach((line, at) => {
+        if (/^\s*(mv|mkdir|chmod|ln) /.test(line)) out.push(at);
+        if (/> "\$t"/.test(line)) out.push(at);
+      });
+      return out;
+    };
+
+    const WANTED = [
+      { id: 'file-put', text: p242.filePut, values: ['$2'], fields: 3 },
+      { id: 'dir-new', text: p242.dirNew, values: ['$2'], fields: 2 },
+      { id: 'entry-rename', text: p242.entryRename, values: ['$2', '$3'], fields: 2 }
+    ];
+
+    // 88a. Every writer that takes a path walks every value it takes, from the
+    //      confirmed folder, one component at a time, and refuses by leaving.
+    for (const wanted of WANTED) {
+      if (typeof wanted.text !== 'string' || wanted.text.length === 0) {
+        fail(
+          `the catalogue holds no script called ${wanted.id}, so the write ` +
+            'verb it is the far side of has no containment of its own at all.'
+        );
+        continue;
+      }
+      for (const value of wanted.values) {
+        const walk = walkFor(wanted.text, value);
+        if (walk === null) {
+          fail(
+            `${wanted.id} has no symbolic link walk over ${value}. A link ` +
+              'inside the confirmed folder pointing out of it then carries ' +
+              'this verb straight out of the folder the person confirmed, ' +
+              'which is what research 102 section 5.2 measured on the ' +
+              "operator's own machine."
+          );
+          continue;
+        }
+        if (!walk.fromRoot) {
+          fail(
+            `${wanted.id}'s walk over ${value} does not start at "$1". A walk ` +
+              'that starts anywhere else is asking about the wrong path.'
+          );
+        }
+        if (!walk.climbs) {
+          fail(
+            `${wanted.id}'s walk over ${value} does not climb one component ` +
+              'at a time. Testing the whole path once misses every ' +
+              'intermediate directory, which is where the link that was ' +
+              'measured sat.'
+          );
+        }
+        if (!walk.tests) {
+          fail(
+            `${wanted.id}'s walk over ${value} never asks [ -L ]. A walk that ` +
+              'tests nothing is not a guard.'
+          );
+        }
+        if (!walk.refuses || !walk.leaves) {
+          fail(
+            `${wanted.id}'s walk over ${value} does not print the outside word ` +
+              'and leave. A guard that falls through is not a refusal.'
+          );
+        }
+      }
+    }
+
+    // 88b. THE WALK STANDS ABOVE EVERY LINE THAT WRITES. This is condition
+    //      50b's shape and it is the half that makes "nothing was changed" a
+    //      true sentence rather than a hopeful one.
+    for (const wanted of WANTED) {
+      if (typeof wanted.text !== 'string' || wanted.text.length === 0) continue;
+      const writes = writeLinesOf(wanted.text);
+      if (writes.length === 0) {
+        fail(
+          `${wanted.id} has no line this gate recognises as writing on that ` +
+            'machine, so condition 88b is checking nothing.'
+        );
+        continue;
+      }
+      for (const value of wanted.values) {
+        const walk = walkFor(wanted.text, value);
+        if (walk === null) continue;
+        const firstWrite = Math.min(...writes);
+        if (walk.at > firstWrite) {
+          fail(
+            `${wanted.id} writes at line ${String(firstWrite)} and does not ` +
+              `walk ${value} for a link until line ${String(walk.at)}. A ` +
+              'refusal after the write is not a refusal, and the sentence a ' +
+              'person reads says nothing was changed.'
+          );
+        }
+      }
+    }
+
+    // 88c. `file-put`'s TWO EXTRA LINES, which the walk deliberately does not
+    //      cover and which the other two scripts deliberately do not carry.
+    //
+    //      The last component: a link there means the file this call would
+    //      replace is not under the confirmed folder. The checksum arm reads it
+    //      THROUGH the link and the `mv` then lands on the link rather than on
+    //      what was read.
+    //
+    //      The staged name: `> "$t"` FOLLOWS a link, so one planted at
+    //      `<file>.tortie-part` takes the payload outside the folder before the
+    //      `mv` runs at all. That is `src/main/credentials/nofollow.ts`'s shape
+    //      exactly, and this domain had not taken the same lesson.
+    const putText = typeof p242.filePut === 'string' ? p242.filePut : '';
+    const putLines = putText.split('\n');
+    const leafAt = putLines.findIndex(
+      (line) => line === 'if [ -L "$f" ] || [ -L "$t" ]; then'
+    );
+    if (leafAt < 0) {
+      fail(
+        'file-put does not refuse a last component that is a link and does ' +
+          'not refuse a link planted at its staged name. The redirection that ' +
+          'writes the payload follows one, so a link at "$t" puts the bytes ' +
+          'outside the confirmed folder before the mv runs at all, which is ' +
+          "src/main/credentials/nofollow.ts's shape in this domain."
+      );
+    } else {
+      const stagedAt = putLines.findIndex((line) => line === 't="$f.tortie-part"');
+      const putWrites = writeLinesOf(putText);
+      const firstPutWrite = putWrites.length === 0 ? -1 : Math.min(...putWrites);
+      if (stagedAt < 0 || leafAt < stagedAt) {
+        fail(
+          'file-put asks about its staged name before that name exists, so ' +
+            'the test reads an empty value and can never refuse.'
+        );
+      }
+      if (firstPutWrite >= 0 && leafAt > firstPutWrite) {
+        fail(
+          `file-put writes at line ${String(firstPutWrite)} and does not ask ` +
+            `about the link at its target until line ${String(leafAt)}.`
+        );
+      }
+    }
+
+    // 88d. `entry-rename` STILL ALLOWS A LAST COMPONENT THAT IS A LINK, and
+    //      that is deliberate rather than an oversight. Renaming a symbolic
+    //      link is exactly what its `[ -e ] || [ -L ]` presence test was
+    //      written for, and `mv` renames the link itself rather than following
+    //      it, so the entry stays inside the confirmed folder. A round that
+    //      "finished off" this refusal would take that away.
+    const renameText = typeof p242.entryRename === 'string' ? p242.entryRename : '';
+    if (!renameText.includes('if [ -e "$s" ] || [ -L "$s" ]; then sp=1; fi')) {
+      fail(
+        'entry-rename no longer treats a symbolic link as an entry that is ' +
+          'there. Phase 242 refuses a link in a DIRECTORY component and must ' +
+          'not refuse one as the entry being renamed, because a dangling link ' +
+          'would then be reported as gone.'
+      );
+    }
+    if (renameText.includes('[ -L "$s" ]; then\n')) {
+      fail(
+        'entry-rename appears to refuse an entry that is a symbolic link. ' +
+          'That is not this phase\'s refusal and it would break the rename of ' +
+          'a link, which the script was written to allow.'
+      );
+    }
+
+    // 88e. THE PROOF THAT EVERY RULE ABOVE CAN FAIL. Six planted texts, each
+    //      one real script with exactly one clause taken out or moved, run
+    //      through the same readers. A gate whose scanners cannot fail is a
+    //      sentence rather than a check, and this file's own history is the
+    //      reason that is said out loud.
+    const planted = [
+      {
+        why: 'the walk removed whole',
+        text: putText.replace(/lr="\$2"\nlp="\$1"\nwhile[\s\S]*?\ndone\n/, ''),
+        expect: (t) => walkFor(t, '$2') === null
+      },
+      {
+        why: 'the walk started somewhere other than the confirmed folder',
+        text: putText.replace('lr="$2"\nlp="$1"', 'lr="$2"\nlp="/"'),
+        expect: (t) => walkFor(t, '$2')?.fromRoot === false
+      },
+      {
+        why: 'the -L test taken out of the walk',
+        text: putText.replace('if [ -L "$lp" ]; then', 'if false; then'),
+        expect: (t) => walkFor(t, '$2')?.tests === false
+      },
+      {
+        why: 'the walk moved below the line that writes',
+        text: (() => {
+          const lines = putText.split('\n');
+          const at = lines.findIndex((line) => line === 'lr="$2"');
+          if (at < 0) return putText;
+          const walk = lines.splice(at, 10);
+          const mv = lines.findIndex((line) => line.startsWith('mv '));
+          lines.splice(mv + 1, 0, ...walk);
+          return lines.join('\n');
+        })(),
+        expect: (t) => {
+          const walk = walkFor(t, '$2');
+          const writes = writeLinesOf(t);
+          return walk !== null && writes.length > 0 && walk.at > Math.min(...writes);
+        }
+      },
+      {
+        why: "file-put's leaf and staged pair removed",
+        text: putText.replace('if [ -L "$f" ] || [ -L "$t" ]; then\n', 'if false; then\n'),
+        expect: (t) =>
+          t.split('\n').findIndex(
+            (line) => line === 'if [ -L "$f" ] || [ -L "$t" ]; then'
+          ) < 0
+      },
+      {
+        why: "entry-rename's walk over $3 removed",
+        text: renameText.replace(/lr="\$3"\nlp="\$1"\nwhile[\s\S]*?\ndone\n/, ''),
+        expect: (t) => walkFor(t, '$3') === null
+      }
+    ];
+    let plantsBehaved = 0;
+    for (const plant of planted) {
+      if (plant.text === putText || plant.text === renameText) {
+        fail(
+          `condition 88e could not plant "${plant.why}" — the text it edits is ` +
+            'not in the script any more, so this arm proved nothing.'
+        );
+        continue;
+      }
+      if (plant.expect(plant.text)) plantsBehaved += 1;
+      else {
+        fail(
+          `condition 88e planted "${plant.why}" into the real script text and ` +
+            'the reader above still read it as sound. That reader cannot fail, ' +
+            'so it is not checking anything.'
+        );
+      }
+    }
+
+    process.stdout.write(
+      `a symbolic link inside the confirmed folder is not a way out of it. ` +
+        `file-put, dir-new and entry-rename walk every path value they take — ` +
+        `four walks over three scripts — from the confirmed folder, one ` +
+        `component at a time, and refuse with the word "outside" above every ` +
+        `line that writes; main maps that onto the outsideRoot outcome all ` +
+        `three verbs already had, so no new word crosses the channel. file-put ` +
+        `also refuses a last component that is a link and a link planted at ` +
+        `its staged name, which the redirection would follow. entry-rename ` +
+        `still renames a link, which it was written to do. Nothing is ` +
+        `resolved: no readlink, no realpath and no second round trip. ` +
+        `${String(plantsBehaved)} of ${String(planted.length)} planted texts ` +
+        `made the readers above say so.\n`
+    );
+  }
+}
+
 // Phase 117. What a create whose answer was lost now does, said out loud.
 {
   const p117 = data.phase117 ?? {};

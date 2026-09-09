@@ -41,10 +41,23 @@
  * resolved path to start with the resolved root PLUS a separator. Without the
  * separator a root of `/Users/gdc` would contain `/Users/gdcx`.
  *
- * WHAT NONE OF THE THREE COVERS. A symlink on that machine is not resolved by
- * any of them and cannot be, because resolving one means a second round trip
- * and a second answer that can be stale by the time the write lands.
- * Containment here is over the path text.
+ * WHAT NONE OF THE THREE COVERS, AND WHAT PHASE 242 ADDED BECAUSE OF IT. None
+ * of the three can see a symbolic link, because all three compare path TEXT and
+ * a link on another computer cannot be followed from this one. That was a hole
+ * rather than a limit, and it was measured rather than argued: research 102
+ * section 5.2 drove it at the operator's own Mac Pro and a link inside the
+ * confirmed folder pointing out of it carried a save, a folder and a rename
+ * straight through, one of them REPLACING a file outside the folder and
+ * answering `wrote` with this root named beside it.
+ *
+ * So there is a FOURTH layer and it lives where the write does. `noLinkWalk` in
+ * `./remote-scripts.ts` asks the shell's own `-L` about every directory
+ * component of the relative path, plus this verb's last component and its
+ * staged name, in the same call that would otherwise have written. It resolves
+ * NOTHING — no `readlink`, no `realpath`, no second round trip — so the
+ * objection above still holds and is still the reason main does not try. The
+ * word it prints is {@link REMOTE_FILE_PUT_OUTSIDE} and it lands on the
+ * `outsideRoot` outcome this module already had.
  *
  * ## No sixth kind of remote work is declared
  *
@@ -106,17 +119,51 @@ export const REMOTE_FILE_PUT_NEW = 'new';
  */
 export const REMOTE_FILE_PUT_UNSURE = 'unsure';
 
+/**
+ * The word the script prints when a component of the path it was given is a
+ * symbolic link (Phase 242).
+ *
+ * IT IS NOT AN OUTCOME AND IT NEVER REACHES THE RENDERER. It is mapped onto
+ * `outsideRoot`, the outcome this verb already has, whose sentence already
+ * says Tortie may only save under that folder and that nothing was written.
+ * That is exactly what happened, so no new word crosses the channel and no new
+ * sentence is written. It is unlike {@link REMOTE_FILE_PUT_UNSURE} in the one
+ * way that matters: `noLinkWalk` in `./remote-scripts.ts` prints this above
+ * every line that writes and never below one, so "Nothing was written" is true.
+ *
+ * Why the far side has to say it: main compares path TEXT, and a link on
+ * another computer cannot be seen from this one. The measurement, and why this
+ * is a refusal rather than the resolution this file's header refuses, is in
+ * `noLinkWalk`'s own comment.
+ */
+export const REMOTE_FILE_PUT_OUTSIDE = 'outside';
+
 /** What the far side printed after it was asked to save one file. */
 export interface RemoteFilePutAnswer {
-  /** One of the six words the script prints. */
-  readonly word: 'wrote' | 'stale' | 'missing' | 'exists' | 'nomode' | 'nosum';
+  /** One of the seven words the script prints. */
+  readonly word:
+    | 'wrote'
+    | 'stale'
+    | 'missing'
+    | 'exists'
+    | 'nomode'
+    | 'nosum'
+    | 'outside';
   /** The checksum the machine reported, or null when it reported none. */
   readonly sha256: string | null;
   /** The size the machine reported, or null when it reported none. */
   readonly bytes: number | null;
 }
 
-const WORDS = new Set(['wrote', 'stale', 'missing', 'exists', 'nomode', 'nosum']);
+const WORDS = new Set([
+  'wrote',
+  'stale',
+  'missing',
+  'exists',
+  'nomode',
+  'nosum',
+  REMOTE_FILE_PUT_OUTSIDE
+]);
 
 /**
  * One `file-put` payload into its three values, or null. PURE.
@@ -346,6 +393,12 @@ export async function putFileOnMachine(
       bytes: payloadBytes.byteLength,
       writeRoot
     };
+  }
+  // PHASE 242. The far side's own containment refusal, mapped onto the outcome
+  // this verb already has, so the sentence a person reads is the one that was
+  // already right for a path outside the confirmed folder.
+  if (said.word === REMOTE_FILE_PUT_OUTSIDE) {
+    return refused('outsideRoot', writeRoot);
   }
   return refused(said.word, writeRoot);
 }
