@@ -14,17 +14,71 @@ import type { ILink } from '@xterm/xterm';
 import type { DropPreparedItem } from '@shared/types';
 import type { PathDoorAnswer } from '@shared/path-doors';
 import type { PathLinkDeps } from '../path-links';
-import { macOpenFailedToast, PathLinkProvider } from '../path-links';
+import { macOpenFailedToast, paneIsLocal, PathLinkProvider } from '../path-links';
 
-/** A buffer of rows, shaped as much of xterm's API as the provider touches. */
+/**
+ * A buffer of rows, shaped as much of xterm's API as the provider touches.
+ *
+ * IT ANSWERS CELLS AS WELL AS A STRING, because the provider builds its range
+ * in CELL COLUMNS and not in string indices (Phase 247 fix round). One cell
+ * per CODE POINT, which is the shape that makes an emoji a single cell holding
+ * two UTF-16 units, and a width of 2 for anything in the wide ranges below —
+ * so an ASCII row maps one to one and a decorated one does not. The gate's
+ * rule 11 is the same property against a REAL xterm buffer; this is what
+ * `npm test` can hold.
+ */
+function cellsOf(row: string): { chars: string; width: number }[] {
+  const out: { chars: string; width: number }[] = [];
+  for (const chars of row) {
+    const cp = chars.codePointAt(0) ?? 0;
+    // A variation selector or a combining mark JOINS the cell before it, which
+    // is what makes `⚠️` one cell holding two UTF-16 units — the ordinary
+    // agent-output shape that moves the column by -1.
+    const joins =
+      (cp >= 0xfe00 && cp <= 0xfe0f) ||
+      (cp >= 0x0300 && cp <= 0x036f) ||
+      cp === 0x200d;
+    const last = out[out.length - 1];
+    if (joins && last !== undefined) {
+      last.chars += chars;
+      continue;
+    }
+    const wide =
+      (cp >= 0x1100 && cp <= 0x115f) ||
+      (cp >= 0x2e80 && cp <= 0xa4cf) ||
+      (cp >= 0xac00 && cp <= 0xd7a3) ||
+      (cp >= 0xf900 && cp <= 0xfaff) ||
+      (cp >= 0xff00 && cp <= 0xff60);
+    out.push({ chars, width: wide ? 2 : 1 });
+  }
+  return out;
+}
+
+function fakeLine(row: string): unknown {
+  const cells = cellsOf(row);
+  const at: { chars: string; width: number }[] = [];
+  for (const cell of cells) {
+    at.push(cell);
+    for (let i = 1; i < cell.width; i += 1) at.push({ chars: '', width: 0 });
+  }
+  return {
+    length: at.length,
+    translateToString: () => row,
+    getCell: (x: number) => {
+      const cell = at[x];
+      return cell === undefined
+        ? undefined
+        : { getChars: () => cell.chars, getWidth: () => cell.width };
+    }
+  };
+}
+
 function fakeTerm(rows: string[]): { buffer: { active: unknown } } {
   return {
     buffer: {
       active: {
         getLine: (y: number) =>
-          rows[y] === undefined
-            ? undefined
-            : { translateToString: () => rows[y] as string }
+          rows[y] === undefined ? undefined : fakeLine(rows[y] as string)
       }
     }
   };
@@ -281,5 +335,60 @@ describe('the one sentence a person can read', () => {
     expect(macOpenFailedToast('There is no application set to open it.')).toBe(
       'Could not open that file. There is no application set to open it.'
     );
+  });
+});
+
+/**
+ * THE PHASE 247 FIX ROUND'S TWO FINDINGS, pinned where `npm test` can see them.
+ */
+describe('the fix round', () => {
+  it('draws the underline on the cells the path occupies, not the string indices', async () => {
+    // `⚠️ ` is one CELL holding TWO UTF-16 units, so from here on the string
+    // index runs one ahead of the column. Measured against the shipping
+    // @xterm/xterm 6.0.0: 9 of 14 glyphs a real transcript carries move it.
+    const warned = '⚠️ wrote /a/b.md now';
+    const wide = '你 wrote /a/b.md now';
+    const plain = 'xy wrote /a/b.md now';
+    const doors = { '/a/b.md': { door: 'editor', path: '/a/b.md' } as PathDoorAnswer };
+    const a = await linksOn(harness([warned], doors).provider, 1);
+    const b = await linksOn(harness([wide], doors).provider, 1);
+    const control = await linksOn(harness([plain], doors).provider, 1);
+    expect(a?.length).toBe(1);
+    expect(b?.length).toBe(1);
+    expect(control?.length).toBe(1);
+    // Both halves of the defect, in one reading each.
+    //
+    // `⚠️ ` is TWO columns holding THREE units, so the path sits at the SAME
+    // string index as the control's and one column to the LEFT of it. `你 `
+    // is THREE columns holding TWO, so the path sits one string index EARLIER
+    // and in exactly the control's columns. A range built from a string index
+    // is wrong on both, in opposite directions.
+    expect(warned.indexOf('/a/b.md')).toBe(9);
+    expect(wide.indexOf('/a/b.md')).toBe(8);
+    expect(plain.indexOf('/a/b.md')).toBe(9);
+    expect(control?.[0]?.range.start.x).toBe(10);
+    expect(control?.[0]?.range.end.x).toBe(16);
+    expect(a?.[0]?.range.start.x).toBe(9);
+    expect(a?.[0]?.range.end.x).toBe(15);
+    expect(b?.[0]?.range).toEqual(control?.[0]?.range);
+    // ...and every range is exactly as long as the path it underlines.
+    for (const link of [a, b, control]) {
+      const range = link?.[0]?.range;
+      expect((range?.end.x ?? 0) - (range?.start.x ?? 0) + 1).toBe('/a/b.md'.length);
+    }
+  });
+
+  it('refuses a pane with no session row, which "?.machine === undefined" did not', () => {
+    expect(paneIsLocal({ machine: undefined })).toBe(true);
+    expect(paneIsLocal({ machine: { id: 'macpro' } })).toBe(false);
+    // The one that shipped the other way. `undefined?.machine` is `undefined`,
+    // so the predicate read TRUE for a pane whose row had not arrived.
+    expect(paneIsLocal(undefined)).toBe(false);
+  });
+
+  it('never asks main about a spelling that could not be absolute', async () => {
+    const h = harness(['see src/main/fs/ipc.ts and ./a/b.md now'], {});
+    expect(await linksOn(h.provider, 1)).toBeUndefined();
+    expect(h.asked).toEqual([]);
   });
 });

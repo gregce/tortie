@@ -189,3 +189,79 @@ export function pathSpansInRow(row: string, rowAbove: string | null): PathSpan[]
   }
   return out;
 }
+
+/**
+ * A ROW'S STRING INDICES ARE NOT ITS CELL COLUMNS (Phase 247 fix round).
+ *
+ * `IBufferLine.translateToString` walks CELLS and appends each cell's
+ * characters, advancing the column by the cell's WIDTH while the string grows
+ * by however many UTF-16 units that cell holds. The two only agree when every
+ * cell holds exactly one unit and occupies exactly one column, which is true
+ * of pure ASCII and of nothing else. xterm knows this — the core
+ * `BufferLine.translateToString` takes a fourth `outColumns` argument for its
+ * own accessibility tree, and the PUBLIC `IBufferLine` drops it, which is why
+ * a caller has to build the map itself.
+ *
+ * Measured against the shipping `@xterm/xterm` 6.0.0 at the app's own options,
+ * over 24 glyphs a transcript really carries: **12 of them move the column**.
+ * `⚠️ ✔️ ❗️ ▶️ ☑️ 🔧 🎉 📝 🚀` and a decomposed `é` each shift it by -1, a
+ * CJK character by +1, and a zero-width-joined family sequence by -3, while
+ * `⏺ ⎿ │ └ ├ ✅ ❌ ✨ → … •` shift it by 0. `⚠️ ` in front of a path is
+ * ORDINARY agent output, and with the string index used as a column the
+ * underline is drawn one cell to the left of the path: the first character of
+ * the path is dead and the cell after its end hands the file over. Nothing
+ * dangerous can execute either way, because the door sequence decides what
+ * opens — but by refusal 2's own words a link on the wrong text is worse than
+ * no link.
+ *
+ * This is the map, and it is xterm's own arithmetic read out of the shipping
+ * bundle rather than a model of it: index `i` holds the 0-based column the
+ * character at string index `i` is drawn in, and the entry one past the end
+ * holds the column one past the row. A null cell contributes one character
+ * (xterm's `WHITESPACE_CELL_CHAR`) and a zero width is advanced as one, which
+ * is the `e >> 22 || 1` in `BufferLine.translateToString`.
+ */
+export interface RowCell {
+  getChars(): string;
+  getWidth(): number;
+}
+
+/** The shape of `IBufferLine` this needs, so nothing here imports xterm. */
+export interface RowCells {
+  readonly length: number;
+  getCell(x: number): RowCell | undefined;
+}
+
+/** String index -> 0-based cell column, plus the column one past the row. */
+export function cellColumns(line: RowCells): number[] {
+  const out: number[] = [];
+  let x = 0;
+  while (x < line.length) {
+    const cell = line.getCell(x);
+    if (cell === undefined) break;
+    const chars = cell.getChars();
+    const units = chars.length === 0 ? 1 : chars.length;
+    for (let i = 0; i < units; i += 1) out.push(x);
+    const width = cell.getWidth();
+    x += width === 0 ? 1 : width;
+  }
+  out.push(x);
+  return out;
+}
+
+/**
+ * The columns one span occupies, as xterm's own 1-based INCLUSIVE range.
+ *
+ * `null` when the map does not reach the span, which happens only when
+ * `getCell` stopped answering part way along the row. A link drawn from a map
+ * that does not cover it would be a link on the wrong text, so there is none.
+ */
+export function spanColumns(
+  span: Pick<PathSpan, 'start' | 'end'>,
+  columns: number[]
+): { start: number; end: number } | null {
+  const first = columns[span.start];
+  const past = columns[span.end];
+  if (first === undefined || past === undefined) return null;
+  return { start: first + 1, end: past };
+}

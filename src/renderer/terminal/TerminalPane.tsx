@@ -40,6 +40,7 @@ import { isFocusReport } from './keys/focus-report';
 import {
   classifyThroughBridge,
   handToMac,
+  paneIsLocal,
   PathLinkProvider
 } from './path-links';
 import { multilineSequenceFor, primeMultilineKeys } from './keys/multiline';
@@ -381,9 +382,12 @@ export function TerminalPane({
     const pathLinks = term.registerLinkProvider(
       new PathLinkProvider(term, {
         // REFUSAL 5: a pane whose session runs on another machine offers no
-        // path links at all. The same question ⌘K asks, and the same one
-        // `attachPaths` asks before it decides a drop must carry bytes.
-        isLocal: () => sessionRow()?.machine === undefined,
+        // path links at all. The same question ⌘K asks one screen above, and
+        // the same one `attachPaths` asks before it decides a drop must carry
+        // bytes — except that this one FAILS CLOSED when there is no row,
+        // which `sessionRow()?.machine === undefined` does not. See
+        // `paneIsLocal`.
+        isLocal: () => paneIsLocal(sessionRow()),
         repoPath: () => sessionRow()?.projectPath ?? '',
         classify: classifyThroughBridge,
         openInTortie: (path, repoPath, line) => {

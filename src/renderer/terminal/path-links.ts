@@ -32,23 +32,39 @@
  * A LINK THAT DOES NOTHING IS WORSE THAN NO LINK, so a path no door accepts is
  * never underlined at all rather than underlined and then refused.
  *
- * ## The cache, and why it is nearly free
+ * ## The cache, and what its keys really are
  *
  * `lstat` lives in main, so the answer is an IPC round trip, and a pointer
- * crossing one row asks about every cell in it. Research 107 section 7.5
- * measured the repetition that makes a naive implementation expensive: 72
- * distinct files behind 200 spans in a 52,094-row corpus, 44 spans behind one
- * script. So the round trip happens once per distinct path and not once per
- * cell. Entries expire, because a file an agent deleted must stop being
- * underlined, and the CLICK asks again anyway — the cached answer decides only
- * whether to draw a line under something.
+ * crossing one row asks about every cell in it. So the round trip happens once
+ * per distinct SPELLING and not once per cell. Entries expire, because a file
+ * an agent deleted must stop being underlined, and the CLICK asks again anyway
+ * — the cached answer decides only whether to draw a line under something.
+ *
+ * **THE KEY POPULATION IS THE SPAN SET AND NOT THE DOOR SET, and the version
+ * of this comment that sized it from "72 distinct files behind 200 spans" was
+ * sizing it from the wrong number.** Those 72 are the paths that reach a DOOR.
+ * Every span the grammar yields is asked about and cached, including every
+ * relative one main answers `not-absolute`. Re-derived over the operator's own
+ * 25 live panes and 56,977 rows, read only, through the SHIPPING
+ * `pathSpansInRow`: **7,172 spans over 1,552 distinct targets, of which 1,144
+ * — 74% — are relative**, and the busiest single pane holds 460 distinct
+ * targets against a `CACHE_MAX` of 512.
+ *
+ * Two things follow, and both are here rather than in a later surprise. The
+ * relative three quarters are refused by `couldBeAbsolute` in this renderer
+ * before a round trip is made, which is the same answer main gives and is why
+ * it is one exported predicate rather than two spellings of a rule. And the
+ * ceiling is a ceiling rather than headroom: a busy pane sits inside it by 52
+ * entries, so it evicts oldest-first when it does not, which costs a round
+ * trip and never an answer.
  */
 
 import type { ILink, ILinkProvider, Terminal } from '@xterm/xterm';
 import type { DropPreparedItem } from '@shared/types';
 import type { PathDoorAnswer } from '@shared/path-doors';
+import { couldBeAbsolute } from '@shared/path-doors';
 import type { PathSpan } from '@shared/path-spans';
-import { pathSpansInRow } from '@shared/path-spans';
+import { cellColumns, pathSpansInRow, spanColumns } from '@shared/path-spans';
 import { gmuxBridge } from '../bridge';
 import { useApp } from '../state/store';
 
@@ -121,12 +137,17 @@ export class PathLinkProvider implements ILinkProvider {
       callback(undefined);
       return;
     }
-    void this.linksFor(spans, bufferLineNumber).then(callback);
+    // A ROW'S STRING INDICES ARE NOT ITS CELL COLUMNS, and xterm underlines
+    // and hit-tests in COLUMNS. The map is taken here, synchronously, beside
+    // the row it belongs to and before any await. See `cellColumns`.
+    const columns = cellColumns(line);
+    void this.linksFor(spans, columns, bufferLineNumber).then(callback);
   }
 
   /** One `ILink` per span whose door is a door, and nothing for the rest. */
   private async linksFor(
     spans: PathSpan[],
+    columns: number[],
     y: number
   ): Promise<ILink[] | undefined> {
     const answers = await Promise.all(spans.map((s) => this.doorFor(s.target)));
@@ -134,11 +155,14 @@ export class PathLinkProvider implements ILinkProvider {
     for (const [at, span] of spans.entries()) {
       const answer = answers[at];
       if (answer === undefined || answer.door === null) continue;
+      // xterm's range is 1-based and INCLUSIVE at both ends, and it is in
+      // CELL COLUMNS. A span whose columns cannot be read is not drawn.
+      const range = spanColumns(span, columns);
+      if (range === null) continue;
       links.push({
-        // xterm's range is 1-based and INCLUSIVE at both ends.
         range: {
-          start: { x: span.start + 1, y },
-          end: { x: span.end, y }
+          start: { x: range.start, y },
+          end: { x: range.end, y }
         },
         text: span.text,
         activate: () => {
@@ -156,6 +180,10 @@ export class PathLinkProvider implements ILinkProvider {
    * so the promise is shared rather than the request repeated.
    */
   private async doorFor(target: string): Promise<PathDoorAnswer> {
+    // Three spans in four are relative and main answers every one of them the
+    // same way. The rule is `couldBeAbsolute` and it is deliberately wider
+    // than main's, so this can only cost a round trip and never an answer.
+    if (!couldBeAbsolute(target)) return { door: null, refusal: 'not-absolute' };
     const held = this.cache.get(target);
     if (held !== undefined && this.now() - held.at < CACHE_MS) return held.answer;
     const flying = this.inFlight.get(target);
@@ -206,6 +234,28 @@ export class PathLinkProvider implements ILinkProvider {
     // markdown and text are three destinations that already work.
     this.deps.openInTortie(answer.path, this.deps.repoPath(), span.line);
   }
+}
+
+/**
+ * IS THIS PANE'S SESSION ON THIS MAC? (Phase 247 fix round.)
+ *
+ * Research 107 refusal 5, and it FAILS CLOSED. The predicate shipped as
+ * `sessionRow()?.machine === undefined`, which is the pane's own ⌘K closure —
+ * and that spelling answers TRUE when there is no row at all, because
+ * `undefined?.machine` is `undefined`. Both of its neighbours fail the other
+ * way: `attachPaths` refuses on `session === null` before it asks about a
+ * machine, and Phase 96 measured that a session which GAINS a machine leaves
+ * this Mac's list, so "no row" is exactly the state a session that has just
+ * moved passes through.
+ *
+ * The window is one render tick, because `SplitSurface` draws no pane without
+ * a row, and it was not reachable when this was found. It is one word, it is
+ * the closure that carries refusal 5, and a guard on the riskiest gesture in
+ * the product should not be the only one of the three that opens when it is
+ * asked a question it cannot answer.
+ */
+export function paneIsLocal(row: { machine?: unknown } | undefined): boolean {
+  return row !== undefined && row.machine === undefined;
 }
 
 /** The production ask: `drop:prepare` under its read-only option. */
