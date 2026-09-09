@@ -33,8 +33,11 @@ const NAME = 'notes.md';
 
 /** Every word, and the sentence a person reads for it. */
 const PINNED: Record<SaveRefusalWord, string> = {
+  // PHASE 240 FIX ROUND. `outside` reaches a person in one shape only, being a
+  // tab whose project was closed under it, so the sentence names that cause and
+  // the remedy rather than a containment rule nobody can act on.
   outside:
-    'Tortie did not save notes.md, because it is not inside an open project. Nothing was written.',
+    'Tortie did not save notes.md, because its project is not open — open it again and save. Nothing was written.',
   missing:
     'Tortie did not save notes.md, because it is no longer on disk. Nothing was written.',
   readOnly:

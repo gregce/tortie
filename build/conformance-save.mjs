@@ -235,6 +235,52 @@ const FIXTURES = [
     check: (c) => bodyMentions(c, 'save', 'writeFile') === true
   },
   {
+    name: 'the plain door that reads before it writes is clean',
+    catches: false,
+    code:
+      'const saveOutsideProject = async (id, tab, v) => { const d = await diskReading(tab); ' +
+      'if (d.kind !== "changed") return writePlain(id, tab, v); return false; };',
+    check: (c) =>
+      bodyOrder(c, 'saveOutsideProject', 'diskReading', 'writePlain') === true
+  },
+  {
+    name: 'the plain door that writes before it reads is caught',
+    catches: true,
+    code:
+      'const saveOutsideProject = async (id, tab, v) => { const ok = await writePlain(id, tab, v); ' +
+      'const d = await diskReading(tab); return ok; };',
+    check: (c) =>
+      bodyOrder(c, 'saveOutsideProject', 'diskReading', 'writePlain') === false
+  },
+  {
+    name: 'a plain write reached from a SECOND function is caught',
+    catches: true,
+    code:
+      'const saveOutsideProject = async (id, tab, v) => { const d = await diskReading(tab); return writePlain(id, tab, v); };\n' +
+      'const shortcut = async (id, tab, v) => { return writePlain(id, tab, v); };',
+    check: (c) => innermostNaming(c, 'writePlain').join(',') !== 'saveOutsideProject'
+  },
+  {
+    name: 'a return type holding a function type in angle brackets does not swallow the arrow',
+    catches: false,
+    code:
+      'const save = async (id: string): Promise<Record<string, () => void>> => { await gmux.fs.writeFile(p, v); };',
+    // The body is the block's INSIDE, so it holds the write and no arrow. The
+    // mis-read one begins `void> => {` and carries both.
+    check: (c) => {
+      const body = namedFunctions(c).get('save') ?? '';
+      return body.includes('writeFile') && !body.includes('=>');
+    }
+  },
+  {
+    name: 'a needle inside a return type is not read as part of the body',
+    catches: false,
+    code:
+      'const overwrite = async (t, onDisk): Promise<Map<string, () => typeof sha256Hex>> => ' +
+      '{ return guardedSave({ expect: onDisk }); };',
+    check: (c) => bodyMentions(c, 'overwrite', 'sha256Hex') === false
+  },
+  {
     name: 'an enclosing factory is not read as the function that writes',
     catches: false,
     code:
@@ -286,18 +332,50 @@ const FIXTURES = [
 }
 
 // ---------------------------------------------------------------------------
-// Rule 2. ONE function in the editor names `writeFile`.
+// Rule 2. ONE function in the editor names `writeFile`, and nothing reaches it
+// without reading the file first.
+//
+// PHASE 240'S FIX ROUND SPLIT THIS IN TWO, because the first half passed while
+// the product lost somebody else's write. `saveOutsideProject` was the plain
+// write itself, and three shapes reached it with no check of any kind: a
+// symbolic link inside a project, a file outside every project, and a draft
+// that had never been saved. Driven in the running app, a `/bin/sh` wrote 17
+// bytes into a symlinked file's target, ⌘S, and the write was gone with no
+// dialog, no toast and a clean tab — issue 16 on a file that happens to be a
+// link. So the write is `writePlain` now, `saveOutsideProject` is the reading
+// in front of it, and rule 2b is what keeps the reading there.
 // ---------------------------------------------------------------------------
 
-const OLD_DOOR = 'saveOutsideProject';
+const PLAIN_WRITE = 'writePlain';
+const PLAIN_DOOR = 'saveOutsideProject';
+const READING = 'diskReading';
 {
   const naming = innermostNaming(readFileSync(join(repoRoot, TAB_IO), 'utf8'), 'writeFile');
-  if (naming.length !== 1 || naming[0] !== OLD_DOOR) {
+  if (naming.length !== 1 || naming[0] !== PLAIN_WRITE) {
     fail(
-      `2. ${TAB_IO} names writeFile inside ${naming.join(', ') || 'no function'}, and it must be ${OLD_DOOR} alone`
+      `2. ${TAB_IO} names writeFile inside ${naming.join(', ') || 'no function'}, and it must be ${PLAIN_WRITE} alone`
     );
   } else {
-    say(`2. writeFile is named inside ${OLD_DOOR} alone, the door a file outside a project and a symbolic link take`);
+    say(`2. writeFile is named inside ${PLAIN_WRITE} alone, the write a file outside a project, a symbolic link and a never-saved draft take`);
+  }
+}
+
+// Rule 2b. The plain write is reached from the door alone, and the door reads
+// the file before it writes.
+{
+  const code = readFileSync(join(repoRoot, TAB_IO), 'utf8');
+  const callers = innermostNaming(code, PLAIN_WRITE);
+  const order = bodyOrder(source(TAB_IO), PLAIN_DOOR, READING, PLAIN_WRITE);
+  if (callers.length !== 1 || callers[0] !== PLAIN_DOOR) {
+    fail(
+      `2b. ${PLAIN_WRITE} is reached from ${callers.join(', ') || 'no function'}, and it must be ${PLAIN_DOOR} alone, so every plain write is answered for by the reading in front of it`
+    );
+  } else if (order !== true) {
+    fail(
+      `2b. ${PLAIN_DOOR} ${order === null ? `never names both ${READING} and ${PLAIN_WRITE}` : `writes before it reads`}; a plain write with no reading in front of it is the shape that lost 17 bytes of an outside write on a symlinked file`
+    );
+  } else {
+    say(`2b. ${PLAIN_WRITE} is reached from ${PLAIN_DOOR} alone and ${PLAIN_DOOR} asks ${READING} before it writes`);
   }
 }
 
@@ -310,7 +388,7 @@ const OLD_DOOR = 'saveOutsideProject';
   if (body !== null) {
     if (!body.includes('guardedSave')) {
       fail('3. saveInProject does not reach guardedSave, so a save inside a project is unguarded');
-    } else if (body.includes('writeFile') && !body.includes(OLD_DOOR)) {
+    } else if (body.includes('writeFile') && !body.includes(PLAIN_DOOR)) {
       fail('3. saveInProject writes through a channel of its own');
     } else if (body.indexOf('savedContents') === -1) {
       fail('3. saveInProject never names savedContents, so its precondition is not the bytes Tortie read');

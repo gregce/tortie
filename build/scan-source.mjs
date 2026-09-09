@@ -381,15 +381,29 @@ function bodyAfter(code, afterParams) {
   // that is itself a function, e.g. `(): (() => void) =>`, is not mistaken for
   // the arrow, and a `;` outside any bracket abandons the attempt rather than
   // running away down the file.
+  //
+  // PHASE 240'S FIX ROUND ADDED THE ANGLE BRACKETS, and they are brackets here
+  // for the same reason the round ones are. `<` and `>` were not counted, so a
+  // function type inside a TYPE ARGUMENT closed nothing and its own arrow was
+  // read as the function's: `(id: string): Record<string, () => void> => {…}`
+  // gave back the body `void> => { … }`, which is a wrong body rather than a
+  // null one, in a helper four gates share. A `>` is only ever a closing angle
+  // when one is open and the character before it is not `=`, so the `>` of an
+  // arrow can never close a type argument, and an unbalanced `<` — a genuine
+  // comparison, which no return type holds — leaves `angle` above zero and the
+  // scan runs to the `;` clause and abandons the attempt rather than guessing.
   if (code[i] === ':') {
     let depth = 0;
+    let angle = 0;
     let j = i + 1;
     for (; j < code.length; j += 1) {
       const c = code[j];
       if (c === '(' || c === '[' || c === '{') depth += 1;
       else if (c === ')' || c === ']' || c === '}') depth -= 1;
-      else if (depth === 0 && c === ';') return null;
-      if (depth === 0 && code.startsWith('=>', j)) break;
+      else if (c === '<') angle += 1;
+      else if (c === '>' && angle > 0 && code[j - 1] !== '=') angle -= 1;
+      else if (depth === 0 && angle === 0 && c === ';') return null;
+      if (depth === 0 && angle === 0 && code.startsWith('=>', j)) break;
       if (depth < 0) return null;
     }
     if (j >= code.length) return null;

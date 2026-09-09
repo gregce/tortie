@@ -688,7 +688,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
   };
 
   /**
-   * The save this product has had since Phase 5, unchanged (Phase 240).
+   * The unconditional write this product has had since Phase 5, unchanged.
    *
    * `fs:writeFile` is NOT removed and NOT modified. It is what a file OUTSIDE
    * every open project root takes — the Context detail tab on a global
@@ -696,12 +696,11 @@ export function createTabIo(deps: TabIoDeps): TabIo {
    * would refuse such a path `outside`, and refusing it here would take away a
    * save a person has today.
    *
-   * It is ALSO the fallback for a file that is a symbolic link, and for a page
-   * with no digest program. See ./save-sentences `SaveRefusalWord` for the
-   * link decision and why it is the only one. THE STATED LIMIT is that neither
-   * shape gets a staleness check, which is exactly what both have today.
+   * NOTHING CALLS IT DIRECTLY except `saveOutsideProject` below and the
+   * Overwrite it offers, so every plain write in this file is answered for by
+   * the reading in front of it.
    */
-  const saveOutsideProject = async (
+  const writePlain = async (
     id: string,
     tab: EditorTab,
     value: string
@@ -721,6 +720,80 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         );
       return false;
     }
+  };
+
+  /**
+   * PHASE 240 FIX ROUND. What the file says NOW, against what the buffer was
+   * built from.
+   *
+   * `same` means the text on disk is still `tab.savedContents`, `changed`
+   * carries what it says instead, and `unknown` is a file that could not be
+   * read at all or came back truncated. A draft that has never been saved
+   * reads `unknown`, because its file does not exist yet and that is the point
+   * of it.
+   *
+   * IT IS A TEXT COMPARISON AND NOT A DIGEST, because that is the only
+   * question this side of the bridge can ask: `fs:readFile` hands the renderer
+   * a DECODED string and never the bytes. The two callers below each need a
+   * different half of that, and both reasons are worth writing down.
+   */
+  const diskReading = async (
+    tab: EditorTab
+  ): Promise<
+    { kind: 'same' } | { kind: 'changed'; text: string } | { kind: 'unknown' }
+  > => {
+    if (!gmux) return { kind: 'unknown' };
+    let disk;
+    try {
+      disk = await gmux.fs.readFile(tab.path);
+    } catch {
+      return { kind: 'unknown' };
+    }
+    if (disk.truncated) return { kind: 'unknown' };
+    return disk.contents === tab.savedContents
+      ? { kind: 'same' }
+      : { kind: 'changed', text: disk.contents };
+  };
+
+  /**
+   * The plain door, with a reading in front of it (Phase 240 fix round).
+   *
+   * WHAT THIS CLOSES. As Phase 240 first shipped, three shapes reached
+   * `fs:writeFile` with no check of any kind, and the header of
+   * ./save-sentences said of the first of them that "nothing is lost by it".
+   * That sentence was refuted by measurement in the running app: a file inside
+   * a project that is a SYMBOLIC LINK was typed into, a `/bin/sh` wrote 17
+   * bytes into the link's target, ⌘S — and the outside write was gone with no
+   * dialog, no toast and a clean tab. It is issue 16 exactly, on a file that
+   * happens to be a link. The other two are a file outside every open project,
+   * which is where an agent edits `~/.claude/CLAUDE.md`, and a draft that has
+   * never been saved, whose path may have grown a file since the draft opened.
+   *
+   * So the plain door now READS the file first and asks the same question the
+   * guarded channel asks, and offers the same three answers when it differs.
+   * THE STATED LIMIT IS THE WINDOW, and it is wider than the guarded channel's:
+   * there is no compare-and-swap here, so a write landing between this reading
+   * and the write below is lost. That window is one IPC round trip rather than
+   * two system calls. It is not closed here because closing it means giving
+   * the guarded channel a mode for a link and for a file in no project, which
+   * is a change to the channel and this phase changes nothing about it.
+   *
+   * AND THE OVERWRITE IT OFFERS IS UNCONDITIONAL, deliberately. Overwrite
+   * means "put my version over what is there", so re-reading before it would
+   * find the same difference again and offer the same choice for ever.
+   */
+  const saveOutsideProject = async (
+    id: string,
+    tab: EditorTab,
+    value: string
+  ): Promise<boolean> => {
+    if (!gmux) return false;
+    const disk = await diskReading(tab);
+    if (disk.kind !== 'changed') return writePlain(id, tab, value);
+    offerStaleChoice(tab, value, () => {
+      void writePlain(id, tab, value);
+    });
+    return false;
   };
 
   /**
@@ -789,12 +862,18 @@ export function createTabIo(deps: TabIoDeps): TabIo {
    * `stale` again and offered the same choice against the newer bytes, rather
    * than being written over. The loop terminates because every round needs
    * another write to arrive.
+   *
+   * PHASE 240 FIX ROUND. THE OVERWRITE IS THE CALLER'S, handed in rather than
+   * composed here, because there are two doors now and each owns a different
+   * second write. The guarded door's is `overwrite` below, guarded against the
+   * digest the channel handed back. The plain door's is an unconditional
+   * write, because there is no compare-and-swap on that path at all; see
+   * `saveOutsideProject` for the window that leaves and why it stays.
    */
   const offerStaleChoice = (
-    id: string,
     tab: EditorTab,
     value: string,
-    onDisk: string
+    onOverwrite: () => void
   ): void => {
     useApp.getState().setConfirm({
       title: staleSaveTitle(tab.name),
@@ -804,9 +883,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         void openCompare(tab, value);
       },
       altLabel: SAVE_OVERWRITE_LABEL,
-      onAlt: () => {
-        void overwrite(id, tab, value, onDisk);
-      }
+      onAlt: onOverwrite
     });
   };
 
@@ -829,7 +906,10 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     }
     if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value);
     if (result.outcome === 'stale') {
-      offerStaleChoice(id, tab, value, result.sha256);
+      const again = result.sha256;
+      offerStaleChoice(tab, value, () => {
+        void overwrite(id, tab, value, again);
+      });
       return false;
     }
     useApp
@@ -874,11 +954,47 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       deps.patch(id, { savedContents: value, dirty: false });
       return true;
     }
-    // The one fallback: a symbolic link, which saves today and loses nothing
-    // by saving. ./save-sentences SaveRefusalWord carries the argument.
+    // A symbolic link, which the channel will not turn into a regular file.
+    // It takes the plain door, which now reads the file first.
+    // ./save-sentences SaveRefusalWord carries the argument.
     if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value);
     if (result.outcome === 'stale') {
-      offerStaleChoice(id, tab, value, result.sha256);
+      // PHASE 240 FIX ROUND. A `stale` ANSWER IS NOT ALWAYS A CHANGE ON DISK,
+      // and as this phase first shipped it was always read as one.
+      //
+      // The precondition above is the digest of the DECODED text, because a
+      // decoded string is all `fs:readFile` ever hands this side of the
+      // bridge, and the channel hashes the RAW BYTES. For every file that
+      // survives a UTF-8 round trip those are the same digest. For a file
+      // that does not — a latin-1 `.txt`, measured in the running app — they
+      // can never be equal, so the channel answered `stale` on a file NOBODY
+      // HAD WRITTEN TO and the person read "'latin.txt' changed on disk /
+      // Something wrote to it after Tortie read it", which is false, and the
+      // true sentence only arrived if they pressed Overwrite, because the
+      // channel decides `stale` at step 5 and `notUtf8` at step 6.
+      //
+      // So the disk is read once more. If the text is still exactly what the
+      // buffer was built from then nothing wrote to this file, and the only
+      // thing that can differ is the bytes underneath the same text, which is
+      // precisely the round trip the channel refuses. The person hears that
+      // instead, and still nothing is written.
+      //
+      // THE ONE MISREPORT THIS CAN MAKE is a writer that put the file back to
+      // exactly the text Tortie read, between the channel's read and this
+      // one: the sentence would name the encoding rather than the writer.
+      // Nothing is written either way, and the next ⌘S answers `wrote`.
+      if ((await diskReading(tab)).kind === 'same') {
+        useApp
+          .getState()
+          .toast('error', saveRefusalSentence('notUtf8', tab.name), {
+            sticky: true
+          });
+        return false;
+      }
+      const again = result.sha256;
+      offerStaleChoice(tab, value, () => {
+        void overwrite(id, tab, value, again);
+      });
       return false;
     }
     useApp
@@ -945,9 +1061,34 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // `~/.claude/CLAUDE.md`, which `openFileAt` opens as an ordinary editable
     // tab carrying the project's `repoPath`, and any file outside the
     // repository. `fileInRepo` is the discriminator `refreshRepo` already uses
-    // to decide which tabs may be asked about HEAD, and it is the same
-    // question here.
-    return fileInRepo(tab.repoPath, tab.path)
+    // to decide which tabs may be asked about HEAD.
+    //
+    // PHASE 240 FIX ROUND, AND IT CORRECTS THIS COMMENT'S OWN LAST SENTENCE,
+    // which read "and it is the same question here". IT IS NOT THE SAME
+    // QUESTION. `fileInRepo` is a pure prefix test on `tab.repoPath`, while
+    // the guarded channel asks `resolveOpenProjectRoot` against the projects
+    // Tortie has OPEN, and closing a project does not close its tabs. So a
+    // dirty tab whose project was closed is inside its repoPath, takes the
+    // guarded door, and is refused `outside` where the parent commit wrote the
+    // file. That refusal STANDS, because every other mutation in this product
+    // — create, rename, move, trash — asks the same gate and refuses the same
+    // way, and nothing is lost by it: the buffer keeps the typing and
+    // reopening the project saves it. What was wrong was the sentence, which
+    // said "not inside an open project" and named no remedy; ./save-sentences
+    // carries the one a person can act on.
+    //
+    // A DRAFT THAT HAS NEVER BEEN SAVED TAKES THE PLAIN DOOR, and this is the
+    // one shape Phase 240 broke outright. Phase 63's "Draft a contract" opens
+    // a tab holding composed text whose file DOES NOT EXIST, with
+    // `savedContents` empty, so the guarded channel opens nothing and answers
+    // `missing`: the drafted contract could not be saved at all, and the
+    // sentence a person read said it was "no longer on disk" about a file that
+    // was never there. The predicate is `refreshRepo`'s own, below, so the two
+    // agree by construction, and the plain door reads the path first, which is
+    // the question that matters for a draft — has somebody put a file here
+    // since it opened.
+    const neverSaved = tab.draft != null && tab.savedContents === '';
+    return !neverSaved && fileInRepo(tab.repoPath, tab.path)
       ? saveInProject(id, tab, value)
       : saveOutsideProject(id, tab, value);
   };

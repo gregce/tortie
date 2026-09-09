@@ -30,22 +30,40 @@ import type { FsGuardedWriteRefusal } from '@shared/fs-ops';
  *
  * `link` is excluded, and the reason is the one thing this phase had to decide
  * that the charter left open. A file inside a project that is a symbolic link
- * saves perfectly well today: `fs:writeFile` follows the link and replaces
- * what it points at, which is what a person who made that link expects, and
- * nothing is lost by it. The guarded channel refuses it because it will not
- * turn a link into a regular file, which is right for a REWIND — nobody typed
- * those bytes — and would be a save a person has today taken away from them.
- * So ./tab-io saves a link through the old door instead, unguarded, exactly as
- * it does now, and the stated limit is that a symlinked file gets no staleness
- * check. It is the ONE fallback, it is named at its call site, and there is no
- * sentence for it because nothing went wrong.
+ * saves today: `fs:writeFile` follows the link and replaces what it points at,
+ * which is what a person who made that link expects. The guarded channel
+ * refuses it because it will not turn a link into a regular file, which is
+ * right for a REWIND — nobody typed those bytes — and would be a save a person
+ * has today taken away from them. So ./tab-io saves a link through the plain
+ * door instead, and there is no sentence for it because nothing went wrong.
+ *
+ * THE FIX ROUND REFUTED THIS PARAGRAPH'S OWN SENTENCE, and the correction is
+ * the point rather than the footnote. It read "and nothing is lost by it", and
+ * that was measured in the running app and is false: typed into a symlinked
+ * file inside a project, a `/bin/sh` wrote 17 bytes into the link's target,
+ * ⌘S — and the outside write was gone, with no dialog, no toast and a clean
+ * tab. That is issue 16 exactly, on a file that happens to be a link, so a
+ * fallback with no check at all could not stand. The plain door in ./tab-io
+ * now READS the file and compares it to what the buffer was built from before
+ * it writes, and offers the same three answers when they differ. THE STATED
+ * LIMIT IS THE WINDOW between that reading and the write, which is one IPC
+ * round trip rather than the guarded channel's two system calls, and it stays
+ * open because closing it means giving the channel a mode for a link, which is
+ * a change to the channel this phase does not make.
  */
 export type SaveRefusalWord = Exclude<FsGuardedWriteRefusal, 'link'>;
 
 /** The sentence for each refusal word, `{name}` filled with the file's name. */
 const SENTENCES: Record<SaveRefusalWord, string> = {
+  // PHASE 240 FIX ROUND. `outside` reaches a person in exactly one shape, and
+  // the first sentence did not name it. A file outside every project takes the
+  // plain door and never asks the channel at all, so the only way to hear this
+  // is a tab whose PROJECT WAS CLOSED under it: closing a project does not
+  // close its tabs, the path is still inside its old root, and the channel
+  // asks the open list. So the sentence names that cause and the remedy, in
+  // the same two sentences the family uses.
   outside:
-    'Tortie did not save {name}, because it is not inside an open project. Nothing was written.',
+    'Tortie did not save {name}, because its project is not open — open it again and save. Nothing was written.',
   missing:
     'Tortie did not save {name}, because it is no longer on disk. Nothing was written.',
   readOnly:

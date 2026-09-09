@@ -296,7 +296,13 @@ describe('the other words each get their own sentence', () => {
   });
 });
 
-describe('the two shapes that keep the old door', () => {
+describe('the shapes that keep the plain door', () => {
+  beforeEach(() => {
+    // The plain door reads before it writes now, so every arm here says what
+    // the file holds. Unchanged unless the arm says otherwise.
+    readFile.mockResolvedValue({ contents: READ, truncated: false });
+  });
+
   it('a file OUTSIDE every open project saves exactly as it does today', async () => {
     const tab = tabOf({ path: '/Users/op/.claude/CLAUDE.md', name: 'CLAUDE.md' });
     expect(await ioOver(tab).save(tab.id)).toBe(true);
@@ -311,5 +317,103 @@ describe('the two shapes that keep the old door', () => {
     expect(writeFile).toHaveBeenCalledWith(PATH, BUFFER);
     expect(toasts()).toEqual([]);
     expect(patches).toEqual([{ savedContents: BUFFER, dirty: false }]);
+  });
+});
+
+/**
+ * PHASE 240 FIX ROUND. The four shapes the first round got wrong, each
+ * measured before it was fixed and each red without the clause it names.
+ */
+describe('the fix round', () => {
+  it('a SYMBOLIC LINK is checked before the plain write, not written blind', async () => {
+    // Measured in the running app at 3efc8db2: typed into a symlinked file, a
+    // /bin/sh wrote 17 bytes into the link's target, ⌘S, and the write was
+    // gone with no dialog, no toast and a clean tab. It is issue 16 on a file
+    // that happens to be a link.
+    writeGuarded.mockResolvedValue({ outcome: 'refused', why: 'link', reason: 'x' });
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    expect(await ioOver(tabOf()).save(PATH)).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(patches).toEqual([]);
+    expect(confirm()?.title).toBe("'notes.md' changed on disk");
+  });
+
+  it('and its Overwrite writes, because a plain door has nothing to swap against', async () => {
+    writeGuarded.mockResolvedValue({ outcome: 'refused', why: 'link', reason: 'x' });
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    await ioOver(tabOf()).save(PATH);
+    confirm()?.onAlt?.();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(writeFile).toHaveBeenCalledWith(PATH, BUFFER);
+    expect(patches).toEqual([{ savedContents: BUFFER, dirty: false }]);
+  });
+
+  it('a file OUTSIDE every project is checked too, which is where an agent edits CLAUDE.md', async () => {
+    const tab = tabOf({ path: '/Users/op/.claude/CLAUDE.md', name: 'CLAUDE.md' });
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    expect(await ioOver(tab).save(tab.id)).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(confirm()?.title).toBe("'CLAUDE.md' changed on disk");
+  });
+
+  it('a DRAFT that has never been saved still saves, and asks nothing', async () => {
+    // Phase 63's "Draft a contract". The file does not exist, so the guarded
+    // channel answers `missing` and the drafted contract could not be saved at
+    // all. `readFile` rejecting is what "there is no file there" looks like.
+    readFile.mockRejectedValue(new Error('ENOENT'));
+    const tab = tabOf({ draft: 'skeleton\n', savedContents: '' });
+    expect(await ioOver(tab).save(PATH)).toBe(true);
+    expect(writeGuarded).not.toHaveBeenCalled();
+    expect(writeFile).toHaveBeenCalledWith(PATH, BUFFER);
+    expect(toasts()).toEqual([]);
+    expect(patches).toEqual([{ savedContents: BUFFER, dirty: false }]);
+  });
+
+  it('a DRAFT whose path grew a file since it opened asks rather than clobbering it', async () => {
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    const tab = tabOf({ draft: 'skeleton\n', savedContents: '' });
+    expect(await ioOver(tab).save(PATH)).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(confirm()?.title).toBe("'notes.md' changed on disk");
+  });
+
+  it('a file that is NOT UTF-8 hears why, and never "changed on disk"', async () => {
+    // The precondition is the digest of the DECODED text and the channel
+    // hashes the RAW BYTES, so a file that does not survive the round trip is
+    // answered `stale` for ever. Measured on a 49 B latin-1 .txt nobody had
+    // written to: the dialog said it changed on disk, which is false, and the
+    // true sentence only arrived behind Overwrite.
+    writeGuarded.mockResolvedValue({
+      outcome: 'stale',
+      sha256: 'digest-of-the-raw-bytes',
+      reason: 'the file changed'
+    });
+    readFile.mockResolvedValue({ contents: READ, truncated: false });
+    expect(await ioOver(tabOf()).save(PATH)).toBe(false);
+    expect(confirm()).toBeNull();
+    expect(toasts()).toEqual([saveRefusalSentence('notUtf8', 'notes.md')]);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(patches).toEqual([]);
+  });
+
+  it('and a file that really DID change still gets the choice', async () => {
+    writeGuarded.mockResolvedValue({
+      outcome: 'stale',
+      sha256: 'digest-of-the-agents-bytes',
+      reason: 'the file changed'
+    });
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    expect(await ioOver(tabOf()).save(PATH)).toBe(false);
+    expect(confirm()?.title).toBe("'notes.md' changed on disk");
+    expect(toasts()).toEqual([]);
+  });
+
+  it('a tab whose PROJECT WAS CLOSED says so and names the remedy', async () => {
+    writeGuarded.mockResolvedValue({ outcome: 'refused', why: 'outside', reason: 'x' });
+    expect(await ioOver(tabOf()).save(PATH)).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(patches).toEqual([]);
+    expect(toasts()).toEqual([saveRefusalSentence('outside', 'notes.md')]);
+    expect(toasts()[0]).toContain('open it again and save');
   });
 });
