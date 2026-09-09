@@ -109,6 +109,7 @@
 
 import { diffWords } from 'diff';
 import type { ChangeContent, FileDiffMetadata, Hunk } from '@pierre/diffs';
+import { PROSE_EXTENSIONS } from '@shared/prose-paths';
 import { baseName } from './paths';
 
 /**
@@ -116,23 +117,22 @@ import { baseName } from './paths';
  * same reason as ./markdown/markdown-path.ts: this is a READING aid over
  * prose, and a file somebody opened to read as code must not have its
  * indentation reflowed away because its extension looked wordy.
+ *
+ * THE LIST ITSELF LIVES IN `@shared/prose-paths` AND IS IMPORTED, because
+ * Phase 243 gave it a second asker in a process that cannot import this file:
+ * `src/main/baselines/store.ts` refuses to keep a baseline for a file the
+ * redline would never draw. Phase 243 wrote the shared module and left the
+ * seven strings HERE as well, which is two lists nothing compared — add an
+ * extension to one and the store either fills a person's data directory with
+ * files the view never draws or refuses one it does. The predicate stays here
+ * because it is spelled in the renderer's own `baseName`, which understands a
+ * tab's path; the set it asks is the one set.
  */
-const REDLINE_EXTENSIONS = new Set([
-  'md',
-  'markdown',
-  'mdown',
-  'mkd',
-  'mdx',
-  'txt',
-  'text'
-]);
-
-/** True for the prose extensions above (case-insensitive). */
 export function isRedlinePath(path: string): boolean {
   const name = baseName(path).toLowerCase();
   const dot = name.lastIndexOf('.');
   if (dot <= 0) return false;
-  return REDLINE_EXTENSIONS.has(name.slice(dot + 1));
+  return PROSE_EXTENSIONS.has(name.slice(dot + 1));
 }
 
 /**

@@ -7,6 +7,7 @@
  * nothing, reads nothing under the person's home, and makes no request.
  */
 
+import { isProsePath } from '@shared/prose-paths';
 import { parseDiffFromFile, processFile } from '@pierre/diffs';
 import type { FileDiffMetadata } from '@pierre/diffs';
 import {
@@ -438,7 +439,7 @@ console.log(
         'c.mkd',
         'd.mdx',
         'e.text'
-      ].map((p) => ({ path: p, redline: isRedlinePath(p) })),
+      ].map((p) => ({ path: p, redline: isRedlinePath(p), prose: isProsePath(p) })),
       no: [
         'PierreDiff.tsx',
         'store.ts',
@@ -449,7 +450,7 @@ console.log(
         'Makefile',
         '.gitignore',
         'notes.txt.bak'
-      ].map((p) => ({ path: p, redline: isRedlinePath(p) }))
+      ].map((p) => ({ path: p, redline: isRedlinePath(p), prose: isProsePath(p) }))
     },
     pairs: PAIRS.map((pair) => {
       const oldText = normalizeBlockText(pair.old);

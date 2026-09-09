@@ -558,16 +558,36 @@ try {
   process.exit(1);
 }
 
-// -- rule 1: the prose allowlist --------------------------------------------
+// -- rule 1: the prose allowlist, asked of BOTH askers -----------------------
+//
+// PHASE 243'S FIX ROUND ADDED THE SECOND HALF. The store keeps a baseline only
+// for a file the redline would draw, and it cannot import the renderer, so it
+// asks `@shared/prose-paths`'s `isProsePath`. Phase 243 shipped that module
+// saying "one list, two askers" while `redline.ts` still declared the same
+// seven strings of its own — two lists, no import, and nothing comparing
+// them, so an extension added to one would make the store keep baselines for
+// files the view never draws or refuse one it does. The list is imported now,
+// and this rule asks both answers over the same names so they cannot drift
+// again.
 for (const row of data.paths.yes) {
   if (row.redline !== true) fail(`1. ${row.path} should get a redline and does not.`);
 }
 for (const row of data.paths.no) {
   if (row.redline !== false) fail(`1. ${row.path} should get no redline and does.`);
 }
+for (const row of [...data.paths.yes, ...data.paths.no]) {
+  if (row.prose !== row.redline) {
+    fail(
+      `1. the view and the store disagree about ${row.path}: the redline says ` +
+        `${String(row.redline)} and the baseline store says ${String(row.prose)}.`
+    );
+  }
+}
 say(
   `1. the allowlist says yes to ${String(data.paths.yes.length)} prose names and ` +
-    `no to ${String(data.paths.no.length)} others, including .rst, .adoc and .org`
+    `no to ${String(data.paths.no.length)} others, including .rst, .adoc and .org, ` +
+    `and the view and the baseline store agree on all ` +
+    `${String(data.paths.yes.length + data.paths.no.length)}`
 );
 
 // -- rules 2 and 3: round trip, and the independent re-derivation ------------
