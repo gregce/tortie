@@ -830,10 +830,14 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
 });
 
 describe('the five sentences Phase 103 added', () => {
+  // PHASE 242 REWORDED THIS ONE. It used to end "confirm that machine", which
+  // is the one thing a person who meets it has already done — what is missing
+  // is the FOLDER. The middle is now `remoteEntryWritesOffLabel`'s wording,
+  // which Phase 229 wrote for the Explorer and this sentence did not get.
   it('says saving is not on for that machine, and that nothing was sent', () => {
     expect(remoteWritesNotConfirmed(L)).toBe(
-      'Tortie has not been given permission to write on Studio. Open ' +
-        'Settings, then Machines, and confirm that machine. Nothing was sent.'
+      'Tortie cannot save on Studio. Open Settings, then Machines, then ' +
+        'Studio, and let Tortie save files there. Nothing was sent.'
     );
   });
 

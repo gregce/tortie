@@ -26,15 +26,22 @@ import type { MachineGitIdentity } from '@shared/ipc';
 /**
  * Saving is not turned on for that machine, so nothing was sent (Phase 103).
  *
- * It names the two steps rather than the one, because Settings holds several
- * pages and a person who is told only to open Settings has to hunt. Main
- * decides this against the record on disk, so the sentence is what a person
- * reads after the refusal rather than a prediction made before it.
+ * It names the steps rather than one, because Settings holds several pages and
+ * a person who is told only to open Settings has to hunt. Main decides this
+ * against the record on disk, so the sentence is what a person reads after the
+ * refusal rather than a prediction made before it.
+ *
+ * IT NAMES THE FOLDER'S DOOR AND NOT THE MACHINE'S, and Phase 242 is why. It
+ * used to end "confirm that machine", which is the one thing a person meeting
+ * this has already done: what is missing is the FOLDER, not the machine.
+ * Research 102 section 6 read that off the live refusal. Phase 229 wrote the
+ * right wording in `./explorer.ts` and this one did not get it, so the middle
+ * is now `remoteEntryWritesOffLabel`'s, word for word.
  */
 export function remoteWritesNotConfirmed(label: string): string {
   return (
-    `Tortie has not been given permission to write on ${label}. Open ` +
-    `Settings, then Machines, and confirm that machine. Nothing was sent.`
+    `Tortie cannot save on ${label}. Open Settings, then Machines, then ` +
+    `${label}, and let Tortie save files there. Nothing was sent.`
   );
 }
 

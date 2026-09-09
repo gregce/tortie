@@ -1007,12 +1007,23 @@ export function commitOffline(label: string): string {
 export const COMMIT_NO_MESSAGE =
   'Tortie was given no commit message, so it committed nothing.';
 
-/** Writes are not confirmed for that machine, so nothing was sent. */
+/**
+ * Saving is not turned on for that machine, so nothing was sent.
+ *
+ * IT NAMES THE FOLDER'S DOOR AND NOT THE MACHINE'S, and Phase 242 is why. It
+ * used to end "Open Settings, then Machines, and confirm that machine", which
+ * is the one thing a person meeting this has already done: his own Mac Pro has
+ * been confirmed since 18 August and what is missing is the FOLDER. Research
+ * 102 section 6 read it off the live refusal and called it a sentence that
+ * sends him to a button he has already pressed. Phase 229 wrote the right
+ * wording for the Explorer and these two did not get it, so the second half is
+ * now `remoteEntryWritesOffLabel`'s, word for word, and it names the machine
+ * on the way to its own row.
+ */
 export function commitWritesOff(label: string): string {
   return (
-    `Tortie has not been given permission to write on ${label}, so it ` +
-    `committed nothing. Open Settings, then Machines, and confirm that ` +
-    `machine.`
+    `Tortie cannot save on ${label}, so it committed nothing. Open Settings, ` +
+    `then Machines, then ${label}, and let Tortie save files there.`
   );
 }
 
