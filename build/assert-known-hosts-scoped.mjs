@@ -143,6 +143,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { walkScripts } from './build-scripts.mjs';
 import { CASES } from './known-hosts-fixtures.mjs';
 import {
   assignedValues,
@@ -917,25 +918,17 @@ function runFixtures(failures) {
  * IT WALKS, and the first version of this gate did not. `readdirSync(buildDir)`
  * reads one level, so a future `build/probes/foo.mjs` would have been invisible
  * to every rule in this file, and so would any `.js` or `.ts` placed beside the
- * scripts. Nothing is under build/ today except `fixtures`, which holds JSON,
- * and `vendor`, which is third party and is not ours to police. Costing nothing
- * today is exactly when a boundary is cheap to close.
+ * scripts. Costing nothing today is exactly when a boundary is cheap to close.
+ *
+ * PHASE 240 IS THE FUTURE THAT SENTENCE NAMED, and it arrived on 2026-09-08:
+ * `build/p240/` holds two scripts that start an Electron, and the two teardown
+ * gates could not see them because they read one level. So the walk moved to
+ * build/build-scripts.mjs, where all three gates share it, and this one reads
+ * exactly what it read before — `vendor` and `node_modules` are skipped there
+ * by the same names this function skipped them by.
  */
 function sourceFiles(dir) {
-  const found = [];
-  const walk = (at, prefix) => {
-    for (const entry of readdirSync(at, { withFileTypes: true }).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    )) {
-      if (entry.name === 'vendor' || entry.name === 'node_modules') continue;
-      const path = join(at, entry.name);
-      const name = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
-      if (entry.isDirectory()) walk(path, name);
-      else if (/\.(mjs|cjs|js|mts|cts|ts|tsx|jsx)$/.test(entry.name)) found.push({ path, name });
-    }
-  };
-  walk(dir, '');
-  return found;
+  return walkScripts(dir, (n) => /\.(mjs|cjs|js|mts|cts|ts|tsx|jsx)$/.test(n));
 }
 
 function main() {

@@ -120,6 +120,7 @@ import { fileURLToPath } from 'node:url';
 
 // The lexer both this gate and build/assert-known-hosts-scoped.mjs read source
 // with. It was extracted from this file in Phase 193 rather than copied.
+import { buildScriptNames } from './build-scripts.mjs';
 import { blockAt, callArguments, lineAt, stripComments } from './scan-source.mjs';
 
 export { stripComments };
@@ -159,6 +160,14 @@ const HELPER = 'electron-run.mjs';
  * this directory rather than to widen the walk, because widening it would sweep
  * in fixture trees the rules were never written for. A round that puts an
  * Electron in a subdirectory has to make the walk recursive first.
+ *
+ * PHASE 240'S COMMITTER'S ROUND WIDENED THE WALK ANYWAY, and the paragraph
+ * above is kept because it is the reasoning this replaced. `buildFiles()` is
+ * recursive now and the import pattern is widened with it, which is what
+ * finally brought `build/p240/save-loss.mjs` and `build/p240/save-choice.mjs`
+ * into the population they had always been outside of. Part of the rise in the
+ * floor below is therefore a measurement rather than new files, and a round
+ * that puts an Electron in a subdirectory no longer has to move it up first.
  * Lower it ONLY in the same commit
  * that deletes a probe on purpose, and say in the commit body which file went
  * and why. Do not lower it to make a red gate green: red here means either a
@@ -170,7 +179,7 @@ const HELPER = 'electron-run.mjs';
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 101;
+const HELPER_USER_FLOOR = 103;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.
@@ -287,10 +296,21 @@ export function electronSpawns(name, source) {
   return hits;
 }
 
-/** Whether this file reaches the helper. */
+/**
+ * Whether this file reaches the helper.
+ *
+ * THE IMPORT IS MATCHED AT ANY DEPTH since Phase 240's fix round, and that is
+ * the other half of the walk above. The pattern was `./electron-run.mjs`
+ * exactly, so a probe one directory down importing `../electron-run.mjs` read
+ * as not reaching the helper even once the walk found it: making the walk
+ * recursive ALONE would have raised the population by 51 files and left the
+ * derived helper set at 95, counting neither of Phase 240's two probes and
+ * moving no constant at all. Measured on 2026-09-08: 95 with the old pattern
+ * over the walked population, 97 with this one.
+ */
 export function usesHelper(source) {
   const code = stripComments(source);
-  const imported = /from\s+['"]\.\/electron-run\.mjs['"]/.test(code);
+  const imported = /from\s+['"](?:\.\.?\/)+electron-run\.mjs['"]/.test(code);
   const called = /\b(withElectron|runElectron)\s*\(/.test(code);
   return { imported, called };
 }
@@ -537,10 +557,26 @@ function runFixtures(failures) {
 // The run
 // ---------------------------------------------------------------------------
 
+/**
+ * Every script under build/ this gate reads, by the name it is reported under,
+ * which is relative to build/.
+ *
+ * IT WALKS, AND UNTIL PHASE 240'S FIX ROUND IT DID NOT. `readdirSync(buildDir)`
+ * read one level, and Phase 240 was the first phase to put an Electron starter
+ * in a subdirectory: `build/p240/save-loss.mjs` and `build/p240/save-choice.mjs`
+ * both launch through the helper and both were invisible to every rule in this
+ * file. Nothing leaked, because both go through `withElectron`; what was missing
+ * was the guard that says so. build/assert-known-hosts-scoped.mjs had walked for
+ * exactly this reason since Phase 193, and its own header says why: "Costing
+ * nothing today is exactly when a boundary is cheap to close." Phase 240 created
+ * that future and this closes it.
+ *
+ * The walk itself is build/build-scripts.mjs, shared with the other two gates
+ * that ask a question of every script under build/ rather than copied a third
+ * time, and its header carries what it refuses to walk into and why.
+ */
 function buildFiles() {
-  return readdirSync(buildDir).filter(
-    (n) => n.endsWith('.mjs') || n.endsWith('.cjs') || n.endsWith('.mts')
-  );
+  return buildScriptNames(buildDir);
 }
 
 /**

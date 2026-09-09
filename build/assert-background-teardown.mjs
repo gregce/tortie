@@ -102,6 +102,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FIXTURES } from './background-fixtures.mjs';
+import { buildScriptNames } from './build-scripts.mjs';
 import {
   assignedValues,
   blockAt,
@@ -401,11 +402,23 @@ function runFixtures(failures) {
 // The run
 // ---------------------------------------------------------------------------
 
+/**
+ * Every script under build/ this gate reads, by the name it is reported under.
+ *
+ * IT WALKS, AND UNTIL PHASE 240'S FIX ROUND IT DID NOT, for the reason
+ * build/build-scripts.mjs carries in full: Phase 240 was the first phase to put
+ * scripts in a subdirectory under build/, and one level of `readdirSync` could
+ * not see them. Nothing leaked, and that is exactly when a boundary is cheap to
+ * close. The walk is shared with the other two gates that ask the same
+ * question, rather than copied.
+ */
+function buildFiles() {
+  return buildScriptNames(buildDir);
+}
+
 function main() {
   const failures = [];
-  const files = readdirSync(buildDir).filter(
-    (n) => n.endsWith('.mjs') || n.endsWith('.cjs') || n.endsWith('.mts')
-  );
+  const files = buildFiles();
 
   // Rule 1, forward.
   let scanned = 0;
