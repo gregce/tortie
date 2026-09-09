@@ -185,11 +185,21 @@
  * typed-and-taken-back words per redline open (default 2), and P167_ACCEPTS,
  * per-change accepts per redline open (default 2; each moves the tab's shadow
  * baseline and its generation and rebuilds the whole run list, and none of
- * them writes a file).
+ * them writes the person's file).
+ *
+ * PHASE 243. Each of those accepts now also RECORDS the baseline it moved to,
+ * through main, into `<userData>/gmux/baselines/` — so the redline's churn per
+ * cycle carries a durable write with it, and a descriptor kept per record
+ * would show up in the descriptor reading this probe already asserts. The
+ * count is read off the scratch profile's own store directory after the
+ * surface closes, and a cycle that accepted and recorded nothing is a verdict
+ * rather than a silence, because the plateau it printed would say nothing
+ * about the half that never ran. It is one record per FILE and not per
+ * accept: the record holds the newest baseline and the ring holds two bodies.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -598,6 +608,24 @@ function makeRepo(path, name) {
 }
 makeRepo(repoA, 'p167-a');
 makeRepo(repoB, 'p167-b');
+
+/**
+ * PHASE 243. How many baseline records the store holds, read off the scratch
+ * profile's own directory.
+ *
+ * `<userData>/gmux/baselines` is `<profile>/gmux/baselines` here, because the
+ * launch passes `--user-data-dir`. Nothing outside this run's own profile is
+ * opened, and a directory that is not there yet is zero rather than a throw.
+ */
+function countBaselineRecords() {
+  try {
+    return readdirSync(join(profile, 'gmux', 'baselines')).filter((n) =>
+      n.endsWith('.json')
+    ).length;
+  } catch {
+    return 0;
+  }
+}
 
 /** The operator's server is read only: one count before, one after. */
 function liveGmuxSessionCount() {
@@ -1428,6 +1456,16 @@ async function cycleSurfaces(cdp, log) {
       );
       if (kept !== true) log.acceptMisses.push(`${word} (gone from the face after the accept)`);
     }
+    // PHASE 243. THE SURFACE WRITES A BASELINE as well as being rewritten
+    // under, typed in and accepted in. Every accept above now moves a baseline
+    // that is RECORDED, into `<userData>/gmux/baselines/`, so the redline's
+    // churn per cycle carries a durable write in main with it: a file
+    // descriptor kept per record would show up in the descriptor reading this
+    // probe already asserts, and a record per cycle that never lands would
+    // mean the accepts above are proving less than they say. The count is read
+    // off the store's own directory rather than off the face, because a
+    // receipt is not something a person sees.
+    log.baselines = countBaselineRecords();
     writeFileSync(readme, standing);
     await press(cdp, CHORD.closeEditorTab);
     await closeOrCount('redline', `document.querySelector('.ed-redline-doc') === null`);
@@ -1696,7 +1734,7 @@ await withElectron(
           continue;
         }
       }
-      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [], typed: 0, typeMisses: [], accepts: 0, acceptMisses: [] };
+      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [], typed: 0, typeMisses: [], accepts: 0, acceptMisses: [], baselines: 0 };
       const exceptionsBefore = cdp.events().filter((e) => e.method === 'Runtime.exceptionThrown').length;
       const before = await readAll(descriptors);
       say(`\n${NAMES[key]}`);
@@ -1769,6 +1807,11 @@ await withElectron(
         // PHASE 238. The accepts, judged the same way: a block that never
         // accepted cannot say the surface plateaus under an accept.
         if (log.accepts === 0 && ACCEPTS > 0) verdicts.push(`${key}: the redline was opened and never accepted in, so this run cannot say it plateaus under accepts`);
+        // PHASE 243. A cycle that accepted and recorded nothing is a cycle
+        // whose durable half never ran, so the plateau it printed says nothing
+        // about it.
+        if (log.accepts > 0 && log.baselines === 0) verdicts.push(`${key}: the redline accepted ${String(log.accepts)} times and the baseline store holds no record, so this run cannot say the durable baseline plateaus`);
+        else if (log.baselines > 0) say(`${key}: the baseline store holds ${String(log.baselines)} record(s), one per file, after ${String(log.accepts)} accepts written through main while the surface churned`);
         if (log.acceptMisses.length > 0) verdicts.push(`${key}: ${String(log.acceptMisses.length)} of ${String(log.accepts)} accepts never dropped a change from the redline's face: ${log.acceptMisses.slice(0, 5).join(', ')}`);
         else if (log.accepts > 0) say(`${key}: the redline accepted ${String(log.accepts)} changes, every one gone from the face and no byte written`);
       }
