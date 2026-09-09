@@ -47,6 +47,13 @@ const ARMS = [
   // file: an accept moves the tab's own in-memory shadow baseline.
   'redline-accept',
   'redline-accept-all',
+  // Phase 241. Edit > Format Table, Format JSON and Minify JSON, the editor
+  // right-click menu's three reshapes, each handed to the mounted Monaco host
+  // through src/renderer/editor/reshape-commands.ts. They carry no accelerator
+  // and no enabled state, for the reason src/main/menu.ts states beside them.
+  'reshape-table',
+  'reshape-json-format',
+  'reshape-json-minify',
   'toggle-sidebar',
   'toggle-editor-fill',
   'toggle-session-focus',
@@ -89,7 +96,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 44 actions and no more', () => {
+  it('answers all 47 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

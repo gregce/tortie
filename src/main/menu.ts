@@ -751,7 +751,27 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         redlineRow('Rewind Change', 'redline-rewind'),
         redlineRow('Undo Rewind', 'redline-undo'),
         redlineRow('Accept Change', 'redline-accept'),
-        redlineRow('Accept All Changes', 'redline-accept-all')
+        redlineRow('Accept All Changes', 'redline-accept-all'),
+        { type: 'separator' },
+        // PHASE 241. The editor's three reshapes, per the same rule that put
+        // the four rows above here: a phase adding a surface updates the
+        // native menus. The surface is the editor's new right-click menu,
+        // where these three are the DYNAMIC group and are drawn only when they
+        // apply to what is under the cursor. NO ACCELERATOR, for the reason
+        // the Redline rows carry none.
+        //
+        // AND NO ENABLED STATE, which is the one place these differ from the
+        // four above, argued rather than copied. `redlineMounted` works
+        // because a view mounts and unmounts; a reshape's subject is the CARET,
+        // which moves many times a second, so the equivalent cache would need
+        // a push per keystroke and the phase's entry refuses a new channel by
+        // name. So each row is always enabled and always ANSWERS — with the
+        // reshape, or with one sentence naming what it needed — which is the
+        // shape `save-file` above already has, except that this one says why
+        // instead of being silent.
+        item('Format Table', 'reshape-table'),
+        item('Format JSON', 'reshape-json-format'),
+        item('Minify JSON', 'reshape-json-minify')
       ]
     },
     // Phase 14. Between Edit and Session, which is where a macOS app puts

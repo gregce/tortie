@@ -537,7 +537,13 @@ describe('Phase 227: the Redline rows in the Edit menu', () => {
       'role:paste',
       'role:selectAll',
       'separator',
-      ...ROWS.map(([label]) => label)
+      ...ROWS.map(([label]) => label),
+      // PHASE 241. The three reshapes, under their own separator, so the
+      // Redline group and the reshape group are read as two things.
+      'separator',
+      'Format Table',
+      'Format JSON',
+      'Minify JSON'
     ]);
   });
 
@@ -573,6 +579,58 @@ describe('Phase 227: the Redline rows in the Edit menu', () => {
 // over `ui:redlineMounted` and from nothing else, so the rows are disabled
 // until it is told.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// PHASE 241: the three reshape rows, and the one thing that makes them
+// different from the four above them.
+//
+// `redlineMounted` works for the Redline rows because a view mounts and
+// unmounts. A reshape's subject is the CARET, which moves many times a second,
+// so an enabled state pushed the same way would need a push per keystroke and
+// the phase's entry refuses a new IPC channel by name. So these three are
+// always enabled and always answer, which is the shape File > Save has.
+// ---------------------------------------------------------------------------
+
+describe('Phase 241: the three reshape rows in the Edit menu', () => {
+  beforeEach(() => {
+    setPlatform('darwin');
+    installAppMenu();
+  });
+
+  const ROWS: readonly [string, string][] = [
+    ['Format Table', 'reshape-table'],
+    ['Format JSON', 'reshape-json-format'],
+    ['Minify JSON', 'reshape-json-minify']
+  ];
+
+  it('registers no accelerator, no mark and no chord on any of them', () => {
+    const edit = submenuOf('Edit');
+    for (const [label] of ROWS) {
+      const row = edit.find((it) => it.label === label);
+      expect(row, label).toBeDefined();
+      expect(row?.accelerator, label).toBeUndefined();
+      expect(row?.icon, label).toBeUndefined();
+      expect(row?.sublabel, label).toBeUndefined();
+    }
+  });
+
+  it('leaves all three ENABLED, because their subject is the caret', () => {
+    const edit = submenuOf('Edit');
+    for (const [label] of ROWS) {
+      const row = edit.find((it) => it.label === label);
+      expect(row?.enabled, label).not.toBe(false);
+    }
+  });
+
+  it.each(ROWS)('forwards %s as %s when clicked', (label, action) => {
+    const win = makeWindow();
+    state.windows = [win];
+    const row = submenuOf('Edit').find((it) => it.label === label);
+    expect(row?.click).toBeDefined();
+    row?.click?.();
+    expect(win.sent).toEqual([[EVT_MENU_ACTION, action]]);
+  });
+});
 
 describe('Phase 236: the Redline rows carry their chord and their state', () => {
   const ROWS: readonly [string, string, string][] = [

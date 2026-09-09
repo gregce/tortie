@@ -36,6 +36,9 @@ import { toggleEditorFill } from '../editor/fill';
 // Phase 227. The Redline view's four verbs, through the leaf the view installs
 // its handler on, so the menu reaches the view without loading the panel.
 import { runRedlineCommand } from '../editor/redline-commands';
+// Phase 241. The editor's three reshapes, through the leaf the Monaco host
+// installs its handler on, for the same reason the four above go through one.
+import { runReshapeCommand } from '../editor/reshape-commands';
 import { focusTerminal, jumpToSession } from './session-focus';
 import { runFillChord } from './fill-chord';
 // Phase 137. View > Catch Me Up. The same router the ⇧⌘U chord runs.
@@ -66,6 +69,9 @@ import {
 
 /** `focus-session:<id>` — see FocusSessionActionId in src/shared/ipc.ts. */
 const FOCUS_SESSION_PREFIX = 'focus-session:';
+
+/** The one sentence the three Edit > reshape rows say with no editor open. */
+const RESHAPE_NEEDS_EDITOR = 'Open a file in the editor to reshape it.';
 
 /**
  * PHASE 141 — Session > Resume Conversation.
@@ -217,6 +223,20 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       return;
     case 'redline-accept-all':
       runRedlineCommand('acceptAll');
+      return;
+    // Phase 241. Edit > Format Table, Format JSON, Minify JSON. The mounted
+    // Monaco host answers each one against what is under its caret and says
+    // out loud when nothing there could be reshaped; with no host mounted the
+    // leaf answers false and this row says so once rather than doing nothing
+    // a person could mistake for a broken menu.
+    case 'reshape-table':
+      if (!runReshapeCommand('table')) s.toast('info', RESHAPE_NEEDS_EDITOR);
+      return;
+    case 'reshape-json-format':
+      if (!runReshapeCommand('json-format')) s.toast('info', RESHAPE_NEEDS_EDITOR);
+      return;
+    case 'reshape-json-minify':
+      if (!runReshapeCommand('json-minify')) s.toast('info', RESHAPE_NEEDS_EDITOR);
       return;
     case 'toggle-sidebar':
       s.toggleSidebar();

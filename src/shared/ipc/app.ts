@@ -144,6 +144,16 @@ export type MenuActionId =
   // "a person must never be one keystroke from accepting everything".
   | 'redline-accept'
   | 'redline-accept-all'
+  // Phase 241. Edit > Format Table, Format JSON and Minify JSON, the three
+  // reshapes the editor's new right-click menu draws under the cursor. No
+  // accelerator on any of them, and no enabled state pushed from the view
+  // either: their subject is the caret, which moves many times a second, so a
+  // row enabled from a cache would need a push per keystroke. They are always
+  // enabled and always answer — with the reshape, or with one sentence naming
+  // what they needed.
+  | 'reshape-table'
+  | 'reshape-json-format'
+  | 'reshape-json-minify'
   | 'toggle-sidebar'
   | 'attention'
   | 'shortcuts'
