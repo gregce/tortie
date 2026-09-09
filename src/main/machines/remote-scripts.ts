@@ -699,11 +699,26 @@ const STORE_COPY = [
  * one out of the folder a person had confirmed. THIS script's staged name is
  * `$d/$1.part`, where `$d` is `$HOME/.tortie/images`, a directory it makes
  * itself at mode 700, and `$1` is content addressed by `./remote-image.ts`.
- * There is no confirmed folder for it to be outside of, and to plant anything
- * at that name a person would already have to be the person whose home it is.
- * That phase's rule is that nothing is fixed which is not found, so this text
- * is unchanged and the reason is here rather than in a commit message nobody
- * reads twice.
+ *
+ * **This script follows a name planted there, and that is MEASURED rather than
+ * argued.** Driven under `/bin/sh` over a scratch `HOME`, first by the Phase 242
+ * verifier and re-derived by the committer: with a SYMLINK at `$d/$1.part` and
+ * again with a HARD LINK at it, the redirection put the payload into the file
+ * outside `$d` that the planted name pointed at, and the script still answered
+ * `added` with the payload's own byte count and its own sha256, so the answer
+ * reads as a clean write. An earlier version of this paragraph said "there is no
+ * confirmed folder for it to be outside of, and to plant anything at that name a
+ * person would already have to be the person whose home it is", which reads as an
+ * argument that nothing gets out. Something does; that sentence was reasoning and
+ * not a reading, which is the one thing this tree's conventions refuse.
+ *
+ * **What is actually true, and it is why this is a stated limit rather than a
+ * defect this phase fixed.** `putImagesOnMachine` in `./remote-image.ts` never
+ * asks `confirmedWriteRoot`, so image-put makes no containment promise for a link
+ * to break; the name is `remoteImageName(sessionId, sha256, ext)`, so anything
+ * planted at it had to be predicted first; and Phase 242's rule is that nothing
+ * is fixed which is not found, so the text is unchanged. The fix is queued as
+ * Phase 242.2 rather than smuggled in here.
  */
 const IMAGE_PUT = [
   'set -e',
