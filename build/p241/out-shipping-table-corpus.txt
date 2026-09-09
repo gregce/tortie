@@ -1,0 +1,10 @@
+[p241] 186 markdown files, 1760 GFM tables found. 1751 formatted, 9 refused, 0 not idempotent, 0 whose cells moved.
+  REFUSED docs/BACKLOG.md:18757: Line 18763 has 5 cells and the header has 3. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/audits/2026-08-20-electron-typescript-architecture.md:250: Line 252 has 7 cells and the header has 4. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/research/101-phase-241-editor-menu.md:251: Line 254 has 4 cells and the header has 3. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/research/11-specstory-provider-inventory.md:21: Line 33 has 12 cells and the header has 8. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/research/18-agent-activity.md:463: Line 467 has 5 cells and the header has 3. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/research/39-file-preview.md:1709: Line 1713 has 5 cells and the header has 3. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/research/55-i1-project-model-and-the-machine.md:75: Line 79 has 5 cells and the header has 4. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/research/66-plugins-after-launch.md:143: Line 150 has 4 cells and the header has 3. Formatting it would add columns to the header — an unescaped | is the usual cause.
+  REFUSED docs/research/79-claude-code-credential-locks-and-cache.md:16: Line 21 has 6 cells and the header has 4. Formatting it would add columns to the header — an unescaped | is the usual cause.
