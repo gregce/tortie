@@ -24896,6 +24896,277 @@ person it uses, while answering `added`. That is worth one `rm -f` and one `set 
 - **No change to `file-put`**, which Phase 242 closed and whose gate arm holds it.
 - **No widening of the Mac Pro bounds.** Same bounds every remote phase has inherited since Phase 224.
 
+## Phase 243 — the baseline outlives the tab (operator asked 2026-09-09)
+
+**Subject.** `feat(redline): the baseline survives a closed tab, a reload and a quit`
+
+**First body line.** `Phase 243: the durable baseline`
+
+**Semver.** MINOR.
+
+**Tier 3.** It writes durable state into `<userData>/gmux/`, which is the person's own data
+directory and the one place this product treats as never disposable. A defect here loses a narrowing
+silently or, worse, makes a person believe their prose is kept somewhere it is not. The gates, real
+data, TWO independent methods one of which is an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry, research 83 sections A3.1 to A3.4 and F.2, and Phase 238's own report, which
+names this as the one thing that would make an accept outlive the tab. Phases 225, 227, 236, 237, 238
+and 239 are all landed and this is the last step the redline family has open.
+
+### What ships today, and why it was right to ship it
+
+Phase 225 put the baseline in memory on the tab, deliberately. Research 83 A3.3 recommended exactly
+that order and gave one reason, A3.4: **losing a baseline loses the NARROWING and nothing on disk.**
+The view widens back to "since the last commit", which is the redline that shipped before any of this.
+
+Phase 238 then measured what that costs in practice and the number is not comfortable. An accept
+lasts **as long as the tab is open**, and it dies on a quit, a crash, a window reload, or once ten
+other files have been opened for keeps. It survives a click on another file only because Phase 238
+pins its own tab, which was the one-act loss its measure step found.
+
+### The one case where the baseline holds the only copy, and it is not waved past
+
+Research 83 A3.4 states it exactly: a person writes a paragraph, does not commit, an agent rewrites
+it, the baseline is lost — and that paragraph is gone. Two facts bound it and both belong in this
+entry rather than being rediscovered.
+
+**It is already gone today, and worse than people assume.** When the watcher notices an agent's write,
+`refreshRepo` re-reads the clean tab and calls `resetWorkingModel`
+(`src/renderer/editor/tab-io.ts:624`), which is `model.setValue(contents)`. Read from the installed
+monaco-editor 0.56.0, `setValue` reaches `_setValueFromTextBuffer`, whose body contains, under the
+comment *"Destroy my edit history and settings"*, the line `this._commandManager.clear()`. **An agent
+overwriting a prose file destroys that tab's Monaco undo stack.** ⌘Z gives the person nothing. The
+in-memory baseline is the first undo of an agent's prose edit this product has ever had, and it is a
+strict improvement even in the moment it is lost.
+
+**The danger is the belief, not the loss.** A baseline people rely on is a backup, and Tortie must
+never let it read as one. **This phase does not change that rule.** The surface still says what the
+baseline is and when it was taken, and never implies the old text is kept anywhere. Making it durable
+makes it last longer; it does not make it a recovery product, and no copy on it may say so.
+
+### Three things are already decided and must not be re-argued
+
+Research 83 A3.3 settles them from the tree, so this round inherits rather than re-derives:
+
+1. **The home is `<userData>/gmux/baselines/`** and the mechanism is `src/main/durable`, which exists.
+2. **The key shape is `(repo_path, rel_path)`**, which is what `symbol_file`
+   (`src/main/symbols/persist.ts:75`) and `arch_tree_file` (`src/main/arch/db.ts:386`) both already use.
+3. **The write goes through `writeDurable` and nothing hand-rolled**, and the ring is generations with
+   a prune after the record commits, which is `SNAPSHOT_GENERATIONS = 3` next door.
+
+**The price is measured and is not re-derived either.** Through `src/main/durable`: **9.0 ms median at
+126 KB** (this tree's p99 markdown file), **15.1 ms at 2.66 MB** (this tree's largest), 7.9 ms at 8 KB.
+The worst realistic live set is **ten prose tabs at 712 KB**.
+
+### The mechanism, with the real files
+
+1. **A durable record beside the in-memory one, never instead of it.** `nextBaseline` in
+   `src/renderer/editor/baseline.ts` stays the one place the baseline moves and the generation is
+   still its own; what changes is that a moved baseline is also written, through main, keyed
+   `(repo_path, rel_path)`. **The in-memory copy remains the read path**, so nothing on the draw path
+   gains an await and the projection property is untouched.
+2. **A read at open.** When a tab opens a file that has a stored baseline, it is offered; when it does
+   not, the phase behaves exactly as it does today. **A stored baseline is only offered when it is
+   still credible**, and the round decides what that means with a measurement rather than a rule of
+   thumb: at minimum the HEAD version it was taken against, so a baseline from before a commit does
+   not silently reappear as a narrowing across it.
+3. **The generation still governs every press.** Phase 227's guard — the generation checked BEFORE any
+   read, in `redline-write.ts`'s `applyRewind` — does not move, does not weaken and is not
+   special-cased. A restored baseline arrives with a generation and a rewind drawn against the old one
+   refuses exactly as it does now.
+4. **THE FACE SAYS WHERE THE BASELINE CAME FROM**, in *just enough words*. Phase 239 gave `baselineName`
+   and `baselineSentence` their opening sentences and Phase 238 gave them the accept wording; a
+   restored baseline is a third origin and it gets ONE short line, not a paragraph. **It must not read
+   as a backup**, per A3.4. "TONS of words, bad" is his rule.
+5. **A ceiling and a prune, decided by measurement.** `SNAPSHOT_GENERATIONS = 3` is the ring next door
+   and is the default here; the round measures what the store costs over his real prose corpus and
+   states the number rather than assuming it. A person's data directory does not grow without a bound
+   somebody chose.
+6. **`conformance:redline` gains its arms**: a baseline written and read back byte for byte over the
+   hostile corpus the existing rules already carry (emoji with a zero-width joiner, combining marks, a
+   right-to-left run, Japanese, CRLF); a store caught mid-write leaving the old record or the new one
+   and never neither; a record whose HEAD version no longer matches being refused rather than offered;
+   and the prune leaving exactly the ring. Each red under an ablation of its clause.
+
+### Proof, run rather than read
+
+- **The app run**, one Electron on a scratch profile with a scratch HOME: accept two changes, **quit
+  the app**, reopen, and read the redline still narrowed with the file on disk unchanged by digest;
+  then the same across a window reload, a tab close and reopen, and eleven files opened for keeps —
+  the four acts Phase 238's measure step used, whose readings are the parent measurement.
+- **Independent method one, THE ATTACK**: kill the app mid-write with a real signal, at each step of
+  the write, and require the store to hold the old record or the new one and **never neither and never
+  half**. Then commit underneath a stored baseline and prove it is refused rather than offered as a
+  narrowing across the commit. Then plant a hostile record — wrong shape, wrong key, a path outside
+  every root, a truncated file — and require each to be dropped whole with the reason, never partially
+  merged, which is this codebase's standing rule for a bad row.
+- **Independent method two, the re-derivation**: measure the write cost yourself over his real prose,
+  by a method of your own rather than research 83's harness, and say whether 9.0 ms and 15.1 ms
+  reproduce. A number this phase rests on that nobody re-measured is a number that decays.
+- `npm run probe:p167` gains a baseline write on its redline surface and must still plateau.
+
+### What is NOT in this phase
+
+- **No backup, and no copy that reads as one.** The baseline is a previous state of a file whose
+  current state is on disk and whose committed state is in git. A4.2's ruling stands.
+- **No change to the generation guard**, which is what makes every press safe.
+- **No change to the projection property, the copy answer or the press order.**
+- **No new IPC channel if an existing durable door will carry it**; the round says which it used.
+- **No sync, no cloud, no cross-machine baseline.** A baseline belongs to this Mac.
+- **No durable journal.** Phase 227's rewind journal stays in memory and per tab; the architecture
+  audit's F1 is about its lifetime and is Phase 244's, not this one's.
+
+## Phase 244 — the six findings of the 0.101.0 architecture audit (operator asked 2026-09-09)
+
+**Subject.** `fix(arch): the six findings the 0.101.0 audit reproduced`
+
+**First body line.** `Phase 244: the audit's six findings`
+
+**Semver.** PATCH. No user-facing surface changes unless an item earns one.
+
+**Tier 3 for the round**, because F1 retains editor state across a tab's life, F2 lets the
+Architecture view describe older code than the machine holds, and F4 reads unbounded bytes into main.
+**Tier per item below**, and the round refuses to promote itself: do not raise a documentation item to
+Tier 3 because a neighbour earns it, and do not demote the item that earns it.
+
+**Charter.** [The 0.101.0 architecture audit](../audits/2026-09-08-electron-typescript-architecture-0.101.0.md),
+its six findings F1 to F6, its four preserved fixtures under `docs/audits/fixtures/2026-09-08/`, and
+its own remediation sequence, which this entry follows rather than reorders. The audit was written by
+another session and committed with this entry.
+
+### The score, stated plainly, because the record must not drift
+
+**The audit reads 32 of 36**, down from the 35 the 7 September document recorded and the 34 a
+conversational recheck corrected it to. **The standing note in this file that says "an honest 35 of 36"
+is superseded by this entry.** Eight categories hold 3; State ownership, Lifecycle, Failure flow and
+Test seam hold 2.
+
+The audit is explicit that this is not a release gate, and this entry does not treat it as one: *"This
+rubric is not a release gate. Prioritise the stated user consequences and distinguish demonstrated
+behaviour from inference."* **No item here is fixed to move a number.** Each is fixed because of what
+it does to a person, and the score follows or it does not.
+
+**AND NO LATER ROUND ROUNDS IT UP.** The audit's own closing instruction is *"do not increase a score
+merely because a remediation checklist is complete"*. A new dated assessment at the execution commit
+is item 7 and it is the only thing that may state a new number.
+
+### THE FIRST ACT IS RE-MEASUREMENT, AND ONE FINDING ALREADY MOVED
+
+The audit was written at `163266d6`, which is the FULL-REWRITE equivalent of `f070f33c`. **Phases 235,
+240, 241 and 242 have all landed since**, and the audit says so itself in its handoff. This codebase's
+standing rule is that an inherited finding is re-measured before it is fixed, and it has already paid
+off once:
+
+**F5's install-roundtrip failure does not reproduce at `8ee3eb42`.** The audit read it failing on
+`readdirSync` of the real `/Users/gdc/.Trash`; run alone on 2026-09-09 it passes **6 of 6**, and the
+full suite passes **831 files with 13,211 tests**, whose one red is `live.test.ts`'s timing arm, green
+**14 of 14 three times alone** and load rather than the tree. **Whether that means F5's first half was
+fixed, or that it is host-dependent and this Mac now answers differently, is the round's first
+question and it must be answered with a measurement rather than a guess.** A test that passes because
+the host happens to allow something is not a hermetic test, which is the audit's actual point.
+
+**Every one of F1 to F6 is classified before anything is repaired**, in the audit's own words:
+reproduced, fixed with evidence, superseded, or not reproduced — with the command, the result and the
+responsible commit where known. *An import failure, a missing vendored tool or a skipped test is not
+evidence of a fix.*
+
+### The six, in the audit's own remediation order
+
+1. **F5, VERIFICATION FIRST, because everything after it needs a trustworthy baseline.** Tier 3.
+   Two halves and they are separate. **The hermetic half**: `install-roundtrip.test.ts` reaches
+   `userInfo().homedir` past the scratch `HOME`. Re-measure it first; if it now passes, prove WHY —
+   an owned or injected effect, not a permission this Mac happens to grant. **The deadline half**:
+   `probe:controldeadline`'s registration readback cannot resolve its fixtures through
+   `remoteContextFor`, which Phase 220 already recorded once and could not reproduce. **Do not remove
+   the readback, the healthy leg, the timer-removal arm or any hostile arm to make it green**, and do
+   not change the timer or the timeout before the registration mismatch is diagnosed.
+2. **F1, the reopened tab inherits an earlier rewind journal.** Tier 3.
+   `redline-journal.ts:19` says a tab id is unique per opening; `tab-identity.ts:46` keys an ordinary
+   local tab by its absolute path; `store.ts:627` disposes models and view state on close and never
+   calls `forgetRewindJournal`. The audit's fixture opened a file, recorded one rewind, closed and
+   reopened: **depth still 1, inherited under the same id.** The journal holds the deleted and
+   inserted STRINGS, with no entry or byte ceiling. Use the model and view-state disposal sites as the
+   sibling pattern; end ownership on real close, clean-tab eviction and preview replacement.
+   **Do NOT clear on React unmount alone — switching views must keep a still-open tab's undo.**
+   The audit did not drive an inherited undo against a real file and claims no corruption; this round
+   drives it, at the parent, and says what it does.
+3. **F2, the remote Architecture mirror can reuse stale source indefinitely.** Tier 3.
+   `remote-scripts.ts:2885` reports WHOLE-SECOND modification times; `remote-arch.ts:583` treats equal
+   seconds and equal size as unchanged; the local scanner's sibling keeps `mtimeMs`. The fixture
+   replaced `export const a = 1;` with the same-length `export const a = 2;` at 0.1 s and 0.9 s inside
+   one second: both passes read `reused: 1, written: 0`, the machine held 2 and the mirror held 1.
+   **Waiting does not repair it** — an unchanged file keeps its stamp. Give the remote source a
+   freshness token that can tell those apart, and test same-size rewrites, preserved timestamps,
+   deletion and rename against the LOCAL source's behaviour, because adapter parity is the property.
+4. **F3, the no-contract scan loses incomplete-mirror evidence.** Tier 2.
+   `check-coordinator.ts:356` captures `syncTree().overBudget`; the fact-only path at :535 awaits the
+   same call and DISCARDS it, then checks only the parser's budget before `markScanned` at :573.
+   The map derives `building` from that stamp. Carry source completeness through both paths and
+   surface the reason. **Do not simply leave `building` true for ever**, or the refresh loop asks for
+   an impossible full read again and again. The contract-check path is the working sibling.
+5. **F4, the guarded writer enforces its read cap after EOF.** Tier 3.
+   `guarded-write.ts:224` checks the initial size, then `readAllSync` reads to EOF and the next size
+   check happens after the buffers are collected. The fixture started at one byte, appended 16 MiB
+   after the `fstat`, and the shipping reader consumed **16,777,217 bytes** before answering
+   `refused/tooLarge` against a **5,242,880** cap. The target was not replaced, so this is excess
+   synchronous reading into main rather than a demonstrated hang. Enforce a remaining-byte budget
+   INSIDE the loop with a bounded overflow sentinel; preserve descriptor closure and every existing
+   refusal; **do not move it behind an asynchronous boundary without reconsidering the race model**,
+   which is what Phase 226 chose and Phase 240 now depends on.
+6. **F6, the split-session retention finding still needs closure.** Tier 3, and it may end as an
+   explanation rather than a repair. Phase 220 improved ownership and measurement and did not explain
+   the intermittency; Phase 200's two levers did not reproduce it. **A green sample is not an
+   explanation, and a detached node is not automatically a leak** — the distinction is disposable
+   attachment state versus deliberately retained Past Sessions history. Keep the workload floor, the
+   detached census and `build/heap-retainers.mjs`. Obtain a retaining path and a regression, or a
+   controlled explanation that reproduces the failing and the passing conditions. **Do not remove
+   session history or reduce churn to obtain the point** — that is buying a number, which this entry
+   forbids.
+7. **A new dated assessment at the execution commit**, reporting every finding's status and the
+   closure evidence per category. It is the only place a new score may be stated.
+
+### The four fixtures are adopted, not weakened
+
+`docs/audits/fixtures/2026-09-08/` holds `mirror`, `partial`, `read-cap` and `journal` as
+`.fixture` files, kept out of the suite on purpose. **Each is adopted as a maintained regression in
+the same commit as the repair it belongs to**, at the location the audit names, and **its behavioural
+assertion is not weakened to make anything pass**. Fixture SETUP may be updated where an API moved;
+the assertion may not. Each must be red at the parent and green after, and red again under an ablation
+of the fix.
+
+### Proof, run rather than read
+
+- **Every finding measured at the parent and at HEAD**, with the command and the reading quoted. This
+  is mandatory here rather than optional, because six inherited findings against a tree that moved
+  four phases is exactly where a reader's memory and the code disagree.
+- **Independent method one, the attack**, aimed at the item that earns it: for F2, a same-size rewrite
+  inside one timestamp second driven over the REAL link to his Mac Pro under the Phase 224 bounds, with
+  the far side read by an `ssh` Tortie did not compose; for F4, growth injected at the read boundary
+  with the bytes actually consumed counted.
+- **Independent method two, re-derive**: for F1, walk every tab-removal path in `store.ts` yourself and
+  enumerate which end the journal — close, dirty-close cancellation, close-many, preview replacement,
+  eviction, reopen — rather than trusting the fixture's one path.
+- The affected gates per the audit: `conformance:redline` for the journal, `conformance:redline-write`
+  AND `conformance:save` for the guarded channel (Phase 240 is now a caller and the audit predates it),
+  and `conformance:machines`, `conformance:arch`, `conformance:arch:modules`, `conformance:reading` for
+  remote Architecture.
+
+### What is NOT in this phase
+
+- **No score is claimed by this phase.** Item 7's assessment is the only place a number moves, and it
+  is written from measurements rather than from a completed checklist.
+- **No file split to reduce a line count.** The audit says so explicitly: *"No point depends on
+  splitting a large file merely to reduce its line count."*
+- **No reorganisation of the shared Architecture pipeline.** The audit rejected that challenge by name;
+  the source adapter is the right boundary and its contracts are what need strengthening.
+- **No dependency-injection framework, and no extension host.** The audit names both as things Tortie
+  should deliberately remain without.
+- **No removal of Past Sessions, and no reduction of churn**, to make F6 measurable.
+- **No weakening of any hostile arm** in `probe:controldeadline` or any conformance gate to reach green.
+- **Nothing from the "resource costs to keep visible" section is silently closed.** The mirror's
+  20,000-file and 64 MiB caps, the guarded writer's documented rename race and the in-memory nature of
+  shadow baselines stay visible; the last of those is Phase 243's and not this phase's.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -25403,3 +25674,5 @@ cycle rather than only the evening it was written.
 - 2026-09-08, Phase 242 FIX ROUND, three commits on `3f56025d` at version 0.101.0 with NO bump and NO tag, closing the verifier's one blocking finding and its four smaller ones. **A WRITE STILL ESCAPED THE CONFIRMED FOLDER ON HIS MAC PRO, THROUGH TORTIE'S OWN `putFile`, AT THE END OF THE BUILDER ROUND.** A HARD LINK planted at the staged name `<file>.tortie-part` took the payload into a file OUTSIDE the folder he confirmed while the answer read `wrote` and named that folder as where the bytes had landed, which is arm `a9`'s exact outcome reached by the one link kind `[ -L ]` cannot see, because a hard link is not a link to the shell: it IS the file under a second name. `61cb66aa`'s own body and research 103 section 2 both say that arm "is `src/main/credentials/nofollow.ts`'s shape exactly, and this domain had never taken the same lesson", and then it took HALF of it: `nofollow.ts` is UNLINK THEN CREATE EXCLUSIVELY and `remote-scripts.ts` took the `-L` check alone. (1) `e8615f08`, **the whole shape**: `rm -f "$t"` in front of both redirections and `set -C` around them, reproduced over the shipped text before anything was changed at `wrote` with the file outside holding `PWNED-H1`, and after at `wrote` with the file outside holding `victim, untouched` and the person's own file inside holding the payload. Both arms unlink, because the first arm's redirection creates the staged file even on a machine whose `base64` has no `-d` and an exclusive create without that second unlink would refuse the save on every one of those machines; driven under `/bin/sh` AND `/bin/dash`, which both refuse an existing regular file, a live link and a dangling link at the create and both allow `2>/dev/null`. **TWO ANSWERS FOR THE SAME SHAPE ON PURPOSE**: a SYMBOLIC link at the staged name is still refused with the word `outside`, because it names a path and something is plainly wrong, and a HARD link is unlinked and the save goes through, because it names nothing and the only thing telling it from the ordinary debris of an interrupted save is a link count, which is a third `stat` dialect for an answer that would leave a person unable to save a file they can see; both end with nothing outside the folder changed, which is the property that matters. **THE `rm` RULE WAS NARROWED AND NEVER DELETED**, which is the redline rule 9 shape: it read "the text names no rm" in three places and each now reads "every rm this text names is the staged unlink, by its exact spelling", out of one shared `STAGED_UNLINK` and `stagedUnlinkFacts`, because THE UNLINK IS NARROWER IN EFFECT THAN THE `>` IT PRECEDES, the redirection destroying the contents of that name through every other name that shares its inode and the unlink destroying one name Tortie composed for itself. Condition 88f is the other half of `nofollow.ts`, being that every creation of the staged name has an unlink of that name above it with no other creation in between, that the creation is exclusive, and that every `rm` is that one unlink; ten planted texts, all ten behaving, and three ablations of the real code each red naming the clause. `p242-link-refusal.test.ts` 14 arms to 20 over real `link(2)` links, **2 of them red at the parent** and they are the escape itself, the other four green on both sides because they prove the fix is not wider than the hole, being a hard link as the file REPLACED, `dir-new` and `entry-rename` against one, the interrupted save's debris still written over and the `base64 -D` arm still writing. `image-put` is deliberately untouched: its staged name is inside Tortie's own 0700 directory and it has no confirmed folder to be outside of. (2) `7c6b60b7`, **§4 of the acceptance checklist named a control that does not exist**: it said to clear the folder from the field, and once a folder is confirmed there is no field, only `Stop Tortie saving files here`, whose click is `forget(row.id)` and which clears the accepted version, clears the write root AND drops the confirmation, so his machine stops being usable until he confirms it again and the checklist never said so. `p242-acceptance-copy.test.ts` reads the five control names, the honesty paragraph and the Explorer refusal out of the document and compares them to the constants the product draws, 2 of its 4 cases red against the checklist as it shipped. (3) `33c1958f`, **the rehearsal re-driven at `e8615f08` against his Mac Pro with arm `a12` added**, `findings: []`: `wrote`, sha256 `6b3368af…`, the victim's md5 `60fc7826…` before and after with its link count 2 to 1, `docs/hard-target.md` moving `"# hard target|"` to `"PWNED-A12|"` and the planted name gone, all three halves graded together because any one alone passes for the wrong reason. Everything else reproduced: putFile 140 `wrote`, makeDir 48, rename 43, move 56, stage 125, unstage 211, stage again 123, commit 127 `committed`, `writesOff` on the folderless row, thirteen `outsideRoot`s, and `remoteOnlySentences` EMPTY with `localOnlySentences` `["Stage all & commit"]`. **TWO COUNTS IN THE PHASE'S OWN DOCUMENTS WERE NOT COUNTED and are counted now from `ATTACK_ARMS`**: research 103 said "twelve arms, twelve refusals" over a table of fourteen rows and the checklist said "Four of those six wrote through", and the measured answer is seventeen arms driven, fifteen graded and two recorded, thirteen `outsideRoot`, one `refused`, one `wrote`, with FIVE having written through at the parent, being a5a, a5b, a5c, a8a and a9. **The verifier's suggested evidence line asked for `outsideRoot` on this arm and the fix it named in the same paragraph gives `wrote`**, which is the right answer for the reason above, and the entry says so rather than quietly reading one as the other. Mac Pro: `-L gmux` held exactly `gmux-control` before and after, 1 and 1, `~/.gitconfig` 140 bytes, `~/.ssh` `authorized_keys` only, no `tortie-p242-*` left, teardown `ROOT-GONE SIBLING-GONE OUTSIDE-GONE`; this Mac 19 sessions before and after with `gmux-p242-58656` ended AND unlinked, `known-machines` 113 bytes and `~/.ssh/known_hosts` 2,215 bytes unmoved. Battery: typecheck, build with the contract inventory byte identical and `gate:electron` at floor 100, 13,022 tests over 820 files, `conformance:machines`, `conformance:remoteclose`, `gate:knownhosts` and smoke:t1 6 of 6. No token spent on either machine.
 - 2026-09-08, Phase 242.2 queued, a picture put on a machine follows a name somebody planted at its staged path, found by Phase 242's verifier after that phase's fix round had closed and re-derived by its committer with a second harness that evaluates the SHIPPING `IMAGE_PUT` array literal out of `src/main/machines/remote-scripts.ts` rather than a copy of it. Driven under `/bin/sh` over a scratch `HOME` that both harnesses removed in a `finally` and that contacted no machine: with a SYMLINK at `$d/$1.part` and again with a HARD LINK at it, the `base64 -d > "$t"` redirection put the payload into the file outside `~/.tortie/images` that the planted name pointed at, while the script still printed `added` with the payload's OWN byte count and its OWN sha256, so the answer reads as a clean write in both escaping arms and the control arm left its victim `victim, untouched`. It is SMALLER than 242.1 and it is still real: `putImagesOnMachine` at `src/main/machines/remote-image.ts:338` never asks `confirmedWriteRoot`, so image-put makes no containment promise for a link to break, and the name is `remoteImageName(sessionId, sha256, ext)` so anything planted there had to be predicted first; what is left is a write Tortie composes that follows somebody else's name out of the one directory Tortie told the person it uses. The fix is the two lines `file-put` already carries, being `rm -f "$t"` and `set -C`, plus an arm on `conformance:machines` beside condition 88 that goes red under ablation of EACH clause on its own, because Phase 242's fix round measured that the two halves of `file-put`'s guard are held by DIFFERENT clauses and ablating one alone left the tests green. Phase 242 did NOT fix it, because its own rule is that nothing is fixed which is not found; what its committer did fix is the header paragraph that argued nothing gets out, which was reasoning rather than a reading.
 - 2026-09-08 **PHASE 242 LANDED WHOLE at `95b53a30`** at version 0.101.0 with NO bump and NO tag, THE WRITE ROOT REHEARSED against his real Mac Pro, ten commits rebased onto `6b334990` and pushed. **The phase expected to build nothing and found two escapes from the folder a person confirms.** THE THING IT FIXED, parent reading and HEAD reading, taken through Tortie's own `putFile` against `gregs-mac-pro.tail2ddfe1.ts.net` with the far side read by an `ssh` Tortie did not compose: at the parent a HARD LINK planted at the staged name `<file>.tortie-part` took the payload into a file OUTSIDE the confirmed folder while the answer read `wrote` and named that folder as where the bytes had landed, the victim's md5 moving and `docs/hard-target.md` reading `PWNED-A12`; at HEAD the same arm answers `wrote`, the victim's md5 is `60fc7826…` before and after with its link count 2 to 1, and the payload is in the person's own file inside the folder. Five arms wrote through at the parent, being a5a, a5b, a5c, a8a and a9, and none does now; seventeen attack arms driven, fifteen graded, two recorded, thirteen `outsideRoot`, one `refused`, one `wrote`. THE REMOTE-ONLY SENTENCE SET WAS EMPTY, which is the operator's rule of 2026-09-07 made a reading rather than a promise: the two faces were graded side by side with no normalisation at all and every remote-only string is a heading's plural, a count-bearing label, a value slot or a disabled control's own label, with `localOnlySentences` `["Stage all & commit"]` and research 57's Delete and Discard still absent on the remote face. Every write verb driven in one run, being putFile 171 `wrote`, makeDir 51, rename 40, move 38, stage 109, unstage 188, stage again 100 and commit 116 `committed`, every one of them `writesOff` on a row with no folder. The committer's own round corrected one more sentence rather than one more clause: the `IMAGE_PUT` header argued that nothing gets out of `~/.tortie/images`, and driving the shipping script under `/bin/sh` over a scratch `HOME` shows a symlink AND a hard link at `$d/$1.part` each taking the payload outside it while the script prints `added` with the payload's own count and digest, so the paragraph now carries the measurement and Phase 242.2 carries the fix. Battery after the rebase: typecheck, build with the contract inventory byte identical and `gate:electron` at floor 105 measured by `--list`, 13,212 tests over 832 files, `conformance:machines`, `conformance:remoteclose`, `gate:knownhosts`, `gate:contract`, `gate:background`, smoke:t1 6 of 6 and smoke:t3 3 of 3. Mac Pro before and after: `-L gmux` held exactly `gmux-control` and nothing else, 1 and 1, no `tortie-p242-*` directory, no `gmux-p242-*` socket, no process of this phase, `~/.gitconfig` 140 bytes unmoved and `~/.ssh` holding `authorized_keys` alone. This Mac: 19 `-L gmux` sessions before and after, listed only; his `config/machines.json` `b61831d7761fdcb0`, `machines/known-machines` `57a29ed87befdcb0` and `config-confirmations.json` `c922e4801a9dffea` unchanged by digest, HIS ROW STILL CARRIES NO WRITE ROOT because setting it is his act, and `~/.ssh/known_hosts` `4c32862895d84e97` 2,215 bytes unmoved with the agent holding no identities. **The phase is not complete until he runs `docs/ACCEPTANCE-p242.md` by hand**, because the rehearsal ran under a scratch profile and his own row is a different row.
+- 2026-09-09, Phase 243 QUEUED at his word, THE DURABLE BASELINE, the last step the redline family has open and the one thing Phase 238's own report names as what would make an accept outlive the tab. Research 83 A3.3 settles three things this round inherits rather than re-derives, being the home `<userData>/gmux/baselines/` through `src/main/durable`, the key shape `(repo_path, rel_path)` that `symbol_file` and `arch_tree_file` both already use, and the write going through `writeDurable` with a generations ring at the `SNAPSHOT_GENERATIONS = 3` next door; the price is measured at 9.0 ms median for a 126 KB file, 15.1 ms at 2.66 MB and a worst realistic live set of ten prose tabs at 712 KB. THE IN-MEMORY COPY REMAINS THE READ PATH so nothing on the draw path gains an await, the generation guard does not move, and the face gains ONE short line for a restored origin beside Phase 239's opening sentences and Phase 238's accept wording. **IT IS NOT A BACKUP AND NO COPY MAY READ AS ONE**, which is research 83 A4.2's ruling and A3.4's reason: losing a baseline loses the NARROWING and nothing on disk, and the one case where it holds the only copy is already lost today and worse than people assume, because `resetWorkingModel` calls `setValue` whose `_setValueFromTextBuffer` runs `this._commandManager.clear()` under the comment "Destroy my edit history and settings", so an agent overwriting a prose file destroys that tab's Monaco undo stack and the in-memory baseline is the first undo of an agent's prose edit this product has ever had.
+- 2026-09-09, Phase 244 QUEUED at his word, THE SIX FINDINGS OF THE 0.101.0 ARCHITECTURE AUDIT, written by another session at `163266d6` and committed with the entry. **THE SCORE READS 32 OF 36**, down from the 35 the 7 September document recorded and the 34 a conversational recheck corrected it to, and THE STANDING NOTE IN THIS FILE SAYING "an honest 35 of 36" IS SUPERSEDED BY THAT ENTRY; eight categories hold 3 and State ownership, Lifecycle, Failure flow and Test seam hold 2. The audit is explicit that the rubric is NOT a release gate and the entry does not treat it as one: no item is fixed to move a number, and no later round rounds it up, because the audit's own closing instruction is not to increase a score merely because a remediation checklist is complete. **THE FIRST ACT IS RE-MEASUREMENT AND ONE FINDING HAS ALREADY MOVED**: F5's `install-roundtrip.test.ts` failure, which the audit read failing on `readdirSync` of the real `/Users/gdc/.Trash`, does NOT reproduce at `8ee3eb42`, passing 6 of 6 alone with the full suite at 831 files and 13,211 tests whose one red is `live.test.ts`'s timing arm, green 14 of 14 three times alone and load rather than the tree; whether that is a fix or a host that now answers differently is the round's first question, because a test that passes because the host allows something is not a hermetic test. The six in the audit's own order: F5 verification first because everything after needs a trustworthy baseline; F1 the reopened tab inheriting an earlier rewind journal, depth still 1 under the same id with the deleted and inserted STRINGS held and no ceiling; F2 the remote Architecture mirror reusing stale source for ever because the far side reports WHOLE-SECOND mtimes and a same-length rewrite inside one second read `reused: 1, written: 0` with the machine holding 2 and the mirror holding 1; F3 the fact-only scan path discarding `syncTree().overBudget` and stamping a completion the map reads as `building`; F4 the guarded writer consuming 16,777,217 bytes against a 5,242,880 cap because `readAllSync` reads to EOF before the second size check; and F6 the split retention finding, which may end as an explanation rather than a repair and where a green sample is not an explanation. The four preserved fixtures under `docs/audits/fixtures/2026-09-08/` are ADOPTED as maintained regressions in the same commit as the repair each belongs to, with setup updated where an API moved and the behavioural assertion never weakened, red at the parent and green after and red again under ablation. A new dated assessment at the execution commit is item 7 and is the only place a number may move.
