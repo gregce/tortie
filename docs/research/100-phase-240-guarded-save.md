@@ -415,3 +415,91 @@ them.
   refuses it. That is a strictly better answer and it is not encoding detection, which research 83
   E.7b already refused.
 - **No agent was started and no token was spent.** Every "agent" in this document is `/bin/sh`.
+
+---
+
+## 7. The committer's round — the plain door had the reading and neither guard
+
+Sections 0 to 6 are the parent measurement, taken at `6ac4de16` before anything was built. This
+section is taken at `5077ed65`, the end of the fix round, and it is here because the verifier's
+finding was that the phase's own subject line was unmet on the door the fix round had just added.
+
+### 7.1 What the fix round built, and what it left
+
+The fix round gave the plain door — a symbolic link inside a project, a file outside every open
+project, a never-saved draft — a READING in front of its write. It did not give that door the two
+things the guarded channel has behind its reading:
+
+| | guarded door (`fs:writeGuarded`) | plain door at `5077ed65` |
+| --- | --- | --- |
+| first save re-checks the file | yes, compare-and-swap on raw bytes | yes, a decoded-text reading |
+| **Overwrite re-checks the file** | **yes, against the digest of what was shown** | **no, unconditional** |
+| **a lossy decode is refused** | **yes, `notUtf8` on a byte round trip** | **no, written back whole** |
+
+### 7.2 The Overwrite, measured
+
+`build/p240/plain-door.mts` drives the door's sequence over real files with a real `/bin/sh` racer,
+500 rounds per policy, the two arms differing in one line:
+
+| policy | third writers destroyed unasked | characters destroyed | asked again | still wrote in the end |
+| --- | --- | --- | --- | --- |
+| unconditional (`5077ed65`) | **500 of 500** | **21,890** | 0 | 500 |
+| reads again (HEAD) | **0 of 500** | **0** | 500 | **500** |
+
+The last column is the answer to the reason the fix round wrote down for leaving it unconditional,
+which was that re-reading "would find the same difference for ever". It does not, because the door
+re-reads against the text it SHOWED rather than against `savedContents`, exactly as the guarded door
+re-reads against the digest the channel handed back with `stale`. Every extra round needs another
+writer to arrive, so with nobody else writing the second press goes through — 500 times out of 500.
+
+The same shape in the running app is `npm run probe:p240` arm F: a `/bin/sh` writes the link's
+target while the question is on screen, Overwrite is pressed, and the question is asked again over
+the newer bytes with the third writer's paragraph still on disk. At `5077ed65` the same arm lost 38
+characters with no toast and a clean tab, while arm D — the guarded door — re-asked in the same run.
+
+### 7.3 The encoding, measured
+
+`fs:readFile` decodes with `Buffer.toString('utf8')`, which turns every byte sequence that is not
+UTF-8 into U+FFFD and never says that it did. Section 3 measured what that costs on the OLD save
+path: 4 U+FFFD written to disk. The fix round's `notUtf8` re-read closed it on the guarded door only,
+so a latin-1 file reached through a symbolic link inside a project — the plain door — still went
+**49 B to 58 B with four U+FFFD written into it, its four accented bytes replaced by twelve**, with
+no dialog and no toast.
+
+The plain door has no bytes to compare, so it asks the one question a decoded string can answer: does
+the text it read carry U+FFFD. If it does, the round trip is not safe and the save is refused with
+the same word the guarded channel answers for the same file. `npm run probe:p240` arm I is that
+reading in the running app: no dialog, the encoding sentence, 37 B before and after, and 4 bytes at
+or above 0x80 before and after.
+
+**The stated limit is the false positive.** A file that really is UTF-8 and really holds a U+FFFD
+character is refused a save on this door and told it is not UTF-8, which is wrong about that one
+file. The other direction destroys somebody's bytes with nothing said, and this way the two doors
+answer the same word about the same file.
+
+### 7.4 A third hole found in passing
+
+The plain door's reading had one word for "could not read it" and wrote on both halves of it. A file
+that is not there must be written — that is what a draft is. A file that came back TRUNCATED, having
+grown past `READ_CAP_BYTES` while somebody typed, was replaced by the buffer whole with its tail
+gone and nothing said, where the guarded channel refuses it `tooLarge`. The reading tells the two
+apart now.
+
+### 7.5 The guarded channel, re-attacked at HEAD
+
+The channel itself is byte-unmoved by this phase, and the attack was re-run so a regression would
+show. Ten seconds against a racer rewriting the file continuously:
+
+| | reading |
+| --- | --- |
+| saves attempted | **78,763** |
+| `stale` | 78,466 |
+| `refused/raced` | 165 |
+| `wrote` | 132 |
+| of those, bytes destroyed inside the same-size window | **13**, being **0.017 % of saves** |
+| guarded Overwrite against a third writer | **500 of 500 refused, 500 of 500 third writers survived** |
+
+The 13 are Phase 226's own stated limit, being a change of the same size landing inside the channel's
+`lstat`-to-`rename` window; `src/main/fs/guarded-write.ts`'s header carries the numbers and the
+reason Node cannot close it (`renamex_np` is not exposed). No editor and no agent writes at that
+rate. 99.98 % of the racer's writes were caught.

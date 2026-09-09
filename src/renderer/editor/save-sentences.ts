@@ -45,11 +45,22 @@ import type { FsGuardedWriteRefusal } from '@shared/fs-ops';
  * tab. That is issue 16 exactly, on a file that happens to be a link, so a
  * fallback with no check at all could not stand. The plain door in ./tab-io
  * now READS the file and compares it to what the buffer was built from before
- * it writes, and offers the same three answers when they differ. THE STATED
- * LIMIT IS THE WINDOW between that reading and the write, which is one IPC
- * round trip rather than the guarded channel's two system calls, and it stays
- * open because closing it means giving the channel a mode for a link, which is
- * a change to the channel this phase does not make.
+ * it writes, and offers the same three answers when they differ.
+ *
+ * THE COMMITTER'S ROUND CLOSED TWO MORE HOLES IN THAT SAME DOOR, and both were
+ * this phase's own subject line unmet. Its Overwrite was UNCONDITIONAL, so a
+ * third writer arriving while the question was on screen was written over — 38
+ * characters destroyed in the running app, against the guarded door re-asking
+ * in the same run; it now carries the text it showed, reads the file at the
+ * press, and writes only if the file still says it. And it wrote a lossy decode
+ * back whole, so a latin-1 file reached through a link went 49 B to 58 B with
+ * four U+FFFD in it and nothing said; it now refuses a text carrying U+FFFD
+ * with the `notUtf8` sentence below, which is the same word the guarded channel
+ * answers for the same file. THE STATED LIMIT IS THE WINDOW between the reading
+ * and the write, which is one IPC round trip rather than the guarded channel's
+ * two system calls, and it stays open because closing it means giving the
+ * channel a mode for a link, which is a change to the channel this phase does
+ * not make.
  */
 export type SaveRefusalWord = Exclude<FsGuardedWriteRefusal, 'link'>;
 

@@ -417,3 +417,107 @@ describe('the fix round', () => {
     expect(toasts()[0]).toContain('open it again and save');
   });
 });
+
+/**
+ * PHASE 240 COMMITTER'S ROUND. The plain door was given the guarded door's
+ * READING and neither its second guard nor its encoding refusal, and the
+ * documents described the guarded door's behaviour as if it were universal.
+ * Every arm here is a shape measured in the running app at 5077ed65.
+ */
+describe("the committer's round: the plain door's other two holes", () => {
+  /** A file outside every open project — where an agent edits CLAUDE.md. */
+  const outside = (): EditorTab =>
+    tabOf({ path: '/Users/op/.claude/CLAUDE.md', name: 'CLAUDE.md' });
+  /** What a third writer put there while the question was on screen. */
+  const THIRD = 'The quick brown fox.\n\nA third writer got here first.\n';
+
+  it('a THIRD writer between the question and Overwrite is caught, not lost', async () => {
+    // 38 characters destroyed here in the running app, while the guarded door
+    // re-asked in the same run. 500 of 500 at node level against 0 of 500.
+    const tab = outside();
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    expect(await ioOver(tab).save(tab.id)).toBe(false);
+    expect(confirm()?.title).toBe("'CLAUDE.md' changed on disk");
+    readFile.mockResolvedValue({ contents: THIRD, truncated: false });
+    confirm()?.onAlt?.();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(patches).toEqual([]);
+    // The same choice again, over the newer bytes.
+    expect(confirm()?.title).toBe("'CLAUDE.md' changed on disk");
+  });
+
+  it('and that loop terminates: with no further writer, the next Overwrite goes', async () => {
+    const tab = outside();
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    await ioOver(tab).save(tab.id);
+    readFile.mockResolvedValue({ contents: THIRD, truncated: false });
+    confirm()?.onAlt?.();
+    await new Promise((r) => setTimeout(r, 0));
+    // Nobody writes again, so the file still says what was shown the second
+    // time and the person's decision stands.
+    confirm()?.onAlt?.();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(writeFile).toHaveBeenCalledWith('/Users/op/.claude/CLAUDE.md', BUFFER);
+    expect(patches).toEqual([{ savedContents: BUFFER, dirty: false }]);
+  });
+
+  it('a SYMBOLIC LINK gets the same second guard, which is where it was measured', async () => {
+    writeGuarded.mockResolvedValue({ outcome: 'refused', why: 'link', reason: 'x' });
+    readFile.mockResolvedValue({ contents: AGENT_DISK, truncated: false });
+    await ioOver(tabOf()).save(PATH);
+    readFile.mockResolvedValue({ contents: THIRD, truncated: false });
+    confirm()?.onAlt?.();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(confirm()?.title).toBe("'notes.md' changed on disk");
+  });
+
+  it('a file that is not UTF-8 is refused rather than rewritten with U+FFFD', async () => {
+    // `fs:readFile` decodes with Buffer.toString('utf8'), so a latin-1 file
+    // comes back carrying U+FFFD and writing the buffer whole puts EF BF BD
+    // where the file had something else. Measured through a link inside a
+    // project: 49 B to 58 B, four U+FFFD, no dialog and no toast.
+    const tab = outside();
+    readFile.mockResolvedValue({
+      contents: 'Notes de r�union\n',
+      truncated: false
+    });
+    BUFFER = 'XNotes de r�union\n';
+    expect(await ioOver(tab).save(tab.id)).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(patches).toEqual([]);
+    expect(confirm()).toBeNull();
+    expect(toasts()).toEqual([saveRefusalSentence('notUtf8', 'CLAUDE.md')]);
+  });
+
+  it('and it is the same word the guarded door answers for the same file', async () => {
+    writeGuarded.mockResolvedValue({ outcome: 'refused', why: 'link', reason: 'x' });
+    readFile.mockResolvedValue({
+      contents: 'Notes de r�union\n',
+      truncated: false
+    });
+    BUFFER = 'XNotes de r�union\n';
+    expect(await ioOver(tabOf()).save(PATH)).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(toasts()).toEqual([saveRefusalSentence('notUtf8', 'notes.md')]);
+  });
+
+  it('a file that grew past the read cap is refused rather than truncated', async () => {
+    const tab = outside();
+    readFile.mockResolvedValue({ contents: READ, truncated: true });
+    expect(await ioOver(tab).save(tab.id)).toBe(false);
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(patches).toEqual([]);
+    expect(toasts()).toEqual([saveRefusalSentence('tooLarge', 'CLAUDE.md')]);
+  });
+
+  it('and the quiet save is untouched: unchanged on disk still writes', async () => {
+    const tab = outside();
+    readFile.mockResolvedValue({ contents: READ, truncated: false });
+    expect(await ioOver(tab).save(tab.id)).toBe(true);
+    expect(writeFile).toHaveBeenCalledWith('/Users/op/.claude/CLAUDE.md', BUFFER);
+    expect(toasts()).toEqual([]);
+    expect(confirm()).toBeNull();
+  });
+});

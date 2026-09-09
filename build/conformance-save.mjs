@@ -161,6 +161,24 @@ function innermostNaming(code, needle) {
     .sort();
 }
 
+/**
+ * What the body of `name` says from its first mention of `marker` onward, or
+ * null when either is absent.
+ *
+ * PHASE 240 COMMITTER'S ROUND. Rules 2c and 2d ask what the OVERWRITE a door
+ * offers does, and an overwrite is a callback passed to `offerStaleChoice`
+ * rather than a function with a name of its own, so `namedFunctions` cannot
+ * reach it. The tail of the door's own body is where it lives, and asking the
+ * whole body instead would read the door's FIRST write as its overwrite and
+ * pass on every shape.
+ */
+function tailAfter(code, name, marker) {
+  const body = namedFunctions(stripComments(code)).get(name);
+  if (body === undefined) return null;
+  const at = body.indexOf(marker);
+  return at === -1 ? null : body.slice(at);
+}
+
 // ---------------------------------------------------------------------------
 // Rule 0. The scanners are proved before anything is asked of them.
 // ---------------------------------------------------------------------------
@@ -281,6 +299,62 @@ const FIXTURES = [
     check: (c) => bodyMentions(c, 'overwrite', 'sha256Hex') === false
   },
   {
+    name: "the plain door whose Overwrite is the door again is clean",
+    catches: false,
+    code:
+      'const saveOutsideProject = async (id, tab, v, shown) => { const d = await diskReading(tab, shown); ' +
+      'if (d.kind === "same") return writePlain(id, tab, v); ' +
+      'offerStaleChoice(tab, v, () => { void saveOutsideProject(id, tab, v, d.text); }); return false; };',
+    check: (c) => {
+      const tail = tailAfter(c, 'saveOutsideProject', 'offerStaleChoice');
+      return tail !== null && tail.includes('saveOutsideProject') && !tail.includes('writePlain');
+    }
+  },
+  {
+    name: 'the plain door whose Overwrite writes unconditionally is caught',
+    catches: true,
+    // The shape that really shipped, and that destroyed 38 characters of a
+    // third writer in the running app while the guarded door re-asked.
+    code:
+      'const saveOutsideProject = async (id, tab, v, shown) => { const d = await diskReading(tab, shown); ' +
+      'if (d.kind === "same") return writePlain(id, tab, v); ' +
+      'offerStaleChoice(tab, v, () => { void writePlain(id, tab, v); }); return false; };',
+    check: (c) => {
+      const tail = tailAfter(c, 'saveOutsideProject', 'offerStaleChoice');
+      return tail !== null && tail.includes('writePlain');
+    }
+  },
+  {
+    name: 'a door that offers no choice at all reads as absent rather than as clean',
+    catches: true,
+    code:
+      'const saveOutsideProject = async (id, tab, v, shown) => { return writePlain(id, tab, v); };',
+    check: (c) => tailAfter(c, 'saveOutsideProject', 'offerStaleChoice') === null
+  },
+  {
+    name: 'the plain door that asks the encoding question before it writes is clean',
+    catches: false,
+    code:
+      'const saveOutsideProject = async (id, tab, v, shown) => { const d = await diskReading(tab, shown); ' +
+      'if (decodeLost(shown)) return false; return writePlain(id, tab, v); };',
+    check: (c) => bodyOrder(c, 'saveOutsideProject', 'decodeLost', 'writePlain') === true
+  },
+  {
+    name: 'the plain door that asks it after the write is caught',
+    catches: true,
+    code:
+      'const saveOutsideProject = async (id, tab, v, shown) => { const ok = await writePlain(id, tab, v); ' +
+      'if (decodeLost(shown)) return false; return ok; };',
+    check: (c) => bodyOrder(c, 'saveOutsideProject', 'decodeLost', 'writePlain') === false
+  },
+  {
+    name: 'a door that never asks it at all reads as absent',
+    catches: true,
+    code:
+      'const saveOutsideProject = async (id, tab, v, shown) => { return writePlain(id, tab, v); };',
+    check: (c) => bodyOrder(c, 'saveOutsideProject', 'decodeLost', 'writePlain') === null
+  },
+  {
     name: 'an enclosing factory is not read as the function that writes',
     catches: false,
     code:
@@ -376,6 +450,68 @@ const READING = 'diskReading';
     );
   } else {
     say(`2b. ${PLAIN_WRITE} is reached from ${PLAIN_DOOR} alone and ${PLAIN_DOOR} asks ${READING} before it writes`);
+  }
+}
+
+// Rule 2c. The plain door's OVERWRITE is the door again, not a bare write.
+//
+// PHASE 240 COMMITTER'S ROUND, and it is this phase's own subject line unmet.
+// The fix round gave the plain door a reading and left its Overwrite
+// unconditional, so a third writer arriving while the question was on screen
+// was written over: 38 characters destroyed in the running app, 500 of 500 at
+// node level, against the guarded door re-asking in the same run. The reason
+// written down was that re-reading "would find the same difference for ever",
+// and the guarded door refutes it — it re-reads against what was SHOWN rather
+// than against `savedContents`, and it terminates.
+{
+  const code = readFileSync(join(repoRoot, TAB_IO), 'utf8');
+  const tail = tailAfter(code, PLAIN_DOOR, 'offerStaleChoice');
+  if (tail === null) {
+    fail(
+      `2c. ${PLAIN_DOOR} never reaches offerStaleChoice, so the plain door offers no choice and this rule read nothing`
+    );
+  } else if (tail.includes(PLAIN_WRITE)) {
+    fail(
+      `2c. the Overwrite ${PLAIN_DOOR} offers names ${PLAIN_WRITE} directly, so it writes without reading again; that is the shape that destroyed 38 characters of a third writer while the question was on screen`
+    );
+  } else if (!tail.includes(PLAIN_DOOR)) {
+    fail(
+      `2c. the Overwrite ${PLAIN_DOOR} offers does not call ${PLAIN_DOOR} again, so nothing re-reads the file at the press`
+    );
+  } else {
+    say(
+      `2c. the Overwrite ${PLAIN_DOOR} offers is ${PLAIN_DOOR} called again with the text it showed, so a third writer between the question and the click is asked about rather than written over`
+    );
+  }
+}
+
+// Rule 2d. The plain door asks the encoding question before it writes.
+//
+// `fs:readFile` decodes with `Buffer.toString('utf8')`, so a file that is not
+// UTF-8 comes back carrying U+FFFD and writing the buffer whole puts EF BF BD
+// where the file had something else. Measured on this door at 5077ed65: a 49 B
+// latin-1 `.txt` behind a symbolic link went to 58 B with four U+FFFD in it,
+// no dialog and no toast. The guarded channel refuses that by comparing raw
+// bytes; the plain door has no bytes, and this is the question it can ask.
+const DECODE_TEST = 'decodeLost';
+{
+  const code = readFileSync(join(repoRoot, TAB_IO), 'utf8');
+  const order = bodyOrder(code, PLAIN_DOOR, DECODE_TEST, PLAIN_WRITE);
+  const test = bodyMentions(code, DECODE_TEST, '\\uFFFD');
+  if (order === null) {
+    fail(
+      `2d. ${PLAIN_DOOR} never names both ${DECODE_TEST} and ${PLAIN_WRITE}, so a lossy decode is written back whole`
+    );
+  } else if (order === false) {
+    fail(`2d. ${PLAIN_DOOR} writes before it asks ${DECODE_TEST}`);
+  } else if (test !== true) {
+    fail(
+      `2d. ${DECODE_TEST} does not name U+FFFD, and that is the only mark a decoded string carries of the bytes it lost`
+    );
+  } else {
+    say(
+      `2d. ${PLAIN_DOOR} asks ${DECODE_TEST} before it writes, and ${DECODE_TEST} reads U+FFFD, which is the same word the guarded channel answers for the same file`
+    );
   }
 }
 

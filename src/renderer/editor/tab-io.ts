@@ -696,9 +696,12 @@ export function createTabIo(deps: TabIoDeps): TabIo {
    * would refuse such a path `outside`, and refusing it here would take away a
    * save a person has today.
    *
-   * NOTHING CALLS IT DIRECTLY except `saveOutsideProject` below and the
-   * Overwrite it offers, so every plain write in this file is answered for by
-   * the reading in front of it.
+   * NOTHING CALLS IT DIRECTLY except `saveOutsideProject` below, and the
+   * Overwrite that door offers is that same door called again rather than a
+   * write of its own, so every plain write in this file is answered for by the
+   * reading in front of it. `npm run conformance:save` rule 2b is what keeps
+   * that true, and the committer's round is why it is one caller rather than
+   * two.
    */
   const writePlain = async (
     id: string,
@@ -723,40 +726,81 @@ export function createTabIo(deps: TabIoDeps): TabIo {
   };
 
   /**
-   * PHASE 240 FIX ROUND. What the file says NOW, against what the buffer was
-   * built from.
+   * PHASE 240 FIX ROUND. What the file says NOW, against a text it is expected
+   * to still hold.
    *
-   * `same` means the text on disk is still `tab.savedContents`, `changed`
-   * carries what it says instead, and `unknown` is a file that could not be
-   * read at all or came back truncated. A draft that has never been saved
-   * reads `unknown`, because its file does not exist yet and that is the point
-   * of it.
+   * `same` means the text on disk is still `expect`, `changed` carries what it
+   * says instead, `absent` is a file that could not be read at all, and
+   * `oversize` is one that came back truncated. A draft that has never been
+   * saved reads `absent`, because its file does not exist yet and that is the
+   * point of it.
    *
-   * IT IS A TEXT COMPARISON AND NOT A DIGEST, because that is the only
-   * question this side of the bridge can ask: `fs:readFile` hands the renderer
-   * a DECODED string and never the bytes. The two callers below each need a
-   * different half of that, and both reasons are worth writing down.
+   * THE EXPECTED TEXT IS THE CALLER'S, and the committer's round is why. Both
+   * of the first callers asked "is it still `tab.savedContents`", and the plain
+   * door's Overwrite has to ask a different question: is the file still the
+   * text the person was SHOWN when they were asked. Comparing against
+   * `savedContents` there would answer `changed` for ever and re-ask a question
+   * that was already answered.
+   *
+   * THE TWO UNREADABLE ANSWERS ARE TOLD APART for the same round's reason. They
+   * were one word, and the plain door wrote on both: a file that grew past the
+   * read cap while somebody typed was replaced by the buffer whole, with its
+   * tail gone and nothing said, where the guarded channel refuses it
+   * `tooLarge`. A file that is not there is the opposite — writing it is the
+   * whole point of a draft.
+   *
+   * IT IS A TEXT COMPARISON AND NOT A DIGEST, because that is the only question
+   * this side of the bridge can ask: `fs:readFile` hands the renderer a DECODED
+   * string and never the bytes.
    */
   const diskReading = async (
-    tab: EditorTab
+    tab: EditorTab,
+    expect: string
   ): Promise<
-    { kind: 'same' } | { kind: 'changed'; text: string } | { kind: 'unknown' }
+    | { kind: 'same' }
+    | { kind: 'changed'; text: string }
+    | { kind: 'absent' }
+    | { kind: 'oversize' }
   > => {
-    if (!gmux) return { kind: 'unknown' };
+    if (!gmux) return { kind: 'absent' };
     let disk;
     try {
       disk = await gmux.fs.readFile(tab.path);
     } catch {
-      return { kind: 'unknown' };
+      return { kind: 'absent' };
     }
-    if (disk.truncated) return { kind: 'unknown' };
-    return disk.contents === tab.savedContents
+    if (disk.truncated) return { kind: 'oversize' };
+    return disk.contents === expect
       ? { kind: 'same' }
       : { kind: 'changed', text: disk.contents };
   };
 
   /**
-   * The plain door, with a reading in front of it (Phase 240 fix round).
+   * PHASE 240 COMMITTER'S ROUND. The one thing a decoded string can say about
+   * the bytes underneath it.
+   *
+   * `fs:readFile` decodes with `Buffer.toString('utf8')`, which turns every
+   * byte sequence that is not UTF-8 into U+FFFD and never says that it did. So
+   * a text carrying U+FFFD is a text whose bytes may not survive being written
+   * back, and writing the buffer whole puts EF BF BD where the file had
+   * something else. That is research 83 E.7b's loss, and it was measured on
+   * this very door in the running app at 5077ed65: a 49 B latin-1 `.txt`
+   * reached through a symbolic link inside a project, typed into and saved,
+   * went to 58 B with four U+FFFD written into it, no dialog and no toast. The
+   * guarded channel refuses exactly that by comparing raw bytes; the plain door
+   * has no bytes, so this is the question it can ask instead.
+   *
+   * THE STATED LIMIT IS THE FALSE POSITIVE, and it is deliberate. A file that
+   * really is UTF-8 and really holds a U+FFFD character is refused a save on
+   * this door and told it is not UTF-8, which is wrong about that one file. The
+   * other direction destroys somebody's bytes with nothing said, and this way
+   * the two doors answer the same word about the same file.
+   */
+  const decodeLost = (text: string): boolean => text.includes('\uFFFD');
+
+  /**
+   * The plain door, with a reading in front of it (Phase 240 fix round) and the
+   * same reading in front of its Overwrite (Phase 240 committer's round).
    *
    * WHAT THIS CLOSES. As Phase 240 first shipped, three shapes reached
    * `fs:writeFile` with no check of any kind, and the header of
@@ -769,29 +813,59 @@ export function createTabIo(deps: TabIoDeps): TabIo {
    * which is where an agent edits `~/.claude/CLAUDE.md`, and a draft that has
    * never been saved, whose path may have grown a file since the draft opened.
    *
-   * So the plain door now READS the file first and asks the same question the
-   * guarded channel asks, and offers the same three answers when it differs.
-   * THE STATED LIMIT IS THE WINDOW, and it is wider than the guarded channel's:
-   * there is no compare-and-swap here, so a write landing between this reading
-   * and the write below is lost. That window is one IPC round trip rather than
-   * two system calls. It is not closed here because closing it means giving
-   * the guarded channel a mode for a link and for a file in no project, which
-   * is a change to the channel and this phase changes nothing about it.
+   * AND THE OVERWRITE IT OFFERED WAS UNCONDITIONAL, WHICH WAS THIS PHASE'S OWN
+   * SUBJECT LINE UNMET ON THREE OF THE FOUR DOORS A ⌘S CAN TAKE. The reason
+   * written down for it was that "re-reading before it would find the same
+   * difference for ever", and the guarded door ten lines below refutes it: it
+   * re-reads against the digest of what was SHOWN rather than against
+   * `savedContents`, and it terminates. Measured in the running app at
+   * 5077ed65, a third writer landing while the question was on screen lost 38
+   * characters here and was refused on the guarded door in the same run, and at
+   * node level 500 of 500 against 0 of 500. So this door carries the text it
+   * showed into its Overwrite, reads the file again at the press, and writes
+   * only if the file is still what the person was looking at. Every round needs
+   * another writer to arrive, so it terminates for the guarded door's reason.
    *
-   * AND THE OVERWRITE IT OFFERS IS UNCONDITIONAL, deliberately. Overwrite
-   * means "put my version over what is there", so re-reading before it would
-   * find the same difference again and offer the same choice for ever.
+   * THE STATED LIMIT IS THE WINDOW, and it is wider than the guarded channel's:
+   * there is no compare-and-swap here, so a write landing between the reading
+   * and the write below is lost. That window is one IPC round trip rather than
+   * two system calls, and it is no longer however long a person looks at a
+   * dialog. It is not closed here because closing it means giving the guarded
+   * channel a mode for a link and for a file in no project, which is a change
+   * to the channel and this phase changes nothing about it.
    */
   const saveOutsideProject = async (
     id: string,
     tab: EditorTab,
-    value: string
+    value: string,
+    shown: string
   ): Promise<boolean> => {
     if (!gmux) return false;
-    const disk = await diskReading(tab);
+    const disk = await diskReading(tab, shown);
+    if (disk.kind === 'oversize') {
+      useApp
+        .getState()
+        .toast('error', saveRefusalSentence('tooLarge', tab.name), {
+          sticky: true
+        });
+      return false;
+    }
+    // A file that is not there holds no bytes to damage, which is the whole
+    // point of a draft, so it reads as the empty string here and passes.
+    const onDisk =
+      disk.kind === 'changed' ? disk.text : disk.kind === 'same' ? shown : '';
+    if (decodeLost(onDisk)) {
+      useApp
+        .getState()
+        .toast('error', saveRefusalSentence('notUtf8', tab.name), {
+          sticky: true
+        });
+      return false;
+    }
     if (disk.kind !== 'changed') return writePlain(id, tab, value);
+    const again = disk.text;
     offerStaleChoice(tab, value, () => {
-      void writePlain(id, tab, value);
+      void saveOutsideProject(id, tab, value, again);
     });
     return false;
   };
@@ -866,9 +940,16 @@ export function createTabIo(deps: TabIoDeps): TabIo {
    * PHASE 240 FIX ROUND. THE OVERWRITE IS THE CALLER'S, handed in rather than
    * composed here, because there are two doors now and each owns a different
    * second write. The guarded door's is `overwrite` below, guarded against the
-   * digest the channel handed back. The plain door's is an unconditional
-   * write, because there is no compare-and-swap on that path at all; see
-   * `saveOutsideProject` for the window that leaves and why it stays.
+   * digest the channel handed back. The plain door's is `saveOutsideProject`
+   * called again with the text it showed, which reads the file at the press and
+   * only writes if it is still what the person was looking at.
+   *
+   * PHASE 240 COMMITTER'S ROUND. THAT SECOND SENTENCE USED TO SAY THE PLAIN
+   * DOOR'S OVERWRITE WAS UNCONDITIONAL, and this dialog's own promise above —
+   * that a third writer is offered the same choice rather than written over —
+   * was true of one door and false of three. Measured in the running app, 38
+   * characters destroyed on the plain door while the guarded one re-asked in
+   * the same run.
    */
   const offerStaleChoice = (
     tab: EditorTab,
@@ -904,7 +985,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       deps.patch(id, { savedContents: value, dirty: false });
       return true;
     }
-    if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value);
+    if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value, tab.savedContents);
     if (result.outcome === 'stale') {
       const again = result.sha256;
       offerStaleChoice(tab, value, () => {
@@ -943,7 +1024,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     value: string
   ): Promise<boolean> => {
     const expect = await sha256Hex(tab.savedContents);
-    if (expect === null) return saveOutsideProject(id, tab, value);
+    if (expect === null) return saveOutsideProject(id, tab, value, tab.savedContents);
     const result = await guardedSave({
       root: tab.repoPath,
       path: tab.path,
@@ -957,7 +1038,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // A symbolic link, which the channel will not turn into a regular file.
     // It takes the plain door, which now reads the file first.
     // ./save-sentences SaveRefusalWord carries the argument.
-    if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value);
+    if (result.outcome === 'unguarded') return saveOutsideProject(id, tab, value, tab.savedContents);
     if (result.outcome === 'stale') {
       // PHASE 240 FIX ROUND. A `stale` ANSWER IS NOT ALWAYS A CHANGE ON DISK,
       // and as this phase first shipped it was always read as one.
@@ -983,7 +1064,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       // exactly the text Tortie read, between the channel's read and this
       // one: the sentence would name the encoding rather than the writer.
       // Nothing is written either way, and the next ⌘S answers `wrote`.
-      if ((await diskReading(tab)).kind === 'same') {
+      if ((await diskReading(tab, tab.savedContents)).kind === 'same') {
         useApp
           .getState()
           .toast('error', saveRefusalSentence('notUtf8', tab.name), {
@@ -1097,7 +1178,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     const neverSaved = tab.draft != null && tab.savedContents === '';
     return !neverSaved && fileInRepo(tab.repoPath, tab.path)
       ? saveInProject(id, tab, value)
-      : saveOutsideProject(id, tab, value);
+      : saveOutsideProject(id, tab, value, tab.savedContents);
   };
 
 

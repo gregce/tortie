@@ -39,7 +39,11 @@
  *      3efc8db2 this door had no check of any kind and the outside write was
  *      gone with no dialog, no toast and a clean tab, which is issue 16 on a
  *      file that happens to be a link. Overwrite then writes, because the plain
- *      door has no compare-and-swap to offer a second time.
+ *      door asks the same question again, because THE COMMITTER'S ROUND gave
+ *      this door the second guard too: at 5077ed65 its Overwrite was
+ *      unconditional and a third writer landing while the question was on
+ *      screen lost 38 characters here while the guarded door re-asked in the
+ *      same run. With nobody else writing, the next Overwrite writes.
  *   G. a file that is NOT UTF-8, which NOBODY WRITES TO. ⌘S — and the sentence
  *      names the encoding rather than a writer, because the precondition is a
  *      digest of the DECODED text and the channel hashes the RAW BYTES, so the
@@ -54,6 +58,16 @@
  *      a `.md` because a markdown tab opens in PREVIEW, which has no Monaco
  *      model, and `save` returns false in silence without one — at the parent
  *      exactly as here.
+ *
+ * AND THE COMMITTER'S ROUND ADDED THE NINTH, which is arm G asked of the OTHER
+ * door:
+ *
+ *   I. a file that is NOT UTF-8 reached through a SYMBOLIC LINK, so it takes
+ *      the PLAIN door rather than the guarded channel. The channel compares raw
+ *      bytes; the plain door has none, and at 5077ed65 it wrote the buffer back
+ *      whole — 49 B to 58 B, four U+FFFD written in, four accented bytes
+ *      replaced by twelve, no dialog and no toast. It is research 83 E.7b's
+ *      loss, live, on the door this phase had just added a reading to.
  *
  * SAFETY. The Electron is started through build/electron-run.mjs, which ends
  * the tree it started in a `finally` whatever happened. The socket is handed
@@ -470,9 +484,34 @@ await withElectron(
         ['F the outside write is still on disk', findings.F.targetUntouched, true],
         ['F its paragraph survives', findings.F.outsideWriteSurvives, true]
       ]));
-      // Overwrite on this door is unconditional, and it must still work.
+      // THE COMMITTER'S ROUND'S HALF OF THIS ARM, and it is arm D asked of the
+      // PLAIN door. At 5077ed65 this door's Overwrite was unconditional: a
+      // third writer landing while the question was on screen was destroyed —
+      // 38 characters gone with no toast and a clean tab — while the guarded
+      // door re-asked in the same run.
+      const TARGET_3 = TARGET_2 + `\n${para(10, 'written by a THIRD writer while the question was on screen')}\n`;
+      shellWrite('target.txt', TARGET_3);
+      await sleep(400);
       await cdpEval(cdp, clickButton('Overwrite'), 10000);
-      await sleep(2000);
+      await sleep(2500);
+      const dlgF2 = await cdpEval(cdp, DIALOG, 10000);
+      const faceF2 = await cdpEval(cdp, FACE, 10000);
+      findings.F.askedAgainAfterOverwrite = dlgF2.open;
+      findings.F.titleAgain = dlgF2.title;
+      findings.F.thirdWriterSurvives = disk('target.txt') === TARGET_3;
+      findings.F.thirdWritersParagraphSurvives = disk('target.txt').includes(para(10, 'written by a THIRD writer while the question was on screen'));
+      findings.F.stillDirtyAfterOverwrite = faceF2.dirtyOnFace;
+      problems.push(...grade([
+        ['F a third writer between the question and the click is caught here too', findings.F.thirdWriterSurvives, true],
+        ['F its paragraph survives', findings.F.thirdWritersParagraphSurvives, true],
+        ['F the same choice is offered again', findings.F.askedAgainAfterOverwrite, true],
+        ['F over the newer bytes', findings.F.titleAgain, "'linked.txt' changed on disk"],
+        ['F the typing still survives', findings.F.stillDirtyAfterOverwrite, true]
+      ]));
+      // And the loop terminates: with nobody else writing, the next Overwrite
+      // writes through the link, which is the save this door exists to keep.
+      await cdpEval(cdp, clickButton('Overwrite'), 10000);
+      await sleep(2500);
       const faceF = await cdpEval(cdp, FACE, 10000);
       findings.F.overwroteThroughTheLink = disk('target.txt') === TYPED + TARGET_1;
       findings.F.linkIsStillALink = existsSync(join(project, 'linked.txt'));
@@ -605,6 +644,59 @@ await withElectron(
         ['H the tab goes clean', findings.H.clean, true]
       ]));
       say(`H: ${JSON.stringify(findings.H)}`);
+
+      // ------------------------------------------------------------- ARM I
+      // THE COMMITTER'S ROUND. Arm G asked of the PLAIN door. Arm G's file is
+      // an ordinary file inside the project, so it takes the guarded channel,
+      // which compares RAW BYTES and refuses. A file reached through a
+      // SYMBOLIC LINK takes the plain door, which has no bytes at all — and at
+      // 5077ed65 it wrote the buffer back whole: a 49 B latin-1 `.txt` went to
+      // 58 B with four U+FFFD in it, its four accented bytes replaced by
+      // twelve, with no dialog, no toast and a clean tab. That is research 83
+      // E.7b's loss, live, on the door this phase added the reading to.
+      const LATIN_2 = Buffer.from('Notes de r\xe9union: caf\xe9 na\xefve resum\xe9.\n', 'latin1');
+      writeFileSync(join(project, 'latin-target.txt'), LATIN_2);
+      spawnSync('ln', ['-s', 'latin-target.txt', join(project, 'latin-link.txt')]);
+      const latin2Before = readFileSync(join(project, 'latin-target.txt'));
+      await drive(cdp, { projectPath: project, openRel: 'latin-link.txt', mode: 'file', editorWidth: 1100 });
+      await until(cdp, monacoUp, 20000);
+      await sleep(800);
+      await clickFirstLine(cdp, '.monaco-editor .view-line');
+      await press(cdp, CMD_UP);
+      await typeInto(cdp, TYPED);
+      await until(cdp, `document.querySelector('[role="tab"][aria-selected="true"] .ed-tab-close.dirty') !== null`, 8000);
+      await press(cdp, CMD_S);
+      await sleep(2500);
+      const dlgI = await cdpEval(cdp, DIALOG, 10000);
+      const faceI = await cdpEval(cdp, FACE, 10000);
+      const latin2After = readFileSync(join(project, 'latin-target.txt'));
+      findings.I = {
+        noQuestion: dlgI.open === false,
+        toasts: faceI.toasts,
+        bytesUnchanged: latin2After.equals(latin2Before),
+        sizeBefore: latin2Before.length,
+        sizeAfter: latin2After.length,
+        // The bytes a lossy write destroys. Reading U+FFFD out of the file
+        // instead would count the four the ORIGINAL latin-1 bytes decode to
+        // and call an untouched file damaged, which is what the first run of
+        // this arm did.
+        highBytesBefore: latin2Before.filter((b) => b >= 0x80).length,
+        highBytesAfter: latin2After.filter((b) => b >= 0x80).length,
+        stillDirty: faceI.dirtyOnFace,
+        linkIsStillALink: existsSync(join(project, 'latin-link.txt'))
+      };
+      problems.push(...grade([
+        ['I nothing wrote to it, so it is not asked about', findings.I.noQuestion, true],
+        ['I the plain door names the encoding too', findings.I.toasts,
+          ['Tortie did not save latin-link.txt, because it is not UTF-8 text and writing it whole would damage it. Nothing was written.']],
+        ['I not one byte moved', findings.I.bytesUnchanged, true],
+        ['I the file did not grow', findings.I.sizeAfter, findings.I.sizeBefore],
+        ['I its accented bytes are all still there', findings.I.highBytesAfter, findings.I.highBytesBefore],
+        ['I and there are four of them, not the twelve a lossy write leaves', findings.I.highBytesAfter, 4],
+        ['I the typing survives', findings.I.stillDirty, true],
+        ['I the link is still a link', findings.I.linkIsStillALink, true]
+      ]));
+      say(`I: ${JSON.stringify(findings.I)}`);
     } finally {
       findings.problems = problems;
       writeFileSync(out, JSON.stringify(findings, null, 2));
@@ -622,5 +714,5 @@ if (problems.length > 0) {
   process.stderr.write(`${TAG} FAILED: ${String(problems.length)} finding(s).\n`);
   process.exit(1);
 }
-say(`PASS: 55 readings across eight arms, 0 findings.`);
+say(`PASS: 67 readings across nine arms, 0 findings.`);
 process.exit(0);
