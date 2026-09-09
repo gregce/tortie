@@ -2,7 +2,9 @@
 /**
  * `npm run conformance:redline`, the cheap gate on the redline (Phase 191).
  *
- * About 3 seconds. It launches no Electron, opens no window, starts no tmux
+ * About 20 seconds since Phase 243 added rules 21 to 24, which drive the
+ * durable baseline store over a real directory on a real disk; it was about 3
+ * seconds before. It launches no Electron, opens no window, starts no tmux
  * server, spawns no agent, makes no request and reads nothing under the
  * person's home. Every number it prints came from the SHIPPING module, run
  * under node by build/redline-conformance-probe.mts.
@@ -198,6 +200,39 @@
  *      under the source tree. It has to be inside the repository rather than under the OS
  *      temporary directory, because the copied chain imports `diff` and node
  *      resolves that by walking up to `node_modules`.
+ *
+ *  21. THE DURABLE BASELINE'S ROUND TRIP (Phase 243). A baseline and the HEAD
+ *      version it was taken against go into `<userData>/gmux/baselines/` and
+ *      come back byte for byte and code unit for code unit, over the corpus
+ *      rules 2 and 15 already carry plus a lone surrogate, an empty baseline
+ *      and control bytes, and including the case where the two sides are the
+ *      same string and the record collapses them.
+ *  22. CAUGHT MID WRITE. The store is driven with a REAL filesystem that fails
+ *      at exactly one step — open, write, sync, close, rename, the directory
+ *      flush, and the record itself — so every step before the fault really
+ *      happened on a real disk. Every one refuses, and every one leaves the
+ *      OLD record or the NEW one and never neither, which is the whole reason
+ *      the ring is two rather than one.
+ *  23. CREDIBILITY IS `nextBaseline` REPLAYED, and a hostile record is dropped
+ *      WHOLE. The stored record carries the HEAD version it was taken against;
+ *      handed one that has not moved the rule answers the SAME object and the
+ *      baseline stands, handed one that has it re-seeds from the commit, so no
+ *      narrowing across a commit can survive. Nine planted records are each
+ *      refused with the field and the reason named, one of which is a row
+ *      naming a body path of its own — a record may only name the path its own
+ *      key's generation would have, or a hostile one would have the reader
+ *      open whatever it named.
+ *  24. THE RING, THE CEILING AND THE DOOR. Five stores leave exactly two
+ *      bodies and two entries and the newest reads; the shipped numbers are
+ *      pinned; the ceiling evicts oldest first and keeps the newest; a record
+ *      past the age bound is swept and a fresh one is not; and the door's
+ *      eight refusals each answer their own word and leave NOTHING on disk.
+ *
+ *      ALL FOUR ARE DRIVEN OVER A REAL DIRECTORY under the OS temporary
+ *      directory, removed in a `finally`. Nothing is written inside `src/`,
+ *      nothing under the person's home is read, and the "project" the store
+ *      admits is a scratch directory of its own. Six ablations, one clause
+ *      each, and every one must move its arm's reading.
  *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
@@ -2462,6 +2497,290 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
   say(
     `20. the accept returns the keyboard to the scroller, inside the accepted guard and nowhere else (${String(plantsOk)} of ${String(PLANTS.length)} scanner fixtures behaved, ${String(PLANTS.filter((q) => q.caught).length)} of them must fail)`
   );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 243, rules 21 to 24: THE DURABLE BASELINE.
+//
+// Four arms over the SHIPPING store (src/main/baselines/store.ts) driven under
+// node against a real directory on a real disk, plus the SHIPPING rule
+// (src/renderer/editor/baseline.ts) driven over strings, through
+// build/p243-baselines-probe.mts. Every fixture is written by the probe into a
+// scratch directory under the OS temporary directory and removed in a
+// `finally`; nothing is written inside `src/`, nothing under the person's home
+// is read, and the "project" the store admits is a scratch directory of its
+// own.
+//
+//  21. THE ROUND TRIP, over the corpus rules 2 and 15 already carry: emoji
+//      with a zero width joiner, combining marks, a right to left run,
+//      Japanese, CRLF, a lone surrogate, an empty baseline and control bytes.
+//      A baseline and the HEAD version it was taken against come back byte for
+//      byte and code unit for code unit, including when the two are the same
+//      string and the record collapses them.
+//  22. CAUGHT MID WRITE, at every step of the sequence — open, write, sync,
+//      close, rename, the directory flush, and the record itself. The store
+//      holds the OLD record or the NEW one and NEVER NEITHER, which is what
+//      generations are for. Each fault is injected into a REAL filesystem, so
+//      every step before it really happened on a real disk.
+//  23. CREDIBILITY IS `nextBaseline` REPLAYED, and a hostile record is dropped
+//      WHOLE. A restored baseline handed a HEAD version that has not moved
+//      answers the SAME object and stands; handed one that has, it re-seeds
+//      from the commit, so no narrowing across a commit survives. Then nine
+//      planted records — not JSON, a version from another day, a record naming
+//      a different file, entries that are not a list, a row that is not an
+//      object, a sha256 that is not one, an origin nobody ships, a body path
+//      of its own, and a generation that is not one — are each refused with
+//      the field and the reason named, and the good record still reads after
+//      them.
+//  24. THE RING, THE CEILING AND THE DOOR. Five stores leave exactly two
+//      bodies and two entries and the newest reads; the shipped numbers are
+//      pinned (ring 2, seven days, 32 MB); the ceiling evicts oldest first and
+//      keeps the newest; a record past the age bound is swept and a fresh one
+//      is not; and the door's eight refusals each answer their own word and
+//      leave NOTHING on disk.
+//
+// Every arm goes red under an ablation of its own clause, in a dotted
+// subdirectory removed in a `finally`. The store's ablations copy the store
+// beside a copy of `src/main/durable`, so `../durable` still resolves; the
+// rule's copy is `baseline.ts` beside a two line stand-in for `./tab-identity`,
+// whose `fileInRepo` plays no part in the clause being ablated and whose real
+// chain reaches half the renderer.
+// ---------------------------------------------------------------------------
+{
+  const STORE_SRC = 'src/main/baselines';
+  const DURABLE_SRC = 'src/main/durable';
+  const RULE_SRC = 'src/renderer/editor';
+  const DURABLE_FILES = ['index.ts', 'error.ts', 'fs.ts', 'generations.ts', 'write.ts'];
+
+  const runBaselineProbe = (storeDir, ruleDir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/p243-baselines-probe.mts'],
+      {
+        encoding: 'utf8',
+        cwd: process.cwd(),
+        maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, BASELINES_DIR: storeDir, BASELINE_RULE_DIR: ruleDir }
+      }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-500) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const ARMS = [
+    {
+      rule: 21,
+      name: 'the round trip over the hostile corpus, both sides, byte for byte',
+      key: 'roundTrip',
+      expect: (a) => a.allBack === true && a.rows.length === 9,
+      chain: 'store',
+      file: 'store.ts',
+      from: "const payload = Buffer.from(JSON.stringify(bodyDoc), 'utf8');",
+      to: "const payload = Buffer.from(JSON.stringify(bodyDoc), 'latin1');"
+    },
+    {
+      rule: 22,
+      name: 'caught mid write at every step: the old record or the new one, never neither',
+      key: 'midWrite',
+      expect: (a) =>
+        a.everyStepOldOrNew === true &&
+        a.rows.length === 7 &&
+        a.rows.every((r) => r.refused === true),
+      chain: 'store',
+      file: 'store.ts',
+      // The record published by a plain write rather than durably, which is
+      // the charter's third settled point removed: the record then commits
+      // while the body did not, and the reader is left with NEITHER.
+      from: `await writeDurable(
+        {
+          path: recordPathOf(dir, keyName),
+          data: Buffer.from(JSON.stringify(record), 'utf8')
+        },
+        { fs: deps.fs }
+      );`,
+      to: `await (await import('node:fs/promises')).writeFile(
+        recordPathOf(dir, keyName),
+        JSON.stringify(record),
+        'utf8'
+      );`
+    },
+    {
+      rule: 23,
+      name: 'the credibility rule is nextBaseline replayed: a moved HEAD re-seeds',
+      key: 'credibility',
+      expect: (a) =>
+        a.standsWhenHeadHasNotMoved === true &&
+        a.reseedsWhenItHas === true &&
+        a.emptyHeadNeverSeeds === true &&
+        a.everyPlantDropped === true &&
+        a.drops.length === 9 &&
+        a.goodRecordStillReads === true,
+      chain: 'rule',
+      file: 'baseline.ts',
+      from: '  if (event.contents === current.headSeen) return current;',
+      to: '  if (true) return current;'
+    },
+    {
+      rule: 23,
+      name: 'a record naming a different file is dropped whole',
+      key: 'credibility',
+      expect: (a) => a.everyPlantDropped === true,
+      chain: 'store',
+      file: 'store.ts',
+      from: '  if (baselineKeyName(file.repoPath, file.relPath) !== keyName) {',
+      to: '  if (false) {'
+    },
+    {
+      rule: 24,
+      name: 'the ring is two, the ceiling evicts oldest first, and the age bound binds',
+      key: 'ring',
+      expect: (a) =>
+        a.bodies === 2 &&
+        a.entries === 2 &&
+        a.generations === 2 &&
+        a.maxAgeDays === 7 &&
+        a.maxDirMb === 32 &&
+        a.newest === 'generation 5\n' &&
+        a.afterCeiling < a.beforeCeiling &&
+        a.oldestGone === true &&
+        a.newestKept === true &&
+        a.oldSwept === true &&
+        a.freshKept === true,
+      chain: 'store',
+      file: 'store.ts',
+      from: 'export const BASELINE_GENERATIONS = 2;',
+      to: 'export const BASELINE_GENERATIONS = 5;'
+    },
+    {
+      rule: 24,
+      name: "the door's refusals, one word each, leaving nothing on disk",
+      key: 'ring',
+      expect: (a) =>
+        a.leftBehind === 0 &&
+        a.refusals.length === 8 &&
+        a.refusals.map((r) => r.refused).join(',') ===
+          'remote,outside,input,input,prose,truncated,tooLarge,input' &&
+        a.refusals.every((r) => typeof r.reason === 'string' && r.reason.includes(':')),
+      chain: 'store',
+      file: 'store.ts',
+      from: '    if (input.truncated === true) {',
+      to: '    if (false) {'
+    }
+  ];
+
+  const shipping = runBaselineProbe(STORE_SRC, RULE_SRC);
+  if (shipping.error !== undefined) {
+    fail(`21-24. the baselines probe did not run: ${shipping.error}`);
+  } else {
+    for (const arm of ARMS) {
+      if (!arm.expect(shipping[arm.key])) {
+        fail(
+          `${String(arm.rule)}. the shipping store read the wrong thing for "${arm.name}": ` +
+            `${JSON.stringify(shipping[arm.key]).slice(0, 600)}`
+        );
+      }
+    }
+    const storePrefix = `.p243-store-${process.pid.toString(36)}-`;
+    const rulePrefix = `.p243-rule-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    try {
+      for (const [i, arm] of ARMS.entries()) {
+        let storeDir = STORE_SRC;
+        let ruleDir = RULE_SRC;
+        let target;
+        if (arm.chain === 'store') {
+          const base = join('src/main', `${storePrefix}${String(i)}`);
+          mkdirSync(join(base, 'baselines'), { recursive: true });
+          mkdirSync(join(base, 'durable'), { recursive: true });
+          made.push(base);
+          for (const f of ['store.ts', 'index.ts', 'ipc.ts']) {
+            cpSync(join(STORE_SRC, f), join(base, 'baselines', f));
+          }
+          for (const f of DURABLE_FILES) {
+            cpSync(join(DURABLE_SRC, f), join(base, 'durable', f));
+          }
+          storeDir = join(base, 'baselines');
+          target = join(storeDir, arm.file);
+        } else {
+          const base = join(RULE_SRC, `${rulePrefix}${String(i)}`);
+          mkdirSync(base, { recursive: true });
+          made.push(base);
+          cpSync(join(RULE_SRC, 'baseline.ts'), join(base, 'baseline.ts'));
+          // The stand-in named in this section's header. `fileInRepo` is the
+          // only value ./baseline takes from ./tab-identity, it plays no part
+          // in any clause ablated here, and the real module reaches
+          // ../machines and ./save-sentences.
+          writeFileSync(
+            join(base, 'tab-identity.ts'),
+            'export function fileInRepo(_repo: string, _path: string): boolean {\n  return true;\n}\n'
+          );
+          ruleDir = base;
+          target = join(ruleDir, arm.file);
+        }
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`${String(arm.rule)}. the ablation for "${arm.name}" found nothing to edit in ${arm.file}`);
+          continue;
+        }
+        writeFileSync(target, before.replace(arm.from, arm.to));
+        const ablated = runBaselineProbe(storeDir, ruleDir);
+        if (ablated.error !== undefined) {
+          fail(
+            `${String(arm.rule)}. the ablation for "${arm.name}" stopped the probe running ` +
+              `(${ablated.error}), so it proves nothing`
+          );
+          continue;
+        }
+        if (JSON.stringify(ablated[arm.key]) !== JSON.stringify(shipping[arm.key])) red += 1;
+        else {
+          fail(
+            `${String(arm.rule)}. the ablation for "${arm.name}" changed nothing this arm reads, ` +
+              'so it cannot fail'
+          );
+        }
+      }
+      say(
+        `21. a baseline and the HEAD version it was taken against come back byte for byte over ` +
+          `${String(shipping.roundTrip.rows.length)} hostile fixtures, the collapsed pair included`
+      );
+      say(
+        `22. caught mid write at ${String(shipping.midWrite.rows.length)} steps of the sequence, ` +
+          'every one refused and every one leaving the old record or the new one, never neither'
+      );
+      say(
+        `23. a HEAD version that has not moved answers the SAME object and one that has re-seeds ` +
+          `from the commit, and ${String(shipping.credibility.drops.length)} planted records were ` +
+          'each dropped whole with the field and the reason named'
+      );
+      say(
+        `24. five stores leave ${String(shipping.ring.bodies)} bodies and ` +
+          `${String(shipping.ring.entries)} entries at ring ${String(shipping.ring.generations)}, ` +
+          `the bounds are ${String(shipping.ring.maxAgeDays)} days and ` +
+          `${String(shipping.ring.maxDirMb)} MB, the ceiling took the oldest and kept the newest, ` +
+          `and the door's ${String(shipping.ring.refusals.length)} refusals left ` +
+          `${String(shipping.ring.leftBehind)} files behind`
+      );
+      say(
+        `21-24. ${String(ARMS.length)} arms over the shipping store and rule, and ` +
+          `${String(red)} of ${String(ARMS.length)} ablations moved their arm's reading`
+      );
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      for (const [parent, prefix] of [['src/main', storePrefix], [RULE_SRC, rulePrefix]]) {
+        for (const name of readdirSync(parent)) {
+          if (name.startsWith(prefix) && existsSync(join(parent, name))) {
+            rmSync(join(parent, name), { recursive: true, force: true });
+          }
+        }
+      }
+    }
+  }
 }
 
 if (failures.length > 0) {

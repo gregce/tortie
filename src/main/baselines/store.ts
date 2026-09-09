@@ -81,6 +81,7 @@ import {
   pruneGenerations,
   readVerified,
   writeDurable,
+  type DurableFs,
   type DurableRecord
 } from '../durable';
 
@@ -198,6 +199,17 @@ export interface BaselineStoreDeps {
   /** Resolve a caller's spelling of a root to its real path, or throw. */
   realRootOf(root: string): Promise<string>;
   now?(): number;
+  /**
+   * The three seams below are INJECTED FOR THE GATE and production leaves them
+   * out, exactly as `DurableWriteOptions.fs` is. `conformance:redline` drives
+   * this module over a real directory on a real disk with a filesystem that
+   * fails at one named step, and over a ceiling small enough to reach without
+   * writing 32 MB; the shipped constants are pinned by the same rule, so a
+   * number that moves is a number the gate names.
+   */
+  fs?: DurableFs;
+  maxDirBytes?: number;
+  maxAgeMs?: number;
 }
 
 /**
@@ -250,7 +262,8 @@ function bodyStemOf(keyName: string): string {
  */
 function parseRecord(
   raw: string,
-  keyName: string
+  keyName: string,
+  dir: string
 ): { record: BaselineRecordFile } | { dropped: string } {
   let parsed: unknown;
   try {
@@ -277,8 +290,16 @@ function parseRecord(
     if (!Number.isInteger(entry.generation) || (entry.generation as number) < 1) {
       return { dropped: 'entries.generation: not a whole number above zero' };
     }
-    if (typeof entry.path !== 'string' || entry.path.length === 0) {
-      return { dropped: 'entries.path: missing' };
+    // THE PATH IS DERIVED AND NEVER TRUSTED. A record is a file in a
+    // directory, and a row naming a path of its own would make the reader open
+    // whatever it named — a hostile record could point at any file on the disk
+    // and be answered about it. The only path a row may carry is the one this
+    // key's own generation would have.
+    if (
+      typeof entry.path !== 'string' ||
+      entry.path !== generationPath(dir, bodyStemOf(keyName), entry.generation as number)
+    ) {
+      return { dropped: 'entries.path: not this key\'s own generation' };
     }
     if (!Number.isInteger(entry.bytes) || (entry.bytes as number) < 0) {
       return { dropped: 'entries.bytes: not a byte count' };
@@ -342,7 +363,10 @@ export interface BaselineStore {
 export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
   const dir = deps.dir;
   const clock = deps.now ?? Date.now;
-  let lastSweepAt = 0;
+  // A store does not sweep on its first write. The boot sweep and the daily
+  // timer own the cadence (./ipc startBaselineStorePruning); this throttle is
+  // what stops a busy session going a whole day without one.
+  let lastSweepAt = clock();
   let sweeping: Promise<unknown> | null = null;
 
   /**
@@ -355,7 +379,10 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
    */
   const admit = async (
     key: BaselineKey
-  ): Promise<{ keyName: string } | { refused: BaselineRefusal; reason: string }> => {
+  ): Promise<
+    | { keyName: string; repoPath: string; relPath: string }
+    | { refused: BaselineRefusal; reason: string }
+  > => {
     const problem = keyProblem(key);
     if (problem !== null) {
       return {
@@ -388,8 +415,14 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
       return { refused: 'outside', reason: 'repoPath: that folder is not an open project' };
     }
     // The key is composed from the REAL root, so two spellings of one project
-    // share one record rather than making two.
-    return { keyName: baselineKeyName(realRoot, key.relPath.split(sep).join('/')) };
+    // share one record rather than making two, and the record carries THESE
+    // two strings so it hashes back to its own name.
+    const relPath = key.relPath.split(sep).join('/');
+    return {
+      keyName: baselineKeyName(realRoot, relPath),
+      repoPath: realRoot,
+      relPath
+    };
   };
 
   const readRecord = async (
@@ -401,7 +434,7 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
     } catch {
       return null;
     }
-    return parseRecord(raw, keyName);
+    return parseRecord(raw, keyName, dir);
   };
 
   const load = async (key: BaselineKey): Promise<BaselineLoadResult> => {
@@ -420,7 +453,7 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
       bytes: newest.bytes,
       sha256: newest.sha256
     };
-    const verified = await readVerified([record]);
+    const verified = await readVerified([record], deps.fs);
     if (verified === null) {
       return refusedLoad('io', 'the stored bytes did not prove out against the record');
     }
@@ -482,7 +515,7 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
     const existing = await readRecord(keyName);
     const previous =
       existing !== null && 'record' in existing ? existing.record.entries : [];
-    const onDisk = await listGenerations(dir, stem);
+    const onDisk = await listGenerations(dir, stem, deps.fs);
     // The number comes off the DISK, so it cannot collide with a body a crash
     // left behind; the survivors come off the RECORD, so the ring never keeps
     // a body nothing vouches for.
@@ -492,7 +525,7 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
     let receipt;
     try {
       // Steps 1 to 8. Throws rather than publishing bytes it cannot prove.
-      receipt = await writeDurable({ path, data: payload });
+      receipt = await writeDurable({ path, data: payload }, { fs: deps.fs });
     } catch (err) {
       return refusedStore('io', sentenceOf(err));
     }
@@ -509,24 +542,26 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
       storedAt: now
     };
     const entries = [entry, ...previous].slice(0, BASELINE_GENERATIONS);
+    // THE RECORD IS COMPOSED FROM THE ADMITTED KEY'S OWN STRINGS, so it hashes
+    // back to its own name: `admit` composed the name from the REAL root, so
+    // the record carries that spelling and not the caller's.
     const record: BaselineRecordFile = {
       version: RECORD_VERSION,
-      repoPath: input.repoPath,
-      relPath: input.relPath.split(sep).join('/'),
+      repoPath: admitted.repoPath,
+      relPath: admitted.relPath,
       entries
     };
-    // THE RECORD IS COMPOSED FROM THE ADMITTED KEY'S OWN STRINGS, so it hashes
-    // back to its own name. `admit` composed the name from the REAL root, so
-    // the record has to carry that spelling and not the caller's.
-    record.repoPath = await deps.realRootOf(input.repoPath);
     try {
       // Step 9. It may not become durable before step 8 returned, and
       // `writeDurable` returns only after the body's directory flush, so this
       // line running at all is the proof of that ordering.
-      await writeDurable({
-        path: recordPathOf(dir, keyName),
-        data: Buffer.from(JSON.stringify(record), 'utf8')
-      });
+      await writeDurable(
+        {
+          path: recordPathOf(dir, keyName),
+          data: Buffer.from(JSON.stringify(record), 'utf8')
+        },
+        { fs: deps.fs }
+      );
     } catch (err) {
       // An unrecorded body is unreadable by design, and leaving it would let
       // it crowd a recorded generation out of the ring. Take it back out.
@@ -535,7 +570,8 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
     }
     // Step 10, and only now.
     await pruneGenerations(dir, stem, BASELINE_GENERATIONS, {
-      recorded: entries.map((e) => e.generation)
+      recorded: entries.map((e) => e.generation),
+      ...(deps.fs === undefined ? {} : { fs: deps.fs })
     }).catch(() => undefined);
     maybeSweep(now);
     return { stored: true, bytes: receipt.bytes };
@@ -625,17 +661,18 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
     for (const key of keys.values()) {
       // storedAt 0 is a key whose record is gone or was dropped whole; its
       // bodies are unreadable by design, so they go.
-      if (key.storedAt === 0 || now - key.storedAt > BASELINE_MAX_AGE_MS) {
+      if (key.storedAt === 0 || now - key.storedAt > (deps.maxAgeMs ?? BASELINE_MAX_AGE_MS)) {
         await removeKey(key);
       } else {
         survivors.push(key);
       }
     }
+    const ceiling = deps.maxDirBytes ?? BASELINE_MAX_DIR_BYTES;
     let total = survivors.reduce((sum, k) => sum + k.bytes, 0);
-    if (total > BASELINE_MAX_DIR_BYTES) {
+    if (total > ceiling) {
       survivors.sort((a, b) => a.storedAt - b.storedAt);
       for (const key of survivors) {
-        if (total <= BASELINE_MAX_DIR_BYTES) break;
+        if (total <= ceiling) break;
         await removeKey(key);
         total -= key.bytes;
       }
