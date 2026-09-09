@@ -120,6 +120,17 @@ describe('slideBoundaries', () => {
     const blocks = shape();
     blocks[2] = { kind: 'same', oldText: 'a sentence of context\n', newText: 'a sentence of context\n' };
     expect(slideBoundaries(blocks).slid).toBe(0);
+    // And with an insertion that really does end with that prose, so the
+    // whitespace clause is the only thing refusing it rather than the clause
+    // under it doing the work.
+    expect(
+      slideBoundaries([
+        { kind: 'same', oldText: 'head\n\n', newText: 'head\n\n' },
+        { kind: 'change', oldText: 'Red lorry stands here.\n', newText: 'Quite another thing.\n' },
+        { kind: 'same', oldText: 'shared context line\n', newText: 'shared context line\n' },
+        { kind: 'change', oldText: '', newText: 'Red lorry waits here.\nshared context line\n' }
+      ]).slid
+    ).toBe(0);
   });
 
   it('refuses when the block behind the bridge is not a pure insertion', () => {
@@ -146,18 +157,26 @@ describe('slideBoundaries', () => {
     expect(slideBoundaries(blocks).slid).toBe(0);
   });
 
-  it('refuses a candidate that is only as good as the pairing it would replace', () => {
-    // 0.47 against 0.51 is one reading twice. The margin is what refuses it.
-    const blocks = shape();
-    blocks[1] = {
-      kind: 'change',
-      oldText: 'Red lorry waits here today.\n',
-      newText: 'Red lorry waits here now.\n'
-    };
-    const doubtful = resemblance(blocks[1].oldText, blocks[1].newText);
-    const candidate = resemblance(blocks[1].oldText, 'Red lorry waits here.\n');
-    expect(candidate - doubtful).toBeLessThan(REDLINE_SLIDE_MARGIN);
-    expect(slideBoundaries(blocks).slid).toBe(0);
+  it('refuses a candidate that is better by less than the margin', () => {
+    // The 0.47-against-0.51 shape research 110's corpus found: the candidate
+    // really is better, and by so little that it is one reading twice.
+    const ten = 'one two three four five six seven eight nine ten\n';
+    const paired = 'one two three four aa bb cc dd ee ff\n';
+    const candidate = 'one two three four five six gg hh ii jj\n';
+    expect(resemblance(ten, paired)).toBeCloseTo(0.4, 5);
+    expect(resemblance(ten, candidate)).toBeCloseTo(0.6, 5);
+    expect(resemblance(ten, candidate)).toBeGreaterThanOrEqual(REDLINE_SLIDE_RESEMBLANCE);
+    expect(resemblance(ten, candidate) - resemblance(ten, paired)).toBeLessThan(
+      REDLINE_SLIDE_MARGIN
+    );
+    expect(
+      slideBoundaries([
+        { kind: 'same', oldText: 'head\n\n', newText: 'head\n\n' },
+        { kind: 'change', oldText: ten, newText: paired },
+        { kind: 'same', oldText: '\n', newText: '\n' },
+        { kind: 'change', oldText: '', newText: `${candidate}\n` }
+      ]).slid
+    ).toBe(0);
   });
 
   it('looks forward only, because only the forward case was measured', () => {

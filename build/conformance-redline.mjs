@@ -236,6 +236,57 @@
  *      admits is a scratch directory of its own. Six ablations, one clause
  *      each, and every one must move its arm's reading.
  *
+ *  25. THE PARTITION'S TIE (Phase 246). On 2026-09-09 the operator inserted a
+ *      paragraph ABOVE one he had changed by a single word, and the paragraph
+ *      below was drawn as a whole deletion in red followed by the whole
+ *      paragraph again in green. NO CAP DID THAT: docs/research/110 measured
+ *      the word edit distance at 93 against 200, the two sides at 312 and 165
+ *      characters against 4,000, `diffWords` ANSWERING with 19 runs,
+ *      `exactRuns` not refusing and the note correctly `null`. The arithmetic
+ *      finished and the picture was still unreadable, which is why no rule
+ *      above this one could see it: they all ask whether the arithmetic ran.
+ *
+ *      `diffLines` had two shortest edit scripts of the SAME LENGTH and took
+ *      the one that pairs the removed paragraph with the inserted one.
+ *      `slideBoundaries` breaks that tie, and six arms driven under node by
+ *      build/redline-slide-probe.mts pin it, each with an ablation of its own
+ *      clause that must move its own arm's reading:
+ *
+ *        25a HIS BAD PICTURE, 15 marked runs at the parent and 3 at HEAD,
+ *            being the struck word he deleted, the paragraph he inserted in
+ *            green, and the one word that moved.
+ *        25b THE TIE ITSELF. Over 25 documents, the line cost of the
+ *            partition before the slide equals the cost after it, every time.
+ *            This is what makes it a tie-BREAK rather than a different diff:
+ *            the same lines are removed and the same lines are added and only
+ *            their grouping moves, so it cannot buy a picture with edits
+ *            jsdiff refused to spend.
+ *        25c BOTH PROJECTIONS, over the same 25, plus research 74 §6.5's own
+ *            picture: no marked run is a newline wearing a strikethrough, and
+ *            no adjacent deletion and insertion shares whitespace at either
+ *            end, which is how one would be made.
+ *        25d RESEARCH 110 §6'S CORPUS, being one word changed in each of
+ *            eight paragraphs with a paragraph inserted above it and below
+ *            it. 1 of 8 read as the reader wants at the parent with it
+ *            inserted above and 8 of 8 do at HEAD; below is 8 of 8 on both
+ *            sides and must stay there.
+ *        25e and 25f THE REFUSALS THAT KEEP IT NARROW, seven shapes that must
+ *            each read zero slides beside a control that reads one: a bridge
+ *            that is prose, a partner that is not a pure insertion, the
+ *            backward direction, a candidate only as good as the pairing it
+ *            would replace, a candidate that resembles nothing, and a pairing
+ *            the two sides already agree on.
+ *
+ *      AND HIS GOOD PICTURE IS THE CONTROL. Its runs are digested and the
+ *      digest is compared to the one the PARENT COMMIT printed, and it is
+ *      asserted UNMOVED under every one of the six ablations. A fix that
+ *      improves one picture and moves the other is not a fix.
+ *
+ *      Its ablation directories are `.p246-slide-*` at the repository root
+ *      for rule 19's reason: .gitignore's phase-working-directory line covers
+ *      them, and the copied chain imports `diff`, which node resolves by
+ *      walking up to node_modules.
+ *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
 
@@ -2832,6 +2883,238 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
           if (name.startsWith(prefix) && existsSync(join(parent, name))) {
             rmSync(join(parent, name), { recursive: true, force: true });
           }
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 246, rule 25: THE PARTITION'S TIE. Six arms on the SHIPPING slide,
+// driven under node by build/redline-slide-probe.mts, one clause each ablated,
+// with his GOOD picture held beside them as a control that may not move.
+//
+// Every rule above this one asks whether the arithmetic ran. Research 110
+// measured a picture in which it ran perfectly and was still unreadable, so
+// none of them could see it, and none of them can see it coming back.
+// ---------------------------------------------------------------------------
+{
+  const SLIDE_CHAIN = ['redline-document.ts', 'redline.ts', 'paths.ts'];
+  const SRC = 'src/renderer/editor';
+  // The digest the PARENT COMMIT printed for his good picture, taken with the
+  // same probe over HEAD~1's redline-document.ts on 2026-09-09. It is here so
+  // the control is a measurement of the other side rather than a promise.
+  const GOOD_AT_THE_PARENT = '662f5a30ef765e70';
+
+  const runSlideProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-slide-probe.mts'],
+      {
+        encoding: 'utf8',
+        cwd: process.cwd(),
+        maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, SLIDE_DIR: dir }
+      }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const SLIDE_ARMS = [
+    {
+      name: '25a. his bad picture draws the paragraph he inserted and the one word that moved',
+      key: 'bad',
+      expect: (a) =>
+        a.markedCount === 3 &&
+        a.slid === 1 &&
+        a.oldOk === true &&
+        a.newOk === true &&
+        a.marks?.[0] === 'del:micro' &&
+        typeof a.marks?.[1] === 'string' &&
+        a.marks[1].startsWith('ins:What context do agents need?') &&
+        a.marks?.[2] === 'del:simple' &&
+        // NO CAP FIRED, at the parent or at HEAD. This is the reading that
+        // refutes the entry's hypothesis and it stays in the gate.
+        a.whole?.tooBig === 0 &&
+        a.whole?.tooDifferent === 0 &&
+        a.whole?.overCap === 0 &&
+        a.whole?.unaligned === 0,
+      file: 'redline-document.ts',
+      from: 'export const REDLINE_SLIDE_RESEMBLANCE = 0.5;',
+      to: 'export const REDLINE_SLIDE_RESEMBLANCE = 0;'
+    },
+    {
+      name: '25b. the tie: the line cost of the partition is the same before and after the slide',
+      key: 'tie',
+      expect: (a) => a.documents === 25 && a.costEqual === 25 && a.costMoved === 0,
+      file: 'redline-document.ts',
+      from: "      paired === '' || !paired.endsWith('\\n') ? 0 : resemblance(here.oldText, paired);",
+      to: "      paired === '' ? 0 : resemblance(here.oldText, paired);"
+    },
+    {
+      name: '25c. both projections hold, and research 74 §6.5’s newline under a strikethrough does not come back',
+      key: 'exact',
+      expect: (a) =>
+        a.documents === 25 &&
+        a.oldOk === 25 &&
+        a.newOk === 25 &&
+        a.slidTotal === 9 &&
+        a.whitespaceOnlyMarked === 0 &&
+        a.sharedSpacePairs === 0,
+      file: 'redline-document.ts',
+      from: "    out.push({ kind: 'change', oldText: '', newText: here.newText + bridge });",
+      to: "    out.push({ kind: 'change', oldText: '', newText: here.newText });"
+    },
+    {
+      name: "25d. research 110 §6's corpus reads the way a reader wants, above and below",
+      key: 'corpus',
+      expect: (a) =>
+        a.above?.readable === 8 &&
+        a.above?.slid === 7 &&
+        // BELOW NEVER NEEDED REPAIRING and must not start being repaired.
+        a.below?.readable === 8 &&
+        a.below?.slid === 0,
+      file: 'redline-document.ts',
+      from: "      partner.oldText === '' &&",
+      to: "      partner.oldText !== '' &&"
+    },
+    {
+      name: '25e. the bridge is a blank line, the partner is a pure insertion, and it looks forward only',
+      key: 'narrowBridge',
+      expect: (a) =>
+        a.control === 1 &&
+        a.prose === 0 &&
+        a.proseThatMatches === 0 &&
+        a.notPure === 0 &&
+        a.backwards === 0,
+      file: 'redline-document.ts',
+      from: "      if (step === undefined || step.kind !== 'same' || step.oldText.trim() !== '') break;",
+      to: "      if (step === undefined || step.kind !== 'same') break;"
+    },
+    {
+      name: '25f. a candidate must beat the pairing it replaces, not merely tie with it',
+      key: 'narrowMargin',
+      expect: (a) =>
+        a.control === 1 &&
+        a.sameReadingTwice === 0 &&
+        // The trap was really set: the candidate IS better, by 0.20, which is
+        // under the margin and over nothing else.
+        a.sameReadingTwiceReads?.[0] === 0.4 &&
+        a.sameReadingTwiceReads?.[1] === 0.6 &&
+        a.unrelated === 0 &&
+        a.believed === 0,
+      file: 'redline-document.ts',
+      from: 'export const REDLINE_SLIDE_MARGIN = 0.25;',
+      to: 'export const REDLINE_SLIDE_MARGIN = -1;'
+    }
+  ];
+
+  const shippingSlide = runSlideProbe(SRC);
+  if (shippingSlide.error !== undefined) {
+    fail(`25. the slide probe did not run: ${shippingSlide.error}`);
+  } else {
+    for (const arm of SLIDE_ARMS) {
+      if (!arm.expect(shippingSlide[arm.key] ?? {})) {
+        fail(
+          `25. the shipping slide read the wrong thing for "${arm.name}": ` +
+            `${JSON.stringify(shippingSlide[arm.key])}`
+        );
+      }
+    }
+    // The two constants are pinned with the two readings that chose them, so a
+    // number that moves has to move the reading beside it in the same commit.
+    const c = shippingSlide.constants ?? {};
+    if (c.resemblance !== 0.5 || c.margin !== 0.25) {
+      fail(
+        `25. the slide's constants moved without this gate moving with them: ${JSON.stringify(c)}`
+      );
+    }
+    if (c.wronglyPaired !== 0.09 || c.realPartner !== 0.98) {
+      fail(
+        `25. the readings that chose the constants moved: the pairing reads ` +
+          `${String(c.wronglyPaired)} against 0.09 and the real partner ` +
+          `${String(c.realPartner)} against 0.98.`
+      );
+    }
+    // THE CONTROL. His GOOD picture is what the parent commit drew, and the
+    // whole point of the phase is that it did not move.
+    const good = shippingSlide.good ?? {};
+    if (good.digest !== GOOD_AT_THE_PARENT) {
+      fail(
+        `25. his good picture is no longer what the parent commit drew: ` +
+          `${String(good.digest)} against ${GOOD_AT_THE_PARENT}.`
+      );
+    }
+    if (good.slid !== 0 || good.markedCount !== 1 || good.marks?.[0] !== 'del:micro') {
+      fail(`25. his good picture is not one struck word: ${JSON.stringify(good)}`);
+    }
+
+    const prefix = `.p246-slide-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    let controlHeld = 0;
+    try {
+      for (const [i, arm] of SLIDE_ARMS.entries()) {
+        const dir = `${prefix}${String(i)}`;
+        mkdirSync(dir, { recursive: true });
+        made.push(dir);
+        for (const f of SLIDE_CHAIN) cpSync(join(SRC, f), join(dir, f));
+        const target = join(dir, arm.file);
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`25. the ablation for "${arm.name}" found nothing to edit in ${arm.file}`);
+          continue;
+        }
+        writeFileSync(target, before.replace(arm.from, arm.to));
+        const ablated = runSlideProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(
+            `25. the ablation for "${arm.name}" stopped the probe running (${ablated.error}), ` +
+              `so it proves nothing`
+          );
+          continue;
+        }
+        if (JSON.stringify(ablated[arm.key]) !== JSON.stringify(shippingSlide[arm.key])) red += 1;
+        else {
+          fail(
+            `25. the ablation for "${arm.name}" changed nothing this arm reads, so it cannot ` +
+              `fail: ${JSON.stringify(ablated[arm.key])}`
+          );
+        }
+        // AND THE CONTROL HOLDS THROUGH EVERY ONE OF THEM. If an ablation of
+        // the slide can move his good picture, the slide is reaching a block
+        // it has no business in.
+        if (JSON.stringify(ablated.good) === JSON.stringify(shippingSlide.good)) controlHeld += 1;
+        else {
+          fail(
+            `25. the ablation for "${arm.name}" moved his GOOD picture, which no clause of the ` +
+              `slide may reach: ${JSON.stringify(ablated.good)}`
+          );
+        }
+      }
+      say(
+        `25. ${String(SLIDE_ARMS.length)} arms over the shipping slide, ` +
+          `${String(red)} of ${String(SLIDE_ARMS.length)} ablations moved their arm's reading, ` +
+          `and his good picture held its parent-commit digest ${GOOD_AT_THE_PARENT} through ` +
+          `${String(controlHeld)} of ${String(SLIDE_ARMS.length)} of them`
+      );
+      say(
+        `25. his bad picture reads ${String(shippingSlide.bad?.markedCount)} marked runs against 15 ` +
+          `at the parent, with every cap still passing; the line cost is unmoved over ` +
+          `${String(shippingSlide.tie?.documents)} documents and both projections hold over all of them`
+      );
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      // A sweep, in case a name from an interrupted run is left at the root.
+      for (const name of readdirSync('.')) {
+        if (name.startsWith(prefix) && existsSync(name)) {
+          rmSync(name, { recursive: true, force: true });
         }
       }
     }
