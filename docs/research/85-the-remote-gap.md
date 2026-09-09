@@ -109,6 +109,30 @@ detail tab from `onActivate` alone and that returns on `cwd === null`, which is 
 targets. Both are closed by `problemRevealDir` and the tab's own `remote` fact, and pinned by
 `src/renderer/context/__tests__/p235-problem-reveal.test.ts`.
 
+**SECOND CORRECTION, 2026-09-08, from Phase 235's committer: it is three of SIX, and this one was
+DRIVEN.** The count above was still short by one, and the missing door is the same `reveal(` grep's
+last hit: `src/renderer/editor/image/ImageView.tsx` named `remote` nowhere at all, and its
+`too-large` state draws exactly one button, Reveal in Finder, over the tab's own `path`. Item 7 of
+the list below says a picture on a machine cannot be previewed, and that is true of a RASTER one,
+excluded by `store.ts` on `commit === null && req.remote === undefined`. **An SVG is text**, so it
+comes through the ordinary reader, `image` is true through the `svg ||` arm of that same expression
+whatever `remote` says, Preview is offered on the mode control, and a `.svg` over
+`REMOTE_REVIEW_MAX_BYTES` (2,097,152) arrives with `truncated` set, which `imageSourceFor` answers as
+`too-large`. Driven on his Mac Pro under Phase 224's bounds: a 3,300,099-byte `src/ui/big.svg` in a
+scratch repository, opened from Source control on the remote tab with Preview taken off the mode
+radiogroup, and the button read off the live DOM — read and never pressed, because a press opens
+Finder on his Mac. Both homes are `/Users/gdc`, so the press would have opened the wrong folder
+rather than nothing, which is item 1's own wrong answer in a sixth place. The button is ABSENT on a
+machine now, decided by the tab's own `remote` fact handed to `ImageSurface`, and pinned by
+`src/renderer/editor/image/__tests__/p235-image-reveal.test.tsx`, whose two ablations are the
+refusal removed and the parent's spelling put back at the call site. The state's title and sentence
+are byte for byte the same on both sides and the test asserts that too, so nothing on the remote
+face is a sentence the local one does not carry. **A stated limit that is NOT a defect of this
+round**: that sentence reads *"big.svg is 2.0 MB … Tortie previews images up to 2.0 MB"* for a
+3.3 MB file, because a truncated SVG's size is the truncated read's own length and the cap it names
+is that same number rather than `IMAGE_CAP_BYTES`. It is what a local truncated SVG has always said,
+so it breaks no remote-only rule, and it is a picture's copy rather than a machine's.
+
 ### Gaps that exist today which research 57 did not know about
 
 1. Architecture is wholly absent on a remote tab. One sentence, no map, no reading, no contract.

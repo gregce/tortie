@@ -89,6 +89,10 @@ export function ImageView({
       // focus. In Split the source pane is the thing being used, so it keeps
       // the keyboard.
       focusOnOpen={!live}
+      // PHASE 235's COMMITTER — the SIXTH reveal door. See ImageSurface's
+      // `remote` prop below for the whole reason; the fact is the tab's own,
+      // read the way every other reader on a review tab reads it.
+      remote={tab.remote !== undefined}
     />
   );
 }
@@ -103,7 +107,8 @@ export function ImageSurface({
   path,
   revision,
   pixelate,
-  focusOnOpen = false
+  focusOnOpen = false,
+  remote = false
 }: {
   source: ImageSource;
   name: string;
@@ -111,6 +116,24 @@ export function ImageSurface({
   revision: number;
   pixelate: boolean;
   focusOnOpen?: boolean;
+  /**
+   * PHASE 235's COMMITTER — the SIXTH reveal door, and the last one.
+   *
+   * An SVG is TEXT: it comes through the ordinary reader, so a `.svg` on
+   * another machine still gets `image` and `svg` on its tab (`store.ts`),
+   * still offers Preview, and over the remote review cap still lands in the
+   * `too-large` state below — which draws one button, Reveal in Finder, over
+   * `tab.path`. That path is on the other computer and both homes are
+   * `/Users/gdc`, so `fs:reveal` opens Finder HERE on whatever happens to sit
+   * at the same path: the wrong folder rather than nothing, which is item 1's
+   * own wrong answer in a sixth place.
+   *
+   * So the button is ABSENT on a machine, the way every other reveal in this
+   * product is. Absent and not disabled: an affordance that can never be true
+   * on this tab is one fewer control, never a dead one, and the state's
+   * sentence is the same sentence a local truncated picture draws.
+   */
+  remote?: boolean;
 }): React.JSX.Element {
   const toast = useApp((s) => s.toast);
 
@@ -314,19 +337,21 @@ export function ImageSurface({
           {formatBytes(source.capBytes)}, so opening it here would stall the
           window rather than show you anything.
         </div>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => {
-            const fs = window.gmux?.fs;
-            if (typeof fs?.reveal !== 'function') return;
-            void fs.reveal(path).catch(() => {
-              toast('error', 'Could not reveal that file.');
-            });
-          }}
-        >
-          Reveal in Finder
-        </button>
+        {remote ? null : (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              const fs = window.gmux?.fs;
+              if (typeof fs?.reveal !== 'function') return;
+              void fs.reveal(path).catch(() => {
+                toast('error', 'Could not reveal that file.');
+              });
+            }}
+          >
+            Reveal in Finder
+          </button>
+        )}
       </div>
     );
   }

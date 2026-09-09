@@ -10,6 +10,15 @@
  * the stale-view drive in launch C that item 5 needs, and the fact that a
  * reading that does not move now fails the run.
  *
+ * ITEM 6 IS THE COMMITTER'S, and it is here because the verifier DROVE it
+ * rather than read it: the reveal count published by the fix round was five
+ * and it is six. `src/renderer/editor/image/ImageView.tsx` named `remote`
+ * nowhere at all, and its too-large state drew a Reveal in Finder over the
+ * tab's own path, which on a machine is a folder on the other computer. An
+ * SVG is text, so a `.svg` on a machine still reaches that surface. Launch C
+ * opens a planted 3 MB one and reads the state's buttons. The button is READ
+ * AND NEVER PRESSED: a press opens Finder on this Mac.
+ *
  * `--self-test` proves the grader on fixtures and launches nothing, reaches no
  * machine and opens no socket.
  *
@@ -356,6 +365,30 @@ function readingDriver() {
     out.items.blackholePrepare = JSON.stringify(await G.machines.prepare(${JSON.stringify(BLACKHOLE_ID)}));
     out.items.blackholeMs = Math.round(now() - t0);
 
+    // ---- item 6: the SIXTH reveal door, on a picture too big to draw -----
+    // Last on purpose, so a failure here cannot cost any reading above it.
+    // An SVG is TEXT: it comes through the ordinary reader, so one on a
+    // machine still gets the image surface and still offers Preview, and one
+    // over the remote review cap lands in the too-large state, which drew a
+    // single button — Reveal in Finder — over a path on the OTHER computer.
+    // THE BUTTON IS READ AND NEVER PRESSED: a press opens Finder on this Mac.
+    out.items.imageWait = await until(() => (sidebarText() || '').includes('big.svg'), 60000);
+    out.items.imageOpen = await clickNamed('big.svg');
+    await wait(6000);
+    // Below 300 + 65n px each option of the mode control draws an ICON and no
+    // text, which is why a search for the word finds nothing. The aria-label
+    // is the label whatever the width.
+    const radios = () => Array.from(document.querySelectorAll('[role="radio"]'));
+    out.items.imageModes = radios().map((b) => b.getAttribute('aria-label'));
+    const preview = radios().find((b) => b.getAttribute('aria-label') === 'Preview');
+    if (preview !== undefined) { preview.click(); await wait(5000); }
+    out.items.imageMode = radios().filter((b) => b.getAttribute('aria-checked') === 'true').map((b) => b.getAttribute('aria-label'));
+    out.items.imageTabTitle = (tabNaming('big.svg') ?? {}).title ?? null;
+    const state = document.querySelector('.ed-state');
+    out.items.imageStateTitle = state === null ? '(no .ed-state)' : (state.querySelector('.ed-state-title')?.textContent ?? '').trim();
+    out.items.imageStateBody = state === null ? '' : (state.querySelector('.ed-state-body')?.textContent ?? '').trim().slice(0, 240);
+    out.items.imageStateButtons = state === null ? [] : Array.from(state.querySelectorAll('button')).map((b) => (b.textContent || '').trim());
+
     return JSON.stringify(out);
   } catch (e) { out.error = String((e && e.stack) || e); return JSON.stringify(out); }
 })()`;
@@ -455,6 +488,8 @@ const REVEAL = 'Reveal in Finder';
 const CONFIRM_LINE_WORDS = 'changed, so confirm them again in Settings, then Machines.';
 const FALSE_TREE = 'is not connected to';
 const FALSE_SCM = 'did not answer, so Tortie could not read what changed';
+/** Item 6's state, the only one the image surface ever drew a control in. */
+const TOO_LARGE_TITLE = 'This image is too large to preview';
 
 /** The label list main printed for one popup, or null. */
 function menuLabels(menuLines, which) {
@@ -600,6 +635,24 @@ export function grade(report) {
   if (discOffered > connOffered) ok('item 5', `EXPECTED LIMIT: it offers all ${String(discOffered)} of ${String(discTiles)} tiles against ${String(connOffered)} of ${String(connTiles)} on a connected one, which is the charter's other half and is NOT closed; what this phase closed is the board that had already answered and then lost its connection`);
   else bad('item 5', `the stated limit moved: a machine that has said nothing offers ${String(discOffered)} of ${String(discTiles)} against ${String(connOffered)} of ${String(connTiles)} connected, so update this reading and the Phase 235 entry with it`);
 
+  // ---- item 6: the sixth reveal door -------------------------------------
+  // The reading is three answers rather than one, because "no button" is what
+  // an empty body says too: the tab must really be the machine's, the state
+  // must really be the too-large one, and only THEN is the absent button an
+  // answer. The button is read and never pressed.
+  const imageTitle = String(C?.items?.imageTabTitle ?? '');
+  const imageState = String(C?.items?.imageStateTitle ?? '');
+  const imageButtons = Array.isArray(C?.items?.imageStateButtons) ? C.items.imageStateButtons : null;
+  if (imageTitle.includes('big.svg') && imageTitle.includes(MACHINE_LABEL)) ok('item 6', `the picture opened on the machine: ${JSON.stringify(imageTitle.slice(0, 70))}`);
+  else bad('item 6', `no tab for that picture on the machine was read: ${JSON.stringify(imageTitle.slice(0, 90))}`);
+  if (imageState === TOO_LARGE_TITLE) ok('item 6', `it reached the state that draws the button: ${JSON.stringify(imageState)}`);
+  else bad('item 6', `it never reached that state, so an absent button proves nothing: ${JSON.stringify(imageState)}, mode ${JSON.stringify(C?.items?.imageMode ?? null)}`);
+  if (imageButtons === null) bad('item 6', 'no button list was read at all');
+  else if (imageButtons.includes(REVEAL)) bad('item 6', `the picture on the machine still offers ${REVEAL}: ${JSON.stringify(imageButtons)}`);
+  else ok('item 6', `it offers no ${REVEAL} and no other control: ${JSON.stringify(imageButtons)}`);
+  if (String(C?.items?.imageStateBody ?? '').length > 0) ok('item 6', `and it still says why, in the same words this Mac uses: ${JSON.stringify(String(C.items.imageStateBody).slice(0, 90))}`);
+  else bad('item 6', 'the state drew no sentence at all, so the surface said nothing rather than saying less');
+
   return { lines, findings };
 }
 
@@ -628,6 +681,10 @@ function selfTest() {
         blackholePrepare: JSON.stringify({ class: 'timed-out', headline: 'The test ran out of time.', detail: 'Nothing was changed on either machine.' }),
         blackholeMs: 20013,
         tilesConnected: tilesOf(3),
+        imageTabTitle: `big.svg on ${MACHINE_LABEL}. This view is read only.`,
+        imageStateTitle: TOO_LARGE_TITLE,
+        imageStateBody: 'big.svg is 2.0 MB. Tortie previews images up to 2.0 MB, so opening it here would stall the window rather than show you anything.',
+        imageStateButtons: [],
         agentsStale: JSON.stringify([
           {
             machineId: MACHINE_ID,
@@ -698,6 +755,13 @@ function selfTest() {
   plant('the stated limit closed and nobody restated it', (r) => {
     r.launchE.items.tilesDisconnected = tilesOf(3);
   });
+  plant('the picture on the machine offers Reveal again', (r) => {
+    r.launchC.items.imageStateButtons = [REVEAL];
+  });
+  plant('the picture never reached the state that draws it', (r) => {
+    r.launchC.items.imageStateTitle = '(no .ed-state)';
+    r.launchC.items.imageStateBody = '';
+  });
   plant('nothing was read at all', (r) => { r.launchCMenus = []; });
 
   let bad = 0;
@@ -741,6 +805,16 @@ async function main() {
     farUp = true;
     record('farFixture', setup.stdout.trim().replace(/\n/g, ' '));
     record('farRoot', FAR_ROOT);
+
+    // ITEM 6's ONE FIXTURE. An untracked SVG inside the scratch repository and
+    // nowhere else, bigger than REMOTE_REVIEW_MAX_BYTES (2,097,152), so the
+    // remote read is cut, the tab's `truncated` is set and the image surface
+    // lands in its too-large state — which is the only state that ever drew a
+    // Reveal. It is written BY THE FAR SIDE from a loop rather than sent, so
+    // no three megabyte command line exists on either computer.
+    const plant = `set -e\ncd ${FAR_ROOT}\n{ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">'; i=0; while [ $i -lt 60000 ]; do printf '%s' '<!-- p235 padding padding padding padding padding -->'; i=$((i+1)); done; printf '%s' '<rect width="10" height="10"/></svg>'; } > src/ui/big.svg\nwc -c < src/ui/big.svg\n`;
+    const planted = runScript(machine, plant);
+    record('farPlantedSvgBytes', `${String(planted.code)} ${planted.stdout.trim()}`);
 
     rmSync(localRepo, { recursive: true, force: true });
     const localOut = sh('/bin/sh', ['-c', setupScript(localRepo)]);
