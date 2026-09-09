@@ -17,11 +17,52 @@
  * stale offset. It names no bridge and writes nothing, so it is scanned by
  * `npm run conformance:redline` rule 9 with the other redline modules.
  *
- * It lives as long as the session: it dies on reload, quit or crash, and the
- * face says so. It is keyed by tab id, which is unique per open, so a closed
- * and reopened file gets a fresh journal; the entries of a closed tab linger
- * as a few bytes until the next reload rather than being swept, because
- * sweeping on unmount would also clear it on an ordinary tab switch.
+ * It lives as long as the TAB, and no longer. It dies on reload, quit or
+ * crash, and the face says so.
+ *
+ * ## PHASE 244, AND THE SENTENCE THIS PARAGRAPH REPLACES WAS WRONG
+ *
+ * This header used to say the journal is "keyed by tab id, which is unique per
+ * open, so a closed and reopened file gets a fresh journal". The 8 September
+ * 0.101.0 audit's finding F1 disproved it. `tab-identity.ts` keys an ordinary
+ * local tab by its ABSOLUTE PATH, so the id of the second opening of a file is
+ * the id of the first, and nothing anywhere called `forgetRewindJournal`: it
+ * had zero production call sites and its own comment said "Exported for tests
+ * and a future close."
+ *
+ * What that cost is bytes rather than tidiness, driven at the parent over a
+ * scratch file through the shipping chain (docs/research/108): a file was
+ * opened, an agent's phrase rewound, the tab CLOSED, the same file reopened,
+ * and one press of undo in that new opening — in which nothing had ever been
+ * rewound — wrote the previous opening's inserted text back into the person's
+ * file, `brown` becoming `red` again, 44 bytes to 42. The face offered it,
+ * because `undoableRewind` compares the entry's generation with the tab's and a
+ * tab's baseline generation is a property of the TAB OBJECT: `NO_BASELINE` is
+ * 0 and the first successful read seeds 1, so both openings read 1 and the
+ * comparison passes. **That guard reads as protecting this and does not**, and
+ * a later round must not lean on it.
+ *
+ * So ownership ends where the tab ends. `store.ts` calls
+ * {@link forgetRewindJournal} at all three places a tab leaves `tabs`, beside
+ * the `disposeModels` and `dropViewState` calls that were already there: real
+ * close, preview replacement and LRU eviction. It is NOT cleared on React
+ * unmount, because an ordinary switch between still-open tabs unmounts the view
+ * and must keep the undo; that was the reason the old sentence gave for
+ * sweeping nothing, and it is still the right reason not to sweep THERE.
+ * Cancelling a dirty close keeps the tab, so it keeps the journal.
+ *
+ * Cross-close recovery is NOT offered. It would need an identity that survives
+ * a close and a retention contract to go with it, and neither exists; a person
+ * who closes a tab has ended that undo.
+ *
+ * ## THE RETENTION IS BOUNDED (Phase 244)
+ *
+ * The audit also recorded that an entry holds the deleted and the inserted
+ * STRINGS with no entry or byte ceiling anywhere in this file. There is one
+ * now, per tab: {@link JOURNAL_MAX_ENTRIES} and {@link JOURNAL_MAX_BYTES} over
+ * the `del` and `ins` text. Past either, the OLDEST entries go, which is what
+ * every bounded undo stack chooses: a full journal loses its deepest undo and
+ * never the one the person is about to press.
  */
 
 /** One rewind, enough to write its inverse and to guard the write. */
@@ -38,11 +79,48 @@ export interface RewindJournalEntry {
 
 const journals = new Map<string, RewindJournalEntry[]>();
 
-/** Remember one rewind for this tab. */
+/**
+ * The most rewinds one tab may hold. Deeper than any undo run measured, and
+ * small enough that the map cannot grow without a bound.
+ */
+export const JOURNAL_MAX_ENTRIES = 200;
+
+/**
+ * The most `del` plus `ins` text one tab's journal may hold, in UTF-16 code
+ * units. A single rewind is bounded by the file it came from, so without this
+ * a tab's journal is bounded by nothing.
+ */
+export const JOURNAL_MAX_BYTES = 1_048_576;
+
+/** The text one entry retains. */
+function entryWeight(entry: RewindJournalEntry): number {
+  return entry.del.length + entry.ins.length;
+}
+
+/**
+ * Drop the OLDEST entries until the stack is inside both budgets. The newest
+ * entry is never dropped, even alone over the byte budget: it is the one the
+ * person is about to press, and refusing to record it would leave a rewind with
+ * no way back at all, which is the loss this journal exists to prevent.
+ */
+function trim(stack: RewindJournalEntry[]): void {
+  while (stack.length > JOURNAL_MAX_ENTRIES) stack.shift();
+  let weight = stack.reduce((sum, entry) => sum + entryWeight(entry), 0);
+  while (stack.length > 1 && weight > JOURNAL_MAX_BYTES) {
+    const dropped = stack.shift();
+    if (dropped === undefined) return;
+    weight -= entryWeight(dropped);
+  }
+}
+
+/** Remember one rewind for this tab, inside the two budgets above. */
 export function recordRewind(tabId: string, entry: RewindJournalEntry): void {
   const stack = journals.get(tabId);
   if (stack === undefined) journals.set(tabId, [entry]);
-  else stack.push(entry);
+  else {
+    stack.push(entry);
+    trim(stack);
+  }
 }
 
 /** The last rewind of this tab, or undefined when there is nothing to undo. */
@@ -106,7 +184,11 @@ export function undoableRewind(
   return entry !== undefined && entry.generation === generation ? entry : undefined;
 }
 
-/** Forget one tab's journal outright. Exported for tests and a future close. */
+/**
+ * Forget one tab's journal outright. Called from `store.ts` at all three places
+ * a tab leaves `tabs`, which is where this journal's ownership ends; see the
+ * Phase 244 section of this file's header.
+ */
 export function forgetRewindJournal(tabId: string): void {
   journals.delete(tabId);
 }

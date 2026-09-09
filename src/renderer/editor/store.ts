@@ -57,6 +57,7 @@ import { onOpenFile } from '../state/open-file';
 import { onRepoChanged } from '../state/repo-changed';
 import type { OpenFileRequest } from '../state/open-file';
 import { disposeModels, dropViewState } from './monaco-loader';
+import { forgetRewindJournal } from './redline-journal';
 import type { EditorMode, EditorTab } from './tab-types';
 import { NO_BASELINE, nextBaseline } from './baseline';
 import {
@@ -606,6 +607,7 @@ export const useEditor = create<EditorState>((set, get) => {
           // Reuse the single preview tab (VS Code behavior).
           disposeModels(slot.id);
           dropViewState(slot.id);
+          forgetRewindJournal(slot.id);
           tabs = tabs.map((t) => (t.id === slot.id ? tab : t));
         } else {
           tabs.push(tab);
@@ -620,6 +622,7 @@ export const useEditor = create<EditorState>((set, get) => {
             if (evict !== undefined) {
               disposeModels(evict.id);
               dropViewState(evict.id);
+              forgetRewindJournal(evict.id);
               tabs = tabs.filter((t) => t.id !== evict.id);
             }
           }
@@ -695,6 +698,10 @@ export const useEditor = create<EditorState>((set, get) => {
     forceCloseTab(id) {
       disposeModels(id);
       dropViewState(id);
+      // PHASE 244, audit finding F1. A tab id is its absolute path, so without
+      // this the next opening of the same file inherits this one's undo stack
+      // and one press writes its bytes back. The journal's owner is the tab.
+      forgetRewindJournal(id);
       set((s) => {
         const idx = s.tabs.findIndex((t) => t.id === id);
         const tabs = s.tabs.filter((t) => t.id !== id);
