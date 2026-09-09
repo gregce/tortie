@@ -35,6 +35,30 @@
  * site, and that shape needed six doors and three rounds inside one phase to
  * hold.
  *
+ * ## THE WINDOW THAT CANNOT BE CLOSED, stated because it is the one that acts
+ *
+ * Between `answerPathDoor` answering and `shell.openPath` being called, the
+ * file at that realpath can be replaced. `shell.openPath` takes a PATH and not
+ * a descriptor, so there is nothing to hold open across the gap: the sequence
+ * cannot hand macOS the bytes it inspected, only the name it inspected them
+ * under. Every other write channel in this product carries the same paragraph
+ * for the same reason — `src/main/fs/guarded-write.ts` measured its own window
+ * at 23.6 ms and closed what it could with an `lstat`-to-`rename` comparison,
+ * and this one has no equivalent, because the acting call is somebody else's.
+ *
+ * WHAT BOUNDS IT is that the window is two `await`s wide and holds no I/O of
+ * its own, and that the thing on the far side of it picks a program by
+ * EXTENSION: a replacement that changes what LaunchServices runs has to keep
+ * the name, so it has to be a `.pdf` — `EXTERNAL_ALLOW` is one extension and a
+ * `.pdf` handed to Preview is a document being decoded rather than a program
+ * being started. A replacement that changes the name is a different path and
+ * this channel was never asked about it. A replacement that puts an executable
+ * bit on the same name changes nothing macOS reads, since LaunchServices is
+ * given `.pdf` either way.
+ *
+ * It is a real window and it is not measured here, because measuring it means
+ * really opening something and nothing in this phase ever does.
+ *
  * ## Why this is a new channel when refusal 6 says not to add one
  *
  * `shell.openPath` exists only in main, so a click in the renderer reaches it

@@ -15,6 +15,18 @@
  * The one directory read anywhere in this file is the bundle probe's `stat` of
  * `Contents/Info.plist`, which is a metadata call on a name we composed.
  *
+ * ## THE STATED LIMIT: a stale automount, and where it really lands
+ *
+ * `onRefusedMount` is asked of the SPELLING before any call is made and of the
+ * REALPATH after one, and neither can stop `realpath` itself following a
+ * symlink at an ordinary name onto a mount that is not answering. The three
+ * calls below run on the libuv THREADPOOL rather than on main, so what that
+ * costs is a pool thread and not the app — four of them at once would starve
+ * the pool and stall main's other filesystem work, which is the honest shape
+ * of it. There is no timeout to give a `realpath`, the corpus holds none of
+ * these, and this is written down rather than guarded because a guard that
+ * cannot be written should not be described as one.
+ *
  * ## Why the answer is cached in the RENDERER and re-asked HERE
  *
  * A hover answer is a cache: the file at a spelling can be replaced between
@@ -97,6 +109,11 @@ export async function factsForPath(spelling: string): Promise<PathFacts> {
     // out of `realpath` with a different errno on a different macOS.
     await lstat(spelling);
     const real = await realpath(spelling);
+    // Asked AGAIN, of the realpath: a symlink at an ordinary name is what
+    // carries a path onto a mount without ever spelling one, and `stat` of a
+    // path on a mount that is not answering is the call this stops. The WORD
+    // for it comes from the pure decision, which asks the same question.
+    if (onRefusedMount(real)) return { ...missing, realPath: real };
     const st = await stat(real);
     const kind: PathFacts['kind'] = st.isDirectory()
       ? 'dir'

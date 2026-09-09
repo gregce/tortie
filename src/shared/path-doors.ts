@@ -96,23 +96,57 @@ export interface PathFacts {
 }
 
 /**
- * Mounts refused before any filesystem call is made.
+ * Mounts refused, and WHAT THAT DOES AND DOES NOT BUY (corrected by the
+ * Phase 247 fix round).
  *
- * A stale automount answers `lstat` by hanging the calling thread, and this
- * sequence runs on a POINTER MOVING over a pane. Research 111 counted 0 of
- * these in a 52,094-row corpus, so the refusal costs nothing measured and
- * removes the one shape that could freeze a hover.
+ * A stale automount answers a metadata call by blocking the thread that made
+ * it, and this sequence runs on a POINTER MOVING over a pane. Research 111
+ * counted 0 of these in a 52,094-row corpus, so the refusal costs nothing
+ * measured.
+ *
+ * **IT DOES NOT REMOVE THE SHAPE THAT COULD BLOCK A HOVER, and the version of
+ * this comment that said so was wrong.** It is asked of the SPELLING, and a
+ * symlink at an ordinary name whose leaf sits on a stale automount is followed
+ * by `realpath` in src/main/fs/path-door.ts before anything here has seen the
+ * mount at all. So it is asked a SECOND time below, of the REALPATH, which
+ * closes the DECISION half — a link into `/Volumes` is refused exactly as a
+ * spelling in `/Volumes` is — and closes none of the blocking half. The
+ * residual limit is stated in that module's header: those calls run on the
+ * libuv threadpool rather than on main, so what a stale automount costs is a
+ * pool thread and not the app, and there is no timeout to give them.
  *
  * It is NOT a denylist of dangerous kinds — those are refused by the sequence
- * below, by mode and by the closed allowlist. It is the timeout the kernel
- * does not offer, and it is a question about the SPELLING, which is why it
- * lives here beside the other two spelling rules rather than in main.
+ * below, by mode and by the closed allowlist. It is a question about a
+ * SPELLING, which is why it lives here beside the other spelling rules rather
+ * than in main.
  */
 const MOUNT_REFUSED = [/^\/Volumes\//, /^\/net\//];
 
 /** True when a spelling names a mount that must never be asked about. */
 export function onRefusedMount(spelling: string): boolean {
   return MOUNT_REFUSED.some((r) => r.test(spelling));
+}
+
+/**
+ * COULD THIS SPELLING EVER BE ABSOLUTE? (Phase 247 fix round.)
+ *
+ * The renderer asks main about every span the grammar yields, and main answers
+ * `not-absolute` for most of them: measured over the operator's own 25 live
+ * panes and 56,977 rows, the grammar yields **7,172 spans over 1,552 distinct
+ * targets, and 1,144 of those targets — 74% — are relative**. Each was a
+ * cached entry and an IPC round trip for an answer that is a property of the
+ * spelling.
+ *
+ * So the renderer refuses them itself, and this is the ONE spelling of that
+ * rule so the two halves cannot drift. It is deliberately WIDER than the
+ * clause it saves a trip to: `~foo/bar` is not expanded by `expandHome` and is
+ * refused by main, and this says `true` for it, because a renderer rule that
+ * is NARROWER than main's would drop links in silence while a wider one only
+ * costs a round trip. `conformance:pathdoors` rule 12 drives that direction
+ * over a fixture list rather than asserting it.
+ */
+export function couldBeAbsolute(spelling: string): boolean {
+  return spelling.startsWith('/') || spelling.startsWith('~');
 }
 
 /**
@@ -160,6 +194,13 @@ export function decidePathDoor(facts: PathFacts): PathDoorAnswer {
   }
   // 2. the realpath — everything below is asked of it, leaf included
   const real = facts.realPath;
+  // ...INCLUDING THE MOUNT, which the spelling clause above cannot see: a
+  // symlink at an ordinary name is what carries a path onto a mount without
+  // ever spelling one. The word stays `mount` rather than becoming `missing`,
+  // because a refusal in this domain says which clause refused.
+  if (real !== null && onRefusedMount(real)) {
+    return { door: null, refusal: 'mount' };
+  }
   if (real === null || facts.kind === 'missing') {
     return { door: null, refusal: 'missing' };
   }
