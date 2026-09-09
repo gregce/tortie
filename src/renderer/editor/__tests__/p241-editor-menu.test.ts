@@ -21,7 +21,7 @@ import {
   RESHAPE_LABELS,
   type EditorMenuActions
 } from '../editor-menu';
-import { reshapesFor } from '../use-editor-menu';
+import { applyReshape, reshapesFor } from '../use-editor-menu';
 
 // ---------------------------------------------------------------------------
 // A stand-in editor: getModel, getSelection, getPosition, and the model's
@@ -35,7 +35,17 @@ interface Caret {
   language?: string;
 }
 
-function fakeEditor(text: string, caret: Caret): monacoNs.editor.IStandaloneCodeEditor {
+/** What an `applyReshape` press did: the edits, and the undo stops around them. */
+interface Written {
+  order: string[];
+  edits: { range: unknown; text: string }[];
+}
+
+function fakeEditor(
+  text: string,
+  caret: Caret,
+  wrote?: Written
+): monacoNs.editor.IStandaloneCodeEditor {
   const lines = text.split('\n');
   const sel = caret.selection ?? null;
   const valueInRange = (r: {
@@ -76,10 +86,24 @@ function fakeEditor(text: string, caret: Caret): monacoNs.editor.IStandaloneCode
           endColumn: sel[3],
           isEmpty: () => sel[0] === sel[2] && sel[1] === sel[3]
         };
+  const write = {
+    ...model,
+    getLineMaxColumn: (n: number) => (lines[n - 1]?.length ?? 0) + 1,
+    pushEditOperations: (
+      _before: unknown,
+      edits: { range: unknown; text: string }[]
+    ): null => {
+      wrote?.order.push('edit');
+      for (const e of edits) wrote?.edits.push(e);
+      return null;
+    }
+  };
   return {
-    getModel: () => model,
+    getModel: () => write,
     getSelection: () => selection,
-    getPosition: () => ({ lineNumber: caret.line, column: 1 })
+    getPosition: () => ({ lineNumber: caret.line, column: 1 }),
+    focus: () => undefined,
+    pushUndoStop: () => wrote?.order.push('stop')
   } as unknown as monacoNs.editor.IStandaloneCodeEditor;
 }
 
@@ -237,5 +261,51 @@ describe('the groups, and what is absent on purpose', () => {
     for (const item of items) if (item !== 'sep') item.run();
     expect(pressed[0]).toBe('table');
     expect(pressed.slice(1)).toEqual(MONACO_ROWS.map((r) => r.action));
+  });
+});
+
+describe('what a press writes', () => {
+  it('is ONE edit between two undo stops, so one ⌘Z takes it back', () => {
+    const wrote: Written = { order: [], edits: [] };
+    const why = applyReshape(fakeEditor(DOC, { line: 5 }, wrote), 'table', true);
+    expect(why).toBeNull();
+    expect(wrote.order).toEqual(['stop', 'edit', 'stop']);
+    expect(wrote.edits).toHaveLength(1);
+  });
+
+  it('KEEPS the file\'s trailing newline when the subject is the whole document', () => {
+    const wrote: Written = { order: [], edits: [] };
+    const editor = fakeEditor('{"b":2,"a":1}\n', { line: 1, language: 'json' }, wrote);
+    expect(applyReshape(editor, 'json-format', true)).toBeNull();
+    expect(wrote.edits[0]?.text.endsWith('}\n')).toBe(true);
+    // …and adds one that was never there.
+    const bare: Written = { order: [], edits: [] };
+    applyReshape(fakeEditor('{"b":2}', { line: 1, language: 'json' }, bare), 'json-format', true);
+    expect(bare.edits[0]?.text.endsWith('}')).toBe(true);
+  });
+
+  it('writes NOTHING on a refusal and says why', () => {
+    const wrote: Written = { order: [], edits: [] };
+    const editor = fakeEditor('{"id":12345678901234567890}\n', { line: 1, language: 'json' }, wrote);
+    const why = applyReshape(editor, 'json-format', true);
+    expect(why).toContain('more than whitespace at offset');
+    expect(wrote.edits).toHaveLength(0);
+    expect(wrote.order).toEqual([]);
+    // The minify row is byte-preserving, so it still answers on the same file.
+    expect(applyReshape(editor, 'json-minify', true)).toBeNull();
+  });
+
+  it('refuses on a read-only tab and on a caret with nothing under it', () => {
+    const wrote: Written = { order: [], edits: [] };
+    expect(applyReshape(fakeEditor(DOC, { line: 5 }, wrote), 'table', false)).toBe(
+      'This file is read-only here.'
+    );
+    expect(applyReshape(fakeEditor(DOC, { line: 1 }, wrote), 'table', true)).toBe(
+      'The cursor is not inside a markdown table.'
+    );
+    expect(applyReshape(fakeEditor(DOC, { line: 1 }, wrote), 'json-format', true)).toBe(
+      'Select some JSON, or put the cursor in a JSON file.'
+    );
+    expect(wrote.edits).toHaveLength(0);
   });
 });

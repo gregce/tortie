@@ -161,7 +161,15 @@ export function applyReshape(
   const answer: Reshaped =
     id === 'json-format' ? prettyJson(subject.text) : minifyJson(subject.text);
   if (!answer.ok) return answer.why;
-  replaceRange(editor, subject.range, answer.text);
+  // THE TRAILING NEWLINE IS THE PERSON'S, NOT THE RESHAPE'S. Neither answer
+  // ends in one, and with no selection the subject is the WHOLE document — so
+  // formatting a `.json` file would quietly take its final newline off and the
+  // next save would write a file POSIX, git and every linter call malformed.
+  const text =
+    subject.text.endsWith('\n') && !answer.text.endsWith('\n')
+      ? `${answer.text}\n`
+      : answer.text;
+  replaceRange(editor, subject.range, text);
   return null;
 }
 
