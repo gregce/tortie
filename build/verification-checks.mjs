@@ -119,6 +119,10 @@ export const CHECKS = [
   // Static conformance gates. Every one runs from node and the lockfile
   // install alone, through the pinned tsx runner in build/ts-runner.mjs.
   pure('conformance:agents'),
+  // Phase 242.2. It stays `pure`: condition 88g runs the shipping image-put
+  // text under /bin/sh, synchronously, over a scratch directory it removes in
+  // a finally, which needs node and the repository install and nothing else on
+  // the host. `conformance:redline-write` below is the same shape.
   pure('conformance:machines'),
   // Phase 187's guard. It is a vitest file rather than a tsx probe because the
   // exec plane is replaced by a function, which is the seam vitest owns, and it

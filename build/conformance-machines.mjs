@@ -12,9 +12,18 @@
  * This gate is the executable half of it, and it costs about a second.
  *
  * It is the fourth gate of its shape, beside `conformance:agents`,
- * `conformance:installs` and `conformance:context`. It spawns nothing: no ssh,
- * no tmux server, no Electron, no manifest, no file under the person's home, no
- * request and no write anywhere. Safe on a machine with live sessions on it.
+ * `conformance:installs` and `conformance:context`. It starts no ssh, no tmux
+ * server and no Electron, opens no manifest and no file under the person's
+ * home, and makes no request. Safe on a machine with live sessions on it.
+ *
+ * PHASE 242.2 ADDED THE ONE THING IT DOES START, and it is said here rather
+ * than left for somebody to find. Condition 88g hands the shipping `image-put`
+ * text to `/bin/sh` — synchronously, six arms per variant — over real links and
+ * real files in a scratch directory it makes under the system temporary
+ * directory and removes in a `finally`, with `HOME` pointed inside that
+ * directory so nothing under the person's own home is named. `conformance:
+ * redline-write` is the precedent: a gate on a write channel has to run the
+ * channel, because reading it is what let the defect ship.
  *
  * THE SEVENTY CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
@@ -343,6 +352,24 @@
  */
 
 import { spawnSync } from 'node:child_process';
+// PHASE 242.2. Condition 88g RUNS the shipping image-put text under /bin/sh
+// over real links on real disks, in a scratch directory it removes in a
+// `finally`. Nothing under the person's home is opened: `HOME` is inside that
+// directory.
+import {
+  chmodSync,
+  existsSync,
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { tsxCli } from './ts-runner.mjs';
 
 const probe = spawnSync(
@@ -8432,6 +8459,267 @@ process.stdout.write(
   }
 }
 
+// Phase 242.2, condition 88g. THE STAGED NAME FOR A PICTURE, RUN RATHER THAN
+// READ.
+//
+// WHY THIS CONDITION EXISTS. `image-put` staged its payload at `t="$f.part"`
+// under `$HOME/.tortie/images` and created that name with a redirection that
+// had no unlink in front of it, no `set -C` and no `[ -L ]` test. A SYMBOLIC
+// LINK planted there, and again a HARD LINK, each carried the picture's bytes
+// into the file OUTSIDE that directory the planted name pointed at, while the
+// script answered `added` with the payload's OWN byte count and its OWN
+// sha256 — so the answer read as a clean write in both escaping arms. It was
+// measured three ways before anything was changed: under /bin/sh over a
+// scratch HOME, on the operator's Mac Pro's own shell over the real link, and
+// through Tortie's own `machines.putImage` against that machine, where both
+// arms answered `{"outcome":"added","refusal":null}` with `remotePath` naming
+// a file inside `~/.tortie/images` that was not where the bytes went
+// (research 105 sections 4 and 5).
+//
+// WHY IT RUNS THE TEXT RATHER THAN READING IT. Condition 88f above reads the
+// same text and asks whether the clauses are there and stand where they have
+// to stand, which is the right question for a gate and is still a question
+// about text. This one hands the SHIPPING string to /bin/sh with the two
+// positional values `putOneImage` composes, over real links on real disks in a
+// scratch directory it removes in a `finally`, and reads what was printed and
+// what is on disk afterwards. It starts no ssh, contacts no machine, opens
+// nothing under the person's home — `HOME` is inside the scratch directory —
+// and every child is synchronous.
+//
+// WHICH CLAUSE HOLDS WHICH HALF, WHICH IS THE PART A LATER ROUND WILL GET
+// WRONG. Each clause is taken out of the shipping text on its own and all six
+// arms re-driven, because Phase 242's fix round measured that the two halves
+// of `file-put`'s guard are held by DIFFERENT clauses and that ablating one
+// alone left its whole test file green:
+//
+//   - the FIRST `rm -f "$t"` is what stops both link kinds, AND is the only
+//     thing standing between a machine whose `base64` takes `-d` and not `-D`
+//     and a save that dies with no answer at all when there is debris at the
+//     staged name;
+//   - the SECOND `rm -f "$t"`, in the `else`, is what lets an old macOS write,
+//     because the first arm's redirection creates the staged file even when
+//     `-d` is the flag that machine does not have;
+//   - `set -C` CANNOT BE MOVED BY ANY BEHAVIOURAL ARM, because with the first
+//     unlink in place the only thing it adds is refusing a name re-planted in
+//     the microseconds between the unlink and the create. This condition
+//     ASSERTS that, rather than pretending to cover it: the `set -C` ablation
+//     must read exactly what the shipping text reads on all six arms, and if
+//     that ever stops being true the reason 88f holds the clause as text has
+//     stopped being true with it. 88f is what makes its removal red.
+{
+  const p242g = data.phase242 ?? null;
+  const shipping = typeof p242g?.imagePut === 'string' ? p242g.imagePut : '';
+  if (shipping.length === 0) {
+    fail(
+      'the probe printed no image-put text, so condition 88g ran nothing at ' +
+        'all and the staged name for a picture is guarded by reading alone.'
+    );
+  } else {
+    // A one pixel PNG, the payload research 105 drove, so a reading here and a
+    // reading there are the same picture.
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQ' +
+        'GAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    const payload = png.toString('base64');
+    const name = 'p2422gate-c414cd0e204de974.png';
+    const scratch = mkdtempSync(join(tmpdir(), 'p2422-gate-'));
+
+    /** The two `base64` dialects, as programs put in front of PATH. */
+    const DIALECTS = {
+      // An old macOS: `-D` and no `-d`.
+      oldMac:
+        '#!/bin/sh\nif [ "$1" = -d ]; then echo "base64: illegal option -- d" ' +
+        '>&2; exit 1; fi\nexec /usr/bin/base64 "$@"\n',
+      // GNU coreutils: `-d` and no `-D`.
+      gnu:
+        '#!/bin/sh\nif [ "$1" = -D ]; then echo "base64: invalid option" >&2; ' +
+        'exit 1; fi\nexec /usr/bin/base64 "$@"\n'
+    };
+
+    /**
+     * Drive one arm of one text and read three things: the word the script
+     * printed, whether the file OUTSIDE the pictures directory still holds what
+     * it held, and whether the picture landed as a picture.
+     */
+    const drive = (text, arm, at) => {
+      const dir = join(scratch, `${at}`);
+      const home = join(dir, 'home');
+      const images = join(home, '.tortie', 'images');
+      const outside = join(dir, 'outside');
+      const victim = join(outside, 'victim.txt');
+      const staged = join(images, `${name}.part`);
+      mkdirSync(images, { recursive: true });
+      mkdirSync(outside, { recursive: true });
+      writeFileSync(victim, 'victim, untouched\n', 'utf8');
+      if (arm.plant === 'symlink') symlinkSync(victim, staged);
+      if (arm.plant === 'hardlink') linkSync(victim, staged);
+      if (arm.plant === 'debris') writeFileSync(staged, 'half an upload\n', 'utf8');
+      let path = process.env.PATH ?? '';
+      if (arm.dialect !== undefined) {
+        const bin = join(dir, 'bin');
+        mkdirSync(bin, { recursive: true });
+        writeFileSync(join(bin, 'base64'), DIALECTS[arm.dialect], 'utf8');
+        chmodSync(join(bin, 'base64'), 0o755);
+        path = `${bin}:${path}`;
+      }
+      const done = spawnSync('/bin/sh', ['-c', text, 'sh', name, payload], {
+        encoding: 'utf8',
+        env: { ...process.env, HOME: home, PATH: path }
+      });
+      const out = `${done.stdout ?? ''}${done.stderr ?? ''}`;
+      const said = out.match(/__TORTIE_RUN__(.*?)__TORTIE_RUN__/);
+      const landed = join(images, name);
+      const there = existsSync(landed);
+      return {
+        word: said === null ? 'none' : (said[1] ?? '').trim().split(/\s+/)[0] ?? 'none',
+        victimHeld: readFileSync(victim, 'utf8') === 'victim, untouched\n',
+        // A picture, and not a link standing where one should be.
+        picture:
+          there &&
+          !lstatSync(landed).isSymbolicLink() &&
+          Buffer.compare(readFileSync(landed), png) === 0
+      };
+    };
+
+    const ARMS = [
+      { id: 'control', plant: null },
+      { id: 'a symbolic link at the staged name', plant: 'symlink' },
+      { id: 'a hard link at the staged name', plant: 'hardlink' },
+      { id: "an interrupted upload's debris", plant: 'debris' },
+      { id: 'an old macOS base64', plant: null, dialect: 'oldMac' },
+      { id: 'a GNU base64 with debris', plant: 'debris', dialect: 'gnu' }
+    ];
+
+    /** Every arm of one text, as one comparable string. */
+    const readingOf = (text, tag) =>
+      ARMS.map((arm, at) => {
+        const one = drive(text, arm, `${tag}-${at}`);
+        return `${arm.id}: ${one.word}/${one.victimHeld ? 'held' : 'TOOK IT'}/${
+          one.picture ? 'picture' : 'no picture'
+        }`;
+      });
+
+    try {
+      // 88g-i. THE SHIPPING TEXT. Every arm answers `added`, the file outside
+      //        holds what it held, and the picture is a picture.
+      const shipped = readingOf(shipping, 'ship');
+      const WANTED_ARM = (arm) => `${arm.id}: added/held/picture`;
+      const wanted = ARMS.map(WANTED_ARM);
+      shipped.forEach((line, at) => {
+        if (line === wanted[at]) return;
+        fail(
+          `condition 88g drove the shipping image-put text under /bin/sh and ` +
+            `read "${line}" where it must read "${wanted[at]}". The three ` +
+            `fields are the word the script printed, whether the file OUTSIDE ` +
+            `~/.tortie/images still holds what it held, and whether the ` +
+            `picture landed as a picture rather than as a link.`
+        );
+      });
+
+      // 88g-ii. EACH CLAUSE ABLATED ON ITS OWN, over the same six arms.
+      const ablations = [
+        {
+          why: 'the first rm -f "$t" removed',
+          text: shipping.replace('\n  rm -f "$t"\n', '\n'),
+          moves: true
+        },
+        {
+          why: 'the second rm -f "$t" removed, the one in the else',
+          text: shipping.replace('\n    rm -f "$t"\n', '\n'),
+          moves: true
+        },
+        {
+          // The measurement, asserted rather than assumed. See the header.
+          why: 'set -C removed, which no behavioural arm can see',
+          text: shipping.replace('\n  set -C\n', '\n'),
+          moves: false
+        },
+        {
+          // THE PARENT SHAPE, and it is here so this condition carries the
+          // escape itself rather than three clause deltas that each move one
+          // dialect arm. With all four lines gone this IS the text that
+          // shipped before Phase 242.2, and both link kinds have to escape or
+          // the arm is measuring something else.
+          why: 'the whole guard removed, which is the text that shipped at the parent',
+          text: shipping
+            .replace('\n  rm -f "$t"\n', '\n')
+            .replace('\n  set -C\n', '\n')
+            .replace('\n    rm -f "$t"\n', '\n')
+            .replace('\n  set +C\n', '\n'),
+          moves: true,
+          escapes: ['a symbolic link at the staged name', 'a hard link at the staged name']
+        }
+      ];
+      const movedBy = [];
+      ablations.forEach((one, at) => {
+        if (one.text === shipping) {
+          fail(
+            `condition 88g could not ablate "${one.why}" — the line it edits ` +
+              'is not in the shipping image-put text any more, so this arm ' +
+              'proved nothing.'
+          );
+          return;
+        }
+        const read = readingOf(one.text, `ab${at}`);
+        const moved = read.filter((line, i) => line !== shipped[i]);
+        if (one.moves && moved.length === 0) {
+          fail(
+            `condition 88g took "${one.why}" out of the shipping image-put ` +
+              'text and every one of its six arms read exactly what the ' +
+              'shipping text reads. A clause no arm can move is a clause this ' +
+              'condition is not guarding.'
+          );
+        }
+        if (!one.moves && moved.length > 0) {
+          fail(
+            `condition 88g took "${one.why}" out of the shipping image-put ` +
+              `text and ${String(moved.length)} arm(s) moved: ` +
+              `${moved.join('; ')}. That clause was measured as invisible to ` +
+              'behaviour, which is the whole reason condition 88f holds it as ' +
+              'text. If it is visible now, say which arm sees it and stop ' +
+              'relying on the reading alone.'
+          );
+        }
+        for (const id of one.escapes ?? []) {
+          const at2 = ARMS.findIndex((arm) => arm.id === id);
+          const line = read[at2] ?? '';
+          if (!line.includes('TOOK IT')) {
+            fail(
+              `condition 88g put the shipping image-put text back to the shape ` +
+                `that shipped at the parent and drove "${id}", and it read ` +
+                `"${line}" rather than taking the payload out of ` +
+                `~/.tortie/images. That arm is the defect this phase fixed, so ` +
+                'an arm that cannot reproduce it at the parent shape is not ' +
+                'measuring the defect at HEAD either.'
+            );
+          }
+        }
+        movedBy.push(
+          `${one.why} → ${moved.length === 0 ? 'nothing moved' : moved.join('; ')}`
+        );
+      });
+
+      process.stdout.write(
+        `\nthe staged name for a picture, RUN rather than read. The shipping ` +
+          `image-put text was handed to /bin/sh with the two values ` +
+          `putOneImage composes, over ${String(ARMS.length)} arms with real ` +
+          `links on real disks in a scratch directory removed in a finally: ` +
+          `${shipped.join('; ')}. A symbolic link and a hard link planted at ` +
+          `the staged name each took the payload out of ~/.tortie/images at ` +
+          `the parent while the script answered added with the payload's own ` +
+          `count and digest. Each clause ablated alone: ` +
+          `${movedBy.join(' | ')}. set -C is held by condition 88f as text ` +
+          `because nothing here can see it, and that is asserted above rather ` +
+          `than assumed.\n`
+      );
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+}
+
 // Phase 117. What a create whose answer was lost now does, said out loud.
 {
   const p117 = data.phase117 ?? {};
@@ -8465,5 +8753,7 @@ if (failures.length > 0) {
 
 process.stdout.write(
   '\nPASS. A machine confirmation is bound to the six fields that decide what runs, to ' +
-    'the prefixed id, and to nothing else. Nothing was started by this gate.\n'
+    'the prefixed id, and to nothing else. Nothing was started by this gate but ' +
+    "condition 88g's own /bin/sh arms, over a scratch directory removed in a " +
+    'finally.\n'
 );
