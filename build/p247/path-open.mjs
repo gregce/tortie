@@ -39,6 +39,20 @@
  *      that it stays unclickable: research 111 section 4.2 measured that a
  *      blind rejoin produces a path that really exists 57 times while tmux
  *      confirms 18 of them, so 39 of 57 are joins that never happened.
+ *   F. THE UNDERLINE IS DRAWN IN CELLS AND NOT IN STRING INDICES, which is the
+ *      Phase 247 FIX ROUND's confirmed defect. Two rows, each carrying a
+ *      `⚠️ ` between the marker and the path, which is ordinary agent output
+ *      and is ONE cell holding TWO UTF-16 units. So the row's string index
+ *      runs one AHEAD of its cell column, and the range the provider shipped
+ *      was drawn one cell to the LEFT of the path: its first character was
+ *      dead and the cell PAST its end handed the file over. The arm presses
+ *      the path's FIRST cell on one file, which must open it, and the cell one
+ *      PAST the end on a SECOND file, which must open nothing — two files
+ *      because a tab already open cannot be opened again and the two presses
+ *      would not be told apart. At the parent both readings are the other way
+ *      round. It asserts FIRST that the column it computed really differs from
+ *      the string index, so a run where the decoration did not land could not
+ *      read as a pass.
  *
  * WHICH CELL IS WHICH IS ANSWERED BY tmux AND NOT BY THIS SCRIPT. `capture-pane`
  * prints the rows the pane really holds, so the row and column of a path are
@@ -115,6 +129,46 @@ export function cellOf(rows, marker, path) {
   return null;
 }
 
+/**
+ * WHERE A CELL IS, WHEN THE ROW IS NOT ASCII (the Phase 247 fix round).
+ *
+ * `cellOf` above reads a STRING INDEX out of tmux's capture, and xterm
+ * underlines and hit-tests in CELL COLUMNS. On the four ASCII rows above the
+ * two are the same number; on arm F's rows they are not, which is the whole
+ * point of arm F.
+ *
+ * The width rule here is deliberately small and covers exactly what THIS
+ * PROBE plants: a variation selector and a zero-width joiner take no column of
+ * their own, because they join the cell before them, and everything else this
+ * run writes takes one. It is not a general `wcwidth` and it does not pretend
+ * to be — arm F asserts that the column it computed really DIFFERS from the
+ * string index before it presses anything, so a rule that had quietly become
+ * the identity would fail the arm rather than pass it.
+ */
+export function columnOf(text, stringIndex) {
+  let col = 0;
+  let seen = 0;
+  for (const ch of text) {
+    if (seen >= stringIndex) break;
+    seen += ch.length;
+    const cp = ch.codePointAt(0) ?? 0;
+    const joins = (cp >= 0xfe00 && cp <= 0xfe0f) || cp === 0x200d;
+    if (!joins) col += 1;
+  }
+  return col;
+}
+
+/** Arm F's row: the marker, then a decorated prefix, then the path. */
+export function decoratedCellOf(rows, marker, path) {
+  for (const [row, text] of rows.entries()) {
+    if (!text.startsWith(`${marker} `)) continue;
+    const at = text.indexOf(path);
+    if (at === -1) continue;
+    return { row, at, col: columnOf(text, at), width: path.length, text };
+  }
+  return null;
+}
+
 function selfTest() {
   const fixtures = [
     ['all agree', () => grade([['a', 1, 1]]).length, 0],
@@ -133,7 +187,35 @@ function selfTest() {
     ],
     ['no such marker', () => cellOf(['nothing here'], 'm1', '/a/b.md'), null],
     ['the marker must open the row', () => cellOf([' m1 /a/b.md'], 'm1', '/a/b.md'), null],
-    ['the path must be on the marked row', () => cellOf(['m1 nothing'], 'm1', '/a/b.md'), null]
+    ['the path must be on the marked row', () => cellOf(['m1 nothing'], 'm1', '/a/b.md'), null],
+    // The Phase 247 fix round's instrument. A string index is not a column.
+    ['an ASCII row: column is the string index', () => columnOf('abc /a/b.md', 4), 4],
+    [
+      'a variation selector takes no column of its own',
+      () => columnOf('m \u26a0\ufe0f /a/b.md', 5),
+      4
+    ],
+    [
+      'a zero-width joiner takes none either',
+      () => columnOf('\u200dx/a', 2),
+      1
+    ],
+    [
+      'the decorated row reports both numbers and they differ',
+      () => {
+        const c = decoratedCellOf(['mkF1 \u26a0\ufe0f /a/b.md end'], 'mkF1', '/a/b.md');
+        return [c?.at, c?.col];
+      },
+      [8, 7]
+    ],
+    [
+      'and the plain row reports the same number twice',
+      () => {
+        const c = decoratedCellOf(['mkF1 xy /a/b.md end'], 'mkF1', '/a/b.md');
+        return [c?.at, c?.col];
+      },
+      [8, 8]
+    ]
   ];
   let ok = true;
   for (const [label, run, want] of fixtures) {
@@ -221,6 +303,17 @@ const NOTES = write('notes.md', '# what the agent wrote\n');
 const PAPER = write('paper.pdf', '%PDF-1.4 not really\n');
 const RUNNER = write('run.sh', '#!/bin/sh\necho hi\n', 0o755);
 const NPMRC = write('.npmrc', '//registry.npmjs.org/:_authToken=redacted\n');
+
+/**
+ * ARM F's two files. The row that names each carries a `⚠️ ` in front of the
+ * path — ORDINARY agent output — which is ONE cell holding TWO UTF-16 units,
+ * so from there on the row's string index runs one AHEAD of its cell column.
+ * Two files rather than one, because a tab that is already open cannot be
+ * opened again and the two presses would not be told apart.
+ */
+const WARN = '\u26a0\ufe0f';
+const WARNED_HEAD = write('warned-head.md', '# pressed at the first cell\n');
+const WARNED_PAST = write('warned-past.md', '# pressed one cell past the end\n');
 
 /** marker -> the path its row names. The marker is what tells the rows apart. */
 const ARMS = [
@@ -357,6 +450,55 @@ async function pressCell(cdp, geo, row, col, width) {
   return { x, y };
 }
 
+/**
+ * CLOSE EVERY EDITOR TAB, AND WHY THAT IS NOT TIDINESS.
+ *
+ * An open editor tab SPLITS THE WINDOW and the terminal pane narrows: measured
+ * in this run at 144 columns with no tab and 78 with one, and tmux REFLOWS a
+ * pane's history when its width changes. So after the first arm opens a file,
+ * every row already in the pane is re-wrapped and every cell this script had
+ * computed names something else.
+ *
+ * That is the shape the FIX ROUND found in this probe's own first version,
+ * where arms C, D and E pressed a stale geometry against reflowed rows and
+ * passed by pressing nothing at all — the failure mode the phase conventions
+ * call a check that cannot fail. Arm B is what caught it, being the only arm
+ * whose expectation is that something HAPPENS.
+ *
+ * So each arm starts from an empty tab strip, and re-reads the geometry and
+ * the rows for itself.
+ */
+async function closeAllTabs(cdp) {
+  for (let i = 0; i < 12; i += 1) {
+    const empty = await cdpEval(
+      cdp,
+      `(() => { const b = document.querySelector('.ed-tab-close'); if (b) b.click(); return document.querySelectorAll('.ed-tab').length === 0; })()`,
+      10000
+    );
+    if (empty === true) break;
+    await sleep(250);
+  }
+  // The pane has to be told it is wide again, and tmux has to reflow it.
+  await sleep(1500);
+}
+
+/** The pane's geometry AS IT IS NOW, from the DOM and from tmux together. */
+async function geometryNow(cdp, pane) {
+  const screen = await cdpEval(cdp, SCREEN, 10000);
+  const line = tmux('list-panes', '-a', '-F', '#{pane_id} #{pane_width} #{pane_height}')
+    .split('\n')
+    .find((l) => l.startsWith(`${pane} `));
+  const size = (line ?? '').split(' ').slice(1).map((n) => Number.parseInt(n, 10));
+  if (screen === null || !Number.isFinite(size[0]) || size[0] <= 0) return null;
+  return {
+    left: screen.left,
+    top: screen.top,
+    cellW: screen.width / size[0],
+    cellH: screen.height / size[1],
+    cols: size[0]
+  };
+}
+
 const findings = {};
 const problems = [];
 const SESSION = 'p247-shell';
@@ -407,6 +549,11 @@ await withElectron(
         tmux('send-keys', '-t', pane, `echo ${marker} ${path} end`, 'Enter');
         await sleep(700);
       }
+      // ARM F's two rows, each with a `⚠️ ` between the marker and the path.
+      for (const [marker, path] of [['mkF1', WARNED_HEAD], ['mkF2', WARNED_PAST]]) {
+        tmux('send-keys', '-t', pane, `echo ${marker} ${WARN} ${path} end`, 'Enter');
+        await sleep(700);
+      }
       await sleep(2500);
 
       // ------------------------------------------------------------- ARM R
@@ -439,18 +586,11 @@ await withElectron(
         10000
       );
       say(`the pane's own DOM: ${JSON.stringify(dom)}`);
-      const screen = await cdpEval(cdp, SCREEN, 10000);
-      const size = tmux('list-panes', '-a', '-F', '#{pane_id} #{pane_width} #{pane_height}')
-        .split('\n')
-        .find((l) => l.startsWith(`${pane} `))
-        .split(' ')
-        .slice(1)
-        .map((n) => Number.parseInt(n, 10));
-      const geo =
-        screen === null || !Number.isFinite(size[0]) || size[0] <= 0
-          ? null
-          : { left: screen.left, top: screen.top, cellW: screen.width / size[0], cellH: screen.height / size[1] };
-      say(`geometry: screen ${JSON.stringify(screen)} over ${JSON.stringify(size)} cells -> ${JSON.stringify(geo)}`);
+      // THE GEOMETRY IS READ ONCE HERE FOR THE RECORD AND AGAIN PER ARM. See
+      // closeAllTabs for why once is not enough: an open editor tab narrows
+      // the pane and tmux reflows its history under it.
+      const geo = await geometryNow(cdp, pane);
+      say(`geometry with no tab open: ${JSON.stringify(geo)}`);
       if (geo === null) {
         problems.push('the terminal geometry could not be read, so no cell could be pressed');
       }
@@ -458,10 +598,17 @@ await withElectron(
       say(`the pane holds ${String(rows.length)} rows, last: ${JSON.stringify(rows.slice(-8))}`);
 
       for (const [arm, marker, path, what] of ARMS) {
-        const cell = geo === null ? null : cellOf(rows, marker, path);
+        // EVERY ARM STARTS FROM AN EMPTY STRIP AND READS ITS OWN GEOMETRY. See
+        // closeAllTabs: an open tab narrows the pane and tmux reflows its
+        // history, so a cell computed before one was opened names something
+        // else afterwards.
+        await closeAllTabs(cdp);
+        const geoNow = await geometryNow(cdp, pane);
+        const rowsNow = capture(pane);
+        const cell = geoNow === null ? null : cellOf(rowsNow, marker, path);
         if (cell === null) {
           problems.push(`${arm} the marked row for ${what} was not in the pane, so nothing was pressed`);
-          findings[arm] = { pressed: false };
+          findings[arm] = { pressed: false, cols: geoNow?.cols ?? null };
           continue;
         }
         // REFUSAL 8 must not be what refuses this row: the span has to have
@@ -471,11 +618,12 @@ await withElectron(
         }
         const tabsBefore = await cdpEval(cdp, TABS, 10000);
         const recordedBefore = recordLines();
-        await pressCell(cdp, geo, cell.row, cell.col, cell.width);
+        await pressCell(cdp, geoNow, cell.row, cell.col, cell.width);
         const tabsAfter = await cdpEval(cdp, TABS, 10000);
         const recordedAfter = recordLines();
         findings[arm] = {
           what,
+          cols: geoNow.cols,
           row: cell.row,
           col: cell.col,
           openedTabs: tabsAfter.filter((t) => !tabsBefore.includes(t)),
@@ -491,16 +639,20 @@ await withElectron(
       // it is that it stays unclickable — no rejoin can be written that never
       // lies (research 111 section 4.2).
       {
-        const at = rows.findIndex((r) => r.startsWith(`${WRAPPED_MARK} `));
-        const head = at === -1 ? '' : rows[at];
+        await closeAllTabs(cdp);
+        const geoE = await geometryNow(cdp, pane);
+        const rowsE = capture(pane);
+        const at = rowsE.findIndex((r) => r.startsWith(`${WRAPPED_MARK} `));
+        const head = at === -1 ? '' : rowsE[at];
         const fragment = head.slice(WRAPPED_MARK.length + 1);
         const wrapped = at !== -1 && !head.includes(' end') && fragment.length > 20;
         const tabsBefore = await cdpEval(cdp, TABS, 10000);
         const recordedBefore = recordLines();
-        if (wrapped && geo !== null) {
-          await pressCell(cdp, geo, at, WRAPPED_MARK.length + 1, fragment.length);
+        if (wrapped && geoE !== null) {
+          await pressCell(cdp, geoE, at, WRAPPED_MARK.length + 1, fragment.length);
         }
         findings.E = {
+          cols: geoE?.cols ?? null,
           row: at,
           reallyWrapped: wrapped,
           openedTabs: (await cdpEval(cdp, TABS, 10000)).filter((t) => !tabsBefore.includes(t)),
@@ -514,6 +666,69 @@ await withElectron(
             ['E and reaches the Mac not at all', findings.E.newlyRecorded, []]
           ])
         );
+      }
+
+      // ------------------------------------------------------------- ARM F
+      // THE UNDERLINE IS DRAWN IN CELLS AND NOT IN STRING INDICES, read off
+      // the running app. This is the Phase 247 fix round's confirmed defect.
+      //
+      // The provider shipped building xterm's link range out of the STRING
+      // indices the span grammar returns, and xterm underlines and hit-tests
+      // in CELL COLUMNS. A `⚠️ ` in front of a path — ordinary agent output —
+      // is one cell holding two UTF-16 units, so the range was drawn one cell
+      // to the LEFT of the path: the first character of the path was dead and
+      // the cell PAST its end handed the file over.
+      //
+      // So the arm is two presses on two files, and the pair is what makes it
+      // a measurement rather than a reading: at the parent F1 opens nothing
+      // and F2 opens a tab, and at HEAD it is the other way round. It asserts
+      // FIRST that the column it computed really differs from the string
+      // index, so a run where the decoration did not land could not read as a
+      // pass.
+      {
+        findings.F = {};
+        for (const [half, marker, path, offset, want] of [
+          ['firstCell', 'mkF1', WARNED_HEAD, 0, ['warned-head.md']],
+          ['pastTheEnd', 'mkF2', WARNED_PAST, 1, []]
+        ]) {
+          await closeAllTabs(cdp);
+          const geoF = await geometryNow(cdp, pane);
+          const rowsF = capture(pane);
+          const cell = decoratedCellOf(rowsF, marker, path);
+          if (cell === null || geoF === null) {
+            say(`F saw rows: ${JSON.stringify(rowsF.filter((r) => r.trim() !== ''))}`);
+            problems.push(`F the decorated row for ${half} was not in the pane, so nothing was pressed`);
+            continue;
+          }
+          if (!cell.text.slice(cell.at + cell.width).includes('end')) {
+            problems.push(`F the ${half} row wrapped, so refusal 8 and not the columns would decide it`);
+          }
+          // THE INSTRUMENT, PROVED ABLE TO SEE THE THING IT IS LOOKING FOR: a
+          // run in which the decoration did not land reads a shift of 0 and
+          // fails here rather than passing on an ASCII row.
+          problems.push(
+            ...grade([[`F the ${half} row’s decoration really moved the column`, cell.at - cell.col, 1]])
+          );
+          const before = await cdpEval(cdp, TABS, 10000);
+          // offset 0 is the path's FIRST cell; offset 1 is the cell one PAST
+          // its last. At the parent both readings are the other way round.
+          const col = offset === 0 ? cell.col : cell.col + cell.width;
+          await pressCell(cdp, geoF, cell.row, col, 1);
+          const got = (await cdpEval(cdp, TABS, 10000)).filter((t) => !before.includes(t));
+          findings.F[half] = { cols: geoF.cols, row: cell.row, col, shifted: cell.at - cell.col, got };
+          problems.push(
+            ...grade([
+              [
+                offset === 0
+                  ? 'F the path’s FIRST cell opens it'
+                  : 'F and the cell one PAST its end opens nothing',
+                got,
+                want
+              ]
+            ])
+          );
+        }
+        say(`F: ${JSON.stringify(findings.F)}`);
       }
 
       problems.push(
