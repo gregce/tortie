@@ -10,9 +10,19 @@ Tortie's existing path rules really are (section 6), what the offer set really c
 why the issue's path is refused (section 12), and the denominator of the false positive rate
 (section 3.5). Where a number moved, both readings are here.
 
-It builds nothing. Three scripts are kept because a later round would really re-run them,
-`build/p245/corpus-scan.mjs`, `build/p245/wrap-probe.mjs` and `build/p245/root-cost.mjs`, and
-everything else was thrown away. `corpus-scan.mjs` gained a main-module guard so its detectors can be
+**Five more corrections came out of verification and the committer's round, and two of them would have
+shaped a build.** Version one's own recall was never stated and is not 37.5% (section 7.6). The
+symlink rule was argued from a cell that happened to be empty, and the mechanism it waves away is live
+(section 7.2.1, refusal 10). The renderer's project list holds remote rows and clause 3 did not say
+so (refusal 11). Section 7's kind table is the offer set minus the measurement script's own refusal
+list rather than a partition of it (section 7). And the rates the charter asked for per agent are now
+given rather than left open (section 3.6). **A third capture was taken at HEAD to settle the disputed
+numbers** — 20 sessions, 48,163 rows, list and capture only — and where it disagrees with the second it
+is quoted beside it.
+
+It builds nothing. Four scripts are kept because a later round would really re-run them,
+`build/p245/corpus-scan.mjs`, `build/p245/wrap-probe.mjs`, `build/p245/root-cost.mjs` and
+`build/p245/refused-family.mjs`, and everything else was thrown away. `corpus-scan.mjs` gained a main-module guard so its detectors can be
 imported without a capture running as a side effect, and it prints exactly what it printed before;
 `wrap-probe.mjs` gained the two readings of section 4.1. No Electron was launched. No agent was
 spawned and no token was spent. The operator's live sessions on `-L gmux` were LISTED and CAPTURED and
@@ -25,14 +35,20 @@ the operator's transcripts is quoted, because a transcript can hold anything.
 
 ---
 
-## THE ANSWER IN FOUR NUMBERS
+## THE ANSWER IN FIVE NUMBERS
 
 | | |
 | --- | --- |
-| **Hit rate (recall)** of the only policy with an acceptable false positive rate | **37.5%** of the real path references a person would want to click |
+| **Hit rate (recall) of the DETECTION policy** — absolute, one segment, `lstat` says it is there | **37.5%** of the real path references a person would want to click |
+| **Hit rate (recall) of VERSION ONE**, which adds the in-root and file-not-directory clauses | **about 4%** — section 7.6, and it is the number a viability decision is made on |
 | **False positive rate** of the generous detector — the one that would reach the other 62.5% | **40.0%** |
 | **False positive rate** of the conservative policy | **0 of 45** hand-marked, and **4.2%** measured mechanically over all 1,293 spans the policy really offers (section 3.5 corrects the denominator) |
 | **Wrap rate** | **6.3%** of real path occurrences are split across rows, and **the wrap flag xterm would need to rejoin them is absent in the two cases that matter** |
+
+**The first two rows are different numbers about different policies and the second is the one that
+matters.** 37.5% is the recall of the DETECTION rule in section 3.3 and nothing more. Version one adds
+two clauses on top of it, and section 7.6 composes them: **version one offers about one real path
+reference in twenty-five.** Every use of "37.5%" below means the detection rule.
 
 There are TWO captures. Sections 1 to 4 come from the first, at 00:25 on 2026-09-08, over 19 sessions
 and 48,690 rows. Sections 3.5 and 7 come from the second, later the same night, over 20 sessions and
@@ -169,6 +185,9 @@ Offer a span only when, after `~`, `file://` and a `:line[:col]` suffix are stri
 | false positives among them | **0** |
 | hit rate over the 120 hand-marked real references | **37.5%** |
 
+**This is the DETECTION rule's recall and not version one's.** Version one adds the in-root clause
+and the file-not-directory clause, and section 7.6 is what those cost.
+
 Zero of 45 is not zero. The rule of three puts the 95% upper bound on the true false positive rate
 at about **6.7%**, and the mechanical measurement in section 3.4 lands inside that.
 
@@ -199,6 +218,36 @@ Measured on a second capture, taken later the same night over 20 sessions and 44
 1,553. The wrap figure moves with its denominator and does not change: **54 of 1,293, 4.2%**, against
 the 4.3% section 3.4 reports. Every conclusion in sections 3 and 4 stands. The denominator is stated
 here so a later round measuring against it uses the policy's number rather than the script's.
+
+### 3.6 THE RATES PER AGENT, which the charter asked for and this document gave only sizes of
+
+The 200-span sample was drawn corpus-wide rather than per agent, so the hand-adjudicated hit rate above
+is one number and not three. Two readings fill the gap, and neither changes anything.
+
+**Mechanically, per agent, over a third capture at HEAD**, printed by
+`build/p245/refused-family.mjs` over 20 sessions and 48,445 rows — the share of path-shaped tokens the
+detection rule offers:
+
+| agent | sessions | rows | path-shaped | offered | offer rate |
+| --- | --- | --- | --- | --- | --- |
+| claude | 5 | 36,774 | 4,340 | 1,032 | **23.8%** |
+| codex | 11 | 10,866 | 1,655 | 242 | **14.6%** |
+| shell | 4 | 805 | 133 | 21 | **15.8%** |
+
+(An earlier run minutes before read codex at 15.0% over 10,591 rows. Live scrollback rolls between
+runs, which is the same instability sections 1 and 3.5 name, and the claude and shell rows did not
+move at all.)
+
+**And the hit rate itself, measured independently.** The verification step drew its own sample over its
+own capture and split it by agent: **claude 37.1%, codex 36.4%.** The two agree to within a point of
+each other and of the 37.5% corpus figure. **So the gap costs nothing and this document says so rather
+than leaving it open.** shell is unmeasured for hit rate at 133 tokens; it is four panes of the
+operator's own typing and not an agent surface.
+
+The offer rate differs between claude and codex by nine points and the hit rate does not, which is the
+reading to keep: codex writes more path-shaped tokens that are not paths — its TUI draws gutters, box
+rules and slash commands — and it writes them at a rate that does not change how often a real reference
+is caught.
 
 ---
 
@@ -407,6 +456,31 @@ actually OFFER, which is the set a click can land on, and it is a different and 
 | under `.git`, which the fs contract already refuses | 0 | 0% |
 | **a FILE inside an open project root** | **153** | **11.8%** |
 
+**The same script re-run at HEAD over a third capture** — 20 sessions, 48,163 physical rows, the same
+7 roots read from a fresh copy of the manifest — reads **1,290 offered, dir 926 (71.8%), file 295
+(22.9%), symlink 69 (5.3%), in-root 1,018, out-of-root 272, `.git` 0, and the same 153 in-root FILE
+spans**, behind 45 distinct files rather than 43. Every share holds to within half a point. **Two
+counts moved and one of them matters**: the in-root symlink count went from 0 to 1, which is section
+7.2.1.
+
+**The first three rows sum to exactly 1,293 and that is a property of the MEASUREMENT rather than of
+the recommended policy.** `checkedLstat` in `corpus-scan.mjs` carries a refusal list — `/dev/`,
+`/Volumes/`, `/net/`, `/proc` and any `..` — and refuses those spans before `lstat` is called, so a
+device node can never appear in the table above. That list is a safety rule for a measurement running
+over the operator's own machine; **version one carries no such list and a build round must not assume
+one.** The family it hides is real: `build/p245/refused-family.mjs`, run at HEAD over 20 sessions
+and 48,445 rows, read **43 tokens under that refusal list — 39 `/dev/null`, 3 `/dev/disk3s5` and one
+truncated `/dev/nu`** — and the verification step's own scanner, without the list, read 132 over its
+own capture. It is a family whose size follows whatever has scrolled, and it is never zero. `2>/dev/null` is where they come from, and a whitespace tokenizer
+that splits on `>` never yields them, which is why nothing had counted them.
+`build/p245/refused-family.mjs` is measurement 4 and it is what counts them, **by spelling and with no
+filesystem call at all**, so not one of these is `lstat`ed, opened or followed. **Version one refuses
+every one of them twice over and by accident rather than by design**: clause 3 refuses them for being
+outside every project root, and clause 4 refuses them because `prepare.ts` answers `kind: 'missing'`
+for anything that is not a directory and not a regular file (`!st.isFile()` at `prepare.ts:69`), which
+a character device is not. **So the conclusion does not move and the table is not a partition.** It is
+the offer set minus a refusal list, and it is stated that way now.
+
 **That last row is the whole answer to what a click should do.** Everything else the policy offers
 either has no destination or is refused, and that is 1,140 of the 1,293.
 
@@ -441,14 +515,51 @@ three or four times each.** Only one of those is a person wanting to look at som
 | kind | destination | why, and what already does it |
 | --- | --- | --- |
 | a **file** inside an open project root | **an editor tab, through `openFileAt`** | it is one existing function, it takes the `:line` suffix as `selection.line`, and the editor store decides the rest |
-| — and it is an image | **Tortie's own image surface** | `store.ts:480` already routes `isImagePath` to the image viewer. No branch is needed in the provider |
+| — and it is an image | **Tortie's own image surface** | `store.ts:481` already routes `isImagePath` to the image viewer. No branch is needed in the provider |
 | — and it is markdown | **the same tab, which lands in `'preview'`** | `MARKDOWN_MODES` puts a `.md` tab in `preview` by default. **Markdown is not a second destination** — the first draft listed it as one |
 | a **directory** | **nothing — it is never a link** | section 7.1: there is no destination, and it is 71.5% of the noise |
-| a **symlink** | **nothing in version one** | 68 of 68 in this corpus are outside every root, so the root rule already removes them and no separate rule is needed |
+| a **symlink** | **the file it points at, and clause 3 must be asked of THAT** | the root rule does NOT remove them on its own — section 7.2.1, which is a correction |
 | an `http(s)` **URL** | unchanged | `WebLinksAddon` has it, and registering after it means the path provider can never take a span from it |
 | a **`file://` URL** | the path inside it, subject to every rule above | it opens nothing today: `EXTERNAL_URL` in `trusted-window.ts:60` is `/^https?:/i`, so a `file:` reaching `window.open` is denied and dropped. 7 in the corpus |
 | a path **on another machine** | **nothing** | section 9 |
 | a path that **is not there** | **never underlined** | `lstat` is the offer condition, so a path an agent invented never draws a link |
+| a path **containing a space** | **never underlined, and it fails safe** | the span ends at the space, so the head is what is judged: it does not exist and is refused, or it is the parent directory and clause 4 refuses it for not being a file. It cannot silently open a DIFFERENT file, which is the failure mode that would matter. Never discussed in an earlier draft, and it is worth a line because macOS filenames carry spaces freely |
+
+### 7.2.1 THE SYMLINK, WHICH THIS DOCUMENT ARGUED FROM AN EMPTY CELL AND GOT WRONG
+
+The row above used to read *"68 of 68 in this corpus are outside every root, so the root rule already
+removes them and no separate rule is needed"*. **That is an argument from a count, and the count is not
+what holds the rule up.** Section 7.4's own sentence about the image double-gate is the answer and it
+was not applied here: *the rule is still required, because zero today is not zero tomorrow.*
+
+**And the count itself did not survive a third capture.** Re-run at HEAD over 20 sessions and 48,163
+rows, `root-cost.mjs` reads **69 symlink spans, of which 1 is INSIDE an open project root** and 68
+outside. One is not zero, and the cell the argument rested on is no longer empty.
+
+**The mechanism is live, and it is two clauses disagreeing about what a path is.**
+
+- **Clause 4 classifies by the TARGET.** `prepare.ts:55` calls `stat`, which FOLLOWS a link, so a
+  symlink whose target is a regular file answers `kind: 'file'` and passes.
+- **Clause 3 tests the SPELLING.** Containment compares strings, so a link spelled inside a project
+  root is inside a project root whatever it points at.
+
+So a symlink inside a project pointing anywhere on the disk is offered by version one as written, and
+clicking it opens the file at the far end. **This is not a capability escalation** — section 6 already
+established that `openFileAt` opens paths outside every project as its ordinary business, and there is
+nothing here a person could not reach through the Context view. **It is clause 3 not meaning what it
+says.** A rule sold as "inside your project" must not open a file outside it.
+
+**The fix costs nothing and it is already in the tree twice.** `src/main/fs/paths.ts` closes exactly
+this shape for every mutation channel, and its header names it: *"a link inside the project pointing at
+`$HOME`"*. It resolves the parent chain and deliberately NOT the leaf, because renaming a symlink must
+rename the link. **A read gesture wants the opposite and the tree already has that too**: the preview
+protocol realpaths the LEAF before its containment check (`src/main/preview/protocol.ts`, section 6's
+table), because what it renders is the target. Version one is a read gesture, so it takes the preview
+protocol's shape: **containment is asked of the realpath, leaf included.** That is refusal 10.
+
+**It also changes what the offer set is worth, slightly and in the right direction.** In the third
+capture the in-root symlink count is 1 of 1,290 offered spans, so the correction removes at most one
+span and it is not one anybody would miss.
 
 ### 7.3 His words were "in browser or Preview", and the answer is neither
 
@@ -483,6 +594,14 @@ would put files into `userData` as the pointer crosses a row. Version one needs 
 classification WITHOUT its rescue — a read-only option on `preparePaths`, or a caller that asks only
 for `kind`. Whichever the build round picks, it is a refusal in section 8 and not a detail.
 
+**And it READS as well as writes.** `prepareOne` opens the file and reads its first 256 bytes to sniff
+an image (`readHead`, `prepare.ts:30`). That is bounded and it cannot hang — the `st.isFile()` check
+above it means a FIFO is answered `missing` and never opened, which is the shape that froze main for
+five seconds in Phase 226's channel — but it is still a file OPEN on every path a pointer crosses.
+Refusal 3 says a hover never writes; **the caller version one needs asks for `kind` and nothing else**,
+so it neither writes nor reads bytes, and the image question is answered by the shipped
+`IMAGE_EXTENSIONS` list the destination is gated on anyway.
+
 **The two "image" answers in this codebase are different instruments, deliberately.**
 `prepare.ts`'s `isImage` is a **magic-byte sniff of the file's head**. The image SURFACE is gated by
 **extension**: `IMAGE_EXTENSIONS` in `src/shared/image-types.ts`, which is what `gmux-asset:` will
@@ -501,6 +620,36 @@ answers from a per-path cache and the IPC round trip happens once per distinct p
 cell. This corpus is the reason it works: **43 distinct files behind 153 spans, and 22 distinct
 directories behind 858.** The repetition that makes a naive implementation expensive is the same
 repetition that makes a cache nearly free.
+
+### 7.6 WHAT VERSION ONE'S OWN RECALL IS, which is not 37.5% and was never stated
+
+The 37.5% in section 3.3 is the recall of the DETECTION rule: absolute, one segment, something is
+there. **Version one is that rule plus two more clauses**, and this document published both halves and
+never multiplied them. It does so here, because a viability decision made on 37.5% is a different
+decision from one made on the real number.
+
+| | |
+| --- | --- |
+| recall of the detection rule, over the 120 hand-marked real references | **37.5%** |
+| × the share of the detection rule's offers that are a FILE inside an open project root | **× 11.8%** (153 of 1,293; 11.9% on the third capture, 153 of 1,290) |
+| **= version one's recall** | **about 4.4%** |
+
+**An independent route lands in the same place.** The verification step drew its own 100-span sample
+over its own capture with a scanner of its own — a maximal-run character walk rather than a whitespace
+tokenizer — and read the detection rule at 37.0% and the in-root file share at 10.9%, composing to
+**4.0%**. It also read version one's offers on that sample directly and got **0 of 100**, because 13 of
+the 17 real references the detection rule offered there were the bare project root directory, which the
+`cd` half of section 7.1 is full of and which clause 4 refuses. At an expected four or five in a
+hundred, zero in one sample of a hundred is what small numbers look like rather than a disagreement.
+
+**So: about one real path reference in twenty-five is clickable under version one, and it is still
+worth building.** The reason is section 11's, and it is not the rate. The 4% is concentrated exactly on
+the case the product exists for — an agent naming a project file it just wrote — and the other 96% is
+made of directories with no destination, relative names that resolve in two worktrees, and fragments of
+wrapped paths. **A rate is only a reason to stop if the missing part is wanted, and this document has
+measured, one family at a time, that it is not.** What the number does bind is expectation: nobody
+should ship this and then be surprised that most of the screen is not underlined. **Most of the screen
+should not be underlined.**
 
 ---
 
@@ -553,6 +702,17 @@ recommends reads bytes into a sandboxed renderer and starts nothing.
 9. **The root rule is a PRECISION rule and must be argued as one.** Section 6 is why. A later round
    that wants to widen it is not breaking an invariant — it is trading false positives, and it must
    bring a measurement rather than an appeal to a rule that does not exist.
+10. **Containment is asked of the REALPATH, leaf included.** Section 7.2.1. `stat` follows a link and
+    containment compares strings, so without this a symlink spelled inside a project opens whatever is
+    at the far end of it and clause 3 does not mean what it says. The preview protocol already
+    realpaths the leaf before its own containment check, and version one takes that shape rather than
+    `paths.ts`'s, which resolves parents only and is right for a mutation and wrong for a read.
+11. **A project row that names another machine is not an open project root for this purpose.** The
+    renderer's `projects` list is local rows and then remote ones — `listProjects` in
+    `src/main/manifest/projects-repository.ts` returns `[...local, ...listRemoteProjects()]` — and a
+    remote row carries a `machineId` and a path spelled on a machine that is not this one. Clause 3
+    filters on `machineId === undefined`. It costs nothing today, because `remote_projects` reads 0
+    rows on this Mac, and it is refusal 5's own argument arriving through a second door.
 
 ### 8.1 What the root rule does and does not buy, stated honestly
 
@@ -560,8 +720,10 @@ It is worth being exact, because the first draft leaned on this rule harder than
 supports.
 
 **It buys precision.** It removes 282 of 1,293 spans, and the ones it removes are the ones most likely
-to be a fragment, a container path, or a file on some other machine — 68 of 68 symlinks and 147 of 300
-files.
+to be a fragment, a container path, or a file on some other machine — 68 of the 68 symlinks in the
+second capture and 147 of 300 files. **The symlink half of that sentence is a coincidence of one
+capture and not a property of the rule**: the third capture reads 68 of 69, and section 7.2.1 is why
+the rule needs refusal 10 rather than the count.
 
 **It does not buy safety from secrets, because nothing needed buying.** Section 2 found 3
 credential-shaped tokens in the whole corpus, and **0 of the 153 in-root file spans match the shipped
@@ -661,7 +823,8 @@ outnumber URLs in a real transcript **28 to 1** and the URLs are the ones that a
 asymmetry is the whole case and it is a good one.
 
 **No, for everything else, and the measurement is what makes that a finding rather than an opinion.**
-The case above is worth **153 of 1,293 offered spans — 11.8% — standing behind 43 distinct files.**
+The case above is worth **153 of 1,293 offered spans — 11.8% — standing behind 43 distinct files**,
+which section 7.6 composes with the detection rate into **version one's real recall of about 4%.**
 Every widening that would grow that number buys a slice of the rest at a price this document has
 already measured:
 
@@ -692,14 +855,22 @@ is why the recommendation below is one rule shorter than the first draft's.
    `sessionRow()?.machine === undefined`;
 2. the span, after `~`, `file://` and a `:line[:col]` suffix are stripped, is **absolute** and names
    **at least one segment** (the clause section 3.5 found missing from the inline count);
-3. it resolves **inside an open project root** — the same containment `resolveOpenProjectRoot` and
-   `resolveInsideRoot` in `src/main/fs/paths.ts` apply, and used here **for precision**, which section
-   6 is careful about. **This one is answered in the renderer and needs no channel**: the store already
-   holds `projects` (`src/renderer/state/projects-slice.ts`), which is the same list main reads through
-   `listProjectRoots`, so the provider filters against a list it already has. Main's own gate is not
-   moved, not weakened and not consulted — it stays exactly where it is, guarding what it guards;
-4. **`src/main/drop/prepare.ts` says it is a `file`** — not a directory, not missing — asked without
-   its newline rescue copy, per refusal 3;
+3. **its REALPATH resolves inside a LOCAL open project root** — the same containment
+   `resolveOpenProjectRoot` and `resolveInsideRoot` in `src/main/fs/paths.ts` apply, and used here
+   **for precision**, which section 6 is careful about. Three words in that sentence are load bearing
+   and each was wrong in an earlier draft. **REALPATH**, leaf included, per refusal 10 and section
+   7.2.1, because `stat` follows a link and containment compares strings. **LOCAL**, per refusal 11,
+   because the store's `projects` array holds remote rows too and a remote root is a path on another
+   machine spelled identically here. **This one is answered in the renderer and needs no channel** for
+   the root list itself: the store already holds `projects`
+   (`src/renderer/state/projects-slice.ts`), so the provider filters against a list it already has,
+   dropping every row with a `machineId`. The realpath is not a renderer question — it is the same
+   answer `drop:prepare` is already being asked for in clause 4, so the build round adds a resolved
+   path to that answer rather than a channel. Main's own gate is not moved, not weakened and not
+   consulted — it stays exactly where it is, guarding what it guards;
+4. **`src/main/drop/prepare.ts` says it is a `file`** — not a directory, not missing, and not a
+   character device, which `!st.isFile()` at `prepare.ts:69` already answers `missing` — asked
+   without its newline rescue COPY and without its 256-byte head READ, per refusal 3 and section 7.4;
 5. the span **does not touch either end of its row**.
 
 **A click calls `openFileAt(path, repoPath, { preview: false, line })`** — `src/renderer/context/open-detail.ts:89`,
@@ -708,14 +879,17 @@ the function the Context view already opens absolute paths with. The `:line` suf
 sends an image path to the image surface and opens markdown in `preview`, so image, markdown and text
 are one call and three destinations that already work.
 
-That is: one registration, one existing classification, one existing open function. **No new IPC
-channel, no new surface, no new capability, and no new decision about what a path means.**
+That is: one registration, one existing classification asked in a read-only shape, one existing open
+function. **No new IPC channel, no new surface, no new capability, and no new decision about what a
+path means.** The only thing the build round adds to something that already exists is a resolved path
+on `drop:prepare`'s answer, which refusal 10 needs and which is a field on a reply rather than a door.
 
 ### What it deliberately does not do
 
-No relative paths. No directories. No rejoining across rows. No remote panes. No `shell.openPath`, no
-Open With, no `file:` to the browser. No new IPC channel. No underline until the pointer is on it, and
-nothing on the resting face. No write of any kind on a hover.
+No relative paths. No directories. No rejoining across rows. No remote panes, and no project row that
+names one. No link out of a project through a symlink. No `shell.openPath`, no Open With, no `file:` to
+the browser. No new IPC channel. No underline until the pointer is on it, and nothing on the resting
+face. No write of any kind on a hover, and no read of a file's bytes on one either.
 
 ### AND IT DOES NOT FIX THE SCREENSHOT IN THE ISSUE. The reason has changed, and it matters
 
@@ -764,10 +938,13 @@ about the missing destination rather than about the path.
 
 ### If the honest answer had been nothing, this document would say so
 
-It is not nothing, and it is smaller than the first draft claimed. It is one narrow provider, reaching
-**153 spans over 43 distinct files in a 44,435-row corpus**, in the one case the product exists for,
-with a measured false-positive rate of 4.2% and every one of those a wrap artefact the fifth rule
-refuses. Everything past that is worse than the thing it replaces, and the numbers above are why.
+It is not nothing, and it is smaller than the first draft claimed — smaller again than the second, now
+that section 7.6 has composed the two rates nobody had multiplied. It is one narrow provider reaching
+**153 spans over 43 distinct files in a 44,435-row corpus** (45 files on the third capture), which is
+**about 4% of the real path references in a transcript**, in the one case the product exists for, with
+a measured false-positive rate of 4.2% and every one of those a wrap artefact the eighth refusal
+already refuses. **4% is a small number and it is the right 4%.** Everything past it is worse than the
+thing it replaces, and the numbers above are why.
 
 ---
 
@@ -795,5 +972,21 @@ refuses. Everything past that is worse than the thing it replaces, and the numbe
   read 19 and 48,690. The sessions are live and scrollback rolls. Every rate agrees to a few tenths of
   a percent and no conclusion moves, which is itself the stability reading section 1 promised.
 - **The 200-span adjudication is one person's reading**, not two independent ones. The four classes
-  were fixed before the sample was drawn and the draw is seeded, so it can be re-drawn and re-marked;
-  it has not been.
+  were fixed before the sample was drawn and the draw is seeded, so it can be re-drawn and re-marked.
+  **It has now been, once**: the verification step drew 100 spans over its own capture with a detector
+  of its own and marked them into the same four classes, reading 37.0% where this one reads 37.5%.
+  That is a second reading and not a second marker on the same sample.
+- **The per-agent HIT rate in section 3.6 is the verification step's**, taken over its own capture and
+  its own sample. This document's own per-agent numbers are offer rates, which are mechanical. Nothing
+  turns on the difference, and it is named rather than smoothed over.
+- **There are now THREE captures, not two.** The third was taken by the committer at HEAD to settle
+  the numbers verification disputed: 20 sessions, 48,163 rows, 1,290 offered spans, 153 in-root files.
+  It reproduces the second to within a few tenths of a percent on every rate and moves two counts that
+  are small enough to move on their own — the in-root symlink count from 0 to 1, which section 7.2.1
+  is about, and the distinct-file count behind the 153 spans from 43 to 45.
+- **Version one's recall of about 4% is a COMPOSITION of two measurements, not a measurement.** It
+  multiplies the detection rule's hand-marked recall by the corpus-wide in-root-file share of the
+  offer, which assumes the second is the same on the sampled real references as it is corpus-wide. The
+  verification step's own sample offered 0 of 100, which is consistent with 4% and does not confirm it.
+  Measuring version one's recall directly needs a fresh hand adjudication against all four clauses, and
+  nobody has done one.
