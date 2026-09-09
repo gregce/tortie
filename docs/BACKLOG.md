@@ -24729,6 +24729,96 @@ not complete until he has run it.**
   trip and a second answer that can be stale by the time the write lands. This phase MEASURES what
   happens, and the answer becomes a stated limit rather than a fix.
 
+## Phase 242.1 — a link takes the two git buttons out of the folder you confirmed (measured by Phase 242, 2026-09-08)
+
+**Subject.** `fix(machines): the index writes stay inside the confirmed folder`
+
+**First body line.** `Phase 242.1: the cwd through a link`
+
+**Semver.** PATCH.
+
+**Tier 3.** It is containment on a machine over a real link, in the family that can lose or corrupt
+work, and the whole reason it exists is a measurement that walked past a guard. The gates, real data
+rather than a fixture, TWO independent methods one of which is an attack, and a fix round if any
+verdict is needs_work.
+
+**Charter.** Phase 242 measured this on the operator's own Mac Pro and deliberately did not fix it.
+`docs/research/103-phase-242-the-rehearsal.md` section 5 has the reading and the four reasons, and
+`build/probe-p242-write-path.mjs` prints it on every run. This entry is what that hand-on names.
+
+### What was measured, on his machine, over the real link
+
+`git-stage`, `git-unstage` and `git-commit` take a repository `cwd` rather than a file path. Main
+bounds that `cwd` with `rootHolds` in `src/main/machines/remote-stage.ts:220`, which compares path
+TEXT the way `relativeUnderRoot` does and, like it, cannot see a link on another computer. So a `cwd`
+of `<confirmed folder>/some-link` resolves textually UNDER the confirmed folder, the far side's
+`cd "$1"` follows the link, and git runs in whatever repository the link really points at.
+
+| arm | answer | far side, read by an ssh Tortie did not compose |
+|---|---|---|
+| `stage`, `cwd` through a link | **`done`** | the file was staged in the repository OUTSIDE the confirmed folder |
+| `commit`, `cwd` through a link | `refused` | unchanged — **but on its HEAD guard, not on containment.** With the HEAD a tab would really have read, the commit lands there |
+
+Phase 242 closed the same shape on the three verbs that take a PATH, being `file-put`, `dir-new` and
+`entry-rename`, with `noLinkWalk` in `src/main/machines/remote-scripts.ts`. These three were left
+because the fix is not the same fix.
+
+### Why Phase 242 did not simply do it, which is this entry's whole design problem
+
+1. **The far side cannot ask the question it needs to.** `noLinkWalk` walks DOWN from the confirmed
+   folder, and these three scripts are given the repository root and never the confirmed folder, so
+   there is nothing to walk down from. `INDEX_WRITE_HEAD` at `remote-scripts.ts` takes `$1` as the
+   repository and `$2` as the path list; `GIT_COMMIT` takes three values already.
+2. **The rootless refusal is too wide.** Comparing `pwd -P` against `$1` after the `cd` needs no root
+   and refuses every repository reached through a symbolic link ANYWHERE above it, his home included.
+   That cost is unmeasured on his own paths and a person whose project sits behind a link would lose
+   all three verbs with no way back.
+3. **Its blast radius is smaller than the file verbs'.** It writes a git index and, in the worst
+   case, adds a commit. Neither destroys a person's file, and `conformance:machines` condition 80's
+   own scope already says a repository's own index sits outside the sentence it protects.
+4. **Reaching it needs a tab opened AT a path that goes through the link**, so the person is looking
+   at the outside repository's own contents while they press.
+
+### The mechanism, and the choice this phase has to make first
+
+**Answer A, a fourth parameter.** Main already knows both halves: `rootHolds` has the confirmed
+folder and the `cwd`. Send the confirmed folder as its own value and let the far side run
+`noLinkWalk` over the part below it, which is exactly what the three path verbs already do. It costs
+a parameter on three scripts, and `build/conformance-machines.mjs` pins the catalogue's shape, the
+per-script parameter counts and the writer list, so every one of those moves in the same commit.
+
+**Answer B, `pwd -P` with a stated cost.** One line in `INDEX_WRITE_HEAD` and one in `GIT_COMMIT`,
+no parameter change, and it refuses more than the hole. It needs the cost measured first: how many
+of his own project paths, and the operator's `~`, resolve through a link at all.
+
+**The phase measures B's cost before it chooses.** If no path he uses resolves through a link, B is
+two lines and the right answer. If any does, A is the answer and the parameter change is the price.
+Either way the word printed is `outside`, mapped onto the refusal each verb already has, so no new
+outcome word crosses the channel and `docs/audits/contract-baseline.txt` does not move.
+
+### Proof, run rather than read
+
+- **`build/probe-p242-write-path.mjs`'s a10 and a11 arms already exist and already print what they
+  read.** They become GRADED in this phase, and the parent measurement is this phase's own parent:
+  `done` and a file staged outside the folder before, `outsideRoot` and nothing staged after.
+- **Independent method one, the attack**: a link whose target is a repository the person cares about,
+  and a `commit` handed the HEAD a tab would really have read, so the arm that only refused on its
+  HEAD guard is driven with that guard satisfied.
+- **Independent method two, re-derive the cost**: over the operator's own home and every project path
+  Tortie has a row for, count how many resolve through a symbolic link, by a reader written for this
+  and not by the product's own.
+- A new arm on `npm run conformance:machines` beside condition 88, which must go red under ablation
+  one clause at a time.
+
+### What is NOT in this phase
+
+- **No resolution of a far-side symlink**, which is Phase 242's own refusal and does not move. This
+  is a refusal composed on the far side in the same call, exactly as `noLinkWalk` is.
+- **No change to the three verbs Phase 242 closed.** They are done and their gate arm holds them.
+- **No new outcome word and no new channel.** The refusal lands on the word each verb already has.
+- **No widening of the Mac Pro bounds.** Same bounds every remote phase has inherited since Phase 224.
+- **No write-root UI work.** The picker, the validator and the refusal toast all exist.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -25229,3 +25319,7 @@ cycle rather than only the evening it was written.
 - 2026-09-08 **PHASE 235's FIX ROUND, two commits on 0.101.0 with NO bump and NO tag, `12d3e5c5` and `bdf13511`, both findings the verifier recorded.** **THE REVEAL REFUSAL IS HELD IN THREE PLACES OF FIVE, NOT OF FOUR, and research 85 section 7 says so now.** Its sentence counts Context as one place and it is two: `context/menus.ts` guards the ROW and GROUP menus on `remote` and that half was right, while the guided fix beside a broken row was guarded by nothing at all. `resolve.ts:284` fills `ContextProblem.revealDir` with `dirname` of the file's own path for a skill whose folder does not match its declared name, `scan.ts:246` pushes those problems onto the scan, `remote-agent-context.ts:390` reads a MACHINE's Context through that SAME `scanContext` over a recording fs, and `ContextView.tsx` drew an `Open Folder` button from the raw field with no remote term near it, calling `menuDeps.revealPath` straight through to `fs:reveal` — so it opened Finder on THIS Mac on whatever sits at the same path, both homes being `/Users/gdc`, which is item 1's own wrong answer in a second place. The button is ABSENT on a machine now, decided in one place by `problemRevealDir`, and the FIFTH door, `ContextDetailTab.tsx`'s card on `canReveal()` alone, is UNREACHABLE and guarded anyway on the TAB's own `remote` fact that Phase 73 gave it, because `ContextView` opens a detail tab from `onActivate` alone and that returns on `cwd === null`, which is exactly the remote targets. It is a code reading rather than a drive and that is stated rather than hidden: reproducing it needs a mis-named skill planted in his own home there, which the bounds refuse. `p235-problem-reveal.test.ts` pins the decision over four shapes and reads the wiring out of the real source, its scanner proved on the parent's own spelling first, with three ablations each red, being the remote refusal removed, the parent's spelling put back and the detail card's guard removed. **ITEM 5's CHARTER READING NEVER MOVED, AND NOTHING COULD SAY SO.** The charter reads *disconnected, all 14 are offered*, and that is still what a machine THIS RUN never reached does: **13 of 13 offered against 4 of 13 on a connected one**, measured in the app run at HEAD, identical to the parent. What the phase closed is the other shape, a board that HAD answered and then lost its connection, which used to gain nine options at the moment the machine got worse. The half that stands was a `note` printed inside a run whose last line then read `PASS: 0 findings`, and `p235-stale-grid.test.ts` pinned `offered(invented)` at 13 as an ANSWER, so the reading the charter asks about most plainly was locked in by a test and could not fail in the probe. IN A PERSON'S TERMS: a machine Tortie has not reached since it started still offers every agent tile, including agents that machine does not have, and only a machine that answered once and then went quiet keeps its greys. It is not closed here for a reason rather than by omission, being that research 58 allows only a POSITIVE absence to grey a tile and the held answer is per process, so closing it needs a durable record of what a machine last said and a ruling on how old an absence may be before it still greys — a phase, not a nit. So both numbers are asserted instead: the probe grades two readings where it printed one, that such a machine greys 0 and that it offers all 13 against 4, the second labelled EXPECTED LIMIT, and either number moving fails the run and names what to restate. Self-test fixtures 15 to **17, 16 of which must fail**, the two new ones being a tile greyed with no positive absence and the limit closed with nobody restating it. Two ablations red on the test, the stale branch removed turning 1 and `unknown` made to grey a tile turning 4. `npm run probe:p235` re-run whole on his Mac Pro at this HEAD: **PASS, 0 findings**, all five items green with the two new readings among them, 9 rows local and 7 remote, `Greg’s Mac Pro:/Users/gdc/tortie-p235-scratch-9031/src/core/core1.ts` on the clipboard, `timed-out` at 20,007 ms, 1 confirm action, and 9 of 13 greyed connected. Gates green: typecheck, build with the contract inventory byte for byte and the electron floor 98 of 98, `gate:knownhosts` 36 fixtures with 32 red, `gate:background` 19 of 19, `smoke:t1` 6 of 6, and `npm test` **13,010 passed and 2 skipped over 820 files**. NO CHANNEL WAS ADDED and the contract baseline did not move. His Mac Pro before and after: `gmux-control created 1787879931 attached 1` and nothing else, `/private/tmp/tmux-501` holding `gmux` alone with the scratch server killed AND its socket unlinked, no `tortie-p235-scratch-*` directory left, `~/.gitconfig` and `~/.ssh` unwritten. This Mac: `-L gmux` 19 before and 19 after and only ever listed, `/private/tmp/tmux-501` holding `gmux` alone, `known-machines` 113 bytes and `~/.ssh/known_hosts` 2,215 bytes byte identical, the pasteboard restored, no agent started and no token spent. Not pushed.
 
 - 2026-09-08 **PHASE 235 LANDED WHOLE at `3d17478f`** at version 0.101.0 with NO bump and NO tag, the remote nits, rebased onto `7fa264e3` and pushed. **THE COMMITTER'S ROUND CLOSED A SIXTH REVEAL DOOR AND CORRECTED THE COUNT THE FIX ROUND PUBLISHED**, which said three of FIVE and is three of SIX: `src/renderer/editor/image/ImageView.tsx` named `remote` nowhere at all, and an SVG is TEXT, so a `.svg` on a machine still reaches the image surface and one over `REMOTE_REVIEW_MAX_BYTES` (2,097,152) lands in the too-large state, which drew one button over a path on the OTHER computer with both homes `/Users/gdc`. Driven on his Mac Pro over a planted 3,180,099-byte `src/ui/big.svg` in this run's own scratch repository: **PARENT `Reveal in Finder` drawn on a real remote tab, read and never pressed; HEAD `[]`**, same tab, same state, same sentence. The fix is one term, being the tab's own `remote` handed to `ImageSurface`, and the button is ABSENT rather than disabled. **THE REMOTE-ONLY SENTENCE SET WAS EMPTY**, the verifier's own side-by-side reading of both faces over all four rail views finding 0 remote-only strings on Explorer, Search and Context's stub, and on Source control only a project name, a button's own label and a heading, with the remote face carrying FEWER sentences than the local one; the too-large state's title and body are byte for byte the same on both sides and `p235-image-reveal.test.tsx` asserts that, with two ablations each red. Item 6 is now part of the phase's own app run, graded as three answers rather than one, self-test 19 fixtures with 18 that must fail. `npm run probe:p235` re-run whole at the rebased HEAD: **PASS, 0 findings**, all six items. Gates green: typecheck, build with the contract inventory byte for byte and the electron floor 104 of 104 counted rather than listed (raised in the probe's own commit at the rebase), `npm test` **13,188 passed and 2 skipped over 830 files**, `smoke:t1` 6 of 6, `smoke:t3` 3 of 3, `conformance:machines`, `conformance:remoteclose`, `gate:knownhosts` and `gate:contract`. NO CHANNEL WAS ADDED and the baseline did not move. His Mac Pro before and after: `gmux-control created 1787879931 attached 1` and nothing else, `/private/tmp/tmux-501` holding `gmux` alone with the scratch socket unlinked, no `tortie-p235-scratch-*` left. This Mac: `-L gmux` 19 before and 19 after and only ever listed, `known-machines` 113 bytes and `~/.ssh/known_hosts` 2,215 bytes unmoved, the pasteboard restored, no agent started and no token spent.
+
+- 2026-09-08, Phase 242 queued, the write root rehearsed against the real machine, measure step at `c385365c`
+- 2026-09-08, Phase 242 BUILDER round, three commits on `c385365c` at version 0.101.0 with NO bump and NO tag. **THE PHASE EXPECTED TO BUILD NOTHING AND BUILT TWO FIXES, because the rehearsal found defects and the entry's clause is "nothing is fixed that is not found".** (1) `61cb66aa`, **a symbolic link inside the confirmed folder was a way out of it**: research 102 section 5.2 measured `file-put` REPLACING a file outside the folder with `outcome: "wrote"` and the confirmed folder named beside it, `dir-new` making a folder outside it and `entry-rename` taking `README.md` OUT of the folder the person confirmed, all on his own Mac Pro over the real link, where the same file reached by its own name answers `outsideRoot`. **This is a REFUSAL and not the resolution every header in the domain refuses**: `noLinkWalk` asks the shell's own `-L` about every DIRECTORY component of the relative path, from the confirmed folder down, one component at a time, in the same call that would otherwise have written, with no `readlink`, no `realpath` and no second round trip, so the "a second answer can be stale by the time the write lands" objection still holds and is still why main does not try. **TWO MORE ESCAPES WERE MEASURED HERE AND ARE IN NO EARLIER DOCUMENT**: a link as the entry itself answered `wrote`, having read its checksum from the file OUTSIDE and landed the bytes on a different inode, so "replace a file whose contents still match what Tortie read" was false; and a link planted at the staged name `<file>.tortie-part` answered `wrote` and put the payload into the file OUTSIDE the folder, leaving the person's own file inside it as a symbolic link pointing at it, which is `src/main/credentials/nofollow.ts`'s shape and a lesson this domain had never taken. `entry-rename` still renames a link, dangling ones included, which its `[ -e ] || [ -L ]` presence test was written for. **NO NEW OUTCOME WORD CROSSES THE CHANNEL**: the script prints `outside` and main maps it onto the `outsideRoot` outcome all three verbs already had, so the contract baseline is byte identical and the sentence a person reads is the one that already said nothing was changed. `p242-link-refusal.test.ts` RUNS the three shipped script strings under `/bin/sh` over real links on real disks, **7 of 14 arms red at the parent and 14 of 14 green after**, the other 7 green on both sides on purpose because they prove the refusal did not get wider than the hole; `conformance:machines` condition 88 pins the clauses and where they stand with six planted texts of its own, and four ablations of the real code each go red naming the clause. (2) `44d01573`, **two sentences sent him to a button he had already pressed**: `commitWritesOff` and `remoteWritesNotConfirmed` both ended "Open Settings, then Machines, and confirm that machine" and his machine has been confirmed since 18 August — what is missing is the FOLDER. Phase 229 wrote the right wording for the Explorer and these two did not get it; both now carry `remoteEntryWritesOffLabel`'s half word for word, neither grew by more than a character or two, and `p903-c-remote-copy.test.ts` is updated in the same commit. (3) `53b5c74f`, **the rehearsal itself**, `build/probe-p242-write-path.mjs`, four launches on one scratch profile against the real host with a write root at a real absolute path under his real home, his own row never read for writing and never changed. **The eight verbs compose**, which nothing had ever asked: putFile 100 ms `wrote`, makeDir 37 `made`, rename 29 `moved`, move across folders 29 `moved`, stage 100, unstage 90, stage again 86 and commit 110 `committed`, every result read back by an `ssh` Tortie did not compose; on the row with no folder all five path verbs answer `writesOff` and commit `refused` before a byte is composed. **Twelve containment arms, twelve `outsideRoot`s with the far side unmoved**, four of which were `wrote`, `made` and `moved` at the parent. **THE OPERATOR'S RULE OF 2026-09-07 IS MEASURED RATHER THAN ASSERTED: zero sentences the remote face draws that the local one does not**, over two projects that mirror each other file for file, dirty file for dirty file and link for link, with the one remote-only line being a DISABLED control's own label, which is his own stated exception. It took four runs to make that reading honest and every fix is a fixture now: a face that reads nothing is a finding rather than a silent pass, the two faces must be two different projects because one run read the same local tab twice and reported byte for byte agreement, a one token value slot is not a sentence, and a two word label is. **The redline on a remote tab is driven for the first time**: it is offered, all four modes enabled, it draws no change wrapper so a rewind has nothing to act on, and its one write channel refuses the press's own far-side values `outside`. `HELPER_USER_FLOOR` 99 to 100 in that same commit. Mac Pro: `-L gmux` held exactly `gmux-control` before and after every run, `~/.gitconfig` 140 bytes and `~/.ssh` unmoved, no `tortie-p242-*` left, teardown `ROOT-GONE SIBLING-GONE OUTSIDE-GONE`; this Mac 19 sessions before and after with every scratch socket ended AND unlinked. No token spent.
+- 2026-09-08, Phase 242.1 queued, a link takes the two git buttons out of the folder you confirmed, measured by Phase 242 and deliberately not fixed there: `git-stage` with a `cwd` through a link inside the confirmed folder answered `done` and staged a file in the repository OUTSIDE it, and `git-commit` refused only on its HEAD guard. The three verbs that take a PATH are closed; these three take a `cwd` and are given the repository rather than the confirmed folder, so the fix is either a fourth parameter or a `pwd -P` whose cost has to be measured first.
