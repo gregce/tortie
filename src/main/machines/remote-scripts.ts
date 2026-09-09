@@ -691,6 +691,19 @@ const STORE_COPY = [
  *  4. `base64 -d` is tried first and `base64 -D` second, because the two
  *     spellings differ between this Mac and the machines this is meant for. The
  *     probe records which one answered.
+ *
+ * ## Why the Phase 242 fix round did NOT reach this script, said out loud
+ *
+ * `file-put` now unlinks its staged name and creates it exclusively, because a
+ * HARD LINK planted there is invisible to `[ -L ]` and the redirection followed
+ * one out of the folder a person had confirmed. THIS script's staged name is
+ * `$d/$1.part`, where `$d` is `$HOME/.tortie/images`, a directory it makes
+ * itself at mode 700, and `$1` is content addressed by `./remote-image.ts`.
+ * There is no confirmed folder for it to be outside of, and to plant anything
+ * at that name a person would already have to be the person whose home it is.
+ * That phase's rule is that nothing is fixed which is not found, so this text
+ * is unchanged and the reason is here rather than in a commit message nobody
+ * reads twice.
  */
 const IMAGE_PUT = [
   'set -e',
