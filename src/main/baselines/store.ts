@@ -31,6 +31,23 @@
  *   3. Only then prune. Pruning before the record commits puts back the single
  *      point of failure generations exist to remove.
  *
+ * ## TWO LIMITS THIS MODULE HAS, STATED (Phase 243's fix round)
+ *
+ * **Nothing owns a write at quit.** `capabilities.ts` registers this domain's
+ * IPC and its pruning timer and no disposer, so an accept followed inside one
+ * write by ⌘Q loses the record. Research 106 section 1.4 makes that window
+ * bigger than it looked, being 20 to 50 ms for a `store()` rather than the 9
+ * to 15 one `writeDurable` costs. What is lost is the NARROWING and nothing on
+ * disk, which is why it is a limit rather than a defect; Phase 220 gave the
+ * credentials domain a lifecycle owner for exactly this shape and this domain
+ * has none.
+ *
+ * **A staged file a crash left behind is invisible to the ceiling.** `sweep`
+ * skips dotfiles on purpose, because a `.part` belongs to the per-key ring
+ * rather than to the directory, and `pruneGenerations` takes one only when
+ * another write touches that same key's stem. It is bounded by one file per
+ * interrupted write and by `READ_CAP_BYTES`.
+ *
  * A crash anywhere in that sequence leaves the OLD record and the OLD body, or
  * the new pair, and never neither and never half: the record is published by a
  * rename, so a reader sees one whole record or the other, and the body is

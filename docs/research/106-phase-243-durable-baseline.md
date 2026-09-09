@@ -474,6 +474,45 @@ state is on disk and whose committed state is in git.
 
 ---
 
+## 5.1 THREE LIMITS THE FIX ROUND STATES RATHER THAN LEAVES TO BE FOUND
+
+None is a defect and none is argued away. Each is a thing this store does not do, written down so
+the next round inherits it.
+
+**1. Nothing owns a baseline write at quit.** `capabilities.ts` registers the IPC and the pruning
+timer and no disposer, so an accept followed inside one write by ⌘Q loses the record. Section 1.4
+makes that window BIGGER than it looked: it is 20 to 50 ms rather than the 9 to 15 section 1.1
+publishes. What is lost is the NARROWING and nothing on disk (research 83 A3.4), and quit's
+scrollback pass and manifest generation make the window hard to reach in practice, but Phase 220
+gave the credentials domain a lifecycle owner for exactly this shape and this domain has none.
+
+**2. A staged file left by a crash is invisible to the ceiling.** `sweep` skips dotfiles on purpose,
+because a `.part` belongs to the per-key ring rather than to the directory, and `pruneGenerations`
+removes one only when some OTHER write touches that same key's stem. So a `.part` a kill left behind
+is not counted against the 32 MB and is not swept until that key is written again. It is bounded by
+one file per interrupted write and by `READ_CAP_BYTES`.
+
+**3. A record stored before git answered is always discarded at the next open.** `headSeen` is what
+the credibility rule replays, and a baseline recorded before `loadHead` landed carries `null`. Driven
+through the shipping `nextBaseline` and `stateFromStored` over six shapes:
+
+```
+RESTORED   tracked, opened only (headSeen = text)        git said "a\n"
+discarded  tracked, opened, HEAD then moved              git said "b\n"
+RESTORED   tracked, accepted                             git said "a\n"
+discarded  untracked, opened only (headSeen null)        git said ""
+RESTORED   untracked, accepted (headSeen empty)          git said ""
+discarded  recorded before git answered, file IS tracked git said "a\n"
+```
+
+It is conservative and it is correct — a baseline that cannot be checked is not offered — and for a
+TRACKED file it costs nothing, because the HEAD answer that lands a moment later moves the baseline
+and the move is recorded again with `headSeen` set. **The case it really costs is the untracked file
+opened but never accepted**, whose `headSeen` stays `null` for the life of the tab (the empty-HEAD
+branch spreads the state and keeps its receipt, so nothing re-records it), so its opening marking is
+never restored. An untracked file that was ACCEPTED restores, because the accept composes a new
+state carrying `headSeen: ''`. The CHANGELOG says only what this reading supports.
+
 ## 6. WHAT WAS NOT MEASURED
 
 - **The write inside Electron.** Everything in §1 ran under plain node on the same volume. Research
@@ -492,7 +531,13 @@ state is on disk and whose committed state is in git.
 ```
 npx tsx build/p243/durable-cost.mts  /Users/gdc/gmux 30
 npx tsx build/p243/credibility.mts   /Users/gdc/gmux
+npx tsx --tsconfig tsconfig.node.json build/p243/store-cost.mts /Users/gdc/gmux 30
 ```
+
+The third is Phase 243's fix round (sections 1.4, 3.4 and 3.5). It drives the SHIPPING
+`createBaselineStore` rather than `writeDurable` alone, and the corpus arm writes one open and one
+accept for every tracked prose file in the repository it is pointed at, so budget about 32 MB of
+scratch and about a minute.
 
 Both are read-only over the repository, both write nothing outside a scratch directory removed in a
 `finally`, and neither launches an Electron, starts a tmux server, spawns an agent or opens a

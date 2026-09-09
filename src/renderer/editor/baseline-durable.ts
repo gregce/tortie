@@ -114,6 +114,17 @@ export function baselineKeyFor(tab: BaselineTab): BaselineKey {
  * that does it is one `conformance:redline` already ablates. A record without
  * it would be destroyed by the first watcher tick, silently, before the person
  * had looked (research 106 section 2.3).
+ *
+ * AND A RECORD WHOSE `headSeen` IS NULL IS ALWAYS DISCARDED AT THE NEXT OPEN,
+ * because a baseline that cannot be checked is not offered. That is the right
+ * answer and it costs a TRACKED file nothing: the HEAD answer that lands a
+ * moment later moves the baseline, and the move is recorded again with
+ * `headSeen` set. The case it costs is the UNTRACKED file opened but never
+ * accepted, whose `headSeen` stays null for the life of the tab, since
+ * `nextBaseline`'s empty-HEAD branch spreads the state and keeps its receipt
+ * so nothing re-records it; its opening marking is not restored. An untracked
+ * file that was ACCEPTED restores, because the accept composes a new state
+ * carrying `headSeen: ''`. Research 106 section 5.1 drives all six shapes.
  */
 export function storeInputFor(
   tab: BaselineTab,
