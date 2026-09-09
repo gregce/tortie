@@ -38,6 +38,7 @@ This release is about the redline you can rewind, accept and now type in. Every 
 - A symbolic link inside the folder you let Tortie save under is no longer a way out of it. A save, a new folder or a rename aimed through one is refused and says so, where before it could replace a file outside that folder and tell you it had saved — though the Stage and Commit buttons still act on whatever a link really points at ([`61cb66aa`](https://github.com/gregce/tortie/commit/61cb66aa))
 - The two messages you get when Tortie cannot write on a machine now send you to the right place. They used to tell you to confirm a machine you had already confirmed, when what was missing was the folder ([`44d01573`](https://github.com/gregce/tortie/commit/44d01573))
 - The Architecture map now says when the picture it drew is only part of a folder. A repository too large to read in one pass was drawn as though it were the whole thing, with nothing on the picture to say otherwise ([`69a14370`](https://github.com/gregce/tortie/commit/69a14370))
+- Inserting a paragraph above one you had edited no longer makes the paragraph below look rewritten. The redline marks the word that moved and draws the new paragraph once, where before it struck the whole paragraph through and then repeated it in green with nothing marked at all ([`ea2e6750`](https://github.com/gregce/tortie/commit/ea2e6750))
 
 ## 0.101.0 (2026-09-07)
 
