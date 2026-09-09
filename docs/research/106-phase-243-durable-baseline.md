@@ -16,7 +16,8 @@ was opened for writing.
 
 ## 0. THE ANSWER
 
-**A. THE PRICE REPRODUCES, AND IT IS NOT A PRICE PER BYTE.** 9.1 ms at 8 KB against research 83's
+**A. THE PRICE REPRODUCES, AND IT IS NOT A PRICE PER BYTE — BUT IT IS THE PRICE OF HALF THE WRITE,
+AND SECTION 1.4 IS THE OTHER HALF.** 9.1 ms at 8 KB against research 83's
 9.0, **9.9 ms at 152 KB against its 10.0**, and **15.0 ms at 3.04 MB against its 15.1**. Two of the
 three files have grown since that measurement (CLAUDE.md 126 KB → 152 KB, BACKLOG.md 2.66 MB → 3.04
 MB) and the times did not move, which is the finding rather than the confirmation: **the cost is two
@@ -25,6 +26,14 @@ the file flush is 4.5–5.6 ms and the directory flush 3.8–5.0 ms at every siz
 `fstat`, close and rename together stay under 1 ms up to 184 KB. The payload appears exactly once,
 at 3 MB, where the read-back verification adds 2.8–3.2 ms. **A baseline write costs the same whether
 it is a note or the backlog.**
+
+**AND THE ACCEPT A PERSON MAKES COSTS TWICE THAT, because it is two of them.** Every number above
+is ONE `writeDurable`. `createBaselineStore(...).store()` does a record read, a body write, a
+`listGenerations`, a record write and a prune — **two** `writeDurable` calls and **four**
+`F_FULLFSYNC`s. Phase 243's fix round timed the shipping `store()` end to end
+(`build/p243/store-cost.mts`, section 1.4): **20 to 25 ms for ordinary prose and 48 to 50 ms at
+3 MB**, about 2.3x and 3.3x what this section publishes. The write is `void`-ed and off the draw
+path, so nothing waits on it, but a number this phase rests on should say what it measures.
 
 **B. A STORED BASELINE IS CREDIBLE WHEN THE FILE'S OWN COMMITTED VERSION HAS NOT MOVED — the file's,
 not the repository's, and the difference is measured at 2.2x.** Over his 1,363 commits, a stored
@@ -68,7 +77,7 @@ an age bound and a directory ceiling with the oldest evicted first:
 | --- | --- | --- |
 | `BASELINE_GENERATIONS` | **2**, not 3 | the ladder is never walked here (§3.2); `BACKUP_GENERATIONS`'s own floor is `Math.max(2, …)` |
 | max age | **7 days** | the drop store's number; and at 7 days 77.7% of active files have had their committed version move anyway, so age only ever binds the untracked file, which has no HEAD check at all |
-| directory ceiling | **32 MB** | smaller than his `snapshots/` (33.8 MB) today; it holds about **1,050** of his ordinary prose files at ring 2, against a real seven-day working set of **67 files and 5.19 MB** |
+| directory ceiling | **32 MB** | smaller than his `snapshots/` (33.8 MB) today; it holds about **230 accepted** files or about **690 opened** ones (section 3.4, measured — this row first said 1,050 and was 4.5x out), against a real seven-day working set of **67 files, 15.9 MB at the measured cost** |
 | prune cadence | **24 h**, plus after every record commit | the drop store's, unchanged |
 
 **And one refusal the ceiling needs**: a baseline seeded from a TRUNCATED read must not be stored.
@@ -128,8 +137,12 @@ is 0.1–0.5 ms until 3 MB.
 
 Two consequences a builder should have:
 
-1. **Both flushes run on libuv's threadpool, not on main's event loop.** A baseline write costs no
-   frame in any window. The 10 ms is latency to the receipt, not a stall.
+1. **Both flushes run on libuv's threadpool, not on main's event loop.** The 10 ms is latency to
+   the receipt, not a stall. **THIS SECTION ALSO SAID "A BASELINE WRITE COSTS NO FRAME IN ANY
+   WINDOW" AND THAT IS TRUE OF THE FLUSHES AND NOT OF THE WRITE**, which section 1.4 measures: the
+   JSON document, its encoding and its two sha256 passes are synchronous and are on main. At
+   ordinary prose sizes they are under 1.2 ms and the claim holds; at `docs/BACKLOG.md`'s 3.04 MB
+   they are 23.5 ms, which is more than a 60 Hz frame, once per baseline move.
 2. **A quit-time flush of ten tabs is one `writeDurableBatch`, never ten `writeDurable` calls.**
    Measured over ten files at the corpus p90, 599 KB in all: **ten sequential calls 100.0 ms, one
    batch 32.1 ms**, a 3.1x difference, because a batch flushes each directory once. This is the
@@ -146,6 +159,42 @@ n=234  total=11,062,437 bytes (10.55 MB)  p50=27,268  p90=71,627  p99=183,952  m
 
 Research 83 A3.1 read n=219 and 9.33 MB thirty days ago. Writing one generation of every one of
 them took **2,400 ms, 10.3 ms a file**, and left **11,300 KB** on disk.
+
+### 1.4 What an ACCEPT costs, end to end — Phase 243's fix round
+
+Section 1.1 times ONE `writeDurable`. A person's accept is a `store()`, which is a record read, a
+body write, a `listGenerations`, a record write and a prune: **two** `writeDurable` calls and
+**four** `F_FULLFSYNC`s. `build/p243/store-cost.mts` drives the SHIPPING
+`createBaselineStore(...).store()` over the operator's own prose, 30 runs a file, and holds a 1 ms
+heartbeat across every call so the worst gap between two ticks is main's worst stall.
+
+| file | bytes | `writeDurable` p50 (§1.1) | **`store()` p50** | p95 | **worst event-loop gap** |
+| --- | --- | --- | --- | --- | --- |
+| `docs/ZEN-OF-TORTIE.md` | 7,998 | 9.1 | **19.8 / 23.2** | 20.7 / 29.1 | 2.1 / 2.2 |
+| `CLAUDE.md` | 155,264 | 9.9 | **22.0 / 22.5** | 26.9 / 26.3 | 4.1 / 2.3 |
+| `docs/research/83-…` | 183,952 | 9.0 | **24.9 / 22.1** | 27.9 / 25.2 | 4.9 / 2.3 |
+| `docs/BACKLOG.md` | 3,042,819 | 15.0 | **48.1 / 49.6** | 50.9 / 59.0 | 30.9 / 23.5 |
+
+Two runs of the whole harness, both printed. **An accept is 20 to 25 ms for ordinary prose and
+about 50 ms at 3 MB**, roughly 2.3x and 3.3x the published number.
+
+**And the gap at 3 MB is accounted for exactly, by the synchronous work rather than by the
+flushes.** The same helper times the three steps `store()` does on main before anything reaches the
+threadpool:
+
+```
+                       bytes   stringify  encode  sha256 x2   sum    worst gap seen
+ZEN-OF-TORTIE.md        7,998        0.0     0.0        0.0    0.0              2.2
+CLAUDE.md             155,264        0.8     0.2        0.2    1.2              2.3
+83-shadow-baseline    183,952        0.9     0.2        0.2    1.3              2.3
+BACKLOG.md          3,042,819       15.5     4.0        4.0   23.5             23.5
+```
+
+`JSON.stringify` of the body is the whole of it, and it is on main because the body IS a JSON
+document. **The consequence is bounded and is not a defect**: the write is `void`-ed, nothing on the
+draw path waits for it, and it happens once per baseline MOVE — an open, an agent's write, an
+accept — rather than per keystroke. `docs/BACKLOG.md` is precisely the file it bites, and a person
+who accepts a change in it pays one frame's worth of stall in main.
 
 ---
 
@@ -279,8 +328,11 @@ commits, a crash cannot leave a key with nothing: a crash before the record leav
 generation named and intact, and the orphan is swept by the next prune, which is exactly the ordering
 `generations.ts` documents.
 
-Ring 2 against ring 3, over the sets above: his seven-day gmux working set is **10.4 MB against
-15.6 MB**, his whole no-`.specstory` corpus **55 MB against 82.5 MB**.
+Ring 2 against ring 3, over the sets above, PRICED AT 1x A GENERATION: his seven-day gmux working
+set is **10.4 MB against 15.6 MB**, his whole no-`.specstory` corpus **55 MB against 82.5 MB**.
+**Section 3.4 is why those are the floor rather than the answer**: a generation written by an ACCEPT
+holds the text AND the HEAD version it was accepted over, so the same seven-day set measures
+**15.9 MB at ring 2** and the ratio between the two rings is unchanged.
 
 ### 3.3 The two bounds, copied from the store next door
 
@@ -291,16 +343,55 @@ oldest first. **The recommendation is that shape with two of its numbers changed
 - **Max age 7 days.** Read against §2.2: by seven days the file's committed version has moved for
   77.7% of active files, so the age bound almost never binds a tracked file. It binds the untracked
   file, which has no HEAD check at all (§2.3), and that is the case it exists for.
-- **Directory ceiling 32 MB, oldest `takenAt` evicted first.** It is smaller than his `snapshots/`
-  is today, it is 3x what his real seven-day working set would cost at ring 2, and it holds about
-  **1,050** of his ordinary prose files against the 1,823 he owns in total. If the number is ever raised, raise it in
-  the same commit as the measurement that justified it.
+- **Directory ceiling 32 MB, least recently recorded evicted first** — the order is the record's own
+  `storedAt`, which this bullet first called `takenAt`. It is smaller than his `snapshots/` is
+  today and it is twice what his real seven-day working set costs at the MEASURED ring-2 price
+  (67 files, 15.9 MB). **It holds about 230 accepted files or about 690 opened ones, not the 1,050
+  this bullet first claimed** — section 3.4 is the measurement and section 3.5 is the limit that
+  follows from it. If the number is ever raised, raise it in the same commit as the measurement that
+  justified it.
 - **Refuse a truncated read.** `loadContents` seeds a baseline from a truncated read today
   (`tab-io.ts:171`), and `result.truncated` sits in the same patch without reaching it. Storing one
   would put 5 MB in the store for bytes the guarded write already refuses to act on (research 83
   E.7a) and for a tab Monaco holds read-only. One condition at the store door.
 
-Steady state under all four, on his machine: **67 keys and 10.4 MB**, with the ceiling 3x above it.
+Steady state under all four, on his machine: **67 keys and 15.9 MB at the measured price**
+(section 3.4), with the ceiling twice above it.
+
+### 3.4 What a key really costs — Phase 243's fix round, measured through the shipping store
+
+Everything above prices a key by multiplying a corpus mean by the ring. That is the open-only case
+and it is not what a person's store holds. `BaselineBody` collapses `headSeen` into `text` only when
+the two are **equal**; at an open they are (the baseline IS the committed version, so the record
+stores one string), and after an **accept** they are not, so the accepted generation stores both.
+
+`build/p243/store-cost.mts` drives the SHIPPING `createBaselineStore` over the 235 tracked prose
+files of this repository, one open then one accept each, the way a person would, and reads the bytes
+back off the disk rather than multiplying anything:
+
+```
+open only          235 keys  corpus 10.58 MB  on disk 10.83 MB in 470 files   47.2 KB a key  1.02x the mean file
+open then accept   235 keys  corpus 10.58 MB  on disk 32.37 MB in 705 files  141.1 KB a key  3.06x the mean file
+```
+
+**3.06x, not 2x.** So the 32 MB ceiling holds **232 accepted files** or **694 opened ones**, against
+the **1,050** section 0 D and section 3.3 first published — 4.5x out, because that number came from
+2x a 15.1 KB mean over his whole eleven-project corpus rather than from a drive.
+
+### 3.5 The limit that follows, stated rather than raised
+
+**One project already fills the ceiling.** This repository's own prose, opened and accepted once
+each, is 32.37 MB against a 32 MB ceiling. Past it, `sweep` drops whole keys least-recently-recorded
+first, so a person working across eleven projects and 1,823 prose files loses their earliest
+narrowings **silently, well inside the seven day age bound**.
+
+**The ceiling is not raised, and this is the reason rather than an omission.** What an evicted key
+loses is the NARROWING and nothing on disk (research 83 A3.4): the file's current state is on disk
+and its committed state is in git, and the redline widens back to "since the last commit", which is
+what shipped before any of this. 32 MB is still twice his real seven-day working set at the measured
+price. A person's data directory is not grown for a case only a sweep of a whole corpus reaches, and
+the number that would need raising is the one somebody should measure again the day a person
+complains that a marking from last week is gone.
 
 ---
 

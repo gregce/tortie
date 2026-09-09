@@ -102,13 +102,32 @@ export const BASELINE_GENERATIONS = 2;
 export const BASELINE_MAX_AGE_MS = 7 * 24 * 3600_000;
 
 /**
- * Directory ceiling; the oldest records go first once it is exceeded.
+ * Directory ceiling; the least recently recorded keys go first once it is
+ * exceeded (the order is the record's own `storedAt`, not an mtime).
  *
- * 32 MB, against the drop store's 200. It is SMALLER than the operator's
- * `snapshots/` is today (33.8 MB), it is 3x what his real seven-day working
- * set costs at ring 2 (10.4 MB), and it holds about a thousand of his ordinary
- * prose files. If it is ever raised, it is raised in the same commit as the
- * measurement that justifies it.
+ * 32 MB, against the drop store's 200, and SMALLER than the operator's
+ * `snapshots/` is today (33.8 MB).
+ *
+ * PHASE 243'S FIX ROUND MEASURED WHAT IT HOLDS AND THIS COMMENT SAID 4.5x TOO
+ * MANY. "About a thousand of his ordinary prose files" came from multiplying a
+ * corpus mean by the ring; driven through this store over 235 real prose files
+ * a key costs **3.06x the file**, not 2x, because `BaselineBody` collapses
+ * `headSeen` into `text` only when the two are EQUAL and after an accept they
+ * are not, so the accepted generation stores both strings while the opening
+ * generation stores one. Measured: 141.1 KB a key against a 46.1 KB mean file,
+ * 235 keys and 32.37 MB on disk.
+ *
+ * So it holds about **230 accepted files** or about **690 opened but never
+ * accepted ones**. THE STATED LIMIT, rather than a raise: one project's whole
+ * prose, opened and accepted once each, already reaches the ceiling, and past
+ * it the least recently recorded keys are dropped silently, inside the seven
+ * day age bound. It is not raised because 32 MB is still twice his real
+ * seven-day working set at the measured cost (67 files, 15.9 MB — research 106
+ * section 3.3), because what an evicted key loses is the NARROWING and nothing
+ * on disk, and because a person's data directory is not grown for a case only
+ * a sweep of a whole corpus reaches. If it is ever raised, it is raised in the
+ * same commit as the measurement that justifies it, which is
+ * `build/p243/store-cost.mts`.
  */
 export const BASELINE_MAX_DIR_BYTES = 32 * 1024 * 1024;
 
