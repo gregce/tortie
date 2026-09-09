@@ -67,7 +67,19 @@ import type {
   OpenFileRemoteRef
 } from '../state/open-file';
 import { getWorkingModel, resetWorkingModel } from './monaco-loader';
+import type { BaselineState } from './baseline';
 import { nextBaseline } from './baseline';
+// PHASE 243. The durable half of the baseline, decided purely next door. The
+// two bridge calls are HERE, beside the file read and the HEAD read, because
+// this file already owns every call the editor makes into main and the
+// redline family must not grow a second door (conformance:redline rule 9).
+import {
+  baselineKeyFor,
+  keepsBaseline,
+  markStored,
+  stateFromStored,
+  storeInputFor
+} from './baseline-durable';
 import { dirOf } from './paths';
 import { fileInRepo } from './tab-identity';
 import { guardedSave } from './save-write';
@@ -126,6 +138,12 @@ export interface TabIoDeps {
 
 export interface TabIo {
   loadContents(id: string, path: string): Promise<void>;
+  /**
+   * PHASE 243. Record this tab's baseline if it has moved and is not recorded
+   * yet. Resolves when main has answered or when there was nothing to do; it
+   * is never awaited by anything a person is waiting for.
+   */
+  persistBaseline(id: string): Promise<void>;
   loadHead(id: string): Promise<void>;
   loadCommitDiff(id: string, commit: OpenFileCommitRef): Promise<void>;
   /**
@@ -157,20 +175,128 @@ export function createTabIo(deps: TabIoDeps): TabIo {
   const fsExtras = gmux ? gmux.fs : null;
   const imageFs = gmux ? gmux.fs : null;
 
+  /**
+   * PHASE 243. Record a moved baseline, and mark it recorded when main
+   * answers.
+   *
+   * The identity check after the await is the whole safety of it: main's
+   * receipt is applied only when the tab still holds THE SAME baseline object
+   * that was sent, so an accept or a HEAD move that landed while the write was
+   * in flight is never labelled with a receipt for older bytes. A state that
+   * already carries `durable` needs nothing: it was either just written or it
+   * came out of the store, and `nextBaseline` drops the field on every move.
+   *
+   * Every failure is silent by design. A baseline that could not be recorded
+   * is a baseline that lasts as long as the tab, which is exactly what shipped
+   * before this phase, and there is nothing for a person to do about it.
+   */
+  const persistBaseline = async (id: string): Promise<void> => {
+    const store = gmux?.baselines;
+    if (store === undefined) return;
+    const tab = deps.byId(id);
+    if (tab === undefined || !keepsBaseline(tab)) return;
+    // NOT BEFORE THE FIRST READ HAS LANDED, because `truncated` is not known
+    // until then and the two loaders land in either order: a HEAD answer that
+    // arrives first would otherwise record a baseline for a tab whose bytes
+    // turn out to be a truncated read. The read's own patch calls this again,
+    // so nothing is lost by waiting for it.
+    if (tab.loading) return;
+    const state = tab.baseline;
+    if (state === undefined || state.durable !== undefined) return;
+    const input = storeInputFor(tab, state);
+    if (input === null) return;
+    let result;
+    try {
+      result = await store.store(input);
+    } catch {
+      return;
+    }
+    if (!result.stored) return;
+    const current = deps.byId(id);
+    if (current === undefined || current.baseline !== state) return;
+    deps.patch(id, { baseline: markStored(state) });
+  };
+
+  /**
+   * PHASE 243. The stored baseline for this tab, or null.
+   *
+   * Issued BESIDE the file read rather than after it, so a tab opens in
+   * max(read, store) and not read + store, and nothing on the draw path gains
+   * an await: the tab still holds the baseline in memory and
+   * `redlineBaseSide` still reads that field with no await at all.
+   */
+  const loadStoredBaseline = (id: string): Promise<BaselineState | null> | null => {
+    const store = gmux?.baselines;
+    const tab = deps.byId(id);
+    if (store === undefined || tab === undefined || !keepsBaseline(tab)) return null;
+    // The refusal is attached HERE rather than at the await, so a store that
+    // rejects can never become an unhandled rejection while the file read is
+    // still in flight.
+    return store.load(baselineKeyFor(tab)).then(
+      (answer) => (answer.found ? stateFromStored(answer.baseline) : null),
+      () => null
+    );
+  };
+
   const loadContents = async (id: string, path: string): Promise<void> => {
     if (!gmux) return;
+    // Started before the read and awaited after it, so a tab opens in
+    // max(read, store) rather than read + store. A tab with nothing to ask —
+    // no store on the bridge, a history tab, a file the redline never draws —
+    // answers null with no promise at all, so its open is byte for byte the
+    // sequence Phase 225 shipped and the two loaders still race exactly as
+    // they did.
+    const pending = loadStoredBaseline(id);
     try {
       const result = await gmux.fs.readFile(path);
+      const restored = pending === null ? null : await pending;
       // PHASE 225. The first successful read seeds the shadow baseline from
       // the same bytes `savedContents` gets, HERE and not when Redline mode is
       // chosen: a baseline captured from whatever the file said when the view
       // was first opened may be mid rewrite and is then wrong for ever
       // (research 83 A1.2 property 3). `nextBaseline` refuses every read after
       // the first, so a re-run of this loader cannot move it either.
-      const baseline = nextBaseline(deps.byId(id)?.baseline, {
-        kind: 'read',
-        contents: result.contents
-      });
+      // PHASE 243. A STORED BASELINE IS OFFERED HERE AND NOWHERE ELSE, and it
+      // is offered only when nothing has seeded this tab yet, which is the
+      // same condition `nextBaseline` puts on the read seed. What makes it
+      // CREDIBLE is not a rule of its own: the record carries the HEAD version
+      // it was taken against, and `loadHead` below replays git's current
+      // answer through `nextBaseline` as a `head` event, so a committed
+      // version that has moved re-seeds the baseline on the line that already
+      // exists, before the picture is ever drawn (research 106 section 2.3).
+      //
+      // A TRUNCATED read stores nothing and restores nothing: its bytes are
+      // not the file, the tab is read-only, and research 83 E.7a measured what
+      // acting on them costs.
+      const current = deps.byId(id);
+      const held = current?.baseline;
+      // THE CREDIBILITY RULE IS `nextBaseline` REPLAYED, and it is replayed
+      // here so that it is the same rule in BOTH landing orders. When the HEAD
+      // read has already answered, the stored baseline is handed that answer
+      // as a `head` event: an unchanged committed version returns the SAME
+      // object and the stored baseline stands, and a moved one answers a
+      // different object, which is exactly the clause that would have
+      // re-seeded it a moment later. Either way no narrowing across a commit
+      // survives, and the rule that decides it is the one `conformance:redline`
+      // already ablates.
+      const headKnown = current?.headContents ?? null;
+      const credible =
+        restored === null || headKnown === null
+          ? restored
+          : nextBaseline(restored, { kind: 'head', contents: headKnown }) === restored
+            ? restored
+            : null;
+      // A restored baseline is taken when nothing has seeded this tab, and
+      // when the only thing that has is the HEAD version it was just proved
+      // credible against — a baseline the person accepted is NEWER than the
+      // commit it was accepted over, and losing it to a race between two
+      // loaders is the whole defect this phase is here to remove.
+      const baseline =
+        credible !== null &&
+        !result.truncated &&
+        ((held?.text ?? null) === null || held?.from === 'commit')
+          ? credible
+          : nextBaseline(held, { kind: 'read', contents: result.contents });
       deps.patch(id, {
         savedContents: result.contents,
         truncated: result.truncated,
@@ -179,6 +305,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         deleted: false,
         baseline
       });
+      void persistBaseline(id);
     } catch (err) {
       deps.patch(id, {
         loading: false,
@@ -217,6 +344,10 @@ export function createTabIo(deps: TabIoDeps): TabIo {
           contents: head
         })
       });
+      // PHASE 243. A HEAD version not seen before is a MOVED baseline, so it
+      // is recorded exactly as an accept is. A repeated one answers the same
+      // object, which already carries its receipt, so this writes nothing.
+      void persistBaseline(id);
     } catch (err) {
       // Diff base unavailable (repo vanished, git failed): fall back to a
       // plain editor rather than a broken diff, and say so in sentences a
@@ -1273,6 +1404,10 @@ export function createTabIo(deps: TabIoDeps): TabIo {
           patch.canDiff = true;
         }
         deps.patch(tab.id, patch);
+        // PHASE 243. The same rule as the two loaders: a watcher tick that
+        // moved the baseline records it, and a tick that changed nothing
+        // answers the same object and writes nothing at all.
+        void persistBaseline(tab.id);
       } catch {
         /* non-repo or git failure — plain mode keeps working */
       }
@@ -1281,6 +1416,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
 
   return {
     loadContents,
+    persistBaseline,
     loadHead,
     loadCommitDiff,
     loadRemoteDiff,

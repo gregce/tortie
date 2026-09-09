@@ -91,6 +91,27 @@ export interface BaselineState {
    * name different times for the same seed.
    */
   acceptedAt: number | null;
+  /**
+   * PHASE 243. Whether this baseline is RECORDED, and how it got that way.
+   *
+   *   absent      in memory on this tab and nowhere else, which is every
+   *               baseline Phase 225 shipped and every one this rule has just
+   *               moved
+   *   'written'   main answered a receipt for these bytes
+   *   'restored'  these bytes came back out of the store, from an earlier
+   *               session
+   *
+   * IT IS ABSENT RATHER THAN FALSE, on purpose. `nextBaseline` writes it in
+   * none of its three branches, so a moved baseline drops it and the face
+   * stops claiming the longer lifetime the moment the bytes change; the only
+   * writers are the receipt and the restore, both in ./baseline-durable.
+   *
+   * IT IS NOT A CLAIM THAT ANYTHING IS SAFE. What is recorded is a PREVIOUS
+   * state of a file whose current state is on disk and whose committed state
+   * is in git (research 83 A3.4). Losing it loses the narrowing and nothing
+   * else, and no sentence below may say otherwise.
+   */
+  durable?: 'written' | 'restored';
 }
 
 /** A tab that has read nothing and heard nothing from git. */
@@ -225,19 +246,83 @@ export function redlineWithoutHead(
  * view is drawing what Phase 194 drew. Research 83 A4.2 ruling 1: the view
  * never says an agent did it, it says what changed since a NAMED baseline.
  */
-export function baselineName(state: BaselineState | undefined): string | null {
+export function baselineName(
+  state: BaselineState | undefined,
+  // PHASE 243. Today's date, so a moment from an earlier day can say which
+  // day. Handed in for the reason `now` is handed to `nextBaseline`: the
+  // sentence has to be pinnable to the minute without knowing the runner's
+  // clock.
+  now: number = Date.now()
+): string | null {
   if (state === undefined || state.from === null) return null;
   // PHASE 238. An accept names its own moment, because a person who accepted
   // twice this afternoon needs to know which one they are looking at, and
   // research 83 A4.2 ruling 1 already wrote the words: *"since you accepted,
   // 14:02"*. The other two origins have no moment to name — "the last commit"
   // is git's and "you opened this file" is the tab's.
+  // PHASE 243 ADDED THE DAY AND ADDED IT ONLY TO A RESTORED BASELINE. A live
+  // accept happened in this session, so `14:02` can only be today and Phase
+  // 238's wording is unchanged, byte for byte. A RESTORED one is by
+  // definition from an earlier session, where four digits alone would read as
+  // this afternoon. The stated limit is a tab left open overnight, whose
+  // in-memory accept still says `at 14:02` and means yesterday; that is
+  // exactly what shipped before this phase and this phase does not move it.
+  const restored = state.durable === 'restored';
   if (state.from === 'accept') {
     return state.acceptedAt === null
       ? 'you accepted'
-      : `you accepted at ${clockTime(state.acceptedAt)}`;
+      : `you accepted ${restored ? whenPhrase(state.acceptedAt, now) : `at ${clockTime(state.acceptedAt)}`}`;
   }
-  return state.from === 'commit' ? 'the last commit' : 'you opened this file';
+  if (state.from === 'commit') return 'the last commit';
+  // PHASE 243. A RESTORED opening is not this tab's opening, and saying "you
+  // opened this file" about a moment from yesterday is the one thing a
+  // durable baseline could make the face lie about. So a restored read names
+  // its day, and a fresh one is byte for byte what Phase 239 shipped.
+  return restored && state.takenAt !== null
+    ? `you opened this file ${whenPhrase(state.takenAt, now)}`
+    : 'you opened this file';
+}
+
+/** Short month names, so a date needs no locale and no library. */
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec'
+];
+
+/**
+ * A moment, as few words as it can be said in: `at 14:02` today, `at 14:02
+ * yesterday` the day before, and `at 14:02 on 6 Sep` before that.
+ *
+ * PHASE 243 NEEDED THE DAY AND PHASE 239 DID NOT. `clockTime` is `HH:MM` with
+ * no date, which was right while every baseline died with the tab: there was
+ * no other day it could be from. A restored baseline is by definition from an
+ * earlier session, so the four digits alone would read as this afternoon.
+ */
+export function whenPhrase(ms: number, now: number = Date.now()): string {
+  const at = new Date(ms);
+  const today = new Date(now);
+  const days = dayNumber(at) - dayNumber(today);
+  const time = `at ${clockTime(ms)}`;
+  if (days === 0) return time;
+  if (days === -1) return `${time} yesterday`;
+  return `${time} on ${String(at.getDate())} ${MONTHS[at.getMonth()] ?? ''}`;
+}
+
+/** Days since the epoch in LOCAL time, so a comparison is calendar days. */
+function dayNumber(at: Date): number {
+  return Math.floor(
+    (at.getTime() - at.getTimezoneOffset() * 60_000) / 86_400_000
+  );
 }
 
 /**
@@ -312,9 +397,10 @@ export interface BaselineFace {
 export function baselineSentence(
   state: BaselineState | undefined,
   dirty: boolean,
-  face: BaselineFace = {}
+  face: BaselineFace = {},
+  now: number = Date.now()
 ): string | null {
-  const name = baselineName(state);
+  const name = baselineName(state, now);
   if (name === null) return null;
   // PHASE 239. `takenAt` is null only for a baseline seeded before this field
   // existed or by a caller that passed no clock; the sentence degrades to the
@@ -324,14 +410,20 @@ export function baselineSentence(
   // the one origin a person made themselves and the moment is half of what
   // they are being told. Appending the time again would read "since you
   // accepted at 14:02 at 14:02".
+  // PHASE 243. A RESTORED opening already carries its own moment, for the
+  // reason `baselineName` gives, so appending one would read "since you
+  // opened this file at 14:02 yesterday at 14:02".
+  const nameCarriesTime =
+    state?.from === 'accept' ||
+    (state?.durable === 'restored' && state?.from === 'read');
   const named =
-    state?.from === 'commit' || state?.from === 'accept' || at === null
+    state?.from === 'commit' || nameCarriesTime || at === null
       ? name
       : `${name} at ${clockTime(at)}`;
   const since =
     face.empty === true
       ? `Nothing has changed since ${named}.`
-      : `Marked since ${name}, for as long as this tab is open.`;
+      : `Marked since ${name}, ${lifetimeClause(state)}.`;
   return dirty
     ? `${since} Not refreshed from disk while there are unsaved edits.`
     : since;
@@ -349,26 +441,62 @@ export function baselineSentence(
  */
 export function baselineDetail(
   state: BaselineState | undefined,
-  face: BaselineFace = {}
+  face: BaselineFace = {},
+  now: number = Date.now()
 ): string | null {
-  const name = baselineName(state);
+  const name = baselineName(state, now);
   if (name === null) return null;
-  const lasts = 'The marking lasts for as long as this tab is open.';
+  const lasts = `The marking lasts ${lifetimeClause(state)}.`;
+  // PHASE 243. One short line, and it is on the HOVER rather than the resting
+  // face ("TONS of words, bad", 2026-08-28). It says the marking is older than
+  // this tab and NOTHING about bytes being kept anywhere, because a person who
+  // believes Tortie is holding their history stops committing (research 83
+  // A3.4) and that is worse than the feature not existing.
+  const earlier =
+    state?.durable === 'restored' ? ' This marking is from an earlier session.' : '';
   // PHASE 238. An accepted baseline is neither the commit nor the bytes the
   // tab opened on, so it gets its own two sentences rather than being told it
   // has no committed version to compare against, which after an accept is
   // beside the point whether or not it is true.
   if (state?.from === 'accept') {
     return face.empty === true
-      ? `Everything in this file has been accepted, so there is nothing left to mark. ${lasts}`
-      : `Only what changed since you accepted is marked. ${lasts}`;
+      ? `Everything in this file has been accepted, so there is nothing left to mark.${earlier} ${lasts}`
+      : `Only what changed since you accepted is marked.${earlier} ${lasts}`;
   }
   if (state?.from === 'commit') {
     return face.empty === true
-      ? `This file is the same as its last committed version. ${lasts}`
-      : `Every change since the last commit is marked. ${lasts}`;
+      ? `This file is the same as its last committed version.${earlier} ${lasts}`
+      : `Every change since the last commit is marked.${earlier} ${lasts}`;
   }
   return face.empty === true
-    ? `There is no committed version to compare against, so the marking starts from the bytes that were on disk when this tab opened. Anything written before then is not marked. ${lasts}`
-    : `There is no committed version, so every change since this tab opened is marked. ${lasts}`;
+    ? `There is no committed version to compare against, so the marking starts from the bytes that were on disk when this tab opened. Anything written before then is not marked.${earlier} ${lasts}`
+    : `There is no committed version, so every change since this tab opened is marked.${earlier} ${lasts}`;
+}
+
+/**
+ * How long the marking lasts, in as few words as it can be said in.
+ *
+ * PHASE 243 MADE ONE OF THESE TRUE AND THE OTHER FALSE, and which one applies
+ * is `durable`. A baseline that is only in memory still dies with the tab, on
+ * close, on eviction, on reload, quit or crash (research 83 F.2), and its
+ * sentence is the one Phase 225 shipped, unchanged. A RECORDED baseline
+ * outlives all five, and what ends it instead is the credibility rule: the
+ * next open replays the file's HEAD version through `nextBaseline`, so a
+ * committed version that has moved re-seeds the baseline before it is ever
+ * drawn (research 106 section 2.3).
+ *
+ * A file with no committed version has nothing to re-seed FROM, so its
+ * marking ends at its first commit and the clause says that instead. `''` is
+ * git's answer for a path that is not in HEAD (see the header's THE EMPTY
+ * ANSWER), and `null` is git not having answered yet, which is a moment
+ * rather than a state and takes the tracked wording.
+ *
+ * NEITHER CLAUSE SAYS ANYTHING IS KEPT. That is the ruling, and it is the one
+ * place in this feature where a copy decision is a correctness decision.
+ */
+function lifetimeClause(state: BaselineState | undefined): string {
+  if (state?.durable === undefined) return 'for as long as this tab is open';
+  return state.headSeen === ''
+    ? 'until you commit this file'
+    : "until this file's last commit moves";
 }

@@ -825,6 +825,13 @@ export const useEditor = create<EditorState>((set, get) => {
       patchTab(id, {
         baseline: nextBaseline(tab.baseline, { kind: 'accept', contents, at })
       });
+      // PHASE 243. An accept is the gesture the durable store exists for: it
+      // is the one a person makes deliberately, and Phase 238 measured that
+      // what they accepted died with the tab. It is recorded through the same
+      // one path every other baseline move takes, and the write is never
+      // awaited here — an accept redraws now and the receipt lands when it
+      // lands.
+      void io.persistBaseline(id);
     },
 
     clearPendingSelection(id) {
