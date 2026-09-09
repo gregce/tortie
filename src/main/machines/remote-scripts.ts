@@ -2243,7 +2243,7 @@ const CONTEXT_READ = [
  * because the catalogue's rule is a fixed field count per script, so it is a
  * parameter here rather than three copies.
  *
- * `build/conformance-machines.mjs` condition 84 pins these lines on all three
+ * `build/conformance-machines.mjs` condition 88 pins these lines on all three
  * scripts and goes red when any one of them is taken out.
  */
 const noLinkWalk = (value: string, fields: 2 | 3): readonly string[] => [
@@ -2344,11 +2344,22 @@ const noLinkWalk = (value: string, fields: 2 | 3): readonly string[] => [
  *     which Phase 96 fixed. A deterministic name means an interrupted save
  *     leaves at most one file per file, and the next successful save of the
  *     same file writes over it and then moves it away.
- *  3. The text names no `rm`. It does name `mv` and `chmod`, which is correct
- *     and is what makes the mode survive. `MUTATING_PROGRAMS` in the gate is
- *     consulted only inside `if (row.mode === 'read')`, so it does not apply
- *     here, and condition 79 is written as "the text does not name rm" rather
- *     than as "names no program that removes a file".
+ *  3. EVERY `rm` THIS TEXT NAMES REMOVES THE STAGED NAME AND NOTHING ELSE.
+ *     The rule used to be "the text names no `rm`" and the fix round of Phase
+ *     242 narrowed it rather than deleting it, because the hole it left is the
+ *     one `src/main/credentials/nofollow.ts` closed years earlier: a HARD LINK
+ *     planted at `"$f.tortie-part"` is invisible to `-L`, the redirection
+ *     followed it, and a person's payload landed in a file OUTSIDE the folder
+ *     they confirmed while this script answered `wrote`. So `rm -f "$t"` now
+ *     stands in front of both redirections and `set -C` makes the creation
+ *     exclusive. The `rm` is NARROWER in effect than the `>` it precedes: the
+ *     redirection destroys the contents of the staged name through every name
+ *     that shares the inode, and the unlink destroys one name Tortie composed
+ *     for itself. It may never name `$f`, `$1`, `$2` or a bare value, and the
+ *     gate reads exactly that. The text still names `mv` and `chmod`, which is
+ *     correct and is what makes the mode survive. `MUTATING_PROGRAMS` in the
+ *     gate is consulted only inside `if (row.mode === 'read')`, so it does not
+ *     apply here.
  *  4. The mode is read before the write and applied to the temporary file
  *     before the `mv`, on the checksum arm only. Research 57 section 4.2
  *     measured a 755 file put through the `image-put` shape coming back 600,
@@ -2374,6 +2385,18 @@ const noLinkWalk = (value: string, fields: 2 | 3): readonly string[] => [
  * walk above `p=` asks about every directory component of `$2`, and the pair
  * below `t=` asks about the file being replaced and about the staged name,
  * which the redirection would otherwise follow.
+ *
+ * ## Why there are two answers for the same shape, and it is not an oversight
+ *
+ * A SYMBOLIC link at the staged name is refused with the word `outside`, and a
+ * HARD link at the same name is unlinked and the save goes through. The
+ * difference is what can be said about it. A symbolic link NAMES a path, so
+ * something is plainly wrong and a person can be told; a hard link names
+ * nothing, and the only thing that tells it from the ordinary debris of an
+ * interrupted save is a link count, which is a third `stat` dialect for an
+ * answer that would leave a person unable to save a file they can see. Both
+ * arms end with nothing outside the confirmed folder changed, which is the
+ * property that matters and the one the tests read.
  */
 const FILE_PUT = [
   'set -e',
@@ -2433,11 +2456,35 @@ const FILE_PUT = [
   '    exit 0',
   '  fi',
   'fi',
+  // PHASE 242 FIX ROUND. UNLINK, THEN CREATE EXCLUSIVELY, which is
+  // `src/main/credentials/nofollow.ts`'s whole shape and the half the first
+  // round took only in part. The `-L` pair above cannot see a HARD LINK,
+  // because a hard link is not a link to the shell, it is the file, and one
+  // planted at the staged name took this redirection and put a person's
+  // payload into a file OUTSIDE the confirmed folder while this script
+  // answered `wrote` and named that folder as where the bytes had landed.
+  //
+  // The `rm` is NARROWER than the redirection it stands in front of, and that
+  // is why it is here rather than being the delete this script refuses to be.
+  // `> "$t"` already destroys whatever is at the staged name, and does it
+  // THROUGH every name that shares the inode. `rm -f "$t"` destroys the staged
+  // name and nothing else. It removes exactly one name Tortie composed for
+  // itself, never `$f`, never anything a person named.
+  //
+  // `set -C` is the second half. After the unlink the name is gone, and the
+  // creation is then exclusive, so a name re-planted in the microseconds
+  // between them fails to be created rather than being followed. Both arms
+  // unlink first, because the first arm's redirection creates the file even
+  // when `base64 -d` is the flag this machine does not have.
+  'rm -f "$t"',
+  'set -C',
   'if printf \'%s\' "$4" | base64 -d > "$t" 2>/dev/null; then',
   '  :',
   'else',
+  '  rm -f "$t"',
   '  printf \'%s\' "$4" | base64 -D > "$t"',
   'fi',
+  'set +C',
   'if [ -n "$m" ]; then chmod "$m" "$t"; fi',
   'mv "$t" "$f"',
   'n=$(wc -c < "$f" | tr -d \' \')',

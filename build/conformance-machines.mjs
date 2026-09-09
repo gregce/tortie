@@ -2903,7 +2903,9 @@ const ALLOWED_WRITERS = [
 const WRITE_MUTATORS = {
   'image-put': ['chmod', 'mkdir', 'mv'],
   'git-clone': [],
-  'file-put': ['chmod', 'mv'],
+  // PHASE 242 FIX ROUND added `rm` to this one row, and `STAGED_UNLINK` below
+  // is what stops that being a licence. See {@link stagedUnlinkFacts}.
+  'file-put': ['chmod', 'mv', 'rm'],
   'dir-new': ['chmod', 'mkdir'],
   'entry-rename': ['mv'],
   'git-stage': [],
@@ -2911,6 +2913,75 @@ const WRITE_MUTATORS = {
   // PHASE 104. MEASURED by running the same filter this condition runs over the
   // real script text rather than read by eye. It names none of the eleven.
   'git-commit': []
+};
+
+/**
+ * The ONE `rm` a writer may hold besides `git rm --cached`, byte for byte.
+ *
+ * PHASE 242 FIX ROUND. The rule used to be that `file-put` names no `rm` at
+ * all, and the hole that left is the one `src/main/credentials/nofollow.ts`
+ * closed years earlier. A HARD LINK planted at the staged name
+ * `<file>.tortie-part` is invisible to the `-L` pair Phase 242 added, because a
+ * hard link is not a link to the shell: it IS the file under a second name. The
+ * redirection followed it, and the phase's verifier drove that through Tortie's
+ * own `machines.putFile` against the operator's Mac Pro and put a payload into
+ * a file OUTSIDE the confirmed folder while the answer read `wrote` and named
+ * that folder as where the bytes had landed.
+ *
+ * SO THE RULE IS NARROWED AND NEVER DELETED. The `rm` a writer may hold removes
+ * the staged name and nothing else, and it is NARROWER IN EFFECT than the `>`
+ * it stands in front of: the redirection destroys the contents of that name
+ * through every other name that shares the inode, and the unlink destroys one
+ * name the writer composed for itself. `rm "$f"`, `rm -r`, a bare value or any
+ * other spelling is the delete on somebody else's computer that this catalogue
+ * must never hold, and none of them is this string.
+ */
+const STAGED_UNLINK = 'rm -f "$t"';
+
+/**
+ * What one script's text does at its staged name, read out of the text.
+ *
+ * It answers the four things that have to be true together, because any one of
+ * them alone is a line that looks like the fix and is not it: every `rm` in the
+ * text is the staged unlink, every line that creates the staged file has one
+ * standing above it with no other creation in between, and the creation is
+ * EXCLUSIVE, which is the half that closes the window between the unlink and
+ * the create. `git rm ... --cached` is not counted here, because it is the
+ * other allowed shape and it is read where it is allowed.
+ */
+const stagedUnlinkFacts = (text) => {
+  const lines = String(text ?? '').split('\n');
+  const rms = [];
+  const unlinks = [];
+  const creates = [];
+  lines.forEach((line, at) => {
+    const bare = line.trim();
+    if (/\brm\b/.test(bare) && !(bare.includes('git rm ') && bare.includes('--cached'))) {
+      rms.push({ at, bare });
+    }
+    if (bare === STAGED_UNLINK) unlinks.push(at);
+    if (/> "\$t"/.test(bare)) creates.push(at);
+  });
+  const exclusiveAt = lines.findIndex((line) => line.trim() === 'set -C');
+  return {
+    rms,
+    unlinks,
+    creates,
+    onlyTheStagedName: rms.every((one) => one.bare === STAGED_UNLINK),
+    unlinkedBeforeEveryCreate:
+      creates.length > 0 &&
+      unlinks.length > 0 &&
+      creates.every((at) => {
+        const before = unlinks.filter((one) => one < at);
+        if (before.length === 0) return false;
+        const nearest = Math.max(...before);
+        return !creates.some((other) => other > nearest && other < at);
+      }),
+    exclusive:
+      exclusiveAt >= 0 &&
+      creates.length > 0 &&
+      exclusiveAt < Math.min(...creates)
+  };
 };
 
 /**
@@ -3217,18 +3288,50 @@ const REMOTE_SCRIPT_COUNT = 28;
             `file ever replacing one somebody already had.`
         );
       }
-      // WRITTEN AS "the text does not name rm" AND NEVER AS "names no program
-      // that removes a file". `mv` is one of the eleven names in
-      // MUTATING_PROGRAMS, this script must name `mv`, and a builder
+      // WRITTEN AS "every rm this text names is the staged unlink" AND NEVER
+      // AS "names no program that removes a file". `mv` is one of the eleven
+      // names in MUTATING_PROGRAMS, this script must name `mv`, and a builder
       // implementing the loose sentence would write a condition this script
       // cannot pass. MUTATING_PROGRAMS is consulted only inside the read arm
       // above and it does not apply here.
-      if ((row.words ?? []).includes('rm')) {
-        fail(
-          `write script ${row.id} names rm. It replaces a file and it never ` +
-            `removes one, and a remove in this text would be a delete on ` +
-            `somebody else's computer that nobody asked for.`
-        );
+      //
+      // PHASE 242 FIX ROUND NARROWED THIS AND DID NOT DELETE IT. It used to
+      // read "the text names no rm", and that left the hole
+      // {@link stagedUnlinkFacts} describes: a HARD LINK at the staged name is
+      // invisible to `-L`, the redirection followed it, and a payload landed
+      // outside the confirmed folder under the answer `wrote`. The fix is
+      // `nofollow.ts`'s whole shape, being unlink then create exclusively, and
+      // the unlink is an `rm`.
+      {
+        const staged = stagedUnlinkFacts(row.text);
+        if (!staged.onlyTheStagedName) {
+          fail(
+            `write script ${row.id} names rm on the line ` +
+              `${JSON.stringify(staged.rms.find((one) => one.bare !== STAGED_UNLINK)?.bare ?? '')}. ` +
+              `The only rm it may hold is ${JSON.stringify(STAGED_UNLINK)}, the ` +
+              `staged name it composed for itself. Any other remove in this ` +
+              `text is a delete on somebody else's computer that nobody asked ` +
+              `for.`
+          );
+        }
+        if (!staged.unlinkedBeforeEveryCreate) {
+          fail(
+            `write script ${row.id} creates its staged file at a name it did ` +
+              `not unlink first. A hard link planted at that name is invisible ` +
+              `to [ -L ] and the redirection follows it, which puts the ` +
+              `payload outside the confirmed folder before the mv runs at all. ` +
+              `That is src/main/credentials/nofollow.ts's shape and the fix is ` +
+              `nofollow.ts's fix, being unlink then create exclusively.`
+          );
+        }
+        if (!staged.exclusive) {
+          fail(
+            `write script ${row.id} unlinks its staged name and then creates ` +
+              `it without set -C. The unlink alone leaves the window between ` +
+              `itself and the create, and an exclusive create is what closes ` +
+              `it, which is the other half of nofollow.ts.`
+          );
+        }
       }
     } else if (row.id === 'dir-new') {
       // PHASE 102. The fourth write, and the first one whose rule is that it
@@ -3636,18 +3739,30 @@ const REMOTE_SCRIPT_COUNT = 28;
               `${wanted.join(', ') || 'none'}.`
           );
         }
-        // THE rm EXCEPTION IS SATISFIED ONLY BY `git rm ... --cached`. Without
+        // THE rm EXCEPTION IS SATISFIED BY TWO SHAPES AND NO OTHER. Without
         // this the word would be allowed bare, and a bare rm on somebody
         // else's computer is the one thing this catalogue must never hold.
+        //
+        // `git rm ... --cached` removes the index entry and leaves the file in
+        // the folder, which is what unstaging a new file means.
+        //
+        // PHASE 242 FIX ROUND added the second, being STAGED_UNLINK, which
+        // removes one name a writer composed for itself and is narrower than
+        // the redirection it stands in front of. Its own conditions are in the
+        // file-put arm above and in condition 88f.
         if (named.includes('rm')) {
           for (const line of row.text.split('\n')) {
-            if (!/\brm\b/.test(line)) continue;
-            if (line.includes('git rm ') && line.includes('--cached')) continue;
+            const bare = line.trim();
+            if (!/\brm\b/.test(bare)) continue;
+            if (bare.includes('git rm ') && bare.includes('--cached')) continue;
+            if (bare === STAGED_UNLINK) continue;
             fail(
               `write script ${row.id} names rm on the line ` +
-                `${JSON.stringify(line.trim())}. The only rm this catalogue ` +
-                `may hold is git rm carrying --cached, which removes the index ` +
-                `entry and leaves the file in the folder.`
+                `${JSON.stringify(bare)}. The only two rms this catalogue may ` +
+                `hold are git rm carrying --cached, which removes the index ` +
+                `entry and leaves the file in the folder, and ` +
+                `${JSON.stringify(STAGED_UNLINK)}, which removes the staged ` +
+                `name the writer composed for itself.`
             );
           }
         }
@@ -6872,9 +6987,25 @@ process.stdout.write(
           'word main reads as "nobody can tell".'
       );
     }
-    if (b.filePutNamesRm) {
+    // PHASE 242 FIX ROUND NARROWED THIS. It read "file-put names rm. It
+    // replaces a file and it never removes one." and that sentence is what
+    // kept `nofollow.ts`'s fix out of this script while a hard link at the
+    // staged name carried a payload out of the confirmed folder. The unlink is
+    // allowed, by its exact spelling, and nothing else is. Condition 88f reads
+    // where it stands and that the create beside it is exclusive.
+    for (const line of b.filePutRmLines ?? []) {
+      if (line === STAGED_UNLINK) continue;
       fail(
-        'file-put names rm. It replaces a file and it never removes one.'
+        `file-put names rm on the line ${JSON.stringify(line)}. It replaces a ` +
+          `file and the only name it may remove is ${JSON.stringify(STAGED_UNLINK)}, ` +
+          `the staged name it composed for itself.`
+      );
+    }
+    if ((b.filePutRmLines ?? []).length === 0) {
+      fail(
+        'file-put names no rm at all, so it creates its staged file at a name ' +
+          'it did not unlink first. A hard link planted there is invisible to ' +
+          '[ -L ] and the redirection follows it.'
       );
     }
     if (
@@ -7156,12 +7287,21 @@ process.stdout.write(
       // `rm` as a command word with no `git ` in front of it. The per script
       // exception map in condition 38 is about which words may appear at all;
       // this is about whether the word is a git verb.
+      //
+      // PHASE 242 FIX ROUND added the second exception, and it is not a
+      // discard: `rm -f "$t"` removes the staged name a writer composed for
+      // itself, and it is NARROWER than the redirection it stands in front of,
+      // which destroys the contents of that name through every other name that
+      // shares its inode. Nothing a person named is reachable from it.
       if (!/(^|[\s;|&(])rm\b/.test(line)) continue;
       if (line.includes('git rm ')) continue;
+      if (line.trim() === STAGED_UNLINK) continue;
       fail(
         `remote script ${row.id} names rm as a command on the line ` +
-          `${JSON.stringify(line.trim())}. The only rm this catalogue may ` +
-          `hold is git rm carrying --cached.`
+          `${JSON.stringify(line.trim())}. The only two rms this catalogue ` +
+          `may hold are git rm carrying --cached and ` +
+          `${JSON.stringify(STAGED_UNLINK)}, the staged name a writer ` +
+          `composed for itself.`
       );
     }
   }
@@ -7879,7 +8019,10 @@ process.stdout.write(
       const lines = text.split('\n');
       const out = [];
       lines.forEach((line, at) => {
-        if (/^\s*(mv|mkdir|chmod|ln) /.test(line)) out.push(at);
+        // `rm` joined this list in the Phase 242 fix round, because the staged
+        // unlink is a change on that machine and the walk has to stand above
+        // it like everything else.
+        if (/^\s*(mv|mkdir|chmod|ln|rm) /.test(line)) out.push(at);
         if (/> "\$t"/.test(line)) out.push(at);
       });
       return out;
@@ -8036,6 +8179,57 @@ process.stdout.write(
       );
     }
 
+    // 88f. THE LINK KIND `-L` CANNOT SEE, which is the fix round's finding and
+    //      the reason this condition has a second half at all.
+    //
+    //      A HARD LINK is not a link to the shell. It IS the file, under a
+    //      second name, and `[ -L ]` reads false on it. The phase's verifier
+    //      planted one at the staged name `<file>.tortie-part` on the
+    //      operator's own Mac Pro, drove it through Tortie's own
+    //      `machines.putFile`, and the file OUTSIDE the confirmed folder took
+    //      the payload while the answer read `wrote` with the confirmed folder
+    //      named beside it. That is arm a9's outcome at the parent commit,
+    //      reached by the one shape the refusal could not see.
+    //
+    //      `src/main/credentials/nofollow.ts` is unlink then create
+    //      exclusively, and 88c took the `-L` half alone. This reads the other
+    //      half: every creation of the staged name has an unlink of that name
+    //      standing above it, the creation is exclusive, and every `rm` in the
+    //      text is that one unlink and nothing else.
+    const staged = stagedUnlinkFacts(putText);
+    if (staged.creates.length === 0) {
+      fail(
+        'file-put has no line this gate recognises as creating its staged ' +
+          'file, so condition 88f is checking nothing.'
+      );
+    } else {
+      if (!staged.unlinkedBeforeEveryCreate) {
+        fail(
+          'file-put creates its staged file at a name it did not unlink ' +
+            'first. A hard link planted there is invisible to [ -L ] and the ' +
+            'redirection follows it, so the payload lands outside the ' +
+            'confirmed folder before the mv runs at all, which is what was ' +
+            "measured on the operator's own machine."
+        );
+      }
+      if (!staged.exclusive) {
+        fail(
+          'file-put unlinks its staged name and creates it without set -C. ' +
+            'The unlink alone leaves the window between itself and the ' +
+            'create, and the exclusive create is what closes it.'
+        );
+      }
+      if (!staged.onlyTheStagedName) {
+        fail(
+          `file-put names rm on the line ` +
+            `${JSON.stringify(staged.rms.find((one) => one.bare !== STAGED_UNLINK)?.bare ?? '')}, ` +
+            `which is not the staged unlink. The unlink is allowed because it ` +
+            `removes one name the script composed for itself and is narrower ` +
+            `than the redirection it stands in front of. Nothing else is.`
+        );
+      }
+    }
+
     // 88e. THE PROOF THAT EVERY RULE ABOVE CAN FAIL. Six planted texts, each
     //      one real script with exactly one clause taken out or moved, run
     //      through the same readers. A gate whose scanners cannot fail is a
@@ -8086,6 +8280,36 @@ process.stdout.write(
         why: "entry-rename's walk over $3 removed",
         text: renameText.replace(/lr="\$3"\nlp="\$1"\nwhile[\s\S]*?\ndone\n/, ''),
         expect: (t) => walkFor(t, '$3') === null
+      },
+      // The fix round's three, one per clause of 88f. The first is the shape
+      // that really shipped and really escaped.
+      {
+        why: 'the staged unlink removed, which is the shape that escaped',
+        text: putText.split('\n').filter((line) => line.trim() !== STAGED_UNLINK).join('\n'),
+        expect: (t) => stagedUnlinkFacts(t).unlinkedBeforeEveryCreate === false
+      },
+      {
+        why: 'the staged unlink moved below the redirection it guards',
+        text: (() => {
+          const lines = putText.split('\n');
+          const at = lines.findIndex((line) => line.trim() === STAGED_UNLINK);
+          if (at < 0) return putText;
+          const one = lines.splice(at, 1);
+          const mv = lines.findIndex((line) => line.startsWith('mv '));
+          lines.splice(mv, 0, ...one);
+          return lines.join('\n');
+        })(),
+        expect: (t) => stagedUnlinkFacts(t).unlinkedBeforeEveryCreate === false
+      },
+      {
+        why: 'the exclusive create removed, leaving the unlink alone',
+        text: putText.split('\n').filter((line) => line.trim() !== 'set -C').join('\n'),
+        expect: (t) => stagedUnlinkFacts(t).exclusive === false
+      },
+      {
+        why: 'an rm that names the person\'s own file rather than the staged name',
+        text: putText.replace(STAGED_UNLINK, 'rm -f "$f"'),
+        expect: (t) => stagedUnlinkFacts(t).onlyTheStagedName === false
       }
     ];
     let plantsBehaved = 0;
@@ -8115,7 +8339,10 @@ process.stdout.write(
         `line that writes; main maps that onto the outsideRoot outcome all ` +
         `three verbs already had, so no new word crosses the channel. file-put ` +
         `also refuses a last component that is a link and a link planted at ` +
-        `its staged name, which the redirection would follow. entry-rename ` +
+        `its staged name, which the redirection would follow. A HARD LINK ` +
+        `there is invisible to [ -L ], so file-put unlinks the staged name ` +
+        `and creates it exclusively, which is nofollow.ts's whole shape, and ` +
+        `the only rm it may hold is that one unlink. entry-rename ` +
         `still renames a link, which it was written to do. Nothing is ` +
         `resolved: no readlink, no realpath and no second round trip. ` +
         `${String(plantsBehaved)} of ${String(planted.length)} planted texts ` +

@@ -1432,7 +1432,17 @@ const writeBranches = (() => {
     filePutSumArmComputesChecksum: sumArm.includes('c=$("$p"'),
     filePutComparesBeforeWriting:
       compareAt >= 0 && firstWriteAt >= 0 && compareAt < firstWriteAt,
-    filePutNamesRm: /(^|[\s;|&(){}])rm([\s;|&(){}]|$)/.test(filePut),
+    // PHASE 242 FIX ROUND. This was `filePutNamesRm`, a boolean, and the rule
+    // it fed was that the text names no `rm` at all. That rule left the hole a
+    // HARD LINK at the staged name walked through, which `[ -L ]` cannot see
+    // and which the redirection followed. The fix is nofollow.ts's shape, being
+    // unlink then create exclusively, so the text now names one. The probe
+    // hands over the LINES and the gate does the judging, which is this file's
+    // standing rule.
+    filePutRmLines: filePut
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => /(^|[\s;|&(){}])rm([\s;|&(){}]|$)/.test(line)),
     filePutHasRootCase: filePut.includes('case "$1" in /*) ;; *) exit 1;; esac'),
     filePutHasRootDotDotCase: filePut.includes('case "$1" in *..*) exit 1;; esac'),
     filePutHasRelCase: filePut.includes('case "$2" in /*|*..*) exit 1;; esac'),
