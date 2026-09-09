@@ -27,6 +27,10 @@ import {
 } from './monaco-loader';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
+// PHASE 241. The editor's right-click menu, and the three reshapes the Edit
+// menu's rows reach through the leaf below.
+import { installReshapeCommands } from './reshape-commands';
+import { useEditorMenu } from './use-editor-menu';
 // PHASE 101. Whether a tab that names a file on another machine is an edit
 // surface is a fact about that MACHINE, not about the tab, so it is read from
 // the link state main pushes rather than from anything written into the tab.
@@ -256,6 +260,20 @@ export function MonacoHost({
   const readOnly = tabIsReadOnly(tab, remoteWriteRoot);
   const contentReady = !tab.loading && tab.error === null;
 
+  // PHASE 241. The editor's native context menu. It is hung on `.ed-mount`
+  // below rather than on the panel, which is what keeps it off the Redline
+  // view structurally — that element does not exist in redline mode. Monaco's
+  // own `contextmenu` option stays false (DESIGN §3).
+  const { onContextMenu, runReshape } = useEditorMenu({
+    tab,
+    writable: !readOnly,
+    editorRef: codeEditor
+  });
+
+  // The Edit menu's three reshape rows reach the mounted host through this
+  // leaf, the way Phase 227's four Redline rows reach the mounted view.
+  useEffect(() => installReshapeCommands(runReshape), [runReshape]);
+
   useEffect(() => {
     const m = getLoadedMonaco();
     if (!ready || m === null || !contentReady) return;
@@ -459,7 +477,7 @@ export function MonacoHost({
 
   return (
     <div className="ed-host">
-      <div ref={codeContainer} className="ed-mount" />
+      <div ref={codeContainer} className="ed-mount" onContextMenu={onContextMenu} />
       {!ready || !contentReady ? <OpeningSkeleton /> : null}
     </div>
   );
