@@ -128,17 +128,21 @@ export const ATTACK_ARMS = [
   { id: 'a12-staged-name-hard-link', outcome: 'wrote', far: 'hardUntouched' },
   { id: 'a6-stage-outside', outcome: 'outsideRoot', far: 'dirtyNotStaged' },
   { id: 'a7-commit-outside', outcome: 'refused', far: 'siblingCommits' },
-  // RECORDED RATHER THAN GRADED, and section 5 of the research says why. The
+  // PHASE 242.1'S TWO, GRADED SINCE 2026-09-08. They were recorded rather than
+  // graded because Phase 242 measured the defect and deliberately left it: the
   // two git verbs take a cwd rather than a path, main bounds that cwd over the
   // path TEXT, and a cwd THROUGH the link resolves textually under the
-  // confirmed folder. This run measured `a10` staging a file in a repository
-  // outside the folder. Phase 242 does not fix it: the far side would need the
-  // confirmed root, which these three scripts are not given, and the only
-  // rootless refusal available refuses every repository reached through a link
-  // anywhere above it, whose cost on his own paths is unmeasured. It is a
-  // DEFECT and it is written down as one rather than graded green here.
-  { id: 'a10-stage-through-link', outcome: null, far: null },
-  { id: 'a11-commit-through-link', outcome: null, far: null }
+  // confirmed folder. `a10` answered `done` and staged a file in the repository
+  // OUTSIDE the confirmed folder; `a11` refused on its HEAD guard alone and
+  // handed back that repository's own HEAD, which is the sha a tab really
+  // opened through the link would have drawn.
+  //
+  // `git-stage`, `git-unstage` and `git-commit` carry the confirmed folder and
+  // the tab's own folder relative to it now, and walk that relative part for a
+  // link one component at a time above every git. a11 IS DRIVEN WITH BOTH OF
+  // MAIN'S GUARDS SATISFIED, so its refusal can only be containment.
+  { id: 'a11-commit-through-link', outcome: 'refused', far: 'siblingUntouched' },
+  { id: 'a10-stage-through-link', outcome: 'outsideRoot', far: 'dirtyLinkNotStaged' }
 ];
 
 /** What each far-side key has to still read after the attack. */
@@ -164,7 +168,23 @@ export const FAR_MUST_HOLD = {
   // whole staged list, because `a10` deliberately stages a different file in
   // the same repository and the two must not grade each other.
   dirtyNotStaged: (_b, after) => !String(after.siblingStaged ?? '').split(',').includes('dirty.txt'),
-  siblingCommits: (before, after) => after.siblingCommits === before.siblingCommits
+  siblingCommits: (before, after) => after.siblingCommits === before.siblingCommits,
+  // `a10` aims at `dirty-link.txt`, which the fixture leaves UNSTAGED in the
+  // repository outside the confirmed folder. It is asked by name for the same
+  // reason `dirtyNotStaged` is: the four arms that touch this repository must
+  // not be able to grade each other through one shared reading.
+  dirtyLinkNotStaged: (_b, after) =>
+    !String(after.siblingStaged ?? '').split(',').includes('dirty-link.txt'),
+  // THREE THINGS AT ONCE for `a11`, because any one alone passes for the wrong
+  // reason. The commit count has not moved, the sha HEAD holds is the same sha,
+  // and `dirty-commit.txt` is STILL STAGED — without that third half a commit
+  // that landed and then had its count read from somewhere else, or an arm that
+  // refused in main before the fixture's staging was ever asked about, would
+  // grade green.
+  siblingUntouched: (before, after) =>
+    after.siblingCommits === before.siblingCommits &&
+    after.siblingHead === before.siblingHead &&
+    String(after.siblingStaged ?? '').split(',').includes('dirty-commit.txt')
 };
 
 /**
@@ -349,13 +369,15 @@ function selfTest() {
     farBeforeAttack: {
       victimMd5: 'aaa', leafMd5: 'bbb', stagedMd5: 'ccc', outsideExists: 'no',
       madeThroughLink: 'no', readmeMovedOut: 'no', readmeStillIn: 'yes',
-      siblingStaged: '', siblingCommits: '1', strayParts: '1',
+      siblingStaged: 'dirty-commit.txt,', siblingCommits: '1', siblingHead: 'abc123',
+      strayParts: '1',
       hardMd5: 'ddd', hardLinks: '2', hardPartExists: 'yes', hardTargetHead: '# hard target|'
     },
     farAfterAttack: {
       victimMd5: 'aaa', leafMd5: 'bbb', stagedMd5: 'ccc', outsideExists: 'no',
       madeThroughLink: 'no', readmeMovedOut: 'no', readmeStillIn: 'yes',
-      siblingStaged: '', siblingCommits: '1', strayParts: '1',
+      siblingStaged: 'dirty-commit.txt,', siblingCommits: '1', siblingHead: 'abc123',
+      strayParts: '1',
       hardMd5: 'ddd', hardLinks: '1', hardPartExists: 'no', hardTargetHead: 'PWNED-A12|'
     },
     B: {
@@ -401,10 +423,25 @@ function selfTest() {
   f = clone(); f.farAfterAttack.readmeMovedOut = 'yes'; f.farAfterAttack.readmeStillIn = 'no';
   fixtures.push(['a file taken out of the confirmed folder', f, 1]);
 
-  // ONE rather than two: only `a7` grades that key now, because `a11` is
-  // recorded rather than graded for the reason ATTACK_ARMS gives.
+  // TWO since Phase 242.1, because `a11` grades that repository too now: `a7`
+  // aims at it by its own name and `a11` reaches it through the link.
   f = clone(); f.farAfterAttack.siblingCommits = '2';
-  fixtures.push(['a commit landing in a repository outside the folder', f, 1]);
+  fixtures.push(['a commit landing in a repository outside the folder', f, 2]);
+
+  // PHASE 242.1'S FOUR, one per half of the two new far-side rules and one for
+  // each word. The first two are what really happened on his Mac Pro at the
+  // parent commit.
+  f = clone(); f.farAfterAttack.siblingStaged = 'dirty-commit.txt,dirty-link.txt,';
+  fixtures.push(['a file staged through the link, which is the parent reading', f, 1]);
+
+  f = clone(); f.farAfterAttack.siblingHead = 'def456';
+  fixtures.push(['HEAD moved in the repository outside the folder', f, 1]);
+
+  f = clone(); f.farAfterAttack.siblingStaged = '';
+  fixtures.push(['the staged file gone, so the commit arm never reached its guard', f, 1]);
+
+  f = clone(); f.D.attack['a10-stage-through-link'].outcome = 'done';
+  fixtures.push(['the stage-through-link arm answering done, which is the parent', f, 1]);
 
   f = clone(); f.farAfterAttack.strayParts = '2';
   fixtures.push(['a staged .tortie-part left behind, counted as a DIFFERENCE', f, 1]);
@@ -702,13 +739,23 @@ const attackBody = (mid, farRoot, sibling, outside, shas) => `
     await shot('a12-staged-name-hard-link', () => M.putFile({ machineId: MID, path: FAR + '/docs/hard-target.md', contents: 'PWNED-A12\\n', expect: SHA.hardTargetSha }));
     await shot('a6-stage-outside', () => M.stage({ machineId: MID, cwd: SIB, paths: ['dirty.txt'] }));
     await shot('a7-commit-outside', () => M.commit({ machineId: MID, cwd: SIB, headSha: 'x'.repeat(40), staged: ['dirty.txt'], message: 'p242 should never land' }));
-    // THE TWO THE MEASURE STEP NAMED AND DID NOT DRIVE. The git verbs take a
-    // cwd rather than a path, and main bounds that cwd over the path TEXT.
-    // A cwd THROUGH the link resolves textually under the confirmed folder.
-    // They stage a DIFFERENT file from a6's, so the two arms cannot grade each
-    // other through one shared git diff --cached reading.
+    // PHASE 242.1'S TWO, WHICH PHASE 242 MEASURED AND RECORDED. The git verbs
+    // take a cwd rather than a path, and main bounds that cwd over the path
+    // TEXT, so a cwd THROUGH the link resolves textually under the confirmed
+    // folder. They aim at DIFFERENT files from a6's and a7's, so no two of the
+    // four arms can grade each other through one shared reading.
+    //
+    // a11 RUNS FIRST AND WITH BOTH OF MAIN'S GUARDS SATISFIED, which is what
+    // makes it an attack. Phase 242 drove it with a made-up sha and read
+    // refused, and that refusal was the repeat guard rather than containment:
+    // the sha it handed back was this repository's own HEAD, which is what a
+    // tab really opened here would have drawn. So the real HEAD goes in, and
+    // the staged set is the one the fixture staged, which is what main's own
+    // fresh read of this repository reports. It runs BEFORE a10 because at the
+    // parent a10 stages a second file here, and that would move main's staged
+    // set out from under a11's guard and refuse it in main again.
+    await shot('a11-commit-through-link', () => M.commit({ machineId: MID, cwd: FAR + '/escape-link', headSha: SHA.siblingHead, staged: ['dirty-commit.txt'], message: 'p242-1 should never land either' }));
     await shot('a10-stage-through-link', () => M.stage({ machineId: MID, cwd: FAR + '/escape-link', paths: ['dirty-link.txt'] }));
-    await shot('a11-commit-through-link', () => M.commit({ machineId: MID, cwd: FAR + '/escape-link', headSha: 'x'.repeat(40), staged: ['dirty-link.txt'], message: 'p242 should never land either' }));
     return out;
 `;
 
@@ -1019,7 +1066,13 @@ async function main() {
         victimSha: fixture.victimSha ?? '',
         leafSha: fixture.leafSha ?? '',
         stagedTargetSha: fixture.stagedTargetSha ?? '',
-        hardTargetSha: fixture.hardTargetSha ?? ''
+        hardTargetSha: fixture.hardTargetSha ?? '',
+        // Phase 242.1: the sha the OUTSIDE repository's HEAD really holds,
+        // read by an ssh Tortie did not compose. It is what a tab really
+        // opened through the link would have drawn, and handing it in is what
+        // makes the commit arm an attack on containment rather than on the
+        // repeat guard.
+        siblingHead: fixture.siblingHead ?? ''
       };
       record('attackDigests', shas);
       const d = await launch({
@@ -1128,20 +1181,24 @@ async function main() {
     writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
     say(`report: ${out}`);
     if (ONLY === '') {
-      // THE TWO RECORDED ARMS, printed whatever the verdict is, because a
-      // defect this run measured and did not fix must not be findable only by
-      // reading a JSON file nobody opens.
+      // THE TWO PHASE 242.1 ARMS, printed whatever the verdict is, because the
+      // reading this phase exists for must not be findable only by opening a
+      // JSON file nobody opens. At the parent they read "done" and "committed"
+      // with the staged list moving and the commit count going from 1 to 2.
       const rec = (report.D ?? {}).attack ?? {};
       const a10 = rec['a10-stage-through-link'] ?? {};
       const a11 = rec['a11-commit-through-link'] ?? {};
+      const fb = report.farBeforeAttack ?? {};
+      const fa = report.farAfterAttack ?? {};
       say(
-        `STATED DEFECT, measured and not fixed here: the two git verbs bound ` +
-          `their cwd over the path TEXT. Through a link inside the confirmed ` +
-          `folder, git-stage answered "${String(a10.outcome)}" and git-commit ` +
-          `answered "${String(a11.outcome)}", and the staged list in the ` +
-          `repository OUTSIDE the folder read ` +
-          `"${String((report.farBeforeAttack ?? {}).siblingStaged)}" before and ` +
-          `"${String((report.farAfterAttack ?? {}).siblingStaged)}" after.`
+        `PHASE 242.1, the cwd through a link: git-stage answered ` +
+          `"${String(a10.outcome)}" and git-commit, driven with the sha HEAD ` +
+          `really held and the staged set main's own read reports, answered ` +
+          `"${String(a11.outcome)}". In the repository OUTSIDE the confirmed ` +
+          `folder the staged list read "${String(fb.siblingStaged)}" before ` +
+          `and "${String(fa.siblingStaged)}" after, the commit count ` +
+          `${String(fb.siblingCommits)} and ${String(fa.siblingCommits)}, and ` +
+          `HEAD ${String(fb.siblingHead)} and ${String(fa.siblingHead)}.`
       );
       if (findings.length === 0) say('PASS. Every write verb landed under the confirmed folder and every arm aimed at a PATH out of it refused with the far side unmoved.');
       else {

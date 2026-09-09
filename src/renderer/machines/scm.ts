@@ -53,11 +53,21 @@ export function remoteWritesNotConfirmed(label: string): string {
  * about, and the confirmed folder is in Settings under the machine's own row.
  * Naming both here would put two absolute paths in one sentence in a column
  * that is 300 px wide.
+ *
+ * IT SAID "Nothing was sent." UNTIL PHASE 242.1 AND THAT WORD WAS THE ONE THAT
+ * WENT FALSE. This outcome has two reasons now. Main still refuses a folder
+ * that is textually outside before it composes anything, and there nothing was
+ * indeed sent. But a folder reached through a SYMBOLIC LINK is textually
+ * inside, so main sends and the far side refuses above every git — measured on
+ * the operator's own Mac Pro on 2026-09-08, `sent: 1` with the index unmoved.
+ * "Nothing was changed" is true of both and is the promise a person cares
+ * about. It is the same word `remoteSaveOutsideRoot` has always used, which is
+ * why the three path verbs could reuse their sentence unedited.
  */
 export function remoteStageOutsideRoot(label: string): string {
   return (
     `That folder on ${label} is outside the folder Tortie was given ` +
-    `permission to write in. Nothing was sent.`
+    `permission to write in. Nothing was changed.`
   );
 }
 

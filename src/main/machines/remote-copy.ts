@@ -1027,11 +1027,21 @@ export function commitWritesOff(label: string): string {
   );
 }
 
-/** The tab's folder is outside the folder the person confirmed. */
+/**
+ * The tab's folder is outside the folder the person confirmed.
+ *
+ * IT SAID "Nothing was sent." UNTIL PHASE 242.1. This outcome has two reasons
+ * now: main refuses a folder that is textually outside before it composes
+ * anything, and the far side refuses a folder reached through a SYMBOLIC LINK,
+ * which is textually inside, above the `cd` and above every git. In the second
+ * case a command really was sent and nothing was committed, measured on the
+ * operator's own Mac Pro on 2026-09-08 at `sent: 1` with HEAD and the staged
+ * set both unmoved. "Nothing was changed" is true of both.
+ */
 export function commitOutsideRoot(label: string): string {
   return (
     `That folder on ${label} is outside the folder Tortie was given ` +
-    `permission to write in. Nothing was sent.`
+    `permission to write in. Nothing was changed.`
   );
 }
 

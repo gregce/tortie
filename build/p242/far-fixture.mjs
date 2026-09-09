@@ -25,6 +25,7 @@
  * | `<root>/leaf-link` | a symbolic link as the ENTRY ITSELF, which nothing had ever asked about |
  * | `<root>/docs/staged-target.md.tortie-part` | a link planted at the STAGED NAME `file-put` writes through. `> "$t"` follows one, so at the parent the payload landed outside the folder before the `mv` ran at all. It is `src/main/credentials/nofollow.ts`'s shape |
  * | `<root>/docs/hard-target.md.tortie-part` | a HARD LINK at that same staged name, which is the FIX ROUND's piece. `[ -L ]` cannot see one, because a hard link is not a link to the shell: it IS the file under a second name. The phase's verifier drove exactly this through `machines.putFile` on this machine and the file outside took the payload under the answer `wrote` |
+ * | `<root>x/dirty-commit.txt` | STAGED at setup, and Phase 242.1's. The commit arm through the link has to be driven with main's two guards SATISFIED, being the sha `HEAD` really holds and the staged set main's own fresh read really reports, or it refuses in main and never reaches the far side at all. Phase 242 read `refused` from that arm and it was the sha guard rather than containment |
  * | `<root>-outside.txt` | a path elsewhere entirely, for the absolute-path arm |
  *
  * It is `.p224/far-fixture.mjs`'s shape, which every remote phase since Phase
@@ -133,6 +134,10 @@ P242FILE
 cat > ${sibling}/dirty-link.txt <<'P242FILE'
 dirty, for the through-the-link arm
 P242FILE
+cat > ${sibling}/dirty-commit.txt <<'P242FILE'
+dirty, for the through-the-link COMMIT arm
+P242FILE
+git -C ${sibling} add dirty-commit.txt
 cd ${root}
 echo "commits=$(git log --oneline | wc -l | tr -d ' ')"
 echo "dirty=$(git status --porcelain=v1 | wc -l | tr -d ' ')"
@@ -147,6 +152,7 @@ echo "victimSha=$(shasum -a 256 ${sibling}/victim.txt | cut -d' ' -f1)"
 echo "leafSha=$(shasum -a 256 ${sibling}/victim-leaf.txt | cut -d' ' -f1)"
 echo "siblingCommits=$(cd ${sibling} && git log --oneline | wc -l | tr -d ' ')"
 echo "siblingStaged=$(cd ${sibling} && git diff --cached --name-only | tr '\\n' ',')"
+echo "siblingHead=$(cd ${sibling} && git rev-parse HEAD)"
 echo "outsideExists=$(test -e ${outside} && echo yes || echo no)"
 `;
 
@@ -187,6 +193,7 @@ echo "hardLinks=$(stat -f %l ${FAR_SIBLING}/victim-hard.txt 2>/dev/null || echo 
 echo "siblingEntries=$(ls -1a ${FAR_SIBLING} | wc -l | tr -d ' ')"
 echo "siblingCommits=$(cd ${FAR_SIBLING} && git log --oneline | wc -l | tr -d ' ')"
 echo "siblingStaged=$(cd ${FAR_SIBLING} && git diff --cached --name-only | tr '\\n' ',')"
+echo "siblingHead=$(cd ${FAR_SIBLING} && git rev-parse HEAD)"
 echo "siblingDirty=$(cd ${FAR_SIBLING} && git status --porcelain=v1 | wc -l | tr -d ' ')"
 echo "outsideExists=$(test -e ${FAR_OUTSIDE} && echo yes || echo no)"
 echo "escapeLink=$(readlink ${FAR_ROOT}/escape-link 2>/dev/null || echo GONE)"

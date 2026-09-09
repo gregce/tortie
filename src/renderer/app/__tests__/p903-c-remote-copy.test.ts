@@ -844,7 +844,7 @@ describe('the five sentences Phase 103 added', () => {
   it('says the folder is outside the one that was confirmed', () => {
     expect(remoteStageOutsideRoot(L)).toBe(
       'That folder on Studio is outside the folder Tortie was given ' +
-        'permission to write in. Nothing was sent.'
+        'permission to write in. Nothing was changed.'
     );
   });
 
