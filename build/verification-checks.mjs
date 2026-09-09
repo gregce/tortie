@@ -374,6 +374,24 @@ export const CHECKS = [
   // launches nothing.
   realRemote('probe:p2422'),
 
+  // Phase 242.2's FIX ROUND, and it is the round's VERIFIER's probe rather
+  // than its builder's, kept because it is the only thing that drove the
+  // picture's OWN name. Two Electrons one after the other on one scratch
+  // profile and the gmux-p242-2v-<pid> socket, no agent, no token, no
+  // keychain. Reading A drives the parent's and HEAD's `image-put` text on the
+  // far machine's own shell over six plant shapes each, three of which the
+  // builder's own arms never drove; reading B drives `machines.putImage` over
+  // four of them, with the far side read by an `ssh` Tortie did not compose.
+  // It fails when anything outside `~/.tortie/images` reads differently after
+  // a put than before it, which includes a file this run planted as the
+  // person's own being replaced and any name appearing out there that was not
+  // there before. Every far side path carries this run's own
+  // `tortie-p242-2v-scratch-<pid>` prefix or is `~/.tortie`, which it refuses
+  // to run at all unless it is absent first, and the scratch tmux socket is
+  // ended AND unlinked on both machines in a `finally`. `--self-test` proves
+  // the grader on 6 fixtures and launches nothing.
+  realRemote('probe:p2422v'),
+
   // Driver probes: a pinned tsx driver over production modules and real
   // scratch git repositories, no Electron, no tmux, no ssh.
   adapter('probe:p98', 'git and the lockfile ripgrep over scratch repositories'),
