@@ -50,6 +50,19 @@ export interface ContextDetailTabProps {
   entry: ContextEntry;
   /** The project the tab belongs to, for opening paths out of the card. */
   repoPath: string;
+  /**
+   * PHASE 235's FIX ROUND. True when the tab's file lives on another machine.
+   *
+   * TODAY IT IS ALWAYS FALSE, and that is a measurement rather than a hope:
+   * `ContextView` opens a detail tab from `onActivate` alone, which returns on
+   * `cwd === null`, and `cwd` is null for exactly the remote targets. So no
+   * detail tab can currently be opened for a machine. The guard is here rather
+   * than resting on that, because the fact lives on the TAB — `EditorTab.remote`
+   * has carried it since Phase 73 — and a later round that opens this tab from
+   * a remote row would otherwise hand a far-side folder to Finder on this Mac,
+   * which is the door `problemRevealDir` closed in the sidebar.
+   */
+  remote?: boolean;
   /** The file's own content, rendered by the editor that owns that renderer. */
   renderBody?: () => React.ReactNode;
 }
@@ -57,6 +70,7 @@ export interface ContextDetailTabProps {
 export function ContextDetailTab({
   entry,
   repoPath,
+  remote = false,
   renderBody
 }: ContextDetailTabProps): React.JSX.Element {
   const scan = useContext((s) => s.scan);
@@ -112,7 +126,7 @@ export function ContextDetailTab({
           ...(line !== undefined ? { line } : {})
         });
       }}
-      {...(canReveal()
+      {...(!remote && canReveal()
         ? {
             onRevealPath: (path: string) => {
               void reveal(path).catch(() => undefined);

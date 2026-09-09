@@ -94,6 +94,21 @@ offers an enabled Reveal in Finder over a far-side path, and `fs:reveal` runs
 path reveals the wrong file rather than nothing. Copy Path on the same menu drops the machine prefix
 the Explorer deliberately adds, so a remote path lands on the clipboard naming a folder on this Mac.
 
+**CORRECTION, 2026-09-08, from Phase 235's fix round: it is three of FIVE, not three of four.** The
+sentence above reads Context as one place and it is two. `src/renderer/context/menus.ts` guards the
+ROW and GROUP menus on `ContextMenuDeps.remote`, and that half was right. The guided fix beside a
+broken row is a second door and was not guarded at all: `resolve.ts:284` fills
+`ContextProblem.revealDir` with `dirname` of the file's own path for a skill whose folder does not
+match its declared name, `scan.ts:246` pushes those problems onto the scan,
+`src/main/machines/remote-agent-context.ts:390` reads a MACHINE's Context through the same
+`scanContext`, and `ContextView.tsx` drew an `Open Folder` button from that field with no remote term
+anywhere near it, calling `menuDeps.revealPath` straight through to `fs:reveal`. It is the same wrong
+answer as the tab strip's, for the same `/Users/gdc` reason. The fifth is `ContextDetailTab.tsx`'s
+card, which is guarded on `canReveal()` alone; it is UNREACHABLE today, because `ContextView` opens a
+detail tab from `onActivate` alone and that returns on `cwd === null`, which is exactly the remote
+targets. Both are closed by `problemRevealDir` and the tab's own `remote` fact, and pinned by
+`src/renderer/context/__tests__/p235-problem-reveal.test.ts`.
+
 ### Gaps that exist today which research 57 did not know about
 
 1. Architecture is wholly absent on a remote tab. One sentence, no map, no reading, no contract.

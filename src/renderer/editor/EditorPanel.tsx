@@ -930,6 +930,7 @@ activeTab.error !== null ? (
             <ContextDetailTab
               entry={contextEntry}
               repoPath={activeTab.repoPath}
+              remote={activeTab.remote !== undefined}
               renderBody={() => body}
             />
           ) : (

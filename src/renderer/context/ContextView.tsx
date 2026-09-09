@@ -122,7 +122,12 @@ import type {
   ContextProblem,
   ContextRootReadout
 } from './model';
-import { groupMenuItems, menuAt, rowMenuItems } from './menus';
+import {
+  groupMenuItems,
+  menuAt,
+  problemRevealDir,
+  rowMenuItems
+} from './menus';
 import type { ContextMenuDeps, ContextRowActions } from './menus';
 import { useContext } from './store';
 import { onContextChanged } from './bridge';
@@ -245,6 +250,12 @@ interface SectionProps {
   onOpenProblem(problem: ContextProblem): void;
   /** Phase 26.2 — the Open Folder affordance beside a guided fix. */
   onRevealDir(path: string): void;
+  /**
+   * PHASE 235's FIX ROUND. The rows describe files on another machine, so the
+   * guided fix builds no Open Folder button. `problemRevealDir` in ./menus.ts
+   * is the one place that decides it, and it says why.
+   */
+  remote: boolean;
 }
 
 function Section({
@@ -267,7 +278,8 @@ function Section({
   onGroupMenu,
   onHover,
   onOpenProblem,
-  onRevealDir
+  onRevealDir,
+  remote
 }: SectionProps): React.JSX.Element {
   const category = CONTEXT_SECTION_CATEGORY[id];
   // Collapse state is per project, so a repo whose hooks matter opens with
@@ -331,40 +343,46 @@ function Section({
               in --error that opens the editor at the line the parser named; it
               is never a blank panel, and it is never a reason to hide the
               entries that DID read. */}
-          {problems.map((problem) => (
-            <div
-              key={`${problem.path}:${String(problem.line ?? 0)}`}
-              className="ctx-row ctx-row-problem"
-              role="option"
-              aria-selected={false}
-              title={problem.path}
-              onClick={() => onOpenProblem(problem)}
-            >
-              <Codicon name="error" size="lg" className="ctx-mark-broken" />
-              <span className="ctx-problem-body">
-                <span className="ctx-problem-text">{problem.message}</span>
-                {/* Phase 26.2 — a user-owned naming problem is actionable:
-                    both fixes stated, and Open Folder beside them. Tortie
-                    never applies a fix itself; it opens the folder and the
-                    file and stops. */}
-                {problem.fix !== undefined ? (
-                  <span className="ctx-problem-fix">{problem.fix}</span>
-                ) : null}
-                {problem.revealDir !== undefined ? (
-                  <button
-                    type="button"
-                    className="btn-text ctx-problem-open"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRevealDir(problem.revealDir ?? '');
-                    }}
-                  >
-                    Open Folder
-                  </button>
-                ) : null}
-              </span>
-            </div>
-          ))}
+          {problems.map((problem) => {
+            // PHASE 235's FIX ROUND — the folder this button would open, or
+            // nothing at all when the file is on a machine. The reason is on
+            // `problemRevealDir` in ./menus.ts.
+            const revealDir = problemRevealDir(problem, remote);
+            return (
+              <div
+                key={`${problem.path}:${String(problem.line ?? 0)}`}
+                className="ctx-row ctx-row-problem"
+                role="option"
+                aria-selected={false}
+                title={problem.path}
+                onClick={() => onOpenProblem(problem)}
+              >
+                <Codicon name="error" size="lg" className="ctx-mark-broken" />
+                <span className="ctx-problem-body">
+                  <span className="ctx-problem-text">{problem.message}</span>
+                  {/* Phase 26.2 — a user-owned naming problem is actionable:
+                      both fixes stated, and Open Folder beside them. Tortie
+                      never applies a fix itself; it opens the folder and the
+                      file and stops. */}
+                  {problem.fix !== undefined ? (
+                    <span className="ctx-problem-fix">{problem.fix}</span>
+                  ) : null}
+                  {revealDir !== undefined ? (
+                    <button
+                      type="button"
+                      className="btn-text ctx-problem-open"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRevealDir(revealDir);
+                      }}
+                    >
+                      Open Folder
+                    </button>
+                  ) : null}
+                </span>
+              </div>
+            );
+          })}
           {groups.length === 0 && problems.length === 0 ? (
             <div className="ctx-group-stub">
               {filter.trim() === ''
@@ -928,6 +946,7 @@ export function ContextSection({
             onHover={onHover}
             onOpenProblem={onOpenProblem}
             onRevealDir={menuDeps.revealPath}
+            remote={remote}
           />
         ))}
         {sectionDrag.overlay}

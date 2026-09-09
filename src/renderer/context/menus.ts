@@ -18,7 +18,7 @@
 
 import type { MenuItemSpec, MenuSpec } from '../state/store';
 import { menuGlyph } from '../icons';
-import type { ContextEntry, ContextScope } from './model';
+import type { ContextEntry, ContextProblem, ContextScope } from './model';
 
 /** Where a menu was asked for. */
 export interface MenuAt {
@@ -73,6 +73,34 @@ export interface ContextMenuDeps {
    * and useful. An absent verb is one fewer menu item, never a dead one.
    */
   remote: boolean;
+}
+
+/**
+ * PHASE 235's FIX ROUND — the FOURTH reveal door, and the one this file's own
+ * rule had never been asked about.
+ *
+ * `ContextMenuDeps.remote` above keeps Reveal in Finder out of the ROW and
+ * GROUP menus, and Phase 235 item 1 kept it out of the editor tab strip. The
+ * guided fix beside a broken row carries a fifth one: a skill whose folder
+ * does not match its declared name gets an `Open Folder` button, drawn from
+ * `ContextProblem.revealDir`, which `resolve.ts` fills with `dirname` of the
+ * file's own source path. A machine's Context is read by the SAME
+ * `scanContext` this Mac's is (`src/main/machines/remote-agent-context.ts`),
+ * so on a remote tab that path is a folder on the OTHER computer, and both
+ * homes are `/Users/gdc`: `fs:reveal` would open Finder here on whatever
+ * happens to sit at the same path, which is the wrong folder rather than
+ * nothing. That is the same wrong answer item 1 removed from the tab strip.
+ *
+ * So the affordance is ABSENT on a machine, the way every other reveal in
+ * this product is, and this is the one place that decides it. It returns the
+ * folder to reveal, or `undefined` for no button at all.
+ */
+export function problemRevealDir(
+  problem: ContextProblem,
+  remote: boolean
+): string | undefined {
+  if (remote) return undefined;
+  return problem.revealDir;
 }
 
 function copyItem(
