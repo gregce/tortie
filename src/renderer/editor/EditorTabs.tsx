@@ -13,13 +13,13 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { showNativeMenu } from '../app/ContextMenu';
 import { tabTooltipIdentity } from './tab-identity';
 import { canReveal, reveal } from '../tree/fs-bridge';
-import { Codicon, menuGlyph } from '../icons';
+import { buildTabMenu } from './tab-menu';
+import { Codicon } from '../icons';
 import { FileIcon } from '../icons/FileIcon';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
@@ -28,79 +28,41 @@ import type { EditorTab } from './store';
 // Tab context menu (native — DESIGN.md §3; flat, like every other gmux menu)
 // ---------------------------------------------------------------------------
 
+/**
+ * The strip reads its own state and hands the composition its answers.
+ *
+ * PHASE 235 moved the shape itself into ./tab-menu.ts, which is the tree's own
+ * arrangement: what is here is the wiring, being the store reads, the clipboard
+ * and the Finder call, and what is there is the menu.
+ */
 function tabMenuItems(tab: EditorTab): (MenuItemSpec | 'sep')[] {
   const ed = useEditor.getState();
   const { tabs } = ed;
-  const index = tabs.findIndex((t) => t.id === tab.id);
-  const items: (MenuItemSpec | 'sep')[] = [
+  return buildTabMenu(
+    tab,
     {
-      label: 'Close',
-      // Every one of the five closes wears the × the tab itself draws, which
-      // is the glyph a person is already pointing at when they open this menu.
-      // The label is what says how many tabs go.
-      ...menuGlyph('close'),
-      hint: keyDisplay('editor.close'),
-      run: () => ed.closeTab(tab.id)
+      tabCount: tabs.length,
+      index: tabs.findIndex((t) => t.id === tab.id),
+      anySaved: tabs.some((t) => !t.dirty),
+      reveal: canReveal()
     },
     {
-      label: 'Close Others',
-      ...menuGlyph('close'),
-      disabled: tabs.length < 2,
-      run: () => ed.closeOthers(tab.id)
-    },
-    {
-      label: 'Close to the Right',
-      ...menuGlyph('close'),
-      disabled: index === -1 || index === tabs.length - 1,
-      run: () => ed.closeToRight(tab.id)
-    },
-    {
-      label: 'Close Saved',
-      ...menuGlyph('close'),
-      disabled: !tabs.some((t) => !t.dirty),
-      run: () => ed.closeSaved()
-    },
-    { label: 'Close All', ...menuGlyph('close'), run: () => ed.closeAll() },
-    'sep'
-  ];
-  if (tab.preview) {
-    items.push({
-      label: 'Keep Open',
-      // Keeping a preview tab is the same act `Open in New Tab` names in the
-      // tree and in search, and it wears the same mark.
-      ...menuGlyph('pin'),
-      run: () => ed.pin(tab.id)
-    });
-    items.push('sep');
-  }
-  items.push({
-    label: 'Copy Path',
-    ...menuGlyph('copy'),
-    run: () => void navigator.clipboard.writeText(tab.path)
-  });
-  // Phase 160: the map tab's path IS the repository root, so Copy Path already
-  // says everything and a relative path of nothing would copy an empty string.
-  // Phase 163: the report tab's path is a project root for the same reason.
-  if (tab.archMap === undefined && tab.diagnostics === undefined) {
-    items.push({
-      label: 'Copy Relative Path',
-      ...menuGlyph('copy'),
-      run: () => void navigator.clipboard.writeText(tab.relPath)
-    });
-  }
-  items.push({
-    label: 'Reveal in Finder',
-    ...menuGlyph('link-external'),
-    disabled: !canReveal() || tab.deleted,
-    run: () => {
-      void reveal(tab.path).catch(() =>
-        useApp
-          .getState()
-          .toast('error', 'Could not reveal the file in Finder')
-      );
+      close: () => ed.closeTab(tab.id),
+      closeOthers: () => ed.closeOthers(tab.id),
+      closeToRight: () => ed.closeToRight(tab.id),
+      closeSaved: () => ed.closeSaved(),
+      closeAll: () => ed.closeAll(),
+      pin: () => ed.pin(tab.id),
+      copyText: (text) => void navigator.clipboard.writeText(text),
+      reveal: (path) => {
+        void reveal(path).catch(() =>
+          useApp
+            .getState()
+            .toast('error', 'Could not reveal the file in Finder')
+        );
+      }
     }
-  });
-  return items;
+  );
 }
 
 // ---------------------------------------------------------------------------
