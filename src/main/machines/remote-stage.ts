@@ -104,6 +104,21 @@
  * PHYSICAL path, so `cd "$1"; pwd -P` returns `$1` unchanged. Research 104
  * section 5 has the reading on both machines.
  *
+ * IT REFUSES A LITTLE MORE THAN THE HOLE, DELIBERATELY, and the sentence a
+ * person reads is the one thing about it that is not exact. A component of the
+ * tab's own folder that is a link pointing BACK INSIDE the confirmed folder is
+ * refused too, and the sentence `outsideRoot` carries says that folder is
+ * outside the folder Tortie was given permission to write in, which for that
+ * one case is not what happened. It stays that way for two reasons. Telling the
+ * two apart needs a `readlink` and then a comparison of a RESOLVED path, which
+ * is `./remote-record.ts`'s standing refusal and the thing this whole layer is
+ * built to avoid. And it is exactly what Phase 242 already shipped for the
+ * three verbs that take a path: `file-put`, `dir-new` and `entry-rename` refuse
+ * the same shape with the same sentence, so this is the product being
+ * consistent rather than this phase being new. A person who hits it moves the
+ * tab to the folder the link points at, which is inside the folder they
+ * confirmed, and every button works.
+ *
  * AND THE TAB'S FOLDER IS BOUNDED RATHER THAN THE REPOSITORY ROOT, deliberately,
  * because bounding the root would refuse the `~/code/api/src` person named three
  * paragraphs above. A repository root is always an ancestor of the physical

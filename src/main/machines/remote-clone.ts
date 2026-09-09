@@ -37,6 +37,30 @@
  * that as a refusal would be wrong, so an `exists` answer is followed by one
  * read at the destination.
  *
+ * ## IT ASKS FOR NO CONFIRMED FOLDER, and it is one of exactly two that do not
+ *
+ * `confirmedWriteRoot` in `./remote-file.ts` is the one implementation of the
+ * write gate, and it is reached from five call sites: `./remote-file.ts`'s own
+ * save, `./remote-entry.ts` twice, `./remote-stage.ts` and `./remote-commit.ts`.
+ * THIS FILE IS NOT ONE OF THEM and neither is `./remote-image.ts`, so neither
+ * verb makes the containment promise Phase 242 and Phase 242.1 built for the
+ * other six. It is written here rather than left to be re-derived, because the
+ * Phase 242.1 verifier had to drive it to find out.
+ *
+ * WHAT STANDS IN ITS PLACE HERE IS THE `-e` TEST, and it is enough for the one
+ * shape the missing root would otherwise open. The destination is a folder that
+ * is NOT THERE YET, so a name somebody planted at it is not a way in: measured
+ * on 2026-09-08 by running the shipped `git-clone` text under `/bin/sh` over
+ * two planted links, a destination that is a DANGLING link aimed outside
+ * answers `failed` and nothing appears at the target, and a destination that is
+ * a link onto a LIVE directory answers `exists` with that directory's own file
+ * untouched and no `.git` made in it. Step 5 above also refuses anything that is
+ * not a full path, and git itself refuses to clone into a folder that is there.
+ *
+ * A CHANGE THAT MADE THIS CLONE INTO AN EXISTING FOLDER would remove that, and
+ * it would need a confirmed folder first. `./remote-image.ts` is the other one
+ * and Phase 242.2 is the entry that owns it.
+ *
  * ## No session exists while this runs
  *
  * NOTHING IS WRITTEN UNTIL THE MACHINE SAYS THE FOLDER IS THERE. No manifest
