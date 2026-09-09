@@ -2987,6 +2987,14 @@ process.stdout.write(
         filePut: textOf('file-put'),
         dirNew: textOf('dir-new'),
         entryRename: textOf('entry-rename'),
+        // PHASE 242.2. The fourth text, and it is here for the OTHER half of
+        // condition 88. `image-put` takes no path and so has no walk to read;
+        // what it has is a staged name, and until this phase it created that
+        // name without unlinking it first, so a symbolic link and a hard link
+        // planted there each carried a picture's bytes out of
+        // `~/.tortie/images`. Condition 88f reads the same three facts of this
+        // text as of `file-put`'s, and 88g RUNS it.
+        imagePut: textOf('image-put'),
         // The two Phase 102 writers' ids, so the gate names what it read
         // rather than what it assumed was there.
         ids: REMOTE_SCRIPTS.map((row) => row.id)

@@ -8198,32 +8198,65 @@ process.stdout.write(
     //      half: every creation of the staged name has an unlink of that name
     //      standing above it, the creation is exclusive, and every `rm` in the
     //      text is that one unlink and nothing else.
-    const staged = stagedUnlinkFacts(putText);
-    if (staged.creates.length === 0) {
-      fail(
-        'file-put has no line this gate recognises as creating its staged ' +
-          'file, so condition 88f is checking nothing.'
-      );
-    } else {
+    //      PHASE 242.2 WIDENED THIS FROM ONE SCRIPT TO EVERY SCRIPT THAT
+    //      STAGES A NAME, rather than writing a second checker beside it. As
+    //      Phase 242 shipped it, 88f read `file-put`'s text alone, and
+    //      `image-put` stages a name too: `t="$f.part"` under
+    //      `$HOME/.tortie/images`, created by a redirection with no unlink in
+    //      front of it. A SYMLINK and a HARD LINK planted there each carried a
+    //      picture's bytes out of that directory while the script answered
+    //      `added` with the payload's own byte count and its own sha256, driven
+    //      under /bin/sh, on the operator's Mac Pro's own shell, and through
+    //      Tortie's own `machines.putImage` against that machine (research 105
+    //      sections 4 and 5). The three questions are the same three questions,
+    //      so the list is what grew.
+    //
+    //      `image-put` has no confirmed folder, so 88a to 88e do not apply to
+    //      it and it is not in WANTED. This is the only half of condition 88
+    //      that is about a name the script composed for ITSELF, which is why it
+    //      is the half that widens.
+    const imagePutText = typeof p242.imagePut === 'string' ? p242.imagePut : '';
+    const STAGED_WRITERS = [
+      { id: 'file-put', text: putText },
+      { id: 'image-put', text: imagePutText }
+    ];
+    for (const writer of STAGED_WRITERS) {
+      if (writer.text.length === 0) {
+        fail(
+          `the catalogue holds no script called ${writer.id}, so condition ` +
+            '88f read nothing for it at all.'
+        );
+        continue;
+      }
+      const staged = stagedUnlinkFacts(writer.text);
+      if (staged.creates.length === 0) {
+        fail(
+          `${writer.id} has no line this gate recognises as creating its ` +
+            'staged file, so condition 88f is checking nothing.'
+        );
+        continue;
+      }
       if (!staged.unlinkedBeforeEveryCreate) {
         fail(
-          'file-put creates its staged file at a name it did not unlink ' +
+          `${writer.id} creates its staged file at a name it did not unlink ` +
             'first. A hard link planted there is invisible to [ -L ] and the ' +
             'redirection follows it, so the payload lands outside the ' +
-            'confirmed folder before the mv runs at all, which is what was ' +
-            "measured on the operator's own machine."
+            'directory the answer names before the mv runs at all, which is ' +
+            "what was measured on the operator's own machine."
         );
       }
       if (!staged.exclusive) {
         fail(
-          'file-put unlinks its staged name and creates it without set -C. ' +
-            'The unlink alone leaves the window between itself and the ' +
-            'create, and the exclusive create is what closes it.'
+          `${writer.id} unlinks its staged name and creates it without ` +
+            'set -C. The unlink alone leaves the window between itself and ' +
+            'the create, and the exclusive create is what closes it. NO ' +
+            'BEHAVIOURAL ARM CAN SEE THIS CLAUSE, which is why it is read ' +
+            'here as text.'
         );
       }
       if (!staged.onlyTheStagedName) {
         fail(
-          `file-put names rm on the line ` +
+          `${writer.id} names rm on the line ` +
             `${JSON.stringify(staged.rms.find((one) => one.bare !== STAGED_UNLINK)?.bare ?? '')}, ` +
             `which is not the staged unlink. The unlink is allowed because it ` +
             `removes one name the script composed for itself and is narrower ` +
@@ -8312,11 +8345,54 @@ process.stdout.write(
         why: 'an rm that names the person\'s own file rather than the staged name',
         text: putText.replace(STAGED_UNLINK, 'rm -f "$f"'),
         expect: (t) => stagedUnlinkFacts(t).onlyTheStagedName === false
+      },
+      // PHASE 242.2's four, one per clause of 88f read over `image-put`. The
+      // first is the shape that really shipped and really escaped, and the
+      // third is the ONLY proof `set -C` has anywhere, because no behavioural
+      // arm can reach the window it closes.
+      {
+        why: "image-put's staged unlinks removed, which is the shape that escaped",
+        text: imagePutText
+          .split('\n')
+          .filter((line) => line.trim() !== STAGED_UNLINK)
+          .join('\n'),
+        expect: (t) => stagedUnlinkFacts(t).unlinkedBeforeEveryCreate === false
+      },
+      {
+        why: "image-put's first staged unlink moved below the redirection it guards",
+        text: (() => {
+          const lines = imagePutText.split('\n');
+          const at = lines.findIndex((line) => line.trim() === STAGED_UNLINK);
+          if (at < 0) return imagePutText;
+          const one = lines.splice(at, 1);
+          const mv = lines.findIndex((line) => line.trim().startsWith('mv '));
+          if (mv < 0) return imagePutText;
+          lines.splice(mv, 0, ...one);
+          return lines.join('\n');
+        })(),
+        expect: (t) => stagedUnlinkFacts(t).unlinkedBeforeEveryCreate === false
+      },
+      {
+        why: "image-put's exclusive create removed, leaving the unlinks alone",
+        text: imagePutText
+          .split('\n')
+          .filter((line) => line.trim() !== 'set -C')
+          .join('\n'),
+        expect: (t) => stagedUnlinkFacts(t).exclusive === false
+      },
+      {
+        why: "an rm in image-put that names the picture rather than the staged name",
+        text: imagePutText.replace(STAGED_UNLINK, 'rm -f "$f"'),
+        expect: (t) => stagedUnlinkFacts(t).onlyTheStagedName === false
       }
     ];
     let plantsBehaved = 0;
     for (const plant of planted) {
-      if (plant.text === putText || plant.text === renameText) {
+      if (
+        plant.text === putText ||
+        plant.text === renameText ||
+        plant.text === imagePutText
+      ) {
         fail(
           `condition 88e could not plant "${plant.why}" — the text it edits is ` +
             'not in the script any more, so this arm proved nothing.'
@@ -8342,9 +8418,12 @@ process.stdout.write(
         `three verbs already had, so no new word crosses the channel. file-put ` +
         `also refuses a last component that is a link and a link planted at ` +
         `its staged name, which the redirection would follow. A HARD LINK ` +
-        `there is invisible to [ -L ], so file-put unlinks the staged name ` +
-        `and creates it exclusively, which is nofollow.ts's whole shape, and ` +
-        `the only rm it may hold is that one unlink. entry-rename ` +
+        `there is invisible to [ -L ], so file-put AND image-put unlink the ` +
+        `staged name and create it exclusively, which is nofollow.ts's whole ` +
+        `shape, and the only rm either may hold is that one unlink. ` +
+        `image-put has no confirmed folder and so no walk, and it is read ` +
+        `here because the name it stages is one it composed for itself. ` +
+        `entry-rename ` +
         `still renames a link, which it was written to do. Nothing is ` +
         `resolved: no readlink, no realpath and no second round trip. ` +
         `${String(plantsBehaved)} of ${String(planted.length)} planted texts ` +
