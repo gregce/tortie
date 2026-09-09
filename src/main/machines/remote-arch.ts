@@ -540,6 +540,16 @@ export function archMirrorPath(root: string, machineId: string, farPath: string)
  * open, a record that did not parse — is treated as CHANGED and carried across.
  * The cost of that is a transfer; the cost of the other answer is a stale one.
  *
+ * THE COST IS SIZED HERE RATHER THAN LEFT AS "a transfer", because for one file
+ * it is one file and for a whole MACHINE it is not. A machine with no `cksum`
+ * emits no `C` record at all, so nothing on it is ever reusable and every
+ * tracked file is re-fetched on every refresh, for as long as that machine is
+ * open. One pass is bounded by {@link ARCH_MIRROR_FILE_CEILING} files and
+ * {@link ARCH_MIRROR_BYTES_CEILING} of bytes; the number of passes is bounded by
+ * nothing, and nothing on the face says it is happening. It is a stated limit
+ * and not a defect — the direction is deliberate, `cksum` is POSIX, and the
+ * other answer is the stale mirror this whole record exists to close.
+ *
  * The mtime is still carried and the mirrored file is still stamped with it,
  * because it is what makes a hand-emptied mirror re-fetch and it is what a
  * person reading the mirror directory sees. It no longer DECIDES anything, so a

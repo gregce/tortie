@@ -3253,7 +3253,21 @@ const GIT_COMMIT = [
  *
  * A FILE WITH NO `C` RECORD IS TREATED AS CHANGED by the reader, never as
  * unchanged, so a machine with no `cksum`, and a file `cksum` could not open,
- * both cost a transfer rather than a stale answer.
+ * both cost a transfer rather than a stale answer. The DIRECTION is the safe
+ * one and that is why it is this way round.
+ *
+ * WHAT THAT COSTS, SIZED RATHER THAN WAVED AT, because "a transfer" reads as one
+ * transfer and for a whole machine it is not. For a single unreadable file it is
+ * one file, once per pass. For a machine with NO `cksum` at all there is no `C`
+ * record anywhere, so `./remote-arch.ts` finds no digest for anything and
+ * re-fetches EVERY tracked file on EVERY refresh, for as long as that machine is
+ * open — bounded per pass by `./remote-arch.ts`'s own ceilings, being 20,000
+ * files and 64 MiB, and by nothing over time. Nothing
+ * on the face says so, and that is the stated limit rather than a defect: the
+ * alternative answer is a mirror that describes older code than the machine
+ * holds, which is the finding this record exists to close. `cksum` is POSIX and
+ * is spelled the same way on macOS and on Linux, so the machine this is true of
+ * is not one anybody has yet reached.
  *
  * `head -c 4000000` is the same ceiling `MAX_READ_BYTES` in
  * `src/main/arch/tree-facts.ts` puts on a local read, so a file this Mac
