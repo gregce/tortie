@@ -24,6 +24,17 @@
  *     say why it is banned.
  *  2. tsx is pinned: package.json carries it as an EXACT devDependency and
  *     package-lock.json resolves it with an integrity hash.
+ *  4. Every script that CALLS `tsxCli()` imports it where it is called, and
+ *     not inside a driver template it writes out as a string. Eighteen probes
+ *     carried exactly that: the import sat inside the `String.raw` block each
+ *     one writes into its scratch directory as a `.ts` driver, where nothing
+ *     used it and where `./ts-runner.mjs` would not have resolved anyway, and
+ *     the probe's own module never had it. Every one of them started its
+ *     scratch sshd, its scratch tmux server and its Electron, and then died on
+ *     `ReferenceError: tsxCli is not defined` at the first `drive()`. It was
+ *     invisible because a probe is not in any commit battery, so nothing ran
+ *     them, and the two the Phase 242.1 verifier reached had been dead since
+ *     long before that phase.
  *  3. The classification in build/verification-checks.mjs is complete in both
  *     directions: every check script in package.json (the test, smoke, probe,
  *     conformance, gate, pin, assert and verify families) has exactly one
@@ -159,6 +170,81 @@ for (const entry of CHECKS) {
 }
 
 // ---------------------------------------------------------------------------
+// 4. A script that calls the runner imports it where it is called
+// ---------------------------------------------------------------------------
+
+// The question is asked of the MODULE and not of the file, so an import that
+// sits inside a driver template written out as a string does not count. The
+// templates all open with `String.raw` and a backtick, and no script under
+// build/ has a top level import below one, so the first of those is the line
+// everything after belongs to the driver rather than to the module.
+const RUNNER_IMPORT = "import { tsxCli } from './ts-runner.mjs';";
+const RUNNER_DYNAMIC = "await import('./ts-runner.mjs')";
+const TEMPLATE_OPEN = 'String.raw`';
+
+/** Proved on fixtures below: does this text import the runner into ITS module? */
+const importsRunnerAtModuleLevel = (text) => {
+  const template = text.indexOf(TEMPLATE_OPEN);
+  const wall = template < 0 ? text.length : template;
+  const head = text.slice(0, wall);
+  return head.includes(RUNNER_IMPORT) || head.includes(RUNNER_DYNAMIC);
+};
+
+let runnerCallers = 0;
+// This gate's own file is skipped for the reason its fixtures exist: they are
+// deliberately wrong texts written as string literals, and the reader is proved
+// on those rather than on this file.
+const RULE_4_SELF = 'assert-hermetic-checks.mjs';
+for (const name of buildScripts) {
+  if (name === 'ts-runner.mjs' || name === RULE_4_SELF) continue;
+  const text = readFileSync(join(buildDir, name), 'utf8');
+  if (!text.includes('tsxCli(')) continue;
+  runnerCallers += 1;
+  if (importsRunnerAtModuleLevel(text)) continue;
+  fail(
+    `build/${name} calls tsxCli() and does not import it into its own ` +
+      `module. An import inside a driver template is written out as part of ` +
+      `a .ts file in a scratch directory, where it neither resolves nor runs, ` +
+      `and the probe dies on ReferenceError at its first drive() with its ` +
+      `sshd, its tmux server and its Electron already started.`
+  );
+}
+
+/** Measured on 2026-09-09 with the sixteen misplaced imports moved. */
+const RUNNER_CALLER_FLOOR = 42;
+if (runnerCallers < RUNNER_CALLER_FLOOR) {
+  fail(
+    `${String(runnerCallers)} script(s) under build/ call tsxCli() against a ` +
+      `floor of ${String(RUNNER_CALLER_FLOOR)}. A deliberate deletion lowers ` +
+      `the floor in the same commit and names the file.`
+  );
+}
+
+// The reader, proved on four texts so a scan that cannot fail is never taken
+// for a scan that passed. Two must read as imported and two must not.
+const RUNNER_FIXTURES = [
+  { why: 'the ordinary shape', text: `${RUNNER_IMPORT}\ntsxCli();\n`, want: true },
+  {
+    why: 'the dynamic shape probe-p208-vault.mjs uses',
+    text: `const { tsxCli } = ${RUNNER_DYNAMIC};\ntsxCli();\n`,
+    want: true
+  },
+  {
+    why: 'the shape eighteen probes shipped, the import inside the template',
+    text: `const t = ${TEMPLATE_OPEN}\n${RUNNER_IMPORT}\n\`;\ntsxCli();\n`,
+    want: false
+  },
+  { why: 'no import at all', text: 'tsxCli();\n', want: false }
+];
+for (const one of RUNNER_FIXTURES) {
+  if (importsRunnerAtModuleLevel(one.text) === one.want) continue;
+  fail(
+    `rule 4's reader got "${one.why}" wrong. It answered ` +
+      `${String(!one.want)}.`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Verdict
 // ---------------------------------------------------------------------------
 
@@ -174,7 +260,10 @@ for (const entry of CHECKS) {
 }
 process.stdout.write(
   `assert-hermetic-checks: PASS. ${checkScripts.length} check scripts ` +
-    `classified, no runner outside the lockfile.\n`
+    `classified, no runner outside the lockfile, and ` +
+    `${String(runnerCallers)} script(s) that call tsxCli() import it into ` +
+    `their own module against a floor of ${String(RUNNER_CALLER_FLOOR)}, ` +
+    `with 4 of 4 reader fixtures behaving.\n`
 );
 for (const type of [...CHECK_TYPES, 'aggregate']) {
   const n = counts.get(type) ?? 0;

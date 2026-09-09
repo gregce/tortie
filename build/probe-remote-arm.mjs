@@ -57,6 +57,7 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { tsxCli } from './ts-runner.mjs';
 import { keyscanText } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -185,7 +186,6 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
-import { tsxCli } from './ts-runner.mjs';
 
 const REPO = '__REPO__';
 const input = JSON.parse(readFileSync(process.argv[2] ?? '', 'utf8'));

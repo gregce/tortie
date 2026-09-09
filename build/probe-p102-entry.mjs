@@ -104,6 +104,7 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { tsxCli } from './ts-runner.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -189,7 +190,6 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
-import { tsxCli } from './ts-runner.mjs';
 
 async function main(): Promise<void> {
 

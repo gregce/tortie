@@ -75,6 +75,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tsxCli } from './ts-runner.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -194,7 +195,6 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
-import { tsxCli } from './ts-runner.mjs';
 
 // An async main rather than top level await: the driver is compiled to a
 // CommonJS module and top level await is not available there.
