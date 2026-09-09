@@ -581,8 +581,24 @@ export function grade(report) {
   else bad('item 5', `one connection later the answer holds ${String(absent)} absent against ${String(connected)} greyed, so the board GREW`);
   if (present === 0 && paths === 0) ok('item 5', 'and it states no presence and no path from the connection that went');
   else bad('item 5', `it still states ${String(present)} presence(s) and ${String(paths)} path(s) from the connection that went`);
+  // ITEM 5'S OTHER HALF IS A STATED LIMIT AND IS GRADED AS ONE. It was a note
+  // until this fix round, printed inside a run that then said PASS, so the one
+  // reading the charter asks about most plainly could not fail. The charter
+  // reads "disconnected, all 14 are offered", and that is still what a machine
+  // which has said NOTHING IN THIS RUN does: the held answer is per process, so
+  // a launch that never reached the machine has no last known to offer, and
+  // research 58 allows only a POSITIVE absence to grey a tile. Both numbers are
+  // asserted, so the day either moves the run goes red and names what to
+  // restate rather than changing in silence.
   const disc = greyed(E?.items?.tilesDisconnected);
-  lines.push(`  note item 5: a machine that never answered in its run greys ${String(disc)} tiles, which is research 58's rule and is unchanged by this phase`);
+  const discTiles = tileNames(E?.items?.tilesDisconnected);
+  const connTiles = tileNames(C?.items?.tilesConnected);
+  const discOffered = discTiles - disc;
+  const connOffered = connTiles - connected;
+  if (disc === 0) ok('item 5', `a machine that has said nothing in this run greys ${String(disc)} tiles, which is research 58's rule and is unchanged by this phase`);
+  else bad('item 5', `it greys ${String(disc)} of ${String(discTiles)} tiles having said nothing in this run: either a tile was greyed with no positive absence, which is research 58's rule broken, or the limit below closed and this reading and the Phase 235 entry both have to say so`);
+  if (discOffered > connOffered) ok('item 5', `EXPECTED LIMIT: it offers all ${String(discOffered)} of ${String(discTiles)} tiles against ${String(connOffered)} of ${String(connTiles)} on a connected one, which is the charter's other half and is NOT closed; what this phase closed is the board that had already answered and then lost its connection`);
+  else bad('item 5', `the stated limit moved: a machine that has said nothing offers ${String(discOffered)} of ${String(discTiles)} against ${String(connOffered)} of ${String(connTiles)} connected, so update this reading and the Phase 235 entry with it`);
 
   return { lines, findings };
 }
@@ -672,6 +688,15 @@ function selfTest() {
   });
   plant('the connected board greyed nothing, so there is nothing to compare', (r) => {
     r.launchC.items.tilesConnected = tilesOf(99);
+  });
+  // The two arms of the stated limit, one each. The first greys a tile on a
+  // machine that has said nothing, which research 58 forbids and which is also
+  // what closing the limit would look like; the second closes it outright.
+  plant('a machine that said nothing greys a tile anyway', (r) => {
+    r.launchE.items.tilesDisconnected = tilesOf(11);
+  });
+  plant('the stated limit closed and nobody restated it', (r) => {
+    r.launchE.items.tilesDisconnected = tilesOf(3);
   });
   plant('nothing was read at all', (r) => { r.launchCMenus = []; });
 

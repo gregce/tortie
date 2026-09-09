@@ -30,6 +30,12 @@
  * is research 58's ruling and this phase is not the round that changes it;
  * what changed is what main states, and this file reads the composer to prove
  * the statement reaches the grid.
+ *
+ * AND THE HALF THAT IS NOT CLOSED IS PINNED AS A LIMIT, at the bottom of this
+ * file. A machine THIS RUN never reached still offers every tile, because the
+ * held answer is per process and there is no last known to offer; the charter's
+ * own sentence for item 5 is that reading, and the fix round made it an
+ * assertion on both sides so that closing it cannot happen in silence.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -127,18 +133,52 @@ describe('the grid never grows when the machine goes away', () => {
   });
 });
 
-describe('a machine nobody has asked', () => {
+describe('a machine nobody has asked, which is the charter’s OTHER half', () => {
+  /**
+   * PHASE 235's FIX ROUND MADE THIS A STATED LIMIT rather than an answer.
+   *
+   * The charter's item 5 reads "disconnected, all 14 are offered", and this is
+   * where that is still true: a machine THIS RUN never reached offers every
+   * tile, where a connected one offers four. What the phase closed is the other
+   * shape, being a board that HAD answered and then lost its connection, which
+   * used to drop the whole answer and gain nine options at the moment the
+   * machine got worse.
+   *
+   * It is not closed here for a reason rather than by omission. Research 58's
+   * ruling is that only a POSITIVE absence may grey a tile, and the held answer
+   * is per process, so a launch that never reached the machine holds no last
+   * known to offer: closing it needs a durable record of what a machine last
+   * said, which is a store this product does not have and a decision about how
+   * old an absence may be before it stops greying a tile. That is a phase, not
+   * a nit.
+   *
+   * So the limit is pinned from BOTH sides here and graded in
+   * `build/probe-p235-nits.mjs` item 5, which fails the run the day either
+   * number moves. A round that closes it edits this block, that reading and the
+   * Phase 235 entry together.
+   */
   it('greys nothing, because it has said nothing', () => {
-    // Research 58's rule stands: only a POSITIVE absent may grey a tile, and
-    // there is no last known to offer instead. The invented empty view a
-    // machine with no row gets is this same case.
+    // Only a POSITIVE absent may grey a tile, and there is no last known to
+    // offer instead. The invented empty view a machine with no row gets is
+    // this same case.
     const invented = machineAgentsFor([], 'never-asked');
     expect(invented).toEqual({
       machineId: 'never-asked',
       askedAt: null,
       agents: []
     });
+  });
+
+  it('STATED LIMIT: it therefore offers MORE than a connected machine does', () => {
+    const invented = machineAgentsFor([], 'never-asked');
+    // 13 of 13 against 4 of 13. This is the charter reading this phase did not
+    // move, and the assertion is here so that closing it cannot be silent.
     expect(offered(invented)).toBe(13);
+    expect(offered(LIVE)).toBe(4);
+    expect(offered(invented)).toBeGreaterThan(offered(LIVE));
+    // And a machine that DID answer once is the half that is closed, so the
+    // two shapes can never be confused for each other again.
+    expect(offered(STALE)).toBe(offered(LIVE));
   });
 
   it('is still never this Mac’s own scan', () => {
