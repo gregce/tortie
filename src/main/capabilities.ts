@@ -45,6 +45,10 @@ import { stopLiveSampling } from './diagnostics/live';
 import { loginProviderForAgent } from '@shared/logins';
 import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
 import { installLaunchContextResolver } from './context/launch-resolver';
+import {
+  registerBaselinesIpc,
+  startBaselineStorePruning
+} from './baselines';
 import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
 import { disposeGitIpc, registerGitIpc } from './git';
@@ -337,6 +341,12 @@ export function installMainCapabilities(
   // the userData drop store's prune-at-ready + daily timer.
   registerDropIpc(ipcMain);
   startDropStorePruning();
+  // PHASE 243: the durable baseline (baselines:load/store) and its store's
+  // sweep-at-ready + daily timer. The redline's shadow baseline outlives the
+  // tab; the store holds a PREVIOUS state of a file whose current state is on
+  // disk, so losing it loses the narrowing and nothing else.
+  registerBaselinesIpc(ipcMain);
+  startBaselineStorePruning();
   // Phase 12 items 1 + 2: terminal capture + rich clipboard + Clear
   // (capture:*, clipboard:writeRich, terminal:clearHistory).
   registerCaptureIpc(ipcMain);

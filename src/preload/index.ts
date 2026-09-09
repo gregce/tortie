@@ -29,6 +29,8 @@ import {
 } from '../shared/ipc';
 import { actions } from './actions';
 import { arch } from './arch';
+// Phase 243. The durable baseline: one read at open, one write when it moves.
+import { baselines } from './baselines';
 import { invoke, on } from './bridge';
 import { config, context, contextSnapshot } from './context';
 import { diagnostics } from './diagnostics';
@@ -102,6 +104,9 @@ const api: InstalledGmuxApi = {
   // timestamps and a state word; no credential and no identifier crosses.
   usage,
   logins,
+  // Phase 243. Two calls into Tortie's own data directory, and the bytes that
+  // cross are a PREVIOUS state of a file the person still has on disk.
+  baselines,
   // Phase 63 optional extra, widened by Phase 158: the arch view's reads plus
   // the seed, enrich and accept asks. Main owns every write under docs/arch,
   // and enrich is the one method that can start an agent, refused in main

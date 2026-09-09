@@ -183,6 +183,10 @@ import type {
   LoginsInvokeChannelMap
 } from './logins';
 import type {
+  BaselinesInvokeChannelMap,
+  GmuxBaselinesExtras
+} from './baselines';
+import type {
   DropInvokeChannelMap,
   GmuxCaptureExtras,
   GmuxDropExtras,
@@ -205,6 +209,8 @@ export * from './arch';
 // consumer writes. A file under src/shared/ipc/ still names it directly,
 // which is what `./arch` does to fold the channel into its own map.
 export * from './arch-modules';
+// Phase 243. The durable baseline's two channels.
+export * from './baselines';
 export * from './logins';
 export * from './actions';
 export * from './agents';
@@ -303,7 +309,9 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   // Phase 181. The usage meter's read and its refresh control.
   UsageInvokeChannelMap &
   // Phase 202. The set of vendor logins, and which one is chosen.
-  LoginsInvokeChannelMap;
+  LoginsInvokeChannelMap &
+  // Phase 243. The durable baseline: read one at open, record a moved one.
+  BaselinesInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -466,4 +474,6 @@ export type InstalledGmuxApi = GmuxApi & {
   // Phase 181. The `usage` member, one object with two reads.
   GmuxUsageExtras &
   // Phase 202. The `logins` member: list, add, choose, remove.
-  GmuxLoginsExtras;
+  GmuxLoginsExtras &
+  // Phase 243. The `baselines` member: load one, store one. Nothing else.
+  GmuxBaselinesExtras;
