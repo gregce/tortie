@@ -1,0 +1,155 @@
+# Phase 246 measure step
+fixtures: old.md 1380 chars, new-good.md 1375 chars, new-bad.md 1535 chars
+caps: REDLINE_MAX_EDIT_LENGTH=200 REDLINE_MAX_BLOCK_CHARS=4000 REDLINE_MAX_BLOCKS=60 REDLINE_DOC_MAX_LINE_EDITS=1000
+
+### A. THE GOOD PICTURE (one word deleted) — Pierre hunkContent path (redlineBlocks)
+  content #0 type=context del=undefined add=undefined  (no redline block)
+  content #1 type=change del=1 add=1
+    old    234 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(234)"
+    new    229 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(229)"
+    edit distance 1  cap 200  diffWords 3 runs  charBudget 4000 ok
+  content #2 type=context del=undefined add=undefined  (no redline block)
+  redlineBlocks: 1 rows, skipped {"tooBig":0,"tooDifferent":0,"overCap":0}
+  redlineSkipNote: null
+    row additions:3 whitespaceOnly=false runs=["same:The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can think. The very tools meant to help us are creating a new kind of mental tax. We’re drowning in ","del:micro","same:-decisions that used to be second nature."]
+
+### B. THE GOOD PICTURE (one word deleted) — the shipping view (composeRedlineDocument)
+  line edit distance 2 against REDLINE_DOC_MAX_LINE_EDITS 1000
+  change block #0
+    old    235 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(235)"
+    new    230 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(230)"
+    edit distance 1  cap 200  diffWords 3 runs  exactRuns 3 runs  charBudget ok  blockCap 60
+  composeRedlineDocument: blocks=1 approximate=false whole={"tooBig":0,"tooDifferent":0,"overCap":0,"unaligned":0}
+  redlineDocumentNote: null
+  marked runs (1):
+    del "micro"
+
+### A. THE BAD PICTURE (a paragraph inserted above) — Pierre hunkContent path (redlineBlocks)
+  content #0 type=context del=undefined add=undefined  (no redline block)
+  content #1 type=change del=1 add=1
+    old    234 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(234)"
+    new    229 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(229)"
+    edit distance 1  cap 200  diffWords 3 runs  charBudget 4000 ok
+  content #2 type=context del=undefined add=undefined  (no redline block)
+  content #3 type=change del=1 add=1
+    old    310 chars  "After thousands of hours working this way, we’ve adopted a pattern in what worked. It’s a simple…(310)"
+    new    162 chars  "What context do agents need? Give them too much, they gets confused. Too little, and they guesse…(162)"
+    edit distance 93  cap 200  diffWords 19 runs  charBudget 4000 ok
+  content #4 type=context del=undefined add=undefined  (no redline block)
+  content #5 type=change del=0 add=2
+    old      0 chars  ""
+    new    304 chars  "After thousands of hours working this way, we’ve adopted a pattern in what worked. It’s a , disc…(304)"
+    edit distance 68  cap 200  diffWords 1 runs  charBudget 4000 ok
+  content #6 type=context del=undefined add=undefined  (no redline block)
+  redlineBlocks: 3 rows, skipped {"tooBig":0,"tooDifferent":0,"overCap":0}
+  redlineSkipNote: null
+    row additions:3 whitespaceOnly=false runs=["same:The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can think. The very tools meant to help us are creating a new kind of mental tax. We’re drowning in ","del:micro","same:-decisions that used to be second nature."]
+    row additions:6 whitespaceOnly=false runs=["del:After thousands of hours working this way","ins:What context do agents need? Give them too much","same:, ","del:we’ve adopted a pattern in what worked","ins:they gets confused","same:. ","del:It’s a simple","ins:Too little","same:, ","del:disciplined flow: Plan first. the plan into clear tasks for human ","same:and ","del:AI","ins:they guesses wrong","same:. ","del:Execute. Then, update","ins:What does","same: a ","del:living document that acts as the project’s memory. We call it **specflow**. It’s not rigid, but it forces clarity.","ins:phrase like “enterprise-ready” actually mean?"]
+    row additions:9 whitespaceOnly=false runs=["ins:After thousands of hours working this way, we’ve adopted a pattern in what worked. It’s a , disciplined flow: Plan first. the plan into clear tasks for human and AI. Execute. Then, update a living document that acts as the project’s memory. We call it **specflow**. It’s not rigid, but it forces clarity."]
+
+### B. THE BAD PICTURE (a paragraph inserted above) — the shipping view (composeRedlineDocument)
+  line edit distance 6 against REDLINE_DOC_MAX_LINE_EDITS 1000
+  change block #0
+    old    235 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(235)"
+    new    230 chars  "The bottleneck has moved. It’s no longer about how fast we can type, but how clearly we can thin…(230)"
+    edit distance 1  cap 200  diffWords 3 runs  exactRuns 3 runs  charBudget ok  blockCap 60
+  change block #1
+    old    312 chars  "After thousands of hours working this way, we’ve adopted a pattern in what worked. It’s a simple…(312)"
+    new    165 chars  "What context do agents need? Give them too much, they gets confused. Too little, and they guesse…(165)"
+    edit distance 93  cap 200  diffWords 19 runs  exactRuns 19 runs  charBudget ok  blockCap 60
+  change block #2
+    old      0 chars  ""
+    new    307 chars  "After thousands of hours working this way, we’ve adopted a pattern in what worked. It’s a , disc…(307)"
+    one side empty: drawn whole, counted against no cap and named in no note
+  composeRedlineDocument: blocks=3 approximate=false whole={"tooBig":0,"tooDifferent":0,"overCap":0,"unaligned":0}
+  redlineDocumentNote: null
+  marked runs (15):
+    del "micro"
+    del "After thousands of hours working this way"
+    ins "What context do agents need? Give them too much"
+    del "we’ve adopted a pattern in what worked"
+    ins "they gets confused"
+    del "It’s a simple"
+    ins "Too little"
+    del "disciplined flow: Plan first.  the plan into clear tasks for human "
+    del "AI"
+    ins "they guesses wrong"
+    del "Execute. Then, update"
+    ins "What does"
+    del "living document that acts as the project’s memory. We call it **specflow**. It’s not rigid, but it forces clarity."
+    ins " phrase like “enterprise-ready” actually mean? "
+    ins "After thousands of hours working this way, we’ve adopted a pattern in what worked. It’s a , disciplined flow: Plan first.  the plan into clear tasks for human and AI. Execute. Then, update a living do…(307)"
+
+### D. THE BAD PICTURE — jsdiff diffLines, part by part
+  same  2 line(s)  "Jake, Sean, and I started with a simple belief: in the age of AI, the …(316)"
+  del  1 line(s)  "The bottleneck has moved. It’s no longer about how fast we can type, b…(235)"
+  add  1 line(s)  "The bottleneck has moved. It’s no longer about how fast we can type, b…(230)"
+  same  2 line(s)  "\n\n"
+  del  1 line(s)  "After thousands of hours working this way, we’ve adopted a pattern in …(312)"
+  add  1 line(s)  "What context do agents need? Give them too much, they gets confused. T…(165)"
+  same  1 line(s)  "\n"
+  add  2 line(s)  "After thousands of hours working this way, we’ve adopted a pattern in …(307)"
+  same  7 line(s)  "We realized this way of working needed its own home. Our extension was…(514)"
+  line edit operations: 6
+
+### E. THE BAD PICTURE — the alignment that was available, priced
+  block: 1 removed line(s), 1 added line(s)
+    jsdiff cost here: 2 line operations
+    removed line "The bottleneck has moved. It’s no longer about how fast we c…(234)"
+      best added line #0 similarity 0.98 "The bottleneck has moved. It’s no longer about how fast we c…(229)"
+      paired: edit distance 1, 1 marked runs
+        del "micro"
+  block: 1 removed line(s), 1 added line(s)
+    jsdiff cost here: 2 line operations
+    removed line "After thousands of hours working this way, we’ve adopted a p…(311)"
+      best added line #0 similarity 0.09 "What context do agents need? Give them too much, they gets c…(164)"
+      paired: edit distance 93, 13 marked runs
+        del "After thousands of hours working this way"
+        ins "What context do agents need? Give them too much"
+        del "we’ve adopted a pattern in what worked"
+        ins "they gets confused"
+        del "It’s a simple"
+        ins "Too little"
+        del "disciplined flow: Plan first.  the plan into clear tasks for human "
+        del "AI"
+        ins "they guesses wrong"
+        del "Execute. Then, update"
+        ins "What does"
+        del "living document that acts as the project’s memory. We call it **specflow**. It’s not rigid…(114)"
+        ins " phrase like “enterprise-ready” actually mean? "
+
+### F. THE BAD PICTURE — the partner across the blank line
+  block 1: sides resemble each other (0.98), nothing to slide
+  block 3: the two sides resemble each other by 0.09
+    removed line "After thousands of hours working this way, we’ve adopte…(311)"
+      matches added line #0 of the insertion 1 byte(s) later, similarity 0.98
+      paired: edit distance 1 against cap 200, 1 marked run(s)
+        del "simple"
+    jsdiff's alignment costs 4 line operations; the slid one costs 4. A TIE.
+
+### B. HIS BASELINES 11 -> 12 (the paragraph inserted, nothing else) — the shipping view (composeRedlineDocument)
+  line edit distance 2 against REDLINE_DOC_MAX_LINE_EDITS 1000
+  change block #0
+    old      0 chars  ""
+    new    166 chars  "What context do agents need? Give them too much, they gets confused. Too little, and they guesse…(166)"
+    one side empty: drawn whole, counted against no cap and named in no note
+  composeRedlineDocument: blocks=1 approximate=false whole={"tooBig":0,"tooDifferent":0,"overCap":0,"unaligned":0}
+  redlineDocumentNote: null
+  marked runs (1):
+    ins "What context do agents need? Give them too much, they gets confused. Too little, and they guesses wrong. What does a  phrase like “enterprise-ready” actually mean? \n\n"
+
+### D. HIS BASELINES 11 -> 12 — jsdiff diffLines, part by part
+  same  5 line(s)  "Jake, Sean, and I started with a simple belief: in the age of AI, the …(548)"
+  add  2 line(s)  "What context do agents need? Give them too much, they gets confused. T…(166)"
+  same  9 line(s)  "After thousands of hours working this way, we’ve adopted a pattern in …(827)"
+  line edit operations: 2
+
+### G. how often the partition mis-slides, over a synthetic corpus
+  a paragraph inserted above the edited one: 8 of 8 mis-aligned
+  a paragraph inserted below the edited one: 0 of 8 mis-aligned
+
+### C. ruling 4 timing, re-derived on this machine today
+  the pathological file: 60 blocks, 833 words a side, 3968 chars a side
+  maxEditLength 200: 152.0 / 152.2 / 154.1 ms (median 152.2 ms), 60 of 60 gave up
+  maxEditLength 400: 446.2 / 452.3 / 459.4 ms (median 452.3 ms), 60 of 60 gave up
+  a 40-word edit inside an 830-word block at cap 200: median 1.35 ms, distance 80

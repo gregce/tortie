@@ -1,0 +1,22 @@
+[p246-note] no GMUX_TMUX_SOCKET; wrapping in build/harness-socket.mjs
+[harness-socket] socket gmux-p246-wt-p246-28242, profile /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p246-wt-p246-28242
+[p246-note] operator sessions on -L gmux before: 21
+[p246-note] app window at file:///private/tmp/wt-p246/out/renderer/index.html?harness=1, pid 28418
+[p246-note] pass  A1. the good picture draws one marked change — 1 changes, del=["micro"]
+[p246-note] pass  A2. and the one deleted word is his own — ["micro"]
+[p246-note] pass  A3. and there is no note on a clean picture — []
+[p246-note] note  B1. what the bad picture drew — {"changes":9,"del":["micro","After thousands of hours working this way","we’ve adopted a pattern in what worked","It’s a simple","disciplined flow: Plan first.  the plan into clear tasks for","AI","Execute. Then, update","living document that acts as the project’s memory. We call i"],"ins":["What context do agents need? Give them too much","they gets confused","Too little","they guesses wrong","What does"," phrase like “enterprise-ready” actually mean? ","After thousands of hours working this way, we’ve adopted a p"]}
+[p246-note] pass  B2. the paragraph below is drawn WHOLE in green, which is his picture — ins runs 7
+[p246-note] note  B3. every ed-note on the face at that moment — [{"className":"banner ed-note ed-redline-since","text":"Marked since the last commit, until this file's last commit moves.","insideDoc":false,"rect":{"top":812,"bottom":848,"height":36,"width":851},"onScreen":true},{"className":"banner ed-note ed-redline-hint","text":"Hover a change to see its controls, or step through them with ⌥↓.","insideDoc":false,"rect":{"top":848,"bottom":884,"height":36,"width":851},"onScreen":true}]
+[p246-note] pass  B4. THE FINDING: nothing on the face says a block was drawn whole — []
+[p246-note] note  C1. every ed-note on the cap case — [{"className":"banner ed-note","text":"1 change drawn whole rather than word by word (1 too long).","insideDoc":false,"rect":{"top":812,"bottom":848,"height":36,"width":851},"onScreen":true},{"className":"banner ed-note ed-redline-since","text":"Marked since the last commit, until this file's last commit moves.","insideDoc":false,"rect":{"top":848,"bottom":884,"height":36,"width":851},"onScreen":true}]
+[p246-note] pass  C2. the caps note IS drawn when a block is really skipped — ["1 change drawn whole rather than word by word (1 too long)."]
+[p246-note] note  C3. where the note sits — {"insideDoc":false,"rect":{"top":812,"bottom":848,"height":36,"width":851},"onScreen":true,"innerHeight":884}
+[p246-note] pass  C4. and it is on screen rather than scrolled away with the document — {"onScreen":true,"insideDoc":false}
+[p246-note] pass  C5. THE WHOLE ARM: the note path works, and the operator’s picture does not reach it — {"capNoteText":"1 change drawn whole rather than word by word (1 too long).","badNoteText":null,"badDrawsWhole":true}
+[electron-run] p246: ended 1 process the teardown found still running.
+[p246-note] pass  X1. operator sessions on -L gmux unmoved — 21 -> 21
+[p246-note] 
+[p246-note] 9 passed, 0 failed, 4 notes
+[p246-note] readings at /private/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p246-wt-p246-28242/p246/p246-note-readings.json
+[harness-socket] ended the scratch server on -L gmux-p246-wt-p246-28242 (after the harness)
