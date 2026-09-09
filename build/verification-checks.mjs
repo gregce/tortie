@@ -800,6 +800,15 @@ export const CHECKS = [
   // only by a read-only session count before and after.
   electron('probe:p227'),
   electron('probe:p240'),
+  // PHASE 247. A path in a transcript, pressed: ONE launch on a scratch
+  // profile, a scratch HOME and its own socket, over a project it builds
+  // itself, with a plain shell echoing four paths into the transcript. It
+  // hovers the cell tmux says each path occupies and presses it. NOTHING IS
+  // EVER OPENED BY macOS: GMUX_PATH_OPEN_RECORD is set for the whole run, so
+  // the external door records the path and starts nothing. No agent, no
+  // token, no keychain, no request; `-L gmux` touched only by a read-only
+  // session count before and after.
+  electron('probe:p247'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository
   // it builds itself. It takes the document's height and every change's
