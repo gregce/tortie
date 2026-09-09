@@ -76,6 +76,46 @@
  * satisfies both projections trivially and reads as "this paragraph was
  * rewritten", and the note says how many drew that way and why.
  *
+ * ## THE PARTITION HAS A TIE, AND A BOUNDARY SLIDES ACROSS IT (Phase 246)
+ *
+ * On 2026-09-09 the operator inserted a paragraph ABOVE a paragraph he had
+ * changed by one word, and the paragraph below was drawn as a whole deletion
+ * in red followed by the whole paragraph again in green. Nothing was marked at
+ * the word level and a reader could not see which word moved.
+ *
+ * NO CAP DID THAT, and docs/research/110 refutes all three of the entry's
+ * candidates with numbers: the block's word edit distance was 93 against a cap
+ * of 200, its two sides were 312 and 165 characters against a budget of 4,000,
+ * `diffWords` ANSWERED with 19 runs, `exactRuns` did not refuse, and the note
+ * was correctly `null` because by this module's own accounting nothing was
+ * skipped. The arithmetic finished; the picture was still unreadable.
+ *
+ * The cause is `diffLines` choosing between two shortest edit scripts OF THE
+ * SAME LENGTH. Both alignments move four lines. It took the one that pairs the
+ * removed paragraph with the INSERTED one — the two resemble each other by
+ * 0.09 — while the removed paragraph's real partner sits one byte later,
+ * across a blank line the partition matched as unchanged, at 0.98 and a word
+ * distance of 1. This is not jsdiff being worse than git: research 110 §3 ran
+ * git 2.50.1 over the same two files with `diff.indentHeuristic` on and off
+ * and under `patience`, `histogram` and `minimal`, and every one of them slid
+ * the same way. At the line level both alignments really are equally good, and
+ * only something that reads what is INSIDE the lines can tell them apart. Over
+ * a synthetic corpus it is 8 of 8 when the paragraph goes in above and 0 of 8
+ * when it goes in below, so it is not rare — it is every time.
+ *
+ * `slideBoundaries` is the tie-breaker, and what it may do is deliberately
+ * narrow. A change block whose two sides do not resemble each other, followed
+ * across whitespace-only unchanged text by a PURE INSERTION whose lines end
+ * with that same whitespace and whose head DOES resemble the removed side, is
+ * re-cut into the insertion that has no counterpart, the pair that does, and
+ * the whitespace put back. It computes no edit script of its own, it moves no
+ * run and it reorders nothing, so ruling 6 of ./redline stands untouched; the
+ * word diff is still jsdiff's, called on a different pair. THE LINE COST IS
+ * IDENTICAL by construction — the same lines are deleted and the same lines
+ * are inserted, only their grouping moves — which is what makes it a
+ * tie-breaker rather than a different diff. And both projections are exact
+ * before and after, because the bridge is the same bytes on both sides.
+ *
  * ## No newline is normalised away
  *
  * Phase 191 joined a block's lines into one sentence so three lines read as
@@ -154,6 +194,15 @@ export interface RedlineDocument {
    * between them. The projections still hold; the block is just coarser.
    */
   approximate: boolean;
+  /**
+   * How many change blocks `slideBoundaries` re-cut, being the Phase 246
+   * tie-break. It is a NUMBER RATHER THAN A SENTENCE on purpose: a repair that
+   * worked has nothing to tell a person, and the surface's banner is for what
+   * could not be drawn. The gate reads it, because without it a slide that
+   * silently stopped firing would look exactly like a file that did not need
+   * one.
+   */
+  slid: number;
 }
 
 const NO_WHOLE = { tooBig: 0, tooDifferent: 0, overCap: 0, unaligned: 0 };
@@ -326,10 +375,174 @@ export function peelSharedSpace(runs: readonly RedlineRun[]): RedlineRun[] {
 }
 
 /** One change block of the line partition. */
-interface LineBlock {
+export interface LineBlock {
   kind: 'same' | 'change';
   oldText: string;
   newText: string;
+}
+
+/**
+ * How much two stretches of prose must resemble each other before the line
+ * partition's pairing of them is believed. One constant, and it is the same
+ * number on both sides of the question: a pairing under it is not believed,
+ * and a candidate at or over it is.
+ *
+ * The two readings that chose it are the operator's own file
+ * (docs/research/110 §3): the pair the partition made resembles itself by
+ * **0.09**, and the removed paragraph resembles its real partner one byte
+ * later by **0.98**. Half is where research 110 §6 already drew the line when
+ * it counted the mis-slide 8 times out of 8, so the number this file pins is
+ * the number that corpus was counted with rather than a new one.
+ */
+export const REDLINE_SLIDE_RESEMBLANCE = 0.5;
+
+/**
+ * How much better than the pairing it replaces a candidate must be. A second
+ * constant, and it exists because a threshold alone is not enough: a pairing
+ * at 0.47 and a candidate at 0.51 are the same reading twice, and sliding on
+ * that is noise.
+ *
+ * IT WAS MEASURED RATHER THAN CHOSEN, over 135 real prose pairs out of this
+ * repository's own history (`build/p246/measure-slide.mts`, banked at
+ * `build/p246/out-measure-slide.txt`). Fourteen change blocks there are
+ * doubtful AND have a reachable pure insertion behind a blank line. Four of
+ * them clear the threshold above, and their margins are 0.87, 0.65, 0.38 and
+ * **0.04**. The first three each LOWER the word edit distance of the block
+ * they re-cut — over the cap to 21, 6 to 3, and 10 to 4 — and the fourth
+ * RAISES it, from 29 to over the cap, which would turn a block that draws
+ * word by word into one that draws whole. Nothing sits between 0.04 and 0.38,
+ * so the number is placed in that gap rather than on either reading, and the
+ * operator's own file clears it by 0.89.
+ */
+export const REDLINE_SLIDE_MARGIN = 0.25;
+
+/** The lowercased words of a string, in order, empties dropped. */
+function wordsOf(text: string): string[] {
+  return text.toLowerCase().split(/\s+/).filter((w) => w !== '');
+}
+
+/**
+ * How much two stretches of prose resemble each other, from 0 to 1: how many
+ * of the first's words appear in the second at all, over the larger of the two
+ * vocabularies. It is deliberately crude, because it decides nothing on its
+ * own — it only chooses between two alignments the line differ already
+ * measured as equal, and every byte of both files is drawn whichever it picks.
+ * It is O(words) rather than O(lines squared), so no block is too big to ask
+ * about and there is no fourth cap.
+ */
+export function resemblance(a: string, b: string): number {
+  const A = wordsOf(a);
+  const B = new Set(wordsOf(b));
+  if (A.length === 0) return B.size === 0 ? 1 : 0;
+  let hit = 0;
+  for (const w of A) if (B.has(w)) hit += 1;
+  return hit / Math.max(A.length, B.size);
+}
+
+/**
+ * THE TIE-BREAKER. See the file header for the measurement that makes this
+ * necessary and for why swapping the line differ does not.
+ *
+ * The one shape it repairs, in the order it is asked:
+ *
+ *   1. a change block whose two sides are both non-empty and resemble each
+ *      other BELOW `REDLINE_SLIDE_RESEMBLANCE`, so the partition's pairing of
+ *      them is not believed;
+ *   2. followed by unchanged text that is WHITESPACE ONLY, which between two
+ *      paragraphs is the blank line and nothing else — the bridge, and it must
+ *      exist, because two change blocks are never adjacent in this partition;
+ *   3. followed by a PURE INSERTION whose text ENDS WITH that same bridge, and
+ *      ends with it in WHOLE LINES, so what is left still carries its own line
+ *      terminator;
+ *   4. whose head, being the insertion with that trailing bridge taken off,
+ *      resembles the removed side AT OR ABOVE the same number, and beats the
+ *      pairing it would replace by at least `REDLINE_SLIDE_MARGIN`, so a
+ *      0.47 against a 0.51 is read as one reading twice rather than as
+ *      evidence.
+ *
+ * Then `[change(O,N), same(T), change(-,I)]` becomes
+ * `[change(-, N+T), change(O, I minus its trailing T), same(T)]`.
+ *
+ * BOTH PROJECTIONS ARE UNCHANGED, by inspection rather than by trust: the old
+ * side reads `O + T` before and `"" + O + T` after, and the new side reads
+ * `N + T + I` before and `(N + T) + (I - T) + T` after, which is the same
+ * string because `I` ends with `T`. THE LINE COST IS UNCHANGED TOO: the same
+ * lines are deleted and the same lines are inserted, and the bridge is a
+ * `same` block on both sides of the rewrite, so this cannot buy a picture by
+ * spending edits jsdiff refused to spend.
+ *
+ * WHAT IT REFUSES, and each refusal is a limit rather than an oversight. It
+ * looks FORWARD only, because research 110 §6 measured the mis-slide 8 times
+ * out of 8 with the paragraph inserted above and 0 times out of 8 with it
+ * inserted below, so there is no measured backward case to repair. It requires
+ * the insertion to end with the bridge, because absorbing the bridge into the
+ * pair instead would cost two line operations more per bridge line and would
+ * stop being a tie-break. And a block it does not repair is drawn exactly as
+ * it is drawn today, word by word, because the arithmetic ran and a picture
+ * this pass could not improve is not a give-up to announce.
+ */
+export function slideBoundaries(blocks: readonly LineBlock[]): {
+  blocks: LineBlock[];
+  slid: number;
+} {
+  const out: LineBlock[] = [];
+  let slid = 0;
+  let i = 0;
+  while (i < blocks.length) {
+    const here = blocks[i];
+    if (here === undefined) break;
+    const doubtful =
+      here.kind === 'change' &&
+      here.oldText !== '' &&
+      here.newText !== '' &&
+      resemblance(here.oldText, here.newText) < REDLINE_SLIDE_RESEMBLANCE;
+    if (!doubtful) {
+      out.push(here);
+      i += 1;
+      continue;
+    }
+    let j = i + 1;
+    let bridge = '';
+    while (j < blocks.length) {
+      const step = blocks[j];
+      if (step === undefined || step.kind !== 'same' || step.oldText.trim() !== '') break;
+      bridge += step.oldText;
+      j += 1;
+    }
+    const partner = blocks[j];
+    const reachable =
+      bridge.endsWith('\n') &&
+      partner !== undefined &&
+      partner.kind === 'change' &&
+      partner.oldText === '' &&
+      partner.newText.endsWith(bridge);
+    if (!reachable || partner === undefined) {
+      out.push(here);
+      i += 1;
+      continue;
+    }
+    const paired = partner.newText.slice(0, partner.newText.length - bridge.length);
+    // THE LINE COST IS ONLY EQUAL WHEN THE BRIDGE IS WHOLE LINES OF THE
+    // INSERTION. An insertion of `"paragraph\n"` across a bridge of `"\n"`
+    // leaves `"paragraph"` with no terminator, which is still one line, so the
+    // rewrite would add a line the partition did not. Refuse it there.
+    const better =
+      paired === '' || !paired.endsWith('\n') ? 0 : resemblance(here.oldText, paired);
+    if (
+      better < REDLINE_SLIDE_RESEMBLANCE ||
+      better - resemblance(here.oldText, here.newText) < REDLINE_SLIDE_MARGIN
+    ) {
+      out.push(here);
+      i += 1;
+      continue;
+    }
+    out.push({ kind: 'change', oldText: '', newText: here.newText + bridge });
+    out.push({ kind: 'change', oldText: here.oldText, newText: paired });
+    out.push({ kind: 'same', oldText: bridge, newText: bridge });
+    slid += 1;
+    i = j + 1;
+  }
+  return { blocks: out, slid };
 }
 
 /**
@@ -428,10 +641,13 @@ export function composeRedlineDocument(
       runs: oldText === '' ? [] : [{ kind: 'same', text: oldText }],
       blocks: 0,
       whole: { ...NO_WHOLE },
-      approximate: false
+      approximate: false,
+      slid: 0
     };
   }
-  const { blocks, approximate } = linePartition(oldText, newText);
+  const partitioned = linePartition(oldText, newText);
+  const { blocks, slid } = slideBoundaries(partitioned.blocks);
+  const approximate = partitioned.approximate;
   const runs: RedlineRun[] = [];
   const whole = { ...NO_WHOLE };
   let count = 0;
@@ -484,7 +700,7 @@ export function composeRedlineDocument(
   // Once, over the whole document, so a block drawn whole is covered as well
   // as a word level pair. The peel moves the same bytes out of both sides of a
   // pair and into one run both sides own, so neither projection can change.
-  return { runs: peelSharedSpace(runs), blocks: count, whole, approximate };
+  return { runs: peelSharedSpace(runs), blocks: count, whole, approximate, slid };
 }
 
 /**

@@ -1,0 +1,47 @@
+### 1. the operator's own bytes, through the shipping composer
+
+  THE GOOD PICTURE: 1 block(s), slid 0, whole {"tooBig":0,"tooDifferent":0,"overCap":0,"unaligned":0}, approximate false
+    projections: old true, new true
+    1 marked run(s):
+      del "micro"
+
+  THE BAD PICTURE: 3 block(s), slid 1, whole {"tooBig":0,"tooDifferent":0,"overCap":0,"unaligned":0}, approximate false
+    projections: old true, new true
+    3 marked run(s):
+      del "micro"
+      ins "What context do agents need? Give them too much, they gets confused. Too little, and they …(166)"
+      del "simple"
+
+  HIS BASELINES 11 -> 12: 1 block(s), slid 0, whole {"tooBig":0,"tooDifferent":0,"overCap":0,"unaligned":0}, approximate false
+    projections: old true, new true
+    1 marked run(s):
+      ins "What context do agents need? Give them too much, they gets confused. Too little, and they …(166)"
+
+### 2. research 110 §6's corpus, re-run through the shipping composer
+  inserted ABOVE: 8 of 8 draw the readable picture (the paragraph in green, the one word struck), 7 of them needed the slide; marked runs per file [2,2,2,2,2,2,2,2]
+  inserted BELOW: 8 of 8 draw the readable picture (the paragraph in green, the one word struck), 0 of them needed the slide; marked runs per file [2,2,2,2,2,2,2,2]
+
+### 3. real prose pairs from this repository's git history
+  135 real pairs over 400 commits, 484 change blocks, 3 slid in 2 file(s), 0 projection failure(s)
+    slid: a0857627 docs/research/107-phase-245-clickable-paths.md
+    slid: fe8ef59a docs/ACCEPTANCE-p242.md
+
+### 4. what the pairings really resemble, and where 0.5 falls
+  310 change blocks with text on both sides; resemblance histogram by tenth:
+    0:8  0.1:15  0.2:16  0.3:25  0.4:24  0.5:42  0.6:22  0.7:11  0.8:30  0.9:117
+  14 of them are doubtful AND have a reachable pure insertion behind a blank line:
+    pairing resembles 0.24, the candidate resembles 0.89, margin 0.65, word distance over 200 -> 21
+    pairing resembles 0.40, the candidate resembles 0.27, margin -0.13, word distance 17 -> 19
+    pairing resembles 0.41, the candidate resembles 0.38, margin -0.03, word distance over 200 -> over 200
+    pairing resembles 0.04, the candidate resembles 0.92, margin 0.87, word distance 6 -> 3
+    pairing resembles 0.45, the candidate resembles 0.25, margin -0.20, word distance 17 -> 14
+    pairing resembles 0.34, the candidate resembles 0.34, margin -0.00, word distance 8 -> over 200
+    pairing resembles 0.39, the candidate resembles 0.30, margin -0.09, word distance 15 -> over 200
+    pairing resembles 0.47, the candidate resembles 0.51, margin 0.04, word distance 29 -> over 200
+    pairing resembles 0.12, the candidate resembles 0.50, margin 0.38, word distance 10 -> 4
+    pairing resembles 0.37, the candidate resembles 0.20, margin -0.17, word distance 20 -> over 200
+    pairing resembles 0.33, the candidate resembles 0.16, margin -0.18, word distance 21 -> over 200
+    pairing resembles 0.35, the candidate resembles 0.44, margin 0.09, word distance over 200 -> 7
+    pairing resembles 0.26, the candidate resembles 0.28, margin 0.02, word distance 1 -> over 200
+    pairing resembles 0.29, the candidate resembles 0.01, margin -0.27, word distance 4 -> over 200
+  the constant in force is 0.5
