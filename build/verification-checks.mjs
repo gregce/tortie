@@ -853,6 +853,23 @@ export const CHECKS = [
   // after. `--self-test` proves its grader on ten fixtures and launches
   // nothing.
   electron('probe:p238u'),
+  // PHASE 243. THE DURABLE BASELINE, and the only way to show a marking
+  // outlives the tab is to end the app and start it again. TWO launches, one
+  // after the other and never at once, on ONE scratch profile with a scratch
+  // HOME: the first opens a committed prose file in Redline, has a
+  // synchronous /bin/sh rewrite it from outside, accepts two changes through
+  // the real chords with the file's digest unmoved across both, and reads the
+  // store's own record naming the accept. The second reads the same file back
+  // through the FOUR ACTS Phase 238's measure step used — the quit, a window
+  // reload, the tab closed and opened, and eleven files opened for keeps past
+  // MAX_TABS — and then attacks it by COMMITTING the file underneath, which
+  // the stored baseline must be refused for rather than offered as a
+  // narrowing across the commit. It creates no session, spawns no agent,
+  // spends no token and opens no keychain, every byte it writes is under
+  // GMUX_HARNESS_DIR, and it touches `-L gmux` in one place only, a read only
+  // session count before and after. `--self-test` proves its grader on eleven
+  // fixtures and launches nothing.
+  electron('probe:p243'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the

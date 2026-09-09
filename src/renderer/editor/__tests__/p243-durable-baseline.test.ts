@@ -196,6 +196,19 @@ describe('what a moved baseline asks main to record', () => {
     expect(tabAt('/repo/notes.md').baseline?.text).toBe('HEAD v1\n');
   });
 
+  it('two accepts in a row each end with a receipt on the tab', async () => {
+    useEditor.getState().openFromRequest(req());
+    await flush();
+    const id = tabAt('/repo/notes.md').id;
+    useEditor.getState().acceptBaseline(id, 'first accept\n', 1_700_000_000_000);
+    await flush();
+    expect(tabAt('/repo/notes.md').baseline?.durable).toBe('written');
+    useEditor.getState().acceptBaseline(id, 'second accept\n', 1_700_000_000_001);
+    await flush();
+    expect(tabAt('/repo/notes.md').baseline?.text).toBe('second accept\n');
+    expect(tabAt('/repo/notes.md').baseline?.durable).toBe('written');
+  });
+
   it('an accept is recorded, because it is the gesture this phase exists for', async () => {
     useEditor.getState().openFromRequest(req());
     await flush();
