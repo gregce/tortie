@@ -31,6 +31,30 @@
  *   E. Overwrite again — the file now holds what the person typed, the tab is
  *      clean, and nothing was said, because nothing went wrong.
  *
+ * THE FIX ROUND ADDED THREE MORE, one per door this phase got wrong, and each
+ * of them is a different file so no arm can lean on another's fixture:
+ *
+ *   F. a SYMBOLIC LINK inside the project. The person types, a shell writes the
+ *      link's TARGET from outside, ⌘S — and the same question is asked. At
+ *      3efc8db2 this door had no check of any kind and the outside write was
+ *      gone with no dialog, no toast and a clean tab, which is issue 16 on a
+ *      file that happens to be a link. Overwrite then writes, because the plain
+ *      door has no compare-and-swap to offer a second time.
+ *   G. a file that is NOT UTF-8, which NOBODY WRITES TO. ⌘S — and the sentence
+ *      names the encoding rather than a writer, because the precondition is a
+ *      digest of the DECODED text and the channel hashes the RAW BYTES, so the
+ *      two can never agree on a file that does not survive the round trip.
+ *   H. a DRAFT whose file does not exist, being Phase 63's tab shape. ⌘S — and
+ *      the file appears with nothing said. At 3efc8db2 it was refused `missing`
+ *      and a person read "it is no longer on disk" about a file that had never
+ *      been there. NOTHING IN THIS TREE EMITS A DRAFT OPEN TODAY: Architecture's
+ *      "Draft a contract" has main write the seed files itself, so this arm
+ *      dispatches the open request the way an emitter would and the shape is a
+ *      capability rather than a regression a person met. It is a `.txt` and not
+ *      a `.md` because a markdown tab opens in PREVIEW, which has no Monaco
+ *      model, and `save` returns false in silence without one — at the parent
+ *      exactly as here.
+ *
  * SAFETY. The Electron is started through build/electron-run.mjs, which ends
  * the tree it started in a `finally` whatever happened. The socket is handed
  * in by build/harness-socket.mjs and `gmux` and `default` are refused by name.
@@ -413,6 +437,174 @@ await withElectron(
         ['E nothing was said, because nothing went wrong', findings.E.toasts, []]
       ]));
       say(`E: ${JSON.stringify(findings.E)}`);
+
+      // ------------------------------------------------------------- ARM F
+      // A symbolic link inside the project. `fs:writeGuarded` refuses `link`
+      // and will not turn one into a regular file, so this save takes the
+      // plain door — which now reads before it writes.
+      const TARGET_1 = ['A file something else points at.', '', para(1, 'first'), ''].join('\n');
+      writeFileSync(join(project, 'target.txt'), TARGET_1);
+      spawnSync('ln', ['-s', 'target.txt', join(project, 'linked.txt')]);
+      await drive(cdp, { projectPath: project, openRel: 'linked.txt', mode: 'file', editorWidth: 1100 });
+      await until(cdp, monacoUp, 20000);
+      await sleep(800);
+      await clickFirstLine(cdp, '.monaco-editor .view-line');
+      await press(cdp, CMD_UP);
+      await typeInto(cdp, TYPED);
+      await until(cdp, `document.querySelector('[role="tab"][aria-selected="true"] .ed-tab-close.dirty') !== null`, 8000);
+      const TARGET_2 = TARGET_1 + `\n${para(9, 'written into the link’s target from outside')}\n`;
+      shellWrite('target.txt', TARGET_2);
+      await sleep(6000);
+      await press(cdp, CMD_S);
+      await until(cdp, `document.querySelector('.modal[role="alertdialog"]') !== null`, 8000);
+      const dlgF = await cdpEval(cdp, DIALOG, 10000);
+      findings.F = {
+        asked: dlgF.open,
+        title: dlgF.title,
+        targetUntouched: disk('target.txt') === TARGET_2,
+        outsideWriteSurvives: disk('target.txt').includes(para(9, 'written into the link’s target from outside'))
+      };
+      problems.push(...grade([
+        ['F a link is asked about rather than written over', findings.F.asked, true],
+        ['F and the question names the link', findings.F.title, "'linked.txt' changed on disk"],
+        ['F the outside write is still on disk', findings.F.targetUntouched, true],
+        ['F its paragraph survives', findings.F.outsideWriteSurvives, true]
+      ]));
+      // Overwrite on this door is unconditional, and it must still work.
+      await cdpEval(cdp, clickButton('Overwrite'), 10000);
+      await sleep(2000);
+      const faceF = await cdpEval(cdp, FACE, 10000);
+      findings.F.overwroteThroughTheLink = disk('target.txt') === TYPED + TARGET_1;
+      findings.F.linkIsStillALink = existsSync(join(project, 'linked.txt'));
+      findings.F.clean = faceF.dirtyOnFace === false;
+      problems.push(...grade([
+        ['F Overwrite writes through the link', findings.F.overwroteThroughTheLink, true],
+        ['F the link is still there', findings.F.linkIsStillALink, true],
+        ['F the tab goes clean', findings.F.clean, true]
+      ]));
+      say(`F: ${JSON.stringify(findings.F)}`);
+
+      // ------------------------------------------------------------- ARM G
+      // A file that is not UTF-8 and that nobody writes to.
+      const LATIN = Buffer.from('caf\xe9 na\xefve resum\xe9 and a plain ascii tail\n', 'latin1');
+      writeFileSync(join(project, 'latin.txt'), LATIN);
+      const latinBefore = readFileSync(join(project, 'latin.txt'));
+      await drive(cdp, { projectPath: project, openRel: 'latin.txt', mode: 'file', editorWidth: 1100 });
+      await until(cdp, monacoUp, 20000);
+      await sleep(800);
+      await clickFirstLine(cdp, '.monaco-editor .view-line');
+      await press(cdp, CMD_UP);
+      await typeInto(cdp, TYPED);
+      await until(cdp, `document.querySelector('[role="tab"][aria-selected="true"] .ed-tab-close.dirty') !== null`, 8000);
+      await press(cdp, CMD_S);
+      await sleep(2500);
+      const dlgG = await cdpEval(cdp, DIALOG, 10000);
+      const faceG = await cdpEval(cdp, FACE, 10000);
+      findings.G = {
+        noQuestion: dlgG.open === false,
+        toasts: faceG.toasts,
+        bytesUnchanged: readFileSync(join(project, 'latin.txt')).equals(latinBefore),
+        sizeBefore: latinBefore.length,
+        sizeAfter: readFileSync(join(project, 'latin.txt')).length,
+        stillDirty: faceG.dirtyOnFace
+      };
+      problems.push(...grade([
+        ['G nothing wrote to it, so it is not asked about', findings.G.noQuestion, true],
+        ['G the sentence names the encoding', findings.G.toasts,
+          ['Tortie did not save latin.txt, because it is not UTF-8 text and writing it whole would damage it. Nothing was written.']],
+        ['G not one byte moved', findings.G.bytesUnchanged, true],
+        ['G the file did not grow', findings.G.sizeAfter, findings.G.sizeBefore],
+        ['G the typing survives', findings.G.stillDirty, true]
+      ]));
+      say(`G: ${JSON.stringify(findings.G)}`);
+
+      // ------------------------------------------------------------- ARM H
+      // A draft, the shape Phase 63's "Draft a contract" opens: composed text
+      // whose file does not exist, dirty from the moment it appears.
+      // A .txt rather than a .md ON PURPOSE. A markdown tab opens in PREVIEW,
+      // which has no Monaco model, and `save` asks `getWorkingModel(id)` and
+      // returns false in silence when there is none — at the parent commit
+      // exactly as here, so it is a limit of the preview mode rather than
+      // anything this phase touched, and this arm is about the door.
+      const DRAFT_REL = 'docs/arch/drafted.txt';
+      mkdirSync(join(project, 'docs', 'arch'), { recursive: true });
+      const DRAFT_TEXT = 'A drafted contract.\n\nComposed in main, written by nobody yet.\n';
+      // G's refusal is a sticky toast and it would still be on screen, so it
+      // is dismissed the way a person dismisses it. "Nothing was said" then
+      // means nothing, rather than nothing new.
+      await cdpEval(cdp, `(() => {
+        for (const b of document.querySelectorAll('.toasts .toast button[aria-label="Dismiss"]')) b.click();
+        return true;
+      })()`, 10000);
+      await sleep(400);
+      await cdpEval(cdp, `(() => {
+        window.dispatchEvent(new CustomEvent('gmux:open-file', { detail: {
+          repoPath: ${JSON.stringify(project)},
+          relPath: ${JSON.stringify(DRAFT_REL)},
+          path: ${JSON.stringify(join(project, DRAFT_REL))},
+          mode: 'file',
+          source: 'tree',
+          preview: false,
+          draft: ${JSON.stringify(DRAFT_TEXT)}
+        } }));
+        return true;
+      })()`, 10000);
+      await until(
+        cdp,
+        `(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent ?? '').trim().startsWith('drafted.txt')`,
+        20000
+      );
+      // AND WAIT FOR THE MODEL, not just the tab. `save` asks
+      // `getWorkingModel(id)` and returns false in silence when there is
+      // none, which is exactly what a tab drawn before Monaco has mounted
+      // looks like: no toast, no write, still dirty.
+      await until(
+        cdp,
+        `(document.querySelector('.monaco-editor .view-lines')?.textContent ?? '').includes('A drafted contract')`,
+        20000
+      );
+      await sleep(800);
+      await clickFirstLine(cdp, '.monaco-editor .view-line');
+      await sleep(400);
+      const draftExistedBefore = existsSync(join(project, DRAFT_REL));
+      const draftTab = await cdpEval(cdp, `(() => {
+        const el = document.querySelector('[role="tab"][aria-selected="true"]');
+        const key = el && Object.keys(el).find((k) => k.startsWith('__reactFiber$'));
+        let f = key ? el[key] : null;
+        while (f) {
+          const t = f.memoizedProps && f.memoizedProps.tab;
+          if (t && typeof t === 'object' && 'savedContents' in t) {
+            return { id: t.id, path: t.path, repoPath: t.repoPath, draft: t.draft, saved: t.savedContents.length, dirty: t.dirty, deleted: t.deleted, truncated: t.truncated, error: t.error, mode: t.mode };
+          }
+          f = f.return;
+        }
+        return null;
+      })()`, 10000);
+      say(`H tab: ${JSON.stringify(draftTab)}`);
+      await press(cdp, CMD_S);
+      await sleep(2500);
+      const dlgH = await cdpEval(cdp, DIALOG, 10000);
+      const faceH = await cdpEval(cdp, FACE, 10000);
+      findings.H = {
+        existedBefore: draftExistedBefore,
+        existsAfter: existsSync(join(project, DRAFT_REL)),
+        contents: existsSync(join(project, DRAFT_REL)) ? disk(DRAFT_REL) : null,
+        noQuestion: dlgH.open === false,
+        toasts: faceH.toasts,
+        clean: faceH.dirtyOnFace === false
+      };
+      problems.push(...grade([
+        ['H the draft tab is the one on screen', faceH.tabName, 'drafted.txt'],
+        ['H it has a model, so a save can reach the door at all', draftTab.mode, 'file'],
+        ['H and it really is a draft with nothing read', [draftTab.draft, draftTab.saved], [DRAFT_TEXT, 0]],
+        ['H the file was not there', findings.H.existedBefore, false],
+        ['H a draft saves', findings.H.existsAfter, true],
+        ['H and it holds what was composed', findings.H.contents, DRAFT_TEXT],
+        ['H nothing was asked', findings.H.noQuestion, true],
+        ['H nothing was said', findings.H.toasts, []],
+        ['H the tab goes clean', findings.H.clean, true]
+      ]));
+      say(`H: ${JSON.stringify(findings.H)}`);
     } finally {
       findings.problems = problems;
       writeFileSync(out, JSON.stringify(findings, null, 2));
@@ -430,5 +622,5 @@ if (problems.length > 0) {
   process.stderr.write(`${TAG} FAILED: ${String(problems.length)} finding(s).\n`);
   process.exit(1);
 }
-say(`PASS: 31 readings across five arms, 0 findings.`);
+say(`PASS: 55 readings across eight arms, 0 findings.`);
 process.exit(0);
