@@ -1,0 +1,30 @@
+import { expect, it, vi } from 'vitest';
+import type { ArchStore } from '../db';
+const seam = vi.hoisted(() => ({
+  source: {
+    repoPath: '/scratch-mirror', farPath: '/far-repo', machineId: 'fixture', watchable: false,
+    fileSystem: async () => ({}),
+    git: () => ({ run: async (call: { kind: string }) => ({ code: 0, stdout: Buffer.from(call.kind === 'ls-files' ? 'a.ts\0' : 'a'.repeat(40)), stderr: Buffer.alloc(0) }) }),
+    syncTree: vi.fn(async () => ({ overBudget: 'Mirror stopped at 64 MiB; some tracked files were not read.' }))
+  }
+}));
+vi.mock('../remote-source', () => ({ localArchSource: () => seam.source, archSourceOf: () => seam.source }));
+vi.mock('../load', () => ({ loadArchDocument: async () => ({ contract: null }), keepLastValid: (_old: unknown, fresh: unknown) => fresh }));
+vi.mock('../scan', () => ({ scanArchImports: async () => ({ parsed: 0, overBudget: null, imports: [], unparsed: [] }) }));
+vi.mock('../tree-facts', () => ({ readArchTreeFacts: async () => {} }));
+vi.mock('../../typed-events', () => ({ broadcastEvent: vi.fn() }));
+import { createArchCheckCoordinator } from '../check-coordinator';
+
+it('does not record a complete scan when the remote mirror returned incomplete', async () => {
+  const markScanned = vi.fn();
+  const db = { repoState: () => ({ scannedAtCommit: null }), markScanned } as unknown as ArchStore;
+  const coordinator = createArchCheckCoordinator({ store: () => db, repairDrift: async () => {} });
+  try {
+    await coordinator.runOneCheck('/scratch-mirror', null);
+    expect(seam.source.syncTree).toHaveBeenCalledOnce();
+    console.log(JSON.stringify({ incompleteMirror: true, markScannedCalls: markScanned.mock.calls }));
+    expect(markScanned).not.toHaveBeenCalled();
+  } finally {
+    coordinator.dispose();
+  }
+});
