@@ -115,11 +115,16 @@ separate `ssh` rather than believed from Tortie's own answer.
   folders, stage, unstage, stage again, commit. Between 29 and 125 milliseconds each.
 - **On a row with no folder named, all of them refuse before a byte is composed.** The machine is
   never contacted.
-- **Twelve ways of aiming a write outside the confirmed folder were all refused**, with that machine
-  counted before and after each one: a `..` in the middle, an absolute path somewhere else, the
-  folder itself, a sibling folder whose name is the confirmed one plus a character, and six through a
-  symbolic link. **Four of those six wrote through at the start of this work** — one of them replaced
-  a file outside the folder and told you it had saved — and they are what this release fixes.
+- **Fourteen ways of aiming a write outside the confirmed folder were all refused**, with that
+  machine counted before and after each one: four aimed over the path itself, being a `..` in the
+  middle, an absolute path somewhere else, the folder itself and a sibling folder whose name is the
+  confirmed one plus a character; eight through a symbolic link; and two aimed at a repository
+  outside the folder. **Five of them wrote through at the start of this work** — one replaced a file
+  outside the folder and told you it had saved — and they are what this release fixes.
+- **And a fifteenth that is not a refusal.** If a second name for a file outside the folder is
+  planted where Tortie stages a save, that name is removed rather than followed: the file you asked
+  to save takes your bytes and the file outside keeps its own. That one was still getting out as
+  recently as the last day of this work.
 - **A remote tab and a local tab were read side by side**, over two projects that mirror each other
   file for file, with saving off and again with saving on. **There is not one sentence the remote
   face draws that the local one does not**, in either state, apart from the label on a control you

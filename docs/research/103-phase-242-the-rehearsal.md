@@ -19,7 +19,9 @@ rather than the convenient one.
 |---|---|---|
 | A symbolic link inside the confirmed folder pointing out of it carried `file-put`, `dir-new` and `entry-rename` straight through, one of them REPLACING a file outside the folder and answering `wrote` | research 102 §5.2, on his own machine | **Fixed.** `61cb66aa` |
 | A link as the ENTRY ITSELF, and a link planted at the staged name `<file>.tortie-part`, both answered `wrote`; the second put the payload into a file outside the folder and left the person's own file inside it as a link pointing at it | measured here, at the parent | **Fixed** by the same change, and it is the `src/main/credentials/nofollow.ts` shape this domain had never taken |
+| A HARD LINK at that same staged name took the payload out of the folder anyway, because `[ -L ]` cannot see one | the phase's verifier, on his own machine, at `3f56025d` | **Fixed** in the fix round. §2.1 |
 | Two sentences sent him to a button he had already pressed | research 102 §6 | **Fixed.** `44d01573` |
+| §4 of the acceptance checklist named a control that does not exist, and did not say what the one that does costs | the phase's verifier | **Fixed** in the fix round. §9 |
 | The two git verbs bind their `cwd` over the path TEXT, so a `cwd` through a link inside the folder resolves textually under it and `git-stage` staged a file in a repository OUTSIDE the folder | measured here | **Stated defect, queued as Phase 242.1.** §5 |
 | Every one of the eight write verbs, composed in one run on his machine | measured here | works, §3 |
 | The remote face and the local face, read side by side | measured here | **identical**, §4 |
@@ -68,6 +70,59 @@ The leaf case is contained but its guarantee was false: the checksum was read fr
 and the bytes landed on a different inode, so "replace a file whose contents still match what Tortie
 read" did not hold. The staged-name case is a full escape.
 
+### 2.1 The fix round: a HARD link is the one the `-L` half cannot see
+
+**The phase's verifier reproduced the escape at `3f56025d`, through Tortie's own `machines.putFile`,
+against his Mac Pro.** A hard link planted at `<file>.tortie-part` is invisible to every `[ -L ]` in
+this domain, because a hard link is not a link to the shell: it IS the file, under a second name. So
+the redirection took it, the file outside the confirmed folder read `PWNED-H1`, and the answer was
+`wrote` with the confirmed folder named beside it. That is `a9`'s outcome at the parent, reached by
+the shape the first round's refusal could not see.
+
+`61cb66aa`'s own body and §2 above both say the staged-name arm "is `nofollow.ts`'s shape exactly,
+and this domain had never taken the same lesson", and then it took half of it. **`nofollow.ts` is
+unlink then create exclusively.** So `file-put` now carries `rm -f "$t"` in front of both
+redirections and `set -C` around them.
+
+**The `rm` is NARROWER than the `>` it stands in front of**, and that sentence is the whole
+justification for a `rm` in a catalogue that had refused one for four phases: the redirection
+destroys the contents of the staged name through every other name that shares its inode, and the
+unlink destroys one name Tortie composed for itself. Both arms unlink, because the first arm's
+redirection creates the file even on a machine whose `base64` has no `-d`, and an exclusive create
+without that second unlink would refuse the save on every one of those machines. Driven under
+`/bin/sh` and under `/bin/dash`, since the far side is `/bin/sh -c` and that is bash on his Mac and
+dash on a Linux one; both refuse an existing regular file, a live link and a dangling link at the
+create, and both allow `2>/dev/null`.
+
+**Two answers for the same shape, on purpose.** A SYMBOLIC link at the staged name is still refused
+with the word `outside`, because it names a path and something is plainly wrong. A HARD link is
+unlinked and the save goes through, because it names nothing and the only thing telling it from the
+ordinary debris of an interrupted save is a link count, which is a third `stat` dialect for an answer
+that would leave a person unable to save a file they can see. Both end with nothing outside the
+confirmed folder changed, which is the property that matters and the one the arms read.
+
+Measured on his Mac Pro at `e8615f08`, arm `a12`, through the same bridge call the verifier used:
+
+```
+answer     wrote  sha256 6b3368af…  10 bytes  writeRoot /Users/gdc/tortie-p242-scratch-58656
+far side   victim-hard.txt  md5 60fc7826…  before and after, link count 2 -> 1
+           docs/hard-target.md  "# hard target|"  ->  "PWNED-A12|"
+           docs/hard-target.md.tortie-part  gone
+```
+
+The file OUTSIDE the folder keeps its bytes and loses only the name Tortie composed; the file INSIDE
+the folder is the one that took the payload. All three halves are graded, because any one of them
+alone passes for the wrong reason: a save that refused everything would leave the victim untouched
+too.
+
+**The `rm` rule in the gate was narrowed and never deleted.** It read "the text names no rm" in three
+places, and each now reads "every rm this text names is the staged unlink, by its exact spelling",
+out of one shared `STAGED_UNLINK` and `stagedUnlinkFacts`. Condition 88f adds the other half of
+`nofollow.ts`: every creation of the staged name has an unlink of that name above it with no other
+creation in between, the creation is exclusive, and every `rm` is that one unlink. Ten planted texts
+now, all ten behaving, and three ablations of the real code each go red naming the clause — the
+unlink removed, `set -C` removed, and the unlink pointed at `"$f"`.
+
 ### What holds it
 
 - **`src/main/machines/__tests__/p242-link-refusal.test.ts`** hands the three shipped script strings
@@ -76,7 +131,11 @@ read" did not hold. The staged-name case is a full escape.
   red at the parent and all 14 green now.** The other 7 are green on both sides on purpose: they are
   what proves the refusal did not get wider than the hole — a path with no link still writes, a
   folder is still made, an entry is still renamed, and a link, dangling one included, is still
-  renameable.
+  renameable. **The fix round takes it to 20 over real `link(2)` links**, two of which are red at its
+  own parent and are the escape itself, being the payload outside the folder and the victim inode's
+  size and link count; the other four are green on both sides, being a hard link as the file being
+  REPLACED, `dir-new` and `entry-rename` against one, the debris of an interrupted save still being
+  written over, and the `base64 -D` arm still writing.
 - **`npm run conformance:machines` condition 88** pins the clauses and where they stand: every writer
   that takes a path walks every value it takes, from the confirmed folder, one component at a time,
   refusing by printing and leaving, ABOVE every line that writes. It proves its own readers on six
@@ -110,7 +169,17 @@ byte the fixture afterwards.
 not touched and is unchanged at 140 bytes, so on any repository of his that lacks a local identity
 the commit verb still fails after the press, exactly as research 85 recorded.
 
-### The containment attack: twelve arms, twelve refusals
+### The containment attack: fifteen graded arms, fourteen of them refusals
+
+**THE COUNT IN THIS HEADING WAS WRONG UNTIL THE FIX ROUND AND THE TABLE UNDER IT WAS ALWAYS RIGHT.**
+It read "twelve arms, twelve refusals" over fourteen rows. Counted from `ATTACK_ARMS` in the probe
+rather than by eye: seventeen arms are driven, fifteen are graded and two are recorded, and of the
+fifteen, thirteen answer `outsideRoot`, one answers `refused` and one — `a12`, the fix round's hard
+link — answers `wrote` with nothing outside the folder moved. **Five of them wrote through at the
+parent**, being `a5a`, `a5b`, `a5c`, `a8a` and `a9`, and `a12` wrote through at the parent of the fix
+round. The acceptance checklist carried the same two uncounted numbers and carries the counted ones
+now.
+
 
 | # | shape | answer | far side |
 |---|---|---|---|
@@ -125,7 +194,8 @@ the commit verb still fails after the press, exactly as research 85 recorded.
 | a5d | `renameEntry` IN through the link | `outsideRoot` | unchanged |
 | a8 | the leaf link, `new` | `outsideRoot` | unchanged |
 | a8a | the leaf link with the real digest | `outsideRoot` | unchanged. **`wrote` at the parent** |
-| a9 | a link at the staged name | `outsideRoot` | unchanged. **`wrote`, payload outside, at the parent** |
+| a9 | a SYMBOLIC link at the staged name | `outsideRoot` | unchanged. **`wrote`, payload outside, at the parent** |
+| a12 | a HARD link at the staged name | **`wrote`** | the file outside unchanged and down to one name, the file INSIDE holding the payload. **`wrote`, payload outside, at the parent of the fix round** |
 | a6 | `stage` with a `cwd` outside the root | `outsideRoot` | `dirty.txt` never staged |
 | a7 | `commit` with a `cwd` outside the root | `refused`, naming the folder | unchanged |
 
@@ -277,6 +347,13 @@ socket was ended AND unlinked in its own `finally`, which is Phase 224's committ
 own record file is 113 bytes and `~/.ssh/known_hosts` is 2,215 bytes, both unmoved. His live
 manifest, his keychain and his `~/Library/Application Support/Tortie` were read and never written.
 
+**The fix round's own run**, at `e8615f08`, is one more of exactly the same shape: `-L gmux` on the
+Mac Pro held `gmux-control` and nothing else before and after, this Mac held 19 sessions before and
+after, `~/.gitconfig` read 140 bytes and `~/.ssh` `authorized_keys` on both sides of it,
+`known-machines` 113 bytes and `~/.ssh/known_hosts` 2,215 bytes unmoved, `ls -d /Users/gdc/tortie-p242-*`
+answered nothing, the teardown read `ROOT-GONE SIBLING-GONE OUTSIDE-GONE`, and the scratch socket
+`gmux-p242-58656` was ended and unlinked. `findings: []`.
+
 No agent turn was started on either machine and no token was spent.
 
 ---
@@ -291,3 +368,32 @@ execution-bearing field, so it is inside the confirm hash, and that is Phase 23'
 his own row's confirmation, a repository of his own without a local git identity, a redline on a
 remote tab whose path also exists on this Mac, and the two git verbs through a link, which §5 leaves
 open.
+
+---
+
+## 9. The checklist named a control that does not exist
+
+§4 said "clear the folder from the field under **Saving files**, then confirm". **Once a folder is
+confirmed there is no field.** `SavingFiles` in `src/renderer/settings/MachineRow.tsx` draws one
+sentence and one button, `Stop Tortie saving files here`, whose click is `forget(row.id)`, and
+`machines:forget` clears the accepted version, clears the write root and drops the confirmation. So
+following §4 he hunts for a control that is not there, and if he finds the button instead, his
+machine stops being usable until he confirms it again and the checklist never said so. It is the
+button's own hover title that says it, and a hover title is not what a person following a numbered
+list reads.
+
+Two smaller corrections went with it, both of them counts that were not counted. §1.5 said "two
+paragraphs you have read before and one that matters here" and the sheet carries two, being
+`MACHINE_CONFIRM_WARNING` and `MACHINE_WRITE_HONESTY`; launch C's `sheetText` is the reading.
+§5 said "every line of both is the same" of the two faces, and what was measured is one direction:
+the set of sentences the REMOTE face draws that the local one does not is empty, and the local face
+draws a few the remote one does not. In this round's own run that set was exactly
+`["Stage all & commit"]`, which is a control the local repository's state earns and the remote one's
+does not.
+
+`src/renderer/settings/__tests__/p242-acceptance-copy.test.ts` is what stops this decaying again. A
+quoted string in a checklist is a copy of shipped copy, so the five control names, the honesty
+paragraph and the Explorer refusal are read out of the document and compared to the constants the
+product draws, and the section that turns saving off is asked to name the button that does it. Two of
+its four cases are red against the checklist as it shipped. It reads no prose and judges no
+explanation, because whether §4 explains the cost well is a judgement and this file makes none.

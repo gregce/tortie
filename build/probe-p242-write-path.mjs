@@ -68,7 +68,7 @@
  * nothing at all.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, symlinkSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, symlinkSync, linkSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -118,6 +118,14 @@ export const ATTACK_ARMS = [
   { id: 'a8-leaf-link-put-new', outcome: 'outsideRoot', far: 'leafMd5' },
   { id: 'a8a-leaf-link-put-replace', outcome: 'outsideRoot', far: 'leafMd5' },
   { id: 'a9-staged-name-link', outcome: 'outsideRoot', far: 'stagedMd5' },
+  // THE FIX ROUND'S ARM, and it is the only one here whose answer is `wrote`.
+  // A HARD link at the staged name is invisible to `[ -L ]`, and at the parent
+  // of the fix it took the payload into the file OUTSIDE the folder under that
+  // very word. The save GOES THROUGH now, because the staged name is Tortie's
+  // own name and refusing it would leave a person unable to save a file they
+  // can see; what must be true is that nothing outside the folder moved and
+  // that the file inside it took the bytes. Both halves are graded.
+  { id: 'a12-staged-name-hard-link', outcome: 'wrote', far: 'hardUntouched' },
   { id: 'a6-stage-outside', outcome: 'outsideRoot', far: 'dirtyNotStaged' },
   { id: 'a7-commit-outside', outcome: 'refused', far: 'siblingCommits' },
   // RECORDED RATHER THAN GRADED, and section 5 of the research says why. The
@@ -138,6 +146,16 @@ export const FAR_MUST_HOLD = {
   victimMd5: (before, after) => after.victimMd5 === before.victimMd5,
   leafMd5: (before, after) => after.leafMd5 === before.leafMd5,
   stagedMd5: (before, after) => after.stagedMd5 === before.stagedMd5,
+  // THREE THINGS AT ONCE, because any one of them alone passes for the wrong
+  // reason: the file outside still holds its own bytes, it is down to one name
+  // rather than still carrying the planted second one, and the file INSIDE the
+  // confirmed folder is the one that took the payload. Without that third
+  // half, a save that refused everything would grade green here.
+  hardUntouched: (before, after) =>
+    after.hardMd5 === before.hardMd5 &&
+    after.hardLinks === '1' &&
+    after.hardPartExists === 'no' &&
+    String(after.hardTargetHead ?? '').startsWith('PWNED-A12'),
   outsideExists: (_b, after) => after.outsideExists === 'no',
   madeThroughLink: (_b, after) => after.madeThroughLink === 'no',
   readmeMovedOut: (_b, after) => after.readmeMovedOut === 'no' && after.readmeStillIn === 'yes',
@@ -331,12 +349,14 @@ function selfTest() {
     farBeforeAttack: {
       victimMd5: 'aaa', leafMd5: 'bbb', stagedMd5: 'ccc', outsideExists: 'no',
       madeThroughLink: 'no', readmeMovedOut: 'no', readmeStillIn: 'yes',
-      siblingStaged: '', siblingCommits: '1', strayParts: '1'
+      siblingStaged: '', siblingCommits: '1', strayParts: '1',
+      hardMd5: 'ddd', hardLinks: '2', hardPartExists: 'yes', hardTargetHead: '# hard target|'
     },
     farAfterAttack: {
       victimMd5: 'aaa', leafMd5: 'bbb', stagedMd5: 'ccc', outsideExists: 'no',
       madeThroughLink: 'no', readmeMovedOut: 'no', readmeStillIn: 'yes',
-      siblingStaged: '', siblingCommits: '1', strayParts: '1'
+      siblingStaged: '', siblingCommits: '1', strayParts: '1',
+      hardMd5: 'ddd', hardLinks: '1', hardPartExists: 'no', hardTargetHead: 'PWNED-A12|'
     },
     B: {
       verbs: Object.fromEntries(
@@ -394,6 +414,20 @@ function selfTest() {
 
   f = clone(); f.B.verbs.makeDir.outcome = 'made';
   fixtures.push(['a verb that wrote on a row with no folder', f, 1]);
+
+  // THE FIX ROUND'S FOUR, one per half of `hardUntouched` and one for the word.
+  // The first is what really happened on his Mac Pro at the parent commit.
+  f = clone(); f.farAfterAttack.hardMd5 = 'zzz';
+  fixtures.push(['the HARD staged-name link taking the payload outside, which is the fix round', f, 1]);
+
+  f = clone(); f.farAfterAttack.hardTargetHead = '# hard target|';
+  fixtures.push(['the save refused instead, so the file inside never took the bytes', f, 1]);
+
+  f = clone(); f.farAfterAttack.hardPartExists = 'yes'; f.farAfterAttack.hardLinks = '2';
+  fixtures.push(['the planted hard link still standing at the staged name', f, 1]);
+
+  f = clone(); f.D.attack['a12-staged-name-hard-link'].outcome = 'outsideRoot';
+  fixtures.push(['the hard-link arm answering a word it must not', f, 1]);
 
   f = clone(); delete f.D.attack['a9-staged-name-link'];
   fixtures.push(['an arm the run never drove', f, 1]);
@@ -665,6 +699,7 @@ const attackBody = (mid, farRoot, sibling, outside, shas) => `
     await shot('a8-leaf-link-put-new', () => M.putFile({ machineId: MID, path: FAR + '/leaf-link', contents: 'PWNED-A8\\n', expect: 'new' }));
     await shot('a8a-leaf-link-put-replace', () => M.putFile({ machineId: MID, path: FAR + '/leaf-link', contents: 'PWNED-A8A\\n', expect: SHA.leafSha }));
     await shot('a9-staged-name-link', () => M.putFile({ machineId: MID, path: FAR + '/docs/staged-target.md', contents: 'PWNED-A9\\n', expect: SHA.stagedTargetSha }));
+    await shot('a12-staged-name-hard-link', () => M.putFile({ machineId: MID, path: FAR + '/docs/hard-target.md', contents: 'PWNED-A12\\n', expect: SHA.hardTargetSha }));
     await shot('a6-stage-outside', () => M.stage({ machineId: MID, cwd: SIB, paths: ['dirty.txt'] }));
     await shot('a7-commit-outside', () => M.commit({ machineId: MID, cwd: SIB, headSha: 'x'.repeat(40), staged: ['dirty.txt'], message: 'p242 should never land' }));
     // THE TWO THE MEASURE STEP NAMED AND DID NOT DRIVE. The git verbs take a
@@ -713,6 +748,7 @@ function makeLocalProject() {
   w('docs/design.md', 'The write root is one folder on that machine.\n\nTortie replaces files under it and refuses everything else.\n\nThis paragraph is the one the redline is measured on.\n');
   w('docs/notes.md', '# notes\n\nnothing here.\n');
   w('docs/staged-target.md', '# staged target\n\nThe link beside this file is the nofollow shape.\n');
+  w('docs/hard-target.md', '# hard target\n\nThe HARD link beside this file is the shape [ -L ] cannot see.\n');
   const git = (...args) => spawnSync('/usr/bin/git', ['-C', LOCAL_PROJECT, ...args], { encoding: 'utf8' });
   git('init', '-q', '-b', 'main');
   git('config', '--local', 'user.name', 'Tortie P242');
@@ -731,9 +767,11 @@ function makeLocalProject() {
   writeFileSync(join(outsideLocal, 'victim.txt'), 'victim, untouched\n', 'utf8');
   writeFileSync(join(outsideLocal, 'victim-leaf.txt'), 'victim leaf, untouched\n', 'utf8');
   writeFileSync(join(outsideLocal, 'victim-staged.txt'), 'victim staged, untouched\n', 'utf8');
+  writeFileSync(join(outsideLocal, 'victim-hard.txt'), 'victim hard, untouched\n', 'utf8');
   symlinkSync(outsideLocal, join(LOCAL_PROJECT, 'escape-link'));
   symlinkSync(join(outsideLocal, 'victim-leaf.txt'), join(LOCAL_PROJECT, 'leaf-link'));
   symlinkSync(join(outsideLocal, 'victim-staged.txt'), join(LOCAL_PROJECT, 'docs', 'staged-target.md.tortie-part'));
+  linkSync(join(outsideLocal, 'victim-hard.txt'), join(LOCAL_PROJECT, 'docs', 'hard-target.md.tortie-part'));
 }
 
 async function main() {
@@ -980,7 +1018,8 @@ async function main() {
       const shas = {
         victimSha: fixture.victimSha ?? '',
         leafSha: fixture.leafSha ?? '',
-        stagedTargetSha: fixture.stagedTargetSha ?? ''
+        stagedTargetSha: fixture.stagedTargetSha ?? '',
+        hardTargetSha: fixture.hardTargetSha ?? ''
       };
       record('attackDigests', shas);
       const d = await launch({

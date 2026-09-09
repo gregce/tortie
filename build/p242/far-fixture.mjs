@@ -24,6 +24,7 @@
  * | `<root>/escape-link` | a symbolic link INSIDE the folder pointing at the sibling. Three write verbs went through it at the parent |
  * | `<root>/leaf-link` | a symbolic link as the ENTRY ITSELF, which nothing had ever asked about |
  * | `<root>/docs/staged-target.md.tortie-part` | a link planted at the STAGED NAME `file-put` writes through. `> "$t"` follows one, so at the parent the payload landed outside the folder before the `mv` ran at all. It is `src/main/credentials/nofollow.ts`'s shape |
+ * | `<root>/docs/hard-target.md.tortie-part` | a HARD LINK at that same staged name, which is the FIX ROUND's piece. `[ -L ]` cannot see one, because a hard link is not a link to the shell: it IS the file under a second name. The phase's verifier drove exactly this through `machines.putFile` on this machine and the file outside took the payload under the answer `wrote` |
  * | `<root>-outside.txt` | a path elsewhere entirely, for the absolute-path arm |
  *
  * It is `.p224/far-fixture.mjs`'s shape, which every remote phase since Phase
@@ -48,6 +49,8 @@ export const VICTIM = `${FAR_SIBLING}/victim.txt`;
 export const VICTIM_LEAF = `${FAR_SIBLING}/victim-leaf.txt`;
 /** The file the staged-name arm aims at. */
 export const VICTIM_STAGED = `${FAR_SIBLING}/victim-staged.txt`;
+/** The file the HARD staged-name arm aims at, and which must never move. */
+export const VICTIM_HARD = `${FAR_SIBLING}/victim-hard.txt`;
 /** The link inside the folder pointing out of it. */
 export const ESCAPE_LINK = `${FAR_ROOT}/escape-link`;
 
@@ -85,6 +88,7 @@ function files() {
   );
   out.push(put('docs/notes.md', '# notes\n\nnothing here.\n'));
   out.push(put('docs/staged-target.md', '# staged target\n\nThe link beside this file is the nofollow shape.\n'));
+  out.push(put('docs/hard-target.md', '# hard target\n\nThe HARD link beside this file is the shape [ -L ] cannot see.\n'));
   return out.join('');
 }
 
@@ -109,9 +113,13 @@ P242FILE
 cat > ${sibling}/victim-staged.txt <<'P242FILE'
 victim staged, untouched
 P242FILE
+cat > ${sibling}/victim-hard.txt <<'P242FILE'
+victim hard, untouched
+P242FILE
 ln -s ${sibling} ${root}/escape-link
 ln -s ${sibling}/victim-leaf.txt ${root}/leaf-link
 ln -s ${sibling}/victim-staged.txt ${root}/docs/staged-target.md.tortie-part
+ln ${sibling}/victim-hard.txt ${root}/docs/hard-target.md.tortie-part
 cd ${sibling}
 git init -q -b main
 git config --local user.name 'Tortie P242 sibling'
@@ -131,8 +139,10 @@ echo "dirty=$(git status --porcelain=v1 | wc -l | tr -d ' ')"
 echo "victimMd5=$(md5 -q ${sibling}/victim.txt)"
 echo "leafMd5=$(md5 -q ${sibling}/victim-leaf.txt)"
 echo "stagedMd5=$(md5 -q ${sibling}/victim-staged.txt)"
+echo "hardMd5=$(md5 -q ${sibling}/victim-hard.txt)"
 echo "designSha=$(shasum -a 256 docs/design.md | cut -d' ' -f1)"
 echo "stagedTargetSha=$(shasum -a 256 docs/staged-target.md | cut -d' ' -f1)"
+echo "hardTargetSha=$(shasum -a 256 docs/hard-target.md | cut -d' ' -f1)"
 echo "victimSha=$(shasum -a 256 ${sibling}/victim.txt | cut -d' ' -f1)"
 echo "leafSha=$(shasum -a 256 ${sibling}/victim-leaf.txt | cut -d' ' -f1)"
 echo "siblingCommits=$(cd ${sibling} && git log --oneline | wc -l | tr -d ' ')"
@@ -172,6 +182,8 @@ echo "victimMd5=$(md5 -q ${FAR_SIBLING}/victim.txt 2>/dev/null || echo GONE)"
 echo "victimBytes=$(wc -c < ${FAR_SIBLING}/victim.txt 2>/dev/null | tr -d ' ' || echo GONE)"
 echo "leafMd5=$(md5 -q ${FAR_SIBLING}/victim-leaf.txt 2>/dev/null || echo GONE)"
 echo "stagedMd5=$(md5 -q ${FAR_SIBLING}/victim-staged.txt 2>/dev/null || echo GONE)"
+echo "hardMd5=$(md5 -q ${FAR_SIBLING}/victim-hard.txt 2>/dev/null || echo GONE)"
+echo "hardLinks=$(stat -f %l ${FAR_SIBLING}/victim-hard.txt 2>/dev/null || echo GONE)"
 echo "siblingEntries=$(ls -1a ${FAR_SIBLING} | wc -l | tr -d ' ')"
 echo "siblingCommits=$(cd ${FAR_SIBLING} && git log --oneline | wc -l | tr -d ' ')"
 echo "siblingStaged=$(cd ${FAR_SIBLING} && git diff --cached --name-only | tr '\\n' ',')"
@@ -183,6 +195,8 @@ echo "leafLinkIsLink=$(test -L ${FAR_ROOT}/leaf-link && echo yes || echo no)"
 echo "stagedPartIsLink=$(test -L ${FAR_ROOT}/docs/staged-target.md.tortie-part && echo yes || echo no)"
 echo "stagedTargetIsLink=$(test -L ${FAR_ROOT}/docs/staged-target.md && echo yes || echo no)"
 echo "stagedTargetMd5=$(md5 -q docs/staged-target.md 2>/dev/null || echo GONE)"
+echo "hardTargetHead=$(head -c 40 docs/hard-target.md 2>/dev/null | tr '\\n' '|')"
+echo "hardPartExists=$(test -e ${FAR_ROOT}/docs/hard-target.md.tortie-part && echo yes || echo no)"
 echo "madeThroughLink=$(test -d ${FAR_SIBLING}/p242-made-through-the-link && echo yes || echo no)"
 echo "readmeMovedOut=$(test -e ${FAR_SIBLING}/README-moved.md && echo yes || echo no)"
 echo "readmeStillIn=$(test -e README.md && echo yes || echo no)"
@@ -193,7 +207,7 @@ echo "renamedExists=$(test -e docs/renamed-notes.md && echo yes || echo no)"
 echo "newFileExists=$(test -e p242-new-file.md && echo yes || echo no)"
 echo "newFolderExists=$(test -d p242-new-folder && echo yes || echo no)"
 echo "movedExists=$(test -e p242-new-folder/notes-moved.md && echo yes || echo no)"
-echo "strayParts=$(find ${FAR_ROOT} ${FAR_SIBLING} -name '*.tortie-part' 2>/dev/null | wc -l | tr -d ' ')"
+echo "strayParts=$(find ${FAR_ROOT} ${FAR_SIBLING} -name '*.tortie-part' ! -name 'hard-target.md.tortie-part' 2>/dev/null | wc -l | tr -d ' ')"
 echo "commits=$(git log --oneline | wc -l | tr -d ' ')"
 echo "lastSubject=$(git log -1 --pretty=%s)"
 echo "staged=$(git diff --cached --name-only | tr '\\n' ',')"
