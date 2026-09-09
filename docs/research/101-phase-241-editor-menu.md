@@ -160,6 +160,11 @@ first row's honesty. String tokens are compared by VALUE and not by bytes, so `�
 that is a re-encoding of the same string and refusing it would refuse the commonest shape an agent
 writes — while number literals are compared as TEXT, which is what catches all six rows above.
 
+**So the row is not byte-preserving and the claim must not be written as if it were.** The price of
+comparing a string by value is that the escape form is not kept: `{"s":"\u00e9"}` formats to
+`{"s": "é"}`, the same string and different bytes. Whitespace and string escape form are the two
+things this row rewrites; everything else is refused.
+
 With the guard in front, the four ordinary shapes format and every one of the six losses becomes a
 refusal naming the offset. That is the recommendation: **build the guard, or do not build the row.**
 
@@ -247,6 +252,16 @@ re-serialise with `markdown-table` keeping the alignment — and asks three thin
 `format(format(t)) === format(t)`, the cells are the same, the alignments are the same.
 
 **1,759 tested. 11 findings, and they are two bugs and nothing else.**
+
+> **THE FIX ROUND RE-RAN THIS OVER THE SHIPPING MODULE AND THE COUNT MOVED TO 1,770.** The measure
+> step's own copy read 1,759 and the shipping scan read 1,760, and both were short for the same
+> reason: the block was taken to be the run of non-blank lines around the caret, so a table with a
+> heading written directly above it was invisible. There are 10 such tables here — 9 under an ATX
+> heading and 1 under a paragraph — and the same wrong block destroyed whatever was glued directly
+> UNDER a table, measured at seven block-level structures out of eight, the eighth being a paragraph
+> line, which GFM really does absorb as a row. `tableAt` asks the parser for the table's own bounds
+> now. Re-run: **1,770 found, 1,761 formatted, 9 refused, 0 not idempotent, 0 whose cells moved, 0
+> whose block held more than the table**, banked in `build/p241/out-shipping-table-corpus.txt`.
 
 | Finding | Count | What it is |
 | --- | --- | --- |

@@ -18,7 +18,14 @@
  *    change: integer-like keys reorder, duplicate keys collapse, an id past
  *    2^53 is rewritten, `-0` becomes `0` and `1e400` becomes `null`. Six
  *    measured losses. So the answer is compared with the source through one
- *    string-aware stripper and refused when anything but whitespace moved.
+ *    string-aware stripper and refused when anything the stripper can see
+ *    moved. IT IS NOT BYTE-PRESERVING AND SAYING SO IS THE HONEST CLAIM: the
+ *    stripper compares a string token by its VALUE, so `{"s":"\u00e9"}` really
+ *    does come back as `{"s": "é"}` and the escape form is not the person's
+ *    to keep. That is deliberate — refusing a re-encoded string would refuse
+ *    the commonest shape an agent writes — and it is the ONE thing besides
+ *    whitespace this row will change. Every number literal is compared as
+ *    TEXT, which is what catches all six losses above.
  *  - Minify JSON. It is that stripper, so the second row pays for the first
  *    row's honesty, and its own use is real: a pretty body has to become one
  *    line to go on a `curl` command.
@@ -112,15 +119,22 @@ function commonIndent(lines: readonly string[]): string {
 }
 
 /**
- * The GFM table the caret is in, or null — the WHOLE of Group A's dynamic
- * half for the table row.
+ * The GFM table the caret is in, as the lines it really occupies — or null.
  *
- * A table is a block, so the block is found first: the run of non-blank lines
- * around `line`. It is a table when its SECOND line is a delimiter row and its
- * first line carries a pipe, which is GFM's own shape — a header row, then the
- * delimiter, then the body. A block whose first line is prose is a paragraph
- * whose later lines are lazy continuations, and that is not a table, which is
- * why the run is taken whole rather than scanned outwards for pipes.
+ * It is `tableAt` with the source thrown away, so the block a menu row is
+ * drawn from and the block a press REWRITES can never disagree. That is not
+ * tidiness: it is the Phase 241 fix round's whole defect. This function used
+ * to answer THE RUN OF NON-BLANK LINES around the caret and check only that
+ * the run's second line was a delimiter row, and a GFM table does not end at
+ * a blank line alone — it ends at a blank line OR at the start of another
+ * block-level structure. So a table with a heading, a fenced block, a list, a
+ * blockquote, a rule or an HTML block glued directly under it reported those
+ * lines as part of itself, and `reshapeTableAt` wrote the formatted table
+ * over the lot: seven measured tails destroyed, silently, in the person's own
+ * file. The same wrong block made a table with any non-blank line directly
+ * ABOVE it invisible, because the run then began on that line and the run's
+ * first line carries no pipe — which is `### Heading` above a table, the
+ * commonest markdown there is and 10 of the tables in this repository.
  *
  * `line` is 1-based, the way Monaco counts.
  */
@@ -128,25 +142,12 @@ export function tableBlockAt(
   lines: readonly string[],
   line: number
 ): TableBlock | null {
-  if (line < 1 || line > lines.length) return null;
-  const blank = (i: number): boolean => (lines[i] ?? '').trim() === '';
-  if (blank(line - 1)) return null;
+  return tableAt(lines, line)?.block ?? null;
+}
 
-  let top = line - 1;
-  while (top > 0 && !blank(top - 1)) top -= 1;
-  let bottom = line - 1;
-  while (bottom < lines.length - 1 && !blank(bottom + 1)) bottom += 1;
-
-  const header = lines[top] ?? '';
-  const delimiter = lines[top + 1];
-  if (delimiter === undefined) return null;
-  if (!header.includes('|') || !isDelimiterRow(delimiter)) return null;
-
-  return {
-    startLine: top + 1,
-    endLine: bottom + 1,
-    indent: commonIndent(lines.slice(top, bottom + 1))
-  };
+/** Every line with the block's shared indent taken off the front. */
+function dedent(lines: readonly string[], indent: string): string[] {
+  return lines.map((l) => (l.startsWith(indent) ? l.slice(indent.length) : l.trimStart()));
 }
 
 /** Every table node in a document. */
@@ -194,15 +195,17 @@ function cellSource(text: string, cell: TableCell): string {
 /**
  * FORMAT ONE GFM TABLE, given its source with no indent on it.
  *
- * TWO REFUSALS, both measured over the 1,759 tables tracked in this repository
- * (docs/research/101 §4):
+ * TWO REFUSALS, both measured over the 1,770 GFM tables tracked in this
+ * repository (docs/research/101 §4, re-run by the fix round: the measure step
+ * read 1,759 and the shipping scan 1,760, and the parser owning the bounds
+ * found the 10 that sit directly under a heading with no blank line between):
  *
  *  1. The slice must reparse as exactly one table. Three tables in this
  *     repository are indented inside a list item, and a slice that keeps the
  *     indent is not a table at all — which is why the caller dedents first.
  *  2. NO ROW MAY BE WIDER THAN THE HEADER. `markdown-table` pads every row to
  *     the longest one, so a body row with more cells GROWS THE HEADER and the
- *     table means something new. Eight tables here are that shape, and the
+ *     table means something new. Nine tables here are that shape, and the
  *     cause is almost always an unescaped `|` inside a code span, which GFM
  *     splits on: 732 tables here carry one. Reflowing hides the person's bug
  *     instead of showing it, so the answer is a refusal naming the row.
@@ -259,10 +262,31 @@ export function formatMarkdownTable(src: string, lineOffset = 0): Reshaped {
  * half AND by the reshape itself, so the row that is drawn and the row that
  * runs cannot disagree.
  *
- * It is the line scan above plus the parser's own verdict, because the scan
- * alone reads a paragraph carrying pipes as a table. The block is dedented
- * first: three tables in this repository sit inside a list item, and a slice
- * that keeps its indent is not a table at all.
+ * THE PARSER OWNS THE BOUNDS, AND THAT IS THE FIX ROUND'S ONE CLAUSE. A run
+ * of non-blank lines is a CANDIDATE REGION and never the table: GFM ends a
+ * table at a blank line OR at the start of another block-level structure, so
+ * the region can hold a heading above the table and a fenced block, a list, a
+ * rule, a blockquote or an HTML block glued under it. The region is parsed,
+ * the table node whose own line range CONTAINS the caret is taken, and that
+ * node's first and last lines are the block. A glued paragraph line really is
+ * absorbed as a row, which is GFM and not a loss, and the parser says so
+ * rather than a line scan guessing.
+ *
+ * Three things keep it cheap and keep it honest:
+ *
+ *  - A NECESSARY CONDITION BEFORE THE PARSE. A GFM table's second line is a
+ *    delimiter row, so the region must hold one that is not its first line,
+ *    and the caret must be at or below that row's header. Without it a right
+ *    click in a large file holding no blank line at all — a pretty-printed
+ *    JSON document is exactly that — would pay for a markdown parse of the
+ *    whole file to learn there was no table in it. Measured over a 20,000-line
+ *    JSON document with no blank line anywhere: 0.49 ms, against 0.29 ms for
+ *    the line scan this replaced.
+ *  - THE SLICE IS DEDENTED. Three tables in this repository sit inside a list
+ *    item and a slice that keeps its indent is not a table at all.
+ *  - THE SLICE IS RE-PARSED and must be exactly one table filling it end to
+ *    end. Checking only that it STARTS at offset 0 is what let a glued tail
+ *    ride along inside the block, so both ends are asked now.
  *
  * The ONE thing it does not ask is whether the table will format, because a
  * row that is wider than the header is a bug in the person's table and the
@@ -273,22 +297,73 @@ export function tableAt(
   lines: readonly string[],
   line: number
 ): { block: TableBlock; source: string } | null {
-  const block = tableBlockAt(lines, line);
-  if (block === null) return null;
-  const source = lines
-    .slice(block.startLine - 1, block.endLine)
-    .map((l) => (l.startsWith(block.indent) ? l.slice(block.indent.length) : l.trimStart()))
-    .join('\n');
-  let nodes: Table[];
+  if (line < 1 || line > lines.length) return null;
+  const blank = (i: number): boolean => (lines[i] ?? '').trim() === '';
+  if (blank(line - 1)) return null;
+
+  let top = line - 1;
+  while (top > 0 && !blank(top - 1)) top -= 1;
+  let bottom = line - 1;
+  while (bottom < lines.length - 1 && !blank(bottom + 1)) bottom += 1;
+
+  let firstDelimiter = -1;
+  for (let i = top + 1; i <= bottom; i += 1) {
+    if (isDelimiterRow(lines[i] ?? '')) {
+      firstDelimiter = i;
+      break;
+    }
+  }
+  if (firstDelimiter === -1 || line - 1 < firstDelimiter - 1) return null;
+
+  const region = lines.slice(top, bottom + 1);
+  const regionIndent = commonIndent(region);
+  const regionSource = dedent(region, regionIndent).join('\n');
+  const relLine = line - top;
+  let regionTables: Table[];
   try {
-    nodes = tablesOf(source);
+    regionTables = tablesOf(regionSource);
   } catch {
     return null;
   }
-  const node = nodes[0];
-  if (nodes.length !== 1 || node === undefined) return null;
-  if ((node.position?.start.offset ?? -1) !== 0) return null;
-  return { block, source };
+  const found = regionTables.find(
+    (t) =>
+      t.position !== undefined &&
+      t.position.start.line <= relLine &&
+      relLine <= t.position.end.line
+  );
+  if (found?.position === undefined) return null;
+
+  const startLine = top + found.position.start.line;
+  const endLine = top + found.position.end.line;
+  const own = lines.slice(startLine - 1, endLine);
+  const indent = commonIndent(own);
+  const source = dedent(own, indent).join('\n');
+
+  // When the table fills the whole region the parse above ALREADY answered
+  // the slice question, so the second one is skipped. That is not a
+  // micro-optimisation: a right click inside a 5,000-row table would otherwise
+  // pay for the parse twice, measured at 837 ms with the skip against 1,662 ms
+  // without it, where the parent commit's one parse cost 1,171 ms. A table
+  // with a heading glued above it is the shape that still pays twice, and it
+  // is the shape a person really has — 200 rows read 6 ms.
+  const alreadyProved =
+    regionTables.length === 1 &&
+    indent === regionIndent &&
+    (found.position.start.offset ?? -1) === 0 &&
+    (found.position.end.offset ?? -1) === regionSource.length;
+  if (!alreadyProved) {
+    let nodes: Table[];
+    try {
+      nodes = tablesOf(source);
+    } catch {
+      return null;
+    }
+    const node = nodes[0];
+    if (nodes.length !== 1 || node === undefined) return null;
+    if ((node.position?.start.offset ?? -1) !== 0) return null;
+    if ((node.position?.end.offset ?? -1) !== source.length) return null;
+  }
+  return { block: { startLine, endLine, indent }, source };
 }
 
 /**
@@ -377,6 +452,11 @@ function refuseNotJson(err: unknown): Reshaped {
  * source and the re-serialised answer are both stripped to their significant
  * bytes and must be identical. When they are not, nothing is written and the
  * sentence names the offset and what would have changed there.
+ *
+ * What it is NOT is byte-preserving, and the header says which byte moves: a
+ * string token is compared by value, so a `\u00e9` in the source comes back as
+ * the character it names. Whitespace and string escape form are the two things
+ * this row rewrites, and nothing else survives the comparison.
  */
 export function prettyJson(src: string, indent = 2): Reshaped {
   let value: unknown;

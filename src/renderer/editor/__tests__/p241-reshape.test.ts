@@ -7,8 +7,8 @@
  * file is why each is safe to point at a person's file.
  *
  * THE TWO REFUSALS ARE THE POINT. A table whose body row is wider than its
- * header would GROW THE HEADER, so it is refused with the line named — eight
- * of this repository's 1,759 tables are that shape and the cause is almost
+ * header would GROW THE HEADER, so it is refused with the line named — nine
+ * of this repository's 1,770 tables are that shape and the cause is almost
  * always an unescaped pipe inside a code span. And `JSON.parse` +
  * `JSON.stringify` is not a whitespace change: six measured losses are refused
  * here, one case each, with nothing written on any of them.
@@ -103,6 +103,78 @@ describe('the table reshape', () => {
     // And the control: a real one is still found from any of its lines.
     expect(tableBlockAt(['| a | b |', '| - | - |', '| 1 | 2 |'], 3)?.startLine).toBe(1);
   });
+
+  // -------------------------------------------------------------------------
+  // THE GLUED CORPUS — the Phase 241 fix round's own defect, one case per
+  // block-level structure GFM ends a table at.
+  //
+  // The block was the RUN OF NON-BLANK LINES around the caret, and a GFM table
+  // ends at a blank line OR at the start of another block-level structure. So
+  // a heading, a fenced block, a list, a blockquote, a rule or an HTML block
+  // written directly under a table sat INSIDE the block the press rewrote, and
+  // the formatted table was written over it: seven tails destroyed silently in
+  // the person's own file, undoable in one press and visible in none. Nothing
+  // in this repository is that shape, which is why the corpus walk over real
+  // files could never have caught it and why these shapes are written down.
+  // -------------------------------------------------------------------------
+
+  const TABLE = ['| a | b |', '|---|---|', '| 1 | 2 |'];
+
+  it.each([
+    ['an ATX heading', ['### keep me']],
+    ['a fenced code block', ['```js', 'const keep = "this line must survive";', '```']],
+    ['a bullet list', ['- keep me']],
+    ['an ordered list', ['1. keep me']],
+    ['a blockquote', ['> keep me']],
+    ['a thematic break', ['***']],
+    ['an HTML block', ['<div>keep me</div>']]
+  ])('leaves %s glued under the table exactly where it was', (_what, tail) => {
+    const lines = [...TABLE, ...tail];
+    const answer = reshapeTableAt(lines, 3);
+    expect(answer.ok).toBe(true);
+    if (!answer.ok) return;
+    expect(answer.startLine).toBe(1);
+    // THE WHOLE FIX IN ONE NUMBER: the block ends at the table's last row and
+    // not at the run's last line, so every tail line is outside the edit.
+    expect(answer.endLine).toBe(3);
+    const next = [
+      ...lines.slice(0, answer.startLine - 1),
+      ...answer.text.split('\n'),
+      ...lines.slice(answer.endLine)
+    ];
+    expect(next.slice(3)).toEqual(tail);
+  });
+
+  it('ABSORBS a glued paragraph as a row, because that is what GFM does', () => {
+    const answer = reshapeTableAt([...TABLE, 'keep me as prose'], 3);
+    expect(answer.ok).toBe(true);
+    if (!answer.ok) return;
+    expect(answer.endLine).toBe(4);
+    expect(answer.text).toContain('keep me as prose');
+  });
+
+  it.each([
+    ['an ATX heading', ['### a heading']],
+    ['a paragraph', ['some prose']],
+    ['a thematic break', ['***']]
+  ])('finds a table with %s glued directly above it', (_what, head) => {
+    const lines = [...head, ...TABLE];
+    const answer = reshapeTableAt(lines, head.length + 2);
+    expect(answer.ok).toBe(true);
+    if (!answer.ok) return;
+    expect(answer.startLine).toBe(head.length + 1);
+    expect(answer.endLine).toBe(head.length + 3);
+  });
+
+  it('draws NO row for a caret on the line glued above the table', () => {
+    expect(tableAt(['### a heading', ...TABLE], 1)).toBeNull();
+  });
+
+  it('draws no row for pipe rows lazily continuing a list item', () => {
+    // `- an item` opens a paragraph inside a list item and the pipe lines are
+    // its lazy continuations, so GFM sees no table and neither does this.
+    expect(tableAt(['- an item', ...TABLE], 3)).toBeNull();
+  });
 });
 
 describe('the JSON reshapes, and the guard in front of the first', () => {
@@ -138,9 +210,17 @@ describe('the JSON reshapes, and the guard in front of the first', () => {
     }
   });
 
-  it('passes a re-encoded string, because that is the same value', () => {
+  it('passes a re-encoded string, AND REWRITES IT, which is the honest claim', () => {
+    // Not byte-preserving, and the module header says so rather than claiming
+    // "nothing but whitespace moved". A string token is compared by VALUE, so
+    // the escape form is the one byte besides whitespace this row changes —
+    // deliberately, because refusing a re-encoded string would refuse the
+    // commonest shape an agent writes.
     const answer = prettyJson('{"s":"a\\u00e9"}');
     expect(answer.ok).toBe(true);
+    if (!answer.ok) return;
+    expect(answer.text).toBe('{\n  "s": "aé"\n}');
+    expect(answer.text).not.toContain('u00e9');
   });
 
   it('minify keeps the exact digits the person wrote', () => {
