@@ -223,13 +223,15 @@ for (const name of buildScripts) {
 /**
  * Measured on 2026-09-09 with the sixteen misplaced imports moved, at 42, and
  * raised to 43 when this phase was rebased onto Phase 242.2, whose
- * `build/probe-p242-2-image.mjs` is the forty third caller. The floor is
+ * `build/probe-p242-2-image.mjs` is the forty third caller, and to 44 by
+ * Phase 247, whose `build/conformance-pathdoors.mjs` is the forty fourth. The
+ * floor is
  * raised in the commit that brings a caller in for the same reason
  * `HELPER_USER_FLOOR` is: adding one can never turn this rule red, so a floor
  * left behind is a floor that would let the new probe be deleted again in
  * silence.
  */
-const RUNNER_CALLER_FLOOR = 43;
+const RUNNER_CALLER_FLOOR = 44;
 if (runnerCallers < RUNNER_CALLER_FLOOR) {
   fail(
     `${String(runnerCallers)} script(s) under build/ call tsxCli() against a ` +

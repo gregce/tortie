@@ -1,0 +1,456 @@
+#!/usr/bin/env node
+/**
+ * `npm run conformance:pathdoors`, the gate on which door a path in a
+ * transcript takes (Phase 247).
+ *
+ * About 6 s. It launches no Electron, opens no window, starts no tmux server,
+ * spawns no agent, makes no request, reads nothing under the person's home,
+ * and writes nothing outside scratch directories it removes in a `finally`.
+ *
+ * **`shell.openPath` AND `shell.openExternal` ARE NEVER CALLED BY ANYTHING
+ * THIS GATE RUNS.** The probe runs under plain node with electron nowhere in
+ * its module graph, so no LaunchServices open is possible from here, and rule
+ * 4 asks structurally what the one live call site does.
+ *
+ * ## Why it exists
+ *
+ * Until Phase 247 no click on text an agent wrote had ever reached outside
+ * Tortie. The operator lifted research 107's refusal 1 narrowly on 2026-09-09
+ * — Tortie first, Preview as the fallback — and the whole risk of that lift is
+ * one sentence: OPENING IS NOT EXECUTING, and the two are one keystroke apart.
+ * A `.command`, a `.app`, a `.scpt`, anything carrying an executable bit, or a
+ * bundle directory wearing a `.png` suffix, handed to LaunchServices, RUNS.
+ *
+ * So the lift is bounded by an ALLOWLIST OF KINDS and by a mode check, and
+ * both are asked. A denylist of dangerous extensions is refused outright by
+ * the charter, and rule 3 is what keeps that checkable rather than asserted.
+ *
+ * ## The rules
+ *
+ *   1. THE SEQUENCE, RUN RATHER THAN READ. The shipping door sequence is
+ *      driven over hostile shapes built on a real disk — a `.png` that is
+ *      really a shell script, a `.pdf` with the executable bit, a symlink
+ *      whose leaf is a bundle, a `.command`, a bundle directory spelled
+ *      `.png`, a newline in the spelling — and every answer is pinned.
+ *   2. THE ORDER, which is the thing to get right. Mode is asked BEFORE
+ *      extension or a `.pdf` with the executable bit walks the allowlist; the
+ *      NAME is asked before the mode so a secret is refused as a secret; the
+ *      bundle before the regular-file test so the refusal word is true; and
+ *      the spelling before any filesystem call at all.
+ *   3. THE EXTERNAL SET IS AN ALLOWLIST AND IT IS CLOSED. It is a literal set
+ *      of extensions, membership is asked with `.has(`, and no file in the
+ *      domain spells a denylist. Its size is pinned, so widening it is a
+ *      deliberate edit to this gate and never a quiet one.
+ *   9. THE ABLATIONS. One clause removed per copy of the sequence, and every
+ *      copy must move a reading rule 1 or rule 2 pinned. A gate that cannot
+ *      fail is not a gate.
+ *  10. A gate nothing names is how a gate decays.
+ */
+
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { tsxCli } from './ts-runner.mjs';
+import { functionBodyOf, stripComments } from './scan-source.mjs';
+
+const TAG = '[conformance:pathdoors]';
+const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const failures = [];
+const fail = (message) => failures.push(`${TAG} ${message}`);
+const say = (line) => console.log(`${TAG} ${line}`);
+
+const DOORS = 'src/shared/path-doors.ts';
+const SPANS = 'src/shared/path-spans.ts';
+const DOOR = 'src/main/fs/path-door.ts';
+
+const source = (rel) => readFileSync(join(repoRoot, rel), 'utf8');
+const code = (rel) => stripComments(source(rel));
+
+// ---------------------------------------------------------------------------
+// The probe. One line of JSON, the shipping sequence or an ablated copy.
+// ---------------------------------------------------------------------------
+
+function runProbe(modules) {
+  const probe = spawnSync(
+    process.execPath,
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/p247/path-door-probe.mts'],
+    {
+      encoding: 'utf8',
+      cwd: repoRoot,
+      maxBuffer: 32 * 1024 * 1024,
+      env: {
+        ...process.env,
+        ...(modules === null ? {} : { P247_MODULES: modules })
+      }
+    }
+  );
+  if (probe.status !== 0) {
+    return {
+      error: `the probe did not run: ${(probe.stderr || '').slice(-600) || '(no output)'}`
+    };
+  }
+  const line = probe.stdout.trim().split('\n').pop() ?? '';
+  try {
+    return JSON.parse(line);
+  } catch {
+    return { error: `the probe printed no JSON: ${probe.stdout.slice(0, 400)}` };
+  }
+}
+
+/**
+ * WHAT EVERY READING MUST SAY.
+ *
+ * The left column is the shape and the right is the answer. These are the
+ * fixture table of research 111 section 5.4 turned into a gate, plus the
+ * shapes this phase added.
+ */
+const MATRIX = [
+  // --- rule 1, the sequence over real files -------------------------------
+  ['prose', 'door:editor'],
+  ['code', 'door:editor'],
+  ['picture', 'door:image'],
+  ['no-extension', 'door:editor'],
+  ['pdf', 'door:mac'],
+  ['png-executable', 'refused:executable-bit'],
+  ['pdf-executable', 'refused:executable-bit'],
+  ['command-executable', 'refused:executable-bit'],
+  ['command-plain', 'door:editor'],
+  ['dylib', 'refused:executable-bit'],
+  ['group-execute-only', 'refused:executable-bit'],
+  ['other-execute-only', 'refused:executable-bit'],
+  ['shebang-family', 'refused:executable-bit'],
+  ['png-that-is-a-script', 'door:image'],
+  ['bundle-wearing-png', 'refused:bundle'],
+  ['app-bundle', 'refused:bundle'],
+  ['link-png-to-bundle', 'refused:bundle'],
+  ['link-md-to-key-material', 'refused:secret-name'],
+  ['link-md-to-pdf', 'door:mac'],
+  ['link-md-to-executable', 'refused:executable-bit'],
+  ['newline-in-spelling', 'refused:control-character'],
+  ['relative', 'refused:not-absolute'],
+  ['missing', 'refused:missing'],
+  ['directory', 'refused:not-a-regular-file'],
+  ['network-mount', 'refused:mount'],
+  ['volume-mount', 'refused:mount'],
+  ['dotenv', 'refused:secret-name'],
+  // The widening working as intended, stated rather than left to be found: a
+  // system text file is a real file, is not a secret by name, carries no
+  // executable bit, and IS underlined. Research 111 section 5.4's last row.
+  ['system-text-file', 'door:editor'],
+  // --- rule 2, the order ---------------------------------------------------
+  ['order-mode-before-extension', 'refused:executable-bit'],
+  ['order-name-before-mode', 'refused:secret-name'],
+  ['order-bundle-before-regular-file', 'refused:bundle'],
+  ['order-spelling-before-realpath', 'refused:not-absolute'],
+  // --- rule 3, the closed set ----------------------------------------------
+  ['external-allow', '.pdf'],
+  // --- refusal 8 and the span grammar --------------------------------------
+  ['span-plain', '/a/b.md@6-13'],
+  ['span-line-suffix', '/a/b.ts@4-16:42'],
+  ['span-url-left-alone', '/a/b.md@27-34'],
+  ['span-ends-the-row', ''],
+  ['span-heads-a-continued-row', ''],
+  ['span-heads-an-uncontinued-row', '/b.md@0-5'],
+  ['span-behind-a-gutter', ''],
+  ['span-fraction', '']
+];
+
+const live = runProbe(null);
+if (live.error !== undefined) {
+  fail(`1. ${live.error}`);
+} else {
+  const wrong = MATRIX.filter(([key, want]) => live[key] !== want);
+  for (const [key, want] of wrong) {
+    fail(`1. ${key} answered ${JSON.stringify(live[key])} and must answer ${JSON.stringify(want)}`);
+  }
+  if (wrong.length === 0) {
+    const doors = MATRIX.filter(([, w]) => w.startsWith('door:')).length;
+    const refused = MATRIX.filter(([, w]) => w.startsWith('refused:')).length;
+    say(
+      `1 and 2. ${String(MATRIX.length)} readings, ${String(doors)} of them a door and ${String(refused)} a refusal, every one as pinned — and exactly ${String(MATRIX.filter(([, w]) => w === 'door:mac').length)} of them reach macOS`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 3. The external set is an ALLOWLIST, closed, and asked by membership.
+// ---------------------------------------------------------------------------
+
+{
+  const doorsCode = code(DOORS);
+  const literal = /EXTERNAL_ALLOW[^=]*=\s*new Set\(\[([^\]]*)\]\)/.exec(doorsCode);
+  if (literal === null) {
+    fail('3. EXTERNAL_ALLOW is not a literal `new Set([...])`, so the set it holds cannot be read here');
+  } else {
+    const members = [...literal[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    if (members.length !== 1 || members[0] !== '.pdf') {
+      fail(
+        `3. EXTERNAL_ALLOW holds ${JSON.stringify(members)}. Widening the one kind that may leave Tortie is a deliberate change: argue it in the commit body and move this pin in the same commit`
+      );
+    }
+    if (/\.\.\./.test(literal[1])) {
+      fail('3. EXTERNAL_ALLOW spreads another set into itself, so what may leave Tortie is not readable here');
+    }
+  }
+  const decide = functionBodyOf(doorsCode, 'decidePathDoor');
+  if (decide === null) {
+    fail('3. src/shared/path-doors.ts declares no decidePathDoor');
+  } else if (!/EXTERNAL_ALLOW\.has\(/.test(decide)) {
+    fail('3. the decision does not ask EXTERNAL_ALLOW by membership, so the set may have been inverted into a denylist');
+  } else if (/!\s*EXTERNAL_ALLOW\.has\(/.test(decide)) {
+    fail('3. the decision asks whether an extension is NOT in the set, which is a denylist wearing an allowlist name');
+  }
+  // A denylist by any other spelling. The names a later round would reach for.
+  for (const rel of [DOORS, DOOR]) {
+    const text = code(rel);
+    for (const word of ['DANGEROUS', 'DENY', 'BLOCKED', 'FORBIDDEN_EXT']) {
+      if (text.includes(word)) {
+        fail(`3. ${rel} names ${word}, and the external door is an allowlist or it does not ship`);
+      }
+    }
+  }
+  if (failures.every((f) => !f.includes(' 3. '))) {
+    say('3. one extension may leave Tortie, spelled as a literal set and asked by membership; no denylist anywhere in the domain');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 9. The ablations. One clause each, and every one must move a reading.
+// ---------------------------------------------------------------------------
+
+/**
+ * `from` is an exact substring of a shipping module and `to` is that clause
+ * removed. Every ablation is a clause a later round could take out for
+ * convenience, and the reading it moves is the reason it may not.
+ */
+const ABLATIONS = [
+  {
+    name: 'the executable bit is not asked',
+    file: 'path-doors.ts',
+    edits: [
+      { from: "if (facts.executable) return { door: null, refusal: 'executable-bit' };", to: '' }
+    ]
+  },
+  {
+    name: 'the extension is read BEFORE the mode',
+    file: 'path-doors.ts',
+    edits: [
+      {
+        from: "  if (facts.executable) return { door: null, refusal: 'executable-bit' };\n  // 7. the extension, and only now\n  if (isImagePath(real)) return { door: 'image', path: real };",
+        to: "  if (isImagePath(real)) return { door: 'image', path: real };\n  if (facts.executable) return { door: null, refusal: 'executable-bit' };"
+      }
+    ]
+  },
+  {
+    name: 'the name is not asked',
+    file: 'path-doors.ts',
+    edits: [{ from: 'if (looksLikeSecretPath(real)) {', to: 'if (false) {' }]
+  },
+  {
+    name: 'the bundle is not asked',
+    file: 'path-doors.ts',
+    edits: [{ from: "if (facts.bundle) return { door: null, refusal: 'bundle' };", to: '' }]
+  },
+  {
+    name: 'a directory is a link after all',
+    file: 'path-doors.ts',
+    edits: [{ from: "if (facts.kind !== 'file') {", to: 'if (false) {' }]
+  },
+  {
+    name: 'a control character reaches a door',
+    file: 'path-doors.ts',
+    edits: [{ from: 'if (hasControlCharacter(facts.spelling)) {', to: 'if (false) {' }]
+  },
+  {
+    name: 'a relative spelling reaches a door',
+    file: 'path-doors.ts',
+    edits: [{ from: "if (!facts.spelling.startsWith('/')) {", to: 'if (false) {' }]
+  },
+  {
+    name: 'the allowlist becomes a denylist',
+    file: 'path-doors.ts',
+    edits: [
+      {
+        from: "  if (EXTERNAL_ALLOW.has(extensionOf(real))) return { door: 'mac', path: real };\n  return { door: 'editor', path: real };",
+        to: "  if (EXTERNAL_ALLOW.has(extensionOf(real))) return { door: 'editor', path: real };\n  return { door: 'mac', path: real };"
+      }
+    ]
+  },
+  {
+    name: 'the questions are asked of the SPELLING rather than the realpath',
+    file: 'path-door.ts',
+    edits: [{ from: 'const real = await realpath(spelling);', to: 'const real = spelling;' }]
+  },
+  {
+    name: 'the bundle probe never looks for Contents/Info.plist',
+    file: 'path-door.ts',
+    edits: [{ from: 'if (dot > 0) return true;', to: 'return false;' }]
+  },
+  {
+    name: 'a network mount is asked about after all',
+    file: 'path-doors.ts',
+    edits: [{ from: 'const MOUNT_REFUSED = [/^\\/Volumes\\//, /^\\/net\\//];', to: 'const MOUNT_REFUSED = [];' }]
+  },
+  {
+    name: 'refusal 8 is lifted at the row’s right edge',
+    file: 'path-spans.ts',
+    edits: [{ from: 'if (span.end === row.length) return true;', to: '' }]
+  },
+  {
+    name: 'refusal 8 is lifted at the row’s head',
+    file: 'path-spans.ts',
+    edits: [{ from: 'if (span.start !== headAt) return false;', to: 'return false;' }]
+  },
+  {
+    name: 'the gutter is not read, so a row’s head is the wrong cell',
+    file: 'path-spans.ts',
+    edits: [{ from: 'const head = row.replace(GUTTER, ' + "''" + ');', to: 'const head = row;' }]
+  },
+  {
+    // TWO EDITS ON PURPOSE. A URL is refused TWICE by this grammar: by the
+    // scheme clause, and by the segment grammar, which has no colon in it. So
+    // removing either one alone moves no reading, and an ablation of one alone
+    // would be a rule that cannot fail wearing the name of one that can.
+    name: 'a URL is claimed by the path grammar (the scheme clause AND the segment grammar)',
+    file: 'path-spans.ts',
+    edits: [
+      { from: "  if (/^[a-z][a-z0-9+.-]*:\\/\\//i.test(t)) return false;", to: '' },
+      { from: 'const SEGMENT = /^[A-Za-z0-9._@%+~$-]+$/;', to: 'const SEGMENT = /^[A-Za-z0-9._@%+~$:-]+$/;' }
+    ]
+  },
+  {
+    name: 'the :line suffix is not stripped',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: "  if (lc !== null && (lc[1] ?? '').includes('/')) {\n    p = lc[1] ?? '';",
+        to: "  if (false && lc !== null) {\n    p = lc[1] ?? '';"
+      }
+    ]
+  }
+];
+
+const ABLATION_PREFIX = `.p247-ablation-${process.pid.toString(36)}-`;
+const mainFs = join(repoRoot, 'src/main/fs');
+
+function sweepAblations() {
+  for (const name of readdirSync(mainFs)) {
+    if (name.startsWith('.p247-ablation-')) {
+      rmSync(join(mainFs, name), { recursive: true, force: true });
+    }
+  }
+}
+
+/**
+ * Stage a copy of the three modules the sequence is made of.
+ *
+ * The copy sits under src/main/fs so `@shared/image-types` and
+ * `@shared/preview-types` still resolve to the SHIPPING ones — neither is
+ * ablated here, and re-copying them would let an ablation move a reading for
+ * a reason that is not the clause it removed. `path-door.ts`'s own import of
+ * `@shared/path-doors` is rewritten to the local copy, which is the whole
+ * point of staging.
+ */
+function stage(dir) {
+  mkdirSync(dir, { recursive: true });
+  cpSync(join(repoRoot, DOORS), join(dir, 'path-doors.ts'));
+  cpSync(join(repoRoot, SPANS), join(dir, 'path-spans.ts'));
+  cpSync(join(repoRoot, DOOR), join(dir, 'path-door.ts'));
+  const door = readFileSync(join(dir, 'path-door.ts'), 'utf8');
+  writeFileSync(
+    join(dir, 'path-door.ts'),
+    door.replaceAll('@shared/path-doors', './path-doors')
+  );
+  const doors = readFileSync(join(dir, 'path-doors.ts'), 'utf8');
+  writeFileSync(
+    join(dir, 'path-doors.ts'),
+    doors
+      .replace("from './image-types'", "from '@shared/image-types'")
+      .replace("from './preview-types'", "from '@shared/preview-types'")
+  );
+}
+
+if (live.error === undefined) {
+  let red = 0;
+  const moves = [];
+  try {
+    sweepAblations();
+    for (const [i, ablation] of ABLATIONS.entries()) {
+      const dir = join(mainFs, `${ABLATION_PREFIX}${String(i)}`);
+      stage(dir);
+      const target = join(dir, ablation.file);
+      let applied = true;
+      for (const edit of ablation.edits) {
+        if (!existsSync(target)) {
+          fail(`9. there is no ${ablation.file} to ablate for "${ablation.name}"`);
+          applied = false;
+          break;
+        }
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(edit.from)) {
+          fail(`9. the ablation "${ablation.name}" found nothing to edit in ${ablation.file}`);
+          applied = false;
+          break;
+        }
+        writeFileSync(target, before.replace(edit.from, edit.to));
+      }
+      if (!applied) continue;
+      const got = runProbe(dir);
+      if (got.error !== undefined) {
+        // A PROBE THAT CANNOT RUN IS NOT AN ABLATION THAT WENT RED.
+        fail(
+          `9. the ablation "${ablation.name}" stopped the probe running instead of moving a reading, so it proves nothing`
+        );
+        continue;
+      }
+      const moved = MATRIX.filter(([key]) => got[key] !== live[key]).map(([key]) => key);
+      if (moved.length > 0) {
+        red += 1;
+        moves.push(`${ablation.name} -> ${moved.join(', ')}`);
+      } else {
+        fail(`9. the ablation "${ablation.name}" changed nothing this gate checks, so that clause cannot fail`);
+      }
+    }
+    say(`9. ${String(red)} of ${String(ABLATIONS.length)} ablations went red, one clause each`);
+    if (process.env['P247_ABLATION_DETAIL'] === '1') {
+      for (const line of moves) say(`   ablation ${line}`);
+    }
+  } finally {
+    sweepAblations();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 10. A gate nothing names is how a gate decays.
+// ---------------------------------------------------------------------------
+
+{
+  const pkg = readFileSync(join(repoRoot, 'package.json'), 'utf8');
+  if (!pkg.includes('"conformance:pathdoors"')) {
+    fail('10. package.json does not name conformance:pathdoors');
+  }
+  const checks = readFileSync(join(repoRoot, 'build/verification-checks.mjs'), 'utf8');
+  if (!checks.includes("'conformance:pathdoors'")) {
+    fail('10. build/verification-checks.mjs does not classify conformance:pathdoors');
+  }
+  say('10. the gate is named in package.json and classified in build/verification-checks.mjs');
+}
+
+// ---------------------------------------------------------------------------
+
+if (failures.length > 0) {
+  for (const f of failures) process.stderr.write(`${f}\n`);
+  process.stderr.write(`${TAG} FAILED: ${String(failures.length)} finding(s).\n`);
+  process.exit(1);
+}
+say('OK: every rule passed.');
+process.exit(0);

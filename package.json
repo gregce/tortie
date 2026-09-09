@@ -156,6 +156,7 @@
     "conformance:redline": "node build/conformance-redline.mjs",
     "conformance:redline-write": "node build/conformance-redline-write.mjs",
     "conformance:save": "node build/conformance-save.mjs",
+    "conformance:pathdoors": "node build/conformance-pathdoors.mjs",
     "conformance:filehistory": "node build/conformance-filehistory.mjs",
     "conformance:historysearch": "node build/conformance-historysearch.mjs",
     "conformance:logins": "node build/conformance-logins.mjs",

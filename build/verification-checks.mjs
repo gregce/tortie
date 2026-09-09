@@ -139,6 +139,13 @@ export const CHECKS = [
   // each. It launches no Electron and reads nothing under the person's home.
   pure('conformance:redline-write'),
   pure('conformance:save'),
+  // Phase 247. Which door a path in a transcript takes:
+  // build/conformance-pathdoors.mjs drives the SHIPPING sequence under node
+  // over hostile shapes it builds on a real disk, then over ablated copies of
+  // it one clause each. It launches no Electron, and `shell.openPath` is
+  // never called by anything it runs, because electron is not in the probe's
+  // module graph at all.
+  pure('conformance:pathdoors'),
   pure('conformance:filehistory'),
   pure('conformance:historysearch'),
   // Phase 202. The logins domain: it runs build/conformance-logins.mjs, which
