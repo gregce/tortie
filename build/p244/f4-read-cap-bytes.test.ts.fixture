@@ -1,0 +1,77 @@
+/**
+ * PHASE 244, THE MEASURE STEP. F4's byte count, taken a SECOND way.
+ *
+ * The audit's read-cap fixture counts what `readSync` returned. That is one
+ * instrument, and a count taken with the instrument the finding is about is
+ * worth re-deriving. This driver keeps that counter and adds two readings
+ * that do not depend on it:
+ *
+ *  - WHICH refusal sentence came back. `guarded-write.ts` has two `tooLarge`
+ *    refusals. The one at the payload check reads "The new contents of X are
+ *    too large to write."; the one AFTER `readAllSync` reads "X is too large
+ *    for Tortie to rewrite whole." Only the second is reachable with the
+ *    whole file collected, so the sentence alone says the buffer existed.
+ *  - The process's own resident and external memory across the call, which is
+ *    a different mechanism from counting a return value.
+ */
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { expect, it, vi } from 'vitest';
+import { READ_CAP_BYTES } from '@shared/fs-ops';
+
+const observation = vi.hoisted(() => ({ target: '', bytes: 0, calls: 0, armed: false }));
+vi.mock('node:fs', async (original) => {
+  const fs = await original<typeof import('node:fs')>();
+  return { ...fs, readSync: (...args: Parameters<typeof fs.readSync>) => {
+    if (observation.armed) {
+      observation.armed = false;
+      fs.appendFileSync(observation.target, Buffer.alloc(16 * 1024 * 1024, 97));
+    }
+    const got = fs.readSync(...args);
+    observation.bytes += got;
+    observation.calls += 1;
+    return got;
+  } };
+});
+import { writeGuarded } from '../guarded-write';
+
+it('counts what the guarded reader consumes when the file grows after fstat', async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'p244-f4-')));
+  try {
+    const path = join(root, 'a.txt');
+    writeFileSync(path, 'a');
+    observation.target = path;
+    observation.bytes = 0;
+    observation.calls = 0;
+    observation.armed = true;
+    const rssBefore = process.memoryUsage();
+    const answer = await writeGuarded({ listProjectRoots: async () => [root] }, {
+      root, path: 'a.txt', contents: 'replacement', expect: '0'.repeat(64)
+    });
+    const rssAfter = process.memoryUsage();
+    const readings = {
+      answer,
+      readSyncBytes: observation.bytes,
+      readSyncCalls: observation.calls,
+      cap: READ_CAP_BYTES,
+      overCapBy: observation.bytes - READ_CAP_BYTES,
+      diskBytes: readFileSync(path).length,
+      rssDelta: rssAfter.rss - rssBefore.rss,
+      externalDelta: rssAfter.external - rssBefore.external,
+      arrayBuffersDelta: rssAfter.arrayBuffers - rssBefore.arrayBuffers
+    };
+    console.log(JSON.stringify(readings, null, 1));
+    // The sentence names the refusal AFTER the read, which is the whole point.
+    expect(answer).toMatchObject({
+      outcome: 'refused', why: 'tooLarge',
+      reason: 'a.txt is too large for Tortie to rewrite whole.'
+    });
+    // What was measured, stated as the loss.
+    expect(observation.bytes).toBeGreaterThan(READ_CAP_BYTES);
+    expect(observation.bytes).toBe(16 * 1024 * 1024 + 1);
+  } finally {
+    observation.armed = false;
+    rmSync(root, { recursive: true, force: true });
+  }
+});

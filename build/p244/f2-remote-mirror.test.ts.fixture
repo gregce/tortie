@@ -1,0 +1,122 @@
+/**
+ * PHASE 244, THE MEASURE STEP. F2 over the REAL link, under the Phase 224 bounds.
+ *
+ * The audit's mirror fixture runs the compiled-in `arch-read` script under a
+ * LOCAL `/bin/sh`. That is the shipping script, but it is not the shipping
+ * link, and the finding is about what a far side reports. This driver runs the
+ * same shipping script on the operator's Mac Pro over ssh, composes the command
+ * with the product's own `composeRemoteScriptCommand`, parses the answer with
+ * the product's own `parseRemoteScriptAnswer`, and drives the shipping
+ * `syncRemoteArchMirror`.
+ *
+ * BOUNDS, and every one of them is asserted or cleaned in a `finally`:
+ *  - The far side gets ONE scratch git repository at `~/tortie-p244-scratch-<pid>`,
+ *    removed in the `finally` whatever happened.
+ *  - His tmux sessions on `-L gmux` over there are COUNTED before and after and
+ *    never attached, never listed by anything that could change them.
+ *  - Every ssh goes through `build/ssh-run.mjs` with a record file this run
+ *    owns, so neither `~/.ssh/known_hosts` is written.
+ *  - His `~/.gitconfig` over there is never written; the identity is set with
+ *    `git config --local` inside the scratch repository only.
+ *  - His real machine row is never read for a write root and never changed.
+ *
+ * THE FAR SIDE IS READ BY AN `ssh` THIS FILE COMPOSES, not by Tortie's script,
+ * so the comparison does not trust the mechanism under test.
+ */
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, chmodSync, copyFileSync } from 'node:fs';
+import { tmpdir, homedir } from 'node:os';
+import { join } from 'node:path';
+import { expect, it } from 'vitest';
+import { syncRemoteArchMirror, type RemoteArchRunner } from '../remote-arch';
+import { REMOTE_SCRIPTS } from '../remote-scripts';
+import { composeRemoteScriptCommand, parseRemoteScriptAnswer } from '../remote-run';
+// The helper that owns every ssh a script under build/ starts. Imported rather
+// than re-implemented so this run cannot put a line in the person's own file.
+// @ts-expect-error -- a .mjs helper with no types, imported on purpose.
+import { sshRun } from '../../../../build/ssh-run.mjs';
+
+const HOST = 'gregs-mac-pro.tail2ddfe1.ts.net';
+const RECORD = '/Users/gdc/Library/Application Support/Tortie/gmux/machines/known-machines';
+
+it('reads a same-size rewrite inside one timestamp second over the real link', async () => {
+  const local = realpathSync(mkdtempSync(join(tmpdir(), 'p244-f2-')));
+  // A COPY of Tortie's own host key record. ssh takes the first file it is
+  // given and writes only there, so the person's file is untouched either way.
+  const knownHosts = join(local, 'known_hosts');
+  copyFileSync(RECORD, knownHosts);
+  chmodSync(knownHosts, 0o600);
+  const far = `tortie-p244-scratch-${String(process.pid)}`;
+  const ssh = (command: string): string => {
+    const out = sshRun({
+      knownHosts, caller: 'p244 F2 measure',
+      argv: ['-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', HOST, command]
+    });
+    if (out.status !== 0) throw new Error(`ssh ${String(out.status)}: ${String(out.stderr).slice(0, 400)}`);
+    return String(out.stdout);
+  };
+  const sessionsOf = (): string =>
+    ssh('/usr/local/bin/tmux -L gmux list-sessions 2>/dev/null | wc -l').trim();
+  const before = sessionsOf();
+  const readings: Record<string, unknown> = { farRepo: `~/${far}`, sessionsBefore: before };
+  const mirror = join(local, 'mirror');
+  try {
+    // A real scratch repository over there, and a git identity that lives in
+    // the repository rather than in his ~/.gitconfig.
+    ssh(
+      `set -e; rm -rf "$HOME/${far}"; mkdir -p "$HOME/${far}"; cd "$HOME/${far}"; ` +
+      `/usr/bin/git init -q .; /usr/bin/git config --local user.email p244@example.invalid; ` +
+      `/usr/bin/git config --local user.name p244; ` +
+      `printf 'export const a = 1;\\n' > a.ts; /usr/bin/git add a.ts; ` +
+      `/usr/bin/git -c commit.gpgsign=false commit -q -m p244`
+    );
+    const farPath = ssh(`printf %s "$HOME/${far}"`).trim();
+    readings['farPathResolved'] = farPath;
+
+    const run: RemoteArchRunner = async (id, args) => {
+      const script = REMOTE_SCRIPTS.find((row) => row.id === id)!;
+      const payload = parseRemoteScriptAnswer(ssh(composeRemoteScriptCommand(script, args)));
+      if (payload === null) throw new Error(`no answer from ${id}`);
+      return payload;
+    };
+    const ask = { run, farPath, mirrorPath: mirror, trackedFiles: ['a.ts'] };
+
+    // Both writes land inside ONE timestamp second, 0.1 s and 0.9 s, which is
+    // the shape the audit measured and the shape a real editor produces.
+    const setAt = (text: string, at: string): void => {
+      ssh(
+        `/usr/bin/python3 -c 'import os,sys; p=sys.argv[1]; open(p,"w").write(sys.argv[2]); ` +
+        `t=float(sys.argv[3]); os.utime(p,(t,t))' "${farPath}/a.ts" "${text}" ${at}`
+      );
+    };
+    setAt('export const a = 1;\\n', '1700000000.1');
+    readings['first'] = await syncRemoteArchMirror(ask);
+    readings['mirrorAfterFirst'] = readFileSync(join(mirror, 'a.ts'), 'utf8');
+
+    setAt('export const a = 2;\\n', '1700000000.9');
+    readings['second'] = await syncRemoteArchMirror(ask);
+    readings['third'] = await syncRemoteArchMirror(ask);
+
+    // The far side, read by an ssh this file composed. Not by Tortie's script.
+    readings['farBytes'] = ssh(`/bin/cat "${farPath}/a.ts"`);
+    readings['farStamp'] = ssh(
+      `/usr/bin/python3 -c 'import os,sys; s=os.stat(sys.argv[1]); print(repr(s.st_mtime), s.st_size)' "${farPath}/a.ts"`
+    ).trim();
+    readings['mirrorBytes'] = readFileSync(join(mirror, 'a.ts'), 'utf8');
+    readings['mirrorSize'] = statSync(join(mirror, 'a.ts')).size;
+    readings['sessionsAfter'] = sessionsOf();
+    console.log(JSON.stringify(readings, null, 1));
+
+    // The bounds first, so a run that moved something says so before anything else.
+    expect(readings['sessionsAfter']).toBe(before);
+    // What was measured, stated as the loss rather than as the wish.
+    expect(readings['second']).toMatchObject({ written: 0, reused: 1 });
+    expect(readings['third']).toMatchObject({ written: 0, reused: 1 });
+    expect(readings['mirrorBytes']).not.toBe(readings['farBytes']);
+  } finally {
+    try { ssh(`rm -rf "$HOME/${far}"`); } catch { /* the report says so */ }
+    rmSync(local, { recursive: true, force: true });
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({ homeUntouched: homedir(), farScratchRemoved: far }));
+  }
+}, 300_000);
