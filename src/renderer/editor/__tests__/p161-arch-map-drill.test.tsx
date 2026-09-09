@@ -47,6 +47,7 @@ function levelOne(): ArchMapResult {
     cwd: REPO,
     building: false,
     scannedAtCommit: '0'.repeat(40),
+    scanIncomplete: null,
     subject: 'project',
     sentence: '9 files, TypeScript; 2 parts.',
     groups: [

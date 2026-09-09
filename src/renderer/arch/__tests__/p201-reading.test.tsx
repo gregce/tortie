@@ -51,6 +51,7 @@ function model(): ArchMapResult {
     cwd: '/Users/op/project',
     building: false,
     scannedAtCommit: '0'.repeat(40),
+    scanIncomplete: null,
     subject: 'tortie',
     sentence:
       '100 files, TypeScript; 4 parts, the biggest src/main (50%); 2 connections between parts; 9 of 10 imports lead inside the repository.',

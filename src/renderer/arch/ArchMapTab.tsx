@@ -68,6 +68,7 @@ import {
   ARCH_MAP_ERROR,
   ARCH_MAP_FLAT_REPO,
   ARCH_MAP_LOADING,
+  ARCH_MAP_PARTIAL_PREFIX,
   ARCH_MAP_STALE
 } from './copy';
 import { ArchDrillFiles } from './ArchModules';
@@ -544,6 +545,7 @@ export function ArchMapTabBody({
               {`${String(progress.done)} of ${String(progress.total)} files read`}
             </div>
           ) : null}
+          <PartialScanLine model={model} />
         </div>
       </div>
     );
@@ -561,8 +563,32 @@ export function ArchMapTabBody({
       {entry?.status === 'error' ? (
         <p className="arch-map-stale">{ARCH_MAP_STALE}</p>
       ) : null}
+      <PartialScanLine model={model} />
       <MapBody model={model} onOpenGroup={handlers.openPart} canvas={canvas} />
     </div>
+  );
+}
+
+/**
+ * PHASE 244, audit finding F3. One line when the scan behind this picture did
+ * not see the whole folder, and nothing at all when it did.
+ *
+ * The sentence after the lead-in is MAIN's, sent on the map envelope beside
+ * `building`, and it names the ceiling that stopped the read. It is not
+ * `building`: that says another pass will finish the job, and this says a pass
+ * finished and could not.
+ */
+function PartialScanLine({
+  model
+}: {
+  model: { scanIncomplete: string | null } | null;
+}): React.JSX.Element | null {
+  const why = model?.scanIncomplete ?? null;
+  if (why === null || why.length === 0) return null;
+  return (
+    <p className="arch-map-partial" data-slot="arch-map-partial">
+      {`${ARCH_MAP_PARTIAL_PREFIX} ${why}`}
+    </p>
   );
 }
 

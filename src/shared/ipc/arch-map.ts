@@ -204,6 +204,19 @@ export interface ArchMapResult extends ArchMapModel {
   building: boolean;
   /** The commit the fact base was scanned at, or null before any scan. */
   scannedAtCommit: string | null;
+  /**
+   * PHASE 244, audit finding F3. One sentence saying why the scan behind these
+   * facts did not see the whole folder, or null when it saw all of it.
+   *
+   * It is NOT the same thing as `building`. `building` means the fact base is
+   * still being filled in and another pass will finish it; this means a pass
+   * finished and a ceiling stopped it, which no number of further passes gets
+   * past. Before this phase the second was drawn as the first: a remote mirror
+   * that stopped at its file or byte ceiling was recorded as a complete scan,
+   * so the map showed a settled answer over facts that had never seen part of
+   * the folder.
+   */
+  scanIncomplete: string | null;
 }
 
 /**

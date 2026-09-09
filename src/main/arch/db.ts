@@ -153,6 +153,27 @@ export interface ArchRepoState {
   /** The commit the import fact base was scanned at, or null before any scan. */
   scannedAtCommit: string | null;
   /**
+   * PHASE 244, audit finding F3. Why the scan at {@link scannedAtCommit} is
+   * INCOMPLETE, or null when it read the whole folder.
+   *
+   * A scan can finish without having seen everything, and until this phase that
+   * fact was thrown away. `ArchSource.syncTree` answers `overBudget` when a
+   * remote mirror stopped at its file or byte ceiling, and BOTH coordinator
+   * paths then recorded the run as a complete scan at the supplied commit: the
+   * contract path kept the sentence for the check result and stamped anyway,
+   * and the fact-only path did not even bind the result. The map derives
+   * `building` from the stamp, so the person was shown a settled answer over a
+   * fact base that had never seen part of the folder.
+   *
+   * THE STAMP IS STILL WRITTEN, deliberately. Leaving it null is what keeps
+   * `building` true, and `building` schedules the next check on every map read;
+   * a mirror ceiling is not something a rescan can get past, so that is the
+   * endless impossible read the audit warned against, and it was measured once
+   * before at about thirty pushes a second (see ARCH_SCANNED_NO_HEAD). So the
+   * loop stops and the REASON travels instead.
+   */
+  scanIncomplete: string | null;
+  /**
    * The verdict strip's own counts from the last completed run, or null before
    * one.
    *
@@ -394,6 +415,17 @@ const MIGRATIONS: readonly SqliteMigration[] = [
         );
       `);
     }
+  },
+  {
+    // PHASE 244, audit finding F3. One column, holding the sentence that says
+    // why the scan at `scanned_at_commit` did not see the whole folder, or NULL
+    // when it did. Nothing is dropped: an existing row read the whole folder by
+    // the only route that could stamp it before this phase, so NULL is the right
+    // answer for every row already there.
+    name: '009-arch-scan-incomplete',
+    up: (db) => {
+      addColumnIfMissing(db, 'arch_repo', 'scan_incomplete', 'TEXT');
+    }
   }
 ];
 
@@ -526,11 +558,12 @@ export class ArchStore {
         {
           checked_at_commit: string | null;
           scanned_at_commit: string | null;
+          scan_incomplete: string | null;
           counts: string | null;
           generation: number;
         }
       >(
-        `SELECT checked_at_commit, scanned_at_commit, counts, generation
+        `SELECT checked_at_commit, scanned_at_commit, scan_incomplete, counts, generation
            FROM arch_repo WHERE repo_key = ?`
       )
       .get(repoKey);
@@ -539,6 +572,7 @@ export class ArchStore {
         checkedAtCommit: null,
         generation: 0,
         scannedAtCommit: null,
+        scanIncomplete: null,
         counts: null
       };
     }
@@ -546,6 +580,7 @@ export class ArchStore {
       checkedAtCommit: row.checked_at_commit,
       generation: row.generation,
       scannedAtCommit: row.scanned_at_commit,
+      scanIncomplete: row.scan_incomplete,
       counts: parseCounts(row.counts)
     };
   }
@@ -788,18 +823,54 @@ export class ArchStore {
     return rows.map((row) => ({ path: row.rel_path, lines: row.lines, declares: row.declares }));
   }
 
-  /** Record the commit the fact base was scanned at, once the scan finished. */
+  /**
+   * Record the commit the fact base was scanned at, once the scan finished and
+   * the WHOLE folder was read.
+   *
+   * PHASE 244. It clears {@link ArchRepoState.scanIncomplete}, because a
+   * complete scan is exactly the thing that ends an earlier partial one, and a
+   * reason left behind would outlive the ceiling that produced it.
+   */
   markScanned(repoKey: string, repoPath: string, commit: string | null): void {
+    this.markScan(repoKey, repoPath, commit, null);
+  }
+
+  /**
+   * PHASE 244, audit finding F3. Record the commit the fact base was scanned at
+   * AND the one sentence saying why that scan did not see the whole folder.
+   *
+   * It is a different call from {@link markScanned} rather than a flag on it,
+   * because the two mean different things to a person: one says the answer is
+   * about all of the folder and the other says it is about part of it. A caller
+   * that meant the second and reached for the first is the defect this phase
+   * repaired, so the two are not the same door.
+   */
+  markScanPartial(
+    repoKey: string,
+    repoPath: string,
+    commit: string | null,
+    reason: string
+  ): void {
+    this.markScan(repoKey, repoPath, commit, reason);
+  }
+
+  private markScan(
+    repoKey: string,
+    repoPath: string,
+    commit: string | null,
+    incomplete: string | null
+  ): void {
     this.db
-      .prepare<[string, string, string | null, number]>(
-        `INSERT INTO arch_repo (repo_key, repo_path, scanned_at_commit, updated_at)
-           VALUES (?, ?, ?, ?)
+      .prepare<[string, string, string | null, string | null, number]>(
+        `INSERT INTO arch_repo (repo_key, repo_path, scanned_at_commit, scan_incomplete, updated_at)
+           VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(repo_key) DO UPDATE SET
            repo_path = excluded.repo_path,
            scanned_at_commit = excluded.scanned_at_commit,
+           scan_incomplete = excluded.scan_incomplete,
            updated_at = excluded.updated_at`
       )
-      .run(repoKey, repoPath, commit, Date.now());
+      .run(repoKey, repoPath, commit, incomplete, Date.now());
   }
 
   // -------------------------------------------------------------------------

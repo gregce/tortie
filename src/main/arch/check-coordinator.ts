@@ -334,6 +334,12 @@ export function createArchCheckCoordinator(deps: {
     const git = source.git();
     const record: ArchGitCall[] = [];
     let overBudget: string | null = null;
+    // PHASE 244, finding F3. The SOURCE's own incompleteness, kept apart from
+    // the parser's. They read the same way to a person and they do not behave
+    // the same way to a rescan: a parser budget is picked up where it left off
+    // by the next run, and a mirror ceiling is not something any number of
+    // reruns gets past.
+    let sourceIncomplete: string | null = null;
     let scannedFiles = 0;
 
     const facts = await gatherFacts({
@@ -357,7 +363,10 @@ export function createArchCheckCoordinator(deps: {
           trackedFiles,
           ...(signal === null ? {} : { signal })
         });
-        if (synced.overBudget !== null) overBudget = synced.overBudget;
+        if (synced.overBudget !== null) {
+          overBudget = synced.overBudget;
+          sourceIncomplete = synced.overBudget;
+        }
         const scan = await scanArchImports({
           repoPath,
           repoKey,
@@ -395,8 +404,17 @@ export function createArchCheckCoordinator(deps: {
     // finished and the head is known, so a scan that was cancelled halfway leaves
     // the previous stamp and the next run reads the whole tree rather than
     // trusting a partial one.
+    //
+    // PHASE 244, finding F3. WHICH mark is used says what the answer is about.
+    // This path already kept the source's sentence for the check result, and
+    // then stamped a COMPLETE scan over it anyway, so the map went on to draw a
+    // settled answer over a fact base that had never seen part of the folder.
     if (scannedFiles >= 0 && checkedAtCommit.length > 0) {
-      db.markScanned(repoKey, repoPath, checkedAtCommit);
+      if (sourceIncomplete !== null) {
+        db.markScanPartial(repoKey, repoPath, checkedAtCommit, sourceIncomplete);
+      } else {
+        db.markScanned(repoKey, repoPath, checkedAtCommit);
+      }
     }
     const firstCheck = before.checkedAtCommit === null;
     const verdicts = run.verdicts.map((verdict) =>
@@ -518,6 +536,17 @@ export function createArchCheckCoordinator(deps: {
    * reuse everything this leg wrote. The repo-level scanned stamp is recorded
    * only when the scan finished whole, so a cancelled or over-budget pass leaves
    * `building` true and the next run reads the rest.
+   *
+   * PHASE 244, audit finding F3. THE SOURCE'S COMPLETENESS IS CARRIED TOO, and
+   * it is a different thing from the parser's budget. `syncTree`'s answer used
+   * to be discarded here — the call was awaited and its typed result bound to
+   * nothing — so a remote mirror that stopped at its file or byte ceiling was
+   * stamped as a complete scan at the supplied commit and the map drew a settled
+   * answer over a fact base that had never seen part of the folder. It is bound
+   * now, and it chooses which mark records the run. The stamp is still written,
+   * because a mirror ceiling is not something a rescan can get past and
+   * `building` schedules the next check on every map read; the reason travels
+   * to the person instead of the loop running for ever.
    */
   async function scanFactsOnly(
     source: ArchSource,
@@ -532,7 +561,12 @@ export function createArchCheckCoordinator(deps: {
     const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
     // PHASE 234, the same one line the checker leg carries: a no-op on this
     // Mac, and the mirror brought up to date for a folder on a machine.
-    await source.syncTree({
+    //
+    // PHASE 244, finding F3. Its ANSWER is bound now. This line used to discard
+    // a typed result: a mirror that stopped at its file or byte ceiling said so
+    // here, nothing read it, and the stamp below then called the run a complete
+    // scan of the folder.
+    const synced = await source.syncTree({
       trackedFiles,
       ...(signal === null ? {} : { signal })
     });
@@ -570,11 +604,18 @@ export function createArchCheckCoordinator(deps: {
       // scheduled the next scan, about thirty times a second until quit. The
       // first real commit moves the stamp to a real hash through this same
       // line.
-      db.markScanned(
-        repoKey,
-        repoPath,
-        headCommit.length > 0 ? headCommit : ARCH_SCANNED_NO_HEAD
-      );
+      //
+      // PHASE 244, finding F3. The stamp is still written when the SOURCE was
+      // incomplete, for that same measured reason — a mirror ceiling is not
+      // something a rescan gets past, so leaving `building` true would ask for
+      // an impossible full read for ever — but it is written through the other
+      // door, which says the answer is about PART of the folder and why.
+      const stamp = headCommit.length > 0 ? headCommit : ARCH_SCANNED_NO_HEAD;
+      if (synced.overBudget !== null) {
+        db.markScanPartial(repoKey, repoPath, stamp, synced.overBudget);
+      } else {
+        db.markScanned(repoKey, repoPath, stamp);
+      }
     }
     broadcastEvent(EVT_ARCH_MAP_UPDATED, {
       cwd: source.farPath,
@@ -610,7 +651,12 @@ export function createArchCheckCoordinator(deps: {
    * a scan.
    */
   async function archMapReadFacts(source: ArchSource): Promise<{
-    envelope: { cwd: string; building: boolean; scannedAtCommit: string | null };
+    envelope: {
+      cwd: string;
+      building: boolean;
+      scannedAtCommit: string | null;
+      scanIncomplete: string | null;
+    };
     compose: ArchMapComposeInput & {
       /**
        * The stored rows carry coverage and offences, which the SCOPED compose
@@ -644,7 +690,10 @@ export function createArchCheckCoordinator(deps: {
       envelope: {
         cwd: source.farPath,
         building,
-        scannedAtCommit: wireScannedAt(state.scannedAtCommit)
+        scannedAtCommit: wireScannedAt(state.scannedAtCommit),
+        // PHASE 244, finding F3. One sentence when the scan behind these facts
+        // did not see the whole folder, and null when it did.
+        scanIncomplete: state.scanIncomplete
       },
       compose: {
         // Rule R (Phase 201): the package name, then the root crate's own

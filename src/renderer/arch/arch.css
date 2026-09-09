@@ -468,7 +468,11 @@
 }
 
 /* The newest reading failed; the picture on screen is the one before it. */
-.arch-map-stale {
+.arch-map-stale,
+/* PHASE 244. The scan behind this picture did not see the whole folder. Same
+   quiet one-line shape as the stale note above, because it is the same kind of
+   thing: a fact about the picture rather than part of it. */
+.arch-map-partial {
   padding: var(--space-2) var(--space-5);
   color: var(--text-muted);
   font-size: var(--text-xs);

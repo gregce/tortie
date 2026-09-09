@@ -107,6 +107,18 @@ export const ARCH_MAP_STALE =
   'The newest reading failed, so this picture is the one before it.';
 
 /**
+ * PHASE 244, audit finding F3. The lead-in for the sentence main sends when the
+ * scan behind this picture did not see the whole folder.
+ *
+ * It is one line and the rest of it is main's own sentence, which already names
+ * what was left out and why, so this adds the ONE thing that sentence cannot
+ * say from where it is written: that the picture on screen is about part of the
+ * folder. Until this phase nothing said it at all — a mirror that stopped at its
+ * ceiling was recorded as a complete scan and the map drew a settled answer.
+ */
+export const ARCH_MAP_PARTIAL_PREFIX = 'This picture is about part of the folder.';
+
+/**
  * PHASE 201, THE READING (research 77 section 7). The sidebar reads, top to
  * bottom: the repository line, the model slot, the components each with its
  * sentence and the ten hover facts, and the contract last. Every sentence
