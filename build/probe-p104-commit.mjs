@@ -89,7 +89,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -98,6 +98,7 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { tsxCli } from './ts-runner.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -199,7 +200,6 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
-import { tsxCli } from './ts-runner.mjs';
 
 async function main(): Promise<void> {
 
@@ -542,6 +542,12 @@ function removeHook(dir) {
   if (existsSync(path)) rmSync(path, { force: true });
 }
 
+/**
+ * What the catalogue says `git-commit` reads, filled in by leg 1 and asked of
+ * every list `send` is handed. Null until leg 1 has run.
+ */
+let declaredParams = null;
+
 /** Every file in a folder with its sha256, so a failure can be proven inert. */
 function fingerprint(dir) {
   const out = [];
@@ -563,7 +569,30 @@ function fingerprint(dir) {
   return out.join('\n');
 }
 
+/**
+ * The two values Phase 242.1 added to `git-commit`, being the folder the person
+ * confirmed and the tab's own folder written relative to it.
+ *
+ * Every repository this probe makes sits DIRECTLY under `workRoot`, so the
+ * confirmed folder is `workRoot` and the relative part is the repository's own
+ * name. `send` below asserts the length of every list against the catalogue's
+ * own declared count, so an arity that moves again is a named failure of this
+ * probe rather than a throw inside the door, which counts arguments at step 3
+ * above every refusal it exists to prove.
+ */
+function under(repo) {
+  return [workRoot, basename(repo)];
+}
+
 function send(calls) {
+  for (const one of calls) {
+    if (declaredParams !== null && one.args.length !== declaredParams) {
+      fail(
+        `this probe sends ${String(one.args.length)} value(s) to git-commit ` +
+          `and the catalogue declares ${String(declaredParams)}.`
+      );
+    }
+  }
   const out = drive({ op: 'send', ...ctxInput, calls });
   const answers = out?.answers ?? [];
   const byLabel = {};
@@ -575,7 +604,7 @@ function send(calls) {
 function commitCall(label, dir, message, over = {}) {
   return {
     label,
-    args: [dir, headOf(dir), message],
+    args: [dir, headOf(dir), message, ...under(dir)],
     ...over
   };
 }
@@ -592,9 +621,13 @@ if (composed === null) {
 if (composed.mode !== 'write') {
   fail(`git-commit is a ${String(composed.mode)} in the catalogue and it writes.`);
 }
-if (composed.params !== 3) {
-  fail(`git-commit declares ${String(composed.params)} value(s) and it reads three.`);
+// FIVE SINCE PHASE 242.1, was three. `$4` is the folder the person confirmed
+// and `$5` is the tab's own folder relative to it, and the far side walks that
+// relative part one component at a time before it runs a `cd`.
+if (composed.params !== 5) {
+  fail(`git-commit declares ${String(composed.params)} value(s) and it reads five.`);
 }
+declaredParams = composed.params;
 if (composed.commandBytes > composed.maxBytes) {
   fail(
     `git-commit composes ${String(composed.commandBytes)} bytes against a ` +
@@ -646,8 +679,8 @@ git(repo, ['add', '-A']);
 const guardSha = headOf(repo);
 const countBeforeTwice = commitCount(repo);
 got = send([
-  { label: 'first', args: [repo, guardSha, 'sent once'] },
-  { label: 'again', args: [repo, guardSha, 'sent once'] }
+  { label: 'first', args: [repo, guardSha, 'sent once', ...under(repo)] },
+  { label: 'again', args: [repo, guardSha, 'sent once', ...under(repo)] }
 ]);
 const countAfterTwice = commitCount(repo);
 if (got['first']?.read?.word !== 'committed') {
@@ -993,7 +1026,7 @@ step(
   const bornRepo = makeRepo('p104-unborn', { commit: false });
   writeFileSync(join(bornRepo, 'first.txt'), 'first\n', 'utf8');
   git(bornRepo, ['add', '-A']);
-  got = send([{ label: 'unborn', args: [bornRepo, 'none', 'the first commit'] }]);
+  got = send([{ label: 'unborn', args: [bornRepo, 'none', 'the first commit', ...under(bornRepo)] }]);
   const sha = headOf(bornRepo);
   if (got['unborn']?.read?.word !== 'committed') {
     fail(

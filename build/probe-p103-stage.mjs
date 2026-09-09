@@ -82,7 +82,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -91,6 +91,7 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { tsxCli } from './ts-runner.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -174,7 +175,6 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
-import { tsxCli } from './ts-runner.mjs';
 
 async function main(): Promise<void> {
 
@@ -508,7 +508,33 @@ function makeRepo(name, { commit = true } = {}) {
   return dir;
 }
 
+/**
+ * The two values Phase 242.1 added to `git-stage` and `git-unstage`, being the
+ * folder the person confirmed and the tab's own folder written relative to it.
+ *
+ * Every repository this probe makes sits DIRECTLY under `workRoot`, so the
+ * confirmed folder is `workRoot` and the relative part is the repository's own
+ * name. It is derived here rather than typed out at fifteen call sites, and
+ * `send` below asserts the length of every list against the catalogue's own
+ * declared count, so an arity that moves again is a named failure of this
+ * probe rather than a throw inside the door.
+ */
+function under(repo) {
+  return [workRoot, basename(repo)];
+}
+
 function send(calls) {
+  for (const one of calls) {
+    const wanted = paramsById[one.id];
+    if (typeof wanted === 'number' && one.args.length !== wanted) {
+      fail(
+        `this probe sends ${String(one.args.length)} value(s) to ${one.id} ` +
+          `and the catalogue declares ${String(wanted)}. The door counts ` +
+          `arguments at step 3, above every refusal it exists to prove, so a ` +
+          `stale list here reads as the wrong refusal rather than as this.`
+      );
+    }
+  }
   const out = drive({ op: 'send', ...ctxInput, calls });
   const answers = out?.answers ?? [];
   const byLabel = {};
@@ -525,12 +551,17 @@ if (composed === null) {
   stopEverything();
   process.exit(1);
 }
+const paramsById = {};
 for (const one of composed.scripts) {
+  paramsById[one.id] = one.params;
   if (one.mode !== 'write') {
     fail(`${one.id} is a ${String(one.mode)} in the catalogue and it writes.`);
   }
-  if (one.params !== 2) {
-    fail(`${one.id} declares ${String(one.params)} value(s) and it reads two.`);
+  // FOUR SINCE PHASE 242.1, was two. `$3` is the folder the person confirmed
+  // and `$4` is the tab's own folder relative to it, and the far side walks
+  // that relative part one component at a time before it runs a `cd`.
+  if (one.params !== 4) {
+    fail(`${one.id} declares ${String(one.params)} value(s) and it reads four.`);
   }
   if (one.commandBytes > composed.maxBytes) {
     fail(
@@ -569,7 +600,7 @@ writeFileSync(join(repo, 'a.txt'), 'two\n', 'utf8');
 writeFileSync(join(repo, HOSTILE), 'hostile two\n', 'utf8');
 
 const beforeStage = porcelain(repo);
-let got = send([{ label: 'stageOne', id: 'git-stage', args: [repo, 'a.txt'] }]);
+let got = send([{ label: 'stageOne', id: 'git-stage', args: [repo, 'a.txt', ...under(repo)] }]);
 const afterStage = porcelain(repo);
 if (got['stageOne']?.read?.ok !== true) {
   fail(
@@ -597,7 +628,7 @@ step(
     `.M to M. and nothing else moved.`
 );
 
-got = send([{ label: 'unstageOne', id: 'git-unstage', args: [repo, 'a.txt'] }]);
+got = send([{ label: 'unstageOne', id: 'git-unstage', args: [repo, 'a.txt', ...under(repo)] }]);
 const afterUnstage = porcelain(repo);
 if (got['unstageOne']?.read?.ok !== true) {
   fail(
@@ -621,7 +652,7 @@ step(
 );
 
 const beforeHostile = porcelain(repo);
-got = send([{ label: 'hostile', id: 'git-stage', args: [repo, HOSTILE] }]);
+got = send([{ label: 'hostile', id: 'git-stage', args: [repo, HOSTILE, ...under(repo)] }]);
 const afterHostile = porcelain(repo);
 if (pairOf(repo, HOSTILE) !== 'M.') {
   fail(
@@ -644,16 +675,16 @@ step(
 
 // Leg 6. Each verb twice with the same list.
 got = send([
-  { label: 'twiceA', id: 'git-stage', args: [repo, HOSTILE] },
-  { label: 'twiceB', id: 'git-stage', args: [repo, HOSTILE] }
+  { label: 'twiceA', id: 'git-stage', args: [repo, HOSTILE, ...under(repo)] },
+  { label: 'twiceB', id: 'git-stage', args: [repo, HOSTILE, ...under(repo)] }
 ]);
 const afterTwiceStage = porcelain(repo);
 if (got['twiceA']?.read?.ok !== true || got['twiceB']?.read?.ok !== true) {
   fail('one of the two identical git-stage calls did not exit 0.');
 }
 got = send([
-  { label: 'twiceC', id: 'git-unstage', args: [repo, HOSTILE] },
-  { label: 'twiceD', id: 'git-unstage', args: [repo, HOSTILE] }
+  { label: 'twiceC', id: 'git-unstage', args: [repo, HOSTILE, ...under(repo)] },
+  { label: 'twiceD', id: 'git-unstage', args: [repo, HOSTILE, ...under(repo)] }
 ]);
 const afterTwiceUnstage = porcelain(repo);
 if (got['twiceC']?.read?.ok !== true || got['twiceD']?.read?.ok !== true) {
@@ -694,7 +725,7 @@ got = send(
   hostilePaths.map(([label, path]) => ({
     label,
     id: 'git-stage',
-    args: [repo, path]
+    args: [repo, path, ...under(repo)]
   }))
 );
 const afterGuards = porcelain(repo);
@@ -732,7 +763,7 @@ const other = makeRepo('p103-other');
 writeFileSync(join(other, 'secret.txt'), 'theirs\n', 'utf8');
 const otherBefore = porcelain(other);
 got = send([
-  { label: 'wrongRepo', id: 'git-stage', args: [other, 'secret.txt'] }
+  { label: 'wrongRepo', id: 'git-stage', args: [other, 'secret.txt', ...under(other)] }
 ]);
 const otherAfter = porcelain(other);
 const scriptRanIt = got['wrongRepo']?.read?.ok === true;
@@ -758,7 +789,7 @@ step(
 
 const unborn = makeRepo('p103-unborn', { commit: false });
 writeFileSync(join(unborn, 'x.txt'), 'x\n', 'utf8');
-got = send([{ label: 'unbornStage', id: 'git-stage', args: [unborn, 'x.txt'] }]);
+got = send([{ label: 'unbornStage', id: 'git-stage', args: [unborn, 'x.txt', ...under(unborn)] }]);
 const unbornStaged = porcelain(unborn);
 if (pairOf(unborn, 'x.txt') !== 'A.') {
   fail(
@@ -775,7 +806,7 @@ const restoreSaid = git(unborn, [
   ':(literal)x.txt'
 ]);
 got = send([
-  { label: 'unbornUnstage', id: 'git-unstage', args: [unborn, 'x.txt'] }
+  { label: 'unbornUnstage', id: 'git-unstage', args: [unborn, 'x.txt', ...under(unborn)] }
 ]);
 const unbornUnstaged = porcelain(unborn);
 if (got['unbornUnstage']?.read?.ok !== true) {
@@ -822,7 +853,7 @@ got = send([
   {
     label: 'rename',
     id: 'git-stage',
-    args: [renamed, 'old.txt\nnew.txt']
+    args: [renamed, 'old.txt\nnew.txt', ...under(renamed)]
   }
 ]);
 const renameAfter = porcelain(renamed);
@@ -874,13 +905,13 @@ const readOne = drive({
 const readMs = (readOne?.answers ?? []).map((one) => one.ms ?? -1);
 
 got = send([
-  { label: 'stage30', id: 'git-stage', args: [wide, widePaths.join('\n')] }
+  { label: 'stage30', id: 'git-stage', args: [wide, widePaths.join('\n'), ...under(wide)] }
 ]);
 const after30 = porcelain(wide);
 got = Object.assign(
   got,
   send([
-    { label: 'unstage1', id: 'git-unstage', args: [wide, widePaths[0] ?? ''] }
+    { label: 'unstage1', id: 'git-unstage', args: [wide, widePaths[0] ?? '', ...under(wide)] }
   ])
 );
 const staged30 = after30
@@ -1032,7 +1063,7 @@ if (pure !== null) {
         {
           label: 'stageKill',
           id: 'git-stage',
-          args: [killRepo, killPaths.join('\n')]
+          args: [killRepo, killPaths.join('\n'), ...under(killRepo)]
         }
       ]
     });
