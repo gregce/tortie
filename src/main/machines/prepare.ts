@@ -184,6 +184,10 @@ export async function readRemoteTmuxVersion(
     // A machine with nothing of Tortie's running on it lands here, and that is
     // the ordinary case for a machine nobody has prepared.
   }
+  // PHASE 235, item 3. The clock the deadline branch below reads. It starts
+  // here rather than at the top of the function, so it measures THIS read's own
+  // deadline and not the first read's as well.
+  const startedAt = Date.now();
   try {
     // `<program> -V` contacts no server and starts no server, so it is the read
     // that answers on a machine with nothing running on it. It is not a tmux
@@ -201,6 +205,41 @@ export async function readRemoteTmuxVersion(
     const cls = classOfFailure(err);
     if (UNREACHED_CLASSES.includes(cls)) {
       return { kind: 'unreached', cls, detail: sentenceOf(err) };
+    }
+    // PHASE 235, item 3. THE DEADLINE ANSWERS ITS OWN CLASS.
+    //
+    // A machine at an address that routes nowhere was described as one whose
+    // program would not report its version, and nothing had reached it. The
+    // whole defect is THIRTEEN MILLISECONDS wide, measured 2026-09-08 against
+    // 192.0.2.1 through the product's own nine ssh options: ssh printed
+    // `ssh: connect to host 192.0.2.1 port 22: Operation timed out` at
+    // 10,013 ms, which the phrase table above classifies `unreachable` and so
+    // reads as unreached — but the child is killed at 10,000 ms, and what the
+    // classifier is handed is the empty string the kill left behind, which is
+    // `unknown` and falls through to `unreadable`. A person then read, of a
+    // machine nothing ever touched, that the program at a named path on it
+    // would not identify itself.
+    //
+    // So the read asks its own question rather than the taxonomy's: did this
+    // attempt use the WHOLE deadline? A read that did learned nothing about any
+    // program, whatever the reason the far side never came back, and
+    // `timed-out` is what says that — its copy is "The test ran out of time."
+    // with "Nothing was changed on either machine", which is true of a machine
+    // that is off and of one that is wedged, where the version sentence is true
+    // of neither. It is already a member of `UNREACHED_CLASSES` and already has
+    // copy in `./errors.ts`, and until now nothing could produce it, because
+    // `PHRASE_TABLE` holds no phrase that answers it.
+    //
+    // `REMOTE_VERSION_TIMEOUT_MS` IS NOT CHANGED, per the charter. The number
+    // is read, never moved.
+    //
+    // ONLY `unknown` reaches here, so a machine that said something the
+    // taxonomy recognises keeps its own class and its own words. The clock is
+    // the wall clock and can jump backwards, and that direction is the safe
+    // one: a shorter reading falls through to `unreadable`, which is the
+    // behaviour before this phase.
+    if (cls === 'unknown' && Date.now() - startedAt >= REMOTE_VERSION_TIMEOUT_MS) {
+      return { kind: 'unreached', cls: 'timed-out', detail: sentenceOf(err) };
     }
     return { kind: 'unreadable' };
   }
