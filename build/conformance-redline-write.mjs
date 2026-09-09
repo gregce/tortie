@@ -3,11 +3,12 @@
  * `npm run conformance:redline-write`, the gate on the guarded write channel
  * (Phase 226).
  *
- * About twenty six seconds, measured at 26 s after Phase 244 took the readings
- * to 29 and the ablations to 16; it was about eighteen, measured at 17.8 s after
- * the Phase 226 fix round, and eight of those are still the one ablation whose
- * child is left to hang until the deadline. The growth is the new arm's 16 MiB
- * file, written and read once live and once per ablated copy. It
+ * About twenty five seconds, measured at 23.8 and 25.1 s after Phase 244's fix
+ * round took the readings to 30 and the ablations to 17; it read 26 s at 29 and
+ * 16, and about eighteen, measured at 17.8 s, after the Phase 226 fix round, and
+ * eight of those are still the one ablation whose child is left to hang until
+ * the deadline. The growth is the two growth-during-read arms' 16 MiB and 6 MiB
+ * files, written and read once live and once per ablated copy. It
  * launches no Electron, opens no window, starts no tmux server, spawns no
  * agent, makes no request and reads nothing under the person's home. The
  * only processes it starts are node running the probe through the pinned
@@ -139,6 +140,16 @@ const MATRIX = [
     // is the one AFTER the read naming the file rather than the new contents,
     // the target is untouched and no staged copy is left.
     'refusal 2 under growth: the read loop is held to its budget'
+  ],
+  [
+    'grewAfterFstatOdd',
+    'refused/tooLarge sentence=after-the-read grew=6291456 read=5242881 size=6356991 untouched no-temp',
+    // PHASE 244's FIX ROUND. The same growth at a starting size that is NOT a
+    // multiple of 64 KiB, which is what makes the loop's chunk clamp visible.
+    // At the one-byte start above, `1 + 80 x 65536` is the ceiling exactly, so
+    // a loop with no clamp reads the same 5,242,881 and the clause is pinned by
+    // a coincidence. Here the clamp reads 5,242,881 and its absence 5,308,415.
+    'refusal 2 under growth: the last chunk is clamped, so the stop is exact'
   ],
   ['stale', 'stale untouched names-disk-digest no-temp', 'refusal 3: a digest one byte stale'],
   ['latin1', 'refused/notUtf8 untouched 69B->69B', 'refusal 4: research 83 E.7b latin-1 fixture'],
@@ -589,6 +600,25 @@ const ABLATIONS = [
       { from: '    if (total >= ceiling) break;\n', to: '' },
       { from: 'want = Math.min(64 * 1024, ceiling - total);', to: 'want = 64 * 1024;' }
     ]
+  },
+  {
+    // PHASE 244's FIX ROUND. The CLAMP alone, which the ablation above cannot
+    // isolate and which nothing pinned until this round.
+    //
+    // The break above still ends the loop, so this is not the parent's
+    // unbounded read; what it loses is the EXACTNESS the module's own header
+    // claims, being that the reader stops one byte past the budget. Without it
+    // the last chunk is a whole 64 KiB whatever is left, so the stop lands
+    // anywhere in [ceiling, ceiling + 65535] depending only on where the file's
+    // starting size falls modulo 64 KiB.
+    //
+    // It is invisible at the one-byte start the first growth arm uses, because
+    // READ_CAP_BYTES is an exact multiple of 64 KiB, so this ablation is what
+    // the SECOND growth arm exists for. Measured: 5,242,881 shipping and
+    // 5,308,415 ablated. The cost is at most 64 KiB and the refusal is
+    // unchanged either way, which is why this is exactness rather than a leak.
+    name: 'the last chunk of the read is not clamped to what is left of the budget',
+    edits: [{ from: 'want = Math.min(64 * 1024, ceiling - total);', to: 'want = 64 * 1024;' }]
   }
 ];
 

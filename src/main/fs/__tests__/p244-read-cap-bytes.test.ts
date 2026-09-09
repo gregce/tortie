@@ -34,6 +34,8 @@ const observation = vi.hoisted(() => ({
   bytes: 0,
   calls: 0,
   armed: false,
+  /** How many bytes the instrument appends when it fires. */
+  growth: 16 * 1024 * 1024,
   /** What the INSTRUMENT itself allocated, so the reader's own share is readable. */
   injected: 0
 }));
@@ -42,7 +44,7 @@ vi.mock('node:fs', async (original) => {
   return { ...fs, readSync: (...args: Parameters<typeof fs.readSync>) => {
     if (observation.armed) {
       observation.armed = false;
-      const growth = Buffer.alloc(16 * 1024 * 1024, 97);
+      const growth = Buffer.alloc(observation.growth, 97);
       observation.injected += growth.byteLength;
       fs.appendFileSync(observation.target, growth);
     }
@@ -63,6 +65,7 @@ it('stops one byte past its budget when the file grows after fstat', async () =>
     observation.bytes = 0;
     observation.calls = 0;
     observation.injected = 0;
+    observation.growth = GROWTH_BYTES;
     observation.armed = true;
     const rssBefore = process.memoryUsage();
     const answer = await writeGuarded({ listProjectRoots: async () => [root] }, {
@@ -106,6 +109,63 @@ it('stops one byte past its budget when the file grows after fstat', async () =>
     // and not a small file measured twice.
     expect(readings.diskBytes).toBe(16 * 1024 * 1024 + 1);
     // And the target was not replaced, which is the refusal's other half.
+    expect(readFileSync(path, 'utf8').startsWith('a')).toBe(true);
+  } finally {
+    observation.armed = false;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+/**
+ * THE SAME PROPERTY AT A STARTING SIZE THAT IS NOT A MULTIPLE OF 64 KiB.
+ *
+ * PHASE 244's FIX ROUND. The case above starts at ONE byte, and `READ_CAP_BYTES`
+ * is an exact multiple of 64 KiB, so `1 + 80 x 65536` is the ceiling exactly and
+ * the loop's chunk clamp is invisible: a reader whose last chunk is a whole
+ * 64 KiB reads the same 5,242,881 bytes. Measured by ablating the clamp alone,
+ * both read-cap regressions stayed GREEN, so the module header's claim that the
+ * read stops one byte past its budget was pinned by a coincidence rather than by
+ * a check.
+ *
+ * At 65,535 bytes it is pinned: the shipping loop reads 5,242,881 and a loop
+ * with no clamp reads 5,308,415, which is 65,535 bytes past the cap rather than
+ * one. The cost either way is at most 64 KiB and the refusal is unchanged, so
+ * this is exactness rather than a leak — and an exactness the module states in
+ * its own header is one a check should be able to fail.
+ */
+it('stops one byte past its budget from a start that is not a chunk multiple', async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'p244-f4b-')));
+  const START = 65_535;
+  const GROWTH = 6 * 1024 * 1024;
+  try {
+    const path = join(root, 'a.txt');
+    writeFileSync(path, Buffer.alloc(START, 97));
+    observation.target = path;
+    observation.bytes = 0;
+    observation.calls = 0;
+    observation.injected = 0;
+    observation.growth = GROWTH;
+    observation.armed = true;
+    const answer = await writeGuarded({ listProjectRoots: async () => [root] }, {
+      root, path: 'a.txt', contents: 'replacement', expect: '0'.repeat(64)
+    });
+    console.log(
+      JSON.stringify({
+        start: START,
+        readSyncBytes: observation.bytes,
+        readSyncCalls: observation.calls,
+        cap: READ_CAP_BYTES,
+        overCapBy: observation.bytes - READ_CAP_BYTES,
+        diskBytes: readFileSync(path).length
+      })
+    );
+    expect(answer).toMatchObject({
+      outcome: 'refused', why: 'tooLarge',
+      reason: 'a.txt is too large for Tortie to rewrite whole.'
+    });
+    // One byte, not 65,535. This is the reading the clamp is pinned by.
+    expect(observation.bytes).toBe(READ_CAP_BYTES + 1);
+    expect(readFileSync(path).length).toBe(START + GROWTH);
     expect(readFileSync(path, 'utf8').startsWith('a')).toBe(true);
   } finally {
     observation.armed = false;

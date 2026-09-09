@@ -301,11 +301,29 @@ function readAllSync(fd: number, expected: number, budget: number): Buffer {
       total += got;
     }
     if (got < want) break;
-    // The sentinel is in hand: the file is longer than the budget allows and
-    // nothing more needs to be read to say so.
+    // THESE TWO LINES ARE ONE CLAUSE and neither is decoration.
+    //
+    // The break is what ENDS the read: the sentinel is in hand, the file is
+    // longer than the budget allows, and nothing more needs to be read to say
+    // so. The clamp is what makes "one byte past the budget" exact rather than
+    // approximate: without it the last read is a whole 64 KiB chunk whatever is
+    // left, so the answer lands anywhere in `[ceiling, ceiling + 65535]`
+    // depending only on where the file's own starting size falls modulo 64 KiB.
+    //
+    // That is why the Phase 244 gate drives the growth arm at TWO starting
+    // sizes. At one byte the arithmetic lands on the ceiling either way, because
+    // `READ_CAP_BYTES` is an exact multiple of 64 KiB and 1 + 80 x 65536 is the
+    // ceiling exactly, so the clamp is invisible; at 65,535 bytes the clamp
+    // reads 5,242,881 and its absence reads 5,308,415. A clause pinned only by
+    // the first of those is pinned by a coincidence.
+    //
+    // AND THEY ARE ABLATED TOGETHER, deliberately. Removing the break alone
+    // leaves `want` clamped to zero once the budget is spent, and a loop that
+    // asks for zero bytes for ever is a hang rather than a red reading. So the
+    // gate has one ablation putting the parent's loop back whole, and a second
+    // removing the CLAMP alone, which the second starting size is what makes
+    // visible.
     if (total >= ceiling) break;
-    // The file was longer than fstat said, so it is growing. Keep reading, up to
-    // what is left of the budget; the cap is asked of the total below.
     want = Math.min(64 * 1024, ceiling - total);
   }
   return chunks.length === 1 ? chunks[0]! : Buffer.concat(chunks, total);

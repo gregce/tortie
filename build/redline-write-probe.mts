@@ -309,6 +309,52 @@ try {
       `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
     rmSync(abs, { force: true });
   }
+  {
+    // PHASE 244's FIX ROUND. THE SAME GROWTH AT A SECOND STARTING SIZE, because
+    // the arm above cannot see the clamp on the loop's chunk size.
+    //
+    // `READ_CAP_BYTES` is an exact multiple of 64 KiB, so a file that starts at
+    // ONE byte reads 1 + 80 x 65536 = 5,242,881 bytes with the clamp and
+    // without it: the arithmetic lands on the ceiling either way and the clamp
+    // is invisible. Driven at 65,535 bytes it is not: the shipping loop reads
+    // 5,242,881 and a loop whose last chunk is a whole 64 KiB reads 5,308,415,
+    // which is 65,535 bytes past the cap rather than one.
+    //
+    // The growth is 6 MiB rather than 16 because all this arm needs is a file
+    // past the ceiling, and this probe is run once live and once per ablation.
+    const start = 65_535;
+    const abs = fresh('growing2.txt', Buffer.alloc(start, 0x61));
+    let grew = 0;
+    let consumed = -1;
+    const r = await writeGuarded(
+      {
+        ...deps,
+        afterFstat: (target) => {
+          const growth = Buffer.alloc(6 * 1024 * 1024, 0x61);
+          appendFileSync(target, growth);
+          grew = growth.byteLength;
+        },
+        afterRead: (bytes) => {
+          consumed = bytes;
+        }
+      },
+      { root, path: 'growing2.txt', expect: sha('a'.repeat(start)), contents: 'short' }
+    );
+    readings['grewAfterFstatOdd'] =
+      `${word(r)} ` +
+      `sentence=${
+        r.outcome === 'refused' &&
+        r.reason === 'growing2.txt is too large for Tortie to rewrite whole.'
+          ? 'after-the-read'
+          : 'OTHER'
+      } ` +
+      `grew=${String(grew)} ` +
+      `read=${String(consumed)} ` +
+      `size=${String(sizeOf(abs))} ` +
+      `${sizeOf(abs) === grew + start ? 'untouched' : 'WRITTEN'} ` +
+      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+    rmSync(abs, { force: true });
+  }
 
   // -- refusal 3: a digest one byte stale ----------------------------------
   {
