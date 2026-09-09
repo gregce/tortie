@@ -8,7 +8,7 @@
  * this session."*; accept a DIFFERENT change; press ⌥⇧⌫. The undo refused —
  * correctly, because the journal entry's offset is into a baseline the accept
  * replaced, which is research 83 B.8a — but the promise was still on the face
- * at the moment of the press, the chip still drew the button, and the sentence
+ * at the moment of the press, the face still drew the button, and the sentence
  * a person got was the rewind map's *"Look again, then rewind"*, which tells
  * whoever pressed the recovery to press the destructive one.
  *
@@ -26,7 +26,7 @@
  *      says means anything.
  *   2. THE DEFECT AND THE FIX: a rewind, then an accept of a different change,
  *      then the undo. The accept must move NO byte of the file (research 83
- *      B.5); the undo note and the chip's Undo button must be GONE once the
+ *      B.5); the undo note and the note row's Undo button must be GONE once the
  *      baseline has moved; and the refusal, if the press is made anyway, must
  *      be the undo's own sentence and must leave the file where the rewind
  *      left it.
@@ -77,8 +77,9 @@ function gradeArm2(r) {
   if (r.acceptDigest !== r.rewoundDigest) bad.push('the accept moved a byte of the file');
   if (r.noteBeforeAccept !== true) bad.push('the face never promised the undo in the first place');
   if (r.noteAfterAccept !== false) bad.push('the face still promises an undo that can only refuse');
-  if (r.chipUndoBeforeAccept !== true) bad.push('the chip never drew Undo in the first place');
-  if (r.chipUndoAfterAccept !== false) bad.push('the chip still draws an Undo that can only refuse');
+  if (r.rowUndoBeforeAccept !== true) bad.push('the note row never drew Undo in the first place');
+  if (r.rowUndoAfterAccept !== false) bad.push('the note row still draws an Undo that can only refuse');
+  if (r.chipUndoEver !== false) bad.push('the chip drew an Undo, which Phase 239 moved off it');
   if (r.undoDigest !== r.rewoundDigest) bad.push('the refused undo moved a byte of the file');
   if (typeof r.said !== 'string' || !r.said.includes('can no longer be undone')) {
     bad.push(`the refusal was not the undo's own sentence: ${JSON.stringify(r.said)}`);
@@ -96,8 +97,9 @@ if (process.argv.includes('--self-test')) {
     undoDigest: 'a',
     noteBeforeAccept: true,
     noteAfterAccept: false,
-    chipUndoBeforeAccept: true,
-    chipUndoAfterAccept: false,
+    rowUndoBeforeAccept: true,
+    rowUndoAfterAccept: false,
+    chipUndoEver: false,
     said: 'The marking moved, so the last rewind of notes.txt can no longer be undone.'
   };
   const cases = [
@@ -105,12 +107,13 @@ if (process.argv.includes('--self-test')) {
     ['the accept wrote a byte', { ...OK, acceptDigest: 'b' }, 1],
     ['the note stayed up', { ...OK, noteAfterAccept: true }, 1],
     ['the note was never there', { ...OK, noteBeforeAccept: false }, 1],
-    ['the chip button stayed up', { ...OK, chipUndoAfterAccept: true }, 1],
-    ['the chip button was never there', { ...OK, chipUndoBeforeAccept: false }, 1],
+    ['the row button stayed up', { ...OK, rowUndoAfterAccept: true }, 1],
+    ['the row button was never there', { ...OK, rowUndoBeforeAccept: false }, 1],
+    ['the chip grew an Undo again', { ...OK, chipUndoEver: true }, 1],
     ['the undo wrote a byte', { ...OK, undoDigest: 'b' }, 1],
     ['the rewind map answered', { ...OK, said: 'The marking moved while you were reading notes.txt. Look again, then rewind.' }, 2],
     ['nothing was said at all', { ...OK, said: null }, 1],
-    ['everything wrong at once', { ...OK, acceptDigest: 'b', noteAfterAccept: true, chipUndoAfterAccept: true, undoDigest: 'c', said: null }, 5]
+    ['everything wrong at once', { ...OK, acceptDigest: 'b', noteAfterAccept: true, rowUndoAfterAccept: true, undoDigest: 'c', said: null }, 5]
   ];
   let bad = 0;
   for (const [name, reading, want] of cases) {
@@ -211,6 +214,11 @@ const FACE = `(() => {
     undoNote: document.querySelector('.ed-redline-undo .banner-text')?.textContent ?? null,
     notes: Array.from(document.querySelectorAll('.ed-redline-view .ed-note .banner-text')).map((n) => n.textContent),
     chip: chip === null ? null : Array.from(chip.querySelectorAll('button')).map((b) => (b.getAttribute('title') ?? b.getAttribute('aria-label') ?? '')),
+    // PHASE 239 MOVED UNDO OFF THE CHIP into the note row beside the sentence
+    // that says what it does, so the button this arm is about is read there.
+    // The chip is still read, because "the chip must not draw an Undo" is
+    // half of what this arm asserts.
+    rowUndo: Array.from(document.querySelectorAll('.ed-redline-undo .ed-redline-note-button')).map((b) => b.textContent ?? ''),
     activeClass: active === null ? null : (active.className || active.tagName),
     activeIsChange: active !== null && typeof active.closest === 'function' && active.closest('.ed-redline-change') !== null,
     generation: doc === null ? null : (doc.querySelector('.ed-redline-change')?.getAttribute('data-change-gen') ?? null),
@@ -415,8 +423,9 @@ await withElectron(
       // drawn at all (Phase 236: the resting face draws no control).
       await clickChange(cdp, 4);
       const chipBefore = await face(cdp);
-      const chipUndoBeforeAccept = Array.isArray(chipBefore.chip) && chipBefore.chip.some((t) => t.includes('Undo'));
-      note('D2', 'the chip, before the accept', JSON.stringify(chipBefore.chip));
+      const rowUndoBeforeAccept =
+        Array.isArray(chipBefore.rowUndo) && chipBefore.rowUndo.some((t) => t.includes('Undo'));
+      note('D2', 'the chip and the note row, before the accept', JSON.stringify({ chip: chipBefore.chip, row: chipBefore.rowUndo }));
 
       // The accept, of the change the keyboard is on, which is NOT the one
       // that was rewound.
@@ -432,8 +441,14 @@ await withElectron(
       // THE FIX: the promise is gone, on the face and on the chip.
       await clickChange(cdp, 1);
       const chipAfter = await face(cdp);
-      const chipUndoAfterAccept = Array.isArray(chipAfter.chip) && chipAfter.chip.some((t) => t.includes('Undo'));
-      note('D7', 'the chip, after the accept', JSON.stringify(chipAfter.chip));
+      const rowUndoAfterAccept =
+        Array.isArray(chipAfter.rowUndo) && chipAfter.rowUndo.some((t) => t.includes('Undo'));
+      // Phase 239's ruling, held here because this arm is the one that reads
+      // both surfaces in one breath: the chip carries change verbs only.
+      const chipUndoEver = [chipBefore.chip, chipAfter.chip].some(
+        (list) => Array.isArray(list) && list.some((t) => t.includes('Undo'))
+      );
+      note('D7', 'the chip and the note row, after the accept', JSON.stringify({ chip: chipAfter.chip, row: chipAfter.rowUndo }));
 
       // And the press a person already had in their fingers.
       await clearToasts(cdp);
@@ -448,8 +463,9 @@ await withElectron(
         undoDigest,
         noteBeforeAccept: typeof beforeAccept.undoNote === 'string',
         noteAfterAccept: typeof afterAccept.undoNote === 'string',
-        chipUndoBeforeAccept,
-        chipUndoAfterAccept,
+        rowUndoBeforeAccept,
+        rowUndoAfterAccept,
+        chipUndoEver,
         said
       };
       readings.arm2 = arm2;

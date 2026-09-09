@@ -497,14 +497,36 @@ await withElectron(
       if (after4 !== null) note('A4b', 'the sentence AFTER the reload', JSON.stringify(after4.since));
 
       // -------------------------------------------------------------------
-      // W. WHAT THE PERSON IS TOLD. Nothing in the app may have said the
-      // baseline moved: no toast, and the same sentence on the face.
+      // W. WHAT THE PERSON IS TOLD. Nothing in the app may WARN that the
+      // baseline went: no toast, and no sentence claiming anything was kept.
+      //
+      // W3 ASKED FOR THE SAME STRING UNTIL PHASE 239 LANDED, and the change
+      // is that phase's own subject rather than a defect here. A picture with
+      // no marks in it now says `Nothing has changed since you opened this
+      // file at HH:MM.` where before it repeated the `Marked since …` promise,
+      // which research 99 section 6.2 measured as a promise about the future
+      // said over a picture that shows nothing. So a lost baseline reads as
+      // exactly what it is, a file freshly opened with the comparison
+      // starting now, and the rule asks for THAT: every post-act face is the
+      // empty sentence naming its moment, never the marked promise and never
+      // a word about anything Tortie kept, because it kept nothing.
       // -------------------------------------------------------------------
       const sentences = readings.acts.filter((a) => a.after !== null).map((a) => a.after.since);
       const toastsSeen = readings.acts.filter((a) => a.after !== null).flatMap((a) => a.after.toasts);
       check('W1', 'no toast of any kind was raised by any of the acts', toastsSeen.length === 0, JSON.stringify(toastsSeen));
       note('W2', 'every sentence the face carried after an act', JSON.stringify(sentences));
-      check('W3', 'the sentence after a loss is the same string as before it', sentences.every((s) => s === readings.marked.since), `${JSON.stringify(readings.marked.since)} vs ${JSON.stringify(sentences)}`);
+      const lost = readings.acts.filter((a) => a.after !== null && a.verdict === 'died').map((a) => a.after.since);
+      const emptyFace = (t) =>
+        typeof t === 'string' &&
+        t.startsWith('Nothing has changed since ') &&
+        /\bat \d{2}:\d{2}\.$/.test(t) &&
+        !/backup|saved|kept|restore|lost|gone/i.test(t);
+      check(
+        'W3',
+        'every face after a lost baseline is the ordinary opening one, naming its moment and claiming nothing was kept',
+        lost.length >= 3 && lost.every(emptyFace),
+        `${String(lost.length)} losses: ${JSON.stringify(lost)}`
+      );
     } finally {
       writeFileSync(readingsFile, JSON.stringify(readings, null, 2));
       cdp.close();
