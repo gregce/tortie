@@ -70,6 +70,17 @@
  *      copy must move a reading rule 1 or rule 2 pinned. A gate that cannot
  *      fail is not a gate.
  *  10. A gate nothing names is how a gate decays.
+ *  11. THE UNDERLINE IS DRAWN IN CELLS AND NOT IN STRING INDICES. The
+ *      shipping column map is driven against a REAL `@xterm/xterm` buffer and
+ *      graded against xterm's OWN `outColumns` and against the cells
+ *      themselves, over fourteen glyph rows nine of which really move the
+ *      column. It is the Phase 247 fix round's confirmed defect: a range
+ *      built from string indices underlines one cell to the left of a path an
+ *      agent printed with a `⚠️ ` in front of it.
+ *  12. THE RENDERER'S CHEAP REFUSAL IS WIDER THAN MAIN'S ANSWER. Three spans
+ *      in four are relative and main answers every one `not-absolute`; the
+ *      renderer refuses them itself, through the one shared predicate, and
+ *      the direction it may drift in is driven rather than asserted.
  */
 
 import {
@@ -244,6 +255,15 @@ const MATRIX = [
   ['order-name-before-mode', 'refused:secret-name'],
   ['order-bundle-before-regular-file', 'refused:bundle'],
   ['order-spelling-before-realpath', 'refused:not-absolute'],
+  // The Phase 247 fix round's finding 3: the mount is asked of the REALPATH
+  // as well as the spelling, because a symlink at an ordinary name is what
+  // carries a path onto a mount without ever spelling one.
+  ['order-mount-on-realpath', 'refused:mount'],
+  ['order-mount-on-realpath-net', 'refused:mount'],
+  // --- rule 12, the renderer's own cheap refusal ---------------------------
+  ['could-be-absolute-refused', '11'],
+  ['could-be-absolute-admitted', '4'],
+  ['could-be-absolute-disagreed', '0'],
   // --- rule 3, the closed set ----------------------------------------------
   ['external-allow', '.pdf'],
   // --- refusal 8 and the span grammar --------------------------------------
@@ -560,9 +580,23 @@ function hoverWriteFindings(text) {
   }
 
   // 7b. The machine question is a CLOSURE read per hover, never a value read
-  // once at mount. It is the same one PHASE 96's Cmd-K asks one screen above.
-  if (!/isLocal:\s*\(\)\s*=>\s*sessionRow\(\)\?\.machine === undefined/.test(paneCode)) {
-    fail('7. the provider’s local-only predicate is not the pane’s own per-keystroke closure, so a session that moves is answered as it was at mount');
+  // once at mount — the same one PHASE 96's Cmd-K asks one screen above — AND
+  // IT FAILS CLOSED. The Phase 247 fix round's finding 4: it shipped as
+  // `sessionRow()?.machine === undefined`, which answers TRUE when there is no
+  // row at all, and "no row" is the state a session that has just gained a
+  // machine passes through. Both neighbours fail the other way, `attachPaths`
+  // on `session === null` and Phase 96's own list. So the predicate is a named
+  // function and this rule asks for the clause by its own spelling.
+  if (!/isLocal:\s*\(\)\s*=>\s*paneIsLocal\(sessionRow\(\)\)/.test(paneCode)) {
+    fail('7. the provider’s local-only predicate is not `paneIsLocal(sessionRow())`, so it is either captured at mount or spelled somewhere this gate cannot read it');
+  }
+  const local = functionBodyOf(code(LINKS), 'paneIsLocal');
+  if (local === null) {
+    fail('7. src/renderer/terminal/path-links.ts declares no paneIsLocal, so refusal 5’s own predicate is unreadable');
+  } else if (!/row !== undefined/.test(local)) {
+    fail('7. paneIsLocal does not refuse a pane with NO session row, so the one guard that carries refusal 5 opens when it is asked a question it cannot answer');
+  } else if (!/row\.machine === undefined/.test(local)) {
+    fail('7. paneIsLocal does not ask whether the session runs on another machine');
   }
 
   // 7c. ...and the provider is disposed with the pane.
@@ -733,6 +767,23 @@ const ABLATIONS = [
     edits: [{ from: 'const MOUNT_REFUSED = [/^\\/Volumes\\//, /^\\/net\\//];', to: 'const MOUNT_REFUSED = [];' }]
   },
   {
+    // The Phase 247 fix round. The SPELLING clause stays, so this goes red on
+    // the realpath readings alone — which is what tells the two apart.
+    name: 'the mount is asked of the spelling only, so a symlink walks past it',
+    file: 'path-doors.ts',
+    edits: [{ from: 'if (real !== null && onRefusedMount(real)) {', to: 'if (false) {' }]
+  },
+  {
+    name: 'the renderer’s cheap refusal is wider than main’s answer',
+    file: 'path-doors.ts',
+    edits: [
+      {
+        from: "  return spelling.startsWith('/') || spelling.startsWith('~');",
+        to: "  return spelling.startsWith('/');"
+      }
+    ]
+  },
+  {
     name: 'refusal 8 is lifted at the row’s right edge',
     file: 'path-spans.ts',
     edits: [{ from: 'if (span.end === row.length) return true;', to: '' }]
@@ -857,6 +908,176 @@ if (live.error === undefined) {
     }
   } finally {
     sweepAblations();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 11. THE UNDERLINE IS DRAWN IN CELLS AND NOT IN STRING INDICES.
+// ---------------------------------------------------------------------------
+
+/**
+ * The defect this rule exists for, so a later round does not undo it for
+ * tidiness. The provider shipped building xterm's link range out of the STRING
+ * indices `pathSpansInRow` returns, and xterm underlines and hit-tests in CELL
+ * COLUMNS. `translateToString` advances the column by each cell's WIDTH while
+ * appending however many UTF-16 units that cell holds, which is why the core
+ * takes a fourth `outColumns` argument the public `IBufferLine` drops.
+ *
+ * Nine of the fourteen glyph rows below move the column, `⚠️ ` in front of a
+ * path among them, and with the string index used as a column the underline
+ * sits one cell to the left of the path: the first character is dead and the
+ * cell past the end hands the file over. Nothing dangerous executes either
+ * way, because the door sequence decides what opens — but a link on the wrong
+ * text is worse than no link, which is refusal 2's own sentence.
+ *
+ * The probe is graded against xterm's OWN map and against the CELLS
+ * themselves, and it is run live and then over one ablated copy.
+ */
+function runColumnsProbe(modules) {
+  const probe = spawnSync(
+    process.execPath,
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/p247/cell-columns-probe.mts'],
+    {
+      encoding: 'utf8',
+      cwd: repoRoot,
+      maxBuffer: 32 * 1024 * 1024,
+      env: {
+        ...process.env,
+        ...(modules === null ? {} : { P247_MODULES: modules })
+      }
+    }
+  );
+  if (probe.status !== 0) {
+    return { error: `the columns probe did not run: ${(probe.stderr || '').slice(-600) || '(no output)'}` };
+  }
+  const line = probe.stdout.trim().split('\n').pop() ?? '';
+  try {
+    return JSON.parse(line);
+  } catch {
+    return { error: `the columns probe printed no JSON: ${probe.stdout.slice(0, 400)}` };
+  }
+}
+
+{
+  const cols = runColumnsProbe(null);
+  if (cols.error !== undefined) {
+    fail(`11. ${cols.error}`);
+  } else {
+    const rows = 14;
+    if (cols['columns-agree-with-xterm'] !== `${String(rows)}/${String(rows)}`) {
+      fail(
+        `11. the shipping cellColumns disagreed with xterm's own outColumns: ${String(cols['columns-agree-with-xterm'])} agreed (${String(cols.disagreements)})`
+      );
+    }
+    if (cols['underline-sits-on-the-path'] !== `${String(rows)}/${String(rows)}`) {
+      fail(
+        `11. the columns the range names do not hold the path's own text: ${String(cols['underline-sits-on-the-path'])} (${String(cols.disagreements)})`
+      );
+    }
+    // A rule whose fixtures all read zero would pass with the identity map.
+    if (typeof cols['glyphs-that-move-the-column'] !== 'number' || cols['glyphs-that-move-the-column'] < 5) {
+      fail(
+        `11. only ${String(cols['glyphs-that-move-the-column'])} of the ${String(rows)} glyph rows move the column, so this rule could pass with the string index used as one`
+      );
+    }
+    // The provider must really index through the map.
+    const linksBody = code('src/renderer/terminal/path-links.ts');
+    const provide = methodBodyOf(linksBody, 'provideLinks');
+    const built = methodBodyOf(linksBody, 'linksFor');
+    if (provide === null || !/cellColumns\(line\)/.test(provide)) {
+      fail('11. provideLinks does not take the row’s column map, so the range is in string indices');
+    }
+    if (built === null || !/spanColumns\(span, columns\)/.test(built)) {
+      fail('11. linksFor does not turn the span into columns, so the underline is drawn where the string says rather than where the cells are');
+    }
+    if (built !== null && /x: span\.start \+ 1|x: span\.end\b/.test(built)) {
+      fail('11. linksFor still hands xterm a string index as a column');
+    }
+
+    // ...and the ablation. The identity map is exactly what shipped.
+    sweepAblations();
+    const dir = join(mainFs, `${ABLATION_PREFIX}cols`);
+    try {
+      stage(dir);
+      const target = join(dir, 'path-spans.ts');
+      const before = readFileSync(target, 'utf8');
+      const from = '    const units = chars.length === 0 ? 1 : chars.length;';
+      if (!before.includes(from)) {
+        fail('11. the columns ablation found nothing to edit in path-spans.ts');
+      } else {
+        writeFileSync(
+          target,
+          before.replace(from, '    const units = 1;\n    void chars;')
+        );
+        const got = runColumnsProbe(dir);
+        if (got.error !== undefined) {
+          fail('11. the columns ablation stopped the probe running instead of moving a reading, so it proves nothing');
+        } else if (
+          got['columns-agree-with-xterm'] === cols['columns-agree-with-xterm'] &&
+          got['underline-sits-on-the-path'] === cols['underline-sits-on-the-path']
+        ) {
+          fail('11. a cellColumns that counts every cell as one character read the same as the shipping one, so this rule cannot fail');
+        }
+      }
+    } finally {
+      sweepAblations();
+    }
+  }
+  if (failures.every((f) => !f.includes(' 11. '))) {
+    say(
+      `11. the shipping column map is xterm's own over ${String(14)} glyph rows, ${String(runColumnsProbeMoved(cols))} of which really move the column, and the columns the range names hold the path's own text`
+    );
+  }
+}
+
+function runColumnsProbeMoved(cols) {
+  return typeof cols['glyphs-that-move-the-column'] === 'number'
+    ? cols['glyphs-that-move-the-column']
+    : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Rule 12. THE RENDERER'S OWN CHEAP REFUSAL, and it is WIDER than main's.
+// ---------------------------------------------------------------------------
+
+/**
+ * Three spans in four are relative — re-derived over the operator's own 25
+ * live panes and 56,977 rows at 1,144 of 1,552 distinct targets — and main
+ * answers every one of them `not-absolute`. The renderer refuses them itself,
+ * and a rule duplicated on two sides of a channel is a rule that drifts. So
+ * there is ONE predicate, `couldBeAbsolute`, and the direction it may drift in
+ * is asked rather than asserted: the readings above prove that everything it
+ * refuses really does answer `not-absolute`, and this proves the renderer
+ * reaches it and reaches nothing else.
+ */
+{
+  const doorsCode = code(DOORS);
+  const linksCode = code('src/renderer/terminal/path-links.ts');
+  const body = functionBodyOf(doorsCode, 'couldBeAbsolute');
+  if (body === null) {
+    fail('12. src/shared/path-doors.ts declares no couldBeAbsolute');
+  } else if (!/startsWith\('~'\)/.test(body)) {
+    fail('12. couldBeAbsolute does not admit a `~` spelling, so it is narrower than main’s answer and drops links in silence');
+  }
+  const doorFor = methodBodyOf(linksCode, 'doorFor');
+  if (doorFor === null) {
+    fail('12. src/renderer/terminal/path-links.ts declares no doorFor');
+  } else {
+    if (!/couldBeAbsolute\(/.test(doorFor)) {
+      fail('12. the renderer asks main about every relative span, which is three round trips in four for an answer that is a property of the spelling');
+    }
+    const asked = doorFor.indexOf('couldBeAbsolute(');
+    const cached = doorFor.indexOf('this.cache.get(');
+    if (asked !== -1 && cached !== -1 && asked > cached) {
+      fail('12. the renderer caches a spelling it was always going to refuse');
+    }
+  }
+  // ...and there is only ONE spelling of the rule in the renderer.
+  if (/startsWith\('\/'\)/.test(linksCode)) {
+    fail('12. the renderer spells the absolute rule itself rather than asking the shared predicate, so the two can drift');
+  }
+  if (failures.every((f) => !f.includes(' 12. '))) {
+    say('12. one predicate decides what can never be absolute, the renderer asks it before it caches or asks main, and everything it refuses really answers not-absolute');
   }
 }
 

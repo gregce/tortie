@@ -45,6 +45,7 @@ const door = (await import(from('path-door'))) as {
 };
 const doors = (await import(from('path-doors'))) as {
   EXTERNAL_ALLOW: ReadonlySet<string>;
+  couldBeAbsolute(spelling: string): boolean;
   decidePathDoor(facts: {
     spelling: string;
     realPath: string | null;
@@ -187,6 +188,67 @@ try {
       executable: false
     }) as { door: null; refusal: string }
   );
+
+  // THE MOUNT ASKED OF THE REALPATH (the Phase 247 fix round's finding 3). A
+  // symlink at an ordinary name is what carries a path onto a mount without
+  // ever spelling one, and the spelling clause above cannot see it. It is the
+  // pure decision because the live half would need a real stale automount.
+  readings['order-mount-on-realpath'] = word(
+    doors.decidePathDoor({
+      spelling: '/Users/somebody/notes.md',
+      realPath: '/Volumes/elsewhere/notes.md',
+      kind: 'file',
+      bundle: false,
+      executable: false
+    }) as { door: null; refusal: string }
+  );
+  readings['order-mount-on-realpath-net'] = word(
+    doors.decidePathDoor({
+      spelling: '/Users/somebody/notes.md',
+      realPath: '/net/elsewhere/notes.md',
+      kind: 'file',
+      bundle: false,
+      executable: false
+    }) as { door: null; refusal: string }
+  );
+
+  // RULE 12. The renderer refuses a spelling that can never be absolute
+  // before it makes a round trip, and its rule must be WIDER than main's or
+  // it drops links in silence. So: every spelling `couldBeAbsolute` refuses
+  // must really answer `not-absolute`, and the ones it admits are counted so
+  // a predicate that refused everything could not read as a pass.
+  const SPELLINGS = [
+    'src/main/fs/ipc.ts',
+    './a/b.md',
+    '../a/b.md',
+    'origin/main',
+    'America/Chicago',
+    '@scope/package',
+    'a/b',
+    '171/383',
+    '$HOME/notes.md',
+    '%USERPROFILE%/x',
+    'file:///etc/hosts',
+    '/etc/hosts',
+    '~/notes.md',
+    '~somebody/notes.md',
+    '~'
+  ];
+  let widerRefused = 0;
+  let widerAdmitted = 0;
+  let widerWrong = 0;
+  for (const spelling of SPELLINGS) {
+    if (doors.couldBeAbsolute(spelling)) {
+      widerAdmitted += 1;
+      continue;
+    }
+    widerRefused += 1;
+    const answer = await door.answerPathDoor(spelling);
+    if (word(answer) !== 'refused:not-absolute') widerWrong += 1;
+  }
+  readings['could-be-absolute-refused'] = String(widerRefused);
+  readings['could-be-absolute-admitted'] = String(widerAdmitted);
+  readings['could-be-absolute-disagreed'] = String(widerWrong);
 
   // --- the closed set ------------------------------------------------------
   readings['external-allow'] = [...doors.EXTERNAL_ALLOW].sort().join(',');
