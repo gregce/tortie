@@ -3,8 +3,11 @@
  * `npm run conformance:redline-write`, the gate on the guarded write channel
  * (Phase 226).
  *
- * About eighteen seconds, measured at 17.8 s after the fix round, eight of
- * them the one ablation whose child is left to hang until the deadline. It
+ * About twenty six seconds, measured at 26 s after Phase 244 took the readings
+ * to 29 and the ablations to 16; it was about eighteen, measured at 17.8 s after
+ * the Phase 226 fix round, and eight of those are still the one ablation whose
+ * child is left to hang until the deadline. The growth is the new arm's 16 MiB
+ * file, written and read once live and once per ablated copy. It
  * launches no Electron, opens no window, starts no tmux server, spawns no
  * agent, makes no request and reads nothing under the person's home. The
  * only processes it starts are node running the probe through the pinned
