@@ -39,6 +39,14 @@
  *      GFM table ends at a blank line OR at the start of another block-level
  *      structure, the block scan knew only the blank line, and the press
  *      wrote the formatted table over the code block underneath it
+ *  B3d AND THE TABLE IS STILL A TABLE. B3a, B3b and B3c ask about the
+ *      heading, the fenced block and the line count, and all three pass while
+ *      the table itself is destroyed, so this one counts the cells out of the
+ *      model's own bytes. The fixture's header row and one body row carry a
+ *      trailing space on purpose: mdast runs a row's last cell past its
+ *      terminating pipe to the end of the line, so at the committer's parent
+ *      clause the terminator survived as text, the row grew a column and the
+ *      block dropped to a paragraph
  *  C1  pressing Format JSON rewrites the JSON document in the model
  *
  * ## SAFETY
@@ -122,20 +130,30 @@ const NOTES = [
 ].join('\n');
 
 /**
- * THE GLUED FIXTURE, and it is the Phase 241 fix round's own defect in one
- * file. A heading is written directly above the table and a fenced code block
+ * THE GLUED FIXTURE, and it is TWO silent losses in one file.
+ *
+ * A heading is written directly above the table and a fenced code block
  * directly under it, with no blank line at either boundary — which is the
  * shape a GFM table really ends at and the shape the old block scan could not
  * see. At the parent commit the menu drew NO Format Table row here at all, and
  * driving the row from the Edit menu instead took the fenced block off the
  * file: 8 lines to 5, silently, in the person's own document.
+ *
+ * THE HEADER ROW AND ONE BODY ROW ALSO CARRY A TRAILING SPACE, which is the
+ * committer's round. mdast runs the last cell of a row past its terminating
+ * pipe to the end of the line, so the terminator survived as text and the cell
+ * became `a |`; the formatted table grew a column, and with the space on the
+ * header row it stopped being a table at all. Every check below asked about
+ * the heading, the fenced block and the LINE COUNT, and none asked whether the
+ * table survived — which is why B3d exists and why the space is here rather
+ * than in a fixture of its own.
  */
 const GLUED = [
   '### A heading glued above', // 1
-  '| id | call |', // 2
+  '| id | call | ', // 2 — trailing space, deliberate
   '| --- | ---: |', // 3
   '| 2 | b |', // 4
-  '| 1 | a |', // 5
+  '| 1 | a | ', // 5 — trailing space, deliberate
   '```js', // 6
   'const keep = "this line must survive";', // 7
   '```', // 8
@@ -441,6 +459,24 @@ check(
   JSON.stringify(gluedLines.slice(5, 8))
 );
 check(gluedLines.length === (gluedBefore === null ? -1 : gluedBefore.split('\n').length), 'B3c and the file has the same number of lines it started with', `${String(gluedLines.length)} lines`);
+// B3d IS THE QUESTION NONE OF B3a, B3b OR B3c ASKS: is the thing that was a
+// table still a table? The heading, the fenced block and the line count all
+// survive a press that grows a column or drops the block to a paragraph, and
+// the header row of this fixture carries a trailing space precisely so that a
+// press at the parent clause turns it into prose. The cells are counted from
+// the BYTES the model holds, splitting on unescaped pipes, so the reading is
+// independent of the module under test.
+const gluedRows = gluedLines.slice(1, 5);
+const gluedCells = gluedRows.map((l) => {
+  const body = l.trim().replace(/^\|/, '').replace(/\|$/, '');
+  return body.split(/(?<!\\)\|/).length;
+});
+const gluedDelim = /^\s*\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?\s*$/.test(gluedRows[1] ?? '');
+check(
+  gluedCells.length === 4 && gluedCells.every((n) => n === 2) && gluedDelim,
+  'B3d AND IT IS STILL A TABLE — four rows of two cells with its delimiter row, after a press on rows carrying trailing whitespace',
+  `cells ${JSON.stringify(gluedCells)}, delimiter row ${String(gluedDelim)}`
+);
 
 // ---------------------------------------------------------------------------
 // LAUNCH C — press Format JSON on the JSON file.

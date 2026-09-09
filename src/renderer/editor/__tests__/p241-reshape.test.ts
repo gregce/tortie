@@ -16,6 +16,9 @@
  * The shipping module runs under node; no Monaco, no Electron, no DOM.
  */
 
+import { fromMarkdown } from 'mdast-util-from-markdown';
+import { gfmTableFromMarkdown } from 'mdast-util-gfm-table';
+import { gfmTable } from 'micromark-extension-gfm-table';
 import { describe, expect, it } from 'vitest';
 import {
   formatMarkdownTable,
@@ -174,6 +177,63 @@ describe('the table reshape', () => {
     // `- an item` opens a paragraph inside a list item and the pipe lines are
     // its lazy continuations, so GFM sees no table and neither does this.
     expect(tableAt(['- an item', ...TABLE], 3)).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // TRAILING WHITESPACE — the committer's round, and it is the same class as
+  // the glued corpus above: a press that silently destroys the person's table.
+  //
+  // mdast runs the LAST cell of a row past the terminating pipe to the end of
+  // the line, so one trailing space slices as `"| 2 | "`, `endsWith('|')` is
+  // false, the row terminator survives as text and the cell becomes `2 |`.
+  // The formatted table then carries an extra column in that row — and with
+  // the space on the HEADER row the answer is not a table at all: the block
+  // parses as a paragraph and the table is gone. One space is enough, and so
+  // is a tab or the two spaces that mean a hard break. It is not theoretical:
+  // of the 92 tables the shipping detector finds under `node_modules`, one
+  // carries trailing whitespace and a press destroyed it whole.
+  //
+  // The pin is that trailing whitespace changes NOTHING: every shape formats
+  // to the same bytes as the control, and the answer is still one table.
+  // -------------------------------------------------------------------------
+
+  const CLEAN = '| id | call |\n| --- | ---: |\n| 2 | b |\n| 1 | a |';
+
+  it.each([
+    ['one trailing space on the last body row', '| id | call |\n| --- | ---: |\n| 2 | b |\n| 1 | a | '],
+    ['one trailing space on the HEADER row', '| id | call | \n| --- | ---: |\n| 2 | b |\n| 1 | a |'],
+    ['one trailing space on the delimiter row', '| id | call |\n| --- | ---: | \n| 2 | b |\n| 1 | a |'],
+    ['two trailing spaces, which mean a hard break', '| id | call |\n| --- | ---: |\n| 2 | b |  \n| 1 | a |'],
+    ['a trailing tab', '| id | call |\n| --- | ---: |\n| 2 | b |\t\n| 1 | a |'],
+    ['trailing space on EVERY row, which is the shape found in real markdown', '| id | call | \n| --- | ---: | \n| 2 | b | \n| 1 | a | ']
+  ])('formats %s to exactly what the clean table formats to', (_what, src) => {
+    const clean = formatMarkdownTable(CLEAN);
+    expect(clean.ok).toBe(true);
+    if (!clean.ok) return;
+    const out = formatMarkdownTable(src);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    // THE WHOLE FIX IN ONE COMPARISON: trailing whitespace moves no byte of
+    // the answer, so no cell was invented and no column was grown.
+    expect(out.text).toBe(clean.text);
+    // And the answer is still ONE TABLE. Asked of the parser rather than of
+    // this module, because the loss this pins turned a table into a paragraph
+    // and a cell count read out of the same module could not see that.
+    const tree = fromMarkdown(out.text, {
+      extensions: [gfmTable()],
+      mdastExtensions: [gfmTableFromMarkdown()]
+    });
+    expect(tree.children.map((c) => c.type)).toEqual(['table']);
+  });
+
+  it('keeps an escaped pipe at the end of a cell that also carries trailing space', () => {
+    // The trim must not turn `a\|` into a row terminator: the backslash rule
+    // is asked AFTER the trim, so the escaped pipe is still the cell's text.
+    const out = formatMarkdownTable('| id | call |\n| --- | --- |\n| 2 | a \\| b | ');
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.text).toContain('a \\| b');
+    expect(out.text.split('\n').every((l) => l.split(/(?<!\\)\|/).length === 4)).toBe(true);
   });
 });
 

@@ -177,12 +177,28 @@ function tablesOf(text: string): Table[] {
  * terminator and not an escaped `\|` that ends the cell's text. Getting that
  * one rule wrong produced 1,758 findings out of 1,759 on the measure step's
  * first run, which is how the rule was found.
+ *
+ * THE SLICE IS TRIMMED BEFORE EITHER PIPE IS LOOKED FOR, and that clause is
+ * the committer's round. mdast gives the LAST cell of a row a position that
+ * runs past the terminating pipe to the end of the line, so a row carrying one
+ * trailing space slices as `"| 2 | "`, `endsWith('|')` is false, the row
+ * terminator survives as text and the cell becomes `2 |`. Formatting then
+ * writes a table with an extra column in one row — and with the trailing space
+ * on the HEADER row it writes something that is not a table at all: the block
+ * goes from `table` to `paragraph` and the person's table is destroyed in
+ * silence, in one press, in their own file. One space is enough, and so is a
+ * tab or the two spaces that mean a hard break. It is real rather than
+ * theoretical: of the 92 tables the shipping detector finds in the 774
+ * markdown files under `node_modules` — real markdown by many authors — one
+ * carries trailing whitespace, and a press destroyed it. Trimming first also
+ * fixes the mirror case, a row indented past the block's shared indent, whose
+ * LEADING pipe was invisible for the same reason.
  */
 function cellSource(text: string, cell: TableCell): string {
   if (cell.position === undefined) return '';
   const start = cell.position.start.offset ?? 0;
   const end = cell.position.end.offset ?? 0;
-  let raw = text.slice(start, end);
+  let raw = text.slice(start, end).trim();
   if (raw.startsWith('|')) raw = raw.slice(1);
   if (raw.endsWith('|')) {
     let backslashes = 0;
@@ -285,8 +301,13 @@ export function formatMarkdownTable(src: string, lineOffset = 0): Reshaped {
  *  - THE SLICE IS DEDENTED. Three tables in this repository sit inside a list
  *    item and a slice that keeps its indent is not a table at all.
  *  - THE SLICE IS RE-PARSED and must be exactly one table filling it end to
- *    end. Checking only that it STARTS at offset 0 is what let a glued tail
- *    ride along inside the block, so both ends are asked now.
+ *    end. This is belt and braces rather than the clause doing the work, and
+ *    saying so is the honest claim: the REGION parse above already owns both
+ *    bounds, and the committer's round measured that removing this second
+ *    parse's end-offset check — with `alreadyProved` forced false so it really
+ *    runs — leaves every test and every corpus arm green. It is kept because
+ *    it is cheap on the only shape that reaches it, and it is not what stopped
+ *    a glued tail riding along inside the block.
  *
  * The ONE thing it does not ask is whether the table will format, because a
  * row that is wider than the header is a bug in the person's table and the

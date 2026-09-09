@@ -9,3 +9,5 @@
   REFUSED docs/research/66-plugins-after-launch.md:143: Line 150 has 4 cells and the header has 3. Formatting it would add columns to the header — an unescaped | is the usual cause.
   REFUSED docs/research/79-claude-code-credential-locks-and-cache.md:16: Line 21 has 6 cells and the header has 4. Formatting it would add columns to the header — an unescaped | is the usual cause.
 [p241] 10 glued shapes driven, 0 findings.
+[p241] 6 trailing-whitespace shapes driven.
+[p241] 0 findings in all.

@@ -274,20 +274,52 @@ starts at the LEADING pipe and the last cell of a row ends at the trailing one. 
 produced 1,758 findings on the first run, which is how the number was found. The trailing pipe is
 stripped only when it is the row terminator and not an escaped `\|` inside the cell.
 
+> **AND THE SLICE MUST BE TRIMMED BEFORE EITHER PIPE IS LOOKED FOR. THAT IS THE COMMITTER'S ROUND,
+> AND IT IS A THIRD SILENT LOSS OF THE SAME CLASS.** mdast runs a row's LAST cell past its
+> terminating pipe to the end of the line, so a row carrying one trailing space slices as `"| 2 | "`,
+> `endsWith('|')` is false, the terminator survives as the cell's own text and the cell becomes
+> `2 |`. The formatted table then carries an extra column in that row — and with the space on the
+> HEADER row the answer is not a table at all: the block goes from `table` to `paragraph`, in one
+> press, in the person's own file, with no sentence and nothing to see. One space is enough, and so
+> is a tab or the two spaces that mean a hard break.
+>
+> **It is real markdown rather than a shape somebody imagined.** This repository's own 1,770 tables
+> are clean, which is why no corpus arm here could have found it, so the reading was taken over the
+> **774 markdown files under `node_modules`** — real markdown by many authors. The shipping detector
+> finds **92 tables** there, **2 carry trailing whitespace**, and at the parent clause **1 was
+> destroyed whole**: `node_modules/is-glob/README.md:183`, a six-row contributors table whose every
+> row ends in a space, read `[2,2,2,2,2,2]` before the press and `NOT A TABLE` after it. With the
+> trim in front, the same walk reads **0 destroyed**, and the same walk over an ablated copy of the
+> module reads **1** again, so the arm can fail.
+>
+> The fix is one clause, `text.slice(start, end).trim()` in `cellSource`, and the backslash rule is
+> asked after it so an escaped `\|` at the end of a cell is still that cell's text. It also fixes
+> the mirror case for free: a row indented past the block's shared indent, whose LEADING pipe was
+> invisible for exactly the same reason. It is pinned in three places, because the loss is invisible
+> and would come back the same way — seven arms in
+> `src/renderer/editor/__tests__/p241-reshape.test.ts` of which six go red when the trim is removed,
+> six shapes in `build/p241/shipping-table-corpus.mts` which turn the harness red with 5 findings,
+> and **B3d** in `build/probe-p241-menu.mjs`, whose `glued.md` fixture now carries a trailing space
+> on its header row and one body row. **B3d exists because B3a, B3b and B3c all PASS through this
+> loss**: they ask about the heading, the fenced block and the line count, and none of them asks
+> whether the thing that was a table is still a table.
+
 ### 4.3 Why a header that grows is a real defect and not a nit
 
 The cause is almost always an **unescaped `|` inside a code span**, which GFM splits on. The witness
 is `docs/research/18-agent-activity.md:463`, whose `pi` row contains
 `` `ctx.on('turn_start'|'turn_end'|'agent_settled')` `` — a 3-column table with a 5-cell row. 732 of
 this repository's tables have a pipe inside a code span, so the shape is everywhere; 8 of them
-actually go over the header width.
+actually go over the header width — **9 as the shipping module now counts, over the 1,770 tables the
+fix round's §4.2 note re-measured; the counts in this section are the measure step's own and are
+left as it recorded them**.
 
 **The rule the builder should take:**
 
 1. **Pad a SHORT row to the header width.** Safe — GFM already renders the missing cells as empty.
 2. **NEVER grow the header.** When any row has more cells than the header, **refuse** and say which
    row, because the cause is a bug in the person's table and reflowing it hides the bug instead of
-   showing it. 8 of 1,759 tables here, 0.45%.
+   showing it. 8 of 1,759 tables here, 0.45%, and 9 of 1,770 as the shipping module counts them.
 3. **Preserve the block's own indent.** Slice the table by whole LINES, strip the common leading
    whitespace, format, put it back. Three tables in this repository need it and all three are inside
    list items.

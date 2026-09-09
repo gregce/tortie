@@ -194,6 +194,55 @@ for (const [what, head] of HEADS) {
   }
 }
 console.log(`[p241] ${String(glued)} glued shapes driven, ${String(findings.length)} findings.`);
+
+// ---------------------------------------------------------------------------
+// THE TRAILING-WHITESPACE ARM, and it is the committer's round. mdast runs the
+// LAST cell of a row past the terminating pipe to the end of the line, so a
+// row carrying one trailing space sliced as `"| 2 | "`, the row terminator
+// survived as text and the cell became `2 |`. The formatted table grew a
+// column — and with the space on the HEADER row the answer stopped being a
+// table at all. One space is enough, and so is a tab or a hard break's two.
+//
+// Unlike the glued shapes, this one IS in real markdown: of the 92 tables the
+// shipping detector finds in the 774 markdown files under `node_modules`, one
+// carries trailing whitespace, and at the parent clause a press turned
+// is-glob's six-row contributors table into a heading and a paragraph. This
+// repository's own files are clean, so the shapes are written down here.
+//
+// The question is that trailing whitespace moves NO byte of the answer, and
+// that the answer is still one table end to end.
+// ---------------------------------------------------------------------------
+
+const CLEAN_ROWS = ['| id | call |', '| --- | ---: |', '| 2 | b |', '| 1 | a |'];
+const clean = formatMarkdownTable(CLEAN_ROWS.join('\n'));
+const WS_SHAPES: Array<[string, string]> = [
+  ['a space on the last body row', '| id | call |\n| --- | ---: |\n| 2 | b |\n| 1 | a | '],
+  ['a space on the header row', '| id | call | \n| --- | ---: |\n| 2 | b |\n| 1 | a |'],
+  ['a space on the delimiter row', '| id | call |\n| --- | ---: | \n| 2 | b |\n| 1 | a |'],
+  ['a hard break, being two spaces', '| id | call |\n| --- | ---: |\n| 2 | b |  \n| 1 | a |'],
+  ['a tab', '| id | call |\n| --- | ---: |\n| 2 | b |\t\n| 1 | a |'],
+  ['a space on EVERY row, which is the shape real markdown carries', '| id | call | \n| --- | ---: | \n| 2 | b | \n| 1 | a | ']
+];
+
+let ws = 0;
+for (const [what, src] of WS_SHAPES) {
+  ws += 1;
+  const answer = formatMarkdownTable(src);
+  if (!answer.ok) {
+    findings.push(`trailing ${what}: refused — ${answer.why}`);
+    continue;
+  }
+  if (!clean.ok || answer.text !== clean.text) {
+    findings.push(`trailing ${what}: the answer moved — ${JSON.stringify(answer.text)}`);
+    continue;
+  }
+  if (!blockHoldsOnlyTheTable(answer.text)) {
+    findings.push(`trailing ${what}: the answer is no longer one table`);
+  }
+}
+console.log(`[p241] ${String(ws)} trailing-whitespace shapes driven.`);
+
+console.log(`[p241] ${String(findings.length)} findings in all.`);
 for (const one of findings) console.log(`  FINDING ${one}`);
 
 if (findings.length > 0 || notIdempotent > 0 || cellsMoved > 0 || blockDirty > 0) {
