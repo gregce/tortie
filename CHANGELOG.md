@@ -6,7 +6,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## Unreleased
 
-This release is about the redline you can rewind, accept and now type in. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at either goes back with one key or stops being marked with another, without the file being touched.
+This release is about the redline you can rewind, accept and now type in. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at either goes back with one key or stops being marked with another, without the file being touched. The editor answers a right click now too.
 
 ### Added
 
@@ -17,6 +17,8 @@ This release is about the redline you can rewind, accept and now type in. Every 
 - A redline with nothing marked now says so, and says what it is being compared against — the last commit, or for a file git does not know about, the time you opened it — so an empty page is no longer mistaken for one that has not loaded ([`4de50a2`](https://github.com/gregce/tortie/commit/4de50a2))
 - You can type in the redline now, so a typo you notice while reading a file no longer means switching to Source to fix it and switching back. What you type is drawn as an insertion like any other change, Command-Z takes it back, and Command-S writes the file — though a save writes what is in front of you over anything an agent wrote to that file while you were typing ([`0722478`](https://github.com/gregce/tortie/commit/0722478)), ([`fd70048`](https://github.com/gregce/tortie/commit/fd70048)), ([`ff9d817`](https://github.com/gregce/tortie/commit/ff9d817)), ([`cbf192d`](https://github.com/gregce/tortie/commit/cbf192d))
 - A change you agree with can now be accepted instead of rewound. Press Option-Return on it, or Accept all at the top of the redline, and it stops being marked without a byte of the file being written — though what you accept lasts only as long as the tab is open, and accepting ends the undo of any rewind you made before it ([`7a91726`](https://github.com/gregce/tortie/commit/7a91726)), ([`eea8ec8`](https://github.com/gregce/tortie/commit/eea8ec8)), ([`f044001`](https://github.com/gregce/tortie/commit/f044001)), ([`225958d`](https://github.com/gregce/tortie/commit/225958d))
+- Right-clicking in the editor now opens a menu, where it used to do nothing at all. It carries the ordinary editing rows along with Find, Change All Occurrences, Go to Line, Fold and Unfold, and History, Copy Path, Copy Relative Path and Save for the file you are in ([`808da33`](https://github.com/gregce/tortie/commit/808da33)), ([`80b32c7`](https://github.com/gregce/tortie/commit/80b32c7))
+- A markdown table under your cursor can be tidied from that menu, and a wall of one-line JSON pretty-printed or squashed back onto one line, over what you have selected or wherever the cursor is, and one Command-Z takes any of them back. A table with a row wider than its header is refused with the line named rather than reflowed, and JSON is left alone if formatting it would change anything other than the spacing ([`ebdaab6`](https://github.com/gregce/tortie/commit/ebdaab6)), ([`7701c0c`](https://github.com/gregce/tortie/commit/7701c0c)), ([`bee4e01`](https://github.com/gregce/tortie/commit/bee4e01))
 
 ### Changed
 
