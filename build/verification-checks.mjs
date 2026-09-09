@@ -322,6 +322,18 @@ export const CHECKS = [
   // a check. `P234_PARENT=1` grades the other way round, for a run at the
   // parent commit.
   realRemote('probe:p234'),
+  // PHASE 235. build/probe-p235-nits.mjs: the five nits of the remote round,
+  // driven once against the operator's Mac Pro and GRADED, being the editor
+  // tab strip's two verbs on a remote tab, the sentence for a machine nothing
+  // reached, the tab of a machine whose confirm hash moved, and the agent
+  // board one connection after the answer it holds. It builds and removes ONE
+  // scratch repository under his home, starts a scratch tmux server on a
+  // socket named for its own pid and unlinks that socket on both machines in a
+  // `finally`, lists his own `-L gmux` server and never touches it, saves and
+  // restores the person's own pasteboard, spawns no agent and spends no token.
+  // It EXITS NON ZERO when any of the five readings is the parent's.
+  // `--self-test` proves the grader on 14 fixtures and launches nothing.
+  realRemote('probe:p235'),
 
   // Driver probes: a pinned tsx driver over production modules and real
   // scratch git repositories, no Electron, no tmux, no ssh.
