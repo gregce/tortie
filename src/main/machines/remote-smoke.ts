@@ -1331,7 +1331,9 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         runRemoteRead(ctx, 'git-commit', [
           '/nowhere/p104',
           'none',
-          'this never leaves this Mac'
+          'this never leaves this Mac',
+          '/nowhere',
+          'p104'
         ])
     );
     await assertRefused(
@@ -1341,7 +1343,9 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         runRemoteWrite(ctx, 'git-commit', [
           '/nowhere/p104',
           'none',
-          'this never leaves this Mac'
+          'this never leaves this Mac',
+          '/nowhere',
+          'p104'
         ])
     );
 
