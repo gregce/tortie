@@ -172,6 +172,30 @@
  * read the retaining paths out of it. A run that goes red now says WHICH trees
  * and, with the snapshot, WHAT HOLDS THEM.
  *
+ * ## PHASE 244. THE SNAPSHOT IS TAKEN ON A FINDING, AND THAT IS WHY IT CAME BACK
+ *
+ * The paragraph above was true and it was not enough, and the audit's F6 is the
+ * proof: FOUR rounds in a row failed to reproduce this, and every one of the
+ * runs that DID fail was a run without a snapshot, because `P167_SNAPSHOT=1`
+ * has to be asked for in advance on a run nobody knows will fail. For an
+ * intermittent finding that is the same as not having it.
+ *
+ * So the block loop asks `judge` — the very function that decides the verdict,
+ * over the blocks read so far, with that profile's own rules — from the SECOND
+ * block onwards, and the first time it says something the run photographs the
+ * heap while what caused it is still held and reads it with
+ * `build/heap-retainers.mjs` in a child process. Nothing is judged differently:
+ * the verdict is still computed over every block after the loop by the same
+ * call. A green run writes no file and costs nothing.
+ *
+ * IT WORKED THE FIRST TIME IT RAN. Profile d, 3 blocks of 6, full speed:
+ * 0, 0 and then 599 detached elements, 43 disposed xterm terminals, every one
+ * of them held by its own un-served `requestAnimationFrame` callback still
+ * registered on the document's ScriptedAnimationController. That is the
+ * retaining path four rounds asked for. It is NOT an explanation of the
+ * intermittency and it is NOT a repair; docs/research/109 has the whole reading,
+ * what is still open and the next experiment.
+ *
  * Knobs, none prefixed GMUX_ so the contract inventory's env sweep does not
  * carry them: P167_BLOCKS (default 3), P167_CYCLES per block (default 6),
  * P167_PROFILES (default b,c,d), P167_OUT_DIR (default out/p167),
@@ -179,7 +203,8 @@
  * (default 200), P167_DETACHED (default 50), P167_CPU, the throttle
  * (default 4; 1 turns it off and the run says so), P167_CPU_PROFILES, which
  * profiles it applies to (default c), P167_SNAPSHOT=1 for a heap snapshot per
- * block, P167_PLANT=0 to skip the planted leak arm, P167_CENSUS_ROOTS, how
+ * block, P167_SNAPSHOT_ON_FINDING=0 to stop the automatic one described above,
+ * P167_PLANT=0 to skip the planted leak arm, P167_CENSUS_ROOTS, how
  * many detached tree roots each census line names (default 6), P167_REWRITES,
  * outside rewrites of the open file per redline open (default 4), P167_TYPES,
  * typed-and-taken-back words per redline open (default 2), and P167_ACCEPTS,
@@ -552,6 +577,44 @@ const cpuThrottle = Math.max(1, Number(process.env['P167_CPU'] ?? '4'));
 const censusRoots = Math.max(0, Number(process.env['P167_CENSUS_ROOTS'] ?? '6'));
 /** PHASE 220. One heap snapshot per block, off by default. */
 const snapshots = process.env['P167_SNAPSHOT'] === '1';
+
+/**
+ * PHASE 244, audit finding F6. Take one snapshot the first time a block's
+ * reading is over budget, whether or not anybody asked for snapshots.
+ *
+ * Off with `P167_SNAPSHOT_ON_FINDING=0`, and it is ON by default because the
+ * finding this exists for has been intermittent since Phase 200 and a snapshot
+ * that has to be requested in advance is a snapshot nobody has on the run that
+ * mattered. A green run pays nothing.
+ */
+const snapshotOnFinding = process.env['P167_SNAPSHOT_ON_FINDING'] !== '0';
+
+/** Set once a finding has been photographed, so one red run writes one file. */
+let snapshotDone = !snapshotOnFinding;
+
+/**
+ * PHASE 244. Read a snapshot the run just wrote and print WHO is holding what.
+ *
+ * `build/heap-retainers.mjs` is a plain reader that starts nothing, so it runs
+ * in a CHILD of this process rather than inside the app being measured, which
+ * is the rule its own header states. A reader that fails prints why and names
+ * the file, because a snapshot on disk with no reading is still the evidence.
+ */
+function sayRetainers(path) {
+  const out = spawnSync(
+    process.execPath,
+    [join(REPO, 'build', 'heap-retainers.mjs'), path, '--detached', '--top', '8'],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }
+  );
+  if (out.status !== 0) {
+    say(`  retainers   could not be read (${String(out.status)}); the snapshot is at ${path}`);
+    if (typeof out.stderr === 'string' && out.stderr.length > 0) {
+      say(`              ${out.stderr.split('\n').slice(0, 3).join(' ')}`);
+    }
+    return;
+  }
+  for (const line of String(out.stdout).split('\n')) say(`  retainers   ${line}`);
+}
 /**
  * PHASE 220. The planted leak arm at the end of the run, on by default because
  * it costs about five seconds and it is what makes a green verdict mean
@@ -1734,6 +1797,19 @@ await withElectron(
           continue;
         }
       }
+      // PHASE 244, audit finding F6. The rules are computed BEFORE the block
+      // loop rather than after it, because the loop now asks `judge` the same
+      // question the verdict asks, block by block, so it can photograph the
+      // heap at the moment a finding first appears. Nothing about the rules
+      // themselves moved; see `captureOnFinding` below.
+      const rules =
+        key === 'd'
+          ? {
+              nodes: false,
+              listeners: false,
+              historyFloor: Math.max(1, Math.floor(cyclesWanted * 4 * 0.75))
+            }
+          : {};
       const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [], rewrites: 0, rewriteMisses: [], typed: 0, typeMisses: [], accepts: 0, acceptMisses: [], baselines: 0 };
       const exceptionsBefore = cdp.events().filter((e) => e.method === 'Runtime.exceptionThrown').length;
       const before = await readAll(descriptors);
@@ -1757,10 +1833,48 @@ await withElectron(
         blocks.push(row);
         say(`  block ${String(b)}     ${fmt(row)}  (${String(row.ms)} ms)`);
         say(`  census      ${censusLine(row)}`);
-        if (snapshots) {
+        // PHASE 244, audit finding F6. The snapshot, and the ONE reason it is
+        // taken here rather than afterwards.
+        //
+        // The split retention finding has been intermittent for four phases.
+        // Phase 200's two levers did not reproduce it, Phase 220 could not, the
+        // 0.101.0 audit could not, and neither could this phase's own measure
+        // step. Every one of those is a green sample, and a green sample cannot
+        // explain a red one. What has been missing every time the finding DID
+        // appear is the half the closure requirement actually asks for: a
+        // retaining path. `P167_SNAPSHOT=1` could always produce one, but it
+        // has to be turned on BEFORE a run nobody knows will fail, which for an
+        // intermittent finding is the same as not having it.
+        //
+        // So the loop asks `judge` — the very function that decides the
+        // verdict, over the blocks read so far, with this profile's own rules —
+        // and photographs the heap the first time it says something. Nothing is
+        // judged differently: the verdict is still computed over every block
+        // after the loop, by the same call. A green run costs nothing at all.
+        //
+        // THIS IS NOT A REPAIR AND IT IS NOT AN EXPLANATION. It is the
+        // instrument that makes the next occurrence explainable instead of
+        // being one more unexplained sample.
+        //
+        // TWO BLOCKS AT LEAST, because `judge` answers "fewer than two blocks
+        // were read, so no plateau can be judged" for a single one, which is a
+        // sentence about the RUN rather than a finding about the app. Asked
+        // after block 1 it fired every time and photographed a 22 MB heap for
+        // nothing, which is what the first version of this did.
+        const finding =
+          snapshots || snapshotDone || blocks.length < 2
+            ? null
+            : (judge(key, before, blocks, budgets, rules)[0] ?? null);
+        if (snapshots || finding !== null) {
+          if (finding !== null) {
+            snapshotDone = true;
+            say(`  FINDING     ${finding}`);
+            say('  photographing the heap now, while what caused it is still held');
+          }
           const path = join(outDir, `heap-${key}-block${String(b)}.heapsnapshot`);
           const bytes = await writeHeapSnapshot(cdp, path);
           say(`  snapshot    ${path} (${(bytes / (1024 * 1024)).toFixed(1)} MB)`);
+          if (finding !== null) sayRetainers(path);
         }
       }
       if (descriptors && blocks.length > 0) {
@@ -1779,14 +1893,6 @@ await withElectron(
       // and the workload floor. Each cycle discards four real sessions, and the
       // floor is set a little under that so one session the app records late is
       // not read as a workload that did not land.
-      const rules =
-        key === 'd'
-          ? {
-              nodes: false,
-              listeners: false,
-              historyFloor: Math.max(1, Math.floor(cyclesWanted * 4 * 0.75))
-            }
-          : {};
       const verdicts = judge(key, before, blocks, budgets, rules);
       if (log.openMisses.length > 0) verdicts.push(`${key}: ${String(log.openMisses.length)} surface open(s) did not land: ${[...new Set(log.openMisses)].join(', ')}`);
       if (log.closeMisses.length > 0) verdicts.push(`${key}: ${String(log.closeMisses.length)} surface close(s) did not land: ${[...new Set(log.closeMisses)].join(', ')}`);
