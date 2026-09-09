@@ -359,6 +359,21 @@ export const CHECKS = [
   // `--self-test` proves the grader on 16 fixtures and launches nothing.
   realRemote('probe:p242'),
 
+  // Phase 242.2. The picture put on a machine, driven against the real one.
+  // Two Electrons one after the other on one scratch profile and the
+  // gmux-p242-2-<pid> socket, no agent, no token, no keychain. It plants a
+  // symbolic link and a hard link at the staged name `<name>.part` inside
+  // `~/.tortie/images` on the far side and drives `machines.putImage` at each,
+  // then reads the victim outside that directory with an `ssh` Tortie did not
+  // compose. It fails when any victim holds the picture's bytes, when a landed
+  // name is a link rather than a picture, when a hard-linked victim still
+  // carries two names, or when a save that used to succeed refuses. Every far
+  // side path carries this run's own `tortie-p242-2-scratch-<pid>` prefix or is
+  // `~/.tortie`, and the scratch tmux socket is ended AND unlinked on both
+  // machines in a `finally`. `--self-test` proves the grader on 8 fixtures and
+  // launches nothing.
+  realRemote('probe:p2422'),
+
   // Driver probes: a pinned tsx driver over production modules and real
   // scratch git repositories, no Electron, no tmux, no ssh.
   adapter('probe:p98', 'git and the lockfile ripgrep over scratch repositories'),
