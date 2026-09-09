@@ -1,5 +1,13 @@
 /**
- * PHASE 244, THE MEASURE STEP. F2 over the REAL link, under the Phase 224 bounds.
+ * PHASE 244. F2 over the REAL link, under the Phase 224 bounds.
+ *
+ * THE REPAIR ROUND TURNED THIS DRIVER THE RIGHT WAY UP. The measure step wrote
+ * it asserting the LOSS, being `written: 0, reused: 1` twice with the machine
+ * holding `2` and the mirror holding `1`. It now asserts the repair: the mirror
+ * carries the same-size rewrite across, a third pass with nothing changed reuses,
+ * and the far side and the mirror hold the same bytes. It stays a `.fixture`
+ * under build/ rather than joining the suite because it reaches a real machine,
+ * which is what every remote probe in this tree does.
  *
  * The audit's mirror fixture runs the compiled-in `arch-read` script under a
  * LOCAL `/bin/sh`. That is the shipping script, but it is not the shipping
@@ -109,10 +117,12 @@ it('reads a same-size rewrite inside one timestamp second over the real link', a
 
     // The bounds first, so a run that moved something says so before anything else.
     expect(readings['sessionsAfter']).toBe(before);
-    // What was measured, stated as the loss rather than as the wish.
-    expect(readings['second']).toMatchObject({ written: 0, reused: 1 });
+    // The repair, over the real link. The same-size rewrite inside one
+    // timestamp second is carried across, a pass with nothing changed still
+    // reuses rather than transferring for ever, and the two sides agree.
+    expect(readings['second']).toMatchObject({ written: 1, reused: 0 });
     expect(readings['third']).toMatchObject({ written: 0, reused: 1 });
-    expect(readings['mirrorBytes']).not.toBe(readings['farBytes']);
+    expect(readings['mirrorBytes']).toBe(readings['farBytes']);
   } finally {
     try { ssh(`rm -rf "$HOME/${far}"`); } catch { /* the report says so */ }
     rmSync(local, { recursive: true, force: true });

@@ -19,6 +19,13 @@ before and after and asserts they did not move, never attaches to one, routes ev
 `build/ssh-run.mjs` with a record file it owns so neither `~/.ssh/known_hosts` is written, and sets a
 git identity with `git config --local` inside the scratch repository only. Do not widen it.
 
-**The F1 and F4 drivers assert what is wrong today.** A repair turns them red, which is the point:
-the repair round replaces each with the assertion the audit's own fixture states. Findings and
-readings are in [research 108](../../docs/research/108-phase-244-audit-findings.md).
+**The repair round turned all three the right way up.** They asserted the LOSS while the findings
+were open; each now asserts the repair, and each is red at the parent for the reading its own file
+names. F1's became a maintained regression at
+`src/renderer/editor/__tests__/p244-inherited-undo.test.ts` and F4's at
+`src/main/fs/__tests__/p244-read-cap-bytes.test.ts`, so the copies here are the drivers rather than
+the guards. F2's stays here rather than joining the suite, because it reaches a real machine, which
+is what every remote probe in this tree does.
+
+Findings and readings are in [research 108](../../docs/research/108-phase-244-audit-findings.md).
+The repair readings are in the commit bodies of Phase 244.

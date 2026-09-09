@@ -67,11 +67,12 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { mkdir, utimes, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { ARCH_DIR, ARCH_FILES, ARCH_LIMITS } from '@shared/arch';
+import { posixCksum } from './arch-cksum';
 import { readyRemoteContext } from './ready-context';
 import { runRemoteRead } from './remote-run';
 import {
@@ -173,13 +174,24 @@ export const ARCH_MIRROR_CONCURRENCY = 3;
 
 /** One record of an `arch-read` answer. */
 export interface ArchReadRecord {
-  /** `S` a stamp, `F` a file's bytes, `D` a directory's entries, `X` refused. */
-  kind: 'S' | 'F' | 'D' | 'X';
+  /**
+   * `S` a stamp, `C` a content digest, `F` a file's bytes, `D` a directory's
+   * entries, `X` refused.
+   */
+  kind: 'S' | 'C' | 'F' | 'D' | 'X';
   path: string;
   /** Seconds since the epoch, from the far side's own `stat`. Zero for `D` and `X`. */
   mtimeSec: number;
   /** The far side's own size in bytes. Zero for `D` and `X`. */
   size: number;
+  /**
+   * The far side's own `cksum` of the file's bytes, for a `C` record, and null
+   * otherwise. PHASE 244, finding F2: this is the freshness token, because a
+   * whole-second stamp and a size cannot tell a same-length rewrite inside one
+   * second apart and a higher resolution stamp still cannot tell one apart from
+   * a tool that preserves timestamps.
+   */
+  crc: number | null;
   /** The bytes, for an `F` record, and null otherwise. */
   content: Buffer | null;
   /** The entries, for a `D` record, and null otherwise. */
@@ -227,6 +239,7 @@ export function parseArchReadAnswer(payload: string): ArchReadRecord[] {
         path: line.slice(2),
         mtimeSec: 0,
         size: 0,
+        crc: null,
         content: null,
         entries: null
       });
@@ -242,22 +255,32 @@ export function parseArchReadAnswer(payload: string): ArchReadRecord[] {
         path: line.slice(2),
         mtimeSec: 0,
         size: 0,
+        crc: null,
         content: null,
         entries
       });
       continue;
     }
-    if (kind !== 'S' && kind !== 'F') continue;
+    if (kind !== 'S' && kind !== 'C' && kind !== 'F') continue;
     const rest = line.slice(2);
     const firstSpace = rest.indexOf(' ');
     const secondSpace = rest.indexOf(' ', firstSpace + 1);
     if (firstSpace <= 0 || secondSpace <= firstSpace) continue;
-    const mtimeSec = Number.parseInt(rest.slice(0, firstSpace), 10);
+    // A `C` record's first field is the far side's `cksum` rather than a
+    // modification time, and its second is the octet count `cksum` printed,
+    // which is read as the size the digest was taken over.
+    const first = Number.parseInt(rest.slice(0, firstSpace), 10);
     const size = Number.parseInt(rest.slice(firstSpace + 1, secondSpace), 10);
     const path = rest.slice(secondSpace + 1);
-    if (!Number.isFinite(mtimeSec) || !Number.isFinite(size) || path.length === 0) continue;
+    if (!Number.isFinite(first) || !Number.isFinite(size) || path.length === 0) continue;
+    if (kind === 'C') {
+      if (first < 0) continue;
+      out.push({ kind: 'C', path, mtimeSec: 0, size, crc: first, content: null, entries: null });
+      continue;
+    }
+    const mtimeSec = first;
     if (kind === 'S') {
-      out.push({ kind: 'S', path, mtimeSec, size, content: null, entries: null });
+      out.push({ kind: 'S', path, mtimeSec, size, crc: null, content: null, entries: null });
       continue;
     }
     const blob = lines[at + 1] ?? '';
@@ -267,6 +290,7 @@ export function parseArchReadAnswer(payload: string): ArchReadRecord[] {
       path,
       mtimeSec,
       size,
+      crc: null,
       content: Buffer.from(blob, 'base64'),
       entries: null
     });
@@ -485,11 +509,41 @@ export function archMirrorPath(root: string, machineId: string, farPath: string)
  * Bring the mirror up to what the machine holds, and answer with the counts.
  *
  * The pass is two phases. One `arch-read` call per page of paths asks for the
- * far side's own mtime and size of every tracked file, which is cheap because
- * no bytes come back. Whatever disagrees with the mirror's own stamp is then
- * asked for by content, in pages under {@link ARCH_MIRROR_PAGE_BYTES}, and
- * written. A file the mirror holds that the folder no longer tracks is removed,
- * the same way `scanArchImports` forgets a row for a file that is gone.
+ * far side's own mtime, size and CONTENT DIGEST of every tracked file, which is
+ * cheap on the link because no file bytes come back. Whatever disagrees with the
+ * mirror's own bytes is then asked for by content, in pages under
+ * {@link ARCH_MIRROR_PAGE_BYTES}, and written. A file the mirror holds that the
+ * folder no longer tracks is removed, the same way `scanArchImports` forgets a
+ * row for a file that is gone.
+ *
+ * ## THE FRESHNESS TOKEN IS THE CONTENT (Phase 244, audit finding F2)
+ *
+ * Until this phase the reuse test was the far side's whole-second mtime and its
+ * size, and `arch-read`'s `stat` reports whole seconds. So a SAME-LENGTH rewrite
+ * inside one second was invisible, and it stayed invisible: an unchanged file
+ * keeps its stamp, so every later refresh compared the same second and the same
+ * size and reused again. The audit's fixture and the measure step's drive over
+ * the operator's own Mac Pro both read `written: 0, reused: 1` with the machine
+ * holding `export const a = 2;` and the mirror holding `export const a = 1;`.
+ * The demonstrated failure is stale mirror content; the consequence is that the
+ * shared scanner, which cannot tell the two sources apart, then describes older
+ * code than the machine holds.
+ *
+ * A HIGHER RESOLUTION STAMP IS NOT THE FIX. It narrows the window and proves
+ * nothing about content whenever a tool preserves timestamps. So the far side
+ * now reports `cksum` per file, one process per page, and this side re-derives
+ * the same CRC over the MIRROR's own bytes through `./arch-cksum.ts`. Nothing is
+ * recorded on the side: the mirror is still its own record, so a mirror somebody
+ * deleted half of, or edited by hand, re-fetches that half.
+ *
+ * A file with NO digest — a machine with no `cksum`, a file `cksum` could not
+ * open, a record that did not parse — is treated as CHANGED and carried across.
+ * The cost of that is a transfer; the cost of the other answer is a stale one.
+ *
+ * The mtime is still carried and the mirrored file is still stamped with it,
+ * because it is what makes a hand-emptied mirror re-fetch and it is what a
+ * person reading the mirror directory sees. It no longer DECIDES anything, so a
+ * `touch` on the far side now costs nothing rather than a transfer.
  *
  * IT NEVER THROWS FOR ANYTHING THE MACHINE SAID. A call that fails throws from
  * the door, which is the caller's to catch; a record whose path the far side
@@ -540,14 +594,20 @@ export async function syncRemoteArchMirror(input: {
     wanted.push(path);
   }
 
-  // Phase one. The stamps, no bytes.
+  // Phase one. The stamps and the digests, no file bytes.
   const stamps = new Map<string, { mtimeSec: number; size: number }>();
+  const digests = new Map<string, number>();
   for (const page of pageByListBytes(wanted)) {
     if (input.signal?.aborted === true) break;
     const payload = await run('arch-read', [farPath, page.join('\n'), '', '']);
     for (const record of parseArchReadAnswer(payload)) {
-      if (record.kind !== 'S') continue;
-      stamps.set(record.path, { mtimeSec: record.mtimeSec, size: record.size });
+      if (record.kind === 'S') {
+        stamps.set(record.path, { mtimeSec: record.mtimeSec, size: record.size });
+        continue;
+      }
+      // PHASE 244. The far side's own `cksum`, which is the only thing that can
+      // tell a same-length rewrite inside one second from no rewind at all.
+      if (record.kind === 'C' && record.crc !== null) digests.set(record.path, record.crc);
     }
   }
 
@@ -580,7 +640,17 @@ export async function syncRemoteArchMirror(input: {
     bytesWanted += far.size;
     const mine = held.get(path);
     held.delete(path);
-    if (mine !== undefined && mine.mtimeSec === far.mtimeSec && mine.size === far.size) {
+    // PHASE 244, finding F2. The token is the CONTENT. The size is asked first
+    // because it is free and settles most of them, and the digest is read off
+    // the mirror's own bytes only for a file that could still be reusable. A
+    // file the far side gave no digest for is carried across.
+    const farCrc = digests.get(path);
+    if (
+      mine !== undefined &&
+      farCrc !== undefined &&
+      mine.size === far.size &&
+      mirrorCksum(mirrorPath, path) === farCrc
+    ) {
       reused += 1;
       continue;
     }
@@ -699,6 +769,21 @@ function mirrorStamps(mirrorPath: string): Map<string, { mtimeSec: number; size:
   };
   walk(mirrorPath, '');
   return out;
+}
+
+/**
+ * The `cksum` of one mirrored file, or null when it cannot be read (Phase 244).
+ *
+ * A file that cannot be read here is never called unchanged, so a mirror whose
+ * bytes went away costs a transfer rather than a stale answer.
+ */
+function mirrorCksum(mirrorPath: string, relPath: string): number | null {
+  if (!archPathIsSendable(relPath)) return null;
+  try {
+    return posixCksum(readFileSync(join(mirrorPath, relPath)));
+  } catch {
+    return null;
+  }
 }
 
 /** Remove what the folder no longer tracks. Answers how many went. */

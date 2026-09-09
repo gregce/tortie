@@ -3212,11 +3212,48 @@ const GIT_COMMIT = [
  * The records, one per line:
  *
  *   S <mtime> <size> <path>            the file's stamp, for the stat list
+ *   C <crc> <size> <path>              the file's CONTENT digest, for the stat
+ *                                      list; see below
  *   F <mtime> <size> <path>            a file read back; the NEXT line is its
  *                                      bytes as base64, empty for an empty file
  *   D <path>                           a directory; the NEXT line is its
  *                                      entries, newline joined, as base64
  *   X <path>                           not there, refused, or not a plain file
+ *
+ * ## THE `C` RECORD, AND WHY A STAMP WAS NOT ENOUGH (Phase 244, finding F2)
+ *
+ * `stat` here reports WHOLE SECONDS, and `./remote-arch.ts` treated an equal
+ * second and an equal size as unchanged. So a same-length rewrite inside one
+ * second was invisible and the mirror kept the old bytes FOR EVER: an unchanged
+ * file keeps its stamp, so every later refresh compares the same second and the
+ * same size and reuses again. Waiting does not repair it. The 0.101.0 audit's
+ * fixture wrote `export const a = 1;` at .1 s and the same-length
+ * `export const a = 2;` at .9 s, and both later passes answered
+ * `reused: 1, written: 0` with the machine holding 2 and the mirror holding 1;
+ * the measure step reproduced that over the real link to the operator's Mac Pro.
+ *
+ * A HIGHER RESOLUTION STAMP WOULD NOT HAVE FIXED IT, and the audit says so: it
+ * narrows the window and proves nothing about content when a tool PRESERVES the
+ * timestamp, which `cp -p`, `rsync -t`, `tar -x` and a restore from a backup all
+ * do. So the token is the CONTENT.
+ *
+ * `cksum` is the digest program because it is POSIX, so it is on every machine
+ * this product can reach, it is spelled the same way on macOS and on Linux, and
+ * its output is specified as `<crc> <octets> <pathname>` per file. It takes MANY
+ * files, so a whole page costs ONE process rather than one per file, and
+ * `./arch-cksum.ts` re-derives the same CRC over the mirror's own bytes on this
+ * side, so the mirror stays its own record and there is no side table to fall
+ * out of step with it.
+ *
+ * THE COST, KEPT VISIBLE: the far side now READS every tracked file under the
+ * size ceiling once per pass rather than only stat-ing it. That read is local to
+ * that machine and never crosses the link, and a file over
+ * {@link ARCH_READ_FILE_MAX_BYTES} is not digested at all, for the same reason
+ * it is not read: this Mac would not open it either.
+ *
+ * A FILE WITH NO `C` RECORD IS TREATED AS CHANGED by the reader, never as
+ * unchanged, so a machine with no `cksum`, and a file `cksum` could not open,
+ * both cost a transfer rather than a stale answer.
  *
  * `head -c 4000000` is the same ceiling `MAX_READ_BYTES` in
  * `src/main/arch/tree-facts.ts` puts on a local read, so a file this Mac
@@ -3244,6 +3281,7 @@ const ARCH_READ = [
   'if [ "$n" = 0 ]; then',
   "  printf 'none'",
   'else',
+  '  dg=""',
   '  for p in $sl; do',
   '    [ -n "$p" ] || continue',
   '    case "$p" in /*|*..*) printf \'X %s\\n\' "$p"; continue;; esac',
@@ -3251,10 +3289,15 @@ const ARCH_READ = [
   "      m=$(stat -c '%Y %s' \"$p\" 2>/dev/null || true)",
   "      if [ -z \"$m\" ]; then m=$(stat -f '%m %z' \"$p\" 2>/dev/null || true); fi",
   "      printf 'S %s %s\\n' \"${m:-0 0}\" \"$p\"",
+  '      z=${m##* }',
+  '      case "$z" in \'\'|*[!0-9]*) ;; *) if [ -r "$p" ] && [ "$z" -le 4000000 ]; then dg="$dg$p$IFS"; fi;; esac',
   '    else',
   "      printf 'X %s\\n' \"$p\"",
   '    fi',
   '  done',
+  '  if [ -n "$dg" ]; then',
+  "    cksum $dg 2>/dev/null | sed 's/^/C /' || true",
+  '  fi',
   '  for p in $rl; do',
   '    [ -n "$p" ] || continue',
   '    case "$p" in /*|*..*) printf \'X %s\\n\' "$p"; continue;; esac',

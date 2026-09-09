@@ -278,6 +278,12 @@ try {
   const armImports = [...arm.matchAll(/^import[^;]*?from '([^']+)';/gms)].map((hit) => hit[1]).sort();
   const armAllowed = [
     '../arch/argv-guard',
+    // PHASE 244, finding F2. The mirror's freshness token is the far side's own
+    // `cksum` re-derived over the mirrored bytes, and this is the arithmetic
+    // that does it. It is allowed here only because it is PURE, which the loop
+    // below asserts rather than assumes: a module on this list that grew a
+    // process would be a door around `runRemoteRead`.
+    './arch-cksum',
     './ready-context',
     './remote-run',
     './remote-scripts',
@@ -287,6 +293,7 @@ try {
     'node:fs/promises',
     'node:path'
   ];
+  const armPure = ['./arch-cksum'];
   for (const one of armImports) {
     if (!armAllowed.includes(one)) {
       fail(
@@ -294,6 +301,21 @@ try {
           `sends goes through ./remote-run, whose step 4 is the one gate, and ` +
           `nothing in it may reach a process by any other door.`
       );
+    }
+  }
+  for (const one of armPure) {
+    const text = readFileSync(
+      join(repoRoot, 'src', 'main', 'machines', `${one.slice(2)}.ts`),
+      'utf8'
+    );
+    for (const word of ["from 'node:", "from 'electron'", 'child_process', 'require(']) {
+      if (text.includes(word)) {
+        fail(
+          `rule 9: src/main/machines/${one.slice(2)}.ts names ${word}. It is on ` +
+            `remote-arch's import allowlist only because it starts nothing, so a ` +
+            `platform reach in it is a door around runRemoteRead's step 4.`
+        );
+      }
     }
   }
   for (const file of ['reading.ts', 'sentence.ts']) {
