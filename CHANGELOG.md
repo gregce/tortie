@@ -37,6 +37,7 @@ This release is about the redline you can rewind, accept and now type in. Every 
 - A tab whose machine did not answer now carries Prepare this machine, the same control Settings has, so you can reconnect from where you are ([`882b3484`](https://github.com/gregce/tortie/commit/882b3484)), ([`da18d0a6`](https://github.com/gregce/tortie/commit/da18d0a6))
 - A symbolic link inside the folder you let Tortie save under is no longer a way out of it. A save, a new folder or a rename aimed through one is refused and says so, where before it could replace a file outside that folder and tell you it had saved — though the Stage and Commit buttons still act on whatever a link really points at ([`61cb66aa`](https://github.com/gregce/tortie/commit/61cb66aa))
 - The two messages you get when Tortie cannot write on a machine now send you to the right place. They used to tell you to confirm a machine you had already confirmed, when what was missing was the folder ([`44d01573`](https://github.com/gregce/tortie/commit/44d01573))
+- The Architecture map now says when the picture it drew is only part of a folder. A repository too large to read in one pass was drawn as though it were the whole thing, with nothing on the picture to say otherwise ([`69a14370`](https://github.com/gregce/tortie/commit/69a14370))
 
 ## 0.101.0 (2026-09-07)
 
