@@ -115,12 +115,14 @@ separate `ssh` rather than believed from Tortie's own answer.
   folders, stage, unstage, stage again, commit. Between 29 and 125 milliseconds each.
 - **On a row with no folder named, all of them refuse before a byte is composed.** The machine is
   never contacted.
-- **Fourteen ways of aiming a write outside the confirmed folder were all refused**, with that
+- **Sixteen ways of aiming a write outside the confirmed folder were all refused**, with that
   machine counted before and after each one: four aimed over the path itself, being a `..` in the
   middle, an absolute path somewhere else, the folder itself and a sibling folder whose name is the
-  confirmed one plus a character; eight through a symbolic link; and two aimed at a repository
-  outside the folder. **Five of them wrote through at the start of this work** — one replaced a file
-  outside the folder and told you it had saved — and they are what this release fixes.
+  confirmed one plus a character; eight through a symbolic link; two aimed at a repository outside
+  the folder; and two that open a tab **through** a link and then press Stage and Commit. **Seven of
+  them wrote through at the start of this work** — one replaced a file outside the folder and told
+  you it had saved, and Stage put a file into a repository outside the folder while naming your own
+  folder beside it — and they are what this release fixes.
 - **And a fifteenth that is not a refusal.** If a second name for a file outside the folder is
   planted where Tortie stages a save, that name is removed rather than followed: the file you asked
   to save takes your bytes and the file outside keeps its own. That one was still getting out as
@@ -135,7 +137,7 @@ separate `ssh` rather than believed from Tortie's own answer.
 
 ## 6. What only you can prove, and I would like you to
 
-Four things. The first three are quick; the fourth is a limit rather than a test.
+Three things, and all of them are quick.
 
 1. **Your own row.** Everything above ran on a scratch profile with its own machines file. Your row
    is a different row and only you can confirm it. §1 and §3 are that check.
@@ -154,10 +156,11 @@ Four things. The first three are quick; the fourth is a limit rather than a test
    a Markdown file on the Mac Pro copy, press Option-Delete on a change, and then check the file on
    **this** Mac. Nothing should have changed here. Tell me if anything did.
 
-4. **A symbolic link and the Source control buttons, which is a known gap.** If a folder inside your
-   confirmed folder is a symbolic link pointing somewhere else on that machine, and you open a tab
-   *through* that link, then **Stage** and **Commit** will act on whatever repository the link really
-   points at, even though it is outside the folder you confirmed. Save, rename, move, new file and
-   new folder all refuse this correctly; the two git buttons do not. It writes a git index rather than
-   any of your files, and you have to have opened a tab through the link to reach it at all. It is
-   written down and queued, and it is not fixed in this release.
+> **The symbolic link gap in the Source control buttons is closed.** Until 8 September, a folder
+> inside your confirmed folder that is a symbolic link pointing somewhere else on that machine let
+> **Stage** and **Commit** act on whatever repository the link really pointed at, if you opened a tab
+> through it. That was measured on your Mac Pro, written down, and it is fixed: both buttons, and
+> Unstage with them, now refuse it on the machine itself and say the folder is outside the one you
+> confirmed. Driven over the real link on your Mac Pro with both of the commit's own guards
+> satisfied, the repository outside the folder finished with the same staged list, the same commit
+> count and the same `HEAD` it started with.
