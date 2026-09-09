@@ -74,32 +74,47 @@
  * repository is reachable, that nothing that machine's git does not already
  * report as changed is reachable, and that no file's contents change either way.
  *
- * THE REMEDY COSTS NO EXTRA PROCESS and it is written down for the round that
- * takes it. Give both scripts a third positional carrying the confirmed folder,
- * resolve it over there with `w=$(cd "$3" 2>/dev/null && pwd -P)`, and refuse
- * unless `case "$1" in "$w"|"$w"/*) : ;; *) exit 1;; esac`. That compares two
- * paths the far side resolved itself, which is the only place the comparison can
- * be exact.
+ * WHAT LAYER 2 STILL CANNOT SEE, and Phase 242.1 is what closed it. A `cwd` of
+ * `<confirmed folder>/escape`, where `escape` is a symbolic link pointing
+ * somewhere else on that machine, resolves TEXTUALLY under the confirmed folder
+ * and passes this layer. Measured on the operator's own Mac Pro on 2026-09-07:
+ * the far side's `cd "$1"` followed it, git ran in the repository OUTSIDE the
+ * confirmed folder, and this module answered `done` with `repoPath` and
+ * `writeRoot` side by side in the same object and nothing comparing them.
  *
- * ## WHAT THE FAR SIDE CANNOT CHECK, named rather than hidden
+ * ## HOW THE FAR SIDE CHECKS IT NOW (Phase 242.1), and the shape it copies
  *
- * Parameter 1 of both scripts is the REPOSITORY ROOT and not the confirmed
- * folder. Each script therefore checks only that parameter 1 is absolute and
- * holds no `..`. It cannot check that the repository root is under the folder
- * the person confirmed, because it never receives that folder. `file-put`,
- * `dir-new` and `entry-rename` all send the confirmed folder as `$1` and can
- * make that check on the far side, and these two cannot.
+ * Both scripts take TWO MORE VALUES: `$3` is the confirmed folder as the person
+ * gave it, and `$4` is the tab's own folder written relative to it by
+ * {@link rootRelativeCwd}, which is empty for the ordinary tab opened at the
+ * confirmed folder. `noLinkWalk` in `./remote-scripts.ts` then asks the shell's
+ * own `-L` about every component of `$4` from `$3` down, above the `IFS`, above
+ * the `cd` and above every git, and prints `outside` if any one of them is a
+ * link. Main maps that onto `outsideRoot`, the outcome this verb already had,
+ * so no new word crosses the channel.
  *
- * The Phase 103 backlog entry rules `params: 2` for both scripts with full
- * knowledge of that argument, so this module makes the check instead and the
- * gap is written down here rather than left for a reader to notice. A third
- * positional carrying `writeRoot`, with
- * `case "$2" in "$1"|"$1"/*) ;; *) exit 1;; esac`, would restore the far side
- * check at the cost of no extra process.
+ * NOTHING IS RESOLVED and that is the point. No `readlink`, no `realpath`, no
+ * `cd -P` and no second round trip, so the objection above — that a far side
+ * answer can be stale by the time the write lands — is untouched, because this
+ * answer IS the moment the write lands.
  *
- * What still holds when main is bypassed is that the root is absolute, that no
- * element of the list escapes the repository, that no element names `.git`, and
- * that no element is `.` or a folder.
+ * THE OTHER ANSWER WAS MEASURED AND REFUSED. Comparing `pwd -P` against `$1`
+ * after the `cd` needs no new value, and it can never fail: `$1` is what that
+ * machine's own `git rev-parse --show-toplevel` printed and git prints a
+ * PHYSICAL path, so `cd "$1"; pwd -P` returns `$1` unchanged. Research 104
+ * section 5 has the reading on both machines.
+ *
+ * AND THE TAB'S FOLDER IS BOUNDED RATHER THAN THE REPOSITORY ROOT, deliberately,
+ * because bounding the root would refuse the `~/code/api/src` person named three
+ * paragraphs above. A repository root is always an ancestor of the physical
+ * folder git was asked from, so bounding the folder closes the escape and leaves
+ * that person exactly as they were.
+ *
+ * What still holds when main is bypassed is that the root is absolute, that the
+ * confirmed folder is absolute and holds no `..`, that the relative part is
+ * neither absolute nor climbing, that no component of it is a symbolic link,
+ * that no element of the list escapes the repository, that no element names
+ * `.git`, and that no element is `.` or a folder.
  *
  * ## What layer 4 cannot see, also named rather than hidden
  *
@@ -226,10 +241,60 @@ export function rootHolds(writeRoot: string, path: string): boolean {
   return full.startsWith(prefix);
 }
 
+/**
+ * The tab's own folder written relative to the confirmed folder, or null when
+ * it is not under it. PURE.
+ *
+ * ## What it is for, and it is the whole of Phase 242.1
+ *
+ * {@link rootHolds} answers a boolean over path TEXT, and text is not what a
+ * `cd` on another computer resolves. The three verbs that take a `cwd` send
+ * this string as their last value, and the far side walks it one component at a
+ * time from the confirmed folder down with the shell's own `-L`. So this
+ * function's answer is the only thing that has to be a spelling BOTH SIDES
+ * AGREE ON, and it is, because it is derived from the two texts main already
+ * compared and from nothing else.
+ *
+ * The empty string is a real answer and is the ordinary one: a tab opened AT
+ * the confirmed folder has no relative part, and the far side walks nothing.
+ * That is why this returns `string | null` rather than reusing
+ * `relativeUnderRoot`, whose null for an empty relative part is right for its
+ * own callers and wrong for this one — the same reason {@link rootHolds}
+ * exists.
+ */
+export function rootRelativeCwd(
+  writeRoot: string,
+  path: string
+): string | null {
+  if (!rootHolds(writeRoot, path)) return null;
+  const base = posix.resolve(writeRoot);
+  const full = posix.resolve(path);
+  if (full === base) return '';
+  return full.slice(base.endsWith('/') ? base.length : base.length + 1);
+}
+
+/**
+ * The word the far side prints when a component of the tab's own folder is a
+ * symbolic link (Phase 242.1).
+ *
+ * IT IS NOT AN OUTCOME AND IT NEVER REACHES THE RENDERER. It is mapped onto
+ * `outsideRoot`, the outcome both verbs already have, whose sentence already
+ * says Tortie may only change what is under that folder and that nothing was
+ * changed. That is exactly what happened, so no new word crosses the channel,
+ * no new sentence is written and `docs/audits/contract-baseline.txt` does not
+ * move. It copies `REMOTE_FILE_PUT_OUTSIDE` and `REMOTE_ENTRY_OUTSIDE`.
+ */
+export const REMOTE_INDEX_WRITE_OUTSIDE = 'outside';
+
 /** What one `git-stage` or `git-unstage` payload said. */
 export interface RemoteIndexWriteAnswer {
   /** True when that machine's git exited 0. */
   readonly ok: boolean;
+  /**
+   * True when the far side refused before any git ran, because a component of
+   * the tab's own folder is a symbolic link. `ok` is false and `said` is null.
+   */
+  readonly outside: boolean;
   /** What git printed on stderr, decoded, or null when it printed nothing. */
   readonly said: string | null;
 }
@@ -237,10 +302,11 @@ export interface RemoteIndexWriteAnswer {
 /**
  * One payload into its two values, or null. PURE.
  *
- * The script prints TWO fields and always two, being a status digit and one
- * base64 word, with `none` for a word that has no value. A shorter answer is a
- * machine that printed something else, and reading one field out of it would be
- * a guess. That is `parseRenameAnswer`'s rule, reused rather than restated.
+ * The script prints TWO fields and always two, being a status digit — or, since
+ * Phase 242.1, the word `outside` — and one base64 word, with `none` for a word
+ * that has no value. A shorter answer is a machine that printed something else,
+ * and reading one field out of it would be a guess. That is
+ * `parseRenameAnswer`'s rule, reused rather than restated.
  *
  * A word holding a character base64 does not use answers null as well, because
  * `Buffer.from` drops such a character and hands back plausible nonsense.
@@ -251,12 +317,24 @@ export function parseIndexWriteAnswer(
   const parts = payload.trim().split(/\s+/);
   if (parts.length !== 2) return null;
   const status = parts[0] ?? '';
-  if (status !== '0' && status !== '1') return null;
   const word = parts[1] ?? '';
-  if (word === 'none') return { ok: status === '0', said: null };
+  // The link refusal, which is printed above every line that runs a git and
+  // carries the word `none` in the field git's stderr would have used.
+  if (status === REMOTE_INDEX_WRITE_OUTSIDE) {
+    if (word !== 'none') return null;
+    return { ok: false, outside: true, said: null };
+  }
+  if (status !== '0' && status !== '1') return null;
+  if (word === 'none') {
+    return { ok: status === '0', outside: false, said: null };
+  }
   if (!/^[A-Za-z0-9+/=]+$/.test(word)) return null;
   const said = Buffer.from(word, 'base64').toString('utf8').trim();
-  return { ok: status === '0', said: said.length === 0 ? null : said };
+  return {
+    ok: status === '0',
+    outside: false,
+    said: said.length === 0 ? null : said
+  };
 }
 
 /**
@@ -273,15 +351,26 @@ export function parseIndexWriteAnswer(
 export function chunkIndexPaths(
   verb: IndexVerb,
   repoPath: string,
-  paths: readonly string[]
+  paths: readonly string[],
+  writeRoot: string,
+  cwdRel: string
 ): string[][] {
   const script = remoteScript(SCRIPT_OF[verb]);
   if (script === null) {
     throw new Error(`the catalogue holds no script called ${SCRIPT_OF[verb]}`);
   }
+  // THE CONFIRMED FOLDER AND THE RELATIVE CWD ARE MEASURED TOO, because they
+  // ride on every command this chunker composes and a chunk that fits here has
+  // to fit there. Phase 242.1 added them and this line is why the budget did
+  // not quietly move.
   const bytesOf = (list: readonly string[]): number =>
     Buffer.byteLength(
-      composeRemoteScriptCommand(script, [repoPath, list.join('\n')]),
+      composeRemoteScriptCommand(script, [
+        repoPath,
+        list.join('\n'),
+        writeRoot,
+        cwdRel
+      ]),
       'utf8'
     );
   const chunks: string[][] = [];
@@ -452,7 +541,8 @@ async function writeIndexOnMachine(
   // and this Mac cannot follow a link on another computer. The header carries
   // the measurement, what this does not prove, and what the exact comparison
   // would cost.
-  if (!rootHolds(writeRoot, input.cwd)) {
+  const cwdRel = rootRelativeCwd(writeRoot, input.cwd);
+  if (cwdRel === null) {
     return answer('outsideRoot', { writeRoot });
   }
 
@@ -494,7 +584,13 @@ async function writeIndexOnMachine(
   }
 
   // 7. The chunking, measured against the exact composer the door uses.
-  const chunks = chunkIndexPaths(verb, list.repoPath, wanted);
+  const chunks = chunkIndexPaths(
+    verb,
+    list.repoPath,
+    wanted,
+    writeRoot,
+    cwdRel
+  );
 
   // 8. The connection, then one command per chunk, in series.
   const ctx = readyRemoteContext(input.machineId);
@@ -508,7 +604,7 @@ async function writeIndexOnMachine(
       out = await runRemoteWrite(
         ctx,
         SCRIPT_OF[verb],
-        [list.repoPath, chunk.join('\n')],
+        [list.repoPath, chunk.join('\n'), writeRoot, cwdRel],
         {
           timeoutMs: REMOTE_STAGE_TIMEOUT_MS,
           execution: { kind: 'command', subject: list.repoPath }
@@ -527,6 +623,16 @@ async function writeIndexOnMachine(
     const said = parseIndexWriteAnswer(out.payload);
     if (said === null) {
       outcome = 'unsure';
+      break;
+    }
+    if (said.outside) {
+      // 9a. The far side refused before any git ran, because a component of
+      // the tab's own folder is a symbolic link and the repository the `cd`
+      // would have reached is outside the confirmed folder. It lands on the
+      // outcome this verb already has and the sentence a person reads is the
+      // one that already says nothing was changed, which is true: the walk
+      // stands above every git in the script.
+      outcome = 'outsideRoot';
       break;
     }
     if (!said.ok) {

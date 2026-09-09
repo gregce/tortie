@@ -2383,6 +2383,28 @@ const CONTEXT_READ = [
  *    renames the link itself rather than following it.
  *  - `dir-new`'s last component is the folder being made, which is not there.
  *
+ * ## The two modes, and the second one is Phase 242.1's (2026-09-08)
+ *
+ * `skip` is everything above and is what the three path verbs take. `walk`
+ * asks about the LAST component too, and it exists because the three verbs
+ * that take a `cwd` rather than a path are handed a FOLDER: `git-stage`,
+ * `git-unstage` and `git-commit` all end in a `cd` into it, so its own last
+ * component is a directory the far side enters and is exactly the component
+ * the attack used. Measured on this Mac on 2026-09-08: with a confirmed folder
+ * of `<root>` and a tab at `<root>/escape`, the relative part is `escape`, it
+ * holds no `/`, the `skip` loop's body never runs at all and the link is
+ * walked straight through. The `walk` loop refuses it, and still passes an
+ * EMPTY relative part, which is the ordinary case of a tab opened at the
+ * confirmed folder itself.
+ *
+ * Both modes emit TEN lines, because `build/conformance-machines.mjs`
+ * condition 88 reads a fixed slice from the line that names the value.
+ *
+ * `root` exists for the same three verbs. The path verbs carry the confirmed
+ * folder as `$1`; these three carry the repository root there and the confirmed
+ * folder further along, because their earlier positionals were ruled by the
+ * Phase 103 and Phase 104 entries and the message has to stay `$3`.
+ *
  * ## The word it prints
  *
  * `outside`, which main maps onto the `outsideRoot` outcome every one of these
@@ -2396,12 +2418,21 @@ const CONTEXT_READ = [
  * `build/conformance-machines.mjs` condition 88 pins these lines on all three
  * scripts and goes red when any one of them is taken out.
  */
-const noLinkWalk = (value: string, fields: 2 | 3): readonly string[] => [
+const noLinkWalk = (
+  value: string,
+  fields: 2 | 3,
+  root = '$1',
+  last: 'skip' | 'walk' = 'skip'
+): readonly string[] => [
   `lr="${value}"`,
-  'lp="$1"',
-  'while [ "$lr" != "${lr#*/}" ]; do',
+  `lp="${root}"`,
+  last === 'walk'
+    ? 'while [ -n "$lr" ]; do'
+    : 'while [ "$lr" != "${lr#*/}" ]; do',
   '  lp="$lp/${lr%%/*}"',
-  '  lr="${lr#*/}"',
+  last === 'walk'
+    ? '  case "$lr" in */*) lr="${lr#*/}";; *) lr=;; esac'
+    : '  lr="${lr#*/}"',
   '  if [ -L "$lp" ]; then',
   `    printf '__TORTIE_RUN__outside ${fields === 3 ? 'none none' : 'none'}__TORTIE_RUN__\\n'`,
   '    exit 0',
@@ -2892,25 +2923,50 @@ const INDEX_PATH_GUARD =
  * The head both Phase 103 writers share, and every line of it is load bearing.
  *
  * `$1` is the REPOSITORY ROOT on that machine. `$2` is the list of repository
- * relative paths, one per line.
+ * relative paths, one per line. `$3` is the folder the person confirmed, as
+ * they gave it. `$4` is the tab's own folder written relative to `$3`, and it
+ * is EMPTY for the ordinary case of a tab opened at the confirmed folder.
  *
- * ## THE GAP THIS HEAD CANNOT CLOSE, named rather than hidden
+ * ## THE GAP THIS HEAD USED TO LEAVE OPEN, and what closed it (Phase 242.1)
  *
- * `$1` is the repository root and NOT the folder the person confirmed, so this
- * text cannot check that the repository sits under that folder the way
- * `file-put`, `dir-new` and `entry-rename` all can. Those three receive the
- * confirmed folder as `$1` and compare against it on the far side. These two do
- * not receive it at all, because the Phase 103 backlog entry rules `params: 2`
- * for both scripts. `src/main/machines/remote-stage.ts` makes that check on
- * this Mac, in four layers, and the far side makes none of it.
+ * Until 2026-09-08 this text received the repository root and nothing else, so
+ * it could not check that the repository sits under the folder the person
+ * confirmed the way `file-put`, `dir-new` and `entry-rename` all can. Main
+ * bounded the tab's folder with `rootHolds`, which compares path TEXT, and a
+ * link on another computer cannot be seen from this one. Phase 242 measured the
+ * result on the operator's own Mac Pro: a `cwd` of `<confirmed folder>/escape`
+ * where `escape` is a symbolic link answered `done` and staged a file in the
+ * repository OUTSIDE the confirmed folder, with `repoPath` and `writeRoot` in
+ * the same answer and nothing comparing them.
  *
- * A third positional carrying the confirmed folder, with
- * `case "$2" in "$1"|"$1"/*) ;; *) exit 1;; esac`, would close the gap at the
- * cost of no extra process. It is not built, because the entry rules two.
+ * `$3` and `$4` close it, and they close it the way {@link noLinkWalk} already
+ * closed the three path verbs: the shell's own `-L`, asked about every
+ * component from the confirmed folder down, IN THE SAME CALL that would
+ * otherwise have written. NOTHING IS RESOLVED. There is no `readlink`, no
+ * `realpath`, no `cd -P` and no second round trip, so the standing objection —
+ * that a second answer can be stale by the time the write lands — still holds
+ * and this is not that.
+ *
+ * WHY NOT `pwd -P` AGAINST `$1`, which is the other answer that was on the
+ * table. `$1` is what that machine's own `git rev-parse --show-toplevel`
+ * printed, and git prints a PHYSICAL path, so `cd "$1"; pwd -P` returns `$1`
+ * unchanged and the comparison can never fail. Measured on the operator's Mac
+ * Pro on git 2.39.5 and re-derived on this Mac on git 2.50.1: research 104
+ * section 5. It is a line that refuses nothing, which is worse than no line.
+ *
+ * WHY THE TAB'S FOLDER AND NOT THE REPOSITORY ROOT. Bounding the resolved
+ * repository root would refuse a shape that works today and is written down at
+ * `./remote-stage.ts`: a person who confirms `~/code/api/src` and opens a tab
+ * there is in a repository rooted at `~/code/api`, which is not under the
+ * confirmed folder. Bounding the tab's folder keeps that person working and
+ * closes the hole, because a repository root is always an ancestor of the
+ * physical folder git was asked from.
  *
  * What still holds when main is bypassed is that the root is absolute, that it
- * holds no `..`, that no element of the list climbs out of the repository, that
- * no element names `.git`, that no element is `.` or a folder, and that an
+ * holds no `..`, that the confirmed folder is absolute and holds no `..`, that
+ * the relative part is neither absolute nor climbing, that no component of it
+ * is a symbolic link, that no element of the list climbs out of the repository,
+ * that no element names `.git`, that no element is `.` or a folder, and that an
  * empty list runs no git at all.
  *
  * ## The six properties
@@ -2944,6 +3000,10 @@ const INDEX_WRITE_HEAD = [
   'l="$2"',
   'case "$r" in /*) ;; *) exit 1;; esac',
   'case "$r" in *..*) exit 1;; esac',
+  'case "$3" in /*) ;; *) exit 1;; esac',
+  'case "$3" in *..*) exit 1;; esac',
+  'case "$4" in /*|*..*) exit 1;; esac',
+  ...noLinkWalk('$4', 2, '$3', 'walk'),
   "IFS='",
   "'",
   'set --',
@@ -2988,7 +3048,8 @@ const GIT_STAGE = [
 /**
  * The seventh write. Take a list of paths back out of one index (Phase 103).
  *
- * `$1` and `$2` are `git-stage`'s two values and mean the same things.
+ * `$1`, `$2`, `$3` and `$4` are `git-stage`'s four values and mean the same
+ * things.
  *
  * ## The unborn branch, tested ON THAT MACHINE
  *
@@ -3034,7 +3095,23 @@ const GIT_UNSTAGE = [
  *
  * `$1` is the repository root on that machine. `$2` is the commit `HEAD` was
  * pointing at when Tortie read that folder, or the word `none` for a repository
- * with no commit yet. `$3` is the message the person typed.
+ * with no commit yet. `$3` is the message the person typed. `$4` is the folder
+ * the person confirmed, as they gave it, and `$5` is the tab's own folder
+ * written relative to `$4`, empty when the two are the same folder.
+ *
+ * ## `$4` AND `$5` ARE THE CONTAINMENT, and they were added in Phase 242.1
+ *
+ * The message stays `$3` on purpose, so `-m "$3"` did not move and neither did
+ * anything the Phase 104 entry ruled. The two new values are appended and they
+ * carry {@link noLinkWalk} in its `walk` mode, which asks the shell's own `-L`
+ * about every component of `$5` from `$4` down, above the `cd`.
+ *
+ * Phase 242 measured this arm refusing on the HEAD guard alone, which is luck
+ * rather than containment: the refusal handed back the OUTSIDE repository's own
+ * HEAD, and a tab really opened through the link would have drawn that sha, so
+ * the guard would have been satisfied and the commit would have landed there.
+ * The walk stands above the `cd`, so it refuses before `git rev-parse` is
+ * reached and the sha never crosses back at all.
  *
  * ## The repeat guard is HEAD, and it is the whole reason this script is safe
  *
@@ -3099,6 +3176,10 @@ const GIT_UNSTAGE = [
 const GIT_COMMIT = [
   'set -e',
   'umask 077',
+  'case "$4" in /*) ;; *) exit 1;; esac',
+  'case "$4" in *..*) exit 1;; esac',
+  'case "$5" in /*|*..*) exit 1;; esac',
+  ...noLinkWalk('$5', 3, '$4', 'walk'),
   'cd "$1"',
   'h=$(git rev-parse --verify --quiet HEAD 2>/dev/null || true)',
   'if [ -z "$h" ]; then h=none; fi',
@@ -3504,7 +3585,7 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'git-stage',
     mode: 'write',
-    params: 2,
+    params: 4,
     text: GIT_STAGE,
     reason:
       'A second run with the same list asks that machine own git to put the ' +
@@ -3515,7 +3596,7 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'git-unstage',
     mode: 'write',
-    params: 2,
+    params: 4,
     text: GIT_UNSTAGE,
     reason:
       'A second run with the same list asks that machine own git to take the ' +
@@ -3528,7 +3609,7 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'git-commit',
     mode: 'write',
-    params: 3,
+    params: 5,
     text: GIT_COMMIT,
     reason:
       'A commit runs only when HEAD on that machine is still the sha Tortie ' +

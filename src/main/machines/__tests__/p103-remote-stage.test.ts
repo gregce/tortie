@@ -214,13 +214,21 @@ describe('rootHolds', () => {
 
 describe('parseIndexWriteAnswer', () => {
   it('reads a status of 0 with no word', () => {
-    expect(parseIndexWriteAnswer('0 none')).toEqual({ ok: true, said: null });
+    expect(parseIndexWriteAnswer('0 none')).toEqual({
+      ok: true,
+      outside: false,
+      said: null
+    });
   });
 
   it('decodes what git printed on a status of 1', () => {
     const said = "fatal: pathspec ':(literal)nope.txt' did not match any files";
     const word = Buffer.from(said, 'utf8').toString('base64');
-    expect(parseIndexWriteAnswer(`1 ${word}`)).toEqual({ ok: false, said });
+    expect(parseIndexWriteAnswer(`1 ${word}`)).toEqual({
+      ok: false,
+      outside: false,
+      said
+    });
   });
 
   it('refuses an answer that is not two fields', () => {
@@ -260,7 +268,7 @@ describe('reportedPaths', () => {
 
 describe('chunkIndexPaths', () => {
   it('puts a short list in one chunk', () => {
-    expect(chunkIndexPaths('stage', REPO, ['a.ts', 'b.ts'])).toEqual([
+    expect(chunkIndexPaths('stage', REPO, ['a.ts', 'b.ts'], ROOT, 'api')).toEqual([
       ['a.ts', 'b.ts']
     ]);
   });
@@ -269,13 +277,13 @@ describe('chunkIndexPaths', () => {
     // The counted alternative would split at a number, and a number is not a
     // bound on bytes. One `git add` per call is the whole cost claim.
     const many = Array.from({ length: 100 }, (_, at) => `src/file-${String(at)}.ts`);
-    expect(chunkIndexPaths('stage', REPO, many)).toHaveLength(1);
+    expect(chunkIndexPaths('stage', REPO, many, ROOT, 'api')).toHaveLength(1);
   });
 
   it('starts a second chunk when the composed command would pass the budget', () => {
     const long = 'x'.repeat(4_000);
     const many = Array.from({ length: 60 }, (_, at) => `${long}-${String(at)}.ts`);
-    const chunks = chunkIndexPaths('stage', REPO, many);
+    const chunks = chunkIndexPaths('stage', REPO, many, ROOT, 'api');
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.flat()).toEqual(many);
   });
@@ -285,7 +293,13 @@ describe('chunkIndexPaths', () => {
     // whole call with a programming error rather than a sentence.
     let thrown: unknown = null;
     try {
-      chunkIndexPaths('stage', REPO, ['y'.repeat(REMOTE_STAGE_BUDGET_BYTES)]);
+      chunkIndexPaths(
+        'stage',
+        REPO,
+        ['y'.repeat(REMOTE_STAGE_BUDGET_BYTES)],
+        ROOT,
+        'api'
+      );
     } catch (err) {
       thrown = err;
     }
@@ -546,7 +560,7 @@ describe('what the machine said', () => {
       files: many.map((path) => file(path, '.', 'M')),
       untracked: []
     };
-    const wanted = chunkIndexPaths('stage', REPO, many).length;
+    const wanted = chunkIndexPaths('stage', REPO, many, ROOT, 'api').length;
     expect(wanted).toBeGreaterThan(1);
     answers = ['__throw__'];
     await stageOnMachine({ machineId: 'studio', cwd: REPO, paths: many });

@@ -41,7 +41,7 @@
  *  1. `confirmedWriteRoot`, which is the one implementation of the confirm gate
  *     and the confirmed folder. Null is the outcome `refused` with the
  *     writes-off sentence, and nothing is composed.
- *  2. {@link rootHolds} over THE TAB'S OWN FOLDER, imported from
+ *  2. {@link rootRelativeCwd} over THE TAB'S OWN FOLDER, imported from
  *     `./remote-stage.ts` because it is pure, already exported, and already
  *     carries the measurement about paths a far side resolved. False is
  *     `refused` with the outside-root sentence, decided before the machine is
@@ -128,7 +128,7 @@ import { confirmedWriteRoot } from './remote-file';
 import { reviewFilesOn } from './remote-review';
 import { machineLinkAnswering, runRemoteWrite } from './remote-run';
 import { readyRemoteContext } from './ready-context';
-import { rootHolds } from './remote-stage';
+import { rootRelativeCwd } from './remote-stage';
 import { machineLabelOf, machineRow } from './store';
 
 /**
@@ -173,10 +173,24 @@ export const REMOTE_COMMIT_ANSWER_MAX_BYTES = 8_192;
 // The pure halves. No connection, no Electron, so the tests read them directly
 // ---------------------------------------------------------------------------
 
+/**
+ * The word the far side prints when a component of the tab's own folder is a
+ * symbolic link (Phase 242.1).
+ *
+ * IT IS NOT AN OUTCOME AND IT NEVER REACHES THE RENDERER. It is mapped onto
+ * `refused` with {@link commitOutsideRoot}, the outcome and the sentence this
+ * verb already had for a folder outside the confirmed one. That is exactly what
+ * happened, so no new word crosses the channel, no new sentence is written and
+ * `docs/audits/contract-baseline.txt` does not move. It copies
+ * `REMOTE_FILE_PUT_OUTSIDE`, `REMOTE_ENTRY_OUTSIDE` and
+ * `REMOTE_INDEX_WRITE_OUTSIDE`.
+ */
+export const REMOTE_COMMIT_OUTSIDE = 'outside';
+
 /** What one `git-commit` payload said. */
 export interface RemoteCommitAnswer {
   /** `moved`, `committed` or `failed`. Nothing else parses. */
-  readonly word: 'moved' | 'committed' | 'failed';
+  readonly word: 'moved' | 'committed' | 'failed' | 'outside';
   /** What git or a hook printed over there, decoded, or null. */
   readonly said: string | null;
   /** What that machine's HEAD holds now, or the empty string for none. */
@@ -201,7 +215,14 @@ export function parseCommitAnswer(payload: string): RemoteCommitAnswer | null {
   const parts = payload.trim().split(/\s+/);
   if (parts.length !== 3) return null;
   const word = parts[0] ?? '';
-  if (word !== 'moved' && word !== 'committed' && word !== 'failed') return null;
+  if (
+    word !== 'moved' &&
+    word !== 'committed' &&
+    word !== 'failed' &&
+    word !== REMOTE_COMMIT_OUTSIDE
+  ) {
+    return null;
+  }
   const blob = parts[1] ?? '';
   const sha = parts[2] ?? '';
   let said: string | null = null;
@@ -333,7 +354,7 @@ function labelOf(machineId: string): string {
  *  2. The row, the confirm gate and the confirmed folder, in one call to
  *     `confirmedWriteRoot`. Null answers `refused` with the writes-off
  *     sentence.
- *  3. `rootHolds` over the TAB'S FOLDER. False answers `refused` with the
+ *  3. `rootRelativeCwd` over the TAB'S FOLDER. Null answers `refused` with the
  *     outside-root sentence, and the machine is not contacted at all.
  *  4. The connection. Not connected answers `offline`.
  *  5. The fresh read. An empty `repoPath` answers `refused` with the
@@ -392,7 +413,8 @@ export async function commitOnMachine(
   //    of ./remote-stage.ts: that machine's git resolves every link before it
   //    prints a path and this Mac cannot follow a link on another computer.
   const cwd = typeof input.cwd === 'string' ? input.cwd : '';
-  if (!rootHolds(writeRoot, cwd)) {
+  const cwdRel = rootRelativeCwd(writeRoot, cwd);
+  if (cwdRel === null) {
     return answer('refused', [commitOutsideRoot(label)]);
   }
 
@@ -469,7 +491,7 @@ export async function commitOnMachine(
     const out = await runRemoteWrite(
       ctx,
       'git-commit',
-      [list.repoPath, guard, message],
+      [list.repoPath, guard, message, writeRoot, cwdRel],
       {
         timeoutMs: REMOTE_COMMIT_TIMEOUT_MS,
         execution: { kind: 'command', subject: list.repoPath }
@@ -493,6 +515,14 @@ export async function commitOnMachine(
   // 9. The answer.
   if (said === null) {
     return answer('unsure', [commitUnsure(label)], { headSha: list.headSha });
+  }
+  if (said.word === REMOTE_COMMIT_OUTSIDE) {
+    // The far side refused above its own `cd`, because a component of the tab's
+    // own folder is a symbolic link and the repository that `cd` would have
+    // reached is outside the confirmed folder. It lands on the outcome and the
+    // sentence this verb already had for a folder outside the confirmed one,
+    // and nothing was committed: the walk stands above every git in the script.
+    return answer('refused', [commitOutsideRoot(label)]);
   }
   if (said.word === 'moved') {
     return answer('moved', [commitHeadMoved(label)], {

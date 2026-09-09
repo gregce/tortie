@@ -333,10 +333,13 @@ describe('the catalogue', () => {
     // These read the TEXT, because what makes it safe is a property of that
     // text. It is the one write whose repeat safety is a guard it carries
     // itself rather than a destination test or an end state.
-    it('declares three values and writes', () => {
+    it('declares five values and writes', () => {
+      // Three since Phase 104, plus the Phase 242.1 pair: the confirmed folder
+      // and the tab's own folder relative to it. The message stayed `$3`, so
+      // `-m "$3"` did not move.
       const script = remoteScript('git-commit');
       expect(script?.mode).toBe('write');
-      expect(script?.params).toBe(3);
+      expect(script?.params).toBe(5);
     });
 
     it('compares the sha Tortie read before it commits anything', () => {
@@ -436,10 +439,17 @@ describe('the catalogue', () => {
       message: string
     ): { word: string; blob: string; sha: string } {
       const text = remoteScript('git-commit')?.text ?? '';
-      const out = execFileSync('/bin/sh', ['-c', text, 'sh', root, guard, message], {
-        encoding: 'utf8',
-        env: GIT_ENV
-      });
+      // The Phase 242.1 pair, with the repository itself as the confirmed
+      // folder and an empty relative part, which is the ordinary shape of a tab
+      // opened at the folder the person confirmed.
+      const out = execFileSync(
+        '/bin/sh',
+        ['-c', text, 'sh', root, guard, message, root, ''],
+        {
+          encoding: 'utf8',
+          env: GIT_ENV
+        }
+      );
       const found = /__TORTIE_RUN__(.*)__TORTIE_RUN__/.exec(out);
       expect(found).not.toBeNull();
       const parts = (found?.[1] ?? '').split(' ');
@@ -517,11 +527,13 @@ describe('the catalogue', () => {
     const guard =
       "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
 
-    it('declares two values each and both write', () => {
+    it('declares four values each and both write', () => {
+      // Two since Phase 103, plus the Phase 242.1 pair: the confirmed folder
+      // and the tab's own folder relative to it.
       for (const id of ['git-stage', 'git-unstage']) {
         const script = remoteScript(id);
         expect(script?.mode).toBe('write');
-        expect(script?.params).toBe(2);
+        expect(script?.params).toBe(4);
       }
     });
 

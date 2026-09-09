@@ -7379,15 +7379,15 @@ process.stdout.write(
     for (const [what, at] of [
       ['confirmedWriteRoot, being the confirm gate', module.gateAt],
       ['reviewFilesOn, being the fresh read', module.readAt],
-      ['rootHolds, being the repository under the confirmed folder', module.holdsAt],
+      ['rootRelativeCwd, being the tab folder under the confirmed folder', module.holdsAt],
       ['the test that the fresh read reported the path', module.reportedAt]
     ]) {
       if (at < 0) {
         fail(
           `src/main/machines/remote-stage.ts never names ${what}. The far side ` +
-            `script cannot bound the repository by the confirmed folder, ` +
-            `because it receives the repository root and not that folder, so ` +
-            `every layer of that check lives here.`
+            `script cannot bound the REPOSITORY by the confirmed folder, ` +
+            `because git resolved it, so these layers decide it here and ` +
+            `Phase 242.1's walk over the tab's own folder decides it there.`
         );
       } else if (module.sendAt < 0 || at > module.sendAt) {
         fail(
@@ -7484,10 +7484,12 @@ process.stdout.write(
           `by remote-run.ts before anything is composed.`
       );
     }
-    if (row.params !== 2) {
+    if (row.params !== 4) {
       fail(
-        `${row.id} declares ${String(row.params)} value(s) and it reads two, ` +
-          `being the repository root and the list of paths.`
+        `${row.id} declares ${String(row.params)} value(s) and it reads four, ` +
+          `being the repository root, the list of paths, and the Phase 242.1 ` +
+          `pair: the folder the person confirmed and the tab's own folder ` +
+          `relative to it.`
       );
     }
     if (!row.fits) {
@@ -7529,20 +7531,22 @@ process.stdout.write(
   }
   process.stdout.write(
     `\nthe two writers Phase 103 added:\n` +
-      `  git-stage     2 values, one git add per call. The chunk loop spawns ` +
+      `  git-stage     4 values, one git add per call. The chunk loop spawns ` +
       `nothing, because set -- "$@" ":(literal)$p" is a builtin, so 100 paths ` +
       `cost the same one git add that 1 path costs.\n` +
-      `  git-unstage   2 values, one git restore --staged per call, with one ` +
+      `  git-unstage   4 values, one git restore --staged per call, with one ` +
       `git rm --cached as the unborn branch fallback, decided on that machine ` +
       `from that machine's own stderr.\n` +
       `  the catalogue now holds ${String(REMOTE_SCRIPT_COUNT)} scripts of ` +
       `which ${String(ALLOWED_WRITERS.length)} write.\n` +
       `  no confirmed field was added, so the sheet still covers six fields ` +
       `and no machine is asked again.\n` +
-      `  WHAT THE FAR SIDE CANNOT CHECK: $1 is the repository root and not the ` +
-      `folder the person confirmed, so neither script can bound the repository ` +
-      `by that folder the way file-put, dir-new and entry-rename all can. ` +
-      `Condition 84 above reads the four layers that make that check in main.\n`
+      `  WHAT THE FAR SIDE CHECKS SINCE PHASE 242.1: $1 is the repository ` +
+      `root, which git resolved, so it cannot be bounded by the folder the ` +
+      `person confirmed. $3 and $4 carry that folder and the tab's own folder ` +
+      `relative to it instead, and condition 88 below reads the walk that ` +
+      `refuses a symbolic link in any component of it. Condition 84 above ` +
+      `reads the four layers that make the same check in main.\n`
   );
 }
 
@@ -7585,15 +7589,16 @@ process.stdout.write(
     //      nothing. This is condition 84a's shape, read by index.
     for (const [what, at] of [
       ['confirmedWriteRoot, being the confirm gate', module.gateAt],
-      ['rootHolds, being the tab folder under the confirmed folder', module.holdsAt],
+      ['rootRelativeCwd, being the tab folder under the confirmed folder', module.holdsAt],
       ['reviewFilesOn, being the fresh read', module.readAt],
       ['stagedPathsOf, being the staged set comparison', module.stagedAt]
     ]) {
       if (at < 0) {
         fail(
           `src/main/machines/remote-commit.ts never names ${what}. The far ` +
-            `side script receives the repository root and not the folder the ` +
-            `person confirmed, so every layer of that check lives here.`
+            `side script cannot bound the REPOSITORY by the confirmed folder, ` +
+            `because git resolved it, so these layers decide it here and ` +
+            `Phase 242.1's walk over the tab's own folder decides it there.`
         );
       } else if (module.sendAt < 0 || at > module.sendAt) {
         fail(
@@ -7702,10 +7707,13 @@ process.stdout.write(
           `before anything is composed.`
       );
     }
-    if (row.params !== 3) {
+    if (row.params !== 5) {
       fail(
-        `git-commit declares ${String(row.params)} value(s) and it reads three, ` +
-          `being the repository root, the sha Tortie read and the message.`
+        `git-commit declares ${String(row.params)} value(s) and it reads five, ` +
+          `being the repository root, the sha Tortie read, the message, and the ` +
+          `Phase 242.1 pair: the folder the person confirmed and the tab's own ` +
+          `folder relative to it. The message is still $3, so -m "$3" did not ` +
+          `move.`
       );
     }
     if (!row.fits) {
@@ -7758,8 +7766,10 @@ process.stdout.write(
     // 86m. The summary.
     process.stdout.write(
       `\nthe one writer Phase 104 added:\n` +
-        `  git-commit    3 values, being the repository root, the sha Tortie ` +
-        `read and the message. One git commit per call.\n` +
+        `  git-commit    5 values, being the repository root, the sha Tortie ` +
+        `read, the message, and the Phase 242.1 pair, the folder the person ` +
+        `confirmed and the tab's own folder relative to it. The message is ` +
+        `still $3. One git commit per call.\n` +
         `  it is the EIGHTH write and it is last in the list, so ` +
         `biggestImageCommand still measures image-put.\n` +
         `  the catalogue now holds ${String(REMOTE_SCRIPT_COUNT)} scripts of ` +
@@ -7780,10 +7790,13 @@ process.stdout.write(
         `${(module.commitHandlerVerbsAll ?? []).join(', ') || 'none'} found ` +
         `unfiltered, and the operation own word commit excluded because the ` +
         `channel is called machines:commit.\n` +
-        `  WHAT THE FAR SIDE CANNOT CHECK: $1 is the repository root and not ` +
-        `the folder the person confirmed, so this script cannot bound the ` +
-        `repository by that folder. Condition 86a above reads the layers that ` +
-        `make that check in main.\n` +
+        `  WHAT THE FAR SIDE CHECKS SINCE PHASE 242.1: $1 is the repository ` +
+        `root, which git resolved, so this script cannot bound it by the ` +
+        `folder the person confirmed. $4 and $5 carry that folder and the ` +
+        `tab's own folder relative to it, and condition 88 below reads the ` +
+        `walk that refuses a symbolic link in any component of it, above the ` +
+        `cd. Condition 86a above reads the layers that make the same check in ` +
+        `main.\n` +
         `  WHAT NOTHING CHECKS: the writes gate is not in the door. Eight ` +
         `callers each ask confirmedWriteRoot, which is a discipline rather ` +
         `than a door.\n`

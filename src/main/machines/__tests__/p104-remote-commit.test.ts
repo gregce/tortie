@@ -331,9 +331,10 @@ describe('commitOnMachine', () => {
     expect(ran).toHaveLength(1);
     expect(ran[0]?.id).toBe('git-commit');
     expect(ran[0]?.timeoutMs).toBe(REMOTE_COMMIT_TIMEOUT_MS);
-    // The three values, being the root THAT MACHINE reported, main's own sha
-    // and the person's message.
-    expect(ran[0]?.args).toEqual([REPO, HEAD, 'a message']);
+    // The five values, being the root THAT MACHINE reported, main's own sha,
+    // the person's message, and the Phase 242.1 pair: the confirmed folder as
+    // the person gave it and the tab's own folder relative to it.
+    expect(ran[0]?.args).toEqual([REPO, HEAD, 'a message', ROOT, 'api']);
     expect(out.sentences.join(' ')).toContain('Mac Pro');
   });
 

@@ -2036,7 +2036,7 @@ process.stdout.write(
           // The four checks that all have to stand above the one send.
           gateAt: stageSource.indexOf('confirmedWriteRoot('),
           readAt: stageSource.indexOf('reviewFilesOn('),
-          holdsAt: stageSource.indexOf('rootHolds('),
+          holdsAt: stageSource.indexOf('rootRelativeCwd('),
           reportedAt: stageSource.indexOf('reported.has('),
           sendAt,
           namesWriteDoor: sendAt >= 0,
@@ -2246,7 +2246,7 @@ process.stdout.write(
           // The four checks that all have to stand above the one send.
           gateAt: commitSource.indexOf('confirmedWriteRoot('),
           readAt: commitSource.indexOf('reviewFilesOn('),
-          holdsAt: commitSource.indexOf('rootHolds('),
+          holdsAt: commitSource.indexOf('rootRelativeCwd('),
           stagedAt: commitSource.indexOf('stagedPathsOf('),
           sendAt,
           namesWriteDoor: sendAt >= 0,
