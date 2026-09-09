@@ -91,6 +91,34 @@ const KEY_MATERIAL_EXTENSIONS: ReadonlySet<string> = new Set([
   '.ppk'
 ]);
 
+/**
+ * Credential files by NAME, added by Phase 247.
+ *
+ * Every one of these is a file whose whole purpose is to hold a secret, and
+ * whose name says so. They carry no extension an allowlist would catch:
+ * `auth.json` and `.credentials.json` are JSON, `.npmrc` and `.pypirc` are
+ * ini, `credentials` has no extension at all.
+ *
+ * WHY THE SET STOPS WHERE IT DOES. `config.json` was measured and deliberately
+ * left out. Docker keeps a registry token in `~/.docker/config.json`, so by
+ * shape it belongs — and `config.json` is also one of the commonest ordinary
+ * filenames there is, so refusing it by name would refuse a great many files
+ * that hold nothing. A name-only predicate cannot tell those apart, and this
+ * list fails CLOSED on names that can only mean one thing rather than on names
+ * that usually mean something else. `.dockercfg`, the older spelling that IS
+ * only ever a credential, is here.
+ */
+const CREDENTIAL_FILE_NAMES: ReadonlySet<string> = new Set([
+  'auth.json',
+  'credentials',
+  'credentials.json',
+  '.credentials.json',
+  '.git-credentials',
+  '.npmrc',
+  '.pypirc',
+  '.dockercfg'
+]);
+
 /** The four spellings of an SSH private key file, plus the public half. */
 const SSH_KEY_STEMS: readonly string[] = [
   'id_rsa',
@@ -174,6 +202,26 @@ export const NEVER_PREVIEW: readonly NeverPreviewRule[] = [
       'the secret that most wants to be laid out as a table.',
     examples: ['.netrc', '_netrc'],
     matches: (name) => name === '.netrc' || name === '_netrc'
+  },
+  {
+    what: 'credential files by name',
+    reason:
+      'These hold a token or a password and nothing else, and their names ' +
+      'say so. They were added when a second surface started opening files ' +
+      'by name: Phase 247 made a path an agent printed into a transcript ' +
+      'clickable, and this list is what stands between that gesture and a ' +
+      'credential. Research 111 counted an auth.json and three .npmrc in ' +
+      'one capture of the operator’s own sessions, and three of the four ' +
+      'were inside a project root, so a rule about project roots would not ' +
+      'have caught them either.',
+    examples: [
+      'auth.json',
+      '.credentials.json',
+      '.npmrc',
+      '.git-credentials',
+      '~/.aws/credentials'
+    ],
+    matches: (name) => CREDENTIAL_FILE_NAMES.has(name)
   },
   {
     what: 'htpasswd files',

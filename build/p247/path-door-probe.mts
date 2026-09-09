@@ -137,8 +137,17 @@ try {
   await ask('network-mount', '/net/anything/x.md');
   await ask('volume-mount', '/Volumes/anything/x.md');
 
-  // --- the shipped gap, and the widening, both stated rather than assumed --
+  // --- the credential family, and the ordinary file beside it -------------
   await ask('dotenv', file('.env', 'A=1'));
+  await ask('credential-auth-json', file('auth.json', '{}'));
+  await ask('credential-npmrc', file('.npmrc', '_authToken=x'));
+  await ask('credential-aws', file('credentials', '[default]'));
+  // The control. A name-only rule that refused every .json would be useless,
+  // and this is what says it does not.
+  await ask('ordinary-json', file('package.json', '{}'));
+  await ask('ordinary-config-json', file('config.json', '{}'));
+
+  // --- the widening working as intended ------------------------------------
   await ask('system-text-file', '/etc/hosts');
 
   // --- the pure decision, so the ORDER can be read without a filesystem ----

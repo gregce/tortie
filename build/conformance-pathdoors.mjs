@@ -96,6 +96,8 @@ const say = (line) => console.log(`${TAG} ${line}`);
 const DOORS = 'src/shared/path-doors.ts';
 const SPANS = 'src/shared/path-spans.ts';
 const DOOR = 'src/main/fs/path-door.ts';
+const PREVIEW = 'src/shared/preview-types.ts';
+const IMAGES = 'src/shared/image-types.ts';
 
 const source = (rel) => readFileSync(join(repoRoot, rel), 'utf8');
 const code = (rel) => stripComments(source(rel));
@@ -221,6 +223,18 @@ const MATRIX = [
   ['network-mount', 'refused:mount'],
   ['volume-mount', 'refused:mount'],
   ['dotenv', 'refused:secret-name'],
+  // PHASE 247 widened NEVER_PREVIEW with the credential family. These are the
+  // names research 111 section 2.4 measured in the operator's own transcripts,
+  // three of the four INSIDE a project root — so the root rule would not have
+  // caught them either, which is why this is the guard and not that one.
+  ['credential-auth-json', 'refused:secret-name'],
+  ['credential-npmrc', 'refused:secret-name'],
+  ['credential-aws', 'refused:secret-name'],
+  // ...and the control. A name-only rule that refused every .json would be
+  // useless, and `config.json` is deliberately NOT in the family: see the
+  // reason on CREDENTIAL_FILE_NAMES in src/shared/preview-types.ts.
+  ['ordinary-json', 'door:editor'],
+  ['ordinary-config-json', 'door:editor'],
   // The widening working as intended, stated rather than left to be found: a
   // system text file is a real file, is not a secret by name, carries no
   // executable bit, and IS underlined. Research 111 section 5.4's last row.
@@ -666,6 +680,14 @@ const ABLATIONS = [
     edits: [{ from: 'if (looksLikeSecretPath(real)) {', to: 'if (false) {' }]
   },
   {
+    // The credential family alone, so removing it goes red on its own rather
+    // than only under the ablation above. The dotenv reading must NOT move,
+    // which is what tells the two rules apart.
+    name: 'the credential family is taken back out of the name list',
+    file: 'preview-types.ts',
+    edits: [{ from: 'matches: (name) => CREDENTIAL_FILE_NAMES.has(name)', to: 'matches: () => false' }]
+  },
+  {
     name: 'the bundle is not asked',
     file: 'path-doors.ts',
     edits: [{ from: "if (facts.bundle) return { door: null, refusal: 'bundle' };", to: '' }]
@@ -775,17 +797,16 @@ function stage(dir) {
   cpSync(join(repoRoot, DOORS), join(dir, 'path-doors.ts'));
   cpSync(join(repoRoot, SPANS), join(dir, 'path-spans.ts'));
   cpSync(join(repoRoot, DOOR), join(dir, 'path-door.ts'));
+  // path-doors.ts's own './image-types' and './preview-types' resolve INSIDE
+  // the staged directory, which is why both are copied: the credential family
+  // ablation edits preview-types.ts, and an ablation that could only edit the
+  // SHIPPING copy would be changing the tree under the live reading.
+  cpSync(join(repoRoot, PREVIEW), join(dir, 'preview-types.ts'));
+  cpSync(join(repoRoot, IMAGES), join(dir, 'image-types.ts'));
   const door = readFileSync(join(dir, 'path-door.ts'), 'utf8');
   writeFileSync(
     join(dir, 'path-door.ts'),
     door.replaceAll('@shared/path-doors', './path-doors')
-  );
-  const doors = readFileSync(join(dir, 'path-doors.ts'), 'utf8');
-  writeFileSync(
-    join(dir, 'path-doors.ts'),
-    doors
-      .replace("from './image-types'", "from '@shared/image-types'")
-      .replace("from './preview-types'", "from '@shared/preview-types'")
   );
 }
 
