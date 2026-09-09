@@ -334,6 +334,26 @@ export const CHECKS = [
   // It EXITS NON ZERO when any of the five readings is the parent's.
   // `--self-test` proves the grader on 14 fixtures and launches nothing.
   realRemote('probe:p235'),
+  // PHASE 242. build/probe-p242-write-path.mjs: EVERY write verb Tortie has,
+  // driven in one run against the machine the operator names, over the real
+  // link, with every result read back from that machine by an ssh Tortie did
+  // not compose. Four launches on ONE scratch profile, each one a different
+  // persisted state: the row confirmed with no folder, every verb refused on
+  // that row with both faces read side by side, the folder confirmed through
+  // the real sheet, then every verb again with the containment attack and the
+  // redline. It builds and removes THREE scratch paths under his home, all
+  // carrying its own `tortie-p242-scratch-<pid>` prefix and all removed in a
+  // `finally`; it starts a scratch tmux server on a socket named for its own
+  // pid and ENDS AND UNLINKS that socket on both machines in the same
+  // `finally`; it lists his own `-L gmux` server and never touches it; it
+  // never writes his `~/.gitconfig` or either `~/.ssh`; it spawns no agent and
+  // spends no token. It EXITS NON ZERO when a verb aimed at a path outside the
+  // confirmed folder is not refused, when the far side moved, when a verb on a
+  // row with no folder wrote anything, or when the remote face draws a
+  // sentence the local face does not that is not a disabled control's own
+  // label, which is the operator's rule of 2026-09-07 made a check.
+  // `--self-test` proves the grader on 16 fixtures and launches nothing.
+  realRemote('probe:p242'),
 
   // Driver probes: a pinned tsx driver over production modules and real
   // scratch git repositories, no Electron, no tmux, no ssh.

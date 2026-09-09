@@ -129,6 +129,7 @@
     "probe:remotereview": "node build/probe-remote-review.mjs",
     "probe:controldeadline": "node build/probe-control-deadline.mjs",
     "probe:realmachine": "node build/probe-real-machine.mjs",
+    "probe:p242": "npm run build && node build/probe-p242-write-path.mjs",
     "probe:remoteclone": "node build/probe-remote-clone.mjs",
     "probe:realunknowns": "node build/probe-real-unknowns.mjs",
     "probe:remotearm": "node build/probe-remote-arm.mjs",
