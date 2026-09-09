@@ -123,7 +123,7 @@ separate `ssh` rather than believed from Tortie's own answer.
   them wrote through at the start of this work** — one replaced a file outside the folder and told
   you it had saved, and Stage put a file into a repository outside the folder while naming your own
   folder beside it — and they are what this release fixes.
-- **And a fifteenth that is not a refusal.** If a second name for a file outside the folder is
+- **And a seventeenth that is not a refusal.** If a second name for a file outside the folder is
   planted where Tortie stages a save, that name is removed rather than followed: the file you asked
   to save takes your bytes and the file outside keeps its own. That one was still getting out as
   recently as the last day of this work.
