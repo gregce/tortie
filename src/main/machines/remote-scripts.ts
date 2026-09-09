@@ -692,33 +692,58 @@ const STORE_COPY = [
  *     spellings differ between this Mac and the machines this is meant for. The
  *     probe records which one answered.
  *
- * ## Why the Phase 242 fix round did NOT reach this script, said out loud
+ * ## The staged name, and the escape Phase 242.2 closed
  *
- * `file-put` now unlinks its staged name and creates it exclusively, because a
- * HARD LINK planted there is invisible to `[ -L ]` and the redirection followed
- * one out of the folder a person had confirmed. THIS script's staged name is
- * `$d/$1.part`, where `$d` is `$HOME/.tortie/images`, a directory it makes
- * itself at mode 700, and `$1` is content addressed by `./remote-image.ts`.
+ * This script's staged name is `$d/$1.part`, where `$d` is
+ * `$HOME/.tortie/images`, a directory it makes itself at mode 700, and `$1` is
+ * content addressed by `./remote-image.ts`.
  *
- * **This script follows a name planted there, and that is MEASURED rather than
- * argued.** Driven under `/bin/sh` over a scratch `HOME`, first by the Phase 242
- * verifier and re-derived by the committer: with a SYMLINK at `$d/$1.part` and
- * again with a HARD LINK at it, the redirection put the payload into the file
- * outside `$d` that the planted name pointed at, and the script still answered
- * `added` with the payload's own byte count and its own sha256, so the answer
- * reads as a clean write. An earlier version of this paragraph said "there is no
- * confirmed folder for it to be outside of, and to plant anything at that name a
- * person would already have to be the person whose home it is", which reads as an
- * argument that nothing gets out. Something does; that sentence was reasoning and
- * not a reading, which is the one thing this tree's conventions refuse.
+ * **This script FOLLOWED a name planted there, and that was MEASURED rather
+ * than argued.** Driven under `/bin/sh` over a scratch `HOME`, first by the
+ * Phase 242 verifier and re-derived by its committer, and a third time through
+ * Tortie's own `machines.putImage` against the operator's Mac Pro over the real
+ * link (research 105 section 5.2): with a SYMLINK at `$d/$1.part` and again
+ * with a HARD LINK at it, the redirection put the payload into the file OUTSIDE
+ * `$d` that the planted name pointed at, and the script still answered `added`
+ * with the payload's own byte count and its own sha256, so the answer read as a
+ * clean write. On the symlink arm the person's own `~/.tortie/images/<name>`
+ * was left as a symbolic link rather than a picture; on the hard link arm the
+ * landed name and the file outside were one inode under two names. An earlier
+ * version of this paragraph argued "there is no confirmed folder for it to be
+ * outside of, and to plant anything at that name a person would already have to
+ * be the person whose home it is", which reads as an argument that nothing gets
+ * out. Something did; Phase 242 corrected the paragraph into the reading above
+ * and Phase 242.2 carries the fix.
  *
- * **What is actually true, and it is why this is a stated limit rather than a
- * defect this phase fixed.** `putImagesOnMachine` in `./remote-image.ts` never
- * asks `confirmedWriteRoot`, so image-put makes no containment promise for a link
- * to break; the name is `remoteImageName(sessionId, sha256, ext)`, so anything
- * planted at it had to be predicted first; and Phase 242's rule is that nothing
- * is fixed which is not found, so the text is unchanged. The fix is queued as
- * Phase 242.2 rather than smuggled in here.
+ * **The fix is the two lines `file-put` already carried**, and this paragraph
+ * is the record of it rather than of a stated limit. It is still true that
+ * `putImagesOnMachine` in `./remote-image.ts` never asks `confirmedWriteRoot`,
+ * so image-put makes no containment promise for a link to BREAK, and that the
+ * name is `remoteImageName(sessionId, sha256, ext)`, so anything planted at it
+ * had to be predicted first. What is left, and what is closed, is a write
+ * Tortie composes that would follow somebody else's name out of the one
+ * directory Tortie told the person it uses.
+ *
+ * **Which clause holds which half**, measured in research 105 section 6 by
+ * ablating each one alone over seven arms and two `base64` dialects:
+ *
+ *  - the FIRST `rm -f "$t"` is what stops both link kinds, because the planted
+ *    name is then a NAME and never the file another name still holds. It is
+ *    also the only thing standing between a machine whose `base64` takes `-d`
+ *    and not `-D` and a save that dies with no answer at all when there is
+ *    debris at the staged name, which is that clause's one behavioural arm;
+ *  - the SECOND `rm -f "$t"`, in the `else`, is what lets an old macOS write at
+ *    all, because the first arm's redirection creates the staged file even when
+ *    `-d` is the flag that machine does not have;
+ *  - `set -C` closes the window between the unlink and the create, and it
+ *    CANNOT be made red by any behavioural arm. It is held as text by
+ *    `stagedUnlinkFacts(...).exclusive` in `build/conformance-machines.mjs`
+ *    condition 88g, with a text ablation of its own, and that is said here so a
+ *    later round does not read a green test suite as cover for removing it.
+ *
+ * Nothing that used to succeed now refuses: every arm answers `added` with the
+ * picture in place, ordinary debris and both dialects included, so no new
+ * sentence is drawn anywhere and no new refusal crosses the channel.
  */
 const IMAGE_PUT = [
   'set -e',
@@ -730,11 +755,38 @@ const IMAGE_PUT = [
   '  s=present',
   'else',
   '  t="$f.part"',
+  // PHASE 242.2. UNLINK, THEN CREATE EXCLUSIVELY, which is the shape
+  // `file-put` took in the Phase 242 fix round and which this script was left
+  // without. A SYMBOLIC LINK and a HARD LINK planted at the staged name each
+  // took this redirection and put the picture's bytes into the file OUTSIDE
+  // `$d` that the planted name pointed at, while the script answered `added`
+  // with the payload's own byte count and its own sha256.
+  //
+  // The `rm` is NARROWER than the redirection it stands in front of, which is
+  // why it is here rather than being a delete this catalogue refuses to hold.
+  // `> "$t"` already destroys whatever is at the staged name, and does it
+  // THROUGH every name that shares the inode. `rm -f "$t"` destroys the staged
+  // name and nothing else. It removes exactly one name Tortie composed for
+  // itself, never `$f`, never anything a person named.
+  //
+  // Both link kinds get the SAME answer here, and that is the one difference
+  // from `file-put`. That verb refuses a symbolic link at its staged name with
+  // the word `outside`, because it has a confirmed folder and a link naming a
+  // path out of it is plainly wrong. This one has no confirmed folder, so
+  // there is nothing for it to be outside OF; the planted name is unlinked,
+  // the picture lands, and the file outside is untouched.
+  '  rm -f "$t"',
+  '  set -C',
   '  if printf \'%s\' "$2" | base64 -d > "$t" 2>/dev/null; then',
   '    :',
   '  else',
+  // Both arms unlink, because the first arm's redirection creates the staged
+  // file even on a machine whose `base64` has no `-d`, and an exclusive create
+  // without this second unlink would refuse the save on every one of them.
+  '    rm -f "$t"',
   '    printf \'%s\' "$2" | base64 -D > "$t"',
   '  fi',
+  '  set +C',
   '  chmod 600 "$t"',
   '  mv "$t" "$f"',
   '  s=added',

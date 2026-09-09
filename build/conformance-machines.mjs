@@ -2901,7 +2901,9 @@ const ALLOWED_WRITERS = [
  * measured sets are what is pinned here.
  */
 const WRITE_MUTATORS = {
-  'image-put': ['chmod', 'mkdir', 'mv'],
+  // PHASE 242.2 added `rm` to this row for the same reason and under the same
+  // bound as `file-put`'s below: the staged unlink, by its exact spelling.
+  'image-put': ['chmod', 'mkdir', 'mv', 'rm'],
   'git-clone': [],
   // PHASE 242 FIX ROUND added `rm` to this one row, and `STAGED_UNLINK` below
   // is what stops that being a licence. See {@link stagedUnlinkFacts}.
