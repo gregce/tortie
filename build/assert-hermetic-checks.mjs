@@ -42,6 +42,16 @@
  *     is one of the five (or `aggregate` with members that are themselves
  *     entries), and every entry states a nonempty environment requirement and
  *     skip rule.
+ *  5. NO TEST SOURCE UNDER src/ RESOLVES A HOME DIRECTORY THROUGH THE PASSWD
+ *     ENTRY (Phase 244, audit finding F5). `os.userInfo().homedir` reads the
+ *     passwd record and does NOT honour `HOME`, so a test that has just built
+ *     a scratch home reaches straight past it into the real person's home; the
+ *     8 September audit found exactly that in install-roundtrip.test.ts, whose
+ *     verdict was then decided by whether this machine let it read
+ *     `/Users/<person>/.Trash`. `os.homedir()` honours `HOME` and is what the
+ *     product itself uses everywhere, so it is not scanned for. The scanner is
+ *     proved on the fixtures below, because a scan that cannot fail is not a
+ *     scan that passed.
  *
  * Run it with `npm run gate:checks`. It also runs inside `npm run build`, so
  * nothing that builds can skip it.
@@ -253,6 +263,128 @@ for (const one of RUNNER_FIXTURES) {
 }
 
 // ---------------------------------------------------------------------------
+// 5. No test under src/ reads the passwd entry's home
+// ---------------------------------------------------------------------------
+
+// Built from parts so this gate's own source does not carry the token, the way
+// rule 1 keeps the npx token out of its own text.
+const PASSWD_HOME_TOKEN = new RegExp(`\\buser` + `Info\\s*\\(`);
+const TEST_FILE = /\.(test|spec)\.(ts|tsx)$/;
+
+/**
+ * The file's CODE, with comments and string bodies blanked out. The rule is
+ * about what a test RUNS, and the file that motivated it now explains the
+ * hazard in its own header; a scanner that read prose would refuse the
+ * explanation of the thing it forbids. String bodies go too, so a fixture list
+ * or an error message quoting the call is not a call.
+ */
+function codeOnly(text) {
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    const next = text[i + 1];
+    if (c === '/' && next === '/') {
+      while (i < text.length && text[i] !== '\n') i += 1;
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      i += 2;
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i += 1;
+      i += 2;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      const quote = c;
+      i += 1;
+      while (i < text.length && text[i] !== quote) {
+        if (text[i] === '\\') i += 1;
+        i += 1;
+      }
+      i += 1;
+      out += quote + quote;
+      continue;
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
+}
+
+/** Every file under `dir`, recursively, without following symlinks. */
+function filesUnder(dir) {
+  const out = [];
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...filesUnder(path));
+    else if (entry.isFile()) out.push(path);
+  }
+  return out;
+}
+
+/** The rule, isolated so the fixtures below can drive it. */
+function readsPasswdHome(text) {
+  return PASSWD_HOME_TOKEN.test(codeOnly(text));
+}
+
+// The fixtures. Seven texts, three of which must be caught, so neither a regex
+// that stopped matching nor a comment stripper that ate the whole file can be
+// mistaken for a clean tree. The token is spelled from parts everywhere here
+// for the same reason rule 1 does it.
+const U = 'user' + 'Info';
+const HOME_FIXTURES = [
+  {
+    name: 'the shape the audit found',
+    caught: true,
+    text: `import { ${U} } from 'node:os';\nconst t = join(${U}().homedir, '.Trash');\n`
+  },
+  { name: 'spaced call', caught: true, text: `const h = os.${U} ().homedir;\n` },
+  {
+    name: 'reached through a namespace import',
+    caught: true,
+    text: `import * as os from 'node:os';\nconst who = os.${U}().username;\n`
+  },
+  {
+    name: 'the honouring reader is left alone',
+    caught: false,
+    text: "import { homedir } from 'node:os';\nconst h = homedir();\n"
+  },
+  { name: 'a line comment is left alone', caught: false, text: `// ${U}() is the passwd entry\n` },
+  { name: 'a block comment is left alone', caught: false, text: `/**\n * ${U}().homedir ignores HOME.\n */\nconst h = homedir();\n` },
+  { name: 'a quoted string is left alone', caught: false, text: `const message = 'do not call ${U}() here';\n` }
+];
+for (const fixture of HOME_FIXTURES) {
+  if (readsPasswdHome(fixture.text) !== fixture.caught) {
+    fail(
+      `the passwd-home scanner is broken: the fixture "${fixture.name}" ` +
+        `should have been ${fixture.caught ? 'caught' : 'left alone'} and was not.`
+    );
+  }
+}
+
+const srcDir = join(repoRoot, 'src');
+let testFilesScanned = 0;
+for (const path of filesUnder(srcDir)) {
+  if (!TEST_FILE.test(path)) continue;
+  testFilesScanned += 1;
+  if (readsPasswdHome(readFileSync(path, 'utf8'))) {
+    fail(
+      `${path.slice(repoRoot.length + 1)} resolves a home directory through ` +
+        `the passwd entry. That reader ignores HOME, so the test observes the ` +
+        `real person's home whatever scratch environment it built, and its ` +
+        `verdict becomes the host's. Use os.homedir(), which honours HOME, or ` +
+        `own the directory the test asserts against.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Verdict
 // ---------------------------------------------------------------------------
 
@@ -268,10 +400,12 @@ for (const entry of CHECKS) {
 }
 process.stdout.write(
   `assert-hermetic-checks: PASS. ${checkScripts.length} check scripts ` +
-    `classified, no runner outside the lockfile, and ` +
+    `classified, no runner outside the lockfile, ` +
     `${String(runnerCallers)} script(s) that call tsxCli() import it into ` +
     `their own module against a floor of ${String(RUNNER_CALLER_FLOOR)}, ` +
-    `with 4 of 4 reader fixtures behaving.\n`
+    `with 4 of 4 reader fixtures behaving, and ${testFilesScanned} test ` +
+    `files reach no home past HOME (${HOME_FIXTURES.length} scanner fixtures, ` +
+    `${HOME_FIXTURES.filter((f) => f.caught).length} of which must be caught).\n`
 );
 for (const type of [...CHECK_TYPES, 'aggregate']) {
   const n = counts.get(type) ?? 0;

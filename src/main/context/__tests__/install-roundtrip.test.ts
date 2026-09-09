@@ -18,6 +18,32 @@
  * modules are imported, so nothing can capture the real ones first, and the
  * first case fails if HOME is not that directory. Skipped whole when nobody has
  * run `npm run vendor:skills` in this tree.
+ *
+ * HERMETIC, AND THE TRASH CHECK IS AN OWNED EFFECT (Phase 244, audit finding
+ * F5). Until this phase the remove case read the REAL person's Trash, composed
+ * as `join(userInfo().homedir, '.Trash')`. `os.userInfo()` reads the passwd
+ * entry and does not honour `HOME`, so a test that had just built a scratch
+ * home reached straight past it into `/Users/<person>/.Trash`, and whether the
+ * case passed was decided by whether this machine let it look. The 8 September
+ * audit's execution got `EPERM: operation not permitted, scandir` there; this
+ * Mac answers, so the same bytes were green here. A check whose verdict is the
+ * host's is not a check.
+ *
+ * So the destination is OWNED instead of observed. `beforeAll` creates
+ * `<scratch home>/.Trash` itself, which is where anything resolving a trash
+ * directory from `HOME` or `os.homedir()` lands — the product resolves home
+ * that way everywhere — and the remove case asserts that directory is still
+ * EMPTY afterwards. That is strictly more than the old pair asked: it catches a
+ * trash that CREATES the directory (which the old "no .Trash under home"
+ * assertion caught) and a trash that USES one already there (which it did not),
+ * and it does so without reading one byte outside the scratch tree.
+ *
+ * THE STATED LIMIT, written down rather than hidden: a remove that reached the
+ * real person's Trash through a native macOS API that ignores `HOME` would not
+ * be seen from here. That case cannot be asserted hermetically at all, and the
+ * audit's ruling is that a hermetic test must not depend on whether the actual
+ * user's Trash is readable. `build/assert-hermetic-checks.mjs` rule 4 is what
+ * stops the passwd entry coming back into any test under `src/`.
  */
 
 import {
@@ -30,7 +56,7 @@ import {
   rmSync,
   writeFileSync
 } from 'node:fs';
-import { tmpdir, userInfo } from 'node:os';
+import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -38,10 +64,15 @@ const SKILL = 'zz-tortie-roundtrip-probe';
 
 let home: string;
 let source: string;
+let ownedTrash: string;
 
 beforeAll(() => {
   home = mkdtempSync(join(tmpdir(), 'gmux-ctx-home-'));
   source = mkdtempSync(join(tmpdir(), 'gmux-ctx-src-'));
+  // The owned tripwire. Anything that resolves a trash directory from HOME or
+  // os.homedir() lands here, and the remove case asserts it stayed empty.
+  ownedTrash = join(home, '.Trash');
+  mkdirSync(ownedTrash, { recursive: true });
   process.env['HOME'] = home;
   process.env['XDG_STATE_HOME'] = join(home, 'state');
   process.env['DO_NOT_TRACK'] = '1';
@@ -172,15 +203,12 @@ suite('a skill install, end to end, against an isolated HOME', () => {
       expect(readFileSync(lockPath, 'utf8')).not.toContain(SKILL);
     }
 
-    // Nothing was trashed. The scratch HOME holds no .Trash at all, and the
-    // real Trash holds no entry carrying the probe's unique name. The probe
-    // name makes a collision practically impossible; the scratch walk above is
-    // the primary evidence.
-    expect(walk(home).some((p) => basename(p) === '.Trash')).toBe(false);
-    const realTrash = join(userInfo().homedir, '.Trash');
-    if (existsSync(realTrash)) {
-      expect(readdirSync(realTrash).some((n) => n.includes(SKILL))).toBe(false);
-    }
+    // Nothing was trashed, asserted against a destination this test owns.
+    // The tripwire beforeAll made is the only .Trash anywhere under the scratch
+    // home, and it holds nothing at all. See the header for why the real
+    // person's Trash is no longer read and what that costs.
+    expect(readdirSync(ownedTrash)).toEqual([]);
+    expect(walk(home).filter((p) => basename(p) === '.Trash')).toEqual([ownedTrash]);
 
     const scan = await scanContext({ cwd: source, env: process.env });
     expect(scan.entries.find((entry) => entry.name === SKILL)).toBeUndefined();

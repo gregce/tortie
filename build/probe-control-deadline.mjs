@@ -79,6 +79,36 @@
  *                        DID first, being that it opened and spawned a child, so
  *                        a copy that will not load can never be mistaken for a
  *                        timer that was taken away.
+ *
+ * ## PHASE 244. THE MISMATCH HAS NOW FAILED TO REPRODUCE TWICE, AND NOTHING
+ * ## HERE WAS CHANGED TO OBTAIN THAT
+ *
+ * The 8 September 0.101.0 audit reported this probe failing again, as the
+ * second half of its finding F5: the registration readback "cannot resolve
+ * `hang`, `healthy` or `exiter` through the control plane", the held and
+ * healthy legs never opened, and a separate minimal driver without ssh showed
+ * `remoteContextFor` calling a just-registered fixture unregistered. The audit
+ * was careful about what that established, being "a graph or loader-context
+ * problem in this execution setup", not a root cause, not a start date and not
+ * a defect in the bundled app.
+ *
+ * Re-measured at `f2a4b2ec` (docs/research/108), this file PASSES in about 37
+ * seconds. Leg 0 reads `hang`, `healthy` and `exiter` back through
+ * `remoteContextFor` on all four fields before any child is spawned. Leg 3's
+ * healthy far side greeted in 9 ms and reached live, leg 4's `%exit` far side
+ * produced 3 disconnects and 0 greeting timeouts, and leg 1 fell back at
+ * 10,003 ms against the 10,000 ms deadline with its child dead afterwards. Leg
+ * 6's ablation did NOT fall back and left its child alive, so leg 1 is still a
+ * reading that can fail. The operator's own `-L gmux` server read 20 sessions
+ * before and 20 after.
+ *
+ * So this is the SECOND non-reproduction, after Phase 220's, and two of them
+ * are not a diagnosis. NO TIMER, NO TIMEOUT, NO HOSTILE ARM, NO READBACK AND NO
+ * LEG WAS CHANGED BY PHASE 244, because the entry's instruction is not to touch
+ * any of them before the mismatch is diagnosed, and it has not been. What is
+ * written down instead is the history, and what a third report should capture:
+ * the FAILING execution's own module resolution, since both attempts so far
+ * have only ever reproduced the passing condition.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
