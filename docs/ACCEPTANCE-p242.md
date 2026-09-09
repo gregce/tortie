@@ -39,7 +39,8 @@ This takes about five minutes. Nothing here is best-effort: every step either wo
    > Runs this program on that machine: /usr/local/bin/tmux
    > **May replace files under this folder on that machine: `/Users/gdc/some-project`**
 
-   Under those, two paragraphs you have read before and one that matters here:
+   Under those, the sign-in paragraph you have read before every machine sheet, and one that
+   matters here:
 
    > Tortie replaces a file only after it has just read that file and its contents still match what
    > it read. A save cannot be undone, and Tortie cannot reach a Trash on that machine. A save writes
@@ -88,12 +89,19 @@ That refusal is the whole safety of the feature. If it saves anyway, stop and te
 
 ## 4. Turn it off
 
-Same three clicks. **⌘,**, **Machines**, and clear the folder from the field under **Saving files**,
-then confirm. Every write verb goes back to being refused before anything leaves this Mac, and the
-Explorer's two buttons go grey again.
+**⌘,**, **Machines**, **Greg's Mac Pro**, and press **Stop Tortie saving files here**. There is no
+folder field to clear once a folder is confirmed — the block draws one sentence and that one button.
 
-Removing the folder does not undo anything Tortie already wrote. There is no Trash on that machine
-and Tortie cannot reach one.
+It does two things, and the button's own hover says so: saving goes off, **and your confirmation of
+the machine goes with it**, because the folder is one of the six things you confirmed. The machine is
+then unusable until you confirm it again, which is the same sheet and one button. So do it when you
+have a minute rather than in the middle of something.
+
+Every write verb goes back to being refused before anything leaves this Mac, and the Explorer's two
+buttons go grey again.
+
+Turning it off does not undo anything Tortie already wrote. There is no Trash on that machine and
+Tortie cannot reach one.
 
 ---
 
@@ -113,8 +121,10 @@ separate `ssh` rather than believed from Tortie's own answer.
   symbolic link. **Four of those six wrote through at the start of this work** — one of them replaced
   a file outside the folder and told you it had saved — and they are what this release fixes.
 - **A remote tab and a local tab were read side by side**, over two projects that mirror each other
-  file for file, and every line of both is the same. The only thing the remote one says that the
-  local one does not is the label on a control you cannot press.
+  file for file, with saving off and again with saving on. **There is not one sentence the remote
+  face draws that the local one does not**, in either state, apart from the label on a control you
+  cannot press. The local face draws a few the remote one does not, and every one of those is about
+  what has changed in that project rather than about the machine.
 
 ---
 
