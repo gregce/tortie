@@ -1077,16 +1077,23 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // said "not inside an open project" and named no remedy; ./save-sentences
     // carries the one a person can act on.
     //
-    // A DRAFT THAT HAS NEVER BEEN SAVED TAKES THE PLAIN DOOR, and this is the
-    // one shape Phase 240 broke outright. Phase 63's "Draft a contract" opens
-    // a tab holding composed text whose file DOES NOT EXIST, with
-    // `savedContents` empty, so the guarded channel opens nothing and answers
-    // `missing`: the drafted contract could not be saved at all, and the
-    // sentence a person read said it was "no longer on disk" about a file that
-    // was never there. The predicate is `refreshRepo`'s own, below, so the two
-    // agree by construction, and the plain door reads the path first, which is
-    // the question that matters for a draft — has somebody put a file here
-    // since it opened.
+    // A DRAFT THAT HAS NEVER BEEN SAVED TAKES THE PLAIN DOOR. Phase 63's draft
+    // tab holds composed text whose file DOES NOT EXIST, with `savedContents`
+    // empty, so the guarded channel opens nothing and answers `missing`, and a
+    // person would read "it is no longer on disk" about a file that was never
+    // there — driven in the running app at 3efc8db2 and read off the toast.
+    //
+    // IT IS A CAPABILITY THIS PHASE BROKE RATHER THAN A REGRESSION ANYBODY
+    // MET, and the fix round found that by driving it: NOTHING in this tree
+    // emits a draft open. Architecture's "Draft a contract" has main write the
+    // seed files itself, and `OpenFileRequest.draft` has no emitter at all. The
+    // door is right either way and it is three words, so it is fixed here
+    // rather than left for whoever writes the first emitter to rediscover.
+    //
+    // The predicate is `refreshRepo`'s own, below, so the two agree by
+    // construction, and the plain door reads the path first, which is the
+    // question that matters for a draft — has somebody put a file here since
+    // it opened.
     const neverSaved = tab.draft != null && tab.savedContents === '';
     return !neverSaved && fileInRepo(tab.repoPath, tab.path)
       ? saveInProject(id, tab, value)

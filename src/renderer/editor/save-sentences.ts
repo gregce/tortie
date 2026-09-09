@@ -62,6 +62,16 @@ const SENTENCES: Record<SaveRefusalWord, string> = {
   // close its tabs, the path is still inside its old root, and the channel
   // asks the open list. So the sentence names that cause and the remedy, in
   // the same two sentences the family uses.
+  //
+  // THE CHANNEL HAS A SECOND ROUTE TO THIS WORD AND NOTHING CAN REACH IT.
+  // `resolveInsideRoot` also refuses a path holding the segment `.git` at any
+  // depth, and `guarded-write.ts` turns every throw from that block into
+  // `outside`, so a tab on a file under `.git` would read this sentence and it
+  // would be false. No gesture in this product opens one: the Explorer refuses
+  // the segment in `tree-paths.ts`, and search and quick open walk with
+  // ripgrep, which skips `.git` on its own. If a later round ever opens one,
+  // this sentence is what has to move, and the renderer already knows the open
+  // projects, so telling the two apart is a lookup rather than a new channel.
   outside:
     'Tortie did not save {name}, because its project is not open — open it again and save. Nothing was written.',
   missing:
