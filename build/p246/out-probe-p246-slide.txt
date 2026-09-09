@@ -1,0 +1,24 @@
+[p246-slide] no GMUX_TMUX_SOCKET; wrapping in build/harness-socket.mjs
+[harness-socket] socket gmux-p246-wt-p246-37283, profile /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p246-wt-p246-37283
+[p246-slide] operator sessions on -L gmux before: 21
+[p246-slide] app window at file:///private/tmp/wt-p246/out/renderer/index.html?harness=1, pid 37474
+[p246-slide] pass  A1. the good picture draws one marked change — 1 changes, del=["micro"]
+[p246-slide] pass  A2. and the one struck word is his own — ["micro"]
+[p246-slide] pass  A3. and there is no note on a clean picture — []
+[p246-slide] note  B1. what the bad picture drew — {"changes":3,"del":["micro","simple"],"ins":["What context do agents need? Give them too much, they gets c"]}
+[p246-slide] pass  B2. the ONE WORD he changed is struck through and nothing else is — ["micro","simple"]
+[p246-slide] pass  B3. the paragraph he inserted is drawn once, whole, in green — ["What context do agents need? Give them t"]
+[p246-slide] pass  B4. and the paragraph BELOW is not drawn a second time — 0 whole-paragraph insertion(s)
+[p246-slide] pass  B5. nothing was skipped, so nothing is said, and now that is the truth — []
+[p246-slide] pass  B6. drop every insertion off the live page and it is the old file, byte for byte — 1380 against 1380 bytes
+[p246-slide] pass  B7. drop every deletion off the live page and it is the new file, byte for byte — 1535 against 1535 bytes
+[p246-slide] pass  C1. the caps note IS still drawn when a block is really skipped — ["1 change drawn whole rather than word by word (1 too long)."]
+[p246-slide] note  C2. where the note sits — {"insideDoc":false,"rect":{"top":812,"bottom":848,"height":36,"width":851},"onScreen":true,"innerHeight":884}
+[p246-slide] pass  C3. and it is on screen rather than scrolled away with the document — {"onScreen":true,"insideDoc":false}
+[p246-slide] pass  C4. THE WHOLE ARM: the word-level picture is back and the good one did not move — {"goodChanges":1,"goodDel":["micro"],"badDel":["micro","simple"],"badInsCount":1,"badInsIsInsertedParagraph":true,"badRedrawsParagraphBelow":false,"badNoteText":null,"capNoteText":"1 change drawn whole rather than word by word (1 too long)."}
+[electron-run] p246-slide: ended 1 process the teardown found still running.
+[p246-slide] pass  X1. operator sessions on -L gmux unmoved — 21 -> 21
+[p246-slide] 
+[p246-slide] 13 passed, 0 failed, 2 notes
+[p246-slide] readings at /private/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p246-wt-p246-37283/p246s/p246-slide-readings.json
+[harness-socket] ended the scratch server on -L gmux-p246-wt-p246-37283 (after the harness)

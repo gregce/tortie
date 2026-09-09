@@ -1,35 +1,30 @@
 #!/usr/bin/env node
 /**
- * probe-p246-note.mjs — PHASE 246's MEASURE step, in the running app.
+ * probe-p246-slide.mjs — PHASE 246's app run, at HEAD.
  *
- * It answers question 3 of the Phase 246 entry, which ruling 4 of
- * src/renderer/editor/redline.ts leaves open: *"Anything skipped is SAID,
- * through the surface's existing `ed-note` banner, rather than silently
- * missing."* The operator's screenshot of 2026-09-09 shows a paragraph drawn
- * whole, red then green, with NO note anywhere on the face.
+ * `build/p246/probe-p246-note.mjs` is the same three arms at the PARENT
+ * commit, and its banked output is the parent reading this one is held
+ * against. That probe FAILS at HEAD ON PURPOSE: its grader asserts the
+ * operator's bad picture, being the paragraph below drawn whole in green with
+ * nothing said about it, and this phase is the commit that stops that
+ * happening. Do not "fix" it; it is the record of what was wrong.
  *
- * WHAT THIS RUN READS, all off the live DOM:
+ * WHAT THIS RUN READS, all off the live DOM of the running app:
  *
- *   A. THE GOOD PICTURE. The operator's own bytes with one word deleted. The
- *      redline must draw ONE marked change, and there must be no note.
- *   B. THE BAD PICTURE. The same bytes with his own inserted paragraph above
- *      the edited one. Read every `.ed-note` on the face, its text and its
- *      rectangle, and read the drawn document, so what a person sees and what
- *      the surface says about it are one reading.
- *   C. THE CONTROL, so a run that could never see a note is not mistaken for
- *      a run that found none: a block past REDLINE_MAX_BLOCK_CHARS, which IS
- *      counted as a skip. The note must be drawn, and its rectangle says
- *      WHERE, which is the second half of question 3.
- *
- * IT REPAIRS NOTHING. It reports.
- *
- * PHASE 246 SHIPPED THE REPAIR, AND THIS PROBE NOW FAILS AT HEAD ON PURPOSE.
- * Its grader asserts the operator's BAD picture, being the paragraph below
- * drawn whole in green with nothing said about it, and that is exactly what
- * `slideBoundaries` stops happening. Do not "fix" it: it is the parent
- * commit's reading and the other half of the phase's proof.
- * `build/p246/probe-p246-slide.mjs` is the same three arms graded the other
- * way round, and it is the run that passes at HEAD.
+ *   A. THE GOOD PICTURE, which must be exactly what it was: one marked
+ *      change, the word `micro` struck through, and no note. This is the
+ *      CONTROL. A fix that improves one picture and moves the other is not a
+ *      fix.
+ *   B. THE BAD PICTURE, the same tab and the same baseline after a `/bin/sh`
+ *      wrote the file from outside: the paragraph he inserted drawn whole in
+ *      green, the ONE WORD he changed in the paragraph below struck through,
+ *      and that paragraph NOT drawn twice. At the parent this read nine
+ *      marked changes with the paragraph below struck through in pieces
+ *      interleaved with a paragraph it has nothing to do with.
+ *   C. THE CONTROL FOR THE NOTE, so a run that could never see a banner is
+ *      not mistaken for one that found none: a block past
+ *      REDLINE_MAX_BLOCK_CHARS, which IS counted as a skip and must still say
+ *      so. Ruling 4's promise is not what this phase changed.
  *
  * ## SAFETY
  *
@@ -49,7 +44,7 @@ import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { cdpEval, wsConnect } from '../cdp-client.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const TAG = '[p246-note]';
+const TAG = '[p246-slide]';
 const say = (l) => console.log(`${TAG} ${l}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -66,33 +61,58 @@ function note(step, claim, detail) {
 }
 
 /**
- * The grader, proved under --self-test so a reading that could not fail is not
- * mistaken for one that passed. A reading is what this phase claims when the
- * cap case DOES say so and the mis-aligned case does NOT, which together are
- * the finding: the note is reachable, and this picture does not reach it.
+ * The grader, proved under --self-test so a reading that could not fail is
+ * not mistaken for one that passed. What this phase claims is three things at
+ * once: the good picture is untouched, the bad picture marks the one word and
+ * draws the inserted paragraph once, and the cap case still says so.
  */
-function gradeNotes(r) {
+function gradeSlide(r) {
   const bad = [];
+  if (r.goodChanges !== 1) bad.push(`the good picture drew ${String(r.goodChanges)} changes, not 1`);
+  if (JSON.stringify(r.goodDel) !== JSON.stringify(['micro'])) {
+    bad.push(`the good picture struck ${JSON.stringify(r.goodDel)} rather than ["micro"]`);
+  }
+  if (JSON.stringify(r.badDel) !== JSON.stringify(['micro', 'simple'])) {
+    bad.push(`the bad picture struck ${JSON.stringify(r.badDel)} rather than ["micro","simple"]`);
+  }
+  if (r.badInsCount !== 1) bad.push(`the bad picture drew ${String(r.badInsCount)} insertions, not 1`);
+  if (r.badInsIsInsertedParagraph !== true) {
+    bad.push('the one insertion is not the paragraph he inserted');
+  }
+  if (r.badRedrawsParagraphBelow === true) {
+    bad.push('the paragraph below is still drawn whole a second time');
+  }
+  if (r.badNoteText !== null) bad.push(`the bad picture drew a note: ${JSON.stringify(r.badNoteText)}`);
   if (r.capNoteText === null) bad.push('the cap case drew no note, so this run could not see one at all');
-  else if (!r.capNoteText.includes('drawn whole')) bad.push(`the cap note is not the caps note: ${JSON.stringify(r.capNoteText)}`);
-  if (r.badNoteText !== null) bad.push(`the mis-aligned picture DID draw a note: ${JSON.stringify(r.badNoteText)}`);
-  if (r.badDrawsWhole !== true) bad.push('the mis-aligned picture did not draw the paragraph whole, so it is not the operator’s picture');
+  else if (!r.capNoteText.includes('drawn whole')) {
+    bad.push(`the cap note is not the caps note: ${JSON.stringify(r.capNoteText)}`);
+  }
   return bad;
 }
 
 if (process.argv.includes('--self-test')) {
-  const OK = { capNoteText: '1 change drawn whole rather than word by word (1 too long).', badNoteText: null, badDrawsWhole: true };
+  const OK = {
+    goodChanges: 1,
+    goodDel: ['micro'],
+    badDel: ['micro', 'simple'],
+    badInsCount: 1,
+    badInsIsInsertedParagraph: true,
+    badRedrawsParagraphBelow: false,
+    badNoteText: null,
+    capNoteText: '1 change drawn whole rather than word by word (1 too long).'
+  };
   const cases = [
-    ['the shape this phase measured', OK, 0],
-    ['no note anywhere, so the run is blind', { ...OK, capNoteText: null }, 1],
-    ['the cap note is some other banner', { ...OK, capNoteText: 'Since you opened it.' }, 1],
-    ['the bad picture said so after all', { ...OK, badNoteText: '1 change drawn whole rather than word by word (1 rewritten).' }, 1],
-    ['the bad picture is not the picture', { ...OK, badDrawsWhole: false }, 1],
-    ['everything wrong at once', { capNoteText: null, badNoteText: 'x', badDrawsWhole: false }, 3]
+    ['the picture this phase ships', OK, 0],
+    ['the parent commit: the paragraph below drawn in pieces', { ...OK, badDel: ['micro', 'After thousands of hours working this way', 'It’s a simple'], badInsCount: 6, badInsIsInsertedParagraph: false, badRedrawsParagraphBelow: true }, 4],
+    ['the good picture moved, which is the thing this phase may not do', { ...OK, goodChanges: 3, goodDel: ['micro', 'simple'] }, 2],
+    ['the paragraph below drawn twice', { ...OK, badRedrawsParagraphBelow: true }, 1],
+    ['the note path is blind, so a silent bad picture proves nothing', { ...OK, capNoteText: null }, 1],
+    ['the bad picture grew a banner it should not have', { ...OK, badNoteText: '1 change drawn whole rather than word by word (1 rewritten).' }, 1],
+    ['everything wrong at once', { goodChanges: 0, goodDel: [], badDel: [], badInsCount: 0, badInsIsInsertedParagraph: false, badRedrawsParagraphBelow: true, badNoteText: 'x', capNoteText: null }, 8]
   ];
   let bad = 0;
   for (const [name, reading, want] of cases) {
-    const got = gradeNotes(reading).length;
+    const got = gradeSlide(reading).length;
     const ok = got === want;
     if (!ok) bad += 1;
     say(`${ok ? 'pass' : 'FAIL'}  self-test: ${name} -> ${got} finding(s), wanted ${want}`);
@@ -123,12 +143,12 @@ const operatorCount = () =>
 const opBefore = operatorCount();
 say(`operator sessions on -L gmux before: ${opBefore}`);
 
-mkdirSync(join(harnessDir, 'p246'), { recursive: true });
-const root = realpathSync(join(harnessDir, 'p246'));
+mkdirSync(join(harnessDir, 'p246s'), { recursive: true });
+const root = realpathSync(join(harnessDir, 'p246s'));
 const home = join(root, 'home');
 const profile = join(root, 'profile');
 const project = join(root, 'project');
-const readingsFile = join(root, 'p246-note-readings.json');
+const readingsFile = join(root, 'p246-slide-readings.json');
 for (const d of [home, profile, project]) { rmSync(d, { recursive: true, force: true }); mkdirSync(d, { recursive: true }); }
 
 const git = (...a) => {
@@ -171,11 +191,6 @@ git('config', 'user.name', 'p246');
 git('add', '--', 'post.md', 'big.md');
 git('commit', '-q', '-m', 'the committed draft');
 
-/**
- * The face. Every `.ed-note` in the view, with its own rectangle and whether
- * it is inside the scrolling document or a sibling under it, because "the note
- * is per file and off screen" is one of the two answers question 3 allows.
- */
 const FACE = `(() => {
   const doc = document.querySelector('.ed-redline-doc');
   const view = document.querySelector('.ed-redline-view');
@@ -191,10 +206,26 @@ const FACE = `(() => {
   });
   const del = doc === null ? [] : Array.from(doc.querySelectorAll('del')).map((d) => d.textContent ?? '');
   const ins = doc === null ? [] : Array.from(doc.querySelectorAll('ins')).map((d) => d.textContent ?? '');
+  // THE ONE CORRECTNESS CLAIM, taken off the live DOM rather than off the
+  // module: drop every <ins> and the page is the old file, drop every <del>
+  // and it is the new one.
+  const project = (skip) => {
+    const walk = (node) => {
+      if (node.nodeType === 3) return node.nodeValue ?? '';
+      if (node.nodeType !== 1) return '';
+      if (node.tagName === skip) return '';
+      let s = '';
+      for (const c of node.childNodes) s += walk(c);
+      return s;
+    };
+    return doc === null ? '' : walk(doc);
+  };
   return {
     mounted: doc !== null,
     changes: doc === null ? 0 : doc.querySelectorAll('.ed-redline-change').length,
     del, ins,
+    oldProjection: project('INS'),
+    newProjection: project('DEL'),
     notes,
     capsNote: notes.filter((n) => !n.className.includes('ed-redline-since') && !n.className.includes('ed-redline-undo') && !n.className.includes('ed-redline-hint')).map((n) => n.text),
     innerHeight: window.innerHeight,
@@ -253,10 +284,11 @@ async function openRedline(cdp, rel) {
 }
 
 const readings = {};
+let grade = null;
 
 await withElectron(
   {
-    label: 'p246',
+    label: 'p246-slide',
     userDataDir: profile,
     tmuxSocket: null,
     cwd: REPO,
@@ -274,45 +306,54 @@ await withElectron(
       await drive(cdp, { projectPath: project, editorWidth: 1000, sidebarWidth: 300 });
       await sleep(1500);
 
-      // A. THE GOOD PICTURE.
+      // A. THE GOOD PICTURE. The control, and it must be what it always was.
       shellWrite('post.md', GOOD);
       let f = await openRedline(cdp, 'post.md');
       readings.good = f;
       check('A1', 'the good picture draws one marked change', f.changes === 1, `${f.changes} changes, del=${JSON.stringify(f.del)}`);
-      check('A2', 'and the one deleted word is his own', f.del.length === 1 && f.del[0].includes('micro'), JSON.stringify(f.del));
+      check('A2', 'and the one struck word is his own', JSON.stringify(f.del) === JSON.stringify(['micro']), JSON.stringify(f.del));
       check('A3', 'and there is no note on a clean picture', f.capsNote.length === 0, JSON.stringify(f.capsNote));
 
-      // B. THE BAD PICTURE, with the same tab and the same baseline.
+      // B. THE BAD PICTURE, same tab, same baseline, written from outside.
       shellWrite('post.md', BAD);
       await sleep(1500);
       await until(cdp, docSettled, 20000);
       await sleep(900);
       f = await face(cdp);
       readings.bad = f;
-      const wholeParagraph = f.ins.some((t) => t.includes('After thousands of hours working this way') && t.length > 200);
-      note('B1', 'what the bad picture drew', JSON.stringify({ changes: f.changes, del: f.del.map((t) => t.slice(0, 60)), ins: f.ins.map((t) => t.slice(0, 60)) }));
-      check('B2', 'the paragraph below is drawn WHOLE in green, which is his picture', wholeParagraph, `ins runs ${String(f.ins.length)}`);
-      note('B3', 'every ed-note on the face at that moment', JSON.stringify(f.notes));
-      check('B4', 'THE FINDING: nothing on the face says a block was drawn whole', f.capsNote.length === 0, JSON.stringify(f.capsNote));
-      const badNoteText = f.capsNote[0] ?? null;
-      const badDrawsWhole = wholeParagraph;
+      const redraw = f.ins.filter((t) => t.includes('After thousands of hours working this way') && t.length > 200);
+      note('B1', 'what the bad picture drew', JSON.stringify({ changes: f.changes, del: f.del, ins: f.ins.map((t) => t.slice(0, 60)) }));
+      check('B2', 'the ONE WORD he changed is struck through and nothing else is', JSON.stringify(f.del) === JSON.stringify(['micro', 'simple']), JSON.stringify(f.del));
+      check('B3', 'the paragraph he inserted is drawn once, whole, in green', f.ins.length === 1 && f.ins[0].includes('What context do agents need?'), JSON.stringify(f.ins.map((t) => t.slice(0, 40))));
+      check('B4', 'and the paragraph BELOW is not drawn a second time', redraw.length === 0, `${redraw.length} whole-paragraph insertion(s)`);
+      check('B5', 'nothing was skipped, so nothing is said, and now that is the truth', f.capsNote.length === 0, JSON.stringify(f.capsNote));
+      check('B6', 'drop every insertion off the live page and it is the old file, byte for byte', f.oldProjection === OLD, `${String(f.oldProjection.length)} against ${String(OLD.length)} bytes`);
+      check('B7', 'drop every deletion off the live page and it is the new file, byte for byte', f.newProjection === BAD, `${String(f.newProjection.length)} against ${String(BAD.length)} bytes`);
 
-      // C. THE CONTROL: a block the character budget really skips.
+      // C. THE CONTROL FOR THE NOTE. Ruling 4's promise is untouched.
       shellWrite('big.md', BIG_NEW);
-      f = await openRedline(cdp, 'big.md');
-      readings.big = f;
-      note('C1', 'every ed-note on the cap case', JSON.stringify(f.notes));
-      const capNote = f.notes.find((n) => typeof n.text === 'string' && n.text.includes('drawn whole')) ?? null;
-      check('C2', 'the caps note IS drawn when a block is really skipped', capNote !== null, JSON.stringify(f.capsNote));
+      const g = await openRedline(cdp, 'big.md');
+      readings.big = g;
+      const capNote = g.notes.find((n) => typeof n.text === 'string' && n.text.includes('drawn whole')) ?? null;
+      check('C1', 'the caps note IS still drawn when a block is really skipped', capNote !== null, JSON.stringify(g.capsNote));
       if (capNote !== null) {
-        note('C3', 'where the note sits', JSON.stringify({ insideDoc: capNote.insideDoc, rect: capNote.rect, onScreen: capNote.onScreen, innerHeight: f.innerHeight }));
-        check('C4', 'and it is on screen rather than scrolled away with the document', capNote.onScreen === true && capNote.insideDoc === false, JSON.stringify({ onScreen: capNote.onScreen, insideDoc: capNote.insideDoc }));
+        note('C2', 'where the note sits', JSON.stringify({ insideDoc: capNote.insideDoc, rect: capNote.rect, onScreen: capNote.onScreen, innerHeight: g.innerHeight }));
+        check('C3', 'and it is on screen rather than scrolled away with the document', capNote.onScreen === true && capNote.insideDoc === false, JSON.stringify({ onScreen: capNote.onScreen, insideDoc: capNote.insideDoc }));
       }
 
-      const grade = { capNoteText: capNote?.text ?? null, badNoteText, badDrawsWhole };
+      grade = {
+        goodChanges: readings.good.changes,
+        goodDel: readings.good.del,
+        badDel: readings.bad.del,
+        badInsCount: readings.bad.ins.length,
+        badInsIsInsertedParagraph: readings.bad.ins.length === 1 && readings.bad.ins[0].includes('What context do agents need?'),
+        badRedrawsParagraphBelow: redraw.length > 0,
+        badNoteText: readings.bad.capsNote[0] ?? null,
+        capNoteText: capNote?.text ?? null
+      };
       readings.grade = grade;
-      const bad = gradeNotes(grade);
-      check('C5', 'THE WHOLE ARM: the note path works, and the operator’s picture does not reach it', bad.length === 0, bad.length === 0 ? JSON.stringify(grade) : bad.join('; '));
+      const findings = gradeSlide(grade);
+      check('C4', 'THE WHOLE ARM: the word-level picture is back and the good one did not move', findings.length === 0, findings.length === 0 ? JSON.stringify(grade) : findings.join('; '));
     } finally {
       writeFileSync(readingsFile, JSON.stringify(readings, null, 2));
       cdp.close();
@@ -320,6 +361,8 @@ await withElectron(
   }
 );
 
+// The operator's own file was never opened, and nothing under his home was
+// written: everything above lives inside GMUX_HARNESS_DIR.
 const opAfter = operatorCount();
 check('X1', 'operator sessions on -L gmux unmoved', opBefore === opAfter, `${opBefore} -> ${opAfter}`);
 say('');
