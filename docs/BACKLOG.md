@@ -25167,6 +25167,105 @@ of the fix.
   20,000-file and 64 MiB caps, the guarded writer's documented rename race and the in-memory nature of
   shadow baselines stay visible; the last of those is Phase 243's and not this phase's.
 
+## Phase 245 — what a path in a transcript should do when you click it (issue 18, Jake Levirne, 2026-09-09) RESEARCH ONLY
+
+**Subject.** `docs(research): what a path in a transcript should do when you click it`
+
+**First body line.** `Phase 245: clickable paths in the transcript`
+
+**Semver.** NONE. This phase writes a document and changes no product behaviour.
+
+**Tier 1.** It is research. The gates, and nothing else. **It builds nothing**, and a round that
+starts building has left its charter.
+
+**Charter.** This entry, [issue 18](https://github.com/gregce/tortie/issues/18) in Jake Levirne's own
+words, and his instruction of 2026-09-09: *"can we run a research phase to determine the viability of
+making all of the links and paths (regardless if they're images) possible to have tortie open by
+default in the right way?"*
+
+### What he said
+
+> In this screenshot I just want to be able to click that .png path and have it open in browser or
+> Preview for me.
+
+The screenshot is a Codex transcript with `[image] /private/tmp/claude-501/…/test-pattern-1440.png`
+wrapped across two lines, and the path is not clickable.
+
+### What the tree already has, read before this entry was written
+
+**A URL is already clickable and a path is not.** `src/renderer/terminal/TerminalPane.tsx:359` loads
+xterm's `WebLinksAddon` with a handler that calls `window.open(uri, '_blank', 'noopener,noreferrer')`,
+and `src/main/security/trusted-window.ts:137` routes that through `shell.openExternal` when
+`EXTERNAL_URL` matches. **That addon matches URLs only.** A bare filesystem path is not a URL and no
+provider looks for one.
+
+**Tortie already decides what a path means, in one place, for a different gesture.**
+`src/renderer/terminal/drop/router.ts` and its neighbours are the drop pipeline: they take a path, ask
+whether it is an image, whether it is inside a project, whether the session is remote, and route it.
+**Whatever this research recommends must reuse that decision rather than write a second one**, and the
+document says explicitly which module would own the answer.
+
+**Tortie already opens things four ways** and the research must say which each case earns: an editor
+tab, the image preview surface, the markdown preview, or the operating system through `shell.openPath`
+/ `shell.openExternal`. The Explorer's Open With row and `src/renderer/tree/open-with.ts` already make
+some of that choice for a tree row.
+
+### The questions this research answers, and it answers them with measurements
+
+1. **Can a path be FOUND reliably in a transcript at all?** This is the first question and it may be
+   the one that stops the phase. Measure it over REAL transcripts from this Mac's own sessions across
+   every agent in the registry, read only: how often is a path wrapped across lines the way the
+   screenshot's is; how often is it decorated (quotes, brackets, a trailing colon, a `file://`, a
+   `~`); how often is it relative to a cwd the terminal does not know. **Report a hit rate and a false
+   positive rate**, because a link provider that underlines the wrong span is worse than none.
+2. **What does xterm's link provider API actually give us?** `registerLinkProvider` is per line.
+   Measure what a wrapped path costs there. Say whether `@xterm/addon-web-links` can be extended or
+   whether a second provider is needed, and whether two providers can disagree about one span.
+3. **What should a click DO, per kind?** Enumerate the kinds a transcript really produces, measured
+   rather than imagined: an image, a source file inside an open project, a source file outside every
+   project, a directory, a `file://` URL, an `http(s)` URL, a path on another machine, a path that
+   does not exist any more. **For each, name the destination and the reason.** His words are "in
+   browser or Preview" for the image; the research says whether Tortie's own image surface is the
+   better answer and why, given that it already exists.
+4. **What must NOT happen.** A click that runs something, a click that reaches outside every project
+   without saying so, and a click on a path an agent invented. **`shell.openPath` on an arbitrary
+   string from a terminal buffer is a capability**, and the research prices it against Phase 23's
+   refusals and against `trusted-window.ts`'s existing allow rules rather than assuming it is fine.
+5. **The remote case.** A path in a session on his Mac Pro names a file on THAT machine, and both
+   homes are `/Users/gdc`. Phase 235 fixed exactly this class of bug twice — Reveal on a remote tab,
+   and the image surface's Reveal — and the research must not propose a third. Say what a click on a
+   remote transcript's path does, and whether it can be told from a local one at all.
+6. **What it costs.** A link provider runs on every render of every line of every pane. Measure the
+   cost over a realistic scrollback before recommending anything, because this is the hot path of the
+   product's main surface.
+7. **Does it serve the agentic workflow, or does it exist because terminals have it?** The scope
+   guardrail's own test. An agent naming a file it just wrote, and a person wanting to look at it, is
+   the strongest case; say whether the rest of the surface area earns its place or whether the honest
+   recommendation is narrow.
+
+### What the document must contain
+
+- **A hit rate and a false positive rate over real transcripts**, per agent, with the corpus size
+  stated. Read only; his sessions are never attached and no file under his home is written.
+- **A recommendation with a version one that is small enough to be obviously right**, in the shape
+  research 83 used: the smallest thing that helps, what it deliberately does not do, and what the
+  second step would be if the first proves out.
+- **The refusals, written as refusals**, so a later phase inherits them.
+- **A named owner module** for the decision, reusing the drop pipeline rather than duplicating it.
+- **If the answer is that it cannot be done well, the document says so and the phase is complete.**
+  A research phase that recommends nothing is a finished research phase.
+
+### What is NOT in this phase
+
+- **No code.** Not a provider, not a handler, not a probe that changes behaviour. Measurement scripts
+  are allowed and go to `build/p245/` if a later round would re-run them, and nowhere otherwise.
+- **No decision about the redline, the editor or the tree.** This is the terminal transcript.
+- **No new capability proposed without pricing it against Phase 23's refusals.**
+- **No proposal that Tortie run anything a transcript names.** Opening is not executing, and the
+  document keeps that line bright.
+- **His sessions are read only.** The corpus is read from `-L gmux` listings and scrollback captures
+  the product already takes; nothing is attached and nothing is sent.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -25676,3 +25775,4 @@ cycle rather than only the evening it was written.
 - 2026-09-08 **PHASE 242 LANDED WHOLE at `95b53a30`** at version 0.101.0 with NO bump and NO tag, THE WRITE ROOT REHEARSED against his real Mac Pro, ten commits rebased onto `6b334990` and pushed. **The phase expected to build nothing and found two escapes from the folder a person confirms.** THE THING IT FIXED, parent reading and HEAD reading, taken through Tortie's own `putFile` against `gregs-mac-pro.tail2ddfe1.ts.net` with the far side read by an `ssh` Tortie did not compose: at the parent a HARD LINK planted at the staged name `<file>.tortie-part` took the payload into a file OUTSIDE the confirmed folder while the answer read `wrote` and named that folder as where the bytes had landed, the victim's md5 moving and `docs/hard-target.md` reading `PWNED-A12`; at HEAD the same arm answers `wrote`, the victim's md5 is `60fc7826…` before and after with its link count 2 to 1, and the payload is in the person's own file inside the folder. Five arms wrote through at the parent, being a5a, a5b, a5c, a8a and a9, and none does now; seventeen attack arms driven, fifteen graded, two recorded, thirteen `outsideRoot`, one `refused`, one `wrote`. THE REMOTE-ONLY SENTENCE SET WAS EMPTY, which is the operator's rule of 2026-09-07 made a reading rather than a promise: the two faces were graded side by side with no normalisation at all and every remote-only string is a heading's plural, a count-bearing label, a value slot or a disabled control's own label, with `localOnlySentences` `["Stage all & commit"]` and research 57's Delete and Discard still absent on the remote face. Every write verb driven in one run, being putFile 171 `wrote`, makeDir 51, rename 40, move 38, stage 109, unstage 188, stage again 100 and commit 116 `committed`, every one of them `writesOff` on a row with no folder. The committer's own round corrected one more sentence rather than one more clause: the `IMAGE_PUT` header argued that nothing gets out of `~/.tortie/images`, and driving the shipping script under `/bin/sh` over a scratch `HOME` shows a symlink AND a hard link at `$d/$1.part` each taking the payload outside it while the script prints `added` with the payload's own count and digest, so the paragraph now carries the measurement and Phase 242.2 carries the fix. Battery after the rebase: typecheck, build with the contract inventory byte identical and `gate:electron` at floor 105 measured by `--list`, 13,212 tests over 832 files, `conformance:machines`, `conformance:remoteclose`, `gate:knownhosts`, `gate:contract`, `gate:background`, smoke:t1 6 of 6 and smoke:t3 3 of 3. Mac Pro before and after: `-L gmux` held exactly `gmux-control` and nothing else, 1 and 1, no `tortie-p242-*` directory, no `gmux-p242-*` socket, no process of this phase, `~/.gitconfig` 140 bytes unmoved and `~/.ssh` holding `authorized_keys` alone. This Mac: 19 `-L gmux` sessions before and after, listed only; his `config/machines.json` `b61831d7761fdcb0`, `machines/known-machines` `57a29ed87befdcb0` and `config-confirmations.json` `c922e4801a9dffea` unchanged by digest, HIS ROW STILL CARRIES NO WRITE ROOT because setting it is his act, and `~/.ssh/known_hosts` `4c32862895d84e97` 2,215 bytes unmoved with the agent holding no identities. **The phase is not complete until he runs `docs/ACCEPTANCE-p242.md` by hand**, because the rehearsal ran under a scratch profile and his own row is a different row.
 - 2026-09-09, Phase 243 QUEUED at his word, THE DURABLE BASELINE, the last step the redline family has open and the one thing Phase 238's own report names as what would make an accept outlive the tab. Research 83 A3.3 settles three things this round inherits rather than re-derives, being the home `<userData>/gmux/baselines/` through `src/main/durable`, the key shape `(repo_path, rel_path)` that `symbol_file` and `arch_tree_file` both already use, and the write going through `writeDurable` with a generations ring at the `SNAPSHOT_GENERATIONS = 3` next door; the price is measured at 9.0 ms median for a 126 KB file, 15.1 ms at 2.66 MB and a worst realistic live set of ten prose tabs at 712 KB. THE IN-MEMORY COPY REMAINS THE READ PATH so nothing on the draw path gains an await, the generation guard does not move, and the face gains ONE short line for a restored origin beside Phase 239's opening sentences and Phase 238's accept wording. **IT IS NOT A BACKUP AND NO COPY MAY READ AS ONE**, which is research 83 A4.2's ruling and A3.4's reason: losing a baseline loses the NARROWING and nothing on disk, and the one case where it holds the only copy is already lost today and worse than people assume, because `resetWorkingModel` calls `setValue` whose `_setValueFromTextBuffer` runs `this._commandManager.clear()` under the comment "Destroy my edit history and settings", so an agent overwriting a prose file destroys that tab's Monaco undo stack and the in-memory baseline is the first undo of an agent's prose edit this product has ever had.
 - 2026-09-09, Phase 244 QUEUED at his word, THE SIX FINDINGS OF THE 0.101.0 ARCHITECTURE AUDIT, written by another session at `163266d6` and committed with the entry. **THE SCORE READS 32 OF 36**, down from the 35 the 7 September document recorded and the 34 a conversational recheck corrected it to, and THE STANDING NOTE IN THIS FILE SAYING "an honest 35 of 36" IS SUPERSEDED BY THAT ENTRY; eight categories hold 3 and State ownership, Lifecycle, Failure flow and Test seam hold 2. The audit is explicit that the rubric is NOT a release gate and the entry does not treat it as one: no item is fixed to move a number, and no later round rounds it up, because the audit's own closing instruction is not to increase a score merely because a remediation checklist is complete. **THE FIRST ACT IS RE-MEASUREMENT AND ONE FINDING HAS ALREADY MOVED**: F5's `install-roundtrip.test.ts` failure, which the audit read failing on `readdirSync` of the real `/Users/gdc/.Trash`, does NOT reproduce at `8ee3eb42`, passing 6 of 6 alone with the full suite at 831 files and 13,211 tests whose one red is `live.test.ts`'s timing arm, green 14 of 14 three times alone and load rather than the tree; whether that is a fix or a host that now answers differently is the round's first question, because a test that passes because the host allows something is not a hermetic test. The six in the audit's own order: F5 verification first because everything after needs a trustworthy baseline; F1 the reopened tab inheriting an earlier rewind journal, depth still 1 under the same id with the deleted and inserted STRINGS held and no ceiling; F2 the remote Architecture mirror reusing stale source for ever because the far side reports WHOLE-SECOND mtimes and a same-length rewrite inside one second read `reused: 1, written: 0` with the machine holding 2 and the mirror holding 1; F3 the fact-only scan path discarding `syncTree().overBudget` and stamping a completion the map reads as `building`; F4 the guarded writer consuming 16,777,217 bytes against a 5,242,880 cap because `readAllSync` reads to EOF before the second size check; and F6 the split retention finding, which may end as an explanation rather than a repair and where a green sample is not an explanation. The four preserved fixtures under `docs/audits/fixtures/2026-09-08/` are ADOPTED as maintained regressions in the same commit as the repair each belongs to, with setup updated where an API moved and the behavioural assertion never weakened, red at the parent and green after and red again under ablation. A new dated assessment at the execution commit is item 7 and is the only place a number may move.
+- 2026-09-09, Phase 245 QUEUED at his word as RESEARCH ONLY, what a path in a transcript should do when you click it, from [issue 18](https://github.com/gregce/tortie/issues/18) filed by Jake Levirne: "In this screenshot I just want to be able to click that .png path and have it open in browser or Preview for me", the screenshot being a Codex transcript whose `[image] /private/tmp/.../test-pattern-1440.png` is wrapped across two lines and clickable nowhere. His own framing was wider than the issue, being whether ALL links and paths regardless of kind can be opened by default in the right way. READ BEFORE THE ENTRY WAS WRITTEN: a URL is already clickable and a path is not, because `TerminalPane.tsx:359` loads xterm's `WebLinksAddon` with a handler that calls `window.open` and `trusted-window.ts:137` routes it to `shell.openExternal`, and that addon matches URLs ONLY; Tortie already decides what a path means in ONE place for a different gesture, being the drop pipeline at `src/renderer/terminal/drop/router.ts`, which any recommendation must reuse rather than duplicate; and Tortie already opens things four ways, being an editor tab, the image surface, the markdown preview and the operating system. The document answers seven questions with measurements rather than opinions, and the FIRST may stop the phase: whether a path can be found reliably in a real transcript at all, measured over this Mac's own sessions across every agent in the registry READ ONLY, reporting a hit rate AND a false positive rate, because a provider that underlines the wrong span is worse than none. It also prices `shell.openPath` on an arbitrary string from a terminal buffer as a CAPABILITY against Phase 23's refusals rather than assuming it is fine, and it must not propose a third instance of the bug Phase 235 fixed twice, being a remote path opened on THIS Mac where both homes are `/Users/gdc`. **A RESEARCH PHASE THAT RECOMMENDS NOTHING IS A FINISHED RESEARCH PHASE**, and the entry says so.
