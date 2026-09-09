@@ -30,6 +30,17 @@
  * on every remote view because nothing re-read a machine. It is pinned here
  * rather than in a file of its own because it is the same rule, being that a
  * sentence the local face does not carry stays off the remote one.
+ *
+ * PHASE 235 ADDED THE AGENT BOARD'S OWN LINE for the same reason, and it is
+ * the last of the four remote-only sentences later verifiers listed. The other
+ * three were read side by side with the local face and KEPT, and the reasons
+ * are in that phase's report: the greyed tile's accessible name is a disabled
+ * control's own label and the local face carries its own form of it; the
+ * `Branch` group heading names one row, being that machine's checked out
+ * branch, whose local counterpart is the branch HEADER rather than the
+ * `Branches` list, so the two names name two different things; and Context's
+ * "None here." is drawn for an empty group with no remote condition anywhere
+ * near it, so a local empty group draws it too.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -147,7 +158,16 @@ const OFF: readonly OffTheFace[] = [
   // control, the second saying Tortie cannot see a change on that machine
   // until the control is pressed, which the re-read moments made false. The
   // verifier read it as the one sentence only the remote face carried.
-  { name: 'contextRefreshOnMachineTitle', home: 'context.ts', words: 'cannot see a change made on that machine' }
+  { name: 'contextRefreshOnMachineTitle', home: 'context.ts', words: 'cannot see a change made on that machine' },
+  // PHASE 235 ADDED THE LAST ONE THE VERIFIERS LISTED. `agentsAbsentHint` was
+  // drawn under the agent board on a machine tab and nowhere else, on the
+  // empty state and in the create sheet, so a remote board carried one
+  // standing line a local board does not. Every fact in it is on the tiles
+  // already: the greyed tile IS the answer, its accessible name is
+  // `agentNotOnMachineAria` and a click pins `agentMissingOnMachine`, which
+  // says the same thing about the one agent the person actually asked about.
+  // That is the *just enough words* rule as well as the operator's.
+  { name: 'agentsAbsentHint', home: 'machine-agents.ts', words: 'A greyed agent was not found on' }
 ];
 
 /** Every .ts and .tsx file under a directory, recursively. */
@@ -243,8 +263,10 @@ describe('the scanner can fail', () => {
     // became a disabled control's label, so neither is here; the Context cut
     // line and the history marks cut line stay because each names a list on
     // screen that was cut. The read-at clock STAYED until Phase 230 took it
-    // off, and its four names follow; the last one is the Context Refresh
-    // hover Phase 230's fix round took off.
+    // off, and its four names follow; then the Context Refresh hover Phase
+    // 230's fix round took off, and last the agent board's own line, which
+    // Phase 235 took off as the last of the four remote-only sentences later
+    // verifiers listed.
     expect(OFF.map((one) => one.name)).toEqual([
       'remoteBandTitle',
       'REMOTE_BAND_BODY',
@@ -280,7 +302,8 @@ describe('the scanner can fail', () => {
       'machineReadAt',
       'remoteTreeReadAt',
       'runsReadAt',
-      'contextRefreshOnMachineTitle'
+      'contextRefreshOnMachineTitle',
+      'agentsAbsentHint'
     ]);
   });
 

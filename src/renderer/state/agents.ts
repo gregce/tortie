@@ -346,26 +346,11 @@ export function buildAgentOptions(
   return options;
 }
 
-/**
- * Whether at least one tile is greyed by that machine's answer (Phase 109).
- *
- * The two surfaces that draw the agent board on a machine tab put one
- * sentence under it when this is true, and nothing when it is not. It is
- * false for this Mac by definition, because the sentence names a machine and
- * there is none to name. Shell is skipped because the far side is never asked
- * about it, so it can never be greyed by an answer.
- *
- * On a machine view every non-shell option's `installed` was decided by that
- * answer alone in {@link buildAgentOptions}, so "greyed" and "that machine
- * said absent" are the same fact here.
- */
-export function agentsGreyedByMachine(
-  options: readonly AgentPickerOption[],
-  machine: MachineAgentsView | null
-): boolean {
-  if (machine === null) return false;
-  return options.some((o) => o.id !== 'shell' && !o.installed);
-}
+// PHASE 235 DELETED `agentsGreyedByMachine`. Its only job was to decide
+// whether to draw one sentence under the agent board on a machine tab, and
+// that sentence is gone: a remote board carried a standing line a local board
+// does not, and the greyed tile is already the answer. Nothing else asked the
+// question, so the question goes with the sentence.
 
 /**
  * Default ⌘T selection: the Settings default agent (GmuxSettings.defaultAgent,

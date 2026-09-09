@@ -9,7 +9,6 @@ import type { AgentsScanResult, DetectedAgent } from '@shared/types';
 import {
   agentBlockedReason,
   agentShortLabel,
-  agentsGreyedByMachine,
   buildAgentOptions,
   defaultAgentChoice
 } from '../agents';
@@ -344,32 +343,9 @@ describe('the machine answer decides (Phase 109)', () => {
   });
 });
 
-describe('agentsGreyedByMachine (Phase 109)', () => {
-  const view: import('@shared/ipc').MachineAgentsView = {
-    machineId: 'studio',
-    askedAt: 1,
-    agents: [{ agentId: 'claude', presence: 'absent', path: null }]
-  };
-
-  it('is true when that machine greyed at least one tile', () => {
-    const options = buildAgentOptions(null, BOTH, view);
-    expect(agentsGreyedByMachine(options, view)).toBe(true);
-  });
-
-  it('is false for this Mac even with a tile greyed by the local probe', () => {
-    const options = buildAgentOptions(null, { claude: false, codex: true });
-    expect(options.find((o) => o.id === 'claude')?.installed).toBe(false);
-    expect(agentsGreyedByMachine(options, null)).toBe(false);
-  });
-
-  it('is false when the answer greyed nothing', () => {
-    const allOn: import('@shared/ipc').MachineAgentsView = {
-      machineId: 'studio',
-      askedAt: null,
-      agents: []
-    };
-    expect(agentsGreyedByMachine(buildAgentOptions(null, BOTH, allOn), allOn)).toBe(
-      false
-    );
-  });
-});
+// PHASE 235 DELETED `agentsGreyedByMachine` and the three cases that were
+// here. Its only job was to decide whether to draw one sentence under the
+// agent board on a machine tab, and that sentence came off the resting face:
+// a remote board carried a standing line a local board does not, and the
+// greyed tile is already the answer. The absence is pinned by
+// ../../machines/__tests__/p228-off-the-face.test.ts.

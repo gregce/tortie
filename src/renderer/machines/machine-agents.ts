@@ -13,11 +13,18 @@
 // command Tortie holds was read for this Mac, and handing it over for another
 // machine would put an unverified claim about that machine's package manager
 // on screen. The sentence says where installing happens instead.
-
-/** Under the agent board, only when at least one tile is greyed by that machine's answer. */
-export function agentsAbsentHint(label: string): string {
-  return `A greyed agent was not found on ${label} when Tortie asked.`;
-}
+//
+// PHASE 235 TOOK `agentsAbsentHint` OFF THE RESTING FACE. It read "A greyed
+// agent was not found on <machine> when Tortie asked." and it was drawn under
+// the board on a machine tab and nowhere else, so a remote board carried one
+// standing line a local board does not. Every fact in it is already on the
+// tiles: a greyed tile IS the answer, its accessible name is
+// `agentNotOnMachineAria` and a click pins `agentMissingOnMachine`, which says
+// the same thing about the one agent the person actually asked about. That is
+// the *just enough words* rule, being that explanation a person might want
+// lives behind hover or a click and not on the resting face, and it is the
+// operator's rule of 2026-09-07. ../__tests__/p228-off-the-face.test.ts keeps
+// it off.
 
 /** The greyed tile's aria label on a machine tab. */
 export function agentNotOnMachineAria(agent: string, label: string): string {

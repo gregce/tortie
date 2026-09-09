@@ -69,7 +69,6 @@ import {
 import { DIR_PICKER_OPEN } from '../machines/dir-picker';
 import {
   agentNotOnMachineTitle,
-  agentsAbsentHint,
   askMachineAgainLabel
 } from '../machines/machine-agents';
 import {
@@ -95,7 +94,6 @@ import {
 import {
   agentBlockedReason,
   agentShortLabel,
-  agentsGreyedByMachine,
   buildAgentOptions,
   defaultAgentChoice,
   INSTALL_NOTE_LINE,
@@ -1187,15 +1185,9 @@ export function CreateSessionModal(): React.JSX.Element | null {
               ? { machineLabel: sheetMachineLabel }
               : {})}
           />
-          {/* PHASE 109. Once under the board, only when that machine's own
-              answer greyed at least one tile, the MACHINE_NOT_SIGNED_IN_HINT
-              shape. An unknown answer draws no sentence because it greys no
-              tile. */}
-          {agentsGreyedByMachine(options, sheetMachineView) ? (
-            <p className="field-caption">
-              {agentsAbsentHint(sheetMachineLabel)}
-            </p>
-          ) : null}
+          {/* PHASE 235 TOOK THE LINE THAT SAT HERE OFF, for the reason
+              ../machines/machine-agents.ts gives: the greyed tile is the
+              answer and its caption says the rest. */}
           {reserveInstallRow ? (
             <>
               <div className="agent-missing" aria-live="polite">

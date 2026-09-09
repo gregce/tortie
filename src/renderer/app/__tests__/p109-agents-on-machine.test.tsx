@@ -39,7 +39,6 @@ import {
   agentMissingOnMachine,
   agentNotOnMachineAria,
   agentNotOnMachineTitle,
-  agentsAbsentHint,
   askMachineAgainLabel
 } from '../../machines/machine-agents';
 import { AgentGrid } from '../AgentGrid';
@@ -180,10 +179,11 @@ describe('a greyed tile on a machine tab', () => {
   });
 });
 
-describe('the sentence under the board', () => {
-  it('names the machine and only speaks of what was asked', () => {
-    expect(agentsAbsentHint('Studio')).toBe(
-      'A greyed agent was not found on Studio when Tortie asked.'
-    );
-  });
-});
+// PHASE 235 DELETED `agentsAbsentHint` and the case that was here. It read
+// "A greyed agent was not found on <machine> when Tortie asked." and it was
+// drawn under the board on a machine tab and nowhere else, so a remote board
+// carried one standing line a local board does not. Every fact in it is on the
+// tiles already: the greyed tile IS the answer, its accessible name is
+// `agentNotOnMachineAria` and a click pins `agentMissingOnMachine`, both of
+// which this file still pins above. The absence is pinned by
+// ../../machines/__tests__/p228-off-the-face.test.ts.

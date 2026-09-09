@@ -27,7 +27,6 @@ import { useApp } from '../state/store';
 // Phase 123: the two boot verbs are the lifecycle owner's, not the store's.
 import { retryBootApp } from '../state/subscriptions';
 import {
-  agentsGreyedByMachine,
   buildAgentOptions,
   defaultAgentChoice,
   INSTALL_NOTE_LINE,
@@ -39,7 +38,7 @@ import {
 // with NO install command, because the command Tortie holds was read for
 // this Mac.
 import { machineAgentsFor, machineLabelFor } from '../state/machines-slice';
-import { agentMissingOnMachine, agentsAbsentHint } from '../machines/machine-agents';
+import { agentMissingOnMachine } from '../machines/machine-agents';
 import { useSettingsStore } from '../settings/settings-store';
 import { cloneAction } from '../state/clone';
 // Phase 12.12 item 1: the fleet board is a shared component now — the ⌘T
@@ -302,13 +301,10 @@ export function NoSessions(): React.JSX.Element {
           {...(machineLabel !== null ? { machineLabel } : {})}
         />
 
-        {/* PHASE 109. Once under the board, only when that machine's own
-            answer greyed at least one tile. An unknown answer greys nothing
-            and says nothing. */}
-        {machineLabel !== null &&
-        agentsGreyedByMachine(options, machineView) ? (
-          <p className="onb-hint">{agentsAbsentHint(machineLabel)}</p>
-        ) : null}
+        {/* PHASE 235 TOOK THE LINE THAT SAT HERE OFF. `agentsAbsentHint` was
+            drawn under the board on a machine tab and nowhere else, so a
+            remote board carried one standing line a local board does not.
+            The greyed tile is the answer and its caption says the rest. */}
 
         <p className="onb-hint">
           Click one to start it in{' '}
