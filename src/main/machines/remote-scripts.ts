@@ -692,7 +692,7 @@ const STORE_COPY = [
  *     spellings differ between this Mac and the machines this is meant for. The
  *     probe records which one answered.
  *
- * ## The staged name, and the escape Phase 242.2 closed
+ * ## The TWO names, and the escapes Phase 242.2 closed
  *
  * This script's staged name is `$d/$1.part`, where `$d` is
  * `$HOME/.tortie/images`, a directory it makes itself at mode 700, and `$1` is
@@ -715,17 +715,47 @@ const STORE_COPY = [
  * out. Something did; Phase 242 corrected the paragraph into the reading above
  * and Phase 242.2 carries the fix.
  *
- * **The fix is the two lines `file-put` already carried**, and this paragraph
- * is the record of it rather than of a stated limit. It is still true that
- * `putImagesOnMachine` in `./remote-image.ts` never asks `confirmedWriteRoot`,
- * so image-put makes no containment promise for a link to BREAK, and that the
- * name is `remoteImageName(sessionId, sha256, ext)`, so anything planted at it
- * had to be predicted first. What is left, and what is closed, is a write
- * Tortie composes that would follow somebody else's name out of the one
- * directory Tortie told the person it uses.
+ * **THE PICTURE'S OWN NAME WAS THE OTHER HALF, and the first round of this
+ * phase left it open.** That round said the fix was the two lines `file-put`
+ * already carried, and `file-put` carries THREE guards rather than two: the
+ * unlink, the exclusive create, and `if [ -L "$f" ] || [ -L "$t" ]`. This
+ * script took the first two and not the third, and its verifier measured what
+ * that cost at HEAD, under `/bin/sh` and `/bin/dash` and again through
+ * `machines.putImage` against the operator's Mac Pro. A SYMBOLIC LINK at
+ * `$d/$1` pointing at a DIRECTORY made `mv "$t" "$f"` move the picture INTO
+ * that directory under the staged name's own basename, replacing a file
+ * already there, while the caller was told the picture had not arrived — a
+ * file outside destroyed and nothing said, which is the worst pairing there
+ * is. One pointing at a REGULAR FILE made `[ -f "$f" ]` read that file THROUGH
+ * the link, so the script answered `present` with a byte count and a digest
+ * taken from outside `$d`; main refused on the digest, so nothing landed, but
+ * a file outside had been read and reported.
  *
- * **Which clause holds which half**, measured in research 105 section 6 by
- * ablating each one alone over seven arms and two `base64` dialects:
+ * **So there are two names here and they get different answers.** The STAGED
+ * name is UNLINKED, because it is a name Tortie composed for itself and
+ * nothing that used to succeed may start refusing. The PICTURE'S OWN name is
+ * REFUSED with `file-put`'s word `outside`, because when it is a picture it is
+ * the person's own picture and cannot be unlinked. `parseImagePutAnswer` in
+ * `./remote-image.ts` accepts `added` and `present` and nothing else, so
+ * `outside` becomes the sentence a put that did not arrive already had: no new
+ * word crosses the channel and no sentence anywhere changes.
+ *
+ * It is still true that `putImagesOnMachine` never asks `confirmedWriteRoot`,
+ * so image-put makes no containment promise for a link to BREAK, and that the
+ * name is `remoteImageName(sessionId, sha256, ext)`, so anything planted at
+ * either name had to be predicted first. What is closed is a write Tortie
+ * composes that would follow somebody else's name out of the one directory
+ * Tortie told the person it uses.
+ *
+ * **THE STATED LIMIT is a HARD LINK at `$f`.** `[ -L ]` cannot see one, and
+ * there is nothing to unlink because that name IS the person's picture when it
+ * is one. It writes nothing: the `[ -f "$f" ]` arm answers `present` with that
+ * file's count and digest, and `putOneImage` compares both against what this
+ * Mac sent, so no path is handed back.
+ *
+ * **Which clause holds which half**, measured by ablating each one alone over
+ * the nine arms and two `base64` dialects of `build/conformance-machines.mjs`
+ * condition 88g:
  *
  *  - the FIRST `rm -f "$t"` is what stops both link kinds, because the planted
  *    name is then a NAME and never the file another name still holds. It is
@@ -738,12 +768,25 @@ const STORE_COPY = [
  *  - `set -C` closes the window between the unlink and the create, and it
  *    CANNOT be made red by any behavioural arm. It is held as text by
  *    `stagedUnlinkFacts(...).exclusive` in `build/conformance-machines.mjs`
- *    condition 88g, with a text ablation of its own, and that is said here so a
- *    later round does not read a green test suite as cover for removing it.
+ *    condition 88f, with a text ablation of its own in 88g, and that is said
+ *    here so a later round does not read a green test suite as cover for
+ *    removing it;
+ *  - a DANGLING link at the staged name is held by the PAIR of unlinks rather
+ *    than by either alone, and that is measured rather than tidied. With the
+ *    first gone, `set -C` refuses the first redirection, the `else` unlinks
+ *    and `-D` writes; with the second gone the first has already done it. Both
+ *    gone and the arm goes red, and at the parent it answered `added` while
+ *    CREATING the file it named outside `$d` and leaving a link under the
+ *    picture's name;
+ *  - the `[ -L "$f" ]` refusal is what stops the picture being moved into a
+ *    directory somebody else named and stops a file outside being read for the
+ *    count and the digest. Both of its arms are behavioural and both are in
+ *    condition 88g and in `p2422-image-staged-name.test.ts`.
  *
- * Nothing that used to succeed now refuses: every arm answers `added` with the
- * picture in place, ordinary debris and both dialects included, so no new
- * sentence is drawn anywhere and no new refusal crosses the channel.
+ * Nothing that used to succeed now refuses: every arm that landed a picture
+ * still answers `added` with the picture in place, ordinary debris, a dangling
+ * link and both dialects included. The only new answer is `outside`, and it is
+ * given only where the parent gave a person's own file away.
  */
 const IMAGE_PUT = [
   'set -e',
@@ -751,6 +794,31 @@ const IMAGE_PUT = [
   'd="$HOME/.tortie/images"',
   'if [ ! -d "$d" ]; then mkdir -p "$d"; chmod 700 "$d"; fi',
   'f="$d/$1"',
+  // PHASE 242.2 FIX ROUND. THE OTHER NAME `file-put` GUARDS, and the half
+  // the first round left out. The unlink below stands in front of the
+  // redirection and so protects the STAGED name; NOTHING PROTECTED THE
+  // FINAL ONE. Measured under `/bin/sh` and `/bin/dash` over real links on
+  // real disks, and through Tortie's own `machines.putImage` against the
+  // operator's Mac Pro: a SYMBOLIC LINK at `$d/$1` pointing at a DIRECTORY
+  // made `mv "$t" "$f"` move the picture INTO that directory under the
+  // staged name's own basename, replacing a file already there, while this
+  // script answered `added` with the payload's byte count and sha256; and
+  // one pointing at a REGULAR FILE made `[ -f "$f" ]` read that file
+  // THROUGH the link, so the script answered `present` with a byte count
+  // and a digest taken from a file outside `$d`. `file-put` carries exactly
+  // this test at its own `$f`, and its comment gives the same reason.
+  //
+  // `outside` is `file-put`'s word and no new word crosses the channel:
+  // `parseImagePutAnswer` in `./remote-image.ts` accepts `added` and
+  // `present` and nothing else, so this answer becomes the sentence a put
+  // that did not arrive already had. A HARD LINK at `$f` is invisible to
+  // `[ -L ]` and is the stated limit; it writes nothing, because the
+  // `[ -f "$f" ]` arm answers `present` and the digest this Mac computed
+  // will not match the one it is handed, so no path is handed back.
+  'if [ -L "$f" ]; then',
+  "  printf '__TORTIE_RUN__outside none none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
   'if [ -f "$f" ]; then',
   '  s=present',
   'else',
@@ -769,12 +837,14 @@ const IMAGE_PUT = [
   // name and nothing else. It removes exactly one name Tortie composed for
   // itself, never `$f`, never anything a person named.
   //
-  // Both link kinds get the SAME answer here, and that is the one difference
-  // from `file-put`. That verb refuses a symbolic link at its staged name with
-  // the word `outside`, because it has a confirmed folder and a link naming a
-  // path out of it is plainly wrong. This one has no confirmed folder, so
-  // there is nothing for it to be outside OF; the planted name is unlinked,
-  // the picture lands, and the file outside is untouched.
+  // Both link kinds get the SAME answer at THIS name, and that is the one
+  // difference from `file-put`. That verb refuses a symbolic link at its
+  // staged name with the word `outside` as well as at `$f`, because it has a
+  // confirmed folder and a link naming a path out of it is plainly wrong
+  // wherever it stands. This name is one Tortie composed for itself and
+  // nothing that used to succeed may start refusing, so the planted name is
+  // unlinked, the picture lands, and the file outside is untouched. THE
+  // PICTURE'S OWN NAME, above, is the one that refuses.
   '  rm -f "$t"',
   '  set -C',
   '  if printf \'%s\' "$2" | base64 -d > "$t" 2>/dev/null; then',

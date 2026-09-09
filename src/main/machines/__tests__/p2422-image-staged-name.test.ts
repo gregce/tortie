@@ -32,16 +32,31 @@
  * is a write Tortie composes that follows somebody else's name OUT of the one
  * directory Tortie told the person it uses, while answering `added`.
  *
- * ## The two answers, and why they are the same word here
+ * ## THE TWO NAMES, AND WHY THEY GET DIFFERENT ANSWERS
  *
- * `file-put` refuses a SYMBOLIC link at its staged name with the word
- * `outside`, because that verb has a confirmed folder and a link naming a path
- * out of it is plainly wrong. `image-put` has no confirmed folder, so there is
- * nothing for it to be outside OF, and it has no `-L` test to add one. Both
- * link kinds are therefore UNLINKED and the save goes through: the answer stays
- * `added`, the picture lands in `~/.tortie/images`, and the file outside is
- * untouched, which is the property that matters and the one every arm below
- * reads on both sides.
+ * There are two names here and they are guarded differently, which the first
+ * round of this phase got half right.
+ *
+ * The STAGED name, `$d/$1.part`, is UNLINKED. Both link kinds are removed and
+ * the save goes through: the answer stays `added`, the picture lands in
+ * `~/.tortie/images`, and the file outside is untouched. Nothing that used to
+ * succeed refuses.
+ *
+ * The FINAL name, `$d/$1`, is REFUSED when it is a symbolic link, with
+ * `file-put`'s own word `outside`. The first round left it unguarded and this
+ * round's verifier measured what that cost, at HEAD, through
+ * `machines.putImage` against the operator's Mac Pro: a link there pointing at
+ * a DIRECTORY made `mv "$t" "$f"` move the picture INTO that directory under
+ * the staged name's own basename, replacing a file already there, and one
+ * pointing at a REGULAR FILE made `[ -f "$f" ]` read that file THROUGH the
+ * link, so the script answered `present` with a byte count and a digest taken
+ * from outside `$d`. It cannot be unlinked the way the staged name is, because
+ * `$f` is the person's own picture when it is a picture, so the answer is a
+ * refusal. `parseImagePutAnswer` accepts `added` and `present` and nothing
+ * else, so `outside` becomes the sentence a put that did not arrive already
+ * had and no new word crosses the channel. A HARD LINK at `$f` is invisible to
+ * `[ -L ]` and is the stated limit; it writes nothing, because that arm
+ * answers `present` and the digest will not match.
  *
  * ## Which clause holds which half, measured rather than assumed
  *
@@ -59,8 +74,20 @@
  *  - `set -C` CANNOT be made red by any behavioural arm, because with the first
  *    unlink in place the only thing it adds is refusing a name re-planted in
  *    the microseconds between the unlink and the create. It is held as TEXT by
- *    `stagedUnlinkFacts(...).exclusive` in condition 88g, with a text ablation
- *    of its own, and this file says so rather than pretending to cover it.
+ *    `stagedUnlinkFacts(...).exclusive` in condition 88f, with a text ablation
+ *    of its own in 88g, and this file says so rather than pretending to cover
+ *    it;
+ *  - the DANGLING link arm is held by the PAIR of unlinks rather than by
+ *    either alone, and that is said rather than tidied away. Take the first
+ *    out and `set -C` refuses the first redirection, the `else` unlinks and
+ *    `-D` writes; take the second out and the first has already done it; take
+ *    both out and the arm goes red. It is here because at the parent it
+ *    answered `added` while CREATING the file it named outside
+ *    `~/.tortie/images` and leaving a link under the picture's name, and
+ *    neither this file nor condition 88g drove that shape when the fix first
+ *    landed;
+ *  - the `[ -L "$f" ]` refusal holds both arms of the last describe below, and
+ *    each of them is red on its own when it is taken out.
  *
  * ## What it cannot show
  *
@@ -78,6 +105,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -212,6 +240,56 @@ describe('a name planted at the picture\'s staged path is a name and never the f
     expect(after.nlink).toBe(1);
     expect(statSync(join(images, NAME)).ino).not.toBe(after.ino);
     expect(readFileSync(join(images, NAME))).toEqual(PNG);
+  });
+
+  it('a DANGLING symbolic link at the staged name creates nothing outside', () => {
+    // The shape neither this file nor condition 88g drove when the fix first
+    // landed. At the parent the redirection followed it, CREATED the file it
+    // named outside `~/.tortie/images`, and the `mv` then put the link itself
+    // under the picture's name, so the answer was `added` and what landed was
+    // a link to somewhere else. The same `rm -f "$t"` closes it, and this arm
+    // is what stops a later narrowing of that unlink passing.
+    const ghost = join(outside, 'not-there-yet.txt');
+    symlinkSync(ghost, staged);
+    const said = run();
+    expect(said.word).toBe('added');
+    expect(existsSync(ghost)).toBe(false);
+    expect(lstatSync(join(images, NAME)).isSymbolicLink()).toBe(false);
+    expect(readFileSync(join(images, NAME))).toEqual(PNG);
+  });
+});
+
+describe("a symbolic link at the picture's own name is refused rather than followed", () => {
+  it('a link to a DIRECTORY does not put the picture in that directory', () => {
+    // At HEAD of the first round this answered `added` and the picture landed
+    // in `outdir` under the staged name's basename, replacing what was there.
+    const outdir = join(outside, 'outdir');
+    mkdirSync(outdir, { recursive: true });
+    const mine = join(outdir, `${NAME}.part`);
+    writeFileSync(mine, 'his own file\n', 'utf8');
+    symlinkSync(outdir, join(images, NAME));
+    const said = run();
+    expect(said.word).toBe('outside');
+    // No new word crosses the channel: the door refuses this answer whole and
+    // hands the caller the sentence it already had for a picture that did not
+    // arrive.
+    expect(said.answer).toBeNull();
+    expect(readFileSync(mine, 'utf8')).toBe('his own file\n');
+    expect(readdirSync(outdir)).toEqual([`${NAME}.part`]);
+    expect(existsSync(staged)).toBe(false);
+  });
+
+  it('a link to a REGULAR FILE is not read through for the byte count and digest', () => {
+    // At HEAD of the first round `[ -f "$f" ]` followed this and answered
+    // `present` with the OUTSIDE file's size and sha256. Main refused on the
+    // digest, so nothing landed, but the script had read a file outside `$d`
+    // and reported it.
+    symlinkSync(victim, join(images, NAME));
+    const said = run();
+    expect(said.word).toBe('outside');
+    expect(said.answer).toBeNull();
+    expect(readFileSync(victim, 'utf8')).toBe('victim, untouched\n');
+    expect(lstatSync(join(images, NAME)).isSymbolicLink()).toBe(true);
   });
 });
 
