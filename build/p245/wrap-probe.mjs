@@ -33,7 +33,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { installDomShim } from './dom-shim.mjs';
@@ -195,6 +195,42 @@ try {
 
   const aFirst = a?.first ?? null;
   const term = A.term;
+
+  // -- THE LAST DOOR: what does a SELECTION recover? -----------------------
+  //
+  // A link provider is not the only gesture available. A person can SELECT the
+  // path and act on it through the terminal's own context menu, and a
+  // selection is the one span the PERSON defines rather than the buffer, so it
+  // looked like the way around shape C. It is not, and the reason is in the
+  // shipping bundle: xterm's own selection text builder joins two rows into
+  // ONE string only when the second is `isWrapped`, and pushes a new element
+  // otherwise, which the builder then joins with a line break. That is the
+  // SAME flag the link machinery asks for, so a selection across a
+  // program-wrapped or scrolled-back path recovers a string with a newline —
+  // and, in a Codex pane, the program's gutter — buried inside the path.
+  //
+  // It is read out of the bundle rather than driven, because `getSelection()`
+  // needs a terminal that has been `open()`ed against a real document and this
+  // probe is headless by design. The headless answer is asserted too, so a
+  // later reader cannot mistake an empty string for a measurement.
+  const XTERM_JS = join(REPO, 'node_modules', '@xterm', 'xterm', 'lib', 'xterm.js');
+  const bundle = readFileSync(XTERM_JS, 'utf8');
+  const JOINS_BY_WRAP = /isWrapped\?\s*(\w+)\[\1\.length-1\]\s*\+=\s*\w+\s*:\s*\1\.push\(/;
+  note(
+    "xterm's own SELECTION joins rows by the SAME isWrapped flag, so selecting is no way round shape B or shape C",
+    JOINS_BY_WRAP.test(bundle),
+    JOINS_BY_WRAP.test(bundle)
+      ? 'the selection text builder appends to the previous row when isWrapped and pushes a new element otherwise, and the elements are joined with a line break'
+      : 'the construct was not found — the bundle has changed and this reading must be re-derived'
+  );
+  const headlessSel = (() => {
+    try { A.term.selectLines(0, 1); return A.term.getSelection(); } catch { return null; }
+  })();
+  note(
+    'and the live selection cannot be driven headlessly, so the reading above is a source reading and is labelled as one',
+    headlessSel === '' || headlessSel === null,
+    `a headless Terminal answers getSelection() = ${JSON.stringify(headlessSel)} because the selection service needs a terminal that has been open()ed`
+  );
 
   // -- what the shipping addon does with each ------------------------------
   const { WebLinksAddon } = await import(join(REPO, 'node_modules', '@xterm', 'addon-web-links', 'lib', 'addon-web-links.mjs'));

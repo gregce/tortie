@@ -33,6 +33,7 @@
 import { execFileSync } from 'node:child_process';
 import { lstatSync } from 'node:fs';
 import { extname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const TAG = '[p245]';
 const say = (l) => console.log(`${TAG} ${l}`);
@@ -169,11 +170,19 @@ function selfTest() {
   return bad === 0 ? 0 : 1;
 }
 
-if (process.argv.includes('--self-test')) process.exit(selfTest());
-
 // ---------------------------------------------------------------------------
 // The corpus. LIST and CAPTURE only.
+//
+// Guarded so the detectors above can be IMPORTED without a capture running as
+// a side effect (build/p245/root-cost.mjs imports them). Running this file
+// directly behaves exactly as it did when the numbers in research 107 sections
+// 1 to 4 were taken; nothing above this line changed.
 // ---------------------------------------------------------------------------
+const RUN_DIRECTLY =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+if (RUN_DIRECTLY && process.argv.includes('--self-test')) process.exit(selfTest());
+if (RUN_DIRECTLY) {
 const SOCKET = 'gmux';
 const tmux = (...a) => execFileSync('tmux', ['-L', SOCKET, ...a], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 
@@ -271,3 +280,4 @@ const B = sum('b'), OFF = sum('offered'), CONT = sum('endOfRowContinues');
 say(`detector B judged ${String(B)} tokens path-shaped; the conservative policy offers ${String(OFF)} of them (${(100 * OFF / B).toFixed(1)}%)`);
 say(`of the offered spans, ${String(CONT)} (${(100 * CONT / OFF).toFixed(1)}%) end at a row boundary the next row continues, so the span is a PREFIX of the real reference`);
 say(`absolute candidates that are not there: ${String(sum('missing'))} of ${String(sum('abs'))} (${(100 * sum('missing') / sum('abs')).toFixed(1)}%)`);
+}
