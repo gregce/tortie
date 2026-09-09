@@ -366,11 +366,14 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
+
+import { callArguments, lineAt, stripComments } from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
 
 const probe = spawnSync(
@@ -8521,6 +8524,214 @@ process.stdout.write(
         }
       }
     }
+
+    // 88l. PHASE 242.1'S FIX ROUND. EVERY CALLER SENDS THE NUMBER OF VALUES
+    //      THE CATALOGUE DECLARES, and this rule exists because this phase
+    //      broke a check by moving an arity and nothing said so.
+    //
+    //      `runRemoteScript` counts arguments at STEP 3 of the door, ABOVE the
+    //      connected-only refusal at step 4. So a call site left behind by an
+    //      arity change does not merely fail, it fails for the WRONG REASON:
+    //      `npm run smoke:remote`'s arm 10k, which exists to prove that a write
+    //      to a machine that is not answering is refused before anything is
+    //      composed, read back `remote script "git-commit" reads 5 value(s) and
+    //      was given 3` and never reached the refusal it was written for. Its
+    //      sibling arm one screen above it, which proves the read-door refusal
+    //      at step 2, kept passing for the same stale list, because step 2
+    //      happens to fire first. A rule that only ran the smoke would have
+    //      caught the first and not the second.
+    //
+    //      WHAT IT READS is every `.ts`, `.tsx`, `.mjs` and `.mts` under `src`
+    //      and `build` whose text calls either door with a LITERAL script id
+    //      and a LITERAL array of values. Comments are stripped first, because
+    //      a comma inside a comment inside the array reads as another value and
+    //      three production call sites carry one. A call whose id or list is
+    //      computed is skipped and cannot be read here; the two probes that
+    //      compose their lists at run time, `build/probe-p103-stage.mjs` and
+    //      `build/probe-p104-commit.mjs`, assert the same thing against the
+    //      catalogue inside their own `send`, which is where that shape has to
+    //      be caught.
+    //
+    //      THE POPULATION IS FLOORED for the reason `gate:electron`'s is: a set
+    //      derived by the same reader that checks it cannot disagree with
+    //      itself, so the number of sites this rule can READ is asserted not to
+    //      shrink. Adding a call site raises the floor in the same commit;
+    //      deleting one deliberately lowers it and names the file.
+    //
+    //      TWO EXEMPTIONS, both named rather than pattern matched.
+    //      `src/main/machines/__tests__/remote-run.test.ts` is the door's own
+    //      unit test and ONE of its arms hands `store-head` one value ON
+    //      PURPOSE, to prove step 3 fires at all. Its other sites are read like
+    //      anybody's, and the count of deliberate ones is pinned at one, so the
+    //      exemption cannot quietly grow. And this file itself is skipped,
+    //      because the planted texts below are deliberately wrong call sites
+    //      written as string literals; the plants are what proves the reader
+    //      instead.
+    const ARITY_ROOTS = ['src', 'build'];
+    const ARITY_DOOR_TEST = 'src/main/machines/__tests__/remote-run.test.ts';
+    const ARITY_SELF = 'build/conformance-machines.mjs';
+    /** Measured on 2026-09-09. See the paragraph above before changing it. */
+    const ARITY_SITE_FLOOR = 60;
+    /** The one arm of the door's own test that is wrong on purpose. */
+    const ARITY_DELIBERATE = 1;
+
+    const paramsOf = new Map(
+      scripts.map((row) => [row.id, row.params])
+    );
+    if (paramsOf.size === 0) {
+      fail(
+        'condition 88l has no catalogue to compare a caller against, so it is ' +
+          'checking nothing at all.'
+      );
+    }
+
+    /**
+     * Every door call in one file's text that names a literal script and hands
+     * it a literal list. `{ id, count, line }` per site, and nothing else.
+     */
+    const arityCallsIn = (code) => {
+      const found = [];
+      const re = /\b(runRemoteRead|runRemoteWrite)\s*\(/g;
+      let at;
+      while ((at = re.exec(code)) !== null) {
+        const open = at.index + at[0].length - 1;
+        const parts = callArguments(code, open);
+        const named = /^'([a-z0-9-]+)'$/.exec(parts[1] ?? '');
+        if (named === null) continue;
+        const list = parts[2] ?? '';
+        if (!list.startsWith('[') || !list.endsWith(']')) continue;
+        const inner = callArguments(list, 0);
+        if (inner.some((one) => one.startsWith('...'))) continue;
+        const values = inner.length === 1 && inner[0] === '' ? [] : inner;
+        found.push({
+          id: named[1],
+          count: values.length,
+          line: lineAt(code, at.index)
+        });
+      }
+      return found;
+    };
+
+    const arityFiles = [];
+    const walkForArity = (at) => {
+      let names;
+      try {
+        names = readdirSync(at);
+      } catch {
+        return;
+      }
+      for (const name of names) {
+        if (name === 'node_modules' || name === '.git') continue;
+        const path = join(at, name);
+        let stat;
+        try {
+          stat = statSync(path);
+        } catch {
+          continue;
+        }
+        if (stat.isDirectory()) {
+          walkForArity(path);
+          continue;
+        }
+        if (/\.(ts|tsx|mjs|mts)$/.test(name)) arityFiles.push(path);
+      }
+    };
+    for (const one of ARITY_ROOTS) walkForArity(join(process.cwd(), one));
+
+    let arityRead = 0;
+    let arityDeliberate = 0;
+    for (const path of arityFiles) {
+      const where = relative(process.cwd(), path);
+      if (where === ARITY_SELF) continue;
+      let code;
+      try {
+        code = stripComments(readFileSync(path, 'utf8'));
+      } catch {
+        continue;
+      }
+      for (const site of arityCallsIn(code)) {
+        const wanted = paramsOf.get(site.id);
+        // A name nobody wrote down is step 1 of the door and condition 82's
+        // business, not this rule's.
+        if (typeof wanted !== 'number') continue;
+        arityRead += 1;
+        if (site.count === wanted) continue;
+        if (where === ARITY_DOOR_TEST) {
+          arityDeliberate += 1;
+          continue;
+        }
+        fail(
+          `${where}:${String(site.line)} hands ${site.id} ` +
+            `${String(site.count)} value(s) and the catalogue declares ` +
+            `${String(wanted)}. The door counts arguments at step 3, above the ` +
+            'connected-only refusal at step 4, so this call reads back the ' +
+            'wrong refusal rather than the one it was written for.'
+        );
+      }
+    }
+    if (arityRead < ARITY_SITE_FLOOR) {
+      fail(
+        `condition 88l could read ${String(arityRead)} call site(s) against a ` +
+          `floor of ${String(ARITY_SITE_FLOOR)}. A site that stopped being ` +
+          'readable is a site this rule no longer covers, so a deliberate ' +
+          'deletion lowers the floor in the same commit and names the file.'
+      );
+    }
+    if (arityDeliberate !== ARITY_DELIBERATE) {
+      fail(
+        `${ARITY_DOOR_TEST} holds ${String(arityDeliberate)} call site(s) ` +
+          `whose count is wrong on purpose and exactly ` +
+          `${String(ARITY_DELIBERATE)} is the arm that proves step 3 fires. ` +
+          'Every other site in that file is read like anybody\'s.'
+      );
+    }
+
+    // 88l's own proof. Four planted texts through the same reader, three of
+    // which must be read as a mismatch and one as a call this rule cannot see.
+    // The first is the exact shape that shipped broken.
+    const arityPlants = [
+      {
+        why: 'the shape that shipped broken, three values into a five value script',
+        text:
+          "runRemoteWrite(ctx, 'git-commit', ['/nowhere/p104', 'none', 'msg'])",
+        expect: (sites) =>
+          sites.length === 1 && sites[0].id === 'git-commit' && sites[0].count === 3
+      },
+      {
+        why: 'a comma inside a comment inside the list, which three real sites carry',
+        text:
+          "runRemoteRead(ctx, 'repo-files', [\n  input.cwd,\n  // the cap, plus one\n  String(cap + 1)\n])",
+        expect: (sites) => sites.length === 1 && sites[0].count === 2
+      },
+      {
+        why: 'a spread in the list, which this rule cannot count and must skip',
+        text: "runRemoteWrite(ctx, 'git-stage', [repo, list, ...under(repo)])",
+        expect: (sites) => sites.length === 0
+      },
+      {
+        why: 'a computed id, which this rule cannot resolve and must skip',
+        text: "runRemoteWrite(ctx, SCRIPT_OF[verb], [repo, list, root, rel])",
+        expect: (sites) => sites.length === 0
+      }
+    ];
+    for (const plant of arityPlants) {
+      const sites = arityCallsIn(stripComments(plant.text));
+      if (!plant.expect(sites)) {
+        fail(
+          `condition 88l's reader got "${plant.why}" wrong. It read ` +
+            `${JSON.stringify(sites)}.`
+        );
+      }
+    }
+
+    process.stdout.write(
+      `\nevery caller sends what the catalogue declares (88l):\n` +
+        `  ${String(arityRead)} literal call site(s) read against a floor of ` +
+        `${String(ARITY_SITE_FLOOR)}, of which ${String(arityDeliberate)} is ` +
+        `the door's own test arm that is wrong on purpose\n` +
+        `  ${String(arityPlants.length)} planted call sites behaved, three of ` +
+        `them shapes this rule must skip or must count exactly\n`
+    );
 
     // 88e. THE PROOF THAT EVERY RULE ABOVE CAN FAIL. Six planted texts, each
     //      one real script with exactly one clause taken out or moved, run
