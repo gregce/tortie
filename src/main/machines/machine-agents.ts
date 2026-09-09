@@ -322,30 +322,88 @@ export function parseAgentsFind(
 /**
  * The held answer for one machine, as the shared view type.
  *
- * Presence is `unknown` for every launchable agent when nothing is held, and
- * when the held answer belongs to an older generation, because an answer from
- * a connection Tortie no longer has is not an answer about the machine it has
- * now.
+ * Presence is `unknown` for every launchable agent when nothing is held at
+ * all, because Tortie has never asked that machine anything.
+ *
+ * ## PHASE 235, ITEM 5. AN ANSWER FROM A CONNECTION THAT IS GONE IS STALE,
+ * ## NOT ABSENT, AND IT NEVER GETS MORE OPTIMISTIC
+ *
+ * Until this phase a held answer whose generation had moved was dropped whole,
+ * so every reading went to `unknown` and `unknown` draws a tile ON. The effect
+ * is that the board GAINED options at the moment the machine got worse.
+ * Measured at 1bbcd7c1 on his Mac Pro over one profile: connected, the grid
+ * drew 13 tiles with 9 unavailable, each reading "<agent>, not on Greg's Mac
+ * Pro", over an answer of 3 present and 9 absent; with the machine's sign in
+ * never succeeding, the same 13 tiles were drawn with 0 unavailable and every
+ * one reading "Start <agent>", over twelve `unknown`. The Phase 109 fix round
+ * measured the same shape from the other side and called it healing: after a
+ * failed Prepare, main answered 11 unknown and 0 absent where the connection
+ * that had just died had said 9 were not there.
+ *
+ * The charter's ruling is that a disconnected board offers what was LAST
+ * KNOWN, or nothing, never more. So a stale answer contributes its `absent`
+ * readings and NOTHING ELSE:
+ *
+ *  - a stale `absent` is kept, because it is the last thing that machine said
+ *    and keeping it is what stops the board growing;
+ *  - a stale `present` becomes `unknown` and its path is dropped, because a
+ *    path from a connection that is gone is not a path on the machine Tortie
+ *    has now, and `unknown` draws a tile on exactly as `present` does, so
+ *    nothing a person can see is lost by refusing to state it;
+ *  - nothing held at all is still every agent `unknown`, because there is no
+ *    last known to offer and research 58's rule stands: only a POSITIVE
+ *    `absent` may grey a tile, and a machine nobody has asked has said no such
+ *    thing.
+ *
+ * `askedAt` is carried from a stale answer too, because that machine really
+ * did answer at that moment, and Settings' own agents card already says every
+ * state but "never answered" keeps its rows.
+ *
+ * The generation bump still NOTIFIES, which is the Phase 109 fix round's own
+ * line and its reason is unchanged: `present` becoming `unknown` is a real
+ * change and the renderer is told the moment it happens.
+ *
+ * WHAT THIS DOES NOT DO. A fold back through {@link noteMachineAgent} after a
+ * reconnect still starts a fresh record holding the one name it learned, so
+ * the last known set goes at that point. That machine is CONNECTED and Tortie
+ * is talking to it, which is the ordinary case research 58's optimism is for,
+ * and it is not the disconnected board this item is about.
  */
 export function machineAgentsView(machineId: string): MachineAgentsView {
   const row = held.get(machineId);
   const current = machineGeneration(machineId).generation;
   const live = row !== undefined && row.generation === current ? row : null;
+  /**
+   * The answer a connection that is gone left behind, or null.
+   *
+   * A generation of ZERO is not a connection that went, it is a machine with
+   * no runtime record at all: one nobody has signed in to in this run, and one
+   * whose record a REMOVAL reset. A removed machine must leave nothing behind,
+   * so there is no last known to offer for either.
+   */
+  const stale = live === null && current !== 0 ? (row ?? null) : null;
   const agents: MachineAgentReading[] = [];
   for (const entry of currentAgentTable()) {
     if (!entry.launchable || entry.launch === null) continue;
     const name = entry.launch.argv[0] ?? '';
-    const reading =
-      name.length === 0 || name.startsWith('/')
-        ? undefined
-        : live?.byName.get(name);
+    const askable = name.length > 0 && !name.startsWith('/');
+    const reading = askable ? live?.byName.get(name) : undefined;
+    // The last known, and only when it was an absence.
+    const lastKnown =
+      askable && stale?.byName.get(name)?.presence === 'absent'
+        ? 'absent'
+        : undefined;
     agents.push({
       agentId: entry.id,
-      presence: reading?.presence ?? 'unknown',
+      presence: reading?.presence ?? lastKnown ?? 'unknown',
       path: reading?.presence === 'present' ? reading.path : null
     });
   }
-  return { machineId, askedAt: live?.askedAt ?? null, agents };
+  return {
+    machineId,
+    askedAt: live?.askedAt ?? stale?.askedAt ?? null,
+    agents
+  };
 }
 
 /** One view per machine in the file. A removed machine never appears. */

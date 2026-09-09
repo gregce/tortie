@@ -480,17 +480,64 @@ describe('noteMachineAgent', () => {
 });
 
 describe('the generation rule on the held answer', () => {
-  it('reads a held answer as unknown once the generation moved', async () => {
+  /**
+   * PHASE 235, ITEM 5 REWROTE THIS CASE, and the rewrite is the finding.
+   *
+   * It read that EVERY reading goes to `unknown` once the generation moved,
+   * and `unknown` draws a tile ON, so the board GAINED options at the moment
+   * the machine got worse: measured on his Mac Pro, 9 of 13 tiles unavailable
+   * connected against 0 of 13 with no sign in. A disconnected board offers
+   * what was last known, or nothing, never more. So the stale `present` still
+   * goes, with its path, and the stale `absent` stays.
+   */
+  it('keeps a stale absence and drops a stale presence once the generation moved', async () => {
+    seam.payloads = ['path claude /usr/local/bin/claude\nnone codex none\n'];
+    await scanMachineAgents('m1');
+    const live = new Map(
+      machineAgentsView('m1').agents.map((one) => [one.agentId, one])
+    );
+    expect(live.get('claude')?.presence).toBe('present');
+    expect(live.get('codex')?.presence).toBe('absent');
+    const askedAt = machineAgentsView('m1').askedAt;
+
+    seam.generation += 1;
+    const stale = machineAgentsView('m1');
+    const byId = new Map(stale.agents.map((one) => [one.agentId, one]));
+    expect(byId.get('claude')?.presence).toBe('unknown');
+    expect(byId.get('claude')?.path).toBeNull();
+    expect(byId.get('codex')?.presence).toBe('absent');
+    // Never MORE: no agent the live answer refused is offered now.
+    expect(stale.agents.filter((one) => one.presence === 'absent').length)
+      .toBeGreaterThanOrEqual(
+        [...live.values()].filter((one) => one.presence === 'absent').length
+      );
+    // That machine really did answer at that moment, so the clock stands.
+    expect(stale.askedAt).toBe(askedAt);
+  });
+
+  it('reads a machine nobody has asked as unknown, with no clock', () => {
+    const view = machineAgentsView('never-asked');
+    for (const one of view.agents) expect(one.presence).toBe('unknown');
+    expect(view.askedAt).toBeNull();
+  });
+
+  /**
+   * PHASE 235, item 5. A generation of ZERO is not a connection that went, it
+   * is a machine with no runtime record at all — one nobody signed in to, and
+   * one whose record a REMOVAL reset. A removed machine leaves nothing behind,
+   * which is what `./ipc.test.ts` asks of the whole removal path.
+   */
+  it('offers no last known for a machine whose runtime record is gone', async () => {
     seam.payloads = ['path claude /usr/local/bin/claude\nnone codex none\n'];
     await scanMachineAgents('m1');
     expect(
-      machineAgentsView('m1').agents.find((one) => one.agentId === 'claude')
+      machineAgentsView('m1').agents.find((one) => one.agentId === 'codex')
         ?.presence
-    ).toBe('present');
-    seam.generation += 1;
-    const stale = machineAgentsView('m1');
-    for (const one of stale.agents) expect(one.presence).toBe('unknown');
-    expect(stale.askedAt).toBeNull();
+    ).toBe('absent');
+    seam.generation = 0;
+    const gone = machineAgentsView('m1');
+    for (const one of gone.agents) expect(one.presence).toBe('unknown');
+    expect(gone.askedAt).toBeNull();
   });
 
   it('pushes a change on the bump itself, so an open sheet drops the dead answer', () => {
