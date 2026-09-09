@@ -8039,18 +8039,31 @@ process.stdout.write(
      * time, and the `-L` test refuses by printing a word and leaving rather
      * than by falling through.
      */
-    const walkFor = (text, value) => {
+    const walkFor = (text, value, root = '$1', last = 'skip') => {
       const lines = text.split('\n');
       const at = lines.findIndex((line) => line === `lr="${value}"`);
       if (at < 0) return null;
       const body = lines.slice(at, at + 10).join('\n');
       return {
         at,
-        fromRoot: lines[at + 1] === 'lp="$1"',
+        fromRoot: lines[at + 1] === `lp="${root}"`,
         climbs:
-          body.includes('while [ "$lr" != "${lr#*/}" ]; do') &&
-          body.includes('lp="$lp/${lr%%/*}"') &&
-          body.includes('lr="${lr#*/}"'),
+          last === 'walk'
+            ? body.includes('while [ -n "$lr" ]; do') &&
+              body.includes('lp="$lp/${lr%%/*}"') &&
+              body.includes('case "$lr" in */*) lr="${lr#*/}";; *) lr=;; esac')
+            : body.includes('while [ "$lr" != "${lr#*/}" ]; do') &&
+              body.includes('lp="$lp/${lr%%/*}"') &&
+              body.includes('lr="${lr#*/}"'),
+        // The LAST component. `skip` leaves it to each script, which is Phase
+        // 242's ruling and condition 88c and 88d read what each one does with
+        // it. `walk` asks about it too, because the three verbs that take a
+        // `cwd` end in a `cd` into that very component, which is where the link
+        // Phase 242 measured actually sat.
+        walksLast:
+          last === 'walk'
+            ? body.includes('while [ -n "$lr" ]; do')
+            : !body.includes('while [ -n "$lr" ]; do'),
         tests: body.includes('if [ -L "$lp" ]; then'),
         refuses: /printf '__TORTIE_RUN__outside (none none|none)__TORTIE_RUN__/.test(body),
         leaves: body.includes('exit 0')
@@ -8257,6 +8270,11 @@ process.stdout.write(
     //      that is about a name the script composed for ITSELF, which is why it
     //      is the half that widens.
     const imagePutText = typeof p242.imagePut === 'string' ? p242.imagePut : '';
+    // PHASE 242.1's two, read here beside the other script texts and used
+    // by conditions 88h to 88k below.
+    const stageText = typeof p242.gitStage === 'string' ? p242.gitStage : '';
+    const commitText242 =
+      typeof p242.gitCommit === 'string' ? p242.gitCommit : '';
     const STAGED_WRITERS = [
       { id: 'file-put', text: putText },
       { id: 'image-put', text: imagePutText }
@@ -8303,6 +8321,204 @@ process.stdout.write(
             `removes one name the script composed for itself and is narrower ` +
             `than the redirection it stands in front of. Nothing else is.`
         );
+      }
+    }
+
+    // 88h. PHASE 242.1. THE THREE WRITERS THAT TAKE A `cwd` RATHER THAN A PATH.
+    //
+    //      Phase 242 left these three open on purpose and wrote down why: they
+    //      are handed the REPOSITORY ROOT, which that machine's own
+    //      `git rev-parse --show-toplevel` printed with every link already
+    //      resolved, and never the folder the person confirmed, so there was
+    //      nothing on the far side to walk down from. Measured on the
+    //      operator's own Mac Pro on 2026-09-07: `git-stage` with a `cwd` of
+    //      `<confirmed folder>/escape`, where `escape` is a symbolic link,
+    //      answered `done` and staged a file in the repository OUTSIDE the
+    //      confirmed folder, with `repoPath` and `writeRoot` side by side in
+    //      the same answer and nothing comparing them. `git-commit` refused on
+    //      its HEAD guard alone, and the sha it handed back was the outside
+    //      repository's own, which is what a tab really opened through the link
+    //      would have drawn.
+    //
+    //      `$3` and `$4` on the two index verbs, and `$4` and `$5` on the
+    //      commit, carry the confirmed folder and the tab's own folder relative
+    //      to it. THE WALK IS THE `walk` MODE, which asks about the LAST
+    //      component too, and that is the whole of the difference: the shipped
+    //      `skip` mode never asks about it, and with a confirmed folder of
+    //      `<root>` and a tab at `<root>/escape` the relative part is `escape`,
+    //      holds no `/`, and the `skip` loop's body never runs at all.
+    //
+    //      NOTHING IS RESOLVED here either. No `readlink`, no `realpath`, no
+    //      `cd -P` and no second round trip. The other answer on the table was
+    //      `pwd -P` against `$1`, and it refuses NOTHING, because `$1` is
+    //      already a physical path; research 104 section 5 has that reading on
+    //      both machines.
+    const WANTED_CWD = [
+      {
+        id: 'git-stage',
+        text: p242.gitStage,
+        root: '$3',
+        value: '$4',
+        fields: 2
+      },
+      {
+        id: 'git-unstage',
+        text: p242.gitUnstage,
+        root: '$3',
+        value: '$4',
+        fields: 2
+      },
+      {
+        id: 'git-commit',
+        text: p242.gitCommit,
+        root: '$4',
+        value: '$5',
+        fields: 3
+      }
+    ];
+
+    /**
+     * Every line index of one of these three that runs a git or enters the
+     * folder. THE `cd` IS IN THE LIST and it is the important one: the `cd` is
+     * what follows the link, so a walk below it has already lost.
+     */
+    const gitLinesOf = (text) => {
+      const lines = text.split('\n');
+      const out = [];
+      lines.forEach((line, at) => {
+        if (/(^|[\s$(])git (add|restore|rm|commit|rev-parse) /.test(line)) {
+          out.push(at);
+        }
+        if (/^\s*cd "\$[0-9r]"/.test(line)) out.push(at);
+      });
+      return out;
+    };
+
+    for (const wanted of WANTED_CWD) {
+      if (typeof wanted.text !== 'string' || wanted.text.length === 0) {
+        fail(
+          `the catalogue holds no script called ${wanted.id}, so the write ` +
+            'verb it is the far side of has no containment of its own at all.'
+        );
+        continue;
+      }
+      const walk = walkFor(wanted.text, wanted.value, wanted.root, 'walk');
+      if (walk === null) {
+        fail(
+          `${wanted.id} has no symbolic link walk over ${wanted.value}, which ` +
+            "carries the tab's own folder relative to the confirmed folder. A " +
+            'link inside that folder pointing out of it then carries this ' +
+            'verb into whatever repository the link really points at, which ' +
+            "is what Phase 242 measured on the operator's own machine."
+        );
+        continue;
+      }
+      if (!walk.fromRoot) {
+        fail(
+          `${wanted.id}'s walk over ${wanted.value} does not start at ` +
+            `"${wanted.root}", which is the folder the person confirmed. A ` +
+            'walk that starts anywhere else is asking about the wrong path.'
+        );
+      }
+      if (!walk.climbs) {
+        fail(
+          `${wanted.id}'s walk over ${wanted.value} does not climb one ` +
+            'component at a time. Testing the whole path once misses every ' +
+            'intermediate directory.'
+        );
+      }
+      if (!walk.walksLast) {
+        fail(
+          `${wanted.id}'s walk over ${wanted.value} skips the LAST component. ` +
+            'That component is the folder the far side cds into, and it is ' +
+            'exactly where the link Phase 242 measured sat: a relative part ' +
+            'of "escape" holds no separator at all, so a walk that stops ' +
+            'short of it walks nothing and refuses nothing.'
+        );
+      }
+      if (!walk.tests) {
+        fail(
+          `${wanted.id}'s walk over ${wanted.value} never asks [ -L ]. A walk ` +
+            'that tests nothing is not a guard.'
+        );
+      }
+      if (!walk.refuses || !walk.leaves) {
+        fail(
+          `${wanted.id}'s walk over ${wanted.value} does not print the ` +
+            'outside word and leave. A guard that falls through is not a ' +
+            'refusal.'
+        );
+      }
+      // 88i. IT STANDS ABOVE THE `cd` AND ABOVE EVERY GIT, which is what makes
+      //      "nothing was changed" a true sentence for these three. It is
+      //      condition 88b's shape asked of the lines that matter here.
+      const gits = gitLinesOf(wanted.text);
+      if (gits.length === 0) {
+        fail(
+          `${wanted.id} has no line this gate recognises as entering the ` +
+            'folder or running a git, so condition 88i is checking nothing.'
+        );
+      } else if (walk.at > Math.min(...gits)) {
+        fail(
+          `${wanted.id} enters the folder or runs a git at line ` +
+            `${String(Math.min(...gits))} and does not walk ${wanted.value} ` +
+            `for a link until line ${String(walk.at)}. The cd is what follows ` +
+            'the link, so a refusal below it is not a refusal.'
+        );
+      }
+      // 88j. THE TWO NEW VALUES ARE GUARDED, and separately. The confirmed
+      //      folder has to be absolute and hold no `..`, which is the same pair
+      //      file-put asks of its own `$1`. The relative part may be neither
+      //      absolute nor climbing, or the walk would compose a path outside
+      //      the folder and then ask whether that path is a link, which is a
+      //      question about the wrong place.
+      const lines = wanted.text.split('\n');
+      const guards = [
+        [wanted.root, `case "${wanted.root}" in /*) ;; *) exit 1;; esac`, 'is absolute'],
+        [wanted.root, `case "${wanted.root}" in *..*) exit 1;; esac`, 'holds no ..'],
+        [
+          wanted.value,
+          `case "${wanted.value}" in /*|*..*) exit 1;; esac`,
+          'neither climbs nor is absolute'
+        ]
+      ];
+      for (const [name, line, why] of guards) {
+        const at = lines.indexOf(line);
+        if (at < 0) {
+          fail(
+            `${wanted.id} never asserts that ${name} ${why}. ` +
+              `The line it is missing is: ${line}`
+          );
+        } else if (at > walk.at) {
+          fail(
+            `${wanted.id} asserts that ${name} ${why} at line ` +
+              `${String(at)}, below the walk at line ${String(walk.at)}. A ` +
+              'walk over an unguarded value composes paths outside the folder ' +
+              'and asks about those.'
+          );
+        }
+      }
+    }
+
+    // 88k. AND THE THREE PATH VERBS DID NOT QUIETLY JOIN THEM. Phase 242 ruled
+    //      that the last component is left to each of those three, and
+    //      conditions 88c and 88d read what each one does with it. A round that
+    //      switched them to the `walk` mode would refuse a rename of a link,
+    //      which entry-rename was written to allow, so the mode is asserted in
+    //      both directions rather than in one.
+    for (const wanted of WANTED) {
+      if (typeof wanted.text !== 'string' || wanted.text.length === 0) continue;
+      for (const value of wanted.values) {
+        const walk = walkFor(wanted.text, value, '$1', 'skip');
+        if (walk !== null && !walk.walksLast) {
+          fail(
+            `${wanted.id}'s walk over ${value} took the Phase 242.1 walk mode, ` +
+              'which asks about the last component. That is the cwd verbs\' ' +
+              'mode. entry-rename must still rename a symbolic link, file-put ' +
+              'refuses its own last component in two lines of its own, and ' +
+              "dir-new's last component is not there yet."
+          );
+        }
       }
     }
 
@@ -8425,15 +8641,81 @@ process.stdout.write(
         why: "an rm in image-put that names the picture rather than the staged name",
         text: imagePutText.replace(STAGED_UNLINK, 'rm -f "$f"'),
         expect: (t) => stagedUnlinkFacts(t).onlyTheStagedName === false
+      },
+      // Phase 242.1's seven, one per clause of 88h, 88i and 88j. The third is
+      // THE SHAPE THAT REALLY SHIPPED: the walk in the mode the three path
+      // verbs take, which never asks about the last component and therefore
+      // refuses nothing at all for a relative part of `escape`.
+      {
+        why: "git-stage's walk over the tab's own folder removed whole",
+        from: stageText,
+        text: stageText.replace(/lr="\$4"\nlp="\$3"\nwhile[\s\S]*?\ndone\n/, ''),
+        expect: (t) => walkFor(t, '$4', '$3', 'walk') === null
+      },
+      {
+        why: "git-stage's walk started at the repository root rather than the confirmed folder",
+        from: stageText,
+        text: stageText.replace('lr="$4"\nlp="$3"', 'lr="$4"\nlp="$1"'),
+        expect: (t) => walkFor(t, '$4', '$3', 'walk')?.fromRoot === false
+      },
+      {
+        why: "git-stage's walk put back into the mode that skips the last component",
+        from: stageText,
+        text: stageText
+          .replace('while [ -n "$lr" ]; do', 'while [ "$lr" != "${lr#*/}" ]; do')
+          .replace(
+            '  case "$lr" in */*) lr="${lr#*/}";; *) lr=;; esac',
+            '  lr="${lr#*/}"'
+          ),
+        expect: (t) => walkFor(t, '$4', '$3', 'walk')?.walksLast === false
+      },
+      {
+        why: "the -L test taken out of git-stage's walk",
+        from: stageText,
+        text: stageText.replace('if [ -L "$lp" ]; then', 'if false; then'),
+        expect: (t) => walkFor(t, '$4', '$3', 'walk')?.tests === false
+      },
+      {
+        why: "git-stage's guard on the relative part removed, so the walk composes paths outside the folder",
+        from: stageText,
+        text: stageText.replace('case "$4" in /*|*..*) exit 1;; esac\n', ''),
+        expect: (t) => t.split('\n').indexOf('case "$4" in /*|*..*) exit 1;; esac') < 0
+      },
+      {
+        why: "git-commit's walk over the tab's own folder removed whole",
+        from: commitText242,
+        text: commitText242.replace(/lr="\$5"\nlp="\$4"\nwhile[\s\S]*?\ndone\n/, ''),
+        expect: (t) => walkFor(t, '$5', '$4', 'walk') === null
+      },
+      {
+        why: "git-commit's walk moved below the cd that follows the link",
+        from: commitText242,
+        text: (() => {
+          const lines = commitText242.split('\n');
+          const at = lines.findIndex((line) => line === 'lr="$5"');
+          if (at < 0) return commitText242;
+          const walk = lines.splice(at, 10);
+          const cd = lines.findIndex((line) => line === 'cd "$1"');
+          lines.splice(cd + 1, 0, ...walk);
+          return lines.join('\n');
+        })(),
+        expect: (t) => {
+          const walk = walkFor(t, '$5', '$4', 'walk');
+          const gits = gitLinesOf(t);
+          return walk !== null && gits.length > 0 && walk.at > Math.min(...gits);
+        }
       }
     ];
     let plantsBehaved = 0;
     for (const plant of planted) {
-      if (
-        plant.text === putText ||
-        plant.text === renameText ||
-        plant.text === imagePutText
-      ) {
+      const from = plant.from ?? null;
+      const unchanged =
+        from === null
+          ? plant.text === putText ||
+            plant.text === renameText ||
+            plant.text === imagePutText
+          : plant.text === from || from.length === 0;
+      if (unchanged) {
         fail(
           `condition 88e could not plant "${plant.why}" — the text it edits is ` +
             'not in the script any more, so this arm proved nothing.'
@@ -8466,7 +8748,21 @@ process.stdout.write(
         `here because the name it stages is one it composed for itself. ` +
         `entry-rename ` +
         `still renames a link, which it was written to do. Nothing is ` +
-        `resolved: no readlink, no realpath and no second round trip. ` +
+        `resolved: no readlink, no realpath and no second round trip.\n` +
+        `  AND SINCE PHASE 242.1 THE THREE THAT TAKE A cwd DO IT TOO. ` +
+        `git-stage and git-unstage carry the confirmed folder as $3 and the ` +
+        `tab's own folder relative to it as $4, git-commit as $4 and $5 so the ` +
+        `message stays $3, and each walks that relative part from the ` +
+        `confirmed folder one component at a time INCLUDING THE LAST, above ` +
+        `the cd that follows the link and above every git. The last component ` +
+        `is the whole difference: a tab at <confirmed folder>/escape has a ` +
+        `relative part of "escape", which holds no separator, so the mode the ` +
+        `three path verbs take walks nothing at all. Those three keep that ` +
+        `mode, asserted in both directions, because entry-rename must still ` +
+        `rename a link. Both new values are guarded above the walk. main maps ` +
+        `the word onto outsideRoot for the two index verbs and onto the ` +
+        `refusal sentence git-commit already drew, so no new word crosses the ` +
+        `channel here either. ` +
         `${String(plantsBehaved)} of ${String(planted.length)} planted texts ` +
         `made the readers above say so.\n`
     );

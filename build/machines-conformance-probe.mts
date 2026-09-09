@@ -2972,8 +2972,9 @@ process.stdout.write(
     },
 
     // --- Phase 242, condition 88 -------------------------------------------
-    // The three writers that take a PATH, and the link refusal each one
-    // carries. PURE: it reads three compiled script texts and nothing else.
+    // The three writers that take a PATH and the three that take a `cwd`, and
+    // the link refusal each one carries. PURE: it reads six compiled script
+    // texts and nothing else.
     //
     // Why the whole text crosses rather than a set of booleans. A boolean the
     // gate cannot see the reasoning behind is a check that stops failing the
@@ -2995,6 +2996,14 @@ process.stdout.write(
         // `~/.tortie/images`. Condition 88f reads the same three facts of this
         // text as of `file-put`'s, and 88g RUNS it.
         imagePut: textOf('image-put'),
+        // Phase 242.1's three, which take a `cwd` rather than a path and were
+        // the hole Phase 242 left open on purpose. Whole texts for the same
+        // reason as the three above: the gate does every piece of arithmetic
+        // itself and a boolean it cannot see the reasoning behind stops failing
+        // the day somebody rewrites the line it was reading.
+        gitStage: textOf('git-stage'),
+        gitUnstage: textOf('git-unstage'),
+        gitCommit: textOf('git-commit'),
         // The two Phase 102 writers' ids, so the gate names what it read
         // rather than what it assumed was there.
         ids: REMOTE_SCRIPTS.map((row) => row.id)
