@@ -2994,6 +2994,18 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     }
     const fieldsBefore = await activityFields();
 
+    // `window_activity` IS AN EPOCH SECOND, so the reading below can only move
+    // if the plant lands in a LATER second than this read did. Nothing made
+    // that true, and on a quiet machine the plant confirms in about 100 ms:
+    // measured on 2026-09-09 over five runs of this smoke, three at this
+    // phase's parent 93bdaaec and two at its tip, `#{window_activity}` read the
+    // same number on both sides of the plant in one parent run and both tip
+    // runs, and 19b failed on exactly those. It is a race in this arm and not
+    // in the product, which is why the row still read `running` in every one of
+    // them. So the clock is allowed to cross into the next second before
+    // anything is planted, and the assertion below stays a strict `>`.
+    await new Promise((r) => setTimeout(r, 1_000 - (Date.now() % 1_000) + 50));
+
     // The plant and the watch run together, because the row goes back to idle
     // one cadence after the last line and the plant confirms itself by reading
     // the screen, which takes a second of its own.
