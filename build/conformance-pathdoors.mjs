@@ -41,6 +41,12 @@
  *      of extensions, membership is asked with `.has(`, and no file in the
  *      domain spells a denylist. Its size is pinned, so widening it is a
  *      deliberate edit to this gate and never a quiet one.
+ *   6. A HOVER NEVER WRITES AND NEVER READS A BYTE. The classify arm of
+ *      `drop:prepare` is a function of its own, read by matching braces, and
+ *      it names no `copyFile`, no `open`, no `readHead`, no `writeFile` and
+ *      no rescue. It is the trap research 107 section 7.4 found: `preparePaths`
+ *      COPIES a file whose name carries a newline into the drop store, and a
+ *      link provider is driven by a pointer moving over a pane.
  *   9. THE ABLATIONS. One clause removed per copy of the sequence, and every
  *      copy must move a reading rule 1 or rule 2 pinned. A gate that cannot
  *      fail is not a gate.
@@ -220,6 +226,106 @@ if (live.error !== undefined) {
   }
   if (failures.every((f) => !f.includes(' 3. '))) {
     say('3. one extension may leave Tortie, spelled as a literal set and asked by membership; no denylist anywhere in the domain');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 6. A hover never writes and never reads a byte.
+// ---------------------------------------------------------------------------
+
+/**
+ * What is wrong with a module's read-only ask, as a list of sentences.
+ *
+ * Written as a function so it can be PROVED ON FIXTURES below. A scan that
+ * cannot fail is never mistaken for a scan that passed, and that is this
+ * tree's own standing rule for a source-reading gate.
+ */
+const HOVER_FORBIDDEN = [
+  'copyFile',
+  'open(',
+  'readHead',
+  'writeFile',
+  'ensureDropStore',
+  'rescueCopyPath',
+  'sniffImage'
+];
+
+function hoverWriteFindings(text) {
+  const out = [];
+  const body = stripComments(text);
+  const classify = functionBodyOf(body, 'classifyOne');
+  if (classify === null) {
+    out.push('there is no classifyOne, so the read-only ask is not where this rule reads it');
+    return out;
+  }
+  const named = HOVER_FORBIDDEN.filter((w) => classify.includes(w));
+  if (named.length > 0) {
+    out.push(`the classify ask names ${named.join(', ')}, and a hover never writes and never reads a byte`);
+  }
+  if (!classify.includes('answerPathDoor(')) {
+    out.push('the classify ask does not reach the door sequence, so what it answers is not what this gate measured');
+  }
+  const one = functionBodyOf(body, 'prepareOne');
+  if (one === null) {
+    out.push('there is no prepareOne');
+    return out;
+  }
+  const at = one.indexOf('classifyOne(');
+  const firstAwait = one.indexOf('await');
+  if (at === -1) {
+    out.push('prepareOne never reaches classifyOne, so the option is not wired');
+  } else if (firstAwait !== -1 && firstAwait < at) {
+    out.push('prepareOne awaits something before it branches to classifyOne, so a hover does work a hover must not do');
+  }
+  return out;
+}
+
+{
+  const PREPARE = 'src/main/drop/prepare.ts';
+  for (const finding of hoverWriteFindings(source(PREPARE))) fail(`6. ${finding}`);
+
+  // The scanner, proved. Four of these five must be caught.
+  const OK_TEXT = [
+    'async function classifyOne(raw) { const d = await answerPathDoor(raw); return d; }',
+    'async function prepareOne(raw, classify) { if (classify) return classifyOne(raw); const st = await stat(raw); return st; }'
+  ].join('\n');
+  const PLANTS = [
+    ['the shipping shape', OK_TEXT, 0],
+    [
+      'the classify ask copies a file',
+      OK_TEXT.replace('return d; }', 'await copyFile(raw, raw); return d; }'),
+      1
+    ],
+    [
+      'the classify ask reads the head',
+      OK_TEXT.replace('return d; }', 'await readHead(raw); return d; }'),
+      1
+    ],
+    [
+      'prepareOne stats before it branches',
+      OK_TEXT.replace(
+        'if (classify) return classifyOne(raw);',
+        'const st0 = await stat(raw); if (classify) return classifyOne(raw);'
+      ),
+      1
+    ],
+    [
+      'the classify ask answers without the door sequence',
+      OK_TEXT.replace('await answerPathDoor(raw)', 'guessTheDoor(raw)'),
+      1
+    ]
+  ];
+  let caught = 0;
+  for (const [why, text, want] of PLANTS) {
+    const got = hoverWriteFindings(text).length;
+    if ((got > 0 ? 1 : 0) !== want) {
+      fail(`6. the scanner read "${why}" as ${got > 0 ? 'a finding' : 'clean'}, and it must read the other way`);
+    } else if (want === 1) caught += 1;
+  }
+  if (failures.every((f) => !f.includes(' 6. '))) {
+    say(
+      `6. the classify ask is prepareOne’s first act, reaches the door sequence, and names no copy, no open and no sniff; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
+    );
   }
 }
 

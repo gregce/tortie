@@ -101,6 +101,7 @@ export interface GmuxTermStreamExtras {
 import type {
   DropPersistInput,
   DropPersistResult,
+  DropPrepareOptions,
   DropPrepareResult,
   ImageDropTable
 } from '../types';
@@ -108,8 +109,20 @@ import type {
 export interface DropInvokeChannelMap {
   /** Per-agent image/file drop strategies from the agent registry. */
   'drop:strategies': { req: []; res: ImageDropTable };
-  /** Classify dropped absolute paths (dir vs file, image sniff, safe copy). */
-  'drop:prepare': { req: [paths: string[]]; res: DropPrepareResult };
+  /**
+   * Classify absolute paths (dir vs file, image sniff, safe copy).
+   *
+   * PHASE 247 added the options argument rather than a channel of its own,
+   * because research 107 refusal 6 says no new IPC channel that takes a path
+   * and does something with it, and section 12 clause 4 names this exact
+   * shape: "a read-only option on `preparePaths`". Under
+   * `{ classify: true }` nothing is written and no byte is read, and the
+   * reply carries `door`.
+   */
+  'drop:prepare': {
+    req: [paths: string[], options?: DropPrepareOptions];
+    res: DropPrepareResult;
+  };
   /** Persist pathless bytes to the drop store; resolves the absolute path. */
   'drop:persist': { req: [input: DropPersistInput]; res: DropPersistResult };
 }
@@ -133,7 +146,10 @@ export interface GmuxDropExtras {
   pathForFile(file: File): string;
   drop: {
     strategies(): Promise<ImageDropTable>;
-    prepare(paths: string[]): Promise<DropPrepareResult>;
+    prepare(
+      paths: string[],
+      options?: DropPrepareOptions
+    ): Promise<DropPrepareResult>;
     persist(input: DropPersistInput): Promise<DropPersistResult>;
   };
 }

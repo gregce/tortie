@@ -11,12 +11,25 @@
  *     agent prompt can submit half a prompt. Those files are copied into the
  *     drop store under a safe name and the copy is referenced instead.
  *
+ * PHASE 247 added a THIRD ask to the same channel rather than a channel of
+ * its own, because research 107 refusal 6 says no new IPC channel that takes a
+ * path and does something with it, and its section 12 clause 4 names this
+ * exact shape: the classification "asked without its newline rescue COPY and
+ * without its 256-byte head READ". Under `{ classify: true }` this module
+ * makes no write of any kind and opens no file — the two traps above are the
+ * ones a HOVER must not spring, and a link provider is driven by a pointer.
+ *
  * Ownership: src/main/drop/**.
  */
 
 import { copyFile, open, stat } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
-import type { DropPreparedItem, DropPrepareResult } from '@shared/types';
+import type {
+  DropPreparedItem,
+  DropPrepareOptions,
+  DropPrepareResult
+} from '@shared/types';
+import { answerPathDoor, expandHome } from '../fs/path-door';
 import { ensureDropStore, rescueCopyPath, sniffImage } from './store';
 
 /** Bytes read to sniff content type — every signature we test fits in 256. */
@@ -38,7 +51,38 @@ async function readHead(path: string): Promise<Uint8Array> {
   }
 }
 
-async function prepareOne(raw: string): Promise<DropPreparedItem> {
+/**
+ * The CLASSIFY ask (Phase 247), which has exactly one question.
+ *
+ * `door` is the answer. `kind` says `file` for a path that reaches a door and
+ * `missing` for everything else, because a refused path has no kind worth
+ * reporting to the one caller this ask has — a caller that needs directory
+ * versus file asks WITHOUT the option and gets the drop's own classification.
+ *
+ * NOTHING IS WRITTEN AND NO BYTE IS READ. There is no `copyFile` and no
+ * `open` on this path, which is the whole reason the option exists: a link
+ * provider is driven by a pointer moving over a pane and research 107 refusal
+ * 3 says a hover never writes.
+ */
+async function classifyOne(raw: string): Promise<DropPreparedItem> {
+  const door = await answerPathDoor(raw);
+  const path = door.door === null ? expandHome(raw) : door.path;
+  return {
+    sourcePath: path,
+    kind: door.door === null ? 'missing' : 'file',
+    refPath: path,
+    copied: false,
+    isImage: false,
+    bytes: 0,
+    door
+  };
+}
+
+async function prepareOne(
+  raw: string,
+  classify: boolean
+): Promise<DropPreparedItem> {
+  if (classify) return classifyOne(raw);
   const missing: DropPreparedItem = {
     sourcePath: raw,
     kind: 'missing',
@@ -101,7 +145,11 @@ async function prepareOne(raw: string): Promise<DropPreparedItem> {
 }
 
 /** Classify every path in one round trip (drops are small lists). */
-export async function preparePaths(paths: string[]): Promise<DropPrepareResult> {
-  const items = await Promise.all(paths.map((p) => prepareOne(p)));
+export async function preparePaths(
+  paths: string[],
+  options: DropPrepareOptions = {}
+): Promise<DropPrepareResult> {
+  const classify = options.classify === true;
+  const items = await Promise.all(paths.map((p) => prepareOne(p, classify)));
   return { items };
 }

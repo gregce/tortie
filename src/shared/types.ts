@@ -24,9 +24,15 @@
  * PHASE 70 added the one import this file has. `./machines` imports nothing at
  * all, so naming `MachineColor` here creates no cycle and pulls no code into
  * any bundle that did not already carry it.
+ *
+ * PHASE 247 added the second, and it is the same shape: `./path-doors` names
+ * only `./image-types` and `./preview-types`, neither of which names this
+ * file, so `PathDoorAnswer` creates no cycle either. It is a TYPE import and
+ * pulls no code anywhere.
  */
 
 import type { MachineColor } from './machines';
+import type { PathDoorAnswer } from './path-doors';
 
 /** Which agent (if any) a session runs. Plain shells are first-class. */
 export type AgentKind = 'claude' | 'codex' | 'shell';
@@ -1388,6 +1394,27 @@ export interface ImageDropTable {
   fallback: AgentImageDrop;
 }
 
+/**
+ * How to ask drop:prepare (Phase 247).
+ *
+ * A DROP is a deliberate gesture that ends in a paste, so it may copy a file
+ * whose name carries a newline into the drop store and it may read 256 bytes
+ * to sniff an image. A HOVER is a pointer moving over a terminal pane, and
+ * research 107 refusal 3 says a hover never writes. `classify` is the
+ * read-only ask: no copy, no byte read, metadata only, and the `door` field
+ * below answered.
+ */
+export interface DropPrepareOptions {
+  /**
+   * Ask for the classification and NOTHING ELSE. Under it `copied` is always
+   * false, `isImage` is always false because no byte was read, and neither
+   * must be consulted — `door` carries the routing, and it answers the image
+   * question by EXTENSION, which is what the image surface and the
+   * `gmux-asset:` protocol are both gated on anyway.
+   */
+  classify?: boolean;
+}
+
 /** One dropped path after main classified it (drop:prepare). */
 export interface DropPreparedItem {
   /** The path the renderer resolved (webUtils, or the drop store). */
@@ -1406,6 +1433,18 @@ export interface DropPreparedItem {
   isImage: boolean;
   /** Size in bytes; 0 for directories and missing paths. */
   bytes: number;
+  /**
+   * Which door this path takes, present ONLY when `classify` was asked.
+   *
+   * It is the whole of `src/shared/path-doors.ts`'s answer, computed in main
+   * over the REALPATH. A hover draws an underline when the door is not null
+   * and draws nothing when it is; the refusal word never reaches a person.
+   *
+   * IT IS A CACHE AND NOT AN AUTHORISATION. The file at a spelling can be
+   * replaced between the underline being drawn and the click landing, so every
+   * caller that ACTS asks again.
+   */
+  door?: PathDoorAnswer;
 }
 
 export interface DropPrepareResult {

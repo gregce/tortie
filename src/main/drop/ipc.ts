@@ -5,7 +5,9 @@
  *                    registry (the table lives ONCE, in src/main/agents/
  *                    registry.ts — this channel just serves it)
  *   drop:prepare     stat + classify the absolute paths the renderer got from
- *                    webUtils: directory vs file, image sniff, newline rescue
+ *                    webUtils: directory vs file, image sniff, newline rescue.
+ *                    Phase 247: under { classify: true } it writes nothing and
+ *                    reads no byte, and answers which door the path takes
  *   drop:persist     write bytes that have no file of their own (⌘V of raw
  *                    image data, browser drags) into the drop store
  *
@@ -13,7 +15,7 @@
  */
 
 import type { IpcMain } from 'electron';
-import type { DropPersistInput } from '@shared/types';
+import type { DropPersistInput, DropPrepareOptions } from '@shared/types';
 import { imageDropTable } from '../agents/registry';
 import { handle } from '../typed-ipc';
 import { gmuxError } from '../errors';
@@ -43,7 +45,11 @@ export function registerDropIpc(ipc: IpcMain): void {
   // The two validators below still take `unknown` on purpose: the declared
   // channel types are a compile-time contract with the preload, not a promise
   // about what an actual IPC frame carries.
-  handle(ipc, 'drop:prepare', (_event, paths) => preparePaths(toPaths(paths)));
+  handle(ipc, 'drop:prepare', (_event, paths, options) =>
+    preparePaths(toPaths(paths), {
+      classify: (options as DropPrepareOptions | undefined)?.classify === true
+    })
+  );
   handle(ipc, 'drop:persist', (_event, input) =>
     persistDroppedBytes(toPersistInput(input))
   );

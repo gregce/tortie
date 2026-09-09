@@ -51,7 +51,7 @@ export const term: InstalledTermApi = {
  */
 export const drop: GmuxDropExtras['drop'] = {
   strategies: () => invoke('drop:strategies'),
-  prepare: (paths) => invoke('drop:prepare', paths),
+  prepare: (paths, options) => invoke('drop:prepare', paths, options),
   persist: (input) => invoke('drop:persist', input)
 };
 
