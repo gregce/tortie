@@ -19,13 +19,18 @@ before and after and asserts they did not move, never attaches to one, routes ev
 `build/ssh-run.mjs` with a record file it owns so neither `~/.ssh/known_hosts` is written, and sets a
 git identity with `git config --local` inside the scratch repository only. Do not widen it.
 
-**The repair round turned all three the right way up.** They asserted the LOSS while the findings
-were open; each now asserts the repair, and each is red at the parent for the reading its own file
-names. F1's became a maintained regression at
-`src/renderer/editor/__tests__/p244-inherited-undo.test.ts` and F4's at
-`src/main/fs/__tests__/p244-read-cap-bytes.test.ts`, so the copies here are the drivers rather than
-the guards. F2's stays here rather than joining the suite, because it reaches a real machine, which
-is what every remote probe in this tree does.
+**What the repair round did with each of them.**
+
+`f1-inherited-undo` and `f4-read-cap-bytes` are left EXACTLY as the measure step wrote them, asserting
+the loss, so the parent reading stays re-runnable. Each was also adopted into the suite turned the
+right way up, at `src/renderer/editor/__tests__/p244-inherited-undo.test.ts` and
+`src/main/fs/__tests__/p244-read-cap-bytes.test.ts`, and those two are the guards. So a copy of the
+file here going green is now itself a finding: it would mean the repair had been undone.
+
+`f2-remote-mirror` was turned the right way up IN PLACE and stays here rather than joining the suite,
+because it reaches a real machine, which is what every remote probe in this tree does. Driven at the
+repair it reads `second {written:1,reused:0}`, `third {written:0,reused:1}` and both sides holding
+`export const a = 2;`.
 
 Findings and readings are in [research 108](../../docs/research/108-phase-244-audit-findings.md).
 The repair readings are in the commit bodies of Phase 244.

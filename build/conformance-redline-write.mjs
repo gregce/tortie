@@ -127,6 +127,16 @@ const MATRIX = [
   ['overCap', 'refused/tooLarge untouched', 'refusal 2: a file one byte over the cap, read by main itself'],
   ['atCap', 'wrote new', 'refusal 2: a file exactly at the cap is not refused'],
   ['payloadOverCap', 'refused/tooLarge untouched', 'refusal 2: new contents over the cap'],
+  [
+    'grewAfterFstat',
+    'refused/tooLarge sentence=after-the-read grew=16777216 read=5242881 size=16777217 untouched no-temp',
+    // PHASE 244, audit finding F4. The growth-during-read arm the audit named as
+    // missing from this gate. The file gains 16 MiB between the fstat and the
+    // first read; the reader stops one byte past its 5 MiB budget, the refusal
+    // is the one AFTER the read naming the file rather than the new contents,
+    // the target is untouched and no staged copy is left.
+    'refusal 2 under growth: the read loop is held to its budget'
+  ],
   ['stale', 'stale untouched names-disk-digest no-temp', 'refusal 3: a digest one byte stale'],
   ['latin1', 'refused/notUtf8 untouched 69B->69B', 'refusal 4: research 83 E.7b latin-1 fixture'],
   ['utf8WithFffd', 'wrote new', 'refusal 4 is a byte comparison: a real U+FFFD round trips'],
@@ -547,12 +557,35 @@ const ABLATIONS = [
     edits: [{ from: 'if ((mode & 0o200) === 0) {', to: 'if (false) {' }]
   },
   {
+    // PHASE 244, finding F4. The payload's LENGTH is asked now, measured with
+    // `Buffer.byteLength`, which allocates nothing; the encoded buffer is built
+    // at step 7, after every refusal that would make it pointless.
     name: 'the new contents are not held to the cap',
-    edits: [{ from: 'if (overCap(payload.length)) {', to: 'if (false) {' }]
+    edits: [{ from: 'if (overCap(payloadBytes)) {', to: 'if (false) {' }]
   },
   {
     name: 'the write is not staged beside the file',
     edits: [{ from: 'const staged = swapNameFor(abs);', to: 'const staged = abs;' }]
+  },
+  {
+    // PHASE 244, audit finding F4. The budget inside the read loop, put back to
+    // exactly what the parent commit did: run to EOF whatever it costs and ask
+    // the cap of the collected buffer afterwards. That is what let a file
+    // growing under the reader be consumed WHOLE — 16,777,217 bytes against a
+    // 5,242,880 cap, in 258 synchronous readSync calls on main's thread, and
+    // about twice that in buffer, because the chunk list is held and then
+    // concat copies all of it again.
+    //
+    // BOTH lines go, together, because they are one clause: the break is what
+    // ends the loop and the remaining-budget size is what feeds it. Removing
+    // only the break would leave `want` computed as zero once the budget is
+    // spent, and a loop asking for zero bytes for ever is a hang rather than a
+    // red reading.
+    name: 'the read loop is not held to its budget',
+    edits: [
+      { from: '    if (total >= ceiling) break;\n', to: '' },
+      { from: 'want = Math.min(64 * 1024, ceiling - total);', to: 'want = 64 * 1024;' }
+    ]
   }
 ];
 

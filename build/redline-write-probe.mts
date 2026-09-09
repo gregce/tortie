@@ -264,6 +264,51 @@ try {
     });
     readings['payloadOverCap'] = `${word(r)} ${bytesOf(abs) === OLD ? 'untouched' : 'WRITTEN'}`;
   }
+  {
+    // PHASE 244, audit finding F4. THE FILE GROWS BETWEEN THE FSTAT AND THE
+    // FIRST READ, which is the boundary the finding is about and which nothing
+    // in this gate could reach before. The file starts at one byte and gains
+    // 16 MiB, exactly the audit's own fixture, and what is COUNTED is what the
+    // reader consumed: at the parent that was 16,777,217 bytes against a
+    // 5,242,880 cap, and the loop is held to one byte past its budget now.
+    //
+    // The count is taken from the file's own descriptor position rather than
+    // from inside the module, by asking how much bigger the file got and what
+    // the answer says: the refusal must be the one AFTER the read, naming the
+    // file rather than the new contents, and the target must be untouched.
+    const abs = fresh('growing.txt', Buffer.from('a'));
+    let grew = 0;
+    let consumed = -1;
+    const r = await writeGuarded(
+      {
+        ...deps,
+        afterFstat: (target) => {
+          const growth = Buffer.alloc(16 * 1024 * 1024, 0x61);
+          appendFileSync(target, growth);
+          grew = growth.byteLength;
+        },
+        afterRead: (bytes) => {
+          consumed = bytes;
+        }
+      },
+      { root, path: 'growing.txt', expect: sha('a'), contents: 'short' }
+    );
+    readings['grewAfterFstat'] =
+      `${word(r)} ` +
+      `sentence=${
+        r.outcome === 'refused' && r.reason === 'growing.txt is too large for Tortie to rewrite whole.'
+          ? 'after-the-read'
+          : 'OTHER'
+      } ` +
+      `grew=${String(grew)} ` +
+      // The one reading that tells a bounded read from an unbounded one. Every
+      // other observable on this line is identical at the parent commit.
+      `read=${String(consumed)} ` +
+      `size=${String(sizeOf(abs))} ` +
+      `${sizeOf(abs) === grew + 1 ? 'untouched' : 'WRITTEN'} ` +
+      `${tempLeft(abs) ? 'TEMP' : 'no-temp'}`;
+    rmSync(abs, { force: true });
+  }
 
   // -- refusal 3: a digest one byte stale ----------------------------------
   {

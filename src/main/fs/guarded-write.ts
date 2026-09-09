@@ -179,6 +179,30 @@ export interface GuardedWriteDeps {
    * where a crash leaves a leftover and where a planted link is a race.
    */
   afterStage?(staged: string, target: string): void;
+  /**
+   * PHASE 244, audit finding F4. The gate's second seam, never passed by the
+   * product: runs after `fstat` has decided the file's size and before the
+   * first byte is read.
+   *
+   * That is the boundary the finding is about, and until this phase nothing
+   * outside a module mock could reach it, so `conformance:redline-write` had 28
+   * readings and none of them was a file GROWING under the reader. The audit
+   * named that gap: the reader consumed 16,777,217 bytes against a 5,242,880
+   * cap because the budget was asked afterwards. An arm that cannot be driven is
+   * a rule that cannot fail.
+   */
+  afterFstat?(target: string): void;
+  /**
+   * PHASE 244, audit finding F4. The gate's third seam, never passed by the
+   * product: how many bytes the read actually consumed.
+   *
+   * It is asked ONCE, after the loop, and it is the only reading that tells a
+   * bounded read from an unbounded one. Every other observable is identical
+   * either way — the refusal, its word, its sentence, the untouched target and
+   * the absent staged copy are all the same at the parent commit — so without
+   * this the gate's growth arm would pass over the defect it exists to catch.
+   */
+  afterRead?(bytes: number): void;
 }
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
@@ -220,11 +244,50 @@ function sameEntry(seen: BigIntStats, now: BigIntStats): boolean {
   );
 }
 
-/** Read a descriptor to EOF, starting from what `fstat` said it holds. */
-function readAllSync(fd: number, expected: number): Buffer {
+/**
+ * Read a descriptor to EOF, starting from what `fstat` said it holds, AND
+ * STOPPING ONE BYTE PAST `budget`.
+ *
+ * PHASE 244, audit finding F4. This loop used to read to EOF whatever that
+ * cost, and the cap was asked of the collected buffer afterwards. So a file that
+ * grew between the `fstat` and the first `readSync` was consumed WHOLE before it
+ * was refused: the audit's fixture started at one byte, appended 16 MiB at the
+ * first read, and the reader consumed 16,777,217 bytes against a 5,242,880 cap,
+ * in 258 synchronous `readSync` calls on main's thread. The measure step counted
+ * the peak a second way and it is about TWICE the file, because the chunk list
+ * is held and then `Buffer.concat` allocates a second full copy: 33,619,987
+ * bytes of ArrayBuffer growth for a 16 MiB file.
+ *
+ * THE SENTINEL IS ONE BYTE, and it is told rather than inferred, which is the
+ * same shape `remote-scripts.ts` uses for every capped stream over the link: a
+ * loop that stopped exactly AT the budget could not tell a file of exactly the
+ * cap from a file larger than it, and would then have to guess. Reading
+ * `budget + 1` makes the caller's existing `overCap` question answer itself, so
+ * the refusal, its word and its sentence are all unchanged.
+ *
+ * The peak is therefore bounded at about twice `budget` rather than at twice the
+ * file, and in the ordinary case — a file that did not grow — the first buffer
+ * is the whole answer and `Buffer.concat` never runs at all.
+ *
+ * IT STAYS SYNCHRONOUS. Phase 226 chose that so the `fstat`, the read and the
+ * digest describe one moment, and Phase 240's save now depends on it; moving the
+ * read behind an await would widen the race this module's `lstat`-to-`rename`
+ * comparison exists to close, which is a bigger change than the one this finding
+ * asks for.
+ */
+function readAllSync(fd: number, expected: number, budget: number): Buffer {
   const chunks: Buffer[] = [];
   let total = 0;
-  let want = Math.max(expected, 1);
+  // One byte past the budget and never more, whatever the file does while this
+  // is running.
+  const ceiling = budget + 1;
+  // The clamp is defence in depth rather than a live branch: the caller refuses
+  // a file whose `fstat` size is already over the cap, so `expected` is inside
+  // the budget on every reachable path today. It is here so a later round that
+  // moves that refusal cannot make this loop overshoot in one call, and it is
+  // deliberately NOT ablated, because a clause with no reachable behaviour is
+  // not a check and a check that cannot fail is worse than none.
+  let want = Math.min(Math.max(expected, 1), ceiling);
   for (;;) {
     const buf = Buffer.alloc(want);
     let got = 0;
@@ -238,9 +301,12 @@ function readAllSync(fd: number, expected: number): Buffer {
       total += got;
     }
     if (got < want) break;
-    // The file was longer than fstat said, so it is growing. Keep reading;
-    // the cap is asked of the total below.
-    want = 64 * 1024;
+    // The sentinel is in hand: the file is longer than the budget allows and
+    // nothing more needs to be read to say so.
+    if (total >= ceiling) break;
+    // The file was longer than fstat said, so it is growing. Keep reading, up to
+    // what is left of the budget; the cap is asked of the total below.
+    want = Math.min(64 * 1024, ceiling - total);
   }
   return chunks.length === 1 ? chunks[0]! : Buffer.concat(chunks, total);
 }
@@ -287,7 +353,12 @@ export async function writeGuarded(
   }
 
   const name = basename(abs);
-  const payload = Buffer.from(input.contents, 'utf8');
+  // PHASE 244, audit finding F4. The LENGTH first, which allocates nothing:
+  // `Buffer.byteLength` measures the encoding without performing it, so a
+  // payload past the cap is refused below without ever holding its encoded
+  // copy. The buffer itself is built at step 7, after every refusal that could
+  // make it pointless.
+  const payloadBytes = Buffer.byteLength(input.contents, 'utf8');
 
   // 3 to 6. The read, and the three refusals decided on what it found.
   let raw: Buffer;
@@ -322,11 +393,16 @@ export async function writeGuarded(
     if (overCap(size)) {
       return refused('tooLarge', `${name} is too large for Tortie to rewrite whole.`);
     }
-    if (overCap(payload.length)) {
+    if (overCap(payloadBytes)) {
       return refused('tooLarge', `The new contents of ${name} are too large to write.`);
     }
     seen = stat;
-    raw = readAllSync(fd, size);
+    deps.afterFstat?.(abs);
+    // PHASE 244, finding F4. The budget is enforced INSIDE the loop now, and
+    // what comes back is at most one byte past it, so the question below is the
+    // same question and its answer costs bounded memory.
+    raw = readAllSync(fd, size, READ_CAP_BYTES);
+    deps.afterRead?.(raw.length);
     if (overCap(raw.length)) {
       return refused('tooLarge', `${name} is too large for Tortie to rewrite whole.`);
     }
@@ -354,6 +430,12 @@ export async function writeGuarded(
   }
 
   // 7. Stage beside the file, following no link at the staged name.
+  //
+  // PHASE 244. The encoded payload is built HERE rather than at the top, so
+  // every refusal above — outside the root, missing, a link, not a regular
+  // file, read-only, either side over the cap, a stale digest, not UTF-8 —
+  // costs no encoded copy of the new contents at all.
+  const payload = Buffer.from(input.contents, 'utf8');
   const staged = swapNameFor(abs);
   try {
     unlinkSync(staged);
