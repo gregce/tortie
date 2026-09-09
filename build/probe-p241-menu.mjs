@@ -29,8 +29,16 @@
  *  A6  the right click MOVED the caret to where it was clicked
  *  A7  the Redline view raises NO menu at all, because `.ed-mount` is not
  *      there — the structural refusal
+ *  A8  a table with a HEADING GLUED DIRECTLY ABOVE IT still draws Format
+ *      Table — 10 of this repository's own tables are that shape and the
+ *      parent commit drew nothing on any of them
  *  B1  pressing Format Table rewrites the table in the model
  *  B2  ONE undo puts the whole reshape back
+ *  B3  AND THE FENCED BLOCK GLUED DIRECTLY UNDER A TABLE SURVIVES THE PRESS,
+ *      byte for byte and line for line. This is the fix round's reading: a
+ *      GFM table ends at a blank line OR at the start of another block-level
+ *      structure, the block scan knew only the blank line, and the press
+ *      wrote the formatted table over the code block underneath it
  *  C1  pressing Format JSON rewrites the JSON document in the model
  *
  * ## SAFETY
@@ -113,6 +121,27 @@ const NOTES = [
   ''
 ].join('\n');
 
+/**
+ * THE GLUED FIXTURE, and it is the Phase 241 fix round's own defect in one
+ * file. A heading is written directly above the table and a fenced code block
+ * directly under it, with no blank line at either boundary — which is the
+ * shape a GFM table really ends at and the shape the old block scan could not
+ * see. At the parent commit the menu drew NO Format Table row here at all, and
+ * driving the row from the Edit menu instead took the fenced block off the
+ * file: 8 lines to 5, silently, in the person's own document.
+ */
+const GLUED = [
+  '### A heading glued above', // 1
+  '| id | call |', // 2
+  '| --- | ---: |', // 3
+  '| 2 | b |', // 4
+  '| 1 | a |', // 5
+  '```js', // 6
+  'const keep = "this line must survive";', // 7
+  '```', // 8
+  ''
+].join('\n');
+
 function makeProject() {
   for (const d of [home, profile, project]) {
     rmSync(d, { recursive: true, force: true });
@@ -128,6 +157,7 @@ function makeProject() {
   };
   writeFileSync(join(project, 'notes.md'), NOTES);
   writeFileSync(join(project, 'data.json'), '{"b":2,"a":[1,2,3],"c":{"d":true}}\n');
+  writeFileSync(join(project, 'glued.md'), GLUED);
   git('init', '-q', '-b', 'main');
   git('config', 'user.email', 'p241@example.invalid');
   git('config', 'user.name', 'p241');
@@ -328,6 +358,11 @@ const textA = await launch('p241-menu-a', 'p241 no row carries this label', asyn
   // 4. the JSON file itself
   say(`data.json source: ${String(await openSource(cdp, 'data.json'))}`);
   await rightClick(cdp, await cdpEval(cdp, pointAt(1, 5)));
+  // 4b. THE GLUED FIXTURE. A heading sits directly above this table with no
+  //     blank line, which is 10 of this repository's own tables and drew no
+  //     Format Table row at all at the parent commit.
+  say(`glued.md source: ${String(await openSource(cdp, 'glued.md'))}`);
+  await rightClick(cdp, await cdpEval(cdp, pointAt(4, 3)));
   // 5. THE REDLINE. Its document has no `.ed-mount`, so no menu can be raised
   //    over it at all — the structural refusal, read as an absence.
   await drive(cdp, { projectPath: project, openRel: 'notes.md', mode: 'file' });
@@ -340,12 +375,12 @@ const picksA = picksIn(textA);
 console.log(`\n${TAG} four menus were raised and dismissed; ${picksA.length} popup(s) recorded`);
 for (const [i, p] of picksA.entries()) console.log(`  menu ${i + 1}: ${p.labels.join(' · ')}`);
 
-const [inTable, inProse, overFence, inJson] = picksA;
+const [inTable, inProse, overFence, inJson, inGlued] = picksA;
 const MONACO = ['Undo', 'Redo', 'Cut', 'Copy', 'Paste', 'Select All', 'Find', 'Change All Occurrences', 'Go to Line…', 'Fold', 'Unfold'];
 const TORTIE = ['History', 'Copy Path', 'Copy Relative Path', 'Save'];
 
 console.log(`\n${TAG} the readings`);
-check(picksA.length === 4, 'A0 four menus were raised, and the redline raised none', `${picksA.length} popups`);
+check(picksA.length === 5, 'A0 five menus were raised, and the redline raised none', `${picksA.length} popups`);
 check(inTable !== undefined && inTable.labels[0] === 'Format Table', 'A1 the caret in a table draws Format Table FIRST', inTable && inTable.labels[0]);
 check(inProse !== undefined && !inProse.labels.includes('Format Table') && !inProse.labels.includes('Format JSON'), 'A2 the caret in prose draws NO Group A', inProse && inProse.labels.slice(0, 2).join(' · '));
 check(inProse !== undefined && inProse.labels[0] === 'Undo', 'A2b and no separator in front of it', inProse && inProse.labels[0]);
@@ -355,6 +390,7 @@ check(inTable !== undefined && MONACO.every((l) => inTable.labels.includes(l)), 
 check(inTable !== undefined && TORTIE.every((l) => inTable.labels.includes(l)), 'A5b the four Tortie rows are all there');
 check(caretAfter !== null && caretAfter.line === 8, 'A6 the right click moved the caret to the line it was on', JSON.stringify(caretAfter));
 check(redlineMount !== null && redlineMount.mount === false, 'A7 the Redline view has no .ed-mount, so no menu can be raised on it', JSON.stringify(redlineMount));
+check(inGlued !== undefined && inGlued.labels[0] === 'Format Table', 'A8 a table with a heading glued above it still draws Format Table', inGlued && inGlued.labels.slice(0, 2).join(' · '));
 
 // ---------------------------------------------------------------------------
 // LAUNCH B — press Format Table, then ONE undo.
@@ -363,6 +399,8 @@ console.log(`\n${TAG} LAUNCH B — press Format Table`);
 let before = null;
 let after = null;
 let undone = null;
+let gluedBefore = null;
+let gluedAfter = null;
 await launch('p241-menu-b', 'Format Table', async (cdp) => {
   await openSource(cdp, 'notes.md');
   before = await cdpEval(cdp, modelValue);
@@ -372,6 +410,14 @@ await launch('p241-menu-b', 'Format Table', async (cdp) => {
   await cdpEval(cdp, `(() => { const ed = ${EDITOR_HOOK}; ed.focus(); ed.trigger('p241-probe', 'undo', null); return true; })()`);
   await sleep(400);
   undone = await cdpEval(cdp, modelValue);
+  // AND THE GLUED FIXTURE, pressed from the same native menu. This is the
+  // reading that would have caught the loss: the fenced block under the table
+  // must still be in the model afterwards, byte for byte.
+  await openSource(cdp, 'glued.md');
+  gluedBefore = await cdpEval(cdp, modelValue);
+  await rightClick(cdp, await cdpEval(cdp, pointAt(4, 3)));
+  await sleep(700);
+  gluedAfter = await cdpEval(cdp, modelValue);
 });
 const tableAfter = after === null ? '' : after.split('\n').slice(4, 8).join('\n');
 console.log(`  the table after the press:\n${tableAfter.split('\n').map((l) => `    ${l}`).join('\n')}`);
@@ -384,6 +430,17 @@ const delim = cellsOf(tableLines[1] ?? '');
 const marks = delim.map((c) => `${c.startsWith(':') ? 'l' : ''}${c.endsWith(':') ? 'r' : ''}`);
 check(marks.join(',') === ',lr,r', 'B1c the alignment markers survived — none, centre, right', JSON.stringify(marks));
 check(undone === before, 'B2 ONE undo put the whole reshape back');
+
+const gluedLines = gluedAfter === null ? [] : gluedAfter.split('\n');
+console.log(`  glued.md after the press:\n${gluedLines.map((l) => `    ${l}`).join('\n')}`);
+check(gluedAfter !== null && gluedAfter !== gluedBefore, 'B3 Format Table ran on a table with a heading glued above it');
+check(gluedLines[0] === '### A heading glued above', 'B3a the heading above the table is untouched', gluedLines[0]);
+check(
+  gluedLines.slice(5, 8).join('\n') === '```js\nconst keep = "this line must survive";\n```',
+  'B3b THE FENCED BLOCK GLUED UNDER THE TABLE SURVIVED, byte for byte',
+  JSON.stringify(gluedLines.slice(5, 8))
+);
+check(gluedLines.length === (gluedBefore === null ? -1 : gluedBefore.split('\n').length), 'B3c and the file has the same number of lines it started with', `${String(gluedLines.length)} lines`);
 
 // ---------------------------------------------------------------------------
 // LAUNCH C — press Format JSON on the JSON file.
@@ -406,7 +463,7 @@ check(jsonAfter !== null && jsonAfter.endsWith('}\n'), 'C1c the file KEPT its tr
 
 const opAfter = operatorCount();
 say(`operator -L gmux sessions: ${opBefore} before, ${opAfter} after`);
-writeFileSync(join(root, 'menus.json'), JSON.stringify({ picksA, before, after, undone, jsonBefore, jsonAfter }, null, 2));
+writeFileSync(join(root, 'menus.json'), JSON.stringify({ picksA, before, after, undone, gluedBefore, gluedAfter, jsonBefore, jsonAfter }, null, 2));
 if (opAfter !== opBefore) findings.push('the operator session count moved');
 if (findings.length > 0) {
   console.error(`\n${TAG} FAILED: ${findings.length} finding(s)`);
