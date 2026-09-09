@@ -6,7 +6,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## Unreleased
 
-This release is about the redline you can rewind, and now type in. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at goes back with one key and comes back with another.
+This release is about the redline you can rewind, accept and now type in. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at either goes back with one key or stops being marked with another, without the file being touched.
 
 ### Added
 
@@ -16,6 +16,7 @@ This release is about the redline you can rewind, and now type in. Every edit to
 - The redline now says what its keys are. Point at a change, or step to it, and a small panel appears beside it offering Rewind with the keys written next to it, and the Edit menu shows the same keys and is available only while a redline is open, though Undo there always means the last rewind in the tab rather than the change you are pointing at ([`74a3a79`](https://github.com/gregce/tortie/commit/74a3a79)), ([`c7948fa`](https://github.com/gregce/tortie/commit/c7948fa)), ([`dd2c8a2`](https://github.com/gregce/tortie/commit/dd2c8a2)), ([`7b9e090`](https://github.com/gregce/tortie/commit/7b9e090))
 - A redline with nothing marked now says so, and says what it is being compared against — the last commit, or for a file git does not know about, the time you opened it — so an empty page is no longer mistaken for one that has not loaded ([`4de50a2`](https://github.com/gregce/tortie/commit/4de50a2))
 - You can type in the redline now, so a typo you notice while reading a file no longer means switching to Source to fix it and switching back. What you type is drawn as an insertion like any other change, Command-Z takes it back, and Command-S writes the file — though a save writes what is in front of you over anything an agent wrote to that file while you were typing ([`0722478`](https://github.com/gregce/tortie/commit/0722478)), ([`fd70048`](https://github.com/gregce/tortie/commit/fd70048)), ([`ff9d817`](https://github.com/gregce/tortie/commit/ff9d817)), ([`cbf192d`](https://github.com/gregce/tortie/commit/cbf192d))
+- A change you agree with can now be accepted instead of rewound. Press Option-Return on it, or Accept all at the top of the redline, and it stops being marked without a byte of the file being written — though what you accept lasts only as long as the tab is open, and accepting ends the undo of any rewind you made before it ([`7a91726`](https://github.com/gregce/tortie/commit/7a91726)), ([`eea8ec8`](https://github.com/gregce/tortie/commit/eea8ec8)), ([`f044001`](https://github.com/gregce/tortie/commit/f044001)), ([`225958d`](https://github.com/gregce/tortie/commit/225958d))
 
 ### Changed
 
