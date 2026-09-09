@@ -25410,6 +25410,127 @@ character counts and the real edit distance printed, before a line changes.**
 
 ---
 
+## Phase 247 — a path in a transcript opens, and the one it cannot draw goes to the Mac (operator lifted two refusals, 2026-09-09)
+
+**Subject.** `feat(terminal): a path in a transcript opens where it belongs`
+
+**First body line.** `Phase 247: a path opens`
+
+**Semver.** MINOR. A surface gains a gesture it did not have.
+
+**Tier 3**, and it earns it twice over by the tiering rules: it **spawns nothing but it hands a path to
+LaunchServices**, which is the first time in this product a click on TEXT AN AGENT WROTE reaches
+outside Tortie; and the operator reported it himself. Real data and a per-row matrix, TWO independent
+methods one of which is an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** This entry; `docs/research/107-phase-245-clickable-paths.md` IN FULL, whose eleven
+refusals are inherited except where this entry lifts them by name; [issue 18](https://github.com/gregce/tortie/issues/18);
+and the operator's two decisions of 2026-09-09, recorded below in his own framing because they are
+the reason this phase exists at all.
+
+### What is already true, and is not built again
+
+**A web address already opens in his default browser.** `src/renderer/terminal/TerminalPane.tsx:358`
+loads `WebLinksAddon`, whose handler calls `window.open`, which main routes to `shell.openExternal`
+through `setWindowOpenHandler`. **This phase does not touch URL handling.** If the measure step finds
+a URL case that does not work, that is a finding to record, not a licence to rewrite the addon.
+
+### THE TWO REFUSALS THE OPERATOR LIFTED, AND WHAT EACH COSTS
+
+He was asked both directly, with the cost of each stated, and answered on 2026-09-09.
+
+**REFUSAL 1 IS LIFTED, NARROWLY.** Research 107 refusal 1 reads *"A click never runs anything. No
+`shell.openPath`, no `shell.openExternal` on a path, no Open With, no LaunchServices, no
+`/usr/bin/open`. Opening is not executing."* His decision is **Tortie first, Preview as the fallback**:
+a path Tortie can draw opens in Tortie, and a path it cannot is handed to macOS. **THE REASON THAT
+REFUSAL EXISTED DOES NOT GO AWAY, AND THE WHOLE RISK OF THIS PHASE IS HERE**: opening a `.command`, a
+`.app`, a `.scpt`, a `.sh` or anything with the executable bit through LaunchServices IS EXECUTING,
+and the text that names it was written by an agent. So the lift is bounded by an ALLOWLIST OF KINDS
+and never by "whatever Tortie cannot draw":
+
+- **Tortie draws it** → it opens in Tortie. Prose and code in the editor; a picture in
+  `src/renderer/editor/image/`, which exists. This side of the door is unchanged from research 107's
+  version one.
+- **A named, closed set of other kinds** → `shell.openPath`. The measure step proposes the set from
+  what is actually in the corpus, and it is spelled as an ALLOWLIST of extensions, never as a
+  denylist of dangerous ones. `.pdf` is the case Jake asked for after `.png`.
+- **Everything else** → NOT UNDERLINED AT ALL. Not underlined and refused on click: never offered, so
+  there is nothing to click. A link that does nothing is worse than no link (refusal 2's own words).
+- **AND A HARD REFUSAL BENEATH THE ALLOWLIST**: no path whose mode carries any executable bit, and no
+  bundle directory, is ever handed out, whatever its extension says. Extension and mode are two
+  questions and both are asked.
+
+**REFUSAL 9's DEFAULT IS LIFTED, WITH THE MEASUREMENT ATTACHED.** Refusal 9 already says the root rule
+is *"a PRECISION rule and must be argued as one… A later round that wants to widen it is not breaking
+an invariant — it is trading false positives, and it must bring a measurement rather than an appeal to
+a rule that does not exist."* His decision is **widen it**. So version one offers a path that EXISTS
+anywhere, not only inside an open local project root, and **the measurement is the price of the
+widening rather than a nicety**: the root rule removes 282 of 1,293 spans and 147 of 300 file spans,
+and the phase reports what the false-positive rate becomes without it, over the same corpus research
+107 measured, before it ships the widening.
+
+**AND §8.1 NAMES THE GUARD THIS EXACT WIDENING NEEDS, so it is not invented here.** *"If a later round
+widens the root rule, the guard it needs is not the root rule — it is `looksLikeSecretPath` from
+`src/shared/preview-types.ts`."* It exists at line 192, is name-only by design, refuses dotenv in every
+spelling, key material by extension, ssh key stems, `.properties`, netrc and htpasswd. It is run FIRST.
+**It does not name `auth.json`, which research 107's corpus contains**; widening `NEVER_PREVIEW` is a
+change to a shipped predicate and this phase argues it on its own or leaves it, and either way says
+which.
+
+### THE THIRD QUESTION, WHICH THE OPERATOR HAS NOT ANSWERED AND THE MEASURE STEP MUST PUT TO HIM
+
+**With the root rule widened, refusal 8 becomes the binding constraint on Jake's own screenshot.**
+Refusal 8 — *"A span that touches either end of its row is never offered… a span that runs off the
+edge of a row is a span whose end we do not know"* — is why his wrapped `/private/tmp/…/test-pattern-1440.png`
+is still not offered even once `/private/tmp` is allowed. It costs the 4.2% of section 3.5. **This
+phase does NOT lift refusal 8 on its own authority.** The measure step measures what rejoining a
+wrapped span would cost on the real corpus and reports it; lifting it is a third decision and it is
+his.
+
+### The mechanism, with the files read from the tree
+
+- `src/renderer/terminal/TerminalPane.tsx` — the provider is registered beside `WebLinksAddon` at 358,
+  and the local-only predicate refusal 5 needs is one screen above at 351,
+  `() => sessionRow()?.machine === undefined`, which is the same question `attachPaths` asks.
+- `src/shared/preview-types.ts:192` — `looksLikeSecretPath`, run first, on every candidate.
+- `src/renderer/editor/image/` — where a picture opens without leaving Tortie.
+- `drop:prepare` answers the kind and `openFileAt` opens it. **Refusal 6 stands: no new IPC channel
+  that takes a path and does something with it.** If the external handoff needs a door, it is one
+  narrow main-side function reached from the existing prepare answer, and the entry would rather have
+  a measured argument for it than a channel added quietly.
+
+### The proof, run rather than read
+
+- **A per-kind matrix over the real corpus** research 107 captured: for every span, what version one
+  offers, what it opens, and which of the three doors it takes. Zero rows may reach LaunchServices
+  that the allowlist does not name.
+- **A hostile fixture the builder did not write**, and it is the attack this Tier 3 requires: a `.png`
+  that is really a shell script, a `.pdf` with the executable bit set, a symlink whose leaf resolves
+  to `/Applications/Calculator.app`, a path with a newline in it, a `.command`, a bundle directory
+  spelled with a `.png` suffix, and `auth.json`. **Every one refused, and the refusal read off the
+  running app rather than off a unit test.**
+- **The false-positive rate with the root rule widened**, measured on the same corpus and stated
+  beside research 107's 4.2%, so the trade he agreed to is a number he can see.
+- **ONE app run** on a scratch profile, scratch HOME and scratch socket: hover a path, see it
+  underlined only under the pointer, click one that opens in Tortie, click one that goes to macOS
+  **with a stub `open` rather than the real LaunchServices**, and confirm a remote pane offers nothing.
+
+### What is NOT in this phase
+
+- **No change to URL handling.** It already works.
+- **Refusals 2, 3, 4, 5, 6, 7, 10 and 11 all stand.** `lstat` is the offer condition; a hover never
+  writes; nothing is decorated on the resting face; **a pane whose session runs on another machine
+  offers no path links at all**, because both homes are `/Users/gdc` and a remote path cannot be told
+  from a local one by looking at the text, at any length, ever; no new IPC channel; a directory is
+  never a link; containment and every check is asked of the REALPATH, leaf included; a project row
+  naming another machine is not a local root.
+- **Refusal 8 is not lifted here** — it is measured and put to him.
+- **No denylist of dangerous extensions.** The external door is an allowlist or it does not ship.
+- **Nothing that starts a process Tortie owns.** `shell.openPath` hands off to the Mac; this phase
+  spawns nothing, and CLAUDE.md's third-party refusals are untouched.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -25940,3 +26061,5 @@ cycle rather than only the evening it was written.
 - 2026-09-09, **PHASE 246's MEASURE STEP, and IT REFUTES THE ENTRY'S OWN HYPOTHESIS.** `docs/research/110-phase-246-the-block-that-gave-up.md`, his own bytes recovered READ ONLY out of his baseline record for `agent-browser/test2.md` (generations 11 and 12, an accept 1.1 seconds apart) and committed as four fixtures under `build/fixtures/redline-p246/`. It is none of the three candidates. **The block's real edit distance is 93 against a cap of 200**, `diffWords` ANSWERED with 19 runs, the two sides are 312 and 165 characters against a 4,000 budget, `exactRuns` did not refuse, `approximate` is false, and `whole` reads all zeros — every guard in the feature passed and that is why the face says nothing. **The cause is the LINE PARTITION pairing two different paragraphs with each other**: `diffLines` had two shortest edit scripts of the SAME length, 4 line operations each, and took the one whose block's sides resemble each other by 0.09 while the removed line's real partner sits one byte later, across a blank line it matched as unchanged, at similarity 0.98 and a word distance of 1 — `del "simple"`, which is the picture he wanted. **Swapping the differ is ruled out by measurement**: git 2.50.1 makes the identical choice with `diff.indentHeuristic` on and off and under `patience`, `histogram` and `minimal`. Over a synthetic corpus it is **8 of 8 when the paragraph is inserted ABOVE the edited one and 0 of 8 when it is inserted below**, which is exactly his good picture against his bad one. **Question 3 answered off the app** (`build/p246/probe-p246-note.mjs`, ONE Electron on a scratch profile, a scratch HOME and the gmux-p246 socket, no agent, no token, no keychain, no request, his `-L gmux` 21 before and 21 after, `--self-test` 6 of 6): the mis-aligned picture draws 9 changes and the paragraph below whole in green with NO caps note, and the control block past `REDLINE_MAX_BLOCK_CHARS` DOES draw one, *"1 change drawn whole rather than word by word (1 too long)."*, at top 812 of an 884-tall window, outside the scroller and on screen — so the note is not hiding, there is nothing to say, and **this fallback is not counted as a skip at all**. **Ruling 4's timing re-derived rather than quoted**: 454.0 ms at `maxEditLength` 400 and 154.7 ms at 200 against the comment's 594 and 199, with the ratio unmoved at 2.94 against 2.98, and the realistic 830-word block at 1.39 ms against 1.9 — the numbers drifted down about a fifth and **200 does not move**, so the gate's pin does not move either. No product file changed; `HELPER_USER_FLOOR` raised 108 to 109 for the new probe in the same commit.
 - 2026-09-09, **PHASE 246 BUILT, four commits on `a71c8694` at version 0.101.0 with NO bump and NO tag**, the block that gave up. The measure step refuted every candidate the entry named, so what shipped is a **tie-break in the LINE PARTITION** and nothing else. `slideBoundaries` in `src/renderer/editor/redline-document.ts` re-cuts `[change(O,N), same(T), change(-,I)]` into `[change(-, N+T), change(O, I minus its trailing T), same(T)]` when the pairing is not believed, the bridge `T` is whitespace only, `I` ends with `T` in WHOLE LINES and `I`'s head resembles `O`. **Both projections are unchanged by inspection and the LINE COST is unchanged by construction** — the same lines are deleted and the same lines are inserted and only their grouping moves — so it cannot buy a picture with edits jsdiff refused to spend, and it computes no edit script and reorders nothing, which is why ruling 6 stands untouched. **His bad picture goes from 15 marked runs to 3**, being `del "micro"`, the paragraph he inserted whole in green, and `del "simple"`; **his good picture is BYTE IDENTICAL to the parent**, digest `662f5a30ef765e70`, pinned and asserted unmoved under all six of the new gate's ablations. Research 110 §6's corpus reads **8 of 8 readable with the paragraph inserted above against 1 of 8 at the parent**, and below is 8 of 8 on both sides with 0 slides. **TWO NEW CONSTANTS, both measured, and NO EXISTING CONSTANT MOVED**: `REDLINE_SLIDE_RESEMBLANCE` 0.5, which is the number research 110 §6's corpus was already counted with, and `REDLINE_SLIDE_MARGIN` 0.25, measured over **135 real prose pairs out of this repository's own history** — 484 change blocks, 14 doubtful with a reachable insertion, four clearing the threshold at margins 0.87, 0.65, 0.38 and 0.04, where the first three each LOWER the block's word edit distance (over the cap to 21, 6 to 3, 10 to 4) and the fourth RAISES it from 29 to over the cap; nothing sits between 0.04 and 0.38 and the number is placed in that gap. **Gate rule 25** is six arms on the shipping slide driven by `build/redline-slide-probe.mts` over 25 documents, 6 of 6 ablations red, with the tie (25 of 25 equal line cost), both projections, research 74 §6.5's newline-under-a-strikethrough at zero, and seven refusals each beside a control that reads one slide; **three of the six ablations could not fail when first written and the gate said so rather than passing**, one of them because the margin arm was refusing on the wrong clause at 0.80. **ONE APP RUN**, `build/p246/probe-p246-slide.mjs`, one Electron on a scratch profile, a scratch HOME and the gmux-p246 socket, no agent, no token, no keychain, no request, `-L gmux` 21 before and 21 after, `--self-test` 7 of 7: 13 passed 0 failed, the projections taken off the LIVE DOM at 1,380 of 1,380 and 1,535 of 1,535 bytes, and the caps note still drawn where it always was. **REFUSED, and each with its reason**: the Pierre `redlineBlocks` path is untouched, because rule 7 gives the redline one home and it is not the diff and nothing in the product calls it; no per-block note and no note for a block the slide could not repair, because research 110 §5 measured the note path working and on screen and a block this pass cannot improve is drawn exactly as it is today with the arithmetic having run, so there is no give-up to announce; and no cap moved, ruling 4's 200 included. `HELPER_USER_FLOOR` 109 to 110 in the app run's own commit.
 - 2026-09-09, **PHASE 246 LANDED WHOLE at `5797a3c6`** at version 0.101.0 with NO bump and NO tag, four commits rebased onto `20e74e89` and pushed, the block that gave up. **IT WAS NONE OF THE THREE CANDIDATES THE ENTRY NAMED, and the entry said in advance that a round which assumed one and was wrong would build the wrong thing.** Candidate (a) was refuted by the block's own word edit distance, **93 against a cap of 200**; (b) by its two sides, **312 and 165 characters against a budget of 4,000**; (c) by `diffWords` ANSWERING with 19 runs and `exactRuns` not refusing, with `redlineDocumentNote` correctly `null` because by this module's own accounting nothing had been skipped. **THE ARITHMETIC FINISHED AND THE PICTURE WAS STILL UNREADABLE**, which is why no rule of the twenty-four this gate already had could see his bad picture or see it coming back. The cause is `diffLines` choosing between **two shortest edit scripts OF THE SAME LENGTH**, four line operations each, and taking the one that pairs the removed paragraph with the INSERTED one at a resemblance of **0.09** while the removed paragraph's real partner sits one byte later across a blank line the partition matched as unchanged, at **0.98** and a word distance of **1**; research 110 §3 drove git 2.50.1 over the same two files with `diff.indentHeuristic` on and off and under `patience`, `histogram` and `minimal`, and every one of them slid the same way, so there is no better line differ to swap in. What shipped is `slideBoundaries`, a TIE-BREAK in the line partition and nothing else, whose line cost is unchanged by construction, so it cannot buy a picture with edits jsdiff refused to spend. **NO CONSTANT MOVED, ruling 4's 200 included**, and the two that are new are `REDLINE_SLIDE_RESEMBLANCE` 0.5 and `REDLINE_SLIDE_MARGIN` 0.25. **THE TIMING WAS RE-DERIVED FROM SCRATCH AND IT IS MORE UNFAVOURABLE TO 400 THAN THE COMMENT CLAIMS**, by the verifier's own seeded generator and own harness rather than the phase's: over 60-block pathological files at four block sizes the ratio of `diffWords` at 400 against 200 read **1.08, 2.01, 3.91 and 3.90**, where ruling 4's own comment says 2.98 and the measure step read 2.94, so **200 stays and is better earned than it was**; the realistic 40-word edit inside an 830-word block reads **0.5 ms**, and the whole-document cost over the 60-block file is **85.2 ms at HEAD against 83.8 at the parent**, about 1.7% for the slide. **FIVE INDEPENDENT METHODS, four of which the builder did not run**: fourteen hostile fixtures driven at HEAD AND at the parent module, **6 real mis-drawings at the parent and 0 introduced at HEAD**; a **3,908-document seeded property fuzz** with the verifier's own projector and own line-cost counter against the gate's 25, reading projections exact 3908 of 3908, line cost equal 3908 of 3908 and bytes preserved 3908 of 3908, with the slide firing on 324 of which 309 got FEWER marked runs and the one that got more inspected by hand and found to be the good direction; a sensitivity sweep of the two new constants, which found `REDLINE_SLIDE_RESEMBLANCE` **load-bearing in both directions** (0.05 regresses his own picture back to 15 runs, 0.8 breaks two paragraphs inserted at once) and `REDLINE_SLIDE_MARGIN` **the thinner of the two**, its whole evidence one case at margin 0.04 and one synthetic arm, with 0 and 0.5 moving 8 documents of 3,908 and breaking nothing constructible; and a second app run over the verifier's own fixtures, **33 passed and 0 failed**, driving the arm the builder's run does not, being ⌥↓ to a change on a SLID picture, ⌥⌫, and the file read FROM DISK byte for byte with the one word put back and the inserted paragraph still there, then ⌥⇧⌫ undoing it byte for byte. **THE SUBJECT DEVIATED FROM THE ENTRY ON PURPOSE and the entry's own `**Subject.**` line still reads the old one**: it was queued as `fix(redline): a block that gives up splits where it can and says so`, and what shipped is `fix(redline): a paragraph inserted above no longer rewrites the one below`, because the measure step refuted the give-up — there was none to announce, and research 110 §5 measured the note path working and on screen at top 812 of an 884-tall window. **ONE CLAIM IN THE BUILD REPORT IS BACKWARDS AND IS CORRECTED HERE RATHER THAN LEFT IN THE RECORD**: it said `resemblance` "counts the first side with duplicates against the second as a set, so repetitive prose scores low", and driven through the SHIPPING function `resemblance("the cat the cat the cat", "the cat")` reads **1.000** and `resemblance("a a a a a a a a a a", "a b c")` reads **1.000**, so repetitive prose on the FIRST side scores at the CEILING and not low; the consequence is bounded, because a false high can only pick the worse of two alignments jsdiff already priced identically and the fuzz proves the bytes and the line cost are safe either way, it reached no shipped file, and the function's own comment in `redline-document.ts` is right. **TWO THINGS ARE OLDER THAN THIS PHASE AND ARE NOT ITS DEFECTS**, both checked at the parent as well: whitespace-only marked runs still survive in the document path, so gate arm 25c's `whitespaceOnlyMarked === 0` is a property of its 25-document corpus rather than of the module, while research 74 §6.5 got strictly BETTER elsewhere, the lorry fixture drawing `del " "` and `del "\n"` at the parent and neither at HEAD; and ruling 4's own 830-word example is unreachable through `composeRedlineDocument`, because a paragraph that long is past `REDLINE_MAX_BLOCK_CHARS` on both sides and the document path answers `tooBig: 1`, so that measurement describes the hunk path alone. The BUILT line above said three commits and there are four; it is corrected in place. Battery re-run whole at the pushed tree, green first time with no flake, `live.test.ts` included: typecheck, build with the contract inventory byte identical and `gate:electron` at floor **110 of 110 counted rather than listed**, **13,311 passed and 2 skipped over 847 files**, `smoke:t1`, `smoke:t3`, `conformance:redline` with **rule 25 at 6 of 6 ablations red and his good picture holding its parent digest `662f5a30ef765e70` through all six**, and `conformance:redline-write` 30 readings with 17 of 17 ablations red. Only `redline-document.ts` and its test changed under `src/`, with `rewind.ts`, `redline-accept.ts`, `redline-journal.ts`, `baseline.ts`, `redline-press.ts`, `redline-write.ts`, `redline.ts`, `src/main/baselines/` and `PROSE_EXTENSIONS` all byte identical. No Electron left behind, no scratch socket left in `/private/tmp/tmux-501`, his `-L gmux` **21 sessions before and after**, his checkout and `~/agent-browser` byte identical by `git status`, not one byte written into his real profile, no machine touched, no token spent.
+
+- 2026-09-09, **PHASE 247 QUEUED, A PATH IN A TRANSCRIPT OPENS.** The build round research 107 refused to queue for itself, and **the operator lifted TWO of its eleven refusals by name after being asked with the cost of each stated**. Refusal 1, no click ever reaches LaunchServices, is lifted NARROWLY: Tortie draws what it can, a CLOSED ALLOWLIST of other kinds goes to `shell.openPath`, everything else is never underlined, and no executable bit and no bundle is ever handed out whatever its extension says — because opening a `.command` IS executing and the text naming it was written by an agent. Refusal 9's default is lifted WITH THE MEASUREMENT ATTACHED, which is refusal 9's own instruction: the root rule removes 282 of 1,293 spans, and the phase reports the false-positive rate without it before it ships. §8.1 already named the guard this widening needs and it is `looksLikeSecretPath` at src/shared/preview-types.ts:192, run first. **Refusal 8 is NOT lifted and is the reason Jake's own screenshot still would not work**: his path wraps, and a span running off the edge of a row is one whose end we do not know; the measure step measures what rejoining costs and puts that third decision to him. Refusals 2, 3, 4, 5, 6, 7, 10 and 11 all stand, refusal 5 most of all, since both homes are `/Users/gdc`. Tier 3, MINOR, two independent methods with one an attack, and the attack is named in the entry: a `.png` that is really a shell script, a `.pdf` with the executable bit, a symlink resolving into `/Applications`, and `auth.json`.
