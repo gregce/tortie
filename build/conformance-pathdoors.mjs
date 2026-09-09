@@ -56,6 +56,16 @@
  *      no rescue. It is the trap research 107 section 7.4 found: `preparePaths`
  *      COPIES a file whose name carries a newline into the drop store, and a
  *      link provider is driven by a pointer moving over a pane.
+ *   7. THE PROVIDER IS REGISTERED AFTER `WebLinksAddon` AND REFUSES A REMOTE
+ *      PANE. Registration order is what stops a path link ever taking a span
+ *      from a URL, because `_removeIntersectingLinks` walks providers in that
+ *      order. The machine question is read PER HOVER inside the provider — a
+ *      closure, never a captured value — and it is asked BEFORE anything else
+ *      runs, so a remote pane costs a comparison and not a round trip.
+ *   8. THE PROVIDER'S OWN REFUSALS. `provideLinks` answers `undefined` for a
+ *      remote pane, and a link is built only for a span whose door is not
+ *      null. The click asks AGAIN, and it asks the machine question again
+ *      too — the underline was drawn from a cached answer.
  *   9. THE ABLATIONS. One clause removed per copy of the sequence, and every
  *      copy must move a reading rule 1 or rule 2 pinned. A gate that cannot
  *      fail is not a gate.
@@ -75,7 +85,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsxCli } from './ts-runner.mjs';
-import { functionBodyOf, stripComments } from './scan-source.mjs';
+import { blockAt, closeOf, functionBodyOf, stripComments } from './scan-source.mjs';
 
 const TAG = '[conformance:pathdoors]';
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -89,6 +99,38 @@ const DOOR = 'src/main/fs/path-door.ts';
 
 const source = (rel) => readFileSync(join(repoRoot, rel), 'utf8');
 const code = (rel) => stripComments(source(rel));
+
+/**
+ * The body of a CLASS METHOD, matched by braces.
+ *
+ * `namedFunctions` and `functionBodyOf` in build/scan-source.mjs read
+ * declarations and assigned arrow functions and see no class method at all, so
+ * a rule asking about one would read nothing and pass. The provider is a class
+ * because it holds a cache, so this reader exists; it is proved on fixtures
+ * beside rule 8, four of which must make it answer null.
+ *
+ * A DECLARATION IN AN INTERFACE IS NOT A METHOD. `open(path): Promise<string>;`
+ * matches the same name at the same indentation, so a candidate whose
+ * parameter list is followed by a `;` before its `{` is skipped rather than
+ * read, and the search moves on to the next one.
+ */
+function methodBodyOf(code, name) {
+  const re = new RegExp(
+    `(?:^|\\n)[ \\t]*(?:private |public |protected |static |async |readonly )*${name}\\s*\\(`,
+    'g'
+  );
+  let m;
+  while ((m = re.exec(code)) !== null) {
+    const openParen = code.indexOf('(', m.index + m[0].length - 1);
+    const closeParen = closeOf(code, openParen);
+    if (closeParen === -1) continue;
+    const brace = code.indexOf('{', closeParen);
+    if (brace === -1) continue;
+    if (code.slice(closeParen, brace).includes(';')) continue;
+    return blockAt(code, brace);
+  }
+  return null;
+}
 
 /** Every production TypeScript file under `dir`, tests left out. */
 function walk(dir) {
@@ -478,6 +520,116 @@ function hoverWriteFindings(text) {
     say(
       `6. the classify ask is prepareOne’s first act, reaches the door sequence, and names no copy, no open and no sniff; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rules 7 and 8. The provider.
+// ---------------------------------------------------------------------------
+
+{
+  const PANE = 'src/renderer/terminal/TerminalPane.tsx';
+  const LINKS = 'src/renderer/terminal/path-links.ts';
+  const paneCode = code(PANE);
+
+  // 7a. Registered AFTER the web links addon, which is what stops a path link
+  // taking a span from a URL. Read as two offsets in one file, because that is
+  // exactly what xterm's own `_removeIntersectingLinks` reads.
+  const web = paneCode.indexOf('new WebLinksAddon(');
+  const ours = paneCode.indexOf('registerLinkProvider(');
+  if (web === -1) {
+    fail('7. TerminalPane no longer loads WebLinksAddon, so registration order says nothing');
+  } else if (ours === -1) {
+    fail('7. TerminalPane registers no link provider, so a path in a transcript opens nothing');
+  } else if (ours < web) {
+    fail('7. the path provider is registered BEFORE WebLinksAddon, so it can take a span from a URL');
+  }
+
+  // 7b. The machine question is a CLOSURE read per hover, never a value read
+  // once at mount. It is the same one PHASE 96's Cmd-K asks one screen above.
+  if (!/isLocal:\s*\(\)\s*=>\s*sessionRow\(\)\?\.machine === undefined/.test(paneCode)) {
+    fail('7. the provider’s local-only predicate is not the pane’s own per-keystroke closure, so a session that moves is answered as it was at mount');
+  }
+
+  // 7c. ...and the provider is disposed with the pane.
+  if (!/pathLinks\.dispose\(\)/.test(paneCode)) {
+    fail('7. the link provider is not disposed when the pane unmounts');
+  }
+
+  const linksCode = code(LINKS);
+
+  // 8a. The machine question is the FIRST thing provideLinks asks, so a remote
+  // pane costs a comparison rather than a buffer read and a round trip.
+  const provide = methodBodyOf(linksCode, 'provideLinks');
+  if (provide === null) {
+    fail('8. src/renderer/terminal/path-links.ts declares no provideLinks');
+  } else {
+    const asked = provide.indexOf('isLocal()');
+    const read = provide.indexOf('this.term.buffer');
+    if (asked === -1) {
+      fail('8. provideLinks never asks whether the session is on this Mac, and a remote path cannot be told from a local one by looking at it');
+    } else if (read !== -1 && asked > read) {
+      fail('8. provideLinks reads the buffer before it asks whether the session is on this Mac');
+    }
+  }
+
+  // 8b. The CLICK asks again — the machine question and the door both.
+  const open = methodBodyOf(linksCode, 'open');
+  if (open === null) {
+    fail('8. src/renderer/terminal/path-links.ts declares no open, so this rule read nothing');
+  } else {
+    if (!/isLocal\(\)/.test(open)) {
+      fail('8. the click does not re-ask whether the session is on this Mac');
+    }
+    if (!/doorFor\(/.test(open)) {
+      fail('8. the click does not re-ask the door, so it acts on the answer a hover cached');
+    }
+    if (!/cache\.delete\(/.test(open)) {
+      fail('8. the click reads the cached answer rather than a fresh one');
+    }
+  }
+
+  // 8c. A link is built only for a span whose door is a door. This is the
+  // rule that keeps "a link that does nothing is worse than no link" true.
+  const built = methodBodyOf(linksCode, 'linksFor');
+  if (built === null) {
+    fail('8. src/renderer/terminal/path-links.ts declares no linksFor');
+  } else if (!/answer\.door === null\) continue/.test(built)) {
+    fail('8. linksFor builds a link for a span no door accepts, so a person can press something that will not work');
+  }
+
+  // 8d. The provider never writes and never asks for bytes: the ONE ask it
+  // makes is the classify one, and it names the option.
+  if (!/classify: true/.test(linksCode)) {
+    fail('8. the provider does not ask drop:prepare for the read-only classification, so a hover may write');
+  }
+  for (const word of ['persist(', 'writeFile', 'readFile', 'fs:reveal', 'openWith(']) {
+    if (linksCode.includes(word)) {
+      fail(`8. the provider names ${word}, and a hover asks for a classification and nothing else`);
+    }
+  }
+
+  // The method reader, proved. Four of these five must answer null.
+  const METHOD_PLANTS = [
+    ['a real method', 'class A {\n  open(x) {\n    return 1;\n  }\n}', true],
+    ['an interface declaration only', 'interface D {\n  open(x: string): Promise<string>;\n}', false],
+    ['a modifier stack', 'class A {\n  private async open(x): Promise<void> {\n    return;\n  }\n}', true],
+    ['no such name', 'class A {\n  shut(x) {\n    return 1;\n  }\n}', false],
+    ['a declaration ABOVE the real method', 'interface D {\n  open(x: string): Promise<string>;\n}\nclass A {\n  open(x) {\n    return 2;\n  }\n}', true]
+  ];
+  let readers = 0;
+  for (const [why, text, want] of METHOD_PLANTS) {
+    const got = methodBodyOf(text, 'open');
+    if ((got !== null) !== want) {
+      fail(`8. the method reader read "${why}" as ${got === null ? 'nothing' : 'a body'}, and it must read the other way`);
+    } else readers += 1;
+  }
+  if (readers === METHOD_PLANTS.length && methodBodyOf(METHOD_PLANTS[4][1], 'open')?.includes('return 2') !== true) {
+    fail('8. the method reader returned the interface declaration rather than the method below it');
+  }
+
+  if (failures.every((f) => !f.includes(' 7. ') && !f.includes(' 8. '))) {
+    say('7 and 8. the provider is registered after WebLinksAddon and disposed with the pane, refuses a remote pane before it reads a buffer, builds a link only where a door answered, and the click re-asks both questions');
   }
 }
 

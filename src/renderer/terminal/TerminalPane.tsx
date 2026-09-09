@@ -37,6 +37,11 @@ import { snapshotSelection } from './capture';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
 import { isFocusReport } from './keys/focus-report';
+import {
+  classifyThroughBridge,
+  handToMac,
+  PathLinkProvider
+} from './path-links';
 import { multilineSequenceFor, primeMultilineKeys } from './keys/multiline';
 import { ScrollSurface } from './scroll/surface';
 import { TerminalScrollbar } from './scroll/TerminalScrollbar';
@@ -61,6 +66,7 @@ import {
   TERMINAL_SCROLLBACK
 } from './theme';
 import { gmuxBridge } from '../bridge';
+import { openFileAt } from '../context/open-detail';
 // PHASE 129 ITEM 2. The pane may take the keyboard only when the person is not
 // holding it in a session list. See the module's header for the measurement.
 import { keyboardIsInASessionList } from '../app/session-list-keyboard';
@@ -362,6 +368,33 @@ export function TerminalPane({
         window.open(uri, '_blank', 'noopener,noreferrer');
       })
     );
+    // PHASE 247. A path an agent printed opens where it belongs, and this
+    // provider is registered AFTER the web links addon on purpose:
+    // `_removeIntersectingLinks` walks providers in registration order and
+    // drops any link whose columns an earlier provider already claimed, so a
+    // path link can never take a span from a URL. That settles the whole
+    // `//host/path` family for free (research 107 section 5).
+    //
+    // The two closures are read PER HOVER and never captured, for the same
+    // reason the key handler's are one screen above: a session's machine and
+    // its project are live facts.
+    const pathLinks = term.registerLinkProvider(
+      new PathLinkProvider(term, {
+        // REFUSAL 5: a pane whose session runs on another machine offers no
+        // path links at all. The same question ⌘K asks, and the same one
+        // `attachPaths` asks before it decides a drop must carry bytes.
+        isLocal: () => sessionRow()?.machine === undefined,
+        repoPath: () => sessionRow()?.projectPath ?? '',
+        classify: classifyThroughBridge,
+        openInTortie: (path, repoPath, line) => {
+          openFileAt(path, repoPath, {
+            preview: false,
+            ...(line !== undefined ? { line } : {})
+          });
+        },
+        openOnMac: handToMac
+      })
+    );
     // Opened inside the boot sequence below — AFTER document.fonts.ready —
     // so xterm never measures cells or builds its (WebGL) glyph atlas from
     // a not-yet-loaded font (Bug C hardening: a @font-face --font-mono
@@ -561,6 +594,7 @@ export function TerminalPane({
       unsubData();
       unsubExit?.();
       unsubStatus();
+      pathLinks.dispose();
       dataSub.dispose();
       binarySub.dispose();
       resizeSub.dispose();
