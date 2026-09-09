@@ -112,6 +112,26 @@ export const BASELINE_MAX_AGE_MS = 7 * 24 * 3600_000;
  */
 export const BASELINE_MAX_DIR_BYTES = 32 * 1024 * 1024;
 
+/**
+ * The largest baseline generation a record or a request may carry.
+ *
+ * PHASE 243'S FIX ROUND. Every other field here had a bound and this one had
+ * only "a whole number, not negative", which is the field Phase 227's press
+ * guard is bound to: `redline-write.ts` refuses a rewind when the drawn
+ * generation is not the tab's, and `nextBaseline` moves the tab's by adding
+ * one. In float64 addition has a FIXED POINT — `2 ** 53 + 1 === 2 ** 53` — so
+ * a planted record at `Number.MAX_SAFE_INTEGER` gave a tab a generation that
+ * stops moving after one step, and from then on a rewind drawn against stale
+ * bytes passes a guard that can no longer see the baseline move.
+ *
+ * A BILLION rather than 2^53, because it is a number this product can reach
+ * and 2^53 is not: a generation moves on an agent's write, a read seed or an
+ * accept, so a billion is more moves than a tab could take if one landed every
+ * millisecond for eleven days. Above it is a planted number, and a planted
+ * number is dropped whole with the field named, like every other bad row.
+ */
+export const BASELINE_MAX_GENERATION = 1_000_000_000;
+
 /** Sweep cadence for a long-running app, the drop store's, unchanged. */
 export const BASELINE_PRUNE_INTERVAL_MS = 24 * 3600_000;
 
@@ -310,7 +330,11 @@ function parseRecord(
     if (!ORIGINS.includes(entry.origin as StoredBaselineOrigin)) {
       return { dropped: `entries.origin: ${String(entry.origin)} is not one of the three` };
     }
-    if (!Number.isInteger(entry.baselineGeneration) || (entry.baselineGeneration as number) < 0) {
+    if (
+      !Number.isInteger(entry.baselineGeneration) ||
+      (entry.baselineGeneration as number) < 0 ||
+      (entry.baselineGeneration as number) > BASELINE_MAX_GENERATION
+    ) {
       return { dropped: 'entries.baselineGeneration: not a generation' };
     }
     if (!Number.isFinite(entry.storedAt) || (entry.storedAt as number) <= 0) {
@@ -486,7 +510,11 @@ export function createBaselineStore(deps: BaselineStoreDeps): BaselineStore {
     if (!ORIGINS.includes(input.origin)) {
       return refusedStore('input', `origin: ${String(input.origin)} is not one of the three`);
     }
-    if (!Number.isInteger(input.generation) || input.generation < 0) {
+    if (
+      !Number.isInteger(input.generation) ||
+      input.generation < 0 ||
+      input.generation > BASELINE_MAX_GENERATION
+    ) {
       return refusedStore('input', 'generation: not a generation');
     }
     // THE TRUNCATED READ, WHICH RESEARCH 106 §3.3 NAMED AND WHICH IS A REAL

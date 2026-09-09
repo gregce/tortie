@@ -217,16 +217,18 @@
  *      WHOLE. The stored record carries the HEAD version it was taken against;
  *      handed one that has not moved the rule answers the SAME object and the
  *      baseline stands, handed one that has it re-seeds from the commit, so no
- *      narrowing across a commit can survive. Nine planted records are each
+ *      narrowing across a commit can survive. Ten planted records are each
  *      refused with the field and the reason named, one of which is a row
  *      naming a body path of its own — a record may only name the path its own
  *      key's generation would have, or a hostile one would have the reader
- *      open whatever it named.
+ *      open whatever it named — and one of which is a BASELINE GENERATION past
+ *      the bound, which is the field Phase 227's press guard is bound to and
+ *      the one field that had no bound until this phase's fix round.
  *  24. THE RING, THE CEILING AND THE DOOR. Five stores leave exactly two
  *      bodies and two entries and the newest reads; the shipped numbers are
  *      pinned; the ceiling evicts oldest first and keeps the newest; a record
  *      past the age bound is swept and a fresh one is not; and the door's
- *      eight refusals each answer their own word and leave NOTHING on disk.
+ *      nine refusals each answer their own word and leave NOTHING on disk.
  *
  *      ALL FOUR ARE DRIVEN OVER A REAL DIRECTORY under the OS temporary
  *      directory, removed in a `finally`. Nothing is written inside `src/`,
@@ -2525,19 +2527,19 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
 //  23. CREDIBILITY IS `nextBaseline` REPLAYED, and a hostile record is dropped
 //      WHOLE. A restored baseline handed a HEAD version that has not moved
 //      answers the SAME object and stands; handed one that has, it re-seeds
-//      from the commit, so no narrowing across a commit survives. Then nine
+//      from the commit, so no narrowing across a commit survives. Then ten
 //      planted records — not JSON, a version from another day, a record naming
 //      a different file, entries that are not a list, a row that is not an
 //      object, a sha256 that is not one, an origin nobody ships, a body path
-//      of its own, and a generation that is not one — are each refused with
-//      the field and the reason named, and the good record still reads after
-//      them.
+//      of its own, a generation that is not one, and a BASELINE GENERATION
+//      past the bound — are each refused with the field and the reason named,
+//      and the good record still reads after them.
 //  24. THE RING, THE CEILING AND THE DOOR. Five stores leave exactly two
 //      bodies and two entries and the newest reads; the shipped numbers are
 //      pinned (ring 2, seven days, 32 MB); the ceiling evicts oldest first and
 //      keeps the newest; a record past the age bound is swept and a fresh one
-//      is not; and the door's eight refusals each answer their own word and
-//      leave NOTHING on disk.
+//      is not; and the door's nine refusals each answer their own word and
+//      leave NOTHING on disk, with a generation AT the bound still kept.
 //
 // Every arm goes red under an ablation of its own clause, in a dotted
 // subdirectory removed in a `finally`. The store's ablations copy the store
@@ -2618,7 +2620,7 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
         a.reseedsWhenItHas === true &&
         a.emptyHeadNeverSeeds === true &&
         a.everyPlantDropped === true &&
-        a.drops.length === 9 &&
+        a.drops.length === 10 &&
         a.goodRecordStillReads === true,
       chain: 'rule',
       file: 'baseline.ts',
@@ -2657,15 +2659,48 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       to: 'export const BASELINE_GENERATIONS = 5;'
     },
     {
+      // THE FIX ROUND'S ARM. `baselineGeneration` is what Phase 227's press
+      // guard is bound to, and it was the one record field with no upper
+      // bound: planted at `Number.MAX_SAFE_INTEGER` the record was accepted
+      // whole, and `nextBaseline`'s `+ 1` then has a fixed point, so the guard
+      // stops seeing the baseline move.
+      rule: 23,
+      name: 'a baseline generation past the bound is dropped whole',
+      key: 'credibility',
+      expect: (a) =>
+        a.everyPlantDropped === true &&
+        a.drops[9]?.reason === 'entries.baselineGeneration: not a generation',
+      chain: 'store',
+      file: 'store.ts',
+      from: '      (entry.baselineGeneration as number) > BASELINE_MAX_GENERATION',
+      to: '      false'
+    },
+    {
+      rule: 24,
+      name: 'the door refuses a generation past the bound and keeps one at it',
+      key: 'ring',
+      expect: (a) =>
+        a.refusals[8]?.refused === 'input' &&
+        a.atTheBoundIsKept === true &&
+        a.boundStillMoves === true,
+      chain: 'store',
+      file: 'store.ts',
+      from: '      input.generation > BASELINE_MAX_GENERATION',
+      to: '      false'
+    },
+    {
       rule: 24,
       name: "the door's refusals, one word each, leaving nothing on disk",
       key: 'ring',
       expect: (a) =>
         a.leftBehind === 0 &&
-        a.refusals.length === 8 &&
+        a.refusals.length === 9 &&
         a.refusals.map((r) => r.refused).join(',') ===
-          'remote,outside,input,input,prose,truncated,tooLarge,input' &&
-        a.refusals.every((r) => typeof r.reason === 'string' && r.reason.includes(':')),
+          'remote,outside,input,input,prose,truncated,tooLarge,input,input' &&
+        a.refusals.every((r) => typeof r.reason === 'string' && r.reason.includes(':')) &&
+        a.maxGeneration === 1_000_000_000 &&
+        a.boundStillMoves === true &&
+        a.atTheBoundIsKept === true,
       chain: 'store',
       file: 'store.ts',
       from: '    if (input.truncated === true) {',
