@@ -8686,7 +8686,8 @@ process.stdout.write(
         );
       });
 
-      // 88g-ii. EACH CLAUSE ABLATED ON ITS OWN, over the same six arms.
+      // 88g-ii. EACH CLAUSE ABLATED ON ITS OWN, over the same ARMS, and the
+      //         count below is COUNTED from that array rather than written.
       const ablations = [
         {
           why: 'the first rm -f "$t" removed',
@@ -8759,9 +8760,9 @@ process.stdout.write(
         if (one.moves && moved.length === 0) {
           fail(
             `condition 88g took "${one.why}" out of the shipping image-put ` +
-              'text and every one of its six arms read exactly what the ' +
-              'shipping text reads. A clause no arm can move is a clause this ' +
-              'condition is not guarding.'
+              `text and every one of its ${String(ARMS.length)} arms read ` +
+              'exactly what the shipping text reads. A clause no arm can ' +
+              'move is a clause this condition is not guarding.'
           );
         }
         if (!one.moves && moved.length > 0) {
