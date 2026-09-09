@@ -18,7 +18,7 @@
  *
  * PHASE 242.2 ADDED THE ONE THING IT DOES START, and it is said here rather
  * than left for somebody to find. Condition 88g hands the shipping `image-put`
- * text to `/bin/sh` — synchronously, six arms per variant — over real links and
+ * text to `/bin/sh` — synchronously, nine arms per variant — over real links and
  * real files in a scratch directory it makes under the system temporary
  * directory and removes in a `finally`, with `HOME` pointed inside that
  * directory so nothing under the person's own home is named. `conformance:
@@ -363,6 +363,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -8462,19 +8463,41 @@ process.stdout.write(
 // Phase 242.2, condition 88g. THE STAGED NAME FOR A PICTURE, RUN RATHER THAN
 // READ.
 //
-// WHY THIS CONDITION EXISTS. `image-put` staged its payload at `t="$f.part"`
-// under `$HOME/.tortie/images` and created that name with a redirection that
-// had no unlink in front of it, no `set -C` and no `[ -L ]` test. A SYMBOLIC
-// LINK planted there, and again a HARD LINK, each carried the picture's bytes
-// into the file OUTSIDE that directory the planted name pointed at, while the
-// script answered `added` with the payload's OWN byte count and its OWN
-// sha256 — so the answer read as a clean write in both escaping arms. It was
+// WHY THIS CONDITION EXISTS. `image-put` has TWO names, and neither was
+// guarded.
+//
+// THE STAGED NAME. It staged its payload at `t="$f.part"` under
+// `$HOME/.tortie/images` and created that name with a redirection that had no
+// unlink in front of it and no `set -C`. A SYMBOLIC LINK planted there, and
+// again a HARD LINK, each carried the picture's bytes into the file OUTSIDE
+// that directory the planted name pointed at, while the script answered
+// `added` with the payload's OWN byte count and its OWN sha256 — so the answer
+// read as a clean write in both escaping arms. A DANGLING link there CREATED
+// the file it named outside and left a link under the picture's name. It was
 // measured three ways before anything was changed: under /bin/sh over a
 // scratch HOME, on the operator's Mac Pro's own shell over the real link, and
 // through Tortie's own `machines.putImage` against that machine, where both
 // arms answered `{"outcome":"added","refusal":null}` with `remotePath` naming
 // a file inside `~/.tortie/images` that was not where the bytes went
 // (research 105 sections 4 and 5).
+//
+// THE PICTURE'S OWN NAME, which the phase's first round left open and its
+// verifier measured at HEAD through `machines.putImage` against the same
+// machine. `$f` had no `[ -L ]` test at all. A link there pointing at a
+// DIRECTORY made `mv "$t" "$f"` move the picture INTO that directory under the
+// staged name's own basename, replacing a file already there, while the CALLER
+// was told the picture had not arrived — a file outside destroyed and nothing
+// said. One pointing at a REGULAR FILE made `[ -f "$f" ]` read that file
+// THROUGH the link, so the script answered `present` with a count and a digest
+// taken from outside `$d`. `file-put` carries `if [ -L "$f" ] || [ -L "$t" ]`
+// for exactly these two readings and this script carried neither half.
+//
+// THE TWO NAMES GET DIFFERENT ANSWERS AND THAT IS THE POINT. The staged name
+// is UNLINKED, because Tortie composed it for itself and nothing that used to
+// succeed may start refusing. The picture's own name is REFUSED with
+// `file-put`'s word `outside`, because when it is a picture it is the person's
+// own picture. `parseImagePutAnswer` accepts `added` and `present` and nothing
+// else, so no new word crosses the channel.
 //
 // WHY IT RUNS THE TEXT RATHER THAN READING IT. Condition 88f above reads the
 // same text and asks whether the clauses are there and stand where they have
@@ -8487,7 +8510,7 @@ process.stdout.write(
 // and every child is synchronous.
 //
 // WHICH CLAUSE HOLDS WHICH HALF, WHICH IS THE PART A LATER ROUND WILL GET
-// WRONG. Each clause is taken out of the shipping text on its own and all six
+// WRONG. Each clause is taken out of the shipping text on its own and all nine
 // arms re-driven, because Phase 242's fix round measured that the two halves
 // of `file-put`'s guard are held by DIFFERENT clauses and that ablating one
 // alone left its whole test file green:
@@ -8503,9 +8526,14 @@ process.stdout.write(
 //     unlink in place the only thing it adds is refusing a name re-planted in
 //     the microseconds between the unlink and the create. This condition
 //     ASSERTS that, rather than pretending to cover it: the `set -C` ablation
-//     must read exactly what the shipping text reads on all six arms, and if
+//     must read exactly what the shipping text reads on all nine arms, and if
 //     that ever stops being true the reason 88f holds the clause as text has
-//     stopped being true with it. 88f is what makes its removal red.
+//     stopped being true with it. 88f is what makes its removal red;
+//   - the DANGLING link at the staged name is held by the PAIR of unlinks and
+//     by neither alone, which is why it is not listed against one of them. It
+//     is here because it is a shape the phase's first round drove nowhere;
+//   - the `[ -L "$f" ]` refusal holds the last two arms, and each of them
+//     moves on its own when it is taken out.
 {
   const p242g = data.phase242 ?? null;
   const shipping = typeof p242g?.imagePut === 'string' ? p242g.imagePut : '';
@@ -8525,6 +8553,17 @@ process.stdout.write(
     const payload = png.toString('base64');
     const name = 'p2422gate-c414cd0e204de974.png';
     const scratch = mkdtempSync(join(tmpdir(), 'p2422-gate-'));
+
+    /**
+     * The refusal at the picture's OWN name, by its exact spelling, so an
+     * ablation of it cannot silently edit nothing. The block above the loop
+     * fails when a `text` comes back equal to the shipping one.
+     */
+    const F_LINK_GUARD =
+      'if [ -L "$f" ]; then\n' +
+      "  printf '__TORTIE_RUN__outside none none__TORTIE_RUN__\\n'\n" +
+      '  exit 0\n' +
+      'fi\n';
 
     /** The two `base64` dialects, as programs put in front of PATH. */
     const DIALECTS = {
@@ -8549,13 +8588,26 @@ process.stdout.write(
       const images = join(home, '.tortie', 'images');
       const outside = join(dir, 'outside');
       const victim = join(outside, 'victim.txt');
+      // The directory a link at the PICTURE'S OWN NAME points at, with a file
+      // already in it under the staged name's own basename — which is where
+      // `mv "$t" "$f"` puts the picture when `$f` is a link to a directory,
+      // and what it replaces when it gets there.
+      const outdir = join(outside, 'outdir');
+      const mine = join(outdir, `${name}.part`);
       const staged = join(images, `${name}.part`);
+      const landed = join(images, name);
       mkdirSync(images, { recursive: true });
-      mkdirSync(outside, { recursive: true });
+      mkdirSync(outdir, { recursive: true });
       writeFileSync(victim, 'victim, untouched\n', 'utf8');
+      writeFileSync(mine, 'his own file\n', 'utf8');
       if (arm.plant === 'symlink') symlinkSync(victim, staged);
       if (arm.plant === 'hardlink') linkSync(victim, staged);
+      // A link at the staged name whose target is not there yet. At the parent
+      // the redirection CREATED that target outside ~/.tortie/images.
+      if (arm.plant === 'dangling') symlinkSync(join(outside, 'not-there-yet.txt'), staged);
       if (arm.plant === 'debris') writeFileSync(staged, 'half an upload\n', 'utf8');
+      if (arm.plant === 'finalDir') symlinkSync(outdir, landed);
+      if (arm.plant === 'finalFile') symlinkSync(victim, landed);
       let path = process.env.PATH ?? '';
       if (arm.dialect !== undefined) {
         const bin = join(dir, 'bin');
@@ -8570,11 +8622,18 @@ process.stdout.write(
       });
       const out = `${done.stdout ?? ''}${done.stderr ?? ''}`;
       const said = out.match(/__TORTIE_RUN__(.*?)__TORTIE_RUN__/);
-      const landed = join(images, name);
       const there = existsSync(landed);
+      const ghost = join(outside, 'not-there-yet.txt');
       return {
         word: said === null ? 'none' : (said[1] ?? '').trim().split(/\s+/)[0] ?? 'none',
-        victimHeld: readFileSync(victim, 'utf8') === 'victim, untouched\n',
+        // NOTHING OUTSIDE ~/.tortie/images MOVED: the victim holds its bytes,
+        // the file in the outside directory holds its bytes, that directory
+        // gained nothing, and the dangling link's target was never created.
+        outsideHeld:
+          readFileSync(victim, 'utf8') === 'victim, untouched\n' &&
+          readFileSync(mine, 'utf8') === 'his own file\n' &&
+          readdirSync(outdir).join(',') === `${name}.part` &&
+          !existsSync(ghost),
         // A picture, and not a link standing where one should be.
         picture:
           there &&
@@ -8583,20 +8642,29 @@ process.stdout.write(
       };
     };
 
+    // The word each arm must read from the SHIPPING text, and it is not one
+    // word for all of them. The staged name is UNLINKED, so every arm that
+    // used to succeed still answers `added` with the picture in place. The
+    // picture's OWN name is REFUSED when it is a symbolic link, with
+    // `file-put`'s word `outside`, because `$f` is the person's own picture
+    // when it is a picture and cannot be unlinked the way a staged name can.
     const ARMS = [
-      { id: 'control', plant: null },
-      { id: 'a symbolic link at the staged name', plant: 'symlink' },
-      { id: 'a hard link at the staged name', plant: 'hardlink' },
-      { id: "an interrupted upload's debris", plant: 'debris' },
-      { id: 'an old macOS base64', plant: null, dialect: 'oldMac' },
-      { id: 'a GNU base64 with debris', plant: 'debris', dialect: 'gnu' }
+      { id: 'control', plant: null, want: 'added/held/picture' },
+      { id: 'a symbolic link at the staged name', plant: 'symlink', want: 'added/held/picture' },
+      { id: 'a hard link at the staged name', plant: 'hardlink', want: 'added/held/picture' },
+      { id: 'a dangling symbolic link at the staged name', plant: 'dangling', want: 'added/held/picture' },
+      { id: "an interrupted upload's debris", plant: 'debris', want: 'added/held/picture' },
+      { id: 'an old macOS base64', plant: null, dialect: 'oldMac', want: 'added/held/picture' },
+      { id: 'a GNU base64 with debris', plant: 'debris', dialect: 'gnu', want: 'added/held/picture' },
+      { id: "a symbolic link at the picture's own name, to a directory", plant: 'finalDir', want: 'outside/held/no picture' },
+      { id: "a symbolic link at the picture's own name, to a file", plant: 'finalFile', want: 'outside/held/no picture' }
     ];
 
     /** Every arm of one text, as one comparable string. */
     const readingOf = (text, tag) =>
       ARMS.map((arm, at) => {
         const one = drive(text, arm, `${tag}-${at}`);
-        return `${arm.id}: ${one.word}/${one.victimHeld ? 'held' : 'TOOK IT'}/${
+        return `${arm.id}: ${one.word}/${one.outsideHeld ? 'held' : 'TOOK IT'}/${
           one.picture ? 'picture' : 'no picture'
         }`;
       });
@@ -8605,16 +8673,16 @@ process.stdout.write(
       // 88g-i. THE SHIPPING TEXT. Every arm answers `added`, the file outside
       //        holds what it held, and the picture is a picture.
       const shipped = readingOf(shipping, 'ship');
-      const WANTED_ARM = (arm) => `${arm.id}: added/held/picture`;
-      const wanted = ARMS.map(WANTED_ARM);
+      const wanted = ARMS.map((arm) => `${arm.id}: ${arm.want}`);
       shipped.forEach((line, at) => {
         if (line === wanted[at]) return;
         fail(
           `condition 88g drove the shipping image-put text under /bin/sh and ` +
             `read "${line}" where it must read "${wanted[at]}". The three ` +
-            `fields are the word the script printed, whether the file OUTSIDE ` +
-            `~/.tortie/images still holds what it held, and whether the ` +
-            `picture landed as a picture rather than as a link.`
+            `fields are the word the script printed, whether everything ` +
+            `OUTSIDE ~/.tortie/images still holds what it held and gained ` +
+            `nothing, and whether the picture landed as a picture rather than ` +
+            `as a link.`
         );
       });
 
@@ -8637,19 +8705,43 @@ process.stdout.write(
           moves: false
         },
         {
+          // PHASE 242.2'S FIX ROUND. The OTHER name, and the half the first
+          // round left out. The unlinks above stand in front of the
+          // redirection and guard the STAGED name; nothing guarded `$f`. A
+          // link there pointing at a DIRECTORY made `mv "$t" "$f"` move the
+          // picture into that directory under the staged name's own basename,
+          // over a file already there, while the script answered `added`; one
+          // pointing at a FILE made `[ -f "$f" ]` read that file through the
+          // link and answer `present` with its count and its digest.
+          why: 'the [ -L "$f" ] refusal removed, which is the fix round\'s half',
+          text: shipping.replace(F_LINK_GUARD, ''),
+          moves: true,
+          escapes: [
+            "a symbolic link at the picture's own name, to a directory",
+            "a symbolic link at the picture's own name, to a file"
+          ]
+        },
+        {
           // THE PARENT SHAPE, and it is here so this condition carries the
-          // escape itself rather than three clause deltas that each move one
-          // dialect arm. With all four lines gone this IS the text that
-          // shipped before Phase 242.2, and both link kinds have to escape or
+          // escape itself rather than clause deltas that each move one dialect
+          // arm. With all five clauses gone this IS the text that shipped
+          // before Phase 242.2, and all four planted names have to escape or
           // the arm is measuring something else.
           why: 'the whole guard removed, which is the text that shipped at the parent',
           text: shipping
             .replace('\n  rm -f "$t"\n', '\n')
             .replace('\n  set -C\n', '\n')
             .replace('\n    rm -f "$t"\n', '\n')
-            .replace('\n  set +C\n', '\n'),
+            .replace('\n  set +C\n', '\n')
+            .replace(F_LINK_GUARD, ''),
           moves: true,
-          escapes: ['a symbolic link at the staged name', 'a hard link at the staged name']
+          escapes: [
+            'a symbolic link at the staged name',
+            'a hard link at the staged name',
+            'a dangling symbolic link at the staged name',
+            "a symbolic link at the picture's own name, to a directory",
+            "a symbolic link at the picture's own name, to a file"
+          ]
         }
       ];
       const movedBy = [];
@@ -8685,12 +8777,16 @@ process.stdout.write(
         for (const id of one.escapes ?? []) {
           const at2 = ARMS.findIndex((arm) => arm.id === id);
           const line = read[at2] ?? '';
-          if (!line.includes('TOOK IT')) {
+          // An escape is anything but the reading the shipping text gives for
+          // that arm. `TOOK IT` is the staged name's shape; the picture's own
+          // name escapes by answering `added` or `present` instead of
+          // `outside`, and the directory arm also gains a file outside.
+          if (line === (wanted[at2] ?? '')) {
             fail(
               `condition 88g put the shipping image-put text back to the shape ` +
                 `that shipped at the parent and drove "${id}", and it read ` +
-                `"${line}" rather than taking the payload out of ` +
-                `~/.tortie/images. That arm is the defect this phase fixed, so ` +
+                `"${line}", which is exactly what the guarded text reads. ` +
+                `That arm is the defect this phase fixed, so ` +
                 'an arm that cannot reproduce it at the parent shape is not ' +
                 'measuring the defect at HEAD either.'
             );
@@ -8706,10 +8802,13 @@ process.stdout.write(
           `image-put text was handed to /bin/sh with the two values ` +
           `putOneImage composes, over ${String(ARMS.length)} arms with real ` +
           `links on real disks in a scratch directory removed in a finally: ` +
-          `${shipped.join('; ')}. A symbolic link and a hard link planted at ` +
-          `the staged name each took the payload out of ~/.tortie/images at ` +
-          `the parent while the script answered added with the payload's own ` +
-          `count and digest. Each clause ablated alone: ` +
+          `${shipped.join('; ')}. At the parent a symbolic link, a hard link ` +
+          `and a dangling link at the STAGED name each put bytes outside ` +
+          `~/.tortie/images while the script answered added with the ` +
+          `payload's own count and digest, and a symbolic link at the ` +
+          `PICTURE'S OWN name moved the picture into the directory it named or ` +
+          `had its target read through for the count and the digest. Each ` +
+          `clause ablated alone: ` +
           `${movedBy.join(' | ')}. set -C is held by condition 88f as text ` +
           `because nothing here can see it, and that is asserted above rather ` +
           `than assumed.\n`
