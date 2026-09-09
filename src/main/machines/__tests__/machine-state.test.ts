@@ -31,6 +31,8 @@ const STUDIO: MachineStateRow = {
   color: 'orange',
   confirmed: true,
   refusal: null,
+  // PHASE 235. A confirmed row's details have not changed.
+  changed: false,
   // PHASE 101. This machine grants no saving, which is what every row in every
   // file says today.
   writeRoot: null
@@ -171,5 +173,56 @@ describe('machineStateViewsOf', () => {
 
   it('answers with nothing for a file holding no machines', () => {
     expect(machineStateViewsOf([], [])).toEqual([]);
+  });
+});
+
+/**
+ * PHASE 235, item 4. The fact the link cannot carry.
+ *
+ * `link: 'refused'` is three different machines — one nobody ever confirmed,
+ * one whose details moved after they were confirmed, and one the gate stopped
+ * for a reason of its own — and only the middle one is a person's own
+ * agreement that one field moved out from under. So the view carries it beside
+ * the link, and the link itself does not move: the gate still refuses the row
+ * and nothing is started.
+ */
+describe('a row whose details changed', () => {
+  const changed: MachineStateRow = {
+    ...STUDIO,
+    confirmed: false,
+    changed: true,
+    refusal:
+      'Tortie will not connect to studio, because its details changed after ' +
+      'you confirmed them.'
+  };
+
+  it('says so, and stays refused', () => {
+    const view = machineStateViewOf(changed, facts({ link: 'connected' }));
+    expect(view.confirmNeeded).toBe('changed');
+    expect(view.link).toBe('refused');
+    expect(view.writeRoot).toBeNull();
+  });
+
+  it('is not said of a row nobody ever confirmed', () => {
+    const never: MachineStateRow = {
+      ...STUDIO,
+      confirmed: false,
+      changed: false,
+      refusal: 'Tortie will not connect to studio, because nobody has confirmed it.'
+    };
+    expect(machineStateViewOf(never, undefined).confirmNeeded).toBeUndefined();
+    expect(machineStateViewOf(never, undefined).link).toBe('refused');
+  });
+
+  it('is not said of a confirmed machine in any link state', () => {
+    for (const link of ['connected', 'polling', 'connecting', 'quiet'] as const) {
+      expect(
+        machineStateViewOf(STUDIO, facts({ link })).confirmNeeded
+      ).toBeUndefined();
+    }
+  });
+
+  it('keeps the gate’s own sentence on the view, unchanged', () => {
+    expect(machineStateViewOf(changed, undefined).detail).toBe(changed.refusal);
   });
 });

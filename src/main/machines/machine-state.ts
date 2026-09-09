@@ -69,6 +69,15 @@ export interface MachineStateRow {
   /** The gate's own sentence when it refuses this row. Null when it does not. */
   readonly refusal: string | null;
   /**
+   * PHASE 235. True when this row WAS confirmed and its details then changed.
+   *
+   * It is a different fact from `confirmed` being false, which is also true of
+   * a row nobody ever confirmed and of a row read while the machines file was
+   * being read. Only this one is a person's own agreement that one field moved
+   * out from under, and it is the one a project tab can name and offer.
+   */
+  readonly changed: boolean;
+  /**
    * PHASE 101. The folder Tortie may save under on this machine, or null.
    *
    * It is read straight off the row here. {@link machineStateViewOf} is what
@@ -136,6 +145,11 @@ export function machineStateViewOf(
       detail:
         row.refusal ??
         machineDetailSentence(row.label, 'refused', null),
+      // PHASE 235. Carried beside the link rather than folded into it, because
+      // `refused` is three different machines and only this one is a person's
+      // own agreement that one field moved out from under. The link does not
+      // move: the gate still refuses this row and nothing is started.
+      ...(row.changed ? { confirmNeeded: 'changed' as const } : {}),
       // PHASE 101. THE ONE RULE. A row nobody has confirmed reports no write
       // root, even when machines.json holds one, because an unconfirmed root is
       // not a confirmed fact. Main refuses that case anyway; this copy is
@@ -193,6 +207,9 @@ function stateRowOf(row: MachineRowV1): MachineStateRow {
     color: machineColorOf(row),
     confirmed: status.state === 'confirmed',
     refusal: status.refusal,
+    // PHASE 235. The gate's own word, read rather than inferred from the two
+    // booleans above, which cannot tell a changed row from a new one.
+    changed: status.state === 'changed',
     // PHASE 101. What the file holds. The view above decides whether it is
     // reported at all.
     writeRoot: row.writeRoot ?? null

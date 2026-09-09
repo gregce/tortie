@@ -39,6 +39,8 @@ import {
 import { useApp } from '../state/store';
 // Phase 232. The one action under the sentence for a machine that did not
 // answer; it draws nothing unless the link reads quiet.
+import { confirmChangedLine } from '../machines/confirm-action';
+import { MachineConfirmAction } from '../app/MachineConfirmAction';
 import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import { onRepoChanged } from '../state/repo-changed';
 import {
@@ -177,6 +179,17 @@ export function FilesSection({
           : remoteTreeCanWrite(writeRoot, label)
     };
   }, [target, machineStates]);
+
+  /**
+   * PHASE 235, item 4. The sentence for a machine whose details changed, or
+   * null. Read once here so the memo below and its dependency list ask for it
+   * in one place.
+   */
+  const confirmChanged = useMemo(
+    () =>
+      remote === null ? null : confirmChangedLine(machineStates, remote.machineId),
+    [remote, machineStates]
+  );
 
   const root = useFileTree((s) => s.root);
   const rootLoaded = useFileTree((s) => s.rootLoaded);
@@ -390,21 +403,29 @@ export function FilesSection({
     if (remote === null || remoteRead === null) return null;
     const label = remote.label;
     const at = remoteRead.root;
+    // PHASE 235, item 4. WHICH sentence, never how many. A machine whose
+    // details changed answers ssh perfectly well and was never asked, so
+    // "Tortie is not connected" and "did not answer" are both false about it.
+    // The swap happens only where a sentence was going to be drawn anyway, so
+    // Phase 230's rule that a stale view keeps its rows and says nothing over
+    // them is untouched, and the remote face gains no sentence.
     switch (remoteRead.status) {
       case 'ok':
         return null;
       case 'missing':
         return (
-          <>
-            {remoteTreeMissingTitle(label)}
-            <br />
-            {remoteTreeMissingBody(at)}
-          </>
+          confirmChanged ?? (
+            <>
+              {remoteTreeMissingTitle(label)}
+              <br />
+              {remoteTreeMissingBody(at)}
+            </>
+          )
         );
       case 'notdir':
-        return remoteTreeNotAFolder(at, label);
+        return confirmChanged ?? remoteTreeNotAFolder(at, label);
       case 'denied':
-        return remoteTreeDenied(at, label);
+        return confirmChanged ?? remoteTreeDenied(at, label);
       case 'unreachable':
         // PHASE 230. THE STALE SENTENCE BECOMES NOTHING. A re-read the link
         // refused after a good read leaves the rows on screen and draws no
@@ -412,13 +433,15 @@ export function FilesSection({
         // the shared hook reads again when the machine starts answering.
         // `readAt` is null until the first good read lands, so a folder that
         // was never read still says so.
-        return remoteRead.readAt === null ? remoteTreeUnreachable(label) : null;
+        return remoteRead.readAt === null
+          ? (confirmChanged ?? remoteTreeUnreachable(label))
+          : null;
       case 'notConnected':
         return remoteRead.readAt === null
-          ? remoteTreeNotConnected(label)
+          ? (confirmChanged ?? remoteTreeNotConnected(label))
           : null;
     }
-  }, [remote, remoteRead]);
+  }, [remote, remoteRead, confirmChanged]);
 
   /**
    * PHASE 90.3. The one line that says the answer was capped.
@@ -460,6 +483,7 @@ export function FilesSection({
         <div className="section-stub">
           {remoteRefusal}
           <MachinePrepareAction machineId={remote.machineId} />
+          <MachineConfirmAction machineId={remote.machineId} />
         </div>
       );
     } else if (remote !== null) {

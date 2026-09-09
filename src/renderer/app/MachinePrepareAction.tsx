@@ -29,7 +29,7 @@ import {
   prepareActionOffered
 } from '../machines/prepare-action';
 import { useApp } from '../state/store';
-import './machine-prepare-action.css';
+import './machine-tab-action.css';
 
 export function MachinePrepareAction({
   machineId
@@ -63,7 +63,7 @@ export function MachinePrepareAction({
   return (
     <button
       type="button"
-      className="btn btn-secondary machine-prepare-action"
+      className="btn btn-secondary machine-tab-action"
       disabled={busy}
       data-machines-action="prepare"
       title={said ?? undefined}

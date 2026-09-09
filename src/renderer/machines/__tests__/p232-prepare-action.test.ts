@@ -128,9 +128,14 @@ describe('where it is mounted', () => {
     expect(files.replace(/\s+/g, ' ')).toContain(
       '{remoteRefusal} <MachinePrepareAction machineId={remote.machineId} />'
     );
+    // PHASE 235 put the changed-row sentence in front of this one, with `??`,
+    // so the block reads `{confirmChanged ?? remoteChangesUnreachable(label)}`.
+    // The pin follows it rather than being dropped: what it exists to hold is
+    // that the button sits with the sentence in one block, and it still does.
     const scm = readFileSync(join(RENDERER, 'scm', 'ScmSection.tsx'), 'utf8');
     expect(scm.replace(/\s+/g, ' ')).toContain(
-      '{remoteChangesUnreachable(label)} <MachinePrepareAction machineId={target.machineId} />'
+      '{confirmChanged ?? remoteChangesUnreachable(label)} ' +
+        '<MachinePrepareAction machineId={target.machineId} />'
     );
   });
 });

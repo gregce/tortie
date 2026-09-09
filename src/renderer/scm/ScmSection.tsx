@@ -37,6 +37,8 @@ import {
 import { useApp } from '../state/store';
 // Phase 232. The one action under the sentence for a machine that did not
 // answer; it draws nothing unless the link reads quiet.
+import { MachineConfirmAction } from '../app/MachineConfirmAction';
+import { confirmChangedLine } from '../machines/confirm-action';
 import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import {
   machineAnswering,
@@ -1084,6 +1086,10 @@ function RemoteScmSection({
 }): React.JSX.Element {
   const machineStates = useApp((s) => s.machineStates);
   const label = machineLabelFor(machineStates, target.machineId);
+  // PHASE 235, item 4. The sentence for a machine whose details changed, or
+  // null. It replaces the sentence below rather than joining it: that machine
+  // answers ssh and was never asked, so "did not answer" is false about it.
+  const confirmChanged = confirmChangedLine(machineStates, target.machineId);
   const entry = useRemoteChanges((s) => remoteChangesOf(s.byTarget, target));
   const ensure = useRemoteChanges((s) => s.ensure);
   const refreshChanges = useRemoteChanges((s) => s.refresh);
@@ -1247,8 +1253,9 @@ function RemoteScmSection({
       // and the shared hook reads again when the machine starts answering.
       return (
         <div className="section-stub">
-          {remoteChangesUnreachable(label)}
+          {confirmChanged ?? remoteChangesUnreachable(label)}
           <MachinePrepareAction machineId={target.machineId} />
+          <MachineConfirmAction machineId={target.machineId} />
         </div>
       );
     }

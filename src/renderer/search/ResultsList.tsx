@@ -33,6 +33,8 @@ import { SEARCH_NO_BRIDGE } from '../machines/search';
 import { useApp } from '../state/store';
 // Phase 232. The one action under the sentence for a machine that did not
 // answer; it draws nothing unless the link reads quiet.
+import { MachineConfirmAction } from '../app/MachineConfirmAction';
+import { confirmChangedLine } from '../machines/confirm-action';
 import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import {
   machineEmptyLine,
@@ -485,6 +487,13 @@ function EmptyResults(): React.JSX.Element {
   const remoteMode = useSearch((s) => s.remoteMode);
   const machineLabel = useSearch((s) => s.machineLabel);
   const projects = useApp((s) => s.projects);
+  const machineStates = useApp((s) => s.machineStates);
+  // PHASE 235, item 4. The sentence for a machine whose details changed, or
+  // null. It replaces the sentence below rather than joining it.
+  const confirmChanged =
+    target === null
+      ? null
+      : confirmChangedLine(machineStates, target.machineId);
   // The project is found by IDENTITY, not by path (Phase 90.1). A path alone
   // matched the first project with that path, which on two machines is the
   // wrong one half the time.
@@ -515,8 +524,10 @@ function EmptyResults(): React.JSX.Element {
     if (refusal !== null) {
       return (
         <div className="search-empty">
-          <p className="search-empty-title">{refusal}</p>
+          {/* PHASE 235, item 4. Which sentence, never how many. */}
+          <p className="search-empty-title">{confirmChanged ?? refusal}</p>
           <MachinePrepareAction machineId={target.machineId} />
+          <MachineConfirmAction machineId={target.machineId} />
         </div>
       );
     }

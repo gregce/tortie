@@ -1,0 +1,15 @@
+/* Phase 232, item 4, widened by Phase 235 to the second action. The ONE action
+   under a machine's sentence on a tab. It is the Settings button in the
+   Settings button's clothes, set on its own line under the sentence it belongs
+   to: `.btn` is inline-flex, which would flow the button on after the
+   sentence's last word, so it is a block-level flex here and as wide as its
+   label.
+
+   One class for both actions, because they are the same slot: a machine that is
+   quiet offers Prepare and a machine whose details changed offers Confirm, and
+   the two states cannot both hold, so a person never sees two. */
+.machine-tab-action {
+  display: flex;
+  width: max-content;
+  margin-top: var(--space-3);
+}

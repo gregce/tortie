@@ -90,6 +90,8 @@ import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
 // Phase 232. The one action under the sentence for a machine that did not
 // answer; it draws nothing unless the link reads quiet.
+import { MachineConfirmAction } from '../app/MachineConfirmAction';
+import { confirmChangedLine } from '../machines/confirm-action';
 import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import { openFileAt, requestOpenContext } from './open-detail';
 import {
@@ -504,6 +506,12 @@ export function ContextSection({
   const machineName =
     storeMachineLabel ??
     machineLabelFor(machineStates, target?.machineId ?? '');
+  // PHASE 235, item 4. The sentence for a machine whose details changed, or
+  // null. It replaces the sentence below rather than joining it.
+  const confirmChanged =
+    target === null
+      ? null
+      : confirmChangedLine(machineStates, target.machineId);
   // PHASE 108. The write verbs are refused on a remote tab, permanently. An
   // empty object is how this view already draws an unwired verb: every one of
   // them is an absent menu item or an absent button, never a dead control.
@@ -826,14 +834,19 @@ export function ContextSection({
             {contextElsewhereTitle(machineName)}
           </p>
           <p className="ctx-empty-body">
-            {remoteMode === 'notConnected'
-              ? contextNotConnected(machineName)
-              : remoteMode === 'noHome'
-                ? contextNoHome(machineName)
-                : contextNoAnswer(machineName)}
+            {/* PHASE 235, item 4. Which sentence, never how many. */}
+            {confirmChanged ??
+              (remoteMode === 'notConnected'
+                ? contextNotConnected(machineName)
+                : remoteMode === 'noHome'
+                  ? contextNoHome(machineName)
+                  : contextNoAnswer(machineName))}
           </p>
           {target === null ? null : (
-            <MachinePrepareAction machineId={target.machineId} />
+            <>
+              <MachinePrepareAction machineId={target.machineId} />
+              <MachineConfirmAction machineId={target.machineId} />
+            </>
           )}
         </div>
       );

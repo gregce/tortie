@@ -86,6 +86,29 @@ export interface MachineStateView {
   /** One sentence for the person, or null when the link is healthy. */
   readonly detail: string | null;
   /**
+   * PHASE 235. The confirmation this row needs before Tortie will use it, or
+   * absent when it needs none.
+   *
+   * `link` cannot answer it. An unconfirmed row is `refused` before any link
+   * fact is consulted, and `refused` is also a machine whose version nobody
+   * accepted and a machine the gate stopped for a reason of its own, so a
+   * surface reading the link alone could say only that Tortie will not use
+   * this machine — which is what the project tab did NOT say. Reproduced four
+   * times by research 85 and again at 1bbcd7c1: a row whose execution bearing
+   * fields moved on disk drew "Greg’s Mac Pro did not answer" on a machine
+   * that answers ssh in the same run and was never asked, with ZERO actions
+   * anywhere on the tab and the word "confirm" appearing zero times.
+   *
+   * One value today, being a row that WAS confirmed and whose details then
+   * changed, because that is the state a person can act on from a tab: the
+   * agreement exists and one field moved. A row nobody ever confirmed is a
+   * machine that has never worked, which Settings is the place to finish.
+   *
+   * Optional, and absent reads as no confirmation needed, so a view written
+   * before the field existed is still a view.
+   */
+  readonly confirmNeeded?: 'changed';
+  /**
    * PHASE 101. The folder Tortie may save under on this machine, or null.
    *
    * IT IS THE CARRIER FOR "may this tab be saved", and it is on this view

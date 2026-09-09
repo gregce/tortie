@@ -209,6 +209,11 @@ const FILES: readonly string[] = [
   // Settings' own, imported, and the button says nothing else.
   'src/renderer/machines/prepare-action.ts',
   'src/renderer/app/MachinePrepareAction.tsx',
+  // Phase 235, item 4. Its sibling: the one short sentence for a machine whose
+  // details changed, the rule that offers it, and the button that opens
+  // Settings. The sentence is the only one this phase wrote and it is here.
+  'src/renderer/machines/confirm-action.ts',
+  'src/renderer/app/MachineConfirmAction.tsx',
   'src/renderer/app/new-session-menu.ts'
 ];
 
