@@ -1128,6 +1128,14 @@ step(
 // ---------------------------------------------------------------------------
 
 {
+  /**
+   * The ONE `rm` any script in this catalogue may hold, by its exact spelling.
+   * It is `build/conformance-machines.mjs`'s `STAGED_UNLINK` written again
+   * rather than imported, because this probe reads the catalogue through its
+   * own driver and shares no module with that gate; the two are compared by
+   * the gate's condition 88f, which fails if the spelling moves.
+   */
+  const STAGED_UNLINK = 'rm -f "$t"';
   const rules = [];
   for (const one of composed.catalogue ?? []) {
     if (one.text.includes('git clean')) rules.push(`${one.id} names git clean`);
@@ -1140,9 +1148,23 @@ step(
       if (/\bgit rm\b/.test(line) && !line.includes('--cached')) {
         rules.push(`${one.id} runs git rm without --cached`);
       }
+      // NARROWED BY PHASE 242'S FIX ROUND AND NEVER DELETED, which is this
+      // repository's own rule for a refusal that has to make one exception.
+      // `file-put` unlinks its own staged name in front of the redirection,
+      // because a HARD LINK planted there is invisible to `[ -L ]` and the
+      // redirection would have followed it out of the folder. So the rule is
+      // no longer "the text names no rm", it is "every rm this text names is
+      // the staged unlink, by its exact spelling". `conformance:machines`
+      // condition 88f reads the other half, being that the unlink stands above
+      // every creation of that name and that the creation is exclusive; this
+      // leg is about DISCARD and the spelling is what it needs.
       if (!/(^|[\s;|&(])rm\b/.test(line)) continue;
       if (line.includes('git rm ')) continue;
-      rules.push(`${one.id} names rm as a command`);
+      if (line.trim() === STAGED_UNLINK) continue;
+      rules.push(
+        `${one.id} names rm as a command, and it is not the staged unlink ` +
+          `${JSON.stringify(STAGED_UNLINK)}: ${JSON.stringify(line.trim())}`
+      );
     }
   }
   for (const broken of rules) fail(`the discard refusal: ${broken}`);

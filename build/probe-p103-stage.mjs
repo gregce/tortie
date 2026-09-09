@@ -294,14 +294,26 @@ if (input.op === 'compose') {
       read: stage.parseIndexWriteAnswer(one)
     })),
     chunks: input.chunkings.map(
-      (one: { repoPath: string; count: number; length: number }) => {
+      (one: {
+        repoPath: string;
+        count: number;
+        length: number;
+        writeRoot: string;
+        cwdRel: string;
+      }) => {
         const paths = Array.from({ length: one.count }, (_, at) =>
           'p' + String(at).padStart(4, '0') + '/' + 'x'.repeat(one.length) + '.ts'
         );
         return {
           count: one.count,
           length: one.length,
-          chunks: stage.chunkIndexPaths('stage', one.repoPath, paths).length
+          chunks: stage.chunkIndexPaths(
+            'stage',
+            one.repoPath,
+            paths,
+            one.writeRoot,
+            one.cwdRel
+          ).length
         };
       }
     ),
@@ -956,11 +968,14 @@ const pure = drive({
     '2 none',
     '1 not base64!'
   ],
+  // THE CONFIRMED FOLDER AND THE RELATIVE CWD RIDE ON EVERY COMMAND the
+  // chunker composes since Phase 242.1, so they are measured here too: a chunk
+  // that fits without them does not fit with them.
   chunkings: [
-    { repoPath: '/tmp/p103', count: 1, length: 20 },
-    { repoPath: '/tmp/p103', count: 30, length: 20 },
-    { repoPath: '/tmp/p103', count: 100, length: 20 },
-    { repoPath: '/tmp/p103', count: 100, length: 1400 }
+    { repoPath: '/tmp/p103', count: 1, length: 20, writeRoot: '/tmp', cwdRel: 'p103' },
+    { repoPath: '/tmp/p103', count: 30, length: 20, writeRoot: '/tmp', cwdRel: 'p103' },
+    { repoPath: '/tmp/p103', count: 100, length: 20, writeRoot: '/tmp', cwdRel: 'p103' },
+    { repoPath: '/tmp/p103', count: 100, length: 1400, writeRoot: '/tmp', cwdRel: 'p103' }
   ]
 });
 if (pure !== null) {
