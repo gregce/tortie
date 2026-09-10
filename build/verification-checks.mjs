@@ -846,6 +846,21 @@ export const CHECKS = [
   // hit-tests and takes a caret. No agent, no token, no keychain, no request;
   // `-L gmux` touched only by a read-only session count before and after.
   electron('probe:p252'),
+  // PHASE 254. The large-file open path's app run: ONE launch on a scratch
+  // profile, a scratch HOME and its own socket over a repository it builds
+  // from research 116's SYNTHESIZED twins (sizes and line shapes only — no
+  // byte of the operator's files). It single-clicks the 2.56 MB untracked
+  // twin and reads click-to-first-paint and click-to-interactive off an
+  // in-page rAF + longtask recorder (Monaco under the budget, the rendered
+  // preview deferred to the chip with its one-clause title), proves a small
+  // .md still opens rendered and the 3.26 MB tracked twin still opens as the
+  // fast diff, then clicks Preview on the chip and proves the deferred render
+  // still happens, publishing its cost. RED AT THE PARENT: the same click
+  // there renders the whole document at ~5.5 s with no first paint until the
+  // end. No agent, no token, no keychain; `-L gmux` touched only by a
+  // read-only session count before and after. --self-test proves the grader
+  // and the twin synthesizer and launches nothing.
+  electron('probe:p254'),
   electron('probe:p250'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository

@@ -69,6 +69,10 @@ import { isRedlinePath } from './redline';
 import { redlineWithoutHead } from './baseline';
 import { COMPARE_BAND_SENTENCE } from './save-sentences';
 import { MarkdownPreview } from './markdown';
+import {
+  PREVIEW_DEFER_TITLE,
+  previewDeferred
+} from './markdown/large-prose';
 import { ImageCompare, ImageView } from './image';
 import { HtmlPreview, tabRendersHtml } from './html';
 import { Codicon } from '../icons';
@@ -216,7 +220,8 @@ function hasRenderedForm(tab: EditorTab): boolean {
   return tab.markdown || tab.svg || tabRendersHtml(tab);
 }
 
-function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
+/** Exported for the Phase 254 deferral pin; the panel is its only live caller. */
+export function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
   const options: ModeOption[] = [];
   // PHASE 240. A comparison has exactly one reading, being the two sides it
   // was opened with. There is no file under it to edit, no HEAD version to
@@ -268,11 +273,18 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
       mode: 'preview',
       label: 'Preview',
       icon: 'open-preview',
+      // PHASE 254. A markdown file past the preview threshold opened in
+      // Source (research 116: the rendered preview costs ~5 s at his sizes,
+      // Monaco 53–136 ms), so Preview's title states the deferral in one
+      // clause, where the person meets it. Clicking it still renders the
+      // whole document — deferred, never dropped.
       title: tab.svg
         ? 'The rendered image'
         : html
           ? 'The rendered page. No script in it runs.'
-          : 'Rendered markdown'
+          : previewDeferred(tab.savedContents)
+            ? PREVIEW_DEFER_TITLE
+            : 'Rendered markdown'
     });
     options.push({
       mode: 'file',

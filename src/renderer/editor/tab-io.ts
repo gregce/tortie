@@ -90,7 +90,13 @@ import {
   saveRefusalSentence,
   staleSaveTitle
 } from './save-sentences';
-import type { EditorTab } from './tab-types';
+import type { EditorMode, EditorTab } from './tab-types';
+// PHASE 254. A markdown tab past the preview threshold opens in Source, with
+// the rendered preview deferred to the mode chip — the demotion happens in the
+// SAME patch that lands the bytes, so the preview surface never sees a large
+// source (research 116 §2.2 measured that render at ~5 s with no first paint
+// until the end). The rule itself is pure and lives next door.
+import { openedProseMode, previewDeferred } from './markdown/large-prose';
 import { gmuxBridge } from '../bridge';
 
 /**
@@ -297,13 +303,32 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         ((held?.text ?? null) === null || held?.from === 'commit')
           ? credible
           : nextBaseline(held, { kind: 'read', contents: result.contents });
+      // PHASE 254. THE ONE SLOW STAGE OF A LARGE PROSE OPEN IS THE RENDERED
+      // MARKDOWN PREVIEW — research 116 measured it at ~5 s for the
+      // operator's two files against 53–136 ms in Monaco, with no first paint
+      // until the whole document rendered. So a markdown tab past the
+      // threshold opens in Source instead, and Preview is DEFERRED to the
+      // mode chip, which states the cost in one clause. The demotion rides
+      // the same patch as `savedContents`, so React never renders the preview
+      // surface holding a large source; it runs only here, on the tab's first
+      // read, so a mode the person picks on the chip afterwards is final.
+      // Everything else about the open is unchanged: the baseline above still
+      // seeds, the durable store below still records, the redline and the
+      // diff still work when asked.
+      const opened =
+        current === undefined
+          ? null
+          : openedProseMode(current.mode, current.markdown, result.contents);
       deps.patch(id, {
         savedContents: result.contents,
         truncated: result.truncated,
         loading: false,
         error: null,
         deleted: false,
-        baseline
+        baseline,
+        ...(opened !== null && current !== undefined && opened !== current.mode
+          ? { mode: opened }
+          : {})
       });
       void persistBaseline(id);
     } catch (err) {
@@ -312,6 +337,22 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         error: errorSentence(err, 'The file could not be read.')
       });
     }
+  };
+
+  /**
+   * PHASE 254. The mode a tab falls back to when its diff base cannot exist
+   * or cannot be fetched. It was `tab.markdown ? 'preview' : 'file'`, and for
+   * a large prose file that put the ~5 s markdown render back on the open
+   * path through the one door `loadContents`' demotion does not guard. The
+   * tab is re-read at the call, because the fallback can land before or after
+   * the read; when it lands first the contents are still '' and the read's
+   * own demotion finishes the job.
+   */
+  const fallbackMode = (id: string, tab: EditorTab): EditorMode => {
+    const held = deps.byId(id) ?? tab;
+    return held.markdown && !previewDeferred(held.savedContents)
+      ? 'preview'
+      : 'file';
   };
 
   const loadHead = async (id: string): Promise<void> => {
@@ -323,7 +364,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // already a caller's mistake — fall back to the plain view without a git
     // call and without a toast, because nothing is wrong with the file.
     if (!fileInRepo(tab.repoPath, tab.path)) {
-      deps.patch(id, { mode: tab.markdown ? 'preview' : 'file', canDiff: false });
+      deps.patch(id, { mode: fallbackMode(id, tab), canDiff: false });
       return;
     }
     try {
@@ -352,7 +393,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
       // Diff base unavailable (repo vanished, git failed): fall back to a
       // plain editor rather than a broken diff, and say so in sentences a
       // person can read (Phase 26 item 1).
-      deps.patch(id, { mode: tab.markdown ? 'preview' : 'file', canDiff: false });
+      deps.patch(id, { mode: fallbackMode(id, tab), canDiff: false });
       useApp
         .getState()
         .toast(
