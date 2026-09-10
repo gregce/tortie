@@ -833,6 +833,7 @@ export const CHECKS = [
   // rectangles on paper. No agent, no token, no keychain, no request; `-L
   // gmux` touched only by a read-only session count before and after.
   electron('probe:p248'),
+  electron('probe:p250'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository
   // it builds itself. It takes the document's height and every change's

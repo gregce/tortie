@@ -61,6 +61,7 @@
     "probe:p240": "npm run build && node build/harness-socket.mjs --fresh gmux-p240 'node build/p240/save-choice.mjs'",
     "probe:p247": "npm run build && node build/harness-socket.mjs --fresh gmux-p247 'node build/p247/path-open.mjs'",
     "probe:p248": "npm run build && node build/harness-socket.mjs --fresh gmux-p248 'node build/p248/probe-p248-wide.mjs'",
+    "probe:p250": "npm run build && node build/harness-socket.mjs --fresh gmux-p250 'node build/p247/path-open.mjs'",
     "probe:p243": "npm run build && node build/harness-socket.mjs --fresh gmux-p243 'node build/probe-p243-durable.mjs'",
     "probe:p236": "npm run build && node build/probe-p236-chip.mjs",
     "probe:p238": "npm run build && node build/harness-socket.mjs --fresh gmux-p238 'node build/probe-p238-accept-lifetime.mjs'",

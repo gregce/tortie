@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * path-open.mjs. THE PHASE 247 APP RUN: a path in a transcript, pressed.
+ * path-open.mjs. THE PHASE 247 AND PHASE 250 APP RUN: a path in a transcript,
+ * pressed. `npm run probe:p247` and `npm run probe:p250` are the same run —
+ * ONE Electron carries both phases' arms, which is this tree's own rule that a
+ * probe launches the app once and drives every claim in that session.
  *
  * ONE Electron on a scratch profile, a scratch HOME and this script's own tmux
  * socket, over a project it builds inside its own scratch directory. It spawns
@@ -39,6 +42,28 @@
  *      that it stays unclickable: research 111 section 4.2 measured that a
  *      blind rejoin produces a path that really exists 57 times while tmux
  *      confirms 18 of them, so 39 of 57 are joins that never happened.
+ *   G. PHASE 250 LIFT ONE, and it is his own first screenshot: an absolute,
+ *      existing path printed at the END of its row, in a pane far wider than
+ *      the row. At the parent commit refusal 8 refused it for being the last
+ *      thing on its line; at HEAD it opens. The arm asserts FIRST that the
+ *      row really does stop short of the pane's width, so a run in which it
+ *      happened to reach the edge could not read as a pass.
+ *   H. PHASE 250 LIFT TWO: a RELATIVE path mid-sentence with a trailing
+ *      colon, which is his second screenshot. It opens the file under the
+ *      session's own project. At the parent it was refused `not-absolute`
+ *      before a round trip was made.
+ *   I. BOTH LIFTS TOGETHER, which is his third screenshot: a relative path at
+ *      the END of its row carrying a `:93`. Refusal 8 fires FIRST, so with
+ *      only lift two in this span never reaches the relative rule at all.
+ *   J. THE ATTACK ON THE BASE: a relative path that CLIMBS OUT of the project
+ *      with `..` into a file that really exists. Containment refuses it on the
+ *      REALPATH, so nothing opens and nothing is recorded. Its control is arm
+ *      H, which is the same gesture inside the tree.
+ *   K. THE MAC DOOR, CLOSED TO A RESOLVED SPELLING. A `.pdf` inside the
+ *      project, named relatively. Arm B is the same file kind named
+ *      absolutely and it IS handed to the Mac; this one opens nothing and
+ *      records nothing, and the pair is what makes it a rule about the
+ *      spelling rather than a rule about the file.
  *   F. THE UNDERLINE IS DRAWN IN CELLS AND NOT IN STRING INDICES, which is the
  *      Phase 247 FIX ROUND's confirmed defect. Two rows, each carrying a
  *      `⚠️ ` between the marker and the path, which is ordinary agent output
@@ -217,6 +242,24 @@ function selfTest() {
       },
       [8, 7]
     ],
+    // PHASE 250's own guard: does the span really END its row? The `:93` and
+    // the trailing spaces a pane pads with must not count as content after it.
+    [
+      'a span at the end of its row, with a :line after it',
+      () => {
+        const c = cellOf(['mkI docs/a.md:93'], 'mkI', 'docs/a.md');
+        return !/[^\s:0-9]/.test(c.text.slice(c.col + c.width));
+      },
+      true
+    ],
+    [
+      'a span with words after it does not end its row',
+      () => {
+        const c = cellOf(['mkH docs/a.md: and then it stopped'], 'mkH', 'docs/a.md');
+        return !/[^\s:0-9]/.test(c.text.slice(c.col + c.width));
+      },
+      false
+    ],
     [
       'and the plain row reports the same number twice',
       () => {
@@ -321,6 +364,31 @@ const NPMRC = write('.npmrc', '//registry.npmjs.org/:_authToken=redacted\n');
  * already open cannot be opened again and the two presses would not be told
  * apart.
  */
+/**
+ * PHASE 250's fixtures. `relWrite` puts a file at a path INSIDE the project so
+ * the relative spelling an "agent" prints really names it, and `outside` puts
+ * one where a `..` climb lands.
+ */
+const relWrite = (rel, body, mode) => {
+  const p = join(project, rel);
+  mkdirSync(dirname(p), { recursive: true });
+  writeFileSync(p, body);
+  if (mode !== undefined) chmodSync(p, mode);
+  return p;
+};
+const ENDS_THE_ROW = write('ends-the-row.md', '# printed at the end of a line\n');
+const REL_DECISION = 'docs/reviews/fixed-egress-decision.md';
+const REL_HANDOFF = 'docs/reviews/running-url-handoff.md';
+const REL_PAPER = 'docs/paper.pdf';
+relWrite(REL_DECISION, '# a decision\n');
+relWrite(REL_HANDOFF, '# a handoff\n');
+relWrite(REL_PAPER, '%PDF-1.4 not really\n');
+const outsideDir = join(root, 'outside');
+rmSync(outsideDir, { recursive: true, force: true });
+mkdirSync(outsideDir, { recursive: true });
+writeFileSync(join(outsideDir, 'climbed.md'), '# not in the project\n');
+const REL_CLIMB = '../outside/climbed.md';
+
 const WARN = '\u26a0\ufe0f';
 const WARNED_HEAD = write('warned-head.md', '# pressed at the first cell\n');
 const WARNED_PAST = write('warned-past.md', '# pressed one cell past the end\n');
@@ -488,6 +556,53 @@ const drive = (cdp, spec) =>
   cdpEval(cdp, `window.__gmuxShotDrive(${JSON.stringify(spec)}).then(() => true)`, 180000);
 
 /** Hover a cell, let the provider answer, then press it. */
+/**
+ * MOVE THE POINTER OFF THE ROW FIRST (Phase 250).
+ *
+ * xterm's `Linkifier` keeps an `_activeLine` and only asks its providers again
+ * when the pointer moves to a DIFFERENT buffer row: `_handleMouseMove` returns
+ * early otherwise and reuses the links it already has. Two arms in a row that
+ * land on the same row index — which happens as soon as an arm reflows the
+ * pane and the row numbering shifts under the next one — would then press the
+ * PREVIOUS arm's link set. So every Phase 250 arm parks the pointer somewhere
+ * else first, which costs one mouse event and makes each press its own
+ * question.
+ */
+/**
+ * A CAPTURE THE PANE HAS STOPPED MOVING UNDER (Phase 250).
+ *
+ * `closeAllTabs` widens the pane and tmux REFLOWS its whole history when a
+ * width changes, and the reflow is not finished when the flat wait there ends:
+ * measured across three runs of this probe, the same arm read its marker at
+ * row 13 twice and row 11 once, from captures taken at the same point in the
+ * same script. A row index read mid-reflow names a different line by the time
+ * the pointer gets there, which is the failure mode the Phase 247 fix round
+ * already found once in this file under a different cause.
+ *
+ * So the rows are read until two consecutive reads AGREE, which is what says
+ * the reflow has landed rather than that enough milliseconds have passed.
+ */
+async function settledCapture(pane) {
+  let last = capture(pane).join('\n');
+  for (let i = 0; i < 8; i += 1) {
+    await sleep(500);
+    const now = capture(pane).join('\n');
+    if (now === last) return now.split('\n');
+    last = now;
+  }
+  return last.split('\n');
+}
+
+async function parkPointer(cdp, geo, awayFrom) {
+  const row = awayFrom === 0 ? 1 : 0;
+  await cdp.call('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: geo.left + geo.cellW / 2,
+    y: geo.top + (row + 0.5) * geo.cellH
+  });
+  await sleep(400);
+}
+
 async function pressCell(cdp, geo, row, col, width) {
   const x = geo.left + (col + width / 2) * geo.cellW;
   const y = geo.top + (row + 0.5) * geo.cellH;
@@ -602,6 +717,19 @@ await withElectron(
         tmux('send-keys', '-t', pane, `echo ${marker} ${path} end`, 'Enter');
         await sleep(700);
       }
+      // PHASE 250's rows. G and I END their rows on purpose, which is what
+      // refusal 8 used to refuse and what lift one narrowed; H, I, J and K are
+      // relative and are what lift two resolves.
+      for (const [marker, tail] of [
+        ['mkG', ENDS_THE_ROW],
+        ['mkH', `${REL_DECISION}: and then it end`],
+        ['mkI', `${REL_HANDOFF}:93`],
+        ['mkJ', `${REL_CLIMB} end`],
+        ['mkK', `${REL_PAPER} end`]
+      ]) {
+        tmux('send-keys', '-t', pane, `echo ${marker} ${tail}`, 'Enter');
+        await sleep(700);
+      }
       // ARM F's two rows, each with a `⚠️ ` between the marker and the path.
       for (const [marker, path] of [['mkF1', WARNED_HEAD], ['mkF2', WARNED_PAST]]) {
         tmux('send-keys', '-t', pane, `echo ${marker} ${WARN} ${path} end`, 'Enter');
@@ -656,8 +784,11 @@ await withElectron(
         // history, so a cell computed before one was opened names something
         // else afterwards.
         await closeAllTabs(cdp);
+        // PHASE 250. The rows are read until two reads agree; a flat wait is
+        // not enough, and this arm family read a stale layout on one run of
+        // three. See `settledCapture`.
+        const rowsNow = await settledCapture(pane);
         const geoNow = await geometryNow(cdp, pane);
-        const rowsNow = capture(pane);
         const cell = geoNow === null ? null : cellOf(rowsNow, marker, path);
         if (cell === null) {
           problems.push(`${arm} the marked row for ${what} was not in the pane, so nothing was pressed`);
@@ -671,6 +802,7 @@ await withElectron(
         }
         const tabsBefore = await cdpEval(cdp, TABS, 10000);
         const recordedBefore = recordLines();
+        await parkPointer(cdp, geoNow, cell.row);
         await pressCell(cdp, geoNow, cell.row, cell.col, cell.width);
         const tabsAfter = await cdpEval(cdp, TABS, 10000);
         const recordedAfter = recordLines();
@@ -693,8 +825,8 @@ await withElectron(
       // lies (research 111 section 4.2).
       {
         await closeAllTabs(cdp);
+        const rowsE = await settledCapture(pane);
         const geoE = await geometryNow(cdp, pane);
-        const rowsE = capture(pane);
         const at = rowsE.findIndex((r) => r.startsWith(`${WRAPPED_MARK} `));
         const head = at === -1 ? '' : rowsE[at];
         const fragment = head.slice(WRAPPED_MARK.length + 1);
@@ -717,6 +849,83 @@ await withElectron(
             ['E the fixture really did run off the row', findings.E.reallyWrapped, true],
             ['E a span whose end is unknown opens nothing', findings.E.openedTabs, []],
             ['E and reaches the Mac not at all', findings.E.newlyRecorded, []]
+          ])
+        );
+      }
+
+      // ------------------------------------------- ARMS G, H, I, J and K
+      //
+      // PHASE 250. Two lifts, driven on the real face: a path that merely ENDS
+      // its row, and a relative path joined to the session's own project.
+      //
+      // `endsTheRow` is what tells the two families apart. Arms A to D assert
+      // the word `end` after the span, because refusal 8 and not the door had
+      // to be out of the way for them; G and I assert the OPPOSITE — the span
+      // really is the last thing on its line — and then assert that it still
+      // stops short of the pane's width, which is what the lift is bounded by.
+      // Without that second reading a run in a narrow window would pass by
+      // pressing a span the edge rule had already refused for the right
+      // reason.
+      for (const [arm, marker, span, endsTheRow, wantTabs, wantMac, what] of [
+        ['G', 'mkG', ENDS_THE_ROW, true, ['ends-the-row.md'], [], 'an absolute path at the end of its line'],
+        ['H', 'mkH', REL_DECISION, false, ['fixed-egress-decision.md'], [], 'a relative path mid-sentence'],
+        ['I', 'mkI', REL_HANDOFF, true, ['running-url-handoff.md'], [], 'a relative path at the end of its line, with a :line'],
+        ['J', 'mkJ', REL_CLIMB, false, [], [], 'a relative path that climbs out of the project'],
+        ['K', 'mkK', REL_PAPER, false, [], [], 'a resolved .pdf, which arm B opens on the Mac when it is named absolutely']
+      ]) {
+        await closeAllTabs(cdp);
+        const rowsNow = await settledCapture(pane);
+        const geoNow = await geometryNow(cdp, pane);
+        const cell = geoNow === null ? null : cellOf(rowsNow, marker, span);
+        if (process.env['P250_ROWS'] === '1') {
+          say(
+            `${arm} sees: ${JSON.stringify(
+              rowsNow.map((r, i) => `${String(i)}:${r}`).filter((r) => r.slice(r.indexOf(':') + 1).trim() !== '')
+            )}`
+          );
+        }
+        if (cell === null) {
+          problems.push(`${arm} the marked row for ${what} was not in the pane, so nothing was pressed`);
+          findings[arm] = { pressed: false, cols: geoNow?.cols ?? null };
+          continue;
+        }
+        const after = cell.text.slice(cell.col + cell.width);
+        const reallyEnds = !/[^\s:0-9]/.test(after);
+        if (endsTheRow) {
+          // THE INSTRUMENT, PROVED ABLE TO SEE THE THING IT IS LOOKING FOR.
+          problems.push(
+            ...grade([
+              [`${arm} the span really is the last thing on its row`, reallyEnds, true],
+              [
+                `${arm} and the row still stops short of the pane's width, so this is the lift and not a wrap`,
+                cell.text.length < geoNow.cols,
+                true
+              ]
+            ])
+          );
+        } else if (!after.includes('end')) {
+          problems.push(`${arm} the row wrapped, so refusal 8 and not the door would decide it`);
+        }
+        const tabsBefore = await cdpEval(cdp, TABS, 10000);
+        const recordedBefore = recordLines();
+        await parkPointer(cdp, geoNow, cell.row);
+        await pressCell(cdp, geoNow, cell.row, cell.col, cell.width);
+        findings[arm] = {
+          what,
+          cols: geoNow.cols,
+          row: cell.row,
+          col: cell.col,
+          rowText: cell.text,
+          rowLength: cell.text.length,
+          endsTheRow: reallyEnds,
+          openedTabs: (await cdpEval(cdp, TABS, 10000)).filter((t) => !tabsBefore.includes(t)),
+          newlyRecorded: recordLines().slice(recordedBefore.length)
+        };
+        say(`${arm}: ${JSON.stringify(findings[arm])}`);
+        problems.push(
+          ...grade([
+            [`${arm} ${what} opens what it should`, findings[arm].openedTabs, wantTabs],
+            [`${arm} and hands the Mac what it should`, findings[arm].newlyRecorded, wantMac]
           ])
         );
       }
@@ -758,8 +967,8 @@ await withElectron(
           ['pastTheEnd', 'mkF2', WARNED_PAST, 1, []]
         ]) {
           await closeAllTabs(cdp);
+          const rowsF = await settledCapture(pane);
           const geoF = await geometryNow(cdp, pane);
-          const rowsF = capture(pane);
           const cell = decoratedCellOf(rowsF, marker, path);
           if (col0 === null) {
             problems.push(`F tmux would not say how wide "${prefix}" is, so nothing was pressed`);
@@ -789,6 +998,7 @@ await withElectron(
           // offset 0 is the path's FIRST cell; offset 1 is the cell one PAST
           // its last. At the parent both readings are the other way round.
           const col = offset === 0 ? col0 : col0 + cell.width;
+          await parkPointer(cdp, geoF, cell.row);
           await pressCell(cdp, geoF, cell.row, col, 1);
           const got = (await cdpEval(cdp, TABS, 10000)).filter((t) => !before.includes(t));
           findings.F[half] = {
