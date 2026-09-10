@@ -25816,6 +25816,161 @@ missing row.
 
 ---
 
+## Phase 251 — the redline gets the room, and he picked the mock (operator chose 2026-09-09, on research 114)
+
+**Subject.** `feat(redline): the room the redline is in`
+
+**First body line.** `Phase 251: the redline gets its room`
+
+**Semver.** Minor. A person sees a different page the moment they open a Redline.
+
+**Tier 2 per item, and fault 3 is Tier 3.** The room, the wash, the controls and the leaf rules are
+rendered surfaces with no new state, so one app run drives every claim in one session. **Fault 3 earns
+Tier 3 on its own** and is not demoted to sit beside them: it changes what the composer emits, so it
+changes what ⌥⌫ and ⌥↩ write and what `N of M changes` counts, which is the person's prose. Its
+evidence is a per-shape matrix over real tables from this repository plus a seeded fuzz, and two
+independent methods one of which is an attack on the caps.
+
+**Charter.** `docs/research/114-phase-249-the-design-the-mock-and-the-spec.md` §6 IS the spec and this
+phase implements it; §5's eight refusals bind; §7's fifteen arms and §8's app run are the proof.
+`docs/research/113-phase-249-the-room-the-redline-is-in.md` is the measurement it is judged against.
+**THE OPERATOR CHOSE ON 2026-09-09 AND THE TWO OPEN QUESTIONS ARE CLOSED**: he chose **DIRECTION B**,
+being the column with margins, on the mock at `build/p249/mock-p249.html`; he chose **SEAM** over
+Ribbon, being the line pitch less a 2px band; and he chose **NOT to pin `--error`** in this phase, so
+§3's reading stays a stated limit and `conformance:hue` is untouched.
+
+**The mechanism, written from the tree.**
+
+**Fault 3 is built FIRST and lands on its own**, because it is composer work that needs no layout and
+it is the largest correctness win in the document. `src/renderer/editor/redline-document.ts` gains the
+table block: a change block whose every line is a table line is aligned row against row by an
+**order-preserving resemblance LCS at research 110's own 0.5**, never by the first cell, because a
+renamed label column is the commonest table edit there is and a first-cell key degrades every row to a
+whole-row pair — which is a WORSE picture than the flat stream it replaces. Each paired row is then
+word-diffed on its own; an unpaired row is a whole deletion or insertion; a separator row pairs only
+with a separator row, is never word-diffed, and when both sides are plain dashes the deleted copy is
+not drawn. **THE WORD BUDGET IS THE BLOCK'S AND NOT THE ROW'S**, which is ruling 4's own promise:
+`REDLINE_MAX_EDIT_LENGTH` was tuned for ONE `diffWords` per block, each pair is given what is left, and
+a pair that cannot be diffed inside it is a whole-row replacement. **`tableRuns` GETS A REFUSAL OF ITS
+OWN**, because unlike `wordRuns` it returns a value on every input there is: `REDLINE_MAX_TABLE_ROWS =
+60` per side in `src/renderer/editor/redline.ts`, returning `null` above it so the block takes the
+whole-block fallback every other cap already takes. **60 is derived rather than picked** — nearly twice
+the widest table this repository holds under the char cap, being 32 rows in `docs/research/26`, against
+a median of 7 and a p99 of 22 over 1,905 tables; at the bound the pass costs 2.7 ms and 120 runs.
+Without it, 666 rows and 3,330 bytes — both sides INSIDE the char cap — emit 1,332 runs against the
+flat path's 2, into a view research 113 §7.1 measured as mounting its whole document with no
+virtualizer, and `pairRows` is an O(n·m) dynamic program besides. **THE STATED LIMIT IS THAT FAULT 3 IS
+NOT FIXED ABOVE THE CHARACTER CAP**: the table path sits INSIDE `REDLINE_MAX_BLOCK_CHARS`, so a block
+over 4,000 characters is skipped exactly as today with `redlineSkipNote` saying `N too long`, which is
+**46 of this repository's 1,951 markdown tables**, `DESIGN.md`'s own 8,231-byte one and
+`docs/BACKLOG.md`'s 22,283-byte one among them. **AND THE CHANGE UNIT MOVES WITH THE COMPOSER**, 1 to
+101 on a 200-row table, because `changesOf(runs)` is what ⌥↓, ⌥⌫, ⌥↩ and the counter all read; the
+400-pair fuzz says this is specific to the shape fault 3 exists for and not the general case, and this
+phase takes it on purpose as finer granularity rather than inheriting it.
+
+**The room is fault 1.** `src/renderer/editor/redline.css` gives `.ed-redline-doc` a measure stated in
+characters of TEXT rather than of box, `--redline-measure: 84ch` with the 48px of inline padding
+OUTSIDE it, because the shipped `max-width: 68ch` with the padding inside delivers **62.1** characters
+and the number in the stylesheet has never meant what it says. The document sits in a two-track page,
+`[rail] [column]`, `width: fit-content; margin-inline: auto`. `markdown.css:35` is NOT touched, because
+Phase 248 owns it.
+
+**The wash is fault 2, and he chose Seam.** The wash paints the line pitch less a 2px seam, so a
+wrapped run is one continuous shape: today's `15.00px` painted on a `21.45px` pitch is a **6.45px
+band**, and Seam is 19.44px and 2.01px. The trailing inline pixel goes and the leading one stays. The
+current change stops being an outline on the inline wrapper — **23 outlined boxes on one change at his
+pane and 43 at the floor** — and becomes ONE absolutely positioned 2px `--accent` bar in the rail, from
+its first client rect's top to its last one's bottom, **zero elements at rest**.
+`box-decoration-break` is left alone; it already computes `slice` and it was never the fault.
+`.ed-redline-change`, its identity attributes and its `tabindex="-1"` are untouched, so Phase 227's
+press, Phase 238's accept and Phase 239's persistence read exactly what they read today. **§1.2's
+finding stands in the code's own comment**: nothing distinguishes the 2px seam inside one run from the
+one between two adjacent marks, inline padding is uniform, and Seam over Ribbon is TASTE and the
+operator's, not a measurement.
+
+**The controls are fault 4.** `src/renderer/editor/redline-chip.tsx`'s `chipPlace` gains the band arm:
+the chip goes in the free canvas beside the column whenever that canvas holds **the chip's own drawn
+width**, which is ONE decision asked with ONE number, replacing the first version's `data-room` ladder
+at 1060px gated against a 264px track — two undeclared numbers and a cliff on one pixel of drag. The
+product's chip is 258.28px against the mock's 223.1px, so the band arm is reachable at about 1316px and
+the arm must read the chip rather than a constant. `Accept all` and a `N of M changes` counter sit in a
+bar whose inner box is the page's own grid, so both ends land on the column: **414.1px past the
+column's right content edge today, 0.0px in the proposal**. Every one of Phase 236's four rulings
+stands, `chipAnchorRect` is untouched and still `getClientRects()[0]`, a control in the flow is still
+refused, and where the canvas does not hold the chip it falls back to exactly today's overlay, which is
+REQUIRED and not a fallback anybody may delete, because research 96 §4.1 and research 113 both measured
+0.00px of free canvas at the panel's floor. `.ed-redline-view` stops being the only positioned box: the
+page becomes the containing block, stated in all three of `redline-chip.tsx`, `RedlineDocument.tsx` and
+`redline.css`, which move together.
+
+**The leaf rules are fault 5, in `RedlineRow.tsx` and `redline.css`, and none moves a byte.** No wash
+on a mark with no letter and no digit that is not whitespace, being a table's `|` and `---`, which
+keeps its colour and its strikethrough. No wash on a whitespace mark that is not a spacing change. **A
+CHANGE MUST CARRY INK**, which is the revision round's rule and exists because the first two together
+drew a blank line added or removed as NOTHING AT ALL while the counter, the chip and ⌥↓ still offered
+Rewind and Accept on it; a whitespace mark whose change holds nothing readable draws a **2px bar in its
+own colour through a pseudo-element**, so it adds no node, no text node and no leaf and research 113
+§8.5's four readers see what they see today. And a deletion and an insertion of the same bytes collapse
+to one unchanged run, which is exactly equivalent on both projections. **RULING 5 STANDS EXACTLY AND NO
+WIDER**: a whitespace mark that IS a spacing change keeps its wash and loses only the strikethrough it
+had no glyph to draw on.
+
+**The Redline appears in neither `DESIGN.md` nor `docs/DESIGN-SPEC.md` today**, and a phase that changes
+a surface writes its section.
+
+**The proof, run rather than read.** `npm run conformance:redline` gains research 114 §7's fifteen
+arms, every one of them ablated one clause at a time and red. Four are the ones a later round will
+undo: **the three caps asked as THREE questions** (the word budget is the block's; a block one byte
+over the char cap reaches no differ at all and is counted `tooBig`; `tableRuns` returns `null` at 666
+rows and not at 60, and ablating `REDLINE_MAX_TABLE_ROWS` moves the reading from 120 runs to 1,332);
+**the wash arithmetic read off the RUNNING APP and never off the stylesheet**, because a stylesheet
+reading cannot see a face substitution and it is the only guard on the long side; **no change is ever
+entirely undrawn, and the property is INK rather than presence**, because the first version's arm asked
+only that a leaf was not `display: none` and the lone blank passed it while drawing nothing; and **the
+bar's inner grid template equals the page's, read by matching braces** so a later round cannot drift
+one from the other. Rule 9's derived file set gains whatever this adds and the floor rises in the same
+commit. `npm run probe:p249` is the app run and is NOT in the commit battery: ONE Electron on a scratch
+profile with a scratch `HOME` and its own tmux socket, ended and unlinked in a `finally`, spawning no
+agent, spending no token, opening no keychain, driving the real Redline over its own fixture at 1349,
+699 and 319px on BOTH bases and reading the same rows §2 reads — the document box against the scroller,
+the free canvas either side, the painted height against the pitch, the fragments past the column edge
+and past the table's rule, the rows of prose the chip covers, `Accept all`'s distance, and the
+positioned boxes the current change draws **over every change rather than over whichever one is
+current**. **Measured at the parent commit AND at HEAD**, because that is the only honest proof a defect
+is fixed.
+
+**Two rows are worse and the phase must publish both.** At the 319px floor five fragments pass the
+column edge against three today, and the document is 42.89px taller, both because a whole table row is
+now the unit. And the spread of a table's closing pipes goes **427.9px → 593.4px** and not to zero,
+which is the honest cost of the wider measure: a horizontal scroller for a wide block is Phase 248's
+ruling and is not taken here.
+
+### What is NOT in this phase
+
+- **No pin on `--error`.** He chose to leave it. Its own wash reads **4.135 at worst over 8 of the 35
+  offered dark cells**, the shipped default and the whole light region pass, and it stays a stated
+  limit in research 114 §3. `conformance:hue` is not touched and no floor moves.
+- **Not Direction C.** No review pane, no second track, no persistent list of changes docked beside the
+  document. It doubles the mounted DOM research 113 §7.1 already calls unbounded and it is IDE
+  furniture the scope guardrail asks us to justify rather than build.
+- **§5's eight refusals stand whole**: no rounded outline following a wrapped mark's silhouette and no
+  `box-decoration-break: clone`; no seam that separates two different marks from two fragments of one
+  run, because CSS has no mechanism for it; no lining up the columns of a redlined table; no rendering
+  the table AS a table, because `RedlineDocument` draws the file's source by a decision the operator
+  confirmed and this phase does not re-open it; no dropping `pre-wrap`; no letting the document fill
+  the pane; and the margin is never the ONLY home for the controls.
+- **Nothing in the markdown preview.** Phase 248 owns `markdown.css` and this touches neither it nor
+  the preview's measure.
+- **No native menu change.** No surface is added, renamed or removed, the counter is not a menu item,
+  and Accept all still has no chord, which is Phase 238's own ruling.
+- **No new IPC channel and no new write door.** `conformance:redline` rule 9 gives the redline one
+  write channel at one call site and that does not move.
+- **The 84-character measure is not re-swept.** Research 113 swept 68, 76, 84, 92, 100, 120 and no cap;
+  84 is the row with the fewest wrapped marks, it is a judgement rather than a solved optimum, and this
+  phase does not re-argue it.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26366,3 +26521,5 @@ cycle rather than only the evening it was written.
 - 2026-09-09, **PHASE 249's REVISION ROUND delivered, and it changed the DESIGN rather than the wording, because six of the reviewer's findings were right.** Still research only, still **not one line under `src/`**. **THE HEADLINE SPACE NUMBER WAS AN ARTEFACT OF A CHANGED DEFINITION**: research 113 defines dead space as the scroller less the DOCUMENT BOX and the design step subtracted the PAGE, counting a rail and a 264px margin that hold nothing at rest as occupied, which is how 45% became 23%; every reading is on 113's definition now, the tracks reading is printed beside it, and the honest number at his pane is **58.72% → 45.45%**. **AND THE FIRST PAGE PUT MORE BLANK CANVAS TO THE RIGHT OF HIS TEXT THAN TODAY DOES**, 396.09px → 428.59px, because centring rail-plus-column-plus-margin as one box puts the reading column 122px left of the pane's centre — the exact complaint, answered backwards. The page is **the rail and the column and nothing else** now, with the chip out of flow in the free canvas beside it, and both bands shrink together, **396.1 / 396.1 → 322.6 / 290.6**. **THE TWO COLOURS THE WHOLE PICTURE IS DRAWN IN ARE NOW WALKED IN THIS DOCUMENT rather than deferred**, 202,176 readings through the SHIPPING `deriveOverrides` over every offered cell of both bases at every whole degree: **`--error` on its own wash fails 4.5:1 at 8 of the 35 offered dark cells, worst 4.135 at hue 73 shade 2 depth −3**, `--success` never fails and paper clears everywhere, and a pin would cost those eight cells while leaving the shipped default and the whole light region alone, which is a very different answer from Phase 218's 35 → 16. **A BLANK LINE ADDED OR REMOVED DREW AS NOTHING AT ALL** — one `del "\n"`, no wash, no strikethrough, no glyph for the colour to land on — while the counter, the chip and ⌥↓ still offered Rewind and Accept on it, so a change must now carry INK and a lone whitespace mark draws a 2px bar in its own colour through a pseudo-element that adds no node, no text and no leaf. **THE MOCK NOW CONTAINS THE SHAPE FAULT 2 IS ABOUT**, being the block the caps refuse, at **18 fragments and 23 outlined boxes at his pane and 34 and 43 at the floor** against one rail bar on 13 of 13 changes at every width — and **the rail no longer collapses at the floor**, where the first version marked the current change with nothing. **THE TABLE'S ROW KEY WAS THE FIRST CELL and that is the commonest table edit there is**, so a renamed label column degraded every row to a whole-row pair; it is an order-preserving resemblance LCS at research 110's own 0.5 now, and `Sessions` against `Ledger` composes to two words rather than two rows. **THE WORD CAP IS THE BLOCK'S AND NOT THE ROW'S**, which is ruling 4's own promise. **THE SEAM WAS RECOMMENDED ON A CLAIM THAT DOES NOT SURVIVE MEASUREMENT** — the gap between two DIFFERENT marks and between two fragments of ONE run is the same 2.01px, so it is taste and says so. Corrections: leaves are **52 → 55 text nodes and 44 → 47 elements**, a rise and not the fall the first version published; `Accept all` is **414.1px past the column's right edge → 0.0px**, measured rather than asserted; and one threshold measured against the chip's own drawn width replaces a 264px cliff decided by two numbers. Gates green: typecheck, build with every gate, smoke:t1 6 of 6, `HELPER_USER_FLOOR` unmoved at 113. His `-L gmux` sessions 32 before and 32 after, no file of his opened, no scratch profile or socket left behind.
 
 - 2026-09-09, **PHASE 249 LANDED AS RESEARCH, FOUR commits on `2ca274ca` ending at `42f3de29`, and IT BUILT NOTHING** — `git diff 56919837..HEAD --stat -- src/` is empty and that is the phase's one hard rule. His five faults, answered: **fault 1 is a recut rather than a widening**, because the space is what the MEASURE buys and not what the tracks buy, 58.72% of the 1349px pane dead today against 45.45% proposed with the tracks alone reading 43.08%; **fault 2 is one number**, the 6.45px unpainted band between fragments of one mark that paints 15.00px on a 21.45px pitch, closed to a 2px seam, and Seam against Ribbon is taste and is said to be taste; **fault 4 was never the button's placement**, `Accept all` sitting 414.1px past the column's right content edge today and 0.0px in the proposal because the bar's inner box becomes the page's own grid; **fault 5 has no rule to cross**, measured at ZERO bordered elements in the view, the rule he is looking at being the table's own closing `|` and the crossings being `pre-wrap` painting a preserved space, 15 of 15 ending on whitespace and 0 of 66 on a visible character. **FAULT 3 CANNOT BE FULLY ANSWERED AND THE DOCUMENT SAYS SO**: the row-aligned table path sits INSIDE `REDLINE_MAX_BLOCK_CHARS`, so a table over 4,000 characters keeps today's answer of no redline row at all with the skip note saying `N too long`, which is **46 of this repository's 1,951 markdown tables**, `DESIGN.md`'s own 8,231-byte one and `docs/BACKLOG.md`'s 22,283-byte one among them. The committer's round is why that sentence exists, and why `tableRuns` gains a refusal of its own: unlike `wordRuns` it returned a value on every input there is, and the character cap does NOT bound what the path mounts — at **666 rows and 3,330 bytes, both sides inside the cap**, the flat path emits 2 runs and the row path 1,332, in 112 ms, against a view that mounts its whole document with no virtualizer. `REDLINE_MAX_TABLE_ROWS = 60` is derived from the widest table under the cap this repository holds, 32 rows, doubled; median 7, p99 22 over 1,905 tables; 2.7 ms and 120 runs at the bound. The change unit moves with the composer too, 1 to 101 on a 200-row table, and is named so a build phase decides it on purpose. **Three directions, and the recommendation is B rather than C**: A is the column alone, cheapest and it carries the whole of the space answer; **B is the column with margins**, which adds the rail and the anchored chip so the affordance he asked for exists, at the cost of the page becoming the positioned box; C is the full review pane with a second track, refused for now because it is furniture before he has said the column is right. **ONE COLOUR FAILS AND IT IS INHERITED, NOT INTRODUCED**: `--error` on its own wash reads 4.135 at worst over 8 of the 35 offered dark cells, and the pin costs those eight cells while the shipped default and the whole light region stand. No CHANGELOG entry, because nothing a person can see has changed. Nothing under `src/`, no version bump, no tag.
+
+- 2026-09-09, **PHASE 251 QUEUED, being the redline's room built from research 114's spec, and HE CHOSE**: he looked at the mock at `build/p249/mock-p249.html` and picked **DIRECTION B**, the column with margins, **SEAM** over Ribbon at the line pitch less a 2px band, and **NO PIN on `--error`**, so its 4.135 over 8 of the 35 dark cells stays a stated limit and `conformance:hue` is untouched. Fault 3 is built FIRST and lands on its own because it is composer work that needs no layout: rows aligned by an order-preserving resemblance LCS at research 110's own 0.5 rather than by the first cell, the word budget the BLOCK's and not the row's, and `tableRuns` given a refusal of its own at `REDLINE_MAX_TABLE_ROWS = 60` because unlike `wordRuns` it returned a value on every input there is and 666 rows inside the char cap emit 1,332 mounted runs against the flat path's 2. Tier 2 per item with **fault 3 at Tier 3**, because it changes what ⌥⌫ and ⌥↩ write. Fifteen gate arms, each ablated red, and `probe:p249` measured at the parent AND at HEAD.
