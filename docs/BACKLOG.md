@@ -26169,6 +26169,79 @@ the read path) run for the commit.
 
 ---
 
+## Phase 255 — the preview renders fast instead of being avoided (operator asked 2026-09-10)
+
+**Subject.** `perf(markdown): the preview paints as you arrive`
+
+**First body line.** `Phase 255: the preview paints fast`
+
+**Semver.** Minor. What a person sees on choosing Preview for a large file changes from a multi-second
+freeze to a page.
+
+**Tier 2, parent measurement mandatory** (operator-asked performance), plus whatever gate the touched
+files carry — `conformance:wideblocks` runs for any `markdown.css` change, and the DOM shape its rules
+key on must survive whatever the renderer becomes.
+
+**Charter.** Phase 254 measured the cost and moved it off the open path; the operator then asked for
+the cost itself: "is there a way to speed the load for the markdown previews? … looking at open
+source, etc, or a novel way to load it so its blazingly fast." Research 116 §2.2 is the baseline and
+the target board: **~5.5 s warm for a 2.56 MB file, one synchronous pass, nothing paints until the
+whole document is rendered** — react-markdown's mdast→hast→React walk at 4,172 ms self-time,
+micromark's tokenizer at 3,857 ms, plus remark-gfm, rehype-raw, rehype-sanitize and Shiki, all
+unwindowed over the whole source (`markdown-impl.tsx` renders `<Markdown>{source}</Markdown>` in one
+pass). The pipeline has no size or line guard anywhere.
+
+**The research half writes `docs/research/117-*`, and it is a bake-off with prototypes, not a
+survey.** The candidates, each MEASURED on the research 116 twins before anything is recommended:
+
+1. **Block-windowed rendering.** Markdown is block-structured, and a top-level block boundary can be
+   found by a cheap line scan without parsing. Render the first screenful's blocks synchronously,
+   stream the rest in idle slices (or virtualize entirely, react-window style). First paint should be
+   proportional to the viewport, not the file. The hard parts to price: constructs that span blocks
+   (setext headings, lazy continuation, reference definitions and footnotes used before defined,
+   a table's alignment row), scroll-height estimation, in-page anchors and the find command, and
+   whether the Phase 248/252 wide-block CSS still sees the DOM shape it keys on.
+2. **A faster parser under the same tree.** micromark is the slowest mainstream markdown parser;
+   markdown-it (VS Code's own webview renderer) is roughly an order of magnitude faster on the same
+   bytes. Measure markdown-it and any other maintained candidate over the twins; the sanitize and
+   highlight steps stay. A bundled dependency is the assemble-never-reimplement rule, not a refusal-1
+   violation — nothing is loaded at runtime by configuration.
+3. **Parse off the main thread.** A worker parses to hast/HTML; main sanitizes and mounts. Prices the
+   transfer cost and what it buys ALONE (the React walk stays on main), and what it buys COMBINED
+   with 1 or 2.
+4. **A render cache.** Digest-keyed: reopening an unchanged large file paints from the cache at once;
+   an edit re-renders only the changed blocks (which candidate 1's block model gives for free).
+   Priced for memory and staleness.
+
+The research states a TARGET from its own numbers — first paint under a stated budget on the 2.56 MB
+twin, no main-thread task over a stated ceiling during the stream — and recommends a combination with
+the measurements attached. **The build half implements the recommendation**; Phase 254's deferral
+chip then re-derives its own threshold against the new cost (a render that lands in half a second at
+3 MB may not need deferring at all), and that re-derivation is part of this phase, not a leftover.
+
+**The proof, run rather than read.** The app run opens the twins at parent and HEAD: click-to-first-
+paint, click-to-interactive, worst long task, and scroll-through-the-whole-document correctness (every
+block eventually drawn once, anchors and find working, wide blocks still clamped per 252). Rendering
+CORRECTNESS is gated by a corpus diff: the final DOM for a body of real markdown must match the
+old renderer's DOM (or the differences enumerated and each one justified), because a faster preview
+that draws differently is a different preview. Gate arms pin the window/cap/cache clauses, ablated
+red. `conformance:wideblocks` unmoved or extended, never weakened.
+
+### What is NOT in this phase
+
+- **No sanitization change.** rehype-sanitize's promises and the untrusted-HTML rules stand; a faster
+  path that skips sanitizing is a refusal, not a candidate.
+- **No WASM or native parser unless the research proves the JS candidates cannot reach the target** —
+  and if it does, the dependency is bundled at build time with the same scrutiny as any other, never
+  loaded by configuration (refusal 1 binds the runtime, not the lockfile).
+- **The 254 deferral is re-derived, not silently deleted.** If a threshold remains, its number comes
+  from the new measurement and its chip clause stays.
+- **No editor/Monaco work, no diff work** — this is the preview pipeline only.
+- **The release waits on 254, not on this phase**, per the operator's word; this one lands into the
+  next cycle unless he says otherwise.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26751,3 +26824,5 @@ cycle rather than only the evening it was written.
 - 2026-09-10, **PHASE 253 BUILT in wt-p253, the paths VS Code catches**: research 115's three adoptions landed as token-level grammar widenings behind UNCHANGED doors. The ONE anchored suffix pair `stripDecoration` and `looksLikePath` share now reads grep's `path:12:matched text` and the range forms, and a second clause reads tsc's `path(12,34)`/`path[12]` — both ported and narrowed from microsoft/vscode 770a9bce with the bare-space and verbal clauses refused at their measured price, 4,783 spans for 17 doors and a false line on 190 working links; the underline is TRIMMED to the drawn suffix so a grep remainder is never underlined. `SEGMENT` gained `[` `]` with a tokenizer balance rule that keeps a trailing closer an opener inside the token matches, so `(docs/x.md)` still sheds its wrapping parens while `src/x.ts(12,34)` arrives whole. A bare FILE-SHAPED name — `README.md`, `Makefile:12`, never any word, never a version, never a dotfile — is admitted and resolved by lift two's own base-join; a domain-shaped token passes the shape test on purpose and the join's lstat answers missing for all 92 measured. The wrapped join stays REFUSED with the alternate-buffer fact written into the grammar's header. `decidePathDoor`, `path-door.ts` and `path-open.ts` are unchanged by a byte, and rule 16 asserts they name nothing the grammar exports. Before/after over the WIDENED denominator, one capture of his own 38 live panes and 91,617 rows, 39 sessions on `-L gmux` before and after every run: the parent grammar reaches 434 of 501 distinct real files at a door (86.6%), HEAD reaches all 501, +67 files, 0 lost; the busiest pane holds 739 cache keys against CACHE_MAX 2,048, re-checked as research 114 §7 asked. `conformance:pathdoors` is 116 readings with 12 ported VS Code test rows run against OUR grammar and 38 of 38 ablations red, one clause each including one per adopted mechanism; `probe:p247` gained arms L to P — grep, tsc, the bare name, the domain-shaped attack, brackets — PASS at HEAD and exactly 4 findings at the parent grammar rebuilt (L, M, N, P draw no link; O reads the same on both sides). Gates green: typecheck, build with every embedded gate and the contract baseline byte identical, npm test 13,459, smoke:t1 6 of 6, conformance:pathdoors. No machine, no ssh, no keychain, no token, no version bump, no tag.
 
 - 2026-09-10, **PHASE 253 LANDED at `b62e277c`, the paths VS Code catches.** Grep's `path:12:matched text`, tsc's `path(12,34)` and `path[12]`, a bracketed name like `pages/[slug].tsx`, and a bare slashless filename such as `README.md` all click now, joined under the session's own project through the unchanged doors — over the widened denominator of 501 distinct real files at a door in his own panes, the parent grammar reached 434 (86.6%) and HEAD reaches all 501, 67 newly reachable and 0 lost. Measured and refused with the number: the bare-space clause at 4,783 spans for 17 doors, the verbal clause whose paths all already underline, and the wrapped join because the pane's xterm is a tmux client in the alternate buffer, so a scrolled-off wrapped line leaves 0 rows to rejoin. Doors unchanged by a byte, 38 of 38 ablations red, probe:p247 arms L-P PASS at HEAD and exactly 4 findings at the parent grammar. His `-L gmux` server 39 sessions before and after every run.
+
+- 2026-09-10, **PHASE 255 QUEUED, the preview paints fast**: 254 moved the ~5.5 s markdown render off the open path; he then asked for the render itself. Research 116 §2.2 is the baseline — react-markdown's walk 4,172 ms and micromark 3,857 ms, one synchronous unwindowed pass, no paint until the whole document. The research half is a BAKE-OFF with prototypes over the same twins: block-windowed/virtualized rendering, a faster parser (markdown-it, VS Code's own), a worker parse, and a digest-keyed cache, each measured before anything is recommended, with the cross-block constructs (setext, lazy continuation, reference definitions, footnotes) priced rather than waved at. Correctness is gated by a corpus DOM diff against the old renderer. The 254 deferral threshold is re-derived against the new cost in the same phase. Launches when 254 lands, because both touch the markdown files.
