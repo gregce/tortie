@@ -188,10 +188,15 @@ export class PathLinkProvider implements ILinkProvider {
       width: this.term.cols,
       columns,
       above,
+      // A COLUMN THE MAP CANNOT ANSWER IS `null` AND NOT 0 (the fix round).
+      // 0 is smaller than any width, so `?? 0` said "the predecessor did not
+      // fill its row" about a row nothing could be read from, and the span was
+      // offered. `edgeRefusal` refuses on null, which is the direction its
+      // other unknown already falls in.
       aboveEnd:
         lineAbove === undefined || above === null
           ? 0
-          : (cellColumns(lineAbove)[above.length] ?? 0)
+          : (cellColumns(lineAbove)[above.length] ?? null)
     });
     if (spans.length === 0) {
       callback(undefined);

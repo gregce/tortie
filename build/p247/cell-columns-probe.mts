@@ -51,7 +51,7 @@ const spans = (await import(spansHref)) as {
       width: number;
       columns: number[];
       above: string | null;
-      aboveEnd: number;
+      aboveEnd: number | null;
     }
   ): { text: string; start: number; end: number; target: string }[];
 };

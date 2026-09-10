@@ -209,9 +209,12 @@ export interface RowEdges {
   above: string | null;
   /**
    * Column one past the row above's last DRAWN glyph, from that row's own
-   * `cellColumns` map. 0 when there is no row above.
+   * `cellColumns` map. 0 when there is no row above, and **null when there IS
+   * one and its end column could not be read** — which the refusal below
+   * treats as a wrap, because that is the direction its other unknown falls
+   * in. See `edgeRefusal`.
    */
-  aboveEnd: number;
+  aboveEnd: number | null;
 }
 
 /**
@@ -231,6 +234,18 @@ export interface RowEdges {
  * same direction `spanColumns` fails in: a map that does not cover a span
  * cannot say where the span ends, and a span whose end is unknown is exactly
  * what this refusal is for.
+ *
+ * **AND SO IS A PREDECESSOR WHOSE OWN END COLUMN COULD NOT BE READ** (the fix
+ * round). Both halves of this function ask a column map a question it may not
+ * be able to answer, and until now they fell in OPPOSITE directions: clause
+ * one refused on `undefined` while the head clause read a missing `aboveEnd`
+ * as 0, which is smaller than any width, which admitted the span. A refusal
+ * whose two halves disagree about which way to fall is one that will be
+ * simplified in the wrong direction later, so the unknown is spelled `null`
+ * and it refuses. It costs nothing measured — `cellColumns` covers every cell
+ * `IBufferLine.length` claims — and it is reachable only if `getCell` stops
+ * answering part way along a row, which is the one thing that would make the
+ * head clause's arithmetic meaningless.
  */
 export function edgeRefusal(
   span: PathSpan,
@@ -245,6 +260,7 @@ export function edgeRefusal(
   if (span.start !== headAt) return false;
   const above = edges.above;
   if (above === null || above.length === 0) return false;
+  if (edges.aboveEnd === null) return true;
   if (edges.aboveEnd < edges.width) return false;
   return PATH_CHARACTER.test(above[above.length - 1] ?? '');
 }

@@ -353,8 +353,13 @@ const MATRIX = [
   ['span-heads-an-uncontinued-row', '/b.md@0-5'],
   ['span-behind-a-gutter', ''],
   ['span-behind-a-gutter-below-a-short-one', '/b.md@4-9'],
-  // The one reading that fails CLOSED rather than by a column comparison.
-  ['span-with-a-short-map', '']
+  // The TWO readings that fail CLOSED rather than by a column comparison, and
+  // the second is the fix round's: both halves of refusal 8 ask a column map a
+  // question it may not be able to answer, and until then they fell in
+  // opposite directions. Its control is the row under it.
+  ['span-with-a-short-map', ''],
+  ['span-heads-a-row-whose-end-cannot-be-read', ''],
+  ['span-heads-a-row-whose-end-can-be-read', '/b.md@0-5']
 ];
 
 const live = runProbe(null);
@@ -963,6 +968,17 @@ const ABLATIONS = [
     edits: [{ from: 'if (endColumn === undefined) return true;', to: 'if (endColumn === undefined) return false;' }]
   },
   {
+    // THE FIX ROUND's, and it is the other half of the same question. Removing
+    // this line does not make the head clause skip its comparison: `null` on
+    // the left of `<` is 0 in JavaScript, so an unreadable predecessor reads as
+    // one that stopped short and the span is OFFERED. That is exactly what
+    // `?? 0` did at the call site, and it is why this refusal is spelled and
+    // ablated rather than left to the arithmetic.
+    name: 'a predecessor whose own end column cannot be read is treated as a short one',
+    file: 'path-spans.ts',
+    edits: [{ from: 'if (edges.aboveEnd === null) return true;', to: '' }]
+  },
+  {
     name: 'refusal 8 is lifted at the row’s head',
     file: 'path-spans.ts',
     edits: [{ from: 'if (span.start !== headAt) return false;', to: 'return false;' }]
@@ -1330,6 +1346,9 @@ function refusalEightWiringFindings(text) {
   if (!/aboveEnd:/.test(body)) {
     out.push("the predecessor's own last column is never handed over, so the head half cannot ask it");
   }
+  if (/aboveEnd:[\s\S]*?\?\?\s*0\b/.test(body)) {
+    out.push("a predecessor whose end column the map cannot answer arrives as 0, which is smaller than every width, so a row nothing could be read from reads as one that did not wrap");
+  }
   return out;
 }
 
@@ -1348,7 +1367,7 @@ function refusalEightWiringFindings(text) {
       width: this.term.cols,
       columns,
       above,
-      aboveEnd: lineAbove === undefined || above === null ? 0 : (cellColumns(lineAbove)[above.length] ?? 0)
+      aboveEnd: lineAbove === undefined || above === null ? 0 : (cellColumns(lineAbove)[above.length] ?? null)
     });
     callback(spans);
   }
@@ -1359,6 +1378,7 @@ function refusalEightWiringFindings(text) {
     ['the predecessor is read with its padding', SHIPPED.replace("lineAbove?.translateToString(true)", 'lineAbove?.translateToString(false)'), 1],
     ['the predecessor gets no column map', SHIPPED.replace('cellColumns(lineAbove)[above.length]', 'above.length'), 1],
     ['the predecessor\u2019s end is never handed over', SHIPPED.replace(/\n\s*aboveEnd:[^\n]*/, ''), 1],
+    ['an unreadable end column falls open as 0', SHIPPED.replace('above.length] ?? null', 'above.length] ?? 0'), 1],
     ['there is no provideLinks at all', 'export const nothing = 1;', 1]
   ];
   let caught = 0;

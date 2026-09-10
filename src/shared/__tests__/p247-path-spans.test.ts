@@ -201,6 +201,32 @@ describe('refusal 8 — a span that RUNS OFF the edge of its row', () => {
       })
     ).toBe(true);
   });
+
+  /**
+   * THE OTHER UNKNOWN, AND BOTH HALVES NOW FALL THE SAME WAY (the fix round).
+   *
+   * The head clause reads the PREDECESSOR's own drawn end column out of that
+   * row's map, and the call site used to hand a missing one over as 0 — which
+   * is smaller than every width, so a row nothing could be read from was
+   * treated as one that stopped short and the span was offered, while the
+   * clause above refused on the same kind of unknown. Removing the null
+   * refusal does not skip the comparison either: `null < 80` is `0 < 80` in
+   * JavaScript, so the arithmetic itself falls open.
+   */
+  it('refuses a span at the head of a row whose predecessor’s end cannot be read', () => {
+    const row = '/b.md and more text';
+    const span = { text: '/b.md', start: 0, end: 5, target: '/b.md' };
+    const columns = [...row].map((_, i) => i).concat([row.length]);
+    expect(
+      edgeRefusal(span, row, { width: 80, columns, above: 'wrote /a', aboveEnd: null })
+    ).toBe(true);
+    // ...and the control, which is the same predecessor with an end column
+    // that CAN be read and stops short, so a rule refusing everything would
+    // not read as a pass here.
+    expect(
+      edgeRefusal(span, row, { width: 80, columns, above: 'wrote /a', aboveEnd: 8 })
+    ).toBe(false);
+  });
 });
 
 describe('a whole row', () => {

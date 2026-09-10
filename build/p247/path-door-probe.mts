@@ -62,7 +62,7 @@ interface RowEdges {
   width: number;
   columns: number[];
   above: string | null;
-  aboveEnd: number;
+  aboveEnd: number | null;
 }
 const spans = (await import(from('path-spans'))) as {
   pathSpansInRow(
@@ -467,14 +467,17 @@ try {
     text: string,
     above: string | null,
     width: number,
-    aboveEnd?: number
+    aboveEnd?: number | null
   ): void => {
     readings[key] = spans
       .pathSpansInRow(text, {
         width,
         columns: [...text].map((_, i) => i).concat([text.length]),
         above,
-        aboveEnd: aboveEnd ?? (above === null ? 0 : above.length)
+        // `??` WOULD COLLAPSE AN EXPLICIT null INTO THE DEFAULT, and null is
+        // the reading the fix round added: a predecessor whose own end column
+        // could not be read. So the default is chosen by `undefined` alone.
+        aboveEnd: aboveEnd === undefined ? (above === null ? 0 : above.length) : aboveEnd
       })
       .map((s) => `${s.target}@${String(s.start)}-${String(s.end)}${s.line === undefined ? '' : `:${String(s.line)}`}`)
       .join(' ');
@@ -514,6 +517,17 @@ try {
   // the gutter clause would be pinned by nothing.
   row('span-behind-a-gutter', '  | /b.md and more', 'wrote /Users/gdc/a', 18);
   row('span-behind-a-gutter-below-a-short-one', '  | /b.md and more', 'wrote /Users/gdc/a', WIDE);
+
+  // THE SECOND UNKNOWN, and until the fix round it fell the other way (the
+  // fix round). The head clause reads the PREDECESSOR's own drawn end column
+  // out of that row's map, and a map that cannot answer used to arrive as 0,
+  // which is smaller than every width, which admitted the span. It is `null`
+  // now and it refuses, the way `span-with-a-short-map` refuses for this row's
+  // own map. The control beside it is the same predecessor with a readable
+  // short end, which IS offered, so a rule that refused everything could not
+  // read as a pass.
+  row('span-heads-a-row-whose-end-cannot-be-read', '/b.md and more text', 'wrote /a', WIDE, null);
+  row('span-heads-a-row-whose-end-can-be-read', '/b.md and more text', 'wrote /a', WIDE, 8);
 
   // A map that does not reach the span cannot say where the span ends, and a
   // span whose end is unknown is exactly what refusal 8 is for. This is the
