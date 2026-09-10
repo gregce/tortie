@@ -181,7 +181,8 @@ describe('the door sequence', () => {
       realPath: '/a/paper.pdf',
       kind: 'file',
       bundle: false,
-      executable: true
+      executable: true,
+      resolvedFrom: null
     });
     expect(executablePdf).toEqual({ door: null, refusal: 'executable-bit' });
   });
@@ -193,7 +194,8 @@ describe('the door sequence', () => {
         realPath: '/a/id_rsa',
         kind: 'file',
         bundle: false,
-        executable: true
+        executable: true,
+        resolvedFrom: null
       })
     ).toEqual({ door: null, refusal: 'secret-name' });
   });

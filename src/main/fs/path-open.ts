@@ -125,6 +125,12 @@ export async function openPathExternally(
   if (typeof raw !== 'string' || raw.length === 0) {
     return { status: 'refused', reason: 'not-absolute' };
   }
+  // PHASE 250. NO BASE IS EVER PASSED HERE, and the missing argument is the
+  // rule. `answerPathDoor` will join a relative spelling to a base when it is
+  // given one; the door that leaves Tortie is given none, so a spelling that
+  // is not absolute on its own is refused before any call is made. The pure
+  // decision refuses a resolved spelling the Mac door as well, so this is the
+  // second of two clauses and neither is load-bearing alone.
   const answer = await answerPathDoor(raw);
   if (answer.door === null) {
     return { status: 'refused', reason: answer.refusal };

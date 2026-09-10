@@ -65,7 +65,10 @@ export type PathDoorRefusal =
   | 'bundle'
   | 'not-a-regular-file'
   | 'secret-name'
-  | 'executable-bit';
+  | 'executable-bit'
+  // PHASE 250, and both belong to a spelling that was RELATIVE.
+  | 'outside-base'
+  | 'relative-external';
 
 /**
  * The answer. `door: null` means the span is never underlined and a click on
@@ -93,6 +96,16 @@ export interface PathFacts {
   bundle: boolean;
   /** True when `st.mode & 0o111` is non-zero on the REALPATH. */
   executable: boolean;
+  /**
+   * PHASE 250. The absolute base a RELATIVE spelling was joined to, or `null`
+   * for a spelling that was already absolute.
+   *
+   * It is the ONE thing the sequence learns about how a spelling was made, and
+   * it buys exactly two clauses below: containment, and the refusal to hand a
+   * resolved spelling to macOS. Everything else is asked of the realpath
+   * without knowing or caring — a base is not a bypass.
+   */
+  resolvedFrom: string | null;
 }
 
 /**
@@ -150,6 +163,57 @@ export function couldBeAbsolute(spelling: string): boolean {
 }
 
 /**
+ * IS THIS A BASE A RELATIVE SPELLING MAY BE JOINED TO? (Phase 250.)
+ *
+ * Absolute, more than the filesystem root, and free of control characters. The
+ * root is refused because a base of `/` contains everything, which would make
+ * the containment clause below say nothing at all, and because a project whose
+ * path is `/` is not a project.
+ */
+export function usableBase(base: string): boolean {
+  return base.startsWith('/') && base.length > 1 && !hasControlCharacter(base);
+}
+
+/**
+ * IS THIS REALPATH STILL INSIDE THE BASE IT WAS JOINED TO? (Phase 250.)
+ *
+ * Asked of the REALPATH and never of the join, so a `..` climb and a symlink
+ * that leaves the tree are one clause rather than two. `resolve` has already
+ * normalised the `..`s away by the time this is asked, so what is left is a
+ * plain prefix question — with the separator, because `/a/bc` is not inside
+ * `/a/b`.
+ *
+ * **IT IS A PRECISION RULE AND NOT A SECURITY BOUNDARY, and saying so is the
+ * honest thing.** A renderer that can send a base can equally send the joined
+ * absolute path itself, and every check beneath is unchanged either way. What
+ * this buys is that a relative path an agent printed opens a file in the tree
+ * the agent was talking about, or opens nothing: research 114 section 4.6
+ * priced it at 7 of 1,224 links over the operator's own panes.
+ */
+export function insideBase(real: string, base: string): boolean {
+  if (!usableBase(base)) return false;
+  const root = base.endsWith('/') ? base.slice(0, -1) : base;
+  return real === root || real.startsWith(`${root}/`);
+}
+
+/**
+ * WHAT THE RENDERER MAY SKIP THE ROUND TRIP FOR (Phase 250).
+ *
+ * Phase 247's `couldBeAbsolute` was the whole of this rule, because a relative
+ * spelling could only ever answer `not-absolute`. With a base it can answer a
+ * door, so the cheap refusal narrows to what it was really for: a spelling
+ * that can never reach a door NO MATTER WHAT, which now means a relative
+ * spelling on a pane with no usable base at all.
+ *
+ * It stays deliberately WIDER than main's answer, which is the direction that
+ * can only cost a round trip and never an answer; `conformance:pathdoors`
+ * rule 12 drives that direction over a fixture list rather than asserting it.
+ */
+export function couldBeAsked(spelling: string, base: string): boolean {
+  return couldBeAbsolute(spelling) || usableBase(base);
+}
+
+/**
  * The closed set of kinds that may leave Tortie. See the header: this is an
  * allowlist and it may never be inverted into a denylist.
  */
@@ -204,6 +268,15 @@ export function decidePathDoor(facts: PathFacts): PathDoorAnswer {
   if (real === null || facts.kind === 'missing') {
     return { door: null, refusal: 'missing' };
   }
+  // 2b. PHASE 250. A spelling that was RELATIVE must still land inside the
+  //     base it was joined to, asked of the REALPATH so a `..` climb and a
+  //     symlink out of the tree are one clause. It is asked HERE, before the
+  //     kind and the name, because where a resolved spelling came from is a
+  //     question about the join rather than about the file: a path outside
+  //     the base is refused as such whatever happens to be sitting there.
+  if (facts.resolvedFrom !== null && !insideBase(real, facts.resolvedFrom)) {
+    return { door: null, refusal: 'outside-base' };
+  }
   // 3. the bundle, named so the refusal word is true
   if (facts.bundle) return { door: null, refusal: 'bundle' };
   // 4. a regular file — refuses a directory, a FIFO, a device, a socket
@@ -218,6 +291,20 @@ export function decidePathDoor(facts: PathFacts): PathDoorAnswer {
   if (facts.executable) return { door: null, refusal: 'executable-bit' };
   // 7. the extension, and only now
   if (isImagePath(real)) return { door: 'image', path: real };
-  if (EXTERNAL_ALLOW.has(extensionOf(real))) return { door: 'mac', path: real };
+  if (EXTERNAL_ALLOW.has(extensionOf(real))) {
+    // 8. PHASE 250, and the asymmetry is the whole reason this phase's risk
+    //    sits where it does. Opening the WRONG file in an editor tab is a
+    //    surprise a person sees and closes; handing the wrong file to
+    //    LaunchServices runs a program. A resolved relative spelling carries
+    //    a base that research 114 section 4.3 measured right 84.6% of the
+    //    time, so it may take a Tortie door and never the Mac one. It costs
+    //    zero measured spans — no relative resolution in 59,791 rows reaches
+    //    this clause, because `EXTERNAL_ALLOW` is `{.pdf}` and there is no
+    //    `.pdf` in that corpus — and it is here so it stays that way.
+    if (facts.resolvedFrom !== null) {
+      return { door: null, refusal: 'relative-external' };
+    }
+    return { door: 'mac', path: real };
+  }
   return { door: 'editor', path: real };
 }

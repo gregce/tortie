@@ -45,11 +45,16 @@ export function registerDropIpc(ipc: IpcMain): void {
   // The two validators below still take `unknown` on purpose: the declared
   // channel types are a compile-time contract with the preload, not a promise
   // about what an actual IPC frame carries.
-  handle(ipc, 'drop:prepare', (_event, paths, options) =>
-    preparePaths(toPaths(paths), {
-      classify: (options as DropPrepareOptions | undefined)?.classify === true
-    })
-  );
+  handle(ipc, 'drop:prepare', (_event, paths, options) => {
+    const asked = options as DropPrepareOptions | undefined;
+    const base = asked?.base;
+    return preparePaths(toPaths(paths), {
+      classify: asked?.classify === true,
+      // PHASE 250. Validated the same way the paths are: a frame is not the
+      // declared type, so a base that is not a string is no base at all.
+      ...(typeof base === 'string' ? { base } : {})
+    });
+  });
   handle(ipc, 'drop:persist', (_event, input) =>
     persistDroppedBytes(toPersistInput(input))
   );

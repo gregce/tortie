@@ -11,6 +11,12 @@
  *     agent prompt can submit half a prompt. Those files are copied into the
  *     drop store under a safe name and the copy is referenced instead.
  *
+ * PHASE 250 gave the same option a `base`, so a relative spelling an agent
+ * printed is joined to the pane's own project before the sequence sees it.
+ * That is a field on a request that already exists, for the same reason
+ * `classify` was: refusal 6 says no new IPC channel that takes a path and does
+ * something with it.
+ *
  * PHASE 247 added a THIRD ask to the same channel rather than a channel of
  * its own, because research 107 refusal 6 says no new IPC channel that takes a
  * path and does something with it, and its section 12 clause 4 names this
@@ -64,8 +70,11 @@ async function readHead(path: string): Promise<Uint8Array> {
  * provider is driven by a pointer moving over a pane and research 107 refusal
  * 3 says a hover never writes.
  */
-async function classifyOne(raw: string): Promise<DropPreparedItem> {
-  const door = await answerPathDoor(raw);
+async function classifyOne(
+  raw: string,
+  base: string | undefined
+): Promise<DropPreparedItem> {
+  const door = await answerPathDoor(raw, base);
   const path = door.door === null ? expandHome(raw) : door.path;
   return {
     sourcePath: path,
@@ -80,9 +89,10 @@ async function classifyOne(raw: string): Promise<DropPreparedItem> {
 
 async function prepareOne(
   raw: string,
-  classify: boolean
+  classify: boolean,
+  base: string | undefined
 ): Promise<DropPreparedItem> {
-  if (classify) return classifyOne(raw);
+  if (classify) return classifyOne(raw, base);
   const missing: DropPreparedItem = {
     sourcePath: raw,
     kind: 'missing',
@@ -150,6 +160,9 @@ export async function preparePaths(
   options: DropPrepareOptions = {}
 ): Promise<DropPrepareResult> {
   const classify = options.classify === true;
-  const items = await Promise.all(paths.map((p) => prepareOne(p, classify)));
+  // PHASE 250. The base is read only under `classify`, because a DROP hands
+  // main a path `webUtils` already resolved and has nothing to be relative to.
+  const base = classify ? options.base : undefined;
+  const items = await Promise.all(paths.map((p) => prepareOne(p, classify, base)));
   return { items };
 }

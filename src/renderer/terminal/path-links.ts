@@ -55,26 +55,42 @@
  * **THE KEY POPULATION IS THE SPAN SET AND NOT THE DOOR SET, and the version
  * of this comment that sized it from "72 distinct files behind 200 spans" was
  * sizing it from the wrong number.** Those 72 are the paths that reach a DOOR.
- * Every span the grammar yields is asked about and cached, including every
- * relative one main answers `not-absolute`. Re-derived over the operator's own
- * 25 live panes and 56,977 rows, read only, through the SHIPPING
- * `pathSpansInRow`: **7,172 spans over 1,552 distinct targets, of which 1,144
- * — 74% — are relative**, and the busiest single pane holds 460 distinct
- * targets against a `CACHE_MAX` of 512.
+ * Every span the grammar yields is asked about and cached. Re-derived over the
+ * operator's own 25 live panes and 56,977 rows, read only, through the
+ * SHIPPING `pathSpansInRow`: **7,172 spans over 1,552 distinct targets, of
+ * which 1,144 — 74% — are relative**, and the busiest single pane held 460
+ * distinct targets.
  *
- * Two things follow, and both are here rather than in a later surprise. The
- * relative three quarters are refused by `couldBeAbsolute` in this renderer
- * before a round trip is made, which is the same answer main gives and is why
- * it is one exported predicate rather than two spellings of a rule. And the
- * ceiling is a ceiling rather than headroom: a busy pane sits inside it by 52
- * entries, so it evicts oldest-first when it does not, which costs a round
- * trip and never an answer.
+ * **PHASE 250 PUT THAT RELATIVE THREE QUARTERS BACK INTO THE POPULATION.**
+ * Until it, `couldBeAbsolute` refused every one of them here before a round
+ * trip was made, because main was always going to answer `not-absolute`. With
+ * a base main can answer a door, so the cheap refusal narrowed to
+ * `couldBeAsked` — a relative spelling on a pane with no usable base, and
+ * nothing else. Two things follow. The key carries the BASE for a relative
+ * spelling, because the same spelling under two bases is two different files,
+ * and an absolute spelling is keyed by itself so Phase 247's entries are keyed
+ * exactly as they were. And the ceiling moved to 2,048: research 114's whole
+ * corpus of 29 panes and 7,359 spans holds 1,811 distinct spellings, so a pane
+ * fits inside it several times over, and it still evicts oldest-first when it
+ * does not, which costs a round trip and never an answer.
+ *
+ * ## The base, and what it is right about (Phase 250)
+ *
+ * `repoPath()` is the pane's own `projectPath`. Research 114 found the three
+ * candidate bases — that, tmux's `#{pane_current_path}`, and the directory the
+ * agent was launched in — **the same string on 29 of 29 panes**, so there was
+ * nothing to arbitrate and this one was already in hand. Against an oracle
+ * inside his own transcripts it is right on 84.6% of the spans that can be
+ * checked, it draws NO LINK on three quarters of the ones it is wrong about,
+ * and of the links it does draw **39 of 41 open the file the text names**. The
+ * two that do not are one shape, and it is written down in
+ * `src/main/fs/path-door.ts` beside the join rather than left to be found.
  */
 
 import type { ILink, ILinkProvider, Terminal } from '@xterm/xterm';
 import type { DropPreparedItem } from '@shared/types';
 import type { PathDoorAnswer } from '@shared/path-doors';
-import { couldBeAbsolute } from '@shared/path-doors';
+import { couldBeAbsolute, couldBeAsked } from '@shared/path-doors';
 import type { PathSpan } from '@shared/path-spans';
 import { cellColumns, pathSpansInRow, spanColumns } from '@shared/path-spans';
 import { gmuxBridge } from '../bridge';
@@ -83,8 +99,18 @@ import { useApp } from '../state/store';
 /** How long a hover answer is kept before the path is asked about again. */
 const CACHE_MS = 30_000;
 
-/** A ceiling on the map, so a very long session cannot grow it without bound. */
-const CACHE_MAX = 512;
+/**
+ * A ceiling on the map, so a very long session cannot grow it without bound.
+ *
+ * PHASE 250 RAISED IT FROM 512, because lift two put the relative three
+ * quarters back into the population. Until then a relative spelling was
+ * refused before the cache and never took a slot; now every one of them is a
+ * key. The whole of research 114's corpus — 29 live panes, 59,791 rows, 7,359
+ * spans — holds **1,811 distinct spellings**, and the busiest single pane in
+ * research 111's capture held 460. So a pane is one Map of a few thousand
+ * small entries at its very worst, and the corpus entire fits inside this.
+ */
+const CACHE_MAX = 2048;
 
 interface CacheSlot {
   at: number;
@@ -99,10 +125,14 @@ export interface PathLinkDeps {
    * captured: a session's machine is a live fact.
    */
   isLocal(): boolean;
-  /** The pane's own project, which the editor takes as the tab's repo. */
+  /**
+   * The pane's own project, which the editor takes as the tab's repo AND
+   * which PHASE 250 joins a relative spelling to. Read per hover, never
+   * captured: a session's project is a live fact.
+   */
   repoPath(): string;
   /** Ask main which door a path takes. Metadata only; see the header. */
-  classify(paths: string[]): Promise<DropPreparedItem[]>;
+  classify(paths: string[], base: string): Promise<DropPreparedItem[]>;
   /** Open a path Tortie draws itself. */
   openInTortie(path: string, repoPath: string, line?: number): void;
   /** Hand a path to the Mac, which re-asks every question in main. */
@@ -176,7 +206,13 @@ export class PathLinkProvider implements ILinkProvider {
     columns: number[],
     y: number
   ): Promise<ILink[] | undefined> {
-    const answers = await Promise.all(spans.map((s) => this.doorFor(s.target)));
+    // Read ONCE for the whole row and handed down, so every span on one row
+    // is judged against one base even if the session's project changes under
+    // the await — and the click below reads it again, freshly, for itself.
+    const base = this.deps.repoPath();
+    const answers = await Promise.all(
+      spans.map((s) => this.doorFor(s.target, base))
+    );
     const links: ILink[] = [];
     for (const [at, span] of spans.entries()) {
       const answer = answers[at];
@@ -205,26 +241,46 @@ export class PathLinkProvider implements ILinkProvider {
    * Two hovers over the same row arrive before the first round trip resolves,
    * so the promise is shared rather than the request repeated.
    */
-  private async doorFor(target: string): Promise<PathDoorAnswer> {
-    // Three spans in four are relative and main answers every one of them the
-    // same way. The rule is `couldBeAbsolute` and it is deliberately wider
-    // than main's, so this can only cost a round trip and never an answer.
-    if (!couldBeAbsolute(target)) return { door: null, refusal: 'not-absolute' };
-    const held = this.cache.get(target);
+  /**
+   * THE CACHE KEY, and the base is part of it (Phase 250).
+   *
+   * The same relative spelling under two bases is two different files, so an
+   * answer keyed by the spelling alone would hand one pane's project a file
+   * from another's. An ABSOLUTE spelling is keyed by itself, so every entry
+   * Phase 247 cached is keyed exactly as it was. It is one method because both
+   * `doorFor` and the click need it and two spellings of a key drift.
+   */
+  private keyFor(target: string, base: string): string {
+    return couldBeAbsolute(target) ? target : `${base}\u0000${target}`;
+  }
+
+  private async doorFor(target: string, base: string): Promise<PathDoorAnswer> {
+    // The cheap refusal, and PHASE 250 narrowed it with the lift: a spelling
+    // that can never reach a door NO MATTER WHAT is still refused here, which
+    // is now a relative spelling on a pane with no usable base. The rule is
+    // `couldBeAsked` and it is deliberately wider than main's, so this can
+    // only cost a round trip and never an answer.
+    if (!couldBeAsked(target, base)) return { door: null, refusal: 'not-absolute' };
+    const key = this.keyFor(target, base);
+    const held = this.cache.get(key);
     if (held !== undefined && this.now() - held.at < CACHE_MS) return held.answer;
-    const flying = this.inFlight.get(target);
+    const flying = this.inFlight.get(key);
     if (flying !== undefined) return flying;
-    const asking = this.ask(target).finally(() => {
-      this.inFlight.delete(target);
+    const asking = this.ask(key, target, base).finally(() => {
+      this.inFlight.delete(key);
     });
-    this.inFlight.set(target, asking);
+    this.inFlight.set(key, asking);
     return asking;
   }
 
-  private async ask(target: string): Promise<PathDoorAnswer> {
+  private async ask(
+    key: string,
+    target: string,
+    base: string
+  ): Promise<PathDoorAnswer> {
     let answer: PathDoorAnswer = { door: null, refusal: 'missing' };
     try {
-      const [item] = await this.deps.classify([target]);
+      const [item] = await this.deps.classify([target], base);
       if (item?.door !== undefined) answer = item.door;
     } catch {
       // A bridge that is not there draws no links, which is the same answer a
@@ -234,7 +290,7 @@ export class PathLinkProvider implements ILinkProvider {
       const oldest = this.cache.keys().next();
       if (oldest.done !== true) this.cache.delete(oldest.value);
     }
-    this.cache.set(target, { at: this.now(), answer });
+    this.cache.set(key, { at: this.now(), answer });
     return answer;
   }
 
@@ -248,8 +304,9 @@ export class PathLinkProvider implements ILinkProvider {
    */
   private async open(span: PathSpan): Promise<void> {
     if (!this.deps.isLocal()) return;
-    this.cache.delete(span.target);
-    const answer = await this.doorFor(span.target);
+    const base = this.deps.repoPath();
+    this.cache.delete(this.keyFor(span.target, base));
+    const answer = await this.doorFor(span.target, base);
     if (answer.door === null) return;
     if (answer.door === 'mac') {
       await this.deps.openOnMac(answer.path);
@@ -258,7 +315,7 @@ export class PathLinkProvider implements ILinkProvider {
     // 'editor' and 'image' are one call: the editor store already sends an
     // image path to the image surface and opens markdown in preview, so image,
     // markdown and text are three destinations that already work.
-    this.deps.openInTortie(answer.path, this.deps.repoPath(), span.line);
+    this.deps.openInTortie(answer.path, base, span.line);
   }
 }
 
@@ -286,11 +343,12 @@ export function paneIsLocal(row: { machine?: unknown } | undefined): boolean {
 
 /** The production ask: `drop:prepare` under its read-only option. */
 export async function classifyThroughBridge(
-  paths: string[]
+  paths: string[],
+  base: string
 ): Promise<DropPreparedItem[]> {
   const drop = gmuxBridge()?.drop;
   if (typeof drop?.prepare !== 'function') return [];
-  const { items } = await drop.prepare(paths, { classify: true });
+  const { items } = await drop.prepare(paths, { classify: true, base });
   return items;
 }
 

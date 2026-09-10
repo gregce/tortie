@@ -77,16 +77,23 @@
  *      column. It is the Phase 247 fix round's confirmed defect: a range
  *      built from string indices underlines one cell to the left of a path an
  *      agent printed with a `⚠️ ` in front of it.
+ *  14. THE BASE IS THE PANE'S OWN, READ PER HOVER, AND PART OF THE KEY
+ *      (Phase 250 lift two). The join is main's and the two clauses that
+ *      bound it are the pure decision's; this is the renderer half, where a
+ *      captured base, a cache key without one, or an ask that drops it are
+ *      each invisible to any test of the join.
  *  13. REFUSAL 8 IS ASKED ABOUT THE PANE'S WIDTH (Phase 250 lift one). The
  *      pure rule is driven exhaustively above; this is the one call site that
  *      supplies its facts, and the three things that can go wrong there —
  *      the row's length standing in for `Terminal.cols`, a predecessor read
  *      with its trailing padding, and a row above with no column map of its
  *      own — are invisible to any pure test.
- *  12. THE RENDERER'S CHEAP REFUSAL IS WIDER THAN MAIN'S ANSWER. Three spans
- *      in four are relative and main answers every one `not-absolute`; the
- *      renderer refuses them itself, through the one shared predicate, and
- *      the direction it may drift in is driven rather than asserted.
+ *  12. THE RENDERER'S CHEAP REFUSAL IS WIDER THAN MAIN'S ANSWER. Phase 250
+ *      narrowed it: a relative spelling can reach a door once there is a
+ *      base, so what is refused without a round trip is a spelling that can
+ *      never reach one at all. It is still ONE predicate, composed from the
+ *      two shipped ones, and the direction it may drift in is driven with a
+ *      base and without rather than asserted.
  */
 
 import {
@@ -270,6 +277,56 @@ const MATRIX = [
   ['could-be-absolute-refused', '11'],
   ['could-be-absolute-admitted', '4'],
   ['could-be-absolute-disagreed', '0'],
+  // PHASE 250 narrowed it: a relative spelling can reach a door once there is
+  // a base, so the cheap refusal is now about a pane with no base at all.
+  ['could-be-asked-refused-with-no-base', '11'],
+  ['could-be-asked-refused-with-a-base', '0'],
+  ['could-be-asked-disagreed', '0'],
+  // --- rule 14, PHASE 250 LIFT TWO: a relative spelling and its base -------
+  ['rel-resolves', 'door:editor'],
+  ['rel-no-base', 'refused:not-absolute'],
+  ['rel-empty-base', 'refused:not-absolute'],
+  ['rel-base-is-the-filesystem-root', 'refused:not-absolute'],
+  ['rel-base-is-gone', 'refused:missing'],
+  ['rel-base-through-a-link', 'door:editor'],
+  ['rel-tilde-is-never-joined', 'refused:not-absolute'],
+  ['absolute-ignores-the-base', 'door:editor'],
+  // CONTAINMENT. A climb and an escaping link are one clause, asked of the
+  // REALPATH — research 114 section 4.6 priced it at 7 of 1,224 links.
+  ['rel-climbs-out', 'refused:outside-base'],
+  ['rel-symlink-escapes', 'refused:outside-base'],
+  // A BASE IS NOT A BYPASS: every refusal an absolute spelling meets, a
+  // resolved one meets too, because the sequence asks them of the realpath.
+  ['rel-executable-bit', 'refused:executable-bit'],
+  ['rel-secret-name', 'refused:secret-name'],
+  ['rel-directory', 'refused:not-a-regular-file'],
+  ['rel-bundle', 'refused:bundle'],
+  ['rel-control-character', 'refused:control-character'],
+  ['rel-mount-through-the-base', 'refused:mount'],
+  // THE MAC DOOR IS CLOSED TO A RESOLVED SPELLING, and the same file spelled
+  // absolutely still takes it — which is what makes this a rule about the
+  // spelling rather than a rule about the file.
+  ['rel-mac-door-refused', 'refused:relative-external'],
+  ['rel-mac-door-absolute-still-opens', 'door:mac'],
+  ['rel-link-to-a-pdf-refused', 'refused:relative-external'],
+  ['rel-image-still-opens', 'door:image'],
+  // The two pure halves, read without a filesystem.
+  ['inside-base', '111000'],
+  ['usable-base', '1100000'],
+  // --- HIS THREE SCREENSHOTS, grammar and door together --------------------
+  // Each was refused at the parent commit, and each names which lift it needs:
+  // one is lift one alone, two is lift two alone, and three needs BOTH because
+  // refusal 8 fires first, so with only lift two in it never reaches the
+  // relative rule at all.
+  ['screenshot-one', 'door:editor'],
+  ['screenshot-two', 'door:editor'],
+  ['screenshot-three', 'door:editor:93'],
+  // ...and the same two on a pane whose session carries no project.
+  ['screenshot-two-without-a-base', 'refused:not-absolute'],
+  ['screenshot-three-without-a-base', 'refused:not-absolute:93'],
+  // ...and the third in a pane exactly as wide as its row, which is the
+  // wrapped case and stays refused whatever else is lifted.
+  ['screenshot-three-at-the-width', 'no-span'],
   // --- rule 3, the closed set ----------------------------------------------
   ['external-allow', '.pdf'],
   // --- refusal 8 and the span grammar --------------------------------------
@@ -390,6 +447,13 @@ function externalDoorFindings(text) {
   if (opened !== -1 && !/deps\.open\(answer\.path\)/.test(body)) {
     out.push('the external door hands over something other than the path the sequence resolved');
   }
+  // PHASE 250. `answerPathDoor` takes an optional BASE and will join a
+  // relative spelling to it. The door that leaves Tortie is given none, so a
+  // spelling that is not absolute on its own never reaches macOS — and the
+  // missing argument is the rule, which is why it is read rather than assumed.
+  if (asked !== -1 && !/answerPathDoor\(raw\)/.test(body)) {
+    out.push('the external door hands a base to the sequence, so a relative spelling could be resolved on its way to macOS');
+  }
   return out;
 }
 
@@ -427,6 +491,7 @@ function externalDoorFindings(text) {
     ],
     ['every door leaves', SHIPPED.replace("if (answer.door !== 'mac') return { status: 'refused', reason: 'tortie-draws-it' };", ''), 1],
     ['the SPELLING is handed over, not the realpath', SHIPPED.replace('deps.open(answer.path)', 'deps.open(raw)'), 1],
+    ['a base is handed to the sequence', SHIPPED.replace('answerPathDoor(raw)', 'answerPathDoor(raw, base)'), 1],
     ['there is no such function at all', 'export const nothing = 1;', 1]
   ];
   let caught = 0;
@@ -769,8 +834,8 @@ const ABLATIONS = [
     file: 'path-doors.ts',
     edits: [
       {
-        from: "  if (EXTERNAL_ALLOW.has(extensionOf(real))) return { door: 'mac', path: real };\n  return { door: 'editor', path: real };",
-        to: "  if (EXTERNAL_ALLOW.has(extensionOf(real))) return { door: 'editor', path: real };\n  return { door: 'mac', path: real };"
+        from: "    return { door: 'mac', path: real };\n  }\n  return { door: 'editor', path: real };",
+        to: "    return { door: 'editor', path: real };\n  }\n  return { door: 'mac', path: real };"
       }
     ]
   },
@@ -805,6 +870,73 @@ const ABLATIONS = [
         to: "  return spelling.startsWith('/');"
       }
     ]
+  },
+  {
+    // PHASE 250 LIFT TWO. Containment is what makes a wrong base fail closed
+    // rather than open a file in a tree nobody named.
+    name: 'a resolved relative path may leave its base',
+    file: 'path-doors.ts',
+    edits: [
+      {
+        from: "  if (facts.resolvedFrom !== null && !insideBase(real, facts.resolvedFrom)) {",
+        to: '  if (false) {'
+      }
+    ]
+  },
+  {
+    name: 'containment is a bare prefix, so /a/bc counts as inside /a/b',
+    file: 'path-doors.ts',
+    edits: [
+      {
+        from: '  return real === root || real.startsWith(`${root}/`);',
+        to: '  return real.startsWith(root);'
+      }
+    ]
+  },
+  {
+    name: 'the filesystem root is a base after all, and then containment says nothing',
+    file: 'path-doors.ts',
+    edits: [
+      {
+        from: "  return base.startsWith('/') && base.length > 1 && !hasControlCharacter(base);",
+        to: "  return base.startsWith('/');"
+      }
+    ]
+  },
+  {
+    name: 'a resolved relative path is handed to LaunchServices',
+    file: 'path-doors.ts',
+    edits: [
+      {
+        from: "    if (facts.resolvedFrom !== null) {\n      return { door: null, refusal: 'relative-external' };\n    }",
+        to: ''
+      }
+    ]
+  },
+  {
+    name: 'the base is not realpath’d, so a project reached through a link contains nothing',
+    file: 'path-door.ts',
+    edits: [{ from: '    root = await realpath(base);', to: '    root = base;' }]
+  },
+  {
+    name: 'a `~` spelling is joined to the base like any other',
+    file: 'path-door.ts',
+    edits: [{ from: "  if (spelling.startsWith('~')) return null;", to: '' }]
+  },
+  {
+    name: 'the join happens for an ABSOLUTE spelling too',
+    file: 'path-door.ts',
+    edits: [
+      {
+        from: "  if (!spelling.startsWith('/')) {\n    const joined = await resolveAgainstBase(spelling, base);",
+        to: "  {\n    const joined = await resolveAgainstBase(spelling, base);"
+      }
+    ]
+  },
+  {
+    name: 'the resolved spelling is handed on without saying it was relative',
+    file: 'path-door.ts',
+    edits: [{ from: '        resolvedFrom: joined.base', to: '        resolvedFrom: null' }]
   },
   {
     name: 'refusal 8 is lifted at the pane’s last column, so a wrapped path is offered',
@@ -1101,13 +1233,17 @@ function runColumnsProbeMoved(cols) {
 
 /**
  * Three spans in four are relative — re-derived over the operator's own 25
- * live panes and 56,977 rows at 1,144 of 1,552 distinct targets — and main
- * answers every one of them `not-absolute`. The renderer refuses them itself,
- * and a rule duplicated on two sides of a channel is a rule that drifts. So
- * there is ONE predicate, `couldBeAbsolute`, and the direction it may drift in
- * is asked rather than asserted: the readings above prove that everything it
- * refuses really does answer `not-absolute`, and this proves the renderer
- * reaches it and reaches nothing else.
+ * live panes and 56,977 rows at 1,144 of 1,552 distinct targets — and until
+ * Phase 250 main answered every one of them `not-absolute`, so the renderer
+ * refused them itself without a round trip.
+ *
+ * WITH A BASE, MAIN CAN ANSWER A DOOR, so the cheap refusal narrowed to
+ * `couldBeAsked`: a relative spelling on a pane with no usable base, and
+ * nothing else. A rule duplicated on two sides of a channel is a rule that
+ * drifts, so it is still ONE predicate and it is COMPOSED from the two shipped
+ * ones rather than spelled a third time. The direction it may drift in is
+ * asked rather than asserted, now with a base and without: everything it
+ * refuses must really answer `not-absolute` from main, asked the same way.
  */
 {
   const doorsCode = code(DOORS);
@@ -1118,14 +1254,23 @@ function runColumnsProbeMoved(cols) {
   } else if (!/startsWith\('~'\)/.test(body)) {
     fail('12. couldBeAbsolute does not admit a `~` spelling, so it is narrower than main’s answer and drops links in silence');
   }
+  const asksBody = functionBodyOf(doorsCode, 'couldBeAsked');
+  if (asksBody === null) {
+    fail('12. src/shared/path-doors.ts declares no couldBeAsked');
+  } else if (!/couldBeAbsolute\(/.test(asksBody) || !/usableBase\(/.test(asksBody)) {
+    fail('12. couldBeAsked does not compose the two shipped predicates, so the cheap refusal is a third spelling of a rule that already has one');
+  }
   const doorFor = methodBodyOf(linksCode, 'doorFor');
   if (doorFor === null) {
     fail('12. src/renderer/terminal/path-links.ts declares no doorFor');
   } else {
-    if (!/couldBeAbsolute\(/.test(doorFor)) {
-      fail('12. the renderer asks main about every relative span, which is three round trips in four for an answer that is a property of the spelling');
+    // PHASE 250 narrowed this from `couldBeAbsolute` to `couldBeAsked`: with a
+    // base a relative spelling can reach a door, so what is refused here is a
+    // spelling that can never reach one at all.
+    if (!/couldBeAsked\(/.test(doorFor)) {
+      fail('12. the renderer does not ask the shared cheap refusal, so a pane with no base makes a round trip for every relative span on it');
     }
-    const asked = doorFor.indexOf('couldBeAbsolute(');
+    const asked = doorFor.indexOf('couldBeAsked(');
     const cached = doorFor.indexOf('this.cache.get(');
     if (asked !== -1 && cached !== -1 && asked > cached) {
       fail('12. the renderer caches a spelling it was always going to refuse');
@@ -1136,7 +1281,7 @@ function runColumnsProbeMoved(cols) {
     fail('12. the renderer spells the absolute rule itself rather than asking the shared predicate, so the two can drift');
   }
   if (failures.every((f) => !f.includes(' 12. '))) {
-    say('12. one predicate decides what can never be absolute, the renderer asks it before it caches or asks main, and everything it refuses really answers not-absolute');
+    say('12. one predicate decides what can never reach a door, composed from the two shipped ones, asked before the renderer caches or asks main, and everything it refuses really answers not-absolute — with a base and without');
   }
 }
 
@@ -1226,6 +1371,157 @@ function refusalEightWiringFindings(text) {
   if (failures.every((f) => !f.includes(' 13. '))) {
     say(
       `13. refusal 8 is asked about Terminal.cols, both rows are read as DRAWN and the row above carries its own column map; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 14. THE BASE IS THE PANE'S OWN, READ PER HOVER, AND PART OF THE KEY.
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 250 LIFT TWO, at the renderer, where three things can go wrong that no
+ * pure test of the join can see.
+ *
+ *   - THE BASE MUST BE READ PER HOVER AND PER CLICK. A session's project is a
+ *     live fact and the provider outlives it; the whole of refusal 5 is built
+ *     on closures for exactly this reason, and a captured base would answer
+ *     for the project the pane had when it mounted.
+ *   - THE BASE MUST BE PART OF THE CACHE KEY. The same relative spelling under
+ *     two bases is two different files, and a cached answer keyed by the
+ *     spelling alone would hand one pane's file to another. An ABSOLUTE
+ *     spelling is keyed by itself, so Phase 247's entries are unchanged.
+ *   - THE BASE MUST REACH MAIN. `classifyThroughBridge` is the only ask, and
+ *     it carries the base on the options object `drop:prepare` already takes —
+ *     no new channel, which is research 107 refusal 6.
+ *
+ * Written as a function so it can be PROVED ON FIXTURES.
+ */
+function relativeBaseWiringFindings(text) {
+  const out = [];
+  const code = stripComments(text);
+  const doorFor = methodBodyOf(code, 'doorFor');
+  const linksFor = methodBodyOf(code, 'linksFor');
+  const open = methodBodyOf(code, 'open');
+  const keyFor = methodBodyOf(code, 'keyFor');
+  if (doorFor === null || linksFor === null || open === null) {
+    out.push('the provider is missing one of doorFor, linksFor and open, so this rule read nothing');
+    return out;
+  }
+  // ONE spelling of the key, and it carries the base for a relative spelling
+  // and for nothing else.
+  if (keyFor === null || !/couldBeAbsolute\(target\) \? target : `\$\{base\}/.test(keyFor)) {
+    out.push('a relative answer is not keyed by its base, so one pane’s project can hand a file to another’s');
+  }
+  if (!/this\.keyFor\(target, base\)/.test(doorFor)) {
+    out.push('doorFor does not compose its key from the base');
+  }
+  if (!/this\.keyFor\(span\.target, base\)/.test(open)) {
+    out.push('the click drops a cache entry under a key of its own, which is a second spelling of the key');
+  }
+  if (/this\.cache\.get\(target\)|this\.cache\.set\(target\b/.test(doorFor)) {
+    out.push('the cache is still addressed by the spelling alone');
+  }
+  if (!/const base = this\.deps\.repoPath\(\)/.test(linksFor)) {
+    out.push('the row’s base is not read from the pane per hover');
+  }
+  if (!/const base = this\.deps\.repoPath\(\)/.test(open)) {
+    out.push('the click does not read the base afresh, so it acts on the project the pane used to have');
+  }
+  const ask = methodBodyOf(code, 'ask');
+  if (ask === null || !/this\.deps\.classify\(\[target\], base\)/.test(ask)) {
+    out.push('the ask does not carry the base to main, so main has nothing to join a relative spelling to');
+  }
+  const bridge = functionBodyOf(code, 'classifyThroughBridge');
+  if (bridge === null) {
+    out.push('there is no classifyThroughBridge');
+  } else if (!/classify: true, base/.test(bridge)) {
+    out.push('the production ask does not put the base on drop:prepare’s own options object');
+  }
+  return out;
+}
+
+{
+  const LINKS = 'src/renderer/terminal/path-links.ts';
+  for (const finding of relativeBaseWiringFindings(source(LINKS))) fail(`14. ${finding}`);
+
+  const SHIPPED = `class P {
+  keyFor(target, base) {
+    return couldBeAbsolute(target) ? target : \`\${base}\\u0000\${target}\`;
+  }
+  async doorFor(target, base) {
+    if (!couldBeAsked(target, base)) return { door: null, refusal: 'not-absolute' };
+    const key = this.keyFor(target, base);
+    const held = this.cache.get(key);
+    return held ?? this.ask(key, target, base);
+  }
+  async ask(key, target, base) {
+    const [item] = await this.deps.classify([target], base);
+    this.cache.set(key, { at: 0, answer: item.door });
+    return item.door;
+  }
+  async linksFor(spans, columns, y) {
+    const base = this.deps.repoPath();
+    const answers = await Promise.all(spans.map((s) => this.doorFor(s.target, base)));
+    return answers;
+  }
+  async open(span) {
+    const base = this.deps.repoPath();
+    this.cache.delete(this.keyFor(span.target, base));
+    const answer = await this.doorFor(span.target, base);
+    this.deps.openInTortie(answer.path, base, span.line);
+  }
+}
+export async function classifyThroughBridge(paths, base) {
+  const { items } = await drop.prepare(paths, { classify: true, base });
+  return items;
+}`;
+  const PLANTS = [
+    ['the shipping shape', SHIPPED, 0],
+    [
+      'the key is the spelling alone',
+      SHIPPED.replace(/return couldBeAbsolute[^\n]*/, 'return target;'),
+      1
+    ],
+    [
+      'the click spells the key a second time',
+      SHIPPED.replace('this.cache.delete(this.keyFor(span.target, base));', 'this.cache.delete(span.target);'),
+      1
+    ],
+    ['the base is captured rather than read per hover', SHIPPED.replace('const base = this.deps.repoPath();\n    const answers', 'const base = this.base;\n    const answers'), 1],
+    ['the click reuses a stale base', SHIPPED.replace('const base = this.deps.repoPath();\n    this.cache.delete', 'const base = this.lastBase;\n    this.cache.delete'), 1],
+    ['the ask never carries the base', SHIPPED.replace('this.deps.classify([target], base)', 'this.deps.classify([target])'), 1],
+    ['the production ask drops the base', SHIPPED.replace('{ classify: true, base }', '{ classify: true }'), 1],
+    ['there is no provider at all', 'export const nothing = 1;', 1]
+  ];
+  let caught = 0;
+  for (const [why, text, want] of PLANTS) {
+    const got = relativeBaseWiringFindings(text).length;
+    if ((got > 0 ? 1 : 0) !== want) {
+      fail(`14. the scanner read "${why}" as ${got > 0 ? 'a finding' : 'clean'}, and it must read the other way`);
+    } else if (want === 1) caught += 1;
+  }
+
+  // ...and the CONTRACT half: the base rides an options object that already
+  // exists, which is research 107 refusal 6, and main validates it as a frame
+  // rather than trusting the declared type.
+  const dropIpc = code('src/main/drop/ipc.ts');
+  if (!/typeof base === 'string'/.test(dropIpc)) {
+    fail('14. src/main/drop/ipc.ts does not check that the base on the frame is a string, and a declared type is not a promise about a frame');
+  }
+  const channels = code('src/shared/ipc/terminal.ts');
+  if (/'drop:classify'|'fs:resolveRelative'|'path:resolve'/.test(channels)) {
+    fail('14. a new IPC channel was added for the base, and refusal 6 says the ask rides drop:prepare or it does not ship');
+  }
+  const prepare = code('src/main/drop/prepare.ts');
+  const prepared = functionBodyOf(prepare, 'preparePaths');
+  if (prepared === null || !/classify \? options\.base : undefined/.test(prepared)) {
+    fail('14. the base is read outside the classify ask, and a DROP hands main a path webUtils already resolved with nothing to be relative to');
+  }
+
+  if (failures.every((f) => !f.includes(' 14. '))) {
+    say(
+      `14. the base is the pane's own project read per hover and per click, it is part of the key for a relative spelling and of nothing else, it rides drop:prepare's existing options and is validated there, and it is read only under classify; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
     );
   }
 }

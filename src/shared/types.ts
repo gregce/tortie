@@ -1413,6 +1413,24 @@ export interface DropPrepareOptions {
    * `gmux-asset:` protocol are both gated on anyway.
    */
   classify?: boolean;
+  /**
+   * PHASE 250. The absolute directory a RELATIVE spelling is relative to, and
+   * it is read only under `classify`.
+   *
+   * A field on an options object that already exists rather than a channel of
+   * its own, which is research 107 refusal 6 and the precedent research 111
+   * section 5.3 used for the three fields Phase 247 added to
+   * `DropPreparedItem`. Three quarters of what an agent prints is relative
+   * (1,144 of 1,552 distinct targets over the operator's own panes), and
+   * without a base every one of those answers `not-absolute`.
+   *
+   * IT WIDENS NOTHING A CALLER COULD NOT ALREADY DO — a renderer that can send
+   * a base can send the joined absolute path instead — so it is a precision
+   * facility and not a privilege. Main asks every question of the realpath
+   * either way, and it additionally refuses a resolved path that leaves the
+   * base and refuses to hand one to macOS at all.
+   */
+  base?: string;
 }
 
 /** One dropped path after main classified it (drop:prepare). */

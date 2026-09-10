@@ -39,19 +39,23 @@ const from = (name: string): string =>
     : pathToFileURL(join(modules, `${name}.ts`)).href;
 
 const door = (await import(from('path-door'))) as {
-  answerPathDoor(raw: string): Promise<
+  answerPathDoor(raw: string, base?: string): Promise<
     { door: string; path: string } | { door: null; refusal: string }
   >;
 };
 const doors = (await import(from('path-doors'))) as {
   EXTERNAL_ALLOW: ReadonlySet<string>;
   couldBeAbsolute(spelling: string): boolean;
+  couldBeAsked(spelling: string, base: string): boolean;
+  insideBase(real: string, base: string): boolean;
+  usableBase(base: string): boolean;
   decidePathDoor(facts: {
     spelling: string;
     realPath: string | null;
     kind: 'file' | 'dir' | 'other' | 'missing';
     bundle: boolean;
     executable: boolean;
+    resolvedFrom: string | null;
   }): { door: string | null; refusal?: string };
 };
 interface RowEdges {
@@ -164,7 +168,8 @@ try {
       realPath: '/a/paper.pdf',
       kind: 'file',
       bundle: false,
-      executable: true
+      executable: true,
+      resolvedFrom: null
     }) as { door: null; refusal: string }
   );
   readings['order-name-before-mode'] = word(
@@ -173,7 +178,8 @@ try {
       realPath: '/a/id_rsa',
       kind: 'file',
       bundle: false,
-      executable: true
+      executable: true,
+      resolvedFrom: null
     }) as { door: null; refusal: string }
   );
   readings['order-bundle-before-regular-file'] = word(
@@ -182,7 +188,8 @@ try {
       realPath: '/a/Thing.app',
       kind: 'dir',
       bundle: true,
-      executable: true
+      executable: true,
+      resolvedFrom: null
     }) as { door: null; refusal: string }
   );
   readings['order-spelling-before-realpath'] = word(
@@ -191,7 +198,8 @@ try {
       realPath: '/a/thing.md',
       kind: 'file',
       bundle: false,
-      executable: false
+      executable: false,
+      resolvedFrom: null
     }) as { door: null; refusal: string }
   );
 
@@ -205,7 +213,8 @@ try {
       realPath: '/Volumes/elsewhere/notes.md',
       kind: 'file',
       bundle: false,
-      executable: false
+      executable: false,
+      resolvedFrom: null
     }) as { door: null; refusal: string }
   );
   readings['order-mount-on-realpath-net'] = word(
@@ -214,7 +223,8 @@ try {
       realPath: '/net/elsewhere/notes.md',
       kind: 'file',
       bundle: false,
-      executable: false
+      executable: false,
+      resolvedFrom: null
     }) as { door: null; refusal: string }
   );
 
@@ -255,6 +265,191 @@ try {
   readings['could-be-absolute-refused'] = String(widerRefused);
   readings['could-be-absolute-admitted'] = String(widerAdmitted);
   readings['could-be-absolute-disagreed'] = String(widerWrong);
+
+  // PHASE 250 narrowed the renderer's cheap refusal, and the property is the
+  // same one: everything it refuses must really answer `not-absolute` FROM
+  // MAIN, asked with the same base. With no base it is exactly
+  // `couldBeAbsolute`; with a base it refuses nothing, because a relative
+  // spelling can now reach a door.
+  let askedRefusedNoBase = 0;
+  let askedRefusedWithBase = 0;
+  let askedWrong = 0;
+  for (const spelling of SPELLINGS) {
+    if (!doors.couldBeAsked(spelling, '')) {
+      askedRefusedNoBase += 1;
+      const answer = await door.answerPathDoor(spelling);
+      if (word(answer) !== 'refused:not-absolute') askedWrong += 1;
+    }
+    if (!doors.couldBeAsked(spelling, '/Users/gdc/gmux')) {
+      askedRefusedWithBase += 1;
+      const answer = await door.answerPathDoor(spelling, '/Users/gdc/gmux');
+      if (word(answer) !== 'refused:not-absolute') askedWrong += 1;
+    }
+  }
+  readings['could-be-asked-refused-with-no-base'] = String(askedRefusedNoBase);
+  readings['could-be-asked-refused-with-a-base'] = String(askedRefusedWithBase);
+  readings['could-be-asked-disagreed'] = String(askedWrong);
+
+  // --- PHASE 250 LIFT TWO: a relative spelling and the pane's own base -----
+  //
+  // A base is not a bypass. Every reading below is the SHIPPING sequence over
+  // real files and real links in the same scratch directory, and a resolved
+  // path is asked every question an absolute one is asked, of its realpath,
+  // leaf included.
+  const base = join(dir, 'project');
+  const outside = join(dir, 'elsewhere');
+  mkdirSync(join(base, 'docs'), { recursive: true });
+  mkdirSync(join(base, 'bin'), { recursive: true });
+  mkdirSync(join(base, 'links'), { recursive: true });
+  mkdirSync(outside, { recursive: true });
+  const inBase = (rel: string, body = 'x', mode?: number): string => {
+    const p = join(base, rel);
+    writeFileSync(p, body);
+    if (mode !== undefined) chmodSync(p, mode);
+    return p;
+  };
+  const askIn = async (key: string, raw: string, b?: string): Promise<void> => {
+    readings[key] = word(await door.answerPathDoor(raw, b));
+  };
+
+  inBase('docs/decision.md', '# hi');
+  await askIn('rel-resolves', 'docs/decision.md', base);
+  await askIn('rel-no-base', 'docs/decision.md');
+  await askIn('rel-empty-base', 'docs/decision.md', '');
+  // A base of `/` contains everything, which would make containment say
+  // nothing at all, so it is not a base.
+  await askIn('rel-base-is-the-filesystem-root', 'etc/hosts', '/');
+  await askIn('rel-base-is-gone', 'docs/decision.md', join(dir, 'never-made'));
+  // On this Mac /tmp is a symlink to /private/tmp, so a base reached through
+  // a link has to contain its own files.
+  symlinkSync(base, join(dir, 'via-a-link'));
+  await askIn('rel-base-through-a-link', 'docs/decision.md', join(dir, 'via-a-link'));
+  // `~` means a home directory and never a name inside the project.
+  await askIn('rel-tilde-is-never-joined', '~nobody/notes.md', base);
+  // An absolute spelling ignores the base entirely, base offered or not.
+  writeFileSync(join(outside, 'plain.md'), 'x');
+  await askIn('absolute-ignores-the-base', join(outside, 'plain.md'), base);
+
+  // CONTAINMENT, asked of the REALPATH so a climb and an escaping link are
+  // one clause rather than two.
+  writeFileSync(join(outside, 'secrets.md'), 'x');
+  await askIn('rel-climbs-out', '../elsewhere/secrets.md', base);
+  symlinkSync(join(outside, 'secrets.md'), join(base, 'links', 'looks-local.md'));
+  await askIn('rel-symlink-escapes', 'links/looks-local.md', base);
+
+  // EVERY OTHER REFUSAL, unchanged by the join.
+  inBase('bin/go.sh', '#!/bin/sh\n', 0o755);
+  await askIn('rel-executable-bit', 'bin/go.sh', base);
+  inBase('docs/.env', 'A=1');
+  await askIn('rel-secret-name', 'docs/.env', base);
+  await askIn('rel-directory', 'docs', base);
+  mkdirSync(join(base, 'docs', 'shot.png', 'Contents'), { recursive: true });
+  writeFileSync(join(base, 'docs', 'shot.png', 'Contents', 'Info.plist'), '<plist/>');
+  await askIn('rel-bundle', 'docs/shot.png', base);
+  await askIn('rel-control-character', 'docs/decision.md\n/etc/passwd', base);
+  await askIn('rel-mount-through-the-base', 'x.md', '/Volumes/anything');
+
+  // THE MAC DOOR IS CLOSED TO A RESOLVED SPELLING, and the same file spelled
+  // absolutely still takes it — which is what makes this a rule about the
+  // spelling rather than a rule about the file.
+  const paper = inBase('docs/paper.pdf', '%PDF-1.4\n');
+  await askIn('rel-mac-door-refused', 'docs/paper.pdf', base);
+  await askIn('rel-mac-door-absolute-still-opens', paper);
+  symlinkSync(paper, join(base, 'docs', 'spelled.md'));
+  await askIn('rel-link-to-a-pdf-refused', 'docs/spelled.md', base);
+  // ...and a picture still opens in Tortie, which decodes bytes and runs
+  // nothing.
+  inBase('docs/real.png');
+  await askIn('rel-image-still-opens', 'docs/real.png', base);
+
+  // THE PURE HALVES, so the two clauses can be read without a filesystem.
+  readings['inside-base'] = [
+    doors.insideBase('/a/b/c.md', '/a/b'),
+    doors.insideBase('/a/b', '/a/b'),
+    doors.insideBase('/a/b/c.md', '/a/b/'),
+    doors.insideBase('/a/bc.md', '/a/b'),
+    doors.insideBase('/a/b/c.md', 'a/b'),
+    doors.insideBase('/a/b/c.md', '/')
+  ]
+    .map((b) => (b ? '1' : '0'))
+    .join('');
+  readings['usable-base'] = [
+    doors.usableBase('/Users/gdc/gmux'),
+    doors.usableBase('/a'),
+    doors.usableBase('/'),
+    doors.usableBase(''),
+    doors.usableBase('relative'),
+    doors.usableBase('~/gmux'),
+    doors.usableBase('/a\nb')
+  ]
+    .map((b) => (b ? '1' : '0'))
+    .join('');
+
+  // --- HIS THREE SCREENSHOTS, GRAMMAR AND DOOR TOGETHER -------------------
+  //
+  // Phase 250's charter asks for these driven end to end through the SHIPPING
+  // grammar and the SHIPPING door, because the two lifts compose rather than
+  // add: refusal 8 fires FIRST, so with only lift two in, the third span never
+  // reaches the relative rule at all. Each reading is what a hover would do
+  // with the whole row in front of it.
+  mkdirSync(join(base, 'docs', 'reviews'), { recursive: true });
+  writeFileSync(join(base, 'docs', 'reviews', 'fixed-egress-decision.md'), '# a');
+  writeFileSync(join(base, 'docs', 'reviews', 'running-url-handoff.md'), '# b');
+  const readme = inBase('README.md', '# c');
+
+  const shot = async (
+    key: string,
+    row: string,
+    width: number,
+    b?: string
+  ): Promise<void> => {
+    const found = spans.pathSpansInRow(row, {
+      width,
+      columns: [...row].map((_, i) => i).concat([row.length]),
+      above: null,
+      aboveEnd: 0
+    });
+    if (found.length === 0) {
+      readings[key] = 'no-span';
+      return;
+    }
+    const first = found[0] as { target: string; line?: number };
+    const answer = await door.answerPathDoor(first.target, b);
+    readings[key] =
+      `${word(answer)}${first.line === undefined ? '' : `:${String(first.line)}`}`;
+  };
+
+  // ONE. An absolute, existing README on a line of its own, in a pane far
+  // wider than the line. Lift one alone.
+  await shot('screenshot-one', readme, 200);
+  // TWO. A relative path mid-sentence with a trailing colon, which the
+  // tokeniser's CLOSE set already strips. Lift two alone.
+  await shot(
+    'screenshot-two',
+    'wrote docs/reviews/fixed-egress-decision.md: and then stopped',
+    200,
+    base
+  );
+  // THREE. A relative path at the END of its row, and carrying a `:93` that
+  // `stripDecoration` already handles. It needs BOTH lifts.
+  await shot(
+    'screenshot-three',
+    'see docs/reviews/running-url-handoff.md:93',
+    200,
+    base
+  );
+  // ...and the same three with no base, which is what the second and third
+  // still do on a pane whose session carries no project.
+  await shot('screenshot-two-without-a-base', 'wrote docs/reviews/fixed-egress-decision.md: and then stopped', 200);
+  await shot('screenshot-three-without-a-base', 'see docs/reviews/running-url-handoff.md:93', 200);
+  // ...and the third in a pane exactly as wide as its row, which is the
+  // wrapped case and stays refused whatever else is lifted.
+  await shot(
+    'screenshot-three-at-the-width',
+    'see docs/reviews/running-url-handoff.md:93',
+    'see docs/reviews/running-url-handoff.md:93'.length,
+    base
+  );
 
   // --- the closed set ------------------------------------------------------
   readings['external-allow'] = [...doors.EXTERNAL_ALLOW].sort().join(',');

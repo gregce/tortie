@@ -97,6 +97,8 @@ function fakeTerm(
 interface Harness {
   provider: PathLinkProvider;
   asked: string[][];
+  /** PHASE 250: the base every ask carried, in order. */
+  bases: string[];
   opened: { path: string; repoPath: string; line?: number }[];
   mac: string[];
   clock: { at: number };
@@ -109,14 +111,16 @@ function harness(
   cols = 80
 ): Harness {
   const asked: string[][] = [];
+  const bases: string[] = [];
   const opened: Harness['opened'] = [];
   const mac: string[] = [];
   const clock = { at: 1_000 };
   const deps: PathLinkDeps = {
     isLocal: () => true,
     repoPath: () => '/Users/gdc/gmux',
-    classify: async (paths) => {
+    classify: async (paths, base) => {
       asked.push(paths);
+      bases.push(base);
       return paths.map(
         (path): DropPreparedItem => ({
           sourcePath: path,
@@ -144,6 +148,7 @@ function harness(
       () => clock.at
     ),
     asked,
+    bases,
     opened,
     mac,
     clock
@@ -430,9 +435,93 @@ describe('the fix round', () => {
     expect(paneIsLocal(undefined)).toBe(false);
   });
 
-  it('never asks main about a spelling that could not be absolute', async () => {
-    const h = harness(['see src/main/fs/ipc.ts and ./a/b.md now'], {});
+  it('never asks main about a relative spelling on a pane with no base', async () => {
+    const h = harness(['see src/main/fs/ipc.ts and ./a/b.md now'], {}, {
+      // A pane whose session carries no project — the shape `repoPath()`
+      // answers '' for.
+      repoPath: () => ''
+    });
     expect(await linksOn(h.provider, 1)).toBeUndefined();
     expect(h.asked).toEqual([]);
+  });
+});
+
+/**
+ * PHASE 250 LIFT TWO, at the provider. The join itself is main's and the
+ * pure decision's; what this file owns is that the base is READ PER HOVER,
+ * carried to main, and part of the cache key.
+ */
+describe('a relative path and the pane’s own base', () => {
+  it('asks main about a relative spelling and hands it the base', async () => {
+    const h = harness(['wrote docs/notes.md for you'], {
+      'docs/notes.md': {
+        door: 'editor',
+        path: '/Users/gdc/gmux/docs/notes.md'
+      }
+    });
+    const links = await linksOn(h.provider, 1);
+    expect(links?.map((l) => l.text)).toEqual(['docs/notes.md']);
+    expect(h.asked).toEqual([['docs/notes.md']]);
+    expect(h.bases).toEqual(['/Users/gdc/gmux']);
+  });
+
+  it('opens the file MAIN resolved, and the tab’s repo is that same base', async () => {
+    const h = harness(['see docs/notes.md:12 there'], {
+      'docs/notes.md': {
+        door: 'editor',
+        path: '/Users/gdc/gmux/docs/notes.md'
+      }
+    });
+    const links = await linksOn(h.provider, 1);
+    links?.[0]?.activate(CLICK, 'docs/notes.md:12');
+    await settle();
+    expect(h.opened).toEqual([
+      {
+        path: '/Users/gdc/gmux/docs/notes.md',
+        repoPath: '/Users/gdc/gmux',
+        line: 12
+      }
+    ]);
+  });
+
+  /**
+   * The same spelling under two bases is two different files, so a cached
+   * answer from one pane's project may never be handed to another's.
+   */
+  it('keys a relative answer by its base', async () => {
+    let base = '/Users/gdc/gmux';
+    const h = harness(
+      ['wrote docs/notes.md for you'],
+      {
+        'docs/notes.md': {
+          door: 'editor',
+          path: `${base}/docs/notes.md`
+        }
+      },
+      { repoPath: () => base }
+    );
+    await linksOn(h.provider, 1);
+    expect(h.asked).toHaveLength(1);
+    // The same hover again is the cache doing its job.
+    await linksOn(h.provider, 1);
+    expect(h.asked).toHaveLength(1);
+    // ...and the same spelling under a different base is asked afresh.
+    base = '/Users/gdc/rookery';
+    await linksOn(h.provider, 1);
+    expect(h.asked).toHaveLength(2);
+    expect(h.bases).toEqual(['/Users/gdc/gmux', '/Users/gdc/rookery']);
+  });
+
+  it('keys an ABSOLUTE spelling by itself, exactly as Phase 247 did', async () => {
+    let base = '/Users/gdc/gmux';
+    const h = harness(
+      ['wrote /a/b.md for you'],
+      { '/a/b.md': { door: 'editor', path: '/a/b.md' } },
+      { repoPath: () => base }
+    );
+    await linksOn(h.provider, 1);
+    base = '/Users/gdc/rookery';
+    await linksOn(h.provider, 1);
+    expect(h.asked).toHaveLength(1);
   });
 });
