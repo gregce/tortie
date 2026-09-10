@@ -1,0 +1,3916 @@
+{
+  "cells": [
+    {
+      "look": "today",
+      "scheme": "dark",
+      "width": 1349,
+      "wash": "tiles",
+      "scroller": 1349,
+      "page": 580.8125,
+      "docBox": 556.8125,
+      "textColumn": 508.8125,
+      "characters": 62.137448861207794,
+      "docHeight": 754.25,
+      "lineBoxes": 32,
+      "marks": 33,
+      "washed": 33,
+      "fragments": 46,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 3,
+      "pipeSpread": 427.86,
+      "pipeDistinct": 7,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 622.8359375,
+            "bottom": 637.8359375,
+            "left": 775.0078125,
+            "right": 989.3515625,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 644.28125,
+            "bottom": 659.28125,
+            "left": 501.59375,
+            "right": 975.2734375,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 665.7265625,
+            "bottom": 680.7265625,
+            "left": 501.59375,
+            "right": 969.2421875,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 687.171875,
+            "bottom": 702.171875,
+            "left": 501.59375,
+            "right": 991.046875,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 708.6171875,
+            "bottom": 723.6171875,
+            "left": 501.59375,
+            "right": 989.1953125,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 730.0625,
+            "bottom": 745.0625,
+            "left": 501.59375,
+            "right": 990.203125,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 751.5078125,
+            "bottom": 766.5078125,
+            "left": 501.59375,
+            "right": 802.953125,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 1,
+      "currentOutline": "solid",
+      "railbar": null,
+      "chip": {
+        "left": 554.734375,
+        "top": 246.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 777.8125,
+        "bottom": 276.7109375
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(107, 196, 109)",
+        "sepWash": "rgba(107, 196, 109, 0.12)"
+      },
+      "stats": {
+        "leavesBefore": 62,
+        "leavesAfter": 62,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 62,
+        "marks": 33,
+        "changes": 19,
+        "tableMarks": 14,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 0,
+        "blankMarks": 10,
+        "spacingMarks": 8,
+        "tableChanges": 9
+      }
+    },
+    {
+      "look": "today",
+      "scheme": "dark",
+      "width": 699,
+      "wash": "tiles",
+      "scroller": 699,
+      "page": 580.8125,
+      "docBox": 556.8125,
+      "textColumn": 508.8125,
+      "characters": 62.137448861207794,
+      "docHeight": 754.25,
+      "lineBoxes": 32,
+      "marks": 33,
+      "washed": 33,
+      "fragments": 46,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 3,
+      "pipeSpread": 427.86,
+      "pipeDistinct": 7,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 622.8359375,
+            "bottom": 637.8359375,
+            "left": 775.0078125,
+            "right": 989.3515625,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 644.28125,
+            "bottom": 659.28125,
+            "left": 501.59375,
+            "right": 975.2734375,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 665.7265625,
+            "bottom": 680.7265625,
+            "left": 501.59375,
+            "right": 969.2421875,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 687.171875,
+            "bottom": 702.171875,
+            "left": 501.59375,
+            "right": 991.046875,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 708.6171875,
+            "bottom": 723.6171875,
+            "left": 501.59375,
+            "right": 989.1953125,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 730.0625,
+            "bottom": 745.0625,
+            "left": 501.59375,
+            "right": 990.203125,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 751.5078125,
+            "bottom": 766.5078125,
+            "left": 501.59375,
+            "right": 802.953125,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 1,
+      "currentOutline": "solid",
+      "railbar": null,
+      "chip": {
+        "left": 554.734375,
+        "top": 246.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 777.8125,
+        "bottom": 276.7109375
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(107, 196, 109)",
+        "sepWash": "rgba(107, 196, 109, 0.12)"
+      },
+      "stats": {
+        "leavesBefore": 62,
+        "leavesAfter": 62,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 62,
+        "marks": 33,
+        "changes": 19,
+        "tableMarks": 14,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 0,
+        "blankMarks": 10,
+        "spacingMarks": 8,
+        "tableChanges": 9
+      }
+    },
+    {
+      "look": "today",
+      "scheme": "dark",
+      "width": 319,
+      "wash": "tiles",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1376.1640625,
+      "lineBoxes": 61,
+      "marks": 33,
+      "washed": 33,
+      "fragments": 64,
+      "crossers": 3,
+      "pipeRows": 13,
+      "pipeCross": 5,
+      "pipeSpread": 156.4799999999999,
+      "pipeDistinct": 13,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 944.515625,
+            "bottom": 959.515625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 965.9609375,
+            "bottom": 980.9609375,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 15,
+            "width": 222.453125
+          },
+          {
+            "top": 987.40625,
+            "bottom": 1002.40625,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 15,
+            "width": 237.4140625
+          },
+          {
+            "top": 1008.8515625,
+            "bottom": 1023.8515625,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 15,
+            "width": 13.828125
+          },
+          {
+            "top": 1030.296875,
+            "bottom": 1045.296875,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 15,
+            "width": 223.3984375
+          },
+          {
+            "top": 1051.7421875,
+            "bottom": 1066.7421875,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 15,
+            "width": 244.2578125
+          },
+          {
+            "top": 1073.1875,
+            "bottom": 1088.1875,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 15,
+            "width": 236.28125
+          },
+          {
+            "top": 1094.6328125,
+            "bottom": 1109.6328125,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 15,
+            "width": 195.1640625
+          },
+          {
+            "top": 1116.078125,
+            "bottom": 1131.078125,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 15,
+            "width": 58.03125
+          },
+          {
+            "top": 1137.5234375,
+            "bottom": 1152.5234375,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 15,
+            "width": 180.921875
+          },
+          {
+            "top": 1158.96875,
+            "bottom": 1173.96875,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 15,
+            "width": 202.40625
+          },
+          {
+            "top": 1180.4140625,
+            "bottom": 1195.4140625,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 15,
+            "width": 104.2890625
+          },
+          {
+            "top": 1201.859375,
+            "bottom": 1216.859375,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 15,
+            "width": 231.328125
+          },
+          {
+            "top": 1223.3046875,
+            "bottom": 1238.3046875,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 15,
+            "width": 245.140625
+          },
+          {
+            "top": 1244.75,
+            "bottom": 1259.75,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 15,
+            "width": 12.15625
+          },
+          {
+            "top": 1266.1953125,
+            "bottom": 1281.1953125,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 15,
+            "width": 239.21875
+          },
+          {
+            "top": 1287.640625,
+            "bottom": 1302.640625,
+            "left": 632.5,
+            "right": 694.640625,
+            "height": 15,
+            "width": 62.140625
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 1,
+      "currentOutline": "solid",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 289.6015625,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 319.6015625
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(107, 196, 109)",
+        "sepWash": "rgba(107, 196, 109, 0.12)"
+      },
+      "stats": {
+        "leavesBefore": 62,
+        "leavesAfter": 62,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 62,
+        "marks": 33,
+        "changes": 19,
+        "tableMarks": 14,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 0,
+        "blankMarks": 10,
+        "spacingMarks": 8,
+        "tableChanges": 9
+      }
+    },
+    {
+      "look": "today",
+      "scheme": "light",
+      "width": 1349,
+      "wash": "tiles",
+      "scroller": 1349,
+      "page": 580.8125,
+      "docBox": 556.8125,
+      "textColumn": 508.8125,
+      "characters": 62.137448861207794,
+      "docHeight": 754.25,
+      "lineBoxes": 32,
+      "marks": 33,
+      "washed": 33,
+      "fragments": 46,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 3,
+      "pipeSpread": 427.86,
+      "pipeDistinct": 7,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 622.8359375,
+            "bottom": 637.8359375,
+            "left": 775.0078125,
+            "right": 989.3515625,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 644.28125,
+            "bottom": 659.28125,
+            "left": 501.59375,
+            "right": 975.2734375,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 665.7265625,
+            "bottom": 680.7265625,
+            "left": 501.59375,
+            "right": 969.2421875,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 687.171875,
+            "bottom": 702.171875,
+            "left": 501.59375,
+            "right": 991.046875,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 708.6171875,
+            "bottom": 723.6171875,
+            "left": 501.59375,
+            "right": 989.1953125,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 730.0625,
+            "bottom": 745.0625,
+            "left": 501.59375,
+            "right": 990.203125,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 751.5078125,
+            "bottom": 766.5078125,
+            "left": 501.59375,
+            "right": 802.953125,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 1,
+      "currentOutline": "solid",
+      "railbar": null,
+      "chip": {
+        "left": 554.734375,
+        "top": 246.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 777.8125,
+        "bottom": 276.7109375
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(44, 106, 59)",
+        "sepWash": "rgba(44, 106, 59, 0.12)"
+      },
+      "stats": {
+        "leavesBefore": 62,
+        "leavesAfter": 62,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 62,
+        "marks": 33,
+        "changes": 19,
+        "tableMarks": 14,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 0,
+        "blankMarks": 10,
+        "spacingMarks": 8,
+        "tableChanges": 9
+      }
+    },
+    {
+      "look": "today",
+      "scheme": "light",
+      "width": 699,
+      "wash": "tiles",
+      "scroller": 699,
+      "page": 580.8125,
+      "docBox": 556.8125,
+      "textColumn": 508.8125,
+      "characters": 62.137448861207794,
+      "docHeight": 754.25,
+      "lineBoxes": 32,
+      "marks": 33,
+      "washed": 33,
+      "fragments": 46,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 3,
+      "pipeSpread": 427.86,
+      "pipeDistinct": 7,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 622.8359375,
+            "bottom": 637.8359375,
+            "left": 775.0078125,
+            "right": 989.3515625,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 644.28125,
+            "bottom": 659.28125,
+            "left": 501.59375,
+            "right": 975.2734375,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 665.7265625,
+            "bottom": 680.7265625,
+            "left": 501.59375,
+            "right": 969.2421875,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 687.171875,
+            "bottom": 702.171875,
+            "left": 501.59375,
+            "right": 991.046875,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 708.6171875,
+            "bottom": 723.6171875,
+            "left": 501.59375,
+            "right": 989.1953125,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 730.0625,
+            "bottom": 745.0625,
+            "left": 501.59375,
+            "right": 990.203125,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 751.5078125,
+            "bottom": 766.5078125,
+            "left": 501.59375,
+            "right": 802.953125,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 1,
+      "currentOutline": "solid",
+      "railbar": null,
+      "chip": {
+        "left": 554.734375,
+        "top": 246.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 777.8125,
+        "bottom": 276.7109375
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(44, 106, 59)",
+        "sepWash": "rgba(44, 106, 59, 0.12)"
+      },
+      "stats": {
+        "leavesBefore": 62,
+        "leavesAfter": 62,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 62,
+        "marks": 33,
+        "changes": 19,
+        "tableMarks": 14,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 0,
+        "blankMarks": 10,
+        "spacingMarks": 8,
+        "tableChanges": 9
+      }
+    },
+    {
+      "look": "today",
+      "scheme": "light",
+      "width": 319,
+      "wash": "tiles",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1376.1640625,
+      "lineBoxes": 61,
+      "marks": 33,
+      "washed": 33,
+      "fragments": 64,
+      "crossers": 3,
+      "pipeRows": 13,
+      "pipeCross": 5,
+      "pipeSpread": 156.4799999999999,
+      "pipeDistinct": 13,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 944.515625,
+            "bottom": 959.515625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 965.9609375,
+            "bottom": 980.9609375,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 15,
+            "width": 222.453125
+          },
+          {
+            "top": 987.40625,
+            "bottom": 1002.40625,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 15,
+            "width": 237.4140625
+          },
+          {
+            "top": 1008.8515625,
+            "bottom": 1023.8515625,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 15,
+            "width": 13.828125
+          },
+          {
+            "top": 1030.296875,
+            "bottom": 1045.296875,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 15,
+            "width": 223.3984375
+          },
+          {
+            "top": 1051.7421875,
+            "bottom": 1066.7421875,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 15,
+            "width": 244.2578125
+          },
+          {
+            "top": 1073.1875,
+            "bottom": 1088.1875,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 15,
+            "width": 236.28125
+          },
+          {
+            "top": 1094.6328125,
+            "bottom": 1109.6328125,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 15,
+            "width": 195.1640625
+          },
+          {
+            "top": 1116.078125,
+            "bottom": 1131.078125,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 15,
+            "width": 58.03125
+          },
+          {
+            "top": 1137.5234375,
+            "bottom": 1152.5234375,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 15,
+            "width": 180.921875
+          },
+          {
+            "top": 1158.96875,
+            "bottom": 1173.96875,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 15,
+            "width": 202.40625
+          },
+          {
+            "top": 1180.4140625,
+            "bottom": 1195.4140625,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 15,
+            "width": 104.2890625
+          },
+          {
+            "top": 1201.859375,
+            "bottom": 1216.859375,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 15,
+            "width": 231.328125
+          },
+          {
+            "top": 1223.3046875,
+            "bottom": 1238.3046875,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 15,
+            "width": 245.140625
+          },
+          {
+            "top": 1244.75,
+            "bottom": 1259.75,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 15,
+            "width": 12.15625
+          },
+          {
+            "top": 1266.1953125,
+            "bottom": 1281.1953125,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 15,
+            "width": 239.21875
+          },
+          {
+            "top": 1287.640625,
+            "bottom": 1302.640625,
+            "left": 632.5,
+            "right": 694.640625,
+            "height": 15,
+            "width": 62.140625
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 1,
+      "currentOutline": "solid",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 289.6015625,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 319.6015625
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(44, 106, 59)",
+        "sepWash": "rgba(44, 106, 59, 0.12)"
+      },
+      "stats": {
+        "leavesBefore": 62,
+        "leavesAfter": 62,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 62,
+        "marks": 33,
+        "changes": 19,
+        "tableMarks": 14,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 0,
+        "blankMarks": 10,
+        "spacingMarks": 8,
+        "tableChanges": 9
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 1349,
+      "wash": "tiles",
+      "scroller": 1349,
+      "page": 1043.828125,
+      "docBox": 735.828125,
+      "textColumn": 687.828125,
+      "characters": 83.99928253037797,
+      "docHeight": 713.8203125,
+      "lineBoxes": 30,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 43,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 4,
+      "pipeSpread": 131.04999999999995,
+      "pipeDistinct": 4,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 582.40625,
+            "bottom": 597.40625,
+            "left": 564.5,
+            "right": 778.84375,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 603.8515625,
+            "bottom": 618.8515625,
+            "left": 290.0859375,
+            "right": 763.765625,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 625.296875,
+            "bottom": 640.296875,
+            "left": 290.0859375,
+            "right": 757.734375,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 646.7421875,
+            "bottom": 661.7421875,
+            "left": 290.0859375,
+            "right": 779.5390625,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 668.1875,
+            "bottom": 683.1875,
+            "left": 290.0859375,
+            "right": 777.6875,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 689.6328125,
+            "bottom": 704.6328125,
+            "left": 290.0859375,
+            "right": 778.6953125,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 711.078125,
+            "bottom": 726.078125,
+            "left": 290.0859375,
+            "right": 591.4453125,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 252.0859375,
+        "top": 279.7109375,
+        "width": 2,
+        "height": 15,
+        "right": 254.0859375,
+        "bottom": 294.7109375
+      },
+      "chip": {
+        "left": 1013.9140625,
+        "top": 279.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 1236.9921875,
+        "bottom": 309.7109375
+      },
+      "chipCovers": 0,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 1349,
+      "wash": "ribbon",
+      "scroller": 1349,
+      "page": 1043.828125,
+      "docBox": 735.828125,
+      "textColumn": 687.828125,
+      "characters": 83.99928253037797,
+      "docHeight": 713.8203125,
+      "lineBoxes": 30,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 43,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 0,
+      "pipeSpread": 130.04999999999995,
+      "pipeDistinct": 3,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 579.1875,
+            "bottom": 600.625,
+            "left": 563.5,
+            "right": 777.84375,
+            "height": 21.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 600.6328125,
+            "bottom": 622.0703125,
+            "left": 290.0859375,
+            "right": 763.765625,
+            "height": 21.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 622.078125,
+            "bottom": 643.515625,
+            "left": 290.0859375,
+            "right": 757.734375,
+            "height": 21.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 643.5234375,
+            "bottom": 664.9609375,
+            "left": 290.0859375,
+            "right": 779.5390625,
+            "height": 21.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 664.96875,
+            "bottom": 686.40625,
+            "left": 290.0859375,
+            "right": 777.6875,
+            "height": 21.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 686.4140625,
+            "bottom": 707.8515625,
+            "left": 290.0859375,
+            "right": 778.6953125,
+            "height": 21.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 707.859375,
+            "bottom": 729.296875,
+            "left": 290.0859375,
+            "right": 590.4453125,
+            "height": 21.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 21.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 252.0859375,
+        "top": 276.4921875,
+        "width": 2,
+        "height": 21.4375,
+        "right": 254.0859375,
+        "bottom": 297.9296875
+      },
+      "chip": {
+        "left": 1013.9140625,
+        "top": 276.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 1236.9921875,
+        "bottom": 306.4921875
+      },
+      "chipCovers": 0,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 1349,
+      "wash": "seam",
+      "scroller": 1349,
+      "page": 1043.828125,
+      "docBox": 735.828125,
+      "textColumn": 687.828125,
+      "characters": 83.99928253037797,
+      "docHeight": 713.8203125,
+      "lineBoxes": 30,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 43,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 0,
+      "pipeSpread": 130.04999999999995,
+      "pipeDistinct": 3,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 580.1875,
+            "bottom": 599.625,
+            "left": 563.5,
+            "right": 777.84375,
+            "height": 19.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 601.6328125,
+            "bottom": 621.0703125,
+            "left": 290.0859375,
+            "right": 763.765625,
+            "height": 19.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 623.078125,
+            "bottom": 642.515625,
+            "left": 290.0859375,
+            "right": 757.734375,
+            "height": 19.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 644.5234375,
+            "bottom": 663.9609375,
+            "left": 290.0859375,
+            "right": 779.5390625,
+            "height": 19.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 665.96875,
+            "bottom": 685.40625,
+            "left": 290.0859375,
+            "right": 777.6875,
+            "height": 19.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 687.4140625,
+            "bottom": 706.8515625,
+            "left": 290.0859375,
+            "right": 778.6953125,
+            "height": 19.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 708.859375,
+            "bottom": 728.296875,
+            "left": 290.0859375,
+            "right": 590.4453125,
+            "height": 19.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 19.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 252.0859375,
+        "top": 277.4921875,
+        "width": 2,
+        "height": 19.4375,
+        "right": 254.0859375,
+        "bottom": 296.9296875
+      },
+      "chip": {
+        "left": 1013.9140625,
+        "top": 277.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 1236.9921875,
+        "bottom": 307.4921875
+      },
+      "chipCovers": 0,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 699,
+      "wash": "tiles",
+      "scroller": 699,
+      "page": 699,
+      "docBox": 655,
+      "textColumn": 607,
+      "characters": 74.128350735788,
+      "docHeight": 844.25,
+      "lineBoxes": 36,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 47,
+      "crossers": 0,
+      "pipeRows": 12,
+      "pipeCross": 8,
+      "pipeSpread": 506.7199999999999,
+      "pipeDistinct": 6,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 712.8359375,
+            "bottom": 727.8359375,
+            "left": 736.9140625,
+            "right": 951.2578125,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 734.28125,
+            "bottom": 749.28125,
+            "left": 462.5,
+            "right": 936.1796875,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 755.7265625,
+            "bottom": 770.7265625,
+            "left": 462.5,
+            "right": 930.1484375,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 777.171875,
+            "bottom": 792.171875,
+            "left": 462.5,
+            "right": 951.953125,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 798.6171875,
+            "bottom": 813.6171875,
+            "left": 462.5,
+            "right": 950.1015625,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 820.0625,
+            "bottom": 835.0625,
+            "left": 462.5,
+            "right": 951.109375,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 841.5078125,
+            "bottom": 856.5078125,
+            "left": 462.5,
+            "right": 763.859375,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 424.5,
+        "top": 279.7109375,
+        "width": 2,
+        "height": 15,
+        "right": 426.5,
+        "bottom": 294.7109375
+      },
+      "chip": {
+        "left": 515.640625,
+        "top": 246.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 738.71875,
+        "bottom": 276.7109375
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 699,
+      "wash": "ribbon",
+      "scroller": 699,
+      "page": 699,
+      "docBox": 655,
+      "textColumn": 607,
+      "characters": 74.128350735788,
+      "docHeight": 844.25,
+      "lineBoxes": 36,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 47,
+      "crossers": 0,
+      "pipeRows": 12,
+      "pipeCross": 2,
+      "pipeSpread": 506.7199999999999,
+      "pipeDistinct": 6,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 709.6171875,
+            "bottom": 731.0546875,
+            "left": 735.9140625,
+            "right": 950.2578125,
+            "height": 21.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 731.0625,
+            "bottom": 752.5,
+            "left": 462.5,
+            "right": 936.1796875,
+            "height": 21.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 752.5078125,
+            "bottom": 773.9453125,
+            "left": 462.5,
+            "right": 930.1484375,
+            "height": 21.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 773.953125,
+            "bottom": 795.390625,
+            "left": 462.5,
+            "right": 951.953125,
+            "height": 21.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 795.3984375,
+            "bottom": 816.8359375,
+            "left": 462.5,
+            "right": 950.1015625,
+            "height": 21.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 816.84375,
+            "bottom": 838.28125,
+            "left": 462.5,
+            "right": 951.109375,
+            "height": 21.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 838.2890625,
+            "bottom": 859.7265625,
+            "left": 462.5,
+            "right": 762.859375,
+            "height": 21.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 21.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 424.5,
+        "top": 276.4921875,
+        "width": 2,
+        "height": 21.4375,
+        "right": 426.5,
+        "bottom": 297.9296875
+      },
+      "chip": {
+        "left": 515.640625,
+        "top": 243.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 738.71875,
+        "bottom": 273.4921875
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 699,
+      "wash": "seam",
+      "scroller": 699,
+      "page": 699,
+      "docBox": 655,
+      "textColumn": 607,
+      "characters": 74.128350735788,
+      "docHeight": 844.25,
+      "lineBoxes": 36,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 47,
+      "crossers": 0,
+      "pipeRows": 12,
+      "pipeCross": 2,
+      "pipeSpread": 506.7199999999999,
+      "pipeDistinct": 6,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 710.6171875,
+            "bottom": 730.0546875,
+            "left": 735.9140625,
+            "right": 950.2578125,
+            "height": 19.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 732.0625,
+            "bottom": 751.5,
+            "left": 462.5,
+            "right": 936.1796875,
+            "height": 19.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 753.5078125,
+            "bottom": 772.9453125,
+            "left": 462.5,
+            "right": 930.1484375,
+            "height": 19.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 774.953125,
+            "bottom": 794.390625,
+            "left": 462.5,
+            "right": 951.953125,
+            "height": 19.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 796.3984375,
+            "bottom": 815.8359375,
+            "left": 462.5,
+            "right": 950.1015625,
+            "height": 19.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 817.84375,
+            "bottom": 837.28125,
+            "left": 462.5,
+            "right": 951.109375,
+            "height": 19.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 839.2890625,
+            "bottom": 858.7265625,
+            "left": 462.5,
+            "right": 762.859375,
+            "height": 19.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 19.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 424.5,
+        "top": 277.4921875,
+        "width": 2,
+        "height": 19.4375,
+        "right": 426.5,
+        "bottom": 296.9296875
+      },
+      "chip": {
+        "left": 515.640625,
+        "top": 244.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 738.71875,
+        "bottom": 274.4921875
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 319,
+      "wash": "tiles",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1419.0546875,
+      "lineBoxes": 63,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 66,
+      "crossers": 5,
+      "pipeRows": 15,
+      "pipeCross": 8,
+      "pipeSpread": 202.81999999999994,
+      "pipeDistinct": 14,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 987.40625,
+            "bottom": 1002.40625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 1008.8515625,
+            "bottom": 1023.8515625,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 15,
+            "width": 222.453125
+          },
+          {
+            "top": 1030.296875,
+            "bottom": 1045.296875,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 15,
+            "width": 237.4140625
+          },
+          {
+            "top": 1051.7421875,
+            "bottom": 1066.7421875,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 15,
+            "width": 13.828125
+          },
+          {
+            "top": 1073.1875,
+            "bottom": 1088.1875,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 15,
+            "width": 223.3984375
+          },
+          {
+            "top": 1094.6328125,
+            "bottom": 1109.6328125,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 15,
+            "width": 244.2578125
+          },
+          {
+            "top": 1116.078125,
+            "bottom": 1131.078125,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 15,
+            "width": 236.28125
+          },
+          {
+            "top": 1137.5234375,
+            "bottom": 1152.5234375,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 15,
+            "width": 195.1640625
+          },
+          {
+            "top": 1158.96875,
+            "bottom": 1173.96875,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 15,
+            "width": 58.03125
+          },
+          {
+            "top": 1180.4140625,
+            "bottom": 1195.4140625,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 15,
+            "width": 180.921875
+          },
+          {
+            "top": 1201.859375,
+            "bottom": 1216.859375,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 15,
+            "width": 202.40625
+          },
+          {
+            "top": 1223.3046875,
+            "bottom": 1238.3046875,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 15,
+            "width": 104.2890625
+          },
+          {
+            "top": 1244.75,
+            "bottom": 1259.75,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 15,
+            "width": 231.328125
+          },
+          {
+            "top": 1266.1953125,
+            "bottom": 1281.1953125,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 15,
+            "width": 245.140625
+          },
+          {
+            "top": 1287.640625,
+            "bottom": 1302.640625,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 15,
+            "width": 12.15625
+          },
+          {
+            "top": 1309.0859375,
+            "bottom": 1324.0859375,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 15,
+            "width": 239.21875
+          },
+          {
+            "top": 1330.53125,
+            "bottom": 1345.53125,
+            "left": 632.5,
+            "right": 694.640625,
+            "height": 15,
+            "width": 62.140625
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 289.6015625,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 319.6015625
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 319,
+      "wash": "ribbon",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1419.0546875,
+      "lineBoxes": 63,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 66,
+      "crossers": 5,
+      "pipeRows": 15,
+      "pipeCross": 4,
+      "pipeSpread": 202.81999999999994,
+      "pipeDistinct": 14,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 984.1875,
+            "bottom": 1005.625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 21.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 1005.6328125,
+            "bottom": 1027.0703125,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 21.4375,
+            "width": 222.453125
+          },
+          {
+            "top": 1027.078125,
+            "bottom": 1048.515625,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 21.4375,
+            "width": 237.4140625
+          },
+          {
+            "top": 1048.5234375,
+            "bottom": 1069.9609375,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 21.4375,
+            "width": 13.828125
+          },
+          {
+            "top": 1069.96875,
+            "bottom": 1091.40625,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 21.4375,
+            "width": 223.3984375
+          },
+          {
+            "top": 1091.4140625,
+            "bottom": 1112.8515625,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 21.4375,
+            "width": 244.2578125
+          },
+          {
+            "top": 1112.859375,
+            "bottom": 1134.296875,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 21.4375,
+            "width": 236.28125
+          },
+          {
+            "top": 1134.3046875,
+            "bottom": 1155.7421875,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 21.4375,
+            "width": 195.1640625
+          },
+          {
+            "top": 1155.75,
+            "bottom": 1177.1875,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 21.4375,
+            "width": 58.03125
+          },
+          {
+            "top": 1177.1953125,
+            "bottom": 1198.6328125,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 21.4375,
+            "width": 180.921875
+          },
+          {
+            "top": 1198.640625,
+            "bottom": 1220.078125,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 21.4375,
+            "width": 202.40625
+          },
+          {
+            "top": 1220.0859375,
+            "bottom": 1241.5234375,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 21.4375,
+            "width": 104.2890625
+          },
+          {
+            "top": 1241.53125,
+            "bottom": 1262.96875,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 21.4375,
+            "width": 231.328125
+          },
+          {
+            "top": 1262.9765625,
+            "bottom": 1284.4140625,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 21.4375,
+            "width": 245.140625
+          },
+          {
+            "top": 1284.421875,
+            "bottom": 1305.859375,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 21.4375,
+            "width": 12.15625
+          },
+          {
+            "top": 1305.8671875,
+            "bottom": 1327.3046875,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 21.4375,
+            "width": 239.21875
+          },
+          {
+            "top": 1327.3125,
+            "bottom": 1348.75,
+            "left": 632.5,
+            "right": 693.640625,
+            "height": 21.4375,
+            "width": 61.140625
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 21.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 286.3828125,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 316.3828125
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "dark",
+      "width": 319,
+      "wash": "seam",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1419.0546875,
+      "lineBoxes": 63,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 66,
+      "crossers": 5,
+      "pipeRows": 15,
+      "pipeCross": 4,
+      "pipeSpread": 202.81999999999994,
+      "pipeDistinct": 14,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 985.1875,
+            "bottom": 1004.625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 19.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 1006.6328125,
+            "bottom": 1026.0703125,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 19.4375,
+            "width": 222.453125
+          },
+          {
+            "top": 1028.078125,
+            "bottom": 1047.515625,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 19.4375,
+            "width": 237.4140625
+          },
+          {
+            "top": 1049.5234375,
+            "bottom": 1068.9609375,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 19.4375,
+            "width": 13.828125
+          },
+          {
+            "top": 1070.96875,
+            "bottom": 1090.40625,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 19.4375,
+            "width": 223.3984375
+          },
+          {
+            "top": 1092.4140625,
+            "bottom": 1111.8515625,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 19.4375,
+            "width": 244.2578125
+          },
+          {
+            "top": 1113.859375,
+            "bottom": 1133.296875,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 19.4375,
+            "width": 236.28125
+          },
+          {
+            "top": 1135.3046875,
+            "bottom": 1154.7421875,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 19.4375,
+            "width": 195.1640625
+          },
+          {
+            "top": 1156.75,
+            "bottom": 1176.1875,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 19.4375,
+            "width": 58.03125
+          },
+          {
+            "top": 1178.1953125,
+            "bottom": 1197.6328125,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 19.4375,
+            "width": 180.921875
+          },
+          {
+            "top": 1199.640625,
+            "bottom": 1219.078125,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 19.4375,
+            "width": 202.40625
+          },
+          {
+            "top": 1221.0859375,
+            "bottom": 1240.5234375,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 19.4375,
+            "width": 104.2890625
+          },
+          {
+            "top": 1242.53125,
+            "bottom": 1261.96875,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 19.4375,
+            "width": 231.328125
+          },
+          {
+            "top": 1263.9765625,
+            "bottom": 1283.4140625,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 19.4375,
+            "width": 245.140625
+          },
+          {
+            "top": 1285.421875,
+            "bottom": 1304.859375,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 19.4375,
+            "width": 12.15625
+          },
+          {
+            "top": 1306.8671875,
+            "bottom": 1326.3046875,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 19.4375,
+            "width": 239.21875
+          },
+          {
+            "top": 1328.3125,
+            "bottom": 1347.75,
+            "left": 632.5,
+            "right": 693.640625,
+            "height": 19.4375,
+            "width": 61.140625
+          }
+        ],
+        "washed": "rgba(229, 101, 94, 0.12)"
+      },
+      "painted": 19.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 287.3828125,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 317.3828125
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(19, 20, 23)",
+        "body": "rgb(201, 202, 205)",
+        "del": "rgb(229, 101, 94)",
+        "delWash": "rgba(229, 101, 94, 0.12)",
+        "ins": "rgb(107, 196, 109)",
+        "insWash": "rgba(107, 196, 109, 0.12)",
+        "rail": "rgb(77, 157, 232)",
+        "count": "rgb(156, 161, 171)",
+        "chipFill": "rgb(25, 27, 32)",
+        "chipText": "rgb(156, 161, 171)",
+        "note": "rgb(131, 137, 150)",
+        "sep": "rgb(131, 137, 150)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 1349,
+      "wash": "tiles",
+      "scroller": 1349,
+      "page": 1043.828125,
+      "docBox": 735.828125,
+      "textColumn": 687.828125,
+      "characters": 83.99928253037797,
+      "docHeight": 713.8203125,
+      "lineBoxes": 30,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 43,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 4,
+      "pipeSpread": 131.04999999999995,
+      "pipeDistinct": 4,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 582.40625,
+            "bottom": 597.40625,
+            "left": 564.5,
+            "right": 778.84375,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 603.8515625,
+            "bottom": 618.8515625,
+            "left": 290.0859375,
+            "right": 763.765625,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 625.296875,
+            "bottom": 640.296875,
+            "left": 290.0859375,
+            "right": 757.734375,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 646.7421875,
+            "bottom": 661.7421875,
+            "left": 290.0859375,
+            "right": 779.5390625,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 668.1875,
+            "bottom": 683.1875,
+            "left": 290.0859375,
+            "right": 777.6875,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 689.6328125,
+            "bottom": 704.6328125,
+            "left": 290.0859375,
+            "right": 778.6953125,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 711.078125,
+            "bottom": 726.078125,
+            "left": 290.0859375,
+            "right": 591.4453125,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 252.0859375,
+        "top": 279.7109375,
+        "width": 2,
+        "height": 15,
+        "right": 254.0859375,
+        "bottom": 294.7109375
+      },
+      "chip": {
+        "left": 1013.9140625,
+        "top": 279.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 1236.9921875,
+        "bottom": 309.7109375
+      },
+      "chipCovers": 0,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 1349,
+      "wash": "ribbon",
+      "scroller": 1349,
+      "page": 1043.828125,
+      "docBox": 735.828125,
+      "textColumn": 687.828125,
+      "characters": 83.99928253037797,
+      "docHeight": 713.8203125,
+      "lineBoxes": 30,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 43,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 0,
+      "pipeSpread": 130.04999999999995,
+      "pipeDistinct": 3,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 579.1875,
+            "bottom": 600.625,
+            "left": 563.5,
+            "right": 777.84375,
+            "height": 21.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 600.6328125,
+            "bottom": 622.0703125,
+            "left": 290.0859375,
+            "right": 763.765625,
+            "height": 21.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 622.078125,
+            "bottom": 643.515625,
+            "left": 290.0859375,
+            "right": 757.734375,
+            "height": 21.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 643.5234375,
+            "bottom": 664.9609375,
+            "left": 290.0859375,
+            "right": 779.5390625,
+            "height": 21.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 664.96875,
+            "bottom": 686.40625,
+            "left": 290.0859375,
+            "right": 777.6875,
+            "height": 21.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 686.4140625,
+            "bottom": 707.8515625,
+            "left": 290.0859375,
+            "right": 778.6953125,
+            "height": 21.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 707.859375,
+            "bottom": 729.296875,
+            "left": 290.0859375,
+            "right": 590.4453125,
+            "height": 21.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 21.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 252.0859375,
+        "top": 276.4921875,
+        "width": 2,
+        "height": 21.4375,
+        "right": 254.0859375,
+        "bottom": 297.9296875
+      },
+      "chip": {
+        "left": 1013.9140625,
+        "top": 276.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 1236.9921875,
+        "bottom": 306.4921875
+      },
+      "chipCovers": 0,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 1349,
+      "wash": "seam",
+      "scroller": 1349,
+      "page": 1043.828125,
+      "docBox": 735.828125,
+      "textColumn": 687.828125,
+      "characters": 83.99928253037797,
+      "docHeight": 713.8203125,
+      "lineBoxes": 30,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 43,
+      "crossers": 0,
+      "pipeRows": 7,
+      "pipeCross": 0,
+      "pipeSpread": 130.04999999999995,
+      "pipeDistinct": 3,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 580.1875,
+            "bottom": 599.625,
+            "left": 563.5,
+            "right": 777.84375,
+            "height": 19.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 601.6328125,
+            "bottom": 621.0703125,
+            "left": 290.0859375,
+            "right": 763.765625,
+            "height": 19.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 623.078125,
+            "bottom": 642.515625,
+            "left": 290.0859375,
+            "right": 757.734375,
+            "height": 19.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 644.5234375,
+            "bottom": 663.9609375,
+            "left": 290.0859375,
+            "right": 779.5390625,
+            "height": 19.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 665.96875,
+            "bottom": 685.40625,
+            "left": 290.0859375,
+            "right": 777.6875,
+            "height": 19.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 687.4140625,
+            "bottom": 706.8515625,
+            "left": 290.0859375,
+            "right": 778.6953125,
+            "height": 19.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 708.859375,
+            "bottom": 728.296875,
+            "left": 290.0859375,
+            "right": 590.4453125,
+            "height": 19.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 19.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 252.0859375,
+        "top": 277.4921875,
+        "width": 2,
+        "height": 19.4375,
+        "right": 254.0859375,
+        "bottom": 296.9296875
+      },
+      "chip": {
+        "left": 1013.9140625,
+        "top": 277.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 1236.9921875,
+        "bottom": 307.4921875
+      },
+      "chipCovers": 0,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 699,
+      "wash": "tiles",
+      "scroller": 699,
+      "page": 699,
+      "docBox": 655,
+      "textColumn": 607,
+      "characters": 74.128350735788,
+      "docHeight": 844.25,
+      "lineBoxes": 36,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 47,
+      "crossers": 0,
+      "pipeRows": 12,
+      "pipeCross": 8,
+      "pipeSpread": 506.7199999999999,
+      "pipeDistinct": 6,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 712.8359375,
+            "bottom": 727.8359375,
+            "left": 736.9140625,
+            "right": 951.2578125,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 734.28125,
+            "bottom": 749.28125,
+            "left": 462.5,
+            "right": 936.1796875,
+            "height": 15,
+            "width": 473.6796875
+          },
+          {
+            "top": 755.7265625,
+            "bottom": 770.7265625,
+            "left": 462.5,
+            "right": 930.1484375,
+            "height": 15,
+            "width": 467.6484375
+          },
+          {
+            "top": 777.171875,
+            "bottom": 792.171875,
+            "left": 462.5,
+            "right": 951.953125,
+            "height": 15,
+            "width": 489.453125
+          },
+          {
+            "top": 798.6171875,
+            "bottom": 813.6171875,
+            "left": 462.5,
+            "right": 950.1015625,
+            "height": 15,
+            "width": 487.6015625
+          },
+          {
+            "top": 820.0625,
+            "bottom": 835.0625,
+            "left": 462.5,
+            "right": 951.109375,
+            "height": 15,
+            "width": 488.609375
+          },
+          {
+            "top": 841.5078125,
+            "bottom": 856.5078125,
+            "left": 462.5,
+            "right": 763.859375,
+            "height": 15,
+            "width": 301.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 424.5,
+        "top": 279.7109375,
+        "width": 2,
+        "height": 15,
+        "right": 426.5,
+        "bottom": 294.7109375
+      },
+      "chip": {
+        "left": 515.640625,
+        "top": 246.7109375,
+        "width": 223.078125,
+        "height": 30,
+        "right": 738.71875,
+        "bottom": 276.7109375
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 699,
+      "wash": "ribbon",
+      "scroller": 699,
+      "page": 699,
+      "docBox": 655,
+      "textColumn": 607,
+      "characters": 74.128350735788,
+      "docHeight": 844.25,
+      "lineBoxes": 36,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 47,
+      "crossers": 0,
+      "pipeRows": 12,
+      "pipeCross": 2,
+      "pipeSpread": 506.7199999999999,
+      "pipeDistinct": 6,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 709.6171875,
+            "bottom": 731.0546875,
+            "left": 735.9140625,
+            "right": 950.2578125,
+            "height": 21.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 731.0625,
+            "bottom": 752.5,
+            "left": 462.5,
+            "right": 936.1796875,
+            "height": 21.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 752.5078125,
+            "bottom": 773.9453125,
+            "left": 462.5,
+            "right": 930.1484375,
+            "height": 21.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 773.953125,
+            "bottom": 795.390625,
+            "left": 462.5,
+            "right": 951.953125,
+            "height": 21.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 795.3984375,
+            "bottom": 816.8359375,
+            "left": 462.5,
+            "right": 950.1015625,
+            "height": 21.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 816.84375,
+            "bottom": 838.28125,
+            "left": 462.5,
+            "right": 951.109375,
+            "height": 21.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 838.2890625,
+            "bottom": 859.7265625,
+            "left": 462.5,
+            "right": 762.859375,
+            "height": 21.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 21.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 424.5,
+        "top": 276.4921875,
+        "width": 2,
+        "height": 21.4375,
+        "right": 426.5,
+        "bottom": 297.9296875
+      },
+      "chip": {
+        "left": 515.640625,
+        "top": 243.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 738.71875,
+        "bottom": 273.4921875
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 699,
+      "wash": "seam",
+      "scroller": 699,
+      "page": 699,
+      "docBox": 655,
+      "textColumn": 607,
+      "characters": 74.128350735788,
+      "docHeight": 844.25,
+      "lineBoxes": 36,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 47,
+      "crossers": 0,
+      "pipeRows": 12,
+      "pipeCross": 2,
+      "pipeSpread": 506.7199999999999,
+      "pipeDistinct": 6,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 710.6171875,
+            "bottom": 730.0546875,
+            "left": 735.9140625,
+            "right": 950.2578125,
+            "height": 19.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 732.0625,
+            "bottom": 751.5,
+            "left": 462.5,
+            "right": 936.1796875,
+            "height": 19.4375,
+            "width": 473.6796875
+          },
+          {
+            "top": 753.5078125,
+            "bottom": 772.9453125,
+            "left": 462.5,
+            "right": 930.1484375,
+            "height": 19.4375,
+            "width": 467.6484375
+          },
+          {
+            "top": 774.953125,
+            "bottom": 794.390625,
+            "left": 462.5,
+            "right": 951.953125,
+            "height": 19.4375,
+            "width": 489.453125
+          },
+          {
+            "top": 796.3984375,
+            "bottom": 815.8359375,
+            "left": 462.5,
+            "right": 950.1015625,
+            "height": 19.4375,
+            "width": 487.6015625
+          },
+          {
+            "top": 817.84375,
+            "bottom": 837.28125,
+            "left": 462.5,
+            "right": 951.109375,
+            "height": 19.4375,
+            "width": 488.609375
+          },
+          {
+            "top": 839.2890625,
+            "bottom": 858.7265625,
+            "left": 462.5,
+            "right": 762.859375,
+            "height": 19.4375,
+            "width": 300.359375
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 19.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": {
+        "left": 424.5,
+        "top": 277.4921875,
+        "width": 2,
+        "height": 19.4375,
+        "right": 426.5,
+        "bottom": 296.9296875
+      },
+      "chip": {
+        "left": 515.640625,
+        "top": 244.4921875,
+        "width": 223.078125,
+        "height": 30,
+        "right": 738.71875,
+        "bottom": 274.4921875
+      },
+      "chipCovers": 1,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 319,
+      "wash": "tiles",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1419.0546875,
+      "lineBoxes": 63,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 66,
+      "crossers": 5,
+      "pipeRows": 15,
+      "pipeCross": 8,
+      "pipeSpread": 202.81999999999994,
+      "pipeDistinct": 14,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 987.40625,
+            "bottom": 1002.40625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 15,
+            "width": 214.34375
+          },
+          {
+            "top": 1008.8515625,
+            "bottom": 1023.8515625,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 15,
+            "width": 222.453125
+          },
+          {
+            "top": 1030.296875,
+            "bottom": 1045.296875,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 15,
+            "width": 237.4140625
+          },
+          {
+            "top": 1051.7421875,
+            "bottom": 1066.7421875,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 15,
+            "width": 13.828125
+          },
+          {
+            "top": 1073.1875,
+            "bottom": 1088.1875,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 15,
+            "width": 223.3984375
+          },
+          {
+            "top": 1094.6328125,
+            "bottom": 1109.6328125,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 15,
+            "width": 244.2578125
+          },
+          {
+            "top": 1116.078125,
+            "bottom": 1131.078125,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 15,
+            "width": 236.28125
+          },
+          {
+            "top": 1137.5234375,
+            "bottom": 1152.5234375,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 15,
+            "width": 195.1640625
+          },
+          {
+            "top": 1158.96875,
+            "bottom": 1173.96875,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 15,
+            "width": 58.03125
+          },
+          {
+            "top": 1180.4140625,
+            "bottom": 1195.4140625,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 15,
+            "width": 180.921875
+          },
+          {
+            "top": 1201.859375,
+            "bottom": 1216.859375,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 15,
+            "width": 202.40625
+          },
+          {
+            "top": 1223.3046875,
+            "bottom": 1238.3046875,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 15,
+            "width": 104.2890625
+          },
+          {
+            "top": 1244.75,
+            "bottom": 1259.75,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 15,
+            "width": 231.328125
+          },
+          {
+            "top": 1266.1953125,
+            "bottom": 1281.1953125,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 15,
+            "width": 245.140625
+          },
+          {
+            "top": 1287.640625,
+            "bottom": 1302.640625,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 15,
+            "width": 12.15625
+          },
+          {
+            "top": 1309.0859375,
+            "bottom": 1324.0859375,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 15,
+            "width": 239.21875
+          },
+          {
+            "top": 1330.53125,
+            "bottom": 1345.53125,
+            "left": 632.5,
+            "right": 694.640625,
+            "height": 15,
+            "width": 62.140625
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 15,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 289.6015625,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 319.6015625
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 319,
+      "wash": "ribbon",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1419.0546875,
+      "lineBoxes": 63,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 66,
+      "crossers": 5,
+      "pipeRows": 15,
+      "pipeCross": 4,
+      "pipeSpread": 202.81999999999994,
+      "pipeDistinct": 14,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 984.1875,
+            "bottom": 1005.625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 21.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 1005.6328125,
+            "bottom": 1027.0703125,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 21.4375,
+            "width": 222.453125
+          },
+          {
+            "top": 1027.078125,
+            "bottom": 1048.515625,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 21.4375,
+            "width": 237.4140625
+          },
+          {
+            "top": 1048.5234375,
+            "bottom": 1069.9609375,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 21.4375,
+            "width": 13.828125
+          },
+          {
+            "top": 1069.96875,
+            "bottom": 1091.40625,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 21.4375,
+            "width": 223.3984375
+          },
+          {
+            "top": 1091.4140625,
+            "bottom": 1112.8515625,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 21.4375,
+            "width": 244.2578125
+          },
+          {
+            "top": 1112.859375,
+            "bottom": 1134.296875,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 21.4375,
+            "width": 236.28125
+          },
+          {
+            "top": 1134.3046875,
+            "bottom": 1155.7421875,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 21.4375,
+            "width": 195.1640625
+          },
+          {
+            "top": 1155.75,
+            "bottom": 1177.1875,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 21.4375,
+            "width": 58.03125
+          },
+          {
+            "top": 1177.1953125,
+            "bottom": 1198.6328125,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 21.4375,
+            "width": 180.921875
+          },
+          {
+            "top": 1198.640625,
+            "bottom": 1220.078125,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 21.4375,
+            "width": 202.40625
+          },
+          {
+            "top": 1220.0859375,
+            "bottom": 1241.5234375,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 21.4375,
+            "width": 104.2890625
+          },
+          {
+            "top": 1241.53125,
+            "bottom": 1262.96875,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 21.4375,
+            "width": 231.328125
+          },
+          {
+            "top": 1262.9765625,
+            "bottom": 1284.4140625,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 21.4375,
+            "width": 245.140625
+          },
+          {
+            "top": 1284.421875,
+            "bottom": 1305.859375,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 21.4375,
+            "width": 12.15625
+          },
+          {
+            "top": 1305.8671875,
+            "bottom": 1327.3046875,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 21.4375,
+            "width": 239.21875
+          },
+          {
+            "top": 1327.3125,
+            "bottom": 1348.75,
+            "left": 632.5,
+            "right": 693.640625,
+            "height": 21.4375,
+            "width": 61.140625
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 21.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 286.3828125,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 316.3828125
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    },
+    {
+      "look": "new",
+      "scheme": "light",
+      "width": 319,
+      "wash": "seam",
+      "scroller": 319,
+      "page": 319,
+      "docBox": 295,
+      "textColumn": 247,
+      "characters": 30.164254747511755,
+      "docHeight": 1419.0546875,
+      "lineBoxes": 63,
+      "marks": 36,
+      "washed": 25,
+      "fragments": 66,
+      "crossers": 5,
+      "pipeRows": 15,
+      "pipeCross": 4,
+      "pipeSpread": 202.81999999999994,
+      "pipeDistinct": 14,
+      "widest": {
+        "tag": "DEL",
+        "text": "asked a renderer to arbitrate. Since\narb",
+        "rects": [
+          {
+            "top": 985.1875,
+            "bottom": 1004.625,
+            "left": 658.6015625,
+            "right": 872.9453125,
+            "height": 19.4375,
+            "width": 214.34375
+          },
+          {
+            "top": 1006.6328125,
+            "bottom": 1026.0703125,
+            "left": 632.5,
+            "right": 854.953125,
+            "height": 19.4375,
+            "width": 222.453125
+          },
+          {
+            "top": 1028.078125,
+            "bottom": 1047.515625,
+            "left": 632.5,
+            "right": 869.9140625,
+            "height": 19.4375,
+            "width": 237.4140625
+          },
+          {
+            "top": 1049.5234375,
+            "bottom": 1068.9609375,
+            "left": 632.5,
+            "right": 646.328125,
+            "height": 19.4375,
+            "width": 13.828125
+          },
+          {
+            "top": 1070.96875,
+            "bottom": 1090.40625,
+            "left": 632.5,
+            "right": 855.8984375,
+            "height": 19.4375,
+            "width": 223.3984375
+          },
+          {
+            "top": 1092.4140625,
+            "bottom": 1111.8515625,
+            "left": 632.5,
+            "right": 876.7578125,
+            "height": 19.4375,
+            "width": 244.2578125
+          },
+          {
+            "top": 1113.859375,
+            "bottom": 1133.296875,
+            "left": 632.5,
+            "right": 868.78125,
+            "height": 19.4375,
+            "width": 236.28125
+          },
+          {
+            "top": 1135.3046875,
+            "bottom": 1154.7421875,
+            "left": 632.5,
+            "right": 827.6640625,
+            "height": 19.4375,
+            "width": 195.1640625
+          },
+          {
+            "top": 1156.75,
+            "bottom": 1176.1875,
+            "left": 632.5,
+            "right": 690.53125,
+            "height": 19.4375,
+            "width": 58.03125
+          },
+          {
+            "top": 1178.1953125,
+            "bottom": 1197.6328125,
+            "left": 632.5,
+            "right": 813.421875,
+            "height": 19.4375,
+            "width": 180.921875
+          },
+          {
+            "top": 1199.640625,
+            "bottom": 1219.078125,
+            "left": 632.5,
+            "right": 834.90625,
+            "height": 19.4375,
+            "width": 202.40625
+          },
+          {
+            "top": 1221.0859375,
+            "bottom": 1240.5234375,
+            "left": 632.5,
+            "right": 736.7890625,
+            "height": 19.4375,
+            "width": 104.2890625
+          },
+          {
+            "top": 1242.53125,
+            "bottom": 1261.96875,
+            "left": 632.5,
+            "right": 863.828125,
+            "height": 19.4375,
+            "width": 231.328125
+          },
+          {
+            "top": 1263.9765625,
+            "bottom": 1283.4140625,
+            "left": 632.5,
+            "right": 877.640625,
+            "height": 19.4375,
+            "width": 245.140625
+          },
+          {
+            "top": 1285.421875,
+            "bottom": 1304.859375,
+            "left": 632.5,
+            "right": 644.65625,
+            "height": 19.4375,
+            "width": 12.15625
+          },
+          {
+            "top": 1306.8671875,
+            "bottom": 1326.3046875,
+            "left": 632.5,
+            "right": 871.71875,
+            "height": 19.4375,
+            "width": 239.21875
+          },
+          {
+            "top": 1328.3125,
+            "bottom": 1347.75,
+            "left": 632.5,
+            "right": 693.640625,
+            "height": 19.4375,
+            "width": 61.140625
+          }
+        ],
+        "washed": "rgba(182, 41, 38, 0.12)"
+      },
+      "painted": 19.4375,
+      "pitch": 21.45,
+      "currentRects": 2,
+      "currentOutline": "none",
+      "railbar": null,
+      "chip": {
+        "left": 685.640625,
+        "top": 287.3828125,
+        "width": 223.078125,
+        "height": 30,
+        "right": 908.71875,
+        "bottom": 317.3828125
+      },
+      "chipCovers": 2,
+      "colours": {
+        "canvas": "rgb(245, 247, 250)",
+        "body": "rgb(53, 54, 57)",
+        "del": "rgb(182, 41, 38)",
+        "delWash": "rgba(182, 41, 38, 0.12)",
+        "ins": "rgb(44, 106, 59)",
+        "insWash": "rgba(44, 106, 59, 0.12)",
+        "rail": "rgb(33, 117, 189)",
+        "count": "rgb(79, 83, 92)",
+        "chipFill": "rgb(252, 252, 254)",
+        "chipText": "rgb(79, 83, 92)",
+        "note": "rgb(98, 103, 116)",
+        "sep": "rgb(98, 103, 116)",
+        "sepWash": "rgba(0, 0, 0, 0)"
+      },
+      "stats": {
+        "leavesBefore": 50,
+        "leavesAfter": 59,
+        "bytesA": 1544,
+        "bytesB": 917,
+        "runs": 59,
+        "marks": 36,
+        "changes": 14,
+        "tableMarks": 16,
+        "separatorMarks": 2,
+        "wordlessMarks": 2,
+        "droppedMarks": 2,
+        "blankMarks": 15,
+        "spacingMarks": 6,
+        "tableChanges": 4
+      }
+    }
+  ],
+  "ratios": [
+    {
+      "base": "dark",
+      "what": "the deleted words on their own wash",
+      "value": 4.837402172097973
+    },
+    {
+      "base": "dark",
+      "what": "the deleted words on the plain canvas",
+      "value": 5.573695974404009
+    },
+    {
+      "base": "dark",
+      "what": "the inserted words on their own wash",
+      "value": 6.986785873920268
+    },
+    {
+      "base": "dark",
+      "what": "the inserted words on the plain canvas",
+      "value": 8.544645381159743
+    },
+    {
+      "base": "dark",
+      "what": "the separator row as furniture",
+      "value": 5.248309827863957
+    },
+    {
+      "base": "dark",
+      "what": "the change count in the bar",
+      "value": 7.104126859402261
+    },
+    {
+      "base": "dark",
+      "what": "the note row",
+      "value": 5.248309827863957
+    },
+    {
+      "base": "dark",
+      "what": "the rail bar (non-text, 3:1)",
+      "value": 6.40595467232291
+    },
+    {
+      "base": "dark",
+      "what": "the chip label on the chip",
+      "value": 6.644643924622962
+    },
+    {
+      "base": "light",
+      "what": "the deleted words on their own wash",
+      "value": 4.839769774978689
+    },
+    {
+      "base": "light",
+      "what": "the deleted words on the plain canvas",
+      "value": 5.868677230311545
+    },
+    {
+      "base": "light",
+      "what": "the inserted words on their own wash",
+      "value": 5.106148922110972
+    },
+    {
+      "base": "light",
+      "what": "the inserted words on the plain canvas",
+      "value": 6.0544755291717145
+    },
+    {
+      "base": "light",
+      "what": "the separator row as furniture",
+      "value": 5.271877324608772
+    },
+    {
+      "base": "light",
+      "what": "the change count in the bar",
+      "value": 7.182486901390333
+    },
+    {
+      "base": "light",
+      "what": "the note row",
+      "value": 5.271877324608772
+    },
+    {
+      "base": "light",
+      "what": "the rail bar (non-text, 3:1)",
+      "value": 4.504418641409863
+    },
+    {
+      "base": "light",
+      "what": "the chip label on the chip",
+      "value": 7.522822616453679
+    }
+  ]
+}

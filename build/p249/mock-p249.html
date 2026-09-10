@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phase 249 — the room the redline is in</title>
+<!-- EVERY COLOUR IN THIS PAGE COMES FROM THE PRODUCT'S OWN TOKENS. This link is
+     src/renderer/styles/tokens.css itself, not a copy, so a token that moves
+     moves here too and this page cannot drift from DESIGN.md §1. There is no
+     colour literal anywhere below: `npm run conformance:hue` rule 26 would
+     refuse one in the product and this mock is held to the same rule.
+     The mock BUILDS NOTHING — Phase 249 writes no product code. -->
+<link rel="stylesheet" href="../../src/renderer/styles/tokens.css">
+<style>
+/* ------------------------------------------------------------------ *
+ * The mock's own chrome. It is deliberately plain: it is scaffolding
+ * around the thing being proposed, never part of the proposal.
+ * ------------------------------------------------------------------ */
+html { color-scheme: dark; }
+html[data-scheme='light'] { color-scheme: light; }
+body {
+  margin: 0;
+  background: var(--bg-sidebar);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+}
+.harness {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 9;
+}
+.harness h1 {
+  margin: 0 var(--space-6) 0 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+.harness .set { display: flex; align-items: center; gap: var(--space-2); }
+.harness label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.harness button {
+  height: 24px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.harness button[aria-pressed='true'] {
+  background: var(--bg-active);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.readout {
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.stage {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-8) var(--space-6);
+  background: var(--bg-sidebar);
+}
+
+/* ------------------------------------------------------------------ *
+ * THE PANE. This box stands in for `.ed-panel`, the editor's own
+ * width. The measure step read 1349 / 699 / 319 off the running app
+ * and those are the three widths the buttons offer.
+ * ------------------------------------------------------------------ */
+.pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 760px;
+  border: 1px solid var(--border);
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+
+/* ---- the header bar (`.ed-redline-bar`) --------------------------- */
+.rl-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-canvas);
+  user-select: none;
+}
+/* TODAY: justified against the PANEL, which is why the button ends up
+   355.32px from the column it acts on at the pane he works in. */
+.pane[data-look='today'] .rl-bar { justify-content: flex-end; }
+.pane[data-look='today'] .rl-count { display: none; }
+/* PROPOSED: the bar is the page's own width, so both of its ends land
+   on the column rather than on the panel. */
+/* THE BAR IS THE PAGE'S OWN GRID, so its ends land on the column at every
+   width rather than on the panel. `Accept all` sits over the column's right
+   edge — not the margin's — because the column is what it acts on; research
+   113 §4 measured the shipped button 355.32px from that edge at the pane he
+   works in, and the cause was the bar and the column being measured against
+   different boxes. */
+.pane[data-look='new'] .rl-bar-inner {
+  display: grid;
+  grid-template-columns:
+    var(--rl-rail-w)
+    minmax(0, calc(var(--rl-measure) + var(--space-8) * 2))
+    var(--rl-margin-w);
+  column-gap: var(--space-5);
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+.pane[data-look='new'] .rl-bar-cell {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* The document's own inline padding, so the two ends sit over the first and
+     last character of a full line rather than over the box that holds them. */
+  padding-inline: var(--space-8);
+}
+.pane[data-look='today'] .rl-bar-inner,
+.pane[data-look='today'] .rl-bar-cell { display: contents; }
+.rl-count {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.rl-bar-button {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+}
+.rl-bar-button:hover { background: var(--bg-active); color: var(--text-primary); }
+
+/* ---- the scroller (`.ed-redline-scroll`) -------------------------- */
+.rl-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-canvas);
+}
+
+/* ---- THE PAGE: rail | column | margin ----------------------------- *
+ * THE ROOM BECOMES MARGINS. A marked-up document has two of them: a
+ * change bar on the left and the comments on the right. The dead space
+ * the measure step counted at 58.42% is what they are made of.
+ * ------------------------------------------------------------------ */
+.rl-page {
+  position: relative;
+  display: grid;
+  /* `fit-content` so the page's own box IS its three tracks and the dead space
+     is what is left over, which is the number fault 1 is about. */
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  column-gap: var(--space-5);
+  grid-template-columns:
+    var(--rl-rail-w)
+    minmax(0, calc(var(--rl-measure) + var(--space-8) * 2))
+    var(--rl-margin-w);
+}
+.pane[data-room='full']   { --rl-rail-w: 20px; --rl-margin-w: 264px; }
+.pane[data-room='column'] { --rl-rail-w: 20px; --rl-margin-w: 0px; }
+.pane[data-room='narrow'] { --rl-rail-w: 0px;  --rl-margin-w: 0px; }
+.pane[data-look='today']  { --rl-rail-w: 0px;  --rl-margin-w: 0px; }
+.pane { --rl-page: calc(var(--rl-rail-w) + var(--rl-measure) + var(--space-8) * 2 + var(--rl-margin-w) + var(--space-5) * 2); }
+
+/* THE MEASURE IS THE TEXT'S, NOT THE BOX'S. The shipped rule is
+   `max-width: 68ch` on a box carrying 48px of padding INSIDE it, so it
+   delivers 62.1 characters rather than 68. Here the padding is added on
+   top of the measure, so the number in the CSS is the number of
+   characters a line holds. */
+.pane[data-look='today'] { --rl-measure: calc(68 * var(--rl-ch) - var(--space-8) * 2); }
+.pane[data-look='new']   { --rl-measure: calc(84 * var(--rl-ch)); }
+
+/* ---- the document (`.ed-redline-doc`) ----------------------------- */
+.rl-doc {
+  grid-column: 2;
+  padding: var(--space-7) var(--space-8) var(--space-10);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+/* ---- THE MARKS ---------------------------------------------------- *
+ * Colour and the strikethrough are what carry the meaning, exactly as
+ * they do today. The wash is decoration and stays decoration: research
+ * 113 §7.4 measured it at 1.152:1 and 1.223:1 against the canvas, which
+ * is below every floor in the product, so nothing here is allowed to
+ * depend on it.
+ * ------------------------------------------------------------------ */
+.rl-doc del {
+  color: var(--error);
+  background: var(--error-wash);
+  text-decoration: line-through;
+  border-radius: var(--r-xs);
+}
+.rl-doc ins {
+  color: var(--success);
+  background: var(--success-wash);
+  text-decoration: none;
+  border-radius: var(--r-xs);
+}
+
+/* THE CENTRAL VISUAL QUESTION, ANSWERED THREE WAYS SO THEY COMPARE.
+ *
+ * `tiles` is what ships: the wash paints the FONT box, 15.00px on a
+ * 21.45px line pitch, so a wrapped run draws as a stack of bars with a
+ * 6.45px band of canvas between every pair.
+ *
+ * `ribbon` pads the inline box vertically until the painted height IS
+ * the line pitch. Inline padding does not change line height, so the
+ * fragments of one run meet exactly and the run becomes ONE continuous
+ * shape: flush left, ragged right, no gaps. That is the shape of a
+ * paragraph and it is drawn by CSS alone with no extra element.
+ *
+ * `seam` is the same thing two pixels short, so fragments of one run
+ * still read as continuous while two DIFFERENT marks on vertically
+ * adjacent lines keep a hairline between them.
+ */
+.rl-doc { --rl-pitch: calc(var(--text-base) * 1.65); --rl-fontbox: calc(var(--text-base) * 1.1539); }
+.pane[data-wash='tiles'] .rl-doc :is(del, ins) { padding: 0 1px; }
+/* THE TRAILING PIXEL GOES AND THE LEADING ONE STAYS, and that is fault 5's
+   last pixel rather than a detail. The shipped `padding: 0 1px` puts the wash
+   one pixel PAST the last glyph, so a marked table row's highlight ends one
+   pixel past its own closing pipe — measured at exactly 1.00px on all four of
+   this fixture's whole-row marks. Dropping both puts `starts` and `asks for`
+   glyph against glyph, which is a readability loss for a pixel's gain. So the
+   pixel moves to the leading edge: a mark is still held off whatever precedes
+   it, and a wash now ends exactly where its text ends. */
+.pane[data-wash='ribbon'] .rl-doc :is(del, ins) {
+  padding: calc((var(--rl-pitch) - var(--rl-fontbox)) / 2) 0
+           calc((var(--rl-pitch) - var(--rl-fontbox)) / 2) 1px;
+  border-radius: 0;
+}
+.pane[data-wash='seam'] .rl-doc :is(del, ins) {
+  padding: calc((var(--rl-pitch) - var(--rl-fontbox) - 2px) / 2) 0
+           calc((var(--rl-pitch) - var(--rl-fontbox) - 2px) / 2) 1px;
+  border-radius: 0;
+}
+
+/* A MARK WITH NOTHING IN IT A READER CAN READ GETS NO WASH.
+ * Twelve of this fixture's thirty-two marks hold no letter and no digit,
+ * eleven of them nothing but whitespace. A wash on one of those is a
+ * coloured rectangle with no content, and — because the document is
+ * `pre-wrap` — a preserved space at a wrap point paints past the last
+ * glyph, which is every one of the fifteen crossings research 113 §5.3
+ * measured. Dropping the wash removes both at once and changes no byte,
+ * so both projections are untouched. */
+.pane[data-look='new'] .rl-doc :is(del, ins)[data-wordless] { background: none; padding-inline: 0; }
+/* RULING 5 STANDS, EXACTLY AND NO WIDER. A whitespace-only mark that IS a
+   spacing change — the `del "   "` beside its `ins " "` — keeps its wash,
+   because in a standalone document nothing else can say it happened; it loses
+   only the strikethrough, which had no glyph to draw on. A whitespace mark
+   with no opposite-kind whitespace beside it is a deleted line's own newline
+   riding along, and washing that paints a bar past the last glyph on the row,
+   which is what crosses the table's closing pipe. */
+.rl-doc :is(del, ins)[data-blank] { text-decoration: none; }
+.pane[data-look='new'] .rl-doc :is(del, ins)[data-structural] { background: none; padding-inline: 0; }
+
+/* THE TABLE IS A BLOCK OF ITS OWN. It is still the file's SOURCE — this
+   view renders no markdown and this phase does not re-open that — but a
+   table's source is aligned by its author, and a proportional face
+   throws that alignment away. One wrapper, no text of its own, no new
+   leaf: the same shape Phase 227's change wrapper already has, so the
+   four readers of the document see exactly what they see today. */
+/* THE MONO FACE IS FOR A COLUMN WIDE ENOUGH TO HOLD A ROW. At the editor
+   panel's own floor the column is about 30 characters, where no table's grid
+   survives and a monospaced face only makes the wrapping worse, so the block
+   falls back to the document's own face there. */
+.pane[data-look='new']:not([data-room='narrow']) .rl-table {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+/* The separator row is furniture and not an edit. Its bytes stay in the marks
+   so both projections hold; only the paint changes. And the DELETED copy of a
+   plain separator is not drawn at all — `display: none` keeps the text node,
+   so the clone, the leaf walk and both projections read exactly what they read
+   today, while the reader sees the row once, the way the file has it. */
+.pane[data-look='new'] .rl-doc :is(del, ins)[data-sep] {
+  background: none;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding-inline: 0;
+}
+.pane[data-look='new'] .rl-doc :is(del, ins)[data-drop] { display: none; }
+
+/* ---- THE CURRENT CHANGE ------------------------------------------ *
+ * Today this is `outline: 1px solid var(--accent)` on the inline
+ * wrapper, and Chromium paints an outline once per FRAGMENT: 37 boxes
+ * at the wide pane and 74 at the floor on this fixture's widest change.
+ * The proposed mark is ONE bar in the rail spanning the change's whole
+ * vertical extent — one element, because only one change is ever
+ * current, and it reads as one passage rather than as damage.
+ * ------------------------------------------------------------------ */
+.pane[data-look='today'] .rl-change[data-current] {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--r-xs);
+  box-shadow: 0 0 0 1px var(--border-strong) inset;
+}
+.rl-rail { grid-column: 1; position: relative; }
+.rl-rail-bar {
+  position: absolute;
+  right: 0;
+  width: 2px;
+  border-radius: var(--r-bar);
+  background: var(--accent);
+}
+.pane[data-look='today'] .rl-rail-bar { display: none; }
+
+/* ---- THE CHIP ----------------------------------------------------- *
+ * Phase 236's placement ruling is untouched: it is out of flow and it is
+ * anchored on the change's FIRST client rect. What moves is the box it
+ * is placed in. In the margin it covers no prose at all; today it covers
+ * one drawn row at the wide pane and two at the other two.
+ * ------------------------------------------------------------------ */
+.rl-margin { grid-column: 3; position: relative; }
+.rl-chip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-2);
+  white-space: nowrap;
+  user-select: none;
+}
+.pane[data-look='today'] .rl-chip { z-index: var(--z-editor-overlay); }
+.rl-chip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+}
+.rl-chip-verb { padding: 0 var(--space-3); }
+.rl-chip-button:hover { background: var(--bg-active); color: var(--text-primary); }
+.key {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  pointer-events: none;
+}
+
+/* ---- the note rows, unchanged ------------------------------------- */
+.rl-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: none;
+  padding: var(--space-3) var(--space-6);
+  border-top: 1px solid var(--border);
+  background: var(--bg-canvas);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <h1>Phase 249 — the room the redline is in</h1>
+  <div class="set"><label>look</label>
+    <button data-set="look" data-value="today">Today</button>
+    <button data-set="look" data-value="new">Proposed</button>
+  </div>
+  <div class="set"><label>base</label>
+    <button data-set="scheme" data-value="dark">Graphite</button>
+    <button data-set="scheme" data-value="light">Paper</button>
+  </div>
+  <div class="set"><label>pane</label>
+    <button data-set="width" data-value="1349">1349</button>
+    <button data-set="width" data-value="699">699</button>
+    <button data-set="width" data-value="319">319</button>
+  </div>
+  <div class="set"><label>wash</label>
+    <button data-set="wash" data-value="tiles">Tiles</button>
+    <button data-set="wash" data-value="ribbon">Ribbon</button>
+    <button data-set="wash" data-value="seam">Seam</button>
+  </div>
+  <div class="set"><label>change</label>
+    <button data-step="-1">&#8593;</button>
+    <button data-step="1">&#8595;</button>
+  </div>
+</div>
+
+<div class="readout" id="readout"></div>
+
+<div class="stage">
+  <div class="pane" id="pane">
+    <div class="rl-bar">
+      <div class="rl-bar-inner"><div class="rl-bar-cell">
+        <span class="rl-count" id="count"></span>
+        <button type="button" class="rl-bar-button"
+          title="Stop marking every change. The file is not touched, and there is no undo — only the marking goes.">Accept all</button>
+      </div></div>
+    </div>
+    <div class="rl-scroll" id="scroll">
+      <div class="rl-page" id="page">
+        <div class="rl-rail" id="rail"><i class="rl-rail-bar" id="railbar" hidden></i></div>
+        <div class="rl-doc" id="doc"></div>
+        <div class="rl-margin" id="margin"></div>
+      </div>
+    </div>
+    <div class="rl-note" id="note"></div>
+  </div>
+</div>
+
+<script src="./mock-runs.js"></script>
+<script src="./mock-p249.js"></script>
+</body>
+</html>
