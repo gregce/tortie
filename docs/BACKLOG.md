@@ -26103,6 +26103,72 @@ terminal at the parent and at HEAD.
 
 ---
 
+## Phase 254 — a two-megabyte file should open like a small one (operator reported 2026-09-10)
+
+**Subject.** `perf(editor): a large file opens fast`
+
+**First body line.** `Phase 254: the large file opens fast`
+
+**Semver.** Patch to minor depending on what the profile names; nothing new is drawn.
+
+**Tier 2 at least, and the parent commit measurement is MANDATORY**, because the operator personally
+reported it: his own two files, timed at the parent and at HEAD, are the only honest proof. If the fix
+touches the baseline machinery or the guarded read, the touched gate's tier and rules apply on top.
+
+**Charter.** The operator, 2026-09-10: opening
+`/Users/gdc/runstorydotcom/.specstory/history/2026-09-01_19-10-47Z-i-would-like-you.md` (2,559,758
+bytes, untracked prose) "loads very slowly", as does `docs/BACKLOG.md` (3,257,257 bytes, tracked and
+usually modified, so it opens as a DIFF against HEAD, which is its own suspect). "Opening files should
+be blazingly fast. Please do a deep job of understanding how vscode does it and what might be
+preventing us from opening super fast and fix." **His files are copied for measurement and the copies
+deleted; no byte of their content appears in any document, fixture or commit** — synthesized fixtures
+of the same size and line shape stand in wherever a committed fixture is needed.
+
+**THE MEASURE COMES FIRST AND NAMES THE MILLISECONDS.** Both of his shapes are prose, and prose is the
+one kind of file Tortie does EXTRA work for on open, so the profile must attribute the whole wall time
+from click to interactive, stage by stage, at the parent commit: the IPC read and the one-string
+transfer; Monaco model creation and tokenization; **the shadow baseline seed and the Phase 243 durable
+store**, whose own header measures `store()` at 20–50 ms and a 23.5 ms event-loop gap at BACKLOG.md's
+own 3 MB (JSON.stringify, encode and two sha256 passes on main); the redline availability check; **the
+Pierre diff for a modified tracked file**, which is the mode BACKLOG.md actually opens in; the watcher
+tick and `refreshRepo`'s digests; and anything else the trace shows. A phase that fixes the wrong
+stage because it guessed has not done the work.
+
+**THE VS CODE READING IS THE SECOND HALF**, from a shallow sparse clone of `microsoft/vscode`, read
+only, removed in a `finally`, with file and line named: the **piece tree text buffer** built from
+64 KB chunks so no file is ever one JS string; the streamed file read behind it; **`editor.largeFileOptimizations`**
+and the thresholds at which VS Code turns off tokenization, word-based suggestions, folding and
+bracket matching; the line-length cap past which a line is not tokenized; and what stays ON so the
+file still reads as text. Adopt what fits — Monaco is VS Code's own editor, so most of the levers are
+already in the dependency and the question is which ones Tortie fails to pull, and what TORTIE adds on
+top that VS Code does not do at all (the baseline, the diff-by-default, the prose machinery) and how
+each is deferred, streamed, capped or moved off the open path for a large file without breaking its
+promise. **A promise may be deferred, never silently dropped**: if the baseline of a 3 MB file seeds
+lazily, the redline still works when asked; if tokenization is capped, the file still opens; every cap
+is stated where a person meets it.
+
+**The proof, run rather than read.** The app run opens both his shapes (same-size synthesized twins)
+at the parent and at HEAD and reads click-to-first-paint and click-to-interactive; the target is
+stated by the research from VS Code's own timing on the same machine over the same bytes, and the
+result is published beside it. Gate arms pin whichever caps and deferrals land, ablated red; existing
+gates for any touched domain (`conformance:redline` for baseline work, `conformance:redline-write` for
+the read path) run for the commit.
+
+### What is NOT in this phase
+
+- **No promise is dropped for speed.** The redline, the baseline's durability, the save guards and the
+  diff all keep their behavior; they may move off the open path, never off the product.
+- **No byte of his two files** in any document, fixture, commit or report — sizes and shapes only.
+- **No third-party code executes in any Tortie process**; VS Code is read, its thresholds are ported
+  with attribution.
+- **The 16 MB guarded-read cap and its refusals do not move.**
+- **No virtual scrolling rewrite of the redline** — research 113 §7.1's mounted-DOM question belongs
+  to the redline phases, not here.
+- **The release the operator is waiting to cut waits on Phase 253, not on this phase**, unless he says
+  otherwise.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26679,3 +26745,5 @@ cycle rather than only the evening it was written.
 - 2026-09-10, **PHASE 252 LANDED on `56c754ef` at version 0.102.0 with NO bump and NO tag**, the box fits its content. His three bad screenshots were one unconditional line: every direct-child wide block took `max(100%, --md-wide)`, so a ~75ch ASCII diagram drew at the full cap with the emptiness inside its own border. The width is now the content's own `max-content`, floored at the prose column (`min-width: 100%`, so a short fence fills it exactly as before) and capped at `--md-wide` unchanged — the keyword `fit-content` is refused in the stylesheet comment because on a block box it clamps to the 68ch column and would refuse the break-out entirely. **THE CENTRING IS `left: 50%` + `translate: -50%`, MEASURED against the outer-grid candidate rather than chosen**: both centre at 0px, the grid stops sibling margins collapsing and grew the fixture's document 1,443 → 1,527px, and the shipped pair moves nothing vertical; scrollLeft 0 shows column one, a scroll clamps at the box's own content, hit-testing and caret land inside the drawn box, and the pane's scrollable overflow is the POST-transform bounds so the document scrolls sideways nowhere. `conformance:wideblocks` is fifteen rules and **twenty ablations, all red**: rule 8 re-derives the CLAMP against the DOM, rule 14 the width classes at **±2px** (under draws the column, between draws ITS OWN width and never the cap, over draws the cap with a FENCE's scroller live — a table whose min-content fits the cap compresses instead, which is his good shape), rule 15 the centring at **±1px** over three panes, both bases and zoom stops above AND below 1. `probe:p252` (floor 118 → 119) drives his five shapes plus the two the classes need at 1349, 699 and 319px, each reached exactly, with the PARENT'S two declarations injected byte identical to `464cad61` as the parent measurement: the three bad shapes at the cap against content asking 589.52/734.02/734.02px, the two good tables (1318.43 and 1251.14px of content) **unmoved byte for byte**, 20 passed and 0 failed. `probe:p248` gains an over-cap fence so the cap sweep still has something to plateau on (1112px against 1113.6, the fence's own 1px borders), its graders take the clamp, A5 becomes the `@property` claim outright, and rule 13's corner is redefined to the BOX's left edge because the widest box a narrow table now gets is the column — 52 passed and 0 failed. Battery green: typecheck, build with every gate and the contract inventory byte identical, `npm test` 13,450 over 856 files, `smoke:t1` 6 of 6. His `-L gmux` read **36 before and 36 after** every run, listed only; no machine, no ssh, no keychain, no token, no bump, no tag.
 
 - 2026-09-10, **PHASE 253 QUEUED, the paths VS Code catches**: at his word, read `microsoft/vscode`'s terminal links contrib (MIT, sparse clone, read only) and adopt what survives measurement — their suffix table (`(line,col)`, `[line, col]`, quoted forms) ported with their own test rows, the wrapped-line join IF xterm's `isWrapped` survives tmux (research 114 measured tmux `-J` confirming 18 of 57, so this is measured before it is believed), and a fallback for a bare slashless filename priced over his corpus (unique match, Quick Open prefilled, or stay refused). Research half writes docs/research/115; build half stays behind `decidePathDoor` and every 107 refusal. Baseline to beat: 99.2% of paths that really name a file, so the denominator is widened honestly first. The release does not wait on it unless he says so.
+
+- 2026-09-10, **PHASE 254 QUEUED, the large file opens fast**: his 2.56 MB specstory history and the 3.26 MB BACKLOG.md both open slowly, and both are PROSE, the one kind Tortie does extra work for on open — the baseline seed and its durable store (measured at 20-50 ms with a 23.5 ms main-thread gap at 3 MB in Phase 243's own header), the diff-by-default for a modified tracked file, the prose checks. The measure step profiles click-to-interactive stage by stage at the parent BEFORE anything is fixed; the research half reads VS Code's piece tree, largeFileOptimizations and tokenization caps with file and line named; the fix pulls the Monaco levers Tortie fails to pull and moves Tortie's own additions off the open path WITHOUT dropping a promise — deferred, never silently dropped, every cap stated where a person meets it. Proof is his two shapes timed at parent and HEAD beside VS Code's own timing over the same bytes. No byte of his files in any artifact.
