@@ -80,6 +80,8 @@ import {
 } from './redline-current';
 import type { ChangeIdentity } from './redline-current';
 import { RedlineChip } from './redline-chip';
+import { railBarFor, roomFor } from './redline-room';
+import type { RailBar, RedlineRoom } from './redline-room';
 import { installRedlineCommands } from './redline-commands';
 import type { RedlineCommand } from './redline-commands';
 import { applyRewind } from './redline-write';
@@ -94,6 +96,7 @@ import {
 } from './redline-hint';
 import {
   redlineAcceptRefusalSentence,
+  redlineChangeCount,
   redlineRefusalSentence,
   redlineUndoNote,
   redlineUndoRefusalSentence
@@ -277,14 +280,42 @@ export function RedlineDocument({
   // other side of the same pair.
   const shownRef = useRef(shownText);
   shownRef.current = shownText;
-  // PHASE 236. The chip's own boxes. The view is held as STATE rather than a
-  // ref, because the chip is placed against it and so has to be re-rendered
-  // once the element exists; it is the only positioned box in the view
-  // (research 96 §1.4) and therefore the containing block. `chipRef` is held
-  // here so the pointer handler below can tell "the pointer moved onto the
-  // chip" from "the pointer left the change".
-  const [viewEl, setViewEl] = useState<HTMLDivElement | null>(null);
+  // PHASE 236. `chipRef` is held here so the pointer handler below can tell
+  // "the pointer moved onto the chip" from "the pointer left the change".
+  // The BOX the chip is placed against was `.ed-redline-view` until Phase 251
+  // and is `.ed-redline-page` now; ./redline-chip carries the reason.
   const chipRef = useRef<HTMLDivElement | null>(null);
+  // PHASE 251. THE PAGE and THE RAIL (research 114 §6.1 and §6.2). The page is
+  // held as STATE for the reason the view is: the chip is placed against it,
+  // so this component has to re-render once the element exists. The rail is a
+  // ref, because nothing is drawn from it — it is only the box the bar's own
+  // top and height are measured against.
+  const [pageEl, setPageEl] = useState<HTMLDivElement | null>(null);
+  const railRef = useRef<HTMLDivElement | null>(null);
+  // The scroller, held as state as well as in `hostRef`. The chip needs the
+  // element to measure the free canvas beside the page in, and every other
+  // reader of the scroller in this file wants it inside a callback where a ref
+  // is the right shape; one callback ref sets both so the two can never name
+  // different elements.
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const setHostEl = useCallback((el: HTMLDivElement | null): void => {
+    hostRef.current = el;
+    setScrollEl(el);
+  }, []);
+  const [room, setRoom] = useState<RedlineRoom>('full');
+  // PHASE 251. THE SCROLLER'S OWN GUTTER, mirrored by the header bar so the
+  // bar's ends land on the column. Where the platform draws a classic
+  // scrollbar the scroller's content box is narrower than its border box on
+  // the right alone, which centres the page off the bar's own centre; where it
+  // draws an overlay one this is 0 and nothing moves. ./redline.css says why
+  // the answer is not `scrollbar-gutter: stable both-edges`.
+  const [gutter, setGutter] = useState(0);
+  const [railBar, setRailBar] = useState<RailBar | null>(null);
+  // A token the view's own resize observer bumps, so the rail bar is
+  // re-measured when the panel is dragged. It is a token rather than a size
+  // because nothing here wants the number: the bar is measured off the live
+  // rects either way, and a token cannot go stale.
+  const [geometry, bumpGeometry] = useReducer((n: number) => n + 1, 0);
   const [hovered, setHovered] = useState<HTMLElement | null>(null);
   // PHASE 239 shape 1. THE CURRENT CHANGE IS STATE, KEYED ON ITS IDENTITY, and
   // it is the whole of what the operator asked for. Phase 236 held
@@ -591,6 +622,25 @@ export function RedlineDocument({
   // drawn, so the first thing a person sees is never spent on an empty
   // document.
   const hasChanges = composed !== null && composed.changes.length > 0;
+  // PHASE 251. WHICH change the person is on, for the bar's count, read off
+  // the same list the wrappers are drawn from and by the same rule
+  // `DocumentRuns` uses, so the number on the face and the change the chords
+  // act on can never be two different changes. Null until they have gone
+  // somewhere, which is Phase 236's resting face.
+  const currentIndex =
+    composed === null || current === null
+      ? null
+      : (() => {
+          const at = composed.changes.findIndex((change) =>
+            sameChange(current, {
+              off: change.off,
+              del: change.del,
+              ins: change.ins,
+              generation
+            })
+          );
+          return at === -1 ? null : at;
+        })();
   // A dirty tab is not re-read by the watcher, so the right side is the
   // person's buffer and not the disk for as long as it stays dirty; the
   // sentence states that limit rather than hiding it.
@@ -632,6 +682,51 @@ export function RedlineDocument({
       remeasure();
     }
   }, [current, composed]);
+  // PHASE 251. THE ROOM THE PAGE HAS, and the token that re-measures the rail
+  // bar when the panel is dragged. It observes the SCROLLER rather than the
+  // view, because the scroller is exactly the box the page lives in, so the
+  // arithmetic behind `REDLINE_RAIL_FLOOR` is about the width it really has
+  // rather than about a width one border away from it.
+  useEffect(() => {
+    const scroller = scrollEl;
+    if (scroller === null) return;
+    const read = (): void => {
+      setRoom(roomFor(scroller.clientWidth));
+      setGutter(Math.max(0, scroller.offsetWidth - scroller.clientWidth));
+      bumpGeometry();
+    };
+    read();
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(read);
+    observer?.observe(scroller);
+    window.addEventListener('resize', read);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', read);
+    };
+  }, [scrollEl]);
+  // PHASE 251. THE BAR, measured after layout and never during it. `currentEl`
+  // is the element the effect above found, so this runs in the pass after it
+  // and reads a wrapper that is really in the tree. It re-runs on a recompose
+  // (`composed`), on the placement token the chip already depends on, and on
+  // the geometry token above; it needs NO scroll listener, because the bar is
+  // inside the scroller with the document it names.
+  //
+  // The same object is kept when neither number moved, so a resize that
+  // changed nothing about this change cannot cause a second render.
+  useLayoutEffect(() => {
+    const rail = railRef.current;
+    if (rail === null || currentEl === null) {
+      setRailBar(null);
+      return;
+    }
+    const next = railBarFor(currentEl.getClientRects(), rail.getBoundingClientRect().top);
+    setRailBar((prev) =>
+      prev !== null && next !== null && prev.top === next.top && prev.height === next.height
+        ? prev
+        : next
+    );
+  }, [currentEl, composed, placement, geometry]);
   // PHASE 237 gave the document a caret, and a caret is the same claim a
   // focused wrapper makes (./redline-caret changeAtCaret). Moving it INTO a
   // change makes that change current; moving it anywhere else leaves the
@@ -666,7 +761,16 @@ export function RedlineDocument({
   return (
     <div
       className="ed-redline-view"
-      ref={setViewEl}
+      // PHASE 251. THE ROOM THE PAGE HAS, from the resize observer above,
+      // which watches the SCROLLER because the scroller is exactly the box the
+      // page lives in and `REDLINE_RAIL_FLOOR` is arithmetic about that width.
+      // The ANSWER is carried here, on the view, rather than on the page,
+      // because the page's own width is what it decides, so a rule keyed on
+      // the page would be asking the answer to name the question — and because
+      // the bar's inner box is a sibling of the scroller and has to narrow
+      // with it.
+      data-room={room}
+      style={{ '--redline-gutter': `${String(gutter)}px` } as React.CSSProperties}
       // PHASE 236. One handler for the whole view, because `pointerover`
       // bubbles from every element the pointer enters: a move onto the chip
       // KEEPS the chip (the chip is not inside the scroller, so leaving the
@@ -708,27 +812,45 @@ export function RedlineDocument({
           of the document never see it and the projection is unchanged. */}
       {hasChanges ? (
         <div className="ed-redline-bar" data-redline-tag="">
-          <button
-            type="button"
-            className="ed-redline-bar-button"
-            // PHASE 238's FIX ROUND. One clause more, behind hover, because
-            // the verifier recorded that accept-all has no confirmation and
-            // no undo and the face said neither. Both halves are here and
-            // both are true: no byte of the file is at risk (research 83
-            // B.5), and what goes is the marking, which is the only thing
-            // this verb can cost (A3.4). It stays on the TITLE and not on the
-            // resting face, which is the house rule for explanation.
-            title="Stop marking every change. The file is not touched, and there is no undo — only the marking goes."
-            onClick={() => {
-              runCommand('acceptAll');
-            }}
-          >
-            Accept all
-          </button>
+          {/* PHASE 251, research 114 §6.4. THE BAR'S INNER BOX IS THE PAGE'S
+              OWN GRID, so both of its ends land on the column rather than on
+              the panel: research 113 §4 measured `Accept all` 355.32px from
+              the column's content edge at the pane the operator works in, and
+              the cause was the bar and the column being measured against
+              different boxes. ./redline.css holds the two track lists and
+              `npm run conformance:redline` rule 37 fails the build when they
+              drift apart. */}
+          <div className="ed-redline-bar-inner">
+            <div className="ed-redline-bar-cell">
+              {/* The count, in the words ./redline-sentences owns. It says how
+                  many there are until a person has gone to one, because Phase
+                  236's rule is that the resting face names no change. */}
+              <span className="ed-redline-bar-count">
+                {redlineChangeCount(composed?.changes.length ?? 0, currentIndex)}
+              </span>
+              <button
+                type="button"
+                className="ed-redline-bar-button"
+                // PHASE 238's FIX ROUND. One clause more, behind hover, because
+                // the verifier recorded that accept-all has no confirmation and
+                // no undo and the face said neither. Both halves are here and
+                // both are true: no byte of the file is at risk (research 83
+                // B.5), and what goes is the marking, which is the only thing
+                // this verb can cost (A3.4). It stays on the TITLE and not on the
+                // resting face, which is the house rule for explanation.
+                title="Stop marking every change. The file is not touched, and there is no undo — only the marking goes."
+                onClick={() => {
+                  runCommand('acceptAll');
+                }}
+              >
+                Accept all
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
       <div
-        ref={hostRef}
+        ref={setHostEl}
         className="ed-redline-scroll"
         tabIndex={0}
         role="region"
@@ -764,33 +886,64 @@ export function RedlineDocument({
         {doc === null ? (
           <OpeningSkeleton />
         ) : (
-          // One `data-redline` element for the whole document, so the copy
-          // handler's containment rule covers any selection inside it.
-          <div className="ed-redline ed-redline-doc"
-            data-redline=""
-            {...typing.docProps}
-          >
-            <DocumentRuns
-              runs={doc.runs}
-              changes={composed?.changes ?? []}
-              generation={generation}
-              current={current}
+          // PHASE 251. THE PAGE: two tracks, `[rail] [column]`, centred in the
+          // scroller with `width: fit-content`, so the free canvas is what is
+          // left over on each side and the chip lives in it rather than in a
+          // reserved track of its own (research 114 §2.1). It is the
+          // positioned box the rail bar and the chip are both placed against;
+          // ./redline.css is what makes it one and ./redline-chip says so too.
+          <div className="ed-redline-page" ref={setPageEl}>
+            {/* THE RAIL. No content of its own and, at rest, not one drawn
+                pixel. `aria-hidden` because the bar inside it says nothing the
+                change's own `aria-label` has not said, and because
+                `p225-redline-projection.test.tsx` reads the FIRST aria-label
+                in the markup and it must stay the scroller's. */}
+            <div className="ed-redline-rail" ref={railRef} aria-hidden="true">
+              {railBar === null ? null : (
+                <i
+                  className="ed-redline-rail-bar"
+                  style={{
+                    top: `${String(railBar.top)}px`,
+                    height: `${String(railBar.height)}px`
+                  }}
+                />
+              )}
+            </div>
+            {/* One `data-redline` element for the whole document, so the copy
+                handler's containment rule covers any selection inside it. */}
+            <div className="ed-redline ed-redline-doc"
+              data-redline=""
+              {...typing.docProps}
+            >
+              <DocumentRuns
+                runs={doc.runs}
+                changes={composed?.changes ?? []}
+                generation={generation}
+                current={current}
+              />
+            </div>
+            {/* PHASE 236. OUTSIDE `.ed-redline-doc`: the four readers of the
+                document walk that element's own children, and a chip inside it
+                would read as a run.
+
+                PHASE 251 MOVED IT INSIDE THE PAGE, which is inside the
+                scroller, so it scrolls with the document it names and the
+                scroll listener research 96 §1.4 named as the price of living
+                outside the scroller is no longer paid. The page is the box it
+                is measured against in both of its arms, which is why the page
+                element is what it is handed. */}
+            <RedlineChip
+              anchor={anchor}
+              page={pageEl}
+              scroll={scrollEl}
+              placement={placement}
+              onCommand={runFromChip}
+              chipRef={chipRef}
+              onDetached={forgetAnchor}
             />
           </div>
         )}
       </div>
-      {/* PHASE 236. OUTSIDE `.ed-redline-doc`, and after the scroller: the
-          four readers of the document walk that element's own children, and
-          `p225-redline-projection.test.tsx`'s aria() reads the FIRST
-          aria-label in the markup, which must stay the scroller's. */}
-      <RedlineChip
-        anchor={anchor}
-        view={viewEl}
-        placement={placement}
-        onCommand={runFromChip}
-        chipRef={chipRef}
-        onDetached={forgetAnchor}
-      />
       {note !== null ? (
         <div className="banner ed-note" role="status">
           <span className="banner-text">{note}</span>

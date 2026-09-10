@@ -347,6 +347,101 @@
  *      Its ablation directories are `.p251-table-*` at the repository root,
  *      for rules 19 and 25's reason.
  *
+ *  33-36. THE ROOM AND THE WASH (Phase 251, research 114 §6.1, §6.2 and §7
+ *      arms 6, 11, 14 and 15). Every rule above these asks about the RUNS.
+ *      These four ask about the page they are drawn on, which is the half
+ *      research 113 measured and no gate had ever looked at: 58.42% of the
+ *      pane the operator works in was empty canvas, a wrapped mark painted its
+ *      15.00px font box on a 21.45px line pitch so a run drew as a stack of
+ *      tiles with a 6.45px band between every pair, and the ring on the
+ *      current change drew 23 outlined boxes at that pane and 43 at the
+ *      panel's floor.
+ *
+ *        33 THE MEASURE MEANS CHARACTERS OF TEXT. `max-width: 68ch` on a box
+ *           carrying 48px of padding INSIDE it delivers 62.1 characters, so
+ *           the number in the stylesheet never meant what it said. The measure
+ *           is the text's now and the padding is added on top of it in the
+ *           page's own track; six planted stylesheets, four of which must
+ *           fail, and the reading off the running app is `probe:p249`.
+ *        34 THE RAIL NEVER COLLAPSES AND THE CURRENT CHANGE IS ALWAYS MARKED.
+ *           The design's first version set the rail to zero at the panel's
+ *           floor and scoped the outline that replaces it to the TODAY look,
+ *           so at 319px the current change was marked by NOTHING AT ALL, at
+ *           the one width where the outline is worst. Two halves: the
+ *           stylesheet's ladder is asked of every `data-room` value read out
+ *           of the shipping module, and `railBarFor` and `roomFor` are DRIVEN
+ *           under node with six ablations, one clause each.
+ *        35 COLOUR AND DECORATION CARRY THE MEANING, NOT THE WASH. This phase
+ *           makes the wash TALLER, which is the change that would tempt a
+ *           later round to let it mean something; research 113 §7.4 measured
+ *           it at 1.152:1 and 1.223:1 against the canvas. With the background
+ *           taken away a deletion and an insertion must still differ, in BOTH
+ *           colour and decoration.
+ *        36 THE WASH ARITHMETIC, AND WHAT THIS FILE CANNOT SEE. The block
+ *           padding is derived from the pitch, the font box and the seam
+ *           rather than typed; the short side carries its `max(0px, …)`; the
+ *           trailing inline pixel is gone and the leading one stays; and the
+ *           pitch agrees with the `line-height` the document really declares.
+ *           THE LONG SIDE IS NOT GUARDED HERE AND CANNOT BE — `--redline-
+ *           fontbox` is a font metric, a face substitution moves it, and only
+ *           `probe:p249`'s painted-height reading can see the overlap.
+ *
+ *      Rule 34's ablation directories are `.p251-room-*` at the repository
+ *      root, for rules 19, 25 and 26's reason.
+ *
+ *  37. THE BAR'S INNER GRID IS THE PAGE'S GRID (Phase 251, research 114 §7
+ *      arm 12). `Accept all` sat 414.1px past the column's right content edge
+ *      at the pane the operator works in, and research 113 §4 named the cause
+ *      exactly: the bar was justified against the PANEL while the column was
+ *      centred inside it, so the button's distance from the thing it acts on
+ *      WAS the right-hand dead space. The fix is that the bar's inner box
+ *      takes the page's own tracks, and the failure mode of the fix is the two
+ *      templates drifting apart one careless edit at a time — which nothing
+ *      would see, because a bar 12px out of step with its column still looks
+ *      like a bar. So the two are read out of the stylesheet BY MATCHING
+ *      BRACES and compared, `grid-template-columns` and `column-gap` both, and
+ *      the scanner is proved on planted rules of which five must fail.
+ *
+ *  38. THE CHIP TAKES THE BAND ARM ONLY WHEN THE BAND HOLDS ITS OWN DRAWN
+ *      WIDTH (Phase 251, research 114 §7 arm 13, §6.4). Six arms on the
+ *      SHIPPING `chipPlace` and `chipAnchorRect`, driven under node by
+ *      build/redline-chip-probe.mts, each with an ablation of its own clause.
+ *
+ *        ONE DECISION, ONE NUMBER. The first version of the design gated the
+ *        margin on a `data-room` ladder at 1060px while the placement asked
+ *        whether a 264px track was at least 200px wide: two undeclared numbers
+ *        and a 264px cliff on one pixel of drag. The question is asked once
+ *        here, of the chip's own drawn width, so A RE-LABELLED BUTTON MOVES
+ *        THE ANSWER BY ITSELF — 258.28px takes the band at the operator's pane
+ *        and 299.07px does not, at the same pixel. The ablation is that
+ *        ladder, being a constant threshold in place of the measurement.
+ *
+ *        THE TEST AND THE PLACEMENT ARE THE SAME ARITHMETIC, which is what
+ *        makes it one number rather than two: the arm asks for the chip's
+ *        width plus the gutter and then puts the chip at that gutter, so an
+ *        accepted chip really fits. The arm reads `fits` for every cell and an
+ *        ablation that places further out than the test allowed goes red.
+ *
+ *        THE OVERLAY ARM IS REQUIRED AND IS NOT A FALLBACK ANYBODY MAY
+ *        DELETE. Research 96 §4.1 and research 113 §7.3 each measured 0.00px
+ *        of free canvas at the editor panel's own floor and this probe reads
+ *        the same 0.00px there, so at 319px there is nowhere else for the
+ *        controls to be. Phase 236's placement is unchanged inside it.
+ *
+ *        THE ANCHOR IS UNTOUCHED. `chipAnchorRect` still answers
+ *        `getClientRects()[0]`, asks for no bounding box at all, and research
+ *        96 §4.5's own 435.73px displacement is re-derived through the
+ *        shipping placement rather than quoted.
+ *
+ *        THE PAGE IS THE CONTAINING BLOCK IN BOTH ARMS, which is the fact
+ *        redline-chip.tsx, RedlineDocument.tsx and redline.css all state and
+ *        must move together. Moving the page moves the overlay placement with
+ *        it by exactly as much and moves the band placement by nothing at all,
+ *        because the band is the page's own width plus the gutter.
+ *
+ *      Its ablation directories are `.p251-chip-*` at the repository root, for
+ *      rules 19, 25 and 26's reason.
+ *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
 
@@ -390,7 +485,7 @@ const WORST_CASE_CEILING_MS = 400;
 // cannot drift off in silence.
 const REDLINE_DIR = 'src/renderer/editor';
 const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline[.-])/;
-const REDLINE_FILES_FLOOR = 22;
+const REDLINE_FILES_FLOOR = 23;
 const REDLINE_FILES = readdirSync(REDLINE_DIR)
   .filter((name) => REDLINE_NAME.test(name))
   .sort()
@@ -412,6 +507,10 @@ const REDLINE_FILES_NAMED = [
   // write channel, which rule 9 was narrowed to allow at exactly one call site.
   'src/renderer/editor/rewind.ts',
   'src/renderer/editor/redline-write.ts',
+  // Phase 251: the room the page has and the bar the current change draws.
+  // Two pure functions and a number, out of ./RedlineDocument so rule 34 can
+  // drive them under node. Same refusals.
+  'src/renderer/editor/redline-room.ts',
   // Phase 227: the undo journal, per tab and in memory. It writes nothing.
   'src/renderer/editor/redline-journal.ts',
   // Phase 227: the refusal sentences. Text for a person, no write.
@@ -3483,6 +3582,1102 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       say(
         `26-32. ${String(TABLE_ARMS.length)} arms over the shipping composer, and ` +
           `${String(red)} of ${String(TABLE_ARMS.length)} ablations moved their arm's reading`
+      );
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      // A sweep, in case a name from an interrupted run is left at the root.
+      for (const name of readdirSync('.')) {
+        if (name.startsWith(prefix) && existsSync(name)) {
+          rmSync(name, { recursive: true, force: true });
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 251, rules 33 to 36: THE ROOM AND THE WASH (research 114 §6.1, §6.2,
+// §6.5 and §7 arms 6, 11, 14 and 15).
+//
+// Every rule above these asks about the RUNS. These four ask about the page
+// they are drawn on, which is the half research 113 measured and no gate has
+// ever looked at: 58.42% of the pane the operator works in was empty canvas, a
+// wrapped mark painted its 15.00px font box on a 21.45px line pitch so a run
+// drew as a stack of tiles with a 6.45px band between every pair, and the ring
+// on the current change drew 23 outlined boxes at that pane and 43 at the
+// panel's floor.
+//
+// WHAT IS HERE AND WHAT IS IN THE APP RUN, because §7 arm 6 is explicit about
+// it: a stylesheet reading cannot see a face substitution, so the LONG side of
+// the wash — where two vertically adjacent washes would overlap — is guarded
+// by `npm run probe:p249` reading the painted height off the running app and
+// never by anything in this file. What is here is the structure that makes
+// that reading possible: the arithmetic is derived rather than typed, the
+// short side carries its `max(0px, …)` guard, the trailing inline pixel is
+// gone, and the pitch agrees with the line height it is supposed to be.
+// ---------------------------------------------------------------------------
+
+/**
+ * Every rule in a stylesheet as `{ selector, body }`, read by MATCHING BRACES
+ * so a declaration in a neighbouring rule is never read as this rule's. It is
+ * the same walk `cssBlocksFor` above does; this one keeps the selector, which
+ * is what rules 33 to 36 need in order to say WHICH rule they mean.
+ */
+function cssRules(css) {
+  const bare = stripComments(css);
+  const out = [];
+  let from = 0;
+  for (;;) {
+    const open = bare.indexOf('{', from);
+    if (open === -1) break;
+    const body = blockAt(bare, open);
+    if (body === null) break;
+    const close = closeOf(bare, open);
+    const prev = Math.max(bare.lastIndexOf('}', open - 1), bare.lastIndexOf(';', open - 1));
+    const selector = bare.slice(prev + 1, open).replace(/\s+/g, ' ').trim();
+    if (!selector.startsWith('@')) out.push({ selector, body });
+    from = close === -1 ? open + 1 : close + 1;
+  }
+  return out;
+}
+
+/** The value the cascade leaves for `prop` on every rule whose selector matches. */
+function declFor(css, matches, prop) {
+  let value;
+  for (const rule of cssRules(css)) {
+    if (!matches(rule.selector)) continue;
+    const re = new RegExp(`(?:^|;|\\{)\\s*${prop}\\s*:([^;}]*)`, 'g');
+    let hit;
+    while ((hit = re.exec(rule.body)) !== null) value = hit[1].replace(/\s+/g, ' ').trim();
+  }
+  return value;
+}
+
+/** Whitespace-blind, so a reformat is not a finding. */
+const tight = (text) => (text ?? '').replace(/\s+/g, '');
+
+// ---------------------------------------------------------------------------
+// Rule 33. THE MEASURE MEANS CHARACTERS OF TEXT (§7 arm 11).
+//
+// `max-width: 68ch` on a box carrying 48px of padding INSIDE it delivers 62.1
+// characters, so the number in the stylesheet never meant what it said
+// (research 113 §1: the `ch` computes at 8.1885px and the text column measured
+// 508.81px). The measure is now the TEXT's and the padding is added on top of
+// it in the page's own track, and the failure mode of that fix is somebody
+// putting the padding back inside — which nothing would see, because a column
+// 48px narrower than it should be still looks like a column.
+//
+// The APP RUN is what proves it on the face: `npm run probe:p249` reads the
+// document's box against the measure plus its padding at three pane widths on
+// both bases. This is the structure that reading depends on.
+// ---------------------------------------------------------------------------
+
+/**
+ * The three facts rule 33 asks of a stylesheet, as one function so the plants
+ * below exercise exactly what the shipping file is asked.
+ */
+function measureFindings(css) {
+  const found = [];
+  const docMaxWidth = declFor(css, (s) => s.trim() === '.ed-redline-doc', 'max-width');
+  if (docMaxWidth !== undefined) {
+    found.push(
+      `the document declares max-width: ${docMaxWidth}, so the padding is inside the measure again`
+    );
+  }
+  const measure = declFor(css, (s) => /\.ed-redline-view(?![\w-])/.test(s), '--redline-measure');
+  if (measure === undefined) {
+    found.push('no --redline-measure is declared on .ed-redline-view');
+  } else if (!/^\d+(\.\d+)?ch$/.test(measure)) {
+    found.push(`--redline-measure is ${measure}, which is not stated in characters`);
+  }
+  const track = declFor(
+    css,
+    (s) => /\.ed-redline-page(?![\w-])/.test(s),
+    'grid-template-columns'
+  );
+  const t = tight(track);
+  if (track === undefined) {
+    found.push('the page declares no grid-template-columns');
+  } else if (!t.includes('var(--redline-measure)')) {
+    found.push(`the page's column track does not name the measure: ${track}`);
+  } else if (!t.includes('var(--redline-pad)*2')) {
+    found.push(
+      `the page's column track does not add the document's padding on top of the measure: ${track}`
+    );
+  }
+  // The DOCUMENT's own rule and never a rule about something inside it: the
+  // marks' own padding lives on `.ed-redline-doc :is(del, ins)` and reading it
+  // here would answer the wash's arithmetic to a question about the column.
+  const pad = declFor(css, (s) => s.trim() === '.ed-redline-doc', 'padding');
+  if (pad === undefined || !pad.includes('var(--redline-pad)')) {
+    found.push(
+      `the document's inline padding is "${String(pad)}" rather than the --redline-pad the track adds`
+    );
+  }
+  return found;
+}
+
+{
+  const CSS = readFileSync('src/renderer/editor/redline.css', 'utf8');
+  const TRACK =
+    'var(--redline-rail) minmax(0, calc(var(--redline-measure) + var(--redline-pad) * 2))';
+  const GOOD =
+    `.ed-redline-view { --redline-measure: 84ch; --redline-pad: var(--space-8); }\n` +
+    `.ed-redline-page { grid-template-columns: ${TRACK}; }\n` +
+    `.ed-redline-doc { padding: var(--space-7) var(--redline-pad) var(--space-10); }\n`;
+  const PLANTS = [
+    { name: 'the shipped shape', css: GOOD, caught: false },
+    {
+      name: 'the two terms written the other way round, which is the same fact',
+      css: GOOD.replace(
+        'calc(var(--redline-measure) + var(--redline-pad) * 2)',
+        'calc(var(--redline-pad) * 2 + var(--redline-measure))'
+      ),
+      caught: false
+    },
+    {
+      name: 'the shipped max-width put back on the document',
+      css: `${GOOD}.ed-redline-doc { max-width: 68ch; }\n`,
+      caught: true
+    },
+    {
+      name: 'the padding taken back inside the measure',
+      css: GOOD.replace(
+        'minmax(0, calc(var(--redline-measure) + var(--redline-pad) * 2))',
+        'minmax(0, var(--redline-measure))'
+      ),
+      caught: true
+    },
+    {
+      name: 'the measure given in pixels, so the number stops meaning characters',
+      css: GOOD.replace('84ch', '688px'),
+      caught: true
+    },
+    {
+      name: "the document's own padding drifting off the name the track adds",
+      css: GOOD.replace(
+        'padding: var(--space-7) var(--redline-pad) var(--space-10)',
+        'padding: var(--space-7) var(--space-8) var(--space-10)'
+      ),
+      caught: true
+    }
+  ];
+  let behaved = 0;
+  for (const plant of PLANTS) {
+    const hits = measureFindings(plant.css);
+    if (hits.length > 0 === plant.caught) behaved += 1;
+    else {
+      fail(
+        `33. the plant "${plant.name}" ${plant.caught ? 'was not caught' : 'was caught'}: ` +
+          JSON.stringify(hits)
+      );
+    }
+  }
+  for (const finding of measureFindings(CSS)) fail(`33. ${finding}`);
+  const measure = declFor(CSS, (s) => /\.ed-redline-view(?![\w-])/.test(s), '--redline-measure');
+  say(
+    `33. the measure is ${String(measure)} of TEXT and the document's ` +
+      `${String(
+        declFor(CSS, (s) => /\.ed-redline-view(?![\w-])/.test(s), '--redline-pad')
+      )} of inline padding is added on top of it in the page's own track, ` +
+      `where the shipped 68ch box delivered 62.1 characters; ` +
+      `${String(behaved)} of ${String(PLANTS.length)} planted stylesheets behaved, ` +
+      `${String(PLANTS.filter((p) => p.caught).length)} of them must fail. ` +
+      `The reading off the running app is npm run probe:p249`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rule 34. THE RAIL NEVER COLLAPSES, AND THE CURRENT CHANGE IS ALWAYS MARKED
+// (§7 arm 14).
+//
+// Research 114 §1.3 is the reason this is a rule at all. The design's first
+// version set the rail to zero at the editor panel's own floor and scoped the
+// outline that would otherwise replace it to the TODAY look, so at 319px the
+// current change was marked by NOTHING AT ALL — at the one width where the
+// outline is worst, 43 boxes on one change. That is Phase 239's shape 4
+// dropped, and it is one declaration away at any time.
+//
+// TWO HALVES, and they can be undone separately. The stylesheet half asks that
+// every value `data-room` can take has a rail with a POSITIVE width, reading
+// the list of values out of the shipping module rather than out of a list
+// here. The arithmetic half DRIVES the shipping `railBarFor` and `roomFor`
+// under node and ablates them one clause at a time, because a rule that can
+// only read its subject is what this gate exists to refuse.
+// ---------------------------------------------------------------------------
+
+/** The rail width the cascade leaves for one `data-room` value. */
+function railWidthFor(css, room) {
+  const base = declFor(css, (s) => /\.ed-redline-view(?![\w-[])/.test(s), '--redline-rail');
+  const own = declFor(
+    css,
+    (s) => s.includes(`[data-room='${room}']`) || s.includes(`[data-room="${room}"]`),
+    '--redline-rail'
+  );
+  return own ?? base;
+}
+
+function railFindings(css, rooms) {
+  const found = [];
+  for (const room of rooms) {
+    const width = railWidthFor(css, room);
+    if (width === undefined) {
+      found.push(`data-room='${room}' has no rail width at all`);
+      continue;
+    }
+    const px = /^(\d+(?:\.\d+)?)px$/.exec(width);
+    if (px === null) {
+      found.push(`data-room='${room}' has a rail of "${width}", which is not a length in pixels`);
+    } else if (Number(px[1]) <= 0) {
+      found.push(`data-room='${room}' collapses the rail to ${width}`);
+    }
+  }
+  return found;
+}
+
+{
+  const CSS_FILE = 'src/renderer/editor/redline.css';
+  const CSS = readFileSync(CSS_FILE, 'utf8');
+  const SRC = 'src/renderer/editor';
+
+  const runRoomProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-room-probe.mts', dir],
+      { encoding: 'utf8', cwd: process.cwd(), maxBuffer: 8 * 1024 * 1024 }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    try {
+      return JSON.parse(probe.stdout);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const shipping = runRoomProbe(SRC);
+  if (shipping.error !== undefined) {
+    fail(`34. the room probe did not run over the shipping module: ${shipping.error}`);
+  } else {
+    // -- the stylesheet half, proved on plants first ------------------------
+    const GOOD =
+      ".ed-redline-view { --redline-rail: 20px; --redline-gap: var(--space-5); }\n" +
+      ".ed-redline-view[data-room='narrow'] { --redline-rail: 3px; --redline-gap: var(--space-2); }\n";
+    const PLANTS = [
+      { name: 'the shipped ladder', css: GOOD, caught: false },
+      {
+        name: 'the narrow rail collapsed to zero, which is the design version that dropped the mark',
+        css: GOOD.replace('--redline-rail: 3px', '--redline-rail: 0px'),
+        caught: true
+      },
+      {
+        name: 'the narrow rail given a percentage, which can compute to nothing',
+        css: GOOD.replace('--redline-rail: 3px', '--redline-rail: 0%'),
+        caught: true
+      },
+      {
+        name: 'the ladder deleted, so a room value has no rule at all',
+        css: ".ed-redline-view[data-room='narrow'] { --redline-gap: var(--space-2); }\n",
+        caught: true
+      },
+      {
+        name: 'the base rail alone, which covers every value the view can emit',
+        css: '.ed-redline-view { --redline-rail: 20px; }\n',
+        caught: false
+      }
+    ];
+    let behaved = 0;
+    for (const plant of PLANTS) {
+      const hits = railFindings(plant.css, shipping.values);
+      if (hits.length > 0 === plant.caught) behaved += 1;
+      else {
+        fail(
+          `34. the plant "${plant.name}" ${plant.caught ? 'was not caught' : 'was caught'}: ` +
+            JSON.stringify(hits)
+        );
+      }
+    }
+    for (const finding of railFindings(CSS, shipping.values)) fail(`34. ${finding}`);
+
+    // THE VIEW REALLY EMITS IT, so this is not a scan of a dead attribute.
+    const view = readFileSync('src/renderer/editor/RedlineDocument.tsx', 'utf8');
+    if (!view.includes('data-room={room}')) {
+      fail('34. the view does not put data-room on .ed-redline-view, so the ladder decides nothing');
+    }
+    if (!view.includes('roomFor(')) {
+      fail('34. the view never asks roomFor, so the room is not measured at all');
+    }
+    if (!view.includes('railBarFor(')) {
+      fail('34. the view never asks railBarFor, so the current change draws no bar');
+    }
+
+    // -- the arithmetic half, driven and then ablated -----------------------
+    const ARMS = [
+      {
+        name: '34a. a change that has collapsed to no height still draws the bar',
+        read: (a) => a.bars.collapsed,
+        expect: (a) => a.bars.collapsed !== null && a.bars.collapsed.height === 2,
+        from: 'Math.max(2, last.bottom - first.top)',
+        to: 'last.bottom - first.top'
+      },
+      {
+        name: "34b. the bar spans the whole change, first rect's top to last rect's bottom",
+        read: (a) => a.bars.wrapped,
+        expect: (a) => a.bars.wrapped !== null && Math.round(a.bars.wrapped.height) === 380,
+        from: 'const last = rects[rects.length - 1];',
+        to: 'const last = rects[0];'
+      },
+      {
+        name: '34c. the bar is in the rail’s own coordinates, so a scrolled page reads the same',
+        read: (a) => ({ one: a.bars.oneLine, scrolled: a.bars.scrolled }),
+        expect: (a) =>
+          a.bars.oneLine !== null &&
+          a.bars.scrolled !== null &&
+          a.bars.oneLine.top === a.bars.scrolled.top,
+        from: 'top: first.top - railTop,',
+        to: 'top: first.top,'
+      },
+      {
+        name: '34d. a change the recompose took away draws nothing at all',
+        read: (a) => a.bars.gone,
+        expect: (a) => a.bars.gone === null,
+        from: 'if (first === undefined || last === undefined) return null;',
+        to: 'if (first === undefined || last === undefined) return { top: 0, height: 0 };'
+      },
+      {
+        name: '34e. the ladder is wide AT its floor and narrow one pixel below it',
+        read: (a) => a.rooms,
+        expect: (a) =>
+          a.rooms[String(a.floor)] === 'full' &&
+          a.rooms[String(a.floor - 1)] === 'narrow' &&
+          a.rooms['1339'] === 'full' &&
+          a.rooms['689'] === 'full' &&
+          a.rooms['309'] === 'narrow',
+        from: 'return scrollerWidth >= REDLINE_RAIL_FLOOR',
+        to: 'return scrollerWidth > REDLINE_RAIL_FLOOR'
+      },
+      {
+        name: "34f. the floor is the 45-character measure, so the panel's floor is narrow",
+        read: (a) => ({ floor: a.floor, at309: a.rooms['309'] }),
+        expect: (a) => a.floor === 449 && a.rooms['309'] === 'narrow',
+        from: 'export const REDLINE_RAIL_FLOOR = 449;',
+        to: 'export const REDLINE_RAIL_FLOOR = 0;'
+      }
+    ];
+    for (const arm of ARMS) {
+      if (!arm.expect(shipping)) {
+        fail(`${arm.name.slice(0, 4)} the shipping module reads ${JSON.stringify(arm.read(shipping))}`);
+      }
+    }
+
+    const prefix = `.p251-room-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    try {
+      for (const [i, arm] of ARMS.entries()) {
+        const dir = `${prefix}${String(i)}`;
+        mkdirSync(dir, { recursive: true });
+        made.push(dir);
+        cpSync(join(SRC, 'redline-room.ts'), join(dir, 'redline-room.ts'));
+        const target = join(dir, 'redline-room.ts');
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`${arm.name.slice(0, 4)} the ablation found nothing to edit in redline-room.ts`);
+          continue;
+        }
+        writeFileSync(target, before.replace(arm.from, arm.to));
+        const ablated = runRoomProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(
+            `${arm.name.slice(0, 4)} the ablation stopped the probe running (${ablated.error}), ` +
+              'so it proves nothing'
+          );
+          continue;
+        }
+        if (JSON.stringify(arm.read(ablated)) !== JSON.stringify(arm.read(shipping))) {
+          red += 1;
+        } else {
+          fail(
+            `${arm.name.slice(0, 4)} the ablation changed nothing this arm reads, so it cannot ` +
+              `fail: ${JSON.stringify(arm.read(ablated))}`
+          );
+        }
+      }
+      say(
+        `34. the rail is ${String(railWidthFor(CSS, 'full'))} where the column has it to spare ` +
+          `and ${String(railWidthFor(CSS, 'narrow'))} at the panel's floor, never zero, over ` +
+          `${String(shipping.values.length)} room value(s) read from redline-room.ts; ` +
+          `${String(behaved)} of ${String(PLANTS.length)} planted stylesheets behaved, ` +
+          `${String(PLANTS.filter((p) => p.caught).length)} of them must fail`
+      );
+      say(
+        `34. the ladder turns at a scroller of ${String(shipping.floor)}px, being 45 characters ` +
+          `of text plus the document's padding plus the rail and its gutter, and the bar spans ` +
+          `the whole change (${String(
+            Math.round((shipping.bars.wrapped?.height ?? 0) * 100) / 100
+          )}px over 18 fragments) and never less than its own 2px; ` +
+          `${String(red)} of ${String(ARMS.length)} ablations moved their arm's reading`
+      );
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      for (const name of readdirSync('.')) {
+        if (name.startsWith(prefix) && existsSync(name)) {
+          rmSync(name, { recursive: true, force: true });
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 35. COLOUR AND DECORATION CARRY THE MEANING, NOT THE WASH (§7 arm 15).
+//
+// Research 113 §7.4 measured the two washes at 1.152:1 and 1.223:1 against the
+// canvas, which is below every floor in the product, and research 114 §2
+// re-derived them on the live page. Phase 251 makes the wash TALLER, which is
+// exactly the change that would tempt a later round to let it carry meaning —
+// and a design that leaned on a 1.15:1 difference to tell a deletion from an
+// insertion would be leaning on a difference that is not there for anybody.
+//
+// So the rule is the property rather than the ratio: with the background taken
+// away, a deletion and an insertion must still differ, in BOTH `color` and
+// `text-decoration`. That is asked of the cascade the document really applies.
+// ---------------------------------------------------------------------------
+
+function meaningFindings(css) {
+  const found = [];
+  const of = (tag, prop) =>
+    declFor(
+      css,
+      (s) => new RegExp(`(^|[\\s,:(])${tag}(?![\\w-])`).test(s) && !s.includes('[data-redline-'),
+      prop
+    );
+  const del = { color: of('del', 'color'), decoration: of('del', 'text-decoration') };
+  const ins = { color: of('ins', 'color'), decoration: of('ins', 'text-decoration') };
+  for (const [name, side] of [
+    ['a deletion', del],
+    ['an insertion', ins]
+  ]) {
+    if (side.color === undefined) found.push(`${name} has no colour of its own`);
+    if (side.decoration === undefined) found.push(`${name} has no text-decoration of its own`);
+  }
+  if (del.color !== undefined && del.color === ins.color) {
+    found.push(`a deletion and an insertion share the colour ${del.color}`);
+  }
+  if (del.decoration !== undefined && del.decoration === ins.decoration) {
+    found.push(`a deletion and an insertion share the decoration ${del.decoration}`);
+  }
+  return found;
+}
+
+{
+  const CSS = readFileSync('src/renderer/editor/redline.css', 'utf8');
+  const GOOD =
+    '.ed-redline del { color: var(--error); background: var(--error-wash); ' +
+    'text-decoration: line-through; }\n' +
+    '.ed-redline ins { color: var(--success); background: var(--success-wash); ' +
+    'text-decoration: none; }\n';
+  const PLANTS = [
+    { name: 'the shipped pair', css: GOOD, caught: false },
+    {
+      name: 'the two sides told apart by the wash alone, at 1.15:1',
+      css: GOOD.replace('color: var(--success)', 'color: var(--error)').replace(
+        'text-decoration: none',
+        'text-decoration: line-through'
+      ),
+      caught: true
+    },
+    {
+      name: 'the same colour, differing only in decoration',
+      css: GOOD.replace('color: var(--success)', 'color: var(--error)'),
+      caught: true
+    },
+    {
+      name: 'the same decoration, differing only in colour',
+      css: GOOD.replace('text-decoration: none', 'text-decoration: line-through'),
+      caught: true
+    },
+    {
+      name: 'a deletion with no decoration declared at all',
+      css: GOOD.replace('text-decoration: line-through; ', ''),
+      caught: true
+    }
+  ];
+  let behaved = 0;
+  for (const plant of PLANTS) {
+    const hits = meaningFindings(plant.css);
+    if (hits.length > 0 === plant.caught) behaved += 1;
+    else {
+      fail(
+        `35. the plant "${plant.name}" ${plant.caught ? 'was not caught' : 'was caught'}: ` +
+          JSON.stringify(hits)
+      );
+    }
+  }
+  for (const finding of meaningFindings(CSS)) fail(`35. ${finding}`);
+  say(
+    `35. a deletion and an insertion differ in BOTH colour and decoration, so the 1.152:1 and ` +
+      `1.223:1 washes research 113 §7.4 measured carry nothing; ` +
+      `${String(behaved)} of ${String(PLANTS.length)} planted stylesheets behaved, ` +
+      `${String(PLANTS.filter((p) => p.caught).length)} of them must fail`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rule 36. THE WASH ARITHMETIC, AND WHAT THIS FILE CANNOT SEE (§7 arm 6).
+//
+// The wash paints the line pitch less a 2px seam, so the fragments of one
+// wrapped run meet and the run reads as one shape. The operator chose SEAM
+// over Ribbon on 2026-09-09 and research 114 §1.2 says in those words that the
+// choice is TASTE; nothing here re-dresses it as a measurement.
+//
+// THE LONG SIDE IS NOT GUARDED HERE AND CANNOT BE. `--redline-fontbox` is a
+// multiple of the font size, 1.1539, which is what `-apple-system` at 13px
+// really measures on this machine; CSS exposes no unit for the content area of
+// a line box, so a face substitution moves it and this file would read exactly
+// the same. Too SMALL and the 6.45px band comes back, which the `max(0px, …)`
+// below refuses; too LARGE and the washes of vertically adjacent lines overlap,
+// which only `npm run probe:p249`'s painted-height reading can see.
+//
+// What IS asked here is the structure that reading depends on, and the three
+// clauses a later round would undo for tidiness:
+//   - the block padding is DERIVED from the pitch, the font box and the seam,
+//     rather than typed as a pixel count that stops following the font size;
+//   - the short side carries its `max(0px, …)` guard;
+//   - the trailing inline pixel is gone and the leading one stays, which is
+//     what stopped a wash ending 1.00px past its own last glyph;
+//   - and `--redline-pitch` agrees with the `line-height` the document really
+//     declares, so a change to one cannot silently leave the other behind.
+// ---------------------------------------------------------------------------
+
+function washFindings(css) {
+  const found = [];
+  const doc = (prop) =>
+    declFor(css, (s) => /(^|[\s,])\.ed-redline-doc(?![\w-])$/.test(s.trim()), prop);
+  const wash = doc('--redline-wash');
+  const pitch = doc('--redline-pitch');
+  const fontbox = doc('--redline-fontbox');
+  const seam = doc('--redline-seam');
+  const lineHeight = doc('line-height');
+  if (wash === undefined) {
+    found.push('the document declares no --redline-wash, so the wash is not derived at all');
+  } else {
+    const w = tight(wash);
+    if (!w.startsWith('max(0px,')) {
+      found.push(`--redline-wash is "${wash}", which does not guard the short side with max(0px, …)`);
+    }
+    for (const name of ['--redline-pitch', '--redline-fontbox', '--redline-seam']) {
+      if (!w.includes(`var(${name})`)) {
+        found.push(`--redline-wash does not derive from ${name}: ${wash}`);
+      }
+    }
+  }
+  if (pitch === undefined) found.push('the document declares no --redline-pitch');
+  if (fontbox === undefined) found.push('the document declares no --redline-fontbox');
+  if (seam === undefined) {
+    found.push('the document declares no --redline-seam');
+  } else if (!/^\d+(\.\d+)?px$/.test(seam)) {
+    found.push(`--redline-seam is "${seam}", which is not a length in pixels`);
+  }
+  // THE PITCH AGREES WITH THE LINE HEIGHT, or the wash is derived from a
+  // number the document stopped using.
+  const factor = /\*\s*([\d.]+)\s*\)/.exec(pitch ?? '');
+  if (pitch !== undefined && lineHeight !== undefined) {
+    if (factor === null || factor[1] !== lineHeight.trim()) {
+      found.push(
+        `--redline-pitch is "${pitch}" while the document's line-height is "${lineHeight}"`
+      );
+    }
+  }
+  // THE TRAILING PIXEL IS GONE. The shorthand is `block 0 block <lead>`.
+  const marks = declFor(
+    css,
+    (s) => s.includes('.ed-redline-doc :is(del, ins)') && !s.includes('[data-redline-'),
+    'padding'
+  );
+  if (marks === undefined) {
+    found.push('the document’s marks declare no padding of their own');
+  } else {
+    const parts = marks.split(/\s+(?![^(]*\))/);
+    if (parts.length !== 4) {
+      found.push(`the marks' padding is "${marks}", which is not four sides`);
+    } else if (parts[1] !== '0') {
+      found.push(`the marks keep ${parts[1]} of trailing inline padding, past their last glyph`);
+    } else if (parts[3] === '0') {
+      found.push('the marks lost their leading pixel too, so a mark touches whatever precedes it');
+    }
+  }
+  return found;
+}
+
+{
+  const CSS = readFileSync('src/renderer/editor/redline.css', 'utf8');
+  const GOOD =
+    '.ed-redline-doc { line-height: 1.65; }\n' +
+    '.ed-redline-doc { --redline-pitch: calc(var(--text-base) * 1.65); ' +
+    '--redline-fontbox: calc(var(--text-base) * 1.1539); --redline-seam: 2px; ' +
+    '--redline-wash: max(0px, calc((var(--redline-pitch) - var(--redline-fontbox) ' +
+    '- var(--redline-seam)) / 2)); }\n' +
+    '.ed-redline-doc :is(del, ins) { padding: var(--redline-wash) 0 var(--redline-wash) 1px; }\n';
+  const PLANTS = [
+    { name: 'the shipped arithmetic', css: GOOD, caught: false },
+    {
+      name: 'the short-side guard taken off, so the band can come back',
+      css: GOOD.replace(
+        'max(0px, calc((var(--redline-pitch) - var(--redline-fontbox) - var(--redline-seam)) / 2))',
+        'calc((var(--redline-pitch) - var(--redline-fontbox) - var(--redline-seam)) / 2)'
+      ),
+      caught: true
+    },
+    {
+      name: 'the height typed as a pixel count, which stops following the font size',
+      css: GOOD.replace(
+        'max(0px, calc((var(--redline-pitch) - var(--redline-fontbox) - var(--redline-seam)) / 2))',
+        '2.22px'
+      ),
+      caught: true
+    },
+    {
+      name: 'the trailing inline pixel put back, which is what crossed the table’s own pipe',
+      css: GOOD.replace(
+        'padding: var(--redline-wash) 0 var(--redline-wash) 1px',
+        'padding: var(--redline-wash) 1px var(--redline-wash) 1px'
+      ),
+      caught: true
+    },
+    {
+      name: 'both inline pixels dropped, which puts two words glyph against glyph',
+      css: GOOD.replace(
+        'padding: var(--redline-wash) 0 var(--redline-wash) 1px',
+        'padding: var(--redline-wash) 0 var(--redline-wash) 0'
+      ),
+      caught: true
+    },
+    {
+      name: 'the line height moved and the pitch left behind',
+      css: GOOD.replace('line-height: 1.65;', 'line-height: 1.8;'),
+      caught: true
+    },
+    {
+      name: 'the seam widened, which is taste and not a defect',
+      css: GOOD.replace('--redline-seam: 2px', '--redline-seam: 4px'),
+      caught: false
+    }
+  ];
+  let behaved = 0;
+  for (const plant of PLANTS) {
+    const hits = washFindings(plant.css);
+    if (hits.length > 0 === plant.caught) behaved += 1;
+    else {
+      fail(
+        `36. the plant "${plant.name}" ${plant.caught ? 'was not caught' : 'was caught'}: ` +
+          JSON.stringify(hits)
+      );
+    }
+  }
+  for (const finding of washFindings(CSS)) fail(`36. ${finding}`);
+  const seam = declFor(
+    CSS,
+    (s) => /(^|[\s,])\.ed-redline-doc(?![\w-])$/.test(s.trim()),
+    '--redline-seam'
+  );
+  say(
+    `36. the wash is the line pitch less a ${String(seam)} seam, derived from the pitch and the ` +
+      `font box with the short side guarded by max(0px, …) and no trailing inline padding; ` +
+      `${String(behaved)} of ${String(PLANTS.length)} planted stylesheets behaved, ` +
+      `${String(PLANTS.filter((p) => p.caught).length)} of them must fail`
+  );
+  say(
+    '36. the LONG side is guarded by a reading and never by this file: --redline-fontbox is a ' +
+      'font metric, a face substitution moves it, and npm run probe:p249 is what reads the ' +
+      'painted height against the pitch on the running app. Seam over Ribbon is the operator’s ' +
+      'TASTE (research 114 §1.2) and is not a measurement'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 251, rule 37: THE BAR'S INNER GRID IS THE PAGE'S GRID.
+//
+// Research 113 §4 measured `Accept all` sitting 414.1px past the column's own
+// right content edge at the pane the operator works in, and named the cause
+// rather than the symptom: the bar was `justify-content: flex-end` against the
+// PANEL while the column was centred inside it, so the button's distance from
+// the thing it acts on WAS the right-hand dead space. Research 114 §6.4's fix
+// is that the bar's inner box takes the page's own tracks, which puts both of
+// its ends on the column at every width.
+//
+// A stylesheet cannot say "the same as that one", so the two templates are two
+// copies of one fact and the failure mode is drift: a bar twelve pixels out of
+// step with its column still looks exactly like a bar, so nothing but this
+// rule would ever see it. Read BY MATCHING BRACES rather than by searching the
+// file for a word, because a declaration in a neighbouring rule is not this
+// rule's declaration.
+//
+// THE CONTRACT THIS RULE HOLDS, and the two class names are the contract:
+//   .ed-redline-page        the two-track page, `[rail] [column]`
+//   .ed-redline-bar-inner   the bar's inner box, which takes the same tracks
+// Both must declare `grid-template-columns` and `column-gap`, and the values
+// must be identical. A missing rule is a FAILURE and never a skip: the whole
+// point of this rule is that it cannot pass while the page does not exist.
+// ---------------------------------------------------------------------------
+const GRID_PROPS = ['grid-template-columns', 'column-gap'];
+
+/** Every rule block in `css` whose selector list names the class `cls`. */
+function cssBlocksFor(css, cls) {
+  const bare = stripComments(css);
+  const at = new RegExp(`\\.${cls}(?![\\w-])`);
+  const blocks = [];
+  let from = 0;
+  for (;;) {
+    const open = bare.indexOf('{', from);
+    if (open === -1) break;
+    const body = blockAt(bare, open);
+    if (body === null) break;
+    const close = closeOf(bare, open);
+    // The selector is the text between the previous rule's end and this brace.
+    const prev = Math.max(
+      bare.lastIndexOf('}', open - 1),
+      bare.lastIndexOf(';', open - 1)
+    );
+    const selector = bare.slice(prev + 1, open).trim();
+    if (at.test(selector) && !selector.startsWith('@')) blocks.push(body);
+    from = close === -1 ? open + 1 : close + 1;
+  }
+  return blocks;
+}
+
+/**
+ * What the cascade leaves for each of `GRID_PROPS` on this class: the LAST
+ * declaration wins, which is what a browser does and what a second rule
+ * overriding the first would rely on.
+ */
+function gridOf(css, cls) {
+  const out = {};
+  for (const body of cssBlocksFor(css, cls)) {
+    for (const prop of GRID_PROPS) {
+      const m = new RegExp(`(?:^|;|\\{)\\s*${prop}\\s*:([^;}]*)`, 'g');
+      let hit;
+      while ((hit = m.exec(body)) !== null) out[prop] = hit[1].replace(/\s+/g, ' ').trim();
+    }
+  }
+  return out;
+}
+
+{
+  const CSS_FILE = 'src/renderer/editor/redline.css';
+  const PAGE_CLASS = 'ed-redline-page';
+  const BAR_CLASS = 'ed-redline-bar-inner';
+
+  // The scanner is proved on plants FIRST, so a scan that cannot fail is never
+  // mistaken for a scan that passed. Five of the seven must be caught.
+  const TRACKS = 'var(--redline-rail) minmax(0, calc(var(--redline-measure) + var(--space-8) * 2))';
+  const PLANTS = [
+    {
+      name: 'the two grids agree',
+      css:
+        `.${PAGE_CLASS} { position: relative; display: grid;\n` +
+        `  grid-template-columns: ${TRACKS};\n  column-gap: var(--space-5); }\n` +
+        `.${BAR_CLASS} { display: grid;\n  grid-template-columns: ${TRACKS};\n` +
+        '  column-gap: var(--space-5); }\n',
+      caught: false
+    },
+    {
+      name: 'the same fact spelled through one custom property',
+      css:
+        `.${PAGE_CLASS} { grid-template-columns: var(--redline-tracks); column-gap: var(--space-5); }\n` +
+        `.${BAR_CLASS} { grid-template-columns: var(--redline-tracks); column-gap: var(--space-5); }\n`,
+      caught: false
+    },
+    {
+      name: 'the bar drifted one track',
+      css:
+        `.${PAGE_CLASS} { grid-template-columns: ${TRACKS}; column-gap: var(--space-5); }\n` +
+        `.${BAR_CLASS} { grid-template-columns: 20px minmax(0, 1fr); column-gap: var(--space-5); }\n`,
+      caught: true
+    },
+    {
+      name: 'the bar drifted only its gutter, which is the invisible one',
+      css:
+        `.${PAGE_CLASS} { grid-template-columns: ${TRACKS}; column-gap: var(--space-5); }\n` +
+        `.${BAR_CLASS} { grid-template-columns: ${TRACKS}; column-gap: var(--space-4); }\n`,
+      caught: true
+    },
+    {
+      name: 'the bar has no grid at all, which is today',
+      css:
+        `.${PAGE_CLASS} { grid-template-columns: ${TRACKS}; column-gap: var(--space-5); }\n` +
+        `.ed-redline-bar { display: flex; justify-content: flex-end; }\n`,
+      caught: true
+    },
+    {
+      name: 'there is no page, so the contract was never met',
+      css: `.ed-redline-doc { max-width: 68ch; margin-inline: auto; }\n`,
+      caught: true
+    },
+    {
+      name: 'a later rule overrides the page and the bar was left behind',
+      css:
+        `.${PAGE_CLASS} { grid-template-columns: ${TRACKS}; column-gap: var(--space-5); }\n` +
+        `.${BAR_CLASS} { grid-template-columns: ${TRACKS}; column-gap: var(--space-5); }\n` +
+        `.ed-redline-view .${PAGE_CLASS} { grid-template-columns: 3px minmax(0, 1fr); }\n`,
+      caught: true
+    },
+    {
+      // A NEIGHBOUR IS NOT THIS RULE. The bar's own grid is absent and the
+      // page's declaration sits two rules away in the same file; a scan for
+      // the word rather than for the block would read it as the bar's.
+      name: 'a neighbouring rule carries the template the bar does not',
+      css:
+        `.${PAGE_CLASS} { grid-template-columns: ${TRACKS}; column-gap: var(--space-5); }\n` +
+        `.${BAR_CLASS} { align-items: center; }\n` +
+        `.ed-redline-bar-cell { grid-template-columns: ${TRACKS}; column-gap: var(--space-5); }\n`,
+      caught: true
+    }
+  ];
+
+  const drift = (css) => {
+    const page = gridOf(css, PAGE_CLASS);
+    const bar = gridOf(css, BAR_CLASS);
+    const lines = [];
+    for (const prop of GRID_PROPS) {
+      if (page[prop] === undefined) lines.push(`.${PAGE_CLASS} declares no ${prop}`);
+      else if (bar[prop] === undefined) lines.push(`.${BAR_CLASS} declares no ${prop}`);
+      else if (page[prop] !== bar[prop]) {
+        lines.push(
+          `${prop} has drifted: .${PAGE_CLASS} says ${JSON.stringify(page[prop])} and ` +
+            `.${BAR_CLASS} says ${JSON.stringify(bar[prop])}`
+        );
+      }
+    }
+    return lines;
+  };
+
+  let proved = 0;
+  for (const plant of PLANTS) {
+    if (drift(plant.css).length > 0 === plant.caught) proved += 1;
+    else fail(`37. the grid scanner behaved wrongly on the plant "${plant.name}"`);
+  }
+
+  if (!existsSync(CSS_FILE)) {
+    fail(`37. ${CSS_FILE} is not there, so rule 37 proves nothing`);
+  } else {
+    const found = drift(readFileSync(CSS_FILE, 'utf8'));
+    for (const line of found) {
+      fail(
+        `37. ${line}. Research 114 §6.4's contract is that .${BAR_CLASS} takes ` +
+          `.${PAGE_CLASS}'s own tracks, so both ends of the bar land on the column ` +
+          `(414.1px past it today, 0.0px in the proposal). Both rules must declare ` +
+          `${GRID_PROPS.join(' and ')}, with identical values.`
+      );
+    }
+    if (found.length === 0) {
+      const page = gridOf(readFileSync(CSS_FILE, 'utf8'), PAGE_CLASS);
+      say(
+        `37. the bar's inner box takes the page's own tracks, read by matching braces: ` +
+          `${JSON.stringify(page['grid-template-columns'])} with a ` +
+          `${JSON.stringify(page['column-gap'])} gutter, and ${String(proved)} of ` +
+          `${String(PLANTS.length)} planted stylesheets behaved, ` +
+          `${String(PLANTS.filter((p) => p.caught).length)} of them caught`
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 251, rule 38: THE CHIP TAKES THE BAND ARM ONLY WHEN THE BAND HOLDS ITS
+// OWN DRAWN WIDTH. Six arms on the SHIPPING `chipPlace` and `chipAnchorRect`,
+// driven under node by build/redline-chip-probe.mts, each with an ablation of
+// its own clause that must move its own arm's reading.
+// ---------------------------------------------------------------------------
+{
+  const CHIP_CHAIN = ['redline-chip.tsx'];
+  const SRC = 'src/renderer/editor';
+
+  const runChipProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-chip-probe.mts'],
+      {
+        encoding: 'utf8',
+        cwd: process.cwd(),
+        maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, CHIP_DIR: dir }
+      }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const CHIP_ARMS = [
+    {
+      // ONE DECISION, ONE NUMBER, AND THE NUMBER IS THE CHIP'S OWN WIDTH. The
+      // ablation is the first version's shape, being a constant standing in
+      // for the measurement: under it a re-labelled 299.07px chip takes the
+      // band at a pane that does not hold it.
+      name: '38a. the band arm is taken only when the band holds the chip that drew',
+      key: 'arms',
+      expect: (a) =>
+        a['1349/product'].arm === 'band' &&
+        a['1349/mock'].arm === 'band' &&
+        a['1349/relabelled'].arm === 'overlay' &&
+        a['699/product'].arm === 'overlay' &&
+        a['319/product'].arm === 'overlay' &&
+        Object.values(a).every((cell) => cell.fits === true),
+      file: 'redline-chip.tsx',
+      from: '  if (band >= size.width + CHIP_BAND_GUTTER) {',
+      to: '  if (band >= 200) {'
+    },
+    {
+      // THE BAND IS THE CANVAS BETWEEN TWO RIGHT EDGES, not the difference of
+      // two widths. The ablation is the arithmetic a later round reaches for,
+      // and it reads 571.17px of canvas where there is 285.58px.
+      name: '38b. the band is the canvas between the page and the scroller, not two widths',
+      key: 'arms',
+      file: 'redline-chip.tsx',
+      expect: (a) => a['1349/relabelled'].arm === 'overlay',
+      from: '  const band = scroll.left + scroll.width - (page.left + page.width);',
+      to: '  const band = scroll.width - page.width;'
+    },
+    {
+      // THE TEST AND THE PLACEMENT ARE THE SAME ARITHMETIC. Placing further
+      // out than the test allowed puts the chip past the scroller's own edge,
+      // which is what `fits` reads and what nothing else in this gate would.
+      name: '38c. a chip the band arm accepted really fits inside the scroller',
+      key: 'arms',
+      file: 'redline-chip.tsx',
+      expect: (a) => Object.values(a).every((cell) => cell.fits === true),
+      from: '      left: page.width + CHIP_BAND_GUTTER,',
+      to: '      left: page.width + CHIP_BAND_GUTTER * 4,'
+    },
+    {
+      // PHASE 236'S ONE MANDATORY RULE, untouched by this phase and asked
+      // behaviourally: rects[0], no bounding box asked for at all, and
+      // research 96 §4.5's own displacement re-derived through the placement.
+      name: '38d. the anchor is the first client rect and no bounding box is ever asked for',
+      key: 'anchor',
+      file: 'redline-chip.tsx',
+      expect: (a) =>
+        a.isFirstRect === true &&
+        a.asked === 'getClientRects' &&
+        a.none === true &&
+        a.displacement === 435.73,
+      from: '  return el.getClientRects()[0];',
+      to: '  return el.getBoundingClientRect?.() ?? el.getClientRects()[0];'
+    },
+    {
+      // THE OVERLAY ARM IS REQUIRED. 0.00px of canvas at the floor is research
+      // 96 §4.1's and research 113 §7.3's own reading, and the clamp is what
+      // keeps a 258.28px chip inside a 309px page there.
+      name: '38e. the overlay arm holds at the floor, where there is 0.00px of canvas',
+      key: 'overlay',
+      file: 'redline-chip.tsx',
+      expect: (a) =>
+        a.band === 0 &&
+        a.clampedRight === 50.72 &&
+        a.clampedLeft === 0 &&
+        a.above === 366 &&
+        a.below === 21,
+      from:
+        '    left: Math.max(0, Math.min(rect.left - page.left, page.width - size.width)),',
+      to: '    left: Math.max(0, rect.left - page.left),'
+    },
+    {
+      // THE PAGE IS THE CONTAINING BLOCK IN BOTH ARMS, which is the fact
+      // redline-chip.tsx, RedlineDocument.tsx and redline.css all state.
+      name: '38f. both arms are measured against the page and never against the scroller',
+      key: 'containing',
+      file: 'redline-chip.tsx',
+      expect: (a) =>
+        a.overlayLeftShift === 100 &&
+        a.overlayTopShift === 50 &&
+        a.bandLeft === 783.83 &&
+        a.bandLeftShifted === 783.83 &&
+        a.bandTopFollowsTheChange === 0,
+      from: '  const above = rect.top - page.top - size.height - CHIP_GAP;',
+      to: '  const above = rect.top - scroll.top - size.height - CHIP_GAP;'
+    }
+  ];
+
+  const shippingChip = runChipProbe(SRC);
+  if (shippingChip.error !== undefined) {
+    fail(`38. the chip probe did not run: ${shippingChip.error}`);
+  } else {
+    for (const arm of CHIP_ARMS) {
+      if (!arm.expect(shippingChip[arm.key] ?? {})) {
+        fail(
+          `${arm.name.slice(0, 4)} the shipping chip read the wrong thing for ` +
+            `"${arm.name}": ${JSON.stringify(shippingChip[arm.key] ?? {})}`
+        );
+      }
+    }
+
+    const prefix = `.p251-chip-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    try {
+      for (const [i, arm] of CHIP_ARMS.entries()) {
+        const dir = `${prefix}${String(i)}`;
+        mkdirSync(dir, { recursive: true });
+        made.push(dir);
+        for (const f of CHIP_CHAIN) cpSync(join(SRC, f), join(dir, f));
+        const target = join(dir, arm.file);
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`${arm.name.slice(0, 4)} the ablation found nothing to edit in ${arm.file}`);
+          continue;
+        }
+        writeFileSync(target, before.replace(arm.from, arm.to));
+        const ablated = runChipProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(
+            `${arm.name.slice(0, 4)} the ablation stopped the probe running ` +
+              `(${ablated.error}), so it proves nothing`
+          );
+          continue;
+        }
+        if (
+          JSON.stringify(ablated[arm.key] ?? {}) !== JSON.stringify(shippingChip[arm.key] ?? {})
+        ) {
+          red += 1;
+        } else {
+          fail(
+            `${arm.name.slice(0, 4)} the ablation changed nothing this arm reads, so it ` +
+              `cannot fail: ${JSON.stringify(ablated[arm.key] ?? {})}`
+          );
+        }
+      }
+
+      const g = shippingChip.geometry;
+      const t = shippingChip.thresholds;
+      say(
+        `38. the page is ${String(g.pageAt1349)}px wide at the operator's 1349px pane, ` +
+          `leaving ${String(g.bandAt1349)}px of canvas beside it; the product's 258.28px ` +
+          `chip takes the band there and a re-labelled 299.07px one does not, at the ` +
+          `same pixel`
+      );
+      say(
+        `38. the band arm turns on at a scroller of ${String(t.productScroller)}px, being a ` +
+          `panel of ${String(t.productPanel)}px, and at ${String(t.mockScroller)}px for the ` +
+          `mock's 223.1px chip — which is research 114 §4.2's own two numbers, re-derived ` +
+          `from the shipping decision rather than quoted`
+      );
+      say(
+        `38. at the editor panel's own floor the canvas is ` +
+          `${String(shippingChip.overlay.band)}px, which is research 96 §4.1's reading, so ` +
+          `the overlay arm is required and is not a fallback anybody may delete`
+      );
+      say(
+        `38. the anchor is still getClientRects()[0], no bounding box is asked for at all, ` +
+          `and the bounding box would put the chip ` +
+          `${String(shippingChip.anchor.displacement)}px into empty margin`
+      );
+      say(
+        `38. ${String(CHIP_ARMS.length)} arms over the shipping chip, and ${String(red)} of ` +
+          `${String(CHIP_ARMS.length)} ablations moved their arm's reading`
       );
     } finally {
       for (const dir of made) rmSync(dir, { recursive: true, force: true });

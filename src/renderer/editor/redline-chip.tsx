@@ -81,6 +81,64 @@
  * pane the operator works in, and the chip now means one thing: it is the
  * CHANGE's toolbar, and undo of a rewind is the TAB's.
  *
+ * PHASE 251 GAVE THE CHIP A SECOND HOME, AND THE FIRST ONE IS REQUIRED
+ * RATHER THAN A FALLBACK. Research 114 §6.4 is the spec and the operator
+ * chose it on 2026-09-09 by picking the mock: the document now sits in a
+ * two-track page, `[rail] [column]`, and where the free canvas beside that
+ * page holds this chip the chip goes there and covers no prose at all.
+ * Research 113 §4 measured what it covers today, being one drawn row of his
+ * text at the pane he works in and two at the other two, every time it is
+ * shown.
+ *
+ * ONE DECISION, ASKED WITH ONE NUMBER, AND THE NUMBER IS THE CHIP'S OWN DRAWN
+ * WIDTH. The first version of the design gated the band on a `data-room`
+ * ladder at 1060px while the placement itself asked whether a 264px track was
+ * at least 200px wide: one decision taken with two numbers, neither derived,
+ * and a 264px cliff on one pixel of drag. `chipPlace` below asks the only
+ * question that matters — does the canvas beside the page hold this chip where
+ * this chip would be put — of the width the chip really drew, so A RE-LABELLED
+ * BUTTON MOVES THE ANSWER BY ITSELF. Research 114 §9 records that the mock's
+ * chip is 223.1px and the product's is 258.28px, which is why nothing here may
+ * ever be a constant.
+ *
+ * THE OVERLAY ARM IS NOT A FALLBACK ANYBODY MAY DELETE. Research 96 §4.1 and
+ * research 113 §7.3 each measured 0.00px of free canvas left of the column at
+ * the editor panel's own floor, and research 113 re-measured exactly 0.00px at
+ * 319px. A margin is not a home the chip can always have, so where the canvas
+ * does not hold it the chip falls back to EXACTLY the placement Phase 236
+ * shipped — above the change's first line box when there is room and below it
+ * when there is not — and research 114 §5.7 refuses a margin as the only home
+ * in those words.
+ *
+ * THE CHIP IS A CHILD OF THE PAGE IN BOTH ARMS, AND THAT IS WHY THE SCROLL
+ * LISTENER IS GONE. `.ed-redline-view` stops being the only positioned box in
+ * the view: `.ed-redline-page` is `position: relative` and is the containing
+ * block a chip's `left` and `top` are measured against, in the band arm and in
+ * the overlay arm alike. The page is inside `.ed-redline-scroll`, so the chip
+ * scrolls with the document it belongs to and nothing has to put it back on
+ * every scroll event; research 96 §1.4 named that listener as the price of
+ * living outside the scroller and this phase stops paying it. An earlier
+ * version of the design claimed the same saving while appending the overlay
+ * arm to the pane, where the listener is still required, and that is why the
+ * word BOTH is in this paragraph.
+ *
+ * THE FACT ABOVE IS STATED IN THREE FILES AND THEY MOVE TOGETHER: here,
+ * ./RedlineDocument, which renders this component as a child of the page
+ * element and hands it that element, and ./redline.css, which is what makes
+ * the page a containing block at all. Take the `position: relative` off
+ * `.ed-redline-page` and every placement here silently becomes a placement
+ * against the nearest positioned ancestor, which is the view, and the band arm
+ * lands the chip in the wrong pane.
+ *
+ * IT IS STILL OUTSIDE `.ed-redline-doc`. The page holds the rail, the document
+ * and this chip as three separate children, so the four readers named above
+ * still walk a document with nothing of Tortie's own in it.
+ *
+ * EVERY ONE OF PHASE 236'S FOUR RULINGS STANDS. `chipAnchorRect` is untouched
+ * and is still `getClientRects()[0]`. A control in the flow is still refused.
+ * A chip that takes focus is still refused. What moved is the BOX the chip is
+ * placed in, and nothing else.
+ *
  * 24px, per WCAG 2.2's target size: research 83 D.2 measured the in-flow
  * button at 20.15px and named it under the target.
  *
@@ -103,10 +161,35 @@ import type { RedlineCommand } from './redline-commands';
 /** The gap between the change's line box and the chip, in CSS pixels. */
 const CHIP_GAP = 4;
 
-/** What the chip is drawn at, in the view's own coordinates. */
+/**
+ * The gutter between the page's right edge and a chip drawn in the free canvas
+ * beside it, in CSS pixels.
+ *
+ * IT IS NOT A SECOND THRESHOLD, and the distinction is the whole of the
+ * paragraph in this file's header about one number. The band arm asks whether
+ * the canvas holds `the chip's own drawn width + this gutter`, and then puts
+ * the chip at `the page's width + this gutter`. The test and the placement are
+ * the same arithmetic, so what the arm really asks is "does the chip fit where
+ * the chip is about to go", which is one question about one measured number
+ * rather than a breakpoint standing in for it.
+ */
+const CHIP_BAND_GUTTER = 16;
+
+/**
+ * Which of the two placements the chip took.
+ *
+ *   - `band`: the free canvas beside the page held it, so it covers no prose.
+ *   - `overlay`: exactly Phase 236's placement, over the document. REQUIRED,
+ *     because research 113 §7.3 re-measured 0.00px of free canvas at the
+ *     editor panel's floor.
+ */
+export type ChipArm = 'band' | 'overlay';
+
+/** What the chip is drawn at, in the PAGE's own coordinates (both arms). */
 export interface ChipPlace {
   left: number;
   top: number;
+  arm: ChipArm;
 }
 
 /**
@@ -146,21 +229,54 @@ export function chipAnchorRect(el: {
 }
 
 /**
- * Where the chip goes, in the view's own coordinates: above the change's line
- * box when there is room and below it when there is not, clamped to the view.
- * The clamp is the chip's own because it lives OUTSIDE the scroller, so the
- * scroller neither scrolls it nor clips it (research 96 §1.4's two limits).
+ * Where the chip goes, in the PAGE's own coordinates, and which arm it took.
+ *
+ * PHASE 251. Two arms, one question between them, asked of the chip's own
+ * drawn `size.width`:
+ *
+ *   - THE BAND. The free canvas between the page's right edge and the
+ *     scroller's holds the chip and the gutter it is placed at, so the chip
+ *     goes there, level with the change's first line box, and covers no prose.
+ *     Research 114 §2 measured that at 0 rows of prose covered against today's
+ *     1 at the pane he works in.
+ *   - THE OVERLAY. It does not, so the chip takes EXACTLY Phase 236's
+ *     placement: above the change's first line box when there is room and
+ *     below it when there is not. This arm is required rather than a
+ *     fallback — research 113 §7.3 re-measured 0.00px of free canvas at the
+ *     editor panel's own floor — and deleting it leaves the controls with
+ *     nowhere to be at 319px.
+ *
+ * WHY THE SCROLLER AND NOT THE VIEW IS THE BOX THE BAND IS MEASURED IN. The
+ * chip is a child of the page, and the page is inside `.ed-redline-scroll`, so
+ * the scroller is what would have to scroll sideways to reach a chip that did
+ * not fit. The view is up to a scrollbar's width wider — research 113 §0 read
+ * 1349px of panel against 1339px of scroller — and asking the wider box would
+ * put the chip's last ten pixels behind a horizontal scrollbar the redline has
+ * never had.
+ *
+ * BOTH ARMS ARE CLAMPED INSIDE THE PAGE, so neither can grow the scroller's
+ * own scrollable area on the side the band is not on.
  */
 export function chipPlace(
   rect: ChipRect,
-  box: ChipRect,
+  page: ChipRect,
+  scroll: ChipRect,
   size: { width: number; height: number }
 ): ChipPlace {
-  const above = rect.top - box.top - size.height - CHIP_GAP;
-  const raw = above >= 0 ? above : rect.bottom - box.top + CHIP_GAP;
+  const band = scroll.left + scroll.width - (page.left + page.width);
+  if (band >= size.width + CHIP_BAND_GUTTER) {
+    return {
+      left: page.width + CHIP_BAND_GUTTER,
+      top: Math.max(0, rect.top - page.top),
+      arm: 'band'
+    };
+  }
+  const above = rect.top - page.top - size.height - CHIP_GAP;
+  const raw = above >= 0 ? above : rect.bottom - page.top + CHIP_GAP;
   return {
-    left: Math.max(0, Math.min(rect.left - box.left, box.width - size.width)),
-    top: Math.max(0, Math.min(raw, box.height - size.height))
+    left: Math.max(0, Math.min(rect.left - page.left, page.width - size.width)),
+    top: Math.max(0, Math.min(raw, page.height - size.height)),
+    arm: 'overlay'
   };
 }
 
@@ -172,11 +288,21 @@ export interface RedlineChipProps {
    */
   anchor: HTMLElement | null;
   /**
-   * The `.ed-redline-view` element. It is the only positioned box in the view
-   * (research 96 §1.4), so it is the containing block a chip's `left` and
-   * `top` are measured against.
+   * The `.ed-redline-page` element: the two-track page holding the rail and
+   * the document. PHASE 251 made it `position: relative`, so it and not
+   * `.ed-redline-view` is the containing block a chip's `left` and `top` are
+   * measured against, in BOTH arms. ./RedlineDocument renders this component
+   * as its child, so the chip scrolls with the document and needs no scroll
+   * listener; ./redline.css is what makes it a containing block. The three
+   * files move together and each says so.
    */
-  view: HTMLElement | null;
+  page: HTMLElement | null;
+  /**
+   * The `.ed-redline-scroll` element. It is the box a chip has to fit inside,
+   * so it is the box the free canvas beside the page is measured in — see
+   * `chipPlace` for why the view's own box is the wrong one to ask.
+   */
+  scroll: HTMLElement | null;
   /** Run one command against the change the chip is drawn for. */
   onCommand: (command: RedlineCommand, anchor: HTMLElement) => void;
   /**
@@ -207,21 +333,24 @@ export interface RedlineChipProps {
 
 export function RedlineChip({
   anchor,
-  view,
+  page,
+  scroll,
   onCommand,
   chipRef,
   onDetached,
   placement
 }: RedlineChipProps): React.JSX.Element | null {
   const [place, setPlace] = useState<ChipPlace | null>(null);
-  // The place is computed after layout and re-computed on scroll and on
-  // resize, because the chip is NOT inside the scrolling box: research 96
-  // §1.4 named that limit and it is answered here rather than discovered in
-  // an app run.
+  // The place is computed after layout and re-computed on resize. PHASE 251
+  // TOOK THE SCROLL LISTENER OUT, and that is a consequence rather than a
+  // trim: the chip is a child of the page now, so it scrolls with the
+  // document and there is nothing left for a scroll event to put back.
+  // Research 96 §1.4 named the listener as the price of living outside the
+  // scroller, and the price is no longer being paid.
   const detached = useRef(onDetached);
   detached.current = onDetached;
   useLayoutEffect(() => {
-    if (anchor === null || view === null) {
+    if (anchor === null || page === null || scroll === null) {
       setPlace(null);
       return;
     }
@@ -229,31 +358,37 @@ export function RedlineChip({
       // THE MANDATORY RULE, asked through `chipAnchorRect` so there is exactly
       // one place in the tree that decides it.
       const rect = chipAnchorRect(anchor);
-      if (rect === undefined || !view.contains(anchor)) {
+      if (rect === undefined || !page.contains(anchor)) {
         detached.current();
         return;
       }
-      const el = chipRef.current;
+      // THE CHIP'S OWN DRAWN WIDTH, read off the box it really drew and not
+      // rounded: `offsetWidth` answers a whole number, and research 114 §9
+      // publishes 258.28px against the mock's 223.1px precisely because a
+      // fraction of a pixel is the difference between the two designs' answers
+      // at the same pane.
+      const own = chipRef.current?.getBoundingClientRect();
       setPlace(
-        chipPlace(rect, view.getBoundingClientRect(), {
-          width: el?.offsetWidth ?? 0,
-          height: el?.offsetHeight ?? 0
+        chipPlace(rect, page.getBoundingClientRect(), scroll.getBoundingClientRect(), {
+          width: own?.width ?? 0,
+          height: own?.height ?? 0
         })
       );
     };
     put();
-    const scroller = view.querySelector('.ed-redline-scroll');
-    scroller?.addEventListener('scroll', put, { passive: true });
     window.addEventListener('resize', put);
     const observer =
       typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(put);
-    observer?.observe(view);
+    // BOTH boxes are observed: the scroller is what the pane's divider
+    // narrows, and the page is what the measure and the rail widen. Either
+    // moving moves the band, and the band is the whole decision.
+    observer?.observe(page);
+    observer?.observe(scroll);
     return () => {
-      scroller?.removeEventListener('scroll', put);
       window.removeEventListener('resize', put);
       observer?.disconnect();
     };
-  }, [anchor, view, chipRef, placement]);
+  }, [anchor, page, scroll, chipRef, placement]);
 
   const act = useCallback(
     (command: RedlineCommand): void => {
@@ -267,6 +402,14 @@ export function RedlineChip({
     <div
       ref={chipRef}
       className="ed-redline-chip"
+      // PHASE 251. Which arm the placement took, so `npm run probe:p249` reads
+      // it OFF THE FACE rather than inferring it from a number: a chip placed
+      // perfectly in the band covers 0 rows of prose and so does a chip that
+      // was never drawn, so the two readings that matter most are the same
+      // number without this. NO STYLESHEET RULE KEYS ON IT, deliberately —
+      // the two arms are dressed identically and a rule that dressed them
+      // apart would be a second thing saying where the chip is.
+      data-arm={place?.arm ?? 'overlay'}
       // ./redline-copy removes every [data-redline-tag] from its clone, so
       // the chip's glyphs can never reach the clipboard (research 83 D.2
       // measured an untagged control reading "…is closed**rewind**. This…").

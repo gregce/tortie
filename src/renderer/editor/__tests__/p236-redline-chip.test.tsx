@@ -139,7 +139,8 @@ function chipMarkup(): string {
   return renderToStaticMarkup(
     createElement(RedlineChip, {
       anchor,
-      view: null,
+      page: null,
+      scroll: null,
       onCommand: () => undefined,
       chipRef: { current: null },
       onDetached: () => undefined,
@@ -161,7 +162,8 @@ describe('the chip draws for the change you are on, and for nothing else', () =>
       renderToStaticMarkup(
         createElement(RedlineChip, {
           anchor: null,
-          view: null,
+          page: null,
+          scroll: null,
           onCommand: () => undefined,
           chipRef: { current: null },
           onDetached: () => undefined,
@@ -331,7 +333,13 @@ describe('the anchor is the first client rect and never the bounding box', () =>
     height: number
   ): ChipRect => ({ left, top, bottom: top + height, width, height });
 
-  /** The view's box in the wide reading of research 96 §1.4. */
+  /** The view's box in the wide reading of research 96 §1.4.
+   *
+   * PHASE 251 GAVE `chipPlace` A PAGE AND A SCROLLER, and this fixture hands
+   * it the same box for both on purpose: the free canvas beside the page is
+   * then exactly 0.00px, so every reading below is the OVERLAY arm, which is
+   * the arm research 96 measured and the arm these numbers are about. The
+   * band arm is `p251-redline-controls.test.ts`'s. */
   const view = rect(569, 110, 871, 775);
   /** Change 12, wide: three rects over two line boxes (research 96 §4.3). */
   const first = rect(1185.82, 433.23, 44.7, 15);
@@ -359,30 +367,30 @@ describe('the anchor is the first client rect and never the bounding box', () =>
   });
 
   it('places the chip where the change STARTS: 616.82px into the view', () => {
-    expect(chipPlace(first, view, size).left).toBeCloseTo(616.82, 2);
+    expect(chipPlace(first, view, view, size).left).toBeCloseTo(616.82, 2);
   });
 
   it('AND THE ABLATION: the bounding box puts it 435.73px away, in empty margin', () => {
-    const wrong = chipPlace(union, view, size).left;
+    const wrong = chipPlace(union, view, view, size).left;
     expect(wrong).toBeCloseTo(181.09, 2);
-    expect(chipPlace(first, view, size).left - wrong).toBeCloseTo(435.73, 2);
+    expect(chipPlace(first, view, view, size).left - wrong).toBeCloseTo(435.73, 2);
   });
 
   it('is above the line when there is room and below it when there is not', () => {
     // 433.23 − 110 − 28 − 4 = 291.23, which is room.
-    expect(chipPlace(first, view, size).top).toBeCloseTo(291.23, 2);
+    expect(chipPlace(first, view, view, size).top).toBeCloseTo(291.23, 2);
     // A change on the view's own first line has none, so the chip drops below
     // it rather than being clamped on top of the words.
     // 112 − 110 − 28 − 4 = −30, so it goes below: 127 − 110 + 4 = 21.
     const topLine = rect(700, 112, 40, 15);
-    expect(chipPlace(topLine, view, size).top).toBeCloseTo(21, 2);
+    expect(chipPlace(topLine, view, view, size).top).toBeCloseTo(21, 2);
   });
 
   it('clamps itself to the view, because the scroller neither scrolls nor clips it', () => {
     const farRight = rect(1430, 433.23, 8, 15);
-    expect(chipPlace(farRight, view, size).left).toBeCloseTo(671, 2);
+    expect(chipPlace(farRight, view, view, size).left).toBeCloseTo(671, 2);
     const farLeft = rect(500, 433.23, 8, 15);
-    expect(chipPlace(farLeft, view, size).left).toBe(0);
+    expect(chipPlace(farLeft, view, view, size).left).toBe(0);
   });
 });
 

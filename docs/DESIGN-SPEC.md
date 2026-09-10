@@ -486,6 +486,184 @@ Before this, an image tab said "gmux edits text files only" — the only file re
 
 Tabs behave like any other: preview/pinned, ⌘W, LRU eviction, the strip. A watcher-driven `git:changed` re-reads the image and bumps a revision that appends `?v=n` to the asset URL — the URL is stable per path, so without it Chromium would keep serving the cached bitmap while an agent rewrites the chart underneath.
 
+### S5E — The Redline view (Phase 251, research 113 + 114)
+
+Rationale and every refusal: DESIGN.md §12. This section is the build spec. The Redline is
+a **whole prose file drawn once**, marked against the shadow baseline (the version Tortie
+last read, durable since Phase 243) and never against HEAD. It draws the file's **source**
+and renders no markdown. It is reached from the `.md` mode control beside Diff / Preview /
+Source / Split, and it has no chord of its own.
+
+```
+┌ .ed-redline-bar [h:30] · bg --bg-canvas · hairline under · draws only while ─┐
+│ there is something to accept                                                │
+│      ┌ .ed-redline-bar-inner — THE PAGE'S OWN GRID ────────────────┐        │
+│      │ [rail] │ .ed-redline-bar-cell  pad-inline 24px              │        │
+│      │        │ "7 of 13 changes"            [ Accept all ]        │        │
+├──────┴────────┴────────────────────────────────────────────────────┴────────┤
+│ .ed-redline-scroll · overflow auto · bg --bg-canvas                         │
+│                                                                             │
+│        ┌ .ed-redline-page — grid, fit-content, margin-inline auto ┐         │
+│        │ rail │ .ed-redline-doc  84ch + 24px padding each side    │         │
+│  free  │ 20px │  padding 20 24 48 · 13/1.65 · pre-wrap ·          │  free   │
+│ canvas │  ▌   │  overflow-wrap anywhere · cursor text            │ canvas  │
+│        │  ▌ ← .ed-redline-rail-bar, 2px --accent, first rect's    │   ↑     │
+│        │      top → last rect's bottom, ONE element, 0 at rest    │ the chip│
+│        └──────┴───────────────────────────────────────────────────┘ lives   │
+│                                                                     here    │
+└─────────────────────────────────────────────────────────────────────────────┘
+   .ed-note / .ed-redline-note-button rows below, unchanged
+```
+
+**The page.** `.ed-redline-page` is `position: relative; display: grid; width: fit-content;
+max-width: 100%; margin-inline: auto`, tracks
+`var(--redline-rail) minmax(0, calc(var(--redline-measure) + var(--redline-pad) * 2))`,
+`column-gap: var(--redline-gap)`. **The four names are declared on `.ed-redline-view`** and
+not on the page — `--redline-measure: 84ch`, `--redline-pad: var(--space-8)`,
+`--redline-rail: 20px`, `--redline-gap: var(--space-5)` — because the bar's inner box takes
+the same two tracks and the bar is a sibling of the scroller rather than a child of the
+page. A custom property a rule cannot inherit is a rule that silently computes nothing, and
+rule 37 compares the two templates as strings, which would agree while resolving
+differently. `ch` resolves **in the element that uses it**, so the page and the bar's inner
+box each carry the document's own face and size;
+without that the unit would resolve against whatever the panel inherits and the measure
+would silently mean something else. Reference numbers at the panel widths research 113
+measured (`ch` = 8.1885px in the running app):
+
+| panel | document box | text column | characters | free canvas L / R of the text | today's box |
+|---|---|---|---|---|---|
+| 1349 | **735.83** | **687.83** | **84.0** | 322.6 / 290.6 | 556.81 at 62.1 characters |
+| 699 | 667.00 | 619.00 | 75.6 | 32.0 / 0.0 | 556.81 at 62.1 |
+| 319 | 312.00 | 264.00 | 32.2 | 7.0 / 0.0 | 319.00 at 33.1 |
+
+Those six columns are **research 114 §2's readings off the mock**, which is a real page
+using the product's own tokens and the product's own composer but is not `RedlineDocument`.
+`npm run probe:p249` re-reads every one of them off the running view at the parent commit
+and at HEAD, which is the only honest proof, and what it read on **both bases** over its
+own fixture is below — the panel widths are the same, the scroller is 10px narrower than
+the panel in that window, and the fixture is not the mock's, so the heights differ:
+
+| panel | document box | text column | characters | dead space | painted / pitch | rail | what marks the current change |
+|---|---|---|---|---|---|---|---|
+| 1349 | 556.81 → **735.83** | 508.81 → **687.83** | 62.7 → **84.8** | 58.72% → **45.45%** | 15.00/21.45 → **19.44/21.45** | 0 → **20px** | 37 outlined boxes → **one bar** |
+| 699 | 556.81 → **657.00** | 508.81 → **609.00** | 62.7 → **75.1** | 20.34% → **6.01%** | same | 0 → **20px** | 37 boxes → one bar |
+| 319 | 309.00 → **302.00** | 261.00 → **254.00** | 32.2 → **31.3** | 3.13% → **5.33%** | same | 0 → **3px** | 74 boxes → one bar |
+
+Dark and paper are identical on every geometric row. The run reads **66 findings at the
+parent commit and 0 at HEAD**. The band the chip is measured in is a
+different reading from "free canvas left / right of the text", because that one counts the
+rail, the gutter and the document's own 24px of padding: beside the **page** at a 1349px
+panel it is **285.58px**, and it is 0.00px at both of the others.
+
+**The rail ladder.** `.ed-redline-view[data-room='narrow']` sets `--redline-rail: 3px` and
+`--redline-gap: var(--space-2)`; `full` is 20px and `var(--space-5)`. It is on the VIEW so
+the bar's inner box narrows with the page. The floor is `REDLINE_RAIL_FLOOR = 449` px of **scroller**, derived: the
+wide rail and its gutter cost the column 32px, and 45 characters — research 113 §1's own
+lower bound for a prose measure — is 368.48px of text, plus 48px of padding, plus 32px.
+**The rail never reaches zero**, at any room value; `conformance:redline` rule 34 reads
+every value `data-room` can take out of the view's own array and fails if one has no rail.
+
+**The bar.** `.ed-redline-bar` keeps its 30px, its hairline and its canvas fill, and it
+still draws only while there is something to accept. What changed is inside it:
+`.ed-redline-bar-inner` takes **the page's tracks verbatim** — same
+`grid-template-columns`, same `column-gap`, `width: fit-content; margin-inline: auto` — and
+`.ed-redline-bar-cell` sits at `grid-column: 2` with
+`justify-content: space-between; padding-inline: var(--redline-pad)`, so the counter and
+`Accept all` land over the first and last character of a full line. `Accept all` goes from
+**419.1px past the column's right content edge to 0.0px**, read off the running app at a
+1349px panel; 94.1px to 0.0px at 699 and 28.0px to 0.0px at the floor. Rule 37 reads both
+templates by matching braces and fails on drift.
+
+**The bar has NO inline padding of its own and mirrors the scroller's gutter**, and both
+halves are arithmetic rather than tidiness. The inner box centres itself, so it can only
+land on the column if the box it centres in is as wide as the box the PAGE centres in,
+which is the scroller's CONTENT box; a `padding: 0 var(--space-3)` put the two centres 8px
+apart on its own. And where the platform draws a classic scrollbar rather than an overlay
+one the scroller's content box is narrower than its border box **on the right alone** —
+measured in the app run at 1339px of content inside a 1349px scroller — which centred the
+page 5px left of where the bar centred itself and put `Accept all` 5px past the column at
+the wide pane and 10px past it at the floor. `--redline-gutter` is that difference,
+measured once by the view's own resize observer (`scroller.offsetWidth −
+scroller.clientWidth`) and `0px` wherever the scrollbar is an overlay, and
+`.ed-redline-bar` carries it as `padding-right`. `scrollbar-gutter: stable both-edges` on
+the scroller is the symmetric answer and is **refused**, because it takes the gutter's
+width off the reading column at every pane, which is the opposite of what this phase is
+for.
+
+**The counter.** `redlineChangeCount(total, current)` in `redline-sentences.ts`, drawn
+`--text-xs` `--text-secondary` with `font-variant-numeric: tabular-nums` so the digits do
+not jitter as ⌥↓ walks. `13 changes` with nothing current, `1 of 13 changes` once there
+is, singular at one. It is **not** a menu item and it has no chord.
+
+**The wash.** `del` and `ins` keep `--error` / `--success` and their washes and keep
+`line-through` on the deletion. Inside `.ed-redline-doc` they take
+`padding: var(--redline-wash) 0 var(--redline-wash) 1px` and `border-radius: 0`, where
+`--redline-wash` is
+`max(0px, calc((var(--redline-pitch) - var(--redline-fontbox) - var(--redline-seam)) / 2))`
+— **the line pitch less a 2px seam**, measured on the running app at **19.44px painted on
+a 21.45px pitch**, with the leading inline pixel kept and the trailing one dropped so
+`starts` and `asks for` sit glyph against glyph. `--redline-pitch` is
+`calc(var(--text-base) * 1.65)`, `--redline-fontbox` is `calc(var(--text-base) * 1.1539)`
+and `--redline-seam` is `2px`. The radius goes because a 2px corner on a box that is now
+nearly the whole line pitch reads as a bevel on a passage, and `slice` gives it to the
+first and last fragment only, which is the tile shape the rule exists to close. The ROW's
+own `.ed-redline del` / `ins` metrics are untouched: it is `--text-sm` on a 1.5 line
+height, a different pitch, and research 113 §5.1 measured zero of them drawn anywhere in
+the product. `box-decoration-break` is **left alone** — it already computes `slice` and it
+was never the fault.
+
+**The current change.** `.ed-redline-rail-bar` is `position: absolute; right: 0; width: 2px;
+border-radius: var(--r-bar); background: var(--accent)`, with `top` and `height` set from
+the change's first client rect's top and its last one's bottom, in the rail's own
+coordinates. `.ed-redline-change`, its identity attributes and its `tabindex="-1"` are
+untouched, so Phase 227's press, Phase 238's accept and Phase 239's persistence read
+exactly what they read today. The old `outline` + inset `box-shadow` on
+`[data-current]` is gone: Chromium painted it once per inline fragment, at 23 boxes on one
+change at a 1349px panel and 43 at the floor **on the mock**, and **37 and 74** on
+`probe:p249`'s own fixture off the running app, which is the longer document; both are
+driven over every change and both go to 0.
+
+**The chip, two arms.** `.ed-redline-chip` is `position: absolute` inside
+`.ed-redline-page` — the page, not the view, is the containing block, in **both** arms, so
+the chip scrolls with the document and has **no `scroll` listener**. `chipPlace` in
+`redline-chip.tsx` decides, and it decides on one number:
+
+- **band** when `scroll.right − page.right ≥ chipWidth + 16`. Placed at
+  `left: page.width + 16`, `top: rect.top − page.top`. Covers **0** rows of prose. With
+  the product's 258.28px chip it turns on at a scroller of **1316.39px**, being a panel of
+  about **1326px**; a re-labelled 299.07px chip needs 1397.97px, which is the point — the
+  question is asked of the chip's own drawn width, read with `getBoundingClientRect()` and
+  not `offsetWidth`, so a fraction of a pixel is not rounded away.
+- **overlay** otherwise, which is **Phase 236 unchanged and is required**: research 96 and
+  research 113 each read 0.00px of canvas at the 319px floor. Above the change's first
+  line box when there is room and below it when there is not, `CHIP_GAP` 4px, clamped
+  inside the page so it grows no scrollbar.
+
+`data-arm="band" | "overlay"` is on the chip so the app run reads which arm it is looking at
+off the face: a chip placed perfectly in the band covers 0 rows of prose and so does a chip
+that was never drawn, so without it the two readings that matter most are the same number.
+**No stylesheet rule keys on it** and the two arms are dressed identically. Read off the
+running view on both bases, the chip takes the **band at 1349 covering 0 rows** and the
+**overlay at 699 and at 319, covering 1 and 2**, against 2 rows covered at every one of the
+six cells at the parent commit — and its drawn width really is **258.28px**, which is the
+number the band arm is decided with and the number the gate and this document both quote. The anchor is `chipAnchorRect` =
+`getClientRects()[0]`, untouched; the bounding box would put the chip 435.73px into empty
+margin at a wide pane. The chip still never takes focus, still cancels `mousedown`, still
+carries `data-redline-tag` so its glyphs cannot reach the clipboard, and still sits
+outside `.ed-redline-doc`.
+
+**Leaf attributes** (`RedlineRow.tsx`, keyed on by `redline.css`): `data-redline-wordless`,
+`-blank`, `-spacing`, `-lone`, `-drop`. A lone whitespace mark draws a **2px bar in its own
+colour through a pseudo-element** — no node, no text node, no leaf — because rules 1 and 2
+together drew a blank line added or removed as nothing at all.
+
+**Floors and refusals.** No colour literal anywhere in the four redline files
+(`conformance:redline` rule 8). One guarded write at one call site (rule 9). No native menu
+change: no surface is added, renamed or removed, and `Accept all` still has **no chord**.
+Nothing may be added inside `.ed-redline-doc` — four readers walk it. The view mounts its
+whole document with no virtualizer, so anything drawn per change is drawn for every change
+in the file.
+
 ## S6 — New session modal (⌘T)
 
 ```

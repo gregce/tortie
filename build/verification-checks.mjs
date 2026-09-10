@@ -910,6 +910,23 @@ export const CHECKS = [
   // GMUX_HARNESS_DIR, and it touches `-L gmux` in one place only, a read only
   // session count before and after. `--self-test` proves its grader on eleven
   // fixtures and launches nothing.
+  // PHASE 251. The room and the wash, read off the running app at three pane
+  // widths on BOTH bases (research 114 §8). It is the other half of
+  // conformance:redline rules 33 to 36: that gate reads the stylesheet, and a
+  // stylesheet reading cannot see a face substitution, so the ONE guard on the
+  // long side of the wash — where two vertically adjacent washes would overlap
+  // and paint ink over the neighbouring line — is this probe's painted-height
+  // row and nothing else. It also counts the positioned boxes the current
+  // change draws OVER EVERY CHANGE rather than over whichever one happens to
+  // be current, which is the row the design's own first version got wrong. One
+  // Electron on a scratch profile with a scratch HOME and its own tmux socket,
+  // ended in a finally; it creates no session, spawns no agent, spends no
+  // token and opens no keychain, every byte it writes is under
+  // GMUX_HARNESS_DIR, and it touches `-L gmux` in one place only, a read only
+  // session count before and after. `--self-test` proves its graders on 23
+  // fixtures and launches nothing; `--compare` prints the parent commit's
+  // readings beside HEAD's and launches nothing either.
+  electron('probe:p249'),
   electron('probe:p243'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.

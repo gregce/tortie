@@ -465,42 +465,57 @@ describe('the mark is drawn with declarations research 99 priced at 0 findings',
     return css.slice(open + 1, css.indexOf('}', open));
   }
 
-  it('there is a rule for the current change at all', () => {
-    expect(css).toContain(`.ed-redline-change[${CURRENT_ATTRIBUTE}]`);
+  // PHASE 251 MOVED THE MARK OFF THE WRAPPER AND INTO THE RAIL, and Phase
+  // 239's shape 4 is unchanged by it: the current change is still marked and
+  // the mark still persists across a recompose, because `[data-current]` is
+  // still what says which change it is and the render still puts it back. What
+  // moved is only the DRAWING. Chromium paints an outline once per inline
+  // FRAGMENT, so the ring below was a stack of boxes exactly where a wrapped
+  // change is widest — research 114 §2 counted 23 on one change at the pane
+  // the operator works in and 43 at the panel's floor, driven over every
+  // change rather than over whichever one was current — and he called that
+  // damage in the screenshot Phase 249 was written from.
+  //
+  // The property this block exists for is STRONGER now rather than weaker.
+  // Phase 239 could only ask that the four declarations on the wrapper were
+  // ones research 99 priced at 0 findings; the wrapper now carries no rule at
+  // all, and the mark is an absolutely positioned element in a track of its
+  // own, so it cannot reflow the sentence by construction.
+
+  it('there is a rule for the current change at all, and the view draws one', () => {
+    expect(css).toContain('.ed-redline-rail-bar');
+    const view = readFileSync(
+      new URL('../RedlineDocument.tsx', import.meta.url),
+      'utf8'
+    );
+    expect(view).toContain('className="ed-redline-rail-bar"');
+    // The mark is still the wrapper's own attribute, so nothing about WHICH
+    // change is current moved: the bar is measured from the element wearing it.
+    expect(view).toContain(CURRENT_ATTRIBUTE);
   });
 
-  it('it holds only the four free declarations, and no reflowing one', () => {
-    const body = ruleFor(`.ed-redline-change[${CURRENT_ATTRIBUTE}]`);
+  it('the wrapper itself carries no rule, so the mark cannot reflow the sentence', () => {
+    expect(css).not.toContain(`.ed-redline-change[${CURRENT_ATTRIBUTE}]`);
+    expect(css).not.toContain('.ed-redline-change:focus-visible');
+  });
+
+  it('the bar is out of flow, holds no reflowing declaration and no colour literal', () => {
+    const body = ruleFor('.ed-redline-rail-bar');
     const properties = body
       .split(';')
       .map((line) => line.split(':')[0]?.trim() ?? '')
       .filter((name) => name !== '');
-    expect(properties.sort()).toEqual(
-      ['border-radius', 'box-shadow', 'outline', 'outline-offset'].sort()
-    );
+    expect(body).toMatch(/position:\s*absolute/);
     // THE ABLATION, and it is the shape a person reaches for first: research
-    // 99 section 5 measured a `border-left` rail at 2.00px of real reflow,
-    // moving the change's own first rect from 72.98 to 74.98 and that line's
-    // right edge from 1479.34 to 1481.34. It is inside the inline box, so it
-    // widens the change and pushes the rest of the line.
-    for (const forbidden of [
-      'border-left',
-      'border',
-      'margin',
-      'padding',
-      'width',
-      'display',
-      'font-size',
-      'letter-spacing'
-    ]) {
+    // 99 section 5 measured a `border-left` rail on the WRAPPER at 2.00px of
+    // real reflow, moving the change's own first rect from 72.98 to 74.98 and
+    // that line's right edge from 1479.34 to 1481.34. Out of flow in a track
+    // of its own, the bar cannot do it — and this asks that the rail's own
+    // box, which IS in the page's flow, is not what carries the drawing.
+    for (const forbidden of ['margin', 'font-size', 'letter-spacing']) {
       expect(properties, forbidden).not.toContain(forbidden);
     }
-  });
-
-  it('and no colour literal, per rule 8: the ring is the accent token', () => {
-    const body = ruleFor(`.ed-redline-change[${CURRENT_ATTRIBUTE}]`);
     expect(body).toContain('var(--accent)');
-    expect(body).toContain('var(--border-strong)');
     expect(body).not.toMatch(/#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(/);
   });
 });
@@ -540,7 +555,7 @@ describe('the narrow pane answer: the chip fits at every width the pane offers',
     // A change at the far right of the text column, which is the worst case
     // for a chip anchored where the change STARTS.
     const change = rect(left + column - 8, 400, 8, 15);
-    const place = chipPlace(change, view, THREE);
+    const place = chipPlace(change, view, view, THREE);
     expect(place.left).toBeGreaterThanOrEqual(0);
     expect(place.left + THREE.width).toBeLessThanOrEqual(pane);
     expect(place.top).toBeGreaterThanOrEqual(0);
@@ -550,7 +565,7 @@ describe('the narrow pane answer: the chip fits at every width the pane offers',
   it('a change at the left edge is not pushed off the other way either', () => {
     for (const { pane, left } of PANES) {
       const view = rect(0, 0, pane, 800);
-      const place = chipPlace(rect(left, 400, 8, 15), view, THREE);
+      const place = chipPlace(rect(left, 400, 8, 15), view, view, THREE);
       expect(place.left).toBeGreaterThanOrEqual(0);
       expect(place.left + THREE.width).toBeLessThanOrEqual(pane);
     }
@@ -579,8 +594,8 @@ describe('the narrow pane answer: the chip fits at every width the pane offers',
     // 89.20px further.
     const view = rect(0, 0, 380, 800);
     const change = rect(24 + 321 - 8, 400, 8, 15);
-    const near = chipPlace(change, view, THREE);
-    const wide = chipPlace(change, view, FOUR);
+    const near = chipPlace(change, view, view, THREE);
+    const wide = chipPlace(change, view, view, FOUR);
     expect(change.left - near.left).toBeCloseTo(128.6, 2);
     expect(change.left - wide.left).toBeCloseTo(217.8, 2);
     expect(near.left - wide.left).toBeCloseTo(89.2, 2);
@@ -699,6 +714,9 @@ describe('the controls follow the change when the wrapper survives a recompose',
     const chip = readFileSync('src/renderer/editor/redline-chip.tsx', 'utf8');
     expect(view).toContain('chipNeedsMeasure(');
     expect(view).toContain('placement={placement}');
-    expect(chip).toContain('}, [anchor, view, chipRef, placement]);');
+    // PHASE 251 gave the effect the PAGE and the SCROLLER in place of the
+    // view, because the page is the containing block in both of the chip's
+    // arms; `placement` is what this test is about and it is still last.
+    expect(chip).toContain('}, [anchor, page, scroll, chipRef, placement]);');
   });
 });

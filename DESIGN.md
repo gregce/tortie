@@ -536,3 +536,255 @@ Three consequences worth stating as rules, because they are what keep it true:
    group shares one, filter-as-you-type — because the shortcuts nobody discovers are
    exactly the ones that need a sentence, not a denser grid. §9's item 6 "Hotkeys"
    section, whose first two rows were a hand-typed shortcut list, is replaced by it.
+
+## 12. The Redline (Phase 251, research 113 + 114) — the surface, and the room it is in
+
+The Redline shipped in Phase 191, became a whole-document view in Phase 194 and grew a
+press, an accept, a chip and a durable baseline over six phases after that — and it
+**appeared in neither this document nor DESIGN-SPEC**. It does now, because Phase 251
+changed what a person sees the moment they open one and a phase that changes a surface
+writes its section.
+
+The operator asked for it on 2026-09-09: *"for our redline view, I feel like we could
+have more space and affordance in it and make it much more beautiful."* Research 113
+measured the five faults he was looking at off the running app, research 114 drew three
+directions as a working page, and he chose **Direction B, the column with margins**, and
+**Seam** over Ribbon, on 2026-09-09. Everything below is that choice.
+
+### 12.1 What the surface is
+
+A prose file, drawn once, marked against **the version Tortie last read** — the shadow
+baseline of Phase 225, durable since Phase 243 — and not against HEAD. It draws the
+file's **source** and renders no markdown; rendering markdown with marks inside it is a
+different and much harder feature and the operator confirmed the decision. Deletions and
+insertions are told apart by **colour and a strikethrough**, and the wash behind them is
+decoration and nothing more: it reads **1.152:1** and **1.223:1** against the canvas,
+which is below every floor in the product, so any design that leans on the wash to say
+which is which is leaning on a difference that is not there. Making it taller does not
+promote it.
+
+**Nothing new goes inside `.ed-redline-doc`.** Four readers walk that element — the copy
+handler's clone, the shot probe's `leavesOf` and the two projection tests' parsers — and
+each would read an inserted label as a run of the person's text. The rail, the chip and
+the bar all live outside it, and so does anything a later round adds.
+
+### 12.2 The page: two tracks, and the measure is the text's
+
+The document sits in a page of `[rail] [column]`, `width: fit-content` centred in the
+scroller, with the reading column carrying **`--redline-measure: 84ch` and the 48px of
+inline padding OUTSIDE it**. The shipped rule was `max-width: 68ch` with the padding
+inside, which delivers **62.1 characters**: the number in the stylesheet had never meant
+what it said.
+
+**Two sets of numbers describe this and they are not the same reading.** Research 114 §2
+measured the mock — a real page on the product's own tokens and the product's own composer,
+but not `RedlineDocument` — at 58.42% of empty canvas going to 45.45%, the document 1033.04px
+to 885.38px of height, and the band either side of his text 396.1 / 396.1px to
+322.6 / 290.6px. `npm run probe:p249` re-read every row off the **running view** at the
+parent commit and at HEAD over its own fixture, and that is the honest proof: at the pane he
+works in the document box goes **556.81px → 735.83px**, the text column 508.81 → 687.83, the
+characters **62.7 → 84.8**, the empty canvas **58.72% → 45.45%**, the document height
+**2062.41px → 1676.40px**, and the free canvas either side **415.1 / 425.1 → 341.6 / 319.6px**.
+DESIGN-SPEC S5E carries both tables side by side. **Where the two readings differ this
+section names which one it is quoting**, because the mock and the app run draw different
+fixtures and a number with no source is the thing this document exists not to be.
+
+**Both bands shrink together, and that is the whole point.** The design's first version
+centred the page *including a reserved 264px margin*, which pushed the column 122px left
+of centre and made the band to the right of his text **bigger** — 428.59px against
+396.09px — which answers the opposite of the complaint. The page is the rail and the
+column and nothing else; the chip lives out of flow in the canvas beside it rather than
+in a track reserved for it. The column ends up **16px right of the pane's centre**, being
+half the rail's width plus its gutter, which errs towards less canvas on the right, which
+is the side he was looking at.
+
+**The cost is named rather than buried.** 84 characters is nine over the measure prose is
+normally held to, and it is a judgement and not a solved optimum: research 113 swept 68,
+76, 84, 92, 100, 120 and no cap, and 84 is the row with the fewest wrapped marks. Letting
+the document fill the pane buys 42% less height and costs a 158-character line and a mean
+row fill of 52.1%, which is not a reading measure at all, so it is refused.
+
+### 12.3 The wash: the line pitch less a 2px seam, and it is taste
+
+A mark paints its **font box, 15.00px**, on a line pitch of **21.45px**, so there is a
+**6.45px band of unpainted canvas between every pair of stacked fragments**. That band is
+what makes a wrapped change read as a stack of ragged tiles, and it is the only thing in
+the reading that produces one: the corners are already sliced, and the fragments are
+flush left and ragged right, which is the shape of a paragraph and is correct. Padding a
+mark vertically until its painted height *is* the pitch closes it, and the run becomes one
+continuous shape.
+
+**Seam paints the pitch less 2px — 19.44px painted, a 2.01px seam — and Ribbon closes it
+to 0.01px. THE CHOICE BETWEEN THEM IS TASTE AND IT IS THE OPERATOR'S**, made on
+2026-09-09, and nobody may later dress it as a measurement. There is no measurement to
+find: inline padding is uniform, so the gap between two fragments of one run and the gap
+between two different marks are **the same number at every setting** — 2.01px in Seam,
+6.45px in Tiles, 0.01px in Ribbon — and CSS offers no selector that can see that two
+boxes are on different lines. The hairline is canvas at 1.15:1 besides, so it could not
+carry meaning even if it could be made to appear.
+
+Two things are refused with it. **A wrapped mark cannot be given one rounded outline
+following its own ragged silhouette**: an inline box that breaks paints one background
+box per fragment, and `box-decoration-break: clone` gives every fragment all four corners,
+which is more tiles rather than fewer. A silhouette needs one positioned box per fragment
+or an SVG path recomputed on every reflow, against a view that mounts its whole document.
+
+**The height rests on a font metric and that is a stated limit.** `--redline-fontbox` is
+`calc(var(--text-base) * 1.1539)`, right for `-apple-system` at 13px on this machine and
+derivable from no CSS expression — `em`, `ex`, `cap` and `ch` are all glyph measures and
+CSS exposes no unit for a line box's content area. The two failure modes are not
+symmetric: too small and the band comes back, which `max(0px, …)` guards; too large and
+the washes of adjacent lines **overlap**, which is the tiles defect inverted into ink over
+the neighbouring line, and no arithmetic guards it. That side is guarded by a **reading
+off the running app**, because a stylesheet reading cannot see a face substitution.
+
+### 12.4 The current change is one bar in the rail
+
+Chromium paints an outline once per inline **fragment**, so the ring Phase 227 drew on the
+change's wrapper became a stack of boxes exactly where a wrapped change is widest, and both
+readings below are driven over **every** change rather than over whichever one happened to
+be current: **23 outlined boxes on one change at the pane he works in and 43 at the panel's
+floor** on the mock, and **37 and 74** on `probe:p249`'s own fixture off the running app,
+which is a longer document. Both go to **0**. It is now one
+absolutely positioned **2px `--accent` bar in the rail**, from the change's first client
+rect's top to its last one's bottom: one element while a change is current and **zero at
+rest**. `--accent` on the canvas reads 6.406:1 on graphite and 4.504:1 on paper, both
+clear of the 3:1 a non-text mark is held to.
+
+**The rail never collapses.** The design's first version set it to zero at the panel's
+floor and scoped the outline that would otherwise replace it to the old look, which left
+the current change marked by **nothing at all** at the one width where the outline is
+worst — Phase 239's shape 4 dropped. It narrows to a bar's own **3px** with a 4px gutter
+instead. It costs the column seven pixels at the floor and keeps one mechanism at every
+width.
+
+### 12.5 The controls: a bar on the column's grid, and a chip with two arms
+
+**`Accept all` was 419.1px from the column it acts on, and the button's placement was
+never the fault.** The bar was justified against the *panel* while the column was centred
+inside it, so the button's distance from the thing it acts on **was** the right-hand dead
+space: 355.32px at 1349px, 30.32px at 699px, and at the floor it sat over the column
+because there was no dead space left. The bar's inner box now takes **the page's own
+tracks**, so both of its ends land on the column at every width — read off the running app,
+**419.1px → 0.0px** at 1349, 94.1 → 0.0 at 699 and 28.0 → 0.0 at the floor, where the mock
+predicted 414.1 → 0.0 —
+and a `N of M changes` counter sits at the other end of the same cell. The two grids are
+two copies of one fact, so `conformance:redline` rule 37 reads both out of the stylesheet
+by matching braces and fails if they ever drift: a bar twelve pixels out of step with its
+column still looks exactly like a bar.
+
+The counter says **how many changes there are until a person goes to one, and where they
+are once they have** — `13 changes`, then `1 of 13 changes`. Phase 236's rule is that the
+resting face draws no control and names no change, and a counter that said "1 of 13"
+before anybody had gone anywhere would be naming a place the person is not in.
+
+**The chip has two arms and ONE decision between them, asked with ONE number.** It goes in
+the free canvas beside the column **whenever that canvas holds the chip's own drawn
+width** where the chip would be put. Read off the running view, it takes the band at 1349
+on both bases and covers **0** rows of prose there, and the overlay at 699 and 319 covering
+1 and 2, against 2 rows covered at every one of the six cells at the parent commit; the chip
+says which arm it took on its own `data-arm`, because a chip placed perfectly in the band
+covers 0 rows and so does a chip that was never drawn at all. The test and the placement are the same arithmetic —
+ask for the width plus the gutter, then place at the gutter — so an accepted chip really
+fits, and **a re-labelled button moves the answer by itself**: the product's chip is
+258.28px and takes the band at a scroller of **1316.39px**, being a panel of about
+1326px, while the same four buttons relabelled at 299.07px do not, at the same pixel. The
+design's first version gated it on a `data-room` ladder at 1060px while the placement
+asked whether a 264px track was at least 200px wide: two undeclared numbers and a 264px
+cliff on one pixel of drag.
+
+**The overlay arm is required and is not a fallback anybody may delete.** Research 96 and
+research 113 each measured **0.00px** of free canvas at the editor panel's own floor, so
+at 319px there is nowhere else for the controls to be, and the chip falls back to exactly
+the placement Phase 236 shipped: above the change's first line box when there is room and
+below it when there is not, clamped inside the page.
+
+**The chip is a child of the page in BOTH arms**, which is why its `scroll` listener is
+gone: it is inside the scroller now, so it scrolls with the document it belongs to and
+nothing has to put it back on every scroll event. That makes `.ed-redline-page` the
+containing block and `.ed-redline-view` no longer the only positioned box in the view — a
+fact stated in `redline-chip.tsx`, `RedlineDocument.tsx` and `redline.css`, which move
+together.
+
+**Every one of Phase 236's four rulings stands.** The anchor is `getClientRects()[0]` and
+never the bounding box, which would point 435.73px into empty margin at a wide pane. A
+control per change in the flow is refused, at 45.12px of sideways push. A chip that takes
+focus is refused, because `focusedChange` reads `document.activeElement`. And the chip is
+out of flow, because that moved the document by 0.00px. **`Accept all` still has no
+chord** (Phase 238's own ruling: nobody is ever one keystroke from accepting everything)
+and the counter is not a menu item, so no native menu moved.
+
+### 12.6 The leaf rules, none of which moves a byte
+
+Four rules about what a mark **paints**, all of them read at the leaves, so both
+projections — the drawn runs with the insertions dropped are the old file byte for byte,
+and with the deletions dropped the new one — are unchanged:
+
+1. **No wash on a mark with no letter and no digit** that is not whitespace, being a
+   table's `|` and its `---`. It keeps its colour and its strikethrough.
+2. **No wash on a whitespace mark that is not a spacing change**, which is a deleted
+   line's own trailing newline riding along and painting a bar past the last glyph.
+3. **A change must carry ink.** Rules 1 and 2 together drew one of the commonest prose
+   edits there is — a blank line added or removed — as **nothing at all**, while the
+   counter, the chip and ⌥↓ all still treated it as a change and offered Rewind and
+   Accept on it. A whitespace mark whose change holds nothing a reader can read draws a
+   **2px bar in its own colour, through a pseudo-element**, so it adds no node, no text
+   node and no leaf, and the four readers of the document see what they see today.
+4. **A deletion and an insertion of the same bytes collapse to one unchanged run**, which
+   is exactly equivalent on both projections.
+
+**Ruling 5 stands exactly and no wider.** A whitespace mark that *is* a spacing change
+keeps its wash, because in a standalone document nothing else can say that a spacing
+change happened; it loses only the strikethrough, which had no glyph to draw on.
+
+### 12.7 A table is diffed row against row
+
+7.7% of a file produced **52% of its changes and 39% of its mounted elements**, and a
+reader was shown word-level edits between cells from different rows, because the composer
+diffs one flat character stream and the tokeniser pairs words across row boundaries. A
+change block whose every line is a table line is now aligned **row against row** by an
+order-preserving resemblance LCS at 0.5, and each paired row is word-diffed on its own.
+
+**Never by the first cell.** A renamed label column is the commonest table edit there is,
+and a first-cell key cannot pair a row whose first cell is what changed, so it degrades
+every row to a whole-row deletion beside a whole-row insertion — a *worse* picture than
+the flat stream it replaces. **The word budget is the block's** and not the row's, which
+is what `REDLINE_MAX_EDIT_LENGTH` promised. And `tableRuns` has a refusal of its own at
+**60 rows a side**, because unlike the word differ it answers on every input there is.
+
+**A redlined table cannot be made to line up**, and that is refused rather than deferred:
+a drawn line carries both versions' characters and therefore neither version's grid. The
+wider measure makes it more visible, not less — the spread of a table's closing pipes goes
+**427.9px → 593.4px**, because at 62 characters the rows were wrapping and being clipped
+by the wrap. That is the honest cost of the room.
+
+### 12.8 The limits, said out loud
+
+- **`--error` on its own wash falls under 4.5:1 at 8 of the 35 offered dark cells**, worst
+  **4.135** at shade 2, depth −3, hue 73, with the shipped default and the whole light
+  region clear. It is a pre-existing defect that this design makes more *visible* and not
+  more wrong, and **the operator chose on 2026-09-09 not to pin it in this phase**: a pin
+  is affordable, taking the dark region 35 → 27 with the default surviving, and the
+  cheaper answer is to derive the wash from the canvas the way the neutrals are derived,
+  which costs no cell. Both are palette decisions. §1.3's floors do not move.
+- **A table over 4,000 characters is not fixed**, because the row path sits inside the
+  character cap: it is skipped exactly as it is today and the note says so. That is
+  **46 of the 1,951 markdown tables in this repository**, including one in this document
+  at 8,231 bytes and one in `docs/BACKLOG.md` at 22,283 bytes.
+- **Some rows are worse, and the app run corrected which ones.** Research 114 §2
+  predicted, off the mock, that at the panel's floor five mark fragments would pass the
+  column's content edge against three today and the document would be 42.89px taller.
+  Read off the RUNNING app over `probe:p249`'s own fixture, the floor goes the other way —
+  **5 crossings against 12** — and it is the **wide pane** that is worse, **4 against 2**,
+  with the worst overhang 2.47px → 3.58px. Every one of the four ends on **whitespace**
+  and not one on a visible character, which is research 113 §5.3's own mechanism
+  re-derived rather than quoted: `pre-wrap` paints a preserved space or newline at a wrap
+  point past the last glyph. What IS worse at the floor is the column, **261.00px →
+  254.00px**, being 32.2 characters to 31.3, and the document **3392.02px → 3499.25px**,
+  and both are the seven pixels the rail refuses to give up (§12.4). At the pane he works
+  in the document is **2062.41px → 1676.40px**, which is 18.7% less to scroll.
+- **The wash's height rests on a font metric** (§12.3) and a face substitution moves it.
+- **A horizontal scroller for a wide block is not taken here**; it is Phase 248's ruling.
+- **The view still mounts its whole document.** There is no virtualizer, so anything that
+  adds DOM per change multiplies against every change in the file, which is why the bar
+  is one element and the ink rule is a pseudo-element.

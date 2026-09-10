@@ -85,6 +85,42 @@
   inset: 0;
   display: flex;
   flex-direction: column;
+  /* PHASE 251. THE PAGE'S FOUR NUMBERS, declared HERE rather than on the page
+     itself, because the header bar's inner box takes the same two tracks and
+     the bar is a sibling of the scroller rather than a child of the page. A
+     custom property a rule cannot inherit is a rule that silently computes
+     nothing, and `npm run conformance:redline` rule 37 compares the two
+     templates as strings, which would agree while resolving differently. The
+     `ch` in the measure is resolved where it is USED, so both users carry the
+     document's own face and size and say why.
+
+     The measure is the TEXT's and not the box's, which is the whole of fault
+     1; the page block below carries that reasoning and research 113 §1's
+     numbers. */
+  --redline-measure: 84ch;
+  /* One name for the document's inline padding, read by the two track lists
+     and by the document itself, so the three cannot drift and the measure
+     cannot quietly go back to meaning the box. */
+  --redline-pad: var(--space-8);
+  --redline-rail: 20px;
+  --redline-gap: var(--space-5);
+}
+
+/* THE RAIL NEVER COLLAPSES, and research 114 §1.3 is the reason it is a
+   narrowing rather than a removal. The design's first version set the rail to
+   zero at the panel's floor, which left the current change marked by NOTHING
+   AT ALL at the one width where the outline it replaces is worst — 43 outlined
+   boxes on one change — and that is Phase 239's shape 4 dropped. It narrows to
+   a bar's own width with a gutter instead, so one mechanism marks the current
+   change at every width, which is `npm run conformance:redline` rule 34 and
+   the app run's own reading.
+
+   WHAT THE LADDER'S FLOOR IS DERIVED FROM is in ./RedlineDocument beside the
+   number, being 45 characters, which research 113 §1 names as the bottom of
+   the range a prose measure is held to. */
+.ed-redline-view[data-room='narrow'] {
+  --redline-rail: 3px;
+  --redline-gap: var(--space-2);
 }
 
 .ed-redline-scroll {
@@ -99,10 +135,107 @@
   outline-offset: -1px;
 }
 
+/* ---------------------------------------------------------------------------
+   THE PAGE (Phase 251, research 114 §6.1 and §6.2). The operator asked on
+   2026-09-09 for "more space and affordance", sent a screenshot, and chose
+   DIRECTION B off `build/p249/mock-p249.html` on the same day: the column with
+   margins, being a two-track page of `[rail] [column]` centred in the
+   scroller, with the current change's mark moved off the wrapper and into the
+   rail.
+
+   THE MEASURE IS THE TEXT'S AND NOT THE BOX'S, which is the whole of fault 1.
+   The shipped rule was `max-width: 68ch` on a box carrying 48px of padding
+   INSIDE it, so it delivered 62.1 characters and the number in this stylesheet
+   never meant what it said (research 113 §1: `ch` computes at 8.1885px here,
+   556.816 ÷ 68, and the text column was 508.81px). `--redline-measure` is the
+   TEXT's width and the padding is added on top of it in the track below, so 84
+   means 84 (`--redline-measure` and the other three are declared on
+   `.ed-redline-view` above, so the bar's inner box can read the same numbers). Research 113 §1.1 swept 68, 76, 84, 92, 100, 120 and no cap on the
+   live element and put it back byte for byte: 84ch draws the fewest wrapped
+   marks of the seven, 6 against 68ch's 10, and 15% less document to scroll. It
+   is a JUDGEMENT rather than a solved optimum and research 114 §9 says so;
+   this phase does not re-argue it.
+
+   `markdown.css` IS NOT TOUCHED. The preview's own measure is Phase 248's and
+   the two surfaces stopped sharing a number here on purpose.
+
+   WHAT IS CENTRED IS THE PAGE, being the rail and the column and NOTHING
+   ELSE. Research 114 §2.1 is why that sentence is this specific: the design's
+   first version centred a page that also held a 264px margin track, which put
+   the reading column 122px left of the pane's centre and left MORE blank
+   canvas to the right of his text than the shipped view does — 428.59px
+   against 396.09px — and the fault he pointed at is text stopping with empty
+   canvas to its right. The chip lives out of flow in that free canvas instead
+   of in a reserved track, so both bands shrink together. The column sits half
+   the rail's width plus its gutter right of the pane's centre, which errs
+   towards LESS canvas on the right, which is the side he was looking at.
+
+   `ch` IS RESOLVED IN THIS ELEMENT, so the page carries the document's own
+   face and size. A custom property holding `ch` is substituted as a token and
+   computed where it is USED, and it is used here in `grid-template-columns`;
+   without these two declarations the unit would resolve against whatever the
+   editor panel happens to inherit and the measure would silently mean
+   something else. */
+.ed-redline-page {
+  /* The chip and the rail bar are placed against THIS box, in both of the
+     chip's two arms. `.ed-redline-view` stops being the only positioned box in
+     the view, which is a fact stated in three files that move together:
+     ./redline-chip, ./RedlineDocument and here. Take this declaration away and
+     every placement silently becomes a placement against the view. */
+  position: relative;
+  display: grid;
+  /* `fit-content` so the page's own box IS its tracks, and the free canvas is
+     what is left over on each side, equally. */
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  grid-template-columns:
+    var(--redline-rail)
+    minmax(0, calc(var(--redline-measure) + var(--redline-pad) * 2));
+  column-gap: var(--redline-gap);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+}
+
+/* The rail: no content of its own, no text, no border, and at rest not one
+   drawn pixel. It is the box the current change's bar is positioned inside,
+   and it is `aria-hidden` in ./RedlineDocument because it says nothing a
+   reader of the document has not already been told by the wrapper's own
+   `aria-label`. */
+.ed-redline-rail {
+  grid-column: 1;
+  position: relative;
+}
+
+/* THE CURRENT CHANGE, AS ONE BAR (Phase 251, research 114 §6.2).
+   Chromium paints an outline once per inline FRAGMENT, so the ring Phase 227
+   drew on the wrapper became a stack of boxes exactly where a wrapped change
+   is widest: research 114 §2 counted 23 outlined boxes on one change at the
+   pane the operator works in and 43 at the panel's floor over the MOCK, and
+   `npm run probe:p249` read 37 and 74 over its own longer fixture at the
+   parent commit and 0 at HEAD, both driven over EVERY change rather than over
+   whichever one happened to be current. This is one
+   absolutely positioned element spanning that change's first client rect's top
+   to its last one's bottom, and ZERO elements at rest, because only one change
+   is ever current and ./RedlineDocument draws none when there is none.
+
+   `--accent` on the canvas is the same token the scroller's own focus ring
+   uses and research 114 §2 measured it at 6.406:1 on graphite and 4.504:1 on
+   paper, both clear of the 3:1 a non-text mark is held to.
+
+   IT IS INSIDE THE SCROLLER, so it scrolls with the document it names and
+   nothing has to put it back on a scroll event. */
+.ed-redline-rail-bar {
+  position: absolute;
+  right: 0;
+  width: 2px;
+  border-radius: var(--r-bar);
+  background: var(--accent);
+}
+
 /* The document itself. It reuses `.ed-redline` for the marks and overrides
-   the row's own metrics: a document is body text on the markdown preview's
-   measure, centred the same way and for the same reason (a 68ch column that
-   hugs the left edge of a wide pane leaves half the pane blank).
+   the row's own metrics: a document is body text on a reading measure, and
+   the measure is now the PAGE's, above, rather than a `max-width` of its own.
 
    `pre-wrap` rather than the row's `normal`, and this is the one rule the
    projections depend on: ./redline-document keeps every newline and every
@@ -111,9 +244,8 @@
    make the picture lie about spacing changes, which are drawn here as a
    struck-through run and an inserted one like any other change. */
 .ed-redline-doc {
-  max-width: 68ch;
-  margin-inline: auto;
-  padding: var(--space-7) var(--space-8) var(--space-10);
+  grid-column: 2;
+  padding: var(--space-7) var(--redline-pad) var(--space-10);
   font-size: var(--text-base);
   line-height: 1.65;
   color: var(--text-primary);
@@ -122,44 +254,176 @@
   cursor: text;
 }
 
-/* PHASE 227. A change under keyboard focus, and NOTHING on the resting face.
-   Each change is one `span.ed-redline-change` with tabindex -1, so it is out of
-   the tab order and reached only by the view's own chords or a click. Research
-   83 D.3 measured that focusing one moved the document by 0.00px, kept the
-   selection and scrolled the change into view on its own; Chromium paints the
-   outline as one box per fragment of a wrapped change, which is the right
-   picture. Tokens only: the same accent ring the scroller wears, with the
-   hairline the row's own tag uses on the inside so the ring reads on the
-   change's own wash. */
-/* PHASE 239 shape 4. THE CURRENT CHANGE IS MARKED, AND THE MARK PERSISTS.
-   `[data-current]` is put on by the render (./redline-current, ./RedlineDocument
-   DocumentRuns), so it comes back on its own after the recompose an agent's
-   write causes — which is the defect research 99 section 2.3 measured, where
-   the change survived and the person's place in it did not.
+/* THE WASH PAINTS THE LINE PITCH LESS A SEAM (Phase 251, research 114 §6.2),
+   and this is the whole of fault 2.
 
-   IT IS THE SAME DECLARATIONS THE FOCUS RING ALREADY DREW, which is why it
-   costs nothing: research 99 section 5 priced six decorations on both rulers
-   and this one reads 0 findings on every change rect AND on all 34 line edges.
-   The one form a person reaches for first, a `border-left` rail, costs 2.00px
-   of real reflow that only the line-edge reading names, so it is refused. What
-   is new is not the picture but WHEN it is drawn: the ring used to leave with
-   the keyboard and now stays on the change the controls belong to. */
-.ed-redline-change:focus-visible,
-.ed-redline-change[data-current] {
-  outline: 1px solid var(--accent);
-  outline-offset: 1px;
-  border-radius: var(--r-xs);
-  box-shadow: 0 0 0 1px var(--border-strong) inset;
+   What made a wrapped change read as a stack of ragged tiles was never the
+   corners and never the left edge: `box-decoration-break` already computes
+   `slice`, and research 113 §2.1 measured ONE distinct left edge over the 19
+   fragments of the widest deletion, which is the shape of a paragraph and is
+   the correct shape. It was that a mark painted its FONT BOX, 15.00px, on a
+   line pitch of 21.45px, leaving a 6.45px band of unpainted canvas between
+   every pair of stacked fragments. Inline padding does not change line height,
+   so padding a mark vertically until its painted height reaches the pitch
+   makes the fragments of one run meet and the run becomes one continuous
+   shape. Measured on the mock: 19.44px painted on a 21.45px pitch, a 2.01px
+   seam, against 15.00px and 6.45px today.
+
+   THE OPERATOR CHOSE SEAM OVER RIBBON ON 2026-09-09 AND IT IS TASTE. Research
+   114 §1.2 says so in those words and it must never be re-dressed as a
+   measurement. NOTHING DISTINGUISHES THE 2px SEAM INSIDE ONE RUN FROM THE ONE
+   BETWEEN TWO ADJACENT MARKS: inline padding is uniform, a selector cannot see
+   that two boxes are on different lines, and read over every vertically
+   adjacent painted pair the minimum gap is identical for both populations at
+   every setting — 2.01px in seam, 6.45px in tiles, 0.01px in ribbon. The first
+   version of that document recommended Seam on the claim that the hairline
+   keeps two inserted table rows apart, and its own measurement refutes it.
+
+   THE HEIGHT RESTS ON A FONT METRIC AND THAT IS A STATED LIMIT. CSS exposes no
+   unit for the content area of a line box — `em`, `ex`, `cap` and `ch` are all
+   glyph measures — so the font box can only be written as a multiple of the
+   font size, and 1.1539 is what `-apple-system` at 13px really measures on
+   this machine, 15.00px read two ways against a declared 15.0007px (research
+   114 §1.4). A face substitution moves it. The two failure modes are not
+   symmetric: too SMALL and the band comes back, which is today's defect in
+   miniature and which the `max(0px, …)` below guards; too LARGE and the washes
+   of vertically adjacent lines OVERLAP, which is the same defect inverted into
+   ink over the neighbouring line, and no arithmetic guards it. So the long
+   side is guarded by a READING off the running app, being `npm run
+   probe:p249`'s painted-height row, and never by this stylesheet.
+
+   THE TRAILING INLINE PIXEL GOES AND THE LEADING ONE STAYS. The shipped
+   `padding: 0 1px` put the wash exactly 1.00px past the last glyph, which is
+   what a marked table row's highlight crossed its own closing pipe with.
+   Dropping both would put `starts` and `asks for` glyph against glyph, which
+   is a readability loss for a pixel's gain, so the pixel moved to the leading
+   edge: a mark is still held off whatever precedes it and a wash now ends
+   exactly where its text ends.
+
+   It sits after `.ed-redline del` and `.ed-redline ins` above, which carry the
+   same specificity, so the later rule is the one that wins. The ROW's own
+   metrics are deliberately untouched: it is `--text-sm` on a 1.5 line height,
+   it is a different pitch, and research 113 §5.1 measured zero of them drawn
+   anywhere in the product today. */
+.ed-redline-doc {
+  --redline-pitch: calc(var(--text-base) * 1.65);
+  --redline-fontbox: calc(var(--text-base) * 1.1539);
+  --redline-seam: 2px;
+  --redline-wash: max(
+    0px,
+    calc((var(--redline-pitch) - var(--redline-fontbox) - var(--redline-seam)) / 2)
+  );
 }
+
+.ed-redline-doc :is(del, ins) {
+  padding: var(--redline-wash) 0 var(--redline-wash) 1px;
+  /* A 2px radius on a box that is now nearly the whole line pitch reads as a
+     bevel on a passage rather than as a rounded word, and `slice` gives it to
+     the first and last fragment only, which is the tile shape this rule
+     exists to close. */
+  border-radius: 0;
+}
+
+/* THE LEAF RULES (Phase 251, research 114 §6.5), and none of them moves a
+   byte. Every one keys on an attribute ./RedlineRow emits from `redlineLeaves`
+   in ./redline-document, and that file's header is the contract both halves
+   are written against. They change the PAINT and never the run list, so both
+   projections, ./redline-copy's clone and every leaf walk read exactly what
+   they read before.
+
+   1. NO WASH ON A MARK WITH NO LETTER AND NO DIGIT that is not whitespace,
+      being a table's `|` and its `---`. It keeps its colour and its
+      strikethrough, because a wash on furniture reads as a change to the
+      furniture. */
+.ed-redline-doc :is(del, ins)[data-redline-wordless] {
+  background: none;
+  padding-inline: 0;
+}
+
+/* 2. NO WASH ON A WHITESPACE MARK THAT IS NOT A SPACING CHANGE. A whitespace
+      mark standing alone with a line terminator in it is a deleted line's own
+      newline riding along, and washing it paints a coloured bar past the last
+      glyph on the row — which is every one of the fifteen crossings research
+      113 §5.3 measured, all fifteen of them ending on whitespace and not one
+      of them on a visible character.
+
+      RULING 5 OF ./redline STANDS EXACTLY AND NO WIDER. A whitespace mark that
+      IS a spacing change keeps its wash, because in a standalone document
+      nothing else can say that a spacing change happened; it loses only the
+      strikethrough, which had no glyph to draw on. `data-redline-spacing` is
+      the flag and ./redline-document's `redlineLeaves` carries the two clauses
+      that answer it. */
+.ed-redline-doc :is(del, ins)[data-redline-blank]:not([data-redline-spacing]) {
+  background: none;
+  padding-inline: 0;
+}
+
+.ed-redline-doc :is(del, ins)[data-redline-blank] {
+  text-decoration: none;
+}
+
+/* 3. A CHANGE MUST CARRY INK. Rules 1 and 2 together drew one of the
+      commonest prose edits there is as NOTHING AT ALL: a blank line added or
+      removed composes to exactly one run, `del "\n"` or `ins "\n"`, with no
+      other mark beside it, so rule 2 takes its wash, the blank rule takes its
+      strikethrough, and whitespace has no glyph for the colour to land on —
+      while the counter, the chip and ⌥↓ all still offer Rewind and Accept on
+      it. The bar is `currentColor`, which is the mark's own `--error` or
+      `--success` at 4.837 and 6.987 on the canvas rather than a wash at 1.152,
+      because research 113 §7.4 refuses to let the wash be the thing that says
+      a change happened.
+
+      IT IS A PSEUDO-ELEMENT, so it adds no node, no text node and no leaf:
+      research 113 §8.5's four readers of the document see exactly what they
+      see today. */
+.ed-redline-doc :is(del, ins)[data-redline-lone]::before {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  vertical-align: -0.15em;
+  border-radius: var(--r-bar);
+  background: currentColor;
+}
+
+/* 4. THE DELETED COPY OF A PLAIN-DASHES SEPARATOR ROW IS NOT DRAWN, and not
+      drawn is not the same as absent: only this declaration hides it, its text
+      node is present, and both projections, the copy handler's clone and every
+      leaf walk read exactly what they read before. An alignment marker on
+      either side draws both copies, because then the row is saying something
+      the header above it does not; that decision is `redlineLeaves`'s and this
+      is only its paint. */
+.ed-redline-doc :is(del, ins)[data-redline-drop] {
+  display: none;
+}
+
+/* THE TABLE'S OWN FACE IS NOT HERE, AND THAT IS A GAP RATHER THAN A REFUSAL.
+   Research 114 §6.3 asks for the table block to get one wrapper carrying
+   `--font-mono` at `--text-sm` at every width but the panel's floor. Nothing
+   in the composed document says which runs belong to a table: `RedlineRun` is
+   `{ kind, text }` and `RedlineDocument` reports counters only, so there is no
+   signal a selector could key on and no wrapper to key it on. Adding one is a
+   change to ./redline-document and ./RedlineDocument together, which is fault
+   3's own file and not this one's. It is written down here so the next round
+   finds the reason rather than the omission. */
 
 /* PHASE 236. The change chip: the redline's controls, on the change you are
    on. Research 83 D.3 accepted exactly one placement, being a hover or focus
    reveal as an OUT OF FLOW overlay, because it moved the text by 0.00px; a
    control per change in the flow pushed the following text 45.12px sideways at
    every change, and a margin has 0.00px to live in at the editor pane's floor.
-   So this is `position: absolute` inside `.ed-redline-view`, which is the only
-   positioned box in the view, and it is laid out by ./redline-chip from the
-   change's FIRST client rect.
+   So this is `position: absolute`, and it is laid out by ./redline-chip from
+   the change's FIRST client rect.
+
+   PHASE 251 MOVED THE BOX IT IS PLACED IN AND NOTHING ELSE. `.ed-redline-view`
+   used to be the only positioned box in the view; `.ed-redline-page` above is
+   one now, the chip is a child of the page in BOTH of its arms, and the page
+   is inside `.ed-redline-scroll`, so the chip scrolls with the document it
+   belongs to. Research 96 §1.4 named the scroll listener as the price of
+   living outside the scroller and that price is no longer paid. The fact is
+   stated here, in ./redline-chip and in ./RedlineDocument, and the three move
+   together: take the `position: relative` off `.ed-redline-page` and every
+   placement silently becomes a placement against the view again.
 
    Tokens only, per `npm run conformance:redline` rule 8. The surface is the
    app's own overlay fill and hairline with the elevation the editor's other
@@ -281,15 +545,86 @@
   display: flex;
   flex: none;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
   min-height: 30px;
-  padding: 0 var(--space-3);
+  /* NO INLINE PADDING OF ITS OWN, AND THE SCROLLER'S GUTTER MIRRORED, and both
+     halves are fault 4's arithmetic rather than a tidy.
+
+     The inner box below centres itself, and it can only land on the column if
+     the box it centres in is the same width as the box the PAGE centres in,
+     which is the scroller's CONTENT box. A `padding: 0 var(--space-3)` here
+     put the two centres 8px apart on its own. And where the platform draws a
+     classic scrollbar rather than an overlay one, the scroller's content box
+     is narrower than its border box on the right alone: measured in the app
+     run at 1339px of content inside a 1349px scroller, which centred the page
+     5px left of where this bar centred itself and put `Accept all` 5px past
+     the column at the wide pane and 10px past it at the floor.
+
+     `--redline-gutter` is that difference, measured once by the view's own
+     resize observer and 0px wherever the scrollbar is an overlay. Mirroring it
+     here costs the column NOTHING, which `scrollbar-gutter: stable both-edges`
+     on the scroller would not: that answer is symmetric and correct and it
+     takes the gutter's width off the reading column at every pane, which is
+     the opposite of what this phase is for. */
+  padding-right: var(--redline-gutter, 0px);
   border-bottom: 1px solid var(--border);
   background: var(--bg-canvas);
   /* Tortie's own commentary, never the person's text: the same refusal
      `.ed-redline-tag` and `.ed-redline-chip` record. */
   user-select: none;
+}
+
+/* THE BAR'S INNER BOX IS THE PAGE'S OWN GRID (Phase 251, research 114 §6.4).
+   Research 113 §4 measured `Accept all` sitting 355.32px from the column's own
+   content edge at the pane the operator works in and named the cause rather
+   than the symptom: the bar was justified against the PANEL while the column
+   was centred inside it, so the button's distance from the thing it acts on
+   WAS the right-hand dead space, and it got worse as the pane grew. The fault
+   was never the button's placement.
+
+   THE TWO TEMPLATES ARE TWO COPIES OF ONE FACT, because a stylesheet cannot
+   say "the same tracks as that rule". The failure mode is drift — a bar twelve
+   pixels out of step with its column still looks exactly like a bar — so
+   `npm run conformance:redline` rule 37 reads both rules BY MATCHING BRACES
+   and fails the build when the two strings differ.
+
+   `ch` IS RESOLVED IN THIS ELEMENT, exactly as it is in the page, so this box
+   carries the document's own face and size too. Without those two
+   declarations the two identical strings would compute two different widths,
+   which is the one drift the string comparison cannot see. */
+.ed-redline-bar-inner {
+  display: grid;
+  grid-template-columns:
+    var(--redline-rail)
+    minmax(0, calc(var(--redline-measure) + var(--redline-pad) * 2));
+  column-gap: var(--redline-gap);
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+}
+
+/* The bar's contents live in the COLUMN track and never in the rail, and they
+   take the document's own inline padding, so `Accept all`'s right edge lands
+   on the last character of a full line and the count's left edge on the first. */
+.ed-redline-bar-cell {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-inline: var(--redline-pad);
+}
+
+/* How many changes there are, or which one a person is on. ./redline-sentences
+   owns the words. Chrome rather than content, in the muted-chrome colour the
+   rest of this view's furniture uses, and tabular figures so the number does
+   not jitter as a person steps through with ⌥↓. */
+.ed-redline-bar-count {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 24px TALL, the same WCAG 2.2 target size the chip's buttons are held to,

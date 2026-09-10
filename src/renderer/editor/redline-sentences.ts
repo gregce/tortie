@@ -182,3 +182,35 @@ export function redlineUndoRefusalSentence(
     ? UNDO_SENTENCES[why].replace('{name}', name)
     : redlineRefusalSentence(why, name);
 }
+
+/**
+ * PHASE 251. THE CHANGE COUNT, in the rail bar beside `Accept all`.
+ *
+ * Research 114 §6.4 puts a counter in the bar and this is its words. It is
+ * here rather than composed in the view for the reason every other sentence in
+ * this file is: the view draws, and what a person reads is decided in one
+ * place that a test and `npm run conformance:redline` can both ask.
+ *
+ * TWO SHAPES, BECAUSE THE RESTING FACE HAS NO CURRENT CHANGE. Phase 236's own
+ * rule is that the resting face draws no control and names no change, so
+ * `current` is null until a person goes to one with ⌥↓, a click or the chip.
+ * A counter that said "1 of 13" before anybody had gone anywhere would be
+ * naming a place the person is not in. So the bar says how many there are
+ * until they go somewhere, and where they are once they have.
+ *
+ * `current` is the ZERO-BASED index the composer's own change list uses, and
+ * the sentence draws it one-based, which is the only place in this family the
+ * two spellings meet.
+ *
+ * Just enough words: three of them, no verb and no explanation, because the
+ * number is the whole message and the bar is not a place for a sentence.
+ */
+export function redlineChangeCount(
+  total: number,
+  current: number | null
+): string {
+  const noun = total === 1 ? 'change' : 'changes';
+  return current === null
+    ? `${String(total)} ${noun}`
+    : `${String(current + 1)} of ${String(total)} ${noun}`;
+}
