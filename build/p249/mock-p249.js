@@ -18,7 +18,6 @@
   var pane = document.getElementById('pane');
   var doc = document.getElementById('doc');
   var page = document.getElementById('page');
-  var margin = document.getElementById('margin');
   var railbar = document.getElementById('railbar');
   var readout = document.getElementById('readout');
   var count = document.getElementById('count');
@@ -100,6 +99,7 @@
         if (r.blank && !r.spacing) el.dataset.structural = '';
         if (r.sep || r.sepRow) el.dataset.sep = '';
         if (r.drop) el.dataset.drop = '';
+        if (r.lone) el.dataset.lone = '';
         wrap.appendChild(el);
         i += 1;
       }
@@ -110,7 +110,9 @@
   // ------------------------------------------------------------------ //
   // The chip. Phase 236's rule is untouched: the anchor is the change's
   // FIRST client rect and never its bounding box. What moved is the box
-  // it is placed in, which is the margin track rather than the view.
+  // it is placed in, which is the free canvas beside the page rather than the
+  // view, and it is a child of the page in both arms so neither needs a
+  // scroll listener.
   // ------------------------------------------------------------------ //
   function chip() {
     var el = document.createElement('div');
@@ -129,7 +131,7 @@
     var wraps = doc.querySelectorAll('.rl-change');
     for (var k = 0; k < wraps.length; k += 1) wraps[k].removeAttribute('data-current');
     var el = doc.querySelector('.rl-change[data-change="' + String(state.current) + '"]');
-    var old = margin.querySelector('.rl-chip') || pane.querySelector(':scope > .rl-chip');
+    var old = page.querySelector('.rl-chip');
     if (old) old.remove();
     railbar.hidden = true;
     if (!el) return null;
@@ -139,31 +141,46 @@
     var first = rects[0];
     var last = rects[rects.length - 1];
     var pbox = page.getBoundingClientRect();
+    var vbox = pane.getBoundingClientRect();
 
     var c = chip();
-    // In the proposed look the chip lives in the margin track and scrolls
-    // with the document, so it needs no scroll listener of its own. With no
-    // margin to live in it falls back to Phase 236's overlay, above the
-    // change's line box when there is room and below it when there is not.
-    var inMargin = state.look === 'new' && margin.getBoundingClientRect().width >= 200;
+    // THE CHIP IS PLACED BY MEASUREMENT AND NOT BY A BREAKPOINT, which is the
+    // revision round's answer to two things at once. The first version gated
+    // the band on a `data-room` ladder at 1060px while the placement itself
+    // asked whether a 264px track was at least 200px wide — one decision
+    // taken with two numbers, neither derived, and a 264px cliff on one pixel
+    // of drag. There is one question here and it is the only one that matters:
+    // does the free canvas beside the page hold the chip? It is asked of the
+    // chip's own drawn width, so a re-labelled button moves the answer by
+    // itself.
+    //
+    // Either way the chip is a child of the PAGE, so it scrolls with the
+    // document and neither arm needs a scroll listener.
+    page.appendChild(c);
+    var chipW = c.getBoundingClientRect().width;
+    var band = Math.max(0, (vbox.right - pbox.right));
+    var inMargin = state.look === 'new' && band >= chipW + 16;
     if (inMargin) {
-      margin.appendChild(c);
-      c.style.left = '0px';
+      c.style.left = String(pbox.width + 16) + 'px';
       c.style.top = String(first.top - pbox.top) + 'px';
     } else {
-      pane.appendChild(c);
-      var vbox = pane.getBoundingClientRect();
+      // Phase 236's overlay, unchanged: above the change's first line box when
+      // there is room and below it when there is not, anchored on the FIRST
+      // client rect and never on the bounding box, clamped to the view.
       var h = 30;
       var above = first.top - vbox.top - h - 4;
-      c.style.left = String(Math.max(0, Math.min(first.left - vbox.left, vbox.width - c.offsetWidth))) + 'px';
-      c.style.top = String(Math.max(0, above >= 0 ? above : last.bottom - vbox.top + 4)) + 'px';
+      var left = Math.max(0, Math.min(first.left - vbox.left, vbox.width - chipW));
+      c.style.left = String(left - (pbox.left - vbox.left)) + 'px';
+      c.style.top = String(Math.max(0, above >= 0 ? above : last.bottom - vbox.top + 4) - (pbox.top - vbox.top)) + 'px';
     }
-    if (state.look === 'new' && parseFloat(getComputedStyle(pane).getPropertyValue('--rl-rail-w')) > 0) {
+    if (state.look === 'new') {
       railbar.hidden = false;
       railbar.style.top = String(first.top - pbox.top) + 'px';
       railbar.style.height = String(last.bottom - first.top) + 'px';
     }
-    return { first: first, last: last, chip: c.getBoundingClientRect(), inMargin: inMargin, rects: rects.length };
+    LAST.band = band;
+    LAST.chipW = chipW;
+    return { first: first, last: last, chip: c.getBoundingClientRect(), inMargin: inMargin, rects: rects.length, band: band, chipW: chipW };
   }
 
   // ------------------------------------------------------------------ //
@@ -239,7 +256,7 @@
       'marks ' + marks.length + '  ·  washed ' + washed + '  ·  fragments ' + frags +
       '  ·  widest mark ' + widest + ' fragments  ·  painted ' + painted.toFixed(2) + 'px on a ' + lineHeight.toFixed(2) + 'px pitch (band ' + (lineHeight - painted).toFixed(2) + 'px)\n' +
       'fragments past the column edge ' + over +
-      '  ·  chip ' + (placed ? (placed.inMargin ? 'in the margin, covering 0 rows of prose' : 'over the document, covering ' + covered + ' row(s) of prose') : 'not drawn') +
+      '  ·  chip ' + (placed ? (placed.inMargin ? 'beside the page, covering 0 rows of prose' : 'over the document, covering ' + covered + ' row(s) of prose') : 'not drawn') +
       '  ·  change ' + (state.current + 1) + ' of ' + DOC.stats.changes + ' drawn in ' + (placed ? placed.rects : 0) + ' rects';
     count.textContent = String(state.current + 1) + ' of ' + String(DOC.stats.changes) + ' changes';
     note.textContent =
@@ -248,10 +265,14 @@
       DOC.stats.tableChanges + ' of ' + DOC.stats.changes + ' changes are inside the table.';
   }
 
+  /**
+   * The only thing the room ladder still decides is the RAIL's width, which is
+   * 20px where the column has it to spare and a bar's own 3px at the editor
+   * panel's floor. Where the chip goes is no longer on this ladder: it is
+   * measured against the chip's own drawn width in `place`.
+   */
   function room(width) {
-    if (width >= 1060) return 'full';
-    if (width >= 420) return 'column';
-    return 'narrow';
+    return width >= 420 ? 'full' : 'narrow';
   }
 
   function apply() {
@@ -262,7 +283,7 @@
     pane.dataset.look = state.look;
     pane.dataset.wash = state.wash;
     pane.style.width = String(state.width) + 'px';
-    pane.dataset.room = state.look === 'new' ? room(state.width) : 'narrow';
+    pane.dataset.room = room(state.width);
     var buttons = document.querySelectorAll('.harness button[data-set]');
     for (var i = 0; i < buttons.length; i += 1) {
       var b = buttons[i];
@@ -288,8 +309,11 @@
     }
   });
 
+  var LAST = { band: 0, chipW: 0 };
   window.P249_MOCK = {
     set: function (next) { Object.assign(state, next); apply(); },
+    band: function () { return LAST.band; },
+    chipWidth: function () { return LAST.chipW; },
     state: function () { return Object.assign({}, state); },
     read: function () { return readout.textContent; },
     stats: function () { return DOC.stats; }

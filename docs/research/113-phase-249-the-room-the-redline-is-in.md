@@ -83,6 +83,15 @@ held to, and it is one reason the measure is not simply wrong.
 **What is wrong is the room.** At the pane he works in, 58.42% of the scroller is empty canvas, and
 the free space is split 391.09px left and 401.09px right, so neither side is doing anything.
 
+**ONE DENOMINATOR, NAMED, because the two rows above use different ones.** The dead space row is
+782.19px over the **scroller**, 1339px, giving 58.42%. The free-space row is 391.09 + 401.09 =
+792.18px, which is measured against the **panel**, 1349px, because that is where the divider is;
+over the panel the same reading is 58.72%. Both are true and they are 0.30 of a percentage point
+apart. **Dead space in this phase means the scroller less the DOCUMENT BOX**, and research 114
+publishes every reading on that definition and prints the tracks reading beside it, because the
+design step's first draft changed the denominator between the measurement and the design and the
+headline number moved by arithmetic rather than by design.
+
 **And the column is not full either.** Averaged over every drawn text row, the mean row uses
 **74.9%** of the column at 68ch. Short lines — the heading, every table row — are why.
 
@@ -424,6 +433,13 @@ Each is a refusal with its reason, so a later round does not spend itself on one
 ---
 
 ## 9. Three directions, and a recommendation
+
+> **The design step re-cut these, and `docs/research/114` §4 is the authority.** The letters below
+> were assigned before the mock existed and they do not mean what 114's letters mean: this section's
+> **B** is "keep the measure, add a rail" while 114's **B** is "the column with margins", which is
+> this section's **C**. The mapping is A→A, C→B, and 114's C (a review pane) is new. Read 114 §4 for
+> the choice; this section is kept as it was written, because it is the reasoning the measurement
+> alone supported.
 
 **The work for faults 2, 3 and 5 is the same in all three**, so the choice below is only about where
 the room goes. That common work, priced against the readings above:

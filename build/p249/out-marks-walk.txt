@@ -1,0 +1,16 @@
+readings 202176
+under 4.5: 7676
+worst dark|--error|canvas: 4.815 at hue 186 shade 2 depth -3 high blue canvas #1d2123
+worst dark|--error|wash: 4.135 at hue 73 shade 2 depth -3 high blue canvas #1f211d
+worst dark|--success|canvas: 7.528 at hue 186 shade 2 depth -3 normal blue canvas #1d2123
+worst dark|--success|wash: 6.009 at hue 186 shade 2 depth -3 normal blue canvas #1d2123
+worst light|--error|canvas: 5.843 at hue 248 shade 0 depth -3 normal blue canvas #f6f6fa
+worst light|--error|wash: 4.833 at hue 248 shade 0 depth -3 normal blue canvas #f6f6fa
+worst light|--success|canvas: 5.958 at hue 248 shade 0 depth -3 high blue canvas #f6f6fa
+worst light|--success|wash: 5.027 at hue 248 shade 0 depth -3 high blue canvas #f6f6fa
+offered cells with at least one failure: 8 (dark|1|-1, dark|1|-2, dark|1|-3, dark|1|0, dark|2|-1, dark|2|-2, dark|2|-3, dark|2|0)
+  of those at NORMAL, blue: 4 (dark|2|-1, dark|2|-2, dark|2|-3, dark|2|0)
+failures by token: {"dark|--error|wash":7676}
+normal: 1440 readings under 4.5, 4 of 35 cells, worst 4.217 at hue 73 shade 2 depth -3 canvas #1f211d [2/-1 2/-2 2/-3 2/0]
+raised: 2084 readings under 4.5, 8 of 35 cells, worst 4.186 at hue 73 shade 2 depth -3 canvas #1f211d [1/-1 1/-2 1/-3 1/0 2/-1 2/-2 2/-3 2/0]
+high: 2880 readings under 4.5, 8 of 35 cells, worst 4.135 at hue 73 shade 2 depth -3 canvas #1f211d [1/-1 1/-2 1/-3 1/0 2/-1 2/-2 2/-3 2/0]

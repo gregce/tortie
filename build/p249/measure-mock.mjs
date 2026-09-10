@@ -74,10 +74,49 @@ export function over(fg, bg) {
   return [0, 1, 2].map((i) => Math.round(fg.rgb[i] * fg.a + bg[i] * (1 - fg.a)));
 }
 
-/** Dead space either side of a page, as a percentage of the scroller. */
-export function deadPercent(scroller, pageWidth) {
+/**
+ * Dead space either side of the DOCUMENT, as a percentage of the scroller.
+ *
+ * ONE DEFINITION, AND THE REVISION ROUND CHANGED WHICH. Research 113 §1
+ * defines it as the scroller less the document box, and the first version of
+ * this ruler subtracted the PAGE — rail, column, margin and the gaps between
+ * them — so a track that holds nothing at rest counted as occupied and the
+ * headline number moved by a change of definition rather than by a change of
+ * design. Every reading published now subtracts the document box, which is
+ * research 113's own; `pageDeadPercent` is kept beside it and printed beside
+ * it, so the two are never confused again.
+ */
+export function deadPercent(scroller, docBox) {
+  if (scroller <= 0) return 0;
+  return ((scroller - docBox) / scroller) * 100;
+}
+
+/** The same arithmetic over the page's own tracks, printed as the second number. */
+export function pageDeadPercent(scroller, pageWidth) {
   if (scroller <= 0) return 0;
   return ((scroller - pageWidth) / scroller) * 100;
+}
+
+/**
+ * The gap between two vertically adjacent PAINTED boxes, and whether the pair
+ * is two fragments of one run or two different marks. The seam is asked to be
+ * invisible for the first and visible for the second, and this is what says
+ * whether one number can do both.
+ */
+export function adjacentGaps(boxes) {
+  const rows = boxes.slice().sort((a, b) => a.top - b.top || a.left - b.left);
+  const out = [];
+  for (let i = 0; i < rows.length; i += 1) {
+    for (let j = i + 1; j < rows.length; j += 1) {
+      const a = rows[i];
+      const b = rows[j];
+      if (b.top < a.bottom - 0.5) continue;
+      if (b.top - a.bottom > 12) continue;
+      if (b.right <= a.left + 0.5 || b.left >= a.right - 0.5) continue;
+      out.push({ gap: b.top - a.bottom, sameRun: a.mark === b.mark, sameKind: a.kind === b.kind });
+    }
+  }
+  return out;
 }
 
 /**
@@ -118,13 +157,33 @@ if (process.argv.includes('--self-test')) {
   eq(over({ rgb: [0, 0, 0], a: 0 }, [10, 20, 30]), [10, 20, 30], 'a transparent colour composites to the ground');
   // --error-wash on --bg-canvas, which research 113 §7.4 read at 1.152:1.
   near(ratio(over({ rgb: [229, 101, 94], a: 0.12 }, [19, 20, 23]), [19, 20, 23]), 1.152, 0.01, 'the deletion wash on the canvas is 1.152');
-  near(deadPercent(1339, 1339), 0, 1e-9, 'a page that fills the scroller is 0% dead');
-  near(deadPercent(1339, 556.81), 58.42, 0.01, 'the shipped 68ch page is 58.42% dead');
+  near(deadPercent(1339, 1339), 0, 1e-9, 'a document that fills the scroller is 0% dead');
+  // Research 113 §1's own row, recomputed: the shipped 68ch DOCUMENT BOX in
+  // the app's 1339px scroller.
+  near(deadPercent(1339, 556.81), 58.42, 0.01, 'the shipped 68ch document is 58.42% dead');
+  near(pageDeadPercent(1339, 580.81), 56.62, 0.01, 'the same reading over the page is 56.62%');
+  eq(adjacentGaps([]), [], 'no boxes have no adjacent pairs');
+  eq(
+    adjacentGaps([
+      { top: 0, bottom: 15, left: 0, right: 100, mark: 1, kind: 'del' },
+      { top: 21.45, bottom: 36.45, left: 0, right: 100, mark: 1, kind: 'del' }
+    ]).map((g) => ({ gap: Math.round(g.gap * 100) / 100, sameRun: g.sameRun, sameKind: g.sameKind })),
+    [{ gap: 6.45, sameRun: true, sameKind: true }],
+    'two fragments of one run are one adjacent pair'
+  );
+  eq(
+    adjacentGaps([
+      { top: 0, bottom: 15, left: 0, right: 100, mark: 1, kind: 'del' },
+      { top: 21.45, bottom: 36.45, left: 400, right: 500, mark: 2, kind: 'ins' }
+    ]),
+    [],
+    'boxes that do not overlap horizontally are not adjacent'
+  );
   eq(continuous([{ top: 0, bottom: 15 }, { top: 21.45, bottom: 36.45 }], 0.5), false, '6.45px of band is not continuous');
   eq(continuous([{ top: 0, bottom: 21.45 }, { top: 21.45, bottom: 42.9 }], 0.5), true, 'meeting boxes are continuous');
   eq(continuous([{ top: 0, bottom: 19.45 }, { top: 21.45, bottom: 40.9 }], 2.5), true, 'a 2px seam still reads as continuous');
   eq(continuous([{ top: 0, bottom: 15 }], 0.5), true, 'one fragment is continuous');
-  console.log(`${TAG} self-test: 19 graders ok`);
+  console.log(`${TAG} self-test: 24 graders ok`);
   process.exit(0);
 }
 
@@ -214,6 +273,58 @@ const READ = `(() => {
   }
   const pipeRights = Array.from(new Set(pipes.map((p) => Math.round(p.right * 100) / 100)));
   const railbar = document.getElementById('railbar');
+  // THE RESTING BANDS EITHER SIDE OF HIS TEXT, which is the thing fault 1 is
+  // actually about: he sees text stop with empty canvas to its right. The
+  // first version of this design grew that band and measured only the page.
+  const docLeftFree = dbox.left - sbox.left;
+  const docRightFree = sbox.right - dbox.right;
+  // FAULT 4'S OWN NUMBER, and the first version published no proposed
+  // counterpart for it at all: research 113 measured 'Accept all' 355.32px
+  // from the column's content edge and this is the same reading on the mock.
+  const acceptEl = document.querySelector('.rl-bar-button');
+  const acceptBox = box(acceptEl);
+  const acceptGap = acceptBox === null ? null : (dbox.right - pad) - acceptBox.right;
+  // Every painted box in the document, tagged with which mark it belongs to
+  // and which kind that mark is, so the seam can be asked whether it separates
+  // two DIFFERENT marks any differently from two fragments of ONE run.
+  const paintedBoxes = [];
+  marks.forEach((m, idx) => {
+    if (getComputedStyle(m).backgroundColor === 'rgba(0, 0, 0, 0)') return;
+    for (const r of rectsOf(m)) paintedBoxes.push({ top: r.top, bottom: r.bottom, left: r.left, right: r.right, mark: idx, kind: m.tagName });
+  });
+  // THE FONT BOX, measured rather than asserted. The --rl-fontbox constant is
+  // fitted to -apple-system at 13px and CSS exposes no unit for it, so the
+  // wash arithmetic rests on a number that a face substitution moves. Read two
+  // ways: an unpadded inline's own client rect, and a one-character Range.
+  const fontBox = (() => {
+    const probeEl = document.createElement('span');
+    probeEl.textContent = 'Hxy';
+    probeEl.style.cssText = 'padding:0;margin:0;border:0;background:none';
+    doc.appendChild(probeEl);
+    const byRect = probeEl.getBoundingClientRect().height;
+    const rr = document.createRange();
+    rr.selectNodeContents(probeEl);
+    const byRange = rr.getBoundingClientRect().height;
+    probeEl.remove();
+    return { byRect, byRange, declared: parseFloat(cs.fontSize) * 1.1539 };
+  })();
+  // THE LONE MARK: a change whose only content is whitespace. Under the first
+  // version of this design it drew nothing at all. This reads whether it draws.
+  const loneEl = doc.querySelector('[data-lone]');
+  const lone = loneEl === null ? null : {
+    rects: rectsOf(loneEl).length,
+    width: rectsOf(loneEl).reduce((n, r) => n + r.width, 0),
+    colour: getComputedStyle(loneEl).color,
+    wash: getComputedStyle(loneEl).backgroundColor,
+    before: (() => { const c = getComputedStyle(loneEl, '::before'); return { content: c.content, width: c.width, height: c.height, background: c.backgroundColor }; })()
+  };
+  // THE LEAVES, counted in the DOM rather than taken from the composer.
+  const leaves = (() => {
+    const walk = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
+    let n = 0;
+    for (let x = walk.nextNode(); x !== null; x = walk.nextNode()) n += 1;
+    return { textNodes: n, elements: doc.querySelectorAll('*').length };
+  })();
   const probe = marks.find((m) => getComputedStyle(m).backgroundColor !== 'rgba(0, 0, 0, 0)') ?? marks[0];
   const pr = probe ? rectsOf(probe)[0] : null;
   const pitch = parseFloat(cs.fontSize) * 1.65;
@@ -254,7 +365,17 @@ const READ = `(() => {
     currentRects: cur === null ? 0 : cur.getClientRects().length,
     currentOutline: cur === null ? 'none' : getComputedStyle(cur).outlineStyle,
     railbar: railbar && !railbar.hidden ? box(railbar) : null,
+    docLeftFree,
+    docRightFree,
+    acceptGap,
+    acceptBox,
+    paintedBoxes,
+    fontBox,
+    lone,
+    leaves,
     chip: cbox,
+    chipBand: window.P249_MOCK.band(),
+    chipWidth: window.P249_MOCK.chipWidth(),
     chipCovers: covered,
     colours,
     stats: window.P249_MOCK.stats()
@@ -318,13 +439,55 @@ try {
         const r = await cdpEval(cdp, READ, 30000);
         out.cells.push({ ...cell, ...r });
         say(
-          `${cell.look}/${cell.scheme}/${cell.width}/${cell.wash}  page ${r.page.toFixed(1)}  ` +
-            `dead ${deadPercent(r.scroller, r.page).toFixed(2)}%  h ${r.docHeight.toFixed(0)}  ` +
+          `${cell.look}/${cell.scheme}/${cell.width}/${cell.wash}  doc ${r.docBox.toFixed(1)}  ` +
+            `dead ${deadPercent(r.scroller, r.docBox).toFixed(2)}% (tracks ${pageDeadPercent(r.scroller, r.page).toFixed(2)}%)  ` +
+            `free ${r.docLeftFree.toFixed(1)}/${r.docRightFree.toFixed(1)}  h ${r.docHeight.toFixed(0)}  ` +
             `lines ${r.lineBoxes}  frags ${r.fragments}  washed ${r.washed}/${r.marks}  ` +
             `painted ${r.painted.toFixed(2)}/${r.pitch.toFixed(2)}  cross ${r.crossers}  ` +
-            `chip ${r.chipCovers}  pipe rows ${r.pipeRows} spread ${r.pipeSpread.toFixed(1)} cross ${r.pipeCross}  widest ${r.widest === null ? 0 : r.widest.rects.length}` +
-            `${continuous(r.widest?.rects ?? [], 0.5) ? ' CONTINUOUS' : ''}`
+            `chip ${r.chipCovers}${r.chipBand === undefined ? '' : ' band ' + r.chipBand.toFixed(1) + '/' + r.chipWidth.toFixed(1)}  ` +
+            `accept ${r.acceptGap === null ? '-' : r.acceptGap.toFixed(1)}  ` +
+            `leaves ${r.leaves.textNodes}/${r.leaves.elements}  lone ${r.lone === null ? '-' : r.lone.before.width}  ` +
+            `mark ${r.railbar === null ? (r.currentOutline === 'none' ? 'NONE' : 'outline x' + String(r.currentRects)) : 'rail'}  ` +
+            `pipe cross ${r.pipeCross}  widest ${r.widest === null ? 0 : r.widest.rects.length}` +
+            `${continuous(r.widest?.rects ?? [], 2.5) ? ' CONTINUOUS' : ''}`
         );
+      }
+
+      // -----------------------------------------------------------------
+      // §1.3'S OWN CLAIM, DRIVEN OVER EVERY CHANGE RATHER THAN OVER THE ONE
+      // THAT HAPPENED TO BE CURRENT. The outlined-box count is a property of
+      // the WIDEST change, and the first version of this ruler read change 0.
+      // -----------------------------------------------------------------
+      for (const cell of [
+        { look: 'today', scheme: 'dark', width: 1349, wash: 'tiles' },
+        { look: 'today', scheme: 'dark', width: 319, wash: 'tiles' },
+        { look: 'new', scheme: 'dark', width: 1349, wash: 'seam' },
+        { look: 'new', scheme: 'dark', width: 319, wash: 'seam' }
+      ]) {
+        await cdpEval(cdp, `window.P249_MOCK.set(${JSON.stringify(cell)}), true`);
+        await sleep(120);
+        const n = await cdpEval(cdp, `window.P249_MOCK.stats().changes`, 10000);
+        let worstBoxes = 0;
+        let bars = 0;
+        for (let k = 0; k < n; k += 1) {
+          await cdpEval(cdp, `window.P249_MOCK.set({ current: ${k} }), true`);
+          const r = await cdpEval(
+            cdp,
+            `(() => {
+              const cur = document.querySelector('.rl-change[data-current]');
+              const bar = document.getElementById('railbar');
+              const outlined = cur === null ? 0 : (getComputedStyle(cur).outlineStyle === 'none' ? 0 : cur.getClientRects().length);
+              return { outlined, bar: bar && !bar.hidden ? 1 : 0 };
+            })()`,
+            10000
+          );
+          if (r.outlined > worstBoxes) worstBoxes = r.outlined;
+          bars += r.bar;
+        }
+        out.currentMark = out.currentMark ?? [];
+        out.currentMark.push({ ...cell, changes: n, worstOutlinedBoxes: worstBoxes, changesDrawingARailBar: bars });
+        say(`current mark  ${cell.look}/${cell.width}: worst outlined boxes ${worstBoxes}, rail bars ${bars} of ${n} changes`);
+        await cdpEval(cdp, `window.P249_MOCK.set({ current: 0 }), true`);
       }
       cdp.close();
     }
@@ -345,7 +508,7 @@ try {
     ['the rail bar (non-text, 3:1)', 'rail', null]
   ];
   for (const cell of out.cells) {
-    if (cell.look !== 'new' || cell.width !== 1349 || cell.wash !== 'ribbon') continue;
+    if (cell.look !== 'new' || cell.width !== 1349 || cell.wash !== 'seam') continue;
     const canvas = parseColor(cell.colours.canvas);
     for (const [what, fg, washKey] of PAIRS) {
       const f = parseColor(cell.colours[fg]);
@@ -360,6 +523,36 @@ try {
     const chipText = parseColor(cell.colours.chipText);
     if (chipFill !== null && chipText !== null) {
       out.ratios.push({ base: cell.scheme, what: 'the chip label on the chip', value: ratio(over(chipText, chipFill.rgb), chipFill.rgb) });
+    }
+  }
+  // -------------------------------------------------------------------------
+  // THE SEAM, ASKED THE QUESTION IT WAS RECOMMENDED FOR. §1.2 said a hairline
+  // keeps two different marks apart where Ribbon merges them. Inline padding
+  // is uniform, so the same number falls between two fragments of ONE run,
+  // which must read continuous. This reads both.
+  // -------------------------------------------------------------------------
+  console.log('');
+  say('THE SEAM, over every vertically adjacent painted pair at 1349 on graphite:');
+  for (const wash of ['tiles', 'seam', 'ribbon']) {
+    const cell = out.cells.find((c) => c.look === 'new' && c.scheme === 'dark' && c.width === 1349 && c.wash === wash);
+    if (cell === undefined) continue;
+    const pairs = adjacentGaps(cell.paintedBoxes);
+    const one = pairs.filter((p) => p.sameRun);
+    const two = pairs.filter((p) => !p.sameRun);
+    const lo = (list) => (list.length === 0 ? '-' : Math.min(...list.map((p) => p.gap)).toFixed(2));
+    const hi = (list) => (list.length === 0 ? '-' : Math.max(...list.map((p) => p.gap)).toFixed(2));
+    say(`  ${wash.padEnd(7)} ${String(pairs.length).padStart(3)} pairs  ` +
+      `one run ${String(one.length).padStart(3)} (${lo(one)}..${hi(one)}px)  ` +
+      `two marks ${String(two.length).padStart(3)} (${lo(two)}..${hi(two)}px)`);
+  }
+  console.log('');
+  say('THE FONT BOX, measured against the constant the wash arithmetic uses:');
+  {
+    const cell = out.cells.find((c) => c.look === 'new' && c.scheme === 'dark' && c.width === 1349 && c.wash === 'seam');
+    if (cell !== undefined) {
+      say(`  by an unpadded inline's rect ${cell.fontBox.byRect.toFixed(2)}px  ` +
+        `by a one-character Range ${cell.fontBox.byRange.toFixed(2)}px  ` +
+        `declared by --rl-fontbox ${cell.fontBox.declared.toFixed(4)}px`);
     }
   }
   console.log('');

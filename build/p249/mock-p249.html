@@ -124,9 +124,8 @@ body {
   display: grid;
   grid-template-columns:
     var(--rl-rail-w)
-    minmax(0, calc(var(--rl-measure) + var(--space-8) * 2))
-    var(--rl-margin-w);
-  column-gap: var(--space-5);
+    minmax(0, calc(var(--rl-measure) + var(--space-8) * 2));
+  column-gap: var(--rl-gap);
   align-items: center;
   width: fit-content;
   max-width: 100%;
@@ -172,30 +171,45 @@ body {
   background: var(--bg-canvas);
 }
 
-/* ---- THE PAGE: rail | column | margin ----------------------------- *
- * THE ROOM BECOMES MARGINS. A marked-up document has two of them: a
- * change bar on the left and the comments on the right. The dead space
- * the measure step counted at 58.42% is what they are made of.
+/* ---- THE PAGE: rail | column | rail, and the margin beside it ---- *
+ * THE COLUMN IS WHAT IS CENTRED, and the revision round changed this.
+ *
+ * The first version centred the PAGE — rail, column and a 264px margin as one
+ * box — which pushed the reading column 122px left of the pane's centre and
+ * left MORE blank canvas to the right of his text at rest than today does:
+ * measured at 1349, the free space either side of the document went from
+ * 396.09 / 396.09 to 184.59 / 428.59. The fault he pointed at is text stopping
+ * with empty space to its right, so a design that grows that band by 32px has
+ * answered the opposite of the complaint.
+ *
+ * So the page is the RAIL AND THE COLUMN and nothing else, and the chip lives
+ * out of flow in the free canvas beside it rather than in a reserved track.
+ * The page is centred, so the column sits half the rail's width right of the
+ * pane's centre — 16px at the widths measured here, and it errs towards LESS
+ * canvas on the right, which is the side he was looking at. Both bands shrink
+ * together as the measure grows, which is what "more space" has to mean.
  * ------------------------------------------------------------------ */
 .rl-page {
   position: relative;
   display: grid;
-  /* `fit-content` so the page's own box IS its three tracks and the dead space
-     is what is left over, which is the number fault 1 is about. */
+  /* `fit-content` so the page's own box IS its tracks and the free canvas is
+     what is left over on each side, equally. */
   width: fit-content;
   max-width: 100%;
   margin-inline: auto;
-  column-gap: var(--space-5);
-  grid-template-columns:
-    var(--rl-rail-w)
-    minmax(0, calc(var(--rl-measure) + var(--space-8) * 2))
-    var(--rl-margin-w);
+  column-gap: var(--rl-gap);
+  grid-template-columns: var(--rl-rail-w) minmax(0, calc(var(--rl-measure) + var(--space-8) * 2));
 }
-.pane[data-room='full']   { --rl-rail-w: 20px; --rl-margin-w: 264px; }
-.pane[data-room='column'] { --rl-rail-w: 20px; --rl-margin-w: 0px; }
-.pane[data-room='narrow'] { --rl-rail-w: 0px;  --rl-margin-w: 0px; }
-.pane[data-look='today']  { --rl-rail-w: 0px;  --rl-margin-w: 0px; }
-.pane { --rl-page: calc(var(--rl-rail-w) + var(--rl-measure) + var(--space-8) * 2 + var(--rl-margin-w) + var(--space-5) * 2); }
+/* THE RAIL NEVER COLLAPSES, and that is the revision round's too. The first
+   version set it to zero at the panel's floor and scoped the outline that
+   replaces it to the TODAY look, so at 319px the current change was marked by
+   nothing at all — and the floor is where the outline is worst, at 74 boxes on
+   this fixture's widest change. It narrows to a bar's own width instead, which
+   costs the column three pixels and keeps one mechanism at every width. */
+.pane[data-room='full'],
+.pane[data-room='column'] { --rl-rail-w: 20px; --rl-gap: var(--space-5); }
+.pane[data-room='narrow'] { --rl-rail-w: 3px;  --rl-gap: var(--space-2); }
+.pane[data-look='today']  { --rl-rail-w: 0px;  --rl-gap: 0px; }
 
 /* THE MEASURE IS THE TEXT'S, NOT THE BOX'S. The shipped rule is
    `max-width: 68ch` on a box carrying 48px of padding INSIDE it, so it
@@ -254,6 +268,15 @@ body {
  * still read as continuous while two DIFFERENT marks on vertically
  * adjacent lines keep a hairline between them.
  */
+/* THE FONT BOX IS A METRIC AND NOT AN EXPRESSION, and that is a stated limit
+   rather than a hidden constant. CSS exposes no unit for the content area of a
+   line — `em`, `ex`, `cap` and `ch` are all glyph measures — so the height the
+   wash paints today can only be written as a multiple of the font size, and
+   1.1539 is what `-apple-system` at 13px really measures on this machine
+   (15.00px, read two ways in §1.4). A face substitution moves it. The `max()`
+   guards the short side, where the failure is today's band coming back; the
+   long side, where two vertically adjacent washes would overlap, is guarded by
+   a reading rather than by arithmetic, which is §4.7's arm 6. */
 .rl-doc { --rl-pitch: calc(var(--text-base) * 1.65); --rl-fontbox: calc(var(--text-base) * 1.1539); }
 .pane[data-wash='tiles'] .rl-doc :is(del, ins) { padding: 0 1px; }
 /* THE TRAILING PIXEL GOES AND THE LEADING ONE STAYS, and that is fault 5's
@@ -264,14 +287,15 @@ body {
    glyph against glyph, which is a readability loss for a pixel's gain. So the
    pixel moves to the leading edge: a mark is still held off whatever precedes
    it, and a wash now ends exactly where its text ends. */
+
 .pane[data-wash='ribbon'] .rl-doc :is(del, ins) {
-  padding: calc((var(--rl-pitch) - var(--rl-fontbox)) / 2) 0
-           calc((var(--rl-pitch) - var(--rl-fontbox)) / 2) 1px;
+  padding: max(0px, calc((var(--rl-pitch) - var(--rl-fontbox)) / 2)) 0
+           max(0px, calc((var(--rl-pitch) - var(--rl-fontbox)) / 2)) 1px;
   border-radius: 0;
 }
 .pane[data-wash='seam'] .rl-doc :is(del, ins) {
-  padding: calc((var(--rl-pitch) - var(--rl-fontbox) - 2px) / 2) 0
-           calc((var(--rl-pitch) - var(--rl-fontbox) - 2px) / 2) 1px;
+  padding: max(0px, calc((var(--rl-pitch) - var(--rl-fontbox) - 2px) / 2)) 0
+           max(0px, calc((var(--rl-pitch) - var(--rl-fontbox) - 2px) / 2)) 1px;
   border-radius: 0;
 }
 
@@ -291,8 +315,30 @@ body {
    with no opposite-kind whitespace beside it is a deleted line's own newline
    riding along, and washing that paints a bar past the last glyph on the row,
    which is what crosses the table's closing pipe. */
-.rl-doc :is(del, ins)[data-blank] { text-decoration: none; }
+/* Scoped to the proposal: the TODAY column has to draw what the product
+   really draws, and the product strikes a whitespace mark through like any
+   other. An unscoped rule here made the baseline flatter than the thing it
+   is the baseline for. */
+.pane[data-look='new'] .rl-doc :is(del, ins)[data-blank] { text-decoration: none; }
 .pane[data-look='new'] .rl-doc :is(del, ins)[data-structural] { background: none; padding-inline: 0; }
+/* A CHANGE THAT WOULD OTHERWISE DRAW NOTHING DRAWS A BAR. A blank line added
+   or removed is one whitespace mark and nothing else, so the two rules above
+   take its wash and its strikethrough and colour has no glyph to land on: the
+   reader is shown nothing while the counter, the chip and ⌥↓ all still offer
+   Rewind and Accept on it. The bar is `currentColor`, so it is the mark's own
+   `--error` or `--success` at 4.84 and 6.99 on the canvas rather than a wash
+   at 1.15, and it is a PSEUDO-ELEMENT, so it adds no node, no text node and no
+   leaf: the copy handler's clone, the shot probe's leaf walk and both
+   projection parsers read exactly what they read today. */
+.pane[data-look='new'] .rl-doc :is(del, ins)[data-lone]::before {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  vertical-align: -0.15em;
+  border-radius: var(--r-bar);
+  background: currentColor;
+}
 
 /* THE TABLE IS A BLOCK OF ITS OWN. It is still the file's SOURCE — this
    view renders no markdown and this phase does not re-open that — but a
@@ -351,7 +397,11 @@ body {
  * is placed in. In the margin it covers no prose at all; today it covers
  * one drawn row at the wide pane and two at the other two.
  * ------------------------------------------------------------------ */
-.rl-margin { grid-column: 3; position: relative; }
+/* THE CHIP IS A CHILD OF THE PAGE IN BOTH ARMS, which is what lets its scroll
+   listener go: it scrolls with the document whether it is in the free canvas
+   beside the column or over the column itself. The first version claimed that
+   saving while appending its overlay arm to the pane, where the listener is
+   still required. */
 .rl-chip {
   position: absolute;
   display: flex;
@@ -456,7 +506,6 @@ body {
       <div class="rl-page" id="page">
         <div class="rl-rail" id="rail"><i class="rl-rail-bar" id="railbar" hidden></i></div>
         <div class="rl-doc" id="doc"></div>
-        <div class="rl-margin" id="margin"></div>
       </div>
     </div>
     <div class="rl-note" id="note"></div>

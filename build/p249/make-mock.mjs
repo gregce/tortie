@@ -169,69 +169,151 @@ const SEPARATOR_LINE = /^[\s|:-]+$/;
  * table whose rows were reordered. A reader is shown a word-level edit between
  * two cells that have nothing to do with each other.
  *
- * A TABLE BLOCK IS DIFFED ROW AGAINST ROW. The rows are aligned first, by
- * their own first cell, through `diffArrays`; then each PAIR is word-diffed on
- * its own, and an unpaired row is a whole deletion or a whole insertion. A
- * separator row pairs with a separator row. Every byte of both sides still
- * appears exactly once and in order, so BOTH PROJECTIONS ARE UNTOUCHED, which
- * is asserted below over the whole document either way.
+ * A TABLE BLOCK IS DIFFED ROW AGAINST ROW. The rows are aligned first, then
+ * each PAIR is word-diffed on its own, and an unpaired row is a whole deletion
+ * or a whole insertion. Every byte of both sides still appears exactly once
+ * and in order, so BOTH PROJECTIONS ARE UNTOUCHED, which is asserted below
+ * over the whole document either way.
+ *
+ * HOW THE ROWS ARE ALIGNED, AND THE FIRST VERSION OF THIS GOT IT WRONG. The
+ * revision round's reviewer found it: keying on the row's FIRST CELL means a
+ * row whose first cell is what changed cannot pair at all, so a renamed label
+ * column — the commonest table edit there is — degrades EVERY row from word
+ * level to a whole-row deletion beside a whole-row insertion, which is a worse
+ * picture than the flat stream it replaces. This fixture already carried the
+ * case: `| Sessions | the tab order | …` against `| Ledger | the tab order |
+ * …` is one row with one word changed, and the first-cell key drew it as two.
+ *
+ * So the key is RESEMBLANCE over the whole row rather than equality of one
+ * cell: an order-preserving longest common subsequence in which two rows are
+ * "the same row" when they share at least `ROW_RESEMBLANCE` of their word
+ * tokens. That is research 110's own measure and its own threshold, reused
+ * rather than invented. A separator row pairs only with a separator row, which
+ * is asked before the arithmetic so a table of dashes cannot pair one with a
+ * data row.
  */
-function firstCell(line) {
-  const t = line.replace(/\n$/, '');
-  if (SEPARATOR_LINE.test(t)) return '\u0000separator';
-  const parts = t.split('|');
-  return (parts[1] ?? t).trim().toLowerCase();
-}
-
 /** The lines of a block, each carrying its own newline when it had one. */
 function rowsOf(text) {
   return text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
 }
 
+/** The word tokens of a row, lower-cased. Punctuation and pipes are dropped. */
+function rowTokens(line) {
+  return (line.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+}
+
+/** A separator row: pipes, dashes, colons and spacing, and nothing else. */
+function isSeparatorRow(line) {
+  return SEPARATOR_LINE.test(line.replace(/\n$/, ''));
+}
+
+/**
+ * How much two rows resemble each other: twice the size of their common token
+ * multiset over the sum of their sizes, so an identical pair reads 1 and a
+ * disjoint pair reads 0. Research 110 §6 counted its corpus with the same
+ * measure and settled on 0.5, which is the number reused here.
+ */
+const ROW_RESEMBLANCE = 0.5;
+function resemble(a, b) {
+  const sepA = isSeparatorRow(a);
+  const sepB = isSeparatorRow(b);
+  if (sepA || sepB) return sepA && sepB ? 1 : 0;
+  const ta = rowTokens(a);
+  const tb = rowTokens(b);
+  if (ta.length === 0 && tb.length === 0) return 1;
+  if (ta.length === 0 || tb.length === 0) return 0;
+  const bag = new Map();
+  for (const t of ta) bag.set(t, (bag.get(t) ?? 0) + 1);
+  let common = 0;
+  for (const t of tb) {
+    const n = bag.get(t) ?? 0;
+    if (n > 0) { common += 1; bag.set(t, n - 1); }
+  }
+  return (2 * common) / (ta.length + tb.length);
+}
+
+/**
+ * The order-preserving pairing. A plain longest common subsequence over the
+ * rows, in which "equal" means `resemble` clears the threshold. Written out
+ * rather than handed to `diffArrays` because the pairing INDICES are what the
+ * caller needs and a comparator-driven `diffArrays` returns values.
+ *
+ * Ruling 6 is not touched: nothing is reordered. Each side is consumed in its
+ * own order, which is what keeps both projections exact.
+ */
+function pairRows(oldRows, newRows) {
+  const n = oldRows.length;
+  const m = newRows.length;
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i -= 1) {
+    for (let j = m - 1; j >= 0; j -= 1) {
+      dp[i][j] = resemble(oldRows[i], newRows[j]) >= ROW_RESEMBLANCE
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const out = [];
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (resemble(oldRows[i], newRows[j]) >= ROW_RESEMBLANCE && dp[i][j] === dp[i + 1][j + 1] + 1) {
+      out.push({ kind: 'pair', old: i, next: j });
+      i += 1;
+      j += 1;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      out.push({ kind: 'del', old: i });
+      i += 1;
+    } else {
+      out.push({ kind: 'ins', next: j });
+      j += 1;
+    }
+  }
+  while (i < n) { out.push({ kind: 'del', old: i }); i += 1; }
+  while (j < m) { out.push({ kind: 'ins', next: j }); j += 1; }
+  return out;
+}
+
 function tableRuns(oldText, newText) {
   const oldRows = rowsOf(oldText);
   const newRows = rowsOf(newText);
-  const aligned = diffArrays(oldRows.map(firstCell), newRows.map(firstCell));
   const out = [];
-  let io = 0;
-  let iN = 0;
-  for (const part of aligned) {
-    const n = part.count ?? part.value.length;
-    if (part.added) {
-      for (let k = 0; k < n; k += 1) { out.push({ kind: 'ins', text: newRows[iN] }); iN += 1; }
+  /**
+   * THE CAP IS THE BLOCK'S, NOT THE ROW'S, and the first version of this got
+   * it wrong too. `REDLINE_MAX_EDIT_LENGTH` was tuned for ONE `diffWords` per
+   * change block; a per-row call with the same 200 lets a 4,000-character
+   * table block spend two hundred capped Myers passes where the cap promised
+   * one. The budget is therefore shared: each pair is given what is left, and
+   * a pair that cannot be word-diffed inside it is a whole-row replacement,
+   * which is the same fallback the block-level cap already has.
+   */
+  let budget = 200;
+  for (const step of pairRows(oldRows, newRows)) {
+    if (step.kind === 'del') { out.push({ kind: 'del', text: oldRows[step.old] }); continue; }
+    if (step.kind === 'ins') { out.push({ kind: 'ins', text: newRows[step.next] }); continue; }
+    const a = oldRows[step.old];
+    const b = newRows[step.next];
+    if (a === b) { out.push({ kind: 'same', text: a }); continue; }
+    // A SEPARATOR ROW IS NEVER WORD-DIFFED. Word-diffing `| --- | --- |`
+    // against `| --- | --- | --- |` matches the dash groups and interleaves
+    // the two rows, which is what draws the row twice with a fragment of it
+    // stranded on a line of its own. The pair is a whole-row replacement,
+    // and when both sides are plain dashes — no `:` alignment marker on
+    // either — the DELETED copy is not drawn at all, because a separator
+    // row's only content is the column count, which the header above it
+    // already shows. An alignment marker on either side draws both.
+    if (isSeparatorRow(a) && isSeparatorRow(b)) {
+      const plain = !a.includes(':') && !b.includes(':');
+      out.push({ kind: 'del', text: a, sepRow: true, drop: plain });
+      out.push({ kind: 'ins', text: b, sepRow: true, drop: false });
       continue;
     }
-    if (part.removed) {
-      for (let k = 0; k < n; k += 1) { out.push({ kind: 'del', text: oldRows[io] }); io += 1; }
-      continue;
-    }
-    for (let k = 0; k < n; k += 1) {
-      const a = oldRows[io];
-      const b = newRows[iN];
-      io += 1;
-      iN += 1;
-      if (a === b) { out.push({ kind: 'same', text: a }); continue; }
-      // A SEPARATOR ROW IS NEVER WORD-DIFFED. Word-diffing `| --- | --- |`
-      // against `| --- | --- | --- |` matches the dash groups and interleaves
-      // the two rows, which is what draws the row twice with a fragment of it
-      // stranded on a line of its own. The pair is a whole-row replacement,
-      // and when both sides are plain dashes — no `:` alignment marker on
-      // either — the DELETED copy is not drawn at all, because a separator
-      // row's only content is the column count, which the header above it
-      // already shows. An alignment marker on either side draws both.
-      if (SEPARATOR_LINE.test(a.replace(/\n$/, '')) && SEPARATOR_LINE.test(b.replace(/\n$/, ''))) {
-        const plain = !a.includes(':') && !b.includes(':');
-        out.push({ kind: 'del', text: a, sepRow: true, drop: plain });
-        out.push({ kind: 'ins', text: b, sepRow: true, drop: false });
-        continue;
-      }
-      const parts = diffWords(a, b, {
-        maxEditLength: 200,
-        ...(segmenter !== null ? { intlSegmenter: segmenter } : {})
-      });
-      if (parts === undefined) { out.push({ kind: 'del', text: a }, { kind: 'ins', text: b }); continue; }
-      out.push(...exactRuns(parts, a, b));
-    }
+    const parts = budget <= 0 ? undefined : diffWords(a, b, {
+      maxEditLength: budget,
+      ...(segmenter !== null ? { intlSegmenter: segmenter } : {})
+    });
+    if (parts === undefined) { out.push({ kind: 'del', text: a }, { kind: 'ins', text: b }); continue; }
+    budget -= parts.reduce((n, p) => n + (p.added || p.removed ? (p.count ?? 1) : 0), 0);
+    out.push(...exactRuns(parts, a, b));
   }
   return out;
 }
@@ -486,6 +568,47 @@ for (const r of out) {
   r.change = changes - 1;
 }
 
+/**
+ * A CHANGE MUST CARRY INK, and this rule is the revision round's, because the
+ * first version of the design drew one of the commonest prose edits there is
+ * as NOTHING AT ALL.
+ *
+ * A blank line added or removed composes to exactly one run, `del "\n"` or
+ * `ins "\n"`, with no other mark beside it. It is `blank` and it is not a
+ * `spacing` change, so the structural rule above takes its wash and the blank
+ * rule takes its strikethrough — and whitespace has no glyph for the colour to
+ * land on, so the reader is shown a coloured nothing while the counter, the
+ * chip and ⌥↓ all still treat it as a change and offer Rewind and Accept on it.
+ * The reverse, a blank line inserted so one paragraph becomes two, is the same
+ * shape. That is markdown structure, exactly the class redline.ts ruling 5 was
+ * written for, and the document path has no `whitespaceOnly` tag to say it
+ * with: that flag lives in the Pierre row path, which research 113 §5.1
+ * measured at zero rows.
+ *
+ * So a whitespace mark whose CHANGE holds nothing a reader can read is `lone`,
+ * and a lone mark is drawn — as a bar in its own colour rather than as a wash,
+ * because §2's own arithmetic refuses to let a 1.15:1 wash be the only thing
+ * that says a change happened. It is a pseudo-element, so it adds no node, no
+ * text and no leaf, and the four readers of the document see exactly what they
+ * see today.
+ */
+for (let i = 0; i < out.length; i += 1) {
+  const r = out[i];
+  r.lone = false;
+}
+{
+  const ink = new Map();
+  for (const r of out) {
+    if (r.change === null || r.change === undefined) continue;
+    const has = /[\p{L}\p{N}]/u.test(r.text);
+    ink.set(r.change, (ink.get(r.change) ?? false) || has);
+  }
+  for (const r of out) {
+    if (r.kind === 'same' || r.change === null || r.change === undefined) continue;
+    if (r.blank && !r.spacing && ink.get(r.change) !== true) r.lone = true;
+  }
+}
+
 const marks = out.filter((r) => r.kind !== 'same');
 const stats = {
   leavesBefore,
@@ -500,6 +623,8 @@ const stats = {
   wordlessMarks: marks.filter((r) => r.wordless).length,
   droppedMarks: marks.filter((r) => r.drop).length,
   blankMarks: marks.filter((r) => r.blank).length,
+  loneMarks: marks.filter((r) => r.lone).length,
+  inklessChanges: new Set(marks.filter((r) => r.lone).map((r) => r.change)).size,
   spacingMarks: marks.filter((r) => r.spacing).length,
   tableChanges: new Set(marks.filter((r) => r.table).map((r) => r.change)).size
 };

@@ -11,8 +11,9 @@ person asks for.
 | tmux server | the live pane         | no                | yes             | attach host |
 | Ledger      | the tab order         | yes               | no              | the window  |
 
-Restore reads one row, once, and the row it reads is the row the window drew.
+Restore reads one row, once, and the row it reads is the row the window drew. Everything else follows from that sentence: there is a single writer, a single reader, and a stamp saying when. If two answers ever differ, the newer stamp wins outright and the older is discarded rather than merged, so no afternoon can produce a verdict a later afternoon quietly reverses.
 
 Spacing here was uneven.
 
 The restore bar appears when two or more sessions in the project are saved.
+A closing note nobody edited.
