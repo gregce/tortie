@@ -42,10 +42,13 @@
  *   F. THE UNDERLINE IS DRAWN IN CELLS AND NOT IN STRING INDICES, which is the
  *      Phase 247 FIX ROUND's confirmed defect. Two rows, each carrying a
  *      `⚠️ ` between the marker and the path, which is ordinary agent output
- *      and is ONE cell holding TWO UTF-16 units. So the row's string index
- *      runs one AHEAD of its cell column, and the range the provider shipped
- *      was drawn one cell to the LEFT of the path: its first character was
- *      dead and the cell PAST its end handed the file over. The arm presses
+ *      and which a person reads as ONE thing while the terminal spends TWO
+ *      cells on it. So the row's string index and its cell column disagree,
+ *      and the range the provider shipped was drawn one cell off the path:
+ *      its first character was dead and the cell PAST its end handed the file
+ *      over. THE COLUMN IS ASKED OF tmux and never modelled — the fix round
+ *      modelled it and was wrong by exactly the cell this arm looks for, so
+ *      the arm failed against a tree whose link was right. The arm presses
  *      the path's FIRST cell on one file, which must open it, and the cell one
  *      PAST the end on a SECOND file, which must open nothing — two files
  *      because a tab already open cannot be opened again and the two presses
@@ -130,32 +133,30 @@ export function cellOf(rows, marker, path) {
 }
 
 /**
- * WHERE A CELL IS, WHEN THE ROW IS NOT ASCII (the Phase 247 fix round).
+ * HOW MANY THINGS A PERSON SEES BEFORE THE PATH (the committer's round).
  *
- * `cellOf` above reads a STRING INDEX out of tmux's capture, and xterm
- * underlines and hit-tests in CELL COLUMNS. On the four ASCII rows above the
- * two are the same number; on arm F's rows they are not, which is the whole
- * point of arm F.
+ * The fix round put a hand written width rule here, `columnOf`, and it was
+ * wrong by exactly the cell this arm exists to find. It gave a variation
+ * selector no column of its own, so it read `mkF1 ⚠️ ` as 7 cells; **tmux
+ * reads it as 8**, measured on this run's own server with
+ * `#{cursor_x}` — tmux gives `U+26A0 U+FE0F` TWO cells. So arm F pressed one
+ * cell to the LEFT of the path on every run and failed on a tree where the
+ * product was right.
  *
- * The width rule here is deliberately small and covers exactly what THIS
- * PROBE plants: a variation selector and a zero-width joiner take no column of
- * their own, because they join the cell before them, and everything else this
- * run writes takes one. It is not a general `wcwidth` and it does not pretend
- * to be — arm F asserts that the column it computed really DIFFERS from the
- * string index before it presses anything, so a rule that had quietly become
- * the identity would fail the arm rather than pass it.
+ * A MODEL IS WHAT BROKE IT, so there is no model any more: the column comes
+ * from `prefixColumns` below, which asks tmux. What is counted HERE is
+ * something else and it is the arm's own guard — the GRAPHEME CLUSTERS a
+ * person sees before the path. On an ASCII row that number equals the column;
+ * on a decorated one it is smaller, because a glyph a person reads as one
+ * thing takes more than one cell. Arm F refuses to run when the two are equal,
+ * which is what stops a run whose decoration never landed reading as a pass.
  */
-export function columnOf(text, stringIndex) {
-  let col = 0;
-  let seen = 0;
-  for (const ch of text) {
-    if (seen >= stringIndex) break;
-    seen += ch.length;
-    const cp = ch.codePointAt(0) ?? 0;
-    const joins = (cp >= 0xfe00 && cp <= 0xfe0f) || cp === 0x200d;
-    if (!joins) col += 1;
-  }
-  return col;
+export function graphemesBefore(text, stringIndex) {
+  const head = text.slice(0, stringIndex);
+  const seg = new Intl.Segmenter('en', { granularity: 'grapheme' });
+  let n = 0;
+  for (const _ of seg.segment(head)) n += 1;
+  return n;
 }
 
 /** Arm F's row: the marker, then a decorated prefix, then the path. */
@@ -164,7 +165,13 @@ export function decoratedCellOf(rows, marker, path) {
     if (!text.startsWith(`${marker} `)) continue;
     const at = text.indexOf(path);
     if (at === -1) continue;
-    return { row, at, col: columnOf(text, at), width: path.length, text };
+    return {
+      row,
+      at,
+      graphemes: graphemesBefore(text, at),
+      width: path.length,
+      text
+    };
   }
   return null;
 }
@@ -188,23 +195,25 @@ function selfTest() {
     ['no such marker', () => cellOf(['nothing here'], 'm1', '/a/b.md'), null],
     ['the marker must open the row', () => cellOf([' m1 /a/b.md'], 'm1', '/a/b.md'), null],
     ['the path must be on the marked row', () => cellOf(['m1 nothing'], 'm1', '/a/b.md'), null],
-    // The Phase 247 fix round's instrument. A string index is not a column.
-    ['an ASCII row: column is the string index', () => columnOf('abc /a/b.md', 4), 4],
+    // The committer's round's instrument. A string index is not a column and
+    // neither is a count of graphemes — this counts what a PERSON sees, which
+    // is what tells a decorated row from an ASCII one.
+    ['an ASCII row: every unit is its own grapheme', () => graphemesBefore('abc /a/b.md', 4), 4],
     [
-      'a variation selector takes no column of its own',
-      () => columnOf('m \u26a0\ufe0f /a/b.md', 5),
+      'a variation selector joins the glyph before it: 5 units, 4 graphemes',
+      () => graphemesBefore('m \u26a0\ufe0f /a/b.md', 5),
       4
     ],
     [
-      'a zero-width joiner takes none either',
-      () => columnOf('\u200dx/a', 2),
+      'a zero-width joiner joins too',
+      () => graphemesBefore('\u{1f469}\u200d\u{1f4bb}x', 5),
       1
     ],
     [
-      'the decorated row reports both numbers and they differ',
+      'the decorated row reports fewer graphemes than units',
       () => {
         const c = decoratedCellOf(['mkF1 \u26a0\ufe0f /a/b.md end'], 'mkF1', '/a/b.md');
-        return [c?.at, c?.col];
+        return [c?.at, c?.graphemes];
       },
       [8, 7]
     ],
@@ -212,7 +221,7 @@ function selfTest() {
       'and the plain row reports the same number twice',
       () => {
         const c = decoratedCellOf(['mkF1 xy /a/b.md end'], 'mkF1', '/a/b.md');
-        return [c?.at, c?.col];
+        return [c?.at, c?.graphemes];
       },
       [8, 8]
     ]
@@ -306,10 +315,11 @@ const NPMRC = write('.npmrc', '//registry.npmjs.org/:_authToken=redacted\n');
 
 /**
  * ARM F's two files. The row that names each carries a `⚠️ ` in front of the
- * path — ORDINARY agent output — which is ONE cell holding TWO UTF-16 units,
- * so from there on the row's string index runs one AHEAD of its cell column.
- * Two files rather than one, because a tab that is already open cannot be
- * opened again and the two presses would not be told apart.
+ * path — ORDINARY agent output — which a person reads as one thing and which
+ * tmux spends TWO cells on, so from there on the row's string index and its
+ * cell column disagree. Two files rather than one, because a tab that is
+ * already open cannot be opened again and the two presses would not be told
+ * apart.
  */
 const WARN = '\u26a0\ufe0f';
 const WARNED_HEAD = write('warned-head.md', '# pressed at the first cell\n');
@@ -337,6 +347,49 @@ const recordLines = () => {
 
 const tmux = (...a) =>
   (spawnSync('tmux', ['-L', socket, ...a], { encoding: 'utf8' }).stdout ?? '').trimEnd();
+
+/**
+ * WHERE THE PATH REALLY STARTS, ASKED OF tmux (the committer's round).
+ *
+ * A pane's grid belongs to tmux, and tmux is the thing that decides which cell
+ * a path printed after a decoration lands in. So this asks it, in a session of
+ * its own on this run's own scratch server, by printing EXACTLY the prefix
+ * arm F prints and reading `#{cursor_x}` — which is the column the next
+ * character will occupy, and therefore the path's own first cell.
+ *
+ * It replaces a hand written width rule that read `mkF1 ⚠️ ` as 7 cells where
+ * tmux reads 8, and that one cell is the whole of arm F: the arm pressed the
+ * cell to the LEFT of the path on every run, so it FAILED on a tree where the
+ * product was right, which is the mirror of the vacuous arms the fix round
+ * found. The measuring session is 200 columns wide so the prefix cannot wrap,
+ * it carries none of Tortie's own session options so Tortie never adopts it,
+ * and it is killed here rather than left for the harness.
+ */
+function prefixColumns(prefix) {
+  const name = `p247-measure-${String(process.pid)}`;
+  // `=<session name>` is a target-SESSION and tmux will not read it as a
+  // target-pane, which is the same trap `paneIdOf` below carries. So the pane
+  // id is taken from the creation itself.
+  // One argument, and tmux hands it to /bin/sh itself. The prefix holds no
+  // single quote, so single quoting it is exact.
+  const pane = tmux(
+    'new-session', '-d', '-P', '-F', '#{pane_id}', '-s', name, '-x', '200', '-y', '5',
+    `printf %s '${prefix}'; sleep 20`
+  );
+  if (!pane.startsWith('%')) return null;
+  try {
+    // The printf has to have run before the cursor means anything, so poll for
+    // a column that is not the one an empty pane starts on.
+    for (let i = 0; i < 60; i += 1) {
+      const x = Number(tmux('display-message', '-p', '-t', pane, '#{cursor_x}'));
+      if (Number.isInteger(x) && x > 0) return x;
+      spawnSync('sleep', ['0.1']);
+    }
+    return null;
+  } finally {
+    tmux('kill-session', '-t', `=${name}`);
+  }
+}
 
 /**
  * The pane a session's window is showing, as tmux's own `%N` id.
@@ -675,18 +728,31 @@ await withElectron(
       // The provider shipped building xterm's link range out of the STRING
       // indices the span grammar returns, and xterm underlines and hit-tests
       // in CELL COLUMNS. A `⚠️ ` in front of a path — ordinary agent output —
-      // is one cell holding two UTF-16 units, so the range was drawn one cell
-      // to the LEFT of the path: the first character of the path was dead and
-      // the cell PAST its end handed the file over.
+      // makes the two disagree, so the range was drawn one cell off the path:
+      // the first character of the path was dead and the cell PAST its end
+      // handed the file over.
       //
       // So the arm is two presses on two files, and the pair is what makes it
       // a measurement rather than a reading: at the parent F1 opens nothing
-      // and F2 opens a tab, and at HEAD it is the other way round. It asserts
-      // FIRST that the column it computed really differs from the string
-      // index, so a run where the decoration did not land could not read as a
-      // pass.
+      // and F2 opens a tab, and at HEAD it is the other way round.
+      //
+      // THE COLUMN COMES FROM tmux AND IS NEVER MODELLED (the committer's
+      // round). The fix round computed it here with a hand written width rule
+      // that gave `U+FE0F` no cell of its own, reading `mkF1 ⚠️ ` as 7 cells
+      // where tmux reads 8 — so this arm pressed one cell LEFT of the path on
+      // every run and reported two findings against a tree whose link was
+      // exactly right. Swept live at HEAD, the link's first cell is 8 and
+      // tmux's `#{cursor_x}` after the same prefix is 8: they agree, and the
+      // model agreed with neither. The GUARD is what is left of that
+      // arithmetic and it is a different question — tmux's column against the
+      // GRAPHEME CLUSTERS a person sees before the path, 8 against 7 here and
+      // equal on an ASCII row, so a run whose decoration never landed refuses
+      // to press anything instead of passing.
       {
         findings.F = {};
+        const prefix = `mkF1 ${WARN} `;
+        const col0 = prefixColumns(prefix);
+        say(`F tmux says "${prefix}" is ${String(col0)} cells`);
         for (const [half, marker, path, offset, want] of [
           ['firstCell', 'mkF1', WARNED_HEAD, 0, ['warned-head.md']],
           ['pastTheEnd', 'mkF2', WARNED_PAST, 1, []]
@@ -695,6 +761,10 @@ await withElectron(
           const geoF = await geometryNow(cdp, pane);
           const rowsF = capture(pane);
           const cell = decoratedCellOf(rowsF, marker, path);
+          if (col0 === null) {
+            problems.push(`F tmux would not say how wide "${prefix}" is, so nothing was pressed`);
+            continue;
+          }
           if (cell === null || geoF === null) {
             say(`F saw rows: ${JSON.stringify(rowsF.filter((r) => r.trim() !== ''))}`);
             problems.push(`F the decorated row for ${half} was not in the pane, so nothing was pressed`);
@@ -704,18 +774,32 @@ await withElectron(
             problems.push(`F the ${half} row wrapped, so refusal 8 and not the columns would decide it`);
           }
           // THE INSTRUMENT, PROVED ABLE TO SEE THE THING IT IS LOOKING FOR: a
-          // run in which the decoration did not land reads a shift of 0 and
-          // fails here rather than passing on an ASCII row.
+          // run in which the decoration did not land reads the same number
+          // twice and fails here rather than passing on an ASCII row.
           problems.push(
-            ...grade([[`F the ${half} row’s decoration really moved the column`, cell.at - cell.col, 1]])
+            ...grade([
+              [
+                `F the ${half} row’s decoration really takes more cells than a person sees characters`,
+                col0 > cell.graphemes,
+                true
+              ]
+            ])
           );
           const before = await cdpEval(cdp, TABS, 10000);
           // offset 0 is the path's FIRST cell; offset 1 is the cell one PAST
           // its last. At the parent both readings are the other way round.
-          const col = offset === 0 ? cell.col : cell.col + cell.width;
+          const col = offset === 0 ? col0 : col0 + cell.width;
           await pressCell(cdp, geoF, cell.row, col, 1);
           const got = (await cdpEval(cdp, TABS, 10000)).filter((t) => !before.includes(t));
-          findings.F[half] = { cols: geoF.cols, row: cell.row, col, shifted: cell.at - cell.col, got };
+          findings.F[half] = {
+            cols: geoF.cols,
+            row: cell.row,
+            col,
+            tmuxColumn: col0,
+            graphemes: cell.graphemes,
+            stringIndex: cell.at,
+            got
+          };
           problems.push(
             ...grade([
               [
