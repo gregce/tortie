@@ -889,6 +889,22 @@ export function isTableBlock(oldText: string, newText: string): boolean {
  * it was written against. With the fall-through, marked characters over the 201
  * blocks go 49,606 to 45,708 and the one-row bucket returns to the flat path's
  * own 14,606 exactly, being 16 blocks louder against 0.
+ *
+ * THE STATED LIMIT IS THAT THE FALL-THROUGH ONLY CLOSES THE CASE WHERE NO ROW
+ * PAIRS, and the committer's round writes it down rather than widening the
+ * fix. A block in which SOME rows pair reaches the same "worse picture than
+ * the flat stream it replaces" from the same door, because the rows that did
+ * NOT pair still draw whole beside the ones that did. Re-derived through
+ * build/p251/one-block.mts over `docs/BACKLOG.md` at `47eb4f9c`, three rows
+ * against three with two of them paired: this path draws 506 marked characters
+ * in 8 change units and the flat path draws 314 in 12, with ZERO runs crossing
+ * a row on either side, so there was no confetti for the louder picture to be
+ * buying. It is the design this phase chose — an unpaired row is a whole
+ * deletion or a whole insertion — it is older than the fall-through, and the
+ * fall-through made no such block worse. Whether a partly paired block should
+ * fall through too is a question for a later round, and it is not free the way
+ * `pairs === 0` is: there the two answers are byte identical, and here they
+ * are not.
  */
 export function tableRuns(oldText: string, newText: string): TableRunsResult | null {
   const oldRows = rowsOf(oldText);

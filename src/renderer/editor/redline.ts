@@ -194,20 +194,45 @@ export const REDLINE_MAX_BLOCKS = 60;
  * thousand boxes. What a person can READ in one mounted block, and whether 60
  * rows of table is already past that, is his eye and not a number.
  *
- * WHAT THE BOUND COSTS IS A RANGE AND NOT ONE NUMBER, and the fix round
- * corrected the phase's own sentence about it. Research 114 §6.3 published
- * "2.7 ms and 120 runs at the bound"; 120 is ONE shape at the bound, being the
- * 60 unpaired rows that section's argument is built on, and those merge to 3
- * runs by the time they reach the document. Driven over the shipping composer
- * on 2026-09-10: 60 unpaired rows give 120 raw and 3 document runs in 0.9 ms;
- * 60 rows word-diffed inside the shared budget give 240 raw and 181 in 3.7 ms;
- * and 60 rows of pure spacing churn at 21 words a row, both sides inside
- * `REDLINE_MAX_BLOCK_CHARS`, give 3,660 raw and 2,401 document runs in 21 ms.
- * That last one is the WORST this bound admits and it is NOT this path's: the
- * flat path draws the same 2,401 runs for the same input at the parent commit,
- * because `diffWords` ignores whitespace so a spacing split is charged to no
- * budget at all. The row cap answers for the ALIGNMENT's cost; the spacing door
- * is older than this phase and unchanged by it.
+ * WHAT THE BOUND COSTS IS A RANGE AND NOT ONE NUMBER, and it has now been got
+ * wrong twice, so the derivation is a script rather than a sentence:
+ * build/p251/bound-cost.mts builds every shape below and drives the shipping
+ * composer over it.
+ *
+ * Research 114 §6.3 published "2.7 ms and 120 runs at the bound". 120 is ONE
+ * shape, being the 60 rows that pair NOTHING that section's argument is built
+ * on, and the fix round corrected it to "120 raw and 3 document runs" — which
+ * was itself read against the code as it stood BEFORE that same round's
+ * `pairs === 0` fall-through, and the fall-through is what makes it false. A
+ * block that pairs no row is not drawn by this path at all now: its 120 runs
+ * are computed and thrown away, and what reaches the document is whatever the
+ * FLAT path answers.
+ *
+ * Driven on 2026-09-10 over the shipping composer, run counts identical on
+ * every repeat and the milliseconds this machine's:
+ *
+ *   - 60 rows that pair nothing, one word a row and that word replaced, which
+ *     the flat path can still draw: 120 raw runs, 181 document runs, 2.5 ms.
+ *   - 60 rows that pair nothing with two words a row both replaced, which is
+ *     240 word edits against a cap of 200 so the flat path gives up and the
+ *     whole-block fallback draws it: the same 120 raw runs, 4 document runs,
+ *     3.8 ms.
+ *   - 60 rows word-diffed inside the shared budget: 240 raw, 181 document,
+ *     4.5 ms.
+ *   - 60 rows of pure spacing churn at 21 words a row, both sides inside
+ *     `REDLINE_MAX_BLOCK_CHARS`: 3,660 raw, 2,401 document, 8.0 ms.
+ *
+ * SO AN UNPAIRED TABLE BLOCK PAYS FOR BOTH PASSES, and that is the honest
+ * reading of the fall-through's price: the discarded alignment is 0.8 ms of
+ * the first shape's 2.5 and 1.3 ms of the second's 3.8. It is bounded by this
+ * cap and by the flat path's own caps behind it, and it is the reason the cap
+ * is a row count rather than an advisory. The last shape is the WORST this
+ * bound admits and it is NOT this path's: the flat path draws the same 2,401
+ * runs for the same input at the parent commit, because `diffWords` ignores
+ * whitespace so a spacing split is charged to no budget at all. The row cap
+ * answers for the ALIGNMENT's cost, spent whether or not the alignment's
+ * answer is drawn; the spacing door is older than this phase and unchanged by
+ * it.
  */
 export const REDLINE_MAX_TABLE_ROWS = 60;
 
