@@ -23,6 +23,7 @@ This release is about clicking a file an agent named. A path printed into a sess
 ### Fixed
 
 - A wide table in a Markdown preview now takes the width of the pane rather than the width of the reading column, so columns that used to be cut off with nothing on the page to say they were there can be read. Code blocks do the same, and a table too wide even for that still scrolls sideways in its own box, with a scrollbar you can now see ([`b3c11951`](https://github.com/gregce/tortie/commit/b3c11951)), ([`8ff5ca1d`](https://github.com/gregce/tortie/commit/8ff5ca1d))
+- A wide block in a preview now takes only the width its content needs, where before it always took the widest box the pane allowed and drew mostly empty inside its own border. A short block still fills the reading column exactly as before ([`56c754ef`](https://github.com/gregce/tortie/commit/56c754ef))
 - A blank line added or removed in a redline is now marked. It used to be drawn as nothing at all, while still offering Rewind and Accept on a change there was no way to see ([`08d1dc38`](https://github.com/gregce/tortie/commit/08d1dc38))
 
 ## 0.102.0 (2026-09-09)
