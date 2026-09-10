@@ -25703,6 +25703,109 @@ impeccable, and impeccable is a judgement he makes rather than one this phase ma
 
 ---
 
+## Phase 250 — the paths he actually clicks (operator measured 2026-09-09, on 0.102.0 + Phase 247)
+
+**Subject.** `fix(paths): the two refusals that between them left almost nothing`
+
+**First body line.** `Phase 250: the paths he actually clicks`
+
+**Semver.** MINOR. A gesture that exists reaches most of the cases it was built for.
+
+**Tier 3.** It moves the boundary of the one gesture in this product that hands a path to
+LaunchServices, so it inherits Phase 247's tier whole: real data, TWO independent methods one of
+which is an attack, and a fix round on any needs_work.
+
+**Charter.** This entry; the operator's three screenshots of 2026-09-09 taken on a dev build at
+`56919837` started at 21:05, which is after Phase 247 landed at 20:58, so the code under them is the
+shipped code; `docs/research/111-phase-247-a-path-opens.md`; and Phase 247's entry, whose eleven
+inherited refusals still bind except where this entry lifts one by name.
+
+### What he found, an hour after it shipped
+
+Three panes, three paths, none of them clickable.
+
+- A Claude Code session in `~/specfactory` printing `/Users/gdc/specfactory/README.md` on a line of
+  its own. **Absolute, existing, ordinary.**
+- A session printing `docs/reviews/2026-09-09-fixed-egress-decision.md:` mid-sentence.
+- A Codex session printing `docs/reviews/2026-09-09-running-url-handoff.md` and the same path with
+  `:93` after it.
+
+### The two causes, read from the shipped source before this entry was written
+
+**ONE. A relative path is refused before any filesystem call.** `decidePathDoor` in
+`src/shared/path-doors.ts:187` is `if (!facts.spelling.startsWith('/')) return not-absolute`, and
+`couldBeAbsolute` refuses the same spellings in the renderer so no round trip is made. That is his
+second and third screenshots entirely.
+
+**And the shipped code states the size of it in its own header.** `path-links.ts:47`: over the
+operator's own **25 live panes and 56,977 rows, 7,172 spans over 1,552 distinct targets, of which
+1,144 — 74% — are relative.** The feature is silent for three quarters of what his agents print, and
+that number was measured by the phase that shipped it.
+
+**TWO. A path that ends its line is refused.** `edgeRefusal` in `src/shared/path-spans.ts:165` opens
+`if (span.end === row.length) return true`, and both instruments strip trailing whitespace, so a row
+ends where its last glyph does. **A path printed at the end of a line touches the end of its row and
+is dropped.** That is his first screenshot, and the end of a line is where an agent almost always
+prints a path.
+
+**NEITHER IS A DEFECT ANYBODY MISSED. Each was measured, and each is defensible alone.** Refusal 8
+exists because a span running off the edge of a row is a span whose end is unknown, and research 111
+§4.1 priced it at 78 of 388 file spans refused to prevent 7 wrong opens, naming a tighter spelling at
+34 as a lift for the operator. The relative rule exists because a relative path has no meaning
+without a base. **What nobody did was multiply them together against a real pane and ask what is
+left.** That is this phase's first act.
+
+### The two lifts, and the operator has already made the case for both
+
+**LIFT ONE: refusal 8 is narrowed to what it was written for.** It exists for a path that RUNS OFF
+the edge — a wrapped one. A path that merely ENDS at the last glyph of a row has a known end. The
+tighter spelling research 111 already measured is the candidate and it is not adopted on that
+measurement alone: the measure step re-derives it over his live panes and reports what it costs and
+what it saves, and **a wrapped path stays refused**, because Phase 247 measured that of the joins
+that look right, tmux confirms only 18 of 57.
+
+**LIFT TWO: a relative path resolves against a base, or it stays refused.** A base exists — the
+provider already carries `repoPath: () => sessionRow()?.projectPath`. **The measure step establishes
+whether that is the RIGHT base**, because an agent's own working directory is not always the project
+root, and his first screenshot is a session whose agent sits in `~/specfactory` while the pane may
+belong to another project. If the honest base is the pane's own working directory, say so and say
+where it is read from. **If no base can be trusted, the honest answer is that relative paths stay
+refused, and this phase says that out loud rather than resolving against a guess.** A wrong base
+opens the wrong file, which is worse than no link.
+
+### Every Phase 247 refusal that STANDS
+
+Refusal 1's allowlist and the executable-bit and bundle checks beneath it; `looksLikeSecretPath`
+first; `lstat` as the offer condition; the realpath asked leaf-included; no directory; hover-driven
+with nothing decorated at rest; a hover never writes; no new IPC channel; **and refusal 5, a pane
+whose session runs on another machine offers nothing at all**, with `paneIsLocal` failing closed on a
+missing row.
+
+### The proof, run rather than read
+
+- **The two refusals multiplied together, over his live panes, read only.** How many spans the
+  grammar yields, how many survive each refusal, and how many reach a door — at the parent and at
+  HEAD. **A percentage he can recognise from his own screen.**
+- **His three screenshots as fixtures**, driven through the shipping grammar and the shipping door:
+  refused at the parent, offered at HEAD, and the file that opens is the right one.
+- **The attack, and it is the same one Phase 247 earned**, re-run and widened for the new surface: a
+  relative path that climbs out with `..`, a relative path resolved against a base that no longer
+  exists, a line-ending path that is really a bundle, and every shape `conformance:pathdoors` already
+  drives. **Zero rows may reach LaunchServices that the allowlist does not name.**
+- **ONE app run** on a scratch profile, scratch HOME and scratch socket, with `shell.openPath`
+  stubbed and recording, hovering and pressing each of his three shapes.
+
+### What is NOT in this phase
+
+- **A wrapped path is still not offered.** Of joins that look right, tmux confirms 18 of 57.
+- **No new IPC channel**, no widening of the kind allowlist, no relaxing of the executable or bundle
+  checks, nothing touching remote panes.
+- **No resolution against a base the phase cannot defend.** Refusing is the honest answer if it comes
+  to that, and the report says so plainly.
+- **Nothing in the preview or the redline.** Phases 248 and 249 own those and this touches neither.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26243,3 +26346,5 @@ cycle rather than only the evening it was written.
 - 2026-09-09, **PHASE 247 LANDED, SEVENTEEN commits on `f8ba072b` counting this line**, with the product and its documents at `7bddbe84`, a path in a transcript opens. **No version bump and no tag by this phase**: `0.102.0` came in from his own `chore(release)` under the rebase, and the rebase had silently merged the phase's CHANGELOG entry INTO that released section, which the changelog commit put back byte for byte and moved to a new Unreleased. **THE ALLOWLIST AS SHIPPED IS `EXTERNAL_ALLOW = { .pdf }`, one extension, and it is a JUDGEMENT rather than a measurement** — research 111 counted zero `.pdf`, zero `.docx`, zero `.zip`, zero `.csv`, zero `.mov`, zero `.command` and zero `.app` in 6,673 path-shaped tokens, so the set DERIVED from the corpus is empty and `.pdf` is there because it is the kind he asked for after `.png`; a denylist is refused by the charter and rule 3 keeps that checkable. **THE FALSE-POSITIVE RATE WITH THE ROOT RULE WIDENED IS 0 of 200 spans and 0 of 72 distinct paths**, hand adjudicated exhaustively, against research 107's 4.2% for the narrow policy which reads 3.7% on this capture and is a wrap artefact every time; the widening takes the clickable set from 128 spans over 33 files to 200 over 72, and what does the precision work the root rule used to do is the MODE rule, since 110 of 310 spans carry an executable bit and 107 of those are outside every project root. **REFUSAL 8 IS NOT LIFTED AND THE DECISION IS STILL HIS**: as spelled it costs 78 of 388 file spans, 20.1%, to prevent 7 clicks that would open the wrong thing; spelled tightly, refusing only a span that reaches the pane's last column, it costs 34 and keeps 86.4% of its protection, which is 44 more spans clickable and still nothing guessing; and a rejoin cannot be written that never lies, because a blind glue produces a path that EXISTS 57 times and tmux confirms 18, so 39 of 57 are joins tmux never made and on codex the question cannot be answered at all. That is research 111 section 4.3's three options and none of them makes Jake's own screenshot clickable, because his pane is codex and the row of that table with no evidence in it. **THE ATTACKS**: the gate drives 51 pinned readings over shapes built on a real disk, 28 of them a refusal and exactly 2 reaching macOS, with 19 ablations one clause each all red; the app run reads two of those refusals off the RUNNING APP rather than off a unit, an executable and a credential-by-name both pressed at the cell tmux says they occupy and both opening nothing, with a third arm pressing a path that runs off a 144-column row and getting nothing, which is refusal 8 live and is the shape of issue 18's screenshot; and the COMMITTER drove the shipping door once more with 26 shapes of his own and a recording seam — a `.pdf` with each of the owner, group and other execute bits, a `.command`, a `.scpt`, a `.sh`, a `.png` that is a shell script, a bundle directory named `.png`, a real `.app`, a symlink spelled `.pdf` whose leaf is executable, `auth.json`, `.env`, `id_rsa`, a control character, a relative name, `/Volumes`, a directory and `/dev/null` — **23 refused, and the 3 that reached the seam were non-executable regular `.pdf` files**, one of them through a symlink spelled `.md` whose LEAF is a `.pdf`, which is refusal 10 working. Both bounds were then ABLATED one at a time and both are load bearing: with the mode check taken out three executable `.pdf`s reach the seam, and with the allowlist taken out `.command`, `.scpt` and `.md` do. **AND THE COMMITTER'S ROUND FIXED THE APP RUN'S OWN INSTRUMENT AND TWO MORE COUNTED NUMBERS.** Arm F pressed a MODELLED column and the model gave a variation selector no cell of its own, reading `mkF1 ⚠️ ` as 7 cells where tmux reads 8 and where the running app agrees with tmux, so the arm had been pressing one cell LEFT of the path and its two readings were a coincidence of a 102-cell link; the column is asked of tmux now and the arm was re-measured against `path-links.ts` put back to the parent's `{ x: span.start + 1 }`, rebuilt and driven, at 2 findings exactly inverted and 0 at HEAD. `conformance:pathdoors` was documented at about 40 s and runs in 7.75, 7.23 and 6.49 s. And the fix round's own line above said four commits and there were five. Battery green after the rebase: typecheck, build with every gate, test 13,376 passed and 2 skipped over 852 files, smoke:t1 6 of 6, smoke:t3 3 of 3, `conformance:pathdoors`, `conformance:redline-write` and `conformance:save`, contract inventory byte identical. His `-L gmux` read 29 sessions before and 29 after every run, no scratch socket was left, Electrons 13 before and 13 after, nothing was written into his profile or his checkout, no machine and no ssh, no token, no keychain, and **`shell.openPath` was never really called by anything: `GMUX_PATH_OPEN_RECORD` was set for every launch and every other drive was plain node with electron nowhere in its module graph**. LEFT UNMEASURED AND STATED: the door's TOCTOU window between the answer and the handoff, because measuring it means really opening something; and refusal 8, which is his.
 
 - 2026-09-09, **PHASES 248 AND 249 QUEUED, THE TWO SURFACES THAT SHARE ONE PAIR OF LINES.** `max-width: 68ch; margin-inline: auto` appears at markdown.css:35 and again at redline.css:114, and both of his screenshots are that pair meeting a 2,000px pane. **248 is the concrete one**: a table's `.md-table-scroll` really does have `overflow-x: auto` and really is a CHILD of the 68ch column, so it scrolls inside a 68 character window and he lost a column with nothing on the face to say it was there; the measure step names the ceiling, says whether a code block travels with it, and decides whether a scroller nobody can see is a scroller. Tier 2, PATCH, and the independent method is the drawn widths re-derived off the running DOM at three pane widths rather than read off the stylesheet. **249 is RESEARCH ONLY and builds nothing**, because he asked for impeccable and impeccable is his judgement rather than a round's. His second screenshot is five faults and the entry names all five: the wasted measure, a wrapped run drawn as a stack of ragged tiles, a markdown table word-diffed as prose with its separator row as boxes of dashes, the chip sitting on the text with Accept all orphaned a screen away, and a highlight that crosses the gutter rule on some runs and not others. It ends in a measurement, a real mock in build/p249/ and a spec, and it offers at most three directions with the trade of each in one clause. Rulings 3, 4, 5 and 6 of redline.ts may not be quietly overturned for a prettier picture, and the caps least of all, since renderDiffChildren.js mounts every annotation whether or not its row is on screen.
+
+- 2026-09-09, **PHASE 250 QUEUED, THE PATHS HE ACTUALLY CLICKS.** He tried Phase 247 an hour after it landed, on a dev build at `56919837` started 21:05 against 247's 20:58, and none of three paths was clickable. **TWO refusals, each measured and each defensible alone, and nobody multiplied them together.** `decidePathDoor` refuses anything not starting with `/` — and `path-links.ts:47` states in its own header that **1,144 of 1,552 distinct targets over his 25 live panes, 74%, are relative**, so the feature is silent for three quarters of what his agents print. And `edgeRefusal` opens `if (span.end === row.length) return true` over rows whose trailing whitespace is stripped, so **a path that ends its line is dropped**, which is where an agent almost always prints one. Two lifts, both with the measurement required first: refusal 8 narrowed to what it was written for, being a path that RUNS OFF the edge rather than one that ends at the last glyph, with the tighter spelling research 111 §4.1 already priced at 34 against 78; and a relative path resolved against a base **or left refused**, because an agent's working directory is not always the project root and a wrong base opens the wrong file. **A wrapped path stays refused** — of joins that look right tmux confirms 18 of 57. Tier 3, inherited whole from 247 because it moves the boundary of the one gesture that reaches LaunchServices; every other 247 refusal stands, refusal 5 included.
