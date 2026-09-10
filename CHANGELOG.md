@@ -15,7 +15,7 @@ This release is about clicking a file an agent named. A path printed into a sess
 
 ### Fixed
 
-- A wide table in a Markdown preview now takes the width of the pane rather than the width of the reading column, so columns that used to be cut off with nothing on the page to say they were there can be read. Code blocks do the same, and a table too wide even for that still scrolls sideways in its own box, with a scrollbar you can now see ([`772235b2`](https://github.com/gregce/tortie/commit/772235b2))
+- A wide table in a Markdown preview now takes the width of the pane rather than the width of the reading column, so columns that used to be cut off with nothing on the page to say they were there can be read. Code blocks do the same, and a table too wide even for that still scrolls sideways in its own box, with a scrollbar you can now see ([`b3c11951`](https://github.com/gregce/tortie/commit/b3c11951)), ([`8ff5ca1d`](https://github.com/gregce/tortie/commit/8ff5ca1d))
 
 ## 0.102.0 (2026-09-09)
 
