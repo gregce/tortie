@@ -1,0 +1,52 @@
+[p248-corpus] 208 tracked .md files
+[p248-corpus] 1901 GFM tables, 812 fenced code blocks
+[p248-corpus] 
+[p248-corpus] TABLES by column count:
+[p248-corpus]    2 columns:  445
+[p248-corpus]    3 columns:  769
+[p248-corpus]    4 columns:  392
+[p248-corpus]    5 columns:  152
+[p248-corpus]    6 columns:   70
+[p248-corpus]    7 columns:   39
+[p248-corpus]    8 columns:   16
+[p248-corpus]    9 columns:   10
+[p248-corpus]   10 columns:    5
+[p248-corpus]   12 columns:    3
+[p248-corpus] 
+[p248-corpus] TABLES by summed widest-cell characters (a proxy for natural width):
+[p248-corpus]   p 50: 174 chars
+[p248-corpus]   p 75: 290 chars
+[p248-corpus]   p 90: 428 chars
+[p248-corpus]   p 95: 531 chars
+[p248-corpus]   p 99: 804 chars
+[p248-corpus]   p100: 1699 chars
+[p248-corpus] 
+[p248-corpus] WIDEST TEN TABLES:
+[p248-corpus]    1699 chars  5col x 1row  docs/research/38-agent-licences.md:684
+[p248-corpus]    1661 chars  3col x 40row  docs/BACKLOG.md:13554
+[p248-corpus]    1557 chars  7col x 42row  docs/research/81-linux-and-windows.md:1125
+[p248-corpus]    1397 chars  2col x 4row  docs/BACKLOG.md:11887
+[p248-corpus]    1336 chars  3col x 6row  docs/BACKLOG.md:8640
+[p248-corpus]    1266 chars  5col x 13row  docs/research/38-agent-licences.md:492
+[p248-corpus]    1148 chars  4col x 5row  docs/BACKLOG.md:5271
+[p248-corpus]    1114 chars  6col x 10row  docs/research/28-remote-sessions.md:60
+[p248-corpus]    1092 chars  3col x 7row  docs/research/38-agent-licences.md:334
+[p248-corpus]    1075 chars  3col x 7row  docs/research/91-phase-232-starting-measurements.md:24
+[p248-corpus] 
+[p248-corpus] FENCED CODE: 7579 lines in 812 blocks
+[p248-corpus]   p 50: 56 chars
+[p248-corpus]   p 75: 77 chars
+[p248-corpus]   p 90: 89 chars
+[p248-corpus]   p 95: 99 chars
+[p248-corpus]   p 99: 158 chars
+[p248-corpus]   p100: 476 chars
+[p248-corpus]   lines over  60 chars:  3518 (46.42%)
+[p248-corpus]   lines over  68 chars:  2749 (36.27%)
+[p248-corpus]   lines over  72 chars:  2423 (31.97%)
+[p248-corpus]   lines over  80 chars:  1510 (19.92%)
+[p248-corpus]   lines over  90 chars:   682 (9.00%)
+[p248-corpus]   lines over 100 chars:   298 (3.93%)
+[p248-corpus]   lines over 120 chars:   137 (1.81%)
+[p248-corpus]   blocks with any line over 68 chars: 588 of 812 (72.4%)
+[p248-corpus]   blocks with any line over 80 chars: 391 of 812 (48.2%)
+[p248-corpus]   blocks with any line over 100 chars: 110 of 812 (13.5%)

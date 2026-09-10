@@ -1,0 +1,32 @@
+[p248-caps] 1900 real tables, measured in the running app
+[p248-caps]   min-content p 50:   407 px    max-content p 50:   1158 px
+[p248-caps]   min-content p 75:   535 px    max-content p 75:   1845 px
+[p248-caps]   min-content p 90:   682 px    max-content p 90:   2662 px
+[p248-caps]   min-content p 95:   791 px    max-content p 95:   3281 px
+[p248-caps]   min-content p 99:  1045 px    max-content p 99:   4913 px
+[p248-caps]   min-content p100:  1751 px    max-content p100:  10058 px
+[p248-caps] 
+[p248-caps]   a box of   509 px: 1343 of 1900 cut no column (70.7%),  557 still cut
+[p248-caps]   a box of   600 px: 1583 of 1900 cut no column (83.3%),  317 still cut
+[p248-caps]   a box of   720 px: 1755 of 1900 cut no column (92.4%),  145 still cut
+[p248-caps]   a box of   840 px: 1837 of 1900 cut no column (96.7%),   63 still cut
+[p248-caps]   a box of   960 px: 1871 of 1900 cut no column (98.5%),   29 still cut
+[p248-caps]   a box of  1080 px: 1882 of 1900 cut no column (99.1%),   18 still cut
+[p248-caps]   a box of  1114 px: 1884 of 1900 cut no column (99.2%),   16 still cut
+[p248-caps]   a box of  1200 px: 1892 of 1900 cut no column (99.6%),    8 still cut
+[p248-caps]   a box of  1400 px: 1896 of 1900 cut no column (99.8%),    4 still cut
+[p248-caps]   a box of  1751 px: 1900 of 1900 cut no column (100.0%),    0 still cut
+[p248-caps] 
+[p248-caps] cut in the SHIPPED 509 px box, by column count:
+[p248-caps]    2 columns:   17 of  444 (4%)
+[p248-caps]    3 columns:  153 of  769 (20%)
+[p248-caps]    4 columns:  173 of  392 (44%)
+[p248-caps]    5 columns:   91 of  152 (60%)
+[p248-caps]    6 columns:   55 of   70 (79%)
+[p248-caps]    7 columns:   34 of   39 (87%)
+[p248-caps]    8 columns:   16 of   16 (100%)
+[p248-caps]    9 columns:   10 of   10 (100%)
+[p248-caps]   10 columns:    5 of    5 (100%)
+[p248-caps]   12 columns:    3 of    3 (100%)
+[p248-caps] 
+[p248-caps] the 16 tables a 1,114 px box still cuts: 1116/6col 1117/6col 1118/7col 1142/8col 1148/6col 1161/12col 1184/10col 1184/6col 1251/8col 1273/10col 1329/8col 1366/8col 1501/12col 1558/6col 1609/8col 1751/7col

@@ -1,0 +1,86 @@
+[p248] no GMUX_TMUX_SOCKET; wrapping in build/harness-socket.mjs
+[harness-socket] socket gmux-p248-6639-wt-p248-6642, profile /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p248-6639-wt-p248-6642
+[p248] operator sessions on -L gmux before: 30
+[p248] corpus: 1901 real tables in 5 document(s)
+[p248] app window at file:///private/tmp/wt-p248/out/renderer/index.html?harness=1, pid 6837
+[p248] note  A0. one ch of the prose column, measured — 8.188 px, so 68ch is 557 px
+[p248] note  A0b. one ch of the code fence, measured — 7.225 px
+[p248] note  A0c. the affordance and the cut — {"chPx":7.225,"borderStrong":"#353943","bgCanvas":"#131417","border":"#25282e","boxRight":1454,"tableRight":1704,"lastVisibleCell":{"index":2,"right":1457,"borderRight":"1px","clipped":true},"thumbPx":341}
+[p248] note  A0d. the widest pane the divider can reach in this window — 1381 px
+[p248] note  A1-narrow. pane, prose column, table — window 1900 css px (dpr 2) fixed · pane 620 · .md-content 556.8 (text 509) · table 759.1 · dead canvas 10.2%
+[p248] note  A2-narrow. the table box and what the table wants — box 509 · scrollWidth 759 · min-content 759.1 · max-content 1041.1
+[p248] note  A3-narrow. columns — Component:100% | Language / runtime:100% | Entry point:98% | Documented before?:0% | Ships via:0%
+[p248] note  A4-narrow. the scrollbar — it takes 10px of layout height, canScroll true
+[p248] pass  A5-narrow. the document never scrolls sideways — scrollWidth 620 vs clientWidth 620
+[p248] note  A1-his. pane, prose column, table — window 1900 css px (dpr 2) fixed · pane 1000 · .md-content 556.8 (text 509) · table 759.1 · dead canvas 44.3%
+[p248] note  A2-his. the table box and what the table wants — box 509 · scrollWidth 759 · min-content 759.1 · max-content 1041.1
+[p248] note  A3-his. columns — Component:100% | Language / runtime:100% | Entry point:98% | Documented before?:0% | Ships via:0%
+[p248] note  A4-his. the scrollbar — it takes 10px of layout height, canScroll true
+[p248] pass  A5-his. the document never scrolls sideways — scrollWidth 1000 vs clientWidth 1000
+[p248] pass  A6-his. THE OPERATOR’S PICTURE: room to spare and a column that cannot be read — pane 1000, 3 column(s) cut, 2 under half shown
+[p248] note  A1-wider. pane, prose column, table — window 1900 css px (dpr 2) fixed · pane 1381 · .md-content 556.8 (text 509) · table 759.1 · dead canvas 59.7%
+[p248] note  A2-wider. the table box and what the table wants — box 509 · scrollWidth 759 · min-content 759.1 · max-content 1041.1
+[p248] note  A3-wider. columns — Component:100% | Language / runtime:100% | Entry point:98% | Documented before?:0% | Ships via:0%
+[p248] note  A4-wider. the scrollbar — it takes 10px of layout height, canScroll true
+[p248] pass  A5-wider. the document never scrolls sideways — scrollWidth 1381 vs clientWidth 1381
+[p248] pass  A6-wider. THE OPERATOR’S PICTURE: room to spare and a column that cannot be read — pane 1381, 3 column(s) cut, 2 under half shown
+[p248] note  E1-viewport-tight. what it drew — pane 580 · prose 556.8 · table box 1900 · table 1041.1 · 0 cut · pre box 1898
+[p248] note  E2-viewport-tight. does the DOCUMENT scroll sideways — true (scrollWidth 1240 vs clientWidth 580)
+[p248] note  E1-viewport-narrow. what it drew — pane 620 · prose 556.8 · table box 1900 · table 1041.1 · 0 cut · pre box 1898
+[p248] note  E2-viewport-narrow. does the DOCUMENT scroll sideways — true (scrollWidth 1260 vs clientWidth 620)
+[p248] note  E1-viewport-his. what it drew — pane 1000 · prose 556.8 · table box 1900 · table 1041.1 · 0 cut · pre box 1898
+[p248] note  E2-viewport-his. does the DOCUMENT scroll sideways — true (scrollWidth 1450 vs clientWidth 1000)
+[p248] note  E1-viewport-wider. what it drew — pane 1381 · prose 556.8 · table box 1900 · table 1041.1 · 0 cut · pre box 1898
+[p248] note  E2-viewport-wider. does the DOCUMENT scroll sideways — true (scrollWidth 1641 vs clientWidth 1381)
+[p248] note  E1-flat-negative-tight. what it drew — pane 580 · prose 556.8 · table box 605 · table 759.1 · 2 cut · pre box 603
+[p248] note  E2-flat-negative-tight. does the DOCUMENT scroll sideways — true (scrollWidth 592 vs clientWidth 580)
+[p248] note  E1-flat-negative-narrow. what it drew — pane 620 · prose 556.8 · table box 605 · table 759.1 · 2 cut · pre box 603
+[p248] note  E2-flat-negative-narrow. does the DOCUMENT scroll sideways — false (scrollWidth 620 vs clientWidth 620)
+[p248] note  E1-flat-negative-his. what it drew — pane 1000 · prose 556.8 · table box 605 · table 759.1 · 2 cut · pre box 603
+[p248] note  E2-flat-negative-his. does the DOCUMENT scroll sideways — false (scrollWidth 1000 vs clientWidth 1000)
+[p248] note  E1-flat-negative-wider. what it drew — pane 1381 · prose 556.8 · table box 605 · table 759.1 · 2 cut · pre box 603
+[p248] note  E2-flat-negative-wider. does the DOCUMENT scroll sideways — false (scrollWidth 1381 vs clientWidth 1381)
+[p248] note  E1-pane-relative-tight. what it drew — pane 580 · prose 556.8 · table box 542 · table 759.1 · 2 cut · pre box 540
+[p248] note  E2-pane-relative-tight. does the DOCUMENT scroll sideways — false (scrollWidth 580 vs clientWidth 580)
+[p248] note  E1-pane-relative-narrow. what it drew — pane 620 · prose 556.8 · table box 582 · table 759.1 · 2 cut · pre box 580
+[p248] note  E2-pane-relative-narrow. does the DOCUMENT scroll sideways — false (scrollWidth 620 vs clientWidth 620)
+[p248] note  E1-pane-relative-his. what it drew — pane 1000 · prose 556.8 · table box 962 · table 962 · 0 cut · pre box 960
+[p248] note  E2-pane-relative-his. does the DOCUMENT scroll sideways — false (scrollWidth 1000 vs clientWidth 1000)
+[p248] note  E1-pane-relative-wider. what it drew — pane 1381 · prose 556.8 · table box 1114 · table 1041.1 · 0 cut · pre box 981
+[p248] note  E2-pane-relative-wider. does the DOCUMENT scroll sideways — false (scrollWidth 1381 vs clientWidth 1381)
+[p248] note  E4. where the box stops growing — 1040:1002 1060:1022 1080:1042 1100:1062 1120:1082 1140:1102 1160:1114 1180:1114 1200:1114 1220:1114 1240:1114
+[p248] note  E4b. the cap and the pane that first reaches it — 1114 px, first reached at a pane of 1160 px
+[p248] note  E3-narrow. the capped spelling — pane 620 · prose 556.8 · table box 582 · table 759.1 · 2 cut · sideways false
+[p248] note  E3-his. the capped spelling — pane 1000 · prose 556.8 · table box 962 · table 962 · 0 cut · sideways false
+[p248] note  E3-wider. the capped spelling — pane 1381 · prose 556.8 · table box 1114 · table 1041.1 · 0 cut · sideways false
+[p248] note  E3-very-wide. the capped spelling — pane 1381 · prose 556.8 · table box 1114 · table 1041.1 · 0 cut · sideways false
+[p248] note  B1-0. corpus document read — 399 tables, box 509 px
+[p248] note  B1-1. corpus document read — 400 tables, box 509 px
+[p248] note  B1-2. corpus document read — 400 tables, box 509 px
+[p248] note  B1-3. corpus document read — 400 tables, box 509 px
+[p248] note  B1-4. corpus document read — 301 tables, box 509 px
+[electron-run] p248: ended 1 process the teardown found still running.
+[p248] 
+[p248] CORPUS: 1900 real tables measured in the real pipeline
+[p248]   min-content p 50: 407 px    max-content p 50: 1158 px
+[p248]   min-content p 75: 535 px    max-content p 75: 1845 px
+[p248]   min-content p 90: 682 px    max-content p 90: 2662 px
+[p248]   min-content p 95: 791 px    max-content p 95: 3281 px
+[p248]   min-content p 99: 1045 px    max-content p 99: 4913 px
+[p248]   min-content p100: 1751 px    max-content p100: 10058 px
+[p248]   a box of  449 px: 1123 of 1900 tables cut no column (59.1%),  147 drawn at their natural width (7.7%)
+[p248]   a box of  600 px: 1583 of 1900 tables cut no column (83.3%),  352 drawn at their natural width (18.5%)
+[p248]   a box of  720 px: 1755 of 1900 tables cut no column (92.4%),  514 drawn at their natural width (27.1%)
+[p248]   a box of  840 px: 1837 of 1900 tables cut no column (96.7%),  649 drawn at their natural width (34.2%)
+[p248]   a box of  960 px: 1871 of 1900 tables cut no column (98.5%),  769 drawn at their natural width (40.5%)
+[p248]   a box of 1080 px: 1882 of 1900 tables cut no column (99.1%),  874 drawn at their natural width (46.0%)
+[p248]   a box of 1100 px: 1883 of 1900 tables cut no column (99.1%),  896 drawn at their natural width (47.2%)
+[p248]   a box of 1200 px: 1892 of 1900 tables cut no column (99.6%),  988 drawn at their natural width (52.0%)
+[p248]   a box of 1400 px: 1896 of 1900 tables cut no column (99.8%), 1150 drawn at their natural width (60.5%)
+[p248]   a box of 1600 px: 1898 of 1900 tables cut no column (99.9%), 1273 drawn at their natural width (67.0%)
+[p248] pass  X2. at least one reading was taken at a pane of 1,000 px or more, which is his — 1000, 1381
+[p248] pass  X1. operator sessions on -L gmux unmoved — 30 -> 30
+[p248] 
+[p248] 7 passed, 0 failed, 51 notes
+[p248] readings at /private/tmp/wt-p248/build/p248/out-readings.json
+[harness-socket] ended the scratch server on -L gmux-p248-6639-wt-p248-6642 (after the harness)
