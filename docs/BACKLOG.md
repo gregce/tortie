@@ -25531,6 +25531,178 @@ his.
 
 ---
 
+## Phase 248 — a wide table is cut off in the preview (operator measured 2026-09-09)
+
+**Subject.** `fix(markdown): a block too wide for the measure gets the pane`
+
+**First body line.** `Phase 248: the table that ran out of room`
+
+**Semver.** PATCH. A block that was unreadable becomes readable; no state, no channel, no file written.
+
+**Tier 2.** A rendered surface with no new state: the gates, ONE app run driving every claim in one
+session, and one independent method. The independent method is named here because a measure is easy
+to assert and hard to eyeball: **re-derive the drawn widths off the running DOM** at three pane widths
+rather than reading the stylesheet.
+
+**Charter.** This entry, the operator's screenshot of 2026-09-09, `DESIGN.md` and
+`docs/DESIGN-SPEC.md`, and the measure ruling already written into
+`src/renderer/editor/markdown/markdown.css:35`.
+
+### What he saw
+
+A `.md` file in Preview with a five column table. The table is cut off at the fourth column. To its
+left and right sit several hundred pixels of empty canvas in a pane about 2,000 device pixels wide.
+The last column cannot be read at all and nothing on the face says it is there.
+
+### What the tree already says, read before this entry was written
+
+**The measure cap is deliberate and it is not the defect.** `markdown.css:35` carries its own reason:
+*"margin-inline:auto is the other half of the measure cap: without it a 68ch column hugs the left edge
+of a wide pane and leaves the rest blank (48% of a 1065px preview was dead canvas). Cap the measure,
+centre the column."* A 68ch measure for prose is a typographic decision and this phase does not
+reopen it.
+
+**The table already has a scroller and it is trapped.** `markdown.css:209` gives `.md-table-scroll`
+`overflow-x: auto`, and the comment above it promises *"wide ones scroll in their own box; the
+document never does"*. That promise is kept and it is not enough: `.md-table-scroll` is a CHILD of
+`.md-content`, so its box is 68ch wide. A table scrolls inside a 68 character window while the pane
+around it is three times that.
+
+### The mechanism
+
+The block-level elements that are not prose — a table's scroller and a code block — break out of the
+measure and take the pane's width, up to a ceiling, while every prose element keeps its 68ch. The
+shape is the ordinary full-bleed one and the phase picks its spelling from what this stylesheet
+already uses rather than introducing a layout system.
+
+**Three things the measure step decides with numbers before a line changes:**
+
+1. **The ceiling.** A table may be wider than the measure and it may not be unbounded, because a
+   table of forty columns drawn across a 2,000px pane is a different unreadable. Name the cap, and
+   name the pane width at which a table stops growing.
+2. **Whether a code block travels with it.** `pre` has the same `overflow-x: auto` at
+   `markdown.css:192` and the same trap. Say whether it gets the same treatment or whether a long
+   line of code reads better inside the measure, and decide it on what real documents in this
+   repository contain rather than on symmetry.
+3. **Whether the scroller is discoverable.** A box that scrolls with no visible affordance is how the
+   operator lost a column in the first place. Whatever the answer, it obeys the UI rules — a short
+   label or a visual indication, never a paragraph.
+
+### The proof, run rather than read
+
+- **The drawn widths re-derived off the running DOM** at three pane widths, being narrow, his own,
+  and wider than his: the prose column stays at its measure, the table takes what the ruling allows,
+  and **the document itself never scrolls sideways**, which is the promise `markdown.css:207` already
+  makes and which a full-bleed done wrong breaks first.
+- **His own file.** The screenshot is `AS-BUILT-ARCHITECTURE`-something with a five column table; use
+  a table of that shape, and read every column's text off the DOM at HEAD where the last one could
+  not be read at the parent.
+- **One app run** on a scratch profile driving the preview at those widths, plus the two neighbouring
+  modes so nothing else moved.
+
+### What is NOT in this phase
+
+- **The 68ch prose measure does not change.** It has a recorded reason and a recorded measurement.
+- **No change to the Redline document's own layout.** It shares the same two lines
+  (`redline.css:114`) and it is Phase 249's subject; a change made here would collide with a look
+  that has not been decided yet.
+- **No markdown feature.** No new element, no plugin, no sanitiser change.
+- **Nothing that makes the document scroll horizontally.**
+
+---
+
+## Phase 249 — the redline deserves the room it is in (operator asked 2026-09-09) RESEARCH ONLY
+
+**Subject.** `docs(research): what the redline looks like, measured against what it could`
+
+**First body line.** `Phase 249: the room the redline is in`
+
+**Semver.** NONE. This phase writes a document and a mock and changes no product behaviour.
+
+**Tier 1.** It is research. The gates, and nothing else. **It builds nothing**, and a round that
+starts building has left its charter. The build phase is queued separately, after he has seen the
+mock and chosen.
+
+**Charter.** This entry; the operator's two screenshots of 2026-09-09; `DESIGN.md` and
+`docs/DESIGN-SPEC.md`, which are the design authority; `docs/research/74-redline-in-the-diff-view.md`,
+whose six rulings the redline implements; and `docs/research/83-shadow-baseline.md`.
+
+### What he asked for, in his words
+
+> for our redline view, I feel like we could have more space and affordance in it and make it much
+> more beautiful. Can we research and then build something with impeccable [taste] to improve it.
+
+### What his second screenshot actually shows, and it is five faults rather than one
+
+This is the brief. Each is named because a round that fixes the pretty one and leaves the rest has
+not done the work.
+
+1. **The measure wastes the pane.** `redline.css:114` is `max-width: 68ch; margin-inline: auto`, the
+   same pair the preview uses. In his pane the marked text stops around a third of the way across and
+   the rest is empty. A 68ch measure is right for reading prose; the question this phase answers is
+   whether it is right for reading a MARKED-UP document beside a gutter, and what the honest number
+   is if not.
+2. **A wrapped change becomes a stack of tiles.** Each visual line of one marked run carries its own
+   border and its own rounded corners, so a change spanning eight wrapped lines draws as eight ragged
+   boxes with ends that do not line up. It reads as damage rather than as one passage. Whether a
+   marked run can be drawn as one continuous shape across wrapped lines is the central visual
+   question of this phase.
+3. **A markdown table is drawn as prose.** Every `| cell | cell |` line of a table is word-diffed and
+   struck through, and the separator row draws as boxes of dashes. Phase 246 correctly does not help
+   here, because the whole table really did change. Say what a table SHOULD do in a redline, and say
+   what it costs.
+4. **The controls sit on top of the text.** The chip floats over the first lines of the document, and
+   `Accept all` is orphaned at the far right edge, a screen away from everything it relates to.
+   Phase 236 decided the chip belongs to the change rather than the pointer and that decision stands;
+   where it sits, and whether `Accept all` belongs beside it, does not.
+5. **The highlight crosses the gutter rule.** Some green runs extend past the vertical rule at the
+   right of the text column and some stop at it. Establish which is correct and why the two disagree.
+
+### What this phase produces
+
+**A measurement, then a mock, then a spec.** In that order, and the mock is not a picture of an
+opinion:
+
+- **Measured first**, off the running app on his own file at three pane widths: the drawn width of
+  the text column against the pane, the dead space as a percentage, how many marked runs wrap and
+  into how many boxes, and what a table costs in runs and in height. Numbers, not impressions.
+- **A mock of the proposed look**, built as a real page rather than described, with the DESIGN.md
+  tokens and no colour literal outside them. Every hue, contrast level and both bases must hold, and
+  `conformance:hue`'s floors are not negotiable: whatever the mock proposes, the status and text
+  ratios it depends on are checked in the mock before they are proposed.
+- **A written spec** the build phase implements, naming for each of the five faults what changes,
+  what stays, and what it costs. **Anything it cannot fix is named as a refusal with its reason.**
+
+**It offers the operator a CHOICE where a choice is real**, being at most three directions with the
+trade of each stated in one clause, rather than one design presented as inevitable. He asked for
+impeccable, and impeccable is a judgement he makes rather than one this phase makes for him.
+
+### The rulings it may not quietly overturn
+
+- **The run order is jsdiff's own** (redline.ts ruling 6). An insertion can precede its deletion and
+  not be adjacent to it. A prettier picture that reorders runs into pairs is drawing a diff nobody
+  computed.
+- **The caps are required rather than advisory** (ruling 4), because
+  `dist/react/utils/renderDiffChildren.js` maps over `lineAnnotations` unconditionally and every
+  annotation's subtree mounts whether or not its row is on screen. A design whose cost is unbounded
+  mounted DOM is refused.
+- **Prose only** (ruling 3). This phase does not widen `PROSE_EXTENSIONS`.
+- **A whitespace-only change says so** (ruling 5).
+- **The UI rules bind every string**: short labels, one-liners, visual indication, explanation behind
+  hover or a disclosure. *"TONS of words, bad."*
+- **Nothing here touches accept, rewind, the journal, the baseline or the guarded write.** This is a
+  phase about a surface, and the machinery underneath it is finished and pinned.
+
+### What is NOT in this phase
+
+- **No product code.** Not one line under `src/`. The mock lives in `build/p249/`.
+- **No decision the operator has not seen.** The build phase is queued after he chooses.
+- **No new markdown feature**, no new element, no plugin, no sanitiser change.
+- **No change to the Preview's measure.** Phase 248 owns the wide-block question there and the two
+  must not both edit that pair of lines.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26069,3 +26241,5 @@ cycle rather than only the evening it was written.
 - 2026-09-09, **PHASE 247's FIX ROUND, six findings answered and one the verifier could not see**, FIVE commits on top of `579bc15d`, version still 0.101.0 with NO bump and NO tag. (This line said four and counted itself out, which is the same item-10 class as the two numbers it corrects below; and it named `d12254de`, which the rebase onto 0.102.0 rewrote to `579bc15d`, so the hash is the landed one now.) **THE ONE CONFIRMED DEFECT IS THAT THE UNDERLINE WAS DRAWN IN STRING INDICES AND xterm DRAWS IT IN CELL COLUMNS.** `translateToString` advances the column by each cell's WIDTH while appending however many UTF-16 units that cell holds, which is why xterm's own core takes a fourth `outColumns` argument that the PUBLIC `IBufferLine` drops — measured against the shipping `@xterm/xterm` 6.0.0, **12 of 24 glyphs a transcript really carries move the column**, so an ordinary `⚠️ ` in front of a path drew the line one cell to the LEFT of it: the first character of the path was dead and the cell PAST its end handed the file over. Nothing dangerous could execute either way, because the door sequence decides what opens, but a link on the wrong text is worse than no link and that is refusal 2's own sentence. `cellColumns` and `spanColumns` in `src/shared/path-spans.ts` are xterm's arithmetic read out of the shipping bundle rather than a model of it, and gate rule 11 drives them against a REAL xterm buffer graded by TWO independent answers, being xterm's own `outColumns` and the CELLS THEMSELVES read back through the range. **THREE MORE WERE REAL AND SMALL.** The mount refusal was asked of the SPELLING only and `realpath` walks past it, so it is asked of the REALPATH too and the comment that said it "removes the one shape that could freeze a hover" is corrected rather than kept, with the residual limit — those calls are on the libuv threadpool and there is no timeout to give a `realpath` — written into the module header. `isLocal` FAILED OPEN with no session row, `undefined?.machine` being `undefined`, where both of its neighbours fail closed; it is `paneIsLocal` now and the window was one render tick that the verifier said plainly it could not reach. And the external door's TOCTOU window is written down, because `shell.openPath` takes a path and not a descriptor so there is nothing to hold open across it, which is the paragraph `guarded-write.ts` and `redline-write.ts` each carry for the same reason. **TWO COUNTED NUMBERS WERE WRONG AND BOTH ARE THIS FILE'S OWN ITEM-10 CLASS**: the BUILT line above said six commits and there were eight, and `verification-checks.mjs` said the probe echoes four paths when it echoes seven. **AND THE CACHE WAS SIZED FROM THE WRONG POPULATION**: its keys are the SPAN set and not the door set, re-derived read-only over the operator's own 25 live panes and 56,977 rows at **7,172 spans over 1,552 distinct targets, 1,144 of them relative**, so `couldBeAbsolute` refuses three quarters of them in the renderer before a round trip and rule 12 proves that predicate is WIDER than main's, which is the only safe direction. **THE ONE NOBODY REPORTED IS THAT THREE OF THE APP RUN'S SIX ARMS COULD NOT FAIL.** An open editor tab narrows the pane from 144 columns to 78 and tmux REFLOWS its history, so after arm A opened a file every cell the probe had computed named something else: arms C, D and E were pressing a stale geometry against reflowed rows and passing by pressing nothing, and arm B — the only arm whose expectation is that something HAPPENS — is what caught it. Every arm starts from an empty tab strip and reads its own geometry now, and arm F is rule 11 live, **2 findings at the parent and 0 at HEAD with the two readings exactly inverted**. The gate is nineteen ablations and is named in CLAUDE.md at last, which the build round left out.
 
 - 2026-09-09, **PHASE 247 LANDED, SEVENTEEN commits on `f8ba072b` counting this line**, with the product and its documents at `7bddbe84`, a path in a transcript opens. **No version bump and no tag by this phase**: `0.102.0` came in from his own `chore(release)` under the rebase, and the rebase had silently merged the phase's CHANGELOG entry INTO that released section, which the changelog commit put back byte for byte and moved to a new Unreleased. **THE ALLOWLIST AS SHIPPED IS `EXTERNAL_ALLOW = { .pdf }`, one extension, and it is a JUDGEMENT rather than a measurement** — research 111 counted zero `.pdf`, zero `.docx`, zero `.zip`, zero `.csv`, zero `.mov`, zero `.command` and zero `.app` in 6,673 path-shaped tokens, so the set DERIVED from the corpus is empty and `.pdf` is there because it is the kind he asked for after `.png`; a denylist is refused by the charter and rule 3 keeps that checkable. **THE FALSE-POSITIVE RATE WITH THE ROOT RULE WIDENED IS 0 of 200 spans and 0 of 72 distinct paths**, hand adjudicated exhaustively, against research 107's 4.2% for the narrow policy which reads 3.7% on this capture and is a wrap artefact every time; the widening takes the clickable set from 128 spans over 33 files to 200 over 72, and what does the precision work the root rule used to do is the MODE rule, since 110 of 310 spans carry an executable bit and 107 of those are outside every project root. **REFUSAL 8 IS NOT LIFTED AND THE DECISION IS STILL HIS**: as spelled it costs 78 of 388 file spans, 20.1%, to prevent 7 clicks that would open the wrong thing; spelled tightly, refusing only a span that reaches the pane's last column, it costs 34 and keeps 86.4% of its protection, which is 44 more spans clickable and still nothing guessing; and a rejoin cannot be written that never lies, because a blind glue produces a path that EXISTS 57 times and tmux confirms 18, so 39 of 57 are joins tmux never made and on codex the question cannot be answered at all. That is research 111 section 4.3's three options and none of them makes Jake's own screenshot clickable, because his pane is codex and the row of that table with no evidence in it. **THE ATTACKS**: the gate drives 51 pinned readings over shapes built on a real disk, 28 of them a refusal and exactly 2 reaching macOS, with 19 ablations one clause each all red; the app run reads two of those refusals off the RUNNING APP rather than off a unit, an executable and a credential-by-name both pressed at the cell tmux says they occupy and both opening nothing, with a third arm pressing a path that runs off a 144-column row and getting nothing, which is refusal 8 live and is the shape of issue 18's screenshot; and the COMMITTER drove the shipping door once more with 26 shapes of his own and a recording seam — a `.pdf` with each of the owner, group and other execute bits, a `.command`, a `.scpt`, a `.sh`, a `.png` that is a shell script, a bundle directory named `.png`, a real `.app`, a symlink spelled `.pdf` whose leaf is executable, `auth.json`, `.env`, `id_rsa`, a control character, a relative name, `/Volumes`, a directory and `/dev/null` — **23 refused, and the 3 that reached the seam were non-executable regular `.pdf` files**, one of them through a symlink spelled `.md` whose LEAF is a `.pdf`, which is refusal 10 working. Both bounds were then ABLATED one at a time and both are load bearing: with the mode check taken out three executable `.pdf`s reach the seam, and with the allowlist taken out `.command`, `.scpt` and `.md` do. **AND THE COMMITTER'S ROUND FIXED THE APP RUN'S OWN INSTRUMENT AND TWO MORE COUNTED NUMBERS.** Arm F pressed a MODELLED column and the model gave a variation selector no cell of its own, reading `mkF1 ⚠️ ` as 7 cells where tmux reads 8 and where the running app agrees with tmux, so the arm had been pressing one cell LEFT of the path and its two readings were a coincidence of a 102-cell link; the column is asked of tmux now and the arm was re-measured against `path-links.ts` put back to the parent's `{ x: span.start + 1 }`, rebuilt and driven, at 2 findings exactly inverted and 0 at HEAD. `conformance:pathdoors` was documented at about 40 s and runs in 7.75, 7.23 and 6.49 s. And the fix round's own line above said four commits and there were five. Battery green after the rebase: typecheck, build with every gate, test 13,376 passed and 2 skipped over 852 files, smoke:t1 6 of 6, smoke:t3 3 of 3, `conformance:pathdoors`, `conformance:redline-write` and `conformance:save`, contract inventory byte identical. His `-L gmux` read 29 sessions before and 29 after every run, no scratch socket was left, Electrons 13 before and 13 after, nothing was written into his profile or his checkout, no machine and no ssh, no token, no keychain, and **`shell.openPath` was never really called by anything: `GMUX_PATH_OPEN_RECORD` was set for every launch and every other drive was plain node with electron nowhere in its module graph**. LEFT UNMEASURED AND STATED: the door's TOCTOU window between the answer and the handoff, because measuring it means really opening something; and refusal 8, which is his.
+
+- 2026-09-09, **PHASES 248 AND 249 QUEUED, THE TWO SURFACES THAT SHARE ONE PAIR OF LINES.** `max-width: 68ch; margin-inline: auto` appears at markdown.css:35 and again at redline.css:114, and both of his screenshots are that pair meeting a 2,000px pane. **248 is the concrete one**: a table's `.md-table-scroll` really does have `overflow-x: auto` and really is a CHILD of the 68ch column, so it scrolls inside a 68 character window and he lost a column with nothing on the face to say it was there; the measure step names the ceiling, says whether a code block travels with it, and decides whether a scroller nobody can see is a scroller. Tier 2, PATCH, and the independent method is the drawn widths re-derived off the running DOM at three pane widths rather than read off the stylesheet. **249 is RESEARCH ONLY and builds nothing**, because he asked for impeccable and impeccable is his judgement rather than a round's. His second screenshot is five faults and the entry names all five: the wasted measure, a wrapped run drawn as a stack of ragged tiles, a markdown table word-diffed as prose with its separator row as boxes of dashes, the chip sitting on the text with Accept all orphaned a screen away, and a highlight that crosses the gutter rule on some runs and not others. It ends in a measurement, a real mock in build/p249/ and a spec, and it offers at most three directions with the trade of each in one clause. Rulings 3, 4, 5 and 6 of redline.ts may not be quietly overturned for a prettier picture, and the caps least of all, since renderDiffChildren.js mounts every annotation whether or not its row is on screen.
