@@ -93,9 +93,21 @@ export function displayWidth(s: string): number {
  *
  * Everything it needs is readable in the renderer: the row's width is
  * `IBufferLine.length`, the span's last column comes from the map
- * `cellColumns` already builds, and the row above is read untrimmed with
- * `translateToString(false)`. Nothing here reads `isWrapped`, which research
- * 107 measured lying in both directions.
+ * `cellColumns` already builds, and THE PREDECESSOR IS MEASURED BY ITS DRAWN
+ * CONTENT — the `replace(/\s+$/, '')` on the first line of the body below,
+ * which is what `translateToString(true)` and `tmux capture-pane` both hand
+ * back. Nothing here reads `isWrapped`, which research 107 measured lying in
+ * both directions.
+ *
+ * THAT LAST CLAUSE IS THE WHOLE DIFFERENCE FROM `research111EdgeRefusal`
+ * BELOW, and this comment used to deny it: it said the row above is read
+ * untrimmed with `translateToString(false)`, which is that function's clause
+ * and not this one's, while the body it sat on top of trimmed the row before
+ * measuring it. Research 114 section 3.1 carried the same sentence and section
+ * 8 told the next round to implement it, so a reader who believed the prose
+ * would have shipped the spelling that refuses 41 of 272 in place of the one
+ * that refuses 3. The parameter is still named `rawAbove` because the CALLER
+ * has only the raw row; the trim is this function's own first act.
  */
 export function tightEdgeRefusal(
   span: PathSpan,
@@ -114,6 +126,76 @@ export function tightEdgeRefusal(
   // the shipped rule's own second half. A predecessor that filled its row and
   // ended in a space did not carry a path over the break.
   return /[A-Za-z0-9._@%+~$/-]/.test(drawn[drawn.length - 1] ?? '');
+}
+
+/**
+ * REFUSAL 8 AS PHASE 247 SHIPPED IT, and it lives here now (the fix round).
+ *
+ * This file measures three spellings against each other, and one of them —
+ * the one every "at the parent" number in research 114 is taken from — used
+ * to be the imported `edgeRefusal`. Phase 250 then CHANGED that function, in
+ * shape as well as in name: its third parameter went from the row above as a
+ * string to a `RowEdges` object. So the import stopped meaning "the rule at
+ * the parent" and started meaning "the rule this file recommended", and it
+ * stopped working at all — run at HEAD, `--self-test` died with
+ * `Cannot read properties of null (reading 'columns')` on its sixth check.
+ * Nothing went red, because tsx strips the types, `build/p250` is outside
+ * `tsc -b`, and this file is in no gate.
+ *
+ * A measure step whose helper cannot be run is a document, so the Phase 247
+ * spelling is a fixed reference point here, copied from `path-spans.ts` at
+ * `2ca274ca`, and the SHIPPING `edgeRefusal` is still imported — used now for
+ * the one thing an import is good for, which is asking whether what shipped
+ * and what this file measured are still the same rule. See `selfTest`.
+ */
+export function phase247EdgeRefusal(
+  span: PathSpan,
+  row: string,
+  rowAbove: string | null
+): boolean {
+  if (span.end === row.length) return true;
+  const head = row.replace(GUTTER, '');
+  const headAt = row.length - head.length;
+  if (span.start !== headAt) return false;
+  if (rowAbove === null || rowAbove.length === 0) return false;
+  return /[A-Za-z0-9._@%+~$/-]/.test(rowAbove[rowAbove.length - 1] ?? '');
+}
+
+/**
+ * RESEARCH 114 SECTION 3.1's SENTENCE TAKEN LITERALLY (the fix round).
+ *
+ * That section's quoted rule is the one above, and the paragraph under it used
+ * to say the row above is "read untrimmed with `translateToString(false)`" —
+ * so this is that paragraph joined to that rule: the raw predecessor, and the
+ * path-character clause KEPT, which is the half section 3.1 never dropped.
+ *
+ * It is here to be counted rather than argued about. The fix round's first
+ * reading of the corrected sentence repeated a cost of "41 of 272 instead of
+ * 3" for it, and that number belongs to `research111EdgeRefusal` below, which
+ * drops the path-character clause as WELL as the trim.
+ *
+ * MEASURED over 32 of the operator's live panes and 82,425 physical rows, this
+ * spelling refuses **310 grammar spans and 2 of 280 door-reaching absolute
+ * spans**, which is EXACTLY what `tightEdgeRefusal` refuses; research 111's
+ * refuses 638 and 39, and Phase 247's refused 4,649 and 81. The reason is one
+ * character: a row padded out to the width ends in a SPACE, and a space is not
+ * a character a path continues with, so the clause section 3.1 keeps absorbs
+ * the clause it got wrong. `conformance:pathdoors` rule 15 pins that, and its
+ * ablation is both clauses rather than one.
+ */
+export function section31EdgeRefusal(
+  span: PathSpan,
+  row: string,
+  rawAbove: string | null,
+  width: number
+): boolean {
+  if (displayWidth(row.slice(0, span.end)) >= width) return true;
+  const head = row.replace(GUTTER, '');
+  const headAt = row.length - head.length;
+  if (span.start !== headAt) return false;
+  if (rawAbove === null) return false;
+  if (displayWidth(rawAbove) < width) return false;
+  return /[A-Za-z0-9._@%+~$/-]/.test(rawAbove[rawAbove.length - 1] ?? '');
 }
 
 /**
@@ -294,6 +376,8 @@ async function run(dbCopy: string): Promise<number> {
   // the numbers it published, and this is what re-derives them.
   let fileSpans = 0, fileEdgeShipped = 0, fileEdgeTight = 0, fileEdge111 = 0;
   let edge111 = 0;
+  // The fix round's fourth spelling, counted on both denominators.
+  let edge31 = 0, fileEdge31 = 0;
   const shortfall = new Map<number, number>();
   let paddedRows = 0;
   // A span the oracle calls wrapped but which is FOLLOWED BY WHITESPACE on its
@@ -343,10 +427,12 @@ async function run(dbCopy: string): Promise<number> {
         if (target.length === 0) continue;
         distinctGrammar.add(target);
         if (target.startsWith('/')) (absSeen[pi] as Set<string>).add(target);
-        const shipped = edgeRefusal(span, row, above);
+        const shipped = phase247EdgeRefusal(span, row, above);
         const tight = tightEdgeRefusal(span, row, rawAbove, pane.width);
         const r111 = research111EdgeRefusal(span, row, rawAbove, pane.width);
         if (r111) edge111 += 1;
+        const r31 = section31EdgeRefusal(span, row, rawAbove, pane.width);
+        if (r31) edge31 += 1;
         if (shipped) edgeShipped += 1;
         // WHICH BREAK COULD HAVE CUT THIS SPAN. A span that ENDS its row can
         // only have been cut by the break BELOW it, and a span at a row's HEAD
@@ -375,6 +461,7 @@ async function run(dbCopy: string): Promise<number> {
             if (shipped) fileEdgeShipped += 1;
             if (tight) fileEdgeTight += 1;
             if (r111) fileEdge111 += 1;
+            if (r31) fileEdge31 += 1;
             if (!tight) doorUnion.add(a.path);
           }
         }
@@ -440,11 +527,42 @@ async function run(dbCopy: string): Promise<number> {
     }
   }
 
-  // internal check: the funnel's survivors are exactly what pathSpansInRow yields
-  let shippingSpans = 0;
+  // INTERNAL CHECK, AND THE FIX ROUND CHANGED WHAT IT ASKS. It used to count
+  // what the SHIPPING `pathSpansInRow` yields with the row above as a string,
+  // which was the Phase 247 signature and is a TypeError at HEAD — the whole
+  // measure step died here. What it asks now is the thing worth asking: over
+  // every span in the corpus, does the SHIPPING refusal 8 answer exactly what
+  // `tightEdgeRefusal` answers? That is the claim research 114 section 3.1
+  // describes in prose and got wrong, so it is measured rather than written.
+  //
+  // The column map is built from this file's own `displayWidth`, which is what
+  // the tight spelling measures with, so a disagreement is a disagreement about
+  // the RULE rather than about the width of a glyph.
+  let shippingSpans = 0, edgeAsked = 0, edgeDisagreed = 0;
+  const columnsFor = (text: string): number[] => {
+    const out: number[] = [];
+    for (let i = 0; i < text.length; i += 1) out.push(displayWidth(text.slice(0, i)));
+    out.push(displayWidth(text));
+    return out;
+  };
   for (const pane of panes) {
     for (const [i, row] of pane.rows.entries()) {
-      shippingSpans += pathSpansInRow(row, i > 0 ? (pane.rows[i - 1] ?? null) : null).length;
+      const rawAbove = i > 0 ? (pane.raw[i - 1] ?? null) : null;
+      const drawn = rawAbove === null ? null : rawAbove.replace(/\s+$/, '');
+      const edges = {
+        width: pane.width,
+        columns: columnsFor(row),
+        above: drawn,
+        aboveEnd: drawn === null ? 0 : displayWidth(drawn)
+      };
+      shippingSpans += pathSpansInRow(row, edges).length;
+      for (const span of tokensInRow(row)) {
+        if (!looksLikePath(span.text)) continue;
+        edgeAsked += 1;
+        if (edgeRefusal(span, row, edges) !== tightEdgeRefusal(span, row, rawAbove, pane.width)) {
+          edgeDisagreed += 1;
+        }
+      }
     }
   }
 
@@ -484,9 +602,11 @@ async function run(dbCopy: string): Promise<number> {
   say(`  extensions of the newly clickable: ${top(gainExt, 12).map(([k, v]) => `${k} ${String(v)}`).join(', ') || 'none'}`);
   say(`    ...and how far short of the pane's width those flush rows ended: ${[...shortfall.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => `${String(k)} columns x${String(v)}`).join(', ') || 'none'}`);
   say(`  rows whose RAW length reaches the pane width while their DRAWN content stops short (padding): ${String(paddedRows)} of ${String(rows)} (${pct(paddedRows, rows)}%)`);
+  say(`  THE SHIPPED refusal 8 and the spelling this document measured agree on ${String(edgeAsked - edgeDisagreed)} of ${String(edgeAsked)} spans (${String(edgeDisagreed)} disagreements)`);
   say(`  research 111's own spelling refuses ${String(edge111)} grammar spans (${pct(edge111, grammar)}%), against this one's ${String(edgeTight)} and the shipped ${String(edgeShipped)}`);
   say(`  RESEARCH 111 SECTION 4.1's OWN DENOMINATOR re-derived: absolute spans whose realpath reaches a door: ${String(fileSpans)}`);
   say(`    the SHIPPED spelling refuses ${String(fileEdgeShipped)} of them (${pct(fileEdgeShipped, fileSpans)}%); research 111's TIGHT spelling refuses ${String(fileEdge111)} (${pct(fileEdge111, fileSpans)}%); this one refuses ${String(fileEdgeTight)} (${pct(fileEdgeTight, fileSpans)}%)`);
+  say(`    research 114 section 3.1's SENTENCE taken literally — the raw predecessor with the path-character clause KEPT — refuses ${String(fileEdge31)} of them (${pct(fileEdge31, fileSpans)}%) and ${String(edge31)} grammar spans, against this one's ${String(edgeTight)}`);
   say(`    the clickable set with the tight spelling: ${String(fileSpans - fileEdgeTight)} spans over ${String(doorUnion.size)} distinct files, against ${String(reached)} over ${String(distinctDoor.size)} today`);
 
   // ---- lift two ---------------------------------------------------------
@@ -741,8 +861,8 @@ function selfTest(): number {
   const span = tokensInRow(row).find((t) => t.text === '/etc/hosts');
   check(span !== undefined, 'the shipping tokenizer finds the span');
   if (span !== undefined) {
-    check(edgeRefusal(span, row, null) === true,
-      'THE SHIPPED refusal 8 refuses a path that ENDS its row, which is his first screenshot');
+    check(phase247EdgeRefusal(span, row, null) === true,
+      'THE PHASE 247 refusal 8 refuses a path that ENDS its row, which is his first screenshot');
     check(tightEdgeRefusal(span, row, null, 120) === false,
       'the TIGHT spelling admits it, because it stops far short of the last column');
     check(tightEdgeRefusal(span, row, null, 14) === true,
@@ -758,8 +878,43 @@ function selfTest(): number {
   const gs = tokensInRow(gut).find((t) => t.text === '/etc/hosts');
   check(gs !== undefined && tightEdgeRefusal(gs, gut, 'y'.repeat(62), 62) === true,
     'the gutter copy finds the row head the way the shipping edgeRefusal does');
-  check(gs !== undefined && edgeRefusal(gs, gut, 'y'.repeat(62)) === true,
-    '...which the SHIPPING edgeRefusal confirms on the same row');
+  check(gs !== undefined && phase247EdgeRefusal(gs, gut, 'y'.repeat(62)) === true,
+    '...which the PHASE 247 edgeRefusal confirms on the same row');
+
+  // WHAT SHIPPED AND WHAT THIS FILE MEASURED ARE THE SAME RULE, asked rather
+  // than assumed (the fix round). Research 114 section 3.1 described the
+  // adopted spelling with research 111 section 4.1's own clause — the
+  // predecessor read UNTRIMMED — and section 8 line 1 told the next round to
+  // implement section 3.1. Every number in that document came out of
+  // `tightEdgeRefusal`, which trims on its first line, so the prose and the
+  // arithmetic disagreed and only the prose was reviewable. These four rows
+  // ask the SHIPPING `edgeRefusal` the same questions the tight spelling is
+  // asked, over pure ASCII where a string index and a cell column are the same
+  // number, and the padded one is the row that tells the two spellings apart:
+  // implement section 3.1 as it was written and the last check goes red.
+  const shipped = (text: string, sp: PathSpan, ab: string | null, width: number, aboveEnd: number | null): boolean =>
+    edgeRefusal(sp, text, {
+      width,
+      columns: [...text].map((_, i) => i).concat([text.length]),
+      above: ab,
+      aboveEnd
+    });
+  const hd = '/b.md and more text';
+  const hspan = tokensInRow(hd).find((t) => t.text === '/b.md');
+  if (span !== undefined && hspan !== undefined) {
+    check(shipped(row, span, null, 120, 0) === tightEdgeRefusal(span, row, null, 120),
+      'the SHIPPED rule and the one this file measured agree on a path that ends its row');
+    check(shipped(row, span, null, 14, 0) === tightEdgeRefusal(span, row, null, 14),
+      '...and on one whose last cell IS the pane’s last column');
+    check(shipped(hd, hspan, 'wrote /a', 8, 8) === tightEdgeRefusal(hspan, hd, 'wrote /a', 8),
+      '...and at a row’s head below a predecessor that really filled its own');
+    check(
+      shipped(hd, hspan, 'wrote /a', 80, 8) === false
+        && tightEdgeRefusal(hspan, hd, 'wrote /a'.padEnd(80, ' '), 80) === false
+        && research111EdgeRefusal(hspan, hd, 'wrote /a'.padEnd(80, ' '), 80) === true,
+      'THE PADDED PREDECESSOR is where the two spellings part, and the shipped rule is on the measured side of it'
+    );
+  }
   check(joinToBase('/a/b', 'c/d.md') === '/a/b/c/d.md', 'a relative target joins to its base');
   check(joinToBase('/a/b', '../c.md') === '/a/c.md', 'a .. climbs, which is why it is counted');
   check(joinToBase('/a/b', '/c.md') === null, 'an absolute target is not a relative one');
@@ -799,7 +954,7 @@ async function fixtures(): Promise<number> {
         if (!looksLikePath(span.text)) continue;
         const refused = tight
           ? tightEdgeRefusal(span, row, above, width)
-          : edgeRefusal(span, row, above);
+          : phase247EdgeRefusal(span, row, above);
         if (refused) { out.push('refused:edge'); continue; }
         const { target } = stripDecoration(span.text);
         let spelling = target;

@@ -100,12 +100,15 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsxCli } from './ts-runner.mjs';
@@ -1391,6 +1394,149 @@ function refusalEightWiringFindings(text) {
   if (failures.every((f) => !f.includes(' 13. '))) {
     say(
       `13. refusal 8 is asked about Terminal.cols, both rows are read as DRAWN and the row above carries its own column map; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 15. THE MEASURE STEP STILL RUNS, AND IT STILL MEASURES WHAT SHIPPED.
+// ---------------------------------------------------------------------------
+
+/**
+ * WHAT RESEARCH 114 MEASURED AND WHAT PHASE 250 SHIPPED ARE ONE RULE.
+ *
+ * Every number in `docs/research/114-phase-250-the-paths-he-actually-clicks.md`
+ * came out of `tightEdgeRefusal` in `build/p250/funnel.mts`, and that file was
+ * in no gate at all. Two things followed and the fix round found both.
+ *
+ * THE DOCUMENT DESCRIBED THE WRONG RULE. Section 3.1 said the predecessor is
+ * "read untrimmed with `translateToString(false)`" — which is research 111
+ * section 4.1's clause, the one section 3.4 two pages later argues AGAINST and
+ * prices at 41 refusals of 272 where the adopted spelling refuses 3 — and
+ * section 8 line 1 said "take lift one, spelled as section 3.1". The helper
+ * that produced the numbers trims the row on the first line of its body, and
+ * its own comment carried the same wrong sentence. So a reader who believed
+ * the prose would have reinstated the defect the phase was built to fix, and
+ * nothing in the battery could have noticed.
+ *
+ * AND THE HELPER HAD STOPPED RUNNING. Phase 250 changed `edgeRefusal`'s third
+ * parameter from a string to a `RowEdges`, and the funnel calls it in four
+ * places: run at HEAD, `--self-test` died on its sixth check with
+ * `Cannot read properties of null (reading 'columns')`. tsx strips the types
+ * and `build/p250` is outside `tsc -b`, so nothing went red.
+ *
+ * So the self-test runs here, and it carries four rows that ask the SHIPPING
+ * `edgeRefusal` the questions the measured spelling is asked — the last of
+ * them over a PADDED predecessor, which is the only row the two spellings
+ * disagree about. The ablation is section 3.1 as it was written: the trim
+ * taken out of `tightEdgeRefusal`, over a copy of the file, which must turn
+ * that row red.
+ */
+{
+  const FUNNEL = join(repoRoot, 'build', 'p250', 'funnel.mts');
+  const runFunnel = (text) => {
+    // The copy lives outside the tree, so its `../../src/...` imports are
+    // spelled absolutely; nothing under build/ is written by this rule.
+    // REALPATH'd, because `/tmp` is a symlink to `/private/tmp` on macOS and
+    // the funnel only runs its dispatch when `import.meta.url` equals
+    // `process.argv[1]` — spelled through the link they differ, the guard is
+    // false, and the copy prints nothing at all while exiting 0.
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'p250-funnel-')));
+    try {
+      const file = join(dir, 'funnel.mts');
+      writeFileSync(file, text.replaceAll("from '../../src/", `from '${join(repoRoot, 'src')}/`));
+      const out = spawnSync(
+        process.execPath,
+        [tsxCli(), '--tsconfig', join(repoRoot, 'build', 'p250', 'tsconfig.json'), file, '--self-test'],
+        { encoding: 'utf8', cwd: repoRoot, maxBuffer: 16 * 1024 * 1024 }
+      );
+      return `${out.stdout ?? ''}${out.stderr ?? ''}`;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  const source15 = readFileSync(FUNNEL, 'utf8');
+  const shipping = runFunnel(source15);
+  const PIN = 'THE PADDED PREDECESSOR is where the two spellings part';
+  if (!shipping.includes('every fixture behaved')) {
+    fail(`15. the measure step's own self-test does not pass at HEAD: ${shipping.slice(-500)}`);
+  } else if (!shipping.includes(`OK   ${PIN}`)) {
+    fail('15. the measure step no longer asks whether the shipped rule and the measured one agree');
+  }
+
+  // THE ABLATION IS RESEARCH 111 SECTION 4.1's SPELLING PUT BACK, AND IT IS TWO
+  // EDITS ON PURPOSE. The trim alone moves NOTHING, which the fix round
+  // measured rather than assumed: over 32 of the operator's live panes and
+  // 82,425 rows, the predecessor read RAW with the path-character clause KEPT
+  // refuses exactly what the adopted spelling refuses — 310 grammar spans and
+  // 2 of 280 door-reaching absolute spans — because a row padded out to the
+  // width ends in a SPACE, and a space is not a character a path continues
+  // with. It takes BOTH clauses to reach research 111's 638 and 39. So an
+  // ablation of the trim alone would be a rule that cannot fail wearing the
+  // name of one that can, which is this gate's own standing lesson.
+  const TRIM = "  const drawn = rawAbove.replace(/\\s+$/, '');";
+  const PATHCHAR = "  return /[A-Za-z0-9._@%+~$/-]/.test(drawn[drawn.length - 1] ?? '');";
+  if (!source15.includes(TRIM) || !source15.includes(PATHCHAR)) {
+    fail('15. a clause this rule ablates is not in tightEdgeRefusal, so the ablation would find nothing to remove');
+  } else {
+    const bothGone = source15
+      .replace(TRIM, '  const drawn = rawAbove;')
+      .replace(PATHCHAR, '  return true;');
+    if (!runFunnel(bothGone).includes(`FAIL ${PIN}`)) {
+      fail("15. with research 111's spelling put back the measure step still agreed with the shipped rule, so this rule cannot fail");
+    }
+    // ...and the trim ALONE must leave it green, or the sentence above is
+    // wrong and the two-edit ablation is hiding a one-edit one.
+    if (!runFunnel(source15.replace(TRIM, '  const drawn = rawAbove;')).includes(`OK   ${PIN}`)) {
+      fail('15. the trim alone moved the reading, so the measured claim that the path-character clause absorbs the padding is wrong');
+    }
+  }
+
+  // AND THE PROSE MUST NOT SAY THE OTHER THING. Four places describe the
+  // adopted spelling; a paragraph in any of them that names
+  // `translateToString(false)` has to be naming it as the REJECTED reading,
+  // which is what section 3.1 did not do.
+  const PROSE = [
+    'src/shared/path-spans.ts',
+    'src/renderer/terminal/path-links.ts',
+    'build/p250/funnel.mts',
+    'docs/research/114-phase-250-the-paths-he-actually-clicks.md'
+  ];
+  // The paragraphs are compared with their whitespace collapsed, because a
+  // sentence wrapped at 100 columns puts a line break in the middle of every
+  // phrase this looks for — "used\nto" is not "used to", and the first version
+  // of this scanner read its own explanation as a finding for exactly that.
+  const wrongProse = (text) =>
+    text
+      .split(/\n\s*(?:\*\s*)?\n/)
+      .map((para) => para.replace(/^[ \t]*\*[ \t]?/gm, '').replace(/\s+/g, ' '))
+      .filter((para) => /translateToString\(false\)|read untrimmed|reads? the row above untrimmed/.test(para))
+      .filter((para) => !/research 111|section 4\.1|used to|REJECTED|rejected|raw length|RAW length|padding/i.test(para));
+  let prosePlants = 0;
+  for (const rel of PROSE) {
+    for (const para of wrongProse(readFileSync(join(repoRoot, rel), 'utf8'))) {
+      fail(`15. ${rel} attributes an untrimmed predecessor to the adopted spelling: ${para.trim().slice(0, 140)}`);
+    }
+  }
+  const PROSE_PLANTS = [
+    ['the sentence that shipped, wrapped the way it really was', 'the row above is read untrimmed with `translateToString(false)`. **Nothing here\nreads `isWrapped`**, which research 107 measured lying in both directions.', 1],
+    ['the same sentence inside a block comment, where every line opens with a star', ' * the row above is read untrimmed with\n * `translateToString(false)`. Nothing here reads isWrapped.', 1],
+    ['a block comment that refutes it, with the refutation on the next line', ' * the paragraph under it used\n * to say the row above is read untrimmed with `translateToString(false)`.', 0],
+    ['the same sentence with its refutation a line away', 'the row above is read untrimmed with\n`translateToString(false)`, which is research 111 section 4.1\u2019s clause.', 0],
+    ['the corrected sentence', 'the predecessor is measured by its DRAWN content and never by its raw length,\nwhich is why `translateToString(false)` is research 111 section 4.1\u2019s clause.', 0],
+    ['prose about neither', 'the width is `Terminal.cols` and the span\u2019s last column comes from the map.', 0]
+  ];
+  for (const [why, text, want] of PROSE_PLANTS) {
+    const got = wrongProse(text).length > 0 ? 1 : 0;
+    if (got !== want) {
+      fail(`15. the prose scanner read "${why}" as ${got === 1 ? 'a finding' : 'clean'}, and it must read the other way`);
+    } else if (want === 1) prosePlants += 1;
+  }
+
+  if (failures.every((f) => !f.includes(' 15. '))) {
+    say(
+      `15. the measure step runs at HEAD and agrees with the shipping refusal 8 on all four rows including the padded one, research 111's two clauses put back turn that row red while the trim alone does not, and ${String(PROSE.length)} prose sites describe the adopted spelling without research 111's clause; ${String(prosePlants)} of ${String(PROSE_PLANTS.length)} planted sentences were caught`
     );
   }
 }

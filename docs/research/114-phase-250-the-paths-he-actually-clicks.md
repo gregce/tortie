@@ -149,8 +149,60 @@ row has a known end. So:
 
 The last clause is the shipped rule's own second half, kept. Everything it needs is readable in the
 renderer: the width is `Terminal.cols`, the span's last column comes from the map `cellColumns`
-already builds, and the row above is read untrimmed with `translateToString(false)`. **Nothing here
-reads `isWrapped`**, which research 107 measured lying in both directions.
+already builds, and **the predecessor is measured by its DRAWN content — `translateToString(true)`,
+the same thing `tmux capture-pane` hands back — and never by its raw length**. That last clause is
+the whole difference between this spelling and research 111 section 4.1's, and section 3.4 prices
+it: a third of his rows are padded out to the pane width with spaces their text does not reach, and
+the raw length reads every one of them as a wrap. The predecessor's own drawn END is still a COLUMN
+rather than a string index, so it is read out of that row's own `cellColumns` map, which covers the
+padding cells the trimmed text stops short of — the map is the untrimmed thing here and the text is
+not. **Nothing here reads `isWrapped`**, which research 107 measured lying in both directions.
+
+**THE FIRST VERSION OF THIS SECTION SAID THE ROW ABOVE IS READ UNTRIMMED WITH
+`translateToString(false)`**, which is research 111 section 4.1's clause and not this one's, while
+section 3.4 two pages down argued against it and the helper that produced every number here
+(`tightEdgeRefusal` in `build/p250/funnel.mts`) trimmed the row on its first line. Section 8 line 1
+then told the next round to implement section 3.1. The fix round corrected the sentence, the
+helper's own comment beside it, and section 8 line 1.
+
+**AND IT MEASURED WHAT THE SENTENCE WOULD HAVE COST, because the first answer written down was
+wrong.** That answer was "41 of 272 instead of 3", and those are `research111EdgeRefusal`'s numbers,
+which differ in TWO clauses: the raw predecessor AND the path-character test dropped. Section 3.1's
+own quoted rule keeps the path-character test, so its sentence taken literally is the raw
+predecessor with that test still in place — and a row padded out to the width ends in a **space**,
+which is not a character a path continues with, so the test absorbs the padding and the trim buys
+nothing on its own. Driven over 32 live panes and **82,425 physical rows** through
+`section31EdgeRefusal`, added to the funnel for this purpose:
+
+| spelling | refuses, of 14,355 grammar spans | of 280 door-reaching absolute spans |
+| --- | --- | --- |
+| Phase 247's, as shipped before this phase | 4,649 | 81 (28.9%) |
+| research 111 section 4.1 | 638 | 39 (13.9%) |
+| **section 3.1's sentence taken literally** | **310** | **2 (0.7%)** |
+| **the adopted spelling** | **310** | **2 (0.7%)** |
+
+**The last two rows are the same rule in this corpus.** So the sentence was wrong and it was also
+harmless, and both halves of that are said here rather than the first one alone. The corpus is
+larger than the one section 2 was measured on (32 panes against 29), which is why 272 reads 280 and
+77 reads 81; the shape is unchanged.
+
+**What the fix round did about it is a gate rather than a correction.** `conformance:pathdoors` rule
+15 runs this document's own helper at HEAD, asks the SHIPPING `edgeRefusal` the four questions the
+measured spelling is asked, and fails if they part; the same run over the whole corpus agrees on
+**14,355 of 14,355 spans, zero disagreements**. Its ablation is research 111's TWO clauses put back,
+and the rule also asserts that the trim ALONE leaves the reading green — so the paragraph above
+cannot decay into a claim nobody checks. Rule 15 also reads these four prose sites and fails when a
+paragraph in any of them attributes an untrimmed predecessor to the adopted spelling without naming
+it as the rejected reading, proved on six planted sentences of which two must be caught.
+
+**AND THE HELPER HAD STOPPED RUNNING ALTOGETHER**, which is why none of this was visible. Phase 250
+changed `edgeRefusal`'s third parameter from a string to a `RowEdges` and never updated the file
+that measures it: run at HEAD, `--self-test` died on its sixth check with `Cannot read properties of
+null (reading 'columns')`, and the corpus run died in its internal check. Nothing went red, because
+tsx strips the types, `build/p250` is outside `tsc -b`, and the file was in no gate. The Phase 247
+spelling is now carried in the funnel as `phase247EdgeRefusal` — a fixed reference point, copied
+from `2ca274ca` — so "at the parent" keeps meaning what it meant, and the shipping import is used
+for the identity check instead.
 
 ### 3.2 What it costs and what it keeps
 
@@ -480,8 +532,10 @@ Facts, not a design. The spec step owns the design.
 
 ## 8. THE RECOMMENDATION IN FOUR LINES
 
-1. **Take lift one**, spelled as §3.1, not as research 111 §4.1. It costs no measured truncation and
-   it is what fixes the screenshot he saw first.
+1. **Take lift one**, spelled as §3.1, not as research 111 §4.1 — and the one clause that separates
+   them is that **the predecessor is measured by its DRAWN content and never by its raw length**, so
+   read §3.4 before implementing §3.1. It costs no measured truncation and it is what fixes the
+   screenshot he saw first.
 2. **Take lift two**, against the session's `projectPath`, with **containment** (7 spans) and **no
    Mac door for a resolved spelling** (0 spans).
 3. **Write §4.4 into the code**, because the worktree shape is his own workflow and a comment is the
