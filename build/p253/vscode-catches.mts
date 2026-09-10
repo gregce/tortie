@@ -642,8 +642,11 @@ function selfTest(): number {
   check(s1.some((s) => s.target === 'src/foo.ts' && s.line === 339), 'ours reads :line attached (withLine class)');
   const s2 = ships('see src/foo.ts 339 now');
   check(s2.some((s) => s.target === 'src/foo.ts' && s.line === undefined), 'ours reads the path and loses a space-separated line (pathOnly class)');
+  // PHASE 253 adopted the tsc clause, so the paren suffix reads path AND line
+  // now; at the parent grammar (279e86b9) this row was the invisible class,
+  // which is what measurement A counted.
   const s3 = ships('see src/foo.ts(339,12) now');
-  check(!s3.some((s) => s.target.includes('foo.ts')), 'ours yields nothing for a paren suffix (invisible class)');
+  check(s3.some((s) => s.target === 'src/foo.ts' && s.line === 339), 'ours reads the tsc paren suffix since Phase 253 (it was the invisible class at the parent)');
   const s4 = ships('at "src/foo.ts", line 339 now');
   check(s4.some((s) => s.target === 'src/foo.ts'), 'ours strips quotes and trailing comma so the quoted family is pathOnly, not invisible');
   check(suffixFamily('(339, 12)') === '(N, N)' && suffixFamily(':339:12') === ':N:N', 'families collapse digits');
@@ -656,7 +659,9 @@ function selfTest(): number {
   // the no-suffix clause against the shipping segment grammar
   const m = new RegExp(unixLocalLinkClause).exec('read /foo/[bar].baz now');
   check(m !== null && m[0] === '/foo/[bar].baz', 'the ported clause reads a bracketed segment');
-  check(!looksLikePath('/foo/[bar].baz'), '...which the shipping SEGMENT refuses, which is the A2 gap');
+  // PHASE 253 adopted `[` `]` into SEGMENT, so the A2 gap this row measured
+  // is closed; at the parent grammar (279e86b9) this read false.
+  check(looksLikePath('/foo/[bar].baz'), '...which the shipping SEGMENT admits since Phase 253 (the A2 gap, closed)');
   console.log(`${TAG} ${bad === 0 ? 'every fixture behaved' : `${String(bad)} fixtures did not`}`);
   return bad === 0 ? 0 : 1;
 }

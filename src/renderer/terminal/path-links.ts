@@ -109,6 +109,14 @@ const CACHE_MS = 30_000;
  * spans — holds **1,811 distinct spellings**, and the busiest single pane in
  * research 111's capture held 460. So a pane is one Map of a few thousand
  * small entries at its very worst, and the corpus entire fits inside this.
+ *
+ * PHASE 253 RE-CHECKED IT WITH THE WIDENED GRAMMAR, the way research 114 §7
+ * asked: with the grep and tsc suffixes, the bracketed segments and the bare
+ * file-shaped names all in the population, the busiest single pane of the
+ * operator's 38 live panes held **739 distinct keys** against this 2,048
+ * (`build/p253/funnel-before-after.mts`, 91,617 rows). The ceiling stands,
+ * and it still evicts oldest-first when a pane outgrows it, which costs a
+ * round trip and never an answer.
  */
 const CACHE_MAX = 2048;
 

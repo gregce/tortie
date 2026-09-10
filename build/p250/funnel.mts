@@ -1031,8 +1031,15 @@ async function fixtures(): Promise<number> {
     check(await offer('nested d/d/d/f.md here', null, 120, true, proj), 'editor',
       'an ordinary nested relative path opens');
     writeFileSync(`${proj}/docs/paper.pdf`, '%PDF-1.4\n');
-    check(await offer('read paper.pdf now', null, 120, true, proj), '',
-      'A BARE FILENAME WITH NO SLASH IS NEVER A CANDIDATE — looksLikePath requires one, so lift two cannot reach it');
+    // PHASE 253 admitted a bare FILE-SHAPED name to the grammar (research 115
+    // §5), joined to the base exactly as a relative path is. This one is not
+    // at the project root, so the join answers missing — the spelling means
+    // "paper.pdf under the base" and nothing else, which is the cheap
+    // design's own honesty about ambiguity.
+    check(await offer('read paper.pdf now', null, 120, true, proj), 'refused:missing',
+      'A BARE FILE-SHAPED NAME IS A CANDIDATE NOW (Phase 253), joined to the base, and this one is not at the root');
+    check(await offer('read some words now', null, 120, true, proj), '',
+      'a bare WORD is still never a candidate — the file-shaped grammar is the filter');
     check(await offer('read docs/paper.pdf now', null, 120, true, proj), 'mac',
       'A RESOLVED RELATIVE PATH REACHES THE MAC DOOR TODAY — which is the asymmetry this phase must rule on');
   } finally {

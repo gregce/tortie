@@ -94,6 +94,13 @@
  *      never reach one at all. It is still ONE predicate, composed from the
  *      two shipped ones, and the direction it may drift in is driven with a
  *      base and without rather than asserted.
+ *  16. THE PORTED VS CODE ROWS RUN AGAINST OUR GRAMMAR (Phase 253). The
+ *      suffix table narrowed to the delimited clauses, `[` `]` in a segment
+ *      with the tokenizer balance rule, and the bare FILE-SHAPED name are
+ *      each pinned in the matrix, each ablated red one clause at a time, and
+ *      the upstream rows they were ported from are attributed by file and
+ *      commit in the grammar and in the probe. The door half is asserted
+ *      UNCHANGED: every new spelling still ends at decidePathDoor.
  */
 
 import {
@@ -362,7 +369,44 @@ const MATRIX = [
   // opposite directions. Its control is the row under it.
   ['span-with-a-short-map', ''],
   ['span-heads-a-row-whose-end-cannot-be-read', ''],
-  ['span-heads-a-row-whose-end-can-be-read', '/b.md@0-5']
+  ['span-heads-a-row-whose-end-can-be-read', '/b.md@0-5'],
+  // --- PHASE 253, the suffix table narrowed to the delimited clauses --------
+  // The `end` in each reading is TRIMMED to the drawn suffix, so the grep
+  // remainder (`:match`) is never underlined; at the parent every one of the
+  // first six read '' or an untrimmed end.
+  ['span-grep-remainder', '/a/b.ts@4-14:12'],
+  ['span-grep-remainder-col', '/a/b.ts@4-16:12'],
+  ['span-line-range', '/a/b.ts@4-17:12'],
+  ['span-tsc-paren', '/a/b.ts@4-18:12'],
+  ['span-tsc-colon', '/a/b.ts@4-18:12'],
+  ['span-bracket-line', '/a/b.ts@4-15:12'],
+  // --- PHASE 253, `[` and `]` in a segment, with the tokenizer balance rule -
+  ['span-bracket-segment', '/foo/[bar].baz@5-19'],
+  ['span-bracket-kept', '/foo/[bar]@5-15'],
+  // --- PHASE 253, the bare FILE-SHAPED name --------------------------------
+  ['span-bare-name', 'README.md@6-15'],
+  ['span-bare-name-line', 'README.md@6-18:12'],
+  ['span-bare-word-refused', ''],
+  ['span-bare-version-refused', ''],
+  ['span-bare-domain-admitted', 'github.com@4-14'],
+  // ...and the SAME doors behind it: the join, containment, the secret name,
+  // the mode and the closed Mac door all apply to a bare name, and a pane
+  // with no base still refuses before a filesystem call.
+  ['rel-bare-resolves', 'door:editor'],
+  ['rel-bare-missing', 'refused:missing'],
+  ['rel-bare-no-base', 'refused:not-absolute'],
+  ['rel-bare-domain-missing', 'refused:missing'],
+  ['rel-bare-secret', 'refused:secret-name'],
+  ['rel-bare-mac-refused', 'refused:relative-external'],
+  ['rel-bare-executable', 'refused:executable-bit'],
+  // grammar and door together, one hover each
+  ['screenshot-grep', 'door:editor:7'],
+  ['screenshot-tsc', 'door:editor:9'],
+  ['screenshot-bare', 'door:editor'],
+  // rule 16's readings: VS Code's own test rows against OUR grammar, and the
+  // bare-filename shape grammar over the measured families.
+  ['vscode-rows', '111111111111'],
+  ['bare-file-shaped', '111100001110']
 ];
 
 const live = runProbe(null);
@@ -1017,16 +1061,82 @@ const ABLATIONS = [
     file: 'path-spans.ts',
     edits: [
       { from: "  if (/^[a-z][a-z0-9+.-]*:\\/\\//i.test(t)) return false;", to: '' },
-      { from: 'const SEGMENT = /^[A-Za-z0-9._@%+~$-]+$/;', to: 'const SEGMENT = /^[A-Za-z0-9._@%+~$:-]+$/;' }
+      { from: 'const SEGMENT = /^[A-Za-z0-9._@%+~$[\\]-]+$/;', to: 'const SEGMENT = /^[A-Za-z0-9._@%+~$[\\]:-]+$/;' }
     ]
   },
   {
-    name: 'the :line suffix is not stripped',
+    // PHASE 253 rewrote the suffix strip around GREP_SUFFIX, so this ablation
+    // is the whole grep clause disabled: no :line survives, no grep remainder
+    // is read, and Makefile:339 keeps its colon into the segment test.
+    name: 'the :line suffix is not stripped (the grep clause disabled whole)',
     file: 'path-spans.ts',
     edits: [
       {
-        from: "  if (lc !== null && (lc[1] ?? '').includes('/')) {\n    p = lc[1] ?? '';",
-        to: "  if (false && lc !== null) {\n    p = lc[1] ?? '';"
+        from: "  if (grep !== null && suffixHead(grep[1] ?? '')) {",
+        to: '  if (false) {'
+      }
+    ]
+  },
+  // --- PHASE 253, one clause per adopted mechanism --------------------------
+  {
+    // The widened regex put back to Phase 247's: no remainder, no ranges. The
+    // group count is kept so the surrounding code still compiles.
+    name: 'the grep remainder and the ranges are taken back out of GREP_SUFFIX',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: 'const GREP_SUFFIX = /^(.*?):(\\d+)(?:-\\d+)?(?::(\\d+)(?:-\\d+)?)?(:.*)?$/;',
+        to: 'const GREP_SUFFIX = /^(.*?):(\\d+)(?::(\\d+))?()?$/;'
+      }
+    ]
+  },
+  {
+    name: 'the tsc clause is taken back out',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: 'const TSC_SUFFIX = /^(.*?)[([](\\d+)(?:[,:] ?(\\d+))?[)\\]]$/;',
+        to: 'const TSC_SUFFIX = /^(?!)(.*?)(\\d+)(\\d+)?$/;'
+      }
+    ]
+  },
+  {
+    name: 'SEGMENT loses its brackets again',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: 'const SEGMENT = /^[A-Za-z0-9._@%+~$[\\]-]+$/;',
+        to: 'const SEGMENT = /^[A-Za-z0-9._@%+~$-]+$/;'
+      }
+    ]
+  },
+  {
+    // Without the balance test the CLOSE strip eats the `)` off a tsc token
+    // and the `]` off a bracketed leaf, so BOTH families this phase adopted
+    // go dark at once — which is why the tokenizer rule is its own clause.
+    name: 'the tokenizer balance rule is taken back out',
+    file: 'path-spans.ts',
+    edits: [
+      { from: '      if (keepsTrailingCloser(text)) break;\n', to: '' }
+    ]
+  },
+  {
+    name: 'a bare file-shaped name is refused again',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: "  if (!t.includes('/')) return bareFileShaped(t);",
+        to: "  if (!t.includes('/')) return false;"
+      }
+    ]
+  },
+  {
+    name: 'the underline covers the grep remainder again',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: '      text: span.text.slice(0, visible),\n      end: span.start + visible,\n',
+        to: ''
       }
     ]
   }
@@ -1688,6 +1798,62 @@ export async function classifyThroughBridge(paths, base) {
   if (failures.every((f) => !f.includes(' 14. '))) {
     say(
       `14. the base is the pane's own project read per hover and per click, it is part of the key for a relative spelling and of nothing else, it rides drop:prepare's existing options and is validated there, and it is read only under classify; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 16. THE PORTED VS CODE ROWS RUN AGAINST OUR GRAMMAR (Phase 253).
+// ---------------------------------------------------------------------------
+
+/**
+ * The operator asked for VS Code's reach on 2026-09-10, and research 115
+ * measured which of its mechanisms survive tmux and the corpus: the delimited
+ * suffix clauses (grep `path:12:text`, ranges, tsc `path(12,34)`, brackets),
+ * `[` `]` in a segment, and the bare FILE-SHAPED name resolved by lift two's
+ * own join. Three things hold here:
+ *
+ *   - THE PORT IS ATTRIBUTED. `src/shared/path-spans.ts` and the probe both
+ *     name the upstream file and commit, so the provenance of a ported table
+ *     survives the person who ported it.
+ *   - THE UPSTREAM'S OWN TEST ROWS RUN AGAINST OUR GRAMMAR, adapted to token
+ *     level and narrowed to the adopted clauses — the `vscode-rows` reading is
+ *     rule 1's, and this rule states what it is so a later round knows the
+ *     rows are theirs and not ours.
+ *   - EVERY NEW SPELLING STILL ENDS AT decidePathDoor. The rel-bare-* rows in
+ *     the matrix are the proof: a bare name meets the secret rule, the mode
+ *     rule, containment and the closed Mac door exactly as `docs/x.md` does,
+ *     because nothing in the door half changed at all.
+ */
+{
+  const UPSTREAM = '770a9bced0e6eff10342b2d95d7cfd98c33b85ed';
+  for (const [rel, what] of [
+    [SPANS, 'the ported suffix clauses'],
+    ['build/p247/path-door-probe.mts', 'the ported test rows']
+  ]) {
+    const text = source(rel);
+    if (!text.includes(UPSTREAM)) {
+      fail(`16. ${rel} carries no attribution naming the upstream commit for ${what}`);
+    }
+    if (!text.includes('terminalLinkParsing')) {
+      fail(`16. ${rel} carries no attribution naming the upstream file for ${what}`);
+    }
+  }
+  // The door half did NOT change: a bare name and a grep target reach main as
+  // spellings, and the join, the sequence and the external door are Phase
+  // 250's bytes. That is a property of THIS phase, so it is asserted here:
+  // path-doors.ts and path-door.ts name none of the new grammar's exports.
+  for (const rel of [DOORS, DOOR]) {
+    const text = code(rel);
+    for (const name of ['bareFileShaped', 'GREP_SUFFIX', 'TSC_SUFFIX', 'stripDecoration']) {
+      if (text.includes(name)) {
+        fail(`16. ${rel} names ${name} — the grammar decides what to ASK and the door what a click may reach, and Phase 253 widened only the first`);
+      }
+    }
+  }
+  if (live.error === undefined && failures.every((f) => !f.includes(' 16. '))) {
+    say(
+      `16. ${String(String(live['vscode-rows'] ?? '').length)} ported VS Code rows read as pinned against OUR grammar (${String(live['vscode-rows'])}), the port is attributed to ${'770a9bce'} in both files, and the door half names nothing the grammar exports`
     );
   }
 }

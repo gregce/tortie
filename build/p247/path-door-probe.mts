@@ -69,6 +69,8 @@ const spans = (await import(from('path-spans'))) as {
     row: string,
     edges: RowEdges
   ): { text: string; start: number; end: number; target: string; line?: number }[];
+  stripDecoration(token: string): { target: string; line?: number; visible: number };
+  bareFileShaped(token: string): boolean;
 };
 
 /** The answer as one word, so a matrix is comparable across ablations. */
@@ -541,6 +543,116 @@ try {
     })
     .map((s) => `${s.target}@${String(s.start)}-${String(s.end)}`)
     .join(' ');
+
+  // --- PHASE 253: the suffix table, the brackets and the bare filename -----
+  //
+  // The grammar half of research 115's three adoptions, over rows. The `end`
+  // each reading prints is the TRIMMED one — the underline stops after the
+  // line suffix and never covers a grep remainder.
+  row('span-grep-remainder', 'see /a/b.ts:12:match here', null, WIDE);
+  row('span-grep-remainder-col', 'see /a/b.ts:12:7:match here', null, WIDE);
+  row('span-line-range', 'see /a/b.ts:12-14 here', null, WIDE);
+  row('span-tsc-paren', 'see /a/b.ts(12,34) now', null, WIDE);
+  row('span-tsc-colon', 'see /a/b.ts(12:34) now', null, WIDE);
+  row('span-bracket-line', 'see /a/b.ts[12] now', null, WIDE);
+  row('span-bracket-segment', 'read /foo/[bar].baz now', null, WIDE);
+  row('span-bracket-kept', 'read /foo/[bar] now', null, WIDE);
+  row('span-bare-name', 'wrote README.md just now', null, WIDE);
+  row('span-bare-name-line', 'wrote README.md:12 now', null, WIDE);
+  row('span-bare-word-refused', 'wrote nothing here', null, WIDE);
+  row('span-bare-version-refused', 'now at 1.2.3 today', null, WIDE);
+  // A domain-shaped token passes the SHAPE test on purpose — research 115 §5
+  // measured 92 occurrences and 0 project files, so the join's lstat is the
+  // filter; the door reading `rel-bare-domain-missing` below is that filter.
+  row('span-bare-domain-admitted', 'see github.com now', null, WIDE);
+
+  // --- PHASE 253: the bare filename behind the SAME doors -------------------
+  //
+  // The grammar admits the token and NOTHING else changes: `answerPathDoor`
+  // joins it to the base exactly as it joins `docs/x.md`, so containment, the
+  // secret name, the mode, the bundle and the closed Mac door all apply, and
+  // a spelling with no base is still refused before a filesystem call.
+  await askIn('rel-bare-resolves', 'README.md', base);
+  await askIn('rel-bare-missing', 'absent.md', base);
+  await askIn('rel-bare-no-base', 'README.md');
+  await askIn('rel-bare-domain-missing', 'github.com', base);
+  inBase('auth.json', '{}');
+  await askIn('rel-bare-secret', 'auth.json', base);
+  inBase('installer.pdf', '%PDF-1.4\n');
+  await askIn('rel-bare-mac-refused', 'installer.pdf', base);
+  inBase('deploy.command', '#!/bin/sh\n', 0o755);
+  await askIn('rel-bare-executable', 'deploy.command', base);
+
+  // --- PHASE 253: grammar and door together, one hover each -----------------
+  await shot(
+    'screenshot-grep',
+    'grep says docs/reviews/fixed-egress-decision.md:7:const x here',
+    200,
+    base
+  );
+  await shot(
+    'screenshot-tsc',
+    'docs/reviews/running-url-handoff.md(9,2): error TS2304 here',
+    200,
+    base
+  );
+  await shot('screenshot-bare', 'wrote README.md today', 200, base);
+
+  // --- PHASE 253: VS Code's own test rows, run against OUR grammar ----------
+  //
+  // Ported from microsoft/vscode at 770a9bced0e6eff10342b2d95d7cfd98c33b85ed,
+  // src/vs/workbench/contrib/terminalContrib/links/test/browser/
+  // terminalLinkParsing.test.ts, NARROWED to the adopted clauses (research 115
+  // §7.1): the delimited `:`/range family and the tsc `()`/`[]` family, at
+  // token level with a head the grammar accepts, plus the numeric git-diff
+  // prefix skip. The space and verbal clauses are refused (§2.3), so their
+  // rows are deliberately absent; the space-bearing bracket forms
+  // (`foo (339, 12)`) split into two tokens before this grammar sees them,
+  // which is a stated limit. The last two rows are Tortie's own head rule.
+  const vsRows: [string, string][] = [
+    ['a/b:339', 'a/b@339'],
+    ['a/b:339:12', 'a/b@339'],
+    ['a/b:339:12-789', 'a/b@339'],
+    ['a/b:339-341', 'a/b@339'],
+    ['a/b(339)', 'a/b@339'],
+    ['a/b(339,12)', 'a/b@339'],
+    ['a/b(339:12)', 'a/b@339'],
+    ['a/b[339]', 'a/b@339'],
+    ['a/b[339,12]', 'a/b@339'],
+    // upstream's rule that git's numeric diff prefixes are never line numbers
+    ['1/foo', '1/foo@'],
+    // ...and the head rule that keeps a timestamp out while a bare filename
+    // carries its suffix like any path.
+    ['Makefile:339', 'Makefile@339'],
+    ['14:23:07', '14:23:07@']
+  ];
+  readings['vscode-rows'] = vsRows
+    .map(([token, want]) => {
+      const d = spans.stripDecoration(token);
+      return `${d.target}@${d.line === undefined ? '' : String(d.line)}` === want
+        ? '1'
+        : '0';
+    })
+    .join('');
+
+  // The bare-filename shape grammar, pure, over the families research 115 §5
+  // measured: file-shaped names in, versions, words and dotfiles out.
+  readings['bare-file-shaped'] = [
+    'README.md',
+    'funnel.mts',
+    'Makefile',
+    'Dockerfile',
+    '1.2.3',
+    'v0.102.0',
+    'foo',
+    '.env',
+    'x.y',
+    'github.com',
+    'a-b_c.txt',
+    'TS2304'
+  ]
+    .map((t) => (spans.bareFileShaped(t) ? '1' : '0'))
+    .join('');
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

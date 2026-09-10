@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RowEdges } from '../path-spans';
 import {
+  bareFileShaped,
   cellColumns,
   edgeRefusal,
   looksLikePath,
@@ -35,8 +36,10 @@ describe('what looks like a path', () => {
     expect(looksLikePath('171/383')).toBe(false);
     // Markup, which is not a path by the segment grammar.
     expect(looksLikePath('</p>')).toBe(false);
-    // A token with no separator at all.
-    expect(looksLikePath('README.md')).toBe(false);
+    // A bare WORD — no separator and no extension — stays refused. PHASE 253
+    // admits a bare FILENAME (`README.md`), which has its own block below.
+    expect(looksLikePath('nothing')).toBe(false);
+    expect(looksLikePath('1.2.3')).toBe(false);
   });
 
   it('accepts the shapes that ARE paths and that the door then judges', () => {
@@ -51,23 +54,125 @@ describe('what looks like a path', () => {
 
 describe('the decoration a person’s eye strips', () => {
   it('strips a file:// prefix and a :line[:col] suffix, keeping the line', () => {
-    expect(stripDecoration('/a/b.ts:42')).toEqual({ target: '/a/b.ts', line: 42 });
+    expect(stripDecoration('/a/b.ts:42')).toEqual({
+      target: '/a/b.ts',
+      line: 42,
+      visible: 10
+    });
     expect(stripDecoration('/a/b.ts:42:7')).toEqual({
       target: '/a/b.ts',
-      line: 42
+      line: 42,
+      visible: 12
     });
-    expect(stripDecoration('file:///a/b.ts')).toEqual({ target: '/a/b.ts' });
+    expect(stripDecoration('file:///a/b.ts')).toEqual({
+      target: '/a/b.ts',
+      visible: 14
+    });
   });
 
   it('leaves a leading ~ alone, because only main has a home directory', () => {
     expect(stripDecoration('~/.claude/CLAUDE.md')).toEqual({
-      target: '~/.claude/CLAUDE.md'
+      target: '~/.claude/CLAUDE.md',
+      visible: 19
     });
   });
 
   it('strips brackets and sentence punctuation, and moves the column with them', () => {
     const [, span] = tokensInRow('see (/a/b.md).');
     expect(span).toMatchObject({ text: '/a/b.md', start: 5, end: 12 });
+  });
+});
+
+/**
+ * PHASE 253 — the suffix spellings VS Code taught us, narrowed to the
+ * delimited clauses (research 115 §7.1), the bracketed segment (§7.2), and
+ * the bare filename resolved by lift two's own join (§7.3). Ported and
+ * narrowed from microsoft/vscode 770a9bced0e6eff10342b2d95d7cfd98c33b85ed
+ * terminalLinkParsing.ts; the exhaustive ported rows live in
+ * `build/p247/path-door-probe.mts` under `conformance:pathdoors` rule 16.
+ */
+describe('the suffixes VS Code taught us (Phase 253)', () => {
+  it('reads a grep suffix with the match text attached, and the line survives', () => {
+    expect(stripDecoration('src/x.mdx:12:the match text')).toEqual({
+      target: 'src/x.mdx',
+      line: 12,
+      visible: 12
+    });
+  });
+
+  it('reads a line range as its first line', () => {
+    expect(stripDecoration('src/x.go:12-14')).toEqual({
+      target: 'src/x.go',
+      line: 12,
+      visible: 14
+    });
+  });
+
+  it('reads the tsc and bracket families', () => {
+    expect(stripDecoration('src/x.ts(12,34)')).toEqual({
+      target: 'src/x.ts',
+      line: 12,
+      visible: 15
+    });
+    expect(stripDecoration('src/x.ts[12]')).toEqual({
+      target: 'src/x.ts',
+      line: 12,
+      visible: 12
+    });
+  });
+
+  it('never reads a numeric git-diff prefix as a suffix (upstream’s 1/ rule)', () => {
+    expect(stripDecoration('1/foo')).toEqual({ target: '1/foo', visible: 5 });
+  });
+
+  it('never reads a timestamp as a path with a line', () => {
+    expect(stripDecoration('14:23:07')).toEqual({
+      target: '14:23:07',
+      visible: 8
+    });
+    expect(looksLikePath('14:23:07')).toBe(false);
+  });
+
+  it('keeps a trailing closer an opener inside the token matches', () => {
+    const row = 'src/x.ts(9,2): error TS2304';
+    expect(tokensInRow(row)[0]?.text).toBe('src/x.ts(9,2)');
+    // ...while a wrapping pair is still shed, because OPEN took the `(` first.
+    expect(tokensInRow('(docs/x.md)')[0]?.text).toBe('docs/x.md');
+  });
+
+  it('admits [ and ] in a segment, kept when the bracket pair is the path’s own', () => {
+    expect(looksLikePath('/foo/[bar].baz')).toBe(true);
+    expect(tokensInRow('read /foo/[bar] now')[1]?.text).toBe('/foo/[bar]');
+  });
+
+  it('trims the underline to the drawn suffix and never to the grep remainder', () => {
+    const row = 'see /a/b.ts:12:match here';
+    const edges = {
+      width: 120,
+      columns: [...row].map((_, i) => i).concat([row.length]),
+      above: null,
+      aboveEnd: 0
+    };
+    expect(pathSpansInRow(row, edges)).toEqual([
+      { text: '/a/b.ts:12', start: 4, end: 14, target: '/a/b.ts', line: 12 }
+    ]);
+  });
+
+  it('admits a bare FILE-SHAPED name and refuses a word, a version and a dotfile', () => {
+    expect(looksLikePath('README.md')).toBe(true);
+    expect(looksLikePath('Makefile')).toBe(true);
+    expect(stripDecoration('README.md:12')).toEqual({
+      target: 'README.md',
+      line: 12,
+      visible: 12
+    });
+    expect(bareFileShaped('funnel.mts')).toBe(true);
+    expect(bareFileShaped('nothing')).toBe(false);
+    expect(bareFileShaped('v0.102.0')).toBe(false);
+    expect(bareFileShaped('.env')).toBe(false);
+    // Domain-shaped tokens pass the shape test on purpose: measured at 92
+    // occurrences and 0 project files, the join's lstat is the filter.
+    expect(bareFileShaped('github.com')).toBe(true);
   });
 });
 

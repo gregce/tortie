@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * path-open.mjs. THE PHASE 247 AND PHASE 250 APP RUN: a path in a transcript,
+ * path-open.mjs. THE PHASE 247, 250 AND 253 APP RUN: a path in a transcript,
  * pressed. `npm run probe:p247` and `npm run probe:p250` are the same run —
- * ONE Electron carries both phases' arms, which is this tree's own rule that a
- * probe launches the app once and drives every claim in that session.
+ * ONE Electron carries all three phases' arms, which is this tree's own rule
+ * that a probe launches the app once and drives every claim in that session.
  *
  * ONE Electron on a scratch profile, a scratch HOME and this script's own tmux
  * socket, over a project it builds inside its own scratch directory. It spawns
@@ -81,6 +81,27 @@
  *      round. It asserts FIRST that the column it computed really differs from
  *      the string index, so a run where the decoration did not land could not
  *      read as a pass.
+ *   L. PHASE 253, THE GREP SPELLING: `src/lifted.ts:7:const lifted` — a path,
+ *      a line and the matched text attached without whitespace, which is what
+ *      grep -n and ripgrep print and which research 115 §2.1 measured at 114
+ *      door-reaching spans in the operator's own panes. The underline stops
+ *      after the `:7` and the press opens the file. At the parent the grammar
+ *      refused the whole token.
+ *   M. PHASE 253, THE TSC SPELLING: `src/typed.ts(9,2): error TS…` — the
+ *      TypeScript compiler's own format, 23 of 23 spans resolving in the
+ *      corpus. The tokenizer's balance rule keeps the `)` and the suffix
+ *      clause reads line 9. At the parent the CLOSE strip ate the `)` and the
+ *      grammar refused the rest.
+ *   N. PHASE 253, THE BARE FILENAME: `README.md` said bare, joined to the
+ *      session's own project by lift two's existing join — research 115 §5's
+ *      cheap design, 272 occurrences over 42 files. At the parent a slashless
+ *      token was never a candidate.
+ *   O. PHASE 253's ATTACK ARM: `github.com`, a bare token that passes the
+ *      file-shape test and names no file. The grammar admits it, the join's
+ *      lstat answers missing, and no link is drawn — measured at 92
+ *      domain-shaped occurrences and 0 project files in the corpus.
+ *   P. PHASE 253, BRACKETS IN A SEGMENT: `docs/[slug].md`, a Next.js route
+ *      name, VS Code's own test shape. At the parent SEGMENT refused `[`.
  *
  * ## TWO INSTRUMENTS PER PRESS, and the fix round added the second one
  *
@@ -408,6 +429,21 @@ rmSync(outsideDir, { recursive: true, force: true });
 mkdirSync(outsideDir, { recursive: true });
 writeFileSync(join(outsideDir, 'climbed.md'), '# not in the project\n');
 const REL_CLIMB = '../outside/climbed.md';
+
+/**
+ * PHASE 253's fixtures: the grep spelling, the tsc spelling, the bare
+ * filename, the domain-shaped bare token, and a bracketed leaf. Each is a
+ * shape research 115 measured in the operator's own panes and the widened
+ * grammar now admits; at the parent commit every one of arms L, M, N and P
+ * draws no link at all, and O draws none on either side, which is the attack
+ * arm — a bare token that LOOKS like a filename but names no file.
+ */
+const REL_GREP = 'src/lifted.ts';
+const REL_TSC = 'src/typed.ts';
+relWrite(REL_GREP, 'export const lifted = 7;\n');
+relWrite(REL_TSC, 'export const typed = 9;\n');
+relWrite('README.md', '# the project readme\n');
+relWrite('docs/[slug].md', '# a bracketed route\n');
 
 const WARN = '\u26a0\ufe0f';
 const WARNED_HEAD = write('warned-head.md', '# pressed at the first cell\n');
@@ -1072,6 +1108,12 @@ await withElectron(
         `mkI ${REL_HANDOFF}:93`,
         `mkJ ${REL_CLIMB} end`,
         `mkK ${REL_PAPER} end`,
+        // PHASE 253's rows: grep, tsc, a bare name, a bare domain, brackets.
+        `mkL ${REL_GREP}:7:const lifted end`,
+        `mkM ${REL_TSC}(9,2): error TS2304 end`,
+        `mkN README.md end`,
+        `mkO github.com end`,
+        `mkP docs/[slug].md end`,
         // ARM F's two rows, each with a `⚠️ ` between the marker and the path.
         `mkF1 ${WARN} ${WARNED_HEAD} end`,
         `mkF2 ${WARN} ${WARNED_PAST} end`
@@ -1255,7 +1297,18 @@ await withElectron(
         ['H', 'mkH', REL_DECISION, false, ['fixed-egress-decision.md'], [], true, 'a relative path mid-sentence'],
         ['I', 'mkI', REL_HANDOFF, true, ['running-url-handoff.md'], [], true, 'a relative path at the end of its line, with a :line'],
         ['J', 'mkJ', REL_CLIMB, false, [], [], false, 'a relative path that climbs out of the project'],
-        ['K', 'mkK', REL_PAPER, false, [], [], false, 'a resolved .pdf, which arm B opens on the Mac when it is named absolutely']
+        ['K', 'mkK', REL_PAPER, false, [], [], false, 'a resolved .pdf, which arm B opens on the Mac when it is named absolutely'],
+        // PHASE 253. The pressed span for L is the path WITH its :7 — the
+        // underline stops there and never covers the grep remainder — and for
+        // M it is the whole tsc token, which the tokenizer's balance rule
+        // keeps whole. At the parent commit L, M, N and P draw no link; O is
+        // the attack arm and draws none on either side, because the grammar
+        // admits the domain-shaped token and the join's lstat answers missing.
+        ['L', 'mkL', `${REL_GREP}:7`, false, ['lifted.ts'], [], true, 'a grep-style path:line with the match text attached'],
+        ['M', 'mkM', `${REL_TSC}(9,2)`, false, ['typed.ts'], [], true, 'a tsc-style path(line,col)'],
+        ['N', 'mkN', 'README.md', false, ['README.md'], [], true, 'a bare filename under the session’s own project'],
+        ['O', 'mkO', 'github.com', false, [], [], false, 'a bare domain-shaped token that names no file'],
+        ['P', 'mkP', 'docs/[slug].md', false, ['[slug].md'], [], true, 'a path with brackets in its leaf']
       ]) {
         const at = await stage(cdp, pane, fullCols, (rs) => cellOf(rs, marker, span), what);
         if (process.env['P250_ROWS'] === '1' && at.rows !== undefined) {

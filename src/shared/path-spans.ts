@@ -62,6 +62,20 @@
  * the comparison below is against `cols` and never against the row's length.
  * **And a column is not a string index**, which is what `cellColumns` exists
  * for: the span's end column is read out of that map and never guessed.
+ *
+ * ## THE BUFFER THIS GRAMMAR READS IS THE VISIBLE SCREEN OF A TMUX CLIENT
+ *
+ * (Phase 253, research 115 §4.) The pane's xterm is a tmux client parked in
+ * the ALTERNATE buffer, so it holds exactly the visible screen and the
+ * scrollback lives in tmux: a wrapped line scrolled off the screen leaves
+ * **zero rows in this buffer to rejoin** (probe arm 3), and the resize-reflow
+ * and copy-mode repaints an on-screen row routinely passes through leave
+ * `isWrapped` flags that are present and WRONG — a flag-join over them
+ * produces a string that is not the path (arms 4 and 5). VS Code's
+ * `isWrapped` walk works because its xterm OWNS the scrollback; ours has no
+ * scrollback to walk. So nothing here ever rejoins two rows, and a later
+ * round tempted to port that walk re-reads research 115 §4 before it
+ * re-derives arm 3.
  */
 
 /** Brackets a person's eye strips for free at the head of a token. */
@@ -87,8 +101,19 @@ const CLOSE = new Set([
   '»'
 ]);
 
-/** What one segment of a path may be spelled with. */
-const SEGMENT = /^[A-Za-z0-9._@%+~$-]+$/;
+/**
+ * What one segment of a path may be spelled with.
+ *
+ * PHASE 253 added `[` and `]` — a Next.js route is `/pages/[slug].tsx` and VS
+ * Code's own test rows carry `/foo/[bar].baz` (`ExcludedStartPathCharactersClause`
+ * excludes them at a path START and allows them inside, terminalLinkParsing.ts:351
+ * at microsoft/vscode 770a9bced0e6eff10342b2d95d7cfd98c33b85ed). Every other
+ * character their clause admits and ours refuses was measured at ZERO
+ * door-reaching spans over 101,329 rows of the operator's own panes (research
+ * 115 §3): `=` would underline every `--flag=path`, `…` is a truncation that is
+ * never on disk, and `{ } ^ # |` reach nothing. They stay refused.
+ */
+const SEGMENT = /^[A-Za-z0-9._@%+~$[\]-]+$/;
 
 /**
  * The gutter a TUI draws down the left of its own continuation rows. Codex
@@ -109,17 +134,48 @@ export interface PathSpan {
   text: string;
   /** Column of the first cell, 0-based. */
   start: number;
-  /** Column one past the last cell, 0-based. */
+  /**
+   * Column one past the last underlined cell, 0-based. PHASE 253: for a
+   * grep-style token (`path:12:matched text`) this stops after the line
+   * suffix, so the match text an instrument attached is never underlined —
+   * `pathSpansInRow` trims it to `start + visible` from `stripDecoration`.
+   */
   end: number;
   /**
-   * The token with `file://`, a `:line[:col]` suffix and nothing else
-   * stripped. A leading `~` is LEFT ALONE: expanding it needs a home
-   * directory, main has one and the renderer does not, and the renderer's job
-   * here is only to decide what is worth asking about.
+   * The token with `file://`, a line/column suffix and nothing else stripped.
+   * A leading `~` is LEFT ALONE: expanding it needs a home directory, main
+   * has one and the renderer does not, and the renderer's job here is only to
+   * decide what is worth asking about.
    */
   target: string;
-  /** The `:line` suffix, when the token carried one. */
+  /** The line suffix, when the token carried one. */
   line?: number;
+}
+
+/**
+ * A TRAILING `)` OR `]` THAT AN OPENER INSIDE THE TOKEN MATCHES IS KEPT
+ * (Phase 253).
+ *
+ * tsc prints `src/x.ts(12,34): error TS…` and a Next.js route ends in
+ * `[slug]`, and the CLOSE strip used to eat the closer off both — so the tsc
+ * suffix could never match and `/foo/[bar]` arrived as `/foo/[bar`. The rule
+ * is one balance test: the last character stays when the body holds more of
+ * its opener than of it. `(docs/x.md)` still sheds its wrapping parens,
+ * because the OPEN strip took the `(` first and the body then holds none.
+ */
+const PAIRED_OPENER: Readonly<Record<string, string>> = { ')': '(', ']': '[' };
+
+function keepsTrailingCloser(text: string): boolean {
+  const closer = text[text.length - 1] ?? '';
+  const opener = PAIRED_OPENER[closer];
+  if (opener === undefined) return false;
+  let opens = 0;
+  let closes = 0;
+  for (let i = 0; i < text.length - 1; i += 1) {
+    if (text[i] === opener) opens += 1;
+    else if (text[i] === closer) closes += 1;
+  }
+  return opens > closes;
 }
 
 /**
@@ -140,6 +196,7 @@ export function tokensInRow(row: string): PathSpan[] {
       start += 1;
     }
     while (text.length > 0 && CLOSE.has(text[text.length - 1] ?? '')) {
+      if (keepsTrailingCloser(text)) break;
       text = text.slice(0, -1);
     }
     if (text.length === 0) continue;
@@ -148,13 +205,95 @@ export function tokensInRow(row: string): PathSpan[] {
   return out;
 }
 
+/**
+ * THE SUFFIX TABLE, NARROWED TO THE DELIMITED CLAUSES (Phase 253).
+ *
+ * Ported and NARROWED from microsoft/vscode at
+ * 770a9bced0e6eff10342b2d95d7cfd98c33b85ed,
+ * src/vs/workbench/contrib/terminalContrib/links/browser/terminalLinkParsing.ts
+ * `generateLinkSuffixRegex` — clause 1 (the `:`-delimited family) and clause 3
+ * (the `()`/`[]` family), anchored at TOKEN level where theirs runs globally
+ * over the row. Research 115 §2 measured what each clause is worth over
+ * 101,329 rows of the operator's own panes:
+ *
+ *   - `GREP_SUFFIX` reads `path:12`, `path:12:34` (as before), and now
+ *     `path:12:matched text` — grep, ripgrep and half the build tools attach
+ *     the match without whitespace, 114 door-reaching spans — plus the range
+ *     forms `path:12-14` and `path:12:34-56` (2 spans, both resolving). The
+ *     trailing `(:.*)` remainder is captured so the underline can stop before
+ *     it; see `stripDecoration`'s `visible`.
+ *   - `TSC_SUFFIX` reads `path(12,34)`, `path(12)`, `path(12:34)`, `path[12]`
+ *     and `path[12,34]` — the TypeScript compiler's own error format, 23 of 23
+ *     spans in the corpus resolving.
+ *
+ * **What is refused, with its price attached** (research 115 §2.3): the bare
+ * space clause (`path 339`) admits 4,783 spans for 17 doors and would attach a
+ * number that is not a line to 190 links that already work; the verbal clause
+ * (`"path", line 339`, `on line 339`) is all pathOnly here — the tokenizer
+ * already strips the quotes and comma, so only the landing line is lost, at 0
+ * refused door-reaching spans. Neither ships.
+ */
+const GREP_SUFFIX = /^(.*?):(\d+)(?:-\d+)?(?::(\d+)(?:-\d+)?)?(:.*)?$/;
+const TSC_SUFFIX = /^(.*?)[([](\d+)(?:[,:] ?(\d+))?[)\]]$/;
+
+/**
+ * A SLASHLESS TOKEN THAT IS VISIBLY A FILENAME (Phase 253, research 115 §5).
+ *
+ * `README.md` said bare is the third family the operator's corpus holds:
+ * 8,828 occurrences over 994 distinct tokens, 328 matching exactly one
+ * project file, and the names are manifest names — README.md, Makefile,
+ * package.json, CLAUDE.md. VS Code reaches them through a workspace SEARCH
+ * opener; Tortie adopts the CHEAP design instead — admit the token to the
+ * grammar and let lift two's existing base-join resolve it, 272 occurrences
+ * over 42 files for near-zero mechanism, no new question, no new channel.
+ *
+ * The grammar is the filter, and it is deliberately about FILENAMES and never
+ * "any word", because our opener opens files where theirs opens a search: a
+ * lettered stem, one dot, a 1–8 character lettered extension, or one of the
+ * six extensionless specials. A version (`1.2.3`, `v0.102.0`), an all-digit
+ * shape, a plain word and a dotfile all stay refused; a domain-shaped token
+ * (`github.com`) passes the shape test and is refused by nothing extra —
+ * measured at 92 occurrences and 0 matching any project file, the join's
+ * `lstat` answers `missing` for every one.
+ */
+const BARE_SPECIALS = new Set([
+  'Makefile',
+  'Dockerfile',
+  'LICENSE',
+  'NOTICE',
+  'README',
+  'CHANGELOG'
+]);
+
+export function bareFileShaped(token: string): boolean {
+  if (token.includes('/')) return false;
+  if (BARE_SPECIALS.has(token)) return true;
+  if (!/^[A-Za-z0-9._@+-]{3,64}$/.test(token)) return false;
+  // a version, a number, a date
+  if (/^[\d.,_-]+$/.test(token)) return false;
+  const dot = token.lastIndexOf('.');
+  if (dot <= 0 || dot === token.length - 1) return false;
+  const ext = token.slice(dot + 1);
+  if (!/^[A-Za-z][A-Za-z0-9]{0,7}$/.test(ext)) return false;
+  const stem = token.slice(0, dot);
+  return /[A-Za-z]/.test(stem);
+}
+
+/**
+ * May this head carry a line suffix? A path with a slash, or a bare token
+ * that is visibly a filename — so `Makefile:12` reads as line 12 while a
+ * timestamp's `14:23:07` never enters the suffix grammar at all.
+ */
+function suffixHead(head: string): boolean {
+  return head.includes('/') || bareFileShaped(head);
+}
+
 /** Ported from `looksPathB`: is this token spelled like a path at all? */
 export function looksLikePath(token: string): boolean {
-  let t = token;
-  if (t.startsWith('file://')) t = t.slice(7);
-  const lc = /^(.*?):(\d+)(?::(\d+))?$/.exec(t);
-  if (lc !== null && (lc[1] ?? '').includes('/')) t = lc[1] ?? '';
-  if (!t.includes('/')) return false;
+  const t = stripDecoration(token).target;
+  // PHASE 253: a slashless token is a candidate when it is visibly a
+  // filename, resolved exactly as lift two already resolves `docs/x.md`.
+  if (!t.includes('/')) return bareFileShaped(t);
   // a URL of some scheme — WebLinksAddon is registered first and owns those
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) return false;
   // 171/383, a fraction, which a transcript of a progress meter is full of
@@ -167,17 +306,45 @@ export function looksLikePath(token: string): boolean {
   return body.every((s) => s === '' || SEGMENT.test(s));
 }
 
-/** Ported from `normalise`: strip the decoration and keep the line number. */
-export function stripDecoration(token: string): { target: string; line?: number } {
+/**
+ * Ported from `normalise`: strip the decoration, keep the line number, and
+ * say how much of the token is DRAWN as the link.
+ *
+ * `visible` is the length of the token up to the end of its line/column
+ * suffix — everything except a grep remainder — so `pathSpansInRow` can trim
+ * the span's `end` and the underline never covers the matched text an
+ * instrument attached. For a token with no suffix it is the whole token.
+ */
+export function stripDecoration(token: string): {
+  target: string;
+  line?: number;
+  visible: number;
+} {
   let p = token;
-  if (p.startsWith('file://')) p = p.slice(7);
-  const lc = /^(.*?):(\d+)(?::(\d+))?$/.exec(p);
-  if (lc !== null && (lc[1] ?? '').includes('/')) {
-    p = lc[1] ?? '';
-    const n = Number.parseInt(lc[2] ?? '', 10);
-    if (Number.isFinite(n) && n > 0) return { target: p, line: n };
+  let prefix = 0;
+  if (p.startsWith('file://')) {
+    p = p.slice(7);
+    prefix = 7;
   }
-  return { target: p };
+  const grep = GREP_SUFFIX.exec(p);
+  if (grep !== null && suffixHead(grep[1] ?? '')) {
+    const remainder = grep[4] ?? '';
+    const visible = prefix + p.length - remainder.length;
+    const n = Number.parseInt(grep[2] ?? '', 10);
+    if (Number.isFinite(n) && n > 0) {
+      return { target: grep[1] ?? '', line: n, visible };
+    }
+    return { target: grep[1] ?? '', visible };
+  }
+  const tsc = TSC_SUFFIX.exec(p);
+  if (tsc !== null && suffixHead(tsc[1] ?? '')) {
+    const n = Number.parseInt(tsc[2] ?? '', 10);
+    if (Number.isFinite(n) && n > 0) {
+      return { target: tsc[1] ?? '', line: n, visible: token.length };
+    }
+    return { target: tsc[1] ?? '', visible: token.length };
+  }
+  return { target: p, visible: token.length };
 }
 
 /**
@@ -278,9 +445,20 @@ export function pathSpansInRow(row: string, edges: RowEdges): PathSpan[] {
   for (const span of tokensInRow(row)) {
     if (!looksLikePath(span.text)) continue;
     if (edgeRefusal(span, row, edges)) continue;
-    const { target, line } = stripDecoration(span.text);
+    const { target, line, visible } = stripDecoration(span.text);
     if (target.length === 0) continue;
-    out.push({ ...span, target, ...(line !== undefined ? { line } : {}) });
+    // PHASE 253: the underline stops at the end of the line suffix, so a
+    // grep remainder (`path:12:matched text`) is never drawn as part of the
+    // link. Refusal 8 above was asked about the WHOLE token on purpose — a
+    // token that runs off the pane's edge has an unknown end whatever part of
+    // it would have been underlined.
+    out.push({
+      ...span,
+      text: span.text.slice(0, visible),
+      end: span.start + visible,
+      target,
+      ...(line !== undefined ? { line } : {})
+    });
   }
   return out;
 }
