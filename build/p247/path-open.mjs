@@ -713,8 +713,11 @@ async function rowOnScreen(cdp, geo, row, col, width) {
       x: geo.left + (col + width / 2) * geo.cellW,
       y: geo.top + (row + d + 0.5) * geo.cellH
     });
-    await sleep(450);
-    if ((await cdpEval(cdp, ON_LINK, 10000)) === true) return row + d;
+    // POLLED, NOT SLEPT. See `waitOnLink`: a flat 450 ms here was the whole of
+    // this probe's flakiness, and it is the sweep rather than the press that
+    // pays the first round trip, because the press hovers a span the provider
+    // has already cached.
+    if (await waitOnLink(cdp)) return row + d;
   }
   return null;
 }
@@ -751,12 +754,57 @@ async function parkPointer(cdp, geo, awayFrom) {
  */
 const ON_LINK = `document.querySelector('.xterm-cursor-pointer') !== null`;
 
+/**
+ * HOW LONG THE UNDERLINE IS GIVEN TO ARRIVE, AND WHY IT IS POLLED RATHER THAN
+ * SLEPT (the committer's round).
+ *
+ * `rowOnScreen` moved the pointer, slept a flat 450 ms and read `ON_LINK`
+ * once. The underline behind that reading is not a repaint: the provider has
+ * to run the grammar, take a cache miss, make an IPC round trip and have main
+ * do `lstat`, `realpath` and `stat` before xterm is handed a link at all. So
+ * 450 ms is a bet rather than a budget, and it lost about half the time.
+ *
+ * **MEASURED RATHER THAN ASSERTED, over six runs at HEAD on 2026-09-10:
+ * 3 PASS and 3 FAIL, geometry byte-identical across all six** — `cols 144`,
+ * every marker at the same row, `rowOffset 0` everywhere — so the staging was
+ * never the cause. What failed was `xterm-cursor-pointer` reading false at a
+ * moment the link really was there, on a DIFFERENT arm each time. A check that
+ * goes red half the time cannot tell a regression from itself, which is the
+ * false-green/false-red symmetry `ON_LINK`'s own comment is about.
+ *
+ * So the question is asked until it answers or the budget is spent, and every
+ * wait that ended in a link is RECORDED and printed at the end of the run. The
+ * budget is not a guess to be re-tuned by feel: the run says what the waits
+ * actually cost, so the next round can read the distribution instead of
+ * raising a number.
+ *
+ * **IT MAKES THE ARMS THAT EXPECT NO LINK STRICTER, NOT LOOSER.** Polling can
+ * only ever turn a false into a true, so a `wantLink: false` arm now spends
+ * the whole budget before it is allowed to say nothing was underlined, where
+ * before it said so after 1,200 ms.
+ */
+const LINK_WAIT_MS = 4000;
+
+/** Every wait that ended in a link, in milliseconds, for the run's own report. */
+const linkWaits = [];
+
+async function waitOnLink(cdp, budgetMs = LINK_WAIT_MS) {
+  const started = Date.now();
+  for (;;) {
+    if ((await cdpEval(cdp, ON_LINK, 10000)) === true) {
+      linkWaits.push(Date.now() - started);
+      return true;
+    }
+    if (Date.now() - started >= budgetMs) return false;
+    await sleep(100);
+  }
+}
+
 async function pressCell(cdp, geo, row, col, width) {
   const x = geo.left + (col + width / 2) * geo.cellW;
   const y = geo.top + (row + 0.5) * geo.cellH;
   await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
-  await sleep(1200);
-  const onLink = (await cdpEval(cdp, ON_LINK, 10000)) === true;
+  const onLink = await waitOnLink(cdp);
   await cdp.call('Input.dispatchMouseEvent', {
     type: 'mousePressed', x, y, button: 'left', clickCount: 1
   });
@@ -1360,6 +1408,23 @@ const opAfter = operatorCount();
 say(`the operator's own -L gmux sessions: ${String(opBefore)} before, ${String(opAfter)} after`);
 if (opBefore !== opAfter) problems.push('the operator’s own tmux server changed under this run');
 say(`the Mac was handed ${String(recordLines().length)} path(s), and opened none of them`);
+// WHAT THE WAITS ACTUALLY COST. See `waitOnLink`: the budget is reported
+// against the measurement rather than left as a number somebody chose.
+if (linkWaits.length > 0) {
+  const sorted = [...linkWaits].sort((a, b) => a - b);
+  say(
+    `the underline took ${String(sorted[0])} to ${String(sorted[sorted.length - 1])} ms over ` +
+      `${String(sorted.length)} waits that found one, median ` +
+      `${String(sorted[Math.floor(sorted.length / 2)])} ms, budget ${String(LINK_WAIT_MS)} ms`
+  );
+  if (sorted[sorted.length - 1] > LINK_WAIT_MS * 0.75) {
+    problems.push(
+      `a wait for the underline came within a quarter of the budget (${String(
+        sorted[sorted.length - 1]
+      )} ms of ${String(LINK_WAIT_MS)} ms), so this run's readings are one slow machine from being flaky`
+    );
+  }
+}
 
 if (problems.length > 0) {
   for (const p of problems) process.stderr.write(`${TAG} ${p}\n`);
