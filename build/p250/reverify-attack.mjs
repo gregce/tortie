@@ -253,7 +253,8 @@ async function geometryNow(cdp, pane) {
   if (screen === null || !Number.isFinite(size[0]) || size[0] <= 0) return null;
   return {
     left: screen.left, top: screen.top,
-    cellW: screen.width / size[0], cellH: screen.height / size[1], cols: size[0]
+    cellW: screen.width / size[0], cellH: screen.height / size[1],
+    cols: size[0], rows: size[1]
   };
 }
 
@@ -274,12 +275,25 @@ function cellOf(rows, marker, token) {
   return null;
 }
 
-async function parkPointer(cdp, geo, awayFrom) {
-  const row = awayFrom === 0 ? 1 : 0;
+/**
+ * PARK THE POINTER OUTSIDE THE TERMINAL (the committer's round).
+ *
+ * Parking on another ROW makes xterm ask its providers again and does not stop a
+ * reply for the row before this one arriving late and being matched against the
+ * position it was ASKED at — `Linkifier._askForLink`'s callback closes over that
+ * position and its only guard is `_isMouseOut`. Leaving the element sets that
+ * flag and clears the current link; coming back on the pane's LAST row, which
+ * is blank, is what makes the next press a different buffer cell, since
+ * `_handleMouseMove` returns early on an equal one and a leave does not reset
+ * it. See the same note in build/p247/path-open.mjs.
+ */
+async function parkPointer(cdp, geo) {
+  await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 4, y: 4 });
+  await sleep(250);
   await cdp.call('Input.dispatchMouseEvent', {
     type: 'mouseMoved',
     x: geo.left + geo.cellW / 2,
-    y: geo.top + (row + 0.5) * geo.cellH
+    y: geo.top + (geo.rows - 0.5) * geo.cellH
   });
   await sleep(400);
 }
@@ -383,7 +397,7 @@ await withElectron(
         }
         const endsTheRow = cell.col + cell.width === cell.text.replace(/\s+$/, '').length;
         const before = recordLines().length;
-        await parkPointer(cdp, geo, cell.row);
+        await parkPointer(cdp, geo);
         await pressCell(cdp, geo, cell.row, cell.col, cell.width);
         const tabs = await cdpEval(cdp, TABS, 10000);
         const after = recordLines();

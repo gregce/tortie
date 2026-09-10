@@ -708,6 +708,10 @@ async function rowOnScreen(cdp, geo, row, col, width) {
   // wrong file opening — is what says so.
   for (const d of [0, 1]) {
     if (row + d < 0) continue;
+    // OUT OF THE TERMINAL FIRST, so this candidate row is asked about on its
+    // own and a late reply for the one before it cannot answer for it. See
+    // `parkPointer`.
+    await parkPointer(cdp, geo);
     await cdp.call('Input.dispatchMouseEvent', {
       type: 'mouseMoved',
       x: geo.left + (col + width / 2) * geo.cellW,
@@ -722,12 +726,71 @@ async function rowOnScreen(cdp, geo, row, col, width) {
   return null;
 }
 
-async function parkPointer(cdp, geo, awayFrom) {
-  const row = awayFrom === 0 ? 1 : 0;
+/**
+ * PARK THE POINTER OUT OF THE TERMINAL AND BACK ON A BLANK ROW (the
+ * committer's round), and it takes BOTH halves.
+ *
+ * It used to park on ANOTHER ROW of the same terminal, which is enough to make
+ * xterm ask its providers again and is NOT enough to make the next reading
+ * mean anything. `Linkifier._askForLink` hands `provideLinks` a callback that
+ * closes over the position the ask was made AT, and the only guard that
+ * callback has is `_isMouseOut`:
+ *
+ *     r.provideLinks(e.y, (t) => { if (this._isMouseOut) return; ...
+ *       i = this._checkLinkProviderResult(s, e, i); ... })
+ *
+ * `e` is the OLD position. So a reply that arrives after the pointer has moved
+ * to a different row is still matched against the row it was asked for, still
+ * wins `_linkAtPosition`, and still reaches `_linkHover`, which puts
+ * `xterm-cursor-pointer` on the terminal — while the pointer is somewhere
+ * else entirely. Nothing in Tortie is involved and no link is drawn where the
+ * pointer is; it is xterm's own late reply wearing the only signal this probe
+ * has.
+ *
+ * It cost a run on 2026-09-10: arm C, an executable, read `onLink: true` with
+ * NO tab opened and NOTHING recorded — the door had refused it exactly as it
+ * must, and the class belonged to a row the pointer had left. The flat sleep
+ * this round replaced had hidden it rather than avoided it, because a reply
+ * landing at 2,048 ms was read by nobody at 1,200 ms.
+ *
+ * Leaving the element is what closes THAT. `mouseleave` sets `_isMouseOut` AND
+ * calls `_clearCurrentLink()`, so every outstanding reply is dropped on arrival
+ * and the class is off.
+ *
+ * AND LEAVING ALONE BREAKS THE OTHER DIRECTION, which is why the second half is
+ * here rather than tidied away. `_handleMouseMove` compares the new buffer cell
+ * against `_lastBufferCell` and RETURNS EARLY when they are equal, and a leave
+ * does not reset that field — so a press returning to the very cell the sweep
+ * left is answered by nothing at all. Driven with the leave alone, arm A read
+ * `onLink: false` and opened NOTHING against a build whose link was exactly
+ * right, which is the same false red from the other side.
+ *
+ * So the pointer comes back in on the pane's LAST row, which is blank. That
+ * makes the return a different cell from anything an arm presses, and the ask
+ * it starts can only reply with no links — which clears the current link and
+ * makes even a late reply harmless, because its closure holds a position with
+ * nothing under it.
+ */
+async function parkPointer(cdp, geo) {
+  // OUT of the terminal element, which is what sets `_isMouseOut`.
+  await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 4, y: 4 });
+  await sleep(250);
+  // ...and BACK IN, on the pane's last row, which is blank. Leaving alone is
+  // not enough: `_handleMouseMove` compares the new buffer cell with
+  // `_lastBufferCell` and returns EARLY when they are equal, and a leave does
+  // not reset it — so a press that returns to the very cell the sweep left
+  // would be answered by nothing at all and read `false` against a link that
+  // is really there. Driven that way, arm A opened nothing on a build whose
+  // link was exactly right.
+  //
+  // The row is blank, so the ask it starts can only reply with NO links, which
+  // both clears the current link and makes a late reply harmless: its closure
+  // holds this position, and there is nothing here for `_linkAtPosition` to
+  // match.
   await cdp.call('Input.dispatchMouseEvent', {
     type: 'mouseMoved',
     x: geo.left + geo.cellW / 2,
-    y: geo.top + (row + 0.5) * geo.cellH
+    y: geo.top + (geo.rows - 0.5) * geo.cellH
   });
   await sleep(400);
 }
@@ -764,13 +827,14 @@ const ON_LINK = `document.querySelector('.xterm-cursor-pointer') !== null`;
  * do `lstat`, `realpath` and `stat` before xterm is handed a link at all. So
  * 450 ms is a bet rather than a budget, and it lost about half the time.
  *
- * **MEASURED RATHER THAN ASSERTED, over six runs at HEAD on 2026-09-10:
- * 3 PASS and 3 FAIL, geometry byte-identical across all six** — `cols 144`,
- * every marker at the same row, `rowOffset 0` everywhere — so the staging was
- * never the cause. What failed was `xterm-cursor-pointer` reading false at a
- * moment the link really was there, on a DIFFERENT arm each time. A check that
- * goes red half the time cannot tell a regression from itself, which is the
- * false-green/false-red symmetry `ON_LINK`'s own comment is about.
+ * **MEASURED RATHER THAN ASSERTED, and the measurement is the VERIFIER'S: six
+ * runs at the parent of this commit on 2026-09-10, 3 PASS and 3 FAIL, with the
+ * geometry byte-identical across all six** — `cols 144`, every marker at the
+ * same row, `rowOffset 0` everywhere — so the staging the fix round repaired
+ * was never the cause. What failed was `xterm-cursor-pointer` reading false at
+ * a moment the link really was there, on a DIFFERENT arm each time. A check
+ * that goes red half the time cannot tell a regression from itself, which is
+ * the false-green/false-red symmetry `ON_LINK`'s own comment is about.
  *
  * So the question is asked until it answers or the budget is spent, and every
  * wait that ended in a link is RECORDED and printed at the end of the run. The
@@ -930,7 +994,11 @@ async function geometryNow(cdp, pane) {
     top: screen.top,
     cellW: screen.width / size[0],
     cellH: screen.height / size[1],
-    cols: size[0]
+    cols: size[0],
+    // PHASE 250's committer: `parkPointer` needs a row it can be certain
+    // carries nothing, and the pane's LAST row is that row — the transcript is
+    // 26 rows in a 43 row pane and no arm ever scrolls it.
+    rows: size[1]
   };
 }
 
@@ -1088,7 +1156,7 @@ await withElectron(
           findings[arm] = { pressed: false, why: on.why, cols: geoNow.cols, row: cell.row };
           continue;
         }
-        await parkPointer(cdp, geoNow, on.row);
+        await parkPointer(cdp, geoNow);
         const press = await pressCell(cdp, geoNow, on.row, cell.col, cell.width);
         const tabsAfter = await cdpEval(cdp, TABS, 10000);
         const recordedAfter = recordLines();
@@ -1145,7 +1213,7 @@ await withElectron(
           if (onE.row === undefined) {
             problems.push(`E ${onE.why}, so the fragment was not pressed`);
           } else {
-            await parkPointer(cdp, geoE, onE.row);
+            await parkPointer(cdp, geoE);
             press = await pressCell(cdp, geoE, onE.row, WRAPPED_MARK.length + 1, fragment.length);
           }
         }
@@ -1228,7 +1296,7 @@ await withElectron(
           findings[arm] = { pressed: false, why: on.why, cols: geoNow.cols, row: cell.row };
           continue;
         }
-        await parkPointer(cdp, geoNow, on.row);
+        await parkPointer(cdp, geoNow);
         const press = await pressCell(cdp, geoNow, on.row, cell.col, cell.width);
         findings[arm] = {
           what,
@@ -1338,7 +1406,7 @@ await withElectron(
           // offset 0 is the path's FIRST cell; offset 1 is the cell one PAST
           // its last. At the parent both readings are the other way round.
           const col = offset === 0 ? col0 : col0 + cell.width;
-          await parkPointer(cdp, geoF, on);
+          await parkPointer(cdp, geoF);
           const press = await pressCell(cdp, geoF, on, col, 1);
           const got = (await cdpEval(cdp, TABS, 10000)).filter((t) => !before.includes(t));
           findings.F[half] = {
