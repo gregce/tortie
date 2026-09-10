@@ -915,16 +915,1502 @@
         "mdWide": "950px"
       },
       "ruler": {
-        "ticks": 4,
-        "thumbHeight": 697
+        "ticks": 5,
+        "thumbHeight": 412
       },
       "docScrollsSideways": false,
       "deadCanvasPct": 44.2
     }
   },
+  "nested": {
+    "tight": {
+      "pane": {
+        "clientWidth": 580,
+        "offsetWidth": 590,
+        "scrollWidth": 580,
+        "left": 1310
+      },
+      "zoom": "1",
+      "mdWide": "542px",
+      "candidate": "",
+      "fontSize": "13px",
+      "contentWidth": 556.8,
+      "contentLeft": 1345.6,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 1329,
+          "right": 1871,
+          "width": 542,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1329,
+            "right": 2088.1,
+            "width": 759.1
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 1329,
+          "right": 1871,
+          "width": 542,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 1329,
+          "right": 1871,
+          "width": 542,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1547.4,
+            "right": 1652.6,
+            "width": 105.2
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 1365.6,
+          "right": 1854.4,
+          "width": 488.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1365.6,
+            "right": 1962.8,
+            "width": 597.2
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 1385.6,
+          "right": 1854.4,
+          "width": 468.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1385.6,
+            "right": 1995.2,
+            "width": 609.6
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 1405.6,
+          "right": 1854.4,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1405.6,
+            "right": 2016.2,
+            "width": 610.6
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 1405.6,
+          "right": 1854.4,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    },
+    "narrow": {
+      "pane": {
+        "clientWidth": 620,
+        "offsetWidth": 630,
+        "scrollWidth": 620,
+        "left": 1270
+      },
+      "zoom": "1",
+      "mdWide": "582px",
+      "candidate": "",
+      "fontSize": "13px",
+      "contentWidth": 556.8,
+      "contentLeft": 1325.6,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 1289,
+          "right": 1871,
+          "width": 582,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1289,
+            "right": 2048.1,
+            "width": 759.1
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 1289,
+          "right": 1871,
+          "width": 582,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 1289,
+          "right": 1871,
+          "width": 582,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1527.4,
+            "right": 1632.6,
+            "width": 105.2
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 1345.6,
+          "right": 1834.4,
+          "width": 488.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1345.6,
+            "right": 1942.8,
+            "width": 597.2
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 1365.6,
+          "right": 1834.4,
+          "width": 468.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1365.6,
+            "right": 1975.2,
+            "width": 609.6
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 1385.6,
+          "right": 1834.4,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1385.6,
+            "right": 1996.2,
+            "width": 610.6
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 1385.6,
+          "right": 1834.4,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    },
+    "his": {
+      "pane": {
+        "clientWidth": 1000,
+        "offsetWidth": 1010,
+        "scrollWidth": 1000,
+        "left": 890
+      },
+      "zoom": "1",
+      "mdWide": "962px",
+      "candidate": "",
+      "fontSize": "13px",
+      "contentWidth": 556.8,
+      "contentLeft": 1135.6,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 909,
+          "right": 1871,
+          "width": 962,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 909,
+            "right": 1871,
+            "width": 962
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 909,
+          "right": 1871,
+          "width": 962,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 909,
+          "right": 1871,
+          "width": 962,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1337.4,
+            "right": 1442.6,
+            "width": 105.2
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 1155.6,
+          "right": 1644.4,
+          "width": 488.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1155.6,
+            "right": 1752.8,
+            "width": 597.2
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 1175.6,
+          "right": 1644.4,
+          "width": 468.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1175.6,
+            "right": 1785.2,
+            "width": 609.6
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 1195.6,
+          "right": 1644.4,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1195.6,
+            "right": 1806.2,
+            "width": 610.6
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 1195.6,
+          "right": 1644.4,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    },
+    "wider": {
+      "pane": {
+        "clientWidth": 1381,
+        "offsetWidth": 1391,
+        "scrollWidth": 1381,
+        "left": 509
+      },
+      "zoom": "1",
+      "mdWide": "1113.63px",
+      "candidate": "",
+      "fontSize": "13px",
+      "contentWidth": 556.8,
+      "contentLeft": 945.1,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 642.7,
+          "right": 1756.3,
+          "width": 1113.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 678.9,
+            "right": 1720.1,
+            "width": 1041.1
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 642.7,
+          "right": 1756.3,
+          "width": 1113.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 642.7,
+          "right": 1756.3,
+          "width": 1113.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1146.9,
+            "right": 1252.1,
+            "width": 105.2
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 965.1,
+          "right": 1453.9,
+          "width": 488.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 965.1,
+            "right": 1562.3,
+            "width": 597.2
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 985.1,
+          "right": 1453.9,
+          "width": 468.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 985.1,
+            "right": 1594.7,
+            "width": 609.6
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 1005.1,
+          "right": 1453.9,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1005.1,
+            "right": 1615.7,
+            "width": 610.6
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 1005.1,
+          "right": 1453.9,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    }
+  },
+  "zoom": {
+    "1": {
+      "pane": {
+        "clientWidth": 1381,
+        "offsetWidth": 1391,
+        "scrollWidth": 1381,
+        "left": 509
+      },
+      "zoom": "1",
+      "mdWide": "1113.63px",
+      "candidate": "1113.63px",
+      "fontSize": "13px",
+      "contentWidth": 556.8,
+      "contentLeft": 945.1,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 642.7,
+          "right": 1756.3,
+          "width": 1113.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 678.9,
+            "right": 1720.1,
+            "width": 1041.1
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 642.7,
+          "right": 1756.3,
+          "width": 1113.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 642.7,
+          "right": 1756.3,
+          "width": 1113.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1146.9,
+            "right": 1252.1,
+            "width": 105.2
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 965.1,
+          "right": 1453.9,
+          "width": 488.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 965.1,
+            "right": 1562.3,
+            "width": 597.2
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 985.1,
+          "right": 1453.9,
+          "width": 468.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 985.1,
+            "right": 1594.7,
+            "width": 609.6
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 1005.1,
+          "right": 1453.9,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1005.1,
+            "right": 1615.7,
+            "width": 610.6
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 1005.1,
+          "right": 1453.9,
+          "width": 448.8,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    },
+    "2": {
+      "pane": {
+        "clientWidth": 1381,
+        "offsetWidth": 1391,
+        "scrollWidth": 1381,
+        "left": 509
+      },
+      "zoom": "2",
+      "mdWide": "647.5px",
+      "candidate": "647.5px",
+      "fontSize": "13px",
+      "contentWidth": 1113.6,
+      "contentLeft": 666.7,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 552,
+          "right": 1847,
+          "width": 1295,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 552,
+            "right": 2031.7,
+            "width": 1479.7
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 552,
+          "right": 1847,
+          "width": 1295,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 552,
+          "right": 1847,
+          "width": 1295,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1097.5,
+            "right": 1301.5,
+            "width": 203.9
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 730.7,
+          "right": 1708.3,
+          "width": 977.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 730.7,
+            "right": 1877.3,
+            "width": 1146.6
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 770.7,
+          "right": 1708.3,
+          "width": 937.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 770.7,
+            "right": 1942,
+            "width": 1171.3
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 810.7,
+          "right": 1708.3,
+          "width": 897.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 810.7,
+            "right": 1993.4,
+            "width": 1182.7
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 810.7,
+          "right": 1708.3,
+          "width": 897.6,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    },
+    "1.1": {
+      "pane": {
+        "clientWidth": 1381,
+        "offsetWidth": 1391,
+        "scrollWidth": 1381,
+        "left": 509
+      },
+      "zoom": "1.1",
+      "mdWide": "1113.63px",
+      "candidate": "1113.63px",
+      "fontSize": "13px",
+      "contentWidth": 612.5,
+      "contentLeft": 917.3,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 587,
+          "right": 1812,
+          "width": 1225,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 627.2,
+            "right": 1771.8,
+            "width": 1144.6
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 587,
+          "right": 1812,
+          "width": 1225,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 587,
+          "right": 1812,
+          "width": 1225,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1141.8,
+            "right": 1257.2,
+            "width": 115.4
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 941.6,
+          "right": 1479.3,
+          "width": 537.7,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 941.6,
+            "right": 1598,
+            "width": 656.3
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 963.6,
+          "right": 1479.3,
+          "width": 515.7,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 963.6,
+            "right": 1633.6,
+            "width": 669.9
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 985.6,
+          "right": 1479.3,
+          "width": 493.7,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 985.6,
+            "right": 1656.7,
+            "width": 671.1
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 985.6,
+          "right": 1479.3,
+          "width": 493.7,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    },
+    "1.25": {
+      "pane": {
+        "clientWidth": 1381,
+        "offsetWidth": 1391,
+        "scrollWidth": 1381,
+        "left": 509
+      },
+      "zoom": "1.25",
+      "mdWide": "1064.8px",
+      "candidate": "1064.8px",
+      "fontSize": "13px",
+      "contentWidth": 696,
+      "contentLeft": 875.5,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 534,
+          "right": 1865,
+          "width": 1331,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 549.6,
+            "right": 1849.4,
+            "width": 1299.9
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 534,
+          "right": 1865,
+          "width": 1331,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 534,
+          "right": 1865,
+          "width": 1331,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1134.1,
+            "right": 1264.9,
+            "width": 130.8
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 906.5,
+          "right": 1517.5,
+          "width": 611,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 906.5,
+            "right": 1651.5,
+            "width": 745
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 931.5,
+          "right": 1517.5,
+          "width": 586,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 931.5,
+            "right": 1692,
+            "width": 760.5
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 956.5,
+          "right": 1517.5,
+          "width": 561,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 956.5,
+            "right": 1718.3,
+            "width": 761.8
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 956.5,
+          "right": 1517.5,
+          "width": 561,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    },
+    "1.5": {
+      "pane": {
+        "clientWidth": 1381,
+        "offsetWidth": 1391,
+        "scrollWidth": 1381,
+        "left": 509
+      },
+      "zoom": "1.5",
+      "mdWide": "879.333px",
+      "candidate": "879.333px",
+      "fontSize": "13px",
+      "contentWidth": 835.2,
+      "contentLeft": 805.9,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "i": 0,
+          "kind": "table",
+          "depth": 0,
+          "left": 540,
+          "right": 1859,
+          "width": 1319,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 540,
+            "right": 1859,
+            "width": 1319
+          }
+        },
+        {
+          "i": 1,
+          "kind": "pre",
+          "depth": 0,
+          "left": 540,
+          "right": 1859,
+          "width": 1319,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        },
+        {
+          "i": 2,
+          "kind": "table",
+          "depth": 0,
+          "left": 540,
+          "right": 1859,
+          "width": 1319,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 1120.6,
+            "right": 1278.4,
+            "width": 157.8
+          }
+        },
+        {
+          "i": 3,
+          "kind": "table",
+          "depth": 1,
+          "left": 847.9,
+          "right": 1581.1,
+          "width": 733.2,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 847.9,
+            "right": 1743.7,
+            "width": 895.8
+          }
+        },
+        {
+          "i": 4,
+          "kind": "table",
+          "depth": 2,
+          "left": 877.9,
+          "right": 1581.1,
+          "width": 703.2,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 877.9,
+            "right": 1792.3,
+            "width": 914.4
+          }
+        },
+        {
+          "i": 5,
+          "kind": "table",
+          "depth": 3,
+          "left": 907.9,
+          "right": 1581.1,
+          "width": 673.2,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": {
+            "left": 907.9,
+            "right": 1823.9,
+            "width": 916
+          }
+        },
+        {
+          "i": 6,
+          "kind": "pre",
+          "depth": 3,
+          "left": 907.9,
+          "right": 1581.1,
+          "width": 673.2,
+          "overLeft": 0,
+          "overRight": 0,
+          "inner": null
+        }
+      ]
+    }
+  },
   "chPx": 8.188,
   "measurePx": 556.8,
   "capPx": 1113.6,
+  "nestedAblated": {
+    "pane": {
+      "clientWidth": 1000,
+      "offsetWidth": 1010,
+      "scrollWidth": 1011,
+      "left": 890
+    },
+    "zoom": "1",
+    "mdWide": "962px",
+    "candidate": "",
+    "fontSize": "13px",
+    "contentWidth": 556.8,
+    "contentLeft": 1135.6,
+    "docScrollsSideways": true,
+    "blocks": [
+      {
+        "i": 0,
+        "kind": "table",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 909,
+          "right": 1871,
+          "width": 962
+        }
+      },
+      {
+        "i": 1,
+        "kind": "pre",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": null
+      },
+      {
+        "i": 2,
+        "kind": "table",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1337.4,
+          "right": 1442.6,
+          "width": 105.2
+        }
+      },
+      {
+        "i": 3,
+        "kind": "table",
+        "depth": 1,
+        "left": 919,
+        "right": 1881,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 919,
+          "right": 1654.2,
+          "width": 735.2
+        }
+      },
+      {
+        "i": 4,
+        "kind": "table",
+        "depth": 2,
+        "left": 929,
+        "right": 1891,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 1,
+        "inner": {
+          "left": 929,
+          "right": 1704.6,
+          "width": 775.6
+        }
+      },
+      {
+        "i": 5,
+        "kind": "table",
+        "depth": 3,
+        "left": 939,
+        "right": 1901,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 11,
+        "inner": {
+          "left": 939,
+          "right": 1706.5,
+          "width": 767.5
+        }
+      },
+      {
+        "i": 6,
+        "kind": "pre",
+        "depth": 3,
+        "left": 939,
+        "right": 1901,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 11,
+        "inner": null
+      }
+    ]
+  },
+  "axis": {
+    "pane": {
+      "clientWidth": 1000,
+      "offsetWidth": 1010,
+      "scrollWidth": 1000,
+      "left": 890
+    },
+    "zoom": "1",
+    "mdWide": "962px",
+    "candidate": "",
+    "fontSize": "13px",
+    "contentWidth": 556.8,
+    "contentLeft": 1135.6,
+    "docScrollsSideways": false,
+    "blocks": [
+      {
+        "i": 0,
+        "kind": "table",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 909,
+          "right": 1871,
+          "width": 962
+        }
+      },
+      {
+        "i": 1,
+        "kind": "pre",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": null
+      },
+      {
+        "i": 2,
+        "kind": "table",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1337.4,
+          "right": 1442.6,
+          "width": 105.2
+        }
+      },
+      {
+        "i": 3,
+        "kind": "table",
+        "depth": 1,
+        "left": 1155.6,
+        "right": 1644.4,
+        "width": 488.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1155.6,
+          "right": 1752.8,
+          "width": 597.2
+        }
+      },
+      {
+        "i": 4,
+        "kind": "table",
+        "depth": 2,
+        "left": 1175.6,
+        "right": 1644.4,
+        "width": 468.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1175.6,
+          "right": 1785.2,
+          "width": 609.6
+        }
+      },
+      {
+        "i": 5,
+        "kind": "table",
+        "depth": 3,
+        "left": 1195.6,
+        "right": 1644.4,
+        "width": 448.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1195.6,
+          "right": 1806.2,
+          "width": 610.6
+        }
+      },
+      {
+        "i": 6,
+        "kind": "pre",
+        "depth": 3,
+        "left": 1195.6,
+        "right": 1644.4,
+        "width": 448.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": null
+      }
+    ]
+  },
+  "axisAblated": {
+    "pane": {
+      "clientWidth": 1000,
+      "offsetWidth": 1010,
+      "scrollWidth": 1000,
+      "left": 890
+    },
+    "zoom": "1",
+    "mdWide": "962px",
+    "candidate": "",
+    "fontSize": "13px",
+    "contentWidth": 556.8,
+    "contentLeft": 1135.6,
+    "docScrollsSideways": false,
+    "blocks": [
+      {
+        "i": 0,
+        "kind": "table",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 909,
+          "right": 1871,
+          "width": 962
+        }
+      },
+      {
+        "i": 1,
+        "kind": "pre",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": null
+      },
+      {
+        "i": 2,
+        "kind": "table",
+        "depth": 0,
+        "left": 909,
+        "right": 1871,
+        "width": 962,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 909,
+          "right": 1014.2,
+          "width": 105.2
+        }
+      },
+      {
+        "i": 3,
+        "kind": "table",
+        "depth": 1,
+        "left": 1155.6,
+        "right": 1644.4,
+        "width": 488.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1155.6,
+          "right": 1752.8,
+          "width": 597.2
+        }
+      },
+      {
+        "i": 4,
+        "kind": "table",
+        "depth": 2,
+        "left": 1175.6,
+        "right": 1644.4,
+        "width": 468.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1175.6,
+          "right": 1785.2,
+          "width": 609.6
+        }
+      },
+      {
+        "i": 5,
+        "kind": "table",
+        "depth": 3,
+        "left": 1195.6,
+        "right": 1644.4,
+        "width": 448.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 1195.6,
+          "right": 1806.2,
+          "width": 610.6
+        }
+      },
+      {
+        "i": 6,
+        "kind": "pre",
+        "depth": 3,
+        "left": 1195.6,
+        "right": 1644.4,
+        "width": 448.8,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": null
+      }
+    ]
+  },
+  "zoomAblated": {
+    "pane": {
+      "clientWidth": 1381,
+      "offsetWidth": 1391,
+      "scrollWidth": 1804,
+      "left": 509
+    },
+    "zoom": "2",
+    "mdWide": "1113.63px",
+    "candidate": "647.5px",
+    "fontSize": "13px",
+    "contentWidth": 1113.6,
+    "contentLeft": 666.7,
+    "docScrollsSideways": true,
+    "blocks": [
+      {
+        "i": 0,
+        "kind": "table",
+        "depth": 0,
+        "left": 85.9,
+        "right": 2313.1,
+        "width": 2227.3,
+        "overLeft": 423.1,
+        "overRight": 423.1,
+        "inner": {
+          "left": 168.2,
+          "right": 2230.8,
+          "width": 2062.6
+        }
+      },
+      {
+        "i": 1,
+        "kind": "pre",
+        "depth": 0,
+        "left": 85.9,
+        "right": 2313.1,
+        "width": 2227.3,
+        "overLeft": 423.1,
+        "overRight": 423.1,
+        "inner": null
+      },
+      {
+        "i": 2,
+        "kind": "table",
+        "depth": 0,
+        "left": 85.9,
+        "right": 2313.1,
+        "width": 2227.3,
+        "overLeft": 423.1,
+        "overRight": 423.1,
+        "inner": {
+          "left": 1097.5,
+          "right": 1301.5,
+          "width": 203.9
+        }
+      },
+      {
+        "i": 3,
+        "kind": "table",
+        "depth": 1,
+        "left": 730.7,
+        "right": 1708.3,
+        "width": 977.6,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 730.7,
+          "right": 1877.3,
+          "width": 1146.6
+        }
+      },
+      {
+        "i": 4,
+        "kind": "table",
+        "depth": 2,
+        "left": 770.7,
+        "right": 1708.3,
+        "width": 937.6,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 770.7,
+          "right": 1942,
+          "width": 1171.3
+        }
+      },
+      {
+        "i": 5,
+        "kind": "table",
+        "depth": 3,
+        "left": 810.7,
+        "right": 1708.3,
+        "width": 897.6,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": {
+          "left": 810.7,
+          "right": 1993.4,
+          "width": 1182.7
+        }
+      },
+      {
+        "i": 6,
+        "kind": "pre",
+        "depth": 3,
+        "left": 810.7,
+        "right": 1708.3,
+        "width": 897.6,
+        "overLeft": 0,
+        "overRight": 0,
+        "inner": null
+      }
+    ]
+  },
   "affordance-dark": {
     "textMuted": "#838996",
     "textSecondary": "#9ca1ab",

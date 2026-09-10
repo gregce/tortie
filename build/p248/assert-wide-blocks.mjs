@@ -129,11 +129,14 @@ export function splitDeclarations(body) {
  * Evaluate the width expression for one pane. `chPx` and `gutterPx` are read
  * from the app run and from tokens.css; nothing here is a constant of its own.
  */
-export function evaluateWidth(expr, { paneCqi, chPx, gutterPx, hundredPercent }) {
-  const cap = /min\(\s*([0-9.]+)ch\s*,\s*100cqi\s*-\s*2\s*\*\s*var\(--space-8\)\s*\)/.exec(expr);
+export function evaluateWidth(expr, { paneCqi, chPx, gutterPx, hundredPercent, zoom }) {
+  // `100cqi` is measured outside the zoomed subtree, so the shipped
+  // expression divides THAT term and leaves the two computed inside it alone.
+  const cap = /min\(\s*([0-9.]+)ch\s*,\s*100cqi\s*\/\s*var\(--zoom-editor,\s*1\)\s*-\s*2\s*\*\s*var\(--space-8\)\s*\)/.exec(expr);
   if (cap === null) return null;
+  const z = zoom === undefined || zoom === null ? 1 : zoom;
   const capPx = Number(cap[1]) * chPx;
-  const mdWide = Math.min(capPx, paneCqi - 2 * gutterPx);
+  const mdWide = Math.min(capPx, paneCqi / z - 2 * gutterPx);
   return { mdWide, width: Math.max(hundredPercent, mdWide) };
 }
 
@@ -200,7 +203,7 @@ export function runRules({ css, tokensCss, readings }) {
   if (wideRules.length !== 1) bad(2, `${String(wideRules.length)} rules size a block from --md-wide; there must be exactly one`);
   const wide = wideRules[0] ?? null;
   const named = wide === null ? [] : wide.selector.split(',').map((s) => s.replace(/\s+/g, ' ').trim()).sort();
-  const WANT = ['.md-content .md-table-scroll', '.md-content pre'];
+  const WANT = ['.md-content > .md-table-scroll', '.md-content > pre'];
   if (named.join(' | ') !== WANT.join(' | ')) bad(2, `the wide-block rule names ${named.join(', ') || '(nothing)'} rather than ${WANT.join(' and ')}`);
   // Both must already be scrollers of their own, which is the whole reason
   // these two and nothing else break out: a block that cannot scroll would be
@@ -234,7 +237,7 @@ export function runRules({ css, tokensCss, readings }) {
     else if (cap !== measureCh * 2) bad(5, `the cap is ${String(cap)}ch against a measure of ${String(measureCh)}ch; the ruling is twice the measure`);
     else notes.push(`the cap is ${String(cap)}ch, twice the ${String(measureCh)}ch measure`);
   }
-  if (mdWideDecl !== null && !/100cqi\s*-\s*2\s*\*\s*var\(--space-8\)/.test(mdWideDecl)) {
+  if (mdWideDecl !== null && !/100cqi\s*(?:\/\s*var\(--zoom-editor[^)]*\)\s*)?-\s*2\s*\*\s*var\(--space-8\)/.test(mdWideDecl)) {
     bad(5, 'the pane term does not subtract the block\'s own two gutters, so a wide block can reach the pane edge');
   }
 
@@ -285,8 +288,15 @@ export function runRules({ css, tokensCss, readings }) {
       // against clientWidth 1000 at his pane) and at clientWidth - 48 with the
       // heading ruler up, which takes the bar away. So the pane term is the
       // offsetWidth, and the visible gutter is (48 - the bar) / 2, being 19 px
-      // at rest and 24 px with the ruler. Never negative, which is why the
-      // document cannot scroll sideways at any pane.
+      // at rest and 24 px with the ruler.
+      //
+      // THAT GUTTER IS NOT ON ITS OWN THE REASON THE DOCUMENT DOES NOT SCROLL
+      // SIDEWAYS, and the first version of this comment said it was. It is
+      // the arithmetic for a block whose containing block is `.md-content`
+      // ITSELF and whose subtree is not zoomed. A block under a bullet has
+      // the list item as its containing block, and ⌘+ multiplies this term a
+      // second time; rules 11 and 12 are those two, and the readings they
+      // judge are of nested blocks and of the real chord.
       const got = evaluateWidth(mdWideDecl, {
         paneCqi: f.pane.offsetWidth,
         chPx,
@@ -350,6 +360,111 @@ export function runRules({ css, tokensCss, readings }) {
     }
   }
 
+  // -- 11. THE BREAK-OUT IS A DIRECT CHILD, AND THE NESTED READINGS --------
+  // Both halves of the wide rule resolve against the block's CONTAINING
+  // BLOCK. Under a bullet that is the list item, inset by `--space-7` a
+  // level, so the centre moves half of that per level while the whole gutter
+  // is 19 px: at three levels the block is 11 px past the pane and the
+  // document scrolls sideways. The `>` is the only spelling that says the
+  // containing block IS the prose column.
+  const wideSelectors = wide === null ? [] : wide.selector.split(',').map((x) => x.replace(/\s+/g, ' ').trim());
+  for (const sel of wideSelectors) {
+    if (!/^\.md-content > [^ >]+$/.test(sel)) {
+      bad(11, `"${sel}" is not a DIRECT child of .md-content, so its containing block can be a list item and the bleed is centred on a box the prose column does not share`);
+    }
+  }
+  const inset = Number(/--space-7:\s*([0-9.]+)px/.exec(stripComments(tokensCss))?.[1] ?? 'NaN');
+  if (Number.isNaN(inset)) bad(11, '--space-7 is not a px value in tokens.css, so the per-level shift cannot be re-derived');
+  else notes.push(`a list level insets by ${String(inset)}px, so a descendant-scoped bleed would move ${String(inset / 2)}px per level against a 19px gutter — 11px past the pane at three levels`);
+  const nested = readings?.nested ?? {};
+  let nestedRead = 0;
+  let deepest = 0;
+  for (const [name, r] of Object.entries(nested)) {
+    if (r === null || r === undefined) continue;
+    nestedRead += 1;
+    deepest = Math.max(deepest, ...r.blocks.map((b) => b.depth));
+    if (r.docScrollsSideways === true) bad(11, `at the ${name} pane the app run read the document scrolling sideways with nested blocks in it`);
+    for (const b of r.blocks) {
+      if (b.overRight > 0.5 || b.overLeft > 0.5) bad(11, `at the ${name} pane a ${b.kind} at depth ${String(b.depth)} is ${String(b.overLeft)}px past the left edge and ${String(b.overRight)}px past the right`);
+    }
+  }
+  if (nestedRead < 3) bad(11, `only ${String(nestedRead)} pane(s) were read with nested blocks; the app run drives four`);
+  if (deepest < 3) bad(11, `the deepest nested block the app run read is at depth ${String(deepest)}; the fixture nests three levels, so this arm read nothing that could fail`);
+  const nestedAblated = readings?.nestedAblated ?? null;
+  if (nestedAblated === null) bad(11, 'the app run recorded no descendant-scoped ablation, so nothing shows this arm can fail');
+  else {
+    const over = nestedAblated.blocks.filter((b) => b.overRight > 0.5 || b.overLeft > 0.5);
+    if (over.length === 0 || nestedAblated.docScrollsSideways !== true) {
+      bad(11, 'the descendant-scoped ablation the app run injected did NOT walk a block off the pane, so the nested readings prove nothing');
+    } else {
+      notes.push(`the descendant-scoped rule put back drew ${String(over.length)} block(s) up to ${String(Math.max(...over.map((b) => b.overRight)))}px past the pane and scrolled the document sideways`);
+    }
+  }
+
+  // -- 12. THE PANE TERM IS CONVERTED INTO THE ZOOMED SUBTREE --------------
+  // `zoom.css` scales `.md-content`, which multiplies every used length under
+  // it. `100cqi` is the only term here measured OUTSIDE that subtree, so
+  // without the division it is multiplied a second time and two presses of ⌘+
+  // put the block past the pane.
+  if (mdWideDecl !== null && !/100cqi\s*\/\s*var\(--zoom-editor\s*[,)]/.test(mdWideDecl)) {
+    bad(12, `the pane term is ${mdWideDecl}; 100cqi is measured outside the zoomed subtree and must be divided by var(--zoom-editor, 1), or ⌘+ multiplies it twice`);
+  }
+  if (mdWideDecl !== null && !/var\(--zoom-editor,\s*1\)/.test(mdWideDecl)) {
+    bad(12, 'var(--zoom-editor) carries no fallback; with the property unset the whole min() is invalid and --md-wide falls back to its 0px initial value');
+  }
+  const zoomReadings = readings?.zoom ?? {};
+  const levels = Object.keys(zoomReadings);
+  let zoomRead = 0;
+  for (const [level, r] of Object.entries(zoomReadings)) {
+    if (r === null || r === undefined) continue;
+    zoomRead += 1;
+    if (r.zoom !== '' && Math.abs(Number(r.zoom) - Number(level)) > 1e-6) bad(12, `the reading filed under ${level}x was taken at --zoom-editor ${r.zoom}`);
+    if (r.docScrollsSideways === true) bad(12, `at ${level}x the app run read the document scrolling sideways`);
+    for (const b of r.blocks) {
+      if (b.overRight > 0.5 || b.overLeft > 0.5) bad(12, `at ${level}x a ${b.kind} at depth ${String(b.depth)} is ${String(b.overRight)}px past the right edge`);
+    }
+    if (r.candidate !== undefined && r.candidate !== '' && Number.parseFloat(r.candidate) === 0) {
+      bad(12, `at ${level}x the browser could not compute the divided expression (the candidate property fell back to its 0px initial value)`);
+    }
+  }
+  if (zoomRead < 4) bad(12, `only ${String(zoomRead)} zoom level(s) were read; the app run drives five (${levels.join(', ') || 'none'})`);
+  else notes.push(`${String(zoomRead)} zoom levels read on the real chord, ${levels.join('x, ')}x`);
+  const zoomAblated = readings?.zoomAblated ?? null;
+  if (zoomAblated === null) bad(12, 'the app run recorded no undivided-pane-term ablation, so nothing shows the zoom readings can fail');
+  else if (zoomAblated.docScrollsSideways !== true || zoomAblated.blocks.every((b) => b.overRight <= 0.5)) {
+    bad(12, 'the undivided pane term put back did NOT walk the block off the pane, so the zoom readings prove nothing');
+  } else {
+    notes.push(`the undivided pane term put back drew ${String(Math.max(...zoomAblated.blocks.map((b) => b.width)))}px in a ${String(zoomAblated.pane.clientWidth)}px pane and scrolled the document sideways`);
+  }
+
+  // -- 13. A TABLE NARROWER THAN ITS BOX KEEPS THE PAGE'S AXIS -------------
+  // The break-out is unconditional because CSS cannot ask how wide a table
+  // wants to be. 226 of this repository's 1,900 tables already fitted the
+  // measure, and in a pane-wide box with no centring they are drawn 302px
+  // left of every paragraph around them.
+  const axisRule = ruleFor(css, '.md-content > .md-table-scroll > table');
+  if (declaration(axisRule, 'margin-inline') !== 'auto') {
+    bad(13, `a table inside a broken-out box has margin-inline ${String(declaration(axisRule, 'margin-inline'))}; without auto a table narrower than its box sits in the corner of it`);
+  }
+  const axis = readings?.axis ?? null;
+  if (axis === null) bad(13, 'the app run recorded no axis reading');
+  else {
+    const narrow = axis.blocks.filter((b) => b.kind === 'table' && b.depth === 0 && b.inner !== null && b.inner.width < b.width - 1);
+    if (narrow.length === 0) bad(13, 'no table in the app run was narrower than the box it was given, so this arm read nothing');
+    for (const b of narrow) {
+      const off = Math.abs((b.left + b.right) / 2 - (b.inner.left + b.inner.right) / 2);
+      if (off > 1) bad(13, `a ${String(b.inner.width)}px table in a ${String(b.width)}px box is ${off.toFixed(1)}px off its box's axis`);
+      else notes.push(`a ${String(b.inner.width)}px table sits centred in the ${String(b.width)}px box the break-out gave it`);
+    }
+  }
+  const axisAblated = readings?.axisAblated ?? null;
+  if (axisAblated === null) bad(13, 'the app run recorded no corner ablation, so nothing shows the axis reading can fail');
+  else {
+    const cornered = axisAblated.blocks.filter((b) => b.kind === 'table' && b.depth === 0 && b.inner !== null && b.inner.width < b.width - 1 && b.inner.left < axisAblated.contentLeft - 100);
+    if (cornered.length === 0) bad(13, 'the centring taken off did NOT leave a narrow table left of the prose column, so the axis reading proves nothing');
+    else notes.push(`with the centring off, the narrow table is drawn ${String(Math.round(axisAblated.contentLeft - cornered[0].inner.left))}px left of the prose column`);
+  }
+
   // -- 10. NO COLOUR LITERAL ANYWHERE IN THIS STYLESHEET -------------------
   const literals = bodyText.match(/(?:#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|lab|lch|color)\()/g) ?? [];
   if (literals.length > 0) bad(10, `colour literal(s) in the stylesheet: ${literals.join(', ')}`);
@@ -370,10 +485,14 @@ const ABLATIONS = [
   ['the property moved onto the children', 6, (c) => c.replace(/\.md-content \{\n  --md-wide:/, '.md-content .md-table-scroll,\n.md-content pre {\n  --md-wide:')],
   ['the centring margin', 7, (c) => c.replace(/\n\s*margin-inline: calc\(\(100% - max\(100%, var\(--md-wide\)\)\) \/ 2\);/, '')],
   ['the max\\(100%, …\\) floor', 7, (c) => c.replace(/width: max\(100%, var\(--md-wide\)\);/, 'width: var(--md-wide);')],
-  ['the fence, taken off the rule', 2, (c) => c.replace(/\.md-content \.md-table-scroll,\n\.md-content pre \{\n  width: max/, '.md-content .md-table-scroll {\n  width: max')],
+  ['the fence, taken off the rule', 2, (c) => c.replace(/\.md-content > \.md-table-scroll,\n\.md-content > pre \{\n  width: max/, '.md-content > .md-table-scroll {\n  width: max')],
   ['the prose measure, widened with the block', 1, (c) => c.replace(/  max-width: 68ch;\n  margin-inline: auto;/, '  max-width: 136ch;\n  margin-inline: auto;')],
   ['the lifted thumb, put back to the shared one', 9, (c) => c.replace(/(\.md-table-scroll::-webkit-scrollbar-thumb \{\n  background-color: )var\(--text-muted\)/, '$1var(--border-strong)')],
-  ['the hover override', 9, (c) => c.replace(/\.md-table-scroll::-webkit-scrollbar-thumb:hover \{[\s\S]*?\n\}\n/, '')]
+  ['the hover override', 9, (c) => c.replace(/\.md-table-scroll::-webkit-scrollbar-thumb:hover \{[\s\S]*?\n\}\n/, '')],
+  ['the child combinator, made a descendant again', 11, (c) => c.replace(/\.md-content > \.md-table-scroll,\n\.md-content > pre \{/, '.md-content .md-table-scroll,\n.md-content pre {')],
+  ['the zoom division', 12, (c) => c.replace(/100cqi \/ var\(--zoom-editor, 1\)/, '100cqi')],
+  ['the zoom fallback', 12, (c) => c.replace(/var\(--zoom-editor, 1\)/, 'var(--zoom-editor)')],
+  ['the narrow table centring', 13, (c) => c.replace(/\.md-content > \.md-table-scroll > table \{\n  margin-inline: auto;\n\}\n/, '')]
 ];
 
 // ---------------------------------------------------------------------------
@@ -416,7 +535,7 @@ try {
 const bad = live.findings.length + ablationFailures;
 say('');
 if (bad === 0) {
-  say(`OK: the 68ch prose measure is untouched, the two children that already scroll break out of it up to twice the measure, the width term is the PANE and never the window, the cap is registered so it resolves once in the prose font, the block stays centred, ${String(Object.keys(readings?.widths ?? {}).length)} pane widths re-derived from the shipped expression agree with the DOM, the table box's thumb clears 3:1 on both bases, and ${String(ABLATIONS.length)} ablations each turned their own rule red.`);
+  say(`OK: the 68ch prose measure is untouched, the two children that already scroll break out of it up to twice the measure, the break-out reaches a DIRECT child alone so a block under a bullet cannot be centred on the bullet's box, the pane term is divided by the editor zoom so ⌘+ cannot multiply it twice, a table narrower than its box keeps the page's axis, the width term is the PANE and never the window, the cap is registered so it resolves once in the prose font, ${String(Object.keys(readings?.widths ?? {}).length)} pane widths re-derived from the shipped expression agree with the DOM, ${String(Object.keys(readings?.zoom ?? {}).length)} zoom levels and ${String(Object.keys(readings?.nested ?? {}).length)} nested readings were driven on the real chord and at three nesting levels, the table box's thumb clears 3:1 on both bases, and ${String(ABLATIONS.length)} ablations each turned their own rule red.`);
   process.exit(0);
 }
 say(`FAILED: ${String(live.findings.length)} live finding(s) and ${String(ablationFailures)} ablation(s) that proved nothing.`);

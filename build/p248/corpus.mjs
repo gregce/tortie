@@ -65,6 +65,7 @@ for (const rel of files) {
   const lines = text.split('\n');
   let inFence = false;
   let fenceMark = '';
+  let fenceIndent = 0;
   let fenceLang = '';
   let fenceLines = [];
   let fenceStart = 0;
@@ -74,6 +75,7 @@ for (const rel of files) {
     if (!inFence && open !== null) {
       inFence = true;
       fenceMark = open[1][0];
+      fenceIndent = /^\s*/.exec(line)?.[0].length ?? 0;
       fenceLang = open[2].trim();
       fenceLines = [];
       fenceStart = i + 1;
@@ -81,7 +83,7 @@ for (const rel of files) {
     }
     if (inFence) {
       if (new RegExp(`^\\s*\\${fenceMark}{3,}\\s*$`).test(line)) {
-        fences.push({ file: rel, line: fenceStart, lang: fenceLang, lines: fenceLines });
+        fences.push({ file: rel, line: fenceStart, lang: fenceLang, indent: fenceIndent, lines: fenceLines });
         inFence = false;
         continue;
       }
@@ -105,6 +107,7 @@ for (const rel of files) {
       tables.push({
         file: rel,
         line: i + 1,
+        indent: /^\s*/.exec(line)?.[0].length ?? 0,
         cols,
         rows: body.length,
         widestPerCol: widest,
@@ -144,6 +147,26 @@ say('WIDEST TEN TABLES:');
 for (const t of [...tables].sort((a, b) => b.sumChars - a.sumChars).slice(0, 10)) {
   say(`  ${String(t.sumChars).padStart(5)} chars  ${String(t.cols)}col x ${String(t.rows)}row  ${t.file}:${String(t.line)}`);
 }
+
+/**
+ * PHASE 248's FIX ROUND. HOW MANY OF THESE BLOCKS ARE NESTED, because the
+ * break-out is scoped to a DIRECT CHILD of `.md-content`: a block under a
+ * bullet or inside a quote has that box as its containing block, not the
+ * prose column, and a bleed computed from it walks off the pane. Indentation
+ * in the source is the proxy for that nesting, since a table or a fence that
+ * belongs to a list item has to be indented to the item's content column.
+ */
+const nestedTables = tables.filter((t) => t.indent > 0).length;
+const nestedFences = fences.filter((f) => f.indent > 0).length;
+say('');
+say('NESTING (indent > 0 in the source, so not a direct child of the document):');
+say(`  tables: ${String(nestedTables)} of ${String(tables.length)} (${((nestedTables / Math.max(1, tables.length)) * 100).toFixed(1)}%)`);
+say(`  fences: ${String(nestedFences)} of ${String(fences.length)} (${((nestedFences / Math.max(1, fences.length)) * 100).toFixed(1)}%)`);
+const byIndent = new Map();
+for (const t of tables) byIndent.set(t.indent, (byIndent.get(t.indent) ?? 0) + 1);
+for (const f of fences) byIndent.set(-f.indent - 1, (byIndent.get(-f.indent - 1) ?? 0) + 1);
+say(`  table indents: ${[...byIndent.keys()].filter((k) => k >= 0).sort((a, b) => a - b).map((k) => `${String(k)}sp:${String(byIndent.get(k))}`).join(' ')}`);
+say(`  fence indents: ${[...byIndent.keys()].filter((k) => k < 0).sort((a, b) => b - a).map((k) => `${String(-k - 1)}sp:${String(byIndent.get(k))}`).join(' ')}`);
 
 const codeLines = [];
 for (const f of fences) for (const l of f.lines) codeLines.push(l.replace(/\t/g, '  ').length);

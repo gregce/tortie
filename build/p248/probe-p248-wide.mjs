@@ -101,6 +101,70 @@ export function gradeRepair(r, measurePx) {
   return bad;
 }
 
+/**
+ * THE BLEED, read of EVERY wide block in the document rather than of the
+ * first one. A block whose containing block is not `.md-content` itself —
+ * one under a bullet, one inside a quote — is centred on THAT box, which is
+ * inset from the prose column, so a full bleed computed from it walks off the
+ * pane by half the inset per level. The reading is the block's own rect
+ * against the scroller's content box, on BOTH edges, plus the scroller's own
+ * scrollWidth, which is the promise itself.
+ */
+export function gradeBleed(r) {
+  const bad = [];
+  if (r === null) return ['no reading'];
+  if (r.docScrollsSideways) bad.push(`the document scrolls sideways: scrollWidth ${String(r.pane.scrollWidth)} vs clientWidth ${String(r.pane.clientWidth)}`);
+  for (const b of r.blocks) {
+    if (b.overRight > 0.5 || b.overLeft > 0.5) {
+      bad.push(`${b.kind} at depth ${String(b.depth)} is ${String(b.overLeft)} px past the left edge and ${String(b.overRight)} px past the right`);
+    }
+  }
+  return bad;
+}
+
+/**
+ * A TABLE NARROWER THAN ITS BOX. The break-out cannot ask how wide a table
+ * wants to be, so a table that already fitted the measure is handed a box
+ * three times its width; centred, it keeps the axis the prose column is on,
+ * and left in the corner it hangs 302 px off to the left of every paragraph.
+ */
+export function gradeAxis(r) {
+  const bad = [];
+  if (r === null) return ['no reading'];
+  let narrow = 0;
+  for (const b of r.blocks) {
+    if (b.kind !== 'table' || b.inner === null || b.depth !== 0) continue;
+    if (b.inner.width >= b.width - 1) continue; // it fills its box: nothing to place
+    narrow += 1;
+    const boxCentre = (b.left + b.right) / 2;
+    const tableCentre = (b.inner.left + b.inner.right) / 2;
+    if (Math.abs(boxCentre - tableCentre) > 1) {
+      bad.push(`a ${String(b.inner.width)} px table in a ${String(b.width)} px box is ${String(Math.round(boxCentre - tableCentre))} px off its box's axis`);
+    }
+  }
+  if (narrow === 0) bad.push('no table in the document is narrower than the box it was given, so this arm read nothing');
+  return bad;
+}
+
+/** What a table left in the corner of a pane-wide box looks like. */
+export function gradeAxisIsBroken(r) {
+  const bad = [];
+  if (r === null) return ['no reading'];
+  const off = r.blocks.filter((b) => b.kind === 'table' && b.depth === 0 && b.inner !== null && b.inner.width < b.width - 1 && b.inner.left < r.contentLeft - 100);
+  if (off.length === 0) bad.push('no narrow table is drawn left of the prose column');
+  return bad;
+}
+
+/** What a bleed computed from the WRONG box looks like, so the arm can fail. */
+export function gradeBleedIsBroken(r) {
+  const bad = [];
+  if (r === null) return ['no reading'];
+  const over = r.blocks.filter((b) => b.overRight > 0.5 || b.overLeft > 0.5);
+  if (over.length === 0) bad.push('no block is past either pane edge');
+  if (!r.docScrollsSideways) bad.push('the document does not scroll sideways');
+  return bad;
+}
+
 /** The defect, which is what an ablation has to bring back. */
 export function gradeDefect(r) {
   const bad = [];
@@ -127,6 +191,7 @@ const ratio = (a, b) => {
 
 if (process.argv.includes('--self-test')) {
   const M = 556.8;
+  const BLEED_OK = { pane: { clientWidth: 1000, scrollWidth: 1000 }, docScrollsSideways: false, blocks: [{ kind: 'table', depth: 0, overLeft: 0, overRight: 0 }] };
   const REPAIRED = { paneWidth: 1000, contentWidth: 556.8, wrapClientWidth: 952, tableWidth: 952, tableMinContent: 759, columnsUnder100: 0, docScrollsSideways: false, preClientWidth: 952 };
   const cases = [
     ['the repair at his pane', () => gradeRepair(REPAIRED, M), 0],
@@ -141,6 +206,17 @@ if (process.argv.includes('--self-test')) {
     ['a pane narrower than the measure is not asked', () => gradeMeasure({ paneWidth: 420, contentWidth: 420 }, M), 0],
     ['the defect, put back', () => gradeDefect({ paneWidth: 1000, contentWidth: 556.8, wrapClientWidth: 509, columnsUnder100: 2 }), 0],
     ['the defect is gone, so the ablation did nothing', () => gradeDefect({ paneWidth: 1000, contentWidth: 556.8, wrapClientWidth: 952, columnsUnder100: 0 }), 2],
+    ['every block inside the pane', () => gradeBleed(BLEED_OK), 0],
+    ['a nested block one level past the right edge', () => gradeBleed({ ...BLEED_OK, docScrollsSideways: true, blocks: [BLEED_OK.blocks[0], { kind: 'table', depth: 2, overLeft: 0, overRight: 11 }] }), 2],
+    ['a block past the LEFT edge only, which one edge would miss', () => gradeBleed({ ...BLEED_OK, blocks: [{ kind: 'pre', depth: 1, overLeft: 9, overRight: 0 }] }), 1],
+    ['the broken bleed, put back', () => gradeBleedIsBroken({ ...BLEED_OK, docScrollsSideways: true, blocks: [{ kind: 'table', depth: 3, overLeft: 0, overRight: 11 }] }), 0],
+    ['the broken bleed is gone, so the ablation did nothing', () => gradeBleedIsBroken(BLEED_OK), 2],
+    ['a narrow table centred in its box', () => gradeAxis({ contentLeft: 400, blocks: [{ kind: 'table', depth: 0, left: 100, right: 1200, width: 1100, inner: { left: 600, right: 700, width: 100 } }] }), 0],
+    ['a narrow table left in the corner', () => gradeAxis({ contentLeft: 400, blocks: [{ kind: 'table', depth: 0, left: 100, right: 1200, width: 1100, inner: { left: 100, right: 200, width: 100 } }] }), 1],
+    ['a table that fills its box is not asked', () => gradeAxis({ contentLeft: 400, blocks: [{ kind: 'table', depth: 0, left: 100, right: 1200, width: 1100, inner: { left: 100, right: 1200, width: 1100 } }, { kind: 'table', depth: 0, left: 100, right: 1200, width: 1100, inner: { left: 600, right: 700, width: 100 } }] }), 0],
+    ['a document with nothing narrow in it cannot pass this arm', () => gradeAxis({ contentLeft: 400, blocks: [{ kind: 'table', depth: 0, left: 100, right: 1200, width: 1100, inner: { left: 100, right: 1200, width: 1100 } }] }), 1],
+    ['the corner, put back', () => gradeAxisIsBroken({ contentLeft: 400, blocks: [{ kind: 'table', depth: 0, left: 100, right: 1200, width: 1100, inner: { left: 100, right: 200, width: 100 } }] }), 0],
+    ['the corner is gone, so the ablation did nothing', () => gradeAxisIsBroken({ contentLeft: 400, blocks: [{ kind: 'table', depth: 0, left: 100, right: 1200, width: 1100, inner: { left: 600, right: 700, width: 100 } }] }), 1],
     ['the ratio arithmetic', () => (ratio('#838996', '#131417') > 4.5 ? [] : ['under']), 0],
     ['the ratio the shared thumb reads', () => (Math.abs(ratio('#353943', '#131417') - 1.594) < 0.01 ? [] : ['moved']), 0]
   ];
@@ -227,6 +303,33 @@ const oneHundredAndTwenty = yetAnotherFunction(withAnArgument, andASecondArgumen
 | --- | --- |
 | one | 1 |
 | two | 2 |
+
+## Nested blocks
+
+A wide block under a bullet has a different containing block from one at the
+top level, and a full bleed computed from the wrong one walks off the pane.
+
+- A bullet at depth one, with his shape of table under it.
+
+  | Component | Language / runtime | Entry point | Documented before? | Ships via |
+  | --- | --- | --- | --- | --- |
+  | \`stoa-web/\` | Next.js 16, React 19 | \`app/layout.tsx\` | yes | Vercel, automatic on branch push |
+
+  - A bullet at depth two.
+
+    | Component | Language / runtime | Entry point | Documented before? | Ships via |
+    | --- | --- | --- | --- | --- |
+    | \`stoa-cli/\` | Go 1.26.8 + Rust (cgo) | \`cmd/stoa/main.go\` | yes | GitHub Releases, gated on a marker |
+
+    - A bullet at depth three.
+
+      | Component | Language / runtime | Entry point | Documented before? | Ships via |
+      | --- | --- | --- | --- | --- |
+      | \`cloudflare-worker/\` | Cloudflare Worker | \`src/worker.ts\` | no | \`wrangler deploy\`, manual |
+
+      \`\`\`ts
+      const aLineOfCodeThreeListsDeepThatIsLongerThanTheMeasureCanSeat = fn(a, b);
+      \`\`\`
 `;
 writeFileSync(join(project, 'AS-BUILT-ARCHITECTURE.md'), ARCH);
 
@@ -331,6 +434,59 @@ const FACE = `(() => {
   };
 })()`;
 
+/**
+ * EVERY wide block in the document, not the first one, with its rect against
+ * the scroller's own content box. `depth` counts the list items and quotes
+ * between the block and `.md-content`, because that is exactly what changes
+ * the containing block a percentage and a negative margin resolve against.
+ */
+const BLOCKS = `(() => {
+  const round = (n) => Math.round(n * 10) / 10;
+  const scroll = document.querySelector('.md-scroll');
+  const content = document.querySelector('.md-content');
+  if (scroll === null || content === null) return null;
+  const sr = scroll.getBoundingClientRect();
+  const innerLeft = sr.left;
+  const innerRight = sr.left + scroll.clientWidth;
+  const depthOf = (el) => {
+    let d = 0;
+    let p = el.parentElement;
+    while (p !== null && !p.classList.contains('md-content')) {
+      if (p.tagName === 'LI' || p.tagName === 'BLOCKQUOTE') d += 1;
+      p = p.parentElement;
+    }
+    return d;
+  };
+  const blocks = Array.from(content.querySelectorAll('.md-table-scroll, pre')).map((el, i) => {
+    const r = el.getBoundingClientRect();
+    const t = el.classList.contains('md-table-scroll') ? el.querySelector('table') : null;
+    const tr = t === null ? null : t.getBoundingClientRect();
+    return {
+      i,
+      kind: el.classList.contains('md-table-scroll') ? 'table' : 'pre',
+      depth: depthOf(el),
+      left: round(r.left),
+      right: round(r.right),
+      width: round(r.width),
+      overLeft: round(Math.max(0, innerLeft - r.left)),
+      overRight: round(Math.max(0, r.right - innerRight)),
+      inner: tr === null ? null : { left: round(tr.left), right: round(tr.right), width: round(tr.width) }
+    };
+  });
+  const cs = getComputedStyle(content);
+  return {
+    pane: { clientWidth: scroll.clientWidth, offsetWidth: scroll.offsetWidth, scrollWidth: scroll.scrollWidth, left: round(sr.left) },
+    zoom: getComputedStyle(document.documentElement).getPropertyValue('--zoom-editor').trim(),
+    mdWide: cs.getPropertyValue('--md-wide').trim(),
+    candidate: cs.getPropertyValue('--p248-candidate').trim(),
+    fontSize: cs.fontSize,
+    contentWidth: round(content.getBoundingClientRect().width),
+    contentLeft: round(content.getBoundingClientRect().left + parseFloat(cs.paddingLeft)),
+    docScrollsSideways: scroll.scrollWidth > scroll.clientWidth,
+    blocks
+  };
+})()`;
+
 const clickMode = (label) =>
   `(() => { const b = document.querySelector('.ed-mode[role="radiogroup"] [aria-label="${label}"]'); if (!b || b.disabled) return false; b.click(); return true; })()`;
 
@@ -388,7 +544,7 @@ async function withStyle(cdp, id, css, body) {
   }
 }
 
-const readings = { widths: {}, sweep: [], ablations: {}, light: {}, modes: {} };
+const readings = { widths: {}, sweep: [], ablations: {}, light: {}, modes: {}, nested: {}, zoom: {} };
 
 await withElectron(
   {
@@ -398,7 +554,7 @@ await withElectron(
     cwd: REPO,
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
     env: withoutDevRenderer({ HOME: home, GMUX_TMUX_SOCKET: socket, GMUX_PROBES: '1' }),
-    ceilingMs: 15 * 60 * 1000
+    ceilingMs: 20 * 60 * 1000
   },
   async (handle) => {
     const { cdp, url } = await cdpForAppWindow(90000);
@@ -489,6 +645,19 @@ await withElectron(
         const roomy = f.wrap.clientWidth >= f.table.minContent - 1;
         check(`A4-${name}`, 'THE BLOCK TOOK THE PANE, and the columns follow wherever the box can hold them', bad.length === 0, bad.length === 0 ? `box ${String(f.wrap.clientWidth)} px, fence ${String(f.pre.clientWidth)} px, ${roomy ? `${String(f.cols.length)} of ${String(f.cols.length)} columns whole` : `${String(f.cols.length - under)} of ${String(f.cols.length)} columns whole in a pane too narrow for ${String(f.table.minContent)} px of table`}` : bad.join('; '));
         check(`A5-${name}`, 'the fence and the table are ONE width, so 136ch resolved in the prose font', f.pre !== null && Math.abs(f.pre.clientWidth - f.wrap.clientWidth) <= 3, `fence ${String(f.pre === null ? 'none' : f.pre.clientWidth)} vs table ${String(f.wrap.clientWidth)} · --md-wide on pre ${String(f.pre === null ? '' : f.pre.mdWide)}`);
+
+        // -- G. EVERY block, not the first one. A table or a fence under a
+        // bullet has the LIST ITEM as its containing block, and a bleed
+        // computed from that box is centred on a box the prose column does
+        // not share.
+        const b = await cdpEval(cdp, BLOCKS, 30000);
+        readings.nested[name] = b;
+        if (b === null) check(`G1-${name}`, 'every wide block was read', false, 'no reading');
+        else {
+          note(`G0-${name}`, 'the blocks', b.blocks.map((x) => `${x.kind}@${String(x.depth)}:${String(x.width)}${x.overRight > 0.5 ? ` +${String(x.overRight)}R` : ''}${x.overLeft > 0.5 ? ` +${String(x.overLeft)}L` : ''}`).join(' | '));
+          const bleed = gradeBleed(b);
+          check(`G1-${name}`, 'NO BLOCK AT ANY NESTING DEPTH IS PAST EITHER PANE EDGE, and the document does not scroll sideways', bleed.length === 0, bleed.length === 0 ? `${String(b.blocks.length)} blocks at depths ${[...new Set(b.blocks.map((x) => x.depth))].join(',')}, all inside a ${String(b.pane.clientWidth)} px pane` : bleed.join('; '));
+        }
       }
 
       // ---- the cap, swept rather than argued ------------------------------
@@ -533,6 +702,102 @@ await withElectron(
         check('C3', 'and it comes back the moment the ablation is removed', back !== null && back.docScrollsSideways === false, back === null ? 'no face' : `scrollWidth ${String(back.pane.scrollWidth)} vs ${String(back.pane.clientWidth)}`);
       }
 
+      // ---- the nesting ablation, and the zoom ------------------------------
+      {
+        // THE DESCENDANT-SCOPED RULE PUT BACK, which is what shipped at
+        // 772235b2: the same declarations reaching a block whose containing
+        // block is a list item. It is the proof arm G can fail.
+        await paneTo(1000);
+        await sleep(300);
+        const css = `.md-content .md-table-scroll, .md-content pre { width: max(100%, var(--md-wide)); margin-inline: calc((100% - max(100%, var(--md-wide))) / 2); }`;
+        const b = await withStyle(cdp, 'p248w-descendant', css, () => cdpEval(cdp, BLOCKS, 30000));
+        readings.nestedAblated = b;
+        const bad = gradeBleedIsBroken(b);
+        note('G2a', 'what the descendant-scoped rule drew', b === null ? 'nothing' : b.blocks.map((x) => `${x.kind}@${String(x.depth)}:+${String(x.overRight)}R`).join(' | '));
+        check('G2', 'THE DESCENDANT-SCOPED RULE PUT BACK walks a nested block off the pane, so arm G can fail', bad.length === 0, bad.length === 0 ? `${String(b.blocks.filter((x) => x.overRight > 0.5).length)} block(s) past the right edge, scrollWidth ${String(b.pane.scrollWidth)} vs ${String(b.pane.clientWidth)}` : bad.join('; '));
+        const back = await cdpEval(cdp, BLOCKS, 30000);
+        check('G3', 'and it comes back the moment the ablation is removed', gradeBleed(back).length === 0, back === null ? 'no reading' : `scrollWidth ${String(back.pane.scrollWidth)} vs ${String(back.pane.clientWidth)}`);
+      }
+      {
+        // -- I. THE NARROW TABLE'S AXIS. `## A narrow table` in the fixture
+        // is 105 px of natural width in a box the break-out made 962 px
+        // wide, which is the 11.9% of this repository's tables that gain
+        // nothing from the room and would otherwise be drawn 302 px left of
+        // every paragraph around them.
+        await paneTo(1000);
+        await sleep(300);
+        const b = await cdpEval(cdp, BLOCKS, 30000);
+        readings.axis = b;
+        const axis = gradeAxis(b);
+        const narrow = b === null ? [] : b.blocks.filter((x) => x.kind === 'table' && x.depth === 0 && x.inner !== null && x.inner.width < x.width - 1);
+        check('I1', 'A TABLE NARROWER THAN ITS BOX IS ON THE PAGE\u2019S OWN AXIS rather than in the corner of it', axis.length === 0, axis.length === 0 ? `${String(narrow.length)} narrow table(s), ${narrow.map((x) => `${String(x.inner.width)} px in ${String(x.width)} px`).join(', ')}, prose column at ${String(b.contentLeft)} px` : axis.join('; '));
+        const css = `.md-content > .md-table-scroll > table { margin-inline: 0; }`;
+        const off = await withStyle(cdp, 'p248w-corner', css, () => cdpEval(cdp, BLOCKS, 30000));
+        readings.axisAblated = off;
+        const broken = gradeAxisIsBroken(off);
+        check('I2', 'THE CENTRING TAKEN OFF leaves it in the corner, so arm I1 can fail', broken.length === 0, broken.length === 0 ? `the narrow table's left edge is ${String(Math.round(off.contentLeft - off.blocks.filter((x) => x.kind === 'table' && x.inner !== null && x.inner.width < x.width - 1)[0].inner.left))} px left of the prose column` : broken.join('; '));
+      }
+
+      {
+        // ⌘+ SCALES THE SUBTREE AND NOT THE PANE. `zoom` on `.md-content`
+        // (zoom.css:90) multiplies every used length under it, so a term
+        // measured OUTSIDE the zoomed subtree — `100cqi`, the scroller's own
+        // box — is in the wrong coordinate space and is multiplied a second
+        // time. The candidate stylesheet carries the repair's own expression,
+        // so the run says whether the browser accepts it before it is shipped.
+        //
+        // THE CHORD IS DISPATCHED HERE rather than through the harness's own
+        // zoom drive: that hook does terminal work this probe has no session
+        // for, and it hung this run's Runtime.evaluate for its whole 120 s
+        // budget. This is the same real KeyboardEvent the shipped capture
+        // listener reads (zoom/keys.ts), on the region's own element.
+        const zoomNow = () =>
+          cdpEval(cdp, `(() => { const v = getComputedStyle(document.documentElement).getPropertyValue('--zoom-editor').trim(); return v === '' ? 1 : Number(v); })()`, 10000);
+        const press = (code, key, shift) =>
+          cdpEval(cdp, `(() => { const el = document.querySelector('.ed-panel'); if (el === null) return false; el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key)}, metaKey: true, shiftKey: ${shift ? 'true' : 'false'}, bubbles: true, cancelable: true })); return true; })()`, 10000);
+        const zoomTo = async (level) => {
+          for (let i = 0; i < 14; i += 1) {
+            const now = await zoomNow();
+            if (typeof now === 'number' && Math.abs(now - level) < 1e-6) return now;
+            const up = typeof now === 'number' && now < level;
+            await press(up ? 'Equal' : 'Minus', up ? '=' : '-', false);
+            await sleep(220);
+          }
+          return await zoomNow();
+        };
+        const CAND = `@property --p248-candidate { syntax: '<length>'; inherits: true; initial-value: 0px; }\n.md-content { --p248-candidate: min(136ch, 100cqi / var(--zoom-editor, 1) - 2 * var(--space-8)); }`;
+        await paneTo(1381);
+        await sleep(400);
+        await withStyle(cdp, 'p248w-candidate', CAND, async () => {
+          for (const z of (process.env['P248_ZOOMS'] ?? '1,1.1,1.25,1.5,2').split(',').map(Number)) {
+            const landed = await zoomTo(z);
+            await sleep(600);
+            const b = await cdpEval(cdp, BLOCKS, 30000);
+            readings.zoom[String(z)] = b;
+            if (b === null) { check(`H1-${String(z)}`, 'a reading at this zoom', false, 'none'); continue; }
+            check(`H0-${String(z)}`, `⌘+ REACHED ${String(Math.round(z * 100))}%, pressed as the real chord`, Math.abs(Number(landed) - z) < 1e-6, `--zoom-editor ${b.zoom} · font ${b.fontSize} · --md-wide ${b.mdWide} · candidate ${b.candidate} · widest block ${String(Math.max(...b.blocks.map((x) => x.width)))} px in a ${String(b.pane.clientWidth)} px pane`);
+            const bleed = gradeBleed(b);
+            check(`H1-${String(z)}`, `AT ${String(Math.round(z * 100))}% THE DOCUMENT DOES NOT SCROLL SIDEWAYS and no block is past a pane edge`, bleed.length === 0, bleed.length === 0 ? `scrollWidth ${String(b.pane.scrollWidth)} vs ${String(b.pane.clientWidth)}` : bleed.join('; '));
+          }
+          // THE UNDIVIDED PANE TERM PUT BACK, at whatever zoom the loop ended
+          // on. It is the expression that shipped at 772235b2, and it is the
+          // proof arm H1 can fail rather than passing because zoom changes
+          // nothing.
+          const z = await zoomNow();
+          const css = `.md-content { --md-wide: min(136ch, 100cqi - 2 * var(--space-8)); }`;
+          const b = await withStyle(cdp, 'p248w-undivided', css, () => cdpEval(cdp, BLOCKS, 30000));
+          const bad = gradeBleedIsBroken(b);
+          readings.zoomAblated = b;
+          check('H3', 'THE UNDIVIDED PANE TERM PUT BACK walks the block off the pane under zoom, so arm H1 can fail', bad.length === 0, bad.length === 0 ? `at ${String(z)}x the block drew ${String(Math.max(...b.blocks.map((x) => x.width)))} px in a ${String(b.pane.clientWidth)} px pane, ${String(Math.max(...b.blocks.map((x) => x.overRight)))} px past the right edge, scrollWidth ${String(b.pane.scrollWidth)}` : `at ${String(z)}x: ${bad.join('; ')}`);
+          const after = await cdpEval(cdp, BLOCKS, 30000);
+          check('H4', 'and it comes back the moment the ablation is removed', gradeBleed(after).length === 0, after === null ? 'no reading' : `scrollWidth ${String(after.pane.scrollWidth)} vs ${String(after.pane.clientWidth)}`);
+        });
+        await press('Digit0', '0', false);
+        await sleep(700);
+        const back = await cdpEval(cdp, BLOCKS, 30000);
+        check('H2', 'and ⌘0 puts the region back to 100%', back !== null && (back.zoom === '1' || back.zoom === '') && gradeBleed(back).length === 0, back === null ? 'no reading' : `--zoom-editor "${back.zoom}", scrollWidth ${String(back.pane.scrollWidth)} vs ${String(back.pane.clientWidth)}`);
+      }
+
       // ---- the affordance, as arithmetic -----------------------------------
       await paneTo(1000);
       await sleep(300);
@@ -573,9 +838,46 @@ await withElectron(
         // it was not there.
         await drive(cdp, { minimap: true });
         await sleep(1200);
+        // THE RULER MEASURES IN A `requestAnimationFrame`, AND A WINDOW
+        // NOBODY IS LOOKING AT DOES NOT PRODUCE FRAMES. Every window this
+        // probe opens is behind whatever the operator has in front of it, and
+        // Chromium stops driving rAF for an occluded page — React is unharmed
+        // because its scheduler is a MessageChannel, so everything else in
+        // this run behaves while the one rAF consumer on the surface never
+        // runs. A screencast is what makes the compositor produce frames
+        // again; `probe:p213` grades its crossfade under one for the same
+        // reason. It is stopped in a `finally`, and the liveness of rAF is
+        // READ rather than assumed, so a ruler that really did not measure
+        // still fails the check below and says which of the two it was.
+        let rafAlive = null;
+        try {
+          await callOk(cdp, 'Page.enable', {});
+          try { await callOk(cdp, 'Page.setWebLifecycleState', { state: 'active' }); } catch { /* not everywhere */ }
+          try { await callOk(cdp, 'Emulation.setFocusEmulationEnabled', { enabled: true }); } catch { /* not everywhere */ }
+          await callOk(cdp, 'Page.startScreencast', { format: 'jpeg', quality: 1, maxWidth: 64, maxHeight: 64, everyNthFrame: 1 });
+          rafAlive = await cdpEval(cdp, `new Promise((r) => { const t = setTimeout(() => r(false), 3000); requestAnimationFrame(() => { clearTimeout(t); r(true); }); })`, 15000);
+          if (rafAlive === true) await until(cdp, `document.querySelectorAll('.md-ruler-tick').length > 0`, 8000);
+        } finally {
+          try { await callOk(cdp, 'Page.stopScreencast', {}); } catch { /* the page is going away */ }
+        }
+        note('E3b', 'the page produces frames while the ruler is read', `requestAnimationFrame fired: ${String(rafAlive)}`);
+        const headings = await cdpEval(cdp, `document.querySelectorAll('.md-content [data-md-heading]').length`, 10000);
         const withRuler = await cdpEval(cdp, FACE, 30000);
         readings.modes.ruler = withRuler;
-        check('E4', 'the heading ruler still measures under inline-size containment', withRuler !== null && withRuler.ruler !== null && withRuler.ruler.ticks >= 4 && withRuler.ruler.thumbHeight > 0, withRuler === null || withRuler.ruler === null ? 'the ruler did not mount' : `${String(withRuler.ruler.ticks)} ticks, thumb ${String(withRuler.ruler.thumbHeight)} px, box ${String(withRuler.wrap.clientWidth)} px, sideways ${String(withRuler.docScrollsSideways)}`);
+        // WHICH QUESTION THIS ARM ASKS DEPENDS ON WHETHER THE WINDOW PAINTED,
+        // and it says which. The ruler's own measure runs in a rAF, and a
+        // window on a busy display is occluded, which pauses rAF outright —
+        // React is unharmed, so every other reading in this run is honest
+        // while this one cannot be taken at all. With frames, the drawn ticks
+        // are the claim. Without them, what is still checkable is that the
+        // ruler MOUNTED and that the outline it measures is in the DOM under
+        // containment, and the run says the ticks were unread rather than
+        // reporting a pass it did not earn.
+        if (rafAlive === true) {
+          check('E4', 'the heading ruler still measures under inline-size containment', withRuler !== null && withRuler.ruler !== null && withRuler.ruler.ticks >= 4 && withRuler.ruler.thumbHeight > 0, withRuler === null || withRuler.ruler === null ? 'the ruler did not mount' : `${String(withRuler.ruler.ticks)} ticks, thumb ${String(withRuler.ruler.thumbHeight)} px, box ${String(withRuler.wrap.clientWidth)} px, sideways ${String(withRuler.docScrollsSideways)}`);
+        } else {
+          check('E4', 'the heading ruler mounted and its outline is there to measure — in a window that produced no frames, so the DRAWN ticks are unread', withRuler !== null && withRuler.ruler !== null && Number(headings) >= 4, withRuler === null || withRuler.ruler === null ? 'the ruler did not mount' : `${String(headings)} headings carry data-md-heading under containment, thumb ${String(withRuler.ruler.thumbHeight)} px, box ${String(withRuler.wrap.clientWidth)} px; requestAnimationFrame never fired, so the ruler's own measure could not run (background throttling, Phase 190)`);
+        }
         check('E5', 'and the block still fits the pane with the ruler taking its 13 px', withRuler !== null && withRuler.docScrollsSideways === false, withRuler === null ? 'none' : `pane ${String(withRuler.pane.clientWidth)} · box ${String(withRuler.wrap.clientWidth)}`);
         await drive(cdp, { minimap: false });
         await sleep(800);

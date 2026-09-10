@@ -240,7 +240,18 @@
    property substitutes as text, so `136ch` inside `pre` would resolve against
    `--font-editor` and cap the fence at 981px against the table's 1,114px
    (§4). Registered as a `<length>` it computes ONCE, here, in the prose font,
-   and inherits as a length. The two blocks are meant to be one width. */
+   and inherits as a length. The two blocks are meant to be one width.
+
+   `100cqi` IS THE ONE TERM MEASURED OUTSIDE THE SUBTREE IT IS USED IN, and
+   that is why it is divided by the zoom (§7, the Phase 248 fix round).
+   `zoom.css` scales `.md-content` with CSS `zoom`, which multiplies every
+   used length under it — including this one, which was already the pane's
+   full width and is therefore multiplied a second time. Two presses of ⌘+ on
+   an ordinary top-level table drew a 1,392px block in a 1,381px pane and
+   scrolled the document sideways; at 200% it drew 2,227px. `ch` and
+   `--space-8` are computed INSIDE the subtree and are deliberately left
+   alone, so the block's own gutter grows with the text the way the prose
+   column's padding does. */
 @property --md-wide {
   syntax: '<length>';
   inherits: true;
@@ -248,7 +259,7 @@
 }
 
 .md-content {
-  --md-wide: min(136ch, 100cqi - 2 * var(--space-8));
+  --md-wide: min(136ch, 100cqi / var(--zoom-editor, 1) - 2 * var(--space-8));
 }
 
 /* `max(100%, …)` so a wide block is never NARROWER than the measure, and the
@@ -257,16 +268,50 @@
    would have taken the measure with it; this cannot, because `.md-content` is
    not what it names.
 
+   A DIRECT CHILD, AND THAT IS THE WHOLE OF IT (Phase 248's fix round). Both
+   halves of this rule are resolved against the block's CONTAINING BLOCK, and
+   for a block under a bullet that is the list item, which `.md-content ul`
+   insets by `--space-7` a level. The centre therefore moves 10px right per
+   level while the whole gutter is 19px, so a table under a sub-bullet drew
+   11px past the pane and scrolled the document sideways — the one thing this
+   surface promises never happens. A `>` is the only spelling that says "the
+   containing block IS the prose column", which is the assumption the
+   arithmetic below makes. It costs 3 of this repository's 1,910 tables and 11
+   of its 814 fences the extra room; they keep the scroller they have.
+
    THE GUTTER IS 19px AT REST AND 24px WITH THE HEADING RULER UP, measured
    rather than intended: Chromium's `cqi` is the scroller's box INCLUDING its
    own 10px scrollbar gutter, so the block is `pane - 38` while a vertical bar
    is drawn and `pane - 48` when the ruler takes the bar away. Both are
-   gutters and neither can go negative, which is why the document does not
-   scroll sideways at any pane. */
-.md-content .md-table-scroll,
-.md-content pre {
+   gutters, and at 100% neither can go negative. Under zoom the gutter is
+   `48 × zoom - the bar`, which is 13px at the ladder's own floor of 75% and
+   grows from there, so it cannot go negative on any stop the chord reaches
+   either. */
+.md-content > .md-table-scroll,
+.md-content > pre {
   width: max(100%, var(--md-wide));
   margin-inline: calc((100% - max(100%, var(--md-wide))) / 2);
+}
+
+/* A TABLE NARROWER THAN THE BOX IT WAS GIVEN KEEPS THE PAGE'S OWN AXIS. The
+   break-out above is unconditional, because CSS cannot ask how wide a table
+   wants to be before it gives it the room — and 226 of this repository's
+   1,900 tables (11.9%) are already drawn at their natural width inside the
+   measure, so the room buys them nothing and the box's left edge alone would
+   put them 227px to the left of every paragraph around them at his own
+   1,000px pane, and 302px at the cap — both measured. Centred, they
+   sit on the same axis as the prose column, which is itself centred in the
+   pane. A table WIDER than its box is untouched: auto margins are treated as
+   zero when the element overflows its containing block (CSS 2.1 §10.3.3), so
+   it still starts at the left edge and scrolls from there. The 1,117 tables
+   (58.8%) that filled the old box and wrapped are untouched too — they are
+   exactly as wide as the box either way, and the room is what they gain.
+
+   The fence is deliberately not shrink-wrapped: its box IS its background,
+   it has always painted the full column, and 74.5% of them hold a line too
+   long for the old one. */
+.md-content > .md-table-scroll > table {
+  margin-inline: auto;
 }
 
 /* ---------------------------------------------------------------------------
