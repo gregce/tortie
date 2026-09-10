@@ -82,6 +82,26 @@
  *      the string index, so a run where the decoration did not land could not
  *      read as a pass.
  *
+ * ## TWO INSTRUMENTS PER PRESS, and the fix round added the second one
+ *
+ * Every arm above reads what OPENED, and that single answer cannot tell a
+ * press that MISSED the link from a door that REFUSED the file: both read as
+ * no tab and no record line. Driven three times on 2026-09-09 this probe
+ * passed once. One run left an editor tab open for its whole length and ran
+ * arms B to K against a pane 78 columns wide instead of 144, reporting twelve
+ * findings none of which said so; another pressed row 23 for a marker the
+ * passing run read at 24 and reported "F the path's FIRST cell opens it: []"
+ * against a build whose link was exactly right.
+ *
+ * So there are two now. `closeAllTabs` asks tmux as well as the DOM and
+ * RETURNS its answer, `stage` reads the marked row again after the geometry
+ * round trip and presses only a row that has not moved, and `pressCell` reads
+ * `xterm-cursor-pointer` — xterm's own hover decoration — after the move and
+ * before the click. Every arm grades that beside what opened, so refusal 2's
+ * promise that a path no door accepts is never underlined is a reading rather
+ * than a sentence, and a run that could not press what it meant to press says
+ * that instead of reporting the product broken.
+ *
  * WHICH CELL IS WHICH IS ANSWERED BY tmux AND NOT BY THIS SCRIPT. `capture-pane`
  * prints the rows the pane really holds, so the row and column of a path are
  * read from the terminal's own server rather than counted here, and xterm's own
@@ -394,11 +414,18 @@ const WARNED_HEAD = write('warned-head.md', '# pressed at the first cell\n');
 const WARNED_PAST = write('warned-past.md', '# pressed one cell past the end\n');
 
 /** marker -> the path its row names. The marker is what tells the rows apart. */
+/**
+ * marker -> the path its row names, and whether a LINK is drawn on it at all.
+ *
+ * The last column is the fix round's second instrument: research 107 refusal 2
+ * is that a path no door accepts is never underlined, so a refused kind must
+ * read `false` here and an accepted one `true`, whatever opens. See `ON_LINK`.
+ */
 const ARMS = [
-  ['A', 'mkA', NOTES, 'a file Tortie draws'],
-  ['B', 'mkB', PAPER, 'the one kind the Mac draws'],
-  ['C', 'mkC', RUNNER, 'an executable'],
-  ['D', 'mkD', NPMRC, 'a credential by name']
+  ['A', 'mkA', NOTES, 'a file Tortie draws', true],
+  ['B', 'mkB', PAPER, 'the one kind the Mac draws', true],
+  ['C', 'mkC', RUNNER, 'an executable', false],
+  ['D', 'mkD', NPMRC, 'a credential by name', false]
 ];
 
 /**
@@ -581,16 +608,115 @@ const drive = (cdp, spec) =>
  *
  * So the rows are read until two consecutive reads AGREE, which is what says
  * the reflow has landed rather than that enough milliseconds have passed.
+ *
+ * THE PANE'S SIZE IS PART OF WHAT HAS TO HOLD STILL (the fix round). The rows
+ * alone can read equal across a resize that has not reached tmux's grid yet,
+ * and the cell a press computes is `screen width / pane width`, so a size read
+ * a moment later than the rows describes a different pane from the one the row
+ * index came out of. Both are read in the same breath and compared together.
  */
+function paneSize(pane) {
+  const line = tmux('list-panes', '-a', '-F', '#{pane_id} #{pane_width} #{pane_height}')
+    .split('\n')
+    .find((l) => l.startsWith(`${pane} `));
+  return line ?? '';
+}
+
 async function settledCapture(pane) {
-  let last = capture(pane).join('\n');
+  let last = `${paneSize(pane)}\n${capture(pane).join('\n')}`;
   for (let i = 0; i < 8; i += 1) {
     await sleep(500);
-    const now = capture(pane).join('\n');
-    if (now === last) return now.split('\n');
+    const now = `${paneSize(pane)}\n${capture(pane).join('\n')}`;
+    if (now === last) return now.split('\n').slice(1);
     last = now;
   }
-  return last.split('\n');
+  return last.split('\n').slice(1);
+}
+
+/**
+ * WHICH SCREEN ROW THE TERMINAL IS DRAWING A CAPTURED ROW ON (the fix round).
+ *
+ * `capture-pane` is tmux's grid and the coordinates a press uses are xterm's
+ * viewport, and the two are not always the same row. Measured over six runs on
+ * 2026-09-09 they agreed on every row of four runs and disagreed on two, and
+ * not by a constant: in one of them arms at captured rows 1 to 13 pressed
+ * their links and the arms at 15 and 23 pressed nothing at all, with the pane
+ * 144 columns wide at every one of them and the capture settled and re-read.
+ * A reflow lands in tmux's grid and in the app's terminal at its own pace, and
+ * a row index is only as good as the moment it names.
+ *
+ * So the row is ASKED OF THE TERMINAL. The pointer is moved down the middle of
+ * the span over a window of seven rows around the captured one and
+ * `xterm-cursor-pointer` says which of them the link is really on. It cannot
+ * beg the question either arm F or arms C, D, J and K ask: the sweep uses the
+ * MIDDLE of the span, which is inside the link under any build that draws one
+ * at all, while what those arms grade is a cell at its edge or a link that
+ * must not exist.
+ *
+ * `null` means no row in the window carries a link, which for an arm that
+ * expects one is a finding naming exactly that, and never "the file did not
+ * open".
+ */
+/**
+ * THE SCREEN ROW FOR ONE ARM, and the control that stops the answer being free.
+ *
+ * An arm that EXPECTS a link asks about its own row: the sweep either finds it
+ * or the arm says no row within three carries a link. An arm that expects NO
+ * link has nothing of its own to sweep, so the stage is calibrated on arm A's
+ * row — a file Tortie always draws — and the same offset is applied. That
+ * control is what stops those arms passing by pressing an empty line: a stage
+ * whose mapping cannot be demonstrated at all is a finding rather than four
+ * quiet zeroes.
+ */
+async function screenRowFor(cdp, geo, rows, cell, wantLink) {
+  if (wantLink) {
+    const found = await rowOnScreen(cdp, geo, cell.row, cell.col, cell.width);
+    return found === null
+      ? { why: 'no row within three of the captured one carries a link at all' }
+      : { row: found, offset: found - cell.row };
+  }
+  const anchor = cellOf(rows, 'mkA', NOTES);
+  if (anchor === null) return { why: 'the calibration row was not in the pane, so the mapping could not be shown to work' };
+  const found = await rowOnScreen(cdp, geo, anchor.row, anchor.col, anchor.width);
+  if (found === null) {
+    return { why: 'the calibration row carries no link either, so this stage cannot tell a refused span from a missed cell' };
+  }
+  return { row: cell.row + (found - anchor.row), offset: found - anchor.row };
+}
+
+async function rowOnScreen(cdp, geo, row, col, width) {
+  // THE WINDOW IS FORWARD ONLY, AND BOTH HALVES OF THAT ARE MEASURED.
+  //
+  // The drift is forward: in the two disagreeing runs the capture read 23 for
+  // a marker the agreeing runs read at 24, so the capture LAGS and the row on
+  // screen is at or below the index it names.
+  //
+  // And a backward window is not merely unnecessary, it is wrong. Every line
+  // in this transcript used to be typed with `send-keys`, so the row directly
+  // ABOVE each marker's output was the shell ECHOING the command — the SAME
+  // path, linkified in exactly the same way. `cellOf` skips it by insisting
+  // the marker opens the row; a sweep has no text to read, so a window
+  // reaching -1 found the echo and pressed a row this probe does not grade,
+  // which is what arm B did on 2026-09-09. The transcript is one `cat` now and
+  // no command line carries a marker's path, but the window stays forward.
+  //
+  // AND IT IS TWO ROWS WIDE AND NOT FOUR. Markers sit two rows apart with a
+  // BLANK between them, so d=0 and d=+1 can only ever be this marker or the
+  // blank above it; a wider window would reach the marker BEFORE this one,
+  // which is a link, and would press the wrong file quietly. A drift of two
+  // rows has never been read, and if one ever is, the arm's own answer — the
+  // wrong file opening — is what says so.
+  for (const d of [0, 1]) {
+    if (row + d < 0) continue;
+    await cdp.call('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: geo.left + (col + width / 2) * geo.cellW,
+      y: geo.top + (row + d + 0.5) * geo.cellH
+    });
+    await sleep(450);
+    if ((await cdpEval(cdp, ON_LINK, 10000)) === true) return row + d;
+  }
+  return null;
 }
 
 async function parkPointer(cdp, geo, awayFrom) {
@@ -603,11 +729,34 @@ async function parkPointer(cdp, geo, awayFrom) {
   await sleep(400);
 }
 
+/**
+ * WHETHER THE TERMINAL ITSELF THINKS THE POINTER IS ON A LINK (the fix round).
+ *
+ * Every arm below reads what OPENED, and that answer cannot tell a cell that
+ * missed the link from a door that refused the file: both read as no tab and
+ * no record line. On 2026-09-09 that cost a whole run — arm F reported "the
+ * path's FIRST cell opens it: [] want [warned-head.md]" against a build whose
+ * link was exactly right, because the row index it pressed had moved. A false
+ * red and a false green are the same defect seen from two sides.
+ *
+ * xterm answers the question itself. `Linkifier._linkHover` adds
+ * `xterm-cursor-pointer` to the terminal's own element while the pointer is
+ * over a link, and takes it off again in `_linkLeave`; the decoration defaults
+ * to on, which `@xterm/xterm` 6.0.0 spells
+ * `pointerCursor: void 0 === link.decorations || link.decorations.pointerCursor`
+ * and which this provider never overrides. So it is read AFTER the move and
+ * BEFORE the click, and it is a second instrument rather than a restatement:
+ * the arms grade it beside what opened, so a miss says "the pointer was not
+ * over a link" and a refusal says "it was, and nothing opened".
+ */
+const ON_LINK = `document.querySelector('.xterm-cursor-pointer') !== null`;
+
 async function pressCell(cdp, geo, row, col, width) {
   const x = geo.left + (col + width / 2) * geo.cellW;
   const y = geo.top + (row + 0.5) * geo.cellH;
   await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
   await sleep(1200);
+  const onLink = (await cdpEval(cdp, ON_LINK, 10000)) === true;
   await cdp.call('Input.dispatchMouseEvent', {
     type: 'mousePressed', x, y, button: 'left', clickCount: 1
   });
@@ -615,7 +764,7 @@ async function pressCell(cdp, geo, row, col, width) {
     type: 'mouseReleased', x, y, button: 'left', clickCount: 1
   });
   await sleep(2200);
-  return { x, y };
+  return { x, y, onLink };
 }
 
 /**
@@ -636,27 +785,97 @@ async function pressCell(cdp, geo, row, col, width) {
  * So each arm starts from an empty tab strip, and re-reads the geometry and
  * the rows for itself.
  */
-async function closeAllTabs(cdp) {
-  for (let i = 0; i < 12; i += 1) {
+/**
+ * IT IS NOT ENOUGH TO CLICK THE CLOSE BUTTONS (the fix round).
+ *
+ * As it shipped this asked the DOM alone and told nobody when the answer was
+ * no. Driven three times on 2026-09-09 it left a tab open for the whole of one
+ * run: arm A opened `notes.md` at 144 columns, the strip never emptied, and
+ * arms B through K ran against a pane 78 columns wide where every long path
+ * wraps. That run reported TWELVE findings — "the marked row was not in the
+ * pane" four times over — and not one of them said the pane was half its
+ * width, which is the only thing that had gone wrong.
+ *
+ * So the question is asked of tmux as well as of the DOM, and the answer is
+ * returned rather than assumed: the strip must be empty AND the pane must be
+ * back at the width it had with no tab open, both read twice in a row. An arm
+ * handed `false` says so and presses nothing, which is one honest finding in
+ * place of twelve misleading ones.
+ */
+async function closeAllTabs(cdp, pane, fullCols) {
+  let agreed = 0;
+  let last = 'nothing was read';
+  for (let i = 0; i < 60; i += 1) {
     const empty = await cdpEval(
       cdp,
-      `(() => { const b = document.querySelector('.ed-tab-close'); if (b) b.click(); return document.querySelectorAll('.ed-tab').length === 0; })()`,
+      `(() => { const b = document.querySelector('.ed-tab-close'); if (b) b.click(); return document.querySelectorAll('.ed-tab').length; })()`,
       10000
     );
-    if (empty === true) break;
-    await sleep(250);
+    const cols = Number.parseInt(paneSize(pane).split(' ')[1] ?? '', 10);
+    last = `${String(empty)} tab(s) and ${String(cols)} columns`;
+    // The pane has to be told it is wide again, and tmux has to reflow it, so
+    // the two facts have to agree TWICE — once is a reading taken mid-resize.
+    if (empty === 0 && cols === fullCols) {
+      agreed += 1;
+      if (agreed === 2) {
+        await sleep(1000);
+        return { ok: true, last };
+      }
+    } else {
+      agreed = 0;
+    }
+    await sleep(300);
   }
-  // The pane has to be told it is wide again, and tmux has to reflow it.
-  await sleep(1500);
+  return { ok: false, last };
+}
+
+/**
+ * THE STAGE EVERY ARM PRESSES FROM, AND WHY IT IS ONE FUNCTION (the fix round).
+ *
+ * Four arm families repeated the same four lines — close the tabs, settle the
+ * capture, read the geometry, find the marked row — and every one of them then
+ * pressed a row index that nothing had checked was still there. The geometry
+ * read sits BETWEEN the capture and the press and is two round trips of its
+ * own, and a reflow landing in that window moves the row under the pointer:
+ * measured on 2026-09-09, one run of three pressed row 23 for a marker that
+ * the passing runs read at 24, and reported the file as unopenable.
+ *
+ * So the row is read, the geometry is taken, and the row is read AGAIN, and
+ * only a row that answers the same twice is pressed. A row that will not hold
+ * still after three tries is a named finding rather than a press into the
+ * wrong line — which is the difference between a check that failed and a check
+ * that cannot fail.
+ */
+async function stage(cdp, pane, fullCols, find, what) {
+  const closed = await closeAllTabs(cdp, pane, fullCols);
+  if (!closed.ok) {
+    return {
+      why: `the pane never came back to an empty strip at ${String(fullCols)} columns (last read ${closed.last}), so ${what} was not pressed`
+    };
+  }
+  let moved = '';
+  for (let i = 0; i < 3; i += 1) {
+    const rowsA = await settledCapture(pane);
+    const geo = await geometryNow(cdp, pane);
+    if (geo === null) {
+      return { why: `the terminal geometry could not be read, so ${what} was not pressed` };
+    }
+    const cellA = find(rowsA);
+    if (cellA === null) {
+      return { why: `the marked row for ${what} was not in the pane, so nothing was pressed`, rows: rowsA, geo };
+    }
+    const rowsB = await settledCapture(pane);
+    const cellB = find(rowsB);
+    if (cellB !== null && cellB.row === cellA.row) return { rows: rowsB, geo, cell: cellB };
+    moved = `${String(cellA.row)} and then ${cellB === null ? 'nowhere' : String(cellB.row)}`;
+  }
+  return { why: `the pane would not hold still for ${what}: the marked row read ${moved}` };
 }
 
 /** The pane's geometry AS IT IS NOW, from the DOM and from tmux together. */
 async function geometryNow(cdp, pane) {
   const screen = await cdpEval(cdp, SCREEN, 10000);
-  const line = tmux('list-panes', '-a', '-F', '#{pane_id} #{pane_width} #{pane_height}')
-    .split('\n')
-    .find((l) => l.startsWith(`${pane} `));
-  const size = (line ?? '').split(' ').slice(1).map((n) => Number.parseInt(n, 10));
+  const size = paneSize(pane).split(' ').slice(1).map((n) => Number.parseInt(n, 10));
   if (screen === null || !Number.isFinite(size[0]) || size[0] <= 0) return null;
   return {
     left: screen.left,
@@ -708,34 +927,43 @@ await withElectron(
 
       // THE TRANSCRIPT IS WRITTEN THROUGH tmux ITSELF, into the real pane of
       // the real session, which is what an agent printing a path is. It goes
-      // through `send-keys` rather than the harness drive so that this run
-      // depends on the pty and not on a renderer helper.
+      // through the pty rather than the harness drive so that this run depends
+      // on the terminal and not on a renderer helper.
+      //
+      // ONE `cat` AND NOT TWELVE `echo`s (the fix round), and the reason is the
+      // sweep in `rowOnScreen` rather than tidiness. A line typed with
+      // `send-keys` is ECHOED by the shell before it runs, so every marker row
+      // had a row directly above it carrying the SAME path — a second link, on
+      // a row `cellOf` deliberately skips and a sweep cannot tell apart. Driven
+      // with a window that reached backwards on 2026-09-09, arm B swept onto
+      // the echoed command's row and pressed a cell with no link on it at all.
+      //
+      // So the lines are written to a file and printed with one command. The
+      // only path on a command line is the file's own, which no marker names,
+      // and A BLANK LINE BETWEEN EVERY TWO MARKERS leaves the sweep a row that
+      // carries no link either way. What reaches the pty is unchanged: these
+      // are the same bytes an agent would have printed.
       const pane = paneIdOf(SESSION);
       if (pane === null) throw new Error('the session this run created has no pane');
       say(`the pane is ${pane}: ${tmux('list-panes', '-a', '-F', '#{session_name} #{pane_id} #{pane_width}x#{pane_height} dead=#{pane_dead}')}`);
-      for (const [, marker, path] of [...ARMS, ['E', WRAPPED_MARK, WRAPPED]]) {
-        tmux('send-keys', '-t', pane, `echo ${marker} ${path} end`, 'Enter');
-        await sleep(700);
-      }
-      // PHASE 250's rows. G and I END their rows on purpose, which is what
-      // refusal 8 used to refuse and what lift one narrowed; H, I, J and K are
-      // relative and are what lift two resolves.
-      for (const [marker, tail] of [
-        ['mkG', ENDS_THE_ROW],
-        ['mkH', `${REL_DECISION}: and then it end`],
-        ['mkI', `${REL_HANDOFF}:93`],
-        ['mkJ', `${REL_CLIMB} end`],
-        ['mkK', `${REL_PAPER} end`]
-      ]) {
-        tmux('send-keys', '-t', pane, `echo ${marker} ${tail}`, 'Enter');
-        await sleep(700);
-      }
-      // ARM F's two rows, each with a `⚠️ ` between the marker and the path.
-      for (const [marker, path] of [['mkF1', WARNED_HEAD], ['mkF2', WARNED_PAST]]) {
-        tmux('send-keys', '-t', pane, `echo ${marker} ${WARN} ${path} end`, 'Enter');
-        await sleep(700);
-      }
-      await sleep(2500);
+      const lines = [
+        ...[...ARMS, ['E', WRAPPED_MARK, WRAPPED]].map(([, marker, path]) => `${marker} ${path} end`),
+        // PHASE 250's rows. G and I END their rows on purpose, which is what
+        // refusal 8 used to refuse and what lift one narrowed; H, I, J and K
+        // are relative and are what lift two resolves.
+        `mkG ${ENDS_THE_ROW}`,
+        `mkH ${REL_DECISION}: and then it end`,
+        `mkI ${REL_HANDOFF}:93`,
+        `mkJ ${REL_CLIMB} end`,
+        `mkK ${REL_PAPER} end`,
+        // ARM F's two rows, each with a `⚠️ ` between the marker and the path.
+        `mkF1 ${WARN} ${WARNED_HEAD} end`,
+        `mkF2 ${WARN} ${WARNED_PAST} end`
+      ];
+      const transcript = join(project, 'transcript.txt');
+      writeFileSync(transcript, `${lines.join('\n\n')}\n`);
+      tmux('send-keys', '-t', pane, `cat ${transcript}`, 'Enter');
+      await sleep(4000);
 
       // ------------------------------------------------------------- ARM R
       findings.R = {
@@ -775,26 +1003,29 @@ await withElectron(
       if (geo === null) {
         problems.push('the terminal geometry could not be read, so no cell could be pressed');
       }
+      // THE WIDTH WITH NO TAB OPEN, recorded once and asked of every stage
+      // below. An arm that runs at any other width is reading a pane tmux has
+      // reflowed under it, and that is a finding rather than a press.
+      const fullCols = geo?.cols ?? 0;
       const rows = capture(pane);
       say(`the pane holds ${String(rows.length)} rows, last: ${JSON.stringify(rows.slice(-8))}`);
 
-      for (const [arm, marker, path, what] of ARMS) {
+      for (const [arm, marker, path, what, wantLink] of ARMS) {
         // EVERY ARM STARTS FROM AN EMPTY STRIP AND READS ITS OWN GEOMETRY. See
         // closeAllTabs: an open tab narrows the pane and tmux reflows its
         // history, so a cell computed before one was opened names something
         // else afterwards.
-        await closeAllTabs(cdp);
-        // PHASE 250. The rows are read until two reads agree; a flat wait is
-        // not enough, and this arm family read a stale layout on one run of
-        // three. See `settledCapture`.
-        const rowsNow = await settledCapture(pane);
-        const geoNow = await geometryNow(cdp, pane);
-        const cell = geoNow === null ? null : cellOf(rowsNow, marker, path);
-        if (cell === null) {
-          problems.push(`${arm} the marked row for ${what} was not in the pane, so nothing was pressed`);
-          findings[arm] = { pressed: false, cols: geoNow?.cols ?? null };
+        // PHASE 250. The rows are read until two reads agree AND the row is
+        // read again after the geometry, because a flat wait is not enough and
+        // this arm family read a stale layout on one run of three. See
+        // `stage`, `closeAllTabs` and `settledCapture`.
+        const at = await stage(cdp, pane, fullCols, (rs) => cellOf(rs, marker, path), what);
+        if (at.cell === undefined) {
+          problems.push(`${arm} ${at.why}`);
+          findings[arm] = { pressed: false, why: at.why, cols: at.geo?.cols ?? null };
           continue;
         }
+        const { geo: geoNow, cell } = at;
         // REFUSAL 8 must not be what refuses this row: the span has to have
         // the word `end` after it, or the arm proves the wrong thing.
         if (!cell.text.slice(cell.col + cell.width).includes('end')) {
@@ -802,19 +1033,36 @@ await withElectron(
         }
         const tabsBefore = await cdpEval(cdp, TABS, 10000);
         const recordedBefore = recordLines();
-        await parkPointer(cdp, geoNow, cell.row);
-        await pressCell(cdp, geoNow, cell.row, cell.col, cell.width);
+        // WHICH ROW THE TERMINAL IS DRAWING THIS ON. See `screenRowFor`.
+        const on = await screenRowFor(cdp, geoNow, at.rows, cell, wantLink);
+        if (on.row === undefined) {
+          problems.push(`${arm} ${on.why}, so ${what} was not pressed`);
+          findings[arm] = { pressed: false, why: on.why, cols: geoNow.cols, row: cell.row };
+          continue;
+        }
+        await parkPointer(cdp, geoNow, on.row);
+        const press = await pressCell(cdp, geoNow, on.row, cell.col, cell.width);
         const tabsAfter = await cdpEval(cdp, TABS, 10000);
         const recordedAfter = recordLines();
         findings[arm] = {
           what,
           cols: geoNow.cols,
-          row: cell.row,
+          row: on.row,
+          rowOffset: on.offset,
           col: cell.col,
+          onLink: press.onLink,
           openedTabs: tabsAfter.filter((t) => !tabsBefore.includes(t)),
           newlyRecorded: recordedAfter.slice(recordedBefore.length)
         };
         say(`${arm}: ${JSON.stringify(findings[arm])}`);
+        // THE SECOND INSTRUMENT. `onLink` is xterm's own answer to whether the
+        // pointer was over a link at all, so a cell that missed reads
+        // differently from a door that refused. See `ON_LINK`.
+        problems.push(
+          ...grade([
+            [`${arm} the terminal drew a link where ${what} is`, press.onLink, wantLink]
+          ])
+        );
       }
 
       // ------------------------------------------------------------- ARM E
@@ -824,22 +1072,41 @@ await withElectron(
       // it is that it stays unclickable — no rejoin can be written that never
       // lies (research 111 section 4.2).
       {
-        await closeAllTabs(cdp);
-        const rowsE = await settledCapture(pane);
-        const geoE = await geometryNow(cdp, pane);
-        const at = rowsE.findIndex((r) => r.startsWith(`${WRAPPED_MARK} `));
-        const head = at === -1 ? '' : rowsE[at];
+        const stageE = await stage(
+          cdp,
+          pane,
+          fullCols,
+          (rs) => {
+            const row = rs.findIndex((r) => r.startsWith(`${WRAPPED_MARK} `));
+            return row === -1 ? null : { row, text: rs[row] ?? '' };
+          },
+          'a path that runs off its row'
+        );
+        const geoE = stageE.geo ?? null;
+        const at = stageE.cell?.row ?? -1;
+        const head = stageE.cell?.text ?? '';
         const fragment = head.slice(WRAPPED_MARK.length + 1);
         const wrapped = at !== -1 && !head.includes(' end') && fragment.length > 20;
         const tabsBefore = await cdpEval(cdp, TABS, 10000);
         const recordedBefore = recordLines();
-        if (wrapped && geoE !== null) {
-          await pressCell(cdp, geoE, at, WRAPPED_MARK.length + 1, fragment.length);
+        let press = { onLink: false };
+        let onE = { offset: null };
+        if (stageE.cell === undefined) problems.push(`E ${stageE.why}`);
+        if (wrapped && geoE !== null && stageE.rows !== undefined) {
+          onE = await screenRowFor(cdp, geoE, stageE.rows, { row: at }, false);
+          if (onE.row === undefined) {
+            problems.push(`E ${onE.why}, so the fragment was not pressed`);
+          } else {
+            await parkPointer(cdp, geoE, onE.row);
+            press = await pressCell(cdp, geoE, onE.row, WRAPPED_MARK.length + 1, fragment.length);
+          }
         }
         findings.E = {
           cols: geoE?.cols ?? null,
-          row: at,
+          row: onE.row ?? at,
+          rowOffset: onE.offset,
           reallyWrapped: wrapped,
+          onLink: press.onLink,
           openedTabs: (await cdpEval(cdp, TABS, 10000)).filter((t) => !tabsBefore.includes(t)),
           newlyRecorded: recordLines().slice(recordedBefore.length)
         };
@@ -847,6 +1114,7 @@ await withElectron(
         problems.push(
           ...grade([
             ['E the fixture really did run off the row', findings.E.reallyWrapped, true],
+            ['E nothing is underlined on a span whose end is unknown', findings.E.onLink, false],
             ['E a span whose end is unknown opens nothing', findings.E.openedTabs, []],
             ['E and reaches the Mac not at all', findings.E.newlyRecorded, []]
           ])
@@ -866,29 +1134,27 @@ await withElectron(
       // Without that second reading a run in a narrow window would pass by
       // pressing a span the edge rule had already refused for the right
       // reason.
-      for (const [arm, marker, span, endsTheRow, wantTabs, wantMac, what] of [
-        ['G', 'mkG', ENDS_THE_ROW, true, ['ends-the-row.md'], [], 'an absolute path at the end of its line'],
-        ['H', 'mkH', REL_DECISION, false, ['fixed-egress-decision.md'], [], 'a relative path mid-sentence'],
-        ['I', 'mkI', REL_HANDOFF, true, ['running-url-handoff.md'], [], 'a relative path at the end of its line, with a :line'],
-        ['J', 'mkJ', REL_CLIMB, false, [], [], 'a relative path that climbs out of the project'],
-        ['K', 'mkK', REL_PAPER, false, [], [], 'a resolved .pdf, which arm B opens on the Mac when it is named absolutely']
+      for (const [arm, marker, span, endsTheRow, wantTabs, wantMac, wantLink, what] of [
+        ['G', 'mkG', ENDS_THE_ROW, true, ['ends-the-row.md'], [], true, 'an absolute path at the end of its line'],
+        ['H', 'mkH', REL_DECISION, false, ['fixed-egress-decision.md'], [], true, 'a relative path mid-sentence'],
+        ['I', 'mkI', REL_HANDOFF, true, ['running-url-handoff.md'], [], true, 'a relative path at the end of its line, with a :line'],
+        ['J', 'mkJ', REL_CLIMB, false, [], [], false, 'a relative path that climbs out of the project'],
+        ['K', 'mkK', REL_PAPER, false, [], [], false, 'a resolved .pdf, which arm B opens on the Mac when it is named absolutely']
       ]) {
-        await closeAllTabs(cdp);
-        const rowsNow = await settledCapture(pane);
-        const geoNow = await geometryNow(cdp, pane);
-        const cell = geoNow === null ? null : cellOf(rowsNow, marker, span);
-        if (process.env['P250_ROWS'] === '1') {
+        const at = await stage(cdp, pane, fullCols, (rs) => cellOf(rs, marker, span), what);
+        if (process.env['P250_ROWS'] === '1' && at.rows !== undefined) {
           say(
             `${arm} sees: ${JSON.stringify(
-              rowsNow.map((r, i) => `${String(i)}:${r}`).filter((r) => r.slice(r.indexOf(':') + 1).trim() !== '')
+              at.rows.map((r, i) => `${String(i)}:${r}`).filter((r) => r.slice(r.indexOf(':') + 1).trim() !== '')
             )}`
           );
         }
-        if (cell === null) {
-          problems.push(`${arm} the marked row for ${what} was not in the pane, so nothing was pressed`);
-          findings[arm] = { pressed: false, cols: geoNow?.cols ?? null };
+        if (at.cell === undefined) {
+          problems.push(`${arm} ${at.why}`);
+          findings[arm] = { pressed: false, why: at.why, cols: at.geo?.cols ?? null };
           continue;
         }
+        const { geo: geoNow, cell } = at;
         const after = cell.text.slice(cell.col + cell.width);
         const reallyEnds = !/[^\s:0-9]/.test(after);
         if (endsTheRow) {
@@ -908,22 +1174,31 @@ await withElectron(
         }
         const tabsBefore = await cdpEval(cdp, TABS, 10000);
         const recordedBefore = recordLines();
-        await parkPointer(cdp, geoNow, cell.row);
-        await pressCell(cdp, geoNow, cell.row, cell.col, cell.width);
+        const on = await screenRowFor(cdp, geoNow, at.rows, cell, wantLink);
+        if (on.row === undefined) {
+          problems.push(`${arm} ${on.why}, so ${what} was not pressed`);
+          findings[arm] = { pressed: false, why: on.why, cols: geoNow.cols, row: cell.row };
+          continue;
+        }
+        await parkPointer(cdp, geoNow, on.row);
+        const press = await pressCell(cdp, geoNow, on.row, cell.col, cell.width);
         findings[arm] = {
           what,
           cols: geoNow.cols,
-          row: cell.row,
+          row: on.row,
+          rowOffset: on.offset,
           col: cell.col,
           rowText: cell.text,
           rowLength: cell.text.length,
           endsTheRow: reallyEnds,
+          onLink: press.onLink,
           openedTabs: (await cdpEval(cdp, TABS, 10000)).filter((t) => !tabsBefore.includes(t)),
           newlyRecorded: recordLines().slice(recordedBefore.length)
         };
         say(`${arm}: ${JSON.stringify(findings[arm])}`);
         problems.push(
           ...grade([
+            [`${arm} the terminal drew a link where ${what} is`, press.onLink, wantLink],
             [`${arm} ${what} opens what it should`, findings[arm].openedTabs, wantTabs],
             [`${arm} and hands the Mac what it should`, findings[arm].newlyRecorded, wantMac]
           ])
@@ -962,23 +1237,29 @@ await withElectron(
         const prefix = `mkF1 ${WARN} `;
         const col0 = prefixColumns(prefix);
         say(`F tmux says "${prefix}" is ${String(col0)} cells`);
-        for (const [half, marker, path, offset, want] of [
-          ['firstCell', 'mkF1', WARNED_HEAD, 0, ['warned-head.md']],
-          ['pastTheEnd', 'mkF2', WARNED_PAST, 1, []]
+        for (const [half, marker, path, offset, want, wantLink] of [
+          ['firstCell', 'mkF1', WARNED_HEAD, 0, ['warned-head.md'], true],
+          ['pastTheEnd', 'mkF2', WARNED_PAST, 1, [], false]
         ]) {
-          await closeAllTabs(cdp);
-          const rowsF = await settledCapture(pane);
-          const geoF = await geometryNow(cdp, pane);
-          const cell = decoratedCellOf(rowsF, marker, path);
           if (col0 === null) {
             problems.push(`F tmux would not say how wide "${prefix}" is, so nothing was pressed`);
             continue;
           }
-          if (cell === null || geoF === null) {
-            say(`F saw rows: ${JSON.stringify(rowsF.filter((r) => r.trim() !== ''))}`);
-            problems.push(`F the decorated row for ${half} was not in the pane, so nothing was pressed`);
+          // THE ROW IS READ TWICE WITH THE GEOMETRY BETWEEN THEM (the fix
+          // round). This half is what a stale row index costs: on 2026-09-09
+          // one run of three pressed row 23 for a marker the passing runs read
+          // at 24, and reported "the path's FIRST cell opens it: []" against a
+          // build whose link was exactly right. See `stage`.
+          const at = await stage(
+            cdp, pane, fullCols, (rs) => decoratedCellOf(rs, marker, path), `the ${half} row`
+          );
+          if (at.cell === undefined) {
+            if (at.rows !== undefined) say(`F saw rows: ${JSON.stringify(at.rows.filter((r) => r.trim() !== ''))}`);
+            problems.push(`F ${at.why}`);
             continue;
           }
+          const geoF = at.geo;
+          const cell = at.cell;
           if (!cell.text.slice(cell.at + cell.width).includes('end')) {
             problems.push(`F the ${half} row wrapped, so refusal 8 and not the columns would decide it`);
           }
@@ -995,23 +1276,49 @@ await withElectron(
             ])
           );
           const before = await cdpEval(cdp, TABS, 10000);
+          // WHICH ROW THE TERMINAL DRAWS THIS ON, swept down the MIDDLE of the
+          // path — which is inside the link on any build that draws one — so
+          // the two cells this half really grades, the first and the one past
+          // the end, are still its own question. Both halves sweep their own
+          // row: `pastTheEnd` names a file whose link must exist for the cell
+          // beside it to mean anything.
+          const on = await rowOnScreen(cdp, geoF, cell.row, col0, cell.width);
+          if (on === null) {
+            problems.push(`F no row within three of the ${half} row carries a link at all, so nothing was pressed`);
+            continue;
+          }
           // offset 0 is the path's FIRST cell; offset 1 is the cell one PAST
           // its last. At the parent both readings are the other way round.
           const col = offset === 0 ? col0 : col0 + cell.width;
-          await parkPointer(cdp, geoF, cell.row);
-          await pressCell(cdp, geoF, cell.row, col, 1);
+          await parkPointer(cdp, geoF, on);
+          const press = await pressCell(cdp, geoF, on, col, 1);
           const got = (await cdpEval(cdp, TABS, 10000)).filter((t) => !before.includes(t));
           findings.F[half] = {
             cols: geoF.cols,
-            row: cell.row,
+            row: on,
+            rowOffset: on - cell.row,
             col,
             tmuxColumn: col0,
             graphemes: cell.graphemes,
             stringIndex: cell.at,
+            onLink: press.onLink,
             got
           };
           problems.push(
             ...grade([
+              [
+                // THE READING THAT SAYS WHICH FAILURE IT IS (the fix round).
+                // What OPENED cannot tell a cell that missed the link from a
+                // door that refused, and this arm is entirely about which cell
+                // the link is on — so xterm's own hover answer is graded
+                // beside it. `firstCell` must be ON the link and `pastTheEnd`
+                // must be OFF it, which at the parent is the other way round.
+                offset === 0
+                  ? 'F the path’s FIRST cell is inside the drawn link'
+                  : 'F and the cell one PAST its end is outside it',
+                press.onLink,
+                wantLink
+              ],
               [
                 offset === 0
                   ? 'F the path’s FIRST cell opens it'
