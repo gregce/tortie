@@ -13,6 +13,10 @@ This release is about clicking a file an agent named. A path printed into a sess
 - A file an agent names in a session is now a link: point at it and it underlines, click it and it opens where it belongs — prose and code in the editor, a picture in the image view, and a PDF, which Tortie cannot draw, in whatever your Mac opens PDFs with. A path that runs off the right edge of the pane is left alone, because where it ends is not known, and a session running on another machine offers no file links at all ([`b3d042e`](https://github.com/gregce/tortie/commit/b3d042e)), ([`d461678`](https://github.com/gregce/tortie/commit/d461678)), ([`4094a36`](https://github.com/gregce/tortie/commit/4094a36)), ([`7d1a9c2`](https://github.com/gregce/tortie/commit/7d1a9c2)), ([`28876d5`](https://github.com/gregce/tortie/commit/28876d5))
 - Nothing that could run is ever offered, whatever it is called: a file with the executable bit set, an application, or a folder wearing a picture's name. Neither is a file whose name says it holds a secret, which now covers auth.json, .npmrc, .git-credentials and their family as well as the dotenv and key files it already covered ([`4094a36`](https://github.com/gregce/tortie/commit/4094a36)), ([`110de49`](https://github.com/gregce/tortie/commit/110de49))
 
+### Fixed
+
+- A wide table in a Markdown preview now takes the width of the pane rather than the width of the reading column, so columns that used to be cut off with nothing on the page to say they were there can be read. Code blocks do the same, and a table too wide even for that still scrolls sideways in its own box, with a scrollbar you can now see ([`772235b2`](https://github.com/gregce/tortie/commit/772235b2))
+
 ## 0.102.0 (2026-09-09)
 
 This release is about the redline you can rewind, accept and now type in. Every edit to a prose file shows up as a marking against what the file was, whether git has noticed it or not, and a change you point at either goes back with one key or stops being marked with another, without the file being touched. The editor answers a right click now too, and saving a file somebody else has written to asks you first.
