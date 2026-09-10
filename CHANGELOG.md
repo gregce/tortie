@@ -6,7 +6,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## Unreleased
 
-This release is about clicking a file an agent named. A path printed into a session underlines when you point at it and opens when you click it, in Tortie where Tortie can draw the file and on your Mac where it cannot.
+This release is about clicking a file an agent named. A path printed into a session underlines when you point at it and opens when you click it, in Tortie where Tortie can draw the file and on your Mac where it cannot. It is also about the redline, which has been given the room to read like a marked-up document rather than a stack of tiles.
 
 ### Added
 
@@ -15,9 +15,15 @@ This release is about clicking a file an agent named. A path printed into a sess
 - A path printed at the end of a line is a link too. It used to be left alone along with paths that run off the right edge of the pane, and the end of a line is where an agent almost always writes one; a path that really does run off the edge is still left alone ([`d810c33f`](https://github.com/gregce/tortie/commit/d810c33f))
 - So is a path written relative to the project, which is most of what an agent prints: it opens the file under the project that session is in. A name that resolves outside that project is left alone, a relative name is never handed to your Mac so a PDF named that way opens nothing, a session running on another machine still offers no file links at all, and a name printed by an agent working in another copy of the same project can open that file in the wrong copy ([`286f7eec`](https://github.com/gregce/tortie/commit/286f7eec))
 
+### Changed
+
+- A redline now reads in a column wide enough for prose, and a marking that wraps onto a second line is drawn as one continuous passage instead of a row of separate tiles. The change you are standing on is shown by a bar in the margin rather than an outline around every fragment of it, and Accept all and the count of changes line up with your text — on a narrow pane the controls go back over the prose, because there is nowhere beside it for them to sit ([`08d1dc38`](https://github.com/gregce/tortie/commit/08d1dc38)), ([`87eace90`](https://github.com/gregce/tortie/commit/87eace90))
+- A table in a redline is marked row against row now, so renaming a column shows the words that changed instead of striking the whole table through and repeating it. A table over about four thousand characters still gets no redline at all ([`01fca241`](https://github.com/gregce/tortie/commit/01fca241)), ([`553117a0`](https://github.com/gregce/tortie/commit/553117a0))
+
 ### Fixed
 
 - A wide table in a Markdown preview now takes the width of the pane rather than the width of the reading column, so columns that used to be cut off with nothing on the page to say they were there can be read. Code blocks do the same, and a table too wide even for that still scrolls sideways in its own box, with a scrollbar you can now see ([`b3c11951`](https://github.com/gregce/tortie/commit/b3c11951)), ([`8ff5ca1d`](https://github.com/gregce/tortie/commit/8ff5ca1d))
+- A blank line added or removed in a redline is now marked. It used to be drawn as nothing at all, while still offering Rewind and Accept on a change there was no way to see ([`08d1dc38`](https://github.com/gregce/tortie/commit/08d1dc38))
 
 ## 0.102.0 (2026-09-09)
 
