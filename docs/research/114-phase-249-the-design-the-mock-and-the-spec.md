@@ -484,6 +484,41 @@ Myers passes where the cap promised one, which is ruling 4's own promise. The bu
 pair is given what is left, and a pair that cannot be word-diffed inside it is a whole-row
 replacement, which is the same fallback the block-level cap already has.
 
+**WHICH SIDE OF `REDLINE_MAX_BLOCK_CHARS` THIS SITS ON, AND `tableRuns` GETS A REFUSAL OF ITS OWN.**
+The paragraph above settles the *word* cap and the first two versions of this document settled nothing
+about the other two, which is the larger question, because `wordRuns` returns `null` when its cap
+refuses and **`tableRuns` returns a value on every input there is**. It sits **after** the block cap,
+inside it: a change block over 4,000 characters is skipped exactly as it is today, `redlineSkipNote`
+says `N too long`, and Pierre's own two rows still show it. **So fault 3 is NOT fixed for a table over
+the char cap**, and that is a stated limit rather than an omission — **46 of the 1,951 markdown tables
+in this repository exceed it**, including one in `DESIGN.md` at 8,231 bytes and one in
+`docs/BACKLOG.md` at 22,283 bytes.
+
+**And the char cap alone does not bound what this path mounts.** Driven over this document's own
+composer at sizes the mock never reaches, with both sides *inside* the cap: at **666 rows and 3,330
+bytes** — the shortest legal rows, which is the worst case 4,000 characters admits — the flat path
+emits **2 runs** and the row path emits **1,332**, in 112 ms. Research 113 §7.1 is explicit that the
+Redline mounts the whole document with no virtualizer, so 1,332 runs is 1,332 mounted elements out of
+one block where today's caps guarantee two, and *"a design whose cost is unbounded mounted DOM is
+refused"* is ruling 4's own sentence. `pairRows` is an O(n·m) dynamic program with a token-bag
+`resemble` at every cell besides: past the cap, doubling 600 rows to 1,200 costs **755 ms → 3,005 ms**,
+which is the shape rather than the constant.
+
+**The bound is a row count and it is derived rather than picked.** `tableRuns` takes
+`REDLINE_MAX_TABLE_ROWS = 60` per side and returns `null` above it, so the block takes the whole-block
+refusal every other cap already takes. 60 is nearly twice the widest table this repository holds under
+the char cap, which is **32 rows** in `docs/research/26`, against a median of 7 and a p99 of 22 over
+1,905 such tables; at the bound the pass costs **2.7 ms and 120 runs**. It refuses nothing a person
+has, and it is what stops a generated or pasted table of narrow rows mounting a thousand boxes.
+
+**THE CHANGE UNIT MOVES WITH THE COMPOSER, and that is unpriced either way.** `changesOf(runs)` is
+what ⌥↓, ⌥⌫, ⌥↩ and the `N of M changes` counter all read, so for a table whose flat edit cap collapses
+the block, one change becomes up to one per paired row: measured at **1 → 101** on a 200-row table.
+The 400-pair fuzz says this is not the general case — rows never exceeded flat there — it is specific
+to the shape fault 3 exists for. Finer granularity is arguably the gain rather than the cost, and §2
+publishes the count going *down* on the fixture; it is named here because a build phase must decide it
+on purpose rather than inherit it.
+
 **What stays.** The view draws the file's **source** and renders no markdown.
 
 **What it costs.** On this fixture, 52 text nodes and 44 elements become **55 and 47**, a 5.8% and
@@ -569,6 +604,7 @@ table row wraps inside its own cell padding.
 | `src/renderer/editor/RedlineDocument.tsx` | the page and rail elements, the `data-room` attribute from the view's own resize observer, the counter, the rail bar |
 | `src/renderer/editor/redline-chip.tsx` | the measured band arm in `chipPlace`; `chipAnchorRect` untouched |
 | `src/renderer/editor/redline-document.ts` | the table block, the resemblance row alignment, the shared block budget, the separator pair, the cancel pass, the ends split, the run flags including `lone` |
+| `src/renderer/editor/redline.ts` | `REDLINE_MAX_TABLE_ROWS`, beside the three caps ruling 4 already names, and a line in ruling 4 saying `tableRuns` refuses like `wordRuns` |
 | `src/renderer/editor/RedlineRow.tsx` | the leaf attributes the four fault-5 rules key on |
 | `src/renderer/editor/redline-sentences.ts` | the counter's string, if it is not composed in place |
 | `build/conformance-redline.mjs` | the arms in §7 |
@@ -590,9 +626,15 @@ Added to `npm run conformance:redline`, whose rules 8 and 9 already bind this fa
 3. **The row alignment survives a renamed first column**: over a fixture whose every row's first cell
    changed, the rows still pair and the marks are word level. Ablate the resemblance threshold back to
    a first-cell key and it goes red.
-4. **The word budget is the block's**: over a table block at the character cap, the total edit length
-   spent across all its rows does not exceed `REDLINE_MAX_EDIT_LENGTH`, and the rows past the budget
-   are whole-row replacements.
+4. **THE THREE CAPS, ASKED AS THREE QUESTIONS.** (a) *The word budget is the block's*: over a table
+   block at the character cap, the total edit length spent across all its rows does not exceed
+   `REDLINE_MAX_EDIT_LENGTH`, and the rows past the budget are whole-row replacements. (b) *The table
+   path is inside the character cap*: a block one byte over `REDLINE_MAX_BLOCK_CHARS` reaches no
+   differ at all, gets no row, and is counted `tooBig` in the note — which is what makes §6.3's stated
+   limit checkable rather than asserted. (c) *`tableRuns` has a refusal of its own*: at 666 rows and
+   3,330 bytes, both sides inside the character cap, it returns `null` and the block draws by the
+   whole-block fallback, and at 60 rows it does not. Ablate `REDLINE_MAX_TABLE_ROWS` and the run count
+   goes from the bound's 120 to 1,332, which is the reading that goes red.
 5. **The cancel pass is an identity on both projections**, as a property over the fuzz.
 6. **The wash arithmetic, read off the RUNNING APP and not off the stylesheet**: the painted height of
    a mark is inside a band below the line pitch — never above it, which is the overlap §1.4 names —
@@ -662,8 +704,22 @@ defect is fixed.
   and one first cell renamed. A table with duplicate rows, with no header, or with cells that changed
   AND moved is not measured.
 - **The shared word budget was reasoned and not stressed.** No fixture in the mock reaches
-  `REDLINE_MAX_EDIT_LENGTH` inside a table block, so §7's arm 4 is the first thing that would exercise
-  it.
+  `REDLINE_MAX_EDIT_LENGTH` inside a table block, so §7's arm 4(a) is the first thing that would
+  exercise it. §6.3's scale readings drive the *row count* and say nothing about the budget.
+- **`REDLINE_MAX_TABLE_ROWS = 60` is a derived bound, not a solved optimum.** It comes from the
+  widest table this repository holds under the character cap (32 rows) doubled, and from nothing else.
+  What a person can read in one mounted block, and whether 60 rows of table is already past it, is
+  his eye and not a number.
+- **THE MOCK MODELS NEITHER BLOCK CAP.** Its `compose` applies no `REDLINE_MAX_BLOCK_CHARS` and no
+  `REDLINE_MAX_BLOCKS`, and its refusal fallback draws the block WHOLE where the product gives it no
+  row at all and counts it in the skip note. On a 2,168-byte fixture that is immaterial, and it is a
+  second mock/product difference beside the one §0 names; §6.3's readings were taken through the same
+  composer, so they measure the path's own cost and not the product's caps.
+- **A separator-only change draws as furniture.** When the only edit in a block is a plain separator
+  row's dash count, the surviving row is `--text-muted` and what says a change happened is the
+  inserted newline's 2px bar, plus the rail bar while the change is current. §7's arm 8 catches it
+  (0 inkless changes at all 8 cells) and it may well be the right answer; whether it reads as a change
+  at a glance is his eye, and §6.5's separator ruling does not say.
 - **The mounted-DOM cost was counted in DOM nodes on a 2,168-byte fixture.** 52 to 55 text nodes says
   nothing about the 60-block worst case research 113 §7.1 derives arithmetically.
 - **§3's walk is arithmetic and not a photograph.** It computes what the shipping derivation produces;
