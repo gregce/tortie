@@ -13,17 +13,29 @@
  * this repository's 1,900 real tables lost a column and the operator lost two
  * of five with 443 px of empty canvas beside them.
  *
+ * PHASE 252 CHANGED WHAT THE WIDTH IS. Phase 248's rule gave both blocks
+ * `max(100%, var(--md-wide))` UNCONDITIONALLY, so a fence whose widest line
+ * needed ~75ch took the whole cap with the emptiness inside its own border —
+ * the operator's three screenshots of 2026-09-10. The box is now sized by its
+ * CONTENT between two bounds: `width: max-content`, floored at the prose
+ * column (`min-width: 100%`) and capped at `max-width: var(--md-wide)`, and
+ * it is centred by `left: 50%` + `translate: -50%` because the old negative
+ * margin assumed the used width IS the cap expression and a content-measured
+ * width cannot be read back into a calc(). Rule 14 holds the width classes
+ * (under / between / over, tolerance ±2px) and rule 15 the centring
+ * (tolerance ±1px), both over the probe:p252 readings.
+ *
  * EVERY CLAUSE OF THAT IS ONE LINE A LATER ROUND CAN TIDY AWAY, which is why
- * this file exists rather than a comment. Thirteen rules and sixteen
- * ablations, and each rule is ablated: a
- * copy of the stylesheet with exactly one clause removed must turn exactly the
- * rule that owns it red, and the run says which. A rule that cannot fail is
- * not a rule.
+ * this file exists rather than a comment. Fifteen rules, and each rule is
+ * ablated: a copy of the stylesheet with exactly one clause removed must turn
+ * exactly the rule that owns it red, and the run says which. A rule that
+ * cannot fail is not a rule.
  *
  * RULE 8 IS THE INDEPENDENT HALF. It parses the width expression out of the
- * SHIPPED declaration, evaluates it in node at every pane width the app run
- * drove, and compares the answer to what the app run read off the live DOM.
- * The stylesheet and the browser have to agree, or one of them moved.
+ * SHIPPED declaration, evaluates the clamp in node at every pane width the
+ * app run drove — the cap re-derived from the expression, the content term
+ * and the floor read off the DOM — and compares the answer to what the
+ * browser drew. The stylesheet and the browser have to agree, or one moved.
  */
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -35,6 +47,7 @@ const TAG = '[wide-blocks]';
 const CSS_REL = 'src/renderer/editor/markdown/markdown.css';
 const TOKENS_REL = 'src/renderer/styles/tokens.css';
 const READINGS_REL = 'build/p248/out-wide-readings.json';
+const READINGS_252_REL = 'build/p252/out-content-readings.json';
 
 const say = (l) => console.log(`${TAG} ${l}`);
 
@@ -181,7 +194,7 @@ export function tokenValue(tokensCss, token, base) {
 
 const GUTTER_PX = 24; // var(--space-8); rule 8 re-reads it from tokens.css
 
-export function runRules({ css, tokensCss, readings }) {
+export function runRules({ css, tokensCss, readings, readings252 }) {
   const findings = [];
   const notes = [];
   const bad = (rule, why) => findings.push({ rule, why });
@@ -257,18 +270,20 @@ export function runRules({ css, tokensCss, readings }) {
     bad(6, `--md-wide is declared on ${declaredOn.join(', ') || '(nothing)'}; it must be declared on .md-content alone, where ch is the prose font`);
   }
 
-  // -- 7. THE BLOCK STAYS CENTRED ON THE PROSE COLUMN ----------------------
+  // -- 7. THE CLAMP'S TWO BOUNDS (Phase 252) --------------------------------
+  // The width itself is rule 14's (content-sized) and the centring rule 15's;
+  // this rule is the floor and the cap, because either bound can be tidied
+  // away on its own: without the floor a short fence stops filling the prose
+  // column, and without the cap an ASCII page takes whatever it asks for and
+  // the pane promise dies with it.
   const widthExpr = wide === null ? null : declaration(wide.body, 'width');
-  const marginExpr = wide === null ? null : declaration(wide.body, 'margin-inline');
-  if (widthExpr === null || !/^max\(\s*100%\s*,\s*var\(--md-wide\)\s*\)$/.test(widthExpr.replace(/\s+/g, ' ').trim())) {
-    bad(7, `the width is ${String(widthExpr)}; max(100%, …) is what stops a wide block being NARROWER than the measure`);
+  const minWidthExpr = wide === null ? null : declaration(wide.body, 'min-width');
+  const maxWidthExpr = wide === null ? null : declaration(wide.body, 'max-width');
+  if (minWidthExpr !== '100%') {
+    bad(7, `min-width is ${String(minWidthExpr)}; 100% is the floor that keeps a short fence filling the prose column exactly as before`);
   }
-  if (marginExpr === null) bad(7, 'the wide block has no margin-inline, so it grows to the right and off centre');
-  else {
-    const flat = marginExpr.replace(/\s+/g, ' ').trim();
-    if (!/^calc\(\s*\(\s*100%\s*-\s*max\(\s*100%\s*,\s*var\(--md-wide\)\s*\)\s*\)\s*\/\s*2\s*\)$/.test(flat)) {
-      bad(7, `the centring margin is ${flat}; it must be computed from the SAME expression as the width, or the two drift apart`);
-    }
+  if (maxWidthExpr !== 'var(--md-wide)') {
+    bad(7, `max-width is ${String(maxWidthExpr)}; var(--md-wide) is the cap, and without it the box grows with its content without bound`);
   }
 
   // -- 8. THE ARITHMETIC AGREES WITH THE BROWSER ---------------------------
@@ -306,13 +321,24 @@ export function runRules({ css, tokensCss, readings }) {
       });
       if (got === null) { bad(8, `the width expression could not be evaluated: ${mdWideDecl}`); break; }
       compared += 1;
-      const visibleGutter = (f.pane.clientWidth - Math.min(got.width, f.pane.offsetWidth - 2 * gutter)) / 2;
-      if (visibleGutter < 0) bad(8, `at the ${name} pane the block is wider than the pane by ${String(-2 * visibleGutter)} px`);
-      if (Math.abs(got.width - f.wrap.clientWidth) > 1.5) {
-        bad(8, `at the ${name} pane (${String(f.pane.clientWidth)} px) the stylesheet says ${got.width.toFixed(1)} px and the browser drew ${String(f.wrap.clientWidth)} px`);
+      // Phase 252: the used width is the CLAMP — the block's own max-content
+      // (read off the DOM by the app run, with the bounds lifted for the
+      // read), floored at the column, capped at the derived --md-wide.
+      const clamp = (maxContent) => Math.max(Math.min(maxContent, got.mdWide), f.content.inner);
+      if (f.wrap.maxContent === null || f.wrap.maxContent === undefined) {
+        bad(8, `at the ${name} pane the reading carries no table-box max-content; re-run probe:p248`);
+        continue;
       }
-      if (f.pre !== null && Math.abs(got.width - f.pre.clientWidth) > 3) {
-        bad(8, `at the ${name} pane the fence drew ${String(f.pre.clientWidth)} px against the same ${got.width.toFixed(1)} px expression`);
+      const wantWrap = clamp(f.wrap.maxContent);
+      const visibleGutter = (f.pane.clientWidth - Math.min(wantWrap, f.pane.offsetWidth - 2 * gutter)) / 2;
+      if (visibleGutter < 0) bad(8, `at the ${name} pane the block is wider than the pane by ${String(-2 * visibleGutter)} px`);
+      if (Math.abs(wantWrap - f.wrap.clientWidth) > 2) {
+        bad(8, `at the ${name} pane (${String(f.pane.clientWidth)} px) the clamp says ${wantWrap.toFixed(1)} px (content ${String(f.wrap.maxContent)}, cap ${got.mdWide.toFixed(1)}, column ${String(f.content.inner)}) and the browser drew ${String(f.wrap.clientWidth)} px`);
+      }
+      // The fence carries 1px borders: its rect width (border-box) is what
+      // the clamp resolves, where clientWidth sits a systematic 2px under.
+      if (f.pre !== null && f.pre.maxContent !== null && f.pre.maxContent !== undefined && Math.abs(clamp(f.pre.maxContent) - f.pre.width) > 2) {
+        bad(8, `at the ${name} pane the fence drew ${String(f.pre.width)} px against a clamp of ${clamp(f.pre.maxContent).toFixed(1)} px (content ${String(f.pre.maxContent)})`);
       }
       if (f.docScrollsSideways === true) bad(8, `at the ${name} pane the app run read the DOCUMENT scrolling sideways`);
       if (Math.abs(f.content.width - chPx * 68) > 1 && f.pane.clientWidth >= chPx * 68 + 8) {
@@ -461,9 +487,129 @@ export function runRules({ css, tokensCss, readings }) {
   const axisAblated = readings?.axisAblated ?? null;
   if (axisAblated === null) bad(13, 'the app run recorded no corner ablation, so nothing shows the axis reading can fail');
   else {
-    const cornered = axisAblated.blocks.filter((b) => b.kind === 'table' && b.depth === 0 && b.inner !== null && b.inner.width < b.width - 1 && b.inner.left < axisAblated.contentLeft - 100);
-    if (cornered.length === 0) bad(13, 'the centring taken off did NOT leave a narrow table left of the prose column, so the axis reading proves nothing');
-    else notes.push(`with the centring off, the narrow table is drawn ${String(Math.round(axisAblated.contentLeft - cornered[0].inner.left))}px left of the prose column`);
+    // Since Phase 252 the box fits its content, so the widest box a narrow
+    // table gets is the prose column: the corner is the BOX's left edge.
+    const cornered = axisAblated.blocks.filter((b) => b.kind === 'table' && b.depth === 0 && b.inner !== null && b.inner.width < b.width - 50 && Math.abs(b.inner.left - b.left) < 2 && (b.left + b.right) / 2 - (b.inner.left + b.inner.right) / 2 > 20);
+    if (cornered.length === 0) bad(13, 'the centring taken off did NOT leave a narrow table in the corner of its box, so the axis reading proves nothing');
+    else notes.push(`with the centring off, the narrow table sits ${String(Math.round((cornered[0].left + cornered[0].right) / 2 - (cornered[0].inner.left + cornered[0].inner.right) / 2))}px left of its box's axis`);
+  }
+
+  // -- 14. THE BOX FITS ITS CONTENT (Phase 252) -----------------------------
+  // The operator's report, 2026-09-10: three fences and ASCII diagrams drawn
+  // at the full cap with most of the box empty inside its own border. The
+  // width is the content's own max-content between the bounds, and every
+  // reading is judged in three classes: UNDER the column draws at exactly
+  // the column, BETWEEN the column and the cap draws at ITS OWN width and
+  // not at the cap, OVER the cap draws at the cap with the scroller live.
+  // Tolerance ±2px — clientWidth is an integer and the intrinsic width is
+  // fractional, so one CSS pixel each side of the rounding.
+  if (widthExpr !== 'max-content') {
+    bad(14, `the width is ${String(widthExpr)}; max-content is what sizes the box by its content, and anything else re-answers the operator's screenshots`);
+  }
+  if (readings252 === null) bad(14, `no app-run readings at ${READINGS_252_REL}; run probe:p252`);
+  else {
+    const classes = { under: 0, between: 0, over: 0 };
+    const readingsList = [
+      ...Object.entries(readings252.panes ?? {}),
+      ...Object.entries(readings252.light ?? {}).map(([k, v]) => [`light-${k}`, v])
+    ];
+    for (const [name, rd] of readingsList) {
+      if (rd === null || rd === undefined) continue;
+      if (rd.docScrollsSideways === true) bad(14, `at the ${name} reading the document scrolls sideways`);
+      for (const b of rd.blocks) {
+        const want = Math.max(Math.min(b.maxContent, rd.mdWidePx), rd.inner);
+        if (Math.abs(b.client - want) > 2) {
+          bad(14, `at ${name} the ${b.id} box drew ${String(b.client)}px against a clamp of ${want.toFixed(1)}px (content ${String(b.maxContent)}, cap ${String(rd.mdWidePx)}, column ${String(rd.inner)})`);
+          continue;
+        }
+        if (b.maxContent <= rd.inner + 2) classes.under += 1;
+        else if (b.maxContent < rd.mdWidePx - 4) {
+          classes.between += 1;
+          if (b.client > rd.mdWidePx - 4) bad(14, `at ${name} the ${b.id} box is at the cap (${String(b.client)}px of ${String(rd.mdWidePx)}px) while its content asks ${String(b.maxContent)}px — the operator's screenshot`);
+        } else {
+          classes.over += 1;
+          // A fence over the cap must scroll (its content cannot wrap); a
+          // table whose min-content fits the cap compresses instead.
+          if (b.kind === 'pre' && b.canScroll !== true && b.maxContent > rd.mdWidePx + 2) bad(14, `at ${name} the ${b.id} box is at the cap and its scroller is dead`);
+        }
+      }
+    }
+    for (const k of ['under', 'between', 'over']) {
+      if (classes[k] === 0) bad(14, `no reading fell in the "${k}" width class, so that clause was asserted by nothing`);
+    }
+    notes.push(`width classes read: ${String(classes.under)} under the column, ${String(classes.between)} between, ${String(classes.over)} at the cap`);
+    // THE PARENT'S RULE, injected by the app run: a between-class box must
+    // read AT the cap there — the defect — or this rule could not fail; and
+    // a box at or over the cap must be UNMOVED byte for byte, which is the
+    // operator's two good tables.
+    const parent = readings252.parent ?? null;
+    if (parent === null) bad(14, 'the app run recorded no parent-rule arm, so nothing shows the between class can fail');
+    else {
+      let atCap = 0;
+      let unmoved = 0;
+      const moved = [];
+      for (const [name, rd] of Object.entries(parent)) {
+        const live = (readings252.panes ?? {})[name] ?? null;
+        if (rd === null || live === null) continue;
+        for (const b of rd.blocks) {
+          const liveB = live.blocks.find((x) => x.id === b.id) ?? null;
+          if (liveB === null) continue;
+          if (b.maxContent > rd.inner + 2 && b.maxContent < rd.mdWidePx - 4 && Math.abs(b.client - Math.max(rd.mdWidePx, rd.inner)) <= 2) atCap += 1;
+          if (b.maxContent >= rd.mdWidePx - 4) {
+            if (b.client === liveB.client) unmoved += 1;
+            else moved.push(`${name}/${b.id} ${String(b.client)} -> ${String(liveB.client)}`);
+          }
+        }
+      }
+      if (atCap === 0) bad(14, "the parent's rule put back did NOT draw a between-class box at the cap, so the defect reading proves nothing");
+      if (moved.length > 0) bad(14, `a box at the cap MOVED between the parent's rule and the clamp: ${moved.join(', ')}`);
+      else notes.push(`under the parent's rule ${String(atCap)} between-class box(es) read at the cap, and ${String(unmoved)} at-the-cap box(es) are unmoved byte for byte`);
+    }
+  }
+
+  // -- 15. THE CENTRING HOLDS AT EVERY WIDTH (Phase 252) --------------------
+  // The old negative margin was computed from the SAME expression as the
+  // width; a content-measured width cannot be read back into a calc(), and
+  // auto margins are treated as zero on a box wider than its containing
+  // block. `left: 50%` walks the box right by half the column and
+  // `translate: -50%` walks it back by half its OWN width, which centres any
+  // used width on the column's axis. Tolerance ±1px — half of it subpixel
+  // translate rounding.
+  const posExpr = wide === null ? null : declaration(wide.body, 'position');
+  const leftExpr = wide === null ? null : declaration(wide.body, 'left');
+  const translateExpr = wide === null ? null : declaration(wide.body, 'translate');
+  if (posExpr !== 'relative') bad(15, `position is ${String(posExpr)}; without relative the left offset resolves against nothing and a wide box sits off the column's axis`);
+  if (leftExpr !== '50%') bad(15, `left is ${String(leftExpr)}; 50% of the containing block is half of the centring`);
+  if (translateExpr !== '-50%') bad(15, `translate is ${String(translateExpr)}; -50% of the box's own used width is the other half`);
+  if (readings252 === null) bad(15, `no app-run readings at ${READINGS_252_REL}; run probe:p252`);
+  else {
+    const centreReadings = [
+      ...Object.entries(readings252.panes ?? {}),
+      ...Object.entries(readings252.light ?? {}).map(([k, v]) => [`light-${k}`, v]),
+      ...Object.entries(readings252.zoom ?? {}).map(([k, v]) => [`zoom-${k}`, v])
+    ];
+    let centred = 0;
+    for (const [name, rd] of centreReadings) {
+      if (rd === null || rd === undefined) continue;
+      for (const b of rd.blocks) {
+        centred += 1;
+        if (Math.abs(b.centreOff) > 1) bad(15, `at ${name} the ${b.id} box is ${String(b.centreOff)}px off the prose column's axis`);
+      }
+      if (rd.docScrollsSideways === true) bad(15, `at ${name} the document scrolls sideways`);
+    }
+    if (centred === 0) bad(15, 'no centring reading at all; run probe:p252');
+    else notes.push(`${String(centred)} boxes read on the column's axis across panes, bases and zoom stops`);
+    const zooms = Object.keys(readings252.zoom ?? {}).map(Number);
+    if (!zooms.some((z) => z > 1) || !zooms.some((z) => z < 1)) {
+      bad(15, `the zoom readings cover ${zooms.join(', ') || 'nothing'}; the ladder must be read above AND below 1`);
+    }
+    const ab = readings252.centreAblated ?? null;
+    if (ab === null) bad(15, 'the app run recorded no centring ablation, so nothing shows this rule can fail');
+    else if (!(ab.blocks ?? []).some((b) => Math.abs(b.centreOff) > 8)) {
+      bad(15, 'the centring taken off did NOT move a box off the axis, so the centring readings prove nothing');
+    } else {
+      notes.push(`with the translate off, a box sits ${String(Math.round(Math.max(...ab.blocks.map((b) => Math.abs(b.centreOff)))))}px off the column's axis`);
+    }
   }
 
   // -- 10. NO COLOUR LITERAL ANYWHERE IN THIS STYLESHEET -------------------
@@ -484,8 +630,12 @@ const ABLATIONS = [
   ['the cap, made a different multiple', 5, (c) => c.replace(/min\(136ch,/, 'min(102ch,')],
   ['the @property registration', 6, (c) => c.replace(/@property --md-wide \{[\s\S]*?\n\}\n\n/, '')],
   ['the property moved onto the children', 6, (c) => c.replace(/\.md-content \{\n  --md-wide:/, '.md-content .md-table-scroll,\n.md-content pre {\n  --md-wide:')],
-  ['the centring margin', 7, (c) => c.replace(/\n\s*margin-inline: calc\(\(100% - max\(100%, var\(--md-wide\)\)\) \/ 2\);/, '')],
-  ['the max\\(100%, …\\) floor', 7, (c) => c.replace(/width: max\(100%, var\(--md-wide\)\);/, 'width: var(--md-wide);')],
+  ['the 100% floor, taken off the clamp', 7, (c) => c.replace(/\n\s*min-width: 100%;/, '')],
+  ['the cap, taken off the clamp', 7, (c) => c.replace(/\n\s*max-width: var\(--md-wide\);/, '')],
+  ['the content width, made the cap again', 14, (c) => c.replace(/width: max-content;/, 'width: max(100%, var(--md-wide));')],
+  ['the translate half of the centring', 15, (c) => c.replace(/\n\s*translate: -50%;/, '')],
+  ['the left half of the centring', 15, (c) => c.replace(/\n\s*left: 50%;/, '')],
+  ['the relative position under the centring', 15, (c) => c.replace(/\n\s*position: relative;\n\s*left: 50%;/, '\n  left: 50%;')],
   ['the fence, taken off the rule', 2, (c) => c.replace(/\.md-content > \.md-table-scroll,\n\.md-content > pre \{\n  width: max/, '.md-content > .md-table-scroll {\n  width: max')],
   ['the prose measure, widened with the block', 1, (c) => c.replace(/  max-width: 68ch;\n  margin-inline: auto;/, '  max-width: 136ch;\n  margin-inline: auto;')],
   ['the lifted thumb, put back to the shared one', 9, (c) => c.replace(/(\.md-table-scroll::-webkit-scrollbar-thumb \{\n  background-color: )var\(--text-muted\)/, '$1var(--border-strong)')],
@@ -503,8 +653,10 @@ const css = readFileSync(cssPath, 'utf8');
 const tokensCss = readFileSync(join(REPO, TOKENS_REL), 'utf8');
 let readings = null;
 try { readings = JSON.parse(readFileSync(join(REPO, READINGS_REL), 'utf8')); } catch { readings = null; }
+let readings252 = null;
+try { readings252 = JSON.parse(readFileSync(join(REPO, READINGS_252_REL), 'utf8')); } catch { readings252 = null; }
 
-const live = runRules({ css, tokensCss, readings });
+const live = runRules({ css, tokensCss, readings, readings252 });
 for (const n of live.notes) say(`note  ${n}`);
 for (const f of live.findings) say(`FAIL  rule ${String(f.rule)}: ${f.why}`);
 
@@ -520,7 +672,7 @@ try {
     }
     const file = join(scratch, 'markdown.css');
     writeFileSync(file, copy);
-    const got = runRules({ css: readFileSync(file, 'utf8'), tokensCss, readings });
+    const got = runRules({ css: readFileSync(file, 'utf8'), tokensCss, readings, readings252 });
     const hit = got.findings.filter((f) => f.rule === rule);
     if (hit.length === 0) {
       say(`FAIL  ablation "${name}" left rule ${String(rule)} green; that rule cannot fail`);
@@ -536,7 +688,7 @@ try {
 const bad = live.findings.length + ablationFailures;
 say('');
 if (bad === 0) {
-  say(`OK: the 68ch prose measure is untouched, the two children that already scroll break out of it up to twice the measure, the break-out reaches a DIRECT child alone so a block under a bullet cannot be centred on the bullet's box, the pane term is divided by the editor zoom so ⌘+ cannot multiply it twice, a table narrower than its box keeps the page's axis, the width term is the PANE and never the window, the cap is registered so it resolves once in the prose font, ${String(Object.keys(readings?.widths ?? {}).length)} pane widths re-derived from the shipped expression agree with the DOM, ${String(Object.keys(readings?.zoom ?? {}).length)} zoom levels and ${String(Object.keys(readings?.nested ?? {}).length)} nested readings were driven on the real chord and at three nesting levels, the table box's thumb clears 3:1 on both bases, and ${String(ABLATIONS.length)} ablations each turned their own rule red.`);
+  say(`OK: the 68ch prose measure is untouched, the two children that already scroll take what their CONTENT needs — floored at the column, capped at twice the measure, centred on the column's axis at any used width (Phase 252) — the break-out reaches a DIRECT child alone so a block under a bullet cannot be centred on the bullet's box, the pane term is divided by the editor zoom so ⌘+ cannot multiply it twice, a table narrower than its box keeps the page's axis, the width term is the PANE and never the window, the cap is registered so it resolves once in the prose font, ${String(Object.keys(readings?.widths ?? {}).length)} pane widths re-derived from the shipped clamp agree with the DOM, ${String(Object.keys(readings?.zoom ?? {}).length)} zoom levels and ${String(Object.keys(readings?.nested ?? {}).length)} nested readings were driven on the real chord and at three nesting levels, the p252 width classes and centring hold over ${String(Object.keys(readings252?.panes ?? {}).length)} panes with the parent's rule shown to bring the defect back, the table box's thumb clears 3:1 on both bases, and ${String(ABLATIONS.length)} ablations each turned their own rule red.`);
   process.exit(0);
 }
 say(`FAILED: ${String(live.findings.length)} live finding(s) and ${String(ablationFailures)} ablation(s) that proved nothing.`);

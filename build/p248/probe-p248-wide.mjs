@@ -76,27 +76,41 @@ export function gradeMeasure(r, measurePx) {
 }
 
 /**
+ * The used width the clamp promises (Phase 252): the content's own
+ * max-content, floored at the column and capped at `--md-wide`. CSS resolves
+ * min-width AFTER max-width, so the floor wins a conflict, which is what
+ * `Math.max` outermost spells.
+ */
+export function clampWidth(maxContent, mdWidePx, inner) {
+  return Math.max(Math.min(maxContent, mdWidePx), inner);
+}
+
+/**
  * The repair. THE CLAIM IS THE BOX AND NOT THE COLUMNS, because a pane
  * narrower than the table's own min-content cannot show every column however
  * the block is spelled: what the phase promises is that the block takes
- * whatever the pane can give, up to the cap, and that the columns follow
- * WHEREVER THE BOX IS BIG ENOUGH FOR THEM. Grading the columns at a 580 px
- * pane would fail a reading that is behaving exactly as designed.
+ * WHAT ITS CONTENT NEEDS, floored at the prose column, capped at `--md-wide`
+ * (Phase 252 — before it, the box took the cap unconditionally and the
+ * emptiness sat inside its own border), and that the columns follow WHEREVER
+ * THE BOX IS BIG ENOUGH FOR THEM. Grading the columns at a 580 px pane would
+ * fail a reading that is behaving exactly as designed.
  */
 export function gradeRepair(r, measurePx) {
   const bad = [];
-  const gutters = 2 * 24; // 2 * var(--space-8), the block's own margin from the pane
-  const room = Math.min(r.paneWidth - gutters, r.tableMinContent);
   if (r.docScrollsSideways) bad.push('the document scrolls sideways');
-  if (!(r.wrapClientWidth >= room - 1)) {
-    bad.push(`the table box is ${String(r.wrapClientWidth)} px, which is neither the pane less its gutters (${String(r.paneWidth - gutters)}) nor enough for the table (${String(r.tableMinContent)})`);
+  const want = clampWidth(r.wrapMaxContent, r.mdWidePx, r.contentInner);
+  if (Math.abs(r.wrapClientWidth - want) > 2) {
+    bad.push(`the table box is ${String(r.wrapClientWidth)} px against a clamp of ${want.toFixed(1)} px (content ${String(r.wrapMaxContent)}, cap ${String(r.mdWidePx)}, column ${String(r.contentInner)})`);
   }
   if (r.wrapClientWidth >= r.tableMinContent - 1 && r.columnsUnder100 > 0) {
     bad.push(`the box is wide enough for the table and ${String(r.columnsUnder100)} column(s) are still cut`);
   }
   if (Math.abs(r.contentWidth - measurePx) > 1) bad.push(`the prose column moved to ${String(r.contentWidth)} px`);
-  if (r.preClientWidth !== null && Math.abs(r.preClientWidth - r.wrapClientWidth) > 3) {
-    bad.push(`the fence box is ${String(r.preClientWidth)} px against the table's ${String(r.wrapClientWidth)} px`);
+  if (r.preClientWidth !== null) {
+    const wantPre = clampWidth(r.preMaxContent, r.mdWidePx, r.contentInner);
+    if (Math.abs(r.preClientWidth - wantPre) > 2) {
+      bad.push(`the fence box is ${String(r.preClientWidth)} px against a clamp of ${wantPre.toFixed(1)} px (content ${String(r.preMaxContent)})`);
+    }
   }
   return bad;
 }
@@ -146,12 +160,21 @@ export function gradeAxis(r) {
   return bad;
 }
 
-/** What a table left in the corner of a pane-wide box looks like. */
+/**
+ * What a table left in the corner of its box looks like. Since Phase 252 the
+ * box FITS its content, so the widest box a narrow table gets is the prose
+ * column — the corner is the BOX's left edge, no longer 100px left of the
+ * column the way the cap-wide box put it.
+ */
 export function gradeAxisIsBroken(r) {
   const bad = [];
   if (r === null) return ['no reading'];
-  const off = r.blocks.filter((b) => b.kind === 'table' && b.depth === 0 && b.inner !== null && b.inner.width < b.width - 1 && b.inner.left < r.contentLeft - 100);
-  if (off.length === 0) bad.push('no narrow table is drawn left of the prose column');
+  const off = r.blocks.filter((b) =>
+    b.kind === 'table' && b.depth === 0 && b.inner !== null &&
+    b.inner.width < b.width - 50 &&
+    Math.abs(b.inner.left - b.left) < 2 &&
+    (b.left + b.right) / 2 - (b.inner.left + b.inner.right) / 2 > 20);
+  if (off.length === 0) bad.push('no narrow table hugs the left corner of a meaningfully wider box');
   return bad;
 }
 
@@ -192,15 +215,20 @@ const ratio = (a, b) => {
 if (process.argv.includes('--self-test')) {
   const M = 556.8;
   const BLEED_OK = { pane: { clientWidth: 1000, scrollWidth: 1000 }, docScrollsSideways: false, blocks: [{ kind: 'table', depth: 0, overLeft: 0, overRight: 0 }] };
-  const REPAIRED = { paneWidth: 1000, contentWidth: 556.8, wrapClientWidth: 952, tableWidth: 952, tableMinContent: 759, columnsUnder100: 0, docScrollsSideways: false, preClientWidth: 952 };
+  // The clamp's shape at his pane: the table asks 1041 px, the cap is 962,
+  // the column 508.8 — the box takes 962. The fence asks 901 and takes 901.
+  const REPAIRED = { paneWidth: 1000, contentWidth: 556.8, contentInner: 508.8, mdWidePx: 962, wrapClientWidth: 962, wrapMaxContent: 1041.1, tableWidth: 962, tableMinContent: 759.1, columnsUnder100: 0, docScrollsSideways: false, preClientWidth: 901, preMaxContent: 901.2 };
+  const NARROW = { ...REPAIRED, paneWidth: 580, contentWidth: 556.8, contentInner: 508.8, mdWidePx: 542, wrapClientWidth: 542, tableWidth: 542, columnsUnder100: 2, preClientWidth: 542, preMaxContent: 901.2 };
   const cases = [
     ['the repair at his pane', () => gradeRepair(REPAIRED, M), 0],
     ['the prose column widened with it', () => gradeRepair({ ...REPAIRED, contentWidth: 952 }, M), 1],
     ['the document scrolls sideways', () => gradeRepair({ ...REPAIRED, docScrollsSideways: true }, M), 1],
-    ['the table box never grew', () => gradeRepair({ ...REPAIRED, wrapClientWidth: 509, columnsUnder100: 2, preClientWidth: 507 }, M), 1],
-    ['a pane too narrow to hold the table, behaving', () => gradeRepair({ ...REPAIRED, paneWidth: 580, wrapClientWidth: 532, tableWidth: 759, columnsUnder100: 2, preClientWidth: 530 }, M), 0],
-    ['a pane too narrow AND the block did not take it', () => gradeRepair({ ...REPAIRED, paneWidth: 580, wrapClientWidth: 400, tableWidth: 759, columnsUnder100: 3, preClientWidth: 398 }, M), 1],
+    ['the table box never grew', () => gradeRepair({ ...REPAIRED, wrapClientWidth: 509, columnsUnder100: 2, preClientWidth: 507 }, M), 2],
+    ['the box OUTGREW its content — the Phase 252 defect', () => gradeRepair({ ...REPAIRED, preClientWidth: 962 }, M), 1],
+    ['a pane too narrow to hold the table, behaving', () => gradeRepair(NARROW, M), 0],
+    ['a pane too narrow AND the block did not take it', () => gradeRepair({ ...NARROW, wrapClientWidth: 400, columnsUnder100: 3, preClientWidth: 398 }, M), 2],
     ['the fence resolved ch in the mono font', () => gradeRepair({ ...REPAIRED, preClientWidth: 819 }, M), 1],
+    ['the clamp arithmetic: floor wins a narrower cap', () => (clampWidth(300, 271, 271) === 271 && clampWidth(1200, 962, 508.8) === 962 && clampWidth(700, 962, 508.8) === 700 && clampWidth(400, 962, 508.8) === 508.8 ? [] : ['clamp moved']), 0],
     ['the measure held', () => gradeMeasure({ paneWidth: 1000, contentWidth: 556.8 }, M), 0],
     ['the measure moved', () => gradeMeasure({ paneWidth: 1000, contentWidth: 900 }, M), 1],
     ['a pane narrower than the measure is not asked', () => gradeMeasure({ paneWidth: 420, contentWidth: 420 }, M), 0],
@@ -330,6 +358,17 @@ top level, and a full bleed computed from the wrong one walks off the pane.
       \`\`\`ts
       const aLineOfCodeThreeListsDeepThatIsLongerThanTheMeasureCanSeat = fn(a, b);
       \`\`\`
+
+## A fence wider than the cap (Phase 252)
+
+The clamp sizes a box by its content between the column and the cap, so the
+cap sweep needs one block whose longest line is wider than the cap itself —
+without it the sweep would plateau at the widest CONTENT and the cap would be
+asserted by nothing.
+
+\`\`\`ts
+const wayOverTheCap = aVeryLongCall(withAnArgument, andASecondArgument, andAThirdArgument, andAFourthArgument, andAFifthArgument, andASixthArgument, andASeventhArgument);
+\`\`\`
 `;
 writeFileSync(join(project, 'AS-BUILT-ARCHITECTURE.md'), ARCH);
 
@@ -384,6 +423,22 @@ const FACE = `(() => {
     minContent = round(table.getBoundingClientRect().width);
     table.style.width = was;
   }
+  // The box's OWN intrinsic width, with the clamp's three declarations lifted
+  // for the read: min-width would floor the answer at the column and
+  // max-width would cap it, and the whole point is to learn what the content
+  // asks for before either bound is applied (Phase 252).
+  const intrinsic = (el) => {
+    if (el === null) return null;
+    const was = el.style.cssText;
+    el.style.width = 'max-content';
+    el.style.minWidth = '0';
+    el.style.maxWidth = 'none';
+    const w = round(el.getBoundingClientRect().width);
+    el.style.cssText = was;
+    return w;
+  };
+  const wrapMaxContent = intrinsic(wrap);
+  const preMaxContent = intrinsic(pre);
   const root = getComputedStyle(document.documentElement);
   return {
     dpr: window.devicePixelRatio,
@@ -411,7 +466,8 @@ const FACE = `(() => {
       barPx: wrap.offsetHeight - wrap.clientHeight,
       canScroll: wrap.scrollWidth > wrap.clientWidth,
       left: round(wr.left),
-      right: round(wr.right)
+      right: round(wr.right),
+      maxContent: wrapMaxContent
     },
     table: table === null ? null : { width: round(table.getBoundingClientRect().width), minContent, maxContent },
     cols,
@@ -421,7 +477,8 @@ const FACE = `(() => {
       width: round(pre.getBoundingClientRect().width),
       canScroll: pre.scrollWidth > pre.clientWidth,
       fontFamily: getComputedStyle(pre).fontFamily,
-      mdWide: getComputedStyle(pre).getPropertyValue('--md-wide').trim()
+      mdWide: getComputedStyle(pre).getPropertyValue('--md-wide').trim(),
+      maxContent: preMaxContent
     },
     ruler: (() => {
       const r = document.querySelector('.md-ruler');
@@ -633,18 +690,25 @@ await withElectron(
         const r = {
           paneWidth: f.pane.clientWidth,
           contentWidth: f.content.width,
+          contentInner: f.content.inner,
+          mdWidePx: Number.parseFloat(f.mdWide),
           wrapClientWidth: f.wrap.clientWidth,
+          wrapMaxContent: f.wrap.maxContent,
           tableWidth: f.table.width,
           tableMinContent: f.table.minContent,
           columnsUnder100: under,
           docScrollsSideways: f.docScrollsSideways,
-          preClientWidth: f.pre === null ? null : f.pre.clientWidth
+          // The fence carries 1px borders, so its rect width (border-box) is
+          // the number the clamp resolves; clientWidth would sit a systematic
+          // 2px under it.
+          preClientWidth: f.pre === null ? null : f.pre.width,
+          preMaxContent: f.pre === null ? null : f.pre.maxContent
         };
         readings.widths[name].grade = r;
         const bad = gradeRepair(r, MEASURE);
         const roomy = f.wrap.clientWidth >= f.table.minContent - 1;
-        check(`A4-${name}`, 'THE BLOCK TOOK THE PANE, and the columns follow wherever the box can hold them', bad.length === 0, bad.length === 0 ? `box ${String(f.wrap.clientWidth)} px, fence ${String(f.pre.clientWidth)} px, ${roomy ? `${String(f.cols.length)} of ${String(f.cols.length)} columns whole` : `${String(f.cols.length - under)} of ${String(f.cols.length)} columns whole in a pane too narrow for ${String(f.table.minContent)} px of table`}` : bad.join('; '));
-        check(`A5-${name}`, 'the fence and the table are ONE width, so 136ch resolved in the prose font', f.pre !== null && Math.abs(f.pre.clientWidth - f.wrap.clientWidth) <= 3, `fence ${String(f.pre === null ? 'none' : f.pre.clientWidth)} vs table ${String(f.wrap.clientWidth)} · --md-wide on pre ${String(f.pre === null ? '' : f.pre.mdWide)}`);
+        check(`A4-${name}`, 'THE BLOCK TOOK WHAT ITS CONTENT NEEDS, between the column and the cap, and the columns follow wherever the box can hold them', bad.length === 0, bad.length === 0 ? `box ${String(f.wrap.clientWidth)} px for ${String(f.wrap.maxContent)} px of table under a ${String(r.mdWidePx)} px cap, fence ${String(f.pre.clientWidth)} px for ${String(f.pre.maxContent)} px of code, ${roomy ? `${String(f.cols.length)} of ${String(f.cols.length)} columns whole` : `${String(f.cols.length - under)} of ${String(f.cols.length)} columns whole in a pane too narrow for ${String(f.table.minContent)} px of table`}` : bad.join('; '));
+        check(`A5-${name}`, 'the fence and the table clamp to ONE --md-wide, resolved once in the prose font', f.pre !== null && f.pre.mdWide === f.mdWide && Number.parseFloat(f.mdWide) > 0, `--md-wide on pre "${String(f.pre === null ? '' : f.pre.mdWide)}" vs on content "${String(f.mdWide)}"`);
 
         // -- G. EVERY block, not the first one. A table or a fence under a
         // bullet has the LIST ITEM as its containing block, and a bleed
@@ -666,7 +730,10 @@ await withElectron(
         for (let target = 1040; target <= 1240; target += 20) {
           await paneTo(target);
           await sleep(250);
-          const got = await cdpEval(cdp, `(() => { const s = document.querySelector('.md-scroll'); const b = document.querySelector('.md-table-scroll'); return s === null || b === null ? null : { pane: s.clientWidth, box: b.clientWidth }; })()`, 20000);
+          // THE WIDEST top-level block, not the first: the clamp sizes every
+          // box by its own content, so only the block whose longest line is
+          // wider than the cap can show where the cap is (Phase 252).
+          const got = await cdpEval(cdp, `(() => { const s = document.querySelector('.md-scroll'); const bs = Array.from(document.querySelectorAll('.md-content > .md-table-scroll, .md-content > pre')); return s === null || bs.length === 0 ? null : { pane: s.clientWidth, box: Math.max(...bs.map((b) => b.clientWidth)) }; })()`, 20000);
           if (got !== null) sweep.push(got);
         }
         readings.sweep = sweep;
@@ -681,7 +748,7 @@ await withElectron(
       await paneTo(1000);
       await sleep(300);
       {
-        const css = `.md-content .md-table-scroll, .md-content pre { width: auto; margin-inline: 0; }`;
+        const css = `.md-content .md-table-scroll, .md-content pre { width: auto; min-width: 0; max-width: none; margin-inline: 0; position: static; left: auto; translate: none; }`;
         const f = await withStyle(cdp, 'p248w-parent', css, () => cdpEval(cdp, FACE, 30000));
         readings.ablations.parent = f;
         const under = f === null ? 0 : f.cols.filter((c) => c.fraction < 100).length;
@@ -735,7 +802,8 @@ await withElectron(
         const off = await withStyle(cdp, 'p248w-corner', css, () => cdpEval(cdp, BLOCKS, 30000));
         readings.axisAblated = off;
         const broken = gradeAxisIsBroken(off);
-        check('I2', 'THE CENTRING TAKEN OFF leaves it in the corner, so arm I1 can fail', broken.length === 0, broken.length === 0 ? `the narrow table's left edge is ${String(Math.round(off.contentLeft - off.blocks.filter((x) => x.kind === 'table' && x.inner !== null && x.inner.width < x.width - 1)[0].inner.left))} px left of the prose column` : broken.join('; '));
+        const corneredTable = off === null ? null : off.blocks.find((x) => x.kind === 'table' && x.depth === 0 && x.inner !== null && x.inner.width < x.width - 50) ?? null;
+        check('I2', 'THE CENTRING TAKEN OFF leaves it in the corner of its box, so arm I1 can fail', broken.length === 0, broken.length === 0 ? `the ${String(corneredTable.inner.width)} px table sits ${String(Math.round((corneredTable.left + corneredTable.right) / 2 - (corneredTable.inner.left + corneredTable.inner.right) / 2))} px left of its ${String(corneredTable.width)} px box's axis` : broken.join('; '));
       }
 
       {
@@ -894,7 +962,7 @@ await withElectron(
         if (f === null) check('F1', 'the preview is up on paper', false, 'no .md-content');
         else {
           const under = f.cols.filter((c) => c.fraction < 100).length;
-          const bad = gradeRepair({ paneWidth: f.pane.clientWidth, contentWidth: f.content.width, wrapClientWidth: f.wrap.clientWidth, tableWidth: f.table.width, tableMinContent: f.table.minContent, columnsUnder100: under, docScrollsSideways: f.docScrollsSideways, preClientWidth: f.pre === null ? null : f.pre.clientWidth }, MEASURE);
+          const bad = gradeRepair({ paneWidth: f.pane.clientWidth, contentWidth: f.content.width, contentInner: f.content.inner, mdWidePx: Number.parseFloat(f.mdWide), wrapClientWidth: f.wrap.clientWidth, wrapMaxContent: f.wrap.maxContent, tableWidth: f.table.width, tableMinContent: f.table.minContent, columnsUnder100: under, docScrollsSideways: f.docScrollsSideways, preClientWidth: f.pre === null ? null : f.pre.width, preMaxContent: f.pre === null ? null : f.pre.maxContent }, MEASURE);
           check('F1', 'the same repair on PAPER', bad.length === 0, bad.length === 0 ? `scheme ${String(f.scheme)} · box ${String(f.wrap.clientWidth)} px · prose ${String(f.content.width)} px · 5 of 5 columns whole` : bad.join('; '));
         }
         await readAffordance('light');

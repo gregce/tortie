@@ -833,6 +833,19 @@ export const CHECKS = [
   // rectangles on paper. No agent, no token, no keychain, no request; `-L
   // gmux` touched only by a read-only session count before and after.
   electron('probe:p248'),
+  // PHASE 252. The box fits its content: ONE launch on a scratch profile, a
+  // scratch HOME and its own socket, over a one-document project it writes
+  // itself carrying the operator's five screenshot shapes plus the two the
+  // width classes need. It reads every block's used width against the clamp
+  // (content between the column and the cap) and its centre against the prose
+  // column's axis at three panes, on both bases and at zoom stops above and
+  // below 1, injects the PARENT'S rule as a measurement-only stylesheet
+  // removed in a `finally` to prove the defect comes back and the good tables
+  // are unmoved byte for byte, ablates the centring the same way, measures
+  // the losing grid candidate, and proves the translated box still scrolls,
+  // hit-tests and takes a caret. No agent, no token, no keychain, no request;
+  // `-L gmux` touched only by a read-only session count before and after.
+  electron('probe:p252'),
   electron('probe:p250'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository

@@ -1,0 +1,1142 @@
+{
+  "panes": {
+    "wide": {
+      "pane": {
+        "clientWidth": 1349,
+        "offsetWidth": 1359,
+        "scrollWidth": 1349
+      },
+      "inner": 509,
+      "mdWidePx": 1113.63,
+      "zoom": "1",
+      "scheme": null,
+      "contentCentre": 1215.5,
+      "contentWidth": 556.81,
+      "docHeight": 1443,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 589.52,
+          "maxContent": 589.52,
+          "left": 920.74,
+          "right": 1510.26,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 734.02,
+          "maxContent": 734.02,
+          "left": 848.49,
+          "right": 1582.51,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 734.02,
+          "maxContent": 734.02,
+          "left": 848.49,
+          "right": 1582.51,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 1113.63,
+          "maxContent": 1318.43,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 1113.63,
+          "maxContent": 1251.14,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 508.81,
+          "maxContent": 242.75,
+          "left": 961.09,
+          "right": 1469.91,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 1113.63,
+          "maxContent": 1254.24,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    },
+    "mid": {
+      "pane": {
+        "clientWidth": 699,
+        "offsetWidth": 709,
+        "scrollWidth": 699
+      },
+      "inner": 509,
+      "mdWidePx": 661,
+      "zoom": "1",
+      "scheme": null,
+      "contentCentre": 1540.5,
+      "contentWidth": 556.81,
+      "docHeight": 1737,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 589.52,
+          "maxContent": 589.52,
+          "left": 1245.74,
+          "right": 1835.26,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 734.02,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 734.02,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 661,
+          "maxContent": 1318.43,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 661,
+          "maxContent": 1251.14,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 508.81,
+          "maxContent": 242.75,
+          "left": 1286.09,
+          "right": 1794.91,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 1254.24,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    },
+    "narrow": {
+      "pane": {
+        "clientWidth": 319,
+        "offsetWidth": 329,
+        "scrollWidth": 319
+      },
+      "inner": 271,
+      "mdWidePx": 281,
+      "zoom": "1",
+      "scheme": null,
+      "contentCentre": 1730.5,
+      "contentWidth": 319,
+      "docHeight": 1907,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 589.52,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 734.02,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 734.02,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 281,
+          "maxContent": 1318.43,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 281,
+          "maxContent": 1251.14,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 271,
+          "maxContent": 242.75,
+          "left": 1595,
+          "right": 1866,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 1254.24,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    }
+  },
+  "parent": {
+    "wide": {
+      "pane": {
+        "clientWidth": 1349,
+        "offsetWidth": 1359,
+        "scrollWidth": 1349
+      },
+      "inner": 509,
+      "mdWidePx": 1113.63,
+      "zoom": "1",
+      "scheme": null,
+      "contentCentre": 1215.5,
+      "contentWidth": 556.81,
+      "docHeight": 1443,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 1113.63,
+          "maxContent": 589.52,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 1113.63,
+          "maxContent": 734.02,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 1113.63,
+          "maxContent": 734.02,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 1113.63,
+          "maxContent": 1318.43,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 1113.63,
+          "maxContent": 1251.14,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 1113.63,
+          "maxContent": 242.75,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 1113.63,
+          "maxContent": 1254.24,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    },
+    "mid": {
+      "pane": {
+        "clientWidth": 699,
+        "offsetWidth": 709,
+        "scrollWidth": 699
+      },
+      "inner": 509,
+      "mdWidePx": 661,
+      "zoom": "1",
+      "scheme": null,
+      "contentCentre": 1540.5,
+      "contentWidth": 556.81,
+      "docHeight": 1737,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 589.52,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 734.02,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 734.02,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 661,
+          "maxContent": 1318.43,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 661,
+          "maxContent": 1251.14,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 242.75,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 661,
+          "maxContent": 1254.24,
+          "left": 1210,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    },
+    "narrow": {
+      "pane": {
+        "clientWidth": 319,
+        "offsetWidth": 329,
+        "scrollWidth": 319
+      },
+      "inner": 271,
+      "mdWidePx": 281,
+      "zoom": "1",
+      "scheme": null,
+      "contentCentre": 1730.5,
+      "contentWidth": 319,
+      "docHeight": 1907,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 589.52,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 734.02,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 734.02,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 281,
+          "maxContent": 1318.43,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 281,
+          "maxContent": 1251.14,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 242.75,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 281,
+          "maxContent": 1254.24,
+          "left": 1590,
+          "right": 1871,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    }
+  },
+  "zoom": {
+    "0.75": {
+      "pane": {
+        "clientWidth": 1349,
+        "offsetWidth": 1359,
+        "scrollWidth": 1349
+      },
+      "inner": 509,
+      "mdWidePx": 1113.63,
+      "zoom": "0.75",
+      "scheme": null,
+      "contentCentre": 1215.5,
+      "contentWidth": 417.61,
+      "docHeight": 1073,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 441.64,
+          "maxContent": 441.64,
+          "left": 994.68,
+          "right": 1436.32,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 550.02,
+          "maxContent": 550.02,
+          "left": 940.49,
+          "right": 1490.51,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 550.02,
+          "maxContent": 550.02,
+          "left": 940.49,
+          "right": 1490.51,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 835.22,
+          "maxContent": 987.33,
+          "left": 797.89,
+          "right": 1633.11,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 835.22,
+          "maxContent": 936.62,
+          "left": 797.89,
+          "right": 1633.11,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 381.61,
+          "maxContent": 181.56,
+          "left": 1024.7,
+          "right": 1406.3,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 835.22,
+          "maxContent": 940.2,
+          "left": 797.89,
+          "right": 1633.11,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    },
+    "1.25": {
+      "pane": {
+        "clientWidth": 1349,
+        "offsetWidth": 1359,
+        "scrollWidth": 1349
+      },
+      "inner": 509,
+      "mdWidePx": 1039.2,
+      "zoom": "1.25",
+      "scheme": null,
+      "contentCentre": 1215.5,
+      "contentWidth": 696.02,
+      "docHeight": 1796,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 736.41,
+          "maxContent": 736.41,
+          "left": 847.3,
+          "right": 1583.7,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 917.02,
+          "maxContent": 917.02,
+          "left": 756.99,
+          "right": 1674.01,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 917.02,
+          "maxContent": 917.02,
+          "left": 756.99,
+          "right": 1674.01,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 1299,
+          "maxContent": 1646.54,
+          "left": 566,
+          "right": 1865,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 1299,
+          "maxContent": 1562.17,
+          "left": 566,
+          "right": 1865,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 636.02,
+          "maxContent": 302.93,
+          "left": 897.49,
+          "right": 1533.51,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 1299,
+          "maxContent": 1567.27,
+          "left": 566,
+          "right": 1865,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    },
+    "1.5": {
+      "pane": {
+        "clientWidth": 1349,
+        "offsetWidth": 1359,
+        "scrollWidth": 1349
+      },
+      "inner": 509,
+      "mdWidePx": 858,
+      "zoom": "1.5",
+      "scheme": null,
+      "contentCentre": 1215.5,
+      "contentWidth": 835.22,
+      "docHeight": 2340,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 884.28,
+          "maxContent": 884.28,
+          "left": 773.36,
+          "right": 1657.64,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 1101.02,
+          "maxContent": 1101.02,
+          "left": 664.99,
+          "right": 1766.01,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 1101.02,
+          "maxContent": 1101.02,
+          "left": 664.99,
+          "right": 1766.01,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 1287,
+          "maxContent": 1977.63,
+          "left": 572,
+          "right": 1859,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 1287,
+          "maxContent": 1862.01,
+          "left": 572,
+          "right": 1859,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 763.22,
+          "maxContent": 364.12,
+          "left": 833.89,
+          "right": 1597.11,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 1287,
+          "maxContent": 1881.37,
+          "left": 572,
+          "right": 1859,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    }
+  },
+  "light": {
+    "wide": {
+      "pane": {
+        "clientWidth": 1349,
+        "offsetWidth": 1359,
+        "scrollWidth": 1349
+      },
+      "inner": 509,
+      "mdWidePx": 1113.63,
+      "zoom": "1",
+      "scheme": "light",
+      "contentCentre": 1215.5,
+      "contentWidth": 556.81,
+      "docHeight": 1443,
+      "docScrollsSideways": false,
+      "blocks": [
+        {
+          "id": "flow",
+          "kind": "pre",
+          "client": 589.52,
+          "maxContent": 589.52,
+          "left": 920.74,
+          "right": 1510.26,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "runstory",
+          "kind": "pre",
+          "client": 734.02,
+          "maxContent": 734.02,
+          "left": 848.49,
+          "right": 1582.51,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "arch",
+          "kind": "pre",
+          "client": 734.02,
+          "maxContent": 734.02,
+          "left": 848.49,
+          "right": 1582.51,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableA",
+          "kind": "table",
+          "client": 1113.63,
+          "maxContent": 1318.43,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "tableB",
+          "kind": "table",
+          "client": 1113.63,
+          "maxContent": 1251.14,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "short",
+          "kind": "pre",
+          "client": 508.81,
+          "maxContent": 242.75,
+          "left": 961.09,
+          "right": 1469.91,
+          "centreOff": 0,
+          "canScroll": false,
+          "overLeft": 0,
+          "overRight": 0
+        },
+        {
+          "id": "overcap",
+          "kind": "pre",
+          "client": 1113.63,
+          "maxContent": 1254.24,
+          "left": 658.69,
+          "right": 1772.31,
+          "centreOff": 0,
+          "canScroll": true,
+          "overLeft": 0,
+          "overRight": 0
+        }
+      ]
+    }
+  },
+  "centreAblated": {
+    "pane": {
+      "clientWidth": 1349,
+      "offsetWidth": 1359,
+      "scrollWidth": 1788
+    },
+    "inner": 509,
+    "mdWidePx": 1113.63,
+    "zoom": "1",
+    "scheme": null,
+    "contentCentre": 1215.5,
+    "contentWidth": 556.81,
+    "docHeight": 1443,
+    "docScrollsSideways": true,
+    "blocks": [
+      {
+        "id": "flow",
+        "kind": "pre",
+        "client": 589.52,
+        "maxContent": 589.52,
+        "left": 1215.5,
+        "right": 1805.02,
+        "centreOff": 294.76,
+        "canScroll": false,
+        "overLeft": 0,
+        "overRight": 0
+      },
+      {
+        "id": "runstory",
+        "kind": "pre",
+        "client": 734.02,
+        "maxContent": 734.02,
+        "left": 1215.5,
+        "right": 1949.52,
+        "centreOff": 367.01,
+        "canScroll": false,
+        "overLeft": 0,
+        "overRight": 59.52
+      },
+      {
+        "id": "arch",
+        "kind": "pre",
+        "client": 734.02,
+        "maxContent": 734.02,
+        "left": 1215.5,
+        "right": 1949.52,
+        "centreOff": 367.01,
+        "canScroll": false,
+        "overLeft": 0,
+        "overRight": 59.52
+      },
+      {
+        "id": "tableA",
+        "kind": "table",
+        "client": 1113.63,
+        "maxContent": 1318.43,
+        "left": 1215.5,
+        "right": 2329.13,
+        "centreOff": 556.81,
+        "canScroll": false,
+        "overLeft": 0,
+        "overRight": 439.13
+      },
+      {
+        "id": "tableB",
+        "kind": "table",
+        "client": 1113.63,
+        "maxContent": 1251.14,
+        "left": 1215.5,
+        "right": 2329.13,
+        "centreOff": 556.81,
+        "canScroll": false,
+        "overLeft": 0,
+        "overRight": 439.13
+      },
+      {
+        "id": "short",
+        "kind": "pre",
+        "client": 508.81,
+        "maxContent": 242.75,
+        "left": 1215.5,
+        "right": 1724.31,
+        "centreOff": 254.41,
+        "canScroll": false,
+        "overLeft": 0,
+        "overRight": 0
+      },
+      {
+        "id": "overcap",
+        "kind": "pre",
+        "client": 1113.63,
+        "maxContent": 1254.24,
+        "left": 1215.5,
+        "right": 2329.13,
+        "centreOff": 556.81,
+        "canScroll": true,
+        "overLeft": 0,
+        "overRight": 439.13
+      }
+    ]
+  },
+  "candidates": {
+    "shipping": {
+      "docHeight": 1443,
+      "worstCentreOff": 0,
+      "docScrollsSideways": false
+    },
+    "grid": {
+      "docHeight": 1527,
+      "worstCentreOff": 0,
+      "docScrollsSideways": false
+    }
+  },
+  "interactions": {
+    "atZero": 13,
+    "scrolled": 128.5,
+    "maxScroll": 128,
+    "hitInside": true,
+    "caretInside": true,
+    "canScroll": true,
+    "padding": 12
+  }
+}
