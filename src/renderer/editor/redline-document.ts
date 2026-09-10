@@ -143,6 +143,101 @@
  * them, and the projections cannot change because the same bytes leave both
  * sides and land once in a run both sides own.
  *
+ * ## A TABLE IS DIFFED ROW AGAINST ROW (Phase 251, research 114 §6.3)
+ *
+ * A change block whose every line is a table line went through the same single
+ * `diffWords` as a paragraph, and a table is not a paragraph: the tokenizer
+ * matches the dash groups of one separator row against another's, and the
+ * pipes of row 3 against the pipes of row 5, so a table with one cell changed
+ * drew as an interleaved ribbon in which no row was recognisably a row. So a
+ * table block is ALIGNED first, row against row, and each PAIR is word-diffed
+ * on its own; an unpaired row is a whole deletion or a whole insertion.
+ *
+ * THE ROWS ARE ALIGNED BY RESEMBLANCE OVER THE WHOLE ROW, NEVER BY THE FIRST
+ * CELL, and that is the single most important sentence in this section. A
+ * first-cell key cannot pair a row whose first cell is what changed, so a
+ * renamed label column — the commonest table edit there is — degrades EVERY
+ * row from word level to a whole-row deletion beside a whole-row insertion,
+ * which is a WORSE picture than the flat stream it replaces. The key is an
+ * order-preserving longest common subsequence in which two rows are the same
+ * row when they share at least `REDLINE_ROW_RESEMBLANCE` of their word tokens,
+ * which is research 110 §6's own measure and its own threshold reused rather
+ * than invented. `| Sessions | the tab order |` against
+ * `| Ledger | the tab order |` composes to `del "Sessions"` beside
+ * `ins "Ledger"` and nothing else.
+ *
+ * THE WORD BUDGET IS THE BLOCK'S AND NOT THE ROW'S. See `redlineRunsWithin` in
+ * ./redline: `REDLINE_MAX_EDIT_LENGTH` was measured for ONE call per block, so
+ * each pair is given what is LEFT of it and a pair that cannot be diffed
+ * inside what is left is a whole-row replacement, which is the fallback the
+ * block cap already has.
+ *
+ * A SEPARATOR ROW PAIRS ONLY WITH A SEPARATOR ROW and is never word-diffed,
+ * because word-diffing `| --- | --- |` against `| --- | --- | --- |` matches
+ * the dash groups and interleaves the two rows. When both sides are plain
+ * dashes — no `:` alignment marker on either — the deleted copy is marked
+ * `drop` by `redlineLeaves` and the stylesheet does not draw it, so the reader
+ * sees the separator once the way the file has it. Its bytes are still in the
+ * markup, so both projections, the copy handler's clone and every leaf walk
+ * read exactly what they read before.
+ *
+ * WHAT THE ROW CAP IS ANSWERABLE FOR, MEASURED RATHER THAN QUOTED. Research
+ * 114 §6.3 justified it with 666 unpaired rows of five bytes emitting 1,332
+ * runs against the flat path's 2, and this file re-derives 1,332 exactly — and
+ * then refutes half of the conclusion, because those 1,332 are 666 deletions
+ * followed by 666 insertions, `push` merges each side into ONE run on the way
+ * into the document, and the mounted cost of that shape is 2 runs with the cap
+ * lifted as well as with it in place. The shape that really mounts is rows
+ * that PAIR and fall past the shared word budget, because each of those emits
+ * a deletion beside an insertion and adjacent runs of different kinds never
+ * merge: 571 rows of `|ab|` against `|ab x|`, being 2,855 and 3,997 bytes and
+ * both comfortably inside the character cap, emit 1,342 runs in 77 ms with the
+ * cap lifted and 3 with it in place. `pairRows` is an O(n·m) dynamic program
+ * with a token bag at every cell besides, measured at 1 ms for 60 rows, 110 ms
+ * for 600 and 444 ms for 1,200, so the cap answers for the arithmetic as well
+ * as for the DOM.
+ *
+ * WHICH SIDE OF THE CAPS THIS SITS ON. `tableRuns` sits INSIDE
+ * `REDLINE_MAX_BLOCK_CHARS`, after it, so A TABLE OVER THE CHARACTER CAP IS
+ * NOT FIXED BY THIS AND THAT IS A STATED LIMIT RATHER THAN AN OMISSION: the
+ * block is refused before the tokenizer as it always was, it draws whole, and
+ * `redlineDocumentNote` says `N too long`. Re-derived over this repository on
+ * 2026-09-09: 46 of its 1,951 markdown tables are over the cap, among them
+ * DESIGN.md:297 at 8,231 bytes and docs/BACKLOG.md:13554 at 22,283 bytes. And
+ * `tableRuns` has a refusal of ITS OWN, `REDLINE_MAX_TABLE_ROWS`, because
+ * unlike `redlineRuns` it answers on every input there is; ./redline's ruling
+ * 4 carries the measurement.
+ *
+ * AND THE CHANGE UNIT MOVES WITH THE COMPOSER. `changesOf` in ./rewind reads
+ * this run list, and ⌥↓, ⌥⌫, ⌥↩ and the `N of M changes` counter all read
+ * `changesOf`, so for a table whose flat edit cap collapsed the block one
+ * change becomes one per row: measured at 1 against 60 on a 60-row table with
+ * two words changed in every row, where the flat path spends 240 edits against
+ * a cap of 200 and gives up. THAT IS FINER GRANULARITY RATHER THAN A DEFECT
+ * and it is taken on purpose rather than inherited — a person who rewinds a
+ * table row now rewinds that row and not the table. It is BOUNDED by
+ * `REDLINE_MAX_TABLE_ROWS`, which is the answer to research 114 §6.3's own
+ * 200-row reading: a 200-row table is refused by the row cap and draws whole,
+ * so it is one change here whatever its rows say.
+ *
+ * ## A CHANGE MUST CARRY INK (Phase 251, research 114 §6.5)
+ *
+ * `redlineLeaves` is the leaf-level half, and it is here rather than in the
+ * view because it is arithmetic over the run list and the gate drives it under
+ * node. It answers four questions per mark, and ./RedlineRow turns them into
+ * attributes the stylesheet keys on. The one that is a rule rather than a
+ * classification is `lone`: a blank line added or removed composes to exactly
+ * one run, `del "\n"` or `ins "\n"`, with no other mark beside it, and with
+ * the wash and the strikethrough both correctly withheld from it the reader
+ * would be shown NOTHING AT ALL while the counter, the chip and ⌥↓ still
+ * offered Rewind and Accept on it. So a whitespace mark whose whole CHANGE
+ * holds nothing a reader can read is marked, and the stylesheet draws it as a
+ * bar through a pseudo-element, which adds no node, no text node and no leaf.
+ *
+ * RULING 5 OF ./redline STANDS EXACTLY AND NO WIDER: a whitespace mark that IS
+ * a spacing change keeps its wash, because in a standalone document nothing
+ * else can say that a spacing change happened.
+ *
  * WHAT THIS FILE MAY NEVER GROW. No accept and no reject: accepting a change
  * means writing a file, which the backlog entry refuses by name. Nothing here
  * reaches an IPC bridge, opens a file or writes anything.
@@ -152,8 +247,11 @@ import { diffLines } from 'diff';
 import {
   newTextOf,
   redlineRuns,
+  redlineRunsWithin,
   REDLINE_MAX_BLOCK_CHARS,
-  REDLINE_MAX_BLOCKS
+  REDLINE_MAX_BLOCKS,
+  REDLINE_MAX_EDIT_LENGTH,
+  REDLINE_MAX_TABLE_ROWS
 } from './redline';
 import type { RedlineRun } from './redline';
 
@@ -181,6 +279,14 @@ export interface RedlineDocument {
    * new text as one insertion, and why: the character budget, the word
    * guard giving up, the block cap, or the repair refusing. The last should
    * be zero and the gate prints it.
+   *
+   * PHASE 251: `tooBig` counts the ROW budget as well as the character one.
+   * They are one refusal in two spellings — this block is too big to mark up
+   * inside it — they draw the same picture, and the note says the same
+   * sentence about both, so a fifth counter would be a distinction with
+   * nothing behind it. `npm run conformance:redline` asks them apart by
+   * driving `tableRuns` itself, which answers null for one and runs for the
+   * other.
    */
   whole: {
     tooBig: number;
@@ -545,6 +651,464 @@ export function slideBoundaries(blocks: readonly LineBlock[]): {
   return { blocks: out, slid };
 }
 
+// ---------------------------------------------------------------------------
+// THE TABLE BLOCK (Phase 251, research 114 §6.3). See the file header.
+// ---------------------------------------------------------------------------
+
+/** A table line: optional leading whitespace, then a pipe. */
+const TABLE_LINE = /^\s*\|/;
+
+/** A separator row's alphabet: pipes, dashes, colons and spacing, nothing else. */
+const SEPARATOR_ROW = /^[\s|:-]+$/;
+
+/**
+ * How much two rows must resemble each other to be the same row.
+ *
+ * ONE CONSTANT, AND IT IS RESEARCH 110 §6'S OWN, reused rather than invented:
+ * `REDLINE_SLIDE_RESEMBLANCE` above is the same number asking the same kind of
+ * question one level up, about two stretches of prose rather than two rows.
+ * The measure differs — this one is a token MULTISET overlap, so a row that
+ * repeats a word cannot claim credit for it twice — and the threshold does
+ * not.
+ */
+export const REDLINE_ROW_RESEMBLANCE = 0.5;
+
+/** The lines of a block, each carrying its own newline when it had one. */
+function rowsOf(text: string): string[] {
+  return text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+}
+
+/** The word tokens of a row, lower-cased. Pipes, dashes and punctuation drop out. */
+function rowTokens(line: string): string[] {
+  return line.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+}
+
+/**
+ * A table separator row, being the `| --- | :-- |` line under a header. It
+ * must carry a pipe as well as a dash, so a thematic break or a setext
+ * underline in ordinary prose is not one of these and is never dropped.
+ */
+export function isSeparatorRow(line: string): boolean {
+  const row = line.replace(/\n$/, '');
+  return SEPARATOR_ROW.test(row) && row.includes('|') && row.includes('-');
+}
+
+/**
+ * How much two rows resemble each other, from 0 to 1: twice the size of their
+ * common token multiset over the sum of their sizes, so an identical pair
+ * reads 1 and a disjoint pair reads 0.
+ *
+ * A separator row resembles a separator row and nothing else, asked BEFORE the
+ * arithmetic, because a separator row has no tokens at all and a bag-of-words
+ * measure would happily pair one with a row of empty cells.
+ */
+export function rowResemblance(a: string, b: string): number {
+  const sepA = isSeparatorRow(a);
+  const sepB = isSeparatorRow(b);
+  if (sepA || sepB) return sepA && sepB ? 1 : 0;
+  const ta = rowTokens(a);
+  const tb = rowTokens(b);
+  if (ta.length === 0 && tb.length === 0) return 1;
+  if (ta.length === 0 || tb.length === 0) return 0;
+  const bag = new Map<string, number>();
+  for (const t of ta) bag.set(t, (bag.get(t) ?? 0) + 1);
+  let common = 0;
+  for (const t of tb) {
+    const n = bag.get(t) ?? 0;
+    if (n > 0) {
+      common += 1;
+      bag.set(t, n - 1);
+    }
+  }
+  return (2 * common) / (ta.length + tb.length);
+}
+
+/** One step of the row alignment: a pair, a row with no partner either way. */
+export interface RowStep {
+  kind: 'pair' | 'del' | 'ins';
+  /** Index into the old rows, for `pair` and `del`. */
+  old?: number;
+  /** Index into the new rows, for `pair` and `ins`. */
+  next?: number;
+}
+
+/**
+ * THE ORDER-PRESERVING PAIRING. A plain longest common subsequence over the
+ * rows in which "equal" means `rowResemblance` clears the threshold.
+ *
+ * It is written out rather than handed to `diffArrays` because the pairing
+ * INDICES are what the caller needs and a comparator-driven `diffArrays`
+ * answers values. Ruling 6 of ./redline is untouched: nothing is reordered,
+ * each side is consumed in its own order, and that is exactly what keeps both
+ * projections exact — every old row lands in one `pair` or one `del` and every
+ * new row in one `pair` or one `ins`, once, in order.
+ *
+ * It is O(n·m) with a token bag at every cell, which is why
+ * `REDLINE_MAX_TABLE_ROWS` exists in front of it.
+ */
+export function pairRows(
+  oldRows: readonly string[],
+  newRows: readonly string[]
+): RowStep[] {
+  const n = oldRows.length;
+  const m = newRows.length;
+  const same = (i: number, j: number): boolean =>
+    rowResemblance(oldRows[i] ?? '', newRows[j] ?? '') >= REDLINE_ROW_RESEMBLANCE;
+  const dp: number[][] = Array.from({ length: n + 1 }, () =>
+    new Array<number>(m + 1).fill(0)
+  );
+  for (let i = n - 1; i >= 0; i -= 1) {
+    for (let j = m - 1; j >= 0; j -= 1) {
+      const row = dp[i] as number[];
+      const below = dp[i + 1] as number[];
+      row[j] = same(i, j)
+        ? (below[j + 1] as number) + 1
+        : Math.max(below[j] as number, row[j + 1] as number);
+    }
+  }
+  const out: RowStep[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    const row = dp[i] as number[];
+    const below = dp[i + 1] as number[];
+    if (same(i, j) && (row[j] as number) === (below[j + 1] as number) + 1) {
+      out.push({ kind: 'pair', old: i, next: j });
+      i += 1;
+      j += 1;
+    } else if ((below[j] as number) >= (row[j + 1] as number)) {
+      out.push({ kind: 'del', old: i });
+      i += 1;
+    } else {
+      out.push({ kind: 'ins', next: j });
+      j += 1;
+    }
+  }
+  while (i < n) {
+    out.push({ kind: 'del', old: i });
+    i += 1;
+  }
+  while (j < m) {
+    out.push({ kind: 'ins', next: j });
+    j += 1;
+  }
+  return out;
+}
+
+/** What `tableRuns` did, so the gate can read the caps rather than infer them. */
+export interface TableRunsResult {
+  /** The runs for the whole block, repaired, in document order. */
+  runs: RedlineRun[];
+  /** Pairs drawn word by word. */
+  paired: number;
+  /** Pairs the shared budget or the repair refused, drawn as whole rows. */
+  wholeRows: number;
+  /** Pairs whose two rows were byte identical, drawn as one unchanged run. */
+  identical: number;
+  /** Separator pairs, which are never word-diffed. */
+  separators: number;
+  /** Rows with no partner at all, drawn whole. */
+  unpaired: number;
+  /**
+   * How much of `REDLINE_MAX_EDIT_LENGTH` the block's rows spent BETWEEN THEM.
+   * It can never exceed it, which is the whole point of the shared budget, and
+   * the gate reads this number rather than trusting the sentence.
+   */
+  spent: number;
+}
+
+/**
+ * A change block is a table block when every non-empty line of BOTH sides is a
+ * table line, and each side has at least one. Both sides, because a paragraph
+ * turning into a table is a rewrite rather than a table edit, and the row
+ * alignment has nothing to align it against.
+ */
+export function isTableBlock(oldText: string, newText: string): boolean {
+  const rows = (text: string): string[] =>
+    text.split('\n').filter((line) => line !== '');
+  const side = (text: string): boolean => {
+    const lines = rows(text);
+    return lines.length > 0 && lines.every((line) => TABLE_LINE.test(line));
+  };
+  return side(oldText) && side(newText);
+}
+
+/**
+ * The runs for one table change block, aligned row against row, or null when
+ * `REDLINE_MAX_TABLE_ROWS` refuses it and the block must draw whole.
+ *
+ * See the file header for every rule this follows. The short form is that
+ * every old row lands in exactly one `pair` or one `del` and every new row in
+ * exactly one `pair` or one `ins`, in order, so the two projections hold by
+ * construction and not by inspection.
+ */
+export function tableRuns(oldText: string, newText: string): TableRunsResult | null {
+  const oldRows = rowsOf(oldText);
+  const newRows = rowsOf(newText);
+  if (
+    oldRows.length > REDLINE_MAX_TABLE_ROWS ||
+    newRows.length > REDLINE_MAX_TABLE_ROWS
+  ) {
+    return null;
+  }
+  const runs: RedlineRun[] = [];
+  /**
+   * A ROW IS ITS OWN RUN HERE AND IS NEVER MERGED WITH THE ROW ABOVE IT, which
+   * is the one place this file does not use `push`.
+   *
+   * `composeRedlineDocument` pushes these through `push` on the way in, so the
+   * DOCUMENT still holds the invariant that adjacent runs never share a kind
+   * and nothing downstream sees anything new. What merging here would destroy
+   * is the only honest reading of what this path COSTS: 666 unpaired rows are
+   * 1,332 runs out of this function and two runs after the merge, and a gate
+   * reading the merged number would watch the row cap's own justification
+   * disappear. The number the cap is answerable for is this one.
+   */
+  const emit = (kind: RedlineRun['kind'], text: string): void => {
+    if (text !== '') runs.push({ kind, text });
+  };
+  let paired = 0;
+  let wholeRows = 0;
+  let identical = 0;
+  let separators = 0;
+  let unpaired = 0;
+  let spent = 0;
+  for (const step of pairRows(oldRows, newRows)) {
+    if (step.kind === 'del') {
+      emit('del', oldRows[step.old ?? 0] ?? '');
+      unpaired += 1;
+      continue;
+    }
+    if (step.kind === 'ins') {
+      emit('ins', newRows[step.next ?? 0] ?? '');
+      unpaired += 1;
+      continue;
+    }
+    const a = oldRows[step.old ?? 0] ?? '';
+    const b = newRows[step.next ?? 0] ?? '';
+    if (a === b) {
+      emit('same', a);
+      identical += 1;
+      continue;
+    }
+    // A SEPARATOR ROW IS NEVER WORD-DIFFED. See the file header.
+    if (isSeparatorRow(a) && isSeparatorRow(b)) {
+      emit('del', a);
+      emit('ins', b);
+      separators += 1;
+      continue;
+    }
+    // THE BUDGET IS THE BLOCK'S. Each pair is given what is left of it.
+    const words = redlineRunsWithin(a, b, REDLINE_MAX_EDIT_LENGTH - spent);
+    const exact = words === null ? null : exactRuns(words.runs, a, b);
+    if (words === null || exact === null) {
+      emit('del', a);
+      emit('ins', b);
+      wholeRows += 1;
+      continue;
+    }
+    spent += words.edits;
+    for (const run of exact) emit(run.kind, run.text);
+    paired += 1;
+  }
+  return { runs, paired, wholeRows, identical, separators, unpaired, spent };
+}
+
+/**
+ * A DELETION AND AN INSERTION OF THE SAME BYTES ARE NOT A CHANGE (Phase 251,
+ * research 114 §6.5 rule 4).
+ *
+ * `exactRuns` splits an unchanged run whose spacing differs into the old
+ * spacing struck through and the new spacing inserted, which is right when the
+ * two really differ — and a changed line's own trailing newline can go through
+ * the same door, so `del x` lands beside `ins x` and the document draws the
+ * same bytes twice. Replacing such a pair with one unchanged run is EXACTLY
+ * EQUIVALENT ON BOTH PROJECTIONS: the non-ins side loses `ins x` and gains `x`
+ * where it had `del x`, and the non-del side is the mirror. So it is a
+ * correction rather than a decoration, and the gate asks it as a property over
+ * the fuzz rather than over a fixture.
+ *
+ * It runs AFTER `peelSharedSpace`, because the peel is what leaves such a pair
+ * behind: it splits a pair at its shared ends and can hand back two rests that
+ * are the same string.
+ */
+export function cancelPairs(runs: readonly RedlineRun[]): RedlineRun[] {
+  const out: RedlineRun[] = [];
+  for (let i = 0; i < runs.length; i += 1) {
+    const a = runs[i];
+    const b = runs[i + 1];
+    if (a === undefined) break;
+    if (
+      b !== undefined &&
+      a.kind !== 'same' &&
+      b.kind !== 'same' &&
+      a.kind !== b.kind &&
+      a.text === b.text
+    ) {
+      push(out, 'same', a.text);
+      i += 1;
+      continue;
+    }
+    push(out, a.kind, a.text);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// THE LEAF RULES (Phase 251, research 114 §6.5). See the file header.
+// ---------------------------------------------------------------------------
+
+/** A run with nothing in it a reader can read: no letter and no digit. */
+const WORDLESS = /^[^\p{L}\p{N}]*$/u;
+
+/** Anything a reader can read. */
+const INK = /[\p{L}\p{N}]/u;
+
+/**
+ * What ./RedlineRow needs to know about one run to draw its leaf. Every field
+ * is FALSE for a `same` run, because these are rules about MARKS.
+ */
+export interface RedlineLeaf {
+  /**
+   * No letter and no digit, and not only whitespace: a table's `|` and its
+   * `---`. It keeps its colour and its strikethrough and takes no wash,
+   * because a wash on furniture reads as a change to the furniture.
+   */
+  wordless: boolean;
+  /** Only whitespace. */
+  blank: boolean;
+  /**
+   * A whitespace mark that IS a spacing change. It KEEPS its wash: ruling 5 of
+   * ./redline, exactly and no wider. See `redlineLeaves` for the two clauses
+   * that answer it and for why research 114 §6.5's own single clause reads
+   * false on the very case ruling 5 is about.
+   */
+  spacing: boolean;
+  /**
+   * A whitespace mark whose whole CHANGE holds nothing a reader can read, so
+   * neither the wash nor the strikethrough has anything to land on and the
+   * change would be drawn as nothing at all. See the file header.
+   */
+  lone: boolean;
+  /**
+   * A deleted separator row whose insertion is a separator row too and where
+   * neither side carries a `:` alignment marker. It is not DRAWN, which is not
+   * the same as absent: its bytes stay in the markup.
+   */
+  drop: boolean;
+}
+
+const NO_LEAF: RedlineLeaf = {
+  wordless: false,
+  blank: false,
+  spacing: false,
+  lone: false,
+  drop: false
+};
+
+/**
+ * The leaf facts for one run list, in the same order, one per run.
+ *
+ * It is pure arithmetic over runs and it is deliberately NOT a field on
+ * `RedlineRun`: `push` merges adjacent runs of one kind by concatenating their
+ * text, so a flag carried on a run would be a flag about whichever half
+ * arrived first. Asking here, once, after every merge, is the only place the
+ * answer is about the run that is actually drawn.
+ *
+ * It takes the runs of ONE change when ./RedlineDocument draws a change and
+ * the runs of one block when ./RedlineRow draws a row, and it groups them the
+ * same way either time, being research 83 B.2's unit: a maximal stretch of
+ * consecutive non-`same` runs.
+ */
+export function redlineLeaves(runs: readonly RedlineRun[]): RedlineLeaf[] {
+  const out: RedlineLeaf[] = runs.map((run) =>
+    run.kind === 'same'
+      ? { ...NO_LEAF }
+      : {
+          ...NO_LEAF,
+          wordless: WORDLESS.test(run.text) && run.text.trim() !== '',
+          blank: run.text.trim() === ''
+        }
+  );
+
+  // RULE 2, AND IT HAS TWO CLAUSES WHERE RESEARCH 114 §6.5 HAS ONE, because
+  // the one it has reads FALSE on the very case ruling 5 is about.
+  //
+  // §6.5 says a spacing change is a whitespace mark with an opposite-kind
+  // whitespace mark beside it, being `del "   "` beside `ins " "`, and over
+  // the MOCK's composer it is: the mock does not peel. `peelSharedSpace` runs
+  // in this file and takes the whitespace the two sides SHARE at their ends
+  // out of the pair, so three spaces becoming one arrives as `same " "` and
+  // then `del "  "` ALONE, with the insertion peeled away to nothing. Driven
+  // over the shipping composer on 2026-09-09, "Spaced   out   words   here."
+  // becoming "Spaced out words here." read three lone deletions and not one
+  // pair, so the one-clause rule withheld the wash from every spacing change
+  // this document path can actually draw.
+  //
+  // So a whitespace mark is a spacing change when EITHER an opposite-kind
+  // whitespace mark is beside it — four spaces becoming a tab, where the peel
+  // finds nothing shared to take — OR it carries no line terminator at all,
+  // which is spacing INSIDE one line and is what the peel leaves behind. A
+  // whitespace mark that carries a line terminator and stands alone is a
+  // line's own break moving, which is markdown structure rather than spacing:
+  // it gets no wash, because washing it paints a coloured bar past the last
+  // glyph on the row, and rule 3 below is what stops it being drawn as
+  // nothing at all instead.
+  const blankMark = (k: number): boolean =>
+    runs[k] !== undefined && runs[k]?.kind !== 'same' && out[k]?.blank === true;
+  for (let i = 0; i < runs.length; i += 1) {
+    const leaf = out[i];
+    const run = runs[i];
+    if (leaf === undefined || run === undefined || !leaf.blank) continue;
+    const opposite = (k: number): boolean =>
+      blankMark(k) && runs[k]?.kind !== run.kind;
+    leaf.spacing =
+      opposite(i - 1) || opposite(i + 1) || !/[\n\r]/.test(run.text);
+  }
+
+  // RULE 3. A CHANGE MUST CARRY INK. The unit is the group, so the question
+  // is asked of the group and answered on every mark in it.
+  let start = 0;
+  while (start < runs.length) {
+    if (runs[start]?.kind === 'same') {
+      start += 1;
+      continue;
+    }
+    let end = start;
+    let ink = false;
+    while (end < runs.length && runs[end]?.kind !== 'same') {
+      if (INK.test(runs[end]?.text ?? '')) ink = true;
+      end += 1;
+    }
+    if (!ink) {
+      for (let k = start; k < end; k += 1) {
+        const leaf = out[k];
+        if (leaf !== undefined && leaf.blank && !leaf.spacing) leaf.lone = true;
+      }
+    }
+    start = end;
+  }
+
+  // RULE 1'S OTHER HALF, and it is the separator pair. The deleted copy of a
+  // plain-dashes separator row is not drawn, because a separator row's only
+  // content is the column count and the header above it already shows that.
+  // An alignment marker on either side draws both, because then the row is
+  // saying something the header does not.
+  for (let i = 0; i + 1 < runs.length; i += 1) {
+    const a = runs[i];
+    const b = runs[i + 1];
+    if (a === undefined || b === undefined) continue;
+    if (a.kind === 'same' || b.kind === 'same' || a.kind === b.kind) continue;
+    if (!isSeparatorRow(a.text) || !isSeparatorRow(b.text)) continue;
+    if (a.text.includes(':') || b.text.includes(':')) continue;
+    const deleted = a.kind === 'del' ? i : i + 1;
+    const leaf = out[deleted];
+    if (leaf !== undefined) leaf.drop = true;
+  }
+
+  return out;
+}
+
 /**
  * The line level partition: the two versions as alternating unchanged
  * stretches and change blocks, every byte of both in exactly one of them.
@@ -682,6 +1246,19 @@ export function composeRedlineDocument(
       drawWhole(block);
       continue;
     }
+    // THE TABLE PATH SITS INSIDE THE CHARACTER CAP, AFTER IT. A block over
+    // that cap reaches no differ at all, exactly as it did before this phase,
+    // which is what makes the stated limit in the file header checkable.
+    if (isTableBlock(block.oldText, block.newText)) {
+      const table = tableRuns(block.oldText, block.newText);
+      if (table === null) {
+        whole.tooBig += 1;
+        drawWhole(block);
+        continue;
+      }
+      for (const run of table.runs) push(runs, run.kind, run.text);
+      continue;
+    }
     const words = redlineRuns(block.oldText, block.newText);
     if (words === null) {
       whole.tooDifferent += 1;
@@ -699,8 +1276,16 @@ export function composeRedlineDocument(
 
   // Once, over the whole document, so a block drawn whole is covered as well
   // as a word level pair. The peel moves the same bytes out of both sides of a
-  // pair and into one run both sides own, so neither projection can change.
-  return { runs: peelSharedSpace(runs), blocks: count, whole, approximate, slid };
+  // pair and into one run both sides own, so neither projection can change,
+  // and the cancel pass after it replaces a pair the peel left holding the
+  // same bytes on both sides with the one unchanged run it is equal to.
+  return {
+    runs: cancelPairs(peelSharedSpace(runs)),
+    blocks: count,
+    whole,
+    approximate,
+    slid
+  };
 }
 
 /**

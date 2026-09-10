@@ -56,6 +56,18 @@
  *    Anything skipped is SAID, through the surface's existing `ed-note`
  *    banner, rather than silently missing.
  *
+ *    PHASE 251 ADDED A FOURTH, AND IT IS HERE BECAUSE IT ARGUES WITH THE
+ *    THREE ABOVE RATHER THAN JOINING THEM QUIETLY. `tableRuns` in
+ *    ./redline-document draws a table block row against row, and unlike
+ *    `redlineRuns` it returns a value on EVERY input there is, so no cap
+ *    above it can bound what it mounts: at 666 rows of five bytes, both
+ *    sides comfortably inside `REDLINE_MAX_BLOCK_CHARS`, it emits 1,332
+ *    runs where the flat path emits 2, into a view that mounts its whole
+ *    document with no virtualizer (docs/research/113 §7.1). So it REFUSES
+ *    LIKE `wordRuns` DOES, at `REDLINE_MAX_TABLE_ROWS` below, returning
+ *    null so the block takes the whole-block fallback every other cap
+ *    already takes.
+ *
  * 5. A WHITESPACE ONLY CHANGE SAYS SO, and it is the one thing this module
  *    cannot draw. Ruling 1's normalisation collapses every run of whitespace,
  *    including the newlines, to one space, which is what lets three lines read
@@ -156,6 +168,23 @@ export const REDLINE_MAX_BLOCK_CHARS = 4_000;
  */
 export const REDLINE_MAX_BLOCKS = 60;
 
+/**
+ * The largest table block, PER SIDE, in rows, that ./redline-document's
+ * `tableRuns` will align row against row. Past it the block draws whole, the
+ * way every other cap in this file makes a block draw. See ruling 4.
+ *
+ * SIXTY IS DERIVED RATHER THAN PICKED, and the derivation is re-runnable: it
+ * is nearly twice the widest table this repository holds under
+ * `REDLINE_MAX_BLOCK_CHARS`, being the 32-row table at
+ * docs/research/26-tortie-durability-architecture-and-recovery.md:248 at 3,983
+ * bytes, against a median of 7 rows and a p99 of 22 over the 1,905 markdown
+ * tables that fit under that cap. So it refuses nothing a person here has, and
+ * it is what stops a generated or pasted table of narrow rows mounting a
+ * thousand boxes. What a person can READ in one mounted block, and whether 60
+ * rows of table is already past that, is his eye and not a number.
+ */
+export const REDLINE_MAX_TABLE_ROWS = 60;
+
 /** One run of the marked-up line. */
 export interface RedlineRun {
   kind: 'same' | 'del' | 'ins';
@@ -233,21 +262,48 @@ export function redlineRuns(
   oldText: string,
   newText: string
 ): RedlineRun[] | null {
+  return redlineRunsWithin(oldText, newText, REDLINE_MAX_EDIT_LENGTH)?.runs ?? null;
+}
+
+/**
+ * The same call, given a BUDGET rather than the whole cap, and answering how
+ * much of it the pair actually spent.
+ *
+ * PHASE 251, AND IT EXISTS SO THAT ONE NUMBER STAYS ONE NUMBER. Ruling 4's
+ * `REDLINE_MAX_EDIT_LENGTH` was measured for ONE `diffWords` per change block.
+ * ./redline-document's table path calls the tokenizer once per PAIRED ROW, and
+ * a per-row cap of 200 would let one block spend two hundred capped Myers
+ * passes where the cap promised one, which is ruling 4's own promise broken.
+ * So the budget is the BLOCK's: each pair is given what is left, and a pair
+ * that cannot be diffed inside it is a whole-row replacement.
+ *
+ * `edits` is Myers' own D for the pair, being the number of added and removed
+ * TOKENS, which is what `maxEditLength` bounds, so the caller subtracts what
+ * it is told rather than estimating from the drawn bytes.
+ */
+export function redlineRunsWithin(
+  oldText: string,
+  newText: string,
+  budget: number
+): { runs: RedlineRun[]; edits: number } | null {
+  if (budget <= 0) return null;
   const seg = wordSegmenter();
   const parts = diffWords(oldText, newText, {
-    maxEditLength: REDLINE_MAX_EDIT_LENGTH,
+    maxEditLength: budget,
     ...(seg !== null ? { intlSegmenter: seg } : {})
   });
   if (parts === undefined) return null;
   const runs: RedlineRun[] = [];
+  let edits = 0;
   for (const part of parts) {
+    if (part.added === true || part.removed === true) edits += part.count ?? 1;
     if (part.value === '') continue;
     runs.push({
       kind: part.added ? 'ins' : part.removed ? 'del' : 'same',
       text: part.value
     });
   }
-  return runs;
+  return { runs, edits };
 }
 
 /**

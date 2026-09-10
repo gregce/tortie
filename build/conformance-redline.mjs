@@ -287,6 +287,66 @@
  *      them, and the copied chain imports `diff`, which node resolves by
  *      walking up to node_modules.
  *
+ *  26-32. THE TABLE (Phase 251, research 114 §6.3 and §6.5). Every rule above
+ *      this one asks whether the arithmetic ran on a PARAGRAPH, and a table is
+ *      not a paragraph: `diffWords` matches the dash groups of one separator
+ *      row against another's and the pipes of row 3 against the pipes of row
+ *      5, so a table with one cell changed drew as a ribbon in which no row
+ *      was recognisably a row, and all twenty-five of them passed while it
+ *      did. Ten arms on the SHIPPING composer, driven under node by
+ *      build/redline-table-probe.mts, each with an ablation of its own clause.
+ *
+ *        26 BOTH PROJECTIONS, over the committed corpus and a seeded fuzz of
+ *           420 table pairs mutated the ways a person mutates a table, being
+ *           a cell rewritten, two rows swapped, a row taken out, a row put in,
+ *           a column added and the separator's own dashes changed.
+ *        27 NO RUN CROSSES A ROW BOUNDARY. Every run the row path emits lies
+ *           wholly inside one row of the side it belongs to, and the flat path
+ *           over the same block is the control that crosses four times. Its
+ *           ablation makes the block ONE row again, which is the flat path
+ *           wearing the table path's name.
+ *        28 A RENAMED FIRST COLUMN STILL PAIRS. This is the whole of fault 3:
+ *           a first-cell key cannot pair a row whose first cell is what
+ *           changed, so it degrades EVERY row of a renamed label column to a
+ *           whole-row pair, which is a WORSE picture than the flat stream it
+ *           replaces, and a renamed label column is the commonest table edit
+ *           there is. The ablation is that key, put back.
+ *        29 THE THREE CAPS, ASKED AS THREE QUESTIONS, because they are three
+ *           different promises and a later round can undo any one of them on
+ *           its own. (a) The word budget is the BLOCK's: 60 rows spending four
+ *           edits each spend 200 between them and not 240, and the ten rows
+ *           past the budget are whole-row replacements. (b) The table path is
+ *           INSIDE the character cap: 4,060 bytes reaches no differ at all and
+ *           is counted `tooBig`, where 3,986 draws 163 runs — which is what
+ *           makes "fault 3 is not fixed above the character cap" checkable
+ *           rather than asserted. (c) `tableRuns` has a refusal of its own,
+ *           because unlike `redlineRuns` it answers on every input there is:
+ *           at 666 rows of 3,330 bytes, comfortably inside the character cap,
+ *           it answers null, and at 60 it answers 120 runs.
+ *        30 THE CANCEL PASS IS AN IDENTITY on both projections over all 435
+ *           documents. IT FIRES ZERO TIMES IN THE PIPELINE and the gate prints
+ *           that rather than hiding it: `peelSharedSpace` reaches the shape
+ *           research 114 §6.5 rule 4 names before it does, so it is a guard
+ *           rather than a repair, and the arm drives it directly so an
+ *           ablation still has a reading to move.
+ *        31 THE DROPPED SEPARATOR. A plain-dashes separator pair marks its
+ *           DELETED copy `drop` and an alignment marker on either side draws
+ *           both, and the bytes are in the run list either way, so both
+ *           projections hold in the same reading. NOT DRAWN IS NOT ABSENT.
+ *        32 NO CHANGE IS EVER ENTIRELY UNDRAWN, and the property is INK
+ *           rather than presence: 0 of 2,457 changes over the corpus and the
+ *           fuzz carry no mark a person can see. 32b is ruling 5 both ways,
+ *           and it is this phase's own finding: research 114 §6.5 says a
+ *           spacing change is a whitespace mark with an opposite-kind
+ *           whitespace mark beside it, which is true of the MOCK's composer
+ *           and false of the product's, because `peelSharedSpace` takes the
+ *           shared ends off the pair and leaves the deletion standing alone.
+ *           Driven over the shipping composer, the one-clause rule withheld
+ *           the wash from every spacing change this path can draw.
+ *
+ *      Its ablation directories are `.p251-table-*` at the repository root,
+ *      for rules 19 and 25's reason.
+ *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
 
@@ -3108,6 +3168,321 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
         `25. his bad picture reads ${String(shippingSlide.bad?.markedCount)} marked runs against 15 ` +
           `at the parent, with every cap still passing; the line cost is unmoved over ` +
           `${String(shippingSlide.tie?.documents)} documents and both projections hold over all of them`
+      );
+    } finally {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+      // A sweep, in case a name from an interrupted run is left at the root.
+      for (const name of readdirSync('.')) {
+        if (name.startsWith(prefix) && existsSync(name)) {
+          rmSync(name, { recursive: true, force: true });
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 251, rules 26 to 32: THE TABLE IS DIFFED ROW AGAINST ROW, and the four
+// leaf rules that stop a change being drawn as nothing at all. Seven arms on
+// the SHIPPING composer, driven under node by build/redline-table-probe.mts,
+// each with an ablation of its own clause that must move its own arm's
+// reading.
+//
+// Rules 1 to 25 all ask whether the arithmetic ran on a PARAGRAPH. A table is
+// not a paragraph: `diffWords` matches the dash groups of one separator row
+// against another's and the pipes of row 3 against the pipes of row 5, and
+// every rule above this one passed while it did.
+// ---------------------------------------------------------------------------
+{
+  const TABLE_CHAIN = ['redline-document.ts', 'redline.ts', 'paths.ts'];
+  const SRC = 'src/renderer/editor';
+
+  const runTableProbe = (dir) => {
+    const probe = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/redline-table-probe.mts'],
+      {
+        encoding: 'utf8',
+        cwd: process.cwd(),
+        maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, TABLE_DIR: dir }
+      }
+    );
+    if (probe.status !== 0) return { error: (probe.stderr || '(no output)').slice(-400) };
+    const line = probe.stdout.trim().split('\n').pop() ?? '';
+    try {
+      return JSON.parse(line);
+    } catch {
+      return { error: `no JSON: ${probe.stdout.slice(0, 200)}` };
+    }
+  };
+
+  const TABLE_ARMS = [
+    {
+      name: '26. both projections hold over the corpus and a seeded fuzz of 420 table pairs',
+      key: 'projections',
+      expect: (a) =>
+        a.documents === 435 &&
+        a.corpus === 15 &&
+        a.fuzz === 420 &&
+        a.oldOk === 435 &&
+        a.newOk === 435,
+      file: 'redline-document.ts',
+      from: "      emit('ins', newRows[step.next ?? 0] ?? '');",
+      to: "      emit('ins', (newRows[step.next ?? 0] ?? '').slice(1));"
+    },
+    {
+      // THE ROW IS THE UNIT, and this is the whole of fault 3. The ablation
+      // makes the block ONE row again, which is the flat path wearing the
+      // table path's name, and the crossings come straight back.
+      name: '27. no run crosses a row boundary, where the flat path crosses four times',
+      key: 'rowsNotCrossed',
+      expect: (a) =>
+        a.rowCrossings === 0 &&
+        a.flatCrossings === 4 &&
+        a.rowRuns === 9 &&
+        a.paired === 1 &&
+        a.unpaired === 2,
+      file: 'redline-document.ts',
+      from: "  return text.match(/[^\\n]*\\n|[^\\n]+$/g) ?? [];",
+      to: '  return [text];'
+    },
+    {
+      // A FIRST-CELL KEY IS THE DEFECT, not a simpler spelling of the fix: it
+      // degrades every row of a renamed label column to a whole-row pair,
+      // which is a worse picture than the flat stream this replaces.
+      name: '28. a renamed first column still pairs, word for word',
+      key: 'renamedColumn',
+      expect: (a) =>
+        a.paired === 3 &&
+        a.wholeRows === 0 &&
+        a.unpaired === 0 &&
+        a.resemblance === 0.5 &&
+        a.marks.join('|') ===
+          'del:Sessions|ins:Ledger|del:Manifest|ins:Record|del:Server|ins:Daemon' &&
+        a.oneRow.join('|') === 'same:| |del:Sessions|ins:Ledger|same: | the tab order |\n',
+      file: 'redline-document.ts',
+      from: '  const ta = rowTokens(a);\n  const tb = rowTokens(b);',
+      to:
+        "  const ta = rowTokens((a.split('|')[1] ?? ''));\n" +
+        "  const tb = rowTokens((b.split('|')[1] ?? ''));"
+    },
+    {
+      // 4(a). THE WORD BUDGET IS THE BLOCK'S. A per-row cap of 200 would let
+      // this one block spend 240, which is ruling 4's own promise broken.
+      name: "29a. the word budget is the block's, and the rows past it are whole rows",
+      key: 'caps',
+      read: (a) => a.budget,
+      expect: (a) =>
+        a.budget.spent === 200 &&
+        a.budget.limit === 200 &&
+        a.budget.paired === 50 &&
+        a.budget.wholeRows === 10 &&
+        a.budget.flatCollapsed === true &&
+        a.budget.changes === 60,
+      file: 'redline-document.ts',
+      from: '    const words = redlineRunsWithin(a, b, REDLINE_MAX_EDIT_LENGTH - spent);',
+      to: '    const words = redlineRunsWithin(a, b, REDLINE_MAX_EDIT_LENGTH);'
+    },
+    {
+      // 4(b). THE TABLE PATH IS INSIDE THE CHARACTER CAP. This is what makes
+      // "fault 3 is not fixed above the char cap" checkable rather than
+      // asserted: one byte over and no differ runs at all.
+      name: '29b. a block one byte over the character cap reaches no differ and draws whole',
+      key: 'caps',
+      read: (a) => a.charCap,
+      expect: (a) =>
+        a.charCap.limit === 4000 &&
+        a.charCap.overBytes > 4000 &&
+        a.charCap.overRuns === 3 &&
+        a.charCap.overTooBig === 1 &&
+        a.charCap.underBytes <= 4000 &&
+        a.charCap.underRuns > 100 &&
+        a.charCap.underTooBig === 0,
+      file: 'redline-document.ts',
+      from:
+        '      block.oldText.length > REDLINE_MAX_BLOCK_CHARS ||\n' +
+        '      block.newText.length > REDLINE_MAX_BLOCK_CHARS',
+      to: '      false'
+    },
+    {
+      // 4(c). `tableRuns` HAS A REFUSAL OF ITS OWN, because unlike
+      // `redlineRuns` it answers on every input there is.
+      name: '29c. tableRuns refuses at 666 rows inside the character cap, and not at 60',
+      key: 'caps',
+      read: (a) => a.rowCap,
+      expect: (a) =>
+        a.rowCap.limit === 60 &&
+        a.rowCap.at666 === null &&
+        a.rowCap.at666Bytes === 3330 &&
+        a.rowCap.at61 === null &&
+        a.rowCap.at60 === 120 &&
+        a.rowCap.documentTooBigAt666 === 1,
+      file: 'redline.ts',
+      from: 'export const REDLINE_MAX_TABLE_ROWS = 60;',
+      to: 'export const REDLINE_MAX_TABLE_ROWS = 100_000;'
+    },
+    {
+      name: '30. the cancel pass is an identity on both projections',
+      key: 'cancel',
+      expect: (a) =>
+        a.documents === 435 &&
+        a.held === 435 &&
+        a.planted.join('|') === 'same:axb' &&
+        a.plantedDiffer.join('|') === 'same:a|del:x|ins:y|same:b',
+      file: 'redline-document.ts',
+      from: '      a.text === b.text\n    ) {',
+      to: '      a.text.length === b.text.length\n    ) {'
+    },
+    {
+      // THE SEPARATOR'S DELETED COPY IS NOT DRAWN, and not drawn is not the
+      // same as absent: both projections still hold in the same reading.
+      name: '31. a plain separator drops its deleted copy and an aligned one draws both',
+      key: 'separator',
+      expect: (a) =>
+        a.plain.drops.length === 1 &&
+        a.plain.kinds.join('') === 'del' &&
+        a.plain.oldOk === true &&
+        a.plain.newOk === true &&
+        a.aligned.drops.length === 0 &&
+        a.aligned.oldOk === true &&
+        a.aligned.newOk === true &&
+        a.fixture.drops.length === 1 &&
+        a.fixture.kinds.join('') === 'del',
+      file: 'redline-document.ts',
+      from: "    if (a.text.includes(':') || b.text.includes(':')) continue;",
+      to: '    if (false) continue;'
+    },
+    {
+      // A CHANGE MUST CARRY INK, and the property is INK rather than
+      // presence: the first version of this rule asked only that a leaf was
+      // not `display: none`, and the lone blank passed it while drawing
+      // nothing at all.
+      name: '32a. no change is ever entirely undrawn',
+      key: 'ink',
+      expect: (a) =>
+        a.changes > 2000 &&
+        a.inkless === 0 &&
+        a.loneMarks === 3 &&
+        a.blankLineMarks.join('|') === 'del:"\\n":lone',
+      file: 'redline-document.ts',
+      from: "        if (leaf !== undefined && leaf.blank && !leaf.spacing) leaf.lone = true;",
+      to: '        if (false) leaf.lone = true;'
+    },
+    {
+      // RULING 5 STANDS EXACTLY AND NO WIDER, and its second clause is this
+      // phase's own finding: `peelSharedSpace` takes the shared ends off a
+      // real spacing change, so research 114 §6.5's one-clause rule read
+      // FALSE on every spacing change this path can draw.
+      name: '32b. a spacing change keeps its wash and a structural newline does not',
+      key: 'ruling5',
+      expect: (a) =>
+        a.spacing.length === 3 &&
+        a.spacing.every((row) => row.endsWith(':washed')) &&
+        a.structural.join('|') === 'del:"\\n":lone',
+      file: 'redline-document.ts',
+      from: "      opposite(i - 1) || opposite(i + 1) || !/[\\n\\r]/.test(run.text);",
+      to: '      opposite(i - 1) || opposite(i + 1);'
+    }
+  ];
+
+  const shippingTable = runTableProbe(SRC);
+  if (shippingTable.error !== undefined) {
+    fail(`26-32. the table probe did not run: ${shippingTable.error}`);
+  } else {
+    for (const arm of TABLE_ARMS) {
+      if (!arm.expect(shippingTable[arm.key] ?? {})) {
+        fail(
+          `${arm.name.slice(0, 4)} the shipping composer read the wrong thing for ` +
+            `"${arm.name}": ${JSON.stringify((arm.read ?? ((x) => x))(shippingTable[arm.key] ?? {}))}`
+        );
+      }
+    }
+
+    const prefix = `.p251-table-${process.pid.toString(36)}-`;
+    const made = [];
+    let red = 0;
+    try {
+      for (const [i, arm] of TABLE_ARMS.entries()) {
+        const dir = `${prefix}${String(i)}`;
+        mkdirSync(dir, { recursive: true });
+        made.push(dir);
+        for (const f of TABLE_CHAIN) cpSync(join(SRC, f), join(dir, f));
+        const target = join(dir, arm.file);
+        const before = readFileSync(target, 'utf8');
+        if (!before.includes(arm.from)) {
+          fail(`${arm.name.slice(0, 4)} the ablation found nothing to edit in ${arm.file}`);
+          continue;
+        }
+        writeFileSync(target, before.replace(arm.from, arm.to));
+        const ablated = runTableProbe(dir);
+        if (ablated.error !== undefined) {
+          fail(
+            `${arm.name.slice(0, 4)} the ablation stopped the probe running (${ablated.error}), ` +
+              'so it proves nothing'
+          );
+          continue;
+        }
+        const pick = arm.read ?? ((x) => x);
+        if (
+          JSON.stringify(pick(ablated[arm.key] ?? {})) !==
+          JSON.stringify(pick(shippingTable[arm.key] ?? {}))
+        ) {
+          red += 1;
+        } else {
+          fail(
+            `${arm.name.slice(0, 4)} the ablation changed nothing this arm reads, so it cannot ` +
+              `fail: ${JSON.stringify(pick(ablated[arm.key] ?? {}))}`
+          );
+        }
+      }
+
+      const caps = shippingTable.caps ?? {};
+      say(
+        `26. both projections hold over ${String(shippingTable.projections.documents)} documents, ` +
+          `being ${String(shippingTable.projections.corpus)} committed fixtures of which ` +
+          `${String(shippingTable.tableBlocks)} are table blocks and a seeded fuzz of ` +
+          `${String(shippingTable.projections.fuzz)} table pairs`
+      );
+      say(
+        `27. every run of a reordered table lies inside one row ` +
+          `(${String(shippingTable.rowsNotCrossed.rowRuns)} runs, ` +
+          `${String(shippingTable.rowsNotCrossed.rowCrossings)} crossings), where the flat path ` +
+          `crosses ${String(shippingTable.rowsNotCrossed.flatCrossings)} times`
+      );
+      say(
+        `28. a renamed first column pairs ${String(shippingTable.renamedColumn.paired)} of 3 rows ` +
+          `at a resemblance of ${String(shippingTable.renamedColumn.resemblance)}, and ` +
+          `| Sessions | against | Ledger | draws del "Sessions" beside ins "Ledger" and nothing else`
+      );
+      say(
+        `29. the three caps, asked as three questions: the block spent ` +
+          `${String(caps.budget.spent)} of ${String(caps.budget.limit)} edits over ` +
+          `${String(caps.budget.paired)} paired rows with ${String(caps.budget.wholeRows)} whole ` +
+          `rows past it; ${String(caps.charCap.overBytes)} bytes draws ` +
+          `${String(caps.charCap.overRuns)} runs and counts tooBig where ` +
+          `${String(caps.charCap.underBytes)} draws ${String(caps.charCap.underRuns)}; and ` +
+          `tableRuns answers null at 666 rows of ${String(caps.rowCap.at666Bytes)} bytes and ` +
+          `${String(caps.rowCap.at60)} runs at ${String(caps.rowCap.limit)}`
+      );
+      say(
+        `30. the cancel pass is an identity on both projections over ` +
+          `${String(shippingTable.cancel.held)} documents, and it fires ` +
+          `${String(shippingTable.cancel.firedInThePipeline)} times in the pipeline because ` +
+          `peelSharedSpace reaches the shape first; driven directly it collapses the pair`
+      );
+      say(
+        `31. a plain separator's deleted copy is marked drop and its bytes are still in the run ` +
+          `list, and an aligned one draws both copies`
+      );
+      say(
+        `32. ${String(shippingTable.ink.inkless)} of ${String(shippingTable.ink.changes)} changes ` +
+          `are drawn as nothing at all, with ${String(shippingTable.ink.loneMarks)} lone marks ` +
+          `carrying a bar; a spacing change keeps its wash and a structural newline does not`
+      );
+      say(
+        `26-32. ${String(TABLE_ARMS.length)} arms over the shipping composer, and ` +
+          `${String(red)} of ${String(TABLE_ARMS.length)} ablations moved their arm's reading`
       );
     } finally {
       for (const dir of made) rmSync(dir, { recursive: true, force: true });
