@@ -393,3 +393,126 @@ node build/p248/caps.mjs 509 962 1114 1200           # section 3 again, from the
 arithmetic, and `build/p248/out-readings.json` is every rectangle behind all three. The corpus
 documents themselves are written into the scratch project at run time and are not committed:
 `corpus.mjs --emit <dir>` rebuilds them from the tree in about two seconds.
+
+## 10. The fix round (2026-09-09) — the two boxes the break-out could still walk out of
+
+The build landed the section 7 decisions and an independent verifier attacked them in the running
+app. Three of its findings are here with what the fix round re-derived before changing a line, and
+one of its numbers is corrected. Every reading below is from `build/p248/probe-p248-wide.mjs`, whose
+fixture now nests a five-column table under a bullet at three depths and whose readings are of
+**every** `.md-table-scroll` and **every** `pre` in the document rather than of the first of each.
+
+### 10.1 A block under a bullet is centred on the bullet's box
+
+`width: max(100%, …)` and `margin-inline: calc((100% - max(100%, …)) / 2)` are both resolved against
+the block's **containing block**. For a block under a list item that is the item, which
+`.md-content ul` insets by `--space-7` (20px) a level, so the centre moves **10px right per level**
+while the whole gutter is 19px. The arithmetic says the block is past the pane from two levels down,
+and the app agrees at the parent commit:
+
+| pane | depth 1 | depth 2 | depth 3 | the document |
+| --- | --- | --- | --- | --- |
+| 580 | 0 | +1 | +11 | scrolls sideways, 591 vs 580 |
+| 620 | 0 | +1 | +11 | scrolls sideways, 631 vs 620 |
+| 1,000 | 0 | +1 | +11 | scrolls sideways, 1,011 vs 1,000 |
+| 1,381 | 0 | 0 | 0 | still, because the 136ch cap leaves 133.7px of slack |
+
+That last row is why the shipped probe never saw it: a fixture driven only at a pane wide enough for
+the cap has the slack to absorb three levels of it.
+
+**The fix is the child combinator**, `.md-content > .md-table-scroll, .md-content > pre`, which is
+the only spelling that says what the arithmetic assumes: the containing block IS the prose column.
+A nested block keeps the scroller it had before Phase 248, in its list item's own width. **The price
+is 3 of this repository's 1,910 tables and 11 of its 814 fences** (0.2% and 1.4%, counted by
+`corpus.mjs` from source indentation), which is the whole population that is not a direct child of
+the document.
+
+### 10.2 Two presses of ⌘+ do the same thing to an ordinary top-level table
+
+`zoom.css:90` scales `.md-content` with CSS `zoom`, which multiplies every used length in the
+subtree. `100cqi` is the **only** term in `--md-wide` measured outside that subtree — it is the
+scroller's own box, and the scroller is not zoomed — so it was already the pane's full width and was
+then multiplied a second time. At his own 1,381px pane, with no nesting anywhere in the file:
+
+| zoom | block drawn | past the right edge | the document |
+| --- | --- | --- | --- |
+| 100% | 1,113.6 | 0 | 1,381 / 1,381 |
+| 125% | 1,392.0 | 5.5 | scrolls sideways, 1,387 vs 1,381 |
+| 200% | 2,227.3 | 423.1 | scrolls sideways, 1,804 vs 1,381 |
+
+**The fix converts the foreign term into the subtree's own space and leaves every other term
+alone**: `min(136ch, 100cqi / var(--zoom-editor, 1) - 2 * var(--space-8))`. `ch` and `--space-8` are
+computed inside the zoomed subtree already, so the block's own gutter grows with the text the way
+the prose column's padding does. Driven on the real chord (a `KeyboardEvent` the shipped capture
+listener in `zoom/keys.ts` reads) at the same 1,381px pane, the block draws 1,113.6, 1,225, 1,331,
+1,319 and 1,295px at 100/110/125/150/200% and the document is still at every one; the undivided term
+injected back at 200% reproduces 2,227.3px and 423.1px past the edge, which is what makes that arm
+able to fail. The gutter under zoom is `48 × zoom - the bar`, 13px at the ladder's floor of 75%, so
+it cannot go negative on any stop the chord reaches either.
+
+**`@property` is what makes the division safe to write**, and the run says so rather than assuming
+it: a `--p248-candidate` registered as a `<length>` and given the same expression computed to the
+same value as the shipped one at all five levels, so the browser really does divide by a
+var-substituted number rather than dropping the declaration to its 0px initial value.
+
+### 10.3 The narrow table, and the number this document corrects
+
+The verifier reported that "every block that did not need the room is pulled off the prose column"
+and put the population at **1,343 of 1,900 (70.7%)**, being every table that was not cut. That
+number is wrong and the substance is right. Re-derived from this phase's own per-table min-content
+and max-content readings (`out-readings.json`, the 1,900 real tables measured in the shipping
+pipeline):
+
+| what the old 509px box did to it | tables | share |
+| --- | --- | --- |
+| cut a column (min-content > 509) | 557 | 29.3% |
+| filled the box and wrapped (min ≤ 509 < max) | 1,117 | 58.8% |
+| drawn at its natural width already (max ≤ 509) | **226** | **11.9%** |
+
+The 1,117 are not "no gain": they were as wide as the box either way and the room is exactly what
+they gain. **226 is the population that gains nothing**, and for those the box's left edge alone put
+the table 227px left of the prose column at his own 1,000px pane and 302px at the cap.
+
+**CSS cannot ask how wide a table wants to be before giving it the room** — `fit-content` never
+exceeds the containing block, `max-content` cannot be named inside a `min()`, and auto margins are
+treated as zero the moment an element overflows its containing block (CSS 2.1 §10.3.3), which is why
+the negative margin is computed rather than left to `auto` in the first place. So the break-out
+stays unconditional and **the table inside it is centred**:
+`.md-content > .md-table-scroll > table { margin-inline: auto; }`. A narrow table then sits on the
+same axis as the prose column, which is itself centred in the pane; a table wider than its box is
+untouched, because its auto margins are the zero above and it still scrolls from its left edge. The
+app run reads a 105.2px table centred in the 962px box it was given, and 227px into the corner with
+the one declaration ablated.
+
+**The fence is deliberately not shrink-wrapped.** Its box IS its background, it has always painted
+the full width of its column, and 74.5% of this repository's fences hold a line too long for the old
+one; a one-line fence painting a wider slab is a change of degree in a decision this phase already
+made rather than a new one.
+
+### 10.4 What the gate gained
+
+`npm run conformance:wideblocks` was ten rules and twelve ablations; it is thirteen rules and
+sixteen ablations. Rule 11 is the child combinator, read structurally and judged over the nested
+readings at four panes and three depths, with the descendant-scoped rule injected into the running
+app as the proof it can fail. Rule 12 is the zoom division and its fallback, judged over five levels
+driven on the real chord, with the undivided term injected as the same kind of proof. Rule 13 is the
+narrow table's axis, with the centring ablated in the browser. Rule 8's comment claimed that a
+gutter which cannot go negative is why the document never scrolls sideways; that was true of a block
+whose containing block is `.md-content` itself and whose subtree is not zoomed, which is exactly the
+two assumptions these findings broke, and it says so now.
+
+### 10.5 One arm of the app run cannot be taken in an occluded window, and now says so
+
+The build's arm E4 turns the heading ruler on and reads its ticks, because the ruler is the one
+thing `container-type: inline-size` could have disturbed. It read 4 ticks and a 697px thumb in the
+build's run and 0 ticks in every run of the fix round, over a ruler nothing had touched. The cause
+is not the ruler: `HeadingRuler` measures inside a `requestAnimationFrame`, and **a window nobody is
+looking at produces no frames** — `main/harness/shot.ts` turns background throttling off for the
+screenshot path and this probe does not take that path, which is the same hazard Phase 190 measured
+as 200ms waits arriving at 1,000ms with a terminal in front of the window. React is unharmed,
+because its scheduler is a `MessageChannel`, so every other reading in the run is honest while this
+one cannot be taken at all. A screencast, `Page.setWebLifecycleState` and focus emulation were each
+tried and rAF stayed dead; the run now **reads** whether a frame fires, asks the drawn ticks when
+one does, and otherwise asks what is still checkable — that the ruler mounted and that the outline
+it measures is in the DOM under containment — and says the ticks were unread rather than reporting
+a pass it did not earn.
