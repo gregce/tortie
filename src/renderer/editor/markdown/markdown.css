@@ -276,17 +276,21 @@
    11px past the pane and scrolled the document sideways — the one thing this
    surface promises never happens. A `>` is the only spelling that says "the
    containing block IS the prose column", which is the assumption the
-   arithmetic below makes. It costs 3 of this repository's 1,910 tables and 11
-   of its 814 fences the extra room; they keep the scroller they have.
+   arithmetic below makes. It costs 3 of this repository's 1,913 tables and 14
+   of its 817 fences the extra room; they keep the scroller they have. Three
+   of those fences are excluded by a BLOCKQUOTE rather than by an indent, and
+   a count that reads the indent alone misses them.
 
    THE GUTTER IS 19px AT REST AND 24px WITH THE HEADING RULER UP, measured
    rather than intended: Chromium's `cqi` is the scroller's box INCLUDING its
    own 10px scrollbar gutter, so the block is `pane - 38` while a vertical bar
    is drawn and `pane - 48` when the ruler takes the bar away. Both are
-   gutters, and at 100% neither can go negative. Under zoom the gutter is
-   `48 × zoom - the bar`, which is 13px at the ladder's own floor of 75% and
-   grows from there, so it cannot go negative on any stop the chord reaches
-   either. */
+   gutters, and at 100% neither can go negative. Under zoom, wherever the pane
+   term is the one that wins, the gutter a side is `24 × zoom - half the bar`,
+   being 19px at 100%, 43px at 200% and 13px at the ladder's own floor of 75%,
+   so it cannot go negative on any stop the chord reaches either. Below 100%
+   the 136ch cap binds instead and the gutter only grows. Every number in this
+   paragraph is a side; the whole gutter is twice it. */
 .md-content > .md-table-scroll,
 .md-content > pre {
   width: max(100%, var(--md-wide));

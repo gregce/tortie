@@ -423,9 +423,17 @@ the cap has the slack to absorb three levels of it.
 **The fix is the child combinator**, `.md-content > .md-table-scroll, .md-content > pre`, which is
 the only spelling that says what the arithmetic assumes: the containing block IS the prose column.
 A nested block keeps the scroller it had before Phase 248, in its list item's own width. **The price
-is 3 of this repository's 1,910 tables and 11 of its 814 fences** (0.2% and 1.4%, counted by
-`corpus.mjs` from source indentation), which is the whole population that is not a direct child of
-the document.
+is 3 of this repository's 1,913 tables and 14 of its 817 fences** (0.2% and 1.7%), which is the
+whole population that is not a direct child of the document.
+
+**BOTH OF THOSE NUMBERS WERE FIRST PUBLISHED WRONG AND THE CORRECTION IS THE INTERESTING HALF.**
+The phase read `1,910` off `corpus.mjs`'s indent histogram, where it is the count of tables at
+indent 0 rather than the population, and `11` off an indent test that is blind to a BLOCKQUOTE: a
+fence written as `> ` sits at indent 0 while its `pre` is `.md-content > blockquote > pre`, which
+the child combinator excludes exactly as it excludes a list item's. The three in
+`docs/research/47-agent-installs.md` are the whole of that difference, and there are no quoted
+tables at all. `corpus.mjs` asks the two questions separately now and prints the quoted count on a
+line of its own.
 
 ### 10.2 Two presses of ⌘+ do the same thing to an ordinary top-level table
 

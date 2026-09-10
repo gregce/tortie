@@ -1,5 +1,5 @@
 [p248-corpus] 209 tracked .md files
-[p248-corpus] 1913 GFM tables, 814 fenced code blocks
+[p248-corpus] 1913 GFM tables, 817 fenced code blocks
 [p248-corpus] 
 [p248-corpus] TABLES by column count:
 [p248-corpus]    2 columns:  447
@@ -33,26 +33,27 @@
 [p248-corpus]    1092 chars  3col x 7row  docs/research/38-agent-licences.md:334
 [p248-corpus]    1075 chars  3col x 7row  docs/research/91-phase-232-starting-measurements.md:24
 [p248-corpus] 
-[p248-corpus] NESTING (indent > 0 in the source, so not a direct child of the document):
+[p248-corpus] NESTING (indented or inside a quote, so not a direct child of `.md-content`):
 [p248-corpus]   tables: 3 of 1913 (0.2%)
-[p248-corpus]   fences: 11 of 814 (1.4%)
+[p248-corpus]   fences: 14 of 817 (1.7%)
 [p248-corpus]   table indents: 0sp:1910 2sp:1 3sp:1 4sp:1
-[p248-corpus]   fence indents: 0sp:803 2sp:6 3sp:5
+[p248-corpus]   fence indents: 0sp:806 2sp:6 3sp:5
+[p248-corpus]   quoted: 0 tables, 3 fences
 [p248-corpus] 
-[p248-corpus] FENCED CODE: 7592 lines in 814 blocks
-[p248-corpus]   p 50: 57 chars
+[p248-corpus] FENCED CODE: 7595 lines in 817 blocks
+[p248-corpus]   p 50: 56 chars
 [p248-corpus]   p 75: 77 chars
 [p248-corpus]   p 90: 89 chars
 [p248-corpus]   p 95: 99 chars
 [p248-corpus]   p 99: 158 chars
 [p248-corpus]   p100: 476 chars
-[p248-corpus]   lines over  60 chars:  3525 (46.43%)
-[p248-corpus]   lines over  68 chars:  2755 (36.29%)
-[p248-corpus]   lines over  72 chars:  2429 (31.99%)
-[p248-corpus]   lines over  80 chars:  1516 (19.97%)
+[p248-corpus]   lines over  60 chars:  3525 (46.41%)
+[p248-corpus]   lines over  68 chars:  2755 (36.27%)
+[p248-corpus]   lines over  72 chars:  2429 (31.98%)
+[p248-corpus]   lines over  80 chars:  1516 (19.96%)
 [p248-corpus]   lines over  90 chars:   688 (9.06%)
 [p248-corpus]   lines over 100 chars:   299 (3.94%)
 [p248-corpus]   lines over 120 chars:   137 (1.80%)
-[p248-corpus]   blocks with any line over 68 chars: 589 of 814 (72.4%)
-[p248-corpus]   blocks with any line over 80 chars: 392 of 814 (48.2%)
-[p248-corpus]   blocks with any line over 100 chars: 111 of 814 (13.6%)
+[p248-corpus]   blocks with any line over 68 chars: 589 of 817 (72.1%)
+[p248-corpus]   blocks with any line over 80 chars: 392 of 817 (48.0%)
+[p248-corpus]   blocks with any line over 100 chars: 111 of 817 (13.6%)

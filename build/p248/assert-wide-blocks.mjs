@@ -14,7 +14,8 @@
  * of five with 443 px of empty canvas beside them.
  *
  * EVERY CLAUSE OF THAT IS ONE LINE A LATER ROUND CAN TIDY AWAY, which is why
- * this file exists rather than a comment. Ten rules, and each is ablated: a
+ * this file exists rather than a comment. Thirteen rules and sixteen
+ * ablations, and each rule is ablated: a
  * copy of the stylesheet with exactly one clause removed must turn exactly the
  * rule that owns it red, and the run says which. A rule that cannot fail is
  * not a rule.
