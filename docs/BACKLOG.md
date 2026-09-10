@@ -25764,11 +25764,21 @@ measurement alone: the measure step re-derives it over his live panes and report
 what it saves, and **a wrapped path stays refused**, because Phase 247 measured that of the joins
 that look right, tmux confirms only 18 of 57.
 
-**LIFT TWO: a relative path resolves against a base, or it stays refused.** A base exists — the
+**LIFT TWO: a relative path resolves against a base, and the operator has asked for it directly.**
+On 2026-09-09, having read the two causes: *"i also would like to attempt to resolve relative paths
+since we know what project a session is in and agents will normally refer to path... if possible when
+we queue this after you properly assess your findings."* So the measure step's job is to find the
+trustworthy base, not to decide whether to look. **The escape stays, and it is narrow: if the base is
+wrong often enough that a click opens the wrong file, say so with the rate and refuse.** A base
+exists — the
 provider already carries `repoPath: () => sessionRow()?.projectPath`. **The measure step establishes
 whether that is the RIGHT base**, because an agent's own working directory is not always the project
 root, and his first screenshot is a session whose agent sits in `~/specfactory` while the pane may
-belong to another project. If the honest base is the pane's own working directory, say so and say
+belong to another project. **Three candidate bases exist and they do not always agree**: the
+session's `projectPath`, the pane's own working directory which tmux answers as
+`#{pane_current_path}`, and the directory the agent was launched in. Measure how often the three
+differ across his live panes, and say which one a relative path an agent printed is actually relative
+TO. A base that is right 90% of the time is a click that opens the wrong file one time in ten. If the honest base is the pane's own working directory, say so and say
 where it is read from. **If no base can be trusted, the honest answer is that relative paths stay
 refused, and this phase says that out loud rather than resolving against a guess.** A wrong base
 opens the wrong file, which is worse than no link.
