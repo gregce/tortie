@@ -26033,6 +26033,76 @@ content width, with the two good tables unmoved.
 
 ---
 
+## Phase 253 — what VS Code's terminal links know that ours do not (operator asked 2026-09-10)
+
+**Subject.** `feat(paths): the link formats VS Code taught us`
+
+**First body line.** `Phase 253: the paths VS Code catches`
+
+**Semver.** Minor if the build half lands; the research half alone is no release at all.
+
+**Tier 3 for anything that widens what a click opens**, which is Phase 247's own tier and for its
+reason: a click on text an agent wrote reaches outside Tortie. The evidence is a per-shape matrix over
+his real panes plus two independent methods, one an attack on the new detection.
+
+**Charter.** The operator, 2026-09-10: "i believe both vscode and cursor support it really well. Can we
+go look at the vscode implementation and use it to update our implementation so we have a higher
+probability of making all the paths clickable." VS Code is MIT and the scope guardrail already prefers
+a vendored extract over new code — its git parsers and fuzzyScorer are in this tree on exactly that
+precedent. Research 107's refusals and `conformance:pathdoors`' rules ALL STAND: the allowlist of
+kinds, the mode asked before the extension, a relative resolution never handed to LaunchServices, no
+denylist, and nothing on a remote pane. Phase 250's funnel is the instrument and its headline is the
+baseline: **of the paths his agents printed that really name a file, 99.2% are clickable at HEAD** — so
+this phase is about the shapes that are OUTSIDE that denominator today, and the research's first job is
+to widen the denominator honestly before claiming to raise the share.
+
+**The research half writes `docs/research/115-*`** from VS Code's own source, read from a shallow
+sparse clone of `microsoft/vscode` (read only, into scratch, removed in a `finally`) —
+`src/vs/workbench/contrib/terminalContrib/links/` and its tests. The three mechanisms to study, each
+answered with a measurement over his own panes through the Phase 250 funnel tooling, counts and shapes
+only, no path contents in any document:
+
+1. **The suffix table.** VS Code parses dozens of `path:line:col` spellings — `(line,col)`,
+   `[line, col]`, `"path", line`, `on line N`, quoted and parenthesised forms — where
+   `stripDecoration` knows `:line[:col]`. Count how many spans in his corpus carry a suffix ours
+   refuses and theirs reads. This is the vendorable piece: port their suffix table with attribution
+   and their own test rows.
+2. **The wrapped line.** VS Code joins wrapped rows by xterm's own `isWrapped` flag before matching.
+   Tortie sits BEHIND TMUX, and research 114 measured tmux's own `-J` join confirming only 18 of 57
+   joins that look right — so the question is whether `isWrapped` survives tmux's redraws at all.
+   MEASURE it: over real reflowed panes, how often is the flag true where tmux says the line wrapped,
+   and false where it did not. If the flag is unreliable through tmux, say so with the numbers and the
+   wrapped path stays refused with a better-stated reason; do not adopt a mechanism the transport
+   destroys.
+3. **The fallback for a name that resolves nowhere.** VS Code's uri/local detectors verify against a
+   stat, and what cannot be resolved directly falls back to a SEARCH opener — which is how a bare
+   `README.md` with no slash is clickable there. Tortie refuses a slashless token by grammar. Count
+   bare filename tokens in his corpus, how many resolve to exactly one file in the session's project,
+   to several, and to none; price the three answers (open the unique match; open Quick Open prefilled;
+   stay refused) and recommend with the numbers attached.
+
+**The build half implements what the research recommends and nothing it refuses**, behind the same
+doors: every new spelling still goes through `decidePathDoor`, still stats, still refuses what could
+run. The gate gains rules for each adopted mechanism with ablations red at the parent, ported VS Code
+test rows run against OUR grammar where a mechanism is ported, and the funnel re-run publishes the
+before and after share over the WIDENED denominator. The app run drives each new shape in the real
+terminal at the parent and at HEAD.
+
+### What is NOT in this phase
+
+- **No third-party code EXECUTES in any Tortie process** — refusal 1 stands whole. VS Code source is
+  read and its tables and test rows are ported with attribution; no runtime dependency is added.
+- **Research 107's refusals stand**: the kind allowlist, mode before extension, no denylist, a
+  relative name never handed to the Mac, remote panes offer no links.
+- **No shell integration escape sequences.** VS Code's cwd tracking via OSC 633/7 needs the shell
+  instrumented; Tortie's base is the session's project plus tmux's own answers, measured at 97.5%
+  agreement, and instrumenting his shells is out of scope.
+- **If a VS Code mechanism does not survive tmux, it is not adopted** — the honest answer is the
+  measurement, which is research 245's own precedent.
+- **The release does not wait on this phase** unless the operator says it does.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26607,3 +26677,5 @@ cycle rather than only the evening it was written.
 
 - 2026-09-10, **PHASE 252 QUEUED, the box fits its content**: he sent five screenshots — three fences and ASCII diagrams drawn at the full Phase 248 cap with most of the box empty, two tables that fill theirs and read right. `markdown.css:296` widens every direct-child block to `max(100%, --md-wide)` unconditionally; the fix is a clamp, never narrower than the prose column, never wider than the cap, sized by the content between, with the centring redesigned because the negative-margin arithmetic assumed the used width is the cap. The cap, the zoom division, the nested rule and the prose measure do not move. Patch, Tier 2, parent-vs-HEAD over his own five shapes, and **the release cut waits on it at his word**.
 - 2026-09-10, **PHASE 252 LANDED on `56c754ef` at version 0.102.0 with NO bump and NO tag**, the box fits its content. His three bad screenshots were one unconditional line: every direct-child wide block took `max(100%, --md-wide)`, so a ~75ch ASCII diagram drew at the full cap with the emptiness inside its own border. The width is now the content's own `max-content`, floored at the prose column (`min-width: 100%`, so a short fence fills it exactly as before) and capped at `--md-wide` unchanged — the keyword `fit-content` is refused in the stylesheet comment because on a block box it clamps to the 68ch column and would refuse the break-out entirely. **THE CENTRING IS `left: 50%` + `translate: -50%`, MEASURED against the outer-grid candidate rather than chosen**: both centre at 0px, the grid stops sibling margins collapsing and grew the fixture's document 1,443 → 1,527px, and the shipped pair moves nothing vertical; scrollLeft 0 shows column one, a scroll clamps at the box's own content, hit-testing and caret land inside the drawn box, and the pane's scrollable overflow is the POST-transform bounds so the document scrolls sideways nowhere. `conformance:wideblocks` is fifteen rules and **twenty ablations, all red**: rule 8 re-derives the CLAMP against the DOM, rule 14 the width classes at **±2px** (under draws the column, between draws ITS OWN width and never the cap, over draws the cap with a FENCE's scroller live — a table whose min-content fits the cap compresses instead, which is his good shape), rule 15 the centring at **±1px** over three panes, both bases and zoom stops above AND below 1. `probe:p252` (floor 118 → 119) drives his five shapes plus the two the classes need at 1349, 699 and 319px, each reached exactly, with the PARENT'S two declarations injected byte identical to `464cad61` as the parent measurement: the three bad shapes at the cap against content asking 589.52/734.02/734.02px, the two good tables (1318.43 and 1251.14px of content) **unmoved byte for byte**, 20 passed and 0 failed. `probe:p248` gains an over-cap fence so the cap sweep still has something to plateau on (1112px against 1113.6, the fence's own 1px borders), its graders take the clamp, A5 becomes the `@property` claim outright, and rule 13's corner is redefined to the BOX's left edge because the widest box a narrow table now gets is the column — 52 passed and 0 failed. Battery green: typecheck, build with every gate and the contract inventory byte identical, `npm test` 13,450 over 856 files, `smoke:t1` 6 of 6. His `-L gmux` read **36 before and 36 after** every run, listed only; no machine, no ssh, no keychain, no token, no bump, no tag.
+
+- 2026-09-10, **PHASE 253 QUEUED, the paths VS Code catches**: at his word, read `microsoft/vscode`'s terminal links contrib (MIT, sparse clone, read only) and adopt what survives measurement — their suffix table (`(line,col)`, `[line, col]`, quoted forms) ported with their own test rows, the wrapped-line join IF xterm's `isWrapped` survives tmux (research 114 measured tmux `-J` confirming 18 of 57, so this is measured before it is believed), and a fallback for a bare slashless filename priced over his corpus (unique match, Quick Open prefilled, or stay refused). Research half writes docs/research/115; build half stays behind `decidePathDoor` and every 107 refusal. Baseline to beat: 99.2% of paths that really name a file, so the denominator is widened honestly first. The release does not wait on it unless he says so.
