@@ -293,7 +293,7 @@
  *      row against another's and the pipes of row 3 against the pipes of row
  *      5, so a table with one cell changed drew as a ribbon in which no row
  *      was recognisably a row, and all twenty-five of them passed while it
- *      did. Ten arms on the SHIPPING composer, driven under node by
+ *      did. Eleven arms on the SHIPPING composer, driven under node by
  *      build/redline-table-probe.mts, each with an ablation of its own clause.
  *
  *        26 BOTH PROJECTIONS, over the committed corpus and a seeded fuzz of
@@ -322,7 +322,24 @@
  *           rather than asserted. (c) `tableRuns` has a refusal of its own,
  *           because unlike `redlineRuns` it answers on every input there is:
  *           at 666 rows of 3,330 bytes, comfortably inside the character cap,
- *           it answers null, and at 60 it answers 120 runs.
+ *           it answers null, and at 60 it answers 120 runs — under a counter
+ *           and a sentence of its OWN, `N with too many rows`, because 3,330
+ *           characters is a fifth of the character cap and `too long` would be
+ *           a false sentence about the only quantity it names. (d) THE FIX
+ *           ROUND'S, and it is a refusal of the ANSWER rather than of the
+ *           input: `tableRuns` may answer `pairs === 0`, meaning the alignment
+ *           aligned no row at all, and that answer draws exactly the two runs
+ *           the whole-block fallback draws — research 114 §6.3's own condemned
+ *           picture, reached through the resemblance door rather than the
+ *           first-cell one 28 is about. So the caller does not draw it: the
+ *           block falls through to the flat path, with the whole-block
+ *           fallback still behind that. The arm holds three readings against
+ *           each other, because a fall-through that fires on everything is as
+ *           wrong as one that fires on nothing. Over the 201 real table change
+ *           blocks in this repository's own prose history it fires on 21, and
+ *           the one-row bucket — 144 of the 201, where the row alignment has
+ *           no second row to protect the picture FROM — goes from 16 blocks
+ *           louder than the flat path to none.
  *        30 THE CANCEL PASS IS AN IDENTITY on both projections over all 435
  *           documents. IT FIRES ZERO TIMES IN THE PIPELINE and the gate prints
  *           that rather than hiding it: `peelSharedSpace` reaches the shape
@@ -402,6 +419,27 @@
  *      BRACES and compared, `grid-template-columns` and `column-gap` both, and
  *      the scanner is proved on planted rules of which five must fail.
  *
+ *  39. THE BAND IS MEASURED IN THE SCROLLER'S CONTENT BOX (Phase 251, the fix
+ *      round). This is the half rule 38 CANNOT SEE, and it is why it is a scan
+ *      of the real source rather than a seventh arm on the probe. Rule 38 and
+ *      `p251-redline-controls.test.ts` both drive `chipPlace` over a MODEL of
+ *      the room, and both models hand it `panel - 10`, which is the content
+ *      box; the shipping caller handed `scroll.getBoundingClientRect()`, which
+ *      is the BORDER box and includes the vertical scrollbar. So every number
+ *      the two printed agreed while the running app placed the chip up to a
+ *      scrollbar's width past the box the page is centred in: 9.7px of overhang
+ *      at a 1308px panel, with `.ed-redline-scroll` really growing a horizontal
+ *      scrollbar that appeared and disappeared as the pointer moved onto and
+ *      off a change. THE BAND ARM IS THE ONE PLACEMENT IN THIS VIEW THAT IS
+ *      DELIBERATELY OUTSIDE THE PAGE, so it is the one that can grow the
+ *      scroller's scrollable area, and the width it is judged against is all
+ *      that stands between it and doing so. Asked over the real file by
+ *      matching parentheses: `chipPlace` is called from exactly one place, with
+ *      four arguments, and its third names `clientWidth` and never
+ *      `getBoundingClientRect` or `offsetWidth`. Seven planted callers, five of
+ *      which must fail. The BEHAVIOURAL half is `npm run probe:p249`'s band
+ *      sweep, which reads the overhang and the scrollbar off the running app.
+ *
  *  38. THE CHIP TAKES THE BAND ARM ONLY WHEN THE BAND HOLDS ITS OWN DRAWN
  *      WIDTH (Phase 251, research 114 §7 arm 13, §6.4). Six arms on the
  *      SHIPPING `chipPlace` and `chipAnchorRect`, driven under node by
@@ -458,7 +496,13 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { blockAt, closeOf, functionBodyOf, stripComments } from './scan-source.mjs';
+import {
+  blockAt,
+  callArguments,
+  closeOf,
+  functionBodyOf,
+  stripComments
+} from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
 
 const TAG = '[conformance:redline]';
@@ -3416,10 +3460,47 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
         a.rowCap.at666Bytes === 3330 &&
         a.rowCap.at61 === null &&
         a.rowCap.at60 === 120 &&
-        a.rowCap.documentTooBigAt666 === 1,
+        // THE ROW CAP'S OWN COUNTER AND ITS OWN SENTENCE (the fix round). 666
+        // rows of five bytes is 3,330 characters, so `N too long` would be a
+        // false sentence about the only quantity it names, and both counters
+        // are read so a round that folds them back together goes red here.
+        a.rowCap.documentTooBigAt666 === 0 &&
+        a.rowCap.documentTooManyRowsAt666 === 1 &&
+        a.rowCap.noteAt666.includes('1 with too many rows'),
       file: 'redline.ts',
       from: 'export const REDLINE_MAX_TABLE_ROWS = 60;',
       to: 'export const REDLINE_MAX_TABLE_ROWS = 100_000;'
+    },
+    {
+      // 4(d). THE FOURTH REFUSAL, AND IT IS THE FIX ROUND'S. `tableRuns` may
+      // answer with `pairs === 0`, and that answer draws exactly the two runs
+      // the whole-block fallback draws — research 114 §6.3's own condemned
+      // picture, reached through the resemblance door rather than the
+      // first-cell one it was written against. So the caller does not draw it.
+      //
+      // THE ARM HOLDS THREE READINGS AGAINST EACH OTHER, because a
+      // fall-through that fires on everything is as wrong as one that fires on
+      // nothing: the refused block is drawn word by word with nothing counted
+      // whole; a block in which even one row pairs still takes the row
+      // alignment and keeps its unchanged row whole; and the merge property
+      // that makes the fall-through free is read rather than asserted.
+      name: '29d. an alignment that aligned no row falls through to the flat path',
+      key: 'fallThrough',
+      expect: (a) =>
+        a.refusedPairs === 0 &&
+        a.refusedResemblance < a.threshold &&
+        a.drawnSame > 1 &&
+        a.drawnMarks > 2 &&
+        a.drawnWhole === 0 &&
+        a.oldOk === true &&
+        a.newOk === true &&
+        a.keepPairs > 0 &&
+        a.keepFirstRunIsWholeRow === true &&
+        a.mergedKinds === 'del|ins' &&
+        a.mergedIsWholeBlock === true,
+      file: 'redline-document.ts',
+      from: '      if (table.pairs > 0) {',
+      to: '      if (table.pairs >= 0) {'
     },
     {
       name: '30. the cancel pass is an identity on both projections',
@@ -3562,7 +3643,19 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
           `${String(caps.charCap.overRuns)} runs and counts tooBig where ` +
           `${String(caps.charCap.underBytes)} draws ${String(caps.charCap.underRuns)}; and ` +
           `tableRuns answers null at 666 rows of ${String(caps.rowCap.at666Bytes)} bytes and ` +
-          `${String(caps.rowCap.at60)} runs at ${String(caps.rowCap.limit)}`
+          `${String(caps.rowCap.at60)} runs at ${String(caps.rowCap.limit)}, under a counter and ` +
+          `a sentence of its own ("${caps.rowCap.noteAt666.split('(').pop()?.replace(').', '')}")`
+      );
+      say(
+        `29d. a table block whose alignment paired ` +
+          `${String(shippingTable.fallThrough.refusedPairs)} rows at a resemblance of ` +
+          `${String(shippingTable.fallThrough.refusedResemblance)} against a threshold of ` +
+          `${String(shippingTable.fallThrough.threshold)} falls through to the flat path and is ` +
+          `drawn as ${String(shippingTable.fallThrough.drawnMarks)} marks around ` +
+          `${String(shippingTable.fallThrough.drawnSame)} unchanged runs rather than as one ` +
+          `whole row beside another; a block with ${String(shippingTable.fallThrough.keepPairs)} ` +
+          `pair keeps the row alignment, and the answer that is refused really is the ` +
+          `whole-block fallback (${shippingTable.fallThrough.mergedKinds}), so nothing is lost`
       );
       say(
         `30. the cancel pass is an identity on both projections over ` +
@@ -4687,6 +4780,142 @@ function gridOf(css, cls) {
           rmSync(name, { recursive: true, force: true });
         }
       }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 251, THE FIX ROUND, rule 39: THE BAND IS MEASURED IN THE SCROLLER'S
+// CONTENT BOX, AND THIS IS THE HALF RULE 38 CANNOT SEE.
+//
+// Rule 38 and `p251-redline-controls.test.ts` both drive `chipPlace` over a
+// MODEL of the room, and both models hand it `panel - 10`, which is the content
+// box. The shipping caller handed `scroll.getBoundingClientRect()`, which is the
+// BORDER box and includes the vertical scrollbar, so the two agreed on every
+// number they printed while the running app placed the chip up to a scrollbar's
+// width past the box the page is centred in: measured at a 1308px panel, 9.7px
+// of overhang and a horizontal scrollbar really drawn on `.ed-redline-scroll`,
+// appearing and disappearing as the pointer moved onto and off a change. The
+// band arm is the ONE placement in this view that is deliberately outside the
+// page, so it is the one that can grow the scroller's scrollable area, and the
+// width it is judged against is all that stands between it and doing so.
+//
+// A MODEL CANNOT CATCH THIS, which is why the rule is a scan of the real source
+// and the behavioural half is `npm run probe:p249`'s band sweep in the running
+// app. What is asked: `chipPlace` is CALLED from exactly one place in the chip
+// file, that call passes four arguments, and its third argument names
+// `clientWidth` and never `getBoundingClientRect` or `offsetWidth`.
+// ---------------------------------------------------------------------------
+{
+  const CHIP_FILE = 'src/renderer/editor/redline-chip.tsx';
+
+  /** Every `chipPlace(` CALL in a file, its declaration excluded. */
+  const chipPlaceCalls = (source) => {
+    const code = stripComments(source);
+    const calls = [];
+    const re = /\bchipPlace\s*\(/g;
+    let m;
+    while ((m = re.exec(code)) !== null) {
+      const before = code.slice(Math.max(0, m.index - 40), m.index);
+      // The declaration itself is not a call.
+      if (/\bfunction\s*$/.test(before)) continue;
+      calls.push(callArguments(code, m.index + m[0].length - 1));
+    }
+    return calls;
+  };
+
+  const scanChipCaller = (source) => {
+    const calls = chipPlaceCalls(source);
+    if (calls.length === 0) return ['chipPlace is called from nowhere at all'];
+    if (calls.length > 1) {
+      return [
+        `chipPlace is called from ${String(calls.length)} places, and this rule reads one`
+      ];
+    }
+    const args = calls[0];
+    if (args.length !== 4) {
+      return [`chipPlace is called with ${String(args.length)} arguments, wanting 4`];
+    }
+    const third = args[2] ?? '';
+    const lines = [];
+    if (!/\bclientWidth\b/.test(third)) {
+      lines.push('the scroller argument does not name clientWidth');
+    }
+    if (/\bgetBoundingClientRect\s*\(\s*\)\s*(?:,|$)/.test(third)) {
+      lines.push('the scroller argument is a bare getBoundingClientRect(), which is the border box');
+    }
+    if (/\boffsetWidth\b/.test(third)) {
+      lines.push('the scroller argument names offsetWidth, which is the border box');
+    }
+    return lines;
+  };
+
+  const GOOD = `
+    const box = scroll.getBoundingClientRect();
+    setPlace(chipPlace(rect, page.getBoundingClientRect(), {
+      left: box.left, top: box.top, bottom: box.bottom,
+      width: scroll.clientWidth, height: box.height
+    }, { width: own?.width ?? 0, height: own?.height ?? 0 }));
+  `;
+  const PLANTS = [
+    { name: 'the shipping shape', src: GOOD, caught: false },
+    {
+      name: 'the defect: the scroller border box handed in whole',
+      src: `setPlace(chipPlace(rect, page.getBoundingClientRect(), scroll.getBoundingClientRect(), { width: 1, height: 1 }));`,
+      caught: true
+    },
+    {
+      name: 'offsetWidth, which is the border box under another name',
+      src: `const box = scroll.getBoundingClientRect();
+        setPlace(chipPlace(rect, page.getBoundingClientRect(), { ...box, width: scroll.offsetWidth }, s));`,
+      caught: true
+    },
+    {
+      name: 'clientWidth in a comment only',
+      src: `setPlace(chipPlace(rect, p, /* scroll.clientWidth */ scroll.getBoundingClientRect(), s));`,
+      caught: true
+    },
+    { name: 'no call at all', src: `const x = 1;`, caught: true },
+    {
+      name: 'two callers, one of them the old shape',
+      src: `${GOOD}\nsetPlace(chipPlace(rect, p, scroll.getBoundingClientRect(), s));`,
+      caught: true
+    },
+    {
+      name: 'the right box, spelled with a spread',
+      src: `const box = scroll.getBoundingClientRect();
+        setPlace(chipPlace(rect, page.getBoundingClientRect(), { ...toRect(box), width: scroll.clientWidth }, s));`,
+      caught: false
+    }
+  ];
+
+  let proved = 0;
+  for (const plant of PLANTS) {
+    if (scanChipCaller(plant.src).length > 0 === plant.caught) proved += 1;
+    else fail(`39. the caller scanner behaved wrongly on the plant "${plant.name}"`);
+  }
+
+  if (!existsSync(CHIP_FILE)) {
+    fail(`39. ${CHIP_FILE} is not there, so rule 39 proves nothing`);
+  } else {
+    const found = scanChipCaller(readFileSync(CHIP_FILE, 'utf8'));
+    for (const line of found) {
+      fail(
+        `39. ${line}. The band arm places the chip OUTSIDE the page, at ` +
+          `page.width + CHIP_BAND_GUTTER, so the box it is judged against must be the one ` +
+          `the page is centred in — the scroller's CONTENT box. A border box is a ` +
+          `scrollbar wider, and the chip then hangs past the content box and grows a ` +
+          `horizontal scrollbar the redline has never had (9.7px at a 1308px panel).`
+      );
+    }
+    if (found.length === 0) {
+      say(
+        `39. the chip's one caller hands chipPlace the scroller's CONTENT box, read by ` +
+          `matching parentheses, so the running app is judged against the same box ` +
+          `rule 38's model and both design documents are; ${String(proved)} of ` +
+          `${String(PLANTS.length)} planted callers behaved, ` +
+          `${String(PLANTS.filter((p) => p.caught).length)} of them must fail`
+      );
     }
   }
 }

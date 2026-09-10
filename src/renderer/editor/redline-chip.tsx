@@ -254,8 +254,26 @@ export function chipAnchorRect(el: {
  * put the chip's last ten pixels behind a horizontal scrollbar the redline has
  * never had.
  *
- * BOTH ARMS ARE CLAMPED INSIDE THE PAGE, so neither can grow the scroller's
- * own scrollable area on the side the band is not on.
+ * `scroll` IS THE SCROLLER'S CONTENT BOX AND NEVER ITS BORDER BOX, and THE FIX
+ * ROUND IS WHY THAT SENTENCE IS HERE. The paragraph above says the view is the
+ * wrong box because it is a scrollbar wider; the scroller's own
+ * `getBoundingClientRect()` is a scrollbar wider than the scroller's content
+ * box for exactly the same reason, and the first version of this phase handed
+ * that in. The page is centred in the CONTENT box, so the band came out ten
+ * pixels too generous, and the app really drew what the paragraph above says it
+ * must never draw: at a 1308px panel the chip's right edge sat 9.7px past the
+ * content box and `.ed-redline-scroll` grew a horizontal scrollbar. THE BAND
+ * ARM IS THE ONE PLACEMENT IN THIS VIEW THAT IS DELIBERATELY OUTSIDE THE PAGE,
+ * at `page.width + CHIP_BAND_GUTTER`, so it is the one placement that CAN grow
+ * the scroller's scrollable area, and the width it is judged against is the
+ * only thing standing between it and doing so. The caller in `RedlineChip`
+ * below hands `clientWidth`, and it is the box every model of this decision
+ * already uses.
+ *
+ * THE TOP IS CLAMPED INSIDE THE PAGE IN BOTH ARMS. The band arm cannot bite
+ * today — `.ed-redline-doc`'s trailing padding is 48px against a 30px chip — but
+ * the two arms saying different things about the same edge is how the wrong one
+ * gets copied, which is the lesson of the paragraph above it.
  */
 export function chipPlace(
   rect: ChipRect,
@@ -267,7 +285,7 @@ export function chipPlace(
   if (band >= size.width + CHIP_BAND_GUTTER) {
     return {
       left: page.width + CHIP_BAND_GUTTER,
-      top: Math.max(0, rect.top - page.top),
+      top: Math.max(0, Math.min(rect.top - page.top, page.height - size.height)),
       arm: 'band'
     };
   }
@@ -368,11 +386,34 @@ export function RedlineChip({
       // fraction of a pixel is the difference between the two designs' answers
       // at the same pane.
       const own = chipRef.current?.getBoundingClientRect();
+      // THE SCROLLER'S CONTENT BOX, AND THE FIX ROUND IS WHY THIS LINE IS NOT
+      // A BARE `getBoundingClientRect()`. That call answers the BORDER box,
+      // which on a scrolling element INCLUDES the vertical scrollbar — 10px on
+      // this machine — while the page is centred inside the CONTENT box. So the
+      // band read ten pixels wider than it is, and `chipPlace` accepted a chip
+      // that then hung past the content box by up to that much: measured in the
+      // running app at a 1308px panel, the chip's right edge sat 9.7px past the
+      // content box and `.ed-redline-scroll` grew a horizontal scrollbar of its
+      // own, appearing and disappearing as the pointer moved onto and off a
+      // change. `clientWidth` is the same number the view already reads one
+      // effect away for `--redline-gutter`, and it is the number every model of
+      // this decision uses — build/redline-chip-probe.mts, the unit test and
+      // both design documents — so this is the code coming to the model rather
+      // than the other way round.
+      const box = scroll.getBoundingClientRect();
       setPlace(
-        chipPlace(rect, page.getBoundingClientRect(), scroll.getBoundingClientRect(), {
-          width: own?.width ?? 0,
-          height: own?.height ?? 0
-        })
+        chipPlace(
+          rect,
+          page.getBoundingClientRect(),
+          {
+            left: box.left,
+            top: box.top,
+            bottom: box.bottom,
+            width: scroll.clientWidth,
+            height: box.height
+          },
+          { width: own?.width ?? 0, height: own?.height ?? 0 }
+        )
       );
     };
     put();

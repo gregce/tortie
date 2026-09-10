@@ -142,3 +142,69 @@ describe('the change count says how many there are until you go to one', () => {
     expect(redlineChangeCount(1, 0)).toBe('1 of 1 change');
   });
 });
+
+/**
+ * THE FIX ROUND. The band is measured in the scroller's CONTENT box, and this
+ * is the half of that a `node` environment can hold: `chipPlace` decides on the
+ * `width` it is handed, so handing it a border box — ten pixels wider on this
+ * machine, because a scrolling document draws a vertical scrollbar — accepts a
+ * chip that does not fit. The other half is the CALL SITE, which is where the
+ * defect really was, and that is `npm run conformance:redline` rule 39 over the
+ * real source plus `npm run probe:p249`'s band sweep in the running app.
+ */
+describe('the band is the scroller content box, never its border box', () => {
+  /** The panel at which the product's chip first takes the band. */
+  const threshold = (size: { width: number; height: number }, pad = 0): number => {
+    let lo = 400;
+    let hi = 4000;
+    for (let i = 0; i < 60; i += 1) {
+      const mid = (lo + hi) / 2;
+      const r = room(mid);
+      const scroll = { ...r.scroll, width: r.scroll.width + pad };
+      if (chipPlace(rect(r.page.left + 100, 200, 40, 15), r.page, scroll, size).arm === 'band') {
+        hi = mid;
+      } else lo = mid;
+    }
+    return hi;
+  };
+
+  it('accepts a chip that does not fit when it is handed the border box', () => {
+    // The scrollbar is 10px on this machine (research 113 §0 reads the panel
+    // ten wider than the scroller for the same reason).
+    const SCROLLBAR = 10;
+    const panel = 1310;
+    const r = room(panel);
+    const content = r.scroll;
+    const border = { ...r.scroll, width: r.scroll.width + SCROLLBAR };
+    // The border box takes the band and the content box does not, so this
+    // panel is inside the window the defect opened.
+    expect(chipPlace(rect(r.page.left + 100, 200, 40, 15), r.page, border, PRODUCT).arm)
+      .toBe('band');
+    expect(chipPlace(rect(r.page.left + 100, 200, 40, 15), r.page, content, PRODUCT).arm)
+      .toBe('overlay');
+    // And the chip the border box accepted really hangs past the content box.
+    const bad = chipPlace(rect(r.page.left + 100, 200, 40, 15), r.page, border, PRODUCT);
+    const over = r.page.left + bad.left + PRODUCT.width - (content.left + content.width);
+    expect(over).toBeGreaterThan(0);
+    expect(over).toBeLessThanOrEqual(SCROLLBAR);
+  });
+
+  it('publishes the threshold the design documents publish', () => {
+    // 1326.39 is the panel width DESIGN.md §12.2 and docs/DESIGN-SPEC.md name,
+    // and it is what the content box gives. The border box would move it to
+    // about ten pixels lower and put those ten pixels behind the scrollbar.
+    expect(threshold(PRODUCT)).toBeCloseTo(1326.39, 1);
+    expect(threshold(PRODUCT, 10)).toBeLessThan(threshold(PRODUCT));
+    expect(threshold(PRODUCT) - threshold(PRODUCT, 10)).toBeCloseTo(20, 0);
+  });
+
+  it('clamps the band arm inside the page, the way the overlay arm does', () => {
+    const r = room(1349);
+    // A change at the very bottom of a short page: the chip would otherwise be
+    // placed past the page's own last pixel.
+    const page = { ...r.page, height: 200 };
+    const place = chipPlace(rect(page.left + 100, 190, 40, 15), page, r.scroll, PRODUCT);
+    expect(place.arm).toBe('band');
+    expect(place.top + PRODUCT.height).toBeLessThanOrEqual(page.height);
+  });
+});

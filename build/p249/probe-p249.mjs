@@ -33,6 +33,19 @@
  *     design's own first version got wrong by reading one change;
  *   - and the rail's own width at every pane, which is arm 14.
  *
+ * AND THE FIX ROUND ADDED THE BAND BOUNDARY, SWEPT IN 2px STEPS, because the
+ * three widths above cannot see it: 1349 is well inside the band and 699 and
+ * 319 are well inside the overlay, and the window the defect lived in is 19px
+ * wide and sits right beside the 1349px pane research 113 says he works in.
+ * `chipPlace` was handed the scroller's BORDER box, which includes the vertical
+ * scrollbar, while the page is centred in its CONTENT box, so the band arm
+ * accepted a chip that hung up to a scrollbar's width past the box and
+ * `.ed-redline-scroll` grew a horizontal scrollbar that appeared and
+ * disappeared as the pointer moved onto and off a change. The sweep reads the
+ * overhang and the scroller's own overflow at each step, and it FAILS ITSELF if
+ * every width or no width took the band arm, because a sweep that never crossed
+ * the boundary proves nothing.
+ *
  * MEASURED AT THE PARENT COMMIT AND AT HEAD. Run it with `P249_LABEL=parent`
  * after putting `src/renderer/editor/redline.css` and `RedlineDocument.tsx`
  * back to the parent and rebuilding; the readings go to a file named for the
@@ -762,6 +775,38 @@ const docHasChange = `(() => { const d = document.querySelector('.ed-redline-doc
 // nothing.
 const focusHost = `(() => { const s = document.querySelector('.ed-redline-scroll'); if (!s) return false; s.focus(); return document.activeElement === s || s.contains(document.activeElement); })()`;
 
+/**
+ * THE FIX ROUND'S BAND ROW. Everything is read in ONE evaluation so the panel,
+ * the scroller's two boxes, the chip's arm and the scroller's own overflow all
+ * describe the same moment.
+ *
+ * `clientWidth` is the CONTENT box and `getBoundingClientRect().width` is the
+ * BORDER box; on this machine they differ by the 10px of vertical scrollbar a
+ * document taller than the pane draws. The page is centred in the content box,
+ * so the content box is what the chip has to fit inside, and `scrollWidth`
+ * against `clientWidth` is whether it did.
+ */
+const BAND_ROW = String.raw`(() => {
+  const round = (n) => Math.round(n * 100) / 100;
+  const panelEl = document.querySelector('.ed-panel');
+  const scroll = document.querySelector('.ed-redline-scroll');
+  const chip = document.querySelector('.ed-redline-chip');
+  if (panelEl === null || scroll === null || chip === null) return null;
+  const box = scroll.getBoundingClientRect();
+  const contentRight = box.left + scroll.clientWidth;
+  const c = chip.getBoundingClientRect();
+  return {
+    panel: round(panelEl.getBoundingClientRect().width),
+    border: round(box.width),
+    client: scroll.clientWidth,
+    arm: chip.getAttribute('data-arm'),
+    chipRight: round(c.right),
+    contentRight: round(contentRight),
+    overhang: round(c.right - contentRight),
+    hscroll: scroll.scrollWidth - scroll.clientWidth
+  };
+})()`;
+
 async function cdpForAppWindow(timeoutMs) {
   const started = Date.now();
   for (;;) {
@@ -1028,6 +1073,75 @@ await withElectron(
           if (cell.acceptAllPast !== null && cell.acceptAllPast > 1) {
             finding(`${key}: Accept all sits ${cell.acceptAllPast}px past the column's right content edge`);
           }
+        }
+      }
+      // ---------------------------------------------------------------------
+      // THE FIX ROUND'S OWN ARM: THE BAND BOUNDARY, SWEPT.
+      //
+      // `chipPlace` was handed `scroll.getBoundingClientRect()`, which is the
+      // scroller's BORDER box and includes the vertical scrollbar, while the
+      // page is centred in its CONTENT box. So the band read a scrollbar's
+      // width too generous and the band arm — the one placement in this view
+      // that is deliberately OUTSIDE the page — accepted a chip that then hung
+      // past the content box, and `.ed-redline-scroll` grew a horizontal
+      // scrollbar it has never had, appearing and disappearing as the pointer
+      // moved onto and off a change.
+      //
+      // THE THREE WIDTHS ABOVE CANNOT SEE IT: 1349 is well inside the band,
+      // 699 and 319 are well inside the overlay, and the window is 19px wide
+      // and adjacent to the 1349px pane research 113 says he works in. So the
+      // sweep is 2px steps across the boundary, with a change made current so
+      // the chip is really drawn and a document tall enough that the vertical
+      // scrollbar is really there.
+      {
+        await cdpEval(cdp, `window.gmux.settingsSet({ colorScheme: "dark" }).then(() => true)`, 30000);
+        await sleep(700);
+        await setPaneWidth(cdp, 1350);
+        await sleep(400);
+        await cdpEval(cdp, focusHost);
+        await sleep(150);
+        await press(cdp, ALT_DOWN);
+        await sleep(400);
+        const band = [];
+        for (let panel = 1300; panel <= 1336; panel += 2) {
+          await setPaneWidth(cdp, panel);
+          await sleep(350);
+          const row = await cdpEval(cdp, BAND_ROW, 30000);
+          if (row === null) continue;
+          band.push(row);
+          say(
+            `band: panel ${String(row.panel)} scroller ${String(row.border)}/${String(row.client)} ` +
+              `arm ${String(row.arm)} overhang ${String(row.overhang)}px hscroll ${String(row.hscroll)}px`
+          );
+          if (row.arm === 'band' && row.overhang > 0.5) {
+            finding(
+              `band: at a panel of ${String(row.panel)} the chip's right edge is ` +
+                `${String(row.overhang)}px past the scroller's content box, which is the box ` +
+                `the page is centred in`
+            );
+          }
+          if (row.hscroll > 0.5) {
+            finding(
+              `band: at a panel of ${String(row.panel)} .ed-redline-scroll has ` +
+                `${String(row.hscroll)}px of horizontal overflow, so it draws a horizontal ` +
+                `scrollbar the redline has never had`
+            );
+          }
+        }
+        readings.band = band;
+        const armed = band.filter((r) => r.arm === 'band');
+        if (armed.length === 0 || armed.length === band.length) {
+          finding(
+            `band: ${String(armed.length)} of ${String(band.length)} swept widths took the band ` +
+              `arm, so the sweep never crossed the boundary and proves nothing`
+          );
+        } else {
+          say(
+            `band: the arm turns on between a panel of ` +
+              `${String(band.filter((r) => r.arm !== 'band').pop()?.panel)} and ` +
+              `${String(armed[0].panel)}, and ${String(armed.length)} of ${String(band.length)} ` +
+              `widths are in the band`
+          );
         }
       }
       readings.opAfter = operatorCount();

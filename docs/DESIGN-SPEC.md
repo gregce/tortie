@@ -628,8 +628,14 @@ driven over every change and both go to 0.
 the chip scrolls with the document and has **no `scroll` listener**. `chipPlace` in
 `redline-chip.tsx` decides, and it decides on one number:
 
-- **band** when `scroll.right − page.right ≥ chipWidth + 16`. Placed at
-  `left: page.width + 16`, `top: rect.top − page.top`. Covers **0** rows of prose. With
+- **band** when `scroll.right − page.right ≥ chipWidth + 16`, where `scroll` is the
+  scroller's **content** box — `clientWidth`, never `getBoundingClientRect()`, which is a
+  vertical scrollbar wider. This is the one placement in the view that is deliberately
+  outside the page, so it is the one that can grow the scroller's scrollable area: handed
+  the border box, the chip hung **9.7px** past the content box at a 1308px panel and the
+  scroller grew a horizontal scrollbar. Placed at
+  `left: page.width + 16`, `top: rect.top − page.top`, clamped inside the page the way the
+  overlay arm is. Covers **0** rows of prose. With
   the product's 258.28px chip it turns on at a scroller of **1316.39px**, being a panel of
   about **1326px**; a re-labelled 299.07px chip needs 1397.97px, which is the point — the
   question is asked of the chip's own drawn width, read with `getBoundingClientRect()` and

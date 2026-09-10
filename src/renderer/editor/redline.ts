@@ -66,7 +66,18 @@
  *    document with no virtualizer (docs/research/113 §7.1). So it REFUSES
  *    LIKE `wordRuns` DOES, at `REDLINE_MAX_TABLE_ROWS` below, returning
  *    null so the block takes the whole-block fallback every other cap
- *    already takes.
+ *    already takes — under a counter and a sentence of its own, because
+ *    61 rows of five bytes is 844 characters and `too long` would be a
+ *    false sentence about it.
+ *
+ *    AND IT HAS A SECOND REFUSAL, WHICH IS THE FIX ROUND'S. `tableRuns`
+ *    answers `pairs === 0` when the alignment aligned no row at all, and
+ *    that answer draws exactly the two runs the whole-block fallback
+ *    draws, so ./redline-document does not draw it: the block falls
+ *    through to the flat path, with the whole-block fallback still behind
+ *    that. Measured over the 201 real table change blocks in this
+ *    repository's prose history, 26 answer it and 21 of those the flat
+ *    path draws word by word.
  *
  * 5. A WHITESPACE ONLY CHANGE SAYS SO, and it is the one thing this module
  *    cannot draw. Ruling 1's normalisation collapses every run of whitespace,
@@ -182,6 +193,21 @@ export const REDLINE_MAX_BLOCKS = 60;
  * it is what stops a generated or pasted table of narrow rows mounting a
  * thousand boxes. What a person can READ in one mounted block, and whether 60
  * rows of table is already past that, is his eye and not a number.
+ *
+ * WHAT THE BOUND COSTS IS A RANGE AND NOT ONE NUMBER, and the fix round
+ * corrected the phase's own sentence about it. Research 114 §6.3 published
+ * "2.7 ms and 120 runs at the bound"; 120 is ONE shape at the bound, being the
+ * 60 unpaired rows that section's argument is built on, and those merge to 3
+ * runs by the time they reach the document. Driven over the shipping composer
+ * on 2026-09-10: 60 unpaired rows give 120 raw and 3 document runs in 0.9 ms;
+ * 60 rows word-diffed inside the shared budget give 240 raw and 181 in 3.7 ms;
+ * and 60 rows of pure spacing churn at 21 words a row, both sides inside
+ * `REDLINE_MAX_BLOCK_CHARS`, give 3,660 raw and 2,401 document runs in 21 ms.
+ * That last one is the WORST this bound admits and it is NOT this path's: the
+ * flat path draws the same 2,401 runs for the same input at the parent commit,
+ * because `diffWords` ignores whitespace so a spacing split is charged to no
+ * budget at all. The row cap answers for the ALIGNMENT's cost; the spacing door
+ * is older than this phase and unchanged by it.
  */
 export const REDLINE_MAX_TABLE_ROWS = 60;
 

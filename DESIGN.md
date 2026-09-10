@@ -699,6 +699,16 @@ at 319px there is nowhere else for the controls to be, and the chip falls back t
 the placement Phase 236 shipped: above the change's first line box when there is room and
 below it when there is not, clamped inside the page.
 
+**The band is measured in the scroller's CONTENT box.** The band arm is the one placement
+in this view that is deliberately outside the page, so it is the one that can grow the
+scroller's own scrollable area, and the width it is judged against is all that stops it.
+`getBoundingClientRect()` answers the BORDER box, a vertical scrollbar wider; the first
+version handed that in, and between a panel of 1308 and 1327 the chip hung up to **9.7px**
+past the box the page is centred in and `.ed-redline-scroll` grew a horizontal scrollbar
+that appeared and disappeared as the pointer moved onto and off a change. `clientWidth` is
+the number, and it is the one both design documents, the gate's model and the unit test
+were already quoting.
+
 **The chip is a child of the page in BOTH arms**, which is why its `scroll` listener is
 gone: it is inside the scroller now, so it scrolls with the document it belongs to and
 nothing has to put it back on every scroll event. That makes `.ed-redline-page` the
@@ -750,7 +760,19 @@ and a first-cell key cannot pair a row whose first cell is what changed, so it d
 every row to a whole-row deletion beside a whole-row insertion — a *worse* picture than
 the flat stream it replaces. **The word budget is the block's** and not the row's, which
 is what `REDLINE_MAX_EDIT_LENGTH` promised. And `tableRuns` has a refusal of its own at
-**60 rows a side**, because unlike the word differ it answers on every input there is.
+**60 rows a side**, because unlike the word differ it answers on every input there is —
+under a sentence of its own, `N with too many rows`, because 61 rows of five bytes is 844
+characters and `too long` would be false about the only quantity it names.
+
+**And a block whose rows pair nothing takes the flat path.** A row rewritten past the
+threshold does not pair either, so the paragraph above's condemned picture is reachable
+through the resemblance door as well as the first-cell one — and when NO row pairs, this
+path draws exactly the two runs the whole-block fallback draws, so it has produced no
+picture at all. It falls through to the flat stream instead, with the whole-block fallback
+still behind that. Over the **201 real table change blocks in this repository's own prose
+history** it fires on 21; the one-row-per-side bucket is **144 of those 201**, where the
+row alignment has no second row to protect the picture from, and it goes from **16 blocks
+drawn louder than the flat path to none**.
 
 **A redlined table cannot be made to line up**, and that is refused rather than deferred:
 a drawn line carries both versions' characters and therefore neither version's grid. The

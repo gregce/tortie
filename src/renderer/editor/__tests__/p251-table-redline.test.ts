@@ -17,6 +17,7 @@ import {
   composeRedlineDocument,
   isTableBlock,
   pairRows,
+  redlineDocumentNote,
   redlineLeaves,
   rowResemblance,
   tableRuns,
@@ -135,7 +136,14 @@ describe('the three caps, asked as three questions', () => {
     expect(tableRuns(wide, other)).toBeNull();
     expect(tableRuns(rows(61, 'ab'), rows(61, 'cd'))).toBeNull();
     expect(tableRuns(rows(60, 'ab'), rows(60, 'cd'))?.runs).toHaveLength(120);
-    expect(composeRedlineDocument(wide, other).whole.tooBig).toBe(1);
+    // THE ROW CAP HAS A COUNTER AND A SENTENCE OF ITS OWN (the fix round).
+    // `tooBig` reads `N too long` and 666 rows of five bytes is 3,330
+    // characters, well under `REDLINE_MAX_BLOCK_CHARS`, so that sentence would
+    // be false about the only quantity it names.
+    const refused = composeRedlineDocument(wide, other);
+    expect(refused.whole.tooManyRows).toBe(1);
+    expect(refused.whole.tooBig).toBe(0);
+    expect(redlineDocumentNote(refused)).toContain('1 with too many rows');
   });
 });
 
@@ -246,5 +254,103 @@ describe('the cancel pass', () => {
     const again = cancelPairs(doc.runs);
     expect(oldSide(again)).toBe(oldText);
     expect(newSide(again)).toBe(newText);
+  });
+});
+
+/**
+ * THE FIX ROUND. An alignment that aligned no row has drawn nothing, so the
+ * block falls through to the flat path.
+ *
+ * The verifier of this phase measured it over the 201 real table change blocks
+ * in this repository's own prose history: 26 pair nothing, 21 of those the flat
+ * path draws word by word, and 17 of those are one row against one row, where
+ * the row alignment has no second row to protect the picture FROM. The block
+ * below is the shape of the one it named, `docs/research/107` at `9e0f57a6`.
+ *
+ * `npm run conformance:redline` rule 26 drives the same property over the real
+ * corpus with an ablation of the clause; this is the cheap half.
+ */
+describe('a table block whose rows pair nothing takes the flat path', () => {
+  const OLD =
+    '| a **symlink** | **nothing in version one** | ' +
+    'the root rule already removes them and no separate rule is needed |\n';
+  const NEW =
+    '| a **symlink** | **the file it points at, when it is inside a root** | ' +
+    'the root rule does NOT remove them on its own and one is a correction |\n';
+
+  it('is a real block the row alignment refuses', () => {
+    expect(isTableBlock(OLD, NEW)).toBe(true);
+    expect(rowResemblance(OLD, NEW)).toBeLessThan(REDLINE_ROW_RESEMBLANCE);
+    const table = tableRuns(OLD, NEW);
+    expect(table?.pairs).toBe(0);
+  });
+
+  it('draws exactly the whole-block fallback when it draws at all, so nothing is lost', () => {
+    // THE PROPERTY THAT MAKES THE FALL-THROUGH FREE. With no pair, every
+    // deletion is emitted and then every insertion, and `composeRedlineDocument`
+    // merges each side into one run, so the table path's own answer IS the two
+    // runs `drawWhole` draws. Asked over a multi-row block, because on one row
+    // it is true by inspection.
+    const oldRows = '| alpha | one |\n| beta | two |\n';
+    const newRows = '| zulu | nine |\n| yankee | eight |\n';
+    const table = tableRuns(oldRows, newRows);
+    expect(table?.pairs).toBe(0);
+    const merged: { kind: string; text: string }[] = [];
+    for (const run of table?.runs ?? []) {
+      const last = merged[merged.length - 1];
+      if (last !== undefined && last.kind === run.kind) last.text += run.text;
+      else merged.push({ kind: run.kind, text: run.text });
+    }
+    expect(merged).toEqual([
+      { kind: 'del', text: oldRows },
+      { kind: 'ins', text: newRows }
+    ]);
+  });
+
+  it('is drawn word by word rather than as two whole rows', () => {
+    const doc = composeRedlineDocument(OLD, NEW);
+    // The flat path found the shared words, so the picture is not the whole
+    // row struck through beside the whole row inserted.
+    expect(doc.runs.filter((r) => r.kind === 'same').length).toBeGreaterThan(1);
+    expect(doc.runs.filter((r) => r.kind !== 'same').length).toBeGreaterThan(2);
+    // And it costs nothing that was drawn whole.
+    expect(doc.whole).toEqual({
+      tooBig: 0,
+      tooManyRows: 0,
+      tooDifferent: 0,
+      overCap: 0,
+      unaligned: 0
+    });
+    // Both projections still hold, which is the only thing that may never move.
+    expect(doc.runs.filter((r) => r.kind !== 'ins').map((r) => r.text).join('')).toBe(OLD);
+    expect(doc.runs.filter((r) => r.kind !== 'del').map((r) => r.text).join('')).toBe(NEW);
+  });
+
+  it('still draws whole when the flat path refuses it too', () => {
+    // A block that pairs nothing AND is past the word cap keeps today's answer:
+    // the fall-through is a second chance, never a third picture.
+    const noise = (seed: number): string =>
+      Array.from({ length: 120 }, (_, i) => `w${String((seed * 977 + i * 31) % 9973)}`).join(' ');
+    const oldText = `| ${noise(1)} |\n`;
+    const newText = `| ${noise(2)} |\n`;
+    expect(isTableBlock(oldText, newText)).toBe(true);
+    expect(tableRuns(oldText, newText)?.pairs).toBe(0);
+    const doc = composeRedlineDocument(oldText, newText);
+    expect(doc.whole.tooDifferent + doc.whole.unaligned).toBe(1);
+    expect(doc.runs.filter((r) => r.kind !== 'same')).toHaveLength(2);
+  });
+
+  it('keeps the row alignment when even one row pairs', () => {
+    const oldRows = '| alpha | one |\n| beta | two |\n';
+    const newRows = '| alpha | one |\n| zulu | nine |\n';
+    const table = tableRuns(oldRows, newRows);
+    expect(table?.pairs).toBeGreaterThan(0);
+    const doc = composeRedlineDocument(oldRows, newRows);
+    // Row one survives as unchanged text, which the flat path over a table is
+    // exactly what fault 3 exists to stop relying on.
+    expect(doc.runs[0]?.kind).toBe('same');
+    // `peelSharedSpace` moves the next row's own leading pipe into this run,
+    // which is why the reading is a prefix rather than an equality.
+    expect(doc.runs[0]?.text.startsWith('| alpha | one |\n')).toBe(true);
   });
 });

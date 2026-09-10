@@ -60,6 +60,8 @@ const doc = (await import(url('redline-document.ts'))) as {
   isTableBlock: (a: string, b: string) => boolean;
   cancelPairs: (runs: readonly Run[]) => Run[];
   redlineLeaves: (runs: readonly Run[]) => Leaf[];
+  rowResemblance: (a: string, b: string) => number;
+  redlineDocumentNote: (d: unknown) => string | null;
   exactRuns: (runs: readonly Run[], a: string, b: string) => Run[] | null;
   REDLINE_ROW_RESEMBLANCE: number;
 };
@@ -433,8 +435,79 @@ const caps = {
     at61: at61 === null ? null : at61.runs.length,
     at60: at60 === null ? null : at60.runs.length,
     documentRunsAt666: doc666.runs.length,
-    documentTooBigAt666: doc666.whole.tooBig
+    // THE ROW CAP HAS ITS OWN COUNTER AND ITS OWN SENTENCE (the fix round).
+    // `tooBig` reads `N too long` and 666 rows of five bytes is 3,330
+    // characters, a fifth of `REDLINE_MAX_BLOCK_CHARS`, so that sentence would
+    // be false about the only quantity it names. Both are read, so a round that
+    // folds them back together turns this arm red.
+    documentTooBigAt666: doc666.whole.tooBig,
+    documentTooManyRowsAt666: doc666.whole.tooManyRows,
+    noteAt666: (doc.redlineDocumentNote(doc666) ?? '')
   }
+};
+
+// ---------------------------------------------------------------------------
+// 29d. THE FOURTH REFUSAL, WHICH IS THE FIX ROUND'S: an alignment that aligned
+// NO row has drawn nothing, so the block falls through to the flat path.
+//
+// The block is the shape the verifier of this phase found in this repository's
+// own prose history, `docs/research/107` at `9e0f57a6`: ONE table row whose
+// second and third cells were rewritten. `rowResemblance` reads under the
+// threshold, the row does not pair, and at the parent of this fix it drew as a
+// whole deletion beside a whole insertion — research 114 §6.3's own condemned
+// picture, reached through the resemblance door instead of the first-cell one.
+//
+// TWO READINGS, because a fall-through that fires on everything is as wrong as
+// one that fires on nothing: the refused block must be drawn word by word, and
+// a block in which even one row pairs must still take the row alignment.
+// ---------------------------------------------------------------------------
+
+const FALL_OLD =
+  '| a **symlink** | **nothing in version one** | ' +
+  'the root rule already removes them and no separate rule is needed |\n';
+const FALL_NEW =
+  '| a **symlink** | **the file it points at, when it is inside a root** | ' +
+  'the root rule does NOT remove them on its own and one is a correction |\n';
+const fallTable = doc.tableRuns(FALL_OLD, FALL_NEW);
+const fallDoc = doc.composeRedlineDocument(FALL_OLD, FALL_NEW);
+// THE CONTROL: even one pair keeps the row alignment, and the unchanged row
+// stays one unchanged run rather than being re-diffed against its neighbour.
+const KEEP_OLD = '| alpha | one |\n| beta | two |\n';
+const KEEP_NEW = '| alpha | one |\n| zulu | nine |\n';
+const keepTable = doc.tableRuns(KEEP_OLD, KEEP_NEW);
+const keepDoc = doc.composeRedlineDocument(KEEP_OLD, KEEP_NEW);
+// THE PROPERTY THAT MAKES THE FALL-THROUGH FREE: with no pair at all the table
+// path's own runs merge to exactly the two runs the whole-block fallback draws,
+// so the flat path is asked in place of a picture and never in place of one.
+const MERGE_OLD = '| alpha | one |\n| beta | two |\n';
+const MERGE_NEW = '| zulu | nine |\n| yankee | eight |\n';
+const mergeTable = doc.tableRuns(MERGE_OLD, MERGE_NEW);
+const mergedKinds: string[] = [];
+let mergedOld = '';
+let mergedNew = '';
+for (const run of mergeTable?.runs ?? []) {
+  if (mergedKinds[mergedKinds.length - 1] !== run.kind) mergedKinds.push(run.kind);
+  if (run.kind !== 'ins') mergedOld += run.text;
+  if (run.kind !== 'del') mergedNew += run.text;
+}
+const fallThrough = {
+  refusedPairs: fallTable?.pairs ?? -1,
+  refusedResemblance: Number(doc.rowResemblance(FALL_OLD, FALL_NEW).toFixed(2)),
+  threshold: doc.REDLINE_ROW_RESEMBLANCE,
+  drawnSame: fallDoc.runs.filter((r) => r.kind === 'same').length,
+  drawnMarks: fallDoc.runs.filter((r) => r.kind !== 'same').length,
+  drawnWhole:
+    fallDoc.whole.tooBig +
+    fallDoc.whole.tooManyRows +
+    fallDoc.whole.tooDifferent +
+    fallDoc.whole.overCap +
+    fallDoc.whole.unaligned,
+  oldOk: oldSide(fallDoc.runs) === FALL_OLD,
+  newOk: newSide(fallDoc.runs) === FALL_NEW,
+  keepPairs: keepTable?.pairs ?? -1,
+  keepFirstRunIsWholeRow: (keepDoc.runs[0]?.text ?? '').startsWith('| alpha | one |\n'),
+  mergedKinds: mergedKinds.join('|'),
+  mergedIsWholeBlock: mergedOld === MERGE_OLD && mergedNew === MERGE_NEW
 };
 
 // ---------------------------------------------------------------------------
@@ -573,6 +646,7 @@ process.stdout.write(
     rowsNotCrossed,
     renamedColumn,
     caps,
+    fallThrough,
     cancel,
     separator,
     ink,

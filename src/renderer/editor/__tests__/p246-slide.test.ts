@@ -48,7 +48,13 @@ describe("the operator's own two pictures, 2026-09-09", () => {
     expect(marked(doc.runs)).toEqual([{ kind: 'del', text: 'micro' }]);
     // Nothing slid, so this picture is the one the parent commit drew.
     expect(doc.slid).toBe(0);
-    expect(doc.whole).toEqual({ tooBig: 0, tooDifferent: 0, overCap: 0, unaligned: 0 });
+    expect(doc.whole).toEqual({
+      tooBig: 0,
+      tooManyRows: 0,
+      tooDifferent: 0,
+      overCap: 0,
+      unaligned: 0
+    });
   });
 
   it('the bad picture draws the inserted paragraph and the one word that moved', () => {
@@ -64,7 +70,13 @@ describe("the operator's own two pictures, 2026-09-09", () => {
     expect(m[2]).toEqual({ kind: 'del', text: 'simple' });
     expect(doc.slid).toBe(1);
     // No cap fired at the parent either, which is why there was nothing to say.
-    expect(doc.whole).toEqual({ tooBig: 0, tooDifferent: 0, overCap: 0, unaligned: 0 });
+    expect(doc.whole).toEqual({
+      tooBig: 0,
+      tooManyRows: 0,
+      tooDifferent: 0,
+      overCap: 0,
+      unaligned: 0
+    });
   });
 
   it('both projections are exact over every fixture pair', () => {

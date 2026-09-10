@@ -166,6 +166,15 @@
  * `| Ledger | the tab order |` composes to `del "Sessions"` beside
  * `ins "Ledger"` and nothing else.
  *
+ * AND THE RESEMBLANCE DOOR REACHES THE SAME BAD PICTURE, which the fix round
+ * measured and this path now refuses. A row rewritten past the threshold does
+ * not pair either, and a block in which NO row pairs draws exactly the two runs
+ * `drawWhole` draws — the paragraph above's own condemned picture, arrived at
+ * from the other side. So `tableRuns` may answer with `pairs === 0` and
+ * `composeRedlineDocument` does not draw that answer: it falls through to the
+ * flat path, and to the whole-block fallback behind it. The numbers are in
+ * `tableRuns`'s own header.
+ *
  * THE WORD BUDGET IS THE BLOCK'S AND NOT THE ROW'S. See `redlineRunsWithin` in
  * ./redline: `REDLINE_MAX_EDIT_LENGTH` was measured for ONE call per block, so
  * each pair is given what is LEFT of it and a pair that cannot be diffed
@@ -201,7 +210,9 @@
  * `REDLINE_MAX_BLOCK_CHARS`, after it, so A TABLE OVER THE CHARACTER CAP IS
  * NOT FIXED BY THIS AND THAT IS A STATED LIMIT RATHER THAN AN OMISSION: the
  * block is refused before the tokenizer as it always was, it draws whole, and
- * `redlineDocumentNote` says `N too long`. Re-derived over this repository on
+ * `redlineDocumentNote` says `N too long`. The ROW cap says `N with too many
+ * rows` instead, in its own counter, because 61 rows of five bytes is 844
+ * characters and `too long` is a false sentence about it. Re-derived over this repository on
  * 2026-09-09: 46 of its 1,951 markdown tables are over the cap, among them
  * DESIGN.md:297 at 8,231 bytes and docs/BACKLOG.md:13554 at 22,283 bytes. And
  * `tableRuns` has a refusal of ITS OWN, `REDLINE_MAX_TABLE_ROWS`, because
@@ -280,16 +291,18 @@ export interface RedlineDocument {
    * guard giving up, the block cap, or the repair refusing. The last should
    * be zero and the gate prints it.
    *
-   * PHASE 251: `tooBig` counts the ROW budget as well as the character one.
-   * They are one refusal in two spellings — this block is too big to mark up
-   * inside it — they draw the same picture, and the note says the same
-   * sentence about both, so a fifth counter would be a distinction with
-   * nothing behind it. `npm run conformance:redline` asks them apart by
-   * driving `tableRuns` itself, which answers null for one and runs for the
-   * other.
+   * PHASE 251 ADDED `tooManyRows`, AND THE FIX ROUND SPLIT IT OUT OF `tooBig`.
+   * The two draw the same picture, which is why the phase first counted them
+   * together — and the note does not say the same sentence about both. `tooBig`
+   * reads `N too long`, which is true of a block over `REDLINE_MAX_BLOCK_CHARS`
+   * and false of the thing the row cap refuses: a table of 61 rows of five
+   * bytes is 844 characters, a fifth of that cap, and `1 too long` is a false
+   * sentence about the only quantity it names. So the row cap has a counter and
+   * a phrase of its own, `N with too many rows`.
    */
   whole: {
     tooBig: number;
+    tooManyRows: number;
     tooDifferent: number;
     overCap: number;
     unaligned: number;
@@ -311,7 +324,13 @@ export interface RedlineDocument {
   slid: number;
 }
 
-const NO_WHOLE = { tooBig: 0, tooDifferent: 0, overCap: 0, unaligned: 0 };
+const NO_WHOLE = {
+  tooBig: 0,
+  tooManyRows: 0,
+  tooDifferent: 0,
+  overCap: 0,
+  unaligned: 0
+};
 
 function isSpace(ch: string): boolean {
   return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || /\s/.test(ch);
@@ -799,6 +818,13 @@ export function pairRows(
 export interface TableRunsResult {
   /** The runs for the whole block, repaired, in document order. */
   runs: RedlineRun[];
+  /**
+   * HOW MANY ROWS THE ALIGNMENT ALIGNED, of every kind: `paired + wholeRows +
+   * identical + separators`. It is the field the CALLER reads, because zero of
+   * them means this path drew nothing at all — see `tableRuns`'s own header
+   * and `composeRedlineDocument`'s call site.
+   */
+  pairs: number;
   /** Pairs drawn word by word. */
   paired: number;
   /** Pairs the shared budget or the repair refused, drawn as whole rows. */
@@ -841,6 +867,28 @@ export function isTableBlock(oldText: string, newText: string): boolean {
  * every old row lands in exactly one `pair` or one `del` and every new row in
  * exactly one `pair` or one `ins`, in order, so the two projections hold by
  * construction and not by inspection.
+ *
+ * AN ANSWER WITH `pairs === 0` IS NOT AN ANSWER, and the caller must not draw
+ * it. THE FIX ROUND ADDED THIS SENTENCE AND THE MEASUREMENT UNDER IT. When the
+ * alignment pairs no row at all, `pairRows` emits every deletion and then every
+ * insertion, `push` merges each side into one run on the way into the document,
+ * and what reaches the page is BYTE IDENTICAL to `drawWhole`'s two runs — the
+ * whole-block fallback wearing this path's name. So `composeRedlineDocument`
+ * asks the flat path instead, with the whole-block fallback still behind it,
+ * and nothing this path can draw is lost by doing so.
+ *
+ * It is not a rare shape and it is not free. Over the 201 real table change
+ * blocks in this repository's own prose history, 26 pair nothing and 21 of
+ * those the flat path draws word by word; 17 are one row against one row, where
+ * the row alignment has no second row to protect the picture FROM. The one
+ * research 114 §6.3 would recognise is `docs/research/107` at `9e0f57a6`, a
+ * single row whose second cell was rewritten: `rowResemblance` reads 0.29, the
+ * row does not pair, and it drew as a whole deletion beside a whole insertion —
+ * *"a WORSE picture than the flat stream it replaces"* in that section's own
+ * words, arrived at through the resemblance door rather than the first-cell one
+ * it was written against. With the fall-through, marked characters over the 201
+ * blocks go 49,606 to 45,708 and the one-row bucket returns to the flat path's
+ * own 14,606 exactly, being 16 blocks louder against 0.
  */
 export function tableRuns(oldText: string, newText: string): TableRunsResult | null {
   const oldRows = rowsOf(oldText);
@@ -911,7 +959,16 @@ export function tableRuns(oldText: string, newText: string): TableRunsResult | n
     for (const run of exact) emit(run.kind, run.text);
     paired += 1;
   }
-  return { runs, paired, wholeRows, identical, separators, unpaired, spent };
+  return {
+    runs,
+    pairs: paired + wholeRows + identical + separators,
+    paired,
+    wholeRows,
+    identical,
+    separators,
+    unpaired,
+    spent
+  };
 }
 
 /**
@@ -1252,12 +1309,19 @@ export function composeRedlineDocument(
     if (isTableBlock(block.oldText, block.newText)) {
       const table = tableRuns(block.oldText, block.newText);
       if (table === null) {
-        whole.tooBig += 1;
+        whole.tooManyRows += 1;
         drawWhole(block);
         continue;
       }
-      for (const run of table.runs) push(runs, run.kind, run.text);
-      continue;
+      // AN ALIGNMENT THAT ALIGNED NO ROW HAS DRAWN NOTHING, so this block
+      // falls THROUGH to the flat path below, with the whole-block fallback
+      // still behind that. `tableRuns`'s header carries the proof that its own
+      // answer at `pairs === 0` is byte identical to `drawWhole`'s, so nothing
+      // is lost, and the measurement that says the picture is really worse.
+      if (table.pairs > 0) {
+        for (const run of table.runs) push(runs, run.kind, run.text);
+        continue;
+      }
     }
     const words = redlineRuns(block.oldText, block.newText);
     if (words === null) {
@@ -1295,8 +1359,8 @@ export function composeRedlineDocument(
  * it, rather than the words that moved inside it.
  */
 export function redlineDocumentNote(doc: RedlineDocument): string | null {
-  const { tooBig, tooDifferent, overCap, unaligned } = doc.whole;
-  const total = tooBig + tooDifferent + overCap + unaligned;
+  const { tooBig, tooManyRows, tooDifferent, overCap, unaligned } = doc.whole;
+  const total = tooBig + tooManyRows + tooDifferent + overCap + unaligned;
   const parts: string[] = [];
   if (doc.approximate) {
     parts.push(
@@ -1307,6 +1371,7 @@ export function redlineDocumentNote(doc: RedlineDocument): string | null {
     const why: string[] = [];
     if (tooDifferent + unaligned > 0) why.push(`${String(tooDifferent + unaligned)} rewritten`);
     if (tooBig > 0) why.push(`${String(tooBig)} too long`);
+    if (tooManyRows > 0) why.push(`${String(tooManyRows)} with too many rows`);
     if (overCap > 0) why.push(`${String(overCap)} past the first ${String(REDLINE_MAX_BLOCKS)}`);
     parts.push(
       `${String(total)} change${total === 1 ? '' : 's'} drawn whole rather than word by word (${why.join(', ')}).`

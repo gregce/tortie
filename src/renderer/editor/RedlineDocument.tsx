@@ -773,9 +773,14 @@ export function RedlineDocument({
       style={{ '--redline-gutter': `${String(gutter)}px` } as React.CSSProperties}
       // PHASE 236. One handler for the whole view, because `pointerover`
       // bubbles from every element the pointer enters: a move onto the chip
-      // KEEPS the chip (the chip is not inside the scroller, so leaving the
-      // change would otherwise unmount it before it could be clicked), a move
-      // onto a change draws it there, and a move onto anything else clears it.
+      // KEEPS the chip, a move onto a change draws it there, and a move onto
+      // anything else clears it. THE FIX ROUND CORRECTED THE REASON, which had
+      // been left saying the opposite of what this phase did: the chip IS
+      // inside the scroller now, a child of the page, so the reason the first
+      // clause exists is simply that a move onto the chip is a move off the
+      // change, and without it the chip would unmount under the pointer before
+      // it could be clicked. It is `chipRef.current?.contains(target)` that
+      // holds it, wherever the chip lives.
       onPointerOver={(event) => {
         const target = event.target as HTMLElement | null;
         if (target === null) return;
