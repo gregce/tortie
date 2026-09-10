@@ -1,0 +1,946 @@
+{
+  "widths": {
+    "tight": {
+      "targetPane": 580,
+      "reached": 580,
+      "face": {
+        "dpr": 2,
+        "innerWidth": 1900,
+        "scheme": null,
+        "tokens": {
+          "textMuted": "#838996",
+          "textSecondary": "#9ca1ab",
+          "borderStrong": "#353943",
+          "bgCanvas": "#131417"
+        },
+        "mdWide": "542px",
+        "containerType": "inline-size",
+        "pane": {
+          "clientWidth": 580,
+          "offsetWidth": 590,
+          "scrollWidth": 580
+        },
+        "content": {
+          "width": 556.8,
+          "paddingLeft": "24px",
+          "paddingRight": "24px",
+          "maxWidth": "556.816px",
+          "inner": 509
+        },
+        "wrap": {
+          "clientWidth": 542,
+          "scrollWidth": 759,
+          "barPx": 10,
+          "canScroll": true,
+          "left": 1329,
+          "right": 1871
+        },
+        "table": {
+          "width": 759.1,
+          "minContent": 759.1,
+          "maxContent": 1041.1
+        },
+        "cols": [
+          {
+            "text": "Component",
+            "width": 195.2,
+            "shown": 195.2,
+            "fraction": 100
+          },
+          {
+            "text": "Language / runtime",
+            "width": 138.9,
+            "shown": 138.9,
+            "fraction": 100
+          },
+          {
+            "text": "Entry point",
+            "width": 177.5,
+            "shown": 177.5,
+            "fraction": 100
+          },
+          {
+            "text": "Documented before?",
+            "width": 148.5,
+            "shown": 29.9,
+            "fraction": 20
+          },
+          {
+            "text": "Ships via",
+            "width": 98,
+            "shown": 0,
+            "fraction": 0
+          }
+        ],
+        "pre": {
+          "clientWidth": 540,
+          "scrollWidth": 901,
+          "width": 542,
+          "canScroll": true,
+          "fontFamily": "ui-monospace, Menlo, monospace",
+          "mdWide": "542px"
+        },
+        "ruler": null,
+        "docScrollsSideways": false,
+        "deadCanvasPct": 4
+      },
+      "grade": {
+        "paneWidth": 580,
+        "contentWidth": 556.8,
+        "wrapClientWidth": 542,
+        "tableWidth": 759.1,
+        "tableMinContent": 759.1,
+        "columnsUnder100": 2,
+        "docScrollsSideways": false,
+        "preClientWidth": 540
+      }
+    },
+    "narrow": {
+      "targetPane": 620,
+      "reached": 620,
+      "face": {
+        "dpr": 2,
+        "innerWidth": 1900,
+        "scheme": null,
+        "tokens": {
+          "textMuted": "#838996",
+          "textSecondary": "#9ca1ab",
+          "borderStrong": "#353943",
+          "bgCanvas": "#131417"
+        },
+        "mdWide": "582px",
+        "containerType": "inline-size",
+        "pane": {
+          "clientWidth": 620,
+          "offsetWidth": 630,
+          "scrollWidth": 620
+        },
+        "content": {
+          "width": 556.8,
+          "paddingLeft": "24px",
+          "paddingRight": "24px",
+          "maxWidth": "556.816px",
+          "inner": 509
+        },
+        "wrap": {
+          "clientWidth": 582,
+          "scrollWidth": 759,
+          "barPx": 10,
+          "canScroll": true,
+          "left": 1289,
+          "right": 1871
+        },
+        "table": {
+          "width": 759.1,
+          "minContent": 759.1,
+          "maxContent": 1041.1
+        },
+        "cols": [
+          {
+            "text": "Component",
+            "width": 195.2,
+            "shown": 195.2,
+            "fraction": 100
+          },
+          {
+            "text": "Language / runtime",
+            "width": 138.9,
+            "shown": 138.9,
+            "fraction": 100
+          },
+          {
+            "text": "Entry point",
+            "width": 177.5,
+            "shown": 177.5,
+            "fraction": 100
+          },
+          {
+            "text": "Documented before?",
+            "width": 148.5,
+            "shown": 69.9,
+            "fraction": 47
+          },
+          {
+            "text": "Ships via",
+            "width": 98,
+            "shown": 0,
+            "fraction": 0
+          }
+        ],
+        "pre": {
+          "clientWidth": 580,
+          "scrollWidth": 901,
+          "width": 582,
+          "canScroll": true,
+          "fontFamily": "ui-monospace, Menlo, monospace",
+          "mdWide": "582px"
+        },
+        "ruler": null,
+        "docScrollsSideways": false,
+        "deadCanvasPct": 10.2
+      },
+      "grade": {
+        "paneWidth": 620,
+        "contentWidth": 556.8,
+        "wrapClientWidth": 582,
+        "tableWidth": 759.1,
+        "tableMinContent": 759.1,
+        "columnsUnder100": 2,
+        "docScrollsSideways": false,
+        "preClientWidth": 580
+      }
+    },
+    "his": {
+      "targetPane": 1000,
+      "reached": 1000,
+      "face": {
+        "dpr": 2,
+        "innerWidth": 1900,
+        "scheme": null,
+        "tokens": {
+          "textMuted": "#838996",
+          "textSecondary": "#9ca1ab",
+          "borderStrong": "#353943",
+          "bgCanvas": "#131417"
+        },
+        "mdWide": "962px",
+        "containerType": "inline-size",
+        "pane": {
+          "clientWidth": 1000,
+          "offsetWidth": 1010,
+          "scrollWidth": 1000
+        },
+        "content": {
+          "width": 556.8,
+          "paddingLeft": "24px",
+          "paddingRight": "24px",
+          "maxWidth": "556.816px",
+          "inner": 509
+        },
+        "wrap": {
+          "clientWidth": 962,
+          "scrollWidth": 962,
+          "barPx": 0,
+          "canScroll": false,
+          "left": 909,
+          "right": 1871
+        },
+        "table": {
+          "width": 962,
+          "minContent": 759.1,
+          "maxContent": 1041.1
+        },
+        "cols": [
+          {
+            "text": "Component",
+            "width": 224,
+            "shown": 224,
+            "fraction": 100
+          },
+          {
+            "text": "Language / runtime",
+            "width": 164.5,
+            "shown": 164.5,
+            "fraction": 100
+          },
+          {
+            "text": "Entry point",
+            "width": 177.5,
+            "shown": 177.5,
+            "fraction": 100
+          },
+          {
+            "text": "Documented before?",
+            "width": 148.5,
+            "shown": 148.5,
+            "fraction": 100
+          },
+          {
+            "text": "Ships via",
+            "width": 246.4,
+            "shown": 246.4,
+            "fraction": 100
+          }
+        ],
+        "pre": {
+          "clientWidth": 960,
+          "scrollWidth": 960,
+          "width": 962,
+          "canScroll": false,
+          "fontFamily": "ui-monospace, Menlo, monospace",
+          "mdWide": "962px"
+        },
+        "ruler": null,
+        "docScrollsSideways": false,
+        "deadCanvasPct": 44.3
+      },
+      "grade": {
+        "paneWidth": 1000,
+        "contentWidth": 556.8,
+        "wrapClientWidth": 962,
+        "tableWidth": 962,
+        "tableMinContent": 759.1,
+        "columnsUnder100": 0,
+        "docScrollsSideways": false,
+        "preClientWidth": 960
+      }
+    },
+    "wider": {
+      "targetPane": 1381,
+      "reached": 1381,
+      "face": {
+        "dpr": 2,
+        "innerWidth": 1900,
+        "scheme": null,
+        "tokens": {
+          "textMuted": "#838996",
+          "textSecondary": "#9ca1ab",
+          "borderStrong": "#353943",
+          "bgCanvas": "#131417"
+        },
+        "mdWide": "1113.63px",
+        "containerType": "inline-size",
+        "pane": {
+          "clientWidth": 1381,
+          "offsetWidth": 1391,
+          "scrollWidth": 1381
+        },
+        "content": {
+          "width": 556.8,
+          "paddingLeft": "24px",
+          "paddingRight": "24px",
+          "maxWidth": "556.816px",
+          "inner": 509
+        },
+        "wrap": {
+          "clientWidth": 1114,
+          "scrollWidth": 1114,
+          "barPx": 0,
+          "canScroll": false,
+          "left": 642.7,
+          "right": 1756.3
+        },
+        "table": {
+          "width": 1041.1,
+          "minContent": 759.1,
+          "maxContent": 1041.1
+        },
+        "cols": [
+          {
+            "text": "Component",
+            "width": 235.3,
+            "shown": 235.3,
+            "fraction": 100
+          },
+          {
+            "text": "Language / runtime",
+            "width": 174.5,
+            "shown": 174.5,
+            "fraction": 100
+          },
+          {
+            "text": "Entry point",
+            "width": 177.5,
+            "shown": 177.5,
+            "fraction": 100
+          },
+          {
+            "text": "Documented before?",
+            "width": 148.5,
+            "shown": 148.5,
+            "fraction": 100
+          },
+          {
+            "text": "Ships via",
+            "width": 304.3,
+            "shown": 304.3,
+            "fraction": 100
+          }
+        ],
+        "pre": {
+          "clientWidth": 1112,
+          "scrollWidth": 1112,
+          "width": 1113.6,
+          "canScroll": false,
+          "fontFamily": "ui-monospace, Menlo, monospace",
+          "mdWide": "1113.63px"
+        },
+        "ruler": null,
+        "docScrollsSideways": false,
+        "deadCanvasPct": 59.7
+      },
+      "grade": {
+        "paneWidth": 1381,
+        "contentWidth": 556.8,
+        "wrapClientWidth": 1114,
+        "tableWidth": 1041.1,
+        "tableMinContent": 759.1,
+        "columnsUnder100": 0,
+        "docScrollsSideways": false,
+        "preClientWidth": 1112
+      }
+    }
+  },
+  "sweep": [
+    {
+      "pane": 1040,
+      "box": 1002
+    },
+    {
+      "pane": 1060,
+      "box": 1022
+    },
+    {
+      "pane": 1080,
+      "box": 1042
+    },
+    {
+      "pane": 1100,
+      "box": 1062
+    },
+    {
+      "pane": 1120,
+      "box": 1082
+    },
+    {
+      "pane": 1140,
+      "box": 1102
+    },
+    {
+      "pane": 1160,
+      "box": 1114
+    },
+    {
+      "pane": 1180,
+      "box": 1114
+    },
+    {
+      "pane": 1200,
+      "box": 1114
+    },
+    {
+      "pane": 1220,
+      "box": 1114
+    },
+    {
+      "pane": 1240,
+      "box": 1114
+    }
+  ],
+  "ablations": {
+    "parent": {
+      "dpr": 2,
+      "innerWidth": 1900,
+      "scheme": null,
+      "tokens": {
+        "textMuted": "#838996",
+        "textSecondary": "#9ca1ab",
+        "borderStrong": "#353943",
+        "bgCanvas": "#131417"
+      },
+      "mdWide": "962px",
+      "containerType": "inline-size",
+      "pane": {
+        "clientWidth": 1000,
+        "offsetWidth": 1010,
+        "scrollWidth": 1000
+      },
+      "content": {
+        "width": 556.8,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "maxWidth": "556.816px",
+        "inner": 509
+      },
+      "wrap": {
+        "clientWidth": 509,
+        "scrollWidth": 759,
+        "barPx": 10,
+        "canScroll": true,
+        "left": 1135.6,
+        "right": 1644.4
+      },
+      "table": {
+        "width": 759.1,
+        "minContent": 759.1,
+        "maxContent": 1041.1
+      },
+      "cols": [
+        {
+          "text": "Component",
+          "width": 195.2,
+          "shown": 195.2,
+          "fraction": 100
+        },
+        {
+          "text": "Language / runtime",
+          "width": 138.9,
+          "shown": 138.9,
+          "fraction": 100
+        },
+        {
+          "text": "Entry point",
+          "width": 177.5,
+          "shown": 174.2,
+          "fraction": 98
+        },
+        {
+          "text": "Documented before?",
+          "width": 148.5,
+          "shown": 0,
+          "fraction": 0
+        },
+        {
+          "text": "Ships via",
+          "width": 98,
+          "shown": 0,
+          "fraction": 0
+        }
+      ],
+      "pre": {
+        "clientWidth": 507,
+        "scrollWidth": 901,
+        "width": 508.8,
+        "canScroll": true,
+        "fontFamily": "ui-monospace, Menlo, monospace",
+        "mdWide": "962px"
+      },
+      "ruler": null,
+      "docScrollsSideways": false,
+      "deadCanvasPct": 44.3
+    },
+    "noContainer": {
+      "dpr": 2,
+      "innerWidth": 1900,
+      "scheme": null,
+      "tokens": {
+        "textMuted": "#838996",
+        "textSecondary": "#9ca1ab",
+        "borderStrong": "#353943",
+        "bgCanvas": "#131417"
+      },
+      "mdWide": "1113.63px",
+      "containerType": "normal",
+      "pane": {
+        "clientWidth": 620,
+        "offsetWidth": 630,
+        "scrollWidth": 867
+      },
+      "content": {
+        "width": 556.8,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "maxWidth": "556.816px",
+        "inner": 509
+      },
+      "wrap": {
+        "clientWidth": 1114,
+        "scrollWidth": 1114,
+        "barPx": 0,
+        "canScroll": false,
+        "left": 1023.2,
+        "right": 2136.8
+      },
+      "table": {
+        "width": 1041.1,
+        "minContent": 759.1,
+        "maxContent": 1041.1
+      },
+      "cols": [
+        {
+          "text": "Component",
+          "width": 235.3,
+          "shown": 235.3,
+          "fraction": 100
+        },
+        {
+          "text": "Language / runtime",
+          "width": 174.5,
+          "shown": 174.5,
+          "fraction": 100
+        },
+        {
+          "text": "Entry point",
+          "width": 177.5,
+          "shown": 177.5,
+          "fraction": 100
+        },
+        {
+          "text": "Documented before?",
+          "width": 148.5,
+          "shown": 148.5,
+          "fraction": 100
+        },
+        {
+          "text": "Ships via",
+          "width": 304.3,
+          "shown": 304.3,
+          "fraction": 100
+        }
+      ],
+      "pre": {
+        "clientWidth": 1112,
+        "scrollWidth": 1112,
+        "width": 1113.6,
+        "canScroll": false,
+        "fontFamily": "ui-monospace, Menlo, monospace",
+        "mdWide": "1113.63px"
+      },
+      "ruler": null,
+      "docScrollsSideways": true,
+      "deadCanvasPct": 10.2
+    }
+  },
+  "light": {
+    "his": {
+      "dpr": 2,
+      "innerWidth": 1900,
+      "scheme": "light",
+      "tokens": {
+        "textMuted": "#626774",
+        "textSecondary": "#4f535c",
+        "borderStrong": "#adb1ba",
+        "bgCanvas": "#f5f7fa"
+      },
+      "mdWide": "962px",
+      "containerType": "inline-size",
+      "pane": {
+        "clientWidth": 1000,
+        "offsetWidth": 1010,
+        "scrollWidth": 1000
+      },
+      "content": {
+        "width": 556.8,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "maxWidth": "556.816px",
+        "inner": 509
+      },
+      "wrap": {
+        "clientWidth": 962,
+        "scrollWidth": 962,
+        "barPx": 0,
+        "canScroll": false,
+        "left": 909,
+        "right": 1871
+      },
+      "table": {
+        "width": 962,
+        "minContent": 759.1,
+        "maxContent": 1041.1
+      },
+      "cols": [
+        {
+          "text": "Component",
+          "width": 224,
+          "shown": 224,
+          "fraction": 100
+        },
+        {
+          "text": "Language / runtime",
+          "width": 164.5,
+          "shown": 164.5,
+          "fraction": 100
+        },
+        {
+          "text": "Entry point",
+          "width": 177.5,
+          "shown": 177.5,
+          "fraction": 100
+        },
+        {
+          "text": "Documented before?",
+          "width": 148.5,
+          "shown": 148.5,
+          "fraction": 100
+        },
+        {
+          "text": "Ships via",
+          "width": 246.4,
+          "shown": 246.4,
+          "fraction": 100
+        }
+      ],
+      "pre": {
+        "clientWidth": 960,
+        "scrollWidth": 960,
+        "width": 962,
+        "canScroll": false,
+        "fontFamily": "ui-monospace, Menlo, monospace",
+        "mdWide": "962px"
+      },
+      "ruler": null,
+      "docScrollsSideways": false,
+      "deadCanvasPct": 44.3
+    }
+  },
+  "modes": {
+    "split": {
+      "dpr": 2,
+      "innerWidth": 1900,
+      "scheme": null,
+      "tokens": {
+        "textMuted": "#838996",
+        "textSecondary": "#9ca1ab",
+        "borderStrong": "#353943",
+        "bgCanvas": "#131417"
+      },
+      "mdWide": "456px",
+      "containerType": "inline-size",
+      "pane": {
+        "clientWidth": 494,
+        "offsetWidth": 504,
+        "scrollWidth": 494
+      },
+      "content": {
+        "width": 494,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "maxWidth": "556.816px",
+        "inner": 446
+      },
+      "wrap": {
+        "clientWidth": 456,
+        "scrollWidth": 759,
+        "barPx": 10,
+        "canScroll": true,
+        "left": 1415,
+        "right": 1871
+      },
+      "table": {
+        "width": 759.1,
+        "minContent": 759.1,
+        "maxContent": 1041.1
+      },
+      "cols": [
+        {
+          "text": "Component",
+          "width": 195.2,
+          "shown": 195.2,
+          "fraction": 100
+        },
+        {
+          "text": "Language / runtime",
+          "width": 138.9,
+          "shown": 138.9,
+          "fraction": 100
+        },
+        {
+          "text": "Entry point",
+          "width": 177.5,
+          "shown": 121.4,
+          "fraction": 68
+        },
+        {
+          "text": "Documented before?",
+          "width": 148.5,
+          "shown": 0,
+          "fraction": 0
+        },
+        {
+          "text": "Ships via",
+          "width": 98,
+          "shown": 0,
+          "fraction": 0
+        }
+      ],
+      "pre": {
+        "clientWidth": 454,
+        "scrollWidth": 901,
+        "width": 456,
+        "canScroll": true,
+        "fontFamily": "ui-monospace, Menlo, monospace",
+        "mdWide": "456px"
+      },
+      "ruler": null,
+      "docScrollsSideways": false,
+      "deadCanvasPct": 0
+    },
+    "back": {
+      "dpr": 2,
+      "innerWidth": 1900,
+      "scheme": null,
+      "tokens": {
+        "textMuted": "#838996",
+        "textSecondary": "#9ca1ab",
+        "borderStrong": "#353943",
+        "bgCanvas": "#131417"
+      },
+      "mdWide": "962px",
+      "containerType": "inline-size",
+      "pane": {
+        "clientWidth": 1000,
+        "offsetWidth": 1010,
+        "scrollWidth": 1000
+      },
+      "content": {
+        "width": 556.8,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "maxWidth": "556.816px",
+        "inner": 509
+      },
+      "wrap": {
+        "clientWidth": 962,
+        "scrollWidth": 962,
+        "barPx": 0,
+        "canScroll": false,
+        "left": 909,
+        "right": 1871
+      },
+      "table": {
+        "width": 962,
+        "minContent": 759.1,
+        "maxContent": 1041.1
+      },
+      "cols": [
+        {
+          "text": "Component",
+          "width": 224,
+          "shown": 224,
+          "fraction": 100
+        },
+        {
+          "text": "Language / runtime",
+          "width": 164.5,
+          "shown": 164.5,
+          "fraction": 100
+        },
+        {
+          "text": "Entry point",
+          "width": 177.5,
+          "shown": 177.5,
+          "fraction": 100
+        },
+        {
+          "text": "Documented before?",
+          "width": 148.5,
+          "shown": 148.5,
+          "fraction": 100
+        },
+        {
+          "text": "Ships via",
+          "width": 246.4,
+          "shown": 246.4,
+          "fraction": 100
+        }
+      ],
+      "pre": {
+        "clientWidth": 960,
+        "scrollWidth": 960,
+        "width": 962,
+        "canScroll": false,
+        "fontFamily": "ui-monospace, Menlo, monospace",
+        "mdWide": "962px"
+      },
+      "ruler": null,
+      "docScrollsSideways": false,
+      "deadCanvasPct": 44.3
+    },
+    "ruler": {
+      "dpr": 2,
+      "innerWidth": 1900,
+      "scheme": null,
+      "tokens": {
+        "textMuted": "#838996",
+        "textSecondary": "#9ca1ab",
+        "borderStrong": "#353943",
+        "bgCanvas": "#131417"
+      },
+      "mdWide": "950px",
+      "containerType": "inline-size",
+      "pane": {
+        "clientWidth": 998,
+        "offsetWidth": 998,
+        "scrollWidth": 998
+      },
+      "content": {
+        "width": 556.8,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "maxWidth": "556.816px",
+        "inner": 509
+      },
+      "wrap": {
+        "clientWidth": 950,
+        "scrollWidth": 950,
+        "barPx": 0,
+        "canScroll": false,
+        "left": 914,
+        "right": 1864
+      },
+      "table": {
+        "width": 950,
+        "minContent": 759.1,
+        "maxContent": 1041.1
+      },
+      "cols": [
+        {
+          "text": "Component",
+          "width": 222.3,
+          "shown": 222.3,
+          "fraction": 100
+        },
+        {
+          "text": "Language / runtime",
+          "width": 163,
+          "shown": 163,
+          "fraction": 100
+        },
+        {
+          "text": "Entry point",
+          "width": 177.5,
+          "shown": 177.5,
+          "fraction": 100
+        },
+        {
+          "text": "Documented before?",
+          "width": 148.5,
+          "shown": 148.5,
+          "fraction": 100
+        },
+        {
+          "text": "Ships via",
+          "width": 237.6,
+          "shown": 237.6,
+          "fraction": 100
+        }
+      ],
+      "pre": {
+        "clientWidth": 948,
+        "scrollWidth": 948,
+        "width": 950,
+        "canScroll": false,
+        "fontFamily": "ui-monospace, Menlo, monospace",
+        "mdWide": "950px"
+      },
+      "ruler": {
+        "ticks": 4,
+        "thumbHeight": 697
+      },
+      "docScrollsSideways": false,
+      "deadCanvasPct": 44.2
+    }
+  },
+  "chPx": 8.188,
+  "measurePx": 556.8,
+  "capPx": 1113.6,
+  "affordance-dark": {
+    "textMuted": "#838996",
+    "textSecondary": "#9ca1ab",
+    "borderStrong": "#353943",
+    "bgCanvas": "#131417",
+    "lifted": 5.248,
+    "shared": 1.594,
+    "hover": 7.104
+  },
+  "affordance-light": {
+    "textMuted": "#626774",
+    "textSecondary": "#4f535c",
+    "borderStrong": "#adb1ba",
+    "bgCanvas": "#f5f7fa",
+    "lifted": 5.272,
+    "shared": 2.002,
+    "hover": 7.182
+  }
+}

@@ -1,0 +1,53 @@
+[p248w] no GMUX_TMUX_SOCKET; wrapping in build/harness-socket.mjs
+[harness-socket] socket gmux-p248-11260-wt-p248-11263, profile /var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/gmux-p248-11260-wt-p248-11263
+[p248w] operator sessions on -L gmux before: 31
+[p248w] app window at file:///private/tmp/wt-p248/out/renderer/index.html?harness=1, pid 11429
+[p248w] note  A0. one ch of the prose column, measured — 8.188 px, so the measure is 556.8 px and the cap 1113.6 px
+[p248w] note  A0b. the widest pane the divider reaches in this window — 1381 px
+[p248w] note  A1-tight. what it drew — pane 580 · prose 556.8 · table box 542 · table 759.1 (min 759.1) · fence box 540 · 2 cut · dead canvas 4%
+[p248w] note  A1b-tight. columns — Component:100% | Language / runtime:100% | Entry point:100% | Documented before?:20% | Ships via:0%
+[p248w] pass  A2-tight. THE DOCUMENT NEVER SCROLLS SIDEWAYS — scrollWidth 580 vs clientWidth 580
+[p248w] pass  A3-tight. THE PROSE MEASURE DID NOT MOVE — 556.8 px
+[p248w] pass  A4-tight. THE BLOCK TOOK THE PANE, and the columns follow wherever the box can hold them — box 542 px, fence 540 px, 3 of 5 columns whole in a pane too narrow for 759.1 px of table
+[p248w] pass  A5-tight. the fence and the table are ONE width, so 136ch resolved in the prose font — fence 540 vs table 542 · --md-wide on pre 542px
+[p248w] note  A1-narrow. what it drew — pane 620 · prose 556.8 · table box 582 · table 759.1 (min 759.1) · fence box 580 · 2 cut · dead canvas 10.2%
+[p248w] note  A1b-narrow. columns — Component:100% | Language / runtime:100% | Entry point:100% | Documented before?:47% | Ships via:0%
+[p248w] pass  A2-narrow. THE DOCUMENT NEVER SCROLLS SIDEWAYS — scrollWidth 620 vs clientWidth 620
+[p248w] pass  A3-narrow. THE PROSE MEASURE DID NOT MOVE — 556.8 px
+[p248w] pass  A4-narrow. THE BLOCK TOOK THE PANE, and the columns follow wherever the box can hold them — box 582 px, fence 580 px, 3 of 5 columns whole in a pane too narrow for 759.1 px of table
+[p248w] pass  A5-narrow. the fence and the table are ONE width, so 136ch resolved in the prose font — fence 580 vs table 582 · --md-wide on pre 582px
+[p248w] note  A1-his. what it drew — pane 1000 · prose 556.8 · table box 962 · table 962 (min 759.1) · fence box 960 · 0 cut · dead canvas 44.3%
+[p248w] note  A1b-his. columns — Component:100% | Language / runtime:100% | Entry point:100% | Documented before?:100% | Ships via:100%
+[p248w] pass  A2-his. THE DOCUMENT NEVER SCROLLS SIDEWAYS — scrollWidth 1000 vs clientWidth 1000
+[p248w] pass  A3-his. THE PROSE MEASURE DID NOT MOVE — 556.8 px
+[p248w] pass  A4-his. THE BLOCK TOOK THE PANE, and the columns follow wherever the box can hold them — box 962 px, fence 960 px, 5 of 5 columns whole
+[p248w] pass  A5-his. the fence and the table are ONE width, so 136ch resolved in the prose font — fence 960 vs table 962 · --md-wide on pre 962px
+[p248w] note  A1-wider. what it drew — pane 1381 · prose 556.8 · table box 1114 · table 1041.1 (min 759.1) · fence box 1112 · 0 cut · dead canvas 59.7%
+[p248w] note  A1b-wider. columns — Component:100% | Language / runtime:100% | Entry point:100% | Documented before?:100% | Ships via:100%
+[p248w] pass  A2-wider. THE DOCUMENT NEVER SCROLLS SIDEWAYS — scrollWidth 1381 vs clientWidth 1381
+[p248w] pass  A3-wider. THE PROSE MEASURE DID NOT MOVE — 556.8 px
+[p248w] pass  A4-wider. THE BLOCK TOOK THE PANE, and the columns follow wherever the box can hold them — box 1114 px, fence 1112 px, 5 of 5 columns whole
+[p248w] pass  A5-wider. the fence and the table are ONE width, so 136ch resolved in the prose font — fence 1112 vs table 1114 · --md-wide on pre 1113.63px
+[p248w] note  B1. the sweep — 1040:1002 1060:1022 1080:1042 1100:1062 1120:1082 1140:1102 1160:1114 1180:1114 1200:1114 1220:1114 1240:1114
+[p248w] pass  B2. the box STOPS at the cap rather than growing without bound — plateau 1114 px against a cap of 1113.6 px, first reached at a pane of 1160 px
+[p248w] pass  C1. THE PARENT'S RULE PUT BACK brings the defect back, so this reading can fail — box 509 px inside a 556.8 px column, 3 of 5 columns cut
+[p248w] pass  C2. container-type is LOAD-BEARING: without it the document scrolls sideways — box 1114 px in a 620 px pane, scrollWidth 867
+[p248w] pass  C3. and it comes back the moment the ablation is removed — scrollWidth 620 vs 620
+[p248w] note  D0-dark. what the shared thumb was drawn at — #353943 on #131417 = 1.594:1
+[p248w] pass  D1-dark. the table box’s thumb clears WCAG 1.4.11’s 3:1 on the canvas — #838996 on #131417 = 5.248:1
+[p248w] pass  D2-dark. and hover LIFTS rather than dropping — #9ca1ab = 7.104:1 against 5.248:1
+[p248w] pass  E1. Split still renders and its preview does not scroll the document sideways — pane 494 · box 456 · prose 494
+[p248w] pass  E2. Source still renders — monaco present or the preview gone: true
+[p248w] pass  E3. and Preview comes back to the same reading — prose 556.8 · box 962
+[p248w] pass  E4. the heading ruler still measures under inline-size containment — 4 ticks, thumb 697 px, box 950 px, sideways false
+[p248w] pass  E5. and the block still fits the pane with the ruler taking its 13 px — pane 998 · box 950
+[p248w] pass  F1. the same repair on PAPER — scheme light · box 962 px · prose 556.8 px · 5 of 5 columns whole
+[p248w] note  D0-light. what the shared thumb was drawn at — #adb1ba on #f5f7fa = 2.002:1
+[p248w] pass  D1-light. the table box’s thumb clears WCAG 1.4.11’s 3:1 on the canvas — #626774 on #f5f7fa = 5.272:1
+[p248w] pass  D2-light. and hover LIFTS rather than dropping — #4f535c = 7.182:1 against 5.272:1
+[electron-run] p248w: ended 1 process the teardown found still running.
+[p248w] pass  X1. operator sessions on -L gmux unmoved — 31 -> 31
+[p248w] 
+[p248w] 31 passed, 0 failed, 13 notes
+[p248w] readings at /private/tmp/wt-p248/build/p248/out-wide-readings.json
+[harness-socket] ended the scratch server on -L gmux-p248-11260-wt-p248-11263 (after the harness)

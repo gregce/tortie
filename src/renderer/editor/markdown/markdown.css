@@ -13,12 +13,19 @@
   background: var(--bg-canvas);
 }
 
+/* container-type is here and nowhere else, and it is what makes the wide-block
+   rule below safe: `100cqi` is THIS BOX, so a block sized from it can never be
+   wider than the pane. The obvious spelling, `100vw`, is the window — measured
+   at research 112 §6 drawing a 1,900px block in a 620px pane and scrolling the
+   document sideways at all four widths, which is the one thing
+   `markdown.css` §Tables promises never happens. */
 .md-scroll {
   position: relative;
   flex: 1;
   min-width: 0;
   overflow: auto;
   scroll-behavior: smooth;
+  container-type: inline-size;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -203,11 +210,97 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Wide blocks — the two children that are not prose (Phase 248)
+--------------------------------------------------------------------------- */
+
+/* THE 68ch MEASURE ABOVE DOES NOT CHANGE; this is the exception it always
+   needed. `.md-content` still draws at 68ch and still centres, and the two
+   children that already carry `overflow-x: auto` — a table's scroller and a
+   code fence — break out of it and take the pane instead, up to twice the
+   measure. Before this, `.md-table-scroll` was 509px at a 620px pane, at a
+   1,000px pane and at a 1,381px pane alike, because a child can only ever
+   divide up what its parent gave it: the operator lost two whole columns of a
+   five-column table with 443px of empty canvas beside it (research 112 §2).
+
+   THE CEILING IS 136ch, twice the measure, in the measure's own unit. It
+   clears 1,884 of this repository's 1,900 real tables; going on to 1,200px
+   buys eight more and going to 1,751px, where the last one clears, buys
+   sixteen at the price of a table three times the width of the prose around
+   it (§3). The sixteen it does not clear keep the scroller they have today,
+   in a box more than twice as wide. `ch` rather than a pixel constant so the
+   relationship survives `--font-ui` moving; `src/renderer/context/context.css`
+   spells its own cap the same way.
+
+   THE CODE FENCE TRAVELS WITH THE TABLE, decided on content rather than
+   symmetry: 74.5% of this repository's 812 fenced blocks hold a line too long
+   for the 66 characters the old box seated, and 3.3% hold one too long for
+   the 150 the new one does (§4).
+
+   `@property` IS LOAD-BEARING AND NOT DECORATION. An unregistered custom
+   property substitutes as text, so `136ch` inside `pre` would resolve against
+   `--font-editor` and cap the fence at 981px against the table's 1,114px
+   (§4). Registered as a `<length>` it computes ONCE, here, in the prose font,
+   and inherits as a length. The two blocks are meant to be one width. */
+@property --md-wide {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+.md-content {
+  --md-wide: min(136ch, 100cqi - 2 * var(--space-8));
+}
+
+/* `max(100%, …)` so a wide block is never NARROWER than the measure, and the
+   negative margin is computed from the same expression so the block stays
+   centred on the prose column. Widening `.md-content` instead of its children
+   would have taken the measure with it; this cannot, because `.md-content` is
+   not what it names.
+
+   THE GUTTER IS 19px AT REST AND 24px WITH THE HEADING RULER UP, measured
+   rather than intended: Chromium's `cqi` is the scroller's box INCLUDING its
+   own 10px scrollbar gutter, so the block is `pane - 38` while a vertical bar
+   is drawn and `pane - 48` when the ruler takes the bar away. Both are
+   gutters and neither can go negative, which is why the document does not
+   scroll sideways at any pane. */
+.md-content .md-table-scroll,
+.md-content pre {
+  width: max(100%, var(--md-wide));
+  margin-inline: calc((100% - max(100%, var(--md-wide))) / 2);
+}
+
+/* ---------------------------------------------------------------------------
    Tables (GFM) — wide ones scroll in their own box; the document never does
 --------------------------------------------------------------------------- */
 
 .md-table-scroll {
   overflow-x: auto;
+}
+
+/* THE AFFORDANCE IS A NUMBER, NOT A SECOND MARK (Phase 248). The bar was never
+   missing — this box reserves 10px of layout for it and the thumb is two
+   thirds of the track — it was drawn in `--border-strong` on `--bg-canvas`,
+   which is 1.594:1 against the 3:1 WCAG 1.4.11 asks of a mark that carries
+   meaning (research 112 §5). `--text-muted` on the canvas is pinned at 4.5:1
+   over every offered frame, both bases and all three contrast levels
+   (`TEXT_PINS` in theme/presets.ts), so the mark clears the floor by
+   arithmetic somebody else already walks. Hover lifts rather than dropping:
+   the shared thumb hovers to `--text-disabled`, which is exempt from contrast
+   at 2.72:1 and would take this one back under.
+
+   Drawing an end-of-box chevron beside a bar that is now legible would be two
+   answers to one question, which is the reason `.ptab-overflow` gives for
+   carrying no attention badge. And the break-out above is most of this fix on
+   its own: it takes the tables that scroll at all from 557 of 1,900 to 16.
+
+   `pre` is deliberately not lifted. Its track sits on the background Shiki
+   writes inline, which no token names, so no ratio can be claimed for it. */
+.md-table-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--text-muted);
+}
+
+.md-table-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
 }
 
 .md-content table {

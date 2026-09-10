@@ -166,6 +166,15 @@ export const CHECKS = [
   // rotation and text rule under node over all 360 degrees and a synthetic
   // ground, then over twelve ablated copies of the code, one clause each.
   pure('conformance:hue'),
+  // PHASE 248. The wide block in the markdown preview: it runs
+  // build/p248/assert-wide-blocks.mjs, which reads the shipped stylesheet by
+  // matching braces, evaluates the shipped width expression in node at every
+  // pane the app run drove and compares it with what the browser drew, and
+  // re-derives the affordance's contrast on both bases from tokens.css. It
+  // then runs the same rules over twelve ablated copies of the stylesheet, one
+  // clause each. It launches no Electron, starts no tmux server, spawns
+  // nothing at all and reads nothing under the person's home.
+  pure('conformance:wideblocks'),
   pure('conformance:watcher'),
   // PHASE 215. The shared question every harvest descriptor must answer, the
   // codex sub agent predicate, the chain walk and the boot repair.
@@ -814,6 +823,16 @@ export const CHECKS = [
   // Arm F is the fix round's own, and reads the cell rule off the running app
   // — 2 findings at the parent and 0 at HEAD.
   electron('probe:p247'),
+  // PHASE 248. The block that got the pane: ONE launch on a scratch profile, a
+  // scratch HOME and its own socket, over a one-document project it writes
+  // itself. It drags the editor's divider to four pane widths and reads the
+  // prose column, the table's box, every column's visible fraction, the code
+  // fence's box and whether the DOCUMENT scrolls sideways off the live DOM,
+  // sweeps the pane to find where the box stops growing, injects two
+  // measurement-only ablations removed in a `finally`, and reads the same
+  // rectangles on paper. No agent, no token, no keychain, no request; `-L
+  // gmux` touched only by a read-only session count before and after.
+  electron('probe:p248'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository
   // it builds itself. It takes the document's height and every change's
