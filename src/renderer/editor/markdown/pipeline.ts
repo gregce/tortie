@@ -69,25 +69,18 @@ export const gmuxMarkdownSchema: typeof defaultSchema = {
 };
 
 /**
- * The rehype plugin list, in the one order that works.
- *
- * @param highlighter Shiki highlighter with the gmux theme and the document's
- *   languages already attached, or null to render fences unhighlighted (the
- *   highlighter failed to load — better plain code than no code).
- * @param theme       registered theme name to colour with.
+ * Sanitize, then highlight: the tail every path shares, and the ORDER the
+ * header's point 1 is about. Spelled once, so the preview's remark chain,
+ * the answer's chain and the windowed chunk path (Phase 255) cannot drift.
  */
-export function markdownRehypePlugins(
+function sanitizeThenHighlight(
   highlighter: HighlighterGeneric<string, string> | null,
   theme: string
 ): PluggableList {
-  const plugins: PluggableList = [
-    // 1. raw HTML in the source becomes real nodes…
-    rehypeRaw,
-    // 2. …then everything, ours and theirs, goes through the allowlist…
-    [rehypeSanitize, gmuxMarkdownSchema]
-  ];
+  // Everything, ours and theirs, goes through the allowlist…
+  const plugins: PluggableList = [[rehypeSanitize, gmuxMarkdownSchema]];
   if (highlighter !== null) {
-    // 3. …and only then do we add the inline styles we intend to keep.
+    // …and only then do we add the inline styles we intend to keep.
     plugins.push([
       rehypeShikiFromHighlighter,
       highlighter,
@@ -101,6 +94,44 @@ export function markdownRehypePlugins(
     ]);
   }
   return plugins;
+}
+
+/**
+ * The rehype plugin list, in the one order that works.
+ *
+ * @param highlighter Shiki highlighter with the gmux theme and the document's
+ *   languages already attached, or null to render fences unhighlighted (the
+ *   highlighter failed to load — better plain code than no code).
+ * @param theme       registered theme name to colour with.
+ */
+export function markdownRehypePlugins(
+  highlighter: HighlighterGeneric<string, string> | null,
+  theme: string
+): PluggableList {
+  // Raw HTML in the source becomes real nodes, then sanitize, then Shiki.
+  return [rehypeRaw, ...sanitizeThenHighlight(highlighter, theme)];
+}
+
+/**
+ * The rehype plugin list for ONE CHUNK of the windowed preview (Phase 255):
+ * the same schema, the same sanitizer, the same Shiki step, in the same
+ * order.
+ *
+ * `rehype-raw` is absent because its work is already DONE, not because raw
+ * HTML is refused: chunk-parse.ts hands this list a tree that parse5 built
+ * from markdown-it's output, which is the same parser rehype-raw runs, so
+ * every raw tag in the file is already a node when the sanitizer sees it.
+ * Running rehype-raw again would re-serialize the whole tree through parse5
+ * for nothing, which research 117 §2.2 measured as the second largest stage
+ * of the old pipeline. The promise that matters is unchanged: all raw HTML
+ * becomes nodes, the sanitizer runs over all of them, and only then are
+ * Shiki's styles added.
+ */
+export function previewChunkRehypePlugins(
+  highlighter: HighlighterGeneric<string, string> | null,
+  theme: string
+): PluggableList {
+  return sanitizeThenHighlight(highlighter, theme);
 }
 
 /**
@@ -124,19 +155,5 @@ export function answerRehypePlugins(
   highlighter: HighlighterGeneric<string, string> | null,
   theme: string
 ): PluggableList {
-  const plugins: PluggableList = [[rehypeSanitize, gmuxMarkdownSchema]];
-  if (highlighter !== null) {
-    plugins.push([
-      rehypeShikiFromHighlighter,
-      highlighter,
-      {
-        theme,
-        lazy: false,
-        addLanguageClass: true,
-        fallbackLanguage: 'text',
-        defaultLanguage: 'text'
-      }
-    ]);
-  }
-  return plugins;
+  return sanitizeThenHighlight(highlighter, theme);
 }

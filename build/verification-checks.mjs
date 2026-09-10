@@ -175,6 +175,16 @@ export const CHECKS = [
   // clause each. It launches no Electron, starts no tmux server, spawns
   // nothing at all and reads nothing under the person's home.
   pure('conformance:wideblocks'),
+  // PHASE 255. The windowed markdown preview: it runs
+  // build/p255/assert-preview-window.mjs, which drives the SHIPPING window
+  // scanner, chunk parser, rehype plugin lists and deferral guard under node
+  // over this repository's own markdown, the research 116 twins and fixtures
+  // it writes itself, compares the drawn page with a re-derived old
+  // react-markdown render, and then runs the same probe over 23 ablated copies
+  // of the module directory, one clause each, removed in a finally. It
+  // launches no Electron, starts no tmux server, spawns only the pinned tsx
+  // and reads nothing under the person's home.
+  pure('conformance:preview'),
   pure('conformance:watcher'),
   // PHASE 215. The shared question every harvest descriptor must answer, the
   // codex sub agent predicate, the chain walk and the boot repair.
@@ -861,6 +871,16 @@ export const CHECKS = [
   // read-only session count before and after. --self-test proves the grader
   // and the twin synthesizer and launches nothing.
   electron('probe:p254'),
+  // PHASE 255. The preview paints fast: ONE launch on a scratch profile, a
+  // scratch HOME and its own socket, over a scratch git repository holding the
+  // research 116 twins, this checkout's own docs/BACKLOG.md and two table-first
+  // files. It clicks Preview on the mode chip and reads first paint, the worst
+  // long task, a PageDown's delay mid-stream and the settled page's element
+  // count, heading ids, text digest, scrollHeight, bottom, last heading and a
+  // backwards find, graded against the committed parent readings. No agent, no
+  // token, no keychain; `-L gmux` only counted before and after. --self-test
+  // proves the grader and launches nothing.
+  electron('probe:p255'),
   electron('probe:p250'),
   // PHASE 236. The redline chip's app run, written by the VERIFIER: ONE launch
   // on a scratch profile, a scratch HOME and its own socket over a repository

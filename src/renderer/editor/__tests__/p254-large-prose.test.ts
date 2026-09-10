@@ -39,6 +39,14 @@
  *      prose modes on a large tab. (Ablation: the title wiring in
  *      EditorPanel.tsx.)
  *
+ * PHASE 255 RE-DERIVED THE THRESHOLD (large-prose.ts): the preview now draws a
+ * first window and streams the rest, so SIZE alone no longer defers. The one
+ * shape Phase 254's 256 KiB still governs is a document that DEFINES A
+ * FOOTNOTE, which is never cut and is drawn whole on the old remark path —
+ * so the large fixtures below carry one, and every arm keeps its full
+ * strength over that shape. The windowed guard's own boundary is pinned in
+ * ../markdown/__tests__/p255-window.test.tsx.
+ *
  * WHAT IT DOES NOT PROVE. No render is timed here — the milliseconds are
  * probe:p254's, over the same twins research 116 synthesized, at the parent
  * and at HEAD.
@@ -104,10 +112,14 @@ type EditorMode = import('../tab-types').EditorMode;
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
+/** A footnote definition: the shape that is drawn whole (Phase 255). */
+const FN = '[^1]: a footnote\n\n';
+/** A footnote document of exactly `len` characters. */
+const footnoteDoc = (len: number): string => `${FN}${'x'.repeat(len - FN.length)}`;
 /** A source one character PAST the threshold — the smallest large file. */
-const LARGE = `# big\n${'x'.repeat(PREVIEW_DEFER_CHARS - 5)}`;
+const LARGE = `# big\n${FN}${'x'.repeat(PREVIEW_DEFER_CHARS - 5 - FN.length)}`;
 /** A source AT the threshold exactly — the largest small file. */
-const AT_CAP = `# ok\n${'x'.repeat(PREVIEW_DEFER_CHARS - 5)}`.slice(
+const AT_CAP = `# ok\n${FN}${'x'.repeat(PREVIEW_DEFER_CHARS - 5 - FN.length)}`.slice(
   0,
   PREVIEW_DEFER_CHARS
 );
@@ -160,8 +172,8 @@ beforeEach(() => {
 describe('the pure rule (large-prose.ts), one clause a test', () => {
   it('the threshold is exact: at the cap is small, one past it is large', () => {
     expect(PREVIEW_DEFER_CHARS).toBe(256 * 1024);
-    expect(previewDeferred('x'.repeat(PREVIEW_DEFER_CHARS))).toBe(false);
-    expect(previewDeferred('x'.repeat(PREVIEW_DEFER_CHARS + 1))).toBe(true);
+    expect(previewDeferred(footnoteDoc(PREVIEW_DEFER_CHARS))).toBe(false);
+    expect(previewDeferred(footnoteDoc(PREVIEW_DEFER_CHARS + 1))).toBe(true);
     expect(AT_CAP.length).toBe(PREVIEW_DEFER_CHARS);
     expect(LARGE.length).toBe(PREVIEW_DEFER_CHARS + 1);
   });

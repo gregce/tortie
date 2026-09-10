@@ -303,12 +303,13 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         ((held?.text ?? null) === null || held?.from === 'commit')
           ? credible
           : nextBaseline(held, { kind: 'read', contents: result.contents });
-      // PHASE 254. THE ONE SLOW STAGE OF A LARGE PROSE OPEN IS THE RENDERED
-      // MARKDOWN PREVIEW — research 116 measured it at ~5 s for the
-      // operator's two files against 53–136 ms in Monaco, with no first paint
-      // until the whole document rendered. So a markdown tab past the
-      // threshold opens in Source instead, and Preview is DEFERRED to the
-      // mode chip, which states the cost in one clause. The demotion rides
+      // PHASE 254, RE-DERIVED BY PHASE 255. The rendered preview used to
+      // cost ~5 s for the operator's two files with no first paint until the
+      // whole document rendered (research 116); it now draws a first window
+      // and streams the rest (research 117), so ordinary prose opens rendered
+      // at any size. Only a markdown tab whose source draws in ONE PIECE
+      // (large-prose.ts) opens in Source instead, with Preview DEFERRED to
+      // the mode chip, which states the cost in one clause. The demotion rides
       // the same patch as `savedContents`, so React never renders the preview
       // surface holding a large source; it runs only here, on the tab's first
       // read, so a mode the person picks on the chip afterwards is final.
@@ -343,7 +344,8 @@ export function createTabIo(deps: TabIoDeps): TabIo {
    * PHASE 254. The mode a tab falls back to when its diff base cannot exist
    * or cannot be fetched. It was `tab.markdown ? 'preview' : 'file'`, and for
    * a large prose file that put the ~5 s markdown render back on the open
-   * path through the one door `loadContents`' demotion does not guard. The
+   * path through the one door `loadContents`' demotion does not guard. It
+   * asks the same predicate, which Phase 255 re-derived. The
    * tab is re-read at the call, because the fallback can land before or after
    * the read; when it lands first the contents are still '' and the read's
    * own demotion finishes the job.

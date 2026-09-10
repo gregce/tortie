@@ -13,7 +13,7 @@
  * one way and dies with Monaco rather than with this file.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { requestOpenFile } from '../../state/open-file';
 import { useLiveTabText } from '../live-text';
 import { OpeningSkeleton } from '../MonacoHost';
@@ -21,7 +21,7 @@ import type { EditorTab } from '../store';
 import { HeadingRuler } from './HeadingRuler';
 import { getLoadedMarkdown, loadMarkdown } from './markdown-loader';
 import type { MarkdownModule } from './markdown-loader';
-import type { MarkdownHighlighter } from './markdown-impl';
+import type { MarkdownHighlighter, RenderProgress } from './markdown-impl';
 import './markdown.css';
 
 export interface MarkdownPreviewProps {
@@ -95,6 +95,51 @@ export function MarkdownPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [impl, langKey]);
 
+  // -- streaming -------------------------------------------------------------
+  // PHASE 255. The preview draws a first window and streams the rest, and it
+  // reports how far it has got. Every read below compares the report's
+  // SOURCE with the source being rendered, at render time and never in an
+  // effect, so a report that lands after the source changed reads as nothing
+  // drawn rather than as the previous document's completion (research 117 §8).
+  const [progress, setProgress] = useState<RenderProgress | null>(null);
+  const onRenderProgress = useCallback((next: RenderProgress): void => {
+    setProgress((prev) =>
+      prev !== null &&
+      prev.source === next.source &&
+      prev.drawn === next.drawn &&
+      prev.total === next.total
+        ? prev
+        : next
+    );
+  }, []);
+  const current = progress !== null && progress.source === source ? progress : null;
+  const drawn = current?.drawn ?? 0;
+  const streamDone = current !== null && current.drawn >= current.total;
+
+  // Stable across renders ON PURPOSE: the components map is memoized on this
+  // callback, and every drawn chunk is memoized on the renderer built from
+  // that map, so a new function here each render would re-render the whole
+  // drawn page on every streamed batch.
+  const repoPath = tab.repoPath;
+  const onOpenFile = useCallback(
+    (absPath: string): void => {
+      // A relative link inside a document is a deliberate navigation, so it
+      // opens for keeps rather than recycling the preview tab the reader
+      // arrived in.
+      requestOpenFile({
+        repoPath,
+        relPath: absPath.startsWith(`${repoPath}/`)
+          ? absPath.slice(repoPath.length + 1)
+          : absPath,
+        path: absPath,
+        mode: 'file',
+        source: 'tree',
+        preview: false
+      });
+    },
+    [repoPath]
+  );
+
   // -- scroll region ---------------------------------------------------------
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -107,7 +152,9 @@ export function MarkdownPreview({
   }, [tab.id, live]);
 
   const ready = impl !== null && highlightReady;
-  const revision = ready ? source.length + langKey.length : 0;
+  // `drawn` is in the revision so the heading ruler re-reads its ticks and
+  // re-arms its image decodes as chunks land, not only at first paint.
+  const revision = ready ? source.length + langKey.length + drawn : 0;
 
   return (
     <div className="md-preview">
@@ -119,7 +166,17 @@ export function MarkdownPreview({
         role="region"
         aria-label={`${tab.name} — preview`}
       >
-        <div ref={contentRef} className="md-content">
+        <div
+          ref={contentRef}
+          className="md-content"
+          data-md-stream={
+            !ready || loadError !== null || source.trim() === ''
+              ? undefined
+              : streamDone
+                ? 'done'
+                : 'streaming'
+          }
+        >
           {loadError !== null ? (
             <div className="ed-state">
               <div className="ed-state-title">
@@ -142,21 +199,8 @@ export function MarkdownPreview({
               filePath={tab.path}
               rootPath={tab.repoPath}
               highlighter={highlighter}
-              onOpenFile={(absPath) => {
-                // A relative link inside a document is a deliberate
-                // navigation, so it opens for keeps rather than recycling
-                // the preview tab the reader arrived in.
-                requestOpenFile({
-                  repoPath: tab.repoPath,
-                  relPath: absPath.startsWith(`${tab.repoPath}/`)
-                    ? absPath.slice(tab.repoPath.length + 1)
-                    : absPath,
-                  path: absPath,
-                  mode: 'file',
-                  source: 'tree',
-                  preview: false
-                });
-              }}
+              onOpenFile={onOpenFile}
+              onRenderProgress={onRenderProgress}
             />
           )}
         </div>

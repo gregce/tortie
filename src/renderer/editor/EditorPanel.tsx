@@ -273,11 +273,13 @@ export function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
       mode: 'preview',
       label: 'Preview',
       icon: 'open-preview',
-      // PHASE 254. A markdown file past the preview threshold opened in
-      // Source (research 116: the rendered preview costs ~5 s at his sizes,
-      // Monaco 53–136 ms), so Preview's title states the deferral in one
-      // clause, where the person meets it. Clicking it still renders the
-      // whole document — deferred, never dropped.
+      // PHASE 254, RE-DERIVED BY PHASE 255. The preview now draws a first
+      // window and streams the rest, so ordinary prose opens rendered at any
+      // size; only a file that draws in ONE PIECE (large-prose.ts: a first
+      // chunk past 1 MiB, or a footnote document past 256 KiB) opens in
+      // Source, and Preview's title states the deferral in one clause, where
+      // the person meets it. Clicking it still draws the whole document —
+      // deferred, never dropped.
       title: tab.svg
         ? 'The rendered image'
         : html
