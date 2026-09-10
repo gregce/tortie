@@ -4,9 +4,9 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
-## Unreleased
+## 0.103.0 (2026-09-10)
 
-This release is about clicking a file an agent named. A path printed into a session underlines when you point at it and opens when you click it, in Tortie where Tortie can draw the file and on your Mac where it cannot. It is also about the redline, which has been given the room to read like a marked-up document rather than a stack of tiles. And a large prose file now opens at once instead of after seconds.
+This release is about clicking a file an agent named. A path printed into a session underlines when you point at it and opens when you click it — absolute or relative, mid-sentence or at the end of the line, and a bare filename too. The redline has been given the room to read like a marked-up document rather than a stack of tiles, a wide table in a preview takes the room its content needs, and a large prose file opens at once instead of after seconds.
 
 ### Added
 
