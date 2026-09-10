@@ -77,6 +77,12 @@
  *      column. It is the Phase 247 fix round's confirmed defect: a range
  *      built from string indices underlines one cell to the left of a path an
  *      agent printed with a `⚠️ ` in front of it.
+ *  13. REFUSAL 8 IS ASKED ABOUT THE PANE'S WIDTH (Phase 250 lift one). The
+ *      pure rule is driven exhaustively above; this is the one call site that
+ *      supplies its facts, and the three things that can go wrong there —
+ *      the row's length standing in for `Terminal.cols`, a predecessor read
+ *      with its trailing padding, and a row above with no column map of its
+ *      own — are invisible to any pure test.
  *  12. THE RENDERER'S CHEAP REFUSAL IS WIDER THAN MAIN'S ANSWER. Three spans
  *      in four are relative and main answers every one `not-absolute`; the
  *      renderer refuses them itself, through the one shared predicate, and
@@ -270,11 +276,28 @@ const MATRIX = [
   ['span-plain', '/a/b.md@6-13'],
   ['span-line-suffix', '/a/b.ts@4-16:42'],
   ['span-url-left-alone', '/a/b.md@27-34'],
-  ['span-ends-the-row', ''],
-  ['span-heads-a-continued-row', ''],
+  ['span-fraction', ''],
+  // PHASE 250 LIFT ONE. A path at the end of an ordinary sentence, in a pane
+  // far wider than the sentence, is OFFERED — that is the operator's own
+  // first screenshot, and at the parent commit this row read ''.
+  ['span-ends-the-row', '/a/b.md@6-13'],
+  // ...and a wrapped path stays refused, which is what the lift is bounded
+  // by: the span's last cell IS the pane's last column.
+  ['span-ends-the-row-at-the-width', ''],
+  ['span-past-the-width', ''],
+  // The head half, and the three readings that tell its clauses apart.
+  ['span-heads-a-row-below-a-full-one', ''],
+  ['span-heads-a-row-below-a-short-one', '/b.md@0-5'],
+  // THE PADDING. 32.2% of his rows run out to the width in spaces their drawn
+  // text does not reach, and research 111 section 4.1's own spelling reads
+  // every one of those as a wrap. This is the reading that refuses it.
+  ['span-heads-a-row-below-a-padded-one', '/b.md@0-5'],
+  ['span-heads-a-row-below-a-full-sentence', '/b.md@0-5'],
   ['span-heads-an-uncontinued-row', '/b.md@0-5'],
   ['span-behind-a-gutter', ''],
-  ['span-fraction', '']
+  ['span-behind-a-gutter-below-a-short-one', '/b.md@4-9'],
+  // The one reading that fails CLOSED rather than by a column comparison.
+  ['span-with-a-short-map', '']
 ];
 
 const live = runProbe(null);
@@ -784,14 +807,50 @@ const ABLATIONS = [
     ]
   },
   {
-    name: 'refusal 8 is lifted at the row’s right edge',
+    name: 'refusal 8 is lifted at the pane’s last column, so a wrapped path is offered',
     file: 'path-spans.ts',
-    edits: [{ from: 'if (span.end === row.length) return true;', to: '' }]
+    edits: [{ from: 'if (endColumn >= edges.width) return true;', to: '' }]
+  },
+  {
+    // PHASE 250's lift, put back. This is the ablation that proves the lift is
+    // really in the tree rather than only in a comment: with the shipped Phase
+    // 247 clause restored, a path at the end of an ordinary sentence is
+    // refused again and his first screenshot goes back to doing nothing.
+    name: 'refusal 8 refuses a path that merely ENDS its row (the Phase 247 spelling)',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: '  const endColumn = edges.columns[span.end];',
+        to: '  if (span.end === row.length) return true;\n  const endColumn = edges.columns[span.end];'
+      }
+    ]
+  },
+  {
+    name: 'a span whose end column the map does not reach is offered anyway',
+    file: 'path-spans.ts',
+    edits: [{ from: 'if (endColumn === undefined) return true;', to: 'if (endColumn === undefined) return false;' }]
   },
   {
     name: 'refusal 8 is lifted at the row’s head',
     file: 'path-spans.ts',
     edits: [{ from: 'if (span.start !== headAt) return false;', to: 'return false;' }]
+  },
+  {
+    // The Phase 247 head half, which asked nothing about the predecessor's own
+    // last column: every row above ending in a path character read as a wrap.
+    name: 'the predecessor’s own last column is not asked',
+    file: 'path-spans.ts',
+    edits: [{ from: 'if (edges.aboveEnd < edges.width) return false;', to: '' }]
+  },
+  {
+    name: 'the predecessor’s last character is not asked, so a sentence reads as a wrap',
+    file: 'path-spans.ts',
+    edits: [
+      {
+        from: "  return PATH_CHARACTER.test(above[above.length - 1] ?? '');",
+        to: '  return true;'
+      }
+    ]
   },
   {
     name: 'the gutter is not read, so a row’s head is the wrong cell',
@@ -1078,6 +1137,96 @@ function runColumnsProbeMoved(cols) {
   }
   if (failures.every((f) => !f.includes(' 12. '))) {
     say('12. one predicate decides what can never be absolute, the renderer asks it before it caches or asks main, and everything it refuses really answers not-absolute');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 13. REFUSAL 8 IS ASKED ABOUT THE PANE'S WIDTH, AND BOTH ROWS ARE DRAWN.
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 250 LIFT ONE, at the one call site that supplies its facts.
+ *
+ * `edgeRefusal` is pure and the gate above drives it exhaustively, but every
+ * one of its answers is only as good as what the provider hands it. Three
+ * things can go wrong there and none of them is visible to a pure test:
+ *
+ *   - THE WIDTH. It must be `Terminal.cols`. A row's own length is what the
+ *     Phase 247 spelling used, and after a resize `IBufferLine.length` may
+ *     exceed the width, so a rule that compares against the row is measuring
+ *     yesterday's pane.
+ *   - THE ROW ABOVE MUST BE READ AS DRAWN. 32.2% of the operator's rows carry
+ *     trailing whitespace out to the pane width while their drawn content
+ *     stops short. `translateToString(false)` hands back the padding, and
+ *     research 111 section 4.1's own spelling reads every padded row as a
+ *     wrap — which is why it refuses 41 of 272 spans where this one refuses 3.
+ *   - THE ROW ABOVE NEEDS ITS OWN COLUMN MAP. Its drawn end column is a
+ *     column and not a string index, for the same reason rule 11 exists.
+ *
+ * Written as a function so it can be PROVED ON FIXTURES: a scan that cannot
+ * fail is never mistaken for a scan that passed.
+ */
+function refusalEightWiringFindings(text) {
+  const out = [];
+  const body = methodBodyOf(stripComments(text), 'provideLinks');
+  if (body === null) {
+    out.push('there is no provideLinks, so this rule read nothing');
+    return out;
+  }
+  if (!/width:\s*this\.term\.cols\b/.test(body)) {
+    out.push("refusal 8 is not asked about the pane's own width, so it is measuring the row rather than the edge");
+  }
+  if (/translateToString\(false\)/.test(body)) {
+    out.push('a row is read with its trailing padding, and a padded predecessor reads as a wrap');
+  }
+  if (!/cellColumns\(lineAbove\)/.test(body)) {
+    out.push("the row above has no column map of its own, so its drawn end is a string index rather than a column");
+  }
+  if (!/aboveEnd:/.test(body)) {
+    out.push("the predecessor's own last column is never handed over, so the head half cannot ask it");
+  }
+  return out;
+}
+
+{
+  const LINKS = 'src/renderer/terminal/path-links.ts';
+  for (const finding of refusalEightWiringFindings(source(LINKS))) fail(`13. ${finding}`);
+
+  const SHIPPED = `class P {
+  provideLinks(bufferLineNumber, callback) {
+    const line = buffer.getLine(y);
+    const row = line.translateToString(true);
+    const columns = cellColumns(line);
+    const lineAbove = y > 0 ? buffer.getLine(y - 1) : undefined;
+    const above = lineAbove?.translateToString(true) ?? null;
+    const spans = pathSpansInRow(row, {
+      width: this.term.cols,
+      columns,
+      above,
+      aboveEnd: lineAbove === undefined || above === null ? 0 : (cellColumns(lineAbove)[above.length] ?? 0)
+    });
+    callback(spans);
+  }
+}`;
+  const PLANTS = [
+    ['the shipping shape', SHIPPED, 0],
+    ["the row's own length stands in for the width", SHIPPED.replace('width: this.term.cols', 'width: row.length'), 1],
+    ['the predecessor is read with its padding', SHIPPED.replace("lineAbove?.translateToString(true)", 'lineAbove?.translateToString(false)'), 1],
+    ['the predecessor gets no column map', SHIPPED.replace('cellColumns(lineAbove)[above.length]', 'above.length'), 1],
+    ['the predecessor\u2019s end is never handed over', SHIPPED.replace(/\n\s*aboveEnd:[^\n]*/, ''), 1],
+    ['there is no provideLinks at all', 'export const nothing = 1;', 1]
+  ];
+  let caught = 0;
+  for (const [why, text, want] of PLANTS) {
+    const got = refusalEightWiringFindings(text).length;
+    if ((got > 0 ? 1 : 0) !== want) {
+      fail(`13. the scanner read "${why}" as ${got > 0 ? 'a finding' : 'clean'}, and it must read the other way`);
+    } else if (want === 1) caught += 1;
+  }
+  if (failures.every((f) => !f.includes(' 13. '))) {
+    say(
+      `13. refusal 8 is asked about Terminal.cols, both rows are read as DRAWN and the row above carries its own column map; ${String(caught)} of ${String(PLANTS.length)} planted shapes were caught and the shipping one was not`
+    );
   }
 }
 

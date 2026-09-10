@@ -73,8 +73,18 @@ function fakeLine(row: string): unknown {
   };
 }
 
-function fakeTerm(rows: string[]): { buffer: { active: unknown } } {
+/**
+ * PHASE 250. `cols` is the pane's width, which refusal 8 now asks about
+ * instead of the row's last glyph, and 80 is wider than every fixture row
+ * here — so a row that merely ENDS in a path is offered and the two rows that
+ * really reach the width say so by naming their own length.
+ */
+function fakeTerm(
+  rows: string[],
+  cols = 80
+): { buffer: { active: unknown }; cols: number } {
   return {
+    cols,
     buffer: {
       active: {
         getLine: (y: number) =>
@@ -95,7 +105,8 @@ interface Harness {
 function harness(
   rows: string[],
   doors: Record<string, PathDoorAnswer>,
-  over: Partial<PathLinkDeps> = {}
+  over: Partial<PathLinkDeps> = {},
+  cols = 80
 ): Harness {
   const asked: string[][] = [];
   const opened: Harness['opened'] = [];
@@ -128,7 +139,7 @@ function harness(
   };
   return {
     provider: new PathLinkProvider(
-      fakeTerm(rows) as never,
+      fakeTerm(rows, cols) as never,
       deps,
       () => clock.at
     ),
@@ -203,19 +214,52 @@ describe('what the provider offers', () => {
     expect(asked).toEqual([]);
   });
 
-  it('refuses a span that touches either end of its row (refusal 8)', async () => {
+  /**
+   * PHASE 250's lift one, driven through the provider: the operator's own
+   * first screenshot is a path at the end of a line in a pane far wider than
+   * the line.
+   */
+  it('offers a span that merely ENDS its row (Phase 250 lift one)', async () => {
     const { provider } = harness(['wrote /a/b.md'], {
       '/a/b.md': { door: 'editor', path: '/a/b.md' }
     });
+    expect((await linksOn(provider, 1))?.map((l) => l.text)).toEqual(['/a/b.md']);
+  });
+
+  it('refuses the same span when its last cell is the pane’s last column', async () => {
+    const { provider } = harness(
+      ['wrote /a/b.md'],
+      { '/a/b.md': { door: 'editor', path: '/a/b.md' } },
+      {},
+      'wrote /a/b.md'.length
+    );
     expect(await linksOn(provider, 1)).toBeUndefined();
   });
 
   it('reads the row above to decide the head half of refusal 8', async () => {
     const rows = ['wrote /a', '/b.md and more'];
+    const { provider } = harness(
+      rows,
+      { '/b.md': { door: 'editor', path: '/b.md' } },
+      {},
+      // The predecessor fills its own last column, so the head span below it
+      // is a wrap tail and stays refused.
+      'wrote /a'.length
+    );
+    expect(await linksOn(provider, 2)).toBeUndefined();
+  });
+
+  /**
+   * PHASE 250. The same two rows in a pane the predecessor does NOT fill: the
+   * break fell where the row ended rather than at the edge, so nothing was
+   * carried over and the head span is offered.
+   */
+  it('offers the head span when the row above stopped short of the width', async () => {
+    const rows = ['wrote /a', '/b.md and more'];
     const { provider } = harness(rows, {
       '/b.md': { door: 'editor', path: '/b.md' }
     });
-    expect(await linksOn(provider, 2)).toBeUndefined();
+    expect((await linksOn(provider, 2))?.map((l) => l.text)).toEqual(['/b.md']);
   });
 });
 

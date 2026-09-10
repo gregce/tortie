@@ -54,10 +54,16 @@ const doors = (await import(from('path-doors'))) as {
     executable: boolean;
   }): { door: string | null; refusal?: string };
 };
+interface RowEdges {
+  width: number;
+  columns: number[];
+  above: string | null;
+  aboveEnd: number;
+}
 const spans = (await import(from('path-spans'))) as {
   pathSpansInRow(
     row: string,
-    above: string | null
+    edges: RowEdges
   ): { text: string; start: number; end: number; target: string; line?: number }[];
 };
 
@@ -254,20 +260,78 @@ try {
   readings['external-allow'] = [...doors.EXTERNAL_ALLOW].sort().join(',');
 
   // --- refusal 8 and the span grammar, over rows -------------------------
-  const row = (key: string, text: string, above: string | null): void => {
+  //
+  // PHASE 250 narrowed refusal 8 from "the span ends its row" to "the span
+  // runs off the pane's LAST COLUMN", so every row below names the width it
+  // is read at. Every fixture row here is pure ASCII, where a string index
+  // and a cell column are the same number, which is what makes the identity
+  // map honest rather than a shortcut — the non-ASCII half is rule 11's, and
+  // it drives a real `@xterm/xterm` buffer.
+  const row = (
+    key: string,
+    text: string,
+    above: string | null,
+    width: number,
+    aboveEnd?: number
+  ): void => {
     readings[key] = spans
-      .pathSpansInRow(text, above)
+      .pathSpansInRow(text, {
+        width,
+        columns: [...text].map((_, i) => i).concat([text.length]),
+        above,
+        aboveEnd: aboveEnd ?? (above === null ? 0 : above.length)
+      })
       .map((s) => `${s.target}@${String(s.start)}-${String(s.end)}${s.line === undefined ? '' : `:${String(s.line)}`}`)
       .join(' ');
   };
-  row('span-plain', 'wrote /a/b.md for you', null);
-  row('span-line-suffix', 'see /a/b.ts:42:7 there', null);
-  row('span-url-left-alone', 'read https://x.dev/a/b and /a/b.md now', null);
-  row('span-ends-the-row', 'wrote /a/b.md', null);
-  row('span-heads-a-continued-row', '/b.md and more text', 'wrote /a');
-  row('span-heads-an-uncontinued-row', '/b.md and more text', 'all done!');
-  row('span-behind-a-gutter', '  | /b.md and more', 'wrote /a');
-  row('span-fraction', 'did 171/383 of them', null);
+  const WIDE = 120;
+  row('span-plain', 'wrote /a/b.md for you', null, WIDE);
+  row('span-line-suffix', 'see /a/b.ts:42:7 there', null, WIDE);
+  row('span-url-left-alone', 'read https://x.dev/a/b and /a/b.md now', null, WIDE);
+  row('span-fraction', 'did 171/383 of them', null, WIDE);
+
+  // PHASE 250 LIFT ONE. A path at the end of an ordinary sentence, in a pane
+  // far wider than the sentence, IS offered — that is his first screenshot.
+  row('span-ends-the-row', 'wrote /a/b.md', null, WIDE);
+  // ...and the same text in a pane exactly that wide is a span whose last
+  // cell IS the last column, which is the only shape a wrap can take. A
+  // wrapped path stays refused.
+  row('span-ends-the-row-at-the-width', 'wrote /a/b.md', null, 'wrote /a/b.md'.length);
+  // ...and a resize can leave a row longer than today's width, so the
+  // comparison is against the width and never against the row.
+  row('span-past-the-width', 'wrote /a/b.md', null, 8);
+
+  // The head half. A predecessor that filled its own last column carried
+  // something over; one that stopped short did not.
+  row('span-heads-a-row-below-a-full-one', '/b.md and more text', 'wrote /a', 'wrote /a'.length);
+  row('span-heads-a-row-below-a-short-one', '/b.md and more text', 'wrote /a', WIDE);
+  // THE PADDING, and it is why this is not research 111 section 4.1's
+  // spelling: 32.2% of his rows run out to the width in spaces their drawn
+  // text does not reach, and a padded predecessor did not wrap.
+  row('span-heads-a-row-below-a-padded-one', '/b.md and more text', 'wrote /a', WIDE, 'wrote /a'.length);
+  // ...and the predecessor's last character still has to be one a path can
+  // continue with, which is the shipped rule's own second half.
+  row('span-heads-a-row-below-a-full-sentence', '/b.md and more text', 'all done!', 'all done!'.length);
+  row('span-heads-an-uncontinued-row', '/b.md and more text', 'all done!', WIDE);
+  // The gutter, which is where a row's content really begins. The predecessor
+  // is as long as the pane is wide here so the WIDTH clause cannot be what
+  // refuses the span — otherwise a gutter ablation would move no reading and
+  // the gutter clause would be pinned by nothing.
+  row('span-behind-a-gutter', '  | /b.md and more', 'wrote /Users/gdc/a', 18);
+  row('span-behind-a-gutter-below-a-short-one', '  | /b.md and more', 'wrote /Users/gdc/a', WIDE);
+
+  // A map that does not reach the span cannot say where the span ends, and a
+  // span whose end is unknown is exactly what refusal 8 is for. This is the
+  // one reading that fails CLOSED rather than by a column comparison.
+  readings['span-with-a-short-map'] = spans
+    .pathSpansInRow('wrote /a/b.md here', {
+      width: 120,
+      columns: [0, 1, 2],
+      above: null,
+      aboveEnd: 0
+    })
+    .map((s) => `${s.target}@${String(s.start)}-${String(s.end)}`)
+    .join(' ');
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

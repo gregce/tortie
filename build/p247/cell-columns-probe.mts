@@ -47,7 +47,12 @@ const spans = (await import(spansHref)) as {
   ): { start: number; end: number } | null;
   pathSpansInRow(
     row: string,
-    above: string | null
+    edges: {
+      width: number;
+      columns: number[];
+      above: string | null;
+      aboveEnd: number;
+    }
   ): { text: string; start: number; end: number; target: string }[];
 };
 
@@ -118,7 +123,16 @@ for (const [name, glyph] of GLYPHS) {
 
     // 11b. The columns the span names hold the span's own text, read back out
     // of the buffer cell by cell. This is the property a person SEES.
-    const found = spans.pathSpansInRow(row, null);
+    // PHASE 250. Refusal 8 is asked about the pane's own width now, and this
+    // probe's terminal is 200 columns wide against rows of a few dozen, so
+    // nothing here is refused for an edge — which is what leaves the column
+    // arithmetic as the only thing under test.
+    const found = spans.pathSpansInRow(row, {
+      width: 200,
+      columns: mine,
+      above: null,
+      aboveEnd: 0
+    });
     const span = found.find((s) => s.text === PATH);
     if (span !== undefined) {
       const range = spans.spanColumns(span, mine);

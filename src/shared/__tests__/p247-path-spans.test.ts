@@ -3,11 +3,14 @@
  *
  * The grammar is research 107's detector B ported into the product. These
  * pins are the families research 107 section 3.2 named as the false positives
- * a shape-only detector cannot tell from a path, plus refusal 8 spelled the
- * way research 111 section 4.1 measured it.
+ * a shape-only detector cannot tell from a path, plus refusal 8 — which
+ * PHASE 250 narrowed from "the span ends its row" to "the span runs off the
+ * pane's last column", after the operator found an absolute, existing README
+ * printed on a line of its own and not clickable.
  */
 
 import { describe, expect, it } from 'vitest';
+import type { RowEdges } from '../path-spans';
 import {
   cellColumns,
   edgeRefusal,
@@ -68,41 +71,135 @@ describe('the decoration a person’s eye strips', () => {
   });
 });
 
-describe('refusal 8 — a span that touches either end of its row', () => {
-  it('refuses a span that ends where the row’s drawn text ends', () => {
-    const text = 'wrote /Users/gdc/gmux/src/renderer/terminal/Terminal';
-    const [span] = pathSpansInRow(text, null);
-    expect(span).toBeUndefined();
+/**
+ * PHASE 250 narrowed refusal 8 to the shape a wrap can actually take, so every
+ * pin below is about a COLUMN rather than about a row's last glyph.
+ *
+ * `edges` builds the two things a real pane hands the grammar. Every row here
+ * is pure ASCII, where a string index and a cell column are the same number —
+ * which is what makes the identity map honest rather than a shortcut; the
+ * non-ASCII half is `cellColumns`'s own describe block below.
+ */
+const edges = (
+  width: number,
+  row: string,
+  above: string | null = null
+): RowEdges => ({
+  width,
+  columns: [...row].map((_, i) => i).concat([row.length]),
+  above,
+  aboveEnd: above === null ? 0 : above.length
+});
+
+describe('refusal 8 — a span that RUNS OFF the edge of its row', () => {
+  /**
+   * THE LIFT ITSELF, and it is the operator's own first screenshot: an
+   * absolute, existing path printed at the end of an ordinary sentence, in a
+   * pane far wider than the row.
+   */
+  it('offers a span that merely ENDS its row, far short of the pane’s width', () => {
+    const text = 'wrote /a/b.md';
+    expect(pathSpansInRow(text, edges(80, text)).map((s) => s.target)).toEqual([
+      '/a/b.md'
+    ]);
+  });
+
+  it('refuses the same span when its last cell IS the pane’s last column', () => {
+    const text = 'wrote /a/b.md';
+    expect(pathSpansInRow(text, edges(text.length, text))).toEqual([]);
+  });
+
+  it('refuses a span that runs PAST the width, which a resize can make true', () => {
+    const text = 'wrote /a/b.md';
+    expect(pathSpansInRow(text, edges(text.length - 3, text))).toEqual([]);
   });
 
   it('offers a span with anything after it', () => {
     const text = 'wrote /a/b.md for you';
-    const spans = pathSpansInRow(text, null);
-    expect(spans.map((s) => s.target)).toEqual(['/a/b.md']);
+    expect(pathSpansInRow(text, edges(80, text)).map((s) => s.target)).toEqual([
+      '/a/b.md'
+    ]);
   });
 
-  it('refuses a span at the row’s head when the row above ends in a path character', () => {
-    const above = 'wrote /Users/gdc/gmux/src/renderer/terminal/Terminal';
-    const text = 'Pane.tsx and /a/b.md';
-    // The head span is the wrap tail; the one with text after it survives...
-    // except that /a/b.md ends this row, so both are refused here.
-    expect(pathSpansInRow(text, above)).toEqual([]);
+  it('refuses the HEAD span below a predecessor that filled its own last column', () => {
+    const above = 'wrote /Users/gdc/gmux/src/renderer/terminal/Term';
+    const text = '/inal.tsx and /a/b.md there';
+    // The head span is the wrap tail and is refused; the one with text either
+    // side of it is not, because only the head can have been carried over.
+    expect(
+      pathSpansInRow(text, edges(above.length, text, above)).map((s) => s.target)
+    ).toEqual(['/a/b.md']);
+  });
+
+  it('offers the same head span when the predecessor stopped SHORT of the width', () => {
+    const above = 'wrote /Users/gdc/gmux/src/renderer/terminal/Term';
+    const text = '/inal.tsx and /a/b.md there';
+    expect(
+      pathSpansInRow(text, edges(above.length + 20, text, above)).map(
+        (s) => s.target
+      )
+    ).toEqual(['/inal.tsx', '/a/b.md']);
+  });
+
+  /**
+   * THE PADDING, which is why this is not research 111 section 4.1's spelling.
+   * A predecessor whose DRAWN text stops short of the width did not wrap, even
+   * though its buffer row runs out to the width in spaces.
+   */
+  it('does not read a padded predecessor as a wrap', () => {
+    const above = 'wrote /a';
+    const text = '/b.md and more text';
+    // 80 columns wide, the row above padded out to all 80 with spaces, its
+    // drawn text stopping at column 8.
+    expect(
+      pathSpansInRow(text, {
+        width: 80,
+        columns: [...text].map((_, i) => i).concat([text.length]),
+        above,
+        aboveEnd: above.length
+      }).map((s) => s.target)
+    ).toEqual(['/b.md']);
   });
 
   it('offers a span at the row’s head when the row above does NOT continue', () => {
-    const spans = pathSpansInRow('/a/b.md was written', 'all done!');
-    expect(spans.map((s) => s.target)).toEqual(['/a/b.md']);
+    const above = 'all done!';
+    const text = '/a/b.md was written';
+    expect(pathSpansInRow(text, edges(above.length, text, above)).map((s) => s.target)).toEqual(
+      ['/a/b.md']
+    );
   });
 
   it('reads past a TUI gutter to find the row’s head', () => {
     const above = 'wrote /Users/gdc/gmux/src/rendere';
-    expect(edgeRefusal({ text: '/a', start: 4, end: 6, target: '/a' }, '  │ /a b', above)).toBe(
-      true
-    );
+    const row = '  │ /a b';
+    expect(
+      edgeRefusal(
+        { text: '/a', start: 4, end: 6, target: '/a' },
+        row,
+        edges(above.length, row, above)
+      )
+    ).toBe(true);
     // ...and the same span with a row above that cannot have continued is fine.
-    expect(edgeRefusal({ text: '/a', start: 4, end: 6, target: '/a' }, '  │ /a b', 'done!')).toBe(
-      false
-    );
+    expect(
+      edgeRefusal(
+        { text: '/a', start: 4, end: 6, target: '/a' },
+        row,
+        edges(above.length, row, 'done!')
+      )
+    ).toBe(false);
+  });
+
+  /** A map that does not cover the span cannot say where the span ends. */
+  it('refuses a span whose end column the map does not reach', () => {
+    const row = 'wrote /a/b.md here';
+    expect(
+      edgeRefusal({ text: '/a/b.md', start: 6, end: 13, target: '/a/b.md' }, row, {
+        width: 80,
+        columns: [0, 1, 2],
+        above: null,
+        aboveEnd: 0
+      })
+    ).toBe(true);
   });
 });
 
@@ -110,7 +207,7 @@ describe('a whole row', () => {
   it('offers every candidate and nothing else', () => {
     const text =
       'read /Users/gdc/gmux/README.md and src/main.ts and https://x.dev/a here';
-    expect(pathSpansInRow(text, null).map((s) => s.target)).toEqual([
+    expect(pathSpansInRow(text, edges(120, text)).map((s) => s.target)).toEqual([
       '/Users/gdc/gmux/README.md',
       'src/main.ts'
     ]);

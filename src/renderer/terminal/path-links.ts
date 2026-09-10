@@ -32,6 +32,18 @@
  * A LINK THAT DOES NOTHING IS WORSE THAN NO LINK, so a path no door accepts is
  * never underlined at all rather than underlined and then refused.
  *
+ * ## What this provider hands refusal 8 (Phase 250)
+ *
+ * The rule itself is in `@shared/path-spans`; the facts it decides from are
+ * gathered here, and getting any of the three wrong is invisible to a pure
+ * test. THE WIDTH IS `Terminal.cols` and never the row's own length, because
+ * `IBufferLine.length` may exceed the width after a resize. BOTH ROWS ARE READ
+ * AS DRAWN, `translateToString(true)`, because 32.2% of the operator's rows
+ * carry trailing whitespace out to the pane width while their content stops
+ * short, and a padded predecessor did not wrap. AND THE ROW ABOVE CARRIES ITS
+ * OWN COLUMN MAP, because its drawn end is a column and not a string index,
+ * for the same reason `cellColumns` exists at all.
+ *
  * ## The cache, and what its keys really are
  *
  * `lstat` lives in main, so the answer is an IPC round trip, and a pointer
@@ -109,7 +121,7 @@ export class PathLinkProvider implements ILinkProvider {
   private readonly inFlight = new Map<string, Promise<PathDoorAnswer>>();
 
   constructor(
-    private readonly term: Pick<Terminal, 'buffer'>,
+    private readonly term: Pick<Terminal, 'buffer' | 'cols'>,
     private readonly deps: PathLinkDeps,
     private readonly now: () => number = Date.now
   ) {}
@@ -131,16 +143,30 @@ export class PathLinkProvider implements ILinkProvider {
       return;
     }
     const row = line.translateToString(true);
-    const above = y > 0 ? (buffer.getLine(y - 1)?.translateToString(true) ?? null) : null;
-    const spans = pathSpansInRow(row, above);
-    if (spans.length === 0) {
-      callback(undefined);
-      return;
-    }
     // A ROW'S STRING INDICES ARE NOT ITS CELL COLUMNS, and xterm underlines
     // and hit-tests in COLUMNS. The map is taken here, synchronously, beside
     // the row it belongs to and before any await. See `cellColumns`.
     const columns = cellColumns(line);
+    // PHASE 250. Refusal 8 asks about the pane's LAST COLUMN rather than the
+    // row's last glyph, so it needs the width and the row above's own drawn
+    // end column. Both rows are read as DRAWN — `translateToString(true)` —
+    // because a third of his rows are padded out to the width with spaces,
+    // and a padded predecessor did not wrap.
+    const lineAbove = y > 0 ? buffer.getLine(y - 1) : undefined;
+    const above = lineAbove?.translateToString(true) ?? null;
+    const spans = pathSpansInRow(row, {
+      width: this.term.cols,
+      columns,
+      above,
+      aboveEnd:
+        lineAbove === undefined || above === null
+          ? 0
+          : (cellColumns(lineAbove)[above.length] ?? 0)
+    });
+    if (spans.length === 0) {
+      callback(undefined);
+      return;
+    }
     void this.linksFor(spans, columns, bufferLineNumber).then(callback);
   }
 
