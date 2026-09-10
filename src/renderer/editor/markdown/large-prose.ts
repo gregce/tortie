@@ -26,9 +26,17 @@
  * 20 MB / 300 K lines and govern tokenization, not a preview). The pipeline
  * measured ~1.5–2.1 ms per KB across both twins (5,470 ms / 2.56 MB and
  * 4,979 ms / 3.26 MB, research 116 §2.4), so 256 KiB is the largest source
- * whose render still lands in about half a second on the reference machine —
- * the boundary between "opens" and "loads". Both of his files are ten times
- * past it in either direction.
+ * whose render still lands in about half a second on the reference machine
+ * FOR ORDINARY PROSE — the boundary between "opens" and "loads". Both of his
+ * files are ten times past it in either direction. The per-KB figure is also
+ * markup-density-dependent (a sparser twin rendered ~2.6 s at 2.56 MB), so
+ * ~2 ms/KB is the dense end. The half-second does NOT hold for degenerate
+ * line shapes: the pipeline's cost is superlinear in LINE length, and a
+ * single-line file exactly AT this cap was measured rendering in ~5.7 s
+ * (100 K chars on one line: ~69 ms). VS Code guards that shape separately
+ * (its tokenizer's long-line limits), which is outside this phase; a later
+ * round tempted to trust the half-second at the boundary should re-measure
+ * the line shape it has in hand.
  */
 
 import type { EditorMode } from '../tab-types';

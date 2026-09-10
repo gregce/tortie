@@ -208,8 +208,10 @@ describe('the shipping store and tab IO, driven over the bridge stubs', () => {
     expect(tab.mode).toBe('file');
     expect(tab.markdown).toBe(true);
     expect(tab.savedContents).toBe(LARGE);
-    // The baseline still seeded — the deferral drops no promise.
-    expect(tab.baseline.text).toBe(LARGE);
+    // The baseline still seeded — the deferral drops no promise. Optional
+    // chaining for the type alone: an absent baseline answers undefined,
+    // which never equals LARGE, so the assertion keeps its full strength.
+    expect(tab.baseline?.text).toBe(LARGE);
     // The default WAS preview (nothing in localStorage), so the demotion is
     // what moved it — and never with the large bytes on board.
     expect(seen.some((s) => s.mode === 'preview')).toBe(true);
