@@ -25971,6 +25971,68 @@ ruling and is not taken here.
 
 ---
 
+## Phase 252 — the box should be as wide as its content needs, not as wide as it may be (operator reported 2026-09-10, on Phase 248)
+
+**Subject.** `fix(markdown): a wide block takes the width its content needs`
+
+**First body line.** `Phase 252: the box fits its content`
+
+**Semver.** Patch. It corrects what Phase 248 shipped and adds no capability.
+
+**Tier 2.** A rendered surface with no new state: one app run driving every claim, and the independent
+method is the parent commit measured against HEAD over the operator's own five screenshots' shapes. The
+release he wants to cut waits on this phase, so it does not queue behind anything.
+
+**Charter.** He sent five screenshots on 2026-09-10. Three are the defect: a code fence whose widest line
+is about 60 to 90 characters drawn as a box spanning the whole pane, most of it empty — an ASCII flow
+diagram, a `runstory show latest` transcript, and an ASCII architecture diagram, each with a wide blank
+field to the right of the text inside its own border. Two are the contrast he called good: tables whose
+content actually fills the box they were given. His sentence is the spec: **"make this more dynamic, so it
+only expands when it needs to based on the content."**
+
+**The mechanism, written from the tree.** `src/renderer/editor/markdown/markdown.css:296` gives every
+direct-child `.md-table-scroll` and `pre` the width `max(100%, var(--md-wide))` UNCONDITIONALLY, and line
+297 centres it with a negative margin computed from the same expression — so a block whose content is
+narrower than the cap still takes the whole cap, and the emptiness is inside the box's own border where it
+reads as a defect rather than as margin. The fix is that the box's width becomes the width its CONTENT
+needs, clamped: never narrower than the prose column (`min-width: 100%`, which is what keeps a short fence
+filling the column exactly as it does today), never wider than the cap the phase 248 arithmetic already
+derives (`max-width: var(--md-wide)`), and sized by the content between those bounds (`fit-content`).
+**THE CENTRING IS THE PART THAT MUST BE REDESIGNED RATHER THAN KEPT**, because line 297's negative margin
+assumes the used width IS the cap expression, and a fit-content width cannot be read back in CSS — the
+builder measures the candidate mechanisms (a relative `left: 50%` with `translate: -50%`, or an outer grid
+track, or any other that survives the scroller) and picks one with the measurement attached, preserving:
+the horizontal scrollbar and its visible thumb on a block wider than the cap, the zoom arithmetic
+(`/ var(--zoom-editor, 1)` — two presses of ⌘+ must not walk back out of the pane, which is
+`conformance:wideblocks`' own rule), the direct-child-only rule, the nested blocks untouched, and the
+prose measure untouched. A table narrower than the column keeps today's centring. `pre` inside the box
+must not re-wrap: the box fits the fence's longest line, so `fit-content` must be measured against
+`white-space: pre` content, which is what makes this correct for ASCII diagrams.
+
+**The proof, run rather than read.** `npm run conformance:wideblocks` gains the rules that pin the clamp:
+a fence whose widest line is UNDER the prose measure draws at exactly the column (today's reading, kept);
+one whose widest line is between the measure and the cap draws at ITS OWN width, within a tolerance the
+builder states, and not at the cap — which is the defect and must read red at the parent; one wider than
+the cap draws at the cap with the scroller live; and the centring holds at every width class on both
+bases, under zoom stops above and below 1. Every new rule ablated red one clause at a time.
+`npm run probe:p248` (or a p252 sibling if the fixture must grow) drives the operator's five shapes — the
+three bad screenshots reproduced as fixtures and the two good ones — at 1349, 699 and 319px, measured at
+the parent commit AND at HEAD: the parent reads the three bad boxes at the cap and HEAD reads them at
+content width, with the two good tables unmoved.
+
+### What is NOT in this phase
+
+- **The cap does not move.** `--md-wide`'s expression, the 136ch ceiling, the zoom division and the
+  gutter terms are Phase 248's measured answers and this phase changes none of them.
+- **Nested blocks stay as they are.** The direct-child rule and its measured cost stand.
+- **Nothing in the redline.** Phase 251 owns `redline.css` and its own measure; this phase touches
+  `markdown.css` and its gate only.
+- **No re-wrap of fence content.** `white-space: pre` stands; a fence too wide for the cap scrolls, never
+  wraps.
+- **No per-block setting, no toggle.** The width is derived from content, never asked.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26542,3 +26604,5 @@ cycle rather than only the evening it was written.
 - 2026-09-10, **PHASE 251's FIX ROUND: TWO CONFIRMED DEFECTS, both re-derived before they were acted on, both fixed in the CODE, and both given a check that goes red at the parent.** **THE BAND WAS MEASURED IN THE SCROLLER'S BORDER BOX.** `chipPlace` was handed `scroll.getBoundingClientRect()`, which includes the vertical scrollbar, while the page is centred in the CONTENT box, so the band read ten pixels too generous — and the band arm is the ONE placement in this view that is deliberately outside the page, so it is the one that can grow the scroller's own scrollable area. Driven over a 2px sweep in the running app with the caller put back: at a panel of **1308 the chip's right edge sat 9.7px past the content box and `.ed-redline-scroll` really grew a 10px horizontal scrollbar**, and it stayed drawn through 1326, appearing and disappearing as the pointer moved onto and off a change, in a view whose own comment says it has never had one; the arm turned on at a panel of **1308 against the 1326.39 the gate, both design documents and the unit test all publish**. **NONE OF THE FOUR CHECKS COULD SEE IT, and that is the finding's second half**: rule 38 and `p251-redline-controls.test.ts` both drive `chipPlace` over a MODEL that hands it `panel - 10`, which is the content box, so the model was right and the code was wrong, and `probe:p249` drove only 1349, 699 and 319, none of them in the 19px window. The fix is `scroll.clientWidth`, the same number the view already reads one effect away for `--redline-gutter`. **RULE 39 IS THE SCAN AND THE SWEEP IS THE PROOF**: rule 39 reads the one `chipPlace` call by matching parentheses and refuses `getBoundingClientRect` and `offsetWidth` in its third argument, 7 planted callers of which 5 must fail, and it goes red on the parent's own line; `probe:p249` sweeps the boundary in 2px steps and FAILS ITSELF if every width or no width took the band, reading **20 findings at the parent and 0 at HEAD** with the operator's `-L gmux` server 34 sessions before and 34 after. The band arm's `top` is clamped inside the page now the way the overlay arm's always was, and a comment left saying the chip is not inside the scroller — which this phase made false — says what actually holds it. **AND A TABLE ROW THAT PAIRS NOTHING LOST ITS WORD-LEVEL PICTURE.** Research 114 §6.3's argument against a first-cell key is that it *"degrades every row to a whole-row deletion beside a whole-row insertion, which is a WORSE picture than the flat stream it replaces"* — and the resemblance door reaches the same place from the other side: `docs/research/107` at `9e0f57a6` is one table row whose cells were rewritten, `rowResemblance` reads **0.29**, the row does not pair, and it drew whole. Re-derived independently over **1,188 prose revisions harvested from this repository's own history, 201 real table change blocks**: the one-row-per-side bucket is **144 of the 201**, and in it the table path was **16 louder and 0 tighter** with cross-row runs 0 on both sides by construction, so there was no confetti for it to be buying. **THE FIX IS FREE AND THE FILE SAYS WHY RATHER THAN QUOTING A METRIC**: with no pair at all, `pairRows` emits every deletion then every insertion and `push` merges each side into one run, so the table path's own answer is BYTE IDENTICAL to the whole-block fallback's — it has drawn nothing — and the block falls through to the flat path with that fallback still behind it. Marked characters over the 201 blocks go **49,606 to 45,708**, the one-row bucket returns to the flat path's own **14,606 exactly**, it fires on 21 blocks and is louder on none. **Rule 29d holds three readings against each other**, because a fall-through that fires on everything is as wrong as one that fires on nothing, and 11 of 11 table ablations are red. Two false sentences went with it: the row cap now says **`N with too many rows`** in a counter of its own, because 61 rows of five bytes is 844 characters and `too long` was false about the only quantity it names; and "at the bound the pass costs 2.7 ms and 120 runs" is corrected in `redline.ts` with the shapes measured — 120 raw and 3 document runs for the 60 unpaired rows research 114 quoted, 240 and 181 for 60 rows word-diffed inside the budget, and **3,660 raw and 2,401 document runs at 21 ms** for 60 rows of spacing churn, which is the worst the bound admits and is NOT this path's, because the flat path draws the same 2,401 runs for the same input at the parent. Gates green: typecheck, build with every embedded gate, `npm test` 13,417 passed, `conformance:redline` every rule with rules 29d and 39 added, `conformance:redline-write` 17 of 17 red, `conformance:save`.
 
 - 2026-09-10, **PHASE 251 LANDED WHOLE, FIVE commits ending at `cee69bf9`, being the redline's room.** He can open a Redline now and read it as a marked-up document rather than a stack of tiles: the column is 84 characters of TEXT where the stylesheet's old `68ch` carried its padding inside and delivered 62.1, a wrapped marking is painted the line pitch less a 2px seam so its fragments join, the change he is standing on is ONE bar in the margin where it was 37 outlined boxes at his pane and 74 at the floor, and `Accept all` and the counter land on the column at 0.0px past its right edge where they sat 419.1px past it. **HE CHOSE DIRECTION B AND HE CHOSE SEAM**, being the column with margins over the review pane, and the pitch-less-2px wash over Ribbon — and Seam over Ribbon is HIS TASTE and the code says so in those words, because the gap inside one run and the gap between two marks are the same number at every setting. **He chose NO PIN on `--error`**, so its 4.135 over 8 of the 35 offered dark cells stays a stated limit and `conformance:hue` is untouched and unmoved. **FAULT 3 IS THE TABLE DIFFED ROW AGAINST ROW**, aligned by an order-preserving resemblance LCS at 0.5 rather than by the first cell, with the word budget the BLOCK's; a renamed label column now shows the two words that changed instead of two whole rows, and the fix round added the other half, being that a block whose alignment pairs NO row falls through to the flat path because its own answer there is byte identical to the whole-block fallback's. **THE ONE THING FAULT 3 CANNOT FIX IS A TABLE OVER THE CHARACTER CAP**, 4,000 characters, which reaches no differ at all and still draws whole with the note saying so — 46 of this repository's 1,951 markdown tables, `DESIGN.md`'s own and `docs/BACKLOG.md`'s among them. **TWO ROWS GOT WORSE AND BOTH ARE PUBLISHED**: at the 319px floor the column loses the rail's seven pixels, 261.00 → 254.00px, and its document is taller, 3392.02 → 3499.25px, both because a whole table row is now the unit. **THE COMMITTER'S ROUND CORRECTED A COST SENTENCE THAT WAS MEASURED AGAINST THE CODE BEFORE ITS OWN FIX**: 60 table rows that pair nothing were published at "120 raw and 3 document runs in 0.9 ms", and with the fall-through in place that block is not drawn by this path at all — its 120 runs are computed and thrown away and the FLAT path answers, at 181 document runs where it can draw the block and 4 where it gives up, so an unpaired table block pays for both passes and the discarded alignment is 0.8 to 1.3 ms of it; `build/p251/bound-cost.mts` is the derivation so it cannot decay a third time. The limit that round did NOT close is written down rather than fixed: a block in which SOME rows pair can still be louder than the flat stream it replaces, re-derived at 506 marked characters against 314 with zero runs crossing a row on either side. Full battery green on the REBASED bytes: typecheck, build with every embedded gate (`HELPER_USER_FLOOR` 114 → **118** for Phases 248 and 250 beside us, contract baseline byte identical), `npm test` 13,450, `smoke:t1`, `smoke:t3`, `package`, `conformance:redline` all 39 rules, `conformance:redline-write` 17 of 17 red, `conformance:save`, and `conformance:hue` UNMOVED. His `-L gmux` server 34 sessions before and 34 after, listed only, no session attached, killed or sent a key; no machine, no ssh, no keychain, no token, no version bump and no tag.
+
+- 2026-09-10, **PHASE 252 QUEUED, the box fits its content**: he sent five screenshots — three fences and ASCII diagrams drawn at the full Phase 248 cap with most of the box empty, two tables that fill theirs and read right. `markdown.css:296` widens every direct-child block to `max(100%, --md-wide)` unconditionally; the fix is a clamp, never narrower than the prose column, never wider than the cap, sized by the content between, with the centring redesigned because the negative-margin arithmetic assumed the used width is the cap. The cap, the zoom division, the nested rule and the prose measure do not move. Patch, Tier 2, parent-vs-HEAD over his own five shapes, and **the release cut waits on it at his word**.
