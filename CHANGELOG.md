@@ -10,7 +10,7 @@ This release is about the Markdown preview. A large document now shows its first
 
 ### Changed
 
-- A large Markdown preview now shows its first screen at once and fills in the rest as you read, so a big file opens rendered again instead of in Source. A file that begins with one enormous table, or a large one with footnotes, still opens in Source with Preview one click away, and a jump to a heading far down the page reaches it once the page has finished filling in ([`6d754c9b`](https://github.com/gregce/tortie/commit/6d754c9b))
+- A large Markdown preview now shows its first screen at once and fills in the rest as you read, so a big file opens rendered again instead of in Source. A file that begins with one enormous table, or a large one with footnotes, still opens in Source with Preview one click away, and a jump to a heading far down the page reaches it once the page has finished filling in ([`6d754c9b`](https://github.com/gregce/tortie/commit/6d754c9b)), ([`ef8c4464`](https://github.com/gregce/tortie/commit/ef8c4464))
 
 ## 0.103.0 (2026-09-10)
 
