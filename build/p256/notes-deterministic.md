@@ -48,10 +48,13 @@ The shapes the charter asked for are all present: a CLI (ripgrep, Rust), two web
 Go, the FastAPI template in Python and TypeScript), a Rails app (mastodon), a library (requests), a
 monorepo (babel, 27,723 files), a Swift project (Alamofire), and the two the operator cares about.
 
-**Four of the thirteen grammars were exercised by no repository in this corpus** — java, php, c-sharp
-and kotlin — so every rule naming only those four is written and compiled and **unmeasured**. The
-fact languages actually seen were typescript 40,660, javascript 16,912, ruby 16,101, tsx 4,265, go
-2,617, manifest 1,470, path 1,153, swift 938, python 776, rust 606, path+export 368, objc 3.
+**Five of the thirteen grammars were exercised by no repository in this corpus, not four.** java, php,
+c-sharp and kotlin were exercised by none at all. **objc is the fifth**, and the count below is what
+gives it away: **3 facts, from one file** (`build/fsevents-cap.c`, a C file its grammar claims), and
+**0 rows of the 341 hand judgments are objc**, so its rules have a precision of nothing. Every rule
+naming only those five is written and compiled and **unmeasured**. The fact languages actually seen
+were typescript 40,660, javascript 16,912, ruby 16,101, tsx 4,265, go 2,617, manifest 1,470, path
+1,153, swift 938, python 776, rust 606, path+export 368, objc 3.
 
 ---
 
@@ -243,8 +246,15 @@ With all three: **229 of 229, 100.0% recall, ZERO false positives** against the 
 **735 facts on Tortie and 2 across the other eight.** That is not a defect of the pass, it is a fact
 about Tortie: this product's conventions — one typed preload bridge, one invoke registrar, one tmux
 module, one guarded write — are exactly the shape that hides a surface from a name rule. The device
-costs about a doubling of the read (a second parse of every file) and buys, on this repository,
-the difference between a pane that can name every door the product exposes and one that can name two.
+costs **3.15× the whole read on this repository** and buys the difference between a pane that can name
+every door the product exposes and one that can name two. That number was written as "about a doubling"
+until the revision round of 2026-09-10 re-derived it, and the correction is worth keeping because the
+two numbers a reader could reach for disagree by a factor of four. The fact file's own `wrapperMs` is
+PASS 1 alone, 4,839 of 17,619 ms here, being 27%; turning the pass off ALSO removes the unwrap
+attempted at every call site in PASS 2, so the only honest form is with and without: tortie 17,619 vs
+5,599 = **3.15×**, babel 3.73×, mastodon 3.09×, stoa 2.12×, and the four small repositories 1.57× to
+1.83×, with the whole corpus at 53,342 vs 18,166 = **2.94×**. Re-derived on a busier machine, tortie
+reads 33,725 vs 8,861 = 3.81× for the same 735 facts.
 A judged sample of 14 wrapper-only facts read 13 true; the one false was a subject rather than a
 fact, `run(['-C'], file)` reported as "runs -C" because the wrapper forwards the ARGUMENTS and the
 program is somewhere else.

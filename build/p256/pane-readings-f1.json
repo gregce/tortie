@@ -1,0 +1,1067 @@
+{
+ "when": "2026-09-11T02:21:49.304Z",
+ "socket": "gmux-p256rev-wt-p256-5495",
+ "repoA": "/private/tmp/p256rev/repoA",
+ "repoB": null,
+ "steps": {
+  "switch": true,
+  "chordOpenedPane": true,
+  "A.msToFilledReading": 4022,
+  "A.pane": {
+   "pane": true,
+   "actions": [
+    {
+     "label": "Open the map",
+     "title": "Draws this repository as a small map in a full size tab. No contract is needed and nothing is written.",
+     "disabled": false
+    },
+    {
+     "label": "Read the code again",
+     "title": "Reads the code again and checks any promises against it. The file watcher cannot see a folder that did not exist when this view opened.",
+     "disabled": false
+    }
+   ],
+   "subject": "tortie",
+   "line": "3,187 files, mostly TypeScript; 8 parts, the biggest src/main (33%); 11 connections between parts; 8,793 of 13,486 imports lead inside the repository.",
+   "lineTitle": "From the code alone. Files are what git tracks, the language is the most common file type, a part is a box on the map, a connection is one part importing another, and an import leads inside the repository when it resolves to a tracked file.",
+   "model": "No model reading yet.",
+   "modelTitle": "The line above comes from the code alone. A model can add what the repository is for, drawn under its own label and never as a fact.",
+   "rows": [
+    {
+     "id": "src-main",
+     "label": "src/main",
+     "band": "Engine. Other parts import it and it imports others.",
+     "weight": "33% of the files in the repository",
+     "sentence": "1,057 files, TypeScript; made of machines, arch, overview, manifest, harness and 59 more; used by build; uses src/shared; entry src/main/index.ts.",
+     "facts": [
+      "Size: 1,057 files, 326,019 lines",
+      "Languages: TypeScript 1,034, text files 18, JSON 4, JavaScript 1",
+      "Defines: 4,937 functions, 2,283 constants, 964 interfaces, 925 methods",
+      "Entries: src/main/index.ts, src/main/actions/index.ts, src/main/activity/index.ts, src/main/agents/index.ts",
+      "Imports: 5,954 written, 3,874 to this repository, 2,080 to dependencies, 0 not followed",
+      "Used by: build 144, src/renderer 11",
+      "Uses: src/shared 534, src/renderer 1",
+      "Folders: machines 151, arch 101, overview 69, manifest 64, harness 49, sessions 42, context 36, diagnostics 34, tmux 31, activity 28, fs 23, git 23, updates 22, actions 21, credentials 21, specstory 20, usage 20, config 18, log 18, restore 18, symbols 17, search 13, skills 13, __tests__ 12, agents 12, db 11, settings 11, watcher 11, logins 10, projects 10, quickopen 10, shell 10, conformance 9, preview 9, durable 8, proc 7, drop 6, migrate 6, recents 6, restart 6, attach 5, capture 4, fault 4, notice 4, scrollback 4, tray 4, baselines 3, power 3, security 3, assets 2, cache 2"
+     ]
+    },
+    {
+     "id": "src-renderer",
+     "label": "src/renderer",
+     "band": "Engine. Other parts import it and it imports others.",
+     "weight": "33% of the files in the repository",
+     "sentence": "1,052 files, mostly TypeScript; made of app, editor, scm, arch, settings and 25 more; used by build and demo; uses src/shared; entry src/renderer/index.html.",
+     "facts": [
+      "Size: 1,052 files, 260,497 lines",
+      "Languages: TypeScript 961, CSS 66, images 17, .woff2 files 4, HTML 2",
+      "Defines: 4,143 functions, 2,207 constants, 832 methods, 675 interfaces",
+      "Entries: src/renderer/index.html, src/renderer/main.tsx, src/renderer/arch/index.ts, src/renderer/context/index.ts",
+      "Imports: 5,087 written, 4,024 to this repository, 1,062 to dependencies, 1 not followed",
+      "Used by: build 35, demo 4, src/main 1, src/shared 1",
+      "Uses: src/shared 755, src/main 11",
+      "Folders: app 188, editor 141, scm 95, arch 78, settings 76, context 65, state 65, terminal 61, tree 60, overview 40, machines 30, search 23, assets 21, theme 18, diagnostics 16, quickopen 14, icons 12, pierre 12, zoom 12, controls 5, errors 5, styles 4, keys 2, lazy 2, __tests__ 1, menus 1"
+     ]
+    },
+    {
+     "id": "build",
+     "label": "build",
+     "band": "Surface. No other part imports it.",
+     "weight": "15% of the files in the repository",
+     "sentence": "483 files, mostly JavaScript; made of probe*, conformance*, assert*, redline*, p138* and 99 more; uses src/main and src/renderer and 1 more; no other part uses it; entry build/p256/explorer-app/main.js.",
+     "facts": [
+      "Size: 483 files, 312,796 lines",
+      "Languages: JavaScript 287, TypeScript 92, JSON 46, text files 31, Markdown 14",
+      "Defines: 6,173 constants, 4,088 functions, 76 interfaces, 42 methods",
+      "Entries: build/p256/explorer-app/main.js",
+      "Imports: 1,993 written, 566 to this repository, 1,423 to dependencies, 4 not followed",
+      "Uses: src/main 144, src/renderer 35, src/shared 21",
+      "Folders: p256 41, p214 30, fixtures 28, p218 21, p249 16, p248 11, p241 9, p246 8, p215 7, p240 5, p245 5, p244 4, p247 4, p250 4, p243 3, p253 3, p251 2, p252 2, p234 1, p235 1, p238 1, p242 1, p242-2 1, p254 1"
+     ]
+    },
+    {
+     "id": "docs",
+     "label": "docs",
+     "band": "Surface. No other part imports it.",
+     "weight": "13% of the files in the repository",
+     "sentence": "410 files, Markdown and images; made of research, shots, audits, brand, readme and 2 more; not code apart from 27 files.",
+     "facts": [
+      "Size: 410 files, 149,531 lines",
+      "Languages: Markdown 199, images 121, JavaScript 27, JSON 15, log files 11",
+      "Defines: 188 functions, 177 constants, 5 methods, 1 class",
+      "Imports: 95 written, 36 to this repository, 59 to dependencies, 0 not followed",
+      "Folders: research 304, shots 35, audits 26, brand 26, readme 6, designs 4, method 3"
+     ]
+    },
+    {
+     "id": "src-shared",
+     "label": "src/shared",
+     "band": "Engine. Other parts import it and it imports others.",
+     "weight": "3% of the files in the repository",
+     "sentence": "99 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 40 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.",
+     "facts": [
+      "Size: 99 files, 29,938 lines",
+      "Languages: TypeScript 99",
+      "Defines: 605 interfaces, 289 constants, 267 methods, 221 functions",
+      "Entries: src/shared/ipc/index.ts, src/shared/ipc/app.ts",
+      "Imports: 249 written, 198 to this repository, 51 to dependencies, 0 not followed",
+      "Used by: src/renderer 755, src/main 534, src/preload 33, build 21, demo 8",
+      "Uses: src/renderer 1",
+      "Folders: ipc 33, __tests__ 23"
+     ]
+    },
+    {
+     "id": "other",
+     "label": "everything else",
+     "band": "Surface. No other part imports it.",
+     "weight": "2% of the files in the repository",
+     "sentence": "48 files, JSON and other files; 5 small folders (resources, .github, .claude, patches, src/test) and 24 root files; not code apart from 3 files.",
+     "facts": [
+      "Size: 48 files, 16,296 lines",
+      "Languages: JSON 18, Markdown 9, YAML 6, files with no extension 3, images 3",
+      "Defines: 2 constants, 2 functions",
+      "Declares: package.json tortie",
+      "Imports: 6 written, 0 to this repository, 6 to dependencies, 0 not followed",
+      "Folders: resources 16, .github 5, .claude 1, patches 1, test 1",
+      "Also holds: src/test"
+     ]
+    },
+    {
+     "id": "demo",
+     "label": "demo",
+     "band": "Surface. No other part imports it.",
+     "weight": "1% of the files in the repository",
+     "sentence": "19 files, mostly TypeScript; made of bridge and 4 more; uses src/shared and src/renderer; no other part uses it; entry demo/index.html.",
+     "facts": [
+      "Size: 19 files, 4,279 lines",
+      "Languages: TypeScript 14, HTML 2, Markdown 2, JSON 1",
+      "Defines: 47 constants, 40 functions, 16 methods, 6 interfaces",
+      "Entries: demo/index.html, demo/main.ts",
+      "Imports: 30 written, 27 to this repository, 3 to dependencies, 0 not followed",
+      "Uses: src/shared 8, src/renderer 4",
+      "Folders: bridge 11"
+     ]
+    },
+    {
+     "id": "src-preload",
+     "label": "src/preload",
+     "band": "Surface. No other part imports it.",
+     "weight": "1% of the files in the repository",
+     "sentence": "19 files, TypeScript; made of machines, terminal, arch, bridge, context and 14 more; uses src/shared; no other part uses it; entry src/preload/index.ts.",
+     "facts": [
+      "Size: 19 files, 1,390 lines",
+      "Languages: TypeScript 19",
+      "Defines: 30 constants, 13 functions, 3 methods, 1 interface",
+      "Entries: src/preload/index.ts",
+      "Imports: 72 written, 68 to this repository, 4 to dependencies, 0 not followed",
+      "Uses: src/shared 33"
+     ]
+    }
+   ],
+   "sections": [
+    {
+     "label": "Components",
+     "cls": "arch-outline rd-parts",
+     "chars": 1636
+    },
+    {
+     "label": "Contract",
+     "cls": "arch-empty",
+     "chars": 490
+    }
+   ],
+   "crumb": null,
+   "offerTitle": "Contract",
+   "offerBody": "None yet. Promises about how parts may touch, checked against the code.",
+   "offerActions": [
+    {
+     "label": "Draft the contract",
+     "title": "Writes a small deterministic skeleton into docs/arch, drawn from the code alone. It lands as an ordinary uncommitted change, so Source Control shows every line and you commit it or throw it away.",
+     "disabled": false
+    }
+   ],
+   "offerPassSentence": "No agent fills this in yet. Pick one in Settings.",
+   "offerDisclosure": "What a contract isA contract is a small set of promises about how the parts of this project are allowed to touch. Tortie checks them against the code and says which ones hold, which ones broke and at which line, and which ones it cannot check.A healthy set is 5 to 10 promises. Fewer says nothing, and more is a second codebase to keep current.",
+   "wholeText": "Architecturetortie3,187 files, mostly TypeScript; 8 parts, the biggest src/main (33%); 11 connections between parts; 8,793 of 13,486 imports lead inside the repository.No model reading yet.ComponentsEngine. Other parts import it and it imports others.src/main1,057 files, TypeScript; made of machines, arch, overview, manifest, harness and 59 more; used by build; uses src/shared; entry src/main/index.ts.Engine. Other parts import it and it imports others.src/renderer1,052 files, mostly TypeScript; made of app, editor, scm, arch, settings and 25 more; used by build and demo; uses src/shared; entry src/renderer/index.html.Surface. No other part imports it.build483 files, mostly JavaScript; made of probe*, conformance*, assert*, redline*, p138* and 99 more; uses src/main and src/renderer and 1 more; no other part uses it; entry build/p256/explorer-app/main.js.Surface. No other part imports it.docs410 files, Markdown and images; made of research, shots, audits, brand, readme and 2 more; not code apart from 27 files.Engine. Other parts import it and it imports others.src/shared99 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 40 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.Surface. No other part imports it.everything else48 files, JSON and other files; 5 small folders (resources, .github, .claude, patches, src/test) and 24 root files; not code apart from 3 files.Surface. No other part imports it.demo19 files, mostly TypeScript; made of bridge and 4 more; uses src/shared and src/renderer; no other part uses it; entry demo/index.html.Surface. No other part imports it.src/preload19 files, TypeScript; made of machines, terminal, arch, bridge, context and 14 more; uses src/shared; no other part uses it; entry src/preload/index.ts.ContractNone yet. Promises about how parts may touch, checked against the code.Draft the contractNo agent fills this in yet. Pick one in Settings.What a contract isA contract is a small set of promises about how the parts of this project are allowed to touch. Tortie checks them against the code and says which ones hold, which ones broke and at which line, and which ones it cannot check.A healthy set is 5 to 10 promises. Fewer says nothing, and more is a second codebase to keep current.",
+   "wholeChars": 2315
+  },
+  "A.map.level1": {
+   "tab": true,
+   "crumbs": [
+    "tortie"
+   ],
+   "boxes": [
+    {
+     "id": "build",
+     "label": "build",
+     "title": "build. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "docs",
+     "label": "docs",
+     "title": "docs. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "demo",
+     "label": "demo",
+     "title": "demo. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "other",
+     "label": "everything else",
+     "title": "everything else. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-preload",
+     "label": "src/preload",
+     "title": "src/preload. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main",
+     "label": "src/main",
+     "title": "src/main. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-renderer",
+     "label": "src/renderer",
+     "title": "src/renderer. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-shared",
+     "label": "src/shared",
+     "title": "src/shared. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    }
+   ],
+   "edgeCount": 11,
+   "edges": [
+    {
+     "title": "build imports src-main",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "demo imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "demo imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-preload imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-renderer imports src-main",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-renderer imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-shared imports src-renderer",
+     "cls": "arch-map-edge"
+    }
+   ],
+   "stubs": [],
+   "partial": null,
+   "stale": null,
+   "files": null,
+   "wholeChars": 894,
+   "wholeText": "tortieSurfaceEnginebuild imports src-mainbuild imports src-rendererbuild imports src-shareddemo imports src-rendererdemo imports src-sharedsrc-main imports src-renderersrc-main imports src-sharedsrc-preload imports src-sharedsrc-renderer imports src-mainsrc-renderer imports src-sharedsrc-shared imports src-rendererbuild. Click to look inside. Written in this repository.buildOursdocs. Click to look inside. Written in this repository.docsOursdemo. Click to look inside. Written in this repository.demoOurseverything else. Click to look inside. Written in this repository.everything elseOurssrc/preload. Click to look inside. Written in this repository.src/preloadOurssrc/main. Click to look inside. Written in this repository.src/mainOurssrc/renderer. Click to look inside. Written in this repository.src/rendererOurssrc/shared. Click to look inside. Written in this repository.src/sharedOurs"
+  },
+  "A.map.level2": {
+   "drilled": "build",
+   "tab": true,
+   "crumbs": [
+    "tortie",
+    "build"
+   ],
+   "boxes": [
+    {
+     "id": "build-fixtures",
+     "label": "build/fixtures",
+     "title": "build/fixtures. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build-p256",
+     "label": "build/p256",
+     "title": "build/p256. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build-p214",
+     "label": "build/p214",
+     "title": "build/p214. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build-p218",
+     "label": "build/p218",
+     "title": "build/p218. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build-p234",
+     "label": "build/p234",
+     "title": "build/p234. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build-p235",
+     "label": "build/p235",
+     "title": "build/p235. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build",
+     "label": "build",
+     "title": "build. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build-p242",
+     "label": "build/p242",
+     "title": "build/p242. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "build-p245",
+     "label": "build/p245",
+     "title": "build/p245. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    }
+   ],
+   "edgeCount": 12,
+   "edges": [
+    {
+     "title": "build imports build-p234",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports build-p235",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports build-p242",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports build-p245",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build-p234 imports build",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build-p235 imports build",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build-p242 imports build",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build-p256 imports build",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports src/main",
+     "cls": "arch-map-edge arch-map-frame-edge"
+    },
+    {
+     "title": "build-p256 imports src/main",
+     "cls": "arch-map-edge arch-map-frame-edge"
+    },
+    {
+     "title": "build imports src/renderer",
+     "cls": "arch-map-edge arch-map-frame-edge"
+    },
+    {
+     "title": "build imports src/shared",
+     "cls": "arch-map-edge arch-map-frame-edge"
+    }
+   ],
+   "stubs": [
+    "src/main",
+    "src/renderer",
+    "src/shared"
+   ],
+   "partial": null,
+   "stale": null,
+   "files": null,
+   "wholeChars": 1272,
+   "wholeText": "tortie›buildSurfaceEngineFoundationbuild imports build-p234build imports build-p235build imports build-p242build imports build-p245build-p234 imports buildbuild-p235 imports buildbuild-p242 imports buildbuild-p256 imports buildbuild imports src/mainbuild-p256 imports src/mainbuild imports src/rendererbuild imports src/sharedThis part imports src/main. The drill stays inside the part; go up to visit it.src/mainThis part imports src/renderer. The drill stays inside the part; go up to visit it.src/rendererThis part imports src/shared. The drill stays inside the part; go up to visit it.src/sharedbuild/fixtures. Click to look inside. Written in this repository.build/fixturesOursbuild/p256. Click to look inside. Written in this repository.build/p256Oursbuild/p214. Click to look inside. Written in this repository.build/p214Oursbuild/p218. Click to look inside. Written in this repository.build/p218Oursbuild/p234. Click to look inside. Written in this repository.build/p234Oursbuild/p235. Click to look inside. Written in this repository.build/p235Oursbuild. Click to look inside. Written in this repository.buildOursbuild/p242. Click to look inside. Written in this repository.build/p242Oursbui"
+  },
+  "A.map.level3": {
+   "drilled": "build-fixtures",
+   "tab": true,
+   "crumbs": [
+    "tortie",
+    "build",
+    "build/fixtures"
+   ],
+   "boxes": [],
+   "edgeCount": 0,
+   "edges": [],
+   "stubs": [],
+   "partial": null,
+   "stale": null,
+   "files": null,
+   "wholeChars": 1644,
+   "wholeText": "tortie›build›build/fixturesWhat this module is made ofEvery file here sits under this module folder, and every line between them comes from the imports Tortie read. Nothing on this screen was written by hand.build/fixtures/arch-large/modules.jsonbuild/fixtures/arch/docs/arch/baseline.jsonbuild/fixtures/arch/docs/arch/components/ajv.jsonbuild/fixtures/arch/docs/arch/components/app.jsonbuild/fixtures/arch/docs/arch/components/bad-layer.jsonbuild/fixtures/arch/docs/arch/components/bad-lead-anchor.jsonbuild/fixtures/arch/docs/arch/components/bad-oid.jsonbuild/fixtures/arch/docs/arch/components/bomb-glob.jsonbuild/fixtures/arch/docs/arch/components/core.jsonbuild/fixtures/arch/docs/arch/components/dup-app.jsonbuild/fixtures/arch/docs/arch/components/extra-field.jsonbuild/fixtures/arch/docs/arch/components/foreign.jsonbuild/fixtures/arch/docs/arch/components/hostile-glob.jsonbuild/fixtures/arch/docs/arch/components/left-pad.jsonbuild/fixtures/arch/docs/arch/components/store.jsonbuild/fixtures/arch/docs/arch/components/vendored-lib.jsonbuild/fixtures/arch/docs/arch/contract.jsonbuild/fixtures/arch/docs/arch/edges.jsonbuild/fixtures/arch/expected.jsonbuild/fixtures/arch/facts.jsonbuild/fix"
+  },
+  "A.draftButton": {
+   "label": "Draft the contract",
+   "disabled": false,
+   "title": "Writes a small deterministic skeleton into docs/arch, drawn from the code alone. It lands as an ordinary uncommitted change, so Source Control shows every line and you commit it or throw it away."
+  },
+  "A.msToContractCockpit": 506,
+  "A.contract": {
+   "ribbon": "Nothing has landed under these promises since the contract last changed.",
+   "ribbonAction": null,
+   "pass": "Filling inNo agent fills this in yet. Pick one in Settings.",
+   "passButton": null,
+   "strip": "10 checked and holds0 broke0 not checkable5 of 13480 imports could not be resolved, so nothing here claims they are absent.Tortie does not read imports for every file here: 224 .md, 120 .png, 85 .json. Nothing above claims anything about those.",
+   "stripLanes": [
+    "10 checked and holds0 broke0 not checkable"
+   ],
+   "stripNotes": [
+    "5 of 13480 imports could not be resolved, so nothing here claims they are absent.",
+    "Tortie does not read imports for every file here: 224 .md, 120 .png, 85 .json. Nothing above claims anything about those."
+   ],
+   "problems": null,
+   "failures": [
+    "Did not holdEvery promise Tortie can check holds."
+   ],
+   "outline": [
+    "Engine. Other parts import it and it imports others.src/main1,057 files, TypeScript; made of machines, arch, overview, manifest, harness and 59 more; used by build; uses src/shared; entry src/main/index.ts.",
+    "Engine. Other parts import it and it imports others.src/renderer1,052 files, mostly TypeScript; made of app, editor, scm, arch, settings and 25 more; used by build and demo; uses src/shared; entry src/renderer/index.html.",
+    "Surface. No other part imports it.build483 files, mostly JavaScript; made of probe*, conformance*, assert*, redline*, p138* and 99 more; uses src/main and src/renderer and 1 more; no other part uses it; entry build/p256/explorer-app/main.js.",
+    "Surface. No other part imports it.docs410 files, Markdown and images; made of research, shots, audits, brand, readme and 2 more; not code apart from 27 files.",
+    "Engine. Other parts import it and it imports others.src/shared99 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 40 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.",
+    "Surface. No other part imports it.everything else48 files, JSON and other files; 5 small folders (resources, .github, .claude, patches, src/test) and 24 root files; not code apart from 3 files.",
+    "Surface. No other part imports it.demo19 files, mostly TypeScript; made of bridge and 4 more; uses src/shared and src/renderer; no other part uses it; entry demo/index.html.",
+    "Surface. No other part imports it.src/preload19 files, TypeScript; made of machines, terminal, arch, bridge, context and 14 more; uses src/shared; no other part uses it; entry src/preload/index.ts.",
+    "buildOurs",
+    "buildOurs",
+    ".claudeOurs",
+    ".claudeOurs",
+    "demoOurs",
+    "demoOurs",
+    "docsOurs",
+    "docsOurs",
+    ".githubOurs",
+    ".githubOurs",
+    "patchesOurs",
+    "patchesOurs"
+   ],
+   "outlineNames": [
+    "build",
+    ".claude",
+    "demo",
+    "docs",
+    ".github",
+    "patches",
+    "resources",
+    "src"
+   ],
+   "gaps": null,
+   "prose": null,
+   "modules": null,
+   "changed": null,
+   "sections": [
+    {
+     "label": "Components",
+     "chars": 1636
+    },
+    {
+     "label": "Filling in",
+     "chars": 59
+    },
+    {
+     "label": "Promises by coverage",
+     "chars": 244
+    },
+    {
+     "label": "Promises that did not hold",
+     "chars": 49
+    },
+    {
+     "label": "Components",
+     "chars": 88
+    }
+   ],
+   "wholeChars": 2337
+  },
+  "A.paneAfterDraft": {
+   "pane": true,
+   "actions": [
+    {
+     "label": "Open the map",
+     "title": "Draws this repository as a small map in a full size tab. No contract is needed and nothing is written.",
+     "disabled": false
+    },
+    {
+     "label": "Read the code again",
+     "title": "Reads the code again and checks any promises against it. The file watcher cannot see a folder that did not exist when this view opened.",
+     "disabled": false
+    }
+   ],
+   "subject": "tortie",
+   "line": "3,187 files, mostly TypeScript; 8 parts, the biggest src/main (33%); 11 connections between parts; 8,793 of 13,486 imports lead inside the repository.",
+   "lineTitle": "From the code alone. Files are what git tracks, the language is the most common file type, a part is a box on the map, a connection is one part importing another, and an import leads inside the repository when it resolves to a tracked file.",
+   "model": "No model reading yet.",
+   "modelTitle": "The line above comes from the code alone. A model can add what the repository is for, drawn under its own label and never as a fact.",
+   "rows": [
+    {
+     "id": "src-main",
+     "label": "src/main",
+     "band": "Engine. Other parts import it and it imports others.",
+     "weight": "33% of the files in the repository",
+     "sentence": "1,057 files, TypeScript; made of machines, arch, overview, manifest, harness and 59 more; used by build; uses src/shared; entry src/main/index.ts.",
+     "facts": [
+      "Size: 1,057 files, 326,019 lines",
+      "Languages: TypeScript 1,034, text files 18, JSON 4, JavaScript 1",
+      "Defines: 4,937 functions, 2,283 constants, 964 interfaces, 925 methods",
+      "Entries: src/main/index.ts, src/main/actions/index.ts, src/main/activity/index.ts, src/main/agents/index.ts",
+      "Imports: 5,954 written, 3,874 to this repository, 2,080 to dependencies, 0 not followed",
+      "Used by: build 144, src/renderer 11",
+      "Uses: src/shared 534, src/renderer 1",
+      "Folders: machines 151, arch 101, overview 69, manifest 64, harness 49, sessions 42, context 36, diagnostics 34, tmux 31, activity 28, fs 23, git 23, updates 22, actions 21, credentials 21, specstory 20, usage 20, config 18, log 18, restore 18, symbols 17, search 13, skills 13, __tests__ 12, agents 12, db 11, settings 11, watcher 11, logins 10, projects 10, quickopen 10, shell 10, conformance 9, preview 9, durable 8, proc 7, drop 6, migrate 6, recents 6, restart 6, attach 5, capture 4, fault 4, notice 4, scrollback 4, tray 4, baselines 3, power 3, security 3, assets 2, cache 2"
+     ]
+    },
+    {
+     "id": "src-renderer",
+     "label": "src/renderer",
+     "band": "Engine. Other parts import it and it imports others.",
+     "weight": "33% of the files in the repository",
+     "sentence": "1,052 files, mostly TypeScript; made of app, editor, scm, arch, settings and 25 more; used by build and demo; uses src/shared; entry src/renderer/index.html.",
+     "facts": [
+      "Size: 1,052 files, 260,497 lines",
+      "Languages: TypeScript 961, CSS 66, images 17, .woff2 files 4, HTML 2",
+      "Defines: 4,143 functions, 2,207 constants, 832 methods, 675 interfaces",
+      "Entries: src/renderer/index.html, src/renderer/main.tsx, src/renderer/arch/index.ts, src/renderer/context/index.ts",
+      "Imports: 5,087 written, 4,024 to this repository, 1,062 to dependencies, 1 not followed",
+      "Used by: build 35, demo 4, src/main 1, src/shared 1",
+      "Uses: src/shared 755, src/main 11",
+      "Folders: app 188, editor 141, scm 95, arch 78, settings 76, context 65, state 65, terminal 61, tree 60, overview 40, machines 30, search 23, assets 21, theme 18, diagnostics 16, quickopen 14, icons 12, pierre 12, zoom 12, controls 5, errors 5, styles 4, keys 2, lazy 2, __tests__ 1, menus 1"
+     ]
+    },
+    {
+     "id": "build",
+     "label": "build",
+     "band": "Surface. No other part imports it.",
+     "weight": "15% of the files in the repository",
+     "sentence": "483 files, mostly JavaScript; made of probe*, conformance*, assert*, redline*, p138* and 99 more; uses src/main and src/renderer and 1 more; no other part uses it; entry build/p256/explorer-app/main.js.",
+     "facts": [
+      "Size: 483 files, 312,796 lines",
+      "Languages: JavaScript 287, TypeScript 92, JSON 46, text files 31, Markdown 14",
+      "Defines: 6,173 constants, 4,088 functions, 76 interfaces, 42 methods",
+      "Entries: build/p256/explorer-app/main.js",
+      "Imports: 1,993 written, 566 to this repository, 1,423 to dependencies, 4 not followed",
+      "Uses: src/main 144, src/renderer 35, src/shared 21",
+      "Folders: p256 41, p214 30, fixtures 28, p218 21, p249 16, p248 11, p241 9, p246 8, p215 7, p240 5, p245 5, p244 4, p247 4, p250 4, p243 3, p253 3, p251 2, p252 2, p234 1, p235 1, p238 1, p242 1, p242-2 1, p254 1"
+     ]
+    },
+    {
+     "id": "docs",
+     "label": "docs",
+     "band": "Surface. No other part imports it.",
+     "weight": "13% of the files in the repository",
+     "sentence": "410 files, Markdown and images; made of research, shots, audits, brand, readme and 2 more; not code apart from 27 files.",
+     "facts": [
+      "Size: 410 files, 149,531 lines",
+      "Languages: Markdown 199, images 121, JavaScript 27, JSON 15, log files 11",
+      "Defines: 188 functions, 177 constants, 5 methods, 1 class",
+      "Imports: 95 written, 36 to this repository, 59 to dependencies, 0 not followed",
+      "Folders: research 304, shots 35, audits 26, brand 26, readme 6, designs 4, method 3"
+     ]
+    },
+    {
+     "id": "src-shared",
+     "label": "src/shared",
+     "band": "Engine. Other parts import it and it imports others.",
+     "weight": "3% of the files in the repository",
+     "sentence": "99 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 40 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.",
+     "facts": [
+      "Size: 99 files, 29,938 lines",
+      "Languages: TypeScript 99",
+      "Defines: 605 interfaces, 289 constants, 267 methods, 221 functions",
+      "Entries: src/shared/ipc/index.ts, src/shared/ipc/app.ts",
+      "Imports: 249 written, 198 to this repository, 51 to dependencies, 0 not followed",
+      "Used by: src/renderer 755, src/main 534, src/preload 33, build 21, demo 8",
+      "Uses: src/renderer 1",
+      "Folders: ipc 33, __tests__ 23"
+     ]
+    },
+    {
+     "id": "other",
+     "label": "everything else",
+     "band": "Surface. No other part imports it.",
+     "weight": "2% of the files in the repository",
+     "sentence": "48 files, JSON and other files; 5 small folders (resources, .github, .claude, patches, src/test) and 24 root files; not code apart from 3 files.",
+     "facts": [
+      "Size: 48 files, 16,296 lines",
+      "Languages: JSON 18, Markdown 9, YAML 6, files with no extension 3, images 3",
+      "Defines: 2 constants, 2 functions",
+      "Declares: package.json tortie",
+      "Imports: 6 written, 0 to this repository, 6 to dependencies, 0 not followed",
+      "Folders: resources 16, .github 5, .claude 1, patches 1, test 1",
+      "Also holds: src/test"
+     ]
+    },
+    {
+     "id": "demo",
+     "label": "demo",
+     "band": "Surface. No other part imports it.",
+     "weight": "1% of the files in the repository",
+     "sentence": "19 files, mostly TypeScript; made of bridge and 4 more; uses src/shared and src/renderer; no other part uses it; entry demo/index.html.",
+     "facts": [
+      "Size: 19 files, 4,279 lines",
+      "Languages: TypeScript 14, HTML 2, Markdown 2, JSON 1",
+      "Defines: 47 constants, 40 functions, 16 methods, 6 interfaces",
+      "Entries: demo/index.html, demo/main.ts",
+      "Imports: 30 written, 27 to this repository, 3 to dependencies, 0 not followed",
+      "Uses: src/shared 8, src/renderer 4",
+      "Folders: bridge 11"
+     ]
+    },
+    {
+     "id": "src-preload",
+     "label": "src/preload",
+     "band": "Surface. No other part imports it.",
+     "weight": "1% of the files in the repository",
+     "sentence": "19 files, TypeScript; made of machines, terminal, arch, bridge, context and 14 more; uses src/shared; no other part uses it; entry src/preload/index.ts.",
+     "facts": [
+      "Size: 19 files, 1,390 lines",
+      "Languages: TypeScript 19",
+      "Defines: 30 constants, 13 functions, 3 methods, 1 interface",
+      "Entries: src/preload/index.ts",
+      "Imports: 72 written, 68 to this repository, 4 to dependencies, 0 not followed",
+      "Uses: src/shared 33"
+     ]
+    }
+   ],
+   "sections": [
+    {
+     "label": "Components",
+     "cls": "arch-outline rd-parts",
+     "chars": 1636
+    },
+    {
+     "label": "Filling in",
+     "cls": "arch-pass",
+     "chars": 59
+    },
+    {
+     "label": "Promises by coverage",
+     "cls": "arch-strip",
+     "chars": 244
+    },
+    {
+     "label": "Promises that did not hold",
+     "cls": "arch-failures",
+     "chars": 49
+    },
+    {
+     "label": "Components",
+     "cls": "arch-outline",
+     "chars": 88
+    }
+   ],
+   "crumb": null,
+   "offerTitle": null,
+   "offerBody": null,
+   "offerActions": [],
+   "offerPassSentence": null,
+   "offerDisclosure": null,
+   "wholeText": "Architecturetortie3,187 files, mostly TypeScript; 8 parts, the biggest src/main (33%); 11 connections between parts; 8,793 of 13,486 imports lead inside the repository.No model reading yet.ComponentsEngine. Other parts import it and it imports others.src/main1,057 files, TypeScript; made of machines, arch, overview, manifest, harness and 59 more; used by build; uses src/shared; entry src/main/index.ts.Engine. Other parts import it and it imports others.src/renderer1,052 files, mostly TypeScript; made of app, editor, scm, arch, settings and 25 more; used by build and demo; uses src/shared; entry src/renderer/index.html.Surface. No other part imports it.build483 files, mostly JavaScript; made of probe*, conformance*, assert*, redline*, p138* and 99 more; uses src/main and src/renderer and 1 more; no other part uses it; entry build/p256/explorer-app/main.js.Surface. No other part imports it.docs410 files, Markdown and images; made of research, shots, audits, brand, readme and 2 more; not code apart from 27 files.Engine. Other parts import it and it imports others.src/shared99 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 40 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.Surface. No other part imports it.everything else48 files, JSON and other files; 5 small folders (resources, .github, .claude, patches, src/test) and 24 root files; not code apart from 3 files.Surface. No other part imports it.demo19 files, mostly TypeScript; made of bridge and 4 more; uses src/shared and src/renderer; no other part uses it; entry demo/index.html.Surface. No other part imports it.src/preload19 files, TypeScript; made of machines, terminal, arch, bridge, context and 14 more; uses src/shared; no other part uses it; entry src/preload/index.ts.Filling inNo agent fills this in yet. Pick one in Settings.Nothing has landed under these promises since the contract last changed.10 checked and holds0 broke0 not checkable5 of 13480 imports could not be resolved, so nothing here claims they are absent.Tortie does not read imports for every file here: 224 .md, 120 .png, 85 .json. Nothing above claims anything about those.Did not holdEvery promise Tortie can check holds.ComponentsbuildOurs.claudeOursdemoOursdocsOurs.githubOurspatchesOursresourcesOurssrcOurs",
+   "wholeChars": 2337
+  },
+  "A.contractWithSelection": {
+   "ribbon": "Nothing has landed under these promises since the contract last changed.",
+   "ribbonAction": null,
+   "pass": "Filling inNo agent fills this in yet. Pick one in Settings.",
+   "passButton": null,
+   "strip": "No promise in the contract touches this part, so there is nothing to check inside it.",
+   "stripLanes": [],
+   "stripNotes": [
+    "No promise in the contract touches this part, so there is nothing to check inside it."
+   ],
+   "problems": null,
+   "failures": [
+    "Did not holdEvery promise Tortie can check in this part holds."
+   ],
+   "outline": [
+    "Engine. Other parts import it and it imports others.src/main1,057 files, TypeScript; made of machines, arch, overview, manifest, harness and 59 more; used by build; uses src/shared; entry src/main/index.ts.",
+    "Engine. Other parts import it and it imports others.src/renderer1,052 files, mostly TypeScript; made of app, editor, scm, arch, settings and 25 more; used by build and demo; uses src/shared; entry src/renderer/index.html.",
+    "Surface. No other part imports it.build483 files, mostly JavaScript; made of probe*, conformance*, assert*, redline*, p138* and 99 more; uses src/main and src/renderer and 1 more; no other part uses it; entry build/p256/explorer-app/main.js.",
+    "Surface. No other part imports it.docs410 files, Markdown and images; made of research, shots, audits, brand, readme and 2 more; not code apart from 27 files.",
+    "Engine. Other parts import it and it imports others.src/shared99 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 40 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.",
+    "Surface. No other part imports it.everything else48 files, JSON and other files; 5 small folders (resources, .github, .claude, patches, src/test) and 24 root files; not code apart from 3 files.",
+    "Surface. No other part imports it.demo19 files, mostly TypeScript; made of bridge and 4 more; uses src/shared and src/renderer; no other part uses it; entry demo/index.html.",
+    "Surface. No other part imports it.src/preload19 files, TypeScript; made of machines, terminal, arch, bridge, context and 14 more; uses src/shared; no other part uses it; entry src/preload/index.ts.",
+    "buildOurs",
+    "buildOurs",
+    ".claudeOurs",
+    ".claudeOurs",
+    "demoOurs",
+    "demoOurs",
+    "docsOurs",
+    "docsOurs",
+    ".githubOurs",
+    ".githubOurs",
+    "patchesOurs",
+    "patchesOurs"
+   ],
+   "outlineNames": [
+    "build",
+    ".claude",
+    "demo",
+    "docs",
+    ".github",
+    "patches",
+    "resources",
+    "src"
+   ],
+   "gaps": null,
+   "prose": null,
+   "modules": null,
+   "changed": null,
+   "sections": [
+    {
+     "label": "Components",
+     "chars": 1636
+    },
+    {
+     "label": "Filling in",
+     "chars": 59
+    },
+    {
+     "label": "Promises by coverage",
+     "chars": 85
+    },
+    {
+     "label": "Promises that did not hold",
+     "chars": 62
+    },
+    {
+     "label": "Components",
+     "chars": 88
+    }
+   ],
+   "wholeChars": 2206
+  },
+  "A.map.asOpenedWithContract": {
+   "tab": true,
+   "crumbs": [
+    "tortie",
+    "src/main"
+   ],
+   "boxes": [
+    {
+     "id": "src-main",
+     "label": "src/main",
+     "title": "src/main. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-agents",
+     "label": "src/main/agents",
+     "title": "src/main/agents. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-diagnostics",
+     "label": "src/main/diagnostics",
+     "title": "src/main/diagnostics. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-log",
+     "label": "src/main/log",
+     "title": "src/main/log. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-machines",
+     "label": "src/main/machines",
+     "title": "src/main/machines. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-manifest",
+     "label": "src/main/manifest",
+     "title": "src/main/manifest. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-notice",
+     "label": "src/main/notice",
+     "title": "src/main/notice. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-proc",
+     "label": "src/main/proc",
+     "title": "src/main/proc. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main-tmux",
+     "label": "src/main/tmux",
+     "title": "src/main/tmux. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    }
+   ],
+   "edgeCount": 63,
+   "edges": [
+    {
+     "title": "src-main imports src-main-agents",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-main-diagnostics",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-main-log",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-main-machines",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-main-manifest",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-main-notice",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-main-proc",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-main-tmux",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main-agents imports src-main",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main-agents imports src-main-log",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main-agents imports src-main-manifest",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main-agents imports src-main-proc",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main-agents imports src-main-tmux",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main-diagnostics imports src-main",
+     "cls": "arch-map-edge"
+    }
+   ],
+   "stubs": [
+    "build",
+    "src/renderer",
+    "src/renderer",
+    "src/shared"
+   ],
+   "partial": null,
+   "stale": null,
+   "files": null,
+   "wholeChars": 3386,
+   "wholeText": "tortie›src/mainEnginesrc-main imports src-main-agentssrc-main imports src-main-diagnosticssrc-main imports src-main-logsrc-main imports src-main-machinessrc-main imports src-main-manifestsrc-main imports src-main-noticesrc-main imports src-main-procsrc-main imports src-main-tmuxsrc-main-agents imports src-mainsrc-main-agents imports src-main-logsrc-main-agents imports src-main-manifestsrc-main-agents imports src-main-procsrc-main-agents imports src-main-tmuxsrc-main-diagnostics imports src-mainsrc-main-diagnostics imports src-main-logsrc-main-diagnostics imports src-main-machinessrc-main-diagnostics imports src-main-manifestsrc-main-diagnostics imports src-main-procsrc-main-diagnostics imports src-main-tmuxsrc-main-log imports src-mainsrc-main-log imports src-main-procsrc-main-log imports src-main-tmuxsrc-main-machines imports src-mainsrc-main-machines imports src-main-agentssrc-main-machines imports src-main-logsrc-main-machines imports src-main-manifestsrc-main-machines imports src-main-noticesrc-main-machines imports src-main-tmuxsrc-main-manifest imports src-mainsrc-main-manifest imports src-main-agentssrc-main-manifest imports src-main-logsrc-main-manifest imports src-main-mac"
+  },
+  "A.map.level1.withContract": {
+   "tab": true,
+   "crumbs": [
+    "tortie"
+   ],
+   "boxes": [
+    {
+     "id": "build",
+     "label": "build",
+     "title": "build. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "docs",
+     "label": "docs",
+     "title": "docs. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "demo",
+     "label": "demo",
+     "title": "demo. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "other",
+     "label": "everything else",
+     "title": "everything else. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-preload",
+     "label": "src/preload",
+     "title": "src/preload. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main",
+     "label": "src/main",
+     "title": "src/main. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-renderer",
+     "label": "src/renderer",
+     "title": "src/renderer. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-shared",
+     "label": "src/shared",
+     "title": "src/shared. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    }
+   ],
+   "edgeCount": 11,
+   "edges": [
+    {
+     "title": "build imports src-main",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "build imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "demo imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "demo imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-main imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-preload imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-renderer imports src-main",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-renderer imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "title": "src-shared imports src-renderer",
+     "cls": "arch-map-edge"
+    }
+   ],
+   "stubs": [],
+   "partial": null,
+   "stale": null,
+   "files": null,
+   "wholeChars": 894,
+   "wholeText": "tortieSurfaceEnginebuild imports src-mainbuild imports src-rendererbuild imports src-shareddemo imports src-rendererdemo imports src-sharedsrc-main imports src-renderersrc-main imports src-sharedsrc-preload imports src-sharedsrc-renderer imports src-mainsrc-renderer imports src-sharedsrc-shared imports src-rendererbuild. Click to look inside. Written in this repository.buildOursdocs. Click to look inside. Written in this repository.docsOursdemo. Click to look inside. Written in this repository.demoOurseverything else. Click to look inside. Written in this repository.everything elseOurssrc/preload. Click to look inside. Written in this repository.src/preloadOurssrc/main. Click to look inside. Written in this repository.src/mainOurssrc/renderer. Click to look inside. Written in this repository.src/rendererOurssrc/shared. Click to look inside. Written in this repository.src/sharedOurs"
+  },
+  "F1.levelOneComparison": {
+   "isLevelOne": true,
+   "crumbsBefore": [
+    "tortie"
+   ],
+   "crumbsAfter": [
+    "tortie"
+   ],
+   "boxesBefore": [
+    "build",
+    "docs",
+    "demo",
+    "everything else",
+    "src/preload",
+    "src/main",
+    "src/renderer",
+    "src/shared"
+   ],
+   "boxesAfter": [
+    "build",
+    "docs",
+    "demo",
+    "everything else",
+    "src/preload",
+    "src/main",
+    "src/renderer",
+    "src/shared"
+   ],
+   "labelsIdentical": true,
+   "edgesBefore": 11,
+   "edgesAfter": 11,
+   "edgeClassesAfter": [
+    "arch-map-edge"
+   ],
+   "bareClassEdges": 11
+  },
+  "A.docsArchOnDisk": "docs/arch/components/build.json\ndocs/arch/components/claude.json\ndocs/arch/components/demo.json\ndocs/arch/components/docs.json\ndocs/arch/components/github.json\ndocs/arch/components/patches.json\ndocs/arch/components/resources.json\ndocs/arch/components/src.json\ndocs/arch/contract.json\ndocs/arch/edges.json\n---\n     342 docs/arch/contract.json\n     831 docs/arch/edges.json\n    1173 total",
+  "A.docsArchSample": "{\n  \"edges\": [\n    {\n      \"id\": \"build-imports-src\",\n      \"from\": \"build\",\n      \"to\": \"src\",\n      \"kind\": \"imports\",\n      \"rule\": \"may\",\n      \"checker\": \"imports\",\n      \"note\": \"Tortie saw this import 200 times and wrote it down as something that happens, not as a promise. Decide whether it is one. A healthy contract starts with 5 to 10 promises about what must and must not happen.\",\n      \"evidence\": []\n    },\n    {\n      \"id\": \"demo-imports-src\",\n      \"from\": \"demo\",\n      \"to\": \"src\",\n      \"kind\": \"imports\",\n      \"rule\": \"may\",\n      \"checker\": \"imports\",\n      \"note\": \"Tortie saw this import 12 times and wrote it down as something that happens, not as a promise. Decide whether it is one. A healthy contract starts with 5 to 10 promises about what must and must not happen.\",\n      \"evidence\": []\n    }\n  ]\n}\n\nbuild.json\nclaude.json\ndemo.json\ndocs.json\ngithub.json\npatches.json\nresources.json\nsrc.json\n{\n  \"id\": \"build\",\n  \"name\": \"build\",\n  \"kind\": \"component\",\n  \"layer\": \"surface\",\n  \"provenance\": \"first-party\",\n  \"anchors\": [\n    \"build\"\n  ],\n  \"boundary\": \"open\",\n  \"description\": \"\",\n  \"evidence\": [],\n  \"deprecated\": false,\n  \"gaps\": []\n}",
+  "sessionStatusElements": 0
+ },
+ "gitStatusA": {
+  "before": "",
+  "after": ""
+ },
+ "gitStatusB": null
+}

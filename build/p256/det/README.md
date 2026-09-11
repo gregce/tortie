@@ -21,7 +21,8 @@ keychain, makes no request, and reads nothing under the person's home.
 | `sample.mts`, `score.mts` | the deterministic precision sampler and the score against `hand-precision.json` |
 | `recall.mts` | the ten hand-enumerated recall scopes, each asserting the count it was recorded at |
 | `show.mts` | read a fact file |
-| `hand-precision.json` | 341 hand judgments, with the judging rule stated in the file |
+| `hand-precision.json` | 341 hand judgments, with the judging rule stated in the file. ONE moved in the revision round of 2026-09-10 and the file says which and why |
+| `ladder.mts` | **the five evidence rungs of research 118 §7.2, COMPUTED**, using Tortie's own shipped resolver and `SymbolExtractor`. `--self-test` proves all five fire on planted graphs and launches nothing |
 
 ## Running it
 
@@ -34,4 +35,20 @@ node_modules/.bin/tsx build/p256/det/recall.mts <scratch>/repos <scratch>/facts
 build/p256/det/corpus.sh <scratch> clean
 ```
 
-The whole corpus is about 53 s in one process with the wrapper pass and about 18 s without.
+The whole corpus is about 53 s in one process with the wrapper pass and about 18 s without — being
+**2.94×**, which is the honest cost of the wrapper pass and not the 27% the fact file's own
+`wrapperMs` field reports, because turning the pass off also removes the unwrap attempted at every
+call site in the main pass.
+
+## The ladder
+
+```
+node_modules/.bin/tsx build/p256/det/ladder.mts --self-test
+node_modules/.bin/tsx build/p256/det/ladder.mts <repo> <facts.json> [pass.json]
+```
+
+With a pass it reports the rung per component beside the word the pass carries; without one it uses
+path-anchored parts, which is what a `docs/arch/` glob looks like. `measurements/ladder.txt` is what
+it printed over four repositories. **Its most useful output is a refutation**: on the nine parts this
+repository's hand pass names, eight of nine read `tested`, and widening each component's anchors from
+its cited files to every tracked file under their directories changes not one of them.

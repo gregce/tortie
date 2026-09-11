@@ -1,6 +1,6 @@
 [
  {
-  "file": "/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p256-q2/runstory.html",
+  "file": "/private/tmp/p256rev/html/runstory.html",
   "rest": {
    "title": "runstory · As-built architecture",
    "desc": "An offline, interactive explanation of runstory as built. Explore the components, follow a commit, see which checks run and inspect proposed product area boundaries.",
@@ -136,12 +136,12 @@
    },
    "foldWords": 253,
    "bridgeLabels": [
-    "Git pack\n+ envelope\n→\n←\nPolled verdict\n+ artifact",
-    "Git pack\n+ envelope\n→",
-    "←\nPolled verdict\n+ artifact",
-    "Run token\n+ provi ion\n→\n←\nEvidence\n+ completion",
-    "Run token\n+ provi ion\n→",
-    "←\nEvidence\n+ completion"
+    "Git pack + envelope → ← Polled verdict + artifacts",
+    "Git pack + envelope →",
+    "← Polled verdict + artifacts",
+    "Run token + provision → ← Evidence + completion",
+    "Run token + provision →",
+    "← Evidence + completion"
    ],
    "regionCards": [
     {
@@ -272,7 +272,7 @@
   }
  },
  {
-  "file": "/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p256-q2/specfactory.html",
+  "file": "/private/tmp/p256rev/html/specfactory.html",
   "rest": {
    "title": "SpecFactory · As-built architecture",
    "desc": "Explore SpecFactory as built: the browser, durable ledger, warm Claude session, native macOS boundary, Workflow method, current gates and proposed product areas.",
@@ -478,10 +478,10 @@
    },
    "foldWords": 285,
    "bridgeLabels": [
-    "me age + reque t ID\n↓ HTTPS command\n↑  nap hot + SSE event",
+    "message + request ID ↓ HTTPS command ↑ snapshot + SSE events",
     "⇄",
     "⇄",
-    "← Signed runner event  → durable projection →  nap hot and  erver- ent event  → brow er",
+    "← Signed runner events → durable projection → snapshot and server-sent events → browser",
     "→",
     "→",
     "→",
@@ -661,7 +661,7 @@
   }
  },
  {
-  "file": "/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p256-q2/stoa.html",
+  "file": "/private/tmp/p256rev/html/stoa.html",
   "rest": {
    "title": "Stoa Architecture Explorer",
    "desc": "As-built architecture explorer for the Stoa monorepo, traced from source at revision dc942342.",
@@ -1232,14 +1232,14 @@
     }
    ],
    "legend": [
-    "Implemented, not  hipped Code exi t ; no relea e path reache  u er .Compo ed in  ource An entrypoint connect  it; a runtime gate may  till apply.Component-te ted A named te t or CI check e tabli he  a limited property.Out ide thi  repo Only the client  ide of the boundary can be read here.",
-    "Implemented, not  hipped Code exi t ; no relea e path reache  u er .",
-    "Implemented, not  hipped",
-    "Compo ed in  ource An entrypoint connect  it; a runtime gate may  till apply.",
-    "Compo ed in  ource",
-    "Component-te ted A named te t or CI check e tabli he  a limited property.",
-    "Component-te ted",
-    "Out ide thi  repo Only the client  ide of the boundary can be read here."
+    "Implemented, not shipped Code exists; no release path reaches users.Composed in source An entrypoint connects it; a runtime gate may still apply.Component-tested A named test or CI check establishes a limited property.Outside this repo Only the client side of the boundary can be read here.",
+    "Implemented, not shipped Code exists; no release path reaches users.",
+    "Implemented, not shipped",
+    "Composed in source An entrypoint connects it; a runtime gate may still apply.",
+    "Composed in source",
+    "Component-tested A named test or CI check establishes a limited property.",
+    "Component-tested",
+    "Outside this repo Only the client side of the boundary can be read here."
    ],
    "notes": [
     {

@@ -10,8 +10,21 @@
  *
  *   1. Every source link resolves. The file is tracked and the line exists.
  *   2. Every citation is a FACT the deterministic pass actually emitted at that
- *      place, not merely a line that happens to exist.
+ *      place, not merely a line that happens to exist. This is PROXIMITY and
+ *      not shape: ANY fact within `LINE_SLACK` lines backs any claim, because
+ *      a component's contract has no wanted shape. Where a shape IS wanted the
+ *      caller says so and rule 7 asks it separately, and the two questions are
+ *      reported separately so neither is mistaken for the other.
  *   3. Every evidence level is justified by a detected call site or test.
+ *
+ * WHAT IT DOES NOT DO, measured rather than reasoned about. It is not a lie
+ * detector: `build/p256/semantic/plant.mts` runs it over seven deliberately
+ * false copies of the researcher's own pass and it catches TWO. A false
+ * sentence with a true citation is backed, and so it should be — the chip says
+ * a fact was found there, never that the sentence is true.
+ * And backing has a floor: `build/p256/semantic/null-model.mts` measures what
+ * share of lines sit within `LINE_SLACK` of SOME fact at all, so a reader can
+ * tell 58.5% from the 23.8% a coin would score over the same files.
  *
  * Plus four structural rules that cost nothing and catch the failures a
  * hand-written or model-written record really makes: a component with no fact
@@ -122,41 +135,69 @@ function main(): void {
   let claims = 0;
   let resolved = 0;
   let backed = 0;
+  let gateClaims = 0;
+  let gateShaped = 0;
   const claimRows: { where: string; at: string; resolves: boolean; backedBy: string | null }[] = [];
 
-  const checkClaim = (where: string, c: Claim, want: (f: Fact) => boolean, wantWhat: string): Fact | null => {
+  /**
+   * Rule 1 and rule 2 for one citation, plus the OPTIONAL shape question.
+   *
+   * `backing` is rule 2 and is shape-agnostic on purpose. `shaped` answers a
+   * caller that wants a particular kind of fact — today only the gate rule —
+   * and it searches the whole span rather than reading the first fact in it,
+   * which is the defect this returned before: `near.find(() => true)` handed
+   * back whichever fact the reader happened to emit first, so a gate cited at
+   * a line that really carries a `gate.refusal` was reported as citing
+   * nothing the gate rules found whenever another fact sat nearer in the
+   * array. Measured: `build/assert-css-order.mjs:295` IS a `gate.refusal` and
+   * the old code answered with the `effect.fs.write` at line 298.
+   */
+  const checkClaim = (
+    where: string,
+    c: Claim,
+    want: (f: Fact) => boolean,
+    wantWhat: string
+  ): { backing: Fact | null; shaped: Fact | null } => {
+    const miss = { backing: null, shaped: null };
     claims += 1;
     const m = /^(.+):(\d+)$/.exec(c.at);
     if (m === null) {
       findings.push({ rule: '1-link-resolves', where, why: `the citation "${c.at}" is not file:line` });
       claimRows.push({ where, at: c.at, resolves: false, backedBy: null });
-      return null;
+      return miss;
     }
     const [, file, lineRaw] = m;
     const line = Number(lineRaw);
     if (!tracked.has(file)) {
       findings.push({ rule: '1-link-resolves', where, why: `${file} is not a tracked file of this repository` });
       claimRows.push({ where, at: c.at, resolves: false, backedBy: null });
-      return null;
+      return miss;
     }
     const n = linesOf(file);
     if (n < 0 || line < 1 || line > n) {
       findings.push({ rule: '1-link-resolves', where, why: `${file} has ${n} lines and the citation names line ${line}` });
       claimRows.push({ where, at: c.at, resolves: false, backedBy: null });
-      return null;
+      return miss;
     }
     resolved += 1;
     const near = (byFile.get(file) ?? []).filter((f) => Math.abs(f.line - line) <= LINE_SLACK);
-    const hit = near.find(want) ?? null;
+    // The SHAPE question is asked of the whole span, never of its first row.
+    const shaped = near.find(want) ?? null;
+    // The ledger names the shaped fact when a shape was asked for and found,
+    // so the printed row and the rule 7 count can never disagree.
+    const hit = shaped ?? near[0] ?? null;
     if (hit === null) {
-      const what = near.length === 0 ? 'the deterministic pass emitted no fact there at all' : `the facts there are ${[...new Set(near.map((f) => f.kind))].join(', ')}`;
-      findings.push({ rule: '2-citation-is-a-fact', where, why: `${c.at} is cited for ${wantWhat} and ${what}` });
+      findings.push({
+        rule: '2-citation-is-a-fact',
+        where,
+        why: `${c.at} is cited for ${wantWhat} and the deterministic pass emitted no fact there at all`
+      });
       claimRows.push({ where, at: c.at, resolves: true, backedBy: null });
-      return null;
+      return { backing: null, shaped: null };
     }
     backed += 1;
     claimRows.push({ where, at: c.at, resolves: true, backedBy: `${hit.category}/${hit.kind} (${hit.rule})` });
-    return hit;
+    return { backing: hit, shaped };
   };
 
   const ids = new Set<string>();
@@ -175,7 +216,9 @@ function main(): void {
     if (comp.facts.length === 0) {
       findings.push({ rule: '5-component-names-a-fact', where, why: 'the component names no fact at all' });
     }
-    const hits = comp.facts.map((c) => checkClaim(where, c, () => true, 'any fact')).filter((h): h is Fact => h !== null);
+    const hits = comp.facts
+      .map((c) => checkClaim(where, c, () => true, 'any fact').backing)
+      .filter((h): h is Fact => h !== null);
     // Rule 3. What each level needs from the deterministic half.
     if (comp.evidence === 'composed' && hits.length === 0) {
       findings.push({ rule: '3-evidence-justified', where, why: '"composed" needs at least one detected fact and none of its citations is one' });
@@ -240,14 +283,22 @@ function main(): void {
     }
     if (g.facts.length === 0) findings.push({ rule: '7-gate-names-a-gate-fact', where, why: 'the gate names no fact' });
     for (const c of g.facts) {
-      const hit = checkClaim(where, c, () => true, 'any fact');
-      if (hit !== null && hit.category !== 'gate') {
-        findings.push({
-          rule: '7-gate-names-a-gate-fact',
-          where,
-          why: `${c.at} is a ${hit.category}/${hit.kind} fact, and this gate cites nothing the gate rules found`
-        });
+      // The ONE place a shape is wanted, and it is asked of the whole span.
+      const { backing, shaped } = checkClaim(where, c, (f) => f.category === 'gate', 'a gate-shaped fact');
+      gateClaims += 1;
+      if (shaped !== null) {
+        gateShaped += 1;
+        continue;
       }
+      const what =
+        backing === null
+          ? 'the deterministic pass emitted no fact there at all'
+          : `the facts there are ${[...new Set((byFile.get(c.at.replace(/:\d+$/, '')) ?? []).filter((f) => Math.abs(f.line - Number(c.at.slice(c.at.lastIndexOf(':') + 1))) <= LINE_SLACK).map((f) => `${f.category}/${f.kind}`))].join(', ')}`;
+      findings.push({
+        rule: '7-gate-names-a-gate-fact',
+        where,
+        why: `${c.at} is cited for a gate and ${what}`
+      });
     }
   }
 
@@ -255,6 +306,11 @@ function main(): void {
   console.log(`claims: ${claims}`);
   console.log(`rule 1, the link resolves to a tracked line: ${resolved}/${claims} = ${((100 * resolved) / claims).toFixed(1)}%`);
   console.log(`rule 2, the citation names a fact the deterministic pass emitted: ${backed}/${claims} = ${((100 * backed) / claims).toFixed(1)}%`);
+  console.log(`   (rule 2 is PROXIMITY, any fact within ${LINE_SLACK} lines. Run null-model.mts for the share a coin would score.)`);
+  console.log(
+    `rule 7, a gate citation names a GATE-shaped fact: ${gateShaped}/${gateClaims}` +
+      (gateClaims === 0 ? '' : ` = ${((100 * gateShaped) / gateClaims).toFixed(1)}%`)
+  );
   console.log(`findings: ${findings.length}\n`);
   const byRule = new Map<string, Finding[]>();
   for (const f of findings) {

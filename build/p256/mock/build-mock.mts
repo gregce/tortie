@@ -14,14 +14,30 @@
  *     `build/p256/semantic/check.mts` applies: a fact of the wanted shape within three
  *     lines, out of the deterministic prototype's own fact file.
  *   - the COUNTS in the provenance line are read out of that fact file.
+ *   - the EVIDENCE RUNG on every node is COMPUTED here, by `build/p256/det/ladder.mts`
+ *     over the fact file and the repository's own first-party import graph. It is NOT
+ *     the word the pass carries. The first build of this page drew `EVIDENCE[c.evidence]`
+ *     straight out of the pass, which is the skill's decayed vocabulary and is the exact
+ *     thing §7.2 of the research forbids a model to write; the pass's own word is still
+ *     drawn, beside it, labelled as the writer's, so the two can be compared.
  *   - the LAYOUT — which region a component sits in, its three-to-five word label, and
- *     the name on each transport — is the researcher's, and the page's own footer says so.
+ *     the name on each transport — is the researcher's, lives in the PASS file rather
+ *     than in this builder, and the page's own footer says so.
  *
- * It spawns nothing, makes no request and writes exactly one file.
+ * IT REFUSES A FACT FILE THAT IS NOT ABOUT THIS PASS'S REPOSITORY. The first build held
+ * the regions and the labels as constants here, so handed gotify's fact file it drew
+ * these nine Tortie components, printed `backed 0` and refused nothing. A page that
+ * renders whatever it is given is a picture of its builder, not of a repository.
+ *
+ * It spawns exactly one program, `git`, with a fixed argv, makes no request and writes
+ * exactly one file.
  */
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
+
+import { importGraph, rungOf, type Rung } from '../det/ladder.mts';
 
 interface Fact { category: string; kind: string; subject: string; file: string; line: number; rule: string; lang: string }
 interface FactFile { repo: string; head: string; trackedFiles: number; parsedFiles: number; bytesRead: number; ms: number; facts: Fact[]; byCategory: Record<string, number> }
@@ -30,48 +46,30 @@ interface Component { id: string; name: string; job: string; input: string; outp
 interface Step { componentId: string; label: string; facts: Cite[] }
 interface Journey { id: string; name: string; steps: Step[] }
 interface Gate { id: string; question: string; answer: string; because: string; facts: Cite[] }
-interface Pass { head: string; components: Component[]; journeys: Journey[]; gates: Gate[] }
+interface Region { id: string; name: string; sub: string; dashed: boolean; ids: string[] }
+interface Transport { from: string; to: string; out: string; back: string }
+interface Layout { regions: Region[]; short: Record<string, string>; transports: Transport[] }
+interface Pass { head: string; components: Component[]; journeys: Journey[]; gates: Gate[]; layout: Layout }
 
 const LINE_SLACK = 3;
 
-/** The researcher's presentation layer: region, short label, transports. */
-const REGIONS = [
-  { id: 'window', name: 'Your window', sub: 'the renderer', dashed: false, ids: ['redline', 'external-door'] },
-  { id: 'engine', name: "The app's engine", sub: 'main, one process', dashed: false, ids: ['manifest', 'attach-host', 'arch-reading', 'guarded-write', 'logins', 'machines'] },
-  { id: 'tmux', name: 'The private tmux server', sub: 'the app does not own it', dashed: false, ids: ['durable-sessions'] },
-  { id: 'far', name: 'Another machine', sub: 'outside this repository', dashed: true, ids: [] }  // drawn as the band below the map
-];
-
-const SHORT: Record<string, string> = {
-  'durable-sessions': 'named sessions that outlive the app',
-  manifest: 'the record restore reads',
-  'attach-host': 'one pty per attached session',
-  'arch-reading': 'the picture, with no turn',
-  'guarded-write': 'the one door that rewrites a file',
-  redline: "an agent's edit, drawn over yours",
-  machines: 'the same work, over ssh',
-  logins: 'which account an agent signs in as',
-  'external-door': 'opening a path a transcript printed'
-};
-
-const TRANSPORTS = [
-  { from: 'window', to: 'engine', out: '229 typed invoke channels', back: 'pushes the window redraws from' },
-  { from: 'engine', to: 'tmux', out: 'commands, and one pty per attach', back: 'pane output and the session list' },
-  { from: 'engine', to: 'far', out: 'ssh, fixed argv', back: 'a bounded mirror of the folder' }
-];
-
-const EVIDENCE: Record<string, { label: string; cls: string }> = {
-  composed: { label: 'Composed in source', cls: 'ev-composed' },
-  'component-tested': { label: 'Component-tested', cls: 'ev-tested' },
-  library: { label: 'Implemented, not shipped', cls: 'ev-library' },
-  offrepo: { label: 'Outside this repository', cls: 'ev-offrepo' }
+/**
+ * THE FIVE COMPUTED RUNGS of research 118 §7.2, and nothing else may be drawn.
+ * A word the pass carries is never looked up here; `rungOf` answers it.
+ */
+const RUNG: Record<Rung, { label: string; cls: string; why: string }> = {
+  'off-repo': { label: 'Outside this repository', cls: 'ev-offrepo', why: 'No line this part names is a tracked file here.' },
+  declared: { label: 'Declared, reached by nothing', cls: 'ev-library', why: 'The code is here and nothing in the repository imports it or names it in a manifest.' },
+  composed: { label: 'Composed in source', cls: 'ev-composed', why: 'Something in this repository imports it, or a manifest names it.' },
+  reached: { label: 'On a path from something that starts', cls: 'ev-composed', why: 'A first-party import path runs from an entrypoint to it.' },
+  tested: { label: 'Reached, and a test imports it', cls: 'ev-tested', why: 'It is on a path from something that starts, and a file carrying a test fact imports it.' }
 };
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const factsPath = argv[0];
   if (factsPath === undefined) {
@@ -84,6 +82,46 @@ function main(): void {
 
   const facts = JSON.parse(readFileSync(factsPath, 'utf8')) as FactFile;
   const pass = JSON.parse(readFileSync(join(here, '..', 'semantic', 'tortie.pass.json'), 'utf8')) as Pass;
+  const { regions: REGIONS, short: SHORT, transports: TRANSPORTS } = pass.layout;
+
+  // THE REFUSAL. A fact file about some other repository cannot back this pass,
+  // and a page drawn from one would be a picture of this builder.
+  const repoRoot = resolve(facts.repo);
+  const tracked = new Set(
+    execFileSync('git', ['-C', repoRoot, 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
+      maxBuffer: 512 * 1024 * 1024,
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' }
+    })
+      .toString('utf8')
+      .split('\0')
+      .filter((x) => x.length > 0)
+  );
+  const citedFiles = new Set<string>();
+  for (const c of pass.components) for (const f of c.facts) citedFiles.add(f.at.replace(/:\d+$/, ''));
+  for (const j of pass.journeys) for (const st of j.steps) for (const f of st.facts) citedFiles.add(f.at.replace(/:\d+$/, ''));
+  for (const g of pass.gates) for (const f of g.facts) citedFiles.add(f.at.replace(/:\d+$/, ''));
+  const missing = [...citedFiles].filter((f) => !tracked.has(f));
+  if (missing.length > 0) {
+    console.error(
+      `build-mock: ${factsPath} is a fact file over ${repoRoot}, which does not track ${missing.length} of the ${citedFiles.size} files this pass cites (first: ${missing[0]}).\n` +
+        'This pass and that repository are not about the same thing. Refusing to draw a page.'
+    );
+    process.exit(2);
+  }
+
+  // THE COMPUTED RUNG, with the product's own resolver over the same repository.
+  const graph = await importGraph(repoRoot, [...tracked]);
+  const seeds = new Set(facts.facts.filter((f) => f.category === 'entrypoint').map((f) => f.file));
+  const testFiles = new Set(facts.facts.filter((f) => f.category === 'test').map((f) => f.file));
+  const named = new Set(facts.facts.filter((f) => f.category === 'boundary' || f.category === 'entrypoint').map((f) => f.file));
+  const rungById = new Map<string, Rung>();
+  for (const c of pass.components) {
+    rungById.set(
+      c.id,
+      rungOf(new Set(c.facts.map((f) => f.at.replace(/:\d+$/, ''))), tracked, graph, seeds, testFiles, named)
+    );
+  }
+  const rungOfComp = (c: Component): { label: string; cls: string; why: string } => RUNG[rungById.get(c.id) ?? 'declared'];
 
   const byFile = new Map<string, Fact[]>();
   for (const f of facts.facts) {
@@ -119,7 +157,7 @@ function main(): void {
   const byId = new Map(pass.components.map((c) => [c.id, c]));
 
   const node = (c: Component): string =>
-    `<button class="node" type="button" aria-pressed="false" data-node="${esc(c.id)}" id="node-${esc(c.id)}"><span class="dot ${EVIDENCE[c.evidence]?.cls ?? 'ev-composed'}" aria-hidden="true"></span><span class="node-name">${esc(c.name)}</span><span class="node-short">${esc(SHORT[c.id] ?? '')}</span></button>`;
+    `<button class="node" type="button" aria-pressed="false" data-node="${esc(c.id)}" id="node-${esc(c.id)}"><span class="dot ${rungOfComp(c).cls}" aria-hidden="true" title="${esc(rungOfComp(c).why)}"></span><span class="node-name">${esc(c.name)}</span><span class="node-short">${esc(SHORT[c.id] ?? '')}</span></button>`;
 
   const regionCol = (r: (typeof REGIONS)[number]): string => {
     const nodes = r.ids.map((id) => byId.get(id)).filter((c): c is Component => c !== undefined).map(node).join('');
@@ -145,7 +183,7 @@ function main(): void {
       <article class="inspector" data-for="${esc(c.id)}"${c.id === 'durable-sessions' ? '' : ' hidden'}>
         <header>
           <h3>${esc(c.name)}</h3>
-          <span class="ev ${EVIDENCE[c.evidence]?.cls ?? 'ev-composed'}">${esc(EVIDENCE[c.evidence]?.label ?? c.evidence)}</span>
+          <span class="ev ${rungOfComp(c).cls}" title="${esc(rungOfComp(c).why)}">${esc(rungOfComp(c).label)}</span>
           <span class="ev-count">${backedCount(c.facts)}</span>
         </header>
         <p class="job">${esc(c.job)}</p>
@@ -369,4 +407,7 @@ for (const b of document.querySelectorAll('.jump')) b.addEventListener('click', 
   console.log(`components ${pass.components.length}, claims ${claims.length}, backed ${backedAll}`);
 }
 
-main();
+main().catch((err) => {
+  console.error(String(err));
+  process.exit(1);
+});

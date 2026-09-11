@@ -12,6 +12,14 @@ app.disableHardwareAcceleration();
 const files = (process.env.P256_FILES || '').split(',').filter(Boolean);
 console.log('[p256] main booted with ' + files.length + ' files');
 
+// EVERY BACKSLASH IN THIS TEMPLATE LITERAL IS DOUBLED, and it is not a style.
+// A single `\s` inside a template literal reaches the page as the LETTER s, so
+// `replace(/\s+/g, ' ')` strips every s in the string it is handed. Two fields
+// here really shipped that way and `out-explorers.json` still carries what they
+// read: stoa's legend as "Implemented, not  hipped" and specfactory's transport
+// as "me age + reque t ID". No NUMBER in research 118 came off either of them —
+// `words()` on line 2 below was always doubled — but a reader comparing the
+// corrupted strings to the page would have no way to know that.
 const MEASURE = `(() => {
   const words = (t) => (t || '').trim().split(/\\s+/).filter(Boolean).length;
   const vis = (el) => {
@@ -90,13 +98,13 @@ const MEASURE = `(() => {
     return n;
   })();
   out.bridgeLabels = [...document.querySelectorAll('.bridge, .bridge-line, .mini-flow, .flow-return')]
-    .map((b) => b.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    .map((b) => b.innerText.replace(/\\s+/g, ' ').trim()).filter(Boolean);
   out.regionCards = [...document.querySelectorAll('.location-head, .region, .location-title')].map((r) => ({
     label: (r.querySelector('.location-label') || {}).textContent || '',
     head: ((r.querySelector('h3') || {}).textContent || '').trim(),
     blurb: ((r.querySelector('p, .rblurb, .mono') || {}).textContent || '').trim()
   }));
-  out.legend = [...document.querySelectorAll('.legend, .legend *')].map((l) => l.textContent.replace(/\s+/g,' ').trim()).filter(Boolean).slice(0, 8);
+  out.legend = [...document.querySelectorAll('.legend, .legend *')].map((l) => l.textContent.replace(/\\s+/g,' ').trim()).filter(Boolean).slice(0, 8);
   out.notes = [...document.querySelectorAll('.note, .banner, aside')].map((a) => ({ words: words(a.innerText), head: ((a.querySelector('h3,strong')||{}).textContent||'').trim(), hidden: !vis(a) }));
   out.introWords = (() => {
     const shown2 = [...document.querySelectorAll('[role=tabpanel], section.view')].find((v) => !v.hidden);

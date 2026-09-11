@@ -1,0 +1,91 @@
+Phase 256 — THE COMPUTED LADDER, run rather than written (revision round, 2026-09-10).
+
+Instrument: build/p256/det/ladder.mts, which uses Tortie's OWN shipped resolver
+(src/main/arch/resolver) and its own SymbolExtractor to build the first-party import
+graph, and the prototype's entrypoint / boundary / test facts. One git per repository,
+fixed argv. No Electron, no agent, no token.
+
+=== all five rungs proved to fire, on planted graphs ===
+ok   off-repo  <- an anchor nothing in the repository tracks
+ok   declared  <- here, imported by nothing, named by no manifest
+ok   composed  <- imported, but by nothing that starts
+ok   composed  <- named by a manifest and imported by nothing
+ok   reached   <- on a path from something that starts
+ok   tested    <- reached, and a test file imports it
+ok   composed  <- a test imports it but nothing starts it
+
+7 of 7 fixtures behave; rungs proved to fire: 5 of 5
+
+=== the nine components of the hand-written pass, this repository ===
+LADDER over .
+tracked 3191, first-party import edges 7958, entrypoint files 28, test files 857
+
+component                 | written by hand        | COMPUTED   | anchors
+--------------------------+-----------------------+------------+--------
+durable-sessions          | composed              | tested     | 3
+manifest                  | composed              | tested     | 2
+attach-host               | composed              | tested     | 2
+arch-reading              | composed              | tested     | 3
+guarded-write             | component-tested      | tested     | 1
+redline                   | component-tested      | composed   | 1
+machines                  | composed              | tested     | 2
+logins                    | composed              | tested     | 2
+external-door             | composed              | tested     | 1
+
+computed: composed 1, tested 8
+
+3425 ms
+
+=== path-anchored parts, four repositories ===
+LADDER over .
+tracked 3191, first-party import edges 7958, entrypoint files 28, test files 857
+
+35 path-anchored parts (>= 3 files, the top two segments):
+  off-repo      0
+  declared     22
+  composed      7
+  reached       4
+  tested        2
+
+rungs actually used: 4 of 5
+
+3488 ms
+LADDER over /private/tmp/p256rev/repos/requests
+tracked 130, first-party import edges 116, entrypoint files 11, test files 9
+
+12 path-anchored parts (>= 3 files, the top two segments):
+  off-repo      0
+  declared      8
+  composed      1
+  reached       2
+  tested        1
+
+rungs actually used: 4 of 5
+
+102 ms
+LADDER over /private/tmp/p256rev/repos/gotify
+tracked 274, first-party import edges 353, entrypoint files 31, test files 48
+
+21 path-anchored parts (>= 3 files, the top two segments):
+  off-repo      0
+  declared     11
+  composed      1
+  reached       8
+  tested        1
+
+rungs actually used: 4 of 5
+
+202 ms
+LADDER over /private/tmp/p256rev/repos/ripgrep
+tracked 237, first-party import edges 65, entrypoint files 20, test files 38
+
+19 path-anchored parts (>= 3 files, the top two segments):
+  off-repo      0
+  declared      4
+  composed      2
+  reached       5
+  tested        8
+
+rungs actually used: 4 of 5
+
+333 ms

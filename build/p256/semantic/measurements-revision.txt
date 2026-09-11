@@ -1,0 +1,71 @@
+Phase 256 — THE PLANTED CLAIMS and THE NULL MODEL (revision round, 2026-09-10).
+
+=== how many deliberate lies the checker refuses ===
+PLANTED CLAIMS over build/p256/semantic/tortie.pass.json
+
+the honest pass raises 23 findings; a catch is a finding the honest pass does NOT raise, naming the plant
+
+MISSED  | wrong-job          | the contract prose is false and every citation is real
+           durable-sessions renamed "Billing and card capture", its job a credit-card charge, its runsIn a payment provider, its three real tmux citations untouched
+           new findings naming component durable-sessions: none
+MISSED  | wrong-component    | a whole part that does not exist, citing the right files
+           a new component "The tmux id stamp is our SQL migration runner" citing tmux/env.ts:49 and tmux/sessions.ts:85 — right file, wrong symbol
+           new findings naming component migration-runner: none
+MISSED  | wrong-test         | an evidence level justified by an unrelated test
+           logins claims component-tested and cites src/main/__tests__/ansi.test.ts:32 for a claim about SSH host keys
+           new findings naming component logins: none
+MISSED  | wrong-order        | a journey whose steps are in an impossible order
+           start-and-return reversed, so the session is attached before it is created
+           new findings naming journey start-and-return: none
+MISSED  | wrong-gate         | a gate that is not in the product at all
+           a gate "Will Tortie refuse to deploy on a Friday?" citing demo/bridge/install.ts:106
+           new findings naming gate friday-deploy: none
+CAUGHT  | accepted-live      | a rung nothing in a repository is evidence for
+           machines claims accepted-live
+           new findings naming component machines: 3-evidence-justified
+CAUGHT  | invented-numbers   | numbers no fact carries
+           three invented numbers in contract prose: "17 times", "4096 seconds", "92 credentials"
+           new findings naming component logins: 6-numbers-come-from-facts
+
+CAUGHT 2 of 7
+
+=== the floor under rule 2, WITH declarations (the published 58.5% base) ===
+THE FLOOR UNDER RULE 2, at a slack of 3 lines
+
+every file carrying a fact (2530): 268021 of 808710 lines = 33.1%
+the files that pass actually cites (19): 2346 of 9867 lines = 23.8%
+
+  ^ THAT is the number a backing rate has to beat. A writer who had these files open
+    and pointed at random inside them scores it.
+
+PER CATEGORY, which is the floor under a SHAPED question such as rule 7's gate
+
+over the cited files:
+  boundary           0 of 9867 = 0.0%
+  decl            2163 of 9867 = 21.9%
+  effect            85 of 9867 = 0.9%
+  entrypoint         0 of 9867 = 0.0%
+  gate              14 of 9867 = 0.1%
+  store             68 of 9867 = 0.7%
+  surface           67 of 9867 = 0.7%
+  test               0 of 9867 = 0.0%
+
+=== the floor under rule 2, CALL SITES ONLY (the published 22.0% base) ===
+THE FLOOR UNDER RULE 2, at a slack of 3 lines
+
+every file carrying a fact (1553): 123879 of 547641 lines = 22.6%
+the files that pass actually cites (19): 229 of 9867 lines = 2.3%
+
+  ^ THAT is the number a backing rate has to beat. A writer who had these files open
+    and pointed at random inside them scores it.
+
+PER CATEGORY, which is the floor under a SHAPED question such as rule 7's gate
+
+over the cited files:
+  boundary           0 of 9867 = 0.0%
+  effect            85 of 9867 = 0.9%
+  entrypoint         0 of 9867 = 0.0%
+  gate              14 of 9867 = 0.1%
+  store             68 of 9867 = 0.7%
+  surface           67 of 9867 = 0.7%
+  test               0 of 9867 = 0.0%

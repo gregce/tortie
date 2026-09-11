@@ -5,7 +5,7 @@
    "title": "Tortie — what this system does (Phase 256 mock)",
    "desc": "",
    "hash": "",
-   "bodyWords": 521,
+   "bodyWords": 524,
    "tabs": [
     "System map",
     "Follow a session",
@@ -15,7 +15,7 @@
     {
      "id": "v-map",
      "hidden": false,
-     "words": 276,
+     "words": 279,
      "buttons": 9,
      "selects": 0,
      "checkboxes": 0,
@@ -64,15 +64,15 @@
     "ANOTHER MACHINE"
    ],
    "evidenceMarks": [
+    "ev ev-tested|Reached, and a test imports it",
+    "ev ev-tested|Reached, and a test imports it",
+    "ev ev-tested|Reached, and a test imports it",
+    "ev ev-tested|Reached, and a test imports it",
+    "ev ev-tested|Reached, and a test imports it",
     "ev ev-composed|Composed in source",
-    "ev ev-composed|Composed in source",
-    "ev ev-composed|Composed in source",
-    "ev ev-composed|Composed in source",
-    "ev ev-tested|Component-tested",
-    "ev ev-tested|Component-tested",
-    "ev ev-composed|Composed in source",
-    "ev ev-composed|Composed in source",
-    "ev ev-composed|Composed in source"
+    "ev ev-tested|Reached, and a test imports it",
+    "ev ev-tested|Reached, and a test imports it",
+    "ev ev-tested|Reached, and a test imports it"
    ],
    "journeySections": [],
    "stepButtons": 0,
@@ -81,13 +81,13 @@
    "inspector": null,
    "restingView": {
     "id": "v-map",
-    "words": 276
+    "words": 279
    },
-   "foldWords": 278,
+   "foldWords": 281,
    "bridgeLabels": [
-    "229 typed invoke channel  →\n← pu he  the window redraw  from",
-    "command , and one pty per attach →\n← pane output and the  e ion li t",
-    "from the engine:  h, fixed argv →\n← a bounded mirror of the folder"
+    "229 typed invoke channels → ← pushes the window redraws from",
+    "commands, and one pty per attach → ← pane output and the session list",
+    "from the engine: ssh, fixed argv → ← a bounded mirror of the folder"
    ],
    "regionCards": [
     {
@@ -125,7 +125,7 @@
    {
     "tab": "System map",
     "hash": "",
-    "words": 276,
+    "words": 279,
     "heading": "",
     "firstPara": "the renderer"
    },

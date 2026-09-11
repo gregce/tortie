@@ -61,8 +61,20 @@ function project(envName) {
   if (!existsSync(join(p, '.git'))) refuse(`${p} is not a git repository.`);
   return p;
 }
+/**
+ * P256_ONLY=F1 drives repository A alone and takes ONE reading the first run
+ * did not take: the level-1 map with a contract on disk.
+ *
+ * THE FIRST RUN MISLABELLED IT. It clicked an outline row before opening the
+ * map, and selecting a row DRILLS the map, so the step recorded as
+ * `A.map.level1.withContract` came back with crumbs ["tortie","src/main"] and
+ * 63 edges — a level-2 reading of one box. Research 118 §4.4's F1 cited it for
+ * a sentence about level 1. This mode presses the root crumb first and asserts
+ * the crumbs it got before it writes the number down.
+ */
+const ONLY = (process.env['P256_ONLY'] ?? '').trim().toUpperCase();
 const repoA = project('P256_REPO_A');
-const repoB = project('P256_REPO_B');
+const repoB = ONLY === 'F1' ? null : project('P256_REPO_B');
 
 mkdirSync(join(harnessDir, 'p256'), { recursive: true });
 const root = realpathSync(join(harnessDir, 'p256'));
@@ -70,7 +82,7 @@ const home = join(root, 'home');
 const profile = join(root, 'profile');
 for (const d of [home, profile]) mkdirSync(d, { recursive: true });
 
-const OUT = join(REPO, 'build', 'p256', 'pane-readings.json');
+const OUT = join(REPO, 'build', 'p256', ONLY === 'F1' ? 'pane-readings-f1.json' : 'pane-readings.json');
 const readings = { when: new Date().toISOString(), socket, repoA, repoB, steps: {} };
 const note = (key, value) => {
   readings.steps[key] = value;
@@ -274,7 +286,7 @@ function gitStatus(p) {
 }
 
 const statusA = gitStatus(repoA);
-const statusB = gitStatus(repoB);
+const statusB = repoB === null ? null : gitStatus(repoB);
 
 await withElectron(
   {
@@ -353,7 +365,37 @@ await withElectron(
       // The map with the contract overlaid.
       await cdpEval(cdp, `document.querySelector('.arch-map-open').click(); true`, 20_000);
       await sleep(2500);
-      note('A.map.level1.withContract', JSON.parse(await cdpEval(cdp, MAP_READ, 30_000)));
+      // SELECTING THE OUTLINE ROW ABOVE DRILLED THE MAP. Walk the crumbs back
+      // to the root before reading, and record what the crumbs said, so the
+      // level this reading is ABOUT is in the artefact rather than assumed.
+      note('A.map.asOpenedWithContract', JSON.parse(await cdpEval(cdp, MAP_READ, 30_000)));
+      for (let i = 0; i < 4; i += 1) {
+        const atRoot = await cdpEval(
+          cdp,
+          `(() => { const c = [...document.querySelectorAll('.arch-map-crumb, .arch-map-crumb-here')]; return c.length <= 1; })()`,
+          20_000
+        );
+        if (atRoot === true) break;
+        await cdpEval(cdp, `(() => { const b = document.querySelector('.arch-map-crumb'); if (b !== null) b.click(); return true; })()`, 20_000);
+        await sleep(1500);
+      }
+      const withContract = JSON.parse(await cdpEval(cdp, MAP_READ, 30_000));
+      note('A.map.level1.withContract', withContract);
+      const before = readings.steps['A.map.level1'] ?? {};
+      note('F1.levelOneComparison', {
+        isLevelOne: (withContract.crumbs ?? []).length <= 1,
+        crumbsBefore: before.crumbs ?? null,
+        crumbsAfter: withContract.crumbs ?? null,
+        boxesBefore: (before.boxes ?? []).map((b) => b.label),
+        boxesAfter: (withContract.boxes ?? []).map((b) => b.label),
+        labelsIdentical:
+          JSON.stringify((before.boxes ?? []).map((b) => b.label).sort()) ===
+          JSON.stringify((withContract.boxes ?? []).map((b) => b.label).sort()),
+        edgesBefore: before.edgeCount ?? null,
+        edgesAfter: withContract.edgeCount ?? null,
+        edgeClassesAfter: [...new Set((withContract.edges ?? []).map((e) => e.cls))],
+        bareClassEdges: (withContract.edges ?? []).filter((e) => e.cls === 'arch-map-edge').length
+      });
       // What landed on disk.
       const ls = spawnSync('bash', ['-lc', `cd ${JSON.stringify(repoA)} && find docs/arch -type f | sort && echo --- && wc -c docs/arch/contract.json docs/arch/edges.json 2>/dev/null | tail -3`], { encoding: 'utf8' });
       note('A.docsArchOnDisk', (ls.stdout ?? '').trim());
@@ -362,6 +404,10 @@ await withElectron(
     }
 
     // --- repository B -----------------------------------------------------
+    if (repoB === null) {
+      note('sessionStatusElements', await cdpEval(cdp, `document.querySelectorAll('[data-session-status]').length`, 20_000));
+      return;
+    }
     await cdpEval(cdp, `window.__gmuxShotDrive(${JSON.stringify({ projectPath: repoB })}).then(() => true)`, 180_000);
     await sleep(2000);
     await press(cdp, CHORD_ARCH);
@@ -387,7 +433,8 @@ await withElectron(
 );
 
 readings.gitStatusA = { before: statusA, after: gitStatus(repoA) };
-readings.gitStatusB = { before: statusB, after: gitStatus(repoB), unchanged: statusB === gitStatus(repoB) };
+readings.gitStatusB =
+  repoB === null ? null : { before: statusB, after: gitStatus(repoB), unchanged: statusB === gitStatus(repoB) };
 writeFileSync(OUT, `${JSON.stringify(readings, null, 1)}\n`);
 say(`\np256: wrote ${OUT}`);
 process.exit(0);

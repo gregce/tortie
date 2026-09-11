@@ -17,9 +17,18 @@
       "limit": "the app is a disposable client, so nothing here survives the tmux server being killed by hand",
       "evidence": "composed",
       "facts": [
-        { "at": "src/main/tmux/resolve.ts:311", "why": "main starts a tmux probe as a child of its own" },
-        { "at": "src/main/tmux/env.ts:49", "why": "the identity stamp every managed pane carries" },
-        { "at": "src/main/tmux/sessions.ts:85", "why": "the list format that reads @gmux-id back" }
+        {
+          "at": "src/main/tmux/resolve.ts:311",
+          "why": "main starts a tmux probe as a child of its own"
+        },
+        {
+          "at": "src/main/tmux/env.ts:49",
+          "why": "the identity stamp every managed pane carries"
+        },
+        {
+          "at": "src/main/tmux/sessions.ts:85",
+          "why": "the list format that reads @gmux-id back"
+        }
       ]
     },
     {
@@ -33,10 +42,22 @@
       "limit": "a row can outlive the tmux session it names, which is why restore asks tmux rather than trusting the row",
       "evidence": "composed",
       "facts": [
-        { "at": "src/main/manifest/schema.ts:28", "why": "the sessions table" },
-        { "at": "src/main/manifest/schema.ts:47", "why": "the projects table" },
-        { "at": "src/main/manifest/schema.ts:143", "why": "the restore journal" },
-        { "at": "src/main/manifest/restore-journal.ts:76", "why": "a restore attempt is written down before it is tried" }
+        {
+          "at": "src/main/manifest/schema.ts:28",
+          "why": "the sessions table"
+        },
+        {
+          "at": "src/main/manifest/schema.ts:47",
+          "why": "the projects table"
+        },
+        {
+          "at": "src/main/manifest/schema.ts:143",
+          "why": "the restore journal"
+        },
+        {
+          "at": "src/main/manifest/restore-journal.ts:76",
+          "why": "a restore attempt is written down before it is tried"
+        }
       ]
     },
     {
@@ -50,8 +71,14 @@
       "limit": "a pane's width is the window's, so a narrow window reflows the session's history",
       "evidence": "composed",
       "facts": [
-        { "at": "src/main/attach/attach-host.ts:228", "why": "the pty this product starts" },
-        { "at": "src/main/attach/attach-plan.ts:154", "why": "the plan is pure and starts nothing" }
+        {
+          "at": "src/main/attach/attach-host.ts:228",
+          "why": "the pty this product starts"
+        },
+        {
+          "at": "src/main/attach/attach-plan.ts:154",
+          "why": "the plan is pure and starts nothing"
+        }
       ]
     },
     {
@@ -65,9 +92,18 @@
       "limit": "every edge it can draw is an import, so a system whose parts talk over HTTP or a socket shows no connection at all",
       "evidence": "composed",
       "facts": [
-        { "at": "src/main/arch/scan.ts:1", "why": "the import scan" },
-        { "at": "src/main/arch/skeleton.ts:1", "why": "rule P, the reading partition" },
-        { "at": "src/main/arch/map.ts:1", "why": "the picture is composed here and nowhere else" }
+        {
+          "at": "src/main/arch/scan.ts:1",
+          "why": "the import scan"
+        },
+        {
+          "at": "src/main/arch/skeleton.ts:1",
+          "why": "rule P, the reading partition"
+        },
+        {
+          "at": "src/main/arch/map.ts:1",
+          "why": "the picture is composed here and nowhere else"
+        }
       ]
     },
     {
@@ -81,9 +117,18 @@
       "limit": "a change of the same size inside one timestamp tick is invisible, which on this filesystem is a nanosecond",
       "evidence": "component-tested",
       "facts": [
-        { "at": "src/main/fs/guarded-write.ts:347", "why": "the whole channel is this one function" },
-        { "at": "src/main/fs/guarded-write.ts:391", "why": "the read refuses to follow a link" },
-        { "at": "src/main/fs/guarded-write.ts:468", "why": "the staged copy is created exclusively" }
+        {
+          "at": "src/main/fs/guarded-write.ts:347",
+          "why": "the whole channel is this one function"
+        },
+        {
+          "at": "src/main/fs/guarded-write.ts:391",
+          "why": "the read refuses to follow a link"
+        },
+        {
+          "at": "src/main/fs/guarded-write.ts:468",
+          "why": "the staged copy is created exclusively"
+        }
       ]
     },
     {
@@ -97,8 +142,14 @@
       "limit": "losing the baseline store loses the narrowing and nothing on disk, because the file is the file and git is the history",
       "evidence": "component-tested",
       "facts": [
-        { "at": "src/renderer/editor/redline-write.ts:117", "why": "the redline's one guarded write" },
-        { "at": "src/renderer/editor/redline-write.ts:89", "why": "a press asks the generation guard before it reads" }
+        {
+          "at": "src/renderer/editor/redline-write.ts:117",
+          "why": "the redline's one guarded write"
+        },
+        {
+          "at": "src/renderer/editor/redline-write.ts:89",
+          "why": "a press asks the generation guard before it reads"
+        }
       ]
     },
     {
@@ -112,9 +163,18 @@
       "limit": "nothing Tortie writes runs on the machine beyond a fixed set of scripts, and the model slot stays local",
       "evidence": "composed",
       "facts": [
-        { "at": "src/main/machines/exec-plane.ts:604", "why": "one of the two places ssh is run" },
-        { "at": "src/main/machines/exec-plane.ts:750", "why": "the other one" },
-        { "at": "src/main/manifest/schema.ts:462", "why": "remote projects are remembered" }
+        {
+          "at": "src/main/machines/exec-plane.ts:604",
+          "why": "one of the two places ssh is run"
+        },
+        {
+          "at": "src/main/machines/exec-plane.ts:750",
+          "why": "the other one"
+        },
+        {
+          "at": "src/main/manifest/schema.ts:462",
+          "why": "remote projects are remembered"
+        }
       ]
     },
     {
@@ -128,8 +188,14 @@
       "limit": "the person's own default location is read-only forever except on a deliberate switch, and there is no refresh and no rotation",
       "evidence": "composed",
       "facts": [
-        { "at": "src/main/logins/store.ts:656", "why": "the one delete, guarded by an ownership test" },
-        { "at": "src/main/credentials/nofollow.ts:35", "why": "an exclusive create so a planted link cannot take the write" }
+        {
+          "at": "src/main/logins/store.ts:656",
+          "why": "the one delete, guarded by an ownership test"
+        },
+        {
+          "at": "src/main/credentials/nofollow.ts:35",
+          "why": "an exclusive create so a planted link cannot take the write"
+        }
       ]
     },
     {
@@ -143,8 +209,14 @@
       "limit": "between the answer and the open the file at that path can be replaced, so the allowlist is one extension wide",
       "evidence": "composed",
       "facts": [
-        { "at": "src/shared/path-doors.ts:220", "why": "the allowlist is one kind" },
-        { "at": "src/shared/path-doors.ts:294", "why": "the allowlist is asked after the mode check" }
+        {
+          "at": "src/shared/path-doors.ts:220",
+          "why": "the allowlist is one kind"
+        },
+        {
+          "at": "src/shared/path-doors.ts:294",
+          "why": "the allowlist is asked after the mode check"
+        }
       ]
     }
   ],
@@ -153,29 +225,128 @@
       "id": "start-and-return",
       "name": "Start an agent on a project, quit, and come back to it",
       "steps": [
-        { "componentId": "durable-sessions", "label": "Tortie creates a session in the private tmux server and stamps it with an id of its own", "facts": [{ "at": "src/main/tmux/env.ts:49", "why": "the stamp" }] },
-        { "componentId": "logins", "label": "the pane is launched under the login the person chose", "facts": [{ "at": "src/main/sessions/launch-plan.ts:321", "why": "the pane environment is composed here" }] },
-        { "componentId": "manifest", "label": "the row is written before anything can be lost", "facts": [{ "at": "src/main/manifest/schema.ts:28", "why": "the row" }] },
-        { "componentId": "attach-host", "label": "a pty attaches so the person can type", "facts": [{ "at": "src/main/attach/attach-host.ts:228", "why": "the pty" }] },
-        { "componentId": "manifest", "label": "after a reboot the restore pass reads the rows and asks tmux what is still there", "facts": [{ "at": "src/main/manifest/restore-journal.ts:76", "why": "the attempt is journalled" }] }
+        {
+          "componentId": "durable-sessions",
+          "label": "Tortie creates a session in the private tmux server and stamps it with an id of its own",
+          "facts": [
+            {
+              "at": "src/main/tmux/env.ts:49",
+              "why": "the stamp"
+            }
+          ]
+        },
+        {
+          "componentId": "logins",
+          "label": "the pane is launched under the login the person chose",
+          "facts": [
+            {
+              "at": "src/main/sessions/launch-plan.ts:321",
+              "why": "the pane environment is composed here"
+            }
+          ]
+        },
+        {
+          "componentId": "manifest",
+          "label": "the row is written before anything can be lost",
+          "facts": [
+            {
+              "at": "src/main/manifest/schema.ts:28",
+              "why": "the row"
+            }
+          ]
+        },
+        {
+          "componentId": "attach-host",
+          "label": "a pty attaches so the person can type",
+          "facts": [
+            {
+              "at": "src/main/attach/attach-host.ts:228",
+              "why": "the pty"
+            }
+          ]
+        },
+        {
+          "componentId": "manifest",
+          "label": "after a reboot the restore pass reads the rows and asks tmux what is still there",
+          "facts": [
+            {
+              "at": "src/main/manifest/restore-journal.ts:76",
+              "why": "the attempt is journalled"
+            }
+          ]
+        }
       ]
     },
     {
       "id": "agent-edit-narrowed",
       "name": "An agent rewrites a file and you take one change back",
       "steps": [
-        { "componentId": "redline", "label": "the watcher notices the file moved and the redline is drawn against the tab's baseline", "facts": [{ "at": "src/renderer/editor/redline-write.ts:89", "why": "the press asks the generation guard" }] },
-        { "componentId": "guarded-write", "label": "a rewind rewrites the file only if the bytes on disk are still the bytes that were read", "facts": [{ "at": "src/main/fs/guarded-write.ts:347", "why": "the channel" }] },
-        { "componentId": "redline", "label": "an accept moves the baseline instead and leaves the file alone", "facts": [{ "at": "src/renderer/editor/redline-write.ts:117", "why": "the one write" }] }
+        {
+          "componentId": "redline",
+          "label": "the watcher notices the file moved and the redline is drawn against the tab's baseline",
+          "facts": [
+            {
+              "at": "src/renderer/editor/redline-write.ts:89",
+              "why": "the press asks the generation guard"
+            }
+          ]
+        },
+        {
+          "componentId": "guarded-write",
+          "label": "a rewind rewrites the file only if the bytes on disk are still the bytes that were read",
+          "facts": [
+            {
+              "at": "src/main/fs/guarded-write.ts:347",
+              "why": "the channel"
+            }
+          ]
+        },
+        {
+          "componentId": "redline",
+          "label": "an accept moves the baseline instead and leaves the file alone",
+          "facts": [
+            {
+              "at": "src/renderer/editor/redline-write.ts:117",
+              "why": "the one write"
+            }
+          ]
+        }
       ]
     },
     {
       "id": "remote-folder",
       "name": "Open a folder on another machine and work in it",
       "steps": [
-        { "componentId": "machines", "label": "the machine is confirmed once, out of band of any agent turn", "facts": [{ "at": "src/main/machines/exec-plane.ts:604", "why": "the one place ssh runs" }] },
-        { "componentId": "manifest", "label": "the remote project is remembered so it comes back", "facts": [{ "at": "src/main/manifest/schema.ts:462", "why": "the remote projects table" }] },
-        { "componentId": "arch-reading", "label": "the architecture read runs against a bounded mirror of that folder", "facts": [{ "at": "src/main/arch/map.ts:1", "why": "the same composer draws both" }] }
+        {
+          "componentId": "machines",
+          "label": "the machine is confirmed once, out of band of any agent turn",
+          "facts": [
+            {
+              "at": "src/main/machines/exec-plane.ts:604",
+              "why": "the one place ssh runs"
+            }
+          ]
+        },
+        {
+          "componentId": "manifest",
+          "label": "the remote project is remembered so it comes back",
+          "facts": [
+            {
+              "at": "src/main/manifest/schema.ts:462",
+              "why": "the remote projects table"
+            }
+          ]
+        },
+        {
+          "componentId": "arch-reading",
+          "label": "the architecture read runs against a bounded mirror of that folder",
+          "facts": [
+            {
+              "at": "src/main/arch/map.ts:1",
+              "why": "the same composer draws both"
+            }
+          ]
+        }
       ]
     }
   ],
@@ -185,42 +356,148 @@
       "question": "Tortie finds a session in the private tmux server. Will it adopt it?",
       "answer": "stops",
       "because": "a session that carries neither an id option of ours nor the pane stamp is not ours, and is never adopted and never killed",
-      "facts": [{ "at": "src/main/tmux/sessions.ts:85", "why": "the id option is read on every list" }]
+      "facts": [
+        {
+          "at": "src/main/tmux/sessions.ts:85",
+          "why": "the id option is read on every list"
+        }
+      ]
     },
     {
       "id": "run-a-configured-agent",
       "question": "A configuration file names an agent binary. Will Tortie launch it?",
       "answer": "stops",
       "because": "nothing starts on a configuration change alone; a person confirms the fields out of band and the agreement is bound to a hash of the fields that decide what runs",
-      "facts": [{ "at": "src/main/config/confirm.ts:454", "why": "the confirmed hash is the agreement" }]
+      "facts": [
+        {
+          "at": "src/main/config/confirm.ts:454",
+          "why": "the confirmed hash is the agreement"
+        }
+      ]
     },
     {
       "question": "You press save and the file changed on disk since Tortie read it. Will it be overwritten?",
       "id": "save-over-a-change",
       "answer": "stops",
       "because": "the guarded door answers stale rather than writing, and the person is asked with Compare as the default",
-      "facts": [{ "at": "src/main/fs/guarded-write.ts:347", "why": "the precondition is a digest" }]
+      "facts": [
+        {
+          "at": "src/main/fs/guarded-write.ts:347",
+          "why": "the precondition is a digest"
+        }
+      ]
     },
     {
       "id": "open-a-printed-path",
       "question": "A transcript prints a path to a .command file and you click it. Will it run?",
       "answer": "stops",
       "because": "the mode is checked before the extension and the allowlist of kinds handed to the system is one extension wide",
-      "facts": [{ "at": "src/shared/path-doors.ts:220", "why": "the allowlist" }]
+      "facts": [
+        {
+          "at": "src/shared/path-doors.ts:220",
+          "why": "the allowlist"
+        }
+      ]
     },
     {
       "id": "spawn-a-model-for-the-picture",
       "question": "The architecture check finds the contract has drifted. Will a model be started?",
       "answer": "uncertain",
       "because": "only when an agent has been chosen in Settings, the confirm gate still holds at the spawn, the drift is real and the minimum interval has passed; otherwise nothing runs",
-      "facts": [{ "at": "src/main/overview/fold/spawn.ts:201", "why": "the one shot spawn" }]
+      "facts": [
+        {
+          "at": "src/main/overview/fold/spawn.ts:201",
+          "why": "the one shot spawn"
+        }
+      ]
     },
     {
       "id": "write-a-credential",
       "question": "You choose a different login while a session of that provider is running. Will the store be written?",
       "answer": "uncertain",
       "because": "it is written under the vendor's own locks, and a lock the vendor holds is a refusal naming the lock rather than a steal",
-      "facts": [{ "at": "src/main/credentials/nofollow.ts:35", "why": "the write stages exclusively" }]
+      "facts": [
+        {
+          "at": "src/main/credentials/nofollow.ts:35",
+          "why": "the write stages exclusively"
+        }
+      ]
     }
-  ]
+  ],
+  "_layout_is_the_researchers": "The regions, the three-to-five word node labels and the transport names below are the RESEARCHER's presentation choices, and nothing measures them. They live here rather than inside build/p256/mock/build-mock.mts because the first build of the mock held them as constants in the BUILDER, so the builder drew these nine Tortie components out of any fact file it was handed, including gotify's, printed 'backed 0' and refused nothing.",
+  "layout": {
+    "regions": [
+      {
+        "id": "window",
+        "name": "Your window",
+        "sub": "the renderer",
+        "dashed": false,
+        "ids": [
+          "redline",
+          "external-door"
+        ]
+      },
+      {
+        "id": "engine",
+        "name": "The app's engine",
+        "sub": "main, one process",
+        "dashed": false,
+        "ids": [
+          "manifest",
+          "attach-host",
+          "arch-reading",
+          "guarded-write",
+          "logins",
+          "machines"
+        ]
+      },
+      {
+        "id": "tmux",
+        "name": "The private tmux server",
+        "sub": "the app does not own it",
+        "dashed": false,
+        "ids": [
+          "durable-sessions"
+        ]
+      },
+      {
+        "id": "far",
+        "name": "Another machine",
+        "sub": "outside this repository",
+        "dashed": true,
+        "ids": []
+      }
+    ],
+    "short": {
+      "durable-sessions": "named sessions that outlive the app",
+      "manifest": "the record restore reads",
+      "attach-host": "one pty per attached session",
+      "arch-reading": "the picture, with no turn",
+      "guarded-write": "the one door that rewrites a file",
+      "redline": "an agent's edit, drawn over yours",
+      "machines": "the same work, over ssh",
+      "logins": "which account an agent signs in as",
+      "external-door": "opening a path a transcript printed"
+    },
+    "transports": [
+      {
+        "from": "window",
+        "to": "engine",
+        "out": "229 typed invoke channels",
+        "back": "pushes the window redraws from"
+      },
+      {
+        "from": "engine",
+        "to": "tmux",
+        "out": "commands, and one pty per attach",
+        "back": "pane output and the session list"
+      },
+      {
+        "from": "engine",
+        "to": "far",
+        "out": "ssh, fixed argv",
+        "back": "a bounded mirror of the folder"
+      }
+    ]
+  }
 }

@@ -310,7 +310,14 @@ maximum share of 1,057/2,227 = 47%, so it paints nothing; `.claude`, `.github`, 
 `resources` land in the fold, which `overlayComponents` never paints by rule; `build`, `docs` and
 `demo` paint boxes whose computed label is the same string. **The level-1 map with a contract is
 label-identical to the level-1 map without one, and all 11 edges carry the bare class
-`arch-map-edge` with no verdict status.** Phase 158's map binding rule 2 ("a run after which the map
+`arch-map-edge` with no verdict status.** (That sentence was written from a step named
+`A.map.level1.withContract` that was actually a LEVEL-2 reading of `src/main`, because the probe
+selected an outline row before opening the map and selecting a row drills it: crumbs
+`["tortie","src/main"]`, 63 edges. The revision round of 2026-09-10 took the real reading with
+`P256_ONLY=F1`, which walks the crumbs back to the root and asserts them before writing anything down.
+`build/p256/pane-readings-f1.json`: crumbs `["tortie"]` both sides, the same eight labels in the same
+order, 11 edges before and 11 after, all `arch-map-edge`. The claim holds; it had no measurement under
+it.) Phase 158's map binding rule 2 ("a run after which the map
 is unchanged is a FAILED run") is measured against the enrichment, and the *deterministic draft this
 repository gets* already fails that test for 5 of its 8 components.
 
