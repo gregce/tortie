@@ -8,10 +8,17 @@
  *
  *   A. twin A, the research 116 specstory shape (2,559,758 B), synthesized;
  *   B. twin B, the research 116 BACKLOG shape (3,262,893 B), synthesized;
- *   C. this repository's own docs/BACKLOG.md, read from the checkout the
- *      probe runs in — committed product documentation, the corpus research
- *      117 used, and the one real document here whose last megabyte is a
- *      single loose list that no cut may split.
+ *   C. this repository's own docs/BACKLOG.md — committed product
+ *      documentation, the corpus research 117 used, and the one real document
+ *      here whose last megabyte is a single loose list that no cut may split.
+ *      It is read at the PINNED commit `C_PIN` and never from the working
+ *      tree, because the parent readings below are pinned numbers and this
+ *      file grows with every phase: read live, it made `scrollHeight` differ
+ *      from the parent's by 1,574 px for no reason but the four running-log
+ *      lines the phase itself appended, which is a check going red for
+ *      something that is not a defect. Pinned, EVERY reading of c is compared
+ *      against the parent's, the drawn text digest included, which is
+ *      stronger than the exemption that hid the drift.
  *
  * For each: click-to-first-paint, the worst long task and the end of the
  * last one, the delay of a PageDown pressed the moment the page first paints
@@ -97,7 +104,7 @@ export function gradePaint(run, parent) {
       for (const f of ['kids', 'headings', 'idsDigest', 'scrollHeight']) {
         if (r[f] !== p[f]) bad.push(`${k}: ${f} ${r[f]} differs from the parent's ${p[f]}`);
       }
-      if (k !== 'c' && r.textDigest !== p.textDigest) bad.push(`${k}: the drawn text differs from the parent's`);
+      if (r.textDigest !== p.textDigest) bad.push(`${k}: the drawn text differs from the parent's`);
     }
   }
   return bad;
@@ -179,11 +186,32 @@ function tableFirst(bytes) {
   return `${rows.join('\n')}\n\n## After the table\n\nA closing paragraph after the table.\n`;
 }
 
+/**
+ * The commit docs/BACKLOG.md is read at. It is the parent of Phase 255, which
+ * is the commit build/p255/out-parent.json was recorded on, and it is on
+ * origin/main so the object stays reachable. Nothing falls back to the
+ * working tree: a silent fallback is the drift this pin replaced.
+ */
+const C_PIN = 'efb4c7ce';
+const showPinned = (rev, path) => {
+  const r = spawnSync('git', ['-C', REPO, 'show', `${rev}:${path}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.status !== 0) throw new Error(`git show ${rev}:${path}: ${r.stderr}`);
+  return r.stdout;
+};
+
 const sources = {
   a: synthTwin(SHAPES.a, 11),
   b: synthTwin(SHAPES.b, 22),
-  c: readFileSync(join(REPO, 'docs', 'BACKLOG.md'), 'utf8')
+  c: showPinned(C_PIN, 'docs/BACKLOG.md')
 };
+/**
+ * Which bytes each reading was taken over. The parent JSON recorded no source
+ * identity of any kind, so a document that had moved under the probe looked
+ * exactly like a renderer that had changed. Recorded now, so it cannot.
+ */
+const sourceIds = Object.fromEntries(
+  Object.entries(sources).map(([k, v]) => [k, { bytes: Buffer.byteLength(v, 'utf8'), digest: createHash('sha256').update(v).digest('hex').slice(0, 16) }])
+);
 const FILE = { a: 'twin-a.md', b: 'twin-b.md', c: 'backlog.md' };
 const DEGENERATE = { d1: 512 * 1024, d2: 1024 * 1024 };
 writeFileSync(join(project, 'warm.md'), '# warm\n\nbase\n');
@@ -210,7 +238,7 @@ export function lastLine(src) {
   return l.slice(Math.max(0, l.length - 48)).replace(/^\S*\s/, '');
 }
 const sentinels = Object.fromEntries(DOCS.map((k) => [k, lastLine(sources[k])]));
-for (const k of DOCS) say(`doc ${k}: ${Buffer.byteLength(sources[k], 'utf8')} bytes, find target ${JSON.stringify(sentinels[k])}`);
+for (const k of DOCS) say(`doc ${k}: ${sourceIds[k].bytes} bytes, sha256 ${sourceIds[k].digest}${k === 'c' ? ` (docs/BACKLOG.md at ${C_PIN})` : ''}, find target ${JSON.stringify(sentinels[k])}`);
 
 // ---------------------------------------------------------------------------
 // The in-page recorder
@@ -406,7 +434,7 @@ async function settle(cdp, deadlineMs) {
   }
 }
 
-const readings = { label: LABEL, docs: {}, open: null, degenerate: {} };
+const readings = { label: LABEL, sources: sourceIds, docs: {}, open: null, degenerate: {} };
 const failures = [];
 
 await withElectron(
