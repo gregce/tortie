@@ -70,7 +70,15 @@ vi.mock('../scan', () => ({
     unparsed: []
   })
 }));
-vi.mock('../tree-facts', () => ({ readArchTreeFacts: async () => {} }));
+vi.mock('../tree-facts', () => ({
+  // The shape the coordinator logs after the read (Phase 257), with nothing read.
+  readArchTreeFacts: async () => ({
+    read: 0,
+    reused: 0,
+    durationMs: 0,
+    facts: { read: 0, reused: 0, wrapFacts: 0, wrapDigest: null, overBudget: null }
+  })
+}));
 vi.mock('../../typed-events', () => ({ broadcastEvent: vi.fn() }));
 
 const { createArchCheckCoordinator } = await import('../check-coordinator');

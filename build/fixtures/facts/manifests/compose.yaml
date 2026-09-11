@@ -1,0 +1,7 @@
+services:
+  api:
+    image: api
+  db:
+    image: postgres
+volumes:
+  data:

@@ -1,0 +1,13 @@
+[package]
+name = "rg"
+version = "0.1.0"
+
+[[bin]]
+name = "rg"
+path = "src/main.rs"
+
+[lib]
+name = "rglib"
+
+[workspace]
+members = ["crates/*"]

@@ -310,6 +310,22 @@ export interface ArchSettings {
   agentId: string | null;
   /** A model id from that agent's compiled arch recipe. Null means None. */
   model: string | null;
+  /**
+   * Does the fact base run its one hop wrapper pass (Phase 257)? DEFAULT
+   * FALSE. The pass closes call sites that reach an anchor api through a
+   * locally declared function, which is this repository's own
+   * `handle(ipc, channel, fn)` shape: 0 of 229 IPC channels visible without
+   * it and 229 of 229 with it, and research 118 §6.3 measured the cost at
+   * 3.15× the whole read here and 1.57× to 1.83× on repositories where it
+   * finds nothing, which is why it is a setting rather than always on.
+   *
+   * NOT sealed, on purpose: it decides what one existing worker pool parses
+   * and never what runs, the same posture as `enabled`. Only a literal
+   * `true` turns it on. No control draws it in this phase; Phase 258 draws
+   * the row when there is a face on which its effect can be seen, so until
+   * then it is a hand editable key in `settings.json`.
+   */
+  wrapperPass: boolean;
 }
 
 /**
@@ -319,7 +335,7 @@ export interface ArchSettings {
  * person's visibility switch behind their back.
  */
 export function noArchChosen(): ArchSettings {
-  return { enabled: false, agentId: null, model: null };
+  return { enabled: false, agentId: null, model: null, wrapperPass: false };
 }
 
 /** Has a person picked a harness and a model? Both are needed to spawn. */

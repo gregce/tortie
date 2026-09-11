@@ -17,7 +17,12 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { GrammarId } from './languages';
 import { SymbolExtractor } from './extract';
-import type { ExtractedImport, ExtractedSymbol } from './extract';
+import type {
+  ExtractedCall,
+  ExtractedImport,
+  ExtractedSymbol,
+  ExtractedWrapper
+} from './extract';
 
 /** What the pool hands each worker at construction. */
 export interface SymbolWorkerData {
@@ -42,6 +47,18 @@ export interface SymbolWorkerRequest {
    * thread boundary. ⌘⇧O never asks for them, so it never pays for them.
    */
   imports?: boolean;
+  /**
+   * Send the call sites back too (Phase 257). Off by default for the same
+   * reason `imports` is: the fact pass is the one reader that asks, and ⌘⇧O
+   * never pays for a description it does not want.
+   */
+  calls?: boolean;
+  /**
+   * Walk the file for wrapper declarations too (Phase 257). Off by default,
+   * and off unless the fact base's wrapper pass SETTING is on: it is a second
+   * walk of the tree, over the JavaScript family alone.
+   */
+  wrappers?: boolean;
 }
 
 /** One file's contribution to the index. */
@@ -52,6 +69,12 @@ export interface IndexedFile {
   symbols: ExtractedSymbol[];
   /** Present only when the request asked for imports (Phase 63). */
   imports?: ExtractedImport[];
+  /** Present only when the request asked for calls (Phase 257). */
+  calls?: ExtractedCall[];
+  /** Present only when the request asked for wrappers (Phase 257). */
+  wrappers?: ExtractedWrapper[];
+  /** True when the call list stopped at the worker's ceiling (Phase 257). */
+  callsTruncated?: boolean;
 }
 
 export type SymbolWorkerMessage =
@@ -92,7 +115,10 @@ async function run(port_: NonNullable<typeof parentPort>): Promise<void> {
         // through rewriting WILL contain a half-written file, and losing 499
         // good files to it would make the index feel unreliable.
         try {
-          const got = await extractor.extractFile(file.relPath, file.absPath);
+          const got = await extractor.extractFile(file.relPath, file.absPath, {
+            calls: raw.calls === true,
+            wrappers: raw.wrappers === true
+          });
           if (got === null) {
             skipped += 1;
             continue;
@@ -102,7 +128,9 @@ async function run(port_: NonNullable<typeof parentPort>): Promise<void> {
             mtimeMs: got.mtimeMs,
             size: got.size,
             symbols: got.symbols,
-            ...(raw.imports === true ? { imports: got.imports } : {})
+            ...(raw.imports === true ? { imports: got.imports } : {}),
+            ...(raw.calls === true ? { calls: got.calls, callsTruncated: got.callsTruncated } : {}),
+            ...(raw.wrappers === true ? { wrappers: got.wrappers } : {})
           });
         } catch {
           skipped += 1;

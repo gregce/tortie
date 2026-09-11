@@ -23,7 +23,15 @@ const seam = vi.hoisted(() => ({
 vi.mock('../remote-source', () => ({ localArchSource: () => seam.source, archSourceOf: () => seam.source }));
 vi.mock('../load', () => ({ loadArchDocument: async () => ({ contract: null }), keepLastValid: (_old: unknown, fresh: unknown) => fresh }));
 vi.mock('../scan', () => ({ scanArchImports: async () => ({ parsed: 0, overBudget: null, imports: [], unparsed: [] }) }));
-vi.mock('../tree-facts', () => ({ readArchTreeFacts: async () => {} }));
+vi.mock('../tree-facts', () => ({
+  // The shape the coordinator logs after the read (Phase 257), with nothing read.
+  readArchTreeFacts: async () => ({
+    read: 0,
+    reused: 0,
+    durationMs: 0,
+    facts: { read: 0, reused: 0, wrapFacts: 0, wrapDigest: null, overBudget: null }
+  })
+}));
 vi.mock('../../typed-events', () => ({ broadcastEvent: vi.fn() }));
 import { createArchCheckCoordinator } from '../check-coordinator';
 

@@ -1,0 +1,3 @@
+FROM node:22
+EXPOSE 3000 9229
+ENTRYPOINT ["npm", "run", "dev"]

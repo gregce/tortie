@@ -296,7 +296,11 @@ export function withSealedDangerState(
       // surfaces and starts nothing, so a rejected choice keeps whatever
       // the person set it to.
       arch: archRejected
-        ? { ...noArchChosen(), enabled: settings.arch.enabled }
+        ? {
+            ...noArchChosen(),
+            enabled: settings.arch.enabled,
+            wrapperPass: settings.arch.wrapperPass
+          }
         : settings.arch
     },
     rejected
@@ -573,16 +577,20 @@ export function sanitizeArchSettings(raw: unknown): ArchSettings {
   // false, which is the shipped default and what every settings file written
   // before this phase means.
   const enabled = obj['enabled'] === true;
+  // Phase 257. The wrapper pass switch reads the same way and rides beside
+  // `enabled` through both early returns: it decides what one worker pool
+  // parses and never what runs, so it is no part of the sealed key either.
+  const wrapperPass = obj['wrapperPass'] === true;
   const agentId = obj['agentId'];
   const model = obj['model'];
   if (typeof agentId !== 'string' || typeof model !== 'string') {
-    return { ...noArchChosen(), enabled };
+    return { ...noArchChosen(), enabled, wrapperPass };
   }
   const recipe = archRecipeFor(agentId);
   if (recipe === null || !recipeHasModel(recipe, model)) {
-    return { ...noArchChosen(), enabled };
+    return { ...noArchChosen(), enabled, wrapperPass };
   }
-  return { enabled, agentId, model };
+  return { enabled, agentId, model, wrapperPass };
 }
 
 /** Apply a shallow patch (present keys replace wholesale), re-sanitized. */

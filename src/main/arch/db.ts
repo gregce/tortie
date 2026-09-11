@@ -34,9 +34,20 @@ import type Database from 'better-sqlite3';
 import { statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import {
+  ARCH_BOUNDARY_START_KINDS,
+  ARCH_FACT_CATEGORIES,
+  ARCH_FACT_KINDS,
+  ARCH_FACT_LIMITS,
+  ARCH_MODULE_ROOT_KIND
+} from '@shared/arch';
 import type {
   ArchCoverage,
   ArchCoverageCounts,
+  ArchFact,
+  ArchFactCategory,
+  ArchFactCounts,
+  ArchFactDraft,
   ArchFreshness,
   ArchOffending,
   ArchVerdict,
@@ -129,6 +140,55 @@ export interface ArchTreeFileFact {
   lines: number;
   /** The name a manifest declares, null for any other file or an unnamed one. */
   declares: string | null;
+}
+
+/**
+ * The freshness key for one file the fact pass has seen (Phase 257).
+ *
+ * `oid` is git's own blob name of the bytes, computed in process, and it is
+ * what lets a file whose stamp moved but whose bytes did not be LINKED without
+ * a parse. `wrapDigest` is the wrapper map the file's `+wrap` facts were
+ * computed under, or null when the pass was off at the link.
+ */
+export interface ArchFactStamp extends ArchFileStamp {
+  oid: string;
+  wrapDigest: string | null;
+  /** The grammar id, `manifest`, `path`, or null for a file no rule reads. */
+  lang: string | null;
+  /** The vendor reason the link was written under, or null when the file was rule-read. */
+  vendored: string | null;
+  /** Whether the worker hit its call ceiling on the parse the link records. */
+  truncated: boolean;
+}
+
+/** One file to link, or re-link, to the facts of its bytes (Phase 257). */
+export interface ArchFactFileLink {
+  relPath: string;
+  oid: string;
+  mtimeMs: number;
+  size: number;
+  lang: string | null;
+  /** The vendor filter's reason, or null when the file was rule-read. */
+  vendored: string | null;
+  /** True when the worker hit its call ceiling on this file. */
+  truncated: boolean;
+  wrapDigest: string | null;
+}
+
+/**
+ * One wrapper declaration as the store keeps it (Phase 257). Structurally the
+ * worker's own `ExtractedWrapper`, so a list of those is passed straight in.
+ * `innerLast` is already alias-resolved by the worker.
+ */
+export interface ArchWrapperDecl {
+  name: string;
+  innerCallee: string;
+  innerLast: string;
+  paramIndex: number;
+  innerIndex: number;
+  /** 1 when the inner callee is an anchor, else 0 for an unresolved candidate. */
+  hops: number;
+  line: number;
 }
 
 /**
@@ -426,6 +486,95 @@ const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'arch_repo', 'scan_incomplete', 'TEXT');
     }
+  },
+  {
+    // PHASE 257, the fact base (research 118 §6, §10 Phase 1). Four tables and
+    // nothing dropped, nothing altered.
+    //
+    // A FACT IS A FUNCTION OF (BYTES, PATH), so `arch_fact` is keyed on the
+    // blob oid AND the repository relative path. Three rule families read the
+    // path: the test-path refusal on every surface rule, the path conventions,
+    // and the manifest rules, which key on the basename. A row keyed on oid
+    // alone would say `app.get('/x')` in `src/server.ts` and the same bytes in
+    // `test/server.test.ts` have the same facts, and they do not. What the oid
+    // buys is the link without a parse: a branch switch, a `touch` or a fresh
+    // clone moves every stamp and no byte, and is hashed rather than read.
+    //
+    // `arch_fact_file` is one row per tracked file per repository, being the
+    // link from the repository's file to the facts of its bytes plus the
+    // freshness stamp and the denominators a face will need. Two repositories
+    // holding the same bytes at the same path share one fact list, and a fact
+    // list nothing links is pruned.
+    //
+    // WRAPPER-ONLY FACTS CANNOT BE KEYED ON THE FILE'S OWN BYTES. A `+wrap`
+    // fact on `src/main/arch/ipc.ts` exists because `src/main/typed-ipc.ts`
+    // declares `handle`; change the declaration and the fact moves although
+    // `ipc.ts`'s oid did not. So `arch_fact_wrap` is keyed on the FILE under
+    // a digest of the closed wrapper map, held on `arch_fact_file.wrap_digest`,
+    // and a moved digest re-reads every wrapper-grammar file for its wrapper
+    // arm alone. Wrapper DECLARATIONS are a function of one file's bytes and
+    // are cached by oid in `arch_fact_wrapper`, so pass 1 parses nothing that
+    // did not change. That is a fact about identity rather than a preference:
+    // folding `arch_fact_wrap` into `arch_fact` for tidiness would put a
+    // repository-dependent row under a bytes-keyed primary key.
+    name: '010-arch-facts',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS arch_fact (
+          oid       TEXT    NOT NULL,
+          rel_path  TEXT    NOT NULL,
+          seq       INTEGER NOT NULL,
+          category  TEXT    NOT NULL,
+          kind      TEXT    NOT NULL,
+          subject   TEXT    NOT NULL,
+          line      INTEGER NOT NULL,
+          rule      TEXT    NOT NULL,
+          evidence  TEXT    NOT NULL,
+          PRIMARY KEY (oid, rel_path, seq)
+        );
+        CREATE INDEX IF NOT EXISTS idx_arch_fact_category
+          ON arch_fact (oid, rel_path, category);
+        CREATE TABLE IF NOT EXISTS arch_fact_file (
+          repo_key    TEXT    NOT NULL,
+          rel_path    TEXT    NOT NULL,
+          oid         TEXT    NOT NULL,
+          mtime_ms    REAL    NOT NULL,
+          size        INTEGER NOT NULL,
+          lang        TEXT,
+          vendored    TEXT,
+          truncated   INTEGER NOT NULL DEFAULT 0,
+          wrap_digest TEXT,
+          PRIMARY KEY (repo_key, rel_path)
+        );
+        CREATE INDEX IF NOT EXISTS idx_arch_fact_file_oid
+          ON arch_fact_file (oid, rel_path);
+        CREATE TABLE IF NOT EXISTS arch_fact_wrapper (
+          oid          TEXT    NOT NULL,
+          rel_path     TEXT    NOT NULL,
+          seq          INTEGER NOT NULL,
+          name         TEXT    NOT NULL,
+          inner_callee TEXT    NOT NULL,
+          inner_last   TEXT    NOT NULL,
+          param_index  INTEGER NOT NULL,
+          inner_index  INTEGER NOT NULL,
+          hops         INTEGER NOT NULL,
+          line         INTEGER NOT NULL,
+          PRIMARY KEY (oid, rel_path, seq)
+        );
+        CREATE TABLE IF NOT EXISTS arch_fact_wrap (
+          repo_key  TEXT    NOT NULL,
+          rel_path  TEXT    NOT NULL,
+          seq       INTEGER NOT NULL,
+          category  TEXT    NOT NULL,
+          kind      TEXT    NOT NULL,
+          subject   TEXT    NOT NULL,
+          line      INTEGER NOT NULL,
+          rule      TEXT    NOT NULL,
+          evidence  TEXT    NOT NULL,
+          PRIMARY KEY (repo_key, rel_path, seq)
+        );
+      `);
+    }
   }
 ];
 
@@ -531,6 +680,76 @@ interface StampRow {
   rel_path: string;
   mtime_ms: number;
   size: number;
+}
+
+interface FactStampRow extends StampRow {
+  oid: string;
+  wrap_digest: string | null;
+  lang: string | null;
+  vendored: string | null;
+  truncated: number;
+}
+
+interface FactRow {
+  rel_path: string;
+  category: string;
+  kind: string;
+  subject: string;
+  line: number;
+  rule: string;
+  evidence: string;
+}
+
+interface WrapperDeclRow {
+  rel_path: string;
+  name: string;
+  inner_callee: string;
+  inner_last: string;
+  param_index: number;
+  inner_index: number;
+  hops: number;
+  line: number;
+}
+
+/**
+ * One sentence naming the field and the reason a fact row is refused, or null
+ * when the row is fine (Phase 257). The category and the kind are closed sets
+ * from `@shared/arch`; the two lengths are `ARCH_FACT_LIMITS`, which the
+ * reader cuts at and the store refuses past; the line is 1 based.
+ */
+function refuseFact(table: string, fact: ArchFactDraft): string | null {
+  if (!(ARCH_FACT_CATEGORIES as readonly string[]).includes(fact.category)) {
+    return `${table}.category "${String(fact.category)}" is not one of ${ARCH_FACT_CATEGORIES.join(', ')}`;
+  }
+  const kinds = ARCH_FACT_KINDS[fact.category];
+  if (!kinds.includes(fact.kind)) {
+    return `${table}.kind "${String(fact.kind)}" is not a ${fact.category} kind (${kinds.join(', ')})`;
+  }
+  if (typeof fact.subject !== 'string' || fact.subject.length === 0) {
+    return `${table}.subject must be a non-empty string`;
+  }
+  if (fact.subject.length > ARCH_FACT_LIMITS.maxSubject) {
+    return `${table}.subject holds ${String(fact.subject.length)} characters and the most is ${String(ARCH_FACT_LIMITS.maxSubject)}`;
+  }
+  if (typeof fact.evidence !== 'string' || fact.evidence.length > ARCH_FACT_LIMITS.maxEvidence) {
+    return `${table}.evidence holds ${String(fact.evidence.length)} characters and the most is ${String(ARCH_FACT_LIMITS.maxEvidence)}`;
+  }
+  if (!Number.isInteger(fact.line) || fact.line < 1) {
+    return `${table}.line must be a positive integer, not ${String(fact.line)}`;
+  }
+  if (typeof fact.rule !== 'string' || fact.rule.length === 0 || fact.rule.length > 80) {
+    return `${table}.rule must be a rule id of 1 to 80 characters`;
+  }
+  return null;
+}
+
+/** The order the store answers facts in: file, line, rule, subject. Deterministic, so a face can diff two answers. */
+function compareFacts(a: ArchFact, b: ArchFact): number {
+  if (a.file !== b.file) return a.file < b.file ? -1 : 1;
+  if (a.line !== b.line) return a.line - b.line;
+  if (a.rule !== b.rule) return a.rule < b.rule ? -1 : 1;
+  if (a.subject !== b.subject) return a.subject < b.subject ? -1 : 1;
+  return 0;
 }
 
 /**
@@ -871,6 +1090,325 @@ export class ArchStore {
            updated_at = excluded.updated_at`
       )
       .run(repoKey, repoPath, commit, incomplete, Date.now());
+  }
+
+  // -------------------------------------------------------------------------
+  // The fact base's second half: the facts (Phase 257)
+  // -------------------------------------------------------------------------
+
+  /** The freshness key, the oid, the wrapper digest and the grammar for every file the fact pass has seen. */
+  factStamps(repoKey: string): Map<string, ArchFactStamp> {
+    const rows = this.db
+      .prepare<[string], FactStampRow>(
+        `SELECT rel_path, mtime_ms, size, oid, wrap_digest, lang, vendored, truncated
+           FROM arch_fact_file WHERE repo_key = ?`
+      )
+      .all(repoKey);
+    const out = new Map<string, ArchFactStamp>();
+    for (const row of rows) {
+      out.set(row.rel_path, {
+        mtimeMs: row.mtime_ms,
+        size: row.size,
+        oid: row.oid,
+        wrapDigest: row.wrap_digest,
+        lang: row.lang,
+        vendored: row.vendored,
+        truncated: row.truncated === 1
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Does the store already hold the facts for these bytes at this path?
+   *
+   * A link is proof of a read: a file with NO facts writes no `arch_fact` row,
+   * so the question is asked of the links as well, or a fact-less file would
+   * be parsed again on every stamp move.
+   */
+  hasFactsFor(oid: string, relPath: string): boolean {
+    const fact = this.db
+      .prepare<[string, string], { one: number }>(
+        'SELECT 1 AS one FROM arch_fact WHERE oid = ? AND rel_path = ? LIMIT 1'
+      )
+      .get(oid, relPath);
+    if (fact !== undefined) return true;
+    const link = this.db
+      .prepare<[string, string], { one: number }>(
+        'SELECT 1 AS one FROM arch_fact_file WHERE oid = ? AND rel_path = ? LIMIT 1'
+      )
+      .get(oid, relPath);
+    return link !== undefined;
+  }
+
+  /**
+   * Replace the sorted fact list for (oid, relPath), in ONE transaction.
+   *
+   * A row whose category or kind is outside the closed sets, whose subject or
+   * evidence is past its bound, or whose line is not 1 based, makes the WHOLE
+   * call throw with the field named and writes nothing. That is the closed
+   * set rule from `@shared/arch` made structural rather than documentary.
+   */
+  saveFacts(oid: string, relPath: string, facts: readonly ArchFactDraft[]): void {
+    for (const fact of facts) {
+      const why = refuseFact('arch_fact', fact);
+      if (why !== null) throw new Error(`${relPath}: ${why}`);
+    }
+    const drop = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_fact WHERE oid = ? AND rel_path = ?'
+    );
+    const insert = this.db.prepare<[string, string, number, string, string, string, number, string, string]>(
+      `INSERT INTO arch_fact
+         (oid, rel_path, seq, category, kind, subject, line, rule, evidence)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    immediateTransaction(this.db, () => {
+      drop.run(oid, relPath);
+      facts.forEach((fact, seq) => {
+        insert.run(oid, relPath, seq, fact.category, fact.kind, fact.subject, fact.line, fact.rule, fact.evidence);
+      });
+    });
+  }
+
+  /** Replace the cached wrapper declarations for (oid, relPath), in ONE transaction. */
+  saveWrapperDecls(oid: string, relPath: string, decls: readonly ArchWrapperDecl[]): void {
+    const drop = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_fact_wrapper WHERE oid = ? AND rel_path = ?'
+    );
+    const insert = this.db.prepare<[string, string, number, string, string, string, number, number, number, number]>(
+      `INSERT INTO arch_fact_wrapper
+         (oid, rel_path, seq, name, inner_callee, inner_last, param_index, inner_index, hops, line)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    immediateTransaction(this.db, () => {
+      drop.run(oid, relPath);
+      decls.forEach((d, seq) => {
+        insert.run(oid, relPath, seq, d.name, d.innerCallee, d.innerLast, d.paramIndex, d.innerIndex, d.hops, d.line);
+      });
+    });
+  }
+
+  /** Every cached wrapper declaration for the files listed, keyed by relPath. A file with none is absent. */
+  wrapperDecls(files: readonly { oid: string; relPath: string }[]): Map<string, ArchWrapperDecl[]> {
+    const select = this.db.prepare<[string, string], WrapperDeclRow>(
+      `SELECT rel_path, name, inner_callee, inner_last, param_index, inner_index, hops, line
+         FROM arch_fact_wrapper WHERE oid = ? AND rel_path = ? ORDER BY seq`
+    );
+    const out = new Map<string, ArchWrapperDecl[]>();
+    for (const file of files) {
+      const rows = select.all(file.oid, file.relPath);
+      if (rows.length === 0) continue;
+      out.set(
+        file.relPath,
+        rows.map((row) => ({
+          name: row.name,
+          innerCallee: row.inner_callee,
+          innerLast: row.inner_last,
+          paramIndex: row.param_index,
+          innerIndex: row.inner_index,
+          hops: row.hops,
+          line: row.line
+        }))
+      );
+    }
+    return out;
+  }
+
+  /** Link or re-link files to the facts of their bytes, in ONE transaction. */
+  linkFactFiles(repoKey: string, rows: readonly ArchFactFileLink[]): void {
+    if (rows.length === 0) return;
+    const upsert = this.db.prepare<
+      [string, string, string, number, number, string | null, string | null, number, string | null]
+    >(
+      `INSERT INTO arch_fact_file
+         (repo_key, rel_path, oid, mtime_ms, size, lang, vendored, truncated, wrap_digest)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(repo_key, rel_path) DO UPDATE SET
+         oid = excluded.oid,
+         mtime_ms = excluded.mtime_ms,
+         size = excluded.size,
+         lang = excluded.lang,
+         vendored = excluded.vendored,
+         truncated = excluded.truncated,
+         wrap_digest = excluded.wrap_digest`
+    );
+    immediateTransaction(this.db, () => {
+      for (const row of rows) {
+        upsert.run(
+          repoKey,
+          row.relPath,
+          row.oid,
+          row.mtimeMs,
+          row.size,
+          row.lang,
+          row.vendored,
+          row.truncated ? 1 : 0,
+          row.wrapDigest
+        );
+      }
+    });
+  }
+
+  /** Replace one file's wrapper-only facts, in ONE transaction, under the same refusals as `saveFacts`. */
+  saveWrapFacts(repoKey: string, relPath: string, facts: readonly ArchFactDraft[]): void {
+    for (const fact of facts) {
+      const why = refuseFact('arch_fact_wrap', fact);
+      if (why !== null) throw new Error(`${relPath}: ${why}`);
+    }
+    const drop = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_fact_wrap WHERE repo_key = ? AND rel_path = ?'
+    );
+    const insert = this.db.prepare<[string, string, number, string, string, string, number, string, string]>(
+      `INSERT INTO arch_fact_wrap
+         (repo_key, rel_path, seq, category, kind, subject, line, rule, evidence)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    immediateTransaction(this.db, () => {
+      drop.run(repoKey, relPath);
+      facts.forEach((fact, seq) => {
+        insert.run(repoKey, relPath, seq, fact.category, fact.kind, fact.subject, fact.line, fact.rule, fact.evidence);
+      });
+    });
+  }
+
+  /** Drop every wrapper-only fact of a repository: the pass was turned off, and a stale `+wrap` row is a lie. */
+  clearWrapFacts(repoKey: string): void {
+    this.db.prepare<[string]>('DELETE FROM arch_fact_wrap WHERE repo_key = ?').run(repoKey);
+  }
+
+  /** Forget files the tree no longer tracks: their link and their wrapper-only facts. Prune afterwards. */
+  forgetFactFiles(repoKey: string, relPaths: readonly string[]): void {
+    if (relPaths.length === 0) return;
+    const dropLink = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_fact_file WHERE repo_key = ? AND rel_path = ?'
+    );
+    const dropWrap = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_fact_wrap WHERE repo_key = ? AND rel_path = ?'
+    );
+    immediateTransaction(this.db, () => {
+      for (const relPath of relPaths) {
+        dropLink.run(repoKey, relPath);
+        dropWrap.run(repoKey, relPath);
+      }
+    });
+  }
+
+  /**
+   * Prune every (oid, rel_path) fact list and wrapper cache no repository links
+   * any more. Answers how many rows went, across both tables.
+   */
+  pruneUnlinkedFacts(): number {
+    return immediateTransaction(this.db, () => this.pruneUnlinked());
+  }
+
+  private pruneUnlinked(): number {
+    const facts = this.db
+      .prepare(
+        `DELETE FROM arch_fact WHERE NOT EXISTS (
+           SELECT 1 FROM arch_fact_file f
+            WHERE f.oid = arch_fact.oid AND f.rel_path = arch_fact.rel_path)`
+      )
+      .run();
+    const wrappers = this.db
+      .prepare(
+        `DELETE FROM arch_fact_wrapper WHERE NOT EXISTS (
+           SELECT 1 FROM arch_fact_file f
+            WHERE f.oid = arch_fact_wrapper.oid AND f.rel_path = arch_fact_wrapper.rel_path)`
+      )
+      .run();
+    return facts.changes + wrappers.changes;
+  }
+
+  /** Every fact of a repository, joined through the links and the wrap table, sorted (file, line, rule, subject). */
+  facts(repoKey: string): ArchFact[] {
+    const linked = this.db
+      .prepare<[string], FactRow>(
+        `SELECT a.rel_path, a.category, a.kind, a.subject, a.line, a.rule, a.evidence
+           FROM arch_fact a
+           JOIN arch_fact_file f ON f.oid = a.oid AND f.rel_path = a.rel_path
+          WHERE f.repo_key = ?`
+      )
+      .all(repoKey);
+    const wrapped = this.db
+      .prepare<[string], FactRow>(
+        `SELECT rel_path, category, kind, subject, line, rule, evidence
+           FROM arch_fact_wrap WHERE repo_key = ?`
+      )
+      .all(repoKey);
+    const out: ArchFact[] = [];
+    for (const row of linked) out.push(factOf(row, false));
+    for (const row of wrapped) out.push(factOf(row, true));
+    return out.sort(compareFacts);
+  }
+
+  /** Per category and per rule, plus the denominators: files linked, vendored, truncated, unread, wrap facts. */
+  factCounts(repoKey: string): ArchFactCounts {
+    const byCategory = {} as Record<ArchFactCategory, number>;
+    for (const category of ARCH_FACT_CATEGORIES) byCategory[category] = 0;
+    const byRule: Record<string, number> = {};
+    let wrapFacts = 0;
+    for (const fact of this.facts(repoKey)) {
+      byCategory[fact.category] += 1;
+      byRule[fact.rule] = (byRule[fact.rule] ?? 0) + 1;
+      if (fact.viaWrapper) wrapFacts += 1;
+    }
+    const files = this.db
+      .prepare<[string], { files: number; vendored: number; truncated: number; unread: number }>(
+        `SELECT COUNT(*) AS files,
+                SUM(CASE WHEN vendored IS NOT NULL THEN 1 ELSE 0 END) AS vendored,
+                SUM(CASE WHEN truncated = 1 THEN 1 ELSE 0 END) AS truncated,
+                SUM(CASE WHEN lang IS NULL AND vendored IS NULL THEN 1 ELSE 0 END) AS unread
+           FROM arch_fact_file WHERE repo_key = ?`
+      )
+      .get(repoKey) ?? { files: 0, vendored: 0, truncated: 0, unread: 0 };
+    const digest = this.db
+      .prepare<[string], { wrap_digest: string }>(
+        `SELECT wrap_digest FROM arch_fact_file
+          WHERE repo_key = ? AND wrap_digest IS NOT NULL
+          GROUP BY wrap_digest ORDER BY COUNT(*) DESC, wrap_digest LIMIT 1`
+      )
+      .get(repoKey);
+    return {
+      byCategory,
+      byRule,
+      files: files.files,
+      vendored: files.vendored ?? 0,
+      truncated: files.truncated ?? 0,
+      unread: files.unread ?? 0,
+      wrapFacts,
+      wrapDigest: digest === undefined ? null : digest.wrap_digest
+    };
+  }
+
+  /**
+   * The boundary facts that say what a repository BUILDS and STARTS: the six
+   * kinds of `ARCH_BOUNDARY_START_KINDS` and never `module-root`. There is
+   * deliberately no reader for the union (see `ARCH_FACT_KINDS`).
+   */
+  boundaryStarts(repoKey: string): ArchFact[] {
+    const marks = ARCH_BOUNDARY_START_KINDS.map(() => '?').join(', ');
+    const rows = this.db
+      .prepare<[string, ...string[]], FactRow>(
+        `SELECT a.rel_path, a.category, a.kind, a.subject, a.line, a.rule, a.evidence
+           FROM arch_fact a
+           JOIN arch_fact_file f ON f.oid = a.oid AND f.rel_path = a.rel_path
+          WHERE f.repo_key = ? AND a.category = 'boundary' AND a.kind IN (${marks})`
+      )
+      .all(repoKey, ...ARCH_BOUNDARY_START_KINDS);
+    return rows.map((row) => factOf(row, false)).sort(compareFacts);
+  }
+
+  /** The boundary facts that say a language's package root is here, and nothing else. */
+  moduleRoots(repoKey: string): ArchFact[] {
+    const rows = this.db
+      .prepare<[string, string], FactRow>(
+        `SELECT a.rel_path, a.category, a.kind, a.subject, a.line, a.rule, a.evidence
+           FROM arch_fact a
+           JOIN arch_fact_file f ON f.oid = a.oid AND f.rel_path = a.rel_path
+          WHERE f.repo_key = ? AND a.category = 'boundary' AND a.kind = ?`
+      )
+      .all(repoKey, ARCH_MODULE_ROOT_KIND);
+    return rows.map((row) => factOf(row, false)).sort(compareFacts);
   }
 
   // -------------------------------------------------------------------------
@@ -1280,6 +1818,8 @@ export class ArchStore {
       for (const table of [
         'arch_import',
         'arch_import_file',
+        'arch_fact_file',
+        'arch_fact_wrap',
         'arch_verdict',
         'arch_freshness',
         'arch_camera',
@@ -1292,12 +1832,29 @@ export class ArchStore {
           .prepare(`DELETE FROM ${table} WHERE repo_key = ?`)
           .run(repoKey);
       }
+      // The facts are keyed on bytes and shared between repositories, so what
+      // this one alone linked is pruned rather than deleted by key.
+      this.pruneUnlinked();
     });
   }
 
   close(): void {
     this.db.close();
   }
+}
+
+/** One stored fact row, back as a record. */
+function factOf(row: FactRow, viaWrapper: boolean): ArchFact {
+  return {
+    file: row.rel_path,
+    category: row.category as ArchFactCategory,
+    kind: row.kind,
+    subject: row.subject,
+    line: row.line,
+    rule: row.rule,
+    evidence: row.evidence,
+    viaWrapper
+  };
 }
 
 /**

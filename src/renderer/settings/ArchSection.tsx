@@ -101,15 +101,18 @@ export async function selectArchAgent(agentId: string): Promise<boolean> {
   // the pair would sanitize to `enabled: false` and turn the surface off the
   // moment a person changed the agent.
   const enabled = store.settings.arch.enabled;
+  // Phase 257 carries the wrapper pass switch through the same way, for the
+  // same reason: main patches `arch` wholesale.
+  const wrapperPass = store.settings.arch.wrapperPass;
   if (agentId === NONE) {
-    await store.update({ arch: { ...noArchChosen(), enabled } });
+    await store.update({ arch: { ...noArchChosen(), enabled, wrapperPass } });
     return true;
   }
   const harness = foldHarnessById(store.archOptions, agentId);
   if (harness === undefined || !harness.available) return false;
   const model = firstFoldModel(harness);
   if (model === null) return false;
-  const next = await store.update({ arch: { enabled, agentId, model } });
+  const next = await store.update({ arch: { enabled, agentId, model, wrapperPass } });
   return next?.arch.agentId === agentId && next.arch.model === model;
 }
 
@@ -130,7 +133,12 @@ export async function selectArchModel(model: string): Promise<boolean> {
     return false;
   }
   const next = await store.update({
-    arch: { enabled: store.settings.arch.enabled, agentId, model }
+    arch: {
+      enabled: store.settings.arch.enabled,
+      agentId,
+      model,
+      wrapperPass: store.settings.arch.wrapperPass
+    }
   });
   return next?.arch.model === model;
 }
@@ -147,8 +155,8 @@ export async function selectArchModel(model: string): Promise<boolean> {
  */
 export async function setArchEnabled(enabled: boolean): Promise<boolean> {
   const store = useSettingsStore.getState();
-  const { agentId, model } = store.settings.arch;
-  const next = await store.update({ arch: { enabled, agentId, model } });
+  const { agentId, model, wrapperPass } = store.settings.arch;
+  const next = await store.update({ arch: { enabled, agentId, model, wrapperPass } });
   return next?.arch.enabled === enabled;
 }
 

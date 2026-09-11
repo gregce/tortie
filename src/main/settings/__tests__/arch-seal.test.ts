@@ -130,7 +130,8 @@ describe('None is the shipped answer, and it must stay valid', () => {
     expect(store.getSettings().arch).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
   });
 
@@ -140,7 +141,8 @@ describe('None is the shipped answer, and it must stay valid', () => {
     expect(store.getSettings().arch).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
   });
 });
@@ -161,14 +163,15 @@ describe('sanitizeArchSettings drops an invalid value WHOLE', () => {
     expect(store.sanitizeArchSettings(raw)).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
   });
 
   it('keeps a pair the compiled arch recipe table has', async () => {
     const store = await freshStore();
     expect(store.sanitizeArchSettings({ agentId: AGENT, model: MODEL })).toEqual(
-      { enabled: false, agentId: AGENT, model: MODEL }
+      { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     );
   });
 });
@@ -180,28 +183,30 @@ describe('the seal', () => {
     expect(store.getSettings().arch).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
   });
 
   it('keeps an arch choice Tortie wrote, across a restart', async () => {
     const first = await freshStore();
     first.updateSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     expect(readRaw()['dangerSeal']).toBeTypeOf('string');
     const second = await freshStore();
     expect(second.getSettings().arch).toEqual({
       enabled: false,
       agentId: AGENT,
-      model: MODEL
+      model: MODEL,
+      wrapperPass: false
     });
   });
 
   it('drops the choice when the seal names a different pair', async () => {
     const first = await freshStore();
     first.updateSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     const raw = readRaw();
     const settings = raw['settings'] as Record<string, unknown>;
@@ -211,14 +216,15 @@ describe('the seal', () => {
     expect(second.getSettings().arch).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
   });
 
   it('reports a dropped arch choice, so Settings can say one sentence', async () => {
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     const out = store.withSealedDangerState(settings, {
       defaults: [],
@@ -229,7 +235,8 @@ describe('the seal', () => {
     expect(out.settings.arch).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
     expect(out.rejected).toEqual([`${AGENT} ${MODEL}`]);
   });
@@ -237,7 +244,7 @@ describe('the seal', () => {
   it('does not touch an arch choice the seal covers', async () => {
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     const out = store.withSealedDangerState(settings, {
       defaults: [],
@@ -245,21 +252,22 @@ describe('the seal', () => {
       fold: null,
       arch: `${AGENT} ${MODEL}`
     });
-    expect(out.settings.arch).toEqual({ enabled: false, agentId: AGENT, model: MODEL });
+    expect(out.settings.arch).toEqual({ enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false });
     expect(out.rejected).toEqual([]);
   });
 
   it('drops the choice when the keystore cannot be read', async () => {
     const first = await freshStore();
     first.updateSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     keystore.available = false;
     const second = await freshStore();
     expect(second.getSettings().arch).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
   });
 
@@ -277,7 +285,7 @@ describe('the seal', () => {
           version: 1,
           settings: {
             fold: { agentId: 'claude', model: 'fold-model' },
-            arch: { enabled: false, agentId: AGENT, model: MODEL }
+            arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
           },
           dangerSeal: blob
         },
@@ -289,7 +297,7 @@ describe('the seal', () => {
     const store = await freshStore();
     const out = store.getSettings();
     expect(out.fold).toEqual({ agentId: 'claude', model: 'fold-model' });
-    expect(out.arch).toEqual({ enabled: false, agentId: null, model: null });
+    expect(out.arch).toEqual({ enabled: false, agentId: null, model: null, wrapperPass: false });
   });
 });
 
@@ -301,7 +309,7 @@ describe('a fold agreement is not an arch agreement', () => {
     // still answer None, because the `arch` field of the seal is null.
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     const out = store.withSealedDangerState(settings, {
       defaults: [],
@@ -312,7 +320,8 @@ describe('a fold agreement is not an arch agreement', () => {
     expect(out.settings.arch).toEqual({
       enabled: false,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
     expect(out.rejected).toEqual([`${AGENT} ${MODEL}`]);
   });
@@ -335,12 +344,12 @@ describe('a fold agreement is not an arch agreement', () => {
     const first = await freshStore();
     first.updateSettings({
       fold: { agentId: AGENT, model: 'fold-model' },
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     const second = await freshStore();
     const out = second.getSettings();
     expect(out.fold).toEqual({ agentId: AGENT, model: 'fold-model' });
-    expect(out.arch).toEqual({ enabled: false, agentId: AGENT, model: MODEL });
+    expect(out.arch).toEqual({ enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false });
   });
 });
 
@@ -374,7 +383,7 @@ describe('the visibility switch (Phase 175)', () => {
       ).toBe(false);
     }
     expect(
-      store.sanitizeArchSettings({ enabled: true, agentId: AGENT, model: MODEL })
+      store.sanitizeArchSettings({ enabled: true, agentId: AGENT, model: MODEL, wrapperPass: false })
         .enabled
     ).toBe(true);
   });
@@ -385,15 +394,16 @@ describe('the visibility switch (Phase 175)', () => {
       store.sanitizeArchSettings({
         enabled: true,
         agentId: 'nonesuch',
-        model: MODEL
+        model: MODEL,
+        wrapperPass: false
       })
-    ).toEqual({ enabled: true, agentId: null, model: null });
+    ).toEqual({ enabled: true, agentId: null, model: null, wrapperPass: false });
   });
 
   it('survives the SEAL dropping the pair, because it starts nothing', async () => {
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { enabled: true, agentId: AGENT, model: MODEL }
+      arch: { enabled: true, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     const out = store.withSealedDangerState(settings, {
       defaults: [],
@@ -404,7 +414,8 @@ describe('the visibility switch (Phase 175)', () => {
     expect(out.settings.arch).toEqual({
       enabled: true,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
     });
     expect(out.rejected).toEqual([`${AGENT} ${MODEL}`]);
   });
@@ -412,10 +423,10 @@ describe('the visibility switch (Phase 175)', () => {
   it('is no part of the sealed key, so flipping it seals nothing new', async () => {
     const store = await freshStore();
     const off = store.sanitizeSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     const on = store.sanitizeSettings({
-      arch: { enabled: true, agentId: AGENT, model: MODEL }
+      arch: { enabled: true, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     expect(store.dangerStateOf(on).arch).toBe(store.dangerStateOf(off).arch);
   });
@@ -423,13 +434,91 @@ describe('the visibility switch (Phase 175)', () => {
   it('persists across a restart, on its own, with the pair at None', async () => {
     const first = await freshStore();
     first.updateSettings({
-      arch: { enabled: true, agentId: null, model: null }
+      arch: { enabled: true, agentId: null, model: null, wrapperPass: false }
     });
     const second = await freshStore();
     expect(second.getSettings().arch).toEqual({
       enabled: true,
       agentId: null,
-      model: null
+      model: null,
+      wrapperPass: false
+    });
+  });
+});
+
+/**
+ * PHASE 257. The wrapper pass switch is a THIRD field on the same key, read
+ * exactly the way `enabled` is: only a literal `true` turns it on, it rides
+ * through both early returns of the sanitizer and through the seal dropping
+ * the pair, and it is no part of the sealed key, because it decides what one
+ * worker pool parses and never what runs.
+ */
+describe('the wrapper pass switch (Phase 257)', () => {
+  it('reads false when absent', async () => {
+    const store = await freshStore();
+    expect(store.sanitizeArchSettings({ enabled: true }).wrapperPass).toBe(false);
+    expect(store.getSettings().arch.wrapperPass).toBe(false);
+  });
+
+  it('reads false from anything that is not a literal true', async () => {
+    const store = await freshStore();
+    for (const raw of ['yes', 'true', 1, {}, [], null]) {
+      expect(
+        store.sanitizeArchSettings({ enabled: true, wrapperPass: raw }).wrapperPass,
+        `${JSON.stringify(raw)} read as on`
+      ).toBe(false);
+    }
+  });
+
+  it('reads true from a literal true, with the pair present or dropped', async () => {
+    const store = await freshStore();
+    expect(store.sanitizeArchSettings({ wrapperPass: true }).wrapperPass).toBe(true);
+    expect(
+      store.sanitizeArchSettings({ wrapperPass: true, agentId: 'nonesuch', model: MODEL })
+    ).toEqual({ enabled: false, agentId: null, model: null, wrapperPass: true });
+    expect(
+      store.sanitizeArchSettings({ wrapperPass: true, agentId: AGENT, model: MODEL })
+    ).toEqual({ enabled: false, agentId: AGENT, model: MODEL, wrapperPass: true });
+  });
+
+  it('moves no seal', async () => {
+    const store = await freshStore();
+    const off = store.sanitizeSettings({
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
+    });
+    const on = store.sanitizeSettings({
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: true }
+    });
+    expect(store.dangerStateOf(on)).toEqual(store.dangerStateOf(off));
+  });
+
+  it('survives the SEAL dropping the pair', async () => {
+    const store = await freshStore();
+    const settings = store.sanitizeSettings({
+      arch: { enabled: true, agentId: AGENT, model: MODEL, wrapperPass: true }
+    });
+    const out = store.withSealedDangerState(settings, {
+      defaults: [],
+      acks: [],
+      fold: null,
+      arch: null
+    });
+    expect(out.settings.arch).toEqual({
+      enabled: true,
+      agentId: null,
+      model: null,
+      wrapperPass: true
+    });
+  });
+
+  it('persists across a restart, hand written and unsealed', async () => {
+    writeByHand({ arch: { wrapperPass: true } });
+    const store = await freshStore();
+    expect(store.getSettings().arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null,
+      wrapperPass: true
     });
   });
 });
@@ -438,7 +527,7 @@ describe('dangerStateOf', () => {
   it('carries the arch pair when one is chosen', async () => {
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { enabled: false, agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     });
     expect(store.dangerStateOf(settings).arch).toBe(`${AGENT} ${MODEL}`);
     expect(store.isDangerStateEmpty(store.dangerStateOf(settings))).toBe(false);

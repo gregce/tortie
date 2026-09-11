@@ -25,7 +25,12 @@ import type { Node as TsNode, Tree } from 'web-tree-sitter';
 import type { SymbolKind } from '@shared/symbols';
 import type { GrammarId } from './languages';
 import { grammarFor, MAX_INDEXED_FILE_BYTES } from './languages';
+import { describeCall, MAX_CALLS_PER_FILE, unquoteLiteral } from './calls';
+import type { CallForm, ExtractedCall } from './calls';
+import { readWrapperDecls } from './wrappers';
+import type { ExtractedWrapper } from './wrappers';
 import {
+  CALL_BY_CAPTURE,
   CSHARP_QUERY,
   GO_QUERY,
   IMPORT_BY_CAPTURE,
@@ -64,6 +69,14 @@ export interface ExtractedImport {
   /** How it was written. Provenance, never a verdict. */
   form: ImportForm;
 }
+
+/**
+ * The call site and wrapper declaration records (Phase 257) are declared
+ * beside the code that makes them and re-exported here, because this module
+ * is the one place the pool, the worker and the fact base already import
+ * their shapes from.
+ */
+export type { CallForm, ExtractedCall, ExtractedWrapper };
 
 /** One definition, before it is given a `relPath`. */
 export interface ExtractedSymbol {
@@ -131,6 +144,32 @@ export interface ExtractorOptions {
   grammarPath: (id: GrammarId) => string;
 }
 
+/**
+ * What one extraction is asked for beyond symbols and imports (Phase 257).
+ * Both default to off, and off costs nothing past the match the query makes
+ * anyway: a call site is DESCRIBED only when `calls` is on, and the wrapper
+ * walk runs only when `wrappers` is on and the grammar is in the JavaScript
+ * family.
+ */
+export interface ExtractAsk {
+  calls?: boolean;
+  wrappers?: boolean;
+}
+
+/** Everything one parse of one file yields. */
+export interface Extracted {
+  symbols: ExtractedSymbol[];
+  imports: ExtractedImport[];
+  /** `[]` unless `calls` was asked. */
+  calls: ExtractedCall[];
+  /** `[]` unless `wrappers` was asked and the grammar is one the pass reads. */
+  wrappers: ExtractedWrapper[];
+  /** True when the call list stopped at MAX_CALLS_PER_FILE. */
+  callsTruncated: boolean;
+}
+
+const NOTHING: Extracted = { symbols: [], imports: [], calls: [], wrappers: [], callsTruncated: false };
+
 interface LoadedGrammar {
   language: Language;
   query: Query;
@@ -185,27 +224,31 @@ export class SymbolExtractor {
 
   /**
    * Symbols AND imports in one file's text, from ONE parse and ONE walk of the
-   * matches (Phase 63).
+   * matches (Phase 63), and the call sites from the same walk when asked
+   * (Phase 257).
    *
-   * There is no second query and no second traversal. The import patterns live
-   * in the same strings as the definition patterns, so a match carrying
-   * `@import.path` and a match carrying `@definition.function` come out of the
-   * same `matches()` call and are separated by capture name below.
+   * There is no second query and no second traversal of the matches. The
+   * import and call patterns live in the same strings as the definition
+   * patterns, so a match carrying `@import.path`, one carrying
+   * `@definition.function` and one carrying `@call.site` come out of the same
+   * `matches()` call and are separated by capture name below. The wrapper
+   * walk IS a second traversal, of the tree rather than the matches, and it
+   * runs only when asked and only over the JavaScript family, which is why it
+   * is a setting of the fact base rather than a cost every reader pays.
    */
-  async extractAll(
-    relPath: string,
-    source: string
-  ): Promise<{ symbols: ExtractedSymbol[]; imports: ExtractedImport[] }> {
+  async extractAll(relPath: string, source: string, ask: ExtractAsk = {}): Promise<Extracted> {
     const id = grammarFor(relPath);
-    if (id === null) return { symbols: [], imports: [] };
+    if (id === null) return NOTHING;
     const g = await this.grammar(id);
-    if (g === null) return { symbols: [], imports: [] };
+    if (g === null) return NOTHING;
 
     let tree: Tree | null = null;
     try {
       tree = g.parser.parse(source);
-      if (tree === null) return { symbols: [], imports: [] };
-      return collect(g.query, tree.rootNode);
+      if (tree === null) return NOTHING;
+      const found = collect(g.query, tree.rootNode, id, ask.calls === true);
+      const wrappers = ask.wrappers === true ? readWrapperDecls(tree.rootNode, id, source) : [];
+      return { ...found, wrappers };
     } finally {
       tree?.delete();
     }
@@ -217,13 +260,9 @@ export class SymbolExtractor {
    */
   async extractFile(
     relPath: string,
-    absPath: string
-  ): Promise<{
-    symbols: ExtractedSymbol[];
-    imports: ExtractedImport[];
-    mtimeMs: number;
-    size: number;
-  } | null> {
+    absPath: string,
+    ask: ExtractAsk = {}
+  ): Promise<(Extracted & { mtimeMs: number; size: number }) | null> {
     if (grammarFor(relPath) === null) return null;
     let buf: Buffer;
     let mtimeMs: number;
@@ -242,8 +281,8 @@ export class SymbolExtractor {
     // binary file is not wrong so much as pointless, and it is slow.
     const probe = buf.subarray(0, 8192);
     if (probe.includes(0)) return null;
-    const found = await this.extractAll(relPath, buf.toString('utf8'));
-    return { symbols: found.symbols, imports: found.imports, mtimeMs, size };
+    const found = await this.extractAll(relPath, buf.toString('utf8'), ask);
+    return { ...found, mtimeMs, size };
   }
 
   /** Free every loaded grammar. Called when a worker is about to exit. */
@@ -273,11 +312,15 @@ export class SymbolExtractor {
  */
 function collect(
   query: Query,
-  root: TsNode
-): { symbols: ExtractedSymbol[]; imports: ExtractedImport[] } {
+  root: TsNode,
+  grammar: GrammarId,
+  wantCalls: boolean
+): Omit<Extracted, 'wrappers'> {
   const out = new Map<string, ExtractedSymbol>();
   const imports: ExtractedImport[] = [];
   const seenImports = new Set<string>();
+  const calls: ExtractedCall[] = [];
+  let callsTruncated = false;
 
   for (const match of query.matches(root)) {
     let container: string | null = null;
@@ -291,6 +334,12 @@ function collect(
     // Python's `from a.b import c`. See `memberSpecifier` below for why the
     // imported NAME is captured beside the module and what it is worth.
     let importMember: TsNode | null = null;
+    // Phase 257. The call third of the same stream. A call match carries one
+    // `@call.<form>` capture and nothing else, and it is described only when a
+    // reader asked for calls, so the readers that did not ask pay the match
+    // and not the description.
+    let callForm: CallForm | null = null;
+    let callNode: TsNode | null = null;
 
     for (const capture of match.captures) {
       if (capture.name === 'container') {
@@ -314,15 +363,33 @@ function collect(
         importForm = form;
         continue;
       }
+      const call = CALL_BY_CAPTURE[capture.name];
+      if (call !== undefined) {
+        callForm = call;
+        callNode = capture.node;
+        continue;
+      }
       const kind = KIND_BY_CAPTURE[capture.name];
       if (kind !== undefined) defs.push({ kind, node: capture.node });
+    }
+
+    if (callNode !== null && callForm !== null) {
+      if (wantCalls) {
+        if (calls.length >= MAX_CALLS_PER_FILE) {
+          callsTruncated = true;
+        } else {
+          const site = describeCall(callNode, grammar, callForm);
+          if (site !== null) calls.push(site);
+        }
+      }
+      continue;
     }
 
     if (importPath !== null && importForm !== null) {
       const written =
         importMember === null
-          ? unquote(importPath.text)
-          : memberSpecifier(unquote(importPath.text), importMember.text);
+          ? unquoteLiteral(importPath.text)
+          : memberSpecifier(unquoteLiteral(importPath.text), importMember.text);
       if (written.length > 0) {
         const specifier =
           written.length <= MAX_SPECIFIER_CHARS
@@ -368,19 +435,20 @@ function collect(
     }
   }
 
-  return { symbols: [...out.values()], imports };
+  return { symbols: [...out.values()], imports, calls, callsTruncated };
 }
 
 /**
- * The specifier without its quotes.
+ * The specifier without its quotes is `unquoteLiteral` in ./calls.ts, the one
+ * unquote this directory has (Phase 257 merged the two).
  *
  * The JavaScript, TypeScript and Python patterns capture a `string_fragment` or
- * a `dotted_name`, which carries no quotes at all, so this is a no-op for them.
+ * a `dotted_name`, which carries no quotes at all, so it is a no-op for them.
  * Go has no `string_fragment` node, so its capture arrives as
  * `"github.com/foo/bar"` including the quotes, and a Go raw string uses
  * backticks. Ruby captures the whole string node on purpose, so its specifiers
- * arrive quoted too, in either quote style. Stripping here rather than in six
- * places is what keeps the fact base holding one shape.
+ * arrive quoted too, in either quote style. Stripping in one place rather than
+ * in six is what keeps the fact base holding one shape.
  */
 /**
  * `from a.b import c` to the dotted name `a.b.c`, which is the module that
@@ -414,19 +482,6 @@ function memberSpecifier(moduleText: string, member: string): string {
   const name = member.trim();
   if (module.length === 0 || name.length === 0) return module;
   return module.endsWith('.') ? `${module}${name}` : `${module}.${name}`;
-}
-
-function unquote(text: string): string {
-  const first = text[0];
-  const last = text[text.length - 1];
-  if (
-    text.length >= 2 &&
-    (first === '"' || first === "'" || first === '`') &&
-    last === first
-  ) {
-    return text.slice(1, -1);
-  }
-  return text;
 }
 
 /**

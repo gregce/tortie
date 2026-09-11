@@ -91,9 +91,38 @@
  * Dropping an import at the query would make a repository in that language look
  * like a repository with no imports, which is the one output this design must
  * never produce.
+ *
+ * PHASE 257 ADDED THE CALL LAYER, and both rules above govern it unchanged.
+ * `CALL_BY_CAPTURE` is the third capture table and it is rule 2 applied to
+ * call sites: a `@call.<form>` missing from it is dropped exactly the way an
+ * unmapped `@definition.<kind>` is. The patterns capture the NODE and nothing
+ * inside it, being `(call_expression) @call.site` and its five siblings, so
+ * they name no field and no child and cannot go stale on a field rename; the
+ * node to record work is `src/main/symbols/calls.ts`, whose shape table was
+ * measured off `rootNode.toString()` against the shipped wasm. They ride the
+ * same match stream as the definitions and the imports, and a match carrying
+ * `@call.*` carries no `@name` and no `@import.path`, so the three families
+ * never contend. The extractor describes a call only when asked, so ⌘⇧O and
+ * the import scan pay the match and not the description. MEASURED on this
+ * tree's 1,908 TypeScript files on 2026-09-11, one thread, trees parsed once
+ * and held: the parse alone 1,436 ms; `matches()` with the queries as they
+ * were 482 to 537 ms; with the call patterns and no description 515 to 540 ms,
+ * which is inside the run to run spread; with the 167,168 call sites
+ * described 702 to 718 ms. The readers that do not ask pay at most a few tens
+ * of milliseconds over the whole tree, and the one that does pays about 180.
+ *
+ * SIX GRAMMARS CARRY CALL PATTERNS AND SEVEN DO NOT, deliberately: research
+ * 118's corpus exercised typescript, tsx, javascript, python, go, rust, ruby
+ * and swift, and its charter refuses a rule for a grammar no repository
+ * measured. Java, PHP, C sharp, Kotlin and Objective-C keep their queries byte
+ * for byte, answer `calls: []`, and a capture with no rule behind it would be
+ * dead parse cost and a temptation. Ruby's pattern names `call` alone; the
+ * shipped grammar has no `method_call` node, and naming one throws
+ * `Bad node name`, which the compile test is there to catch.
  */
 
 import type { SymbolKind } from '@shared/symbols';
+import type { CallForm } from './calls';
 
 /** The base layer — also loaded for TypeScript and TSX. */
 export const JS_QUERY = `
@@ -153,6 +182,13 @@ export const JS_QUERY = `
 (call_expression
   function: (import)
   arguments: (arguments . (string (string_fragment) @import.path))) @import.dynamic
+
+; ---------------------------------------------------------------------------
+; Call sites (Phase 257). The NODE alone is captured; calls.ts reads it.
+; ---------------------------------------------------------------------------
+(call_expression) @call.site
+(new_expression) @call.new
+(decorator) @call.decorator
 `;
 
 /** Layered AFTER JS_QUERY, for both the `typescript` and `tsx` grammars. */
@@ -224,6 +260,10 @@ export const GO_QUERY = `
 ; WITH its quotes and src/main/symbols/extract.ts strips them. Both the bare
 ; and the aliased form (\`x "path"\`) are the same import_spec.
 (import_spec path: (interpreted_string_literal) @import.path) @import.static
+
+; Call sites (Phase 257). A composite literal is Go's construction.
+(call_expression) @call.site
+(composite_literal) @call.new
 `;
 
 export const PYTHON_QUERY = `
@@ -273,6 +313,11 @@ export const PYTHON_QUERY = `
 (import_from_statement
   module_name: (_) @import.path
   name: (aliased_import name: (dotted_name) @import.member)) @import.static
+
+; Call sites (Phase 257). A decorator wraps a call or a bare name; calls.ts
+; reads whichever it wraps.
+(call) @call.site
+(decorator) @call.decorator
 `;
 
 export const RUST_QUERY = `
@@ -321,6 +366,14 @@ export const RUST_QUERY = `
 ; first build of that cap dropped it silently.
 (use_declaration argument: (_) @import.path) @import.static
 (extern_crate_declaration name: (identifier) @import.path) @import.static
+
+; Call sites (Phase 257). Both attribute shapes are one form, and a macro
+; invocation is its own, so \`panic!\` and \`#[test]\` reach the rules as what
+; they are rather than as calls.
+(call_expression) @call.site
+(attribute_item) @call.attribute
+(inner_attribute_item) @call.attribute
+(macro_invocation) @call.macro
 `;
 
 export const RUBY_QUERY = `
@@ -384,6 +437,11 @@ export const RUBY_QUERY = `
   method: (identifier) @import.callee
   arguments: (argument_list (simple_symbol) . (string) @import.path)
   (#eq? @import.callee "autoload")) @import.require
+
+; Call sites (Phase 257). The one call node this grammar has; a \`require\`
+; matches this AND its import pattern above, in two matches, and the
+; extractor keeps them apart by capture name.
+(call) @call.site
 `;
 
 export const SWIFT_QUERY = `
@@ -429,6 +487,12 @@ export const SWIFT_QUERY = `
 ; pattern because attribute and kind sit outside the identifier. A Swift import
 ; names a MODULE, never a file, and the resolver arm is what knows that.
 (import_declaration (identifier) @import.path) @import.static
+
+; Call sites (Phase 257). The callee is the first named child that is not
+; the call_suffix, and the arguments sit inside that suffix; calls.ts knows.
+; An attribute is \`@main\` or \`@Test\`, read with its at sign off.
+(call_expression) @call.site
+(attribute) @call.attribute
 `;
 
 export const KOTLIN_QUERY = `
@@ -773,4 +837,27 @@ export const IMPORT_BY_CAPTURE: Readonly<Record<string, ImportForm>> = {
   // from a load path `require` by looking at the specifier text.
   'import.require-relative': 'require-relative',
   'import.dynamic': 'dynamic'
+};
+
+// ---------------------------------------------------------------------------
+// The call layer (Phase 257)
+// ---------------------------------------------------------------------------
+
+/**
+ * `@call.<x>` capture name → the form the reader records.
+ *
+ * This is rule 2 of the header applied to call sites. A capture missing from
+ * this table is DROPPED, for the same reason an unmapped `@definition.<kind>`
+ * or `@import.<form>` is: an unmapped form would reach the rule table as a
+ * shape no rule knows how to read. The form travels with the record because a
+ * rule's meaning depends on it: `@router.get('/p')` is a route where
+ * `router.get('/p')` in a test is a request, and `#[test]` is a test where
+ * `test(...)` is a call.
+ */
+export const CALL_BY_CAPTURE: Readonly<Record<string, CallForm>> = {
+  'call.site': 'call',
+  'call.new': 'new',
+  'call.decorator': 'decorator',
+  'call.attribute': 'attribute',
+  'call.macro': 'macro'
 };

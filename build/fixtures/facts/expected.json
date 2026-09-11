@@ -1,0 +1,2297 @@
+{
+ "_note": "Phase 257. What the SHIPPING reader answers over build/fixtures/facts/*, pinned byte for byte by npm run conformance:facts rule 1. Every planted line is a known true, a decoy from the hand sample's own false rows (build/p256/det/hand-precision.json) marked with its sample id, or a control. A decoy yields no fact under its target rule. Two rows below are the TRUE expectation where the first port still answered a fact, and _overrides names them. Written by build/p257/expected-facts.mts and reviewed line by line.",
+ "_overrides": [
+  {
+   "fixture": "ts-electron",
+   "file": "src/main/consumers.ts",
+   "line": 6,
+   "rule": "surface.ipc.electron+wrap",
+   "why": "a receiver written as a call, $(window).on(...), is not a bare call and must not unwrap (clause 1; alamofire/surface/0)"
+  },
+  {
+   "fixture": "ruby",
+   "file": "spec/x_spec.rb",
+   "line": 9,
+   "rule": "gate.auth",
+   "why": "expect(subject).to_not permit(alice, john) is an assertion ABOUT a policy, the sample's mastodon/gate/5 (t)"
+  }
+ ],
+ "dropped": [
+  "store.orm",
+  "surface.handler.on",
+  "gate.refusal-guard",
+  "effect.net.client",
+  "effect.net.listen",
+  "entrypoint.jvm.main",
+  "entrypoint.objc.main",
+  "entrypoint.php.main",
+  "test.jvm.class",
+  "test.php.method",
+  "entrypoint.android.component",
+  "entrypoint.android.launcher",
+  "entrypoint.jvm.mainclass",
+  "entrypoint.android.appid",
+  "entrypoint.dotnet.exe",
+  "decl.symbol"
+ ],
+ "fixFirst": [
+  "surface.cli.arg",
+  "surface.cli.clap",
+  "network.client",
+  "gate.auth",
+  "gate.refusal",
+  "entrypoint.composition"
+ ],
+ "fixtures": {
+  "ts-electron": {
+   "counts": {
+    "tracked": 25,
+    "parsed": 17,
+    "manifests": 4,
+    "pathOnly": 0,
+    "vendored": 4,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 10,
+     "boundary": 7,
+     "surface": 16,
+     "store": 0,
+     "effect": 4,
+     "network": 1,
+     "gate": 4,
+     "test": 3
+    }
+   },
+   "wrapFacts": 3,
+   "vendored": [
+    {
+     "file": ".yarn/releases/x.cjs",
+     "reason": "path: segment .yarn"
+    },
+    {
+     "file": "assets/app.js",
+     "reason": "bytes: a line of 2393 bytes"
+    },
+    {
+     "file": "docs/jquery.min.js",
+     "reason": "path: basename jquery.min.js"
+    },
+    {
+     "file": "vendor/lib.js",
+     "reason": "path: segment vendor"
+    }
+   ],
+   "decoys": [
+    {
+     "file": "src/main/consumers.ts",
+     "line": 5,
+     "rule": "surface.handler.on",
+     "sample": "spec §1.1 (the bare-call decoy)",
+     "evidence": "sock.on('data', () => undefined);"
+    },
+    {
+     "file": "src/main/consumers.ts",
+     "line": 6,
+     "rule": "surface.handler.on",
+     "sample": "alamofire/surface/0",
+     "evidence": "$(window).on('hashchange', openCurrentItemIfClosed);"
+    },
+    {
+     "file": "src/main/consumers.ts",
+     "line": 7,
+     "rule": "surface.handler.on",
+     "sample": "alamofire/surface/2",
+     "evidence": "this.$input.on(\"input.tt\", onInput);"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 4,
+     "rule": "store.orm",
+     "sample": "spec §1.1 (fastapi-app, 8 of 12 sampled)",
+     "evidence": "Object.create(null);"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 5,
+     "rule": "store.orm",
+     "sample": "babel/store/2",
+     "evidence": "LOADING_CJS_FILES.delete(filepath);"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 6,
+     "rule": "store.orm",
+     "sample": "babel/store/3",
+     "evidence": "Foo.update(f);"
+    },
+    {
+     "file": "src/__tests__/auth.test.ts",
+     "line": 4,
+     "rule": "gate.auth",
+     "sample": "spec §1.1 (the assertion shape of the sample's m rows)",
+     "evidence": "expect(authenticate).toHaveBeenCalled();"
+    },
+    {
+     "file": "src/__tests__/auth.test.ts",
+     "line": 5,
+     "rule": "gate.auth",
+     "sample": "not in the sample: the witness for the assertion-receiver ablation",
+     "evidence": "expect(page).toBeAuthorized();"
+    },
+    {
+     "file": "src/__tests__/auth.test.ts",
+     "line": 6,
+     "rule": "gate.refusal",
+     "sample": "spec §1.1 (a raise in a test is a fixture)",
+     "evidence": "if (Math.random() > 2) throw new Error('no key found');"
+    },
+    {
+     "file": "src/__tests__/auth.test.ts",
+     "line": 10,
+     "rule": "network.client",
+     "sample": "spec §5 rule 13",
+     "evidence": "await fetch('https://api.example/v1');"
+    },
+    {
+     "file": "src/__tests__/auth.test.ts",
+     "line": 14,
+     "rule": "store.orm",
+     "sample": "tortie/store/5",
+     "evidence": "const extractorPromise = SymbolExtractor.create({"
+    },
+    {
+     "file": ".github/workflows/ci.yml",
+     "line": 3,
+     "rule": "entrypoint.ci.job",
+     "sample": "spec §1.4 (a trigger under on: is not a job)",
+     "evidence": "push:"
+    },
+    {
+     "file": ".github/workflows/ci.yml",
+     "line": 4,
+     "rule": "entrypoint.ci.job",
+     "sample": "spec §1.4",
+     "evidence": "pull_request:"
+    }
+   ],
+   "facts": [
+    {
+     "category": "surface",
+     "kind": "job",
+     "subject": "CI schedule",
+     "line": 5,
+     "rule": "surface.ci.schedule",
+     "evidence": "schedule:",
+     "file": ".github/workflows/ci.yml",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "job",
+     "subject": "cron 0 3 * * 1",
+     "line": 6,
+     "rule": "surface.ci.cron",
+     "evidence": "- cron: '0 3 * * 1'",
+     "file": ".github/workflows/ci.yml",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "ci-job",
+     "subject": "CI job build",
+     "line": 8,
+     "rule": "entrypoint.ci.job",
+     "evidence": "build:",
+     "file": ".github/workflows/ci.yml",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "ci-job",
+     "subject": "CI job test",
+     "line": 10,
+     "rule": "entrypoint.ci.job",
+     "evidence": "test:",
+     "file": ".github/workflows/ci.yml",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "port",
+     "subject": "exposes port 8080",
+     "line": 2,
+     "rule": "surface.docker.expose",
+     "evidence": "EXPOSE 8080",
+     "file": "Dockerfile",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "container",
+     "subject": "CMD [\"node\", \"out/main.js\"]",
+     "line": 3,
+     "rule": "entrypoint.docker.cmd",
+     "evidence": "CMD [\"node\", \"out/main.js\"]",
+     "file": "Dockerfile",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "service",
+     "subject": "compose service web",
+     "line": 2,
+     "rule": "boundary.compose.service",
+     "evidence": "web:",
+     "file": "docker-compose.yml",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "service",
+     "subject": "compose service worker",
+     "line": 4,
+     "rule": "boundary.compose.service",
+     "evidence": "worker:",
+     "file": "docker-compose.yml",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "package-main",
+     "subject": "node entry ./out/main.js",
+     "line": 4,
+     "rule": "entrypoint.pkg.main",
+     "evidence": "\"main\": \"./out/main.js\",",
+     "file": "package.json",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "command tortie → ./bin/t.js",
+     "line": 6,
+     "rule": "entrypoint.pkg.bin",
+     "evidence": "\"tortie\": \"./bin/t.js\"",
+     "file": "package.json",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "workspace",
+     "subject": "npm workspaces declared",
+     "line": 8,
+     "rule": "boundary.pkg.workspaces",
+     "evidence": "\"workspaces\": [",
+     "file": "package.json",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "script",
+     "subject": "npm run test",
+     "line": 12,
+     "rule": "entrypoint.pkg.script",
+     "evidence": "\"test\": \"vitest run\",",
+     "file": "package.json",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "script",
+     "subject": "npm run test:unit",
+     "line": 13,
+     "rule": "entrypoint.pkg.script",
+     "evidence": "\"test:unit\": \"vitest run src\",",
+     "file": "package.json",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "script",
+     "subject": "npm run build",
+     "line": 14,
+     "rule": "entrypoint.pkg.script",
+     "evidence": "\"build\": \"electron-vite build\",",
+     "file": "package.json",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "it \"authenticates\"",
+     "line": 3,
+     "rule": "test.case.call",
+     "evidence": "it('authenticates', () => {",
+     "file": "src/__tests__/auth.test.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "it \"fetches\"",
+     "line": 9,
+     "rule": "test.case.call",
+     "evidence": "it('fetches', async () => {",
+     "file": "src/__tests__/auth.test.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "it \"constructs\"",
+     "line": 13,
+     "rule": "test.case.call",
+     "evidence": "it('constructs', () => {",
+     "file": "src/__tests__/auth.test.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file src/app.js",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "src/app.js",
+     "file": "src/app.js",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /x",
+     "line": 2,
+     "rule": "surface.http.method-call",
+     "evidence": "app.get('/x', (req, res) => res.end('x'));",
+     "file": "src/app.js",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "module-root",
+     "subject": "module root src/index.ts",
+     "line": 1,
+     "rule": "boundary.path.module-root",
+     "evidence": "src/index.ts",
+     "file": "src/index.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file src/index.ts",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "src/index.ts",
+     "file": "src/index.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "IPC serves arch:load",
+     "line": 5,
+     "rule": "surface.ipc.electron+wrap",
+     "evidence": "handle(ipcMain, 'arch:load', () => 1);",
+     "file": "src/main/arch/ipc.ts",
+     "viaWrapper": true
+    },
+    {
+     "category": "gate",
+     "kind": "auth",
+     "subject": "auth gate authenticate",
+     "line": 6,
+     "rule": "gate.auth",
+     "evidence": "authenticate(req);",
+     "file": "src/main/auth.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "IPC serves push:ready",
+     "line": 4,
+     "rule": "surface.ipc.electron+wrap",
+     "evidence": "on('push:ready', () => undefined);",
+     "file": "src/main/consumers.ts",
+     "viaWrapper": true
+    },
+    {
+     "category": "boundary",
+     "kind": "module-root",
+     "subject": "module root src/main/index.ts",
+     "line": 1,
+     "rule": "boundary.path.module-root",
+     "evidence": "src/main/index.ts",
+     "file": "src/main/index.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "IPC serves arch:map",
+     "line": 9,
+     "rule": "surface.ipc.electron+wrap",
+     "evidence": "handle('arch:map', () => 2);",
+     "file": "src/main/ipc.ts",
+     "viaWrapper": true
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "IPC serves a:b",
+     "line": 10,
+     "rule": "surface.ipc.electron",
+     "evidence": "ipcMain.handle('a:b', () => 3);",
+     "file": "src/main/ipc.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "IPC serves $(touch /tmp/p)",
+     "line": 11,
+     "rule": "surface.ipc.electron",
+     "evidence": "ipcMain.handle('$(touch /tmp/p)', () => 4);",
+     "file": "src/main/ipc.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "IPC serves a:b/../../etc/passwd",
+     "line": 12,
+     "rule": "surface.ipc.electron",
+     "evidence": "ipcMain.handle('a:b/../../etc/passwd', () => 5);",
+     "file": "src/main/ipc.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://api.example/v1",
+     "line": 4,
+     "rule": "network.client",
+     "evidence": "const res = await fetch('https://api.example/v1');",
+     "file": "src/main/net.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "IPC push push:x",
+     "line": 4,
+     "rule": "surface.ipc.webcontents",
+     "evidence": "win.webContents.send('push:x', 1);",
+     "file": "src/main/push.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /users",
+     "line": 7,
+     "rule": "surface.http.method-call",
+     "evidence": "get('/users', () => undefined);",
+     "file": "src/main/routes.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET --upload-pack=/x",
+     "line": 8,
+     "rule": "surface.http.method-call",
+     "evidence": "app.get('--upload-pack=/x', () => undefined);",
+     "file": "src/main/routes.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /x; rm -rf ~",
+     "line": 9,
+     "rule": "surface.http.method-call",
+     "evidence": "app.get('/x; rm -rf ~', () => undefined);",
+     "file": "src/main/routes.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs git",
+     "line": 8,
+     "rule": "effect.spawn.node",
+     "evidence": "child_process.spawn('git', ['status']);",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs ls",
+     "line": 9,
+     "rule": "effect.spawn.node",
+     "evidence": "spawnSync('ls');",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs --upload-pack=/x",
+     "line": 10,
+     "rule": "effect.spawn.node",
+     "evidence": "child_process.spawn('--upload-pack=/x', []);",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "fs-write",
+     "subject": "writes the filesystem (writeFileSync)",
+     "line": 11,
+     "rule": "effect.fs.write",
+     "evidence": "fs.writeFileSync('out.txt', 'x');",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "worker",
+     "subject": "starts a Worker",
+     "line": 12,
+     "rule": "boundary.worker",
+     "evidence": "new Worker('w.js');",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "process",
+     "subject": "starts a utility process",
+     "line": 13,
+     "rule": "boundary.utilityprocess",
+     "evidence": "utilityProcess.fork('x.js');",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "job",
+     "subject": "repeating timer",
+     "line": 14,
+     "rule": "surface.job.interval",
+     "evidence": "setInterval(() => undefined, 1000);",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "flag",
+     "subject": "environment switch GMUX_X",
+     "line": 15,
+     "rule": "gate.env-read",
+     "evidence": "const flag = process.env.GMUX_X;",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "refusal",
+     "subject": "refuses: no key found",
+     "line": 16,
+     "rule": "gate.refusal",
+     "evidence": "if (flag === undefined) throw new Error('no key found');",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "refusal",
+     "subject": "refuses: $(touch /tmp/p) in a message",
+     "line": 17,
+     "rule": "gate.refusal",
+     "evidence": "if (flag === '') throw new Error('$(touch /tmp/p) in a message');",
+     "file": "src/main/spawn.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "ipc-channel",
+     "subject": "bridge exposes window.gmux",
+     "line": 3,
+     "rule": "surface.ipc.bridge",
+     "evidence": "contextBridge.exposeInMainWorld('gmux', { ping: () => 1 });",
+     "file": "src/preload.ts",
+     "viaWrapper": false
+    }
+   ]
+  },
+  "ts-next": {
+   "counts": {
+    "tracked": 5,
+    "parsed": 3,
+    "manifests": 2,
+    "pathOnly": 0,
+    "vendored": 0,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 0,
+     "boundary": 0,
+     "surface": 4,
+     "store": 5,
+     "effect": 0,
+     "network": 0,
+     "gate": 0,
+     "test": 0
+    }
+   },
+   "wrapFacts": 0,
+   "vendored": [],
+   "decoys": [],
+   "facts": [
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP DELETE /api/[id]",
+     "line": 1,
+     "rule": "surface.http.next-export",
+     "evidence": "export const DELETE = async (): Promise<Response> => new Response(null, { status: 204 });",
+     "file": "app/api/[id]/route.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /api/items",
+     "line": 1,
+     "rule": "surface.http.next-export",
+     "evidence": "export async function GET(req: Request): Promise<Response> {",
+     "file": "app/api/items/route.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP POST /api/items",
+     "line": 5,
+     "rule": "surface.http.next-export",
+     "evidence": "export async function POST(req: Request): Promise<Response> {",
+     "file": "app/api/items/route.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "migration",
+     "subject": "migration migrations/001_init.sql",
+     "line": 1,
+     "rule": "store.path.migration",
+     "evidence": "migrations/001_init.sql",
+     "file": "migrations/001_init.sql",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "CREATE TABLE users",
+     "line": 1,
+     "rule": "store.sql.file",
+     "evidence": "CREATE TABLE users (id INTEGER PRIMARY KEY);",
+     "file": "migrations/001_init.sql",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "CREATE TABLE items",
+     "line": 2,
+     "rule": "store.sql.file",
+     "evidence": "CREATE TABLE items (id INTEGER PRIMARY KEY, owner INTEGER);",
+     "file": "migrations/001_init.sql",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "prisma model User",
+     "line": 5,
+     "rule": "store.prisma.model",
+     "evidence": "model User {",
+     "file": "prisma/schema.prisma",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "prisma model Item",
+     "line": 9,
+     "rule": "store.prisma.model",
+     "evidence": "model Item {",
+     "file": "prisma/schema.prisma",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /x",
+     "line": 1,
+     "rule": "surface.http.svelte-export",
+     "evidence": "export function GET(): Response {",
+     "file": "src/routes/x/+server.ts",
+     "viaWrapper": false
+    }
+   ]
+  },
+  "python": {
+   "counts": {
+    "tracked": 11,
+    "parsed": 9,
+    "manifests": 2,
+    "pathOnly": 0,
+    "vendored": 0,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 8,
+     "boundary": 1,
+     "surface": 11,
+     "store": 1,
+     "effect": 1,
+     "network": 3,
+     "gate": 1,
+     "test": 3
+    }
+   },
+   "wrapFacts": 0,
+   "vendored": [],
+   "decoys": [
+    {
+     "file": "tests/test_items.py",
+     "line": 17,
+     "rule": "gate.auth",
+     "sample": "fastapi-app/gate/2",
+     "evidence": "assert authenticated_user.hashed_password.startswith(\"$argon2\")"
+    },
+    {
+     "file": "tests/test_items.py",
+     "line": 18,
+     "rule": "gate.auth",
+     "sample": "requests/gate/0",
+     "evidence": "assert r.request.headers['Authorization'].startswith('Digest ')"
+    },
+    {
+     "file": "tests/test_items.py",
+     "line": 15,
+     "rule": "network.client",
+     "sample": "spec §1.1 (a literal URL in a test is a fixture)",
+     "evidence": "r = requests.get(\"https://example.test/items\")"
+    },
+    {
+     "file": "cli.py",
+     "line": 13,
+     "rule": "surface.cli.arg",
+     "sample": "spec §1.1 (the x.flag(1) shape)",
+     "evidence": "arr.flag(1)"
+    },
+    {
+     "file": "cli.py",
+     "line": 14,
+     "rule": "surface.cli.arg",
+     "sample": "spec §1.1 (the map.option('k') shape)",
+     "evidence": "cache.option(\"k\")"
+    },
+    {
+     "file": "pyproject.toml",
+     "line": 8,
+     "rule": "entrypoint.py.script",
+     "sample": "spec §1.4 (outside a scripts table)",
+     "evidence": "y = \"a:b\""
+    }
+   ],
+   "facts": [
+    {
+     "category": "boundary",
+     "kind": "module-root",
+     "subject": "module root backend/app/__init__.py",
+     "line": 1,
+     "rule": "boundary.path.module-root",
+     "evidence": "backend/app/__init__.py",
+     "file": "backend/app/__init__.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /items",
+     "line": 6,
+     "rule": "surface.http.decorator",
+     "evidence": "@router.get(\"/items\", response_model=list)",
+     "file": "backend/app/api/routes/items.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP POST /items",
+     "line": 11,
+     "rule": "surface.http.decorator",
+     "evidence": "@router.post(\"/items\", status_code=201)",
+     "file": "backend/app/api/routes/items.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP PUT /items/{id}",
+     "line": 16,
+     "rule": "surface.http.decorator",
+     "evidence": "@router.put(\"/items/{id}\", response_model=dict)",
+     "file": "backend/app/api/routes/items.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP PATCH /items/{id}",
+     "line": 21,
+     "rule": "surface.http.decorator",
+     "evidence": "@router.patch(\"/items/{id}\", response_model=dict)",
+     "file": "backend/app/api/routes/items.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP DELETE /items/{id}",
+     "line": 26,
+     "rule": "surface.http.decorator",
+     "evidence": "@router.delete(\"/items/{id}\", status_code=204)",
+     "file": "backend/app/api/routes/items.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file cli.py",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "cli.py",
+     "file": "cli.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "cli-command",
+     "subject": "CLI command (function name)",
+     "line": 5,
+     "rule": "surface.cli.click",
+     "evidence": "@click.command()",
+     "file": "cli.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "cli-flag",
+     "subject": "CLI flag --x",
+     "line": 11,
+     "rule": "surface.cli.arg",
+     "evidence": "p.add_argument(\"--x\")",
+     "file": "cli.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "cli-flag",
+     "subject": "CLI flag name",
+     "line": 12,
+     "rule": "surface.cli.arg",
+     "evidence": "p.add_argument(\"name\")",
+     "file": "cli.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "composition-root",
+     "subject": "composes Flask",
+     "line": 3,
+     "rule": "entrypoint.composition",
+     "evidence": "app = Flask(__name__)",
+     "file": "flask_app.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "listen",
+     "subject": "listens (0.0.0.0)",
+     "line": 5,
+     "rule": "network.listen",
+     "evidence": "app.run(host=\"0.0.0.0\")",
+     "file": "flask_app.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file main.py",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "main.py",
+     "file": "main.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "composition-root",
+     "subject": "composes FastAPI",
+     "line": 4,
+     "rule": "entrypoint.composition",
+     "evidence": "app = FastAPI()",
+     "file": "main.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "main",
+     "subject": "__main__ in main.py",
+     "line": 6,
+     "rule": "entrypoint.python.dunder-main",
+     "evidence": "if __name__ == \"__main__\":",
+     "file": "main.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "composition-root",
+     "subject": "composes uvicorn.run",
+     "line": 7,
+     "rule": "entrypoint.composition",
+     "evidence": "uvicorn.run(app, host=\"0.0.0.0\", port=8000)",
+     "file": "main.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "listen",
+     "subject": "listens (computed)",
+     "line": 7,
+     "rule": "network.listen",
+     "evidence": "uvicorn.run(app, host=\"0.0.0.0\", port=8000)",
+     "file": "main.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "migration",
+     "subject": "migration migrations/0001_initial.py",
+     "line": 1,
+     "rule": "store.path.migration",
+     "evidence": "migrations/0001_initial.py",
+     "file": "migrations/0001_initial.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "python console script table",
+     "line": 4,
+     "rule": "entrypoint.py.scripts",
+     "evidence": "[project.scripts]",
+     "file": "pyproject.toml",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "command svc → svc.cli:main",
+     "line": 5,
+     "rule": "entrypoint.py.script",
+     "evidence": "svc = \"svc.cli:main\"",
+     "file": "pyproject.toml",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP admin/",
+     "line": 4,
+     "rule": "surface.http.django-urls",
+     "evidence": "path(\"admin/\", admin.site.urls),",
+     "file": "site/urls.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP items/",
+     "line": 5,
+     "rule": "surface.http.django-urls",
+     "evidence": "path(\"items/\", views.items),",
+     "file": "site/urls.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP ^x/$",
+     "line": 6,
+     "rule": "surface.http.django-urls",
+     "evidence": "re_path(r\"^x/$\", views.x),",
+     "file": "site/urls.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://api.example/v1",
+     "line": 5,
+     "rule": "network.client",
+     "evidence": "return requests.get(\"https://api.example/v1\")",
+     "file": "src/client.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs ls",
+     "line": 6,
+     "rule": "effect.spawn.python",
+     "evidence": "subprocess.run([\"ls\"])",
+     "file": "src/run.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "flag",
+     "subject": "environment switch APP_ENV",
+     "line": 7,
+     "rule": "gate.env-read",
+     "evidence": "return os.environ[\"APP_ENV\"]",
+     "file": "src/run.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test test_a",
+     "line": 5,
+     "rule": "test.python.def",
+     "evidence": "def test_a():",
+     "file": "tests/test_items.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test test_b",
+     "line": 10,
+     "rule": "test.python.def",
+     "evidence": "def test_b(x):",
+     "file": "tests/test_items.py",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test test_c",
+     "line": 14,
+     "rule": "test.python.def",
+     "evidence": "def test_c():",
+     "file": "tests/test_items.py",
+     "viaWrapper": false
+    }
+   ]
+  },
+  "go": {
+   "counts": {
+    "tracked": 5,
+    "parsed": 4,
+    "manifests": 1,
+    "pathOnly": 0,
+    "vendored": 0,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 4,
+     "boundary": 0,
+     "surface": 11,
+     "store": 0,
+     "effect": 1,
+     "network": 1,
+     "gate": 3,
+     "test": 2
+    }
+   },
+   "wrapFacts": 0,
+   "vendored": [],
+   "decoys": [
+    {
+     "file": "main.go",
+     "line": 12,
+     "rule": "entrypoint.composition",
+     "sample": "spec §1.1 (gotify's shape)",
+     "evidence": "v := viper.Default()"
+    },
+    {
+     "file": "main.go",
+     "line": 13,
+     "rule": "entrypoint.composition",
+     "sample": "spec §1.1",
+     "evidence": "c := cfg.Default()"
+    },
+    {
+     "file": "main.go",
+     "line": 14,
+     "rule": "entrypoint.composition",
+     "sample": "spec §1.1",
+     "evidence": "d := x.Default()"
+    },
+    {
+     "file": "run.go",
+     "line": 15,
+     "rule": "entrypoint.composition",
+     "sample": "gotify/entrypoint/4",
+     "evidence": "app := &model.Application{ID: 1}"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 9,
+     "rule": "gate.refusal",
+     "sample": "spec §1.1 (a fatal in a test)",
+     "evidence": "t.Fatal(\"boom here\")"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 13,
+     "rule": "gate.refusal",
+     "sample": "gotify/gate/0",
+     "evidence": "assert.Equal(s.T(), s.ctx.Errors[0].Err, errors.New(\"file with key 'file' must be present\"))"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 14,
+     "rule": "gate.refusal",
+     "sample": "gotify/gate/3",
+     "evidence": "randReader = iotest.ErrReader(errors.New(\"this reader cannot be read\"))"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 15,
+     "rule": "gate.refusal",
+     "sample": "gotify/gate/4",
+     "evidence": "errExpected := errors.New(\"test error\")"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 16,
+     "rule": "gate.refusal",
+     "sample": "stoa/gate/1",
+     "evidence": "t.Fatalf(\"put: %v\", errExpected)"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 17,
+     "rule": "network.client",
+     "sample": "gotify/effect/1",
+     "evidence": "req.Header.Set(\"Origin\", \"http://go.example.com\")"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 18,
+     "rule": "entrypoint.composition",
+     "sample": "gotify/entrypoint/1",
+     "evidence": "expected := &model.Application{ID: 2}"
+    },
+    {
+     "file": "router/router.go",
+     "line": 24,
+     "rule": "surface.http.method-call",
+     "sample": "spec §1.1 (a client receiver)",
+     "evidence": "resp, _ := client.Get(url)"
+    }
+   ],
+   "facts": [
+    {
+     "category": "entrypoint",
+     "kind": "package",
+     "subject": "go module github.com/example/svc",
+     "line": 1,
+     "rule": "entrypoint.go.module",
+     "evidence": "module github.com/example/svc",
+     "file": "go.mod",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file main.go",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "main.go",
+     "file": "main.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "main",
+     "subject": "main() in main.go",
+     "line": 10,
+     "rule": "entrypoint.go.main",
+     "evidence": "func main() {",
+     "file": "main.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "composition-root",
+     "subject": "composes gin.Default",
+     "line": 11,
+     "rule": "entrypoint.composition",
+     "evidence": "r := gin.Default()",
+     "file": "main.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "listen",
+     "subject": "serves HTTP",
+     "line": 16,
+     "rule": "network.listen",
+     "evidence": "http.ListenAndServe(\":8080\", r)",
+     "file": "main.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /x",
+     "line": 11,
+     "rule": "surface.http.method-call",
+     "evidence": "oidcGroup.GET(\"/x\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP POST /x",
+     "line": 12,
+     "rule": "surface.http.method-call",
+     "evidence": "oidcGroup.POST(\"/x\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET version",
+     "line": 13,
+     "rule": "surface.http.method-call",
+     "evidence": "g.GET(\"version\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET gotifyinfo",
+     "line": 14,
+     "rule": "surface.http.method-call",
+     "evidence": "g.GET(\"gotifyinfo\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP POST (group root)",
+     "line": 15,
+     "rule": "surface.http.method-call",
+     "evidence": "g.POST(\"\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /",
+     "line": 17,
+     "rule": "surface.http.method-call",
+     "evidence": "clientAuth.GET(\"/\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP DELETE /:id",
+     "line": 18,
+     "rule": "surface.http.method-call",
+     "evidence": "clientAuth.DELETE(\"/:id\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /",
+     "line": 20,
+     "rule": "surface.http.method-call",
+     "evidence": "tokenMessage.GET(\"/\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP POST /",
+     "line": 21,
+     "rule": "surface.http.method-call",
+     "evidence": "tokenMessage.POST(\"/\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP PUT /:id",
+     "line": 22,
+     "rule": "surface.http.method-call",
+     "evidence": "tokenMessage.PUT(\"/:id\", h)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP /h",
+     "line": 23,
+     "rule": "surface.http.handlefunc",
+     "evidence": "http.HandleFunc(\"/h\", hh)",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "Test Routes",
+     "line": 8,
+     "rule": "test.go.func",
+     "evidence": "func TestRoutes(t *testing.T) {",
+     "file": "router/router_test.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "Test Version",
+     "line": 12,
+     "rule": "test.go.func",
+     "evidence": "func TestVersion(t *testing.T) {",
+     "file": "router/router_test.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs git",
+     "line": 10,
+     "rule": "effect.spawn.other",
+     "evidence": "exec.Command(\"git\", \"status\")",
+     "file": "run.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "flag",
+     "subject": "environment switch APP_TOKEN",
+     "line": 11,
+     "rule": "gate.env-read",
+     "evidence": "token := os.Getenv(\"APP_TOKEN\")",
+     "file": "run.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "refusal",
+     "subject": "refuses: not found here",
+     "line": 13,
+     "rule": "gate.refusal",
+     "evidence": "return errors.New(\"not found here\")",
+     "file": "run.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "refusal",
+     "subject": "refuses: must not happen",
+     "line": 17,
+     "rule": "gate.refusal",
+     "evidence": "panic(\"must not happen\")",
+     "file": "run.go",
+     "viaWrapper": false
+    }
+   ]
+  },
+  "rust": {
+   "counts": {
+    "tracked": 8,
+    "parsed": 7,
+    "manifests": 1,
+    "pathOnly": 0,
+    "vendored": 0,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 6,
+     "boundary": 5,
+     "surface": 3,
+     "store": 0,
+     "effect": 3,
+     "network": 1,
+     "gate": 1,
+     "test": 2
+    }
+   },
+   "wrapFacts": 0,
+   "vendored": [],
+   "decoys": [
+    {
+     "file": "build.rs",
+     "line": 5,
+     "rule": "surface.cli.clap",
+     "sample": "ripgrep/surface/2",
+     "evidence": "let output = Command::new(\"git\").args(args).output();"
+    },
+    {
+     "file": "src/main.rs",
+     "line": 2,
+     "rule": "surface.cli.clap",
+     "sample": "ripgrep/surface/2 (the qualified shape)",
+     "evidence": "let out = std::process::Command::new(\"git\").output();"
+    },
+    {
+     "file": "tests/util.rs",
+     "line": 4,
+     "rule": "surface.cli.arg",
+     "sample": "ripgrep/surface/3",
+     "evidence": "match Command::new(program).arg(\"--help\").output() {"
+    },
+    {
+     "file": "tests/util.rs",
+     "line": 11,
+     "rule": "surface.cli.arg",
+     "sample": "ripgrep/surface/4 and /5",
+     "evidence": "cmd.arg(\"--path-separator\").arg(\"/\");"
+    },
+    {
+     "file": "tests/a.rs",
+     "line": 11,
+     "rule": "test.rust.fn",
+     "sample": "spec §1.2 (no attribute above it)",
+     "evidence": "fn helper() {"
+    },
+    {
+     "file": "src/net.rs",
+     "line": 6,
+     "rule": "gate.auth",
+     "sample": "ripgrep/gate/2",
+     "evidence": "let regex = RegexBuilder::new(pattern)"
+    }
+   ],
+   "facts": [
+    {
+     "category": "entrypoint",
+     "kind": "package",
+     "subject": "crate rg",
+     "line": 2,
+     "rule": "entrypoint.cargo.name",
+     "evidence": "name = \"rg\"",
+     "file": "Cargo.toml",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "cargo bin rg",
+     "line": 5,
+     "rule": "entrypoint.cargo.bin",
+     "evidence": "[[bin]]",
+     "file": "Cargo.toml",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "library",
+     "subject": "cargo library target",
+     "line": 9,
+     "rule": "boundary.cargo.lib",
+     "evidence": "[lib]",
+     "file": "Cargo.toml",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "workspace",
+     "subject": "cargo workspace members",
+     "line": 13,
+     "rule": "boundary.cargo.workspace",
+     "evidence": "members = [\"crates/*\"]",
+     "file": "Cargo.toml",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "main",
+     "subject": "main() in build.rs",
+     "line": 3,
+     "rule": "entrypoint.rust.main",
+     "evidence": "fn main() {",
+     "file": "build.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs git",
+     "line": 5,
+     "rule": "effect.spawn.other",
+     "evidence": "let output = Command::new(\"git\").args(args).output();",
+     "file": "build.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file src/cli.rs",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "src/cli.rs",
+     "file": "src/cli.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "cli-flag",
+     "subject": "CLI flag --count",
+     "line": 4,
+     "rule": "surface.cli.arg",
+     "evidence": "let cmd = Command::new(\"rg\").arg(\"--json\").arg(\"--count\");",
+     "file": "src/cli.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "cli-flag",
+     "subject": "CLI flag --json",
+     "line": 4,
+     "rule": "surface.cli.arg",
+     "evidence": "let cmd = Command::new(\"rg\").arg(\"--json\").arg(\"--count\");",
+     "file": "src/cli.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "cli-command",
+     "subject": "CLI command rg",
+     "line": 4,
+     "rule": "surface.cli.clap",
+     "evidence": "let cmd = Command::new(\"rg\").arg(\"--json\").arg(\"--count\");",
+     "file": "src/cli.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "module-root",
+     "subject": "module root src/lib.rs",
+     "line": 1,
+     "rule": "boundary.path.module-root",
+     "evidence": "src/lib.rs",
+     "file": "src/lib.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file src/main.rs",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "src/main.rs",
+     "file": "src/main.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "main",
+     "subject": "main() in src/main.rs",
+     "line": 1,
+     "rule": "entrypoint.rust.main",
+     "evidence": "fn main() {",
+     "file": "src/main.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs git",
+     "line": 2,
+     "rule": "effect.spawn.other",
+     "evidence": "let out = std::process::Command::new(\"git\").output();",
+     "file": "src/main.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://api.example/v1",
+     "line": 2,
+     "rule": "network.client",
+     "evidence": "let _ = reqwest::get(\"https://api.example/v1\").await;",
+     "file": "src/net.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "thread",
+     "subject": "starts a task on thread",
+     "line": 3,
+     "rule": "boundary.spawn-thread",
+     "evidence": "let h = thread::spawn(|| {});",
+     "file": "src/net.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "thread",
+     "subject": "starts a task on tokio",
+     "line": 4,
+     "rule": "boundary.spawn-thread",
+     "evidence": "let t = tokio::spawn(async {});",
+     "file": "src/net.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "flag",
+     "subject": "environment switch RG_CONFIG",
+     "line": 5,
+     "rule": "gate.env-read",
+     "evidence": "let cfg = std::env::var(\"RG_CONFIG\");",
+     "file": "src/net.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test fn one",
+     "line": 2,
+     "rule": "test.rust.fn",
+     "evidence": "fn one() {",
+     "file": "tests/a.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test fn two",
+     "line": 7,
+     "rule": "test.rust.fn",
+     "evidence": "async fn two() {",
+     "file": "tests/a.rs",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs (computed)",
+     "line": 4,
+     "rule": "effect.spawn.other",
+     "evidence": "match Command::new(program).arg(\"--help\").output() {",
+     "file": "tests/util.rs",
+     "viaWrapper": false
+    }
+   ]
+  },
+  "ruby": {
+   "counts": {
+    "tracked": 10,
+    "parsed": 6,
+    "manifests": 3,
+    "pathOnly": 1,
+    "vendored": 0,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 3,
+     "boundary": 0,
+     "surface": 6,
+     "store": 5,
+     "effect": 1,
+     "network": 0,
+     "gate": 2,
+     "test": 4
+    }
+   },
+   "wrapFacts": 0,
+   "vendored": [],
+   "decoys": [
+    {
+     "file": "spec/x_spec.rb",
+     "line": 3,
+     "rule": "network.client",
+     "sample": "spec §1.1",
+     "evidence": "stub_request(:get, \"https://example.com/x\")"
+    },
+    {
+     "file": "spec/x_spec.rb",
+     "line": 4,
+     "rule": "network.client",
+     "sample": "mastodon/effect/2",
+     "evidence": "let(:sender) { Fabricate(:account, featured_collection_url: 'https://example.com/featured', domain: 'example.com') }"
+    },
+    {
+     "file": "spec/x_spec.rb",
+     "line": 5,
+     "rule": "network.client",
+     "sample": "mastodon/effect/4",
+     "evidence": "expect(a_request(:get, 'https://example.com/alice')).to have_been_made.once"
+    },
+    {
+     "file": "spec/x_spec.rb",
+     "line": 9,
+     "rule": "gate.auth",
+     "sample": "mastodon/gate/5",
+     "evidence": "expect(subject).to_not permit(alice, john)"
+    },
+    {
+     "file": "app/models/u.rb",
+     "line": 3,
+     "rule": "store.orm",
+     "sample": "spec §1.1 (the Rails bang form, not measured)",
+     "evidence": "Model.create!(name: \"x\")"
+    }
+   ],
+   "facts": [
+    {
+     "category": "entrypoint",
+     "kind": "package",
+     "subject": "ruby project file gemfile",
+     "line": 1,
+     "rule": "entrypoint.ruby.project",
+     "evidence": "source \"https://rubygems.org\"",
+     "file": "Gemfile",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "by-name",
+     "subject": "entry file config.ru",
+     "line": 1,
+     "rule": "entrypoint.path.by-name",
+     "evidence": "config.ru",
+     "file": "config.ru",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "composition-root",
+     "subject": "composes Application < Rails::Application",
+     "line": 4,
+     "rule": "entrypoint.rails.application",
+     "evidence": "class Application < Rails::Application",
+     "file": "config/application.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP root home#index",
+     "line": 2,
+     "rule": "surface.http.rails-routes",
+     "evidence": "root \"home#index\"",
+     "file": "config/routes.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET activity",
+     "line": 3,
+     "rule": "surface.http.rails-routes",
+     "evidence": "get :activity",
+     "file": "config/routes.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP POST /x",
+     "line": 4,
+     "rule": "surface.http.method-call",
+     "evidence": "post \"/x\", to: \"x#create\"",
+     "file": "config/routes.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP resources users",
+     "line": 5,
+     "rule": "surface.http.rails-routes",
+     "evidence": "resources :users",
+     "file": "config/routes.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP match /m",
+     "line": 6,
+     "rule": "surface.http.rails-routes",
+     "evidence": "match \"/m\", to: \"m#show\", via: :all",
+     "file": "config/routes.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /v1/ping",
+     "line": 8,
+     "rule": "surface.http.method-call",
+     "evidence": "get \"/v1/ping\", to: \"ping#show\"",
+     "file": "config/routes.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "migration",
+     "subject": "migration db/migrate/20260911_x.rb",
+     "line": 1,
+     "rule": "store.path.migration",
+     "evidence": "db/migrate/20260911_x.rb",
+     "file": "db/migrate/20260911_x.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "table things",
+     "line": 3,
+     "rule": "store.rails.schema",
+     "evidence": "create_table :things do |t|",
+     "file": "db/migrate/20260911_x.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "table users",
+     "line": 2,
+     "rule": "store.rails.schema",
+     "evidence": "create_table \"users\", force: :cascade do |t|",
+     "file": "db/schema.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "table posts",
+     "line": 6,
+     "rule": "store.rails.schema",
+     "evidence": "create_table \"posts\", force: :cascade do |t|",
+     "file": "db/schema.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-def",
+     "subject": "table tags",
+     "line": 10,
+     "rule": "store.rails.schema",
+     "evidence": "create_table \"tags\", force: :cascade do |t|",
+     "file": "db/schema.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs ls -la",
+     "line": 2,
+     "rule": "effect.spawn.other",
+     "evidence": "system(\"ls -la\")",
+     "file": "lib/run.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "flag",
+     "subject": "environment switch RAILS_ENV",
+     "line": 3,
+     "rule": "gate.env-read",
+     "evidence": "env = ENV['RAILS_ENV']",
+     "file": "lib/run.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "gate",
+     "kind": "refusal",
+     "subject": "refuses: no key here",
+     "line": 4,
+     "rule": "gate.refusal",
+     "evidence": "raise \"no key here\" if env.nil?",
+     "file": "lib/run.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "describe \"X\"",
+     "line": 1,
+     "rule": "test.case.call",
+     "evidence": "describe \"X\" do",
+     "file": "spec/x_spec.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "it \"a\"",
+     "line": 2,
+     "rule": "test.case.call",
+     "evidence": "it \"a\" do",
+     "file": "spec/x_spec.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "it \"b\"",
+     "line": 8,
+     "rule": "test.case.call",
+     "evidence": "it \"b\" do",
+     "file": "spec/x_spec.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test test_a",
+     "line": 2,
+     "rule": "test.ruby.def",
+     "evidence": "def test_a",
+     "file": "test/x_test.rb",
+     "viaWrapper": false
+    }
+   ]
+  },
+  "swift": {
+   "counts": {
+    "tracked": 4,
+    "parsed": 3,
+    "manifests": 1,
+    "pathOnly": 0,
+    "vendored": 0,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 2,
+     "boundary": 3,
+     "surface": 0,
+     "store": 0,
+     "effect": 1,
+     "network": 1,
+     "gate": 0,
+     "test": 5
+    }
+   },
+   "wrapFacts": 0,
+   "vendored": [],
+   "decoys": [
+    {
+     "file": "Tests/KitTests/KitTests.swift",
+     "line": 11,
+     "rule": "network.client",
+     "sample": "alamofire/effect/5",
+     "evidence": "let fileURL = URL(string: \"https://example.com/image.jpg\")!"
+    }
+   ],
+   "facts": [
+    {
+     "category": "boundary",
+     "kind": "library",
+     "subject": "swift library Kit",
+     "line": 7,
+     "rule": "boundary.swiftpm.target",
+     "evidence": ".library(name: \"Kit\", targets: [\"Kit\"]),",
+     "file": "Package.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "swift executableTarget App",
+     "line": 10,
+     "rule": "entrypoint.swiftpm.target",
+     "evidence": ".executableTarget(name: \"App\", dependencies: [\"Kit\"]),",
+     "file": "Package.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "library",
+     "subject": "swift target Kit",
+     "line": 11,
+     "rule": "boundary.swiftpm.target",
+     "evidence": ".target(name: \"Kit\"),",
+     "file": "Package.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-target",
+     "subject": "swift test target KitTests",
+     "line": 12,
+     "rule": "test.swiftpm.target",
+     "evidence": ".testTarget(name: \"KitTests\", dependencies: [\"Kit\"]),",
+     "file": "Package.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "main",
+     "subject": "@main in Sources/App/main.swift",
+     "line": 3,
+     "rule": "entrypoint.swift.main",
+     "evidence": "@main",
+     "file": "Sources/App/main.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://api.example/v1",
+     "line": 5,
+     "rule": "network.client",
+     "evidence": "let task = URLSession.shared.dataTask(with: URL(string: \"https://api.example/v1\")!)",
+     "file": "Sources/Kit/Net.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "effect",
+     "kind": "spawn",
+     "subject": "runs (computed)",
+     "line": 7,
+     "rule": "effect.spawn.other",
+     "evidence": "Process().launch()",
+     "file": "Sources/Kit/Net.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "worker",
+     "subject": "starts a Thread",
+     "line": 8,
+     "rule": "boundary.worker",
+     "evidence": "Thread {",
+     "file": "Sources/Kit/Net.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "XCTestCase KitTests",
+     "line": 5,
+     "rule": "test.swift.xctest",
+     "evidence": "final class KitTests: XCTestCase {",
+     "file": "Tests/KitTests/KitTests.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test testA",
+     "line": 6,
+     "rule": "test.swift.func",
+     "evidence": "func testA() {",
+     "file": "Tests/KitTests/KitTests.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test testB",
+     "line": 10,
+     "rule": "test.swift.func",
+     "evidence": "func testB() {",
+     "file": "Tests/KitTests/KitTests.swift",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "test attribute @Test",
+     "line": 16,
+     "rule": "test.case.attribute",
+     "evidence": "@Test func c() {",
+     "file": "Tests/KitTests/KitTests.swift",
+     "viaWrapper": false
+    }
+   ]
+  },
+  "manifests": {
+   "counts": {
+    "tracked": 7,
+    "parsed": 0,
+    "manifests": 7,
+    "pathOnly": 0,
+    "vendored": 0,
+    "truncated": 0,
+    "unread": 0,
+    "byCategory": {
+     "entrypoint": 7,
+     "boundary": 2,
+     "surface": 3,
+     "store": 0,
+     "effect": 0,
+     "network": 0,
+     "gate": 0,
+     "test": 0
+    }
+   },
+   "wrapFacts": 0,
+   "vendored": [],
+   "decoys": [
+    {
+     "file": "compose.yaml",
+     "line": 7,
+     "rule": "boundary.compose.service",
+     "sample": "spec §5.1 (a top level volumes: key)",
+     "evidence": "data:"
+    }
+   ],
+   "facts": [
+    {
+     "category": "surface",
+     "kind": "port",
+     "subject": "exposes port 3000 9229",
+     "line": 2,
+     "rule": "surface.docker.expose",
+     "evidence": "EXPOSE 3000 9229",
+     "file": "Dockerfile.dev",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "container",
+     "subject": "ENTRYPOINT [\"npm\", \"run\", \"dev\"]",
+     "line": 3,
+     "rule": "entrypoint.docker.cmd",
+     "evidence": "ENTRYPOINT [\"npm\", \"run\", \"dev\"]",
+     "file": "Dockerfile.dev",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "process",
+     "subject": "web: bundle exec puma",
+     "line": 1,
+     "rule": "entrypoint.procfile",
+     "evidence": "web: bundle exec puma",
+     "file": "Procfile",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "process",
+     "subject": "worker: bundle exec sidekiq",
+     "line": 2,
+     "rule": "entrypoint.procfile",
+     "evidence": "worker: bundle exec sidekiq",
+     "file": "Procfile",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "package",
+     "subject": "ruby project file rakefile",
+     "line": 1,
+     "rule": "entrypoint.ruby.project",
+     "evidence": "task :default do",
+     "file": "Rakefile",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "service",
+     "subject": "compose service api",
+     "line": 2,
+     "rule": "boundary.compose.service",
+     "evidence": "api:",
+     "file": "compose.yaml",
+     "viaWrapper": false
+    },
+    {
+     "category": "boundary",
+     "kind": "service",
+     "subject": "compose service db",
+     "line": 4,
+     "rule": "boundary.compose.service",
+     "evidence": "db:",
+     "file": "compose.yaml",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "job",
+     "subject": "cron 0 * * * * /usr/bin/x",
+     "line": 1,
+     "rule": "surface.crontab",
+     "evidence": "0 * * * * /usr/bin/x",
+     "file": "crontab",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "job",
+     "subject": "cron */5 * * * * /usr/bin/y",
+     "line": 2,
+     "rule": "surface.crontab",
+     "evidence": "*/5 * * * * /usr/bin/y",
+     "file": "crontab",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "command tool → ./cli.js",
+     "line": 3,
+     "rule": "entrypoint.pkg.bin",
+     "evidence": "\"bin\": \"./cli.js\"",
+     "file": "package.json",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "python console script table",
+     "line": 5,
+     "rule": "entrypoint.py.scripts",
+     "evidence": "console_scripts =",
+     "file": "setup.cfg",
+     "viaWrapper": false
+    },
+    {
+     "category": "entrypoint",
+     "kind": "bin",
+     "subject": "command tool → tool.cli:main",
+     "line": 6,
+     "rule": "entrypoint.py.script",
+     "evidence": "tool = tool.cli:main",
+     "file": "setup.cfg",
+     "viaWrapper": false
+    }
+   ]
+  }
+ }
+}

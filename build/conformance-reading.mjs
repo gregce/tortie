@@ -88,10 +88,13 @@ const ABLATIONS = [
 ];
 
 /**
- * A copy of src/main/arch and the one module outside it the map reads,
- * being src/main/symbols/languages.ts, under `<root>/main`, with `edit`
- * applied to one file. `@shared/*` resolves through tsconfig.node.json to the
- * real tree either way, which is what keeps the copy small.
+ * A copy of src/main/arch and the two modules outside it the copy reaches by
+ * value, being src/main/symbols/languages.ts and, since Phase 257,
+ * src/main/symbols/calls.ts, which the fact base's limits table re-exports
+ * its ceilings from. Both are pure: neither names a file, a process, a worker
+ * or electron. Under `<root>/main`, with `edit` applied to one file.
+ * `@shared/*` resolves through tsconfig.node.json to the real tree either way,
+ * which is what keeps the copy small.
  */
 function ablatedCopy(root, edit) {
   mkdirSync(join(root, 'main', 'symbols'), { recursive: true });
@@ -99,7 +102,9 @@ function ablatedCopy(root, edit) {
     recursive: true,
     filter: (source) => !source.includes('__tests__')
   });
-  cpSync(join(repoRoot, 'src', 'main', 'symbols', 'languages.ts'), join(root, 'main', 'symbols', 'languages.ts'));
+  for (const pure of ['languages.ts', 'calls.ts']) {
+    cpSync(join(repoRoot, 'src', 'main', 'symbols', pure), join(root, 'main', 'symbols', pure));
+  }
   const target = join(root, 'main', 'arch', edit.file);
   const before = readFileSync(target, 'utf8');
   if (!before.includes(edit.from)) {

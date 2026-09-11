@@ -1325,6 +1325,16 @@ if (data.ownName.beforeVerdict !== 'convergent') {
  * answers, so the narrowing is proved rather than declared.
  */
 const ARCH_WRITER_FILE = 'src/main/arch/enrich/write.ts';
+/**
+ * PHASE 257 ADDED THE ONE FILE THAT NAMES THE WRITE VERBS AS DATA. The fact
+ * base's `effect.fs.write` rule matches a call site's final segment against
+ * the verbs a file write is spelled with, so the two tokens above appear in
+ * its regular expression and nowhere else under the facts directory. It is
+ * not a writer: the scan below refuses the exemption unless the file imports
+ * nothing from `node:` at all, and `conformance:facts` rule 8 asks the same
+ * of the whole directory. The exemption is by exact path, never by prefix.
+ */
+const ARCH_RULE_TABLE_FILE = 'src/main/arch/facts/rules-effect.ts';
 const BANNED_SOURCE = [
   ['writeFile', `only ${ARCH_WRITER_FILE} may write a file under src/main/arch, and only under the compiled contract names.`],
   ['writeFileSync', `only ${ARCH_WRITER_FILE} may write a file under src/main/arch.`],
@@ -1354,6 +1364,15 @@ for (const source of data.sources) {
         writesHere = true;
         continue;
       }
+      if (
+        (token === 'writeFile' || token === 'writeFileSync') &&
+        source.path === ARCH_RULE_TABLE_FILE
+      ) {
+        if (/from\s+['"]node:|require\(/.test(source.text)) {
+          fail(`${source.path} names ${token} and imports from node:. The rule table may name a verb it detects, never reach a module that runs one.`);
+        }
+        continue;
+      }
       fail(`${source.path}:${i + 1} names ${token}. ${why}`);
     }
   }
@@ -1369,7 +1388,7 @@ if (JSON.stringify(writerFiles) !== JSON.stringify([ARCH_WRITER_FILE])) {
 rows.push([
   'source scan',
   `${data.sources.length} files under src/main/arch`,
-  `one writer (${ARCH_WRITER_FILE}), no ripgrep, no schema compiler, no spawn`
+  `one writer (${ARCH_WRITER_FILE}), one rule table naming the verbs as data (${ARCH_RULE_TABLE_FILE}, no node: import), no ripgrep, no schema compiler, no spawn`
 ]);
 
 // ---------------------------------------------------------------------------

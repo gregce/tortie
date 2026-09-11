@@ -53,7 +53,14 @@ const RAW_IPC_ALLOWED: Readonly<Record<string, string>> = {
   'main/attach/attach-host.ts':
     'per-session TEMPLATE channels (term:data/exit) — computed names',
   'main/search/ipc.ts':
-    'per-search TEMPLATE channel (search:results:<id>) — computed name'
+    'per-search TEMPLATE channel (search:results:<id>) — computed name',
+  // Not a mechanism: the fact base's IPC rule NAMES the receivers it detects
+  // (`ipcMain|ipcRenderer|ipc`) in a regular expression and reaches no
+  // primitive. `npm run conformance:facts` rule 8 proves the whole directory
+  // imports no electron module, which is what keeps this line a word and
+  // never a subscription.
+  'main/arch/facts/rules-surface.ts':
+    'the closed rule table naming the receivers it detects (Phase 257); imports no electron'
 };
 
 function scan(pattern: RegExp): string[] {

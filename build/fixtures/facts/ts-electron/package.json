@@ -1,0 +1,17 @@
+{
+  "name": "ts-electron-fixture",
+  "private": true,
+  "main": "./out/main.js",
+  "bin": {
+    "tortie": "./bin/t.js"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run src",
+    "build": "electron-vite build",
+    "foo": "echo foo"
+  }
+}

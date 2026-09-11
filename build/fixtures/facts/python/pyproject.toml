@@ -1,0 +1,8 @@
+[project]
+name = "svc"
+
+[project.scripts]
+svc = "svc.cli:main"
+
+[tool.x]
+y = "a:b"

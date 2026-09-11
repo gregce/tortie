@@ -203,6 +203,22 @@ const FACADE_ONLY = [
       'internal.'
   },
   {
+    // Phase 257. The fact base is one directory with one door, being its
+    // index, and only the arch domain may open it: tree-facts.ts reads bytes
+    // and asks the worker pool, db.ts stores what comes back, and nothing
+    // else in main names a rule, a predicate or the wrapper pass. A second
+    // importer is how a rule table stops being closed.
+    dir: 'main/arch/facts/',
+    onlyFrom: 'main/arch/facts/',
+    doors: ['main/arch/facts/index'],
+    door: 'src/main/arch/facts/index.ts',
+    why:
+      'the fact base has ONE door for the arch domain, being ' +
+      'src/main/arch/facts/index.ts, and the rest of main never names it at ' +
+      'all. Phase 257 built the closed rule table behind it, and a second ' +
+      'importer is how a closed table stops being closed.'
+  },
+  {
     dir: 'renderer/arch/state/',
     onlyFrom: 'renderer/arch/',
     door: 'src/renderer/arch/store.ts',
@@ -435,6 +451,34 @@ const FIXTURES = [
     '../arch/db'
   ],
   ['main/p172-fixture.ts', "import { registerArchIpc } from './arch/ipc';", null],
+  // Phase 257, the fact base's door. Two rejections, one per shape that can
+  // reach around the index, and four acceptances that pin the door in both
+  // spellings, the inside, and the test exemption. The reach from OUTSIDE the
+  // arch domain is refused by the arch facade rule above, so the fifth row is
+  // caught there and named there.
+  [
+    'main/arch/p257-fixture.ts',
+    "import { applyCallRules } from './facts/rules';",
+    './facts/rules'
+  ],
+  [
+    'main/arch/p257-fixture.ts',
+    "const { blobOid } = await import('./facts/oid');",
+    './facts/oid'
+  ],
+  ['main/arch/p257-fixture.ts', "import { readFacts } from './facts/index';", null],
+  ['main/arch/p257-fixture.ts', "import { readFacts } from './facts';", null],
+  ['main/arch/facts/p257-fixture.ts', "import { factKey } from './rules';", null],
+  [
+    'main/arch/__tests__/p257-fixture.ts',
+    "import { pathFacts } from '../facts/path-rules';",
+    null
+  ],
+  [
+    'main/machines/p257-fixture.ts',
+    "import { readFacts } from '../arch/facts/index';",
+    '../arch/facts/index'
+  ],
   [
     'main/arch/p172-fixture.ts',
     "import { createArchCheckCoordinator } from './check-coordinator';",

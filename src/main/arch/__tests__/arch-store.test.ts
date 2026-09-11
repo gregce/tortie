@@ -12,7 +12,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ArchCoverageCounts, ArchVerdict } from '@shared/arch';
+import type { ArchCoverageCounts, ArchFactDraft, ArchVerdict } from '@shared/arch';
+import { ARCH_BOUNDARY_START_KINDS, ARCH_FACT_KINDS, ARCH_MODULE_ROOT_KIND } from '@shared/arch';
 import { ARCH_SCANNED_NO_HEAD, ArchStore } from '../db';
 
 let dir: string;
@@ -207,5 +208,173 @@ describe('the arch store', () => {
     store.forgetRepo(KEY);
     expect(store.verdicts(KEY)).toEqual([]);
     expect(store.repoState(KEY).generation).toBe(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // The fact base (Phase 257). A fact is a function of (bytes, path); the link
+  // from a repository's file to those facts is what a repository owns.
+  // -------------------------------------------------------------------------
+
+  const OID_A = 'a'.repeat(40);
+  const OID_B = 'b'.repeat(40);
+  const REPO_2 = 'dev:ino2';
+
+  function draft(over: Partial<ArchFactDraft> = {}): ArchFactDraft {
+    return {
+      category: 'surface',
+      kind: 'ipc-channel',
+      subject: 'IPC serves arch:map',
+      line: 12,
+      rule: 'surface.ipc.electron',
+      evidence: "ipcMain.handle('arch:map', fn)",
+      ...over
+    };
+  }
+
+  function link(relPath: string, oid: string, over: Partial<Parameters<ArchStore['linkFactFiles']>[1][number]> = {}) {
+    return { relPath, oid, mtimeMs: 100, size: 20, lang: 'typescript', vendored: null, truncated: false, wrapDigest: null, ...over };
+  }
+
+  it('keeps a fact list per (oid, path) and answers it through the link, sorted', () => {
+    store.saveFacts(OID_A, 'src/ipc.ts', [
+      draft({ line: 30, subject: 'IPC serves z' }),
+      draft({ line: 12, subject: 'IPC serves arch:map' }),
+      draft({ line: 12, subject: 'IPC serves a:b', rule: 'surface.ipc.electron' })
+    ]);
+    expect(store.facts(KEY)).toEqual([]);
+    store.linkFactFiles(KEY, [link('src/ipc.ts', OID_A)]);
+    const facts = store.facts(KEY);
+    expect(facts.map((f) => `${f.file}:${String(f.line)} ${f.subject}`)).toEqual([
+      'src/ipc.ts:12 IPC serves a:b',
+      'src/ipc.ts:12 IPC serves arch:map',
+      'src/ipc.ts:30 IPC serves z'
+    ]);
+    expect(facts.every((f) => f.viaWrapper === false)).toBe(true);
+    expect(store.hasFactsFor(OID_A, 'src/ipc.ts')).toBe(true);
+    // The same bytes at ANOTHER path are another fact list, because three
+    // rule families read the path.
+    expect(store.hasFactsFor(OID_A, 'test/ipc.test.ts')).toBe(false);
+  });
+
+  it('a link is proof of a read, so a file with no facts is not parsed again on every stamp move', () => {
+    store.saveFacts(OID_B, 'src/empty.ts', []);
+    expect(store.hasFactsFor(OID_B, 'src/empty.ts')).toBe(false);
+    store.linkFactFiles(KEY, [link('src/empty.ts', OID_B)]);
+    expect(store.hasFactsFor(OID_B, 'src/empty.ts')).toBe(true);
+  });
+
+  it('REFUSES a whole save when one row is outside the closed sets, naming the field, and writes nothing', () => {
+    expect(() => store.saveFacts(OID_A, 'src/a.ts', [draft(), draft({ category: 'boundary', kind: 'barrel' })])).toThrow(
+      /arch_fact\.kind "barrel" is not a boundary kind/
+    );
+    expect(() =>
+      store.saveFacts(OID_A, 'src/a.ts', [draft({ category: 'decl' as ArchFactDraft['category'], kind: 'function' })])
+    ).toThrow(/arch_fact\.category "decl" is not one of/);
+    expect(() => store.saveFacts(OID_A, 'src/a.ts', [draft({ subject: 'x'.repeat(161) })])).toThrow(/arch_fact\.subject holds 161/);
+    expect(() => store.saveFacts(OID_A, 'src/a.ts', [draft({ evidence: 'x'.repeat(201) })])).toThrow(/arch_fact\.evidence holds 201/);
+    expect(() => store.saveFacts(OID_A, 'src/a.ts', [draft({ line: 0 })])).toThrow(/arch_fact\.line must be a positive integer/);
+    store.linkFactFiles(KEY, [link('src/a.ts', OID_A)]);
+    expect(store.facts(KEY)).toEqual([]);
+    expect(store.hasFactsFor(OID_A, 'src/a.ts')).toBe(true); // the link, not a fact
+    expect(() => store.saveWrapFacts(KEY, 'src/a.ts', [draft({ kind: 'handler' })])).toThrow(/arch_fact_wrap\.kind "handler"/);
+  });
+
+  it('round trips every stamp column', () => {
+    store.linkFactFiles(KEY, [
+      link('src/a.ts', OID_A, { mtimeMs: 1.5, size: 9, lang: 'typescript', vendored: null, truncated: true, wrapDigest: 'd'.repeat(64) }),
+      link('vendor/x.js', OID_B, { lang: null, vendored: 'path: vendor', truncated: false, wrapDigest: null })
+    ]);
+    const stamps = store.factStamps(KEY);
+    expect(stamps.get('src/a.ts')).toEqual({ mtimeMs: 1.5, size: 9, oid: OID_A, wrapDigest: 'd'.repeat(64), lang: 'typescript', vendored: null, truncated: true });
+    expect(stamps.get('vendor/x.js')).toEqual({ mtimeMs: 100, size: 20, oid: OID_B, wrapDigest: null, lang: null, vendored: 'path: vendor', truncated: false });
+    // A re-link replaces rather than appends.
+    store.linkFactFiles(KEY, [link('src/a.ts', OID_B, { truncated: false })]);
+    expect(store.factStamps(KEY).get('src/a.ts')?.oid).toBe(OID_B);
+    expect(store.factStamps(KEY).size).toBe(2);
+  });
+
+  it('shares one fact list between two repositories and prunes it only when nothing links it', () => {
+    store.saveFacts(OID_A, 'src/ipc.ts', [draft()]);
+    store.saveWrapperDecls(OID_A, 'src/ipc.ts', [
+      { name: 'handle', innerCallee: 'ipc.handle', innerLast: 'handle', paramIndex: 1, innerIndex: 0, hops: 1, line: 4 }
+    ]);
+    store.linkFactFiles(KEY, [link('src/ipc.ts', OID_A)]);
+    store.linkFactFiles(REPO_2, [link('src/ipc.ts', OID_A)]);
+    expect(store.facts(REPO_2)).toHaveLength(1);
+    store.forgetFactFiles(KEY, ['src/ipc.ts']);
+    expect(store.pruneUnlinkedFacts()).toBe(0);
+    expect(store.facts(KEY)).toEqual([]);
+    expect(store.facts(REPO_2)).toHaveLength(1);
+    expect(store.wrapperDecls([{ oid: OID_A, relPath: 'src/ipc.ts' }]).get('src/ipc.ts')).toHaveLength(1);
+    store.forgetFactFiles(REPO_2, ['src/ipc.ts']);
+    expect(store.pruneUnlinkedFacts()).toBe(2); // one fact row and one wrapper row
+    expect(store.hasFactsFor(OID_A, 'src/ipc.ts')).toBe(false);
+    expect(store.wrapperDecls([{ oid: OID_A, relPath: 'src/ipc.ts' }]).size).toBe(0);
+  });
+
+  it('keeps wrapper-only facts per FILE, replaces rather than appends, and clears them whole', () => {
+    store.linkFactFiles(KEY, [link('src/arch/ipc.ts', OID_A, { wrapDigest: 'e'.repeat(64) })]);
+    store.saveWrapFacts(KEY, 'src/arch/ipc.ts', [
+      draft({ rule: 'surface.ipc.electron+wrap', subject: 'IPC serves arch:load' }),
+      draft({ rule: 'surface.ipc.electron+wrap', subject: 'IPC serves arch:map', line: 13 })
+    ]);
+    expect(store.facts(KEY).map((f) => [f.subject, f.viaWrapper])).toEqual([
+      ['IPC serves arch:load', true],
+      ['IPC serves arch:map', true]
+    ]);
+    store.saveWrapFacts(KEY, 'src/arch/ipc.ts', [draft({ rule: 'surface.ipc.electron+wrap', subject: 'IPC serves arch:load' })]);
+    expect(store.facts(KEY)).toHaveLength(1);
+    const counts = store.factCounts(KEY);
+    expect(counts.wrapFacts).toBe(1);
+    expect(counts.wrapDigest).toBe('e'.repeat(64));
+    expect(counts.byCategory.surface).toBe(1);
+    expect(counts.byRule['surface.ipc.electron+wrap']).toBe(1);
+    store.clearWrapFacts(KEY);
+    expect(store.facts(KEY)).toEqual([]);
+  });
+
+  it('counts the denominators beside the facts', () => {
+    store.saveFacts(OID_A, 'src/a.ts', [draft(), draft({ category: 'effect', kind: 'spawn', subject: 'runs git', rule: 'effect.spawn.node' })]);
+    store.linkFactFiles(KEY, [
+      link('src/a.ts', OID_A, { truncated: true }),
+      link('vendor/x.js', OID_B, { lang: null, vendored: 'path: vendor' }),
+      link('README.md', 'c'.repeat(40), { lang: null })
+    ]);
+    const counts = store.factCounts(KEY);
+    expect(counts.files).toBe(3);
+    expect(counts.vendored).toBe(1);
+    expect(counts.truncated).toBe(1);
+    expect(counts.unread).toBe(1);
+    expect(counts.byCategory).toEqual({ entrypoint: 0, boundary: 0, surface: 1, store: 0, effect: 1, network: 0, gate: 0, test: 0 });
+    expect(counts.wrapDigest).toBeNull();
+  });
+
+  it('answers the six build-and-start kinds and the module roots through two readers that never overlap', () => {
+    const rows: ArchFactDraft[] = [
+      ...ARCH_BOUNDARY_START_KINDS.map((kind, i) =>
+        draft({ category: 'boundary', kind, subject: `starts a ${kind}`, line: i + 1, rule: 'boundary.worker' })
+      ),
+      draft({ category: 'boundary', kind: ARCH_MODULE_ROOT_KIND, subject: 'module root src/index.ts', line: 1, rule: 'boundary.path.module-root' }),
+      draft({ line: 50 })
+    ];
+    expect(ARCH_FACT_KINDS.boundary).toEqual([...ARCH_BOUNDARY_START_KINDS, ARCH_MODULE_ROOT_KIND]);
+    store.saveFacts(OID_A, 'src/index.ts', rows);
+    store.linkFactFiles(KEY, [link('src/index.ts', OID_A)]);
+    const starts = store.boundaryStarts(KEY);
+    const roots = store.moduleRoots(KEY);
+    expect(starts.map((f) => f.kind)).toEqual([...ARCH_BOUNDARY_START_KINDS]);
+    expect(roots.map((f) => f.kind)).toEqual([ARCH_MODULE_ROOT_KIND]);
+    const boundary = store.facts(KEY).filter((f) => f.category === 'boundary');
+    expect(starts.length + roots.length).toBe(boundary.length);
+  });
+
+  it('drops the links and prunes the shared lists when a repository is forgotten', () => {
+    store.saveFacts(OID_A, 'src/a.ts', [draft()]);
+    store.linkFactFiles(KEY, [link('src/a.ts', OID_A)]);
+    store.saveWrapFacts(KEY, 'src/a.ts', [draft({ rule: 'x+wrap' })]);
+    store.forgetRepo(KEY);
+    expect(store.facts(KEY)).toEqual([]);
+    expect(store.factStamps(KEY).size).toBe(0);
+    expect(store.hasFactsFor(OID_A, 'src/a.ts')).toBe(false);
   });
 });

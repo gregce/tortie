@@ -69,23 +69,23 @@ beforeEach(() => {
 describe('the Architecture switch rebuilds the menu', () => {
   it('rebuilds when the switch goes on', () => {
     const set = setHandler();
-    set(null, { arch: { enabled: true, agentId: null, model: null } });
+    set(null, { arch: { enabled: true, agentId: null, model: null, wrapperPass: false } });
     expect(rebuilds).toHaveLength(1);
   });
 
   it('rebuilds when it goes off again', () => {
     settings = {
       ...settings,
-      arch: { enabled: true, agentId: null, model: null }
+      arch: { enabled: true, agentId: null, model: null, wrapperPass: false }
     };
     const set = setHandler();
-    set(null, { arch: { enabled: false, agentId: null, model: null } });
+    set(null, { arch: { enabled: false, agentId: null, model: null, wrapperPass: false } });
     expect(rebuilds).toHaveLength(1);
   });
 
   it('does NOT rebuild when only the harness pair moves', () => {
     const set = setHandler();
-    set(null, { arch: { enabled: false, agentId: 'claude', model: 'm' } });
+    set(null, { arch: { enabled: false, agentId: 'claude', model: 'm', wrapperPass: false } });
     expect(rebuilds).toHaveLength(0);
   });
 
@@ -105,7 +105,7 @@ describe('the Architecture switch rebuilds the menu', () => {
     const set = setHandler();
     set(null, {
       hotkeys: { claude: 'Shift+Cmd+J' },
-      arch: { enabled: true, agentId: null, model: null }
+      arch: { enabled: true, agentId: null, model: null, wrapperPass: false }
     });
     expect(rebuilds).toHaveLength(1);
   });

@@ -26,16 +26,20 @@ import { join } from 'node:path';
  * Turn the Architecture switch on in `profileDir`.
  *
  * @param {string} profileDir the probe's own userData directory
+ * @param {Record<string, unknown>} [arch] fields merged into the arch choice, e.g. `{ wrapperPass: true }`
  * @returns {string} the file that was written
  */
-export function seedArchSwitchOn(profileDir) {
+export function seedArchSwitchOn(profileDir, arch = {}) {
   mkdirSync(profileDir, { recursive: true });
   const path = join(profileDir, 'settings.json');
   writeFileSync(
     path,
     `${JSON.stringify({
       version: 1,
-      settings: { arch: { enabled: true, agentId: null, model: null } }
+      // The file's shape is the store's own, `{ version, settings }`; a flat
+      // `{ arch }` at the top level reads as no settings at all. `arch` may
+      // carry the Phase 257 `wrapperPass` switch beside the three fields.
+      settings: { arch: { enabled: true, agentId: null, model: null, ...arch } }
     })}\n`,
     'utf8'
   );

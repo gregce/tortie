@@ -71,7 +71,12 @@ export async function seedArch(): Promise<void> {
   // off. The seed runs only inside a harness profile (the refusal above),
   // so no person's setting is ever flipped by this line.
   updateSettings({
-    arch: { enabled: true, agentId: spec.agentId, model: spec.model }
+    arch: {
+      enabled: true,
+      agentId: spec.agentId,
+      model: spec.model,
+      wrapperPass: getSettings().arch.wrapperPass
+    }
   });
   const readBack = getSettings().arch;
   const wanted = spec.agentId !== null && spec.model !== null;

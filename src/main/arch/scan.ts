@@ -84,8 +84,13 @@ export interface ArchScanResult {
   overBudget: string | null;
 }
 
-/** How many files this build will parse before it says so and stops. */
-export const ARCH_SCAN_FILE_CEILING = 50_000;
+/**
+ * How many files this build will parse before it says so and stops. Held in
+ * ./scan-ceiling.ts since Phase 257 so the fact pass reads the same number
+ * without naming this module; re-exported here under the name its readers use.
+ */
+import { ARCH_SCAN_FILE_CEILING } from './scan-ceiling';
+export { ARCH_SCAN_FILE_CEILING };
 
 /**
  * Which ARM reads a path, in the resolver's own vocabulary.

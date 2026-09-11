@@ -162,6 +162,12 @@ export const CHECKS = [
   pure('conformance:arch'),
   pure('conformance:arch:modules'),
   pure('conformance:reading'),
+  // Phase 257. The fact base: build/conformance-facts.mjs runs the shipping
+  // reader, extractor and store under the pinned tsx over eight committed
+  // fixtures, this checkout's own src/ and a scratch arch.db, then over
+  // twenty-two ablated copies of src/main. One plain node for the watcher
+  // gate, no git, no Electron, nothing under the person's home.
+  pure('conformance:facts'),
   // Phase 207. The frame hue: build/conformance-hue.mjs runs the shipping
   // rotation and text rule under node over all 360 degrees and a synthetic
   // ground, then over twelve ablated copies of the code, one clause each.
@@ -988,6 +994,10 @@ export const CHECKS = [
   // readings beside HEAD's and launches nothing either.
   electron('probe:p249'),
   electron('probe:p243'),
+  // Phase 257. The corpus run: shallow read-only clones under the harness
+  // directory, the reference driver in process, then ONE Electron on a
+  // scratch profile whose arch.db is read back and held against it.
+  electron('probe:p257'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the

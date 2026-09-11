@@ -1,0 +1,5 @@
+services:
+  web:
+    image: web
+  worker:
+    image: worker

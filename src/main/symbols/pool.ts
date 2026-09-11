@@ -83,6 +83,8 @@ export class SymbolPool {
   private readonly queue: {
     files: { relPath: string; absPath: string }[];
     wantImports: boolean;
+    wantCalls: boolean;
+    wantWrappers: boolean;
     pending: Pending;
   }[] = [];
   private nextBatchId = 1;
@@ -100,10 +102,16 @@ export class SymbolPool {
    * decides only what crosses the thread boundary. ONE pool serves both
    * readers, which is research 19's worker budget working as intended rather
    * than a second resident pool.
+   *
+   * `options.calls` and `options.wrappers` are the fact base's two asks
+   * (Phase 257), and the same sentence holds: the third reader of the same
+   * parse is not a second budget. `calls` is the call site description, which
+   * the extractor does only when asked, and `wrappers` is a second walk of the
+   * tree that the wrapper pass SETTING turns on.
    */
   run(
     files: { relPath: string; absPath: string }[],
-    options: { imports?: boolean } = {}
+    options: { imports?: boolean; calls?: boolean; wrappers?: boolean } = {}
   ): Promise<IndexedFile[]> {
     if (this.disposed) return Promise.resolve([]);
     this.cancelIdleEviction();
@@ -111,6 +119,8 @@ export class SymbolPool {
       this.queue.push({
         files,
         wantImports: options.imports === true,
+        wantCalls: options.calls === true,
+        wantWrappers: options.wrappers === true,
         pending: { resolve, reject }
       });
       this.pump();
@@ -131,7 +141,9 @@ export class SymbolPool {
           slot.worker.postMessage({
             batchId,
             files: job.files,
-            imports: job.wantImports
+            imports: job.wantImports,
+            calls: job.wantCalls,
+            wrappers: job.wantWrappers
           } satisfies SymbolWorkerRequest),
         (err: unknown) => {
           slot.pending.delete(batchId);

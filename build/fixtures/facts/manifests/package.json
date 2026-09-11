@@ -1,0 +1,4 @@
+{
+  "name": "tool",
+  "bin": "./cli.js"
+}

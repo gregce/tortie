@@ -59,7 +59,10 @@ import { composeArchMap, composeArchMapPart } from './map';
 import type { ArchMapComposeInput, ArchMapPartVerdictFact } from './map';
 import { gatherFacts } from './run';
 import { scanArchImports } from './scan';
+import { sharedFactParser } from './fact-parser';
+import { wrapperPassOn } from './facts/index';
 import { readArchTreeFacts } from './tree-facts';
+import { getSettings } from '../settings/store';
 import { diffArchVerdicts, readArchDrift } from './enrich/drift';
 import { driftFace } from './repair-trigger';
 import { composeArchPayload } from './payload';
@@ -384,13 +387,7 @@ export function createArchCheckCoordinator(deps: {
         // The reading's one read of the tree (Phase 201), stamped like the
         // import rows, so a warm run reads only what drifted.
         if (signal?.aborted !== true) {
-          await readArchTreeFacts({
-            repoPath,
-            repoKey,
-            store: db,
-            trackedFiles,
-            ...(signal === null ? {} : { signal })
-          });
+          await runFactPass(repoPath, repoKey, db, trackedFiles, signal);
         }
         return { imports: scan.imports, unparsed: scan.unparsed };
       }
@@ -548,6 +545,39 @@ export function createArchCheckCoordinator(deps: {
    * `building` schedules the next check on every map read; the reason travels
    * to the person instead of the loop running for ever.
    */
+  /**
+   * The reading's one read of the tree (Phase 201) and the fact pass that
+   * rides it (Phase 257), from both legs, so the two call sites cannot drift
+   * apart. The wrapper pass is a setting read once here through its one
+   * reader, the parser is the shared pool the import scan just used, and the
+   * pass's counts and wall time go to the log in one line, which is what
+   * `probe:p257` reads the cost of the second parse off.
+   */
+  async function runFactPass(
+    repoPath: string,
+    repoKey: string,
+    db: ArchStore,
+    trackedFiles: readonly string[],
+    signal: AbortSignal | null
+  ): Promise<void> {
+    const started = Date.now();
+    const result = await readArchTreeFacts({
+      repoPath,
+      repoKey,
+      store: db,
+      trackedFiles,
+      ...(signal === null ? {} : { signal }),
+      wrapperPass: wrapperPassOn(getSettings().arch),
+      parser: sharedFactParser()
+    });
+    archLog.info('fact pass', {
+      repoPath,
+      ms: Date.now() - started,
+      treeRead: result.read,
+      ...result.facts
+    });
+  }
+
   async function scanFactsOnly(
     source: ArchSource,
     db: ArchStore,
@@ -585,13 +615,7 @@ export function createArchCheckCoordinator(deps: {
     // The reading's one read of the tree (Phase 201), after the scan and
     // before the stamp, so the sentence behind a box never waits on a second
     // pass the map read would have to know about.
-    await readArchTreeFacts({
-      repoPath,
-      repoKey,
-      store: db,
-      trackedFiles,
-      ...(signal === null ? {} : { signal })
-    });
+    await runFactPass(repoPath, repoKey, db, trackedFiles, signal);
     if (scan.overBudget === null) {
       const head = await git.run(revParseHeadCall());
       const headCommit =

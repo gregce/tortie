@@ -560,3 +560,180 @@ export interface ArchVerdictChanges extends ArchVerdictDiff {
   toCommit: string;
   at: number;
 }
+
+// ---------------------------------------------------------------------------
+// The fact base (Phase 257, research 118 §6 and §10 Phase 1), derived like
+// the verdicts
+// ---------------------------------------------------------------------------
+//
+// Nothing below is a `docs/arch/` key. A fact is DERIVED from the repository's
+// own bytes by a closed rule table in `src/main/arch/facts/`, it lives only in
+// Tortie's own disposable `arch.db`, and it never travels with the repository.
+// `ARCH_ROW_KEYS` above is untouched, and `npm run conformance:arch` rule 12
+// pins it byte for byte so that stays checkable rather than asserted.
+
+/**
+ * The eight categories the prototype measured, in the charter's order. A fact
+ * outside them is refused WHOLE by the store with the field named, never
+ * written under a ninth word.
+ */
+export const ARCH_FACT_CATEGORIES = [
+  'entrypoint',
+  'boundary',
+  'surface',
+  'store',
+  'effect',
+  'network',
+  'gate',
+  'test'
+] as const;
+export type ArchFactCategory = (typeof ARCH_FACT_CATEGORIES)[number];
+
+/**
+ * The closed kind set per category. The store refuses a kind outside its
+ * category's list the way it refuses a category outside the eight.
+ *
+ * `boundary` deliberately holds `module-root` BESIDE the six build-and-start
+ * kinds rather than folded into one of them: research 118 §7.6 measured the
+ * six at 15 of 15 and the module roots at 30 of 30, and on this repository 75
+ * of 80 boundary facts are `index.ts` barrels that a union would draw as
+ * processes. {@link ARCH_BOUNDARY_START_KINDS} and {@link ARCH_MODULE_ROOT_KIND}
+ * are the two halves, and the store exposes one reader for each and NO reader
+ * for the union.
+ */
+export const ARCH_FACT_KINDS: Readonly<Record<ArchFactCategory, readonly string[]>> = {
+  entrypoint: [
+    'main',
+    'by-name',
+    'composition-root',
+    'package-main',
+    'bin',
+    'script',
+    'package',
+    'process',
+    'container',
+    'ci-job'
+  ],
+  boundary: ['worker', 'thread', 'process', 'service', 'workspace', 'library', 'module-root'],
+  surface: ['http-route', 'ipc-channel', 'cli-command', 'cli-flag', 'job', 'port'],
+  store: ['store-write', 'store-def', 'migration'],
+  effect: ['spawn', 'fs-write'],
+  network: ['client', 'listen'],
+  gate: ['auth', 'flag', 'refusal', 'guard'],
+  test: ['test-case', 'test-target']
+};
+
+/** The six boundary kinds that say what a repository BUILDS and STARTS (15 of 15 judged). */
+export const ARCH_BOUNDARY_START_KINDS = [
+  'worker',
+  'thread',
+  'process',
+  'service',
+  'workspace',
+  'library'
+] as const;
+
+/** The one boundary kind that says a language's package root is here (30 of 30 judged, five of them test packages). */
+export const ARCH_MODULE_ROOT_KIND = 'module-root' as const;
+
+/** One fact as the reader produces it, before it is linked to a file. */
+export interface ArchFactDraft {
+  category: ArchFactCategory;
+  kind: string;
+  /** What the fact says, at most {@link ARCH_FACT_LIMITS.maxSubject} characters. */
+  subject: string;
+  /** 1 based. */
+  line: number;
+  /** The rule id that produced it, e.g. `surface.ipc.electron`; `+wrap` when only a wrapper reached it. */
+  rule: string;
+  /** The cited line, trimmed, at most {@link ARCH_FACT_LIMITS.maxEvidence} characters. */
+  evidence: string;
+}
+
+/** One fact of a repository, joined to the file it was read at. */
+export interface ArchFact extends ArchFactDraft {
+  /** Repository relative path. */
+  file: string;
+  /** True when the fact exists only through a wrapper declaration in another file. */
+  viaWrapper: boolean;
+}
+
+/** The counts a face will need, always with their denominators. */
+export interface ArchFactCounts {
+  byCategory: Record<ArchFactCategory, number>;
+  byRule: Record<string, number>;
+  /** Tracked files the fact pass has linked. */
+  files: number;
+  /** Files the vendor filter refused to read. */
+  vendored: number;
+  /** Files whose call list hit the worker's ceiling. */
+  truncated: number;
+  /** Files no rule reads at all. */
+  unread: number;
+  /** Facts that exist only through a wrapper. */
+  wrapFacts: number;
+  /** The wrapper map digest the wrap facts were computed under, or null with the pass off. */
+  wrapDigest: string | null;
+}
+
+/** The two bounds a stored fact row honours. The reader cuts at them; the store refuses past them. */
+export const ARCH_FACT_LIMITS = { maxSubject: 160, maxEvidence: 200 } as const;
+
+/**
+ * The ANCHOR apis a local wrapper may hide (Phase 257, research 118 §6.3).
+ *
+ * The key is the inner callee's final segment; the value is which argument of
+ * the inner call carries the name. `handle(ipc, 'arch:map', fn)` in this
+ * repository's own `src/main/typed-ipc.ts` is the shape: `ipc.handle` is
+ * reached with the wrapper's own `channel` parameter, so every call site of
+ * `handle` is an IPC registration no rule reading the callee name can see.
+ * Measured on this repository 2026-09-10: 0 of 229 channels before the pass,
+ * 229 of 229 after it, with zero false positives.
+ *
+ * WHY IT IS HERE AND NOT IN `src/main/arch/facts/`. The one table is read by
+ * two modules on either side of a directory wall: `src/main/symbols/wrappers.ts`
+ * walks declarations in the worker and needs the anchor set to mark a hop-1
+ * candidate, and `src/main/arch/facts/wrappers.ts` closes the map. The arch
+ * directory has ONE door for the rest of main (`assert-import-boundaries.mjs`),
+ * so symbols cannot name a file under arch, and the table lives in the leaf
+ * both may name. It is names compared against callee text; nothing here can
+ * run and nothing here reaches an argv.
+ */
+export const ARCH_WRAPPER_ANCHORS: Readonly<Record<string, number>> = {
+  handle: 0,
+  handleOnce: 0,
+  on: 0,
+  once: 0,
+  invoke: 0,
+  send: 0,
+  addEventListener: 0,
+  HandleFunc: 0,
+  Handle: 0,
+  route: 0,
+  get: 0,
+  post: 0,
+  put: 0,
+  patch: 0,
+  delete: 0,
+  spawn: 0,
+  spawnSync: 0,
+  exec: 0,
+  execFile: 0,
+  execFileSync: 0,
+  execSync: 0,
+  Command: 0,
+  run: 0,
+  Popen: 0
+};
+
+/**
+ * The grammars the wrapper pass runs over (Phase 257, research 118 §6.3).
+ *
+ * Every one of the three clauses the pass needs was measured on this
+ * repository's own TypeScript, and §6.3 counted 735 wrapper only facts here
+ * against 2 across the eight repositories in the other six families. Grammar
+ * ids as strings, because this leaf may not name `src/main/symbols/languages`;
+ * `src/main/symbols/wrappers.ts` asks it before it walks a file and
+ * `src/main/arch/facts/wrappers.ts` narrows it to the typed list it exports.
+ */
+export const ARCH_WRAPPER_GRAMMARS: readonly string[] = ['typescript', 'tsx', 'javascript'];
