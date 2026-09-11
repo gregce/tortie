@@ -8,24 +8,44 @@
  * the rest through idle callbacks — but only if the document can be CUT
  * without changing what any chunk means.
  *
- * This scanner finds those cuts with three line passes and no parse. The
- * bias is written into every rule: OVER-MERGING IS ALWAYS SAFE, because a
- * bigger chunk only costs milliseconds, and a cut in the wrong place is the
- * one way to change what the page draws. A cut happens only at a blank line
- * where nothing before it can continue past it:
+ * This scanner finds those cuts with line passes and no parse. The bias is
+ * written into every rule: OVER-MERGING IS ALWAYS SAFE, because a bigger
+ * chunk only costs milliseconds, and a cut in the wrong place is the one way
+ * to change what the page draws. A cut happens only at a blank line where
+ * nothing before it can continue past it:
  *
  *  - never inside a code fence (``` or ~~~, the closing run at least as long
  *    as the opening one, nothing after it);
- *  - never inside a type-1 HTML block (pre, script, style, textarea) or an
- *    HTML comment;
- *  - never while a raw HTML container tag is open. CommonMark ends the HTML
- *    BLOCK at the blank line, but the HTML parser stitches the fragments
- *    back together across the markdown between them, so a cut while a
- *    `<table>` or `<details>` is open changes the tree (research 117 §4.1,
- *    found by the corpus on a README hero table). Code spans are removed
- *    from a line before its tags are counted, because `<table>` written in
- *    backticks is prose about a tag and not a tag, and counting it would
- *    veto every later cut in a document that merely mentions one;
+ *  - never while the HTML parser would still be inside something raw HTML
+ *    opened. CommonMark ends an HTML block at a blank line, but parse5 reads
+ *    the whole page as one stream, so an element a file opens and does not
+ *    close holds every later block inside it (research 117 §4.1). The
+ *    scanner keeps a small model of parse5's stack of open elements, and the
+ *    fix round wrote it from the tree-construction rules rather than a tag
+ *    list, because the build's list missed `<span>` and `<b>` and the
+ *    verifier's page went from 49 top-level blocks to 118:
+ *      - a void element opens nothing;
+ *      - script, style, textarea, title, xmp, iframe, noembed, noframes and
+ *        plaintext swallow everything up to their own end tag, blank lines
+ *        and tags included;
+ *      - an ordinary element (span, sup, kbd, an unknown tag) opened inside
+ *        a PARAGRAPH is closed by that paragraph's end, so it is dropped at
+ *        the blank line; opened in an HTML BLOCK it stays open;
+ *      - a formatting element (a, b, em, strong, …) is RECONSTRUCTED into
+ *        every later paragraph by the adoption agency, so it stays open
+ *        wherever it was opened and survives an end tag that pops past it;
+ *      - an end tag closes the nearest element of its name only inside its
+ *        scope, and an ordinary end tag stops at a special element, as
+ *        parse5 does; an end tag it would ignore is ignored here too;
+ *      - a markdown block after a blank line starts with a tag that closes an
+ *        open `<p>` (paragraph, heading, list, table, quote, fence, rule), so
+ *        a README's unclosed hero `<p align="center">` no longer holds every
+ *        later cut closed;
+ *      - a tag in a code span, an indented code line or an HTML comment is
+ *        not a tag, and where the scanner cannot be sure (a code span or a
+ *        comment left open to the next line, a tag whose `>` is on a later
+ *        line) it counts what OPENS and never what CLOSES, which can only
+ *        merge;
  *  - never anywhere inside a list. A blank-separated sibling makes a list
  *    LOOSE, so a cut between items splits one list into two AND re-tightens
  *    it (both found on the research 117 twins, §4.2). A marker line, a lazy
@@ -37,18 +57,15 @@
  * §4.2): setext headings and lazy continuation never cross a blank line, so
  * cutting only at blanks is immune to them by construction; a table's
  * alignment row sits inside its own blank-free run. Reference definitions
- * are collected here and PREPENDED to every chunk's parse input — a
- * definition draws nothing, so a link used far from its definition still
- * resolves and nothing else moves, and prepending (rather than appending)
- * keeps the document's FIRST definition of a label the winning one and
- * cannot be swallowed by a fence left open at the end of the file.
- * Footnotes are the one construct windowing genuinely reorders (each chunk
- * would draw its own footnote section), so a document that defines one is
- * never windowed at all: `hasFootnotes` is asked by the preview, which
- * draws such a document whole on the unchanged remark path
- * (markdown-impl.tsx), and by the deferral guard (large-prose.ts). This
- * scanner does not refuse it itself, because a refusal nothing reads is a
- * clause no check can fail.
+ * draw nothing where they stand and resolve anywhere, so they are not the
+ * scanner's business: chunk-parse.ts reads them with markdown-it's own block
+ * pass and hands every chunk the table. Footnotes are the one construct
+ * windowing genuinely reorders (each chunk would draw its own footnote
+ * section), so a document that defines one is never windowed at all:
+ * `hasFootnotes` is asked by the preview, which draws such a document whole
+ * on the unchanged remark path (markdown-impl.tsx), and by the deferral
+ * guard (large-prose.ts), and it finds a definition inside a blockquote or a
+ * list item too.
  *
  * PURE ON PURPOSE: no React, no DOM, no electron. `npm run conformance:preview`
  * runs this exact module under node over this repository's own markdown and
@@ -71,31 +88,61 @@ export const WINDOW_INITIAL_CHARS = 128 * 1024;
 
 /**
  * One idle slice of the stream. Research 117 §5 measured ~0.24 ms per KB
- * for a slice in the app, so 256 KiB is about 60 ms: well under the 250 ms
- * ceiling the phase states even at several times that density, and it keeps
- * two uncuttable runs from landing in one task (twin A's 690 KB list and
- * 868 KB tail would have shared a twelve-chunk batch).
+ * for a slice in the app, so 256 KiB is about 60 ms, and it keeps two
+ * uncuttable runs from landing in one task (twin A's 690 KB list and 868 KB
+ * tail would have shared a twelve-chunk batch). THE STATED LIMIT, since the
+ * fix round measured a run the builder's corpus did not hold (an unclosed
+ * `<details>` after the first screen, 2.4 MB in one run, a 348 ms task): a
+ * window is PARSED in one idle task and DRAWN in the next (chunk-parse.ts
+ * `streamWindow`), so a run larger than this budget costs two tasks of about
+ * half its price rather than one. A run is still never split, so a dense one
+ * several megabytes deep can hold a task past the 250 ms research 117 §6
+ * names; the deferral guard (large-prose.ts) reads the FIRST chunk only,
+ * because a later one is drawn after the page is already on screen.
  */
 export const WINDOW_BATCH_CHUNKS = 12;
 export const WINDOW_BATCH_CHARS = 256 * 1024;
 
 const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+/** Inside a list an indented fence is still a fence. */
+const LIST_FENCE_RE = /^[ \t]*(`{3,}|~{3,})/;
 const LIST_RE = /^ {0,3}(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
 const REF_DEF_RE = /^ {0,3}\[[^\]]{1,999}\]:/;
 const ATX_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
-const FOOTNOTE_DEF_RE = /^ {0,3}\[\^[^\]]+\]:/m;
-const HTML1_OPEN_RE = /^ {0,3}<(?:pre|script|style|textarea)\b/i;
-const HTML1_CLOSE_RE = /<\/(?:pre|script|style|textarea)>/i;
-const COMMENT_OPEN_RE = /^ {0,3}<!--/;
-const COMMENT_CLOSE_RE = /-->/;
-/** A code span on one line: a backtick run, anything, the same run. */
-const CODE_SPAN_RE = /(`+)[^`]*?(?:`(?!\1)[^`]*?)*?\1/g;
-/**
- * Raw HTML container tags the HTML parser stitches across blank-line block
- * boundaries. Opening one vetoes cuts until it closes.
- */
-const CONTAINER_RE =
-  /<\/?(table|thead|tbody|tr|td|th|div|details|dl|ul|ol|blockquote|section|center|figure|picture|summary|font|kbd|sub|sup|a|p)\b[^>]*?(\/?)>/gi;
+/** A footnote definition, at top level or inside quotes and list items. */
+const FOOTNOTE_DEF_RE = /^[ \t>]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+[ \t>]*)*\[\^[^\]\n]+\]:/m;
+
+/** CommonMark's HTML block starts (markdown-it rules_block/html_block). */
+const HTML_PRE_RE = /^ {0,3}<pre(?=[\s>]|$)/i;
+const HTML_PRE_END_RE = /<\/pre>/i;
+const BLOCK_NAMES =
+  'address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul|script|style|textarea|pre';
+const ATTR = String.raw`(?:\s+[A-Za-z_:][A-Za-z0-9_.:-]*(?:\s*=\s*(?:[^"'=<>\x60\x00-\x20]+|'[^']*'|"[^"]*"))?)`;
+const OPEN_TAG = String.raw`<([A-Za-z][A-Za-z0-9-]*)${ATTR}*\s*\/?>`;
+const CLOSE_TAG = String.raw`<\/([A-Za-z][A-Za-z0-9-]*)\s*>`;
+const HTML_BLOCK_RE = new RegExp(
+  `^ {0,3}(?:<\\/?(?:${BLOCK_NAMES})(?=[\\s/>]|$)|<!--|<\\?|<![A-Za-z]|(?:${OPEN_TAG}|${CLOSE_TAG})\\s*$)`,
+  'i'
+);
+/** At a `<`: a complete tag the way markdown-it's html_inline reads one. */
+const INLINE_OPEN_RE = new RegExp(OPEN_TAG, 'y');
+const INLINE_CLOSE_RE = new RegExp(CLOSE_TAG, 'y');
+/** At a `<`: a tag starting, the way parse5's tokenizer reads one. */
+const START_RE = /<(\/?)([A-Za-z][^\s/>]*)/y;
+
+const words = (s: string): Set<string> => new Set(s.split(' '));
+const VOID = words('area base basefont bgsound br col embed frame hr image img input keygen link meta param source track wbr');
+const RAWTEXT = words('script style textarea title xmp iframe noembed noframes plaintext');
+const FORMATTING = words('a b big code em font i nobr s small strike strong tt u');
+/** parse5's special elements, plus the two foreign roots, which a paragraph end does not close either. */
+const SPECIAL = words(
+  'address applet area article aside base basefont bgsound blockquote body br button caption center col colgroup dd details dialog dir div dl dt embed fieldset figcaption figure footer form frame frameset h1 h2 h3 h4 h5 h6 head header hgroup hr html iframe img input keygen li link listing main marquee menu meta nav noembed noframes noscript object ol p param plaintext pre script search section select source style summary table tbody td template textarea tfoot th thead title tr track ul wbr xmp svg math'
+);
+/** The elements an end tag's search for its element stops at ("in scope"). */
+const SCOPE = words('applet caption html table td th marquee object template foreignobject desc mi mo mn ms mtext annotation-xml');
+const BUTTON_SCOPE = new Set([...SCOPE, 'button']);
+const TABLE_SCOPE = words('html table template');
+const TABLE_PARTS = words('table tbody thead tfoot tr td th caption');
 
 export interface Chunk {
   /** UTF-16 offsets into the source, end exclusive. */
@@ -105,11 +152,6 @@ export interface Chunk {
 
 export interface ChunkPlan {
   chunks: Chunk[];
-  /**
-   * Every collected reference-definition line, newline-joined, in document
-   * order. Prepended (before a blank) to each chunk's parse input.
-   */
-  defs: string;
 }
 
 /** Columns of leading whitespace, a tab advancing to the next multiple of 4. */
@@ -125,8 +167,8 @@ function indentOf(line: string): number {
 }
 
 /** Does `line` close a fence opened with `marker`? */
-function closesFence(line: string, marker: string): boolean {
-  const m = FENCE_RE.exec(line);
+function closesFence(line: string, marker: string, anyIndent: boolean): boolean {
+  const m = (anyIndent ? LIST_FENCE_RE : FENCE_RE).exec(line);
   if (m === null) return false;
   const run = m[1] as string;
   return (
@@ -141,6 +183,39 @@ export function hasFootnotes(src: string): boolean {
   return FOOTNOTE_DEF_RE.test(src);
 }
 
+/** Where a run of exactly `size` backticks starts at or after `from`, or -1. */
+function findTicks(line: string, from: number, size: number): number {
+  let i = from;
+  while (i < line.length) {
+    const at = line.indexOf('`', i);
+    if (at < 0) return -1;
+    let end = at;
+    while (end < line.length && line.charCodeAt(end) === 96) end++;
+    if (end - at === size) return at;
+    i = end;
+  }
+  return -1;
+}
+
+/** Start tags parse5 answers by closing an open `<p>` first ("in body"). */
+const P_CLOSERS = words(
+  'address article aside blockquote center details dialog dir div dl fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr listing main menu nav ol p pre search section summary table ul xmp plaintext'
+);
+
+interface OpenElement {
+  name: string;
+  /** Opened inside a paragraph and closed by that paragraph's end. */
+  droppable: boolean;
+}
+
+interface OpenTag {
+  entry: OpenElement | null;
+  name: string;
+  inline: boolean;
+  quote: number;
+  last: number;
+}
+
 /**
  * Cut a markdown source into chunks of about `targetLines` lines, only at
  * blank lines where the cut cannot change what the page draws. The chunks
@@ -151,73 +226,315 @@ export function scanChunks(
   src: string,
   targetLines: number = WINDOW_CHUNK_LINES
 ): ChunkPlan {
-  if (src === '') return { chunks: [], defs: '' };
+  if (src === '') return { chunks: [] };
   const lines = src.split('\n');
   const n = lines.length;
 
-  // Pass 1 — per-line state: is this blank line at top level, outside every
-  // fence, HTML block and open raw container tag?
-  let fence: string | null = null;
-  let html = 0; // 0 none, 1 pre/script/style/textarea, 2 comment
-  let depth = 0;
+  // Pass 1 — which lines are inside a list, and which blanks a list or an
+  // indented code line vetoes. A line is inside a list when it is a marker
+  // itself, a lazy continuation (no blank since a listish line), or an
+  // indented continuation after a blank.
+  const listish = new Uint8Array(n);
+  const vetoBefore = new Uint8Array(n);
+  {
+    let prevListish = false;
+    let prevNonBlank = -1;
+    for (let i = 0; i < n; i++) {
+      const line = lines[i] as string;
+      if (line.trim() === '') continue;
+      const indent = indentOf(line);
+      const blankBetween = i > prevNonBlank + 1;
+      const inList: boolean =
+        LIST_RE.test(line) || (prevListish && (!blankBetween || indent >= 2));
+      listish[i] = inList ? 1 : 0;
+      if (indent >= 4 || (inList && prevListish)) vetoBefore[i] = 1;
+      prevListish = inList;
+      prevNonBlank = i;
+    }
+  }
+
+  // Pass 2 — per blank line: outside every fence, and with nothing the HTML
+  // parser would still hold open (the header's model of parse5's stack).
   const cuttable = new Uint8Array(n);
+  const stack: OpenElement[] = [];
+  let fence: string | null = null;
+  let fenceAnyIndent = false;
+  let pre = false;
+  let raw = null as RegExp | null;
+  let rawInline = false;
+  let comment = null as 'block' | 'inline' | null;
+  let tag = null as OpenTag | null;
+  let ticks = 0;
+  let htmlBlock = false;
+  let prevBlank = true;
+  let prevCode = false;
+  let prevEndsBlock = false;
+
+  const popTo = (k: number, only: boolean): void => {
+    if (only) {
+      stack.splice(k, 1);
+      return;
+    }
+    // Everything above goes too, except a formatting element, which the
+    // adoption agency reconstructs into what follows.
+    const kept = stack.slice(k + 1).filter((e) => FORMATTING.has(e.name));
+    stack.length = k;
+    stack.push(...kept);
+  };
+  const closeP = (): void => {
+    for (let k = stack.length - 1; k >= 0; k--) {
+      const e = stack[k] as OpenElement;
+      if (e.name === 'p') {
+        popTo(k, false);
+        return;
+      }
+      if (BUTTON_SCOPE.has(e.name)) return;
+    }
+  };
+  const open = (name: string, inline: boolean): OpenElement | null => {
+    if (VOID.has(name)) return null;
+    if (P_CLOSERS.has(name)) closeP();
+    const entry = { name, droppable: inline && !SPECIAL.has(name) && !FORMATTING.has(name) };
+    stack.push(entry);
+    return entry;
+  };
+  const close = (name: string, inline: boolean): void => {
+    if (VOID.has(name)) return;
+    const ordinary = !SPECIAL.has(name) && !FORMATTING.has(name);
+    // Inside a paragraph parse5 meets the paragraph's own element (special)
+    // before any element outside it, so an ordinary end tag there closes
+    // nothing that outlives the paragraph.
+    if (inline && ordinary) return;
+    const scope = TABLE_PARTS.has(name) ? TABLE_SCOPE : SCOPE;
+    for (let k = stack.length - 1; k >= 0; k--) {
+      const e = stack[k] as OpenElement;
+      if (e.name === name) {
+        popTo(k, FORMATTING.has(name));
+        return;
+      }
+      if (scope.has(e.name) || (ordinary && SPECIAL.has(e.name))) return;
+    }
+  };
+  /** A start tag has ended: a self-closed foreign element closes, raw text begins. */
+  const finishTag = (t: OpenTag, selfClosed: boolean): void => {
+    if (t.entry === null) return;
+    const foreign = t.name === 'svg' || t.name === 'math' || stack.some((e) => e !== t.entry && (e.name === 'svg' || e.name === 'math'));
+    if (selfClosed && foreign) {
+      const k = stack.lastIndexOf(t.entry);
+      if (k >= 0) stack.splice(k, 1);
+      return;
+    }
+    if (RAWTEXT.has(t.name)) {
+      raw = t.name === 'plaintext' ? /(?!)/ : new RegExp(`</${t.name}(?=[\\s/>]|$)`, 'i');
+      rawInline = t.inline;
+    }
+  };
+  /** Where the uncertain half of a line is read: what OPENS counts, what closes does not. */
+  const opensOnly = (text: string, inline: boolean): void => {
+    for (const m of text.matchAll(/<([A-Za-z][A-Za-z0-9-]*)(?=[\s/>]|$)/g)) {
+      open((m[1] as string).toLowerCase(), inline);
+    }
+  };
+
+  const scan = (line: string, inline: boolean): void => {
+    const len = line.length;
+    let i = 0;
+    while (i < len) {
+      if (raw !== null) {
+        const at = line.slice(i).search(raw);
+        if (at < 0) return;
+        stack.pop();
+        raw = null;
+        // The end tag's own `>` is found as the rest of a tag.
+        tag = { entry: null, name: '', inline, quote: 0, last: 0 };
+        i += at + 2;
+        continue;
+      }
+      if (tag !== null) {
+        let k = i;
+        for (; k < len; k++) {
+          const c = line.charCodeAt(k);
+          if (tag.quote !== 0) {
+            if (c === tag.quote) tag.quote = 0;
+            continue;
+          }
+          if ((c === 34 || c === 39) && tag.last === 61) tag.quote = c;
+          else if (c === 62) break;
+          if (c !== 32 && c !== 9) tag.last = c;
+        }
+        if (k >= len) return;
+        const done = tag;
+        tag = null;
+        finishTag(done, done.last === 47);
+        i = k + 1;
+        continue;
+      }
+      if (comment !== null) {
+        const at = line.indexOf('-->', i);
+        if (comment === 'inline') opensOnly(line.slice(i, at < 0 ? len : at), inline);
+        if (at < 0) return;
+        comment = null;
+        i = at + 3;
+        continue;
+      }
+      if (ticks > 0) {
+        const at = findTicks(line, i, ticks);
+        opensOnly(line.slice(i, at < 0 ? len : at), inline);
+        if (at < 0) return;
+        i = at + ticks;
+        ticks = 0;
+        continue;
+      }
+      const c = line.charCodeAt(i);
+      if (inline && c === 96) {
+        let r = i;
+        while (r < len && line.charCodeAt(r) === 96) r++;
+        const at = findTicks(line, r, r - i);
+        if (at < 0) {
+          ticks = r - i;
+          i = r;
+        } else {
+          i = at + (r - i);
+        }
+        continue;
+      }
+      if (inline && c === 92) {
+        i += 2;
+        continue;
+      }
+      if (c !== 60) {
+        i++;
+        continue;
+      }
+      if (line.startsWith('<!--', i)) {
+        const at = line.indexOf('-->', i + 2);
+        if (at >= 0) {
+          i = at + 3;
+        } else {
+          comment = inline ? 'inline' : 'block';
+          i += 4;
+        }
+        continue;
+      }
+      if (inline) {
+        INLINE_CLOSE_RE.lastIndex = i;
+        const cm = INLINE_CLOSE_RE.exec(line);
+        if (cm !== null) {
+          close((cm[1] as string).toLowerCase(), true);
+          i = INLINE_CLOSE_RE.lastIndex;
+          continue;
+        }
+        INLINE_OPEN_RE.lastIndex = i;
+        const om = INLINE_OPEN_RE.exec(line);
+        if (om !== null) {
+          const name = (om[1] as string).toLowerCase();
+          finishTag({ entry: open(name, true), name, inline, quote: 0, last: 0 }, om[0].endsWith('/>'));
+          i = INLINE_OPEN_RE.lastIndex;
+          continue;
+        }
+      }
+      START_RE.lastIndex = i;
+      const sm = START_RE.exec(line);
+      if (sm === null) {
+        i++;
+        continue;
+      }
+      const name = (sm[2] as string).toLowerCase();
+      if (sm[1] === '/') {
+        // An end tag markdown-it could not read whole on this line is not
+        // counted; one in an HTML block is, and its rest is skipped.
+        if (!inline) close(name, false);
+        tag = { entry: null, name: '', inline, quote: 0, last: 0 };
+      } else {
+        tag = { entry: open(name, inline), name, inline, quote: 0, last: 0 };
+      }
+      i = START_RE.lastIndex;
+    }
+  };
+
   for (let i = 0; i < n; i++) {
     const line = lines[i] as string;
     if (fence !== null) {
-      if (closesFence(line, fence)) fence = null;
+      if (closesFence(line, fence, fenceAnyIndent)) {
+        fence = null;
+        prevEndsBlock = true;
+      }
+      prevBlank = false;
+      prevCode = false;
       continue;
     }
-    if (html === 1) {
-      if (HTML1_CLOSE_RE.test(line)) html = 0;
+    const blank = line.trim() === '';
+    // Inside something parse5 is still reading as one piece — raw text, a
+    // comment, a tag whose `>` has not come — or inside a <pre> HTML block,
+    // no markdown rule applies to the line.
+    const swallowed = raw !== null || comment === 'block' || (tag !== null && !tag.inline);
+    if (swallowed || pre) {
+      if (!blank) scan(line, swallowed ? (raw !== null ? rawInline : tag?.inline ?? false) : false);
+      if (pre && /<\/pre>/i.test(line)) pre = false;
+      prevBlank = blank;
+      prevCode = false;
+      prevEndsBlock = false;
       continue;
     }
-    if (html === 2) {
-      if (COMMENT_CLOSE_RE.test(line)) html = 0;
+    if (blank) {
+      // A paragraph's end closes what it opened that is neither special nor
+      // formatting, and what markdown-it could not read as a tag was text.
+      if (tag !== null && tag.inline) {
+        if (tag.entry !== null) {
+          const k = stack.lastIndexOf(tag.entry);
+          if (k >= 0) stack.splice(k, 1);
+        }
+        tag = null;
+      }
+      for (let k = stack.length - 1; k >= 0; k--) if ((stack[k] as OpenElement).droppable) stack.splice(k, 1);
+      if (comment === 'inline') comment = null;
+      ticks = 0;
+      htmlBlock = false;
+      cuttable[i] = stack.length === 0 ? 1 : 0;
+      prevBlank = true;
+      prevCode = false;
+      prevEndsBlock = false;
       continue;
     }
-    if (line.trim() === '') {
-      cuttable[i] = depth > 0 ? 0 : 1;
+    const indent = indentOf(line);
+    const inList = listish[i] === 1;
+    const startsBlock = prevBlank || prevEndsBlock || i === 0;
+    if (!htmlBlock && indent >= 4 && !inList && (startsBlock || prevCode)) {
+      // Indented code: nothing on the line is a tag, and it opens <pre>.
+      if (startsBlock) closeP();
+      prevBlank = false;
+      prevCode = true;
+      prevEndsBlock = false;
       continue;
     }
-    const fm = FENCE_RE.exec(line);
-    if (fm !== null) {
-      fence = fm[1] as string;
-      continue;
-    }
-    for (const m of line.replace(CODE_SPAN_RE, '').matchAll(CONTAINER_RE)) {
-      if (m[2] === '/') continue; // self-closing
-      if (m[0][1] === '/') {
-        if (depth > 0) depth -= 1;
-      } else {
-        depth += 1;
+    if (!htmlBlock) {
+      const fm = (inList ? LIST_FENCE_RE : FENCE_RE).exec(line);
+      if (fm !== null) {
+        closeP();
+        fence = fm[1] as string;
+        fenceAnyIndent = inList;
+        prevBlank = false;
+        prevCode = false;
+        continue;
+      }
+      if (HTML_BLOCK_RE.test(line)) {
+        htmlBlock = true;
+        pre = HTML_PRE_RE.test(line) && !HTML_PRE_END_RE.test(line);
+      } else if (ATX_RE.test(line) || /^ {0,3}>/.test(line) || (startsBlock && !REF_DEF_RE.test(line))) {
+        // The block's first tag closes an open <p>: a heading, a quote, or
+        // any block a blank line starts except a definition, which draws
+        // nothing.
+        closeP();
       }
     }
-    if (HTML1_OPEN_RE.test(line) && !HTML1_CLOSE_RE.test(line)) {
-      html = 1;
-      continue;
-    }
-    if (COMMENT_OPEN_RE.test(line) && !COMMENT_CLOSE_RE.test(line)) html = 2;
+    scan(line, !htmlBlock);
+    prevBlank = false;
+    prevCode = false;
+    prevEndsBlock = !htmlBlock && ATX_RE.test(line);
   }
-
-  // Pass 2 — veto a blank whose NEXT non-blank line could continue what came
-  // before it: a line indented four columns or more, or any line inside a
-  // list. A line is inside a list when it is a marker itself, a lazy
-  // continuation (no blank since a listish line), or an indented
-  // continuation after a blank.
-  let prevListish = false;
-  let prevNonBlank = -1;
   for (let i = 0; i < n; i++) {
-    const line = lines[i] as string;
-    if (line.trim() === '') continue;
-    const indent = indentOf(line);
-    const blankBetween = i > prevNonBlank + 1;
-    const listish: boolean =
-      LIST_RE.test(line) || (prevListish && (!blankBetween || indent >= 2));
-    if (indent >= 4 || (listish && prevListish)) {
-      for (let j = prevNonBlank + 1; j < i; j++) cuttable[j] = 0;
-    }
-    prevListish = listish;
-    prevNonBlank = i;
+    if (vetoBefore[i] !== 1) continue;
+    for (let j = i - 1; j >= 0 && (lines[j] as string).trim() === ''; j--) cuttable[j] = 0;
   }
 
   // Pass 3 — group lines into chunks of about targetLines, cutting only at
@@ -237,42 +554,12 @@ export function scanChunks(
     }
   }
   if (start < src.length) chunks.push({ start, end: src.length });
-
-  // Reference definitions, collected only where CommonMark lets one start:
-  // after a blank, an ATX heading, another definition, or at the top — a
-  // `[x]: y` line continuing a paragraph is paragraph text, and collecting
-  // it would make it a real definition in every other chunk. Fenced lines
-  // are skipped, so a fenced example of a definition is not one.
-  const defs: string[] = [];
-  let defFence: string | null = null;
-  let prevOpens = true;
-  for (let i = 0; i < n; i++) {
-    const line = lines[i] as string;
-    if (defFence !== null) {
-      if (closesFence(line, defFence)) defFence = null;
-      prevOpens = false;
-      continue;
-    }
-    const fm = FENCE_RE.exec(line);
-    if (fm !== null) {
-      defFence = fm[1] as string;
-      prevOpens = false;
-      continue;
-    }
-    const isDef: boolean = prevOpens && REF_DEF_RE.test(line);
-    if (isDef) defs.push(line.replace(/\r$/, ''));
-    prevOpens = isDef || line.trim() === '' || ATX_RE.test(line);
-  }
-  return { chunks, defs: defs.join('\n') };
+  return { chunks };
 }
 
-/**
- * The texts the windowed renderer parses: each chunk's slice, with the
- * document's reference definitions in front of it after a blank.
- */
+/** The texts the windowed renderer parses: each chunk's slice of the source. */
 export function chunkTexts(src: string, plan: ChunkPlan): string[] {
-  const head = plan.defs === '' ? '' : `${plan.defs}\n\n`;
-  return plan.chunks.map((c) => head + src.slice(c.start, c.end));
+  return plan.chunks.map((c) => src.slice(c.start, c.end));
 }
 
 /**

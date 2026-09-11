@@ -7,11 +7,13 @@
  * markdown-impl.tsx), draws a first window and streams the rest. Each
  * describe below is one promise, and each is written so it can fail:
  *
- *   1. THE CUTS. Never inside a list, a fence, an open raw container tag, an
- *      HTML comment or before an indented code line; a tag written in
- *      backticks does not hold the cuts closed; the chunks tile the source;
- *      a footnote document is never cut; reference definitions reach every
- *      chunk and the document's first one wins.
+ *   1. THE CUTS. Never inside a list, a fence, an element parse5 would still
+ *      hold open, an HTML comment or before an indented code line; a tag in
+ *      backticks, in indented code or in a one-line comment is not a tag; an
+ *      unclosed hero <p> is closed by the heading after it; the chunks tile
+ *      the source; a footnote document is never cut, wherever its definition
+ *      sits; reference definitions are read by markdown-it and reach every
+ *      chunk, the first one winning and a lookalike drawn once.
  *   2. THE WINDOW. A window stops at its chunk count and at its char budget,
  *      takes at least one chunk, and successive windows cover every chunk
  *      exactly once.
@@ -22,9 +24,10 @@
  *      preview styles, a table's scroller and a fence are direct children of
  *      the content box, the hostile fixture reaches nothing, and Shiki's
  *      styles are added after the sanitizer and survive.
- *   5. THE CACHE'S PRECONDITION. An edit inside one paragraph of a large
- *      document changes exactly one chunk's text, so the memo holds every
- *      other chunk.
+ *   5. THE CACHE. An edit inside one paragraph of a large document changes
+ *      exactly one chunk's text, and a changed definition redraws the chunks
+ *      that read it and no others.
+ *   6. THE STREAM. A window is parsed in one task and drawn in the next.
  *
  * WHAT IT DOES NOT PROVE: milliseconds, streaming order or effects — this
  * tree has no DOM under vitest. Those are probe:p255's, in the running app,
@@ -56,6 +59,15 @@ import {
   previewDeferred
 } from '../large-prose';
 import { MarkdownDocument, previewComponents } from '../markdown-impl';
+import {
+  collectReferences,
+  createChunkParser,
+  createChunkProcessor,
+  createChunkRenderer,
+  createReferenceCollector,
+  sameChunkProps,
+  streamWindow
+} from '../chunk-parse';
 import { markdownRehypePlugins } from '../pipeline';
 import { GMUX_THEME_NAME } from '../../../pierre/theme-bridge';
 
@@ -120,25 +132,65 @@ describe('1. the cuts', () => {
     expect(holding[0]).toContain('code two');
   });
 
+  it('holds the cuts closed while parse5 would hold an element open, and only then', () => {
+    const inside = (block: string): number => {
+      const src = `${paragraphs(3)}\n\n${block}\n\n${paragraphs(3, 60)}`;
+      return pieces(src).filter((p) => p.includes('Paragraph 51')).length === 1 &&
+        pieces(src).filter((p) => p.includes('Paragraph 51') && p.includes('Paragraph 54')).length === 1
+        ? 1
+        : 0;
+    };
+    // An ordinary element an HTML block opens, and a formatting element a
+    // paragraph opens (reconstructed into every paragraph after it).
+    expect(inside(`<span class="x">\n\n${paragraphs(4, 51)}\n\n</span>`)).toBe(1);
+    expect(inside(`Some <b>bold words.\n\n${paragraphs(4, 51)}\n\n</b>`)).toBe(1);
+    // An end tag in indented code or in a one-line comment closes nothing.
+    expect(inside(`<div>\n\n    </div>\n\n${paragraphs(4, 51)}\n\n</div>`)).toBe(1);
+    expect(inside(`<div>\n\n<!-- </div> -->\n\n${paragraphs(4, 51)}\n\n</div>`)).toBe(1);
+    // Raw text opened mid-paragraph swallows blank lines until its end tag.
+    expect(inside(`Type into a <textarea> here.\n\n${paragraphs(4, 51)}\n\n</textarea> after.`)).toBe(1);
+  });
+
+  it('cuts where parse5 has closed what was opened', () => {
+    // A span opened inside a paragraph ends with the paragraph.
+    expect(scanChunks(`Returns Promise<void> or <span>x.\n\n${paragraphs(30)}`, 2).chunks.length).toBeGreaterThan(20);
+    // A heading's own tag closes a README's unclosed hero <p>.
+    expect(scanChunks(`<p align="center">\n  <img src="logo.png">\n\n# Title\n\n${paragraphs(30)}`, 2).chunks.length).toBeGreaterThan(20);
+    // A self-closed svg closes.
+    expect(scanChunks(`An icon <svg viewBox="0 0 1 1"/> here.\n\n${paragraphs(30)}`, 2).chunks.length).toBeGreaterThan(20);
+  });
+
   it('knows a footnote document, the one shape that is never windowed', () => {
     expect(hasFootnotes(`${paragraphs(40)}\n\n[^1]: the note\n`)).toBe(true);
     expect(hasFootnotes(`${paragraphs(40)}\n\nA use of [^1] with no definition.\n`)).toBe(false);
     expect(hasFootnotes('   [^note]: indented three\n')).toBe(true);
+    expect(hasFootnotes('Text[^q].\n\n> [^q]: in a quote\n')).toBe(true);
+    expect(hasFootnotes('Text[^l].\n\n- [^l]: in a list item\n')).toBe(true);
   });
 
-  it('puts the definitions in front of every chunk, the first one winning', () => {
-    // The later duplicate sits directly above a use, in one chunk, so only a
-    // list put IN FRONT of that chunk keeps the document's first definition winning.
-    const src = `[site]: https://first.example\n\n${paragraphs(20)}\n\nSee [notadef].\n\nParagraph text\n[notadef]: /nowhere\n\n[site]: https://second.example\nSee [site].\n`;
-    const plan = scanChunks(src, 2);
-    expect(plan.defs).toBe('[site]: https://first.example\n[site]: https://second.example');
-    const texts = chunkTexts(src, plan);
-    expect(texts.every((t) => t.startsWith(`${plan.defs}\n\n`))).toBe(true);
+  it('reads definitions as markdown-it does and hands every chunk the table', () => {
+    const texts = (src: string): string[] => chunkTexts(src, scanChunks(src, 2));
+    const src = [
+      '[site]: https://first.example',
+      paragraphs(20),
+      'See [site], [q], [x] and [Note].',
+      '[Note]: remember to do this later',
+      '<!--\n\n[x]: https://hidden.example\n\n-->',
+      '> [q]: https://quote.example',
+      '[site]: https://second.example\nSee [site] again.'
+    ].join('\n\n');
+    // Nothing is prepended: the chunks are the source.
+    expect(texts(src).join('')).toBe(src);
+    const table = collectReferences(createReferenceCollector(), texts(src));
+    expect(Object.keys(table).sort()).toEqual(['Q', 'SITE']);
+    expect(table['SITE']?.href).toBe('https://first.example');
     const doc = renderToStaticMarkup(<Doc source={src} />);
     expect(doc).toContain('href="https://first.example"');
+    expect(doc).toContain('href="https://quote.example"');
     expect(doc).not.toContain('second.example"');
-    // A `[x]: y` line continuing a paragraph is paragraph text, never a definition.
-    expect(doc).not.toContain('href="/nowhere"');
+    expect(doc).not.toContain('hidden.example"');
+    // A line that only looks like a definition is drawn once, where it is.
+    expect(doc.split('remember to do this later')).toHaveLength(2);
   });
 });
 
@@ -355,7 +407,7 @@ describe('4. the page', () => {
   });
 });
 
-describe("5. the cache's precondition", () => {
+describe('5. the cache', () => {
   it('an edit inside one paragraph changes exactly one chunk', () => {
     const src = paragraphs(3000);
     const edited = src.replace('Paragraph 1500 carries', 'Paragraph 1500 now carries');
@@ -363,5 +415,39 @@ describe("5. the cache's precondition", () => {
     const b = chunkTexts(edited, scanChunks(edited));
     expect(b).toHaveLength(a.length);
     expect(a.filter((t, i) => t !== b[i])).toHaveLength(1);
+  });
+
+  it('a changed definition redraws the chunks that read it and no others', () => {
+    const doc = (href: string): string =>
+      `${paragraphs(10)}\n\nSee [site].\n\n${paragraphs(200, 100)}\n\nSee [site] again.\n\n${paragraphs(40, 400)}\n\n[site]: ${href}\n`;
+    const collector = createReferenceCollector();
+    const renderer = createChunkRenderer(createChunkParser(), createChunkProcessor(null, GMUX_THEME_NAME), (t) => t);
+    const a = chunkTexts(doc('https://a.example'), scanChunks(doc('https://a.example')));
+    const refsA = collectReferences(collector, a);
+    for (const t of a) renderer.render(t, refsA);
+    const b = chunkTexts(doc('https://b.example'), scanChunks(doc('https://b.example')));
+    const refsB = collectReferences(collector, b);
+    const redrawn = b.filter((t, i) => !sameChunkProps({ text: a[i] as string, references: refsA, renderer }, { text: t, references: refsB, renderer }));
+    expect(redrawn).toHaveLength(3);
+    expect(redrawn.filter((t) => t.includes('[site]'))).toHaveLength(3);
+  });
+});
+
+describe('6. the stream', () => {
+  it('parses a window in one task and draws it in the next', () => {
+    const tasks: (() => void)[] = [];
+    const log: string[] = [];
+    streamWindow(
+      (task) => {
+        tasks.push(task);
+        return () => undefined;
+      },
+      () => log.push('parse'),
+      () => log.push('draw')
+    );
+    tasks.shift()?.();
+    expect(log).toEqual(['parse']);
+    tasks.shift()?.();
+    expect(log).toEqual(['parse', 'draw']);
   });
 });

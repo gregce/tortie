@@ -40,17 +40,27 @@ import type MarkdownIt from 'markdown-it';
 import remarkGfm from 'remark-gfm';
 import { getSharedHighlighter } from '@pierre/diffs';
 import type { Components } from 'react-markdown';
-import type { Element as HastElement, Node as HastNode } from 'hast';
+import type { Element as HastElement, Node as HastNode, Root } from 'hast';
 import type { HighlighterGeneric } from '@shikijs/types';
 import { Codicon } from '../../icons';
 import { GMUX_THEME_NAME } from '../../pierre/theme-bridge';
 import { answerRehypePlugins, markdownRehypePlugins } from './pipeline';
 import { resolveAssetSrc, resolveLinkPath } from './asset-url';
 import {
+  NO_REFERENCES,
   chunkToHast,
+  collectReferences,
   createChunkParser,
   createChunkProcessor,
-  type ChunkProcessor
+  createChunkRenderer,
+  createReferenceCollector,
+  sameChunkProps,
+  streamWindow,
+  type ChunkProcessor,
+  type ChunkProps,
+  type IdleRequest,
+  type ReferenceCache,
+  type References
 } from './chunk-parse';
 import {
   WINDOW_BATCH_CHARS,
@@ -327,18 +337,12 @@ export interface RenderProgress {
 }
 
 /**
- * One chunk to elements: chunk-parse.ts's tree through the exact
- * `toJsxRuntime` call react-markdown makes over its own tree
- * (react-markdown/lib/index.js `post`), so the components map receives the
- * same props on both paths.
+ * A parsed chunk to elements, through the exact `toJsxRuntime` call
+ * react-markdown makes over its own tree (react-markdown/lib/index.js
+ * `post`), so the components map receives the same props on both paths.
  */
-export function renderChunk(
-  md: MarkdownIt,
-  processor: ChunkProcessor,
-  text: string,
-  components: Components
-): React.ReactNode {
-  return toJsxRuntime(chunkToHast(md, processor, text), {
+export function hastToElements(tree: Root, components: Components): React.ReactNode {
+  return toJsxRuntime(tree, {
     Fragment,
     components: components as never,
     ignoreInvalidStyle: true,
@@ -349,11 +353,24 @@ export function renderChunk(
   });
 }
 
+/** One chunk to elements, parsed with the document's definitions. */
+export function renderChunk(
+  md: MarkdownIt,
+  processor: ChunkProcessor,
+  text: string,
+  components: Components,
+  references: References = NO_REFERENCES
+): React.ReactNode {
+  return hastToElements(chunkToHast(md, processor, text, references), components);
+}
+
 /**
- * One chunk, held by `React.memo` on its text. This is the one cache research
- * 117 §5 found worth its memory: while the tab lives, a Split-mode keystroke
- * or a watcher refresh re-parses only the chunks whose text changed, because
- * every other chunk's text is byte-identical and the memo skips it.
+ * One chunk, held by `React.memo`. This is the one cache research 117 §5
+ * found worth its memory: while the tab lives, a Split-mode keystroke or a
+ * watcher refresh re-parses only the chunks whose text changed — and, since
+ * the fix round, the chunks that READ a definition the edit changed, because
+ * `sameChunkProps` compares the definitions each chunk looked up rather than
+ * the whole table (chunk-parse.ts).
  *
  * A FRAGMENT, never an element: `.md-table-scroll` and `pre` must stay
  * direct children of `.md-content` for the wide-block rules, and
@@ -362,13 +379,21 @@ export function renderChunk(
  */
 const MarkdownChunk = React.memo(function MarkdownChunk({
   text,
-  render
-}: {
-  text: string;
-  render: (text: string) => React.ReactNode;
-}): React.JSX.Element {
-  return <>{render(text)}</>;
-});
+  references,
+  renderer
+}: ChunkProps<React.ReactNode>): React.JSX.Element {
+  return <>{renderer.render(text, references)}</>;
+}, sameChunkProps);
+
+/** The stream's task queue: an idle callback, or a frame's worth of timeout. */
+const idleRequest: IdleRequest = (task) => {
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(task, { timeout: 200 });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = window.setTimeout(task, 16);
+  return () => window.clearTimeout(id);
+};
 
 interface WindowedMarkdownProps {
   source: string;
@@ -384,14 +409,24 @@ const WindowedMarkdown = React.memo(function WindowedMarkdown({
   onRenderProgress
 }: WindowedMarkdownProps): React.JSX.Element {
   const md = useMemo(createChunkParser, []);
-  const render = useMemo(() => {
-    const processor = createChunkProcessor(highlighter, GMUX_THEME_NAME);
-    return (text: string): React.ReactNode =>
-      renderChunk(md, processor, text, components);
-  }, [md, highlighter, components]);
+  const collector = useMemo(createReferenceCollector, []);
+  const renderer = useMemo(
+    () =>
+      createChunkRenderer<React.ReactNode>(
+        md,
+        createChunkProcessor(highlighter, GMUX_THEME_NAME),
+        (tree) => hastToElements(tree, components)
+      ),
+    [md, highlighter, components]
+  );
 
   const plan = useMemo(() => scanChunks(source), [source]);
   const texts = useMemo(() => chunkTexts(source, plan), [source, plan]);
+  const referenceCache = useMemo<ReferenceCache>(() => new Map(), []);
+  const references = useMemo(
+    () => collectReferences(collector, texts, referenceCache),
+    [collector, texts, referenceCache]
+  );
 
   // NOT reset when the source changes: a keystroke must not restream the
   // tail. A DIFFERENT document starts from the first window because
@@ -401,30 +436,31 @@ const WindowedMarkdown = React.memo(function WindowedMarkdown({
   );
   const shown = Math.min(drawn, texts.length);
 
+  // What is kept for a text the document no longer holds is let go.
+  useEffect(() => {
+    const live = new Set(texts);
+    renderer.keepOnly(live);
+    for (const text of referenceCache.keys()) if (!live.has(text)) referenceCache.delete(text);
+  }, [texts, renderer, referenceCache]);
+
   useEffect(() => {
     onRenderProgress?.({ source, drawn: shown, total: texts.length });
     if (shown >= texts.length) return;
-    const step = (): void =>
-      setDrawn((d) =>
-        windowEnd(
-          plan.chunks,
-          Math.min(d, plan.chunks.length),
-          WINDOW_BATCH_CHUNKS,
-          WINDOW_BATCH_CHARS
-        )
-      );
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(step, { timeout: 200 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const id = window.setTimeout(step, 16);
-    return () => window.clearTimeout(id);
-  }, [shown, texts, plan, source, onRenderProgress]);
+    const end = windowEnd(plan.chunks, shown, WINDOW_BATCH_CHUNKS, WINDOW_BATCH_CHARS);
+    // Parse the window in one idle task, draw it in the next.
+    return streamWindow(
+      idleRequest,
+      () => {
+        for (let i = shown; i < end; i++) renderer.prepare(texts[i] as string, references);
+      },
+      () => setDrawn((d) => Math.max(d, end))
+    );
+  }, [shown, texts, plan, source, references, renderer, onRenderProgress]);
 
   return (
     <>
       {texts.slice(0, shown).map((text, i) => (
-        <MarkdownChunk key={i} text={text} render={render} />
+        <MarkdownChunk key={i} text={text} references={references} renderer={renderer} />
       ))}
     </>
   );
