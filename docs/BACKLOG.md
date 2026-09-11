@@ -26395,6 +26395,55 @@ published beside research 118 §6.1's numbers, and the honest zeroes kept as zer
 
 ---
 
+## Phase 260 — editor tabs follow the project (issue 19, JnBrymn, 2026-09-11) QUEUED, NOT LAUNCHED
+
+**Subject.** `feat(editor): tabs follow the project`
+
+**First body line.** `Phase 260: tabs follow the project`
+
+**Semver.** Minor. Switching projects changes what the editor shows.
+
+**Tier 3, because it can lose a person's work.** Hidden tabs hold unsaved buffers, Monaco undo, rewind
+journals and shadow baselines, and research 119 §3 found that the shipped tab cap would evict exactly
+those first. The evidence is one app run driving every claim across three projects at the parent and
+at HEAD, plus two independent methods, one of which is an attack on the eviction path.
+
+**Charter.** [Issue 19](https://github.com/gregce/tortie/issues/19) and research 119, which is the spec.
+Research 10 §2 already ruled that a project tab scopes everything; the editor is the one surface that
+never was. The reporter's caveat — hidden is not closed, the edit state survives — is the phase's one
+hard rule.
+
+**The mechanism, from research 119.** `src/renderer/editor/store.ts` gains `activeIdByProject` and
+`panelOpenByProject` in the `sidebarViewByProject` pattern (`chrome-slice.ts:486-521`), a `visibleTabs`
+selector filtered to the active project, and a per-project `MAX_TABS` whose eviction considers only the
+active project's own clean, unfocused tabs — never a hidden project's. Every site in research 119 §4
+reads the visible set: the strip, ⌃Tab, next-tab-on-close, close-others, close-all, the tab menu's
+counts. `EditorTab` gains `projectId`, decided by research 119 §5.1: the open project whose root contains
+the file, else the project active at open. `closeProject` closes that project's tabs through the
+existing dirty prompt (§5.2). Switching projects calls no `forceCloseTab`, recycles no preview slot
+across projects, and disposes nothing.
+
+**The proof, run rather than read.** A gate arm in the editor's test suite: open tabs in three
+projects, switch, assert the hidden tabs' Monaco models, view state and journals are byte-identical
+objects, then open eleven tabs in the active project and assert no hidden tab was evicted — which is
+RED at the parent. The app run (one Electron, scratch profile, scratch HOME, three scratch projects)
+drives: open, edit without saving, rewind a change, switch projects, switch back, and reads the dirty
+dot, the undo, the rewind's undo and the baseline generation unchanged; then a terminal path link from
+project X naming a file in project Y opens under Y; then close project X with a dirty tab and read the
+prompt. Memory is read against the Phase 167 plateau rule at ten tabs in each of three projects.
+Parent measured at HEAD: at the parent, the switch shows the other project's tabs and the eleventh
+open evicts a hidden one.
+
+### What is NOT in this phase
+
+- **No tab persisted across a restart.** Tabs are in-memory today and stay so.
+- **No pin-to-all-projects control.** The cross-project case is rare by the reporter's own word.
+- **`MAX_TABS` keeps its number**; only its scope changes.
+- **Tab identity does not move**, so Phase 244's journal-per-opening rule stands.
+- **Not launched until the operator says so** — Phases 257 to 259 hold the queue.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26999,3 +27048,5 @@ cycle rather than only the evening it was written.
 - 2026-09-10, **PHASE 256 LANDED AS RESEARCH at `cd14c232`, NO version bump, NO tag and NOT ONE LINE UNDER `src/`, the architecture that explains itself.** Research 118 plus a mock, built at `1a32fdf8`, `6157d354`, the revision round `3c9d2751` and the committer's round `cd14c232`. **The skill's thesis is true and far narrower than it reads**: its helper never reads a byte of source except to hash it, the nouns its product is made of appear ZERO times in its 1,050 lines of Python, and a document claiming *"the scheduler retries failed jobs three times ... Accepted live behaviour"* over a three-line `app.py` records clean, checks clean and passes its HTML checker with zero findings. **Tortie's pane is the opposite shape with the opposite weakness**, answering one of the skill's five reader questions well, one partly and three not at all, because every fact it holds comes from the file tree and resolved import specifiers — and needing no author, no turn and no maintenance in exchange. **THE AGNOSTICISM ANSWER, which is what he asked and is a split rather than a yes**: a third deterministic fact base — entrypoints, boundaries, surfaces, stores, spawns, network reaches, gates, tests — prototyped over NINE repositories in seven language families, 46,949 tracked files, 26,958 parsed, 80.9 MB, 53,932 facts, 53 s in one process, precision **79% overall and 84% excluding vendored bytes**, recall **229/229** on this repository's own IPC channels and 450/450, 362/362, 116/116 elsewhere — and an honest **0/108 on ripgrep and 0/5** where a project declares its surface in its own vocabulary, which is the strongest argument in the whole document for the model half existing at all. So the deterministic half travels to most codebases for STRUCTURE and reaches nothing for PURPOSE. **Three directions offered, B RECOMMENDED and built with A as its own first phase**: A restyles today's map with no model anywhere and never says what a part is FOR; **B is the hybrid reading inside the pane**, A plus a bounded model pass kept in `arch.db` with per-claim citation grading, the computed rung and stale claims drawn stale; C puts that reading into `docs/arch/` so it travels with the clone, which is about fifteen new keys against research 66's pinned key set and is his decision rather than the research's. A's fact base IS B's, so nothing is thrown away if the model half is never turned on, and the floor stays good on a Mac with no measured agent. **B buys ATTRIBUTION and not verification, and the document says so in the sentence a reader would quote**: handed seven deliberately false copies of a careful hand-written pass, the checker catches **2 of 7** — a component renamed *"Billing and card capture"* keeping its three real tmux citations raises nothing — and 58.5% backing is **2.46x a coin** against a 23.8% null floor, so the surface must DRAW that difference rather than hide it. **The evidence ladder refutes the first draft of its own design**: five rungs computed in 0.1 to 3.4 s a repository with Tortie's own shipped resolver, all five proved to fire on planted graphs and spreading properly over path-anchored parts, but **eight of the nine parts a person would put in a contract read `tested`**, unchanged when every anchor is widened from a file to a directory glob, so an unseeded walk over a 7,957-edge graph with 857 test files has two rungs and the seed a boundary chooses is named unfinished. Twelve admissions in §11, the four sharpest added by the revision and committer rounds. The mock is `build/p256/mock/mock.html`, runstory's style in Tortie's own tokens, zero colour literals, 281 words above the fold inside the exemplars' 253-288 band, its builder refusing a fact file about any other repository. Gates green: typecheck and the full build battery at the parent of the rebase, and `gate:electron`, `gate:background`, `gate:knownhosts`, `gate:checks` and `gate:contract` after it; `HELPER_USER_FLOOR` 120 -> 123 for three probes and resolved to **124** against Phase 255's 121, derived rather than maxed. **`npm run build` is RED at `3ebfac25` and it is not this phase's**: Phase 255's `markdown-it@14.1.0` is in `package.json` and the lockfile and installed in neither tree, measured at origin/main under the same `node_modules`, so an `npm install` is owed before the next build. No agent CLI launched, no session started, no token spent, no Electron launched by the committer, no machine, no ssh, no keychain; the two never-touch repositories gave up one HTML file each under his narrow lift and stayed closed otherwise.
 
 - 2026-09-11, **HE CHOSE DIRECTION B and PHASE 257 IS QUEUED, the fact base**: research 118 §10 Phase 1 verbatim — a closed rule table over eight fact categories in `src/main/arch/facts/`, manifest rules, the one-hop wrapper pass as a setting, `arch_fact` in `arch.db` keyed on blob oid, derived types only, no key moved in `docs/arch/`. Tier 3 with the nine-repository corpus as the matrix and `conformance:facts` pinning 229/229 against the already-gated contract baseline. Nothing drawn, no model, no token. Phases 258 (the computed ladder and the reading surface) and 259 (the bounded semantic pass) follow in order. The §7.6 question is decided: with no agent the journey and gates views are PRESENT and say nothing has read this yet, per Phase 158's one way in.
+
+- 2026-09-11, **PHASE 260 WRITTEN AND NOT LAUNCHED, editor tabs follow the project, from issue 19**: research 119 read the tree in an afternoon — every tab already carries `repoPath`, the store is one global list nothing filters, `setActiveProject` touches the editor nowhere, and research 10 had ruled a project tab scopes everything. The trap is `MAX_TABS = 10`'s eviction, which would take a HIDDEN project's tabs first, journals and all, so the cap goes per-project. Hidden is a filter and never a close. Three decisions written down: a tab belongs to the project whose root holds the file else the one active at open; closing a project closes its tabs through the dirty prompt; the panel's open state is per project. Tier 3 because hidden tabs hold unsaved work. Waits on his word behind 257 to 259.
