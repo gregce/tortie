@@ -44,7 +44,7 @@ call site in the main pass.
 
 ```
 node_modules/.bin/tsx build/p256/det/ladder.mts --self-test
-node_modules/.bin/tsx build/p256/det/ladder.mts <repo> <facts.json> [pass.json]
+node_modules/.bin/tsx build/p256/det/ladder.mts <repo> <facts.json> [pass.json] [--widen]
 ```
 
 With a pass it reports the rung per component beside the word the pass carries; without one it uses
@@ -52,3 +52,9 @@ path-anchored parts, which is what a `docs/arch/` glob looks like. `measurements
 it printed over four repositories. **Its most useful output is a refutation**: on the nine parts this
 repository's hand pass names, eight of nine read `tested`, and widening each component's anchors from
 its cited files to every tracked file under their directories changes not one of them.
+
+`--widen` is that last clause RUN rather than asserted, and it was added by the committer's round
+because the sentence had shipped with no arm behind it. It widens each component's anchors to every
+tracked file under the directories of its cited files and prints both rungs side by side with a
+`same?` column: **9 of 9 unchanged, 0 moved**, with `redline` going from 1 anchor to 56 and staying
+`composed`. The tail of `measurements/ladder.txt` is what it printed.

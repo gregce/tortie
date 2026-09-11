@@ -155,6 +155,35 @@ export function rungOf(
   return composed ? 'composed' : 'declared';
 }
 
+/**
+ * §7.2's widening, run rather than asserted.
+ *
+ * A component's anchors in a pass are the files its sentences CITE. A
+ * `docs/arch/` glob is not that: it carries every tracked file under the
+ * directories those files sit in. §7.2 claims the refutation is structural
+ * rather than a granularity mistake, and the whole of that claim rests on one
+ * sentence — that widening every component this way changes not one rung. That
+ * sentence shipped with no instrument behind it, which is the one figure in
+ * the ladder's refutation a reader could not re-run, so this is it.
+ */
+export function widenAnchors(
+  anchors: ReadonlySet<string>,
+  tracked: Iterable<string>
+): Set<string> {
+  const dirs = new Set<string>();
+  for (const a of anchors) {
+    const cut = a.lastIndexOf('/');
+    dirs.add(cut < 0 ? '' : a.slice(0, cut));
+  }
+  const out = new Set<string>(anchors);
+  for (const rel of tracked) {
+    const cut = rel.lastIndexOf('/');
+    const d = cut < 0 ? '' : rel.slice(0, cut);
+    if (dirs.has(d)) out.add(rel);
+  }
+  return out;
+}
+
 const ORDER: Rung[] = ['off-repo', 'declared', 'composed', 'reached', 'tested'];
 
 /**
@@ -204,13 +233,15 @@ function selfTest(): void {
 }
 
 async function main(): Promise<void> {
-  const [, , repo, factsPath, passPath] = process.argv;
+  const argv = process.argv.slice(2);
+  const widen = argv.includes('--widen');
+  const [repo, factsPath, passPath] = argv.filter((a) => a !== '--widen');
   if (repo === '--self-test') {
     selfTest();
     return;
   }
   if (!repo || !factsPath) {
-    console.error('usage: tsx build/p256/det/ladder.mts <repo> <facts.json> [pass.json]  |  --self-test');
+    console.error('usage: tsx build/p256/det/ladder.mts <repo> <facts.json> [pass.json] [--widen]  |  --self-test');
     process.exit(2);
   }
   const t0 = Date.now();
@@ -247,15 +278,38 @@ async function main(): Promise<void> {
       anchors: new Set(c.facts.map((x) => x.at.replace(/:\d+$/, '')))
     }));
     const written = new Map(pass.components.map((c) => [c.id, c.evidence]));
-    console.log('component                 | written by hand        | COMPUTED   | anchors');
-    console.log('--------------------------+-----------------------+------------+--------');
+    if (widen) {
+      console.log('component                 | written by hand        | cited      | n  | WIDENED    | n    | same?');
+      console.log('--------------------------+-----------------------+------------+----+------------+------+------');
+    } else {
+      console.log('component                 | written by hand        | COMPUTED   | anchors');
+      console.log('--------------------------+-----------------------+------------+--------');
+    }
     const tally: Record<string, number> = {};
+    let moved = 0;
     for (const g of groups) {
       const r = rungOf(g.anchors, trackedSet, graph, seeds, testFiles, namedByManifest);
       tally[r] = (tally[r] ?? 0) + 1;
-      console.log(`${g.id.padEnd(25)} | ${String(written.get(g.id) ?? '').padEnd(21)} | ${r.padEnd(10)} | ${g.anchors.size}`);
+      if (widen) {
+        const wide = widenAnchors(g.anchors, tracked);
+        const rw = rungOf(wide, trackedSet, graph, seeds, testFiles, namedByManifest);
+        const same = rw === r;
+        if (!same) moved += 1;
+        console.log(
+          `${g.id.padEnd(25)} | ${String(written.get(g.id) ?? '').padEnd(21)} | ${r.padEnd(10)} | ` +
+            `${String(g.anchors.size).padStart(2)} | ${rw.padEnd(10)} | ${String(wide.size).padStart(4)} | ${same ? 'same' : 'MOVED'}`
+        );
+      } else {
+        console.log(`${g.id.padEnd(25)} | ${String(written.get(g.id) ?? '').padEnd(21)} | ${r.padEnd(10)} | ${g.anchors.size}`);
+      }
     }
     console.log(`\ncomputed: ${ORDER.filter((r) => tally[r]).map((r) => `${r} ${tally[r]}`).join(', ')}`);
+    if (widen) {
+      console.log(
+        `widened from cited files to every tracked file under their directories: ` +
+          `${groups.length - moved} of ${groups.length} unchanged, ${moved} moved`
+      );
+    }
   } else {
     const parts = new Map<string, Set<string>>();
     for (const rel of tracked) {

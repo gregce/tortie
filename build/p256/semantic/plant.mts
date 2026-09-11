@@ -21,7 +21,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -157,6 +157,18 @@ function main(): void {
   }
   const here = join(repo, 'build', 'p256', 'semantic', 'check.mts');
   const tsx = join(repo, 'node_modules', '.bin', 'tsx');
+  // A pass that cannot RUN must not read as a pass that caught nothing. The
+  // catch below is for the checker's exit 1, which is its ordinary "I have
+  // findings" answer, and swallowing anything else turned a repository with no
+  // `node_modules` into `CAUGHT 0 of 7` and an exit 0 — a spec assertion
+  // reporting the opposite of the truth. `corpus.sh`'s own clones are exactly
+  // that shape, so this is reachable rather than theoretical.
+  for (const [what, path] of [['the checker', here], ['tsx', tsx]] as const) {
+    if (!existsSync(path)) {
+      console.error(`cannot run: ${what} is not at ${path}. This needs a checkout with node_modules installed.`);
+      process.exit(2);
+    }
+  }
   const scratch = mkdtempSync(join(tmpdir(), 'p256-plant-'));
   try {
     const run = (file: string): string => {
@@ -164,7 +176,16 @@ function main(): void {
         return execFileSync(tsx, [here, file, factsPath, repo], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
       } catch (err: any) {
         // The checker exits 1 when it has findings, which is the ordinary case.
-        return String(err.stdout ?? '');
+        // Every other exit is the checker failing to run, and returning its
+        // empty stdout would be counted as "raised no finding".
+        const out = typeof err?.stdout === 'string' ? err.stdout : '';
+        if (err?.status === 1 && out.length > 0) return out;
+        console.error(
+          `the checker did not run over ${file}: exit ${String(err?.status ?? 'none')}` +
+            `${err?.signal ? ` signal ${String(err.signal)}` : ''}\n` +
+            `${String(err?.stderr ?? err?.message ?? '')}`.trimEnd()
+        );
+        process.exit(2);
       }
     };
     const base = JSON.parse(readFileSync(passPath, 'utf8'));

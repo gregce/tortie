@@ -89,3 +89,31 @@ tracked 237, first-party import edges 65, entrypoint files 20, test files 38
 rungs actually used: 4 of 5
 
 333 ms
+
+=== the widening, run rather than asserted (committer's round, 2026-09-10) ===
+
+§7.2 and this directory's README both claimed that widening each component's anchors
+from its cited files to every tracked file under their directories changes not one rung,
+and shipped no arm that ran it. `--widen` is that arm. Taken at e8e451ac + the arm, where
+`git ls-files` reads 3193 against the 3191 of the run recorded above, because the commit
+between them added build/p256/semantic/. The rungs are identical either way.
+
+LADDER over .
+tracked 3193, first-party import edges 7958, entrypoint files 28, test files 857
+
+component                 | written by hand        | cited      | n  | WIDENED    | n    | same?
+--------------------------+-----------------------+------------+----+------------+------+------
+durable-sessions          | composed              | tested     |  3 | tested     |   14 | same
+manifest                  | composed              | tested     |  2 | tested     |   22 | same
+attach-host               | composed              | tested     |  2 | tested     |    3 | same
+arch-reading              | composed              | tested     |  3 | tested     |   22 | same
+guarded-write             | component-tested      | tested     |  1 | tested     |   12 | same
+redline                   | component-tested      | composed   |  1 | composed   |   56 | same
+machines                  | composed              | tested     |  2 | tested     |   91 | same
+logins                    | composed              | tested     |  2 | tested     |   19 | same
+external-door             | composed              | tested     |  1 | tested     |   43 | same
+
+computed: composed 1, tested 8
+widened from cited files to every tracked file under their directories: 9 of 9 unchanged, 0 moved
+
+3500 ms

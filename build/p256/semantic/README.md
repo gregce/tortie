@@ -37,6 +37,13 @@ real files, an unrelated test justifying `component-tested`, a reversed journey,
 whose cited line really does carry a `gate.refusal`. A checker of citations is not a checker of
 sentences, and the number is here so nobody has to take that on trust.
 
+The `<repo>` argument must be a checkout with `node_modules` installed, because the checker runs
+through its `tsx`. **It refuses rather than under-reporting when it is not**: the first writing
+swallowed every failure of the child and printed `CAUGHT 0 of 7` at exit 0, which is the opposite of
+the truth and is exactly the shape `corpus.sh`'s own clones have. Measured at that parent over a
+checkout with no `node_modules`: `the honest pass raises 0 findings`, `CAUGHT 0 of 7`, exit 0. It now
+exits 2 naming what it could not run, and still reads 2 of 7 on a real checkout.
+
 ### `null-model.mts` — the floor under a backing rate
 
 ```

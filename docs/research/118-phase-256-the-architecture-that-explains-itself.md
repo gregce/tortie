@@ -111,6 +111,17 @@ one. What was wrong is the sentence in §7.6 that borrowed the number, and that 
 judgment DID move — `requests/gate/1`, `os.environ["NETRC"] = netrc_file` under a rule called
 `gate.env-read` — taking requests from 93% to 89% and gate from 60% to 58%.
 
+**The committer's round, the same day, closed three more and moved no number.** A second reviewer
+re-derived the revision — rebuilding the fact base from its own clone, writing its own null model and
+its own widening instrument — and reproduced every figure it checked, including the 23.8% / 2.3% /
+33.1% and all eight per-category floors to the digit. Three things it named were fixed here:
+
+| what was wrong | where | what was done |
+| --- | --- | --- |
+| §7.2's widening claim had no instrument — the one figure in the ladder's refutation a reader could not re-run | §7.2, `ladder.mts` | `--widen` is that arm: **9 of 9 unchanged, 0 moved**, `redline` 1 → 56 anchors and still `composed`, recorded in `measurements/ladder.txt` |
+| §9 said two corrupted strings "still carry" a bug two lines after saying the fix was verified, and neither is in the artefact | §9 | the tense corrected, and the committed artefact named as the re-read |
+| `plant.mts` swallowed every checker failure and printed `CAUGHT 0 of 7` at exit 0 | `plant.mts` | measured at the parent — `CAUGHT 0 of 7`, exit 0, over a checkout with no `node_modules`, which is what `corpus.sh` produces. It exits 2 naming the reason now, and still reads **2 of 7** on a real one |
+
 ---
 
 ## 1. Instruments, and what was not touched
@@ -727,7 +738,16 @@ hand-written pass actually names — the parts a person would put in a contract 
 `tested` and one reads `composed`.** A ladder with two rungs is not a ladder. The cause is structural
 rather than a granularity mistake: re-run with each component's anchors widened from its cited files to
 every tracked file under their directories, which IS what a `docs/arch/` glob carries, **every one of
-the nine answers exactly the same rung**. On a 3,190-file application whose first-party import graph
+the nine answers exactly the same rung**.
+
+**That widening sentence shipped with no arm behind it, and the committer's round added one**, because
+it is the whole of the claim that the refutation is structural and it was the one figure in this
+section a reader could not re-run: `ladder.mts --widen` is the arm, `widenAnchors` is its two dozen
+lines, and `measurements/ladder.txt` now carries what it printed — **9 of 9 unchanged, 0 moved**, with
+anchors going 1 → 56 on `redline`, 2 → 91 on `machines` and 1 → 43 on `external-door`, and `redline`
+staying `composed` at fifty-six anchors. The narrow run beside it reads `tracked 3193` against the
+`3191` of the run recorded above it, because the commit between the two added `build/p256/semantic/`;
+the rungs are identical either way. On a 3,190-file application whose first-party import graph
 has 7,957 edges and which carries 857 files with test facts, almost everything real is reached from
 something that starts and imported by some test. The one that is not — `redline` — is a renderer part,
 and no file carrying an `entrypoint` fact is on the main side of it.
@@ -1056,14 +1076,18 @@ region labels, nine node names with a three-to-five word subtitle each, three tr
 one inspector. The 34-word limit sentence is behind a `Where it stops` disclosure, which is the
 just-enough-words rule applied to the exact place the explorers break it.
 
-**The reading instrument had a bug of its own and two strings in `out-explorers.json` still carry it.**
+**The reading instrument had a bug of its own and two strings in `out-explorers.json` carried it.**
 `build/p256/explorer-app/main.js` sends its reader to the page inside a template literal, and two
 `replace(/\s+/g, ' ')` calls were written with ONE backslash, so they reached the page as
 `replace(/s+/g, ' ')` and stripped every letter `s`: stoa's legend read *"Implemented, not  hipped"* and
 specfactory's transport read *"me age + reque t ID"*. **No number in this document came off either
 field** — `words()` was always doubled — and the fix was verified by re-reading all three explorers,
-which returned 488/639/392 and 253/285/288 byte for byte. It is written up here because a corrupted
-string beside a correct number is exactly the shape a later reader mistrusts the wrong half of.
+which returned 488/639/392 and 253/285/288 byte for byte. **The committed `out-explorers.json` is that
+re-read**, so neither corrupted string is in the artefact and this paragraph is the only record that
+they ever existed; the first writing of it said they "still carry" the bug two lines after saying the
+fix had been verified, which is the same sentence contradicting itself. It is written up here because a
+corrupted string beside a correct number is exactly the shape a later reader mistrusts the wrong half
+of.
 
 **What the mock does NOT draw, which §8's trade sentence should be read against.** It shows 3 views to
 the explorers' 4, 6 and 5. It has **no stale claim**, which is §7.5's whole refresh device; **no
@@ -1209,8 +1233,9 @@ port, in a pane one keystroke from a terminal. No `accepted-live`. No second wri
    closed, and nothing about how those systems actually behave was verified.
 8. **The computed ladder discriminates almost nothing on the parts a contract names.** §7.2's five
    rungs are computed now, over four repositories, and on the nine parts of this repository's own hand
-   pass eight of nine read `tested` — with the anchors widened to directory globs as well. The seeded
-   `reached` that would fix it is designed in §7.2 and measured nowhere.
+   pass eight of nine read `tested` — with the anchors widened to directory globs as well, which is
+   `ladder.mts --widen` and reads 9 of 9 unchanged rather than an assertion. The seeded `reached` that
+   would fix it is designed in §7.2 and measured nowhere.
 9. **The checker is not a refusal of lies and this document does not claim it is.** It catches 2 of 7
    planted shapes. The five it misses are the five a confident wrong reading actually looks like: a
    false job on true citations, an invented part citing real files, an unrelated test, a reversed
@@ -1225,3 +1250,10 @@ port, in a pane one keystroke from a terminal. No `accepted-live`. No second wri
     and the other 340 keep the first judgment; drive the mirror ceiling over a real machine; or run the
     corpus again on a quiet machine, so the timings in §6.1 are the first run's and §6.3's re-derived
     ratios come from a busier one.
+12. **The committer's round closed three things and measured none of the design further.** It gave
+    §7.2's widening sentence the arm it shipped without, corrected a sentence in §9 that contradicted
+    itself two lines later, and stopped `plant.mts` reporting `CAUGHT 0 of 7` and exiting 0 when the
+    checker cannot run at all — which `corpus.sh`'s own clones produce, since they carry no
+    `node_modules`. None of that moved a number in this document: the ladder still reads 8 `tested` and
+    1 `composed`, `plant.mts` still catches 2 of 7, and the widening still changes nothing. What it did
+    NOT do is re-run the corpus, re-read the explorers or re-derive any rate.
