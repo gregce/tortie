@@ -26242,6 +26242,95 @@ red. `conformance:wideblocks` unmoved or extended, never weakened.
 
 ---
 
+## Phase 256 — the Architecture pane should explain what the system does, the way the as-built explorer does (operator asked 2026-09-10) RESEARCH ONLY
+
+**Subject.** `docs(research): what the system does, drawn`
+
+**First body line.** `Phase 256: the architecture that explains itself`
+
+**Semver.** None. Research only, and not one line under `src/`.
+
+**Tier.** Research, with an adversarial reviewer who re-derives the claims and a revision round, the shape
+Phase 249 used. It ends in a CHOICE put to the operator, not in a build.
+
+**Charter.** The operator, 2026-09-10: "kick off a deep research phase to understand the approach and way
+that we create architectural maps via /users/gdc/as-built-architecture/ skill … I ultimately am interested
+in making the architectural pane behave more like this in style and visualization than it currently does.
+Can you deeply assess our current Architecture pane, how it works, and how we could achieve something that
+is more of a semantic description of what the system does that benefits from deterministic and
+non-deterministic processing AND how this could be baked into Tortie in a way that wouldn't require just
+using the skill and work sort of agnostically on most types of codebases for projects where Tortie was
+being run."
+
+**The exemplar.** The operator named an HTML output in the gmux repository; there is none, in history or
+among ignored files, measured 2026-09-10. The skill has produced `AS-BUILT-ARCHITECTURE.html` in three
+of his repositories: `/Users/gdc/stoa` (86,548 bytes, 2026-09-09), `/Users/gdc/specfactory` and
+`/Users/gdc/runstory`. **The last two are on the never-touch list, so this phase reads stoa's copy only,
+read only**, and says so; the others are added only at his word.
+
+**What the research must answer, in this order.**
+
+1. **The skill, taken apart.** `/Users/gdc/as-built-architecture/` read in full: `SKILL.md`, the three
+   references, `scripts/architecture.py` (inspect, plan, fingerprinting and drift),
+   `scripts/check_explorer.py`, and the tests. Its division of labour is the thesis to test: *"The helper
+   code discovers, fingerprints, compares and validates. The agent interprets the source, names components
+   and writes explanations."* List every deterministic duty and every interpretive one, the evidence-level
+   ladder (implemented library, composed source, component-tested, accepted live, planned), the component
+   contract (job, input and output, execution owner, state, limit, source evidence), the journeys, the
+   gates, and the drift record `.as-built-architecture.json`.
+2. **The explorer, taken apart.** Stoa's HTML opened in a scratch Electron and read off the DOM: its views
+   (system map, walkthrough, what runs, state and recovery, built and remaining), its data model, its
+   navigation and URL state, how a component, a journey step and a gate cross-link, and what makes it read
+   as a semantic description rather than a dependency graph. Photograph nothing with `npm run shot`.
+3. **Tortie's Architecture pane today, taken apart.** `src/main/arch/**`, `src/renderer/arch/**`,
+   `src/shared/arch.ts` and its IPC, run over a scratch copy of this repository and a scratch copy of stoa
+   with the pane's own switch on in a scratch profile: the import-graph reading and its partition, the
+   skeleton, the contract and its pinned key set, the rule-S sentences, the level-2 module view, the
+   drafting agent and its measured single agent, the checkers, the remote mirror. What a person actually
+   learns from it about what the system DOES, set beside what they learn from the explorer, question by
+   question.
+4. **The rulings it lives under, gathered, not re-argued.** Research 49, 66, 77 and the architecture
+   entries up to Phase 244; the operator's rulings that the visualization IS the product (Phase 162) and
+   that picking determinism must not be an operator choice (Phase 158); research 66's rule that nothing in
+   `docs/arch/` may name anything Tortie runs; refusals 1 and 8; the agent runs only when asked and under
+   the person's own account; the feature is off by default; just enough words on the resting face; a remote
+   project feels identical to a local one.
+5. **The design question.** A semantic description of what a system does, from a DETERMINISTIC half that
+   works on most codebases (what Tortie can extract with no model: entrypoints and composition roots,
+   process and thread boundaries, exposed surfaces such as routes, IPC, CLI commands and handlers, stores
+   and who writes them, spawns and network calls, test names, gates and guards, read across the languages
+   Architecture already parses) and a NON-DETERMINISTIC half (naming components by job, writing journeys,
+   explaining gates) that is bounded by evidence the deterministic half can check: every source link
+   resolves, every evidence level is justified by a detected call site or test, and drift is a fingerprint,
+   never a vibe. Where the model output lives, how it refreshes, who pays for the turn, which agents can do
+   it, and what happens on a machine with no agent at all.
+6. **Agnosticism, measured.** The deterministic half is PROTOTYPED outside `src/` and run over at least
+   six codebases of different shapes: this repository, stoa, and shallow read-only clones of public
+   projects covering a CLI, a web service, a Rails or Django app, a library, a monorepo and a mobile or
+   Swift project, removed in a `finally`. Publish per repository what it found, what it missed and what it
+   called wrong, against a hand reading.
+7. **The directions.** At most three, each with its trade in one clause: from restyling today's map
+   through a hybrid semantic explorer to the full as-built model. **A real mock** under `build/p256/`,
+   linking `src/renderer/styles/tokens.css` itself so no colour is invented, drawn from REAL data out of the
+   prototype over this repository and not lorem. A recommendation, a build spec naming the files each build
+   phase would touch and the gate arms it would need, and what is refused.
+
+### What is NOT in this phase
+
+- **Not one line under `src/`.** Prototypes live under `build/p256/`.
+- **The skill is not executed by Tortie, now or later**, and nothing proposed may require it. Refusal 1
+  binds the product; its python helpers may be run by the RESEARCHER only, over scratch copies, to study
+  their output, never against his repositories in place.
+- **No agent CLI is launched and no Tortie session is started.** The researcher may write a prototype
+  semantic pass itself and must label it as a prototype written by the researcher, not a measurement of a
+  shipped agent.
+- **`/Users/gdc/specfactory` and `/Users/gdc/runstory` are not read**, and stoa is read only.
+- **Research 66's pinned key set and refusal 8 are not reopened here.** A direction that needs them moved
+  says so plainly and leaves the decision to him.
+- **No release waits on this.**
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26832,3 +26921,5 @@ cycle rather than only the evening it was written.
 - 2026-09-10, **PHASE 254 PUSHED at `f163d942` with its fix round `623d22f9`**, the large file opens fast. Before and after on his two shapes: at the parent both paid ~5.5-6.5 s of synchronous markdown render with NO PAINT until the whole page had rendered, the one stage that dominated (the read was 6 ms, the diff ~250 ms, Monaco 53-136 ms); at HEAD the 2.56 MB untracked-prose twin opens interactive at 139 ms and the 3.26 MB tracked-and-modified twin's diff lands at 161 ms. DEFERRED, not dropped: the rendered preview past 256 KiB moves to the mode chip, whose title states the cost, and a deliberate Preview click still renders the whole page (2,355 ms on the big twin) — Phase 255, queued above, owns making that render itself fast. CAPPED and unmoved: the 256 KiB defer line holds for ordinary prose (the fix round recorded the verifier's refutation in the derivation comment: a single-line file AT the cap still renders ~5.7 s, VS Code's long-line guard is out of this phase), and the 16 MB read cap, baseline, redline, diff and save promises are untouched. The fix round repaired the red typecheck (TS18048, optional chaining proved by ablation to keep the assertion's strength) and moved no threshold. Rebased over Phase 253 and the 255 queue entry, full battery green: 13,468 tests, smoke t1 6/6 and t3 3/3, package, conformance redline, save and pathdoors.
 
 - 2026-09-10, **v0.103.0 CUT, TAGGED AT `8aaaa9d9`, BUILT AND NOTARIZED BY CI RUN 34528796027, PROMOTED AND VERIFIED FROM THE PUBLIC DOWNLOAD** — the app inside the DMG reads accepted, Notarized Developer ID, version 0.103.0, and the stable download URL answers 200. Six phases shipped: 247/250/253 the clickable paths, 248/252 the wide blocks, 251 the redline room, 254 the fast open. Every changelog hash was checked against origin/main BEFORE the tag, the check 0.102.0 lacked. tortie.sh changelog synced and live. Phase 255 runs on and lands into the next cycle.
+
+- 2026-09-10, **PHASE 256 QUEUED, research only, the architecture that explains itself**: at his ask, take apart the as-built-architecture skill and its HTML explorer (stoa's copy, read only, because the gmux copy he named does not exist and specfactory and runstory are never-touch), take apart today's Architecture pane over scratch copies, and design a semantic description of what a system does from a deterministic half that works on most codebases plus a model half bounded by evidence the deterministic half checks. The deterministic half is prototyped and measured over at least six codebases of different shapes; ends in at most three directions with a real mock and a choice for him. Not one line under src/, the skill never executed by Tortie, no agent CLI launched.
