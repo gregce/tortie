@@ -20,6 +20,7 @@ import type { AddRemoteRefusalReason } from '../machines/project-tab';
 import { remoteTabCloseBody, remoteTabCloseTitle } from '../machines/project-tab';
 import { errorPayload, errorText } from './errors';
 import { loadLocal, saveLocal } from './local';
+import { shellOps } from './shell-ops';
 import type { AppState } from './app-state';
 import { gmuxBridge } from '../bridge';
 
@@ -64,7 +65,12 @@ export interface ProjectsSlice {
   tabOrder: string[];
   activeProjectId: string | null;
 
-  setActiveProject(projectId: string): void;
+  /**
+   * Make one project the active one, or none. Every reader that follows the
+   * active project reads the VALUE this writes; the editor's per-project tab
+   * strip (Phase 260) subscribes to it, so a switch by any path reaches it.
+   */
+  setActiveProject(projectId: string | null): void;
   setActiveProjectByIndex(index: number): void;
   cycleProject(delta: 1 | -1): void;
   reorderTabs(fromId: string, toId: string): void;
@@ -113,6 +119,12 @@ export interface ProjectsSlice {
    */
   openTargetProject(target: WorkspaceTarget): Promise<OpenTargetResult>;
   closeProject(projectId: string): void;
+  /**
+   * PHASE 260. The removal half of `closeProject`, run once the project's
+   * editor tabs are gone. Split out so the seam can call it after the dirty
+   * prompt; nothing else calls it.
+   */
+  finishCloseProject(projectId: string, path: string, here: boolean): void;
   /**
    * Phase 12.9 item 1 — make a folder, optionally `git init` it, open it as a
    * tab and focus it. Rejects so the dialog can put the reason on the field
@@ -314,48 +326,65 @@ export const createProjectsSlice: StateCreator<
               machineLabelFor(get().machineStates, project.machineId ?? '')
             ),
         confirmLabel: 'Close project',
+        // PHASE 260 (issue 19, research 119 §5.2). The project's editor tabs
+        // are closed FIRST, through the editor's own Save / Don't Save /
+        // Cancel prompt, and the project is removed only once every one of
+        // them is gone. A Cancel on any prompt stops the run and the removal
+        // never happens, so a dirty buffer is never left in a project that no
+        // longer exists. This is the one place a project's tabs are closed
+        // because of the project; switching projects hides them and closes
+        // nothing. The editor is reached through the seam because this
+        // directory may not name it (build/assert-import-boundaries.mjs).
         onConfirm: () => {
-          void (async () => {
-            try {
-              await gmux.projects.remove(projectId);
-              // Phase 14: give the project's symbol index its memory back.
-              // Feature-detected, fire-and-forget, and never a reason a
-              // project fails to close — the index rebuilds from SQLite if
-              // the project is reopened, and evicts itself after 30 idle
-              // minutes even if this call never happens.
-              // PHASE 90.3. Both releases name a path on THIS Mac, so neither
-              // is asked for a tab whose files are on another machine. There is
-              // no index and no watch to release: `rootsFor` excludes every
-              // remote project and no watch is ever armed for one.
-              if (here) {
-                void gmuxBridge()?.symbols
-                  ?.release(project.path)
-                  .catch(() => undefined);
-              }
-              // Phase 46: end any GitHub Actions watch this project armed.
-              // Same posture as the release above, and for the same reason:
-              // feature-detected, fire-and-forget, never a reason a project
-              // fails to close. Watch state is in memory only, so the worst a
-              // missed call costs is one poller until the app quits.
-              if (here) {
-                void gmuxBridge()?.actions
-                  ?.release(project.path)
-                  .catch(() => undefined);
-              }
-              const projects = await gmux.projects.list();
-              set((s) => {
-                const next: Partial<AppState> = { projects };
-                if (s.activeProjectId === projectId) {
-                  next.activeProjectId = projects[0]?.id ?? null;
-                }
-                return next;
-              });
-            } catch (err) {
-              get().toast('error', errorText(err), { sticky: true });
-            }
-          })();
+          shellOps().editorCloseProjectTabs(projectId, () => {
+            get().finishCloseProject(projectId, project.path, here);
+          });
         }
       });
+    },
+
+    finishCloseProject(projectId, path, here) {
+      if (!gmux) return;
+      void (async () => {
+        try {
+          await gmux.projects.remove(projectId);
+          // Phase 14: give the project's symbol index its memory back.
+          // Feature-detected, fire-and-forget, and never a reason a
+          // project fails to close — the index rebuilds from SQLite if
+          // the project is reopened, and evicts itself after 30 idle
+          // minutes even if this call never happens.
+          // PHASE 90.3. Both releases name a path on THIS Mac, so neither
+          // is asked for a tab whose files are on another machine. There is
+          // no index and no watch to release: `rootsFor` excludes every
+          // remote project and no watch is ever armed for one.
+          if (here) {
+            void gmuxBridge()?.symbols
+              ?.release(path)
+              .catch(() => undefined);
+          }
+          // Phase 46: end any GitHub Actions watch this project armed.
+          // Same posture as the release above, and for the same reason:
+          // feature-detected, fire-and-forget, never a reason a project
+          // fails to close. Watch state is in memory only, so the worst a
+          // missed call costs is one poller until the app quits.
+          if (here) {
+            void gmuxBridge()?.actions
+              ?.release(path)
+              .catch(() => undefined);
+          }
+          const projects = await gmux.projects.list();
+          set({ projects });
+          // PHASE 260. The fallback goes through `setActiveProject` rather
+          // than a bare `set`, so it is one writer of the active project
+          // for every reader that follows the value, the editor's
+          // per-project strip among them.
+          if (get().activeProjectId === projectId) {
+            get().setActiveProject(projects[0]?.id ?? null);
+          }
+        } catch (err) {
+          get().toast('error', errorText(err), { sticky: true });
+        }
+      })();
     },
 
     orderedProjects() {

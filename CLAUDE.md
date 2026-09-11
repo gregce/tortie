@@ -290,6 +290,7 @@ scratch profile, a scratch `HOME` and its own tmux socket, ended and unlinked in
 | `probe:controldeadline` | `src/main/tmux/control-client.ts`, `src/main/machines/context.ts`, `src/main/machines/control-plane.ts` | ~37 s |
 | `conformance:resume` | Once per phase and after any agent-CLI upgrade | ~3 min, real turns |
 | `conformance:watcher:cap` | The FSEvents exclusion cap itself | ~25 s, macOS only |
+| `probe:p260` | `src/renderer/editor/store.ts`'s project scoping, `projects-slice.ts`'s `closeProject`, the shell seam's `editorCloseProjectTabs`, or `MAX_TABS` eviction | minutes, one Electron over three scratch projects |
 | `probe:p<N>` | The app run named in phase N's own entry | minutes |
 
 Every probe is declared in `package.json` and carries its own header saying what it drives, what it

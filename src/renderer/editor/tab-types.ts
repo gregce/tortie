@@ -50,6 +50,22 @@ export interface EditorTab {
   origRelPath: string | null;
   /** Absolute repo/project root. */
   repoPath: string;
+  /**
+   * PHASE 260 — the PROJECT this tab belongs to (issue 19, research 119 §5.1).
+   *
+   * Decided once, when the tab opens: the open project whose root contains the
+   * file, otherwise the project that was active at the open. Null when no
+   * project was active. A tab is drawn in exactly one project's strip;
+   * switching projects HIDES it and never closes it, so its Monaco model, its
+   * view state, its rewind journal and its shadow baseline all survive the
+   * switch. Moved by nothing after the open.
+   *
+   * Optional rather than required, for the reason `remote` is optional: every
+   * tab built before this phase, and every fixture in the tests, is still a
+   * valid tab. The store sets it on every tab it creates, and every reader
+   * treats `undefined` as null (`visibleTabsOf` in ./store).
+   */
+  projectId?: string | null;
   /** Basename, shown on the tab. */
   name: string;
   mode: EditorMode;

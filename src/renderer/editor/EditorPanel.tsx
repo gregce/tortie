@@ -57,7 +57,7 @@ import {
   workAreaWidth
 } from '../state/chrome-geometry';
 import { useResizeHandle } from '../controls';
-import { useEditor } from './store';
+import { useEditor, useVisibleTabs } from './store';
 import type { EditorMode, EditorTab } from './store';
 import { EditorTabStrip } from './EditorTabs';
 import { ContextDetailTab } from '../context/ContextDetailTab';
@@ -389,7 +389,11 @@ function asContextEntry(value: unknown): ContextEntry | null {
 
 export function EditorPanel(): React.JSX.Element | null {
   const init = useEditor((s) => s.init);
-  const tabs = useEditor((s) => s.tabs);
+  // PHASE 260. The panel draws the ACTIVE PROJECT's tabs and no other's
+  // (issue 19, research 119): a switch hides the rest without closing them,
+  // and this hook is shallow compared so a hidden tab's load or watcher tick
+  // redraws nothing here.
+  const tabs = useVisibleTabs();
   const activeId = useEditor((s) => s.activeId);
   const panelOpen = useEditor((s) => s.panelOpen);
   const monacoError = useEditor((s) => s.monacoError);
@@ -638,7 +642,8 @@ export function EditorPanel(): React.JSX.Element | null {
         // "close the focused editor tab" (never sessions/projects).
         if (!ed.panelOpen) return;
         ed.closeActive();
-        if (useEditor.getState().tabs.length === 0) focusTerminal();
+        // PHASE 260: the strip that emptied is this project's.
+        if (useEditor.getState().visibleTabs().length === 0) focusTerminal();
         return;
       }
     };
@@ -651,7 +656,8 @@ export function EditorPanel(): React.JSX.Element | null {
       const ed = useEditor.getState();
       if (e.metaKey && e.altKey && !e.ctrlKey && !e.shiftKey) {
         if (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight') return;
-        if (!ed.panelOpen || ed.tabs.length < 2) return;
+        // PHASE 260: two tabs on THIS strip, not two across every project.
+        if (!ed.panelOpen || ed.visibleTabs().length < 2) return;
         // The app shell claims ⌘⌥ arrows for split navigation (S4A) and its
         // listener is capture-phase; it stands down while focus is in here,
         // and this listener only acts under the same condition, so the
@@ -663,7 +669,7 @@ export function EditorPanel(): React.JSX.Element | null {
       }
       if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey) {
         if (e.code !== 'BracketRight' && e.code !== 'BracketLeft') return;
-        if (!ed.panelOpen || ed.tabs.length < 2) return;
+        if (!ed.panelOpen || ed.visibleTabs().length < 2) return;
         e.preventDefault();
         ed.cycleTab(e.code === 'BracketRight' ? 1 : -1);
         return;
@@ -672,7 +678,7 @@ export function EditorPanel(): React.JSX.Element | null {
         // ⌃Tab is a real character to a terminal (^I). Unlike the ⌘ bindings
         // above it can only mean "cycle tabs" while the keyboard is actually
         // in the editor.
-        if (!ed.panelOpen || ed.tabs.length < 2) return;
+        if (!ed.panelOpen || ed.visibleTabs().length < 2) return;
         if (panelRef.current?.contains(document.activeElement) !== true) return;
         e.preventDefault();
         ed.cycleMru(e.shiftKey ? -1 : 1);

@@ -48,10 +48,65 @@
  * Loading, saving and watcher refresh are ./tab-io; identity and left-path
  * are ./tab-identity; the strip's chrome is ./EditorTabs. They were one
  * 770-line file until the Phase-12 cohesion pass.
+ *
+ * PHASE 260 — TABS FOLLOW THE PROJECT (issue 19, research 119). THE INTERFACE,
+ * written here so the strip, the panel and the projects slice wire to it
+ * without guessing.
+ *
+ * STATE
+ *   projectId            the project whose tabs are on screen, null before a
+ *                        project is active. Moved ONLY by `switchProject`.
+ *   tabs                 EVERY open tab of EVERY project. Never draw it raw.
+ *   activeId, panelOpen  the CURRENT project's, mirrored from the two maps
+ *                        below so every existing reader keeps working.
+ *   activeIdByProject    per-project memory of the tab on screen
+ *   panelOpenByProject   per-project memory of the panel's open state
+ *                        (`sidebarViewByProject` in ../state/chrome-slice is
+ *                        the pattern; these are in memory only, because tabs
+ *                        are, research 119 §1)
+ *
+ * READ THE VISIBLE SET, never `tabs` (research 119 §4):
+ *   visibleTabsOf(tabs, projectId)   pure; the tab menu's counts use it
+ *   useVisibleTabs()                 the hook, shallow compared, so a patch to
+ *                                    a hidden tab does not redraw the strip
+ *   visibleTabs()                    the same off getState()
+ *
+ * ACTIONS
+ *   switchProject(projectId)    swaps activeId and panelOpen from the maps and
+ *                               DISPOSES NOTHING. `init()` subscribes it to the
+ *                               app store's `activeProjectId`, so a switch by
+ *                               any path — a project tab click, ⌘1..9,
+ *                               closeProject's fallback — reaches it without
+ *                               a caller; calling it again is a no-op.
+ *   closeProjectTabs(projectId, onClosed)
+ *                               closes that project's tabs through closeMany's
+ *                               dirty prompt and calls onClosed once the last
+ *                               one is gone, never after a Cancel. The ONE
+ *                               place a project's tabs are closed because of
+ *                               the project, and it is for a project being
+ *                               CLOSED (research 119 §5.2). projects-slice's
+ *                               closeProject reaches it through the shell seam
+ *                               (state/shell-ops.ts) and removes the project
+ *                               from inside onClosed.
+ *
+ * DEPS, read off the app store this file already imports for the dirty-close
+ * confirm: `projects` and `activeProjectId` decide a new tab's `projectId`
+ * (§5.1), and `setActiveProject` is called when a tab of ANOTHER project is
+ * opened or activated, so the person sees the file they clicked.
+ *
+ * THE ONE HARD RULE: hiding is a filter and never a close. No forceCloseTab,
+ * no preview-slot reuse and no MAX_TABS eviction ever reaches a hidden
+ * project's tab (§2, §3). The preview slot and the cap are per project.
  */
 
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { isImagePath, isSvgPath } from '@shared/image-types';
+import {
+  isLocalTarget,
+  sameTarget,
+  targetOfProject
+} from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import { onOpenFile } from '../state/open-file';
 import { onRepoChanged } from '../state/repo-changed';
@@ -116,11 +171,40 @@ const LS_MINIMAP = 'gmux.minimap';
 const LS_MARKDOWN_MODE = 'gmux.markdownMode';
 const LS_DIFF_SPLIT = 'gmux.diffSideBySide';
 
+/**
+ * PHASE 260. The map key for "no project was active", so a tab opened before
+ * any project exists still has a strip to be drawn in and a place to be
+ * remembered.
+ */
+const NO_PROJECT_KEY = '';
+const keyOf = (projectId: string | null): string => projectId ?? NO_PROJECT_KEY;
+
+/**
+ * PHASE 260. The tabs one project's strip draws: the ones that belong to it.
+ * Pure, so the tab menu's counts and a test can ask it without a hook. A tab
+ * with no `projectId` at all (a fixture built before this phase) reads as
+ * null, which is the "no project active" strip.
+ */
+export function visibleTabsOf(
+  tabs: readonly EditorTab[],
+  projectId: string | null
+): EditorTab[] {
+  return tabs.filter((t) => (t.projectId ?? null) === projectId);
+}
+
 interface EditorState {
   tabs: EditorTab[];
   activeId: string | null;
   /** Panel visible (tabs survive a hidden panel; ⌘E/Esc toggle). */
   panelOpen: boolean;
+  /**
+   * PHASE 260. The project whose tabs are on screen. `activeId` and
+   * `panelOpen` above are THIS project's, and are mirrored into the two maps
+   * below on every write so a switch away and back finds them.
+   */
+  projectId: string | null;
+  activeIdByProject: Record<string, string | null>;
+  panelOpenByProject: Record<string, boolean>;
   /** Last open request — ⌘E reopens it when every tab was closed. */
   lastRequest: OpenFileRequest | null;
   /** Monaco chunk failed to load (retryable; blocks File mode only —
@@ -198,6 +282,22 @@ interface EditorState {
   setMonacoError(message: string | null): void;
 
   activeTab(): EditorTab | null;
+  /** PHASE 260. The current project's tabs — see `visibleTabsOf`. */
+  visibleTabs(): EditorTab[];
+  /**
+   * PHASE 260. Show `projectId`'s tabs: its remembered active tab and panel
+   * state come back from the maps, the outgoing project's are remembered, and
+   * NOTHING IS DISPOSED. No-op when that project is already on screen.
+   */
+  switchProject(projectId: string | null): void;
+  /**
+   * PHASE 260. Close every tab of one project through the dirty prompt, for a
+   * project being closed (research 119 §5.2). Works on a hidden project: a
+   * hidden tab's close never moves the tab on screen. `onClosed` runs once
+   * every tab is gone, at once when there were none, and never after a
+   * Cancel or a failed save.
+   */
+  closeProjectTabs(projectId: string | null, onClosed?: () => void): void;
 }
 
 function readMinimapPref(): boolean {
@@ -335,13 +435,21 @@ export const useEditor = create<EditorState>((set, get) => {
   /**
    * Close a run of tabs, prompting for each dirty one in turn (VS Code's
    * behavior: Cancel on any prompt stops the run and keeps the rest open).
+   *
+   * PHASE 260. `done` is called ONCE, when the run has closed its last tab,
+   * and NEVER when the run stopped short: a Cancel on any prompt, or a save
+   * that failed, leaves it uncalled. `closeProject` removes the project from
+   * inside it, so a cancelled close keeps the project and its tabs.
    */
-  const closeMany = (ids: string[]): void => {
+  const closeMany = (ids: string[], done?: () => void): void => {
     const rest = [...ids];
     const step = (): void => {
       for (;;) {
         const id = rest.shift();
-        if (id === undefined) return;
+        if (id === undefined) {
+          done?.();
+          return;
+        }
         const tab = tabById(id);
         if (tab === undefined) continue;
         if (!tab.dirty) {
@@ -359,10 +467,88 @@ export const useEditor = create<EditorState>((set, get) => {
   /** Last open gesture, for double-open → pin (see DOUBLE_OPEN_MS). */
   let lastOpen: { id: string; at: number } = { id: '', at: 0 };
 
+  // -- PHASE 260: the project a tab belongs to, and the per-project memory ---
+
+  /**
+   * Research 119 §5.1. The open project whose root contains the file — the
+   * DEEPEST one when roots nest — otherwise the project active at the open.
+   * A file on a machine belongs to the project that IS that folder on that
+   * machine; `fileInRepo` is never asked about a path on another computer.
+   */
+  const projectOf = (req: OpenFileRequest): string | null => {
+    const app = useApp.getState();
+    const remote = req.remote;
+    const holding = app.projects.filter((p) => {
+      const target = targetOfProject(p);
+      if (remote !== undefined) {
+        return sameTarget(target, {
+          machineId: remote.machineId,
+          path: remote.repoPath
+        });
+      }
+      return (
+        isLocalTarget(target) &&
+        (p.path === req.repoPath || fileInRepo(p.path, req.path))
+      );
+    });
+    const deepest = holding.sort((a, b) => b.path.length - a.path.length)[0];
+    return deepest?.id ?? app.activeProjectId;
+  };
+
+  /** The tab on screen and the panel state FOR one project, current or not. */
+  const activeOf = (s: EditorState, projectId: string | null): string | null =>
+    projectId === s.projectId
+      ? s.activeId
+      : (s.activeIdByProject[keyOf(projectId)] ?? null);
+  const panelOf = (s: EditorState, projectId: string | null): boolean =>
+    projectId === s.projectId
+      ? s.panelOpen
+      : (s.panelOpenByProject[keyOf(projectId)] ?? false);
+
+  /**
+   * EVERY write of a project's active tab and panel state goes through here,
+   * so the maps and the mirrors can never disagree: the map entry is written
+   * always, the mirror only when the project is the one on screen.
+   */
+  const focusPatch = (
+    s: EditorState,
+    projectId: string | null,
+    activeId: string | null,
+    panelOpen: boolean
+  ): Partial<EditorState> => {
+    const key = keyOf(projectId);
+    const patch: Partial<EditorState> = {
+      activeIdByProject: { ...s.activeIdByProject, [key]: activeId },
+      panelOpenByProject: { ...s.panelOpenByProject, [key]: panelOpen }
+    };
+    if (projectId === s.projectId) {
+      patch.activeId = activeId;
+      patch.panelOpen = panelOpen;
+    }
+    return patch;
+  };
+
+  /**
+   * A tab of another project is being opened or raised: the person clicked a
+   * file, so they get to see it. The app store moves first, which reaches
+   * `switchProject` through init's subscription; the direct call after it is
+   * for the unsubscribed case and is a no-op otherwise.
+   */
+  const revealProject = (projectId: string | null): void => {
+    if (projectId === get().projectId) return;
+    if (projectId !== null && useApp.getState().activeProjectId !== projectId) {
+      useApp.getState().setActiveProject(projectId);
+    }
+    get().switchProject(projectId);
+  };
+
   return {
     tabs: [],
     activeId: null,
     panelOpen: false,
+    projectId: null,
+    activeIdByProject: {},
+    panelOpenByProject: {},
     lastRequest: null,
     monacoError: null,
     minimapEnabled: readMinimapPref(),
@@ -373,6 +559,17 @@ export const useEditor = create<EditorState>((set, get) => {
     init() {
       if (initialized || !gmux) return;
       initialized = true;
+      // PHASE 260. The editor follows the active project from here on. The
+      // app store is the one writer of `activeProjectId` and it has several
+      // setters, so the editor listens to the VALUE rather than to any of
+      // them; `switchProject` is idempotent, so a caller that also calls it
+      // costs nothing.
+      get().switchProject(useApp.getState().activeProjectId);
+      useApp.subscribe((s, prev) => {
+        if (s.activeProjectId !== prev.activeProjectId) {
+          get().switchProject(s.activeProjectId);
+        }
+      });
       onOpenFile((req) => get().openFromRequest(req));
       // Shared debounce (state/repo-changed.ts): the editor's own 300 ms
       // window made open tabs the LAST surface to agree with the repo.
@@ -489,12 +686,16 @@ export const useEditor = create<EditorState>((set, get) => {
       // Rule (a): a navigation lands in File mode, whatever the request or
       // the file extension would otherwise have chosen.
       const navigate = selection !== null && landsInText(image, svg);
+      // PHASE 260. Decided here, once, by research 119 §5.1, and moved by
+      // nothing after.
+      const projectId = projectOf(req);
       const tab: EditorTab = {
         id,
         path: req.path,
         relPath: req.relPath,
         origRelPath,
         repoPath: req.repoPath,
+        projectId,
         // Phase 160. The map tab's `path` is a repository root, and the last
         // segment of a repository root is a folder name wearing a file's
         // clothes. The tab says what it is instead.
@@ -598,11 +799,21 @@ export const useEditor = create<EditorState>((set, get) => {
         draft: req.draft ?? null
       };
 
+      // PHASE 260. A file of another project is shown in that project, before
+      // the tab lands, so the set below writes the mirrors of the project it
+      // belongs to.
+      revealProject(projectId);
+
       set((s) => {
         let tabs = [...s.tabs];
+        // PHASE 260. The preview slot is PER PROJECT: a hidden project's
+        // preview tab is never the one a click in this project replaces,
+        // because replacing it disposes its model, view state and journal —
+        // the exact loss hiding exists to prevent (research 119 §2).
+        const own = visibleTabsOf(tabs, projectId);
         const slot = keep
           ? undefined
-          : tabs.find((t) => t.preview && !t.dirty);
+          : own.find((t) => t.preview && !t.dirty);
         if (slot !== undefined) {
           // Reuse the single preview tab (VS Code behavior).
           disposeModels(slot.id);
@@ -613,10 +824,17 @@ export const useEditor = create<EditorState>((set, get) => {
           tabs.push(tab);
           // LRU-evict the stalest clean tab past the cap — never the new
           // one, never the one on screen, never unsaved work.
-          if (tabs.length > MAX_TABS) {
-            const evict = tabs
+          //
+          // PHASE 260. The cap is PER PROJECT and the candidates are THIS
+          // project's tabs only. Research 119 §3: a hidden project's tabs are
+          // by construction the stalest, so a global cap would evict exactly
+          // the state the person believes is merely hidden, rewind journals
+          // and all, the moment this project opened its eleventh file.
+          if (own.length + 1 > MAX_TABS) {
+            const evict = own
               .filter(
-                (t) => !t.dirty && t.id !== tab.id && t.id !== s.activeId
+                (t) =>
+                  !t.dirty && t.id !== tab.id && t.id !== activeOf(s, projectId)
               )
               .sort((a, b) => a.lastUsed - b.lastUsed)[0];
             if (evict !== undefined) {
@@ -627,7 +845,7 @@ export const useEditor = create<EditorState>((set, get) => {
             }
           }
         }
-        return { tabs, activeId: tab.id, panelOpen: true };
+        return { tabs, ...focusPatch(s, projectId, tab.id, true) };
       });
 
       if (
@@ -680,9 +898,13 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     activate(id) {
-      if (tabById(id) === undefined) return;
+      const tab = tabById(id);
+      if (tab === undefined) return;
+      // PHASE 260. Raising a hidden project's tab shows that project first.
+      const projectId = tab.projectId ?? null;
+      revealProject(projectId);
       patchTab(id, { lastUsed: Date.now() });
-      set({ activeId: id, panelOpen: true });
+      set((s) => focusPatch(s, projectId, id, true));
     },
 
     closeTab(id) {
@@ -703,17 +925,30 @@ export const useEditor = create<EditorState>((set, get) => {
       // and one press writes its bytes back. The journal's owner is the tab.
       forgetRewindJournal(id);
       set((s) => {
-        const idx = s.tabs.findIndex((t) => t.id === id);
+        const closing = s.tabs.find((t) => t.id === id);
+        if (closing === undefined) return {};
+        // PHASE 260. The next tab, and whether the panel stays, are questions
+        // about the closed tab's OWN project's strip, on screen or not: a
+        // hidden project's tab closing (closeProjectTabs) moves that project's
+        // remembered active tab and never the one the person is looking at.
+        const projectId = closing.projectId ?? null;
+        const before = visibleTabsOf(s.tabs, projectId);
+        const idx = before.findIndex((t) => t.id === id);
         const tabs = s.tabs.filter((t) => t.id !== id);
-        let activeId = s.activeId;
-        if (s.activeId === id) {
-          const next = tabs[Math.min(idx, tabs.length - 1)];
+        const after = visibleTabsOf(tabs, projectId);
+        let activeId = activeOf(s, projectId);
+        if (activeId === id) {
+          const next = after[Math.min(idx, after.length - 1)];
           activeId = next?.id ?? null;
         }
         return {
           tabs,
-          activeId,
-          panelOpen: tabs.length === 0 ? false : s.panelOpen
+          ...focusPatch(
+            s,
+            projectId,
+            activeId,
+            after.length === 0 ? false : panelOf(s, projectId)
+          )
         };
       });
     },
@@ -723,27 +958,49 @@ export const useEditor = create<EditorState>((set, get) => {
       if (id !== null) get().closeTab(id);
     },
 
+    // PHASE 260. Every close run and every cycle below reads the VISIBLE set,
+    // research 119 §4: Close Others, Close All and ⌃Tab are gestures on the
+    // strip the person can see, and a hidden project's tabs are not on it.
+
     closeOthers(id) {
-      closeMany(get().tabs.filter((t) => t.id !== id).map((t) => t.id));
+      closeMany(
+        get()
+          .visibleTabs()
+          .filter((t) => t.id !== id)
+          .map((t) => t.id)
+      );
     },
 
     closeToRight(id) {
-      const tabs = get().tabs;
+      const tabs = get().visibleTabs();
       const idx = tabs.findIndex((t) => t.id === id);
       if (idx === -1) return;
       closeMany(tabs.slice(idx + 1).map((t) => t.id));
     },
 
     closeSaved() {
-      closeMany(get().tabs.filter((t) => !t.dirty).map((t) => t.id));
+      closeMany(
+        get()
+          .visibleTabs()
+          .filter((t) => !t.dirty)
+          .map((t) => t.id)
+      );
     },
 
     closeAll() {
-      closeMany(get().tabs.map((t) => t.id));
+      closeMany(get().visibleTabs().map((t) => t.id));
+    },
+
+    closeProjectTabs(projectId, onClosed) {
+      closeMany(
+        visibleTabsOf(get().tabs, projectId).map((t) => t.id),
+        onClosed
+      );
     },
 
     cycleTab(delta) {
-      const { tabs, activeId } = get();
+      const { activeId } = get();
+      const tabs = get().visibleTabs();
       if (tabs.length < 2) return;
       const idx = tabs.findIndex((t) => t.id === activeId);
       const next = tabs[(idx + delta + tabs.length) % tabs.length];
@@ -751,14 +1008,17 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     cycleMru(delta) {
-      const { tabs, activeId } = get();
+      const { activeId } = get();
+      const tabs = get().visibleTabs();
       if (tabs.length < 2) return;
       const order = [...tabs].sort((a, b) => b.lastUsed - a.lastUsed);
       const idx = order.findIndex((t) => t.id === activeId);
       const next = order[(idx + delta + order.length) % order.length];
       // No lastUsed stamp: holding ⌃ and tabbing again must keep walking
       // back through history, not ping-pong between two tabs.
-      if (next !== undefined) set({ activeId: next.id, panelOpen: true });
+      if (next !== undefined) {
+        set((s) => focusPatch(s, s.projectId, next.id, true));
+      }
     },
 
     commitMru() {
@@ -914,18 +1174,24 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     hidePanel() {
-      set({ panelOpen: false });
+      set((s) => focusPatch(s, s.projectId, s.activeId, false));
     },
 
     togglePanel() {
       const s = get();
       if (s.panelOpen) {
-        set({ panelOpen: false });
+        set((cur) => focusPatch(cur, cur.projectId, cur.activeId, false));
         return;
       }
-      if (s.tabs.length > 0) {
-        set({ panelOpen: true });
-      } else if (s.lastRequest !== null) {
+      if (s.visibleTabs().length > 0) {
+        set((cur) => focusPatch(cur, cur.projectId, cur.activeId, true));
+      } else if (
+        s.lastRequest !== null &&
+        // PHASE 260. ⌘E in a project with no tabs reopens the last file OF
+        // THIS PROJECT, never another project's, which would switch projects
+        // under a gesture that only asked for the panel.
+        projectOf(s.lastRequest) === s.projectId
+      ) {
         s.openFromRequest(s.lastRequest);
       }
     },
@@ -937,6 +1203,60 @@ export const useEditor = create<EditorState>((set, get) => {
     activeTab() {
       const s = get();
       return s.tabs.find((t) => t.id === s.activeId) ?? null;
+    },
+
+    visibleTabs() {
+      const s = get();
+      return visibleTabsOf(s.tabs, s.projectId);
+    },
+
+    switchProject(projectId) {
+      const s = get();
+      if (projectId === s.projectId) return;
+      // The outgoing project's mirrors go into the maps first, so what a
+      // switch back finds is what was on screen at the moment of leaving.
+      const activeIdByProject = {
+        ...s.activeIdByProject,
+        [keyOf(s.projectId)]: s.activeId
+      };
+      const panelOpenByProject = {
+        ...s.panelOpenByProject,
+        [keyOf(s.projectId)]: s.panelOpen
+      };
+      const visible = visibleTabsOf(s.tabs, projectId);
+      const key = keyOf(projectId);
+      let activeId = activeIdByProject[key] ?? null;
+      if (activeId !== null && !visible.some((t) => t.id === activeId)) {
+        activeId = null;
+      }
+      if (activeId === null && visible.length > 0) {
+        activeId =
+          [...visible].sort((a, b) => b.lastUsed - a.lastUsed)[0]?.id ?? null;
+      }
+      // Research 119 §5.3: a project with no tabs shows no editor; one with
+      // tabs comes back as it was left, and a project never left is open.
+      const panelOpen = visible.length > 0 && (panelOpenByProject[key] ?? true);
+      activeIdByProject[key] = activeId;
+      panelOpenByProject[key] = panelOpen;
+      // NOTHING IS DISPOSED HERE. Not a model, not a view state, not a
+      // journal: the hidden project's tabs stay in `tabs` exactly as they are.
+      set({
+        projectId,
+        activeId,
+        panelOpen,
+        activeIdByProject,
+        panelOpenByProject
+      });
     }
   };
 });
+
+/**
+ * PHASE 260. The strip's own read of the current project's tabs. Shallow
+ * compared element by element, so a `patchTab` on a HIDDEN tab (a load
+ * landing, a watcher tick) produces the same visible array and redraws
+ * nothing on screen, while a patch to a visible tab still does.
+ */
+export function useVisibleTabs(): EditorTab[] {
+  return useEditor(useShallow((s) => visibleTabsOf(s.tabs, s.projectId)));
+}

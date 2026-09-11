@@ -90,7 +90,8 @@ beforeEach(() => {
     },
     cancelPointerDrag() {},
     focusFleetPrimary() {},
-    ensureEditorSubscribed() {}
+    ensureEditorSubscribed() {},
+    editorCloseProjectTabs() {}
   });
   useApp.setState({
     activeProjectId: 'p1',

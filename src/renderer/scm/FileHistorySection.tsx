@@ -23,7 +23,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GitGraphLogEntry, GitGraphLogFile } from '@shared/types';
-import { useEditor } from '../editor/store';
+import { useEditor, visibleTabsOf } from '../editor/store';
 import { useNow } from '../format';
 import { Codicon } from '../icons';
 import { useGit } from '../state/git';
@@ -65,7 +65,10 @@ export function FileHistorySection({
   // a file on another machine or the map keeps the file already followed,
   // and closing every tab lets it go.
   const activeId = useEditor((s) => s.activeId);
-  const tabCount = useEditor((s) => s.tabs.length);
+  // PHASE 260: the count is the active project's strip, so closing every tab
+  // of THIS project lets the followed file go while another project's hidden
+  // tabs stay open.
+  const tabCount = useEditor((s) => visibleTabsOf(s.tabs, s.projectId).length);
   const [followed, setFollowed] = useState<string | null>(() =>
     followableRel(repoPath)
   );

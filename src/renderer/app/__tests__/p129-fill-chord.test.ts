@@ -44,7 +44,12 @@ vi.mock('../../state/store', () => ({
   liveChromeGeometry: () => geometry
 }));
 
-const editor = { panelOpen: true, tabs: [{ id: 'a' }] as { id: string }[] };
+// PHASE 260: the chord reads the VISIBLE strip, which in this stub is `tabs`.
+const editor = {
+  panelOpen: true,
+  tabs: [{ id: 'a' }] as { id: string }[],
+  visibleTabs: (): { id: string }[] => editor.tabs
+};
 
 /**
  * The real `toggleEditorFill` writes `editorFill`. The stub does the same, so

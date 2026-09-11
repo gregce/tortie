@@ -133,7 +133,8 @@ beforeEach(() => {
     },
     cancelPointerDrag() {},
     focusFleetPrimary() {},
-    ensureEditorSubscribed() {}
+    ensureEditorSubscribed() {},
+    editorCloseProjectTabs() {}
   });
   registerTerminal(SESSION.id, fakeTerm);
   stage();

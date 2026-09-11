@@ -37,7 +37,10 @@ import type { EditorTab } from './store';
  */
 function tabMenuItems(tab: EditorTab): (MenuItemSpec | 'sep')[] {
   const ed = useEditor.getState();
-  const { tabs } = ed;
+  // PHASE 260. The counts are the STRIP's, being the active project's tabs
+  // and never a hidden project's (research 119 §4): Close Others, Close to
+  // the Right, Close Saved and Close All all act on what is on screen.
+  const tabs = ed.visibleTabs();
   return buildTabMenu(
     tab,
     {

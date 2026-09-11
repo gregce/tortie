@@ -833,6 +833,18 @@ export const CHECKS = [
   // Arm F is the fix round's own, and reads the cell rule off the running app
   // — 2 findings at the parent and 0 at HEAD.
   electron('probe:p247'),
+  // PHASE 260. Editor tabs follow the project: ONE launch on a scratch profile,
+  // a scratch HOME and its own socket, over three git projects it builds
+  // itself. It types, rewinds a redline change, switches projects and reads
+  // the strip empty, opens eleven files for keeps in the second project, comes
+  // back and reads the dirty dot, the baseline generation, ⌥⇧⌫ undoing the
+  // rewind and ⌘Z undoing the typing, presses a path in the first project's
+  // terminal that names a file in the second and reads it open under the
+  // second, closes the first project with its dirty tab and reads the prompt,
+  // then reads renderer memory at ten tabs in each of three projects against
+  // the Phase 167 plateau rule. At the parent the switch shows the first
+  // project's tabs under the second and the eleventh open evicts a hidden one.
+  electron('probe:p260'),
   // PHASE 248. The block that got the pane: ONE launch on a scratch profile, a
   // scratch HOME and its own socket, over a one-document project it writes
   // itself. It drags the editor's divider to four pane widths and reads the

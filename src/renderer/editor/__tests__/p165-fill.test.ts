@@ -15,7 +15,12 @@ const app = {
     app.editorFill = null;
   })
 };
-const editor = { panelOpen: true, tabs: [{}] as object[] };
+// PHASE 260: the fill reads the VISIBLE strip, which in this stub is `tabs`.
+const editor = {
+  panelOpen: true,
+  tabs: [{}] as object[],
+  visibleTabs: (): object[] => editor.tabs
+};
 const geometry = { windowWidth: 1600, workArea: 1200 };
 const overlay = { value: false };
 

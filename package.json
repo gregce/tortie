@@ -60,6 +60,7 @@
     "probe:p227": "npm run build && node build/harness-socket.mjs --fresh gmux-p227 'node build/probe-p227-rewind.mjs'",
     "probe:p240": "npm run build && node build/harness-socket.mjs --fresh gmux-p240 'node build/p240/save-choice.mjs'",
     "probe:p247": "npm run build && node build/harness-socket.mjs --fresh gmux-p247 'node build/p247/path-open.mjs'",
+    "probe:p260": "npm run build && node build/harness-socket.mjs --fresh gmux-p260 'node build/p260/probe-p260-tabs.mjs'",
     "probe:p248": "npm run build && node build/harness-socket.mjs --fresh gmux-p248 'node build/p248/probe-p248-wide.mjs'",
     "probe:p252": "npm run build && node build/harness-socket.mjs --fresh gmux-p252 'node build/p252/probe-p252-content.mjs'",
     "probe:p254": "npm run build && node build/harness-socket.mjs --fresh gmux-p254 'node build/p254/probe-p254-open.mjs'",

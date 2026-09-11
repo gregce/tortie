@@ -98,13 +98,18 @@ describe('the seam itself', () => {
     resetShellOps();
   });
 
-  it('defaults to four silent no-ops, so a missing install loses nothing loudly', () => {
+  it('defaults to five silent no-ops, so a missing install loses nothing loudly', () => {
     const ops = shellOps();
     expect(() => ops.showNativeMenu({ x: 0, y: 0, items: [] })).not.toThrow();
     expect(() => ops.cancelPointerDrag()).not.toThrow();
     expect(() => ops.focusFleetPrimary()).not.toThrow();
     expect(() => ops.ensureEditorSubscribed()).not.toThrow();
     expect(ops.showNativeMenu({ x: 0, y: 0, items: [] })).toBeUndefined();
+    // PHASE 260. The silent default completes at once, which is what the
+    // product did before the phase: a project closed with its tabs left.
+    const done = vi.fn();
+    ops.editorCloseProjectTabs('p1', done);
+    expect(done).toHaveBeenCalledTimes(1);
   });
 
   it('hands back what was installed', () => {
@@ -116,7 +121,8 @@ describe('the seam itself', () => {
       showNativeMenu,
       cancelPointerDrag,
       focusFleetPrimary,
-      ensureEditorSubscribed
+      ensureEditorSubscribed,
+      editorCloseProjectTabs() {}
     });
     const menu: MenuSpec = { x: 3, y: 4, items: [] };
     shellOps().showNativeMenu(menu);

@@ -190,7 +190,8 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       const ed = useEditor.getState();
       if (!ed.panelOpen) return;
       ed.closeActive();
-      if (useEditor.getState().tabs.length === 0) focusTerminal();
+      // PHASE 260: the strip that emptied is the active project's.
+      if (useEditor.getState().visibleTabs().length === 0) focusTerminal();
       return;
     }
     case 'toggle-editor': {

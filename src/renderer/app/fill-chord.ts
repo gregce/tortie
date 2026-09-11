@@ -114,7 +114,8 @@ function runEditorFill(): void {
     return;
   }
   const ed = useEditor.getState();
-  if (!ed.panelOpen || ed.tabs.length === 0) {
+  // PHASE 260: the strip on screen is the active project's.
+  if (!ed.panelOpen || ed.visibleTabs().length === 0) {
     app.toast('info', NO_FILE_TO_FILL);
     return;
   }

@@ -1,5 +1,6 @@
 /**
- * The four shell operations the store CALLS and does not OWN (Phase 127).
+ * The shell operations the store CALLS and does not OWN (Phase 127; four
+ * until Phase 260 added the fifth).
  *
  * THE RULE THIS FILE EXISTS FOR. The store is composed by the app shell and
  * by the editor, so it may not name either of them.
@@ -9,7 +10,7 @@
  * operation on the shell cannot move down, because it is the shell doing
  * something. It is injected here instead.
  *
- * HOW IT WORKS. This module holds one record of four functions, defaulted to
+ * HOW IT WORKS. This module holds one record of five functions, defaulted to
  * silent no-ops. The composition root fills it once, in
  * src/renderer/main.tsx, by calling `installShellOps` from
  * src/renderer/app/shell-ops-install.ts. Every store call site reads through
@@ -19,7 +20,7 @@
  * dependency is absent. `showNativeMenu` in src/renderer/app/ContextMenu.tsx
  * returns without drawing anything when the preload has no `popupMenu`, and
  * there is no DOM fallback, ever (DESIGN.md §3). The same shape holds here.
- * A unit test asserts main.tsx installs the real four, so a forgotten
+ * A unit test asserts main.tsx installs the real five, so a forgotten
  * installation fails a test rather than losing a menu in front of a person.
  */
 
@@ -41,13 +42,34 @@ export interface ShellOps {
    * is idempotent.
    */
   ensureEditorSubscribed(): void;
+  /**
+   * PHASE 260 (issue 19, research 119 §5.2). Close every editor tab that
+   * belongs to `projectId`, through the editor's own Save / Don't Save /
+   * Cancel prompt, and call `onClosed` ONLY once every one of them is gone.
+   *
+   * A project being closed is the ONE reason a project's tabs are closed
+   * because of the project; switching projects hides them and closes nothing.
+   * The callback is what lets `closeProject` remove the project AFTER the
+   * prompt rather than before it: a Cancel on any prompt stops the run, the
+   * callback never fires, and the project stays open with its tabs. Without
+   * that order a cancelled close would leave the tab in a project that no
+   * longer exists, invisible for ever.
+   *
+   * The silent default calls `onClosed` at once, which is what the product
+   * did before this phase: a project closed with its tabs left where they
+   * were.
+   */
+  editorCloseProjectTabs(projectId: string, onClosed: () => void): void;
 }
 
 const NO_OPS: ShellOps = {
   showNativeMenu() {},
   cancelPointerDrag() {},
   focusFleetPrimary() {},
-  ensureEditorSubscribed() {}
+  ensureEditorSubscribed() {},
+  editorCloseProjectTabs(_projectId, onClosed) {
+    onClosed();
+  }
 };
 
 let installed: ShellOps = NO_OPS;

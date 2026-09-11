@@ -83,7 +83,8 @@ installShellOps({
   showNativeMenu() {},
   cancelPointerDrag() {},
   focusFleetPrimary() {},
-  ensureEditorSubscribed: editorInit
+  ensureEditorSubscribed: editorInit,
+  editorCloseProjectTabs() {}
 });
 
 vi.stubGlobal('window', {

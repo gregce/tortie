@@ -28,7 +28,8 @@ export function toggleEditorFill(): void {
     return;
   }
   const ed = useEditor.getState();
-  if (!ed.panelOpen || ed.tabs.length === 0) return;
+  // PHASE 260: the strip on screen is the active project's.
+  if (!ed.panelOpen || ed.visibleTabs().length === 0) return;
   const { windowWidth, workArea } = liveChromeGeometry();
   if (editorIsOverlay(windowWidth, workArea)) return;
   app.enterEditorFill();
