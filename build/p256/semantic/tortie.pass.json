@@ -1,0 +1,226 @@
+{
+  "_what": "A PROTOTYPE SEMANTIC PASS over this repository, WRITTEN BY THE RESEARCHER BY HAND on 2026-09-10. It is not the output of any agent, no agent CLI was launched and no token was spent. It exists so the checker beside it has something real to bound, and so the phase can report how much of a hand-written semantic description deterministic evidence can actually hold.",
+  "_method": "Components, journeys and gates were written from READING the source, in the order a model with source access would: name the part by its job, say what it takes and gives, say where it runs, say what it keeps, say where it stops. Each claim then names the file:line the writer believed carried it. NOTHING was copied out of the fact base while writing; the citations are the writer's, and the checker's job is to say which of them the deterministic half can actually see.",
+  "_not_a_proposal": "This is not a proposed schema for docs/arch/. Research 66's pinned key set and refusal 8 are untouched; a direction that needs them moved says so in the research document and leaves the decision to the operator.",
+  "version": 1,
+  "repo": "tortie",
+  "head": "0ebcf9df550b5501e052c9a6d4546bcfe63d29cc",
+  "components": [
+    {
+      "id": "durable-sessions",
+      "name": "Sessions that outlive the window",
+      "job": "Keep a named terminal session alive across a quit, a crash and a reboot, in a tmux server the app does not own.",
+      "input": "a project folder, an agent choice and a name",
+      "output": "a live session the app can attach to and detach from without ending it",
+      "runsIn": "the private tmux server, spoken to from main",
+      "state": "the session itself, in tmux; nothing durable in the app",
+      "limit": "the app is a disposable client, so nothing here survives the tmux server being killed by hand",
+      "evidence": "composed",
+      "facts": [
+        { "at": "src/main/tmux/resolve.ts:311", "why": "main starts a tmux probe as a child of its own" },
+        { "at": "src/main/tmux/env.ts:49", "why": "the identity stamp every managed pane carries" },
+        { "at": "src/main/tmux/sessions.ts:85", "why": "the list format that reads @gmux-id back" }
+      ]
+    },
+    {
+      "id": "manifest",
+      "name": "The record that makes restore possible",
+      "job": "Remember every session's project, agent and resume argument so the app can put the world back after it is gone.",
+      "input": "session lifecycle events from main",
+      "output": "rows the restore pass reads at boot",
+      "runsIn": "main, in a SQLite file under the app's data directory",
+      "state": "sessions, projects, restore attempts, remote projects and remote executions",
+      "limit": "a row can outlive the tmux session it names, which is why restore asks tmux rather than trusting the row",
+      "evidence": "composed",
+      "facts": [
+        { "at": "src/main/manifest/schema.ts:28", "why": "the sessions table" },
+        { "at": "src/main/manifest/schema.ts:47", "why": "the projects table" },
+        { "at": "src/main/manifest/schema.ts:143", "why": "the restore journal" },
+        { "at": "src/main/manifest/restore-journal.ts:76", "why": "a restore attempt is written down before it is tried" }
+      ]
+    },
+    {
+      "id": "attach-host",
+      "name": "The pane you actually type into",
+      "job": "Give a window a real terminal attached to one durable session, and take it away again without ending the session.",
+      "input": "a session id and a size",
+      "output": "a pty the renderer draws",
+      "runsIn": "main, one pty per attached session",
+      "state": "none of its own; the scrollback lives in tmux",
+      "limit": "a pane's width is the window's, so a narrow window reflows the session's history",
+      "evidence": "composed",
+      "facts": [
+        { "at": "src/main/attach/attach-host.ts:228", "why": "the pty this product starts" },
+        { "at": "src/main/attach/attach-plan.ts:154", "why": "the plan is pure and starts nothing" }
+      ]
+    },
+    {
+      "id": "arch-reading",
+      "name": "The picture of the folder you are in",
+      "job": "Read a repository's tracked files and imports with no model and no turn, and draw what is made of what.",
+      "input": "a project root",
+      "output": "a partition, one sentence per box, and an import graph",
+      "runsIn": "main, off one file watcher subscription, with a worker pool for parsing",
+      "state": "a derived database that can be deleted without loss",
+      "limit": "every edge it can draw is an import, so a system whose parts talk over HTTP or a socket shows no connection at all",
+      "evidence": "composed",
+      "facts": [
+        { "at": "src/main/arch/scan.ts:1", "why": "the import scan" },
+        { "at": "src/main/arch/skeleton.ts:1", "why": "rule P, the reading partition" },
+        { "at": "src/main/arch/map.ts:1", "why": "the picture is composed here and nowhere else" }
+      ]
+    },
+    {
+      "id": "guarded-write",
+      "name": "The one door that rewrites your file",
+      "job": "Replace a file's bytes only when the bytes on disk are still the bytes the caller read.",
+      "input": "a path, a payload and the digest of what was read",
+      "output": "written, stale, raced, read-only or refused",
+      "runsIn": "main, synchronously, so the stat, the read and the digest describe one moment",
+      "state": "none; it stages beside the file and renames",
+      "limit": "a change of the same size inside one timestamp tick is invisible, which on this filesystem is a nanosecond",
+      "evidence": "component-tested",
+      "facts": [
+        { "at": "src/main/fs/guarded-write.ts:347", "why": "the whole channel is this one function" },
+        { "at": "src/main/fs/guarded-write.ts:391", "why": "the read refuses to follow a link" },
+        { "at": "src/main/fs/guarded-write.ts:468", "why": "the staged copy is created exclusively" }
+      ]
+    },
+    {
+      "id": "redline",
+      "name": "What the agent changed, drawn over what you had",
+      "job": "Show an agent's edit as a marking against a shadow copy of the file, and let a person take one change back or keep it.",
+      "input": "the file on disk and the baseline the tab is holding",
+      "output": "a drawn marking, and on a press either the file or the baseline rewritten",
+      "runsIn": "the renderer, writing through the guarded door",
+      "state": "the baseline, durable under the app's data directory",
+      "limit": "losing the baseline store loses the narrowing and nothing on disk, because the file is the file and git is the history",
+      "evidence": "component-tested",
+      "facts": [
+        { "at": "src/renderer/editor/redline-write.ts:117", "why": "the redline's one guarded write" },
+        { "at": "src/renderer/editor/redline-write.ts:89", "why": "a press asks the generation guard before it reads" }
+      ]
+    },
+    {
+      "id": "machines",
+      "name": "A folder on another machine, which feels like this one",
+      "job": "Run the same session and file work against a machine reached over ssh, without the surfaces saying they are remote.",
+      "input": "a confirmed machine and a folder on it",
+      "output": "sessions, trees, diffs and searches that read the same as local ones",
+      "runsIn": "main, through one exec plane that is the only place this product runs ssh",
+      "state": "remote projects and remote executions in the manifest, and a bounded local mirror for the architecture read",
+      "limit": "nothing Tortie writes runs on the machine beyond a fixed set of scripts, and the model slot stays local",
+      "evidence": "composed",
+      "facts": [
+        { "at": "src/main/machines/exec-plane.ts:604", "why": "one of the two places ssh is run" },
+        { "at": "src/main/machines/exec-plane.ts:750", "why": "the other one" },
+        { "at": "src/main/manifest/schema.ts:462", "why": "remote projects are remembered" }
+      ]
+    },
+    {
+      "id": "logins",
+      "name": "Which account an agent signs in as",
+      "job": "Let a person keep more than one vendor account and choose which one a session launches under, without a sign-in ever being performed by Tortie.",
+      "input": "a provider and a chosen login",
+      "output": "the environment a pane is launched with, and a credential kept for the account a store moved away from",
+      "runsIn": "main, with the keychain and the vendor's own store directories",
+      "state": "a login record, a scoped keychain item per login, and the vendor's own files",
+      "limit": "the person's own default location is read-only forever except on a deliberate switch, and there is no refresh and no rotation",
+      "evidence": "composed",
+      "facts": [
+        { "at": "src/main/logins/store.ts:656", "why": "the one delete, guarded by an ownership test" },
+        { "at": "src/main/credentials/nofollow.ts:35", "why": "an exclusive create so a planted link cannot take the write" }
+      ]
+    },
+    {
+      "id": "external-door",
+      "name": "Opening a file a transcript named",
+      "job": "Let a click on a path an agent printed open that file, without letting a click run a program.",
+      "input": "a path span found in a terminal row",
+      "output": "the file opened inside Tortie, or handed to the system for the one kind that is allowed",
+      "runsIn": "main answers the door; the renderer only underlines",
+      "state": "none",
+      "limit": "between the answer and the open the file at that path can be replaced, so the allowlist is one extension wide",
+      "evidence": "composed",
+      "facts": [
+        { "at": "src/shared/path-doors.ts:220", "why": "the allowlist is one kind" },
+        { "at": "src/shared/path-doors.ts:294", "why": "the allowlist is asked after the mode check" }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "start-and-return",
+      "name": "Start an agent on a project, quit, and come back to it",
+      "steps": [
+        { "componentId": "durable-sessions", "label": "Tortie creates a session in the private tmux server and stamps it with an id of its own", "facts": [{ "at": "src/main/tmux/env.ts:49", "why": "the stamp" }] },
+        { "componentId": "logins", "label": "the pane is launched under the login the person chose", "facts": [{ "at": "src/main/sessions/launch-plan.ts:321", "why": "the pane environment is composed here" }] },
+        { "componentId": "manifest", "label": "the row is written before anything can be lost", "facts": [{ "at": "src/main/manifest/schema.ts:28", "why": "the row" }] },
+        { "componentId": "attach-host", "label": "a pty attaches so the person can type", "facts": [{ "at": "src/main/attach/attach-host.ts:228", "why": "the pty" }] },
+        { "componentId": "manifest", "label": "after a reboot the restore pass reads the rows and asks tmux what is still there", "facts": [{ "at": "src/main/manifest/restore-journal.ts:76", "why": "the attempt is journalled" }] }
+      ]
+    },
+    {
+      "id": "agent-edit-narrowed",
+      "name": "An agent rewrites a file and you take one change back",
+      "steps": [
+        { "componentId": "redline", "label": "the watcher notices the file moved and the redline is drawn against the tab's baseline", "facts": [{ "at": "src/renderer/editor/redline-write.ts:89", "why": "the press asks the generation guard" }] },
+        { "componentId": "guarded-write", "label": "a rewind rewrites the file only if the bytes on disk are still the bytes that were read", "facts": [{ "at": "src/main/fs/guarded-write.ts:347", "why": "the channel" }] },
+        { "componentId": "redline", "label": "an accept moves the baseline instead and leaves the file alone", "facts": [{ "at": "src/renderer/editor/redline-write.ts:117", "why": "the one write" }] }
+      ]
+    },
+    {
+      "id": "remote-folder",
+      "name": "Open a folder on another machine and work in it",
+      "steps": [
+        { "componentId": "machines", "label": "the machine is confirmed once, out of band of any agent turn", "facts": [{ "at": "src/main/machines/exec-plane.ts:604", "why": "the one place ssh runs" }] },
+        { "componentId": "manifest", "label": "the remote project is remembered so it comes back", "facts": [{ "at": "src/main/manifest/schema.ts:462", "why": "the remote projects table" }] },
+        { "componentId": "arch-reading", "label": "the architecture read runs against a bounded mirror of that folder", "facts": [{ "at": "src/main/arch/map.ts:1", "why": "the same composer draws both" }] }
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "adopt-a-session",
+      "question": "Tortie finds a session in the private tmux server. Will it adopt it?",
+      "answer": "stops",
+      "because": "a session that carries neither an id option of ours nor the pane stamp is not ours, and is never adopted and never killed",
+      "facts": [{ "at": "src/main/tmux/sessions.ts:85", "why": "the id option is read on every list" }]
+    },
+    {
+      "id": "run-a-configured-agent",
+      "question": "A configuration file names an agent binary. Will Tortie launch it?",
+      "answer": "stops",
+      "because": "nothing starts on a configuration change alone; a person confirms the fields out of band and the agreement is bound to a hash of the fields that decide what runs",
+      "facts": [{ "at": "src/main/config/confirm.ts:454", "why": "the confirmed hash is the agreement" }]
+    },
+    {
+      "question": "You press save and the file changed on disk since Tortie read it. Will it be overwritten?",
+      "id": "save-over-a-change",
+      "answer": "stops",
+      "because": "the guarded door answers stale rather than writing, and the person is asked with Compare as the default",
+      "facts": [{ "at": "src/main/fs/guarded-write.ts:347", "why": "the precondition is a digest" }]
+    },
+    {
+      "id": "open-a-printed-path",
+      "question": "A transcript prints a path to a .command file and you click it. Will it run?",
+      "answer": "stops",
+      "because": "the mode is checked before the extension and the allowlist of kinds handed to the system is one extension wide",
+      "facts": [{ "at": "src/shared/path-doors.ts:220", "why": "the allowlist" }]
+    },
+    {
+      "id": "spawn-a-model-for-the-picture",
+      "question": "The architecture check finds the contract has drifted. Will a model be started?",
+      "answer": "uncertain",
+      "because": "only when an agent has been chosen in Settings, the confirm gate still holds at the spawn, the drift is real and the minimum interval has passed; otherwise nothing runs",
+      "facts": [{ "at": "src/main/overview/fold/spawn.ts:201", "why": "the one shot spawn" }]
+    },
+    {
+      "id": "write-a-credential",
+      "question": "You choose a different login while a session of that provider is running. Will the store be written?",
+      "answer": "uncertain",
+      "because": "it is written under the vendor's own locks, and a lock the vendor holds is a refusal naming the lock rather than a steal",
+      "facts": [{ "at": "src/main/credentials/nofollow.ts:35", "why": "the write stages exclusively" }]
+    }
+  ]
+}

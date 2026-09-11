@@ -1,0 +1,79 @@
+CHECKER over build/p256/semantic/tortie.pass.json
+
+claims: 41
+rule 1, the link resolves to a tracked line: 41/41 = 100.0%
+rule 2, the citation names a fact the deterministic pass emitted: 24/41 = 58.5%
+findings: 24
+
+2-citation-is-a-fact — 17
+  component manifest: src/main/manifest/schema.ts:47 is cited for any fact and the deterministic pass emitted no fact there at all
+  component attach-host: src/main/attach/attach-host.ts:228 is cited for any fact and the deterministic pass emitted no fact there at all
+  component arch-reading: src/main/arch/scan.ts:1 is cited for any fact and the deterministic pass emitted no fact there at all
+  component arch-reading: src/main/arch/skeleton.ts:1 is cited for any fact and the deterministic pass emitted no fact there at all
+  component arch-reading: src/main/arch/map.ts:1 is cited for any fact and the deterministic pass emitted no fact there at all
+  component guarded-write: src/main/fs/guarded-write.ts:391 is cited for any fact and the deterministic pass emitted no fact there at all
+  component guarded-write: src/main/fs/guarded-write.ts:468 is cited for any fact and the deterministic pass emitted no fact there at all
+  component redline: src/renderer/editor/redline-write.ts:117 is cited for any fact and the deterministic pass emitted no fact there at all
+  component machines: src/main/machines/exec-plane.ts:750 is cited for any fact and the deterministic pass emitted no fact there at all
+  component logins: src/main/credentials/nofollow.ts:35 is cited for any fact and the deterministic pass emitted no fact there at all
+  component external-door: src/shared/path-doors.ts:294 is cited for any fact and the deterministic pass emitted no fact there at all
+  journey start-and-return step 2: src/main/sessions/launch-plan.ts:321 is cited for any fact and the deterministic pass emitted no fact there at all
+  journey start-and-return step 4: src/main/attach/attach-host.ts:228 is cited for any fact and the deterministic pass emitted no fact there at all
+  journey agent-edit-narrowed step 3: src/renderer/editor/redline-write.ts:117 is cited for any fact and the deterministic pass emitted no fact there at all
+  journey remote-folder step 3: src/main/arch/map.ts:1 is cited for any fact and the deterministic pass emitted no fact there at all
+  gate run-a-configured-agent: src/main/config/confirm.ts:454 is cited for any fact and the deterministic pass emitted no fact there at all
+  gate write-a-credential: src/main/credentials/nofollow.ts:35 is cited for any fact and the deterministic pass emitted no fact there at all
+3-evidence-justified — 1
+  component arch-reading: "composed" needs at least one detected fact and none of its citations is one
+3-evidence-justified-weak — 2
+  component guarded-write: "component-tested" is justified only INDIRECTLY: 243 test facts sit in files under the same directories this component cites, and no citation is a test fact
+  component redline: "component-tested" is justified only INDIRECTLY: 907 test facts sit in files under the same directories this component cites, and no citation is a test fact
+7-gate-names-a-gate-fact — 4
+  gate adopt-a-session: src/main/tmux/sessions.ts:85 is a decl/constant fact, and this gate cites nothing the gate rules found
+  gate save-over-a-change: src/main/fs/guarded-write.ts:347 is a decl/function fact, and this gate cites nothing the gate rules found
+  gate open-a-printed-path: src/shared/path-doors.ts:220 is a decl/constant fact, and this gate cites nothing the gate rules found
+  gate spawn-a-model-for-the-picture: src/main/overview/fold/spawn.ts:201 is a decl/function fact, and this gate cites nothing the gate rules found
+
+CLAIM LEDGER
+
+BACKED | src/main/tmux/resolve.ts:311 | component durable-sessions | effect/spawn (effect.spawn.node)
+BACKED | src/main/tmux/env.ts:49 | component durable-sessions | decl/function (decl.symbol)
+BACKED | src/main/tmux/sessions.ts:85 | component durable-sessions | decl/constant (decl.symbol)
+BACKED | src/main/manifest/schema.ts:28 | component manifest | store/store-write (store.sql)
+RESOLVES, UNBACKED | src/main/manifest/schema.ts:47 | component manifest | 
+BACKED | src/main/manifest/schema.ts:143 | component manifest | store/store-write (store.sql)
+BACKED | src/main/manifest/restore-journal.ts:76 | component manifest | store/store-write (store.sql)
+RESOLVES, UNBACKED | src/main/attach/attach-host.ts:228 | component attach-host | 
+BACKED | src/main/attach/attach-plan.ts:154 | component attach-host | decl/function (decl.symbol)
+RESOLVES, UNBACKED | src/main/arch/scan.ts:1 | component arch-reading | 
+RESOLVES, UNBACKED | src/main/arch/skeleton.ts:1 | component arch-reading | 
+RESOLVES, UNBACKED | src/main/arch/map.ts:1 | component arch-reading | 
+BACKED | src/main/fs/guarded-write.ts:347 | component guarded-write | decl/function (decl.symbol)
+RESOLVES, UNBACKED | src/main/fs/guarded-write.ts:391 | component guarded-write | 
+RESOLVES, UNBACKED | src/main/fs/guarded-write.ts:468 | component guarded-write | 
+RESOLVES, UNBACKED | src/renderer/editor/redline-write.ts:117 | component redline | 
+BACKED | src/renderer/editor/redline-write.ts:89 | component redline | decl/function (decl.symbol)
+BACKED | src/main/machines/exec-plane.ts:604 | component machines | decl/function (decl.symbol)
+RESOLVES, UNBACKED | src/main/machines/exec-plane.ts:750 | component machines | 
+BACKED | src/main/manifest/schema.ts:462 | component machines | store/store-write (store.sql)
+BACKED | src/main/logins/store.ts:656 | component logins | effect/fs-write (effect.fs.write)
+RESOLVES, UNBACKED | src/main/credentials/nofollow.ts:35 | component logins | 
+BACKED | src/shared/path-doors.ts:220 | component external-door | decl/constant (decl.symbol)
+RESOLVES, UNBACKED | src/shared/path-doors.ts:294 | component external-door | 
+BACKED | src/main/tmux/env.ts:49 | journey start-and-return step 1 | decl/function (decl.symbol)
+RESOLVES, UNBACKED | src/main/sessions/launch-plan.ts:321 | journey start-and-return step 2 | 
+BACKED | src/main/manifest/schema.ts:28 | journey start-and-return step 3 | store/store-write (store.sql)
+RESOLVES, UNBACKED | src/main/attach/attach-host.ts:228 | journey start-and-return step 4 | 
+BACKED | src/main/manifest/restore-journal.ts:76 | journey start-and-return step 5 | store/store-write (store.sql)
+BACKED | src/renderer/editor/redline-write.ts:89 | journey agent-edit-narrowed step 1 | decl/function (decl.symbol)
+BACKED | src/main/fs/guarded-write.ts:347 | journey agent-edit-narrowed step 2 | decl/function (decl.symbol)
+RESOLVES, UNBACKED | src/renderer/editor/redline-write.ts:117 | journey agent-edit-narrowed step 3 | 
+BACKED | src/main/machines/exec-plane.ts:604 | journey remote-folder step 1 | decl/function (decl.symbol)
+BACKED | src/main/manifest/schema.ts:462 | journey remote-folder step 2 | store/store-write (store.sql)
+RESOLVES, UNBACKED | src/main/arch/map.ts:1 | journey remote-folder step 3 | 
+BACKED | src/main/tmux/sessions.ts:85 | gate adopt-a-session | decl/constant (decl.symbol)
+RESOLVES, UNBACKED | src/main/config/confirm.ts:454 | gate run-a-configured-agent | 
+BACKED | src/main/fs/guarded-write.ts:347 | gate save-over-a-change | decl/function (decl.symbol)
+BACKED | src/shared/path-doors.ts:220 | gate open-a-printed-path | decl/constant (decl.symbol)
+BACKED | src/main/overview/fold/spawn.ts:201 | gate spawn-a-model-for-the-picture | decl/function (decl.symbol)
+RESOLVES, UNBACKED | src/main/credentials/nofollow.ts:35 | gate write-a-credential | 

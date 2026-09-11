@@ -1,0 +1,15 @@
+RECALL against hand-enumerated ground truth
+
+repo | category | scope | ground truth | found | recall | extras in scope | enumeration still agrees
+tortie | surface | every invoke channel the product registers | 229 | 229 | 100.0% | 0 | yes
+gotify | surface | every route declared in the one router file | 44 | 40 | 90.9% | 0 | yes
+fastapi-app | surface | every route in the backend route package | 23 | 23 | 100.0% | 0 | yes
+mastodon | surface | every route declaration in the routes files | 450 | 450 | 100.0% | 3 | yes
+stoa | surface | every Next.js app-router HTTP handler | 362 | 362 | 100.0% | 3 | yes
+ripgrep | surface | every command-line flag the binary accepts | 108 | 0 | 0.0% | 0 | yes
+alamofire | test | every XCTest case function | 761 | 735 | 96.6% | 75 | yes
+mastodon | store | every table in the committed schema | 116 | 116 | 100.0% | 0 | yes
+requests | effect | every place the library itself reaches the network | 5 | 0 | 0.0% | 0 | yes
+babel | entrypoint | every package that installs a command | 4 | 4 | 100.0% | 0 | yes
+
+(“extras in scope” are facts of the matching kind inside the scope that name no ground-truth line; they are not necessarily wrong — a route rule may find a mount a line-based enumeration did not count.)

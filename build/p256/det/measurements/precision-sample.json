@@ -1,0 +1,3071 @@
+[
+ {
+  "id": "alamofire/boundary/0",
+  "repo": "alamofire",
+  "cat": "boundary",
+  "rule": "entrypoint.swiftpm.target",
+  "at": "Package.swift:34",
+  "subject": "swift library Alamofire",
+  "evidence": ".library(name: \"Alamofire\", targets: [\"Alamofire\"]),"
+ },
+ {
+  "id": "alamofire/boundary/1",
+  "repo": "alamofire",
+  "cat": "boundary",
+  "rule": "entrypoint.swiftpm.target",
+  "at": "Package.swift:35",
+  "subject": "swift library AlamofireDynamic",
+  "evidence": ".library(name: \"AlamofireDynamic\", type: .dynamic, targets: [\"Alamofire\"])"
+ },
+ {
+  "id": "alamofire/boundary/2",
+  "repo": "alamofire",
+  "cat": "boundary",
+  "rule": "entrypoint.swiftpm.target",
+  "at": "Package.swift:37",
+  "subject": "swift target Alamofire",
+  "evidence": "targets: [.target(name: \"Alamofire\","
+ },
+ {
+  "id": "alamofire/effect/0",
+  "repo": "alamofire",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "Example/Source/MasterViewController.swift:59",
+  "subject": "talks to https://httpbin.org/get",
+  "evidence": "return AF.request(\"https://httpbin.org/get\")"
+ },
+ {
+  "id": "alamofire/effect/1",
+  "repo": "alamofire",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "Example/Source/MasterViewController.swift:62",
+  "subject": "talks to https://httpbin.org/post",
+  "evidence": "return AF.request(\"https://httpbin.org/post\", method: .post)"
+ },
+ {
+  "id": "alamofire/effect/2",
+  "repo": "alamofire",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "Example/Source/MasterViewController.swift:65",
+  "subject": "talks to https://httpbin.org/put",
+  "evidence": "return AF.request(\"https://httpbin.org/put\", method: .put)"
+ },
+ {
+  "id": "alamofire/effect/3",
+  "repo": "alamofire",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "Example/Source/MasterViewController.swift:68",
+  "subject": "talks to https://httpbin.org/delete",
+  "evidence": "return AF.request(\"https://httpbin.org/delete\", method: .delete)"
+ },
+ {
+  "id": "alamofire/effect/4",
+  "repo": "alamofire",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "Example/Source/MasterViewController.swift:73",
+  "subject": "talks to https://httpbin.org/stream/1",
+  "evidence": "return AF.download(\"https://httpbin.org/stream/1\", to: destination)"
+ },
+ {
+  "id": "alamofire/effect/5",
+  "repo": "alamofire",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "Tests/MultipartFormDataTests.swift:825",
+  "subject": "talks to https://example.com/image.jpg",
+  "evidence": "let fileURL = URL(string: \"https://example.com/image.jpg\")!"
+ },
+ {
+  "id": "alamofire/entrypoint/0",
+  "repo": "alamofire",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:24",
+  "subject": "CI job macOS",
+  "evidence": "macOS:"
+ },
+ {
+  "id": "alamofire/entrypoint/1",
+  "repo": "alamofire",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:140",
+  "subject": "CI job iOS",
+  "evidence": "iOS:"
+ },
+ {
+  "id": "alamofire/entrypoint/2",
+  "repo": "alamofire",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:280",
+  "subject": "CI job visionOS",
+  "evidence": "visionOS:"
+ },
+ {
+  "id": "alamofire/entrypoint/3",
+  "repo": "alamofire",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:412",
+  "subject": "CI job SPM",
+  "evidence": "SPM:"
+ },
+ {
+  "id": "alamofire/entrypoint/4",
+  "repo": "alamofire",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:497",
+  "subject": "CI job Android",
+  "evidence": "Android:"
+ },
+ {
+  "id": "alamofire/entrypoint/5",
+  "repo": "alamofire",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:544",
+  "subject": "CI job CodeQL",
+  "evidence": "CodeQL:"
+ },
+ {
+  "id": "alamofire/gate/0",
+  "repo": "alamofire",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "docs/docsets/Alamofire.docset/Contents/Resources/Documents/js/jquery.min.js:2",
+  "subject": "refuses (abort)",
+  "evidence": "!function(e,t){\"use strict\";\"object\"==typeof module&&\"object\"==typeof module.exports?module.exports=e.document?t(e,!0):function(e){if(!e.document)throw new Error(\"jQuery requires a window with a docum"
+ },
+ {
+  "id": "alamofire/gate/1",
+  "repo": "alamofire",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "docs/docsets/Alamofire.docset/Contents/Resources/Documents/js/lunr.min.js:6",
+  "subject": "refuses: Cannot load unregistered function: ",
+  "evidence": "!function(){var e=function(t){var r=new e.Builder;return r.pipeline.add(e.trimmer,e.stopWordFilter,e.stemmer),r.searchPipeline.add(e.stemmer),t.call(r,r),r.build()};e.version=\"2.3.9\",e.utils={},e.util"
+ },
+ {
+  "id": "alamofire/gate/2",
+  "repo": "alamofire",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "docs/js/jquery.min.js:2",
+  "subject": "refuses: Syntax error, unrecognized expression: ",
+  "evidence": "!function(e,t){\"use strict\";\"object\"==typeof module&&\"object\"==typeof module.exports?module.exports=e.document?t(e,!0):function(e){if(!e.document)throw new Error(\"jQuery requires a window with a docum"
+ },
+ {
+  "id": "alamofire/gate/3",
+  "repo": "alamofire",
+  "cat": "gate",
+  "rule": "gate.flag",
+  "at": "docs/js/typeahead.jquery.js:1347",
+  "subject": "feature flag this.isEnabled",
+  "evidence": "} else if (!this.isEnabled() || this.eventBus.before(\"active\")) {"
+ },
+ {
+  "id": "alamofire/gate/4",
+  "repo": "alamofire",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "Tests/AuthenticationInterceptorTests.swift:78",
+  "subject": "auth gate .authorization",
+  "evidence": "urlRequest.headers.add(.authorization(credential.accessToken))"
+ },
+ {
+  "id": "alamofire/gate/5",
+  "repo": "alamofire",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "Tests/AuthenticationTests.swift:160",
+  "subject": "auth gate session.request(endpoint) .authenticate",
+  "evidence": "session.request(endpoint)"
+ },
+ {
+  "id": "alamofire/surface/0",
+  "repo": "alamofire",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "docs/docsets/Alamofire.docset/Contents/Resources/Documents/js/jazzy.js:38",
+  "subject": "handles hashchange",
+  "evidence": "$(window).on('hashchange', openCurrentItemIfClosed);"
+ },
+ {
+  "id": "alamofire/surface/1",
+  "repo": "alamofire",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "docs/docsets/Alamofire.docset/Contents/Resources/Documents/js/jquery.min.js:2",
+  "subject": "handles ie.load",
+  "evidence": "!function(e,t){\"use strict\";\"object\"==typeof module&&\"object\"==typeof module.exports?module.exports=e.document?t(e,!0):function(e){if(!e.document)throw new Error(\"jQuery requires a window with a docum"
+ },
+ {
+  "id": "alamofire/surface/2",
+  "repo": "alamofire",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "docs/docsets/Alamofire.docset/Contents/Resources/Documents/js/typeahead.jquery.js:595",
+  "subject": "handles input.input.tt",
+  "evidence": "this.$input.on(\"input.tt\", onInput);"
+ },
+ {
+  "id": "alamofire/surface/3",
+  "repo": "alamofire",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "docs/js/jazzy.js:38",
+  "subject": "handles hashchange",
+  "evidence": "$(window).on('hashchange', openCurrentItemIfClosed);"
+ },
+ {
+  "id": "alamofire/surface/4",
+  "repo": "alamofire",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "docs/js/jquery.min.js:2",
+  "subject": "handles ie.load",
+  "evidence": "!function(e,t){\"use strict\";\"object\"==typeof module&&\"object\"==typeof module.exports?module.exports=e.document?t(e,!0):function(e){if(!e.document)throw new Error(\"jQuery requires a window with a docum"
+ },
+ {
+  "id": "alamofire/surface/5",
+  "repo": "alamofire",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "docs/js/typeahead.jquery.js:595",
+  "subject": "handles input.input.tt",
+  "evidence": "this.$input.on(\"input.tt\", onInput);"
+ },
+ {
+  "id": "alamofire/test/0",
+  "repo": "alamofire",
+  "cat": "test",
+  "rule": "test.swiftpm.target",
+  "at": "Package.swift:47",
+  "subject": "swift test target AlamofireTests",
+  "evidence": ".testTarget(name: \"AlamofireTests\","
+ },
+ {
+  "id": "alamofire/test/1",
+  "repo": "alamofire",
+  "cat": "test",
+  "rule": "test.swift.func",
+  "at": "Tests/ConcurrencyTests.swift:584",
+  "subject": "test testThatDataStreamTaskCanStreamDecodable",
+  "evidence": "func testThatDataStreamTaskCanStreamDecodable() async {"
+ },
+ {
+  "id": "alamofire/test/2",
+  "repo": "alamofire",
+  "cat": "test",
+  "rule": "test.swift.func",
+  "at": "Tests/NetworkReachabilityManagerTests.swift:276",
+  "subject": "test testThatStatusIsReachableOnWiFiStatusWhenConnectionIsOnTraffic",
+  "evidence": "func testThatStatusIsReachableOnWiFiStatusWhenConnectionIsOnTraffic() {"
+ },
+ {
+  "id": "alamofire/test/3",
+  "repo": "alamofire",
+  "cat": "test",
+  "rule": "test.swift.func",
+  "at": "Tests/ParameterEncodingTests.swift:548",
+  "subject": "test testJSONParameterEncodeComplexParameters",
+  "evidence": "func testJSONParameterEncodeComplexParameters() throws {"
+ },
+ {
+  "id": "alamofire/test/4",
+  "repo": "alamofire",
+  "cat": "test",
+  "rule": "test.swift.func",
+  "at": "Tests/ResponseSerializationTests.swift:197",
+  "subject": "test testThatStringResponseSerializerSucceedsWithUTF8DataUsingResponseTextEncodingName",
+  "evidence": "func testThatStringResponseSerializerSucceedsWithUTF8DataUsingResponseTextEncodingName() {"
+ },
+ {
+  "id": "alamofire/test/5",
+  "repo": "alamofire",
+  "cat": "test",
+  "rule": "test.swift.func",
+  "at": "Tests/ServerTrustEvaluatorTests.swift:1248",
+  "subject": "test testThatPinningLeafKeyWithoutCertificateChainValidationPassesEvaluationWithExpiredLeafCertificate",
+  "evidence": "func testThatPinningLeafKeyWithoutCertificateChainValidationPassesEvaluationWithExpiredLeafCertificate() {"
+ },
+ {
+  "id": "babel/boundary/0",
+  "repo": "babel",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "codemods/babel-plugin-codemod-object-assign-to-object-spread/src/index.ts:1",
+  "subject": "module root codemods/babel-plugin-codemod-object-assign-to-object-spread/src/index.ts",
+  "evidence": "codemods/babel-plugin-codemod-object-assign-to-object-spread/src/index.ts"
+ },
+ {
+  "id": "babel/boundary/1",
+  "repo": "babel",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "packages/babel-helper-module-imports/src/index.ts:1",
+  "subject": "module root packages/babel-helper-module-imports/src/index.ts",
+  "evidence": "packages/babel-helper-module-imports/src/index.ts"
+ },
+ {
+  "id": "babel/boundary/2",
+  "repo": "babel",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "packages/babel-plugin-proposal-decorators/src/index.ts:1",
+  "subject": "module root packages/babel-plugin-proposal-decorators/src/index.ts",
+  "evidence": "packages/babel-plugin-proposal-decorators/src/index.ts"
+ },
+ {
+  "id": "babel/boundary/3",
+  "repo": "babel",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "packages/babel-plugin-syntax-typescript/src/index.ts:1",
+  "subject": "module root packages/babel-plugin-syntax-typescript/src/index.ts",
+  "evidence": "packages/babel-plugin-syntax-typescript/src/index.ts"
+ },
+ {
+  "id": "babel/boundary/4",
+  "repo": "babel",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "packages/babel-plugin-transform-modules-amd/src/index.ts:1",
+  "subject": "module root packages/babel-plugin-transform-modules-amd/src/index.ts",
+  "evidence": "packages/babel-plugin-transform-modules-amd/src/index.ts"
+ },
+ {
+  "id": "babel/boundary/5",
+  "repo": "babel",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "packages/babel-plugin-transform-spread/src/index.ts:1",
+  "subject": "module root packages/babel-plugin-transform-spread/src/index.ts",
+  "evidence": "packages/babel-plugin-transform-spread/src/index.ts"
+ },
+ {
+  "id": "babel/effect/0",
+  "repo": "babel",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": ".yarn/releases/yarn-4.17.0.cjs:448",
+  "subject": "talks to https://repo.yarnpkg.com/tags",
+  "evidence": "`,examples:[[\"Explain the corresponding peer requirement for a hash\",\"$0 explain peer-requirements p1a4ed\"],[\"List all peer requirements\",\"$0 explain peer-requirements\"]]})}async execute(){let r=await"
+ },
+ {
+  "id": "babel/effect/1",
+  "repo": "babel",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "Makefile.source.ts:204",
+  "subject": "writes the filesystem (writeFileSync)",
+  "evidence": "writeFileSync("
+ },
+ {
+  "id": "babel/effect/2",
+  "repo": "babel",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "packages/babel-helper-transform-fixture-test-runner/src/index.ts:620",
+  "subject": "writes the filesystem (writeFileSync)",
+  "evidence": "fs.writeFileSync(filePath, data);"
+ },
+ {
+  "id": "babel/effect/3",
+  "repo": "babel",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "packages/babel-plugin-transform-json-modules/test/fixtures/browser-and-node-esm/import-meta-resolve-fallback-for-node/output.mjs:1",
+  "subject": "HTTP client call",
+  "evidence": "const j = await (typeof process === \"object\" && process.versions?.node ? Promise.all([import(\"fs\"), import(\"module\")]).then(([fs, module]) => fs.promises.readFile(module.createRequire(import.meta.url)"
+ },
+ {
+  "id": "babel/effect/4",
+  "repo": "babel",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "packages/babel-plugin-transform-typescript/src/index.ts:584",
+  "subject": "writes the filesystem (remove)",
+  "evidence": "path.remove();"
+ },
+ {
+  "id": "babel/effect/5",
+  "repo": "babel",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "scripts/babel-plugin-toggle-boolean-flag/plugin.ts:123",
+  "subject": "writes the filesystem (remove)",
+  "evidence": "path.remove();"
+ },
+ {
+  "id": "babel/entrypoint/0",
+  "repo": "babel",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/agent-scan.yml:16",
+  "subject": "CI job agentscan",
+  "evidence": "agentscan:"
+ },
+ {
+  "id": "babel/entrypoint/1",
+  "repo": "babel",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/release.yml:58",
+  "subject": "CI job git-version",
+  "evidence": "git-version:"
+ },
+ {
+  "id": "babel/entrypoint/2",
+  "repo": "babel",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.main",
+  "at": "packages/babel-helper-fixtures/package.json:16",
+  "subject": "node entry ./lib/index.js",
+  "evidence": "\"main\": \"./lib/index.js\","
+ },
+ {
+  "id": "babel/entrypoint/3",
+  "repo": "babel",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.main",
+  "at": "packages/babel-plugin-proposal-function-bind/package.json:15",
+  "subject": "node entry ./lib/index.js",
+  "evidence": "\"main\": \"./lib/index.js\","
+ },
+ {
+  "id": "babel/entrypoint/4",
+  "repo": "babel",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.main",
+  "at": "packages/babel-plugin-transform-computed-properties/package.json:15",
+  "subject": "node entry ./lib/index.js",
+  "evidence": "\"main\": \"./lib/index.js\","
+ },
+ {
+  "id": "babel/entrypoint/5",
+  "repo": "babel",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.main",
+  "at": "packages/babel-plugin-transform-private-methods/package.json:15",
+  "subject": "node entry ./lib/index.js",
+  "evidence": "\"main\": \"./lib/index.js\","
+ },
+ {
+  "id": "babel/gate/0",
+  "repo": "babel",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": ".yarn/plugins/@yarnpkg/plugin-babel-release-tool.cjs:6",
+  "subject": "refuses: channel and label counts mismatch: ",
+  "evidence": "var plugin=(()=>{var L7=Object.create;var wu=Object.defineProperty;var N7=Object.getOwnPropertyDescriptor;var W7=Object.getOwnPropertyNames;var U7=Object.getPrototypeOf,G7=Object.prototype.hasOwnPrope"
+ },
+ {
+  "id": "babel/gate/1",
+  "repo": "babel",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": ".yarn/releases/yarn-4.17.0.cjs:593",
+  "subject": "refuses: Assertion failed: Expected ${t.locator} to have been registered",
+  "evidence": "`:\"\")};var Nb=(s=>(s.WORKSPACES=\"workspaces\",s.DEPENDENCIES=\"dependencies\",s.NONE=\"none\",s))(Nb||{}),Vwe=\"node_modules\",ng=\"$wsroot$\";var Ob=(e,t)=>{let{packageTree:r,hoistingLimits:s,errors:a,preserv"
+ },
+ {
+  "id": "babel/gate/2",
+  "repo": "babel",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "packages/babel-compat-data/scripts/build-data.mjs:32",
+  "subject": "refuses: Cannot update ${dataURL}",
+  "evidence": "throw new Error(`Cannot update ${dataURL}`);"
+ },
+ {
+  "id": "babel/gate/3",
+  "repo": "babel",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "packages/babel-parser/src/options.ts:273",
+  "subject": "refuses: With a `startLine > 1` you must also specify `startIndex` and `startColumn`.",
+  "evidence": "throw new Error("
+ },
+ {
+  "id": "babel/gate/4",
+  "repo": "babel",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "packages/babel-parser/src/plugins/typescript/index.ts:1288",
+  "subject": "refuses (raise)",
+  "evidence": "this.raise(TSErrors.InvalidTupleMemberLabel, type);"
+ },
+ {
+  "id": "babel/gate/5",
+  "repo": "babel",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "packages/babel-plugin-transform-regenerator/test/fixtures/misc/regenerator-tests/input.js:2473",
+  "subject": "refuses (raise)",
+  "evidence": "raise(e2);"
+ },
+ {
+  "id": "babel/store/0",
+  "repo": "babel",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": ".yarn/releases/yarn-4.17.0.cjs:308",
+  "subject": "writes Node (create)",
+  "evidence": "`)});var JIe=G((w7t,KIe)=>{\"use strict\";var VIe=\"[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]\",Qft=e=>e&&e.exact?new RegExp(`^${VIe}$`):new RegExp(VIe,\"g\");KIe.exports=Qft});var Fq=G((B7t,$Ie)=>{\"use strict\";var Tf"
+ },
+ {
+  "id": "babel/store/1",
+  "repo": "babel",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": ".yarn/releases/yarn-4.17.0.cjs:676",
+  "subject": "writes ZF (delete)",
+  "evidence": "`).join(\"\")}`,{unqualifiedPath:Te,extensions:Qe})}}function it(Fe,Qe,Se){if(!Qe)throw new Error(\"Assertion failed: An issuer is required to resolve private import mappings\");let je=I1e({name:Fe,base:("
+ },
+ {
+  "id": "babel/store/2",
+  "repo": "babel",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "packages/babel-core/src/config/files/module-types.ts:33",
+  "subject": "writes LOADING_CJS_FILES (delete)",
+  "evidence": "LOADING_CJS_FILES.delete(filepath);"
+ },
+ {
+  "id": "babel/store/3",
+  "repo": "babel",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "packages/babel-plugin-transform-class-properties/test/fixtures/private/instance/exec.js:34",
+  "subject": "writes Foo (update)",
+  "evidence": "Foo.update(f);"
+ },
+ {
+  "id": "babel/store/4",
+  "repo": "babel",
+  "cat": "store",
+  "rule": "store.kv",
+  "at": "packages/babel-register/src/worker/cache.ts:85",
+  "subject": "writes cache",
+  "evidence": "this.cache.set(item.key, item.data);"
+ },
+ {
+  "id": "babel/store/5",
+  "repo": "babel",
+  "cat": "store",
+  "rule": "store.kv",
+  "at": "packages/babel-register/test/cache.skip-bundled.js:97",
+  "subject": "writes cache[c]",
+  "evidence": "await cache.set(\"c\", \"c\".repeat(1024));"
+ },
+ {
+  "id": "babel/surface/0",
+  "repo": "babel",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/lock.yml:4",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "babel/surface/1",
+  "repo": "babel",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": ".yarn/plugins/@yarnpkg/plugin-babel-release-tool.cjs:51",
+  "subject": "handles this.error",
+  "evidence": "\\v\\f\\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\\x1B\u001c\u001d\u001e\u001f !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\xA5]^_\\`abcdefghijklmnopqrstuvwxyz{|}\\u203E\\x7F\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFF"
+ },
+ {
+  "id": "babel/surface/2",
+  "repo": "babel",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": ".yarn/releases/yarn-4.17.0.cjs:755",
+  "subject": "handles process.beforeExit",
+  "evidence": "Please report this issue at https://github.com/yarnpkg/berry/issues.`)}process.once(\"beforeExit\",n);try{process.exitCode=42,process.exitCode=await Cbt(a,e,{selfPath:r,pluginConfiguration:s})}catch(c){"
+ },
+ {
+  "id": "babel/surface/3",
+  "repo": "babel",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "benchmark/util.mjs:43",
+  "subject": "handles suite.error",
+  "evidence": "this.suite.on(\"error\", function (event) {"
+ },
+ {
+  "id": "babel/surface/4",
+  "repo": "babel",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "Makefile.js:36",
+  "subject": "handles i.close",
+  "evidence": "/*! run-parallel. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */var ar,cr={};function lr(){if(ar)return cr;ar=1,Object.defineProperty(cr,\"__esModule\",{value:!0}),cr.IS_SUPPORT_REA"
+ },
+ {
+  "id": "babel/surface/5",
+  "repo": "babel",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "packages/babel-node/src/babel-node.ts:162",
+  "subject": "handles process.exit",
+  "evidence": "process.on(\"exit\", function () {"
+ },
+ {
+  "id": "babel/test/0",
+  "repo": "babel",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "eslint/babel-eslint-parser/test/index.js:64",
+  "subject": "describe \"Babel and Espree\"",
+  "evidence": "describe(\"Babel and Espree\", () => {"
+ },
+ {
+  "id": "babel/test/1",
+  "repo": "babel",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "packages/babel-core/test/async.js:319",
+  "subject": "describe \".mjs files\"",
+  "evidence": "describe(\".mjs files\", () => {"
+ },
+ {
+  "id": "babel/test/2",
+  "repo": "babel",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "packages/babel-helper-compilation-targets/test/targets-parser.spec.js:244",
+  "subject": "it \"returns browsers supporting modules, intersect with browsers key\"",
+  "evidence": "it(\"returns browsers supporting modules, intersect with browsers key\", () => {"
+ },
+ {
+  "id": "babel/test/3",
+  "repo": "babel",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "packages/babel-plugin-transform-regenerator/test/fixtures/misc/regenerator-tests/input.js:2019",
+  "subject": "it \"should receive different sent values\"",
+  "evidence": "it(\"should receive different sent values\", function () {"
+ },
+ {
+  "id": "babel/test/4",
+  "repo": "babel",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "packages/babel-preset-env/test/normalize-options.skip-bundled.js:129",
+  "subject": "it \"should not throw if no duplicate names in both\"",
+  "evidence": "it(\"should not throw if no duplicate names in both\", function () {"
+ },
+ {
+  "id": "babel/test/5",
+  "repo": "babel",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "packages/babel-traverse/test/path/index.js:77",
+  "subject": "it \"methods babel 8\"",
+  "evidence": "it(\"methods babel 8\", () => {"
+ },
+ {
+  "id": "fastapi-app/boundary/0",
+  "repo": "fastapi-app",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "backend/app/__init__.py:1",
+  "subject": "module root backend/app/__init__.py",
+  "evidence": "backend/app/__init__.py"
+ },
+ {
+  "id": "fastapi-app/boundary/1",
+  "repo": "fastapi-app",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "backend/app/api/routes/__init__.py:1",
+  "subject": "module root backend/app/api/routes/__init__.py",
+  "evidence": "backend/app/api/routes/__init__.py"
+ },
+ {
+  "id": "fastapi-app/boundary/2",
+  "repo": "fastapi-app",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "backend/tests/__init__.py:1",
+  "subject": "module root backend/tests/__init__.py",
+  "evidence": "backend/tests/__init__.py"
+ },
+ {
+  "id": "fastapi-app/boundary/3",
+  "repo": "fastapi-app",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "backend/tests/api/routes/__init__.py:1",
+  "subject": "module root backend/tests/api/routes/__init__.py",
+  "evidence": "backend/tests/api/routes/__init__.py"
+ },
+ {
+  "id": "fastapi-app/boundary/4",
+  "repo": "fastapi-app",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "backend/tests/scripts/__init__.py:1",
+  "subject": "module root backend/tests/scripts/__init__.py",
+  "evidence": "backend/tests/scripts/__init__.py"
+ },
+ {
+  "id": "fastapi-app/boundary/5",
+  "repo": "fastapi-app",
+  "cat": "boundary",
+  "rule": "boundary.compose.service",
+  "at": "compose.yml:3",
+  "subject": "compose service proxy",
+  "evidence": "proxy:"
+ },
+ {
+  "id": "fastapi-app/effect/0",
+  "repo": "fastapi-app",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "hooks/post_gen_project.py:8",
+  "subject": "writes the filesystem (write_bytes)",
+  "evidence": "path.write_bytes(lf_data)"
+ },
+ {
+  "id": "fastapi-app/entrypoint/0",
+  "repo": "fastapi-app",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/add-to-project.yml:13",
+  "subject": "CI job add-to-project",
+  "evidence": "add-to-project:"
+ },
+ {
+  "id": "fastapi-app/entrypoint/1",
+  "repo": "fastapi-app",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/detect-conflicts.yml:10",
+  "subject": "CI job main",
+  "evidence": "main:"
+ },
+ {
+  "id": "fastapi-app/entrypoint/2",
+  "repo": "fastapi-app",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/playwright.yml:92",
+  "subject": "CI job merge-playwright-reports",
+  "evidence": "merge-playwright-reports:"
+ },
+ {
+  "id": "fastapi-app/entrypoint/3",
+  "repo": "fastapi-app",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/test-docker-compose.yml:13",
+  "subject": "CI job test-docker-compose",
+  "evidence": "test-docker-compose:"
+ },
+ {
+  "id": "fastapi-app/entrypoint/4",
+  "repo": "fastapi-app",
+  "cat": "entrypoint",
+  "rule": "entrypoint.py.script",
+  "at": "backend/pyproject.toml:82",
+  "subject": "command entrypoint → app.main:app",
+  "evidence": "entrypoint = \"app.main:app\""
+ },
+ {
+  "id": "fastapi-app/entrypoint/5",
+  "repo": "fastapi-app",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.script",
+  "at": "frontend/package.json:13",
+  "subject": "npm run test:ui",
+  "evidence": "\"test:ui\": \"bunx playwright test --ui\""
+ },
+ {
+  "id": "fastapi-app/gate/0",
+  "repo": "fastapi-app",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "backend/app/api/routes/login.py:30",
+  "subject": "auth gate crud.authenticate",
+  "evidence": "user = crud.authenticate("
+ },
+ {
+  "id": "fastapi-app/gate/1",
+  "repo": "fastapi-app",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "backend/tests/crud/test_user.py:33",
+  "subject": "auth gate crud.authenticate",
+  "evidence": "user = crud.authenticate(session=db, email=email, password=password)"
+ },
+ {
+  "id": "fastapi-app/gate/2",
+  "repo": "fastapi-app",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "backend/tests/crud/test_user.py:123",
+  "subject": "auth gate authenticated_user.hashed_password.startswith",
+  "evidence": "assert authenticated_user.hashed_password.startswith(\"$argon2\")"
+ },
+ {
+  "id": "fastapi-app/gate/3",
+  "repo": "fastapi-app",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "frontend/src/client/core/pathSerializer.gen.ts:119",
+  "subject": "refuses: Deeply-nested arrays/objects aren’t supported. Provide your own `querySerializer()` to han",
+  "evidence": "throw new Error("
+ },
+ {
+  "id": "fastapi-app/gate/4",
+  "repo": "fastapi-app",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "frontend/src/client/core/serverSentEvents.gen.ts:137",
+  "subject": "refuses: No body in SSE response",
+  "evidence": "if (!response.body) throw new Error('No body in SSE response');"
+ },
+ {
+  "id": "fastapi-app/gate/5",
+  "repo": "fastapi-app",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "frontend/src/components/ui/form.tsx:51",
+  "subject": "refuses: useFormField should be used within <FormField>",
+  "evidence": "throw new Error(\"useFormField should be used within <FormField>\")"
+ },
+ {
+  "id": "fastapi-app/store/0",
+  "repo": "fastapi-app",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "backend/app/alembic/versions/d98dd8ec85a3_edit_replace_id_integers_in_all_models_.py:31",
+  "subject": "UPDATE user",
+  "evidence": "op.execute('UPDATE \"user\" SET new_id = uuid_generate_v4()')"
+ },
+ {
+  "id": "fastapi-app/store/1",
+  "repo": "fastapi-app",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "backend/app/alembic/versions/d98dd8ec85a3_edit_replace_id_integers_in_all_models_.py:33",
+  "subject": "UPDATE item",
+  "evidence": "op.execute('UPDATE item SET new_owner_id = (SELECT new_id FROM \"user\" WHERE \"user\".id = item.owner_id)')"
+ },
+ {
+  "id": "fastapi-app/store/2",
+  "repo": "fastapi-app",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "backend/app/alembic/versions/d98dd8ec85a3_edit_replace_id_integers_in_all_models_.py:72",
+  "subject": "UPDATE item",
+  "evidence": "op.execute('UPDATE item SET old_id = nextval(\\'item_id_seq\\'), old_owner_id = (SELECT old_id FROM \"user\" WHERE \"user\".id = item.owner_id)')"
+ },
+ {
+  "id": "fastapi-app/store/3",
+  "repo": "fastapi-app",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "backend/app/api/routes/users.py:141",
+  "subject": "writes session (delete)",
+  "evidence": "session.delete(current_user)"
+ },
+ {
+  "id": "fastapi-app/store/4",
+  "repo": "fastapi-app",
+  "cat": "store",
+  "rule": "store.kv",
+  "at": "frontend/src/components/theme-provider.tsx:96",
+  "subject": "writes localStorage",
+  "evidence": "localStorage.setItem(storageKey, theme)"
+ },
+ {
+  "id": "fastapi-app/store/5",
+  "repo": "fastapi-app",
+  "cat": "store",
+  "rule": "store.kv",
+  "at": "frontend/src/hooks/useAuth.ts:57",
+  "subject": "writes localStorage[access_token]",
+  "evidence": "localStorage.removeItem(\"access_token\")"
+ },
+ {
+  "id": "fastapi-app/surface/0",
+  "repo": "fastapi-app",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/bump-pre-commit-hooks.yml:4",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "fastapi-app/surface/1",
+  "repo": "fastapi-app",
+  "cat": "surface",
+  "rule": "surface.http.decorator",
+  "at": "backend/app/api/routes/items.py:48",
+  "subject": "HTTP GET /{id}",
+  "evidence": "@router.get(\"/{id}\", response_model=ItemPublic)"
+ },
+ {
+  "id": "fastapi-app/surface/2",
+  "repo": "fastapi-app",
+  "cat": "surface",
+  "rule": "surface.http.decorator",
+  "at": "backend/app/api/routes/login.py:45",
+  "subject": "HTTP POST /login/test-token",
+  "evidence": "@router.post(\"/login/test-token\", response_model=UserPublic)"
+ },
+ {
+  "id": "fastapi-app/surface/3",
+  "repo": "fastapi-app",
+  "cat": "surface",
+  "rule": "surface.http.decorator",
+  "at": "backend/app/api/routes/users.py:32",
+  "subject": "HTTP GET /",
+  "evidence": "@router.get("
+ },
+ {
+  "id": "fastapi-app/surface/4",
+  "repo": "fastapi-app",
+  "cat": "surface",
+  "rule": "surface.http.decorator",
+  "at": "backend/app/api/routes/users.py:132",
+  "subject": "HTTP DELETE /me",
+  "evidence": "@router.delete(\"/me\", response_model=Message)"
+ },
+ {
+  "id": "fastapi-app/surface/5",
+  "repo": "fastapi-app",
+  "cat": "surface",
+  "rule": "surface.http.decorator",
+  "at": "backend/app/api/routes/utils.py:11",
+  "subject": "HTTP POST /test-email/",
+  "evidence": "@router.post("
+ },
+ {
+  "id": "fastapi-app/test/0",
+  "repo": "fastapi-app",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "backend/app/api/routes/login.py:46",
+  "subject": "test test_token",
+  "evidence": "def test_token(current_user: CurrentUser) -> Any:"
+ },
+ {
+  "id": "fastapi-app/test/1",
+  "repo": "fastapi-app",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "backend/tests/api/routes/test_login.py:165",
+  "subject": "test test_login_with_argon2_password_keeps_hash",
+  "evidence": "def test_login_with_argon2_password_keeps_hash(client: TestClient, db: Session) -> None:"
+ },
+ {
+  "id": "fastapi-app/test/2",
+  "repo": "fastapi-app",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "backend/tests/api/routes/test_users.py:384",
+  "subject": "test test_update_user_not_exists",
+  "evidence": "def test_update_user_not_exists("
+ },
+ {
+  "id": "fastapi-app/test/3",
+  "repo": "fastapi-app",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "frontend/tests/admin.spec.ts:21",
+  "subject": "test \"Create a new user successfully\"",
+  "evidence": "test(\"Create a new user successfully\", async ({ page }) => {"
+ },
+ {
+  "id": "fastapi-app/test/4",
+  "repo": "fastapi-app",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "frontend/tests/items.spec.ts:118",
+  "subject": "describe \"Items empty state\"",
+  "evidence": "test.describe(\"Items empty state\", () => {"
+ },
+ {
+  "id": "fastapi-app/test/5",
+  "repo": "fastapi-app",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "frontend/tests/sign-up.spec.ts:58",
+  "subject": "test \"Sign up with invalid email\"",
+  "evidence": "test(\"Sign up with invalid email\", async ({ page }) => {"
+ },
+ {
+  "id": "gotify/boundary/0",
+  "repo": "gotify",
+  "cat": "boundary",
+  "rule": "boundary.compose.service",
+  "at": "test/oidc/authelia/docker-compose.yml:2",
+  "subject": "compose service authelia",
+  "evidence": "authelia:"
+ },
+ {
+  "id": "gotify/boundary/1",
+  "repo": "gotify",
+  "cat": "boundary",
+  "rule": "boundary.compose.service",
+  "at": "test/oidc/dex/docker-compose.yml:2",
+  "subject": "compose service dex",
+  "evidence": "dex:"
+ },
+ {
+  "id": "gotify/effect/0",
+  "repo": "gotify",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "api/application_test.go:762",
+  "subject": "writes the filesystem (WriteFile)",
+  "evidence": "err = os.WriteFile(path, data, 0o644)"
+ },
+ {
+  "id": "gotify/effect/1",
+  "repo": "gotify",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "api/stream/stream_test.go:490",
+  "subject": "talks to http://go.example.com",
+  "evidence": "req.Header.Set(\"Origin\", \"http://go.example.com\")"
+ },
+ {
+  "id": "gotify/effect/2",
+  "repo": "gotify",
+  "cat": "effect",
+  "rule": "effect.spawn.other",
+  "at": "plugin/compat/wrap_test.go:141",
+  "subject": "runs go",
+  "evidence": "exec.Command(\"go\", \"get\", \"-d\").Run()"
+ },
+ {
+  "id": "gotify/effect/3",
+  "repo": "gotify",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "router/router_test.go:268",
+  "subject": "talks to http://test123.com",
+  "evidence": "req.Header.Add(\"Origin\", \"http://test123.com\")"
+ },
+ {
+  "id": "gotify/effect/4",
+  "repo": "gotify",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "ui/src/client/ClientStore.ts:17",
+  "subject": "HTTP client call",
+  "evidence": "return axios"
+ },
+ {
+  "id": "gotify/effect/5",
+  "repo": "gotify",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "ui/src/plugin/PluginStore.ts:22",
+  "subject": "HTTP client call",
+  "evidence": "axios.get<IPlugin[]>(`${config.get('url')}plugin`).then((response) => response.data);"
+ },
+ {
+  "id": "gotify/entrypoint/0",
+  "repo": "gotify",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/build.yml:5",
+  "subject": "CI job gotify",
+  "evidence": "gotify:"
+ },
+ {
+  "id": "gotify/entrypoint/1",
+  "repo": "gotify",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "api/application_test.go:579",
+  "subject": "composes model.Application",
+  "evidence": "expected := &model.Application{"
+ },
+ {
+  "id": "gotify/entrypoint/2",
+  "repo": "gotify",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "database/application_test.go:74",
+  "subject": "composes model.Application",
+  "evidence": "assert.NoError(s.T(), s.db.CreateApplication(&model.Application{ID: 66, Token: \"token2\"}))"
+ },
+ {
+  "id": "gotify/entrypoint/3",
+  "repo": "gotify",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "database/migration_test.go:64",
+  "subject": "composes model.Application",
+  "evidence": "assert.Nil(s.T(), db.CreateApplication(&model.Application{"
+ },
+ {
+  "id": "gotify/entrypoint/4",
+  "repo": "gotify",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "plugin/manager.go:434",
+  "subject": "composes model.Application",
+  "evidence": "app := &model.Application{"
+ },
+ {
+  "id": "gotify/entrypoint/5",
+  "repo": "gotify",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "test/testdb/database_test.go:124",
+  "subject": "composes []*model.Application",
+  "evidence": "userTwoExpected := []*model.Application{{ID: 5, Token: \"app5\", UserID: 2, Internal: true, SortKey: \"a0\", CreatedAt: testdb.Now}}"
+ },
+ {
+  "id": "gotify/gate/0",
+  "repo": "gotify",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "api/application_test.go:418",
+  "subject": "refuses: file with key 'file' must be present",
+  "evidence": "assert.Equal(s.T(), s.ctx.Errors[0].Err, errors.New(\"file with key 'file' must be present\"))"
+ },
+ {
+  "id": "gotify/gate/1",
+  "repo": "gotify",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "api/oidc.go:439",
+  "subject": "refuses: subject claim was empty",
+  "evidence": "return nil, http.StatusInternalServerError, errors.New(\"subject claim was empty\")"
+ },
+ {
+  "id": "gotify/gate/2",
+  "repo": "gotify",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "api/stream/stream_test.go:478",
+  "subject": "auth gate isAllowedOrigin",
+  "evidence": "actual := isAllowedOrigin(req, nil)"
+ },
+ {
+  "id": "gotify/gate/3",
+  "repo": "gotify",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "auth/token_test.go:49",
+  "subject": "refuses: this reader cannot be read",
+  "evidence": "randReader = iotest.ErrReader(errors.New(\"this reader cannot be read\"))"
+ },
+ {
+  "id": "gotify/gate/4",
+  "repo": "gotify",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "plugin/manager_test.go:252",
+  "subject": "refuses: test error",
+  "evidence": "errExpected := errors.New(\"test error\")"
+ },
+ {
+  "id": "gotify/gate/5",
+  "repo": "gotify",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "ui/serve.go:60",
+  "subject": "refuses (panic)",
+  "evidence": "panic(err)"
+ },
+ {
+  "id": "gotify/store/0",
+  "repo": "gotify",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "plugin/manager_test.go:532",
+  "subject": "UPDATE plugin",
+  "evidence": "failUpdatePluginConf: errors.New(\"update plugin conf failed\"),"
+ },
+ {
+  "id": "gotify/store/1",
+  "repo": "gotify",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "plugin/manager_test.go:542",
+  "subject": "UPDATE plugin",
+  "evidence": "assert.EqualError(t, manager.InitializeForUserID(1), \"update plugin conf failed\")"
+ },
+ {
+  "id": "gotify/store/2",
+  "repo": "gotify",
+  "cat": "store",
+  "rule": "store.kv",
+  "at": "ui/src/layout/Layout.tsx:82",
+  "subject": "writes localStorage",
+  "evidence": "localStorage.setItem(localStorageThemeKey, next);"
+ },
+ {
+  "id": "gotify/surface/0",
+  "repo": "gotify",
+  "cat": "surface",
+  "rule": "surface.http.handlefunc",
+  "at": "api/oidc_test.go:82",
+  "subject": "HTTP /.well-known/openid-configuration",
+  "evidence": "mux.HandleFunc(\"/.well-known/openid-configuration\", func(w http.ResponseWriter, r *http.Request) {"
+ },
+ {
+  "id": "gotify/surface/1",
+  "repo": "gotify",
+  "cat": "surface",
+  "rule": "surface.http.method-call",
+  "at": "router/router.go:139",
+  "subject": "HTTP GET /docs",
+  "evidence": "g.GET(\"/docs\", docs.UI)"
+ },
+ {
+  "id": "gotify/surface/2",
+  "repo": "gotify",
+  "cat": "surface",
+  "rule": "surface.http.method-call",
+  "at": "router/router.go:178",
+  "subject": "HTTP GET version",
+  "evidence": "g.GET(\"version\", func(ctx *gin.Context) {"
+ },
+ {
+  "id": "gotify/surface/3",
+  "repo": "gotify",
+  "cat": "surface",
+  "rule": "surface.http.method-call",
+  "at": "router/router.go:220",
+  "subject": "HTTP DELETE (group root)",
+  "evidence": "tokenMessage.DELETE(\"\", messageHandler.DeleteMessageWithApplication)"
+ },
+ {
+  "id": "gotify/surface/4",
+  "repo": "gotify",
+  "cat": "surface",
+  "rule": "surface.http.method-call",
+  "at": "router/router.go:248",
+  "subject": "HTTP PUT /application/:id/security",
+  "evidence": "clientElevated.PUT(\"/application/:id/security\", applicationHandler.UpdateApplicationSecurity)"
+ },
+ {
+  "id": "gotify/surface/5",
+  "repo": "gotify",
+  "cat": "surface",
+  "rule": "surface.http.method-call",
+  "at": "ui/serve.go:56",
+  "subject": "HTTP GET /manifest.json",
+  "evidence": "ui.GET(\"/manifest.json\", serveFile(\"manifest.json\", \"application/json\", noop))"
+ },
+ {
+  "id": "gotify/test/0",
+  "repo": "gotify",
+  "cat": "test",
+  "rule": "test.go.func",
+  "at": "api/application_test.go:26",
+  "subject": "Test ApplicationSuite",
+  "evidence": "func TestApplicationSuite(t *testing.T) {"
+ },
+ {
+  "id": "gotify/test/1",
+  "repo": "gotify",
+  "cat": "test",
+  "rule": "test.go.func",
+  "at": "database/database_test.go:43",
+  "subject": "Test InvalidDialect",
+  "evidence": "func TestInvalidDialect(t *testing.T) {"
+ },
+ {
+  "id": "gotify/test/2",
+  "repo": "gotify",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "fracdex/fracdex_test.go:107",
+  "subject": "test \"A20000000000000000000000000\"",
+  "evidence": "test(\"A20000000000000000000000000\", math.Pow(62.0, 25.0)*-2.0, \"\")"
+ },
+ {
+  "id": "gotify/test/3",
+  "repo": "gotify",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "ui/src/tests/application.test.ts:87",
+  "subject": "it \"server\"",
+  "evidence": "it('server', createApp('server', '#1'));"
+ },
+ {
+  "id": "gotify/test/4",
+  "repo": "gotify",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "ui/src/tests/elevation.test.ts:91",
+  "subject": "it \"elevates\"",
+  "evidence": "it('elevates', () => elevateViaForm('admin'));"
+ },
+ {
+  "id": "gotify/test/5",
+  "repo": "gotify",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "ui/src/tests/plugin.test.ts:80",
+  "subject": "describe \"plugin\"",
+  "evidence": "describe('plugin', () => {"
+ },
+ {
+  "id": "mastodon/boundary/0",
+  "repo": "mastodon",
+  "cat": "boundary",
+  "rule": "boundary.compose.service",
+  "at": ".devcontainer/compose.yaml:2",
+  "subject": "compose service app",
+  "evidence": "app:"
+ },
+ {
+  "id": "mastodon/boundary/1",
+  "repo": "mastodon",
+  "cat": "boundary",
+  "rule": "boundary.compose.service",
+  "at": ".devcontainer/compose.yaml:58",
+  "subject": "compose service es",
+  "evidence": "es:"
+ },
+ {
+  "id": "mastodon/boundary/2",
+  "repo": "mastodon",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "app/javascript/mastodon/components/sortable_list/index.ts:1",
+  "subject": "module root app/javascript/mastodon/components/sortable_list/index.ts",
+  "evidence": "app/javascript/mastodon/components/sortable_list/index.ts"
+ },
+ {
+  "id": "mastodon/boundary/3",
+  "repo": "mastodon",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "app/javascript/mastodon/features/ui/components/confirmation_modals/index.ts:1",
+  "subject": "module root app/javascript/mastodon/features/ui/components/confirmation_modals/index.ts",
+  "evidence": "app/javascript/mastodon/features/ui/components/confirmation_modals/index.ts"
+ },
+ {
+  "id": "mastodon/boundary/4",
+  "repo": "mastodon",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "app/javascript/mastodon/reducers/index.ts:1",
+  "subject": "module root app/javascript/mastodon/reducers/index.ts",
+  "evidence": "app/javascript/mastodon/reducers/index.ts"
+ },
+ {
+  "id": "mastodon/boundary/5",
+  "repo": "mastodon",
+  "cat": "boundary",
+  "rule": "boundary.worker",
+  "at": "app/javascript/mastodon/utils/workers.ts:16",
+  "subject": "starts a Worker",
+  "evidence": "return new Worker(url, options);"
+ },
+ {
+  "id": "mastodon/effect/0",
+  "repo": "mastodon",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": ".storybook/static/mockServiceWorker.js:238",
+  "subject": "HTTP client call",
+  "evidence": "return fetch(requestClone, { headers })"
+ },
+ {
+  "id": "mastodon/effect/1",
+  "repo": "mastodon",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "config/initializers/json_ld_identity.rb:29",
+  "subject": "talks to http://purl.org/dc/terms/created",
+  "evidence": "\"created\" => TermDefinition.new(\"created\", id: \"http://purl.org/dc/terms/created\", type_mapping: \"http://www.w3.org/2001/XMLSchema#dateTime\"),"
+ },
+ {
+  "id": "mastodon/effect/2",
+  "repo": "mastodon",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "spec/lib/activitypub/activity/add_spec.rb:7",
+  "subject": "talks to https://example.com/featured",
+  "evidence": "let(:sender) { Fabricate(:account, featured_collection_url: 'https://example.com/featured', domain: 'example.com') }"
+ },
+ {
+  "id": "mastodon/effect/3",
+  "repo": "mastodon",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "spec/lib/status_reach_finder_spec.rb:68",
+  "subject": "talks to https://foo.bar/inbox",
+  "evidence": "let(:bob) { Fabricate(:account, username: 'bob', domain: 'foo.bar', protocol: :activitypub, inbox_url: 'https://foo.bar/inbox') }"
+ },
+ {
+  "id": "mastodon/effect/4",
+  "repo": "mastodon",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "spec/services/activitypub/fetch_remote_actor_service_spec.rb:105",
+  "subject": "talks to https://example.com/alice",
+  "evidence": "expect(a_request(:get, 'https://example.com/alice')).to have_been_made.once"
+ },
+ {
+  "id": "mastodon/effect/5",
+  "repo": "mastodon",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "spec/services/fetch_link_card_service_spec.rb:262",
+  "subject": "talks to http://example.com/html",
+  "evidence": "expect(status.preview_card.url).to eq 'http://example.com/html'"
+ },
+ {
+  "id": "mastodon/entrypoint/0",
+  "repo": "mastodon",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/build-container-image.yml:28",
+  "subject": "CI job build-image",
+  "evidence": "build-image:"
+ },
+ {
+  "id": "mastodon/entrypoint/1",
+  "repo": "mastodon",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/build-releases.yml:12",
+  "subject": "CI job check-latest-stable",
+  "evidence": "check-latest-stable:"
+ },
+ {
+  "id": "mastodon/entrypoint/2",
+  "repo": "mastodon",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/chromatic.yml:12",
+  "subject": "CI job pathcheck",
+  "evidence": "pathcheck:"
+ },
+ {
+  "id": "mastodon/entrypoint/3",
+  "repo": "mastodon",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/lint-haml.yml:26",
+  "subject": "CI job lint",
+  "evidence": "lint:"
+ },
+ {
+  "id": "mastodon/entrypoint/4",
+  "repo": "mastodon",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/test-ruby.yml:20",
+  "subject": "CI job build",
+  "evidence": "build:"
+ },
+ {
+  "id": "mastodon/entrypoint/5",
+  "repo": "mastodon",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.script",
+  "at": "package.json:27",
+  "subject": "npm run start",
+  "evidence": "\"start\": \"node ./streaming/index.js\","
+ },
+ {
+  "id": "mastodon/gate/0",
+  "repo": "mastodon",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "app/controllers/accounts_controller.rb:12",
+  "subject": "auth gate authorized_fetch_mode?",
+  "evidence": "before_action :require_account_signature!, if: -> { request.format == :json && authorized_fetch_mode? }"
+ },
+ {
+  "id": "mastodon/gate/1",
+  "repo": "mastodon",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "app/controllers/api/v1/accounts/following_accounts_controller.rb:4",
+  "subject": "auth gate authorize_if_got_token!",
+  "evidence": "before_action -> { authorize_if_got_token! :read, :'read:accounts' }"
+ },
+ {
+  "id": "mastodon/gate/2",
+  "repo": "mastodon",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "app/controllers/api/v1/timelines/public_controller.rb:4",
+  "subject": "auth gate authorize_if_got_token!",
+  "evidence": "before_action -> { authorize_if_got_token! :read, :'read:statuses' }"
+ },
+ {
+  "id": "mastodon/gate/3",
+  "repo": "mastodon",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "app/lib/signed_request.rb:63",
+  "subject": "refuses: Digest header missing",
+  "evidence": "raise Mastodon::SignatureVerificationError, 'Digest header missing' unless @request.headers.key?('Digest')"
+ },
+ {
+  "id": "mastodon/gate/4",
+  "repo": "mastodon",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "app/workers/redownload_header_worker.rb:23",
+  "subject": "refuses (raise)",
+  "evidence": "raise(e) unless response_error_unsalvageable?(response)"
+ },
+ {
+  "id": "mastodon/gate/5",
+  "repo": "mastodon",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "spec/policies/account_policy_spec.rb:179",
+  "subject": "auth gate permit",
+  "evidence": "expect(subject).to_not permit(alice, john)"
+ },
+ {
+  "id": "mastodon/store/0",
+  "repo": "mastodon",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "app/controllers/settings/migration/redirects_controller.rb:1",
+  "subject": "migration app/controllers/settings/migration/redirects_controller.rb",
+  "evidence": "app/controllers/settings/migration/redirects_controller.rb"
+ },
+ {
+  "id": "mastodon/store/1",
+  "repo": "mastodon",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "db/migrate/20170425202925_add_oembed_to_preview_cards.rb:1",
+  "subject": "migration db/migrate/20170425202925_add_oembed_to_preview_cards.rb",
+  "evidence": "db/migrate/20170425202925_add_oembed_to_preview_cards.rb"
+ },
+ {
+  "id": "mastodon/store/2",
+  "repo": "mastodon",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "db/migrate/20181213185533_create_account_warning_presets.rb:1",
+  "subject": "migration db/migrate/20181213185533_create_account_warning_presets.rb",
+  "evidence": "db/migrate/20181213185533_create_account_warning_presets.rb"
+ },
+ {
+  "id": "mastodon/store/3",
+  "repo": "mastodon",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "db/migrate/20211031031021_create_preview_card_providers.rb:1",
+  "subject": "migration db/migrate/20211031031021_create_preview_card_providers.rb",
+  "evidence": "db/migrate/20211031031021_create_preview_card_providers.rb"
+ },
+ {
+  "id": "mastodon/store/4",
+  "repo": "mastodon",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "db/migrate/20240713171909_validate_add_application_to_reports.rb:1",
+  "subject": "migration db/migrate/20240713171909_validate_add_application_to_reports.rb",
+  "evidence": "db/migrate/20240713171909_validate_add_application_to_reports.rb"
+ },
+ {
+  "id": "mastodon/store/5",
+  "repo": "mastodon",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "db/migrate/20260611150940_add_missing_status_to_bulk_import.rb:1",
+  "subject": "migration db/migrate/20260611150940_add_missing_status_to_bulk_import.rb",
+  "evidence": "db/migrate/20260611150940_add_missing_status_to_bulk_import.rb"
+ },
+ {
+  "id": "mastodon/surface/0",
+  "repo": "mastodon",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/build-nightly.yml:4",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "mastodon/surface/1",
+  "repo": "mastodon",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "app/javascript/mastodon/features/ui/components/zoomable_image.tsx:108",
+  "subject": "handles document.gestureend",
+  "evidence": "document.addEventListener('gestureend', handler);"
+ },
+ {
+  "id": "mastodon/surface/2",
+  "repo": "mastodon",
+  "cat": "surface",
+  "rule": "surface.http.rails-routes",
+  "at": "config/routes.rb:219",
+  "subject": "HTTP GET followers",
+  "evidence": "get :followers"
+ },
+ {
+  "id": "mastodon/surface/3",
+  "repo": "mastodon",
+  "cat": "surface",
+  "rule": "surface.http.rails-routes",
+  "at": "config/routes/api.rb:15",
+  "subject": "HTTP resources collections",
+  "evidence": "resources :collections, only: [:index]"
+ },
+ {
+  "id": "mastodon/surface/4",
+  "repo": "mastodon",
+  "cat": "surface",
+  "rule": "surface.http.rails-routes",
+  "at": "config/routes/api.rb:261",
+  "subject": "HTTP resources accounts",
+  "evidence": "resource :accounts, only: [:show, :create, :destroy], module: :lists"
+ },
+ {
+  "id": "mastodon/surface/5",
+  "repo": "mastodon",
+  "cat": "surface",
+  "rule": "surface.cli.arg",
+  "at": "lib/mastodon/cli/accounts.rb:387",
+  "subject": "CLI flag :concurrency",
+  "evidence": "option :concurrency, type: :numeric, default: 5, aliases: [:c]"
+ },
+ {
+  "id": "mastodon/test/0",
+  "repo": "mastodon",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "app/javascript/mastodon/actions/timelines.test.ts:3",
+  "subject": "describe \"timelineKey\"",
+  "evidence": "describe('timelineKey', () => {"
+ },
+ {
+  "id": "mastodon/test/1",
+  "repo": "mastodon",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "spec/lib/feed_manager_spec.rb:393",
+  "subject": "context \"when replies policy is set to no replies\"",
+  "evidence": "context 'when replies policy is set to no replies' do"
+ },
+ {
+  "id": "mastodon/test/2",
+  "repo": "mastodon",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "spec/models/concerns/account/interactions_spec.rb:166",
+  "subject": "describe \"#block_idna_domain!\"",
+  "evidence": "describe '#block_idna_domain!' do"
+ },
+ {
+  "id": "mastodon/test/3",
+  "repo": "mastodon",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "spec/policies/instance_moderation_note_policy_spec.rb:29",
+  "subject": "context \"when admin and overrides\"",
+  "evidence": "context 'when admin and overrides' do"
+ },
+ {
+  "id": "mastodon/test/4",
+  "repo": "mastodon",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "spec/requests/api/v1/statuses/interaction_policies_spec.rb:5",
+  "subject": "describe \"Interaction policies\"",
+  "evidence": "RSpec.describe 'Interaction policies' do"
+ },
+ {
+  "id": "mastodon/test/5",
+  "repo": "mastodon",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "spec/services/activitypub/verify_quote_service_spec.rb:194",
+  "subject": "it \"does not update the status\"",
+  "evidence": "it 'does not update the status' do"
+ },
+ {
+  "id": "requests/boundary/0",
+  "repo": "requests",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "src/requests/__init__.py:1",
+  "subject": "module root src/requests/__init__.py",
+  "evidence": "src/requests/__init__.py"
+ },
+ {
+  "id": "requests/boundary/1",
+  "repo": "requests",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "tests/__init__.py:1",
+  "subject": "module root tests/__init__.py",
+  "evidence": "tests/__init__.py"
+ },
+ {
+  "id": "requests/boundary/2",
+  "repo": "requests",
+  "cat": "boundary",
+  "rule": "boundary.worker",
+  "at": "tests/conftest.py:61",
+  "subject": "starts a Thread",
+  "evidence": "server_thread = threading.Thread(target=server.serve_forever)"
+ },
+ {
+  "id": "requests/boundary/3",
+  "repo": "requests",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "tests/testserver/__init__.py:1",
+  "subject": "module root tests/testserver/__init__.py",
+  "evidence": "tests/testserver/__init__.py"
+ },
+ {
+  "id": "requests/effect/0",
+  "repo": "requests",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "src/requests/utils.py:321",
+  "subject": "writes the filesystem (write)",
+  "evidence": "os.write(fd, zip_file.read(member))"
+ },
+ {
+  "id": "requests/effect/1",
+  "repo": "requests",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "tests/test_requests.py:293",
+  "subject": "HTTP client call",
+  "evidence": "r = requests.post(httpbin(\"status\", \"302\"))"
+ },
+ {
+  "id": "requests/effect/2",
+  "repo": "requests",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "tests/test_requests.py:772",
+  "subject": "HTTP client call",
+  "evidence": "r = requests.get(url, auth=auth)"
+ },
+ {
+  "id": "requests/effect/3",
+  "repo": "requests",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "tests/test_requests.py:1082",
+  "subject": "HTTP client call",
+  "evidence": "r = requests.post("
+ },
+ {
+  "id": "requests/effect/4",
+  "repo": "requests",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "tests/test_requests.py:1859",
+  "subject": "HTTP client call",
+  "evidence": "requests.get(httpbin(\"get\"), headers=invalid_header)"
+ },
+ {
+  "id": "requests/effect/5",
+  "repo": "requests",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "tests/test_requests.py:2281",
+  "subject": "HTTP client call",
+  "evidence": "r = requests.Request(\"POST\", url, data=data)"
+ },
+ {
+  "id": "requests/entrypoint/0",
+  "repo": "requests",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/close-issues.yml:11",
+  "subject": "CI job close_qa",
+  "evidence": "close_qa:"
+ },
+ {
+  "id": "requests/entrypoint/1",
+  "repo": "requests",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/codeql-analysis.yml:21",
+  "subject": "CI job analyze",
+  "evidence": "analyze:"
+ },
+ {
+  "id": "requests/entrypoint/2",
+  "repo": "requests",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/lock-issues.yml:12",
+  "subject": "CI job action",
+  "evidence": "action:"
+ },
+ {
+  "id": "requests/entrypoint/3",
+  "repo": "requests",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/publish.yml:52",
+  "subject": "CI job publish",
+  "evidence": "publish:"
+ },
+ {
+  "id": "requests/entrypoint/4",
+  "repo": "requests",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/run-tests.yml:9",
+  "subject": "CI job build",
+  "evidence": "build:"
+ },
+ {
+  "id": "requests/entrypoint/5",
+  "repo": "requests",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/run-tests.yml:63",
+  "subject": "CI job urllib3",
+  "evidence": "urllib3:"
+ },
+ {
+  "id": "requests/gate/0",
+  "repo": "requests",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "tests/test_lowlevel.py:186",
+  "subject": "auth gate r.request.headers['Authorization'].startswith",
+  "evidence": "assert r.request.headers['Authorization'].startswith('Digest ')"
+ },
+ {
+  "id": "requests/gate/1",
+  "repo": "requests",
+  "cat": "gate",
+  "rule": "gate.env-read",
+  "at": "tests/test_requests.py:736",
+  "subject": "environment switch NETRC",
+  "evidence": "os.environ[\"NETRC\"] = netrc_file"
+ },
+ {
+  "id": "requests/surface/0",
+  "repo": "requests",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/codeql-analysis.yml:14",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "requests/surface/1",
+  "repo": "requests",
+  "cat": "surface",
+  "rule": "surface.ci.cron",
+  "at": ".github/workflows/codeql-analysis.yml:15",
+  "subject": "cron 0 23 * * 0",
+  "evidence": "- cron: '0 23 * * 0'"
+ },
+ {
+  "id": "requests/surface/2",
+  "repo": "requests",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/lock-issues.yml:4",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "requests/surface/3",
+  "repo": "requests",
+  "cat": "surface",
+  "rule": "surface.ci.cron",
+  "at": ".github/workflows/lock-issues.yml:5",
+  "subject": "cron 0 0 * * *",
+  "evidence": "- cron: '0 0 * * *'"
+ },
+ {
+  "id": "requests/test/0",
+  "repo": "requests",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "tests/test_adapters.py:4",
+  "subject": "test test_request_url_handles_leading_path_separators",
+  "evidence": "def test_request_url_handles_leading_path_separators():"
+ },
+ {
+  "id": "requests/test/1",
+  "repo": "requests",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "tests/test_requests.py:431",
+  "subject": "test test_generic_cookiejar_works",
+  "evidence": "def test_generic_cookiejar_works(self, httpbin):"
+ },
+ {
+  "id": "requests/test/2",
+  "repo": "requests",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "tests/test_requests.py:1211",
+  "subject": "test test_session_hooks_are_overridden_by_request_hooks",
+  "evidence": "def test_session_hooks_are_overridden_by_request_hooks(self, httpbin):"
+ },
+ {
+  "id": "requests/test/3",
+  "repo": "requests",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "tests/test_requests.py:2059",
+  "subject": "test test_rewind_body_failed_seek",
+  "evidence": "def test_rewind_body_failed_seek(self):"
+ },
+ {
+  "id": "requests/test/4",
+  "repo": "requests",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "tests/test_requests.py:2792",
+  "subject": "test test_preparing_url",
+  "evidence": "def test_preparing_url(self, url, expected):"
+ },
+ {
+  "id": "requests/test/5",
+  "repo": "requests",
+  "cat": "test",
+  "rule": "test.case.attribute",
+  "at": "tests/test_utils.py:244",
+  "subject": "test attribute @pytest.mark.parametrize",
+  "evidence": "@pytest.mark.parametrize("
+ },
+ {
+  "id": "ripgrep/boundary/0",
+  "repo": "ripgrep",
+  "cat": "boundary",
+  "rule": "boundary.cargo.workspace",
+  "at": "Cargo.toml:40",
+  "subject": "cargo workspace members",
+  "evidence": "members = ["
+ },
+ {
+  "id": "ripgrep/boundary/1",
+  "repo": "ripgrep",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "crates/core/flags/doc/mod.rs:1",
+  "subject": "module root crates/core/flags/doc/mod.rs",
+  "evidence": "crates/core/flags/doc/mod.rs"
+ },
+ {
+  "id": "ripgrep/boundary/2",
+  "repo": "ripgrep",
+  "cat": "boundary",
+  "rule": "boundary.cargo.lib",
+  "at": "crates/globset/Cargo.toml:19",
+  "subject": "cargo library target",
+  "evidence": "[lib]"
+ },
+ {
+  "id": "ripgrep/boundary/3",
+  "repo": "ripgrep",
+  "cat": "boundary",
+  "rule": "boundary.spawn-thread",
+  "at": "crates/ignore/examples/walk.rs:18",
+  "subject": "starts a task on thread",
+  "evidence": "let stdout_thread = std::thread::spawn(move || {"
+ },
+ {
+  "id": "ripgrep/boundary/4",
+  "repo": "ripgrep",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "crates/pcre2/src/lib.rs:1",
+  "subject": "module root crates/pcre2/src/lib.rs",
+  "evidence": "crates/pcre2/src/lib.rs"
+ },
+ {
+  "id": "ripgrep/boundary/5",
+  "repo": "ripgrep",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "crates/searcher/src/lib.rs:1",
+  "subject": "module root crates/searcher/src/lib.rs",
+  "evidence": "crates/searcher/src/lib.rs"
+ },
+ {
+  "id": "ripgrep/effect/0",
+  "repo": "ripgrep",
+  "cat": "effect",
+  "rule": "effect.spawn.other",
+  "at": "build.rs:40",
+  "subject": "runs git",
+  "evidence": "let output = Command::new(\"git\").args(args).output();"
+ },
+ {
+  "id": "ripgrep/effect/1",
+  "repo": "ripgrep",
+  "cat": "effect",
+  "rule": "effect.spawn.other",
+  "at": "crates/core/search.rs:303",
+  "subject": "runs (computed)",
+  "evidence": "let mut cmd = std::process::Command::new(bin);"
+ },
+ {
+  "id": "ripgrep/effect/2",
+  "repo": "ripgrep",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "crates/ignore/src/walk.rs:2205",
+  "subject": "writes the filesystem (create)",
+  "evidence": "let mut file = File::create(path).unwrap();"
+ },
+ {
+  "id": "ripgrep/effect/3",
+  "repo": "ripgrep",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "crates/printer/src/standard.rs:1730",
+  "subject": "writes the filesystem (write)",
+  "evidence": "self.std.write(&[term])?;"
+ },
+ {
+  "id": "ripgrep/effect/4",
+  "repo": "ripgrep",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "pkg/brew/ripgrep-bin.rb:10",
+  "subject": "talks to https://github.com/BurntSushi/ripgrep/releases/download/#{version}/ripgrep-#{ver",
+  "evidence": "url \"https://github.com/BurntSushi/ripgrep/releases/download/#{version}/ripgrep-#{version}-x86_64-unknown-linux-musl.tar.gz\""
+ },
+ {
+  "id": "ripgrep/effect/5",
+  "repo": "ripgrep",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "tests/util.rs:140",
+  "subject": "writes the filesystem (create)",
+  "evidence": "let mut file = File::create(path)?;"
+ },
+ {
+  "id": "ripgrep/entrypoint/0",
+  "repo": "ripgrep",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:31",
+  "subject": "CI job test",
+  "evidence": "test:"
+ },
+ {
+  "id": "ripgrep/entrypoint/1",
+  "repo": "ripgrep",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/ci.yml:248",
+  "subject": "CI job fuzz_testing",
+  "evidence": "fuzz_testing:"
+ },
+ {
+  "id": "ripgrep/entrypoint/2",
+  "repo": "ripgrep",
+  "cat": "entrypoint",
+  "rule": "entrypoint.rust.main",
+  "at": "build.rs:1",
+  "subject": "main() in build.rs",
+  "evidence": "fn main() {"
+ },
+ {
+  "id": "ripgrep/entrypoint/3",
+  "repo": "ripgrep",
+  "cat": "entrypoint",
+  "rule": "entrypoint.rust.main",
+  "at": "crates/core/main.rs:44",
+  "subject": "main() in crates/core/main.rs",
+  "evidence": "fn main() -> ExitCode {"
+ },
+ {
+  "id": "ripgrep/entrypoint/4",
+  "repo": "ripgrep",
+  "cat": "entrypoint",
+  "rule": "entrypoint.cargo.name",
+  "at": "crates/ignore/Cargo.toml:2",
+  "subject": "crate ignore",
+  "evidence": "name = \"ignore\""
+ },
+ {
+  "id": "ripgrep/entrypoint/5",
+  "repo": "ripgrep",
+  "cat": "entrypoint",
+  "rule": "entrypoint.cargo.name",
+  "at": "crates/pcre2/Cargo.toml:2",
+  "subject": "crate grep-pcre2",
+  "evidence": "name = \"grep-pcre2\""
+ },
+ {
+  "id": "ripgrep/gate/0",
+  "repo": "ripgrep",
+  "cat": "gate",
+  "rule": "gate.env-read",
+  "at": "build.rs:15",
+  "subject": "environment switch CARGO_CFG_TARGET_OS",
+  "evidence": "let Ok(target_os) = std::env::var(\"CARGO_CFG_TARGET_OS\") else { return };"
+ },
+ {
+  "id": "ripgrep/gate/1",
+  "repo": "ripgrep",
+  "cat": "gate",
+  "rule": "gate.env-read",
+  "at": "build.rs:16",
+  "subject": "environment switch CARGO_CFG_TARGET_ENV",
+  "evidence": "let Ok(target_env) = std::env::var(\"CARGO_CFG_TARGET_ENV\") else { return };"
+ },
+ {
+  "id": "ripgrep/gate/2",
+  "repo": "ripgrep",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "crates/searcher/src/testutil.rs:33",
+  "subject": "auth gate RegexBuilder::new(pattern) .multi_line(true) // permits ^ an",
+  "evidence": "let regex = RegexBuilder::new(pattern)"
+ },
+ {
+  "id": "ripgrep/gate/3",
+  "repo": "ripgrep",
+  "cat": "gate",
+  "rule": "gate.env-read",
+  "at": "tests/util.rs:493",
+  "subject": "environment switch CROSS_RUNNER",
+  "evidence": "let runner = std::env::var(\"CROSS_RUNNER\").ok()?;"
+ },
+ {
+  "id": "ripgrep/store/0",
+  "repo": "ripgrep",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "crates/core/flags/defs.rs:7629",
+  "subject": "writes NoIgnore (update)",
+  "evidence": "NoIgnore.update(FlagValue::Switch(true), args)?;"
+ },
+ {
+  "id": "ripgrep/store/1",
+  "repo": "ripgrep",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "crates/core/flags/defs.rs:7631",
+  "subject": "writes Hidden (update)",
+  "evidence": "Hidden.update(FlagValue::Switch(true), args)?;"
+ },
+ {
+  "id": "ripgrep/store/2",
+  "repo": "ripgrep",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "crates/core/flags/defs.rs:7634",
+  "subject": "writes Binary (update)",
+  "evidence": "Binary.update(FlagValue::Switch(true), args)?;"
+ },
+ {
+  "id": "ripgrep/store/3",
+  "repo": "ripgrep",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "crates/ignore/src/dir.rs:1125",
+  "subject": "writes File (create)",
+  "evidence": "let mut file = std::fs::File::create(path).unwrap();"
+ },
+ {
+  "id": "ripgrep/store/4",
+  "repo": "ripgrep",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "crates/ignore/src/incremental.rs:573",
+  "subject": "writes File (create)",
+  "evidence": "let mut file = File::create(path).unwrap();"
+ },
+ {
+  "id": "ripgrep/store/5",
+  "repo": "ripgrep",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "crates/ignore/src/walk.rs:2205",
+  "subject": "writes File (create)",
+  "evidence": "let mut file = File::create(path).unwrap();"
+ },
+ {
+  "id": "ripgrep/surface/0",
+  "repo": "ripgrep",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/ci.yml:7",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "ripgrep/surface/1",
+  "repo": "ripgrep",
+  "cat": "surface",
+  "rule": "surface.ci.cron",
+  "at": ".github/workflows/ci.yml:8",
+  "subject": "cron 00 01 * * *",
+  "evidence": "- cron: '00 01 * * *'"
+ },
+ {
+  "id": "ripgrep/surface/2",
+  "repo": "ripgrep",
+  "cat": "surface",
+  "rule": "surface.cli.clap",
+  "at": "build.rs:40",
+  "subject": "CLI command git",
+  "evidence": "let output = Command::new(\"git\").args(args).output();"
+ },
+ {
+  "id": "ripgrep/surface/3",
+  "repo": "ripgrep",
+  "cat": "surface",
+  "rule": "surface.cli.arg",
+  "at": "tests/util.rs:48",
+  "subject": "CLI flag --help",
+  "evidence": "match Command::new(program).arg(\"--help\").output() {"
+ },
+ {
+  "id": "ripgrep/surface/4",
+  "repo": "ripgrep",
+  "cat": "surface",
+  "rule": "surface.cli.arg",
+  "at": "tests/util.rs:171",
+  "subject": "CLI flag /",
+  "evidence": "cmd.arg(\"--path-separator\").arg(\"/\");"
+ },
+ {
+  "id": "ripgrep/surface/5",
+  "repo": "ripgrep",
+  "cat": "surface",
+  "rule": "surface.cli.arg",
+  "at": "tests/util.rs:171",
+  "subject": "CLI flag --path-separator",
+  "evidence": "cmd.arg(\"--path-separator\").arg(\"/\");"
+ },
+ {
+  "id": "ripgrep/test/0",
+  "repo": "ripgrep",
+  "cat": "test",
+  "rule": "test.case.attribute",
+  "at": "crates/cli/src/escape.rs:89",
+  "subject": "test attribute @test",
+  "evidence": "#[test]"
+ },
+ {
+  "id": "ripgrep/test/1",
+  "repo": "ripgrep",
+  "cat": "test",
+  "rule": "test.case.attribute",
+  "at": "crates/core/flags/defs.rs:4803",
+  "subject": "test attribute @test",
+  "evidence": "#[test]"
+ },
+ {
+  "id": "ripgrep/test/2",
+  "repo": "ripgrep",
+  "cat": "test",
+  "rule": "test.case.attribute",
+  "at": "crates/ignore/src/dir.rs:1270",
+  "subject": "test attribute @test",
+  "evidence": "#[test]"
+ },
+ {
+  "id": "ripgrep/test/3",
+  "repo": "ripgrep",
+  "cat": "test",
+  "rule": "test.case.attribute",
+  "at": "crates/ignore/src/walk.rs:2725",
+  "subject": "test attribute @test",
+  "evidence": "#[test]"
+ },
+ {
+  "id": "ripgrep/test/4",
+  "repo": "ripgrep",
+  "cat": "test",
+  "rule": "test.case.attribute",
+  "at": "crates/printer/src/standard.rs:2544",
+  "subject": "test attribute @test",
+  "evidence": "#[test]"
+ },
+ {
+  "id": "ripgrep/test/5",
+  "repo": "ripgrep",
+  "cat": "test",
+  "rule": "test.case.attribute",
+  "at": "crates/regex/src/matcher.rs:599",
+  "subject": "test attribute @test",
+  "evidence": "#[test]"
+ },
+ {
+  "id": "stoa/boundary/0",
+  "repo": "stoa",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "cloudflare-worker/src/index.ts:1",
+  "subject": "module root cloudflare-worker/src/index.ts",
+  "evidence": "cloudflare-worker/src/index.ts"
+ },
+ {
+  "id": "stoa/boundary/1",
+  "repo": "stoa",
+  "cat": "boundary",
+  "rule": "boundary.spawn-thread",
+  "at": "stoa-desktop-windows/tauri-plugin-auth-webview/src/lib.rs:140",
+  "subject": "starts a task on thread",
+  "evidence": "std::thread::spawn(move || {"
+ },
+ {
+  "id": "stoa/boundary/2",
+  "repo": "stoa",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "stoa-web/components/celebration/index.ts:1",
+  "subject": "module root stoa-web/components/celebration/index.ts",
+  "evidence": "stoa-web/components/celebration/index.ts"
+ },
+ {
+  "id": "stoa/boundary/3",
+  "repo": "stoa",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "stoa-web/components/spaces/agent/index.ts:1",
+  "subject": "module root stoa-web/components/spaces/agent/index.ts",
+  "evidence": "stoa-web/components/spaces/agent/index.ts"
+ },
+ {
+  "id": "stoa/boundary/4",
+  "repo": "stoa",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "stoa-web/lib/space-agent/index.ts:1",
+  "subject": "module root stoa-web/lib/space-agent/index.ts",
+  "evidence": "stoa-web/lib/space-agent/index.ts"
+ },
+ {
+  "id": "stoa/boundary/5",
+  "repo": "stoa",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "stoa-web/supabase/functions/collab-extract-decisions-incremental/index.ts:1",
+  "subject": "module root stoa-web/supabase/functions/collab-extract-decisions-incremental/index.ts",
+  "evidence": "stoa-web/supabase/functions/collab-extract-decisions-incremental/index.ts"
+ },
+ {
+  "id": "stoa/effect/0",
+  "repo": "stoa",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "cloudflare-worker/src/index.ts:354",
+  "subject": "HTTP client call",
+  "evidence": "upstream = await fetch(downstream.toString(), init);"
+ },
+ {
+  "id": "stoa/effect/1",
+  "repo": "stoa",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "stoa-cli/pkg/mpd/project_init_test.go:91",
+  "subject": "writes the filesystem (WriteFile)",
+  "evidence": "if err := os.WriteFile(markerPath, []byte(\"keep me\"), 0o644); err != nil {"
+ },
+ {
+  "id": "stoa/effect/2",
+  "repo": "stoa",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "stoa-desktop-mac/StoaDesktop/Services/AppConfiguration.swift:86",
+  "subject": "talks to http://localhost:\\(effectivePort)",
+  "evidence": "return URL(string: \"http://localhost:\\(effectivePort)\")!"
+ },
+ {
+  "id": "stoa/effect/3",
+  "repo": "stoa",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "stoa-web/app/api/evals/simulate/route.ts:619",
+  "subject": "writes the filesystem (writeFile)",
+  "evidence": "await fs.writeFile(getEvalRunFilePath(safeSessionId, runId, 'decisions_final.json'), JSON.stringify(existingDecisions, null, 2))"
+ },
+ {
+  "id": "stoa/effect/4",
+  "repo": "stoa",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "stoa-web/components/admin/ImpersonationBanner.tsx:24",
+  "subject": "HTTP client call",
+  "evidence": "fetch('/api/v1/admin/impersonate')"
+ },
+ {
+  "id": "stoa/effect/5",
+  "repo": "stoa",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "stoa-web/components/support/SupportChatWindow.tsx:424",
+  "subject": "HTTP client call",
+  "evidence": "fetch(`/api/v1/support/conversations/${conversationId}/csat`, { method: 'DELETE' }).catch(() => {})"
+ },
+ {
+  "id": "stoa/entrypoint/0",
+  "repo": "stoa",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/build-macos.yml:18",
+  "subject": "CI job build",
+  "evidence": "build:"
+ },
+ {
+  "id": "stoa/entrypoint/1",
+  "repo": "stoa",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/release.yml:171",
+  "subject": "CI job version-and-tag",
+  "evidence": "version-and-tag:"
+ },
+ {
+  "id": "stoa/entrypoint/2",
+  "repo": "stoa",
+  "cat": "entrypoint",
+  "rule": "entrypoint.python.dunder-main",
+  "at": "scripts/analysis/profile_service_warns.py:235",
+  "subject": "__main__ in scripts/analysis/profile_service_warns.py",
+  "evidence": "if __name__ == \"__main__\":"
+ },
+ {
+  "id": "stoa/entrypoint/3",
+  "repo": "stoa",
+  "cat": "entrypoint",
+  "rule": "entrypoint.go.module",
+  "at": "stoa-cli/go.mod:1",
+  "subject": "go module github.com/specstoryai/stoa",
+  "evidence": "module github.com/specstoryai/stoa"
+ },
+ {
+  "id": "stoa/entrypoint/4",
+  "repo": "stoa",
+  "cat": "entrypoint",
+  "rule": "entrypoint.swift.main",
+  "at": "stoa-desktop-mac/StoaDesktop/StoaDesktopApp.swift:9",
+  "subject": "@main in stoa-desktop-mac/StoaDesktop/StoaDesktopApp.swift",
+  "evidence": "@main"
+ },
+ {
+  "id": "stoa/entrypoint/5",
+  "repo": "stoa",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.script",
+  "at": "stoa-web/livekit-agent/package.json:8",
+  "subject": "npm run dev",
+  "evidence": "\"dev\": \"NODE_ENV=development node dist/index.js dev\","
+ },
+ {
+  "id": "stoa/gate/0",
+  "repo": "stoa",
+  "cat": "gate",
+  "rule": "gate.env-read",
+  "at": "packages/agent-sandbox/src/agent-token.ts:60",
+  "subject": "environment switch SUPABASE_JWT_SECRET",
+  "evidence": "process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET"
+ },
+ {
+  "id": "stoa/gate/1",
+  "repo": "stoa",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "stoa-cli/pkg/automerge/ffi/ffi_test.go:428",
+  "subject": "refuses: put: %v",
+  "evidence": "t.Fatalf(\"put: %v\", err)"
+ },
+ {
+  "id": "stoa/gate/2",
+  "repo": "stoa",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "stoa-cli/pkg/mpd/project_init_test.go:114",
+  "subject": "refuses: first EnsureProjectInit: %v",
+  "evidence": "t.Fatalf(\"first EnsureProjectInit: %v\", err)"
+ },
+ {
+  "id": "stoa/gate/3",
+  "repo": "stoa",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "stoa-cli/pkg/service/restore_helper_test.go:91",
+  "subject": "refuses: seed file: %v",
+  "evidence": "t.Fatalf(\"seed file: %v\", err)"
+ },
+ {
+  "id": "stoa/gate/4",
+  "repo": "stoa",
+  "cat": "gate",
+  "rule": "gate.env-read",
+  "at": "stoa-web/app/api/v1/collab/sessions/[sessionId]/recording/start/route.ts:94",
+  "subject": "environment switch LIVEKIT_API_KEY",
+  "evidence": "const apiKey = process.env.LIVEKIT_API_KEY"
+ },
+ {
+  "id": "stoa/gate/5",
+  "repo": "stoa",
+  "cat": "gate",
+  "rule": "gate.auth",
+  "at": "stoa-web/lib/community/hosts.test.ts:33",
+  "subject": "auth gate isAllowedForumHostPath",
+  "evidence": "expect(isAllowedForumHostPath('/community/t/topic')).toBe(true)"
+ },
+ {
+  "id": "stoa/store/0",
+  "repo": "stoa",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "packages/agent-sandbox/src/agent/client-v2.ts:511",
+  "subject": "writes LiveAcpConnection (create)",
+  "evidence": "const createConnection = LiveAcpConnection.create({"
+ },
+ {
+  "id": "stoa/store/1",
+  "repo": "stoa",
+  "cat": "store",
+  "rule": "store.sql.file",
+  "at": "stoa-web/supabase/migrations/20251107000001_initial_credit_schema.sql:110",
+  "subject": "CREATE INDEX idx_accounts_email",
+  "evidence": "CREATE INDEX idx_accounts_email ON accounts(email);"
+ },
+ {
+  "id": "stoa/store/2",
+  "repo": "stoa",
+  "cat": "store",
+  "rule": "store.sql.file",
+  "at": "stoa-web/supabase/migrations/20260103000001_allow_manual_space_decisions.sql:5",
+  "subject": "ALTER TABLE space_decisions",
+  "evidence": "ALTER TABLE space_decisions"
+ },
+ {
+  "id": "stoa/store/3",
+  "repo": "stoa",
+  "cat": "store",
+  "rule": "store.sql.file",
+  "at": "stoa-web/supabase/migrations/20260224000002_support_rls.sql:6",
+  "subject": "ALTER TABLE support.agents",
+  "evidence": "ALTER TABLE support.agents              ENABLE ROW LEVEL SECURITY;"
+ },
+ {
+  "id": "stoa/store/4",
+  "repo": "stoa",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "stoa-web/supabase/migrations/20260326000001_hybrid_search_rrf.sql:1",
+  "subject": "migration stoa-web/supabase/migrations/20260326000001_hybrid_search_rrf.sql",
+  "evidence": "stoa-web/supabase/migrations/20260326000001_hybrid_search_rrf.sql"
+ },
+ {
+  "id": "stoa/store/5",
+  "repo": "stoa",
+  "cat": "store",
+  "rule": "store.path.migration",
+  "at": "stoa-web/supabase/migrations/20260416000015_support_widget_allowed_roles.sql:1",
+  "subject": "migration stoa-web/supabase/migrations/20260416000015_support_widget_allowed_roles.sql",
+  "evidence": "stoa-web/supabase/migrations/20260416000015_support_widget_allowed_roles.sql"
+ },
+ {
+  "id": "stoa/surface/0",
+  "repo": "stoa",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/supabase-functions-drift.yml:35",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "stoa/surface/1",
+  "repo": "stoa",
+  "cat": "surface",
+  "rule": "surface.http.next-export",
+  "at": "stoa-web/app/api/v1/admin/orgs/[orgId]/billing/model/route.ts:40",
+  "subject": "HTTP GET /api/v1/admin/orgs/[orgId]/billing/model",
+  "evidence": "export async function GET("
+ },
+ {
+  "id": "stoa/surface/2",
+  "repo": "stoa",
+  "cat": "surface",
+  "rule": "surface.http.next-export",
+  "at": "stoa-web/app/api/v1/invites/[code]/route.ts:40",
+  "subject": "HTTP POST /api/v1/invites/[code]",
+  "evidence": "export async function POST("
+ },
+ {
+  "id": "stoa/surface/3",
+  "repo": "stoa",
+  "cat": "surface",
+  "rule": "surface.http.next-export",
+  "at": "stoa-web/app/api/v1/support/canned-responses/route.ts:13",
+  "subject": "HTTP GET /api/v1/support/canned-responses",
+  "evidence": "export async function GET(req: Request) {"
+ },
+ {
+  "id": "stoa/surface/4",
+  "repo": "stoa",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "stoa-web/components/community/MentionAutocomplete.tsx:119",
+  "subject": "handles ta.keydown",
+  "evidence": "ta.addEventListener('keydown', handleKey)"
+ },
+ {
+  "id": "stoa/surface/5",
+  "repo": "stoa",
+  "cat": "surface",
+  "rule": "surface.job.interval",
+  "at": "stoa-web/components/welcome/steps/SetupWorkspaceStep.tsx:68",
+  "subject": "repeating timer",
+  "evidence": "const interval = setInterval(() => {"
+ },
+ {
+  "id": "stoa/test/0",
+  "repo": "stoa",
+  "cat": "test",
+  "rule": "test.python.def",
+  "at": "docs/pen_test/2026-02-07/workspace/brute_force_device_codes.py:26",
+  "subject": "test test_device_code",
+  "evidence": "def test_device_code(code):"
+ },
+ {
+  "id": "stoa/test/1",
+  "repo": "stoa",
+  "cat": "test",
+  "rule": "test.go.func",
+  "at": "stoa-cli/pkg/episode/metadata_test.go:11",
+  "subject": "Test MetadataStoreCRUD",
+  "evidence": "func TestMetadataStoreCRUD(t *testing.T) {"
+ },
+ {
+  "id": "stoa/test/2",
+  "repo": "stoa",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "stoa-web/app/api/v1/admin/collab-sessions/bulk-end/route.test.ts:48",
+  "subject": "it \"returns 401 when the user is unauthenticated\"",
+  "evidence": "it('returns 401 when the user is unauthenticated', async () => {"
+ },
+ {
+  "id": "stoa/test/3",
+  "repo": "stoa",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "stoa-web/app/api/v2/spaces/[spaceSlug]/agent/setup/route.test.ts:265",
+  "subject": "it \"returns 503 when the agent configuration is invalid\"",
+  "evidence": "it('returns 503 when the agent configuration is invalid', async () => {"
+ },
+ {
+  "id": "stoa/test/4",
+  "repo": "stoa",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "stoa-web/lib/collab/dispatch-starter-teammate.test.ts:146",
+  "subject": "it \"surfaces a run-limit denial from the atomic claim RPC\"",
+  "evidence": "it('surfaces a run-limit denial from the atomic claim RPC', async () => {"
+ },
+ {
+  "id": "stoa/test/5",
+  "repo": "stoa",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "stoa-web/lib/onboarding/onboarding-meetings.test.ts:184",
+  "subject": "it \"expires links six hours after the scheduled start time\"",
+  "evidence": "it('expires links six hours after the scheduled start time', () => {"
+ },
+ {
+  "id": "tortie/boundary/0",
+  "repo": "tortie",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "src/main/actions/index.ts:1",
+  "subject": "module root src/main/actions/index.ts",
+  "evidence": "src/main/actions/index.ts"
+ },
+ {
+  "id": "tortie/boundary/1",
+  "repo": "tortie",
+  "cat": "boundary",
+  "rule": "boundary.worker",
+  "at": "src/main/db/__tests__/sqlite.test.ts:49",
+  "subject": "starts a Worker",
+  "evidence": "const worker = new Worker("
+ },
+ {
+  "id": "tortie/boundary/2",
+  "repo": "tortie",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "src/main/manifest/harvest/index.ts:1",
+  "subject": "module root src/main/manifest/harvest/index.ts",
+  "evidence": "src/main/manifest/harvest/index.ts"
+ },
+ {
+  "id": "tortie/boundary/3",
+  "repo": "tortie",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "src/main/recents/index.ts:1",
+  "subject": "module root src/main/recents/index.ts",
+  "evidence": "src/main/recents/index.ts"
+ },
+ {
+  "id": "tortie/boundary/4",
+  "repo": "tortie",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "src/main/tray/index.ts:1",
+  "subject": "module root src/main/tray/index.ts",
+  "evidence": "src/main/tray/index.ts"
+ },
+ {
+  "id": "tortie/boundary/5",
+  "repo": "tortie",
+  "cat": "boundary",
+  "rule": "boundary.path.module-root",
+  "at": "src/renderer/editor/markdown/index.ts:1",
+  "subject": "module root src/renderer/editor/markdown/index.ts",
+  "evidence": "src/renderer/editor/markdown/index.ts"
+ },
+ {
+  "id": "tortie/effect/0",
+  "repo": "tortie",
+  "cat": "effect",
+  "rule": "effect.spawn.node",
+  "at": "build/after-pack.cjs:89",
+  "subject": "runs /usr/libexec/PlistBuddy",
+  "evidence": "execFileSync('/usr/libexec/PlistBuddy', ["
+ },
+ {
+  "id": "tortie/effect/1",
+  "repo": "tortie",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "build/p253/wrap-reflow-probe.mjs:243",
+  "subject": "writes the filesystem (rmSync)",
+  "evidence": "if (scratch) { try { rmSync(scratch, { recursive: true, force: true }); } catch { /* gone */ } }"
+ },
+ {
+  "id": "tortie/effect/2",
+  "repo": "tortie",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "build/probe-p135-verify.mjs:178",
+  "subject": "writes the filesystem (rmSync)",
+  "evidence": "rmSync(out, { force: true });"
+ },
+ {
+  "id": "tortie/effect/3",
+  "repo": "tortie",
+  "cat": "effect",
+  "rule": "effect.fs.write",
+  "at": "build/probe-p236-chip.mjs:818",
+  "subject": "writes the filesystem (writeFileSync)",
+  "evidence": "writeFileSync(readingsFile, JSON.stringify({ rows, readings }, null, 2));"
+ },
+ {
+  "id": "tortie/effect/4",
+  "repo": "tortie",
+  "cat": "effect",
+  "rule": "effect.net.client",
+  "at": "src/main/activity/hooks.ts:360",
+  "subject": "talks to http://127.0.0.1",
+  "evidence": "const url = new URL(req.url ?? '/', 'http://127.0.0.1');"
+ },
+ {
+  "id": "tortie/effect/5",
+  "repo": "tortie",
+  "cat": "effect",
+  "rule": "effect.spawn.node",
+  "at": "src/main/machines/remote-smoke.ts:537",
+  "subject": "runs /usr/bin/ssh-keyscan",
+  "evidence": "execFileSync("
+ },
+ {
+  "id": "tortie/entrypoint/0",
+  "repo": "tortie",
+  "cat": "entrypoint",
+  "rule": "entrypoint.ci.job",
+  "at": ".github/workflows/compat.yml:17",
+  "subject": "CI job compat",
+  "evidence": "compat:"
+ },
+ {
+  "id": "tortie/entrypoint/1",
+  "repo": "tortie",
+  "cat": "entrypoint",
+  "rule": "entrypoint.objc.main",
+  "at": "build/fsevents-cap.c:73",
+  "subject": "main() in build/fsevents-cap.c",
+  "evidence": "int main(int argc, char **argv) {"
+ },
+ {
+  "id": "tortie/entrypoint/2",
+  "repo": "tortie",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "build/probe-machines.mjs:172",
+  "subject": "composes createServer",
+  "evidence": "const server = createServer();"
+ },
+ {
+  "id": "tortie/entrypoint/3",
+  "repo": "tortie",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "build/update-rehearsal.mjs:700",
+  "subject": "composes createServer",
+  "evidence": "const server = createServer((req, res) => {"
+ },
+ {
+  "id": "tortie/entrypoint/4",
+  "repo": "tortie",
+  "cat": "entrypoint",
+  "rule": "entrypoint.pkg.script",
+  "at": "package.json:189",
+  "subject": "npm run test:native",
+  "evidence": "\"test:native\": \"VITEST_LANE=native vitest run\","
+ },
+ {
+  "id": "tortie/entrypoint/5",
+  "repo": "tortie",
+  "cat": "entrypoint",
+  "rule": "entrypoint.composition",
+  "at": "src/main/index.ts:350",
+  "subject": "composes BrowserWindow",
+  "evidence": "const win = new BrowserWindow({"
+ },
+ {
+  "id": "tortie/gate/0",
+  "repo": "tortie",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "build/assert-css-order.mjs:287",
+  "subject": "refuses: the good fixture was refused",
+  "evidence": "throw new Error('the good fixture was refused');"
+ },
+ {
+  "id": "tortie/gate/1",
+  "repo": "tortie",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "build/p248/probe-p248-table.mjs:395",
+  "subject": "refuses: asked for ${String(width)}px and the window reports ${String(inner)}px",
+  "evidence": "if (typeof inner !== 'number' || Math.abs(inner - width) > 2) throw new Error(`asked for ${String(width)}px and the window reports ${String(inner)}px`);"
+ },
+ {
+  "id": "tortie/gate/2",
+  "repo": "tortie",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "build/probe-p237-attack2.mjs:114",
+  "subject": "refuses: no page answered in time",
+  "evidence": "if (Date.now() - started > timeoutMs) throw new Error('no page answered in time');"
+ },
+ {
+  "id": "tortie/gate/3",
+  "repo": "tortie",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "src/main/db/__tests__/sqlite.test.ts:69",
+  "subject": "refuses: worker exit ${code}",
+  "evidence": "code === 0 ? resolve() : reject(new Error(`worker exit ${code}`))"
+ },
+ {
+  "id": "tortie/gate/4",
+  "repo": "tortie",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "src/main/machines/__tests__/machine-agents.test.ts:111",
+  "subject": "refuses: no payload staged for ${scriptId}",
+  "evidence": "return Promise.reject(new Error(`no payload staged for ${scriptId}`));"
+ },
+ {
+  "id": "tortie/gate/5",
+  "repo": "tortie",
+  "cat": "gate",
+  "rule": "gate.refusal",
+  "at": "src/main/tmux/control-client.ts:406",
+  "subject": "refuses: unmatched ${line}",
+  "evidence": "this.emit('error', new Error(`unmatched ${line}`));"
+ },
+ {
+  "id": "tortie/store/0",
+  "repo": "tortie",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "build/p118-shot.mjs:127",
+  "subject": "INSERT INTO remote_executions",
+  "evidence": "const insert = spawnSync("
+ },
+ {
+  "id": "tortie/store/1",
+  "repo": "tortie",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "src/main/arch/enrich/__tests__/pass-store.test.ts:104",
+  "subject": "DELETE FROM migrations",
+  "evidence": "db.prepare('DELETE FROM migrations WHERE name = ?').run('006-arch-pass-scope');"
+ },
+ {
+  "id": "tortie/store/2",
+  "repo": "tortie",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "src/main/db/__tests__/sqlite.test.ts:204",
+  "subject": "CREATE TABLE ok",
+  "evidence": "d.exec('CREATE TABLE ok(x)');"
+ },
+ {
+  "id": "tortie/store/3",
+  "repo": "tortie",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "src/main/manifest/__tests__/remote-executions.test.ts:169",
+  "subject": "INSERT INTO sessions",
+  "evidence": "old"
+ },
+ {
+  "id": "tortie/store/4",
+  "repo": "tortie",
+  "cat": "store",
+  "rule": "store.sql",
+  "at": "src/main/manifest/restore-journal.ts:76",
+  "subject": "INSERT INTO restore_attempts",
+  "evidence": "const info = this.db"
+ },
+ {
+  "id": "tortie/store/5",
+  "repo": "tortie",
+  "cat": "store",
+  "rule": "store.orm",
+  "at": "src/main/symbols/__tests__/extract.test.ts:23",
+  "subject": "writes SymbolExtractor (create)",
+  "evidence": "const extractorPromise = SymbolExtractor.create({"
+ },
+ {
+  "id": "tortie/surface/0",
+  "repo": "tortie",
+  "cat": "surface",
+  "rule": "surface.ci.schedule",
+  "at": ".github/workflows/compat.yml:8",
+  "subject": "CI schedule",
+  "evidence": "schedule:"
+ },
+ {
+  "id": "tortie/surface/1",
+  "repo": "tortie",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "build/probe-p1372-menu.mjs:629",
+  "subject": "handles child.exit",
+  "evidence": "child.on('exit', (c) => {"
+ },
+ {
+  "id": "tortie/surface/2",
+  "repo": "tortie",
+  "cat": "surface",
+  "rule": "surface.ipc.electron+wrap",
+  "at": "src/main/arch/ipc.ts:194",
+  "subject": "IPC serves arch:clearLayout",
+  "evidence": "handle(ipc, 'arch:clearLayout', async (_event, input) =>"
+ },
+ {
+  "id": "tortie/surface/3",
+  "repo": "tortie",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "src/main/machines/control-plane.ts:652",
+  "subject": "handles client.error",
+  "evidence": "client.on('error', (err) => {"
+ },
+ {
+  "id": "tortie/surface/4",
+  "repo": "tortie",
+  "cat": "surface",
+  "rule": "surface.handler.on",
+  "at": "src/main/tmux/control-client.ts:249",
+  "subject": "handles this.error",
+  "evidence": "this.on('error', () => undefined);"
+ },
+ {
+  "id": "tortie/surface/5",
+  "repo": "tortie",
+  "cat": "surface",
+  "rule": "surface.ipc.electron+wrap",
+  "at": "src/preload/machines.ts:63",
+  "subject": "IPC calls machines:remove",
+  "evidence": "remove: (id) => invoke('machines:remove', id),"
+ },
+ {
+  "id": "tortie/test/0",
+  "repo": "tortie",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "src/main/__tests__/ansi.test.ts:15",
+  "subject": "describe \"stripAnsi\"",
+  "evidence": "describe('stripAnsi', () => {"
+ },
+ {
+  "id": "tortie/test/1",
+  "repo": "tortie",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "src/main/fs/__tests__/p247-path-door.test.ts:132",
+  "subject": "it \"refuses a control character in the spelling before any filesystem call\"",
+  "evidence": "it('refuses a control character in the spelling before any filesystem call', async () => {"
+ },
+ {
+  "id": "tortie/test/2",
+  "repo": "tortie",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "src/main/machines/__tests__/schema.test.ts:65",
+  "subject": "it \"accepts an empty list\"",
+  "evidence": "it('accepts an empty list', () => {"
+ },
+ {
+  "id": "tortie/test/3",
+  "repo": "tortie",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "src/main/settings/__tests__/fold-seal.test.ts:148",
+  "subject": "it \"drops a fold choice an agent wrote by hand\"",
+  "evidence": "it('drops a fold choice an agent wrote by hand', async () => {"
+ },
+ {
+  "id": "tortie/test/4",
+  "repo": "tortie",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "src/renderer/arch/__tests__/p159-changes.test.tsx:465",
+  "subject": "it \"mounts only on main\\'s count, with an agent chosen, in a build with the pass\"",
+  "evidence": "it('mounts only on main\\'s count, with an agent chosen, in a build with the pass', () => {"
+ },
+ {
+  "id": "tortie/test/5",
+  "repo": "tortie",
+  "cat": "test",
+  "rule": "test.case.call",
+  "at": "src/renderer/scm/__tests__/runs-format.test.ts:474",
+  "subject": "it \"stays quiet for two or more jobs\"",
+  "evidence": "it('stays quiet for two or more jobs', () => {"
+ }
+]

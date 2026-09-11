@@ -1,0 +1,35 @@
+repo | tracked | parsed | unparsed | MB | ms | facts | entrypoint | boundary | surface | store | effect | test | gate
+alamofire | 571 | 111 | 458 | 2.1 | 1406 | 911 | 13 | 3 | 36 | 0 | 10 | 811 | 38
+babel | 27723 | 17702 | 9793 | 19.3 | 17437 | 5485 | 203 | 179 | 291 | 30 | 248 | 2918 | 1616
+fastapi-app | 252 | 152 | 73 | 0.4 | 208 | 247 | 35 | 17 | 31 | 15 | 1 | 131 | 17
+gotify | 274 | 209 | 59 | 0.7 | 427 | 676 | 76 | 2 | 54 | 3 | 95 | 286 | 160
+mastodon | 10024 | 4224 | 5755 | 9.1 | 7320 | 17534 | 51 | 23 | 791 | 903 | 1269 | 12913 | 1584
+requests | 130 | 37 | 82 | 0.4 | 203 | 658 | 17 | 4 | 4 | 0 | 216 | 415 | 2
+ripgrep | 237 | 111 | 111 | 1.8 | 773 | 602 | 28 | 25 | 7 | 10 | 18 | 510 | 4
+stoa | 4593 | 1990 | 2300 | 16.2 | 7949 | 7067 | 120 | 59 | 735 | 1128 | 693 | 1888 | 2444
+tortie | 3145 | 2522 | 618 | 30.9 | 17619 | 22752 | 37 | 80 | 1081 | 274 | 4516 | 15565 | 1199
+
+WRAPPER PASS: repo | wrappers resolved | facts only it found | cost ms | total ms
+alamofire | 3 | 0 | 788 | 1406
+babel | 257 | 2 | 4155 | 17437
+fastapi-app | 1 | 0 | 97 | 208
+gotify | 0 | 0 | 193 | 427
+mastodon | 13 | 0 | 1998 | 7320
+requests | 13 | 0 | 87 | 203
+ripgrep | 3 | 0 | 361 | 773
+stoa | 58 | 0 | 3188 | 7949
+tortie | 231 | 735 | 4839 | 17619
+
+LANGUAGE of each fact, whole corpus
+typescript 40660
+javascript 16912
+ruby 16101
+tsx 4265
+go 2617
+manifest 1470
+path 1153
+swift 938
+python 776
+rust 606
+path+export 368
+objc 3
