@@ -1,0 +1,143 @@
+{
+ "when": "2026-09-11T00:36:15.884Z",
+ "repoA": "/private/tmp/p256-pane/tortie-copy",
+ "steps": {
+  "msToContractFace": 502,
+  "paneText": "Architecturetortie3,145 files, mostly TypeScript; 8 parts, the biggest src/main (34%); 11 connections between parts; 8,775 of 13,436 imports lead inside the repository.No model reading yet.ComponentsEngine. Other parts import it and it imports others.src/main1,057 files, TypeScript; made of machines, arch, overview, manifest, harness and 59 more; used by build; uses src/shared; entry src/main/index.ts.Engine. Other parts import it and it imports others.src/renderer1,052 files, mostly TypeScript; made of app, editor, scm, arch, settings and 25 more; used by build and demo; uses src/shared; entry src/renderer/index.html.Surface. No other part imports it.build442 files, mostly JavaScript; made of probe*, conformance*, assert*, redline*, p138* and 98 more; uses src/main and src/renderer and 1 more; no other part uses it.Surface. No other part imports it.docs409 files, Markdown and images; made of research, shots, audits, brand, readme and 2 more; not code apart from 27 files.Engine. Other parts import it and it imports others.src/shared99 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 40 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.Surface. No other part imports it.everything else48 files, JSON and other files; 5 small folders (resources, .github, .claude, patches, src/test) and 24 root files; not code apart from 3 files.Surface. No other part imports it.demo19 files, mostly TypeScript; made of bridge and 4 more; uses src/shared and src/renderer; no other part uses it; entry demo/index.html.Surface. No other part imports it.src/preload19 files, TypeScript; made of machines, terminal, arch, bridge, context and 14 more; uses src/shared; no other part uses it; entry src/preload/index.ts.Filling inNo agent fills this in yet. Pick one in Settings.Nothing has landed under these promises since the contract last changed.10 checked and holds0 broke0 not checkableNot checked yet5 of 13430 imports could not be resolved, so nothing here claims they are absent.Tortie does not read imports for every file here: 216 .md, 120 .png, 75 .json. Nothing above claims anything about those.Did not holdEvery promise Tortie can check holds.ComponentsbuildOurs.claudeOursdemoOursdocsOurs.githubOurspatchesOursresourcesOurssrcOurs",
+  "outline": [
+   {
+    "text": "buildOurs",
+    "title": "Written in this repository."
+   },
+   {
+    "text": ".claudeOurs",
+    "title": "Written in this repository."
+   },
+   {
+    "text": "demoOurs",
+    "title": "Written in this repository."
+   },
+   {
+    "text": "docsOurs",
+    "title": "Written in this repository."
+   },
+   {
+    "text": ".githubOurs",
+    "title": "Written in this repository."
+   },
+   {
+    "text": "patchesOurs",
+    "title": "Written in this repository."
+   },
+   {
+    "text": "resourcesOurs",
+    "title": "Written in this repository."
+   },
+   {
+    "text": "srcOurs",
+    "title": "Written in this repository."
+   }
+  ],
+  "map.level1.withContract": {
+   "crumbs": [
+    "tortie"
+   ],
+   "boxes": [
+    {
+     "id": "build",
+     "label": "build",
+     "title": "build. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "docs",
+     "label": "docs",
+     "title": "docs. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "demo",
+     "label": "demo",
+     "title": "demo. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "other",
+     "label": "everything else",
+     "title": "everything else. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-preload",
+     "label": "src/preload",
+     "title": "src/preload. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-main",
+     "label": "src/main",
+     "title": "src/main. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-renderer",
+     "label": "src/renderer",
+     "title": "src/renderer. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    },
+    {
+     "id": "src-shared",
+     "label": "src/shared",
+     "title": "src/shared. Click to look inside. Written in this repository.",
+     "cls": "arch-map-box arch-map-click"
+    }
+   ],
+   "edges": [
+    {
+     "t": "build imports src-main",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "build imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "build imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "demo imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "demo imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "src-main imports src-renderer",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "src-main imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "src-preload imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "src-renderer imports src-main",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "src-renderer imports src-shared",
+     "cls": "arch-map-edge"
+    },
+    {
+     "t": "src-shared imports src-renderer",
+     "cls": "arch-map-edge"
+    }
+   ]
+  }
+ }
+}

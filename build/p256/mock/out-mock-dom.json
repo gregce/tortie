@@ -1,0 +1,168 @@
+[
+ {
+  "file": "/private/tmp/wt-p256/build/p256/mock/mock.html",
+  "rest": {
+   "title": "Tortie — what this system does (Phase 256 mock)",
+   "desc": "",
+   "hash": "",
+   "bodyWords": 521,
+   "tabs": [
+    "System map",
+    "Follow a session",
+    "What runs"
+   ],
+   "views": [
+    {
+     "id": "v-map",
+     "hidden": false,
+     "words": 276,
+     "buttons": 9,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 0,
+     "details": 9
+    },
+    {
+     "id": "v-journey",
+     "hidden": true,
+     "words": 37,
+     "buttons": 2,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 0,
+     "details": 0
+    },
+    {
+     "id": "v-gates",
+     "hidden": true,
+     "words": 225,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 0,
+     "details": 0
+    }
+   ],
+   "headline": "Tortie — what this system does",
+   "masthead": 25,
+   "componentCount": 0,
+   "componentLabels": [],
+   "componentWords": [],
+   "regions": [
+    "YOUR WINDOW",
+    "THE APP'S ENGINE",
+    "THE PRIVATE TMUX SERVER",
+    "ANOTHER MACHINE"
+   ],
+   "evidenceMarks": [
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-tested|Component-tested",
+    "ev ev-tested|Component-tested",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source"
+   ],
+   "journeySections": [],
+   "stepButtons": 0,
+   "gateSections": [],
+   "gateButtons": [],
+   "inspector": null,
+   "restingView": {
+    "id": "v-map",
+    "words": 276
+   },
+   "foldWords": 278,
+   "bridgeLabels": [
+    "229 typed invoke channel  →\n← pu he  the window redraw  from",
+    "command , and one pty per attach →\n← pane output and the  e ion li t",
+    "from the engine:  h, fixed argv →\n← a bounded mirror of the folder"
+   ],
+   "regionCards": [
+    {
+     "label": "",
+     "head": "Your window",
+     "blurb": "the renderer"
+    },
+    {
+     "label": "",
+     "head": "The app's engine",
+     "blurb": "main, one process"
+    },
+    {
+     "label": "",
+     "head": "The private tmux server",
+     "blurb": "the app does not own it"
+    },
+    {
+     "label": "",
+     "head": "Another machine",
+     "blurb": "outside this repository"
+    }
+   ],
+   "legend": [],
+   "notes": [],
+   "introWords": 0,
+   "crossLinks": 0,
+   "anchors": 0,
+   "externalRefs": 0,
+   "sourceLinks": 0,
+   "colorTokens": 134
+  },
+  "select": null,
+  "tabs": [
+   {
+    "tab": "System map",
+    "hash": "",
+    "words": 276,
+    "heading": "",
+    "firstPara": "the renderer"
+   },
+   {
+    "tab": "Follow a session",
+    "hash": "",
+    "words": 44,
+    "heading": "",
+    "firstPara": "Tortie creates a session in the private tmux server and stamps it with an id of its own"
+   },
+   {
+    "tab": "What runs",
+    "hash": "",
+    "words": 248,
+    "heading": "",
+    "firstPara": "Tortie finds a session in the private tmux server. Will it adopt it?"
+   }
+  ],
+  "journey": {
+   "hasNext": false,
+   "first": {
+    "words": 25,
+    "text": "01 Tortie creates a session in the private tmux server and stamps it with an id of its own Sessions that outlive the window src/main/tmux/env.ts:49decl/function",
+    "hash": ""
+   },
+   "second": {
+    "words": 25,
+    "text": "01 Tortie creates a session in the private tmux server and stamps it with an id of its own Sessions that outlive the window src/main/tmux/env.ts:49decl/function",
+    "hash": ""
+   }
+  },
+  "gate": {
+   "picked": null,
+   "hash": "",
+   "words": 39,
+   "text": "Tortie finds a session in the private tmux server. Will it adopt it? Stopsa session that carries neither an id option of ours nor the pane stamp is not ours, and is never adopted and never killed src/main/tmux/sessions.ts:85 decl/constant",
+   "worksheet": null
+  }
+ }
+]

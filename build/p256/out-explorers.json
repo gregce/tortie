@@ -1,0 +1,1525 @@
+[
+ {
+  "file": "/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p256-q2/runstory.html",
+  "rest": {
+   "title": "runstory · As-built architecture",
+   "desc": "An offline, interactive explanation of runstory as built. Explore the components, follow a commit, see which checks run and inspect proposed product area boundaries.",
+   "hash": "#map",
+   "bodyWords": 488,
+   "tabs": [
+    "System map",
+    "Follow a commit",
+    "What runs",
+    "Squad boundaries"
+   ],
+   "views": [
+    {
+     "id": "view-map",
+     "hidden": false,
+     "words": 422,
+     "buttons": 14,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 1,
+     "links": 5,
+     "details": 0
+    },
+    {
+     "id": "view-journey",
+     "hidden": true,
+     "words": 179,
+     "buttons": 18,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 1,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "view-checks",
+     "hidden": true,
+     "words": 844,
+     "buttons": 1,
+     "selects": 3,
+     "checkboxes": 9,
+     "tables": 2,
+     "tableRows": 15,
+     "pre": 0,
+     "links": 6,
+     "details": 2
+    },
+    {
+     "id": "view-squads",
+     "hidden": true,
+     "words": 258,
+     "buttons": 10,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 1,
+     "tableRows": 4,
+     "pre": 0,
+     "links": 4,
+     "details": 0
+    }
+   ],
+   "headline": "runstory, as built",
+   "masthead": 36,
+   "componentCount": 12,
+   "componentLabels": [
+    "C01 Repository setup Install, detect and init ↘",
+    "C02 Commit transport Queue, pack and dispatch ↘",
+    "C09 Return and landing Poll and write local evidence ↘",
+    "C10 Findings and memory Repair, verify and remember ↘",
+    "C03 Admission and queue Budget, lease and schedule ↘",
+    "C11 Readers and integrations CLI, agents, MCP and pages ↘",
+    "C12 Platform operations Contracts, deploy and release ↘",
+    "C04 Sandbox and environment Restore, isolate and run ↘",
+    "C05 Plan and route How to run; what to check ↘",
+    "C06 Deterministic checks Build, test and drive ↘",
+    "C07 Model pilot and hunt Explore and verify candidates ↘",
+    "C08 Ledger and judge Evidence into typed verdict ↘"
+   ],
+   "componentWords": [
+    8,
+    8,
+    10,
+    9,
+    9,
+    10,
+    8,
+    9,
+    11,
+    8,
+    10,
+    9
+   ],
+   "regions": [
+    "Working directory",
+    "Control plane",
+    "E2B sandbox"
+   ],
+   "evidenceMarks": [
+    "badge run|Runs",
+    "badge caution|Not executed",
+    "badge run|Attempts",
+    "badge run|Attempts",
+    "badge run|Attempts",
+    "badge |After failure",
+    "badge run|Typed probes",
+    "badge run|Derives evidence",
+    "badge|Proposed product area"
+   ],
+   "journeySections": [],
+   "stepButtons": 15,
+   "gateSections": [],
+   "gateButtons": [],
+   "inspector": {
+    "id": "component-detail",
+    "words": 151,
+    "fields": [
+     "Receives",
+     "Does",
+     "Returns",
+     "Runs in",
+     "Limits"
+    ],
+    "sources": 5,
+    "text": "C02 Commit transport Back to map ↑ A post-commit hook hands off a commit to a detached dispatcher. The dispatcher gathers the committed tree and the context for this run. post-commit -> queue -> settle / coalesce -> parent diff -> scan | Git bundle + envelope -+-> plane Receives Commit SHA, local queue and repository configuration. Does Use the parent comparison, coalesce queued commits and build a Git object pack. Gather selected transcript prose. Scan the latest parent-to-HEAD code blobs and scrub the transcript. Returns A run envelope and uploaded Git pack, followed by a polling process waiting for the result. Runs in Your machine Limits Unsaved work is not submitted. Full seed history usually follows the initial bundle, but the code secret scan covers latest parent-to-HEAD blobs rather than all history. Transcript off does not remove already committed conversation files. Proposed area Developer workflow → cmd/runstory/hook.go internal/dispatch/dispatch.go internal/pack/bundle.go internal/gate"
+   },
+   "restingView": {
+    "id": "view-map",
+    "words": 422
+   },
+   "foldWords": 253,
+   "bridgeLabels": [
+    "Git pack\n+ envelope\n→\n←\nPolled verdict\n+ artifact",
+    "Git pack\n+ envelope\n→",
+    "←\nPolled verdict\n+ artifact",
+    "Run token\n+ provi ion\n→\n←\nEvidence\n+ completion",
+    "Run token\n+ provi ion\n→",
+    "←\nEvidence\n+ completion"
+   ],
+   "regionCards": [
+    {
+     "label": "Your machine",
+     "head": "Working directory",
+     "blurb": "Go CLI · Git hooks · local files"
+    },
+    {
+     "label": "Hosted services",
+     "head": "Control plane",
+     "blurb": "Next.js on Vercel · Supabase"
+    },
+    {
+     "label": "Temporary execution",
+     "head": "E2B sandbox",
+     "blurb": "Linux · Go runner · model pilot"
+    }
+   ],
+   "legend": [],
+   "notes": [
+    {
+     "words": 36,
+     "head": "The verdict has a defined scope.",
+     "hidden": false
+    },
+    {
+     "words": 27,
+     "head": "This describes source wiring.",
+     "hidden": false
+    },
+    {
+     "words": 30,
+     "head": "The return path needs the dispatcher.",
+     "hidden": true
+    },
+    {
+     "words": 30,
+     "head": "The route-widening seam does not re-drive work.",
+     "hidden": true
+    },
+    {
+     "words": 81,
+     "head": "Routing depends on more than the dropdown.",
+     "hidden": true
+    }
+   ],
+   "introWords": 25,
+   "crossLinks": 6,
+   "anchors": 21,
+   "externalRefs": 0,
+   "sourceLinks": 19,
+   "colorTokens": 24
+  },
+  "select": {
+   "clicked": "C08 Ledger and judge Evidence into typed verdict ↘",
+   "hash": "#map",
+   "words": 176,
+   "fields": [
+    "Receives",
+    "Does",
+    "Returns",
+    "Runs in",
+    "Limits"
+   ],
+   "sources": [
+    "#squads",
+    "internal/judge/judge.go",
+    "internal/judge/route.go",
+    "cmd/runstory-runner/cmd_judge.go",
+    "cmd/runstory-runner/story.go",
+    "plane/lib/judge/rejudge.ts"
+   ],
+   "text": "C08 Ledger and judge Back to map ↑ Probe calls form a ledger. The judge reads that evidence and derives a typed verdict. A later model-written story is a readable explanation of the result. probe start + completion -> local ledger -> Go judge -> verdict.json | | streamed completions later story v plane run_events -> explicit rejudge Receives Ledger, selected route, check catalogue and verified hunt candidates. Does Derive observed check states. Require the selected floor to be accounted for. Render reproducible failure scripts. Validate the story against run evidence. Returns verdict.json with pass, fail or needs_work, plus reproducers. The plane adds completion facts. A story is accepted only after structural and reference validation. Runs in Live judge in sandbox; rejudge wrapper in plane Limits Pass requires at least one pilot turn as well as clean required coverage. A story does not decide pass. Rejudge runs the same Go judge on stored evidence in the plane, but some original novel/regression inputs are not retained. Proposed area Evidence and feedback → internal/judge/judge.go internal/judge/route.go cmd/runstory-runner/cmd_judge.go cmd/runstory-runner/story.go plane/lib/judge/rejudge.ts"
+  },
+  "tabs": [
+   {
+    "tab": "System map",
+    "hash": "#map",
+    "words": 447,
+    "heading": "One run crosses three places.",
+    "firstPara": "Select a component to see what it receives, what it does and what it returns."
+   },
+   {
+    "tab": "Follow a commit",
+    "hash": "#journey",
+    "words": 218,
+    "heading": "From install to a local verdict.",
+    "firstPara": "Walk the normal path. Each step identifies the place, the action and the resulting files or contract."
+   },
+   {
+    "tab": "What runs",
+    "hash": "#checks",
+    "words": 379,
+    "heading": "Which work does this change select?",
+    "firstPara": "Change the inputs to separate routing decisions from the work the runner actually attempts. This explains the code. It does not run software or predict a verdict."
+   },
+   {
+    "tab": "Squad boundaries",
+    "hash": "#squads",
+    "words": 293,
+    "heading": "Divide ownership at explicit contracts.",
+    "firstPara": "These are proposed product areas, not existing teams. Select an area to inspect its inputs, outputs and the neighboring areas that depend on it."
+   }
+  ],
+  "journey": {
+   "hasNext": true,
+   "first": {
+    "words": 77,
+    "text": "STEP 01 / 15 Install the CLI Build the command from the project checkout and put it on your PATH. The repository includes npm and Homebrew packaging, but this source review does not establish publication. git clone https://github.com/specstoryai/runstory.git cd runstory make install Result The build is linked at ~/.local/bin/runstory. Remember Use the hosted plane URL and deployment bypass secret supplied by the service operator. Keep one account UUID across your repositories. C01 · Repository setup Makefile README.md",
+    "hash": "#journey"
+   },
+   "second": {
+    "words": 66,
+    "text": "STEP 02 / 15 Initialize a repository Run init inside the Git repository you want checked. Init detects the project and writes local configuration and integration files. cd /path/to/your-project runstory init --account <account-uuid> --bypass <secret> Result runstory.toml, .runstory/plan.json, Git hooks and agent integration files. Remember The account is asserted by the client. This is not an authenticated sign-up or device-login flow. C01 · Repository setup cmd/runstory/init.go",
+    "hash": "#journey"
+   }
+  },
+  "gate": {
+   "picked": null,
+   "hash": "#checks",
+   "words": 229,
+   "text": "Tree checkout Runs The admitted run records the committed tree checkout. Hosted image Browser missing Normal admission hardcodes planKind=cli, so cold web runs select the CLI/deployment template. Its stock recipe lacks Chromium. The separate web recipe is not selected from the committed plan by this path. Web setup Attempts Configured install, build and start run outside route gates. The plan commands and image toolchain still need to work. Web build Logged step The build exit is logged. It has no dedicated fixed verdict check equivalent to cli.build. Browser behavior Skipped Missing start or port, unavailable environment values, failed startup or missing browser driver cause skips. Project tests Logged step Configured tests run even outside the tests route. Their exits are logged without a dedicated web test verdict row. Web server stop Before pilot The floor server is stopped and custo",
+   "worksheet": {
+    "rows": 10,
+    "summary": "The route selects 4 lanes. ✓tree ✓build ✓tests ·cli_drive ✓web_drive ·regression Code selects tree, build, tests and the supported drive lane. Dependency or plan inputs require the full admitted set.",
+    "firstRow": "Tree checkout Runs The admitted run records the committed tree checkout."
+   }
+  }
+ },
+ {
+  "file": "/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p256-q2/specfactory.html",
+  "rest": {
+   "title": "SpecFactory · As-built architecture",
+   "desc": "Explore SpecFactory as built: the browser, durable ledger, warm Claude session, native macOS boundary, Workflow method, current gates and proposed product areas.",
+   "hash": "#map/C03",
+   "bodyWords": 639,
+   "tabs": [
+    "System map",
+    "Follow the workflow",
+    "What runs",
+    "State and recovery",
+    "Built and remaining",
+    "Product areas"
+   ],
+   "views": [
+    {
+     "id": "view-map",
+     "hidden": false,
+     "words": 513,
+     "buttons": 25,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 13,
+     "links": 88,
+     "details": 0
+    },
+    {
+     "id": "view-journey",
+     "hidden": true,
+     "words": 1451,
+     "buttons": 44,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 17,
+     "links": 49,
+     "details": 0
+    },
+    {
+     "id": "view-gates",
+     "hidden": true,
+     "words": 1119,
+     "buttons": 0,
+     "selects": 2,
+     "checkboxes": 0,
+     "tables": 1,
+     "tableRows": 6,
+     "pre": 0,
+     "links": 30,
+     "details": 0
+    },
+    {
+     "id": "view-state",
+     "hidden": true,
+     "words": 538,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 1,
+     "tableRows": 9,
+     "pre": 2,
+     "links": 5,
+     "details": 0
+    },
+    {
+     "id": "view-evidence",
+     "hidden": true,
+     "words": 475,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 1,
+     "tableRows": 8,
+     "pre": 1,
+     "links": 7,
+     "details": 1
+    },
+    {
+     "id": "view-squads",
+     "hidden": true,
+     "words": 912,
+     "buttons": 19,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 1,
+     "tableRows": 5,
+     "pre": 0,
+     "links": 40,
+     "details": 0
+    }
+   ],
+   "headline": "One factory. Every boundary, explained.",
+   "masthead": 63,
+   "componentCount": 12,
+   "componentLabels": [
+    "C01 Control room Conversation, queue, Workflow, git and machine views ↗",
+    "C02 Owner authentication Passkeys, owner bootstrap and browser sessions ↗",
+    "C03 Gateway and command ledger Validate, attribute, deduplicate and order requests ↗",
+    "C04 Projection and presence Durable events become a bounded browser view ↗",
+    "C05 Runner authority Registration, signed requests, leases and receipts ↗",
+    "C06 Command pump One message at a time, with delivery receipts ↗",
+    "C07 Warm Claude session Streaming SDK input, output and transcript mirror ↗",
+    "C08 Native process boundary Root supervisor, pinned processes and launch permits ↗",
+    "C09 Backlog and mutation Prepare a project change under one durable authority",
+    "C10 Workflow and verification Build or research, checkpoints, proof and commit",
+    "C11 Verified commit admission Check exact tree, parent and message; advance the ref",
+    "C12 Runtime package and installation Pinned native, server and client artifacts. Complete build work is in progress; installer and host gates remain. ↗"
+   ],
+   "componentWords": [
+    11,
+    10,
+    12,
+    12,
+    10,
+    12,
+    12,
+    12,
+    12,
+    11,
+    13,
+    23
+   ],
+   "regions": [
+    "Greg's browser",
+    "Factory web service",
+    "Resident runtime"
+   ],
+   "evidenceMarks": [
+    "tag held|Queue-to-commit is not connected",
+    "tag source|Source implemented",
+    "tag source|Source implemented",
+    "tag source|Source implemented",
+    "tag source|Source implemented",
+    "tag source|Source implemented",
+    "tag source|Source implemented",
+    "tag held|Source composed, startup held",
+    "tag held|Source composed, startup held",
+    "tag held|Production launch refused",
+    "tag source|Separate method components",
+    "tag source|Separate method components",
+    "tag source|Separate method components",
+    "tag held|Build integration in progress",
+    "tag source|Conditional source path",
+    "tag source|Conditional source path",
+    "tag refused|Refused at the public route",
+    "tag held|HOLD",
+    "tag held|HOLD",
+    "tag held|Waiting, then HOLD on timeout",
+    "tag source|Method can proceed",
+    "tag held|One repair allowed",
+    "tag held|awaiting_respec",
+    "tag held|needs_work",
+    "tag refused|No valid approval",
+    "tag source|Local ref may advance",
+    "tag refused|Admission refused",
+    "tag refused|Admission refused",
+    "tag refused|Admission refused",
+    "tag refused|Admission refused",
+    "tag held|In flight",
+    "tag held|In flight",
+    "tag|Queued",
+    "tag|Queued",
+    "tag|Queued",
+    "tag|Queued",
+    "tag|Proposed product area",
+    "tag|Proposed product area",
+    "tag|Proposed product area",
+    "tag|Proposed product area",
+    "tag|Proposed product area",
+    "tag|Proposed product area",
+    "tag|Proposed product area"
+   ],
+   "journeySections": [],
+   "stepButtons": 8,
+   "gateSections": [],
+   "gateButtons": [
+    "Install to first conversation",
+    "Request to admitted commit",
+    "Fresh authorized message",
+    "Queue work or pause/resume",
+    "Delivery cannot be confirmed",
+    "Restart with prior conversation cursor",
+    "Owner setup is incomplete"
+   ],
+   "inspector": {
+    "id": "component-detail",
+    "words": 169,
+    "fields": [
+     "Receives",
+     "Does",
+     "Returns",
+     "Runs in",
+     "Current limit"
+    ],
+    "sources": 7,
+    "text": "C03 Gateway and command ledger Source implemented A browser action becomes a durable, ordered command before the runner can receive it. Browser intent → auth + origin + protocol + message-only gate → transaction: command + status + event → durable receipt → runner may lease the next command Receives A same-origin authenticated browser request with a stable request ID and bounded message text. Does Parses the public protocol, enforces the message-only policy, rejects unsafe credential-shaped text, assigns identity and ordering, and writes the command and receipt transactionally. Repeated logical requests return the original result. Returns A durable command, delivery status and receipt. Runner attempts are tracked separately from the original browser request. Runs in Fastify gateway and node:sqlite ledger under factoryweb. Current limit Queue/pause/resume implementations exist below the route, but the active route rejects these operations. A successful HTTP receipt means accepted intent, not a Claude reply or project change. ↑ Back to map Proposed product area Identity and command authority → src/http/gateway.ts src/factory-web/control/command-service.ts src/ledger/database.ts src/l"
+   },
+   "restingView": {
+    "id": "view-map",
+    "words": 513
+   },
+   "foldWords": 285,
+   "bridgeLabels": [
+    "me age + reque t ID\n↓ HTTPS command\n↑  nap hot + SSE event",
+    "⇄",
+    "⇄",
+    "← Signed runner event  → durable projection →  nap hot and  erver- ent event  → brow er",
+    "→",
+    "→",
+    "→",
+    "→",
+    "→",
+    "→",
+    "→",
+    "→",
+    "→"
+   ],
+   "regionCards": [
+    {
+     "label": "",
+     "head": "Greg's browser",
+     "blurb": "One real owner · several clients"
+    },
+    {
+     "label": "",
+     "head": "Factory web service",
+     "blurb": "factoryweb · Fastify + SQLite"
+    },
+    {
+     "label": "",
+     "head": "Resident runtime",
+     "blurb": "factoryrunner controller · factory Claude"
+    }
+   ],
+   "legend": [
+    "Source wiringSeparate method path",
+    "Source wiring",
+    "Separate method path"
+   ],
+   "notes": [
+    {
+     "words": 31,
+     "head": "One project and one real person",
+     "hidden": false
+    },
+    {
+     "words": 31,
+     "head": "Build and research are method variants",
+     "hidden": false
+    },
+    {
+     "words": 25,
+     "head": "",
+     "hidden": true
+    },
+    {
+     "words": 55,
+     "head": "The tier sets the proof obligation",
+     "hidden": true
+    },
+    {
+     "words": 30,
+     "head": "Refresh is not restart",
+     "hidden": true
+    },
+    {
+     "words": 31,
+     "head": "Uncertain delivery stays on HOLD",
+     "hidden": true
+    },
+    {
+     "words": 40,
+     "head": "No usable factory URL yet",
+     "hidden": true
+    },
+    {
+     "words": 55,
+     "head": "Supported system shape",
+     "hidden": true
+    },
+    {
+     "words": 50,
+     "head": "Evidence precedence",
+     "hidden": true
+    },
+    {
+     "words": 24,
+     "head": "",
+     "hidden": true
+    }
+   ],
+   "introWords": 26,
+   "crossLinks": 59,
+   "anchors": 223,
+   "externalRefs": 0,
+   "sourceLinks": 208,
+   "colorTokens": 18
+  },
+  "select": {
+   "clicked": "C12 Runtime package and installation Pinned native, server and client artifacts. Complete build work is in progress; installer and host gates remain. ↗",
+   "hash": "#map/C12",
+   "words": 193,
+   "fields": [
+    "Receives",
+    "Does",
+    "Returns",
+    "Runs in",
+    "Current limit"
+   ],
+   "sources": [
+    "#squads/host",
+    "src/ops/macos-runtime-manifest.ts",
+    "src/ops/macos-runtime-package.ts",
+    "src/ops/macos-runtime-build-metadata.ts",
+    "native/macos-runtime-package-writer.cc",
+    "src/ops/running-url-preflight.ts",
+    "docs/reviews/2026-09-08-complete-runtime-build.md"
+   ],
+   "text": "C12 Runtime package and installation Build integration in progress The runtime package must bind native executables, JavaScript, browser assets and public configuration to inspected bytes. Pinned inputs → native + server + web builds → public metadata → package assembly → native inspection · · installer / protected accounts / policy / HTTPS · · · · official Claude login + passkey + live acceptance · · Only then: an accepted running factory Receives Pinned native/compiler inputs, server and client builds, manifest roles and validated public configuration. Does Existing code encodes manifests, assembles artifacts and supports native read-only package inspection. Current working-tree work adds metadata preparation and complete-build coordination. Returns An inspectable public package candidate. Protected installation must then establish accounts, paths, ownership, policies and launchd wiring. Runs in src/ops, native package writer/inspector, build scripts and the launchd template. Current limit Complete build integration is still underway. Installer and live gates are unfinished. A public plist, help output or valid package does not start a factory. No measured operator start command or URL is ready. ↑ Back to map Proposed product area macOS runtime and installation → src/ops/macos-runtime-manifest.ts src/ops/macos-runtime-package.ts src/ops/macos-runtime-build-metadata.ts native/macos-runtime-package-writer.cc src/ops/running-url-preflight.ts docs/reviews/2026-09-08-complete-runtime-build.md"
+  },
+  "tabs": [
+   {
+    "tab": "System map",
+    "hash": "#map/C12",
+    "words": 537,
+    "heading": "A durable gateway separates the browser from Claude.",
+    "firstPara": "Select a component to see its job, inputs, outputs, limits and source files."
+   },
+   {
+    "tab": "Follow the workflow",
+    "hash": "#journey/conversation/1",
+    "words": 169,
+    "heading": "Trace a message, then a verified change.",
+    "firstPara": "These walkthroughs explain code and contracts. They do not start the factory or send anything."
+   },
+   {
+    "tab": "What runs",
+    "hash": "#gates/conversation/message",
+    "words": 342,
+    "heading": "What runs, what stops, and who decides.",
+    "firstPara": "Change a case to inspect an implemented rule. This is an explanatory worksheet, not a runtime status check."
+   },
+   {
+    "tab": "State and recovery",
+    "hash": "#state",
+    "words": 579,
+    "heading": "Stored evidence is split by authority.",
+    "firstPara": "The browser view, Claude transcript and project repository answer different questions. A durable record alone does not make restart safe."
+   },
+   {
+    "tab": "Built and remaining",
+    "hash": "#evidence",
+    "words": 505,
+    "heading": "Built source. Open operational gates.",
+    "firstPara": "Snapshot of the checkout on 8 September 2026. Committed baseline ea123cf478af; ongoing complete-runtime-build work is called out separately."
+   },
+   {
+    "tab": "Product areas",
+    "hash": "#squads/experience",
+    "words": 320,
+    "heading": "Divide the work at explicit contracts.",
+    "firstPara": "Proposed product areas, derived from the code. These are planning suggestions, not existing teams or a change to the backlog."
+   }
+  ],
+  "journey": {
+   "hasNext": true,
+   "first": {
+    "words": 78,
+    "text": "Step 01 of 8 Build an inspectable runtime Native binaries, server JavaScript, browser assets and public configuration must form one pinned package. Native + Node server + Vite client → manifest → assembly → read-only native inspection Result A public package candidate, not a service. Current boundary Artifact assembly is committed. Complete build and metadata integration are in progress in this checkout. C12 · Runtime package and installation src/ops/macos-runtime-package.ts docs/reviews/2026-09-08-complete-runtime-build.md ← Previous 1 / 8 Next step →",
+    "hash": "#journey/conversation/1"
+   },
+   "second": {
+    "words": 102,
+    "text": "Step 02 of 8 Establish the host boundary Installation must create isolated service identities and protected runtime paths, then enforce the selected host policy and private HTTPS entry. factoryweb → web and ledger factoryrunner → controller and mirror factory → Claude login and project root → native supervisor and protected installation Result Required installed authority. This gate is not complete. Current boundary Preflight found all 3 service accounts and all 3 checked targets missing. There is no accepted install/start command yet. C08 · Native process boundary C12 · Runtime package and installation src/ops/running-url-preflight.ts docs/research/07-macos-runner-bootstrap.md ← Previous 2 ",
+    "hash": "#journey/conversation/2"
+   }
+  },
+  "gate": {
+   "picked": "Queue work or pause/resume",
+   "hash": "#gates/conversation/queue",
+   "words": 66,
+   "text": "Refused at the public route The gateway rejects the operation. The current conversation policy accepts only message. Queue work and pause/resume have protocol and service implementations, but are not exposed at this checkpoint. ✓ Validate ■ Unsupported operation · No delivery Scope The UI disables these actions and explains their limits. Changing an operation field by hand does not open a second route. src/shared/conversation-policy.ts src/http/gateway.ts web/src/components/Composer.tsx",
+   "worksheet": null
+  }
+ },
+ {
+  "file": "/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p256-q2/stoa.html",
+  "rest": {
+   "title": "Stoa Architecture Explorer",
+   "desc": "As-built architecture explorer for the Stoa monorepo, traced from source at revision dc942342.",
+   "hash": "#map/stoa-cli",
+   "bodyWords": 392,
+   "tabs": [
+    "System map",
+    "Journeys",
+    "What runs",
+    "State",
+    "Built & remaining",
+    "stoa CLI",
+    "Per-project daemon",
+    "Multi-Project Daemon (MPD)",
+    "Correlation engine",
+    "automerge-ffi (Rust)",
+    "Relay sync client (Go)",
+    "stoa-helper-darwin",
+    "VS Code extension",
+    "macOS menu bar app",
+    "stoa-web (Next.js)",
+    "Native bridge contract",
+    "Desktop (macOS)",
+    "Desktop (Windows)",
+    "Principals and tokens",
+    "Supabase (Postgres + edge functions)",
+    "LiveKit transcription worker",
+    "LiveKit teammate worker",
+    "E2B agent sandbox",
+    "@stoa/agent-sandbox",
+    "Cloudflare share proxy",
+    "CRDT relay (intent-server)"
+   ],
+   "views": [
+    {
+     "id": "v-map",
+     "hidden": false,
+     "words": 288,
+     "buttons": 21,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 41,
+     "details": 0
+    },
+    {
+     "id": "c-stoa-cli",
+     "hidden": false,
+     "words": 134,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-project-daemon",
+     "hidden": true,
+     "words": 111,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-mpd",
+     "hidden": true,
+     "words": 82,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-correlation",
+     "hidden": true,
+     "words": 97,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-automerge-ffi",
+     "hidden": true,
+     "words": 88,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-remote-sync",
+     "hidden": true,
+     "words": 79,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 1,
+     "details": 0
+    },
+    {
+     "id": "c-helper-darwin",
+     "hidden": true,
+     "words": 107,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-vscode",
+     "hidden": true,
+     "words": 71,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-menubar",
+     "hidden": true,
+     "words": 74,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-web-app",
+     "hidden": true,
+     "words": 97,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-native-bridge",
+     "hidden": true,
+     "words": 88,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-desktop-mac",
+     "hidden": true,
+     "words": 75,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-desktop-win",
+     "hidden": true,
+     "words": 81,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-auth",
+     "hidden": true,
+     "words": 104,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-supabase",
+     "hidden": true,
+     "words": 135,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-livekit-transcription",
+     "hidden": true,
+     "words": 101,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-livekit-teammate",
+     "hidden": true,
+     "words": 78,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-e2b",
+     "hidden": true,
+     "words": 171,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-agent-sandbox",
+     "hidden": true,
+     "words": 177,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-share-proxy",
+     "hidden": true,
+     "words": 106,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "c-relay",
+     "hidden": true,
+     "words": 110,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "v-journeys",
+     "hidden": true,
+     "words": 989,
+     "buttons": 38,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 0,
+     "details": 0
+    },
+    {
+     "id": "v-gates",
+     "hidden": true,
+     "words": 539,
+     "buttons": 6,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 0,
+     "tableRows": 0,
+     "pre": 0,
+     "links": 0,
+     "details": 0
+    },
+    {
+     "id": "v-state",
+     "hidden": true,
+     "words": 251,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 2,
+     "tableRows": 15,
+     "pre": 0,
+     "links": 2,
+     "details": 0
+    },
+    {
+     "id": "v-remaining",
+     "hidden": true,
+     "words": 605,
+     "buttons": 0,
+     "selects": 0,
+     "checkboxes": 0,
+     "tables": 2,
+     "tableRows": 19,
+     "pre": 0,
+     "links": 11,
+     "details": 0
+    }
+   ],
+   "headline": "Stoa Architecture Explorer",
+   "masthead": 25,
+   "componentCount": 21,
+   "componentLabels": [
+    "stoa CLI",
+    "Per-project daemon",
+    "Multi-Project Daemon (MPD)",
+    "Correlation engine",
+    "automerge-ffi (Rust)",
+    "Relay sync client (Go)",
+    "stoa-helper-darwin",
+    "VS Code extension",
+    "macOS menu bar app",
+    "stoa-web (Next.js)",
+    "Native bridge contract",
+    "Desktop (macOS)",
+    "Desktop (Windows)",
+    "Principals and tokens",
+    "Supabase (Postgres + edge functions)",
+    "LiveKit transcription worker",
+    "LiveKit teammate worker",
+    "E2B agent sandbox",
+    "@stoa/agent-sandbox",
+    "Cloudflare share proxy",
+    "CRDT relay (intent-server)"
+   ],
+   "componentWords": [
+    2,
+    2,
+    3,
+    2,
+    2,
+    4,
+    1,
+    3,
+    4,
+    2,
+    3,
+    2,
+    2,
+    3,
+    5,
+    3,
+    3,
+    3,
+    1,
+    3,
+    3
+   ],
+   "regions": [
+    "Your machine",
+    "Browser and shells",
+    "Cloud services",
+    "Outside this repo"
+   ],
+   "evidenceMarks": [
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-tested|Component-tested",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-library|Implemented, not shipped",
+    "ev ev-library|Implemented, not shipped",
+    "ev ev-library|Implemented, not shipped",
+    "ev ev-composed|Composed in source",
+    "ev ev-tested|Component-tested",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-tested|Component-tested",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-composed|Composed in source",
+    "ev ev-offrepo|Outside this repo",
+    "ev ev-library|Implemented, not shipped",
+    "ev ev-composed|Composed in source",
+    "ev ev-tested|Component-tested",
+    "ev ev-offrepo|Outside this repo"
+   ],
+   "journeySections": [
+    {
+     "id": "j-version",
+     "steps": 6,
+     "hidden": false,
+     "title": "A file change becomes a linked version"
+    },
+    {
+     "id": "j-voice",
+     "steps": 7,
+     "hidden": true,
+     "title": "A voice call becomes topics"
+    },
+    {
+     "id": "j-agent",
+     "steps": 7,
+     "hidden": true,
+     "title": "Asking an AI agent to write code"
+    },
+    {
+     "id": "j-share",
+     "steps": 4,
+     "hidden": true,
+     "title": "Sharing localhost"
+    },
+    {
+     "id": "j-ship",
+     "steps": 6,
+     "hidden": true,
+     "title": "Shipping a change"
+    }
+   ],
+   "stepButtons": 5,
+   "gateSections": [
+    {
+     "id": "g-build",
+     "cases": 4,
+     "title": "Building the CLI"
+    },
+    {
+     "id": "g-release",
+     "cases": 4,
+     "title": "Cutting a release"
+    },
+    {
+     "id": "g-parity",
+     "cases": 3,
+     "title": "Desktop bridge parity"
+    },
+    {
+     "id": "g-drift",
+     "cases": 3,
+     "title": "Supabase function drift"
+    },
+    {
+     "id": "g-decisions",
+     "cases": 4,
+     "title": "Decisions vs Topics"
+    },
+    {
+     "id": "g-sandbox",
+     "cases": 3,
+     "title": "Rebuilding the agent sandbox"
+    }
+   ],
+   "gateButtons": [
+    "Building the CLI",
+    "Cutting a release",
+    "Desktop bridge parity",
+    "Supabase function drift",
+    "Decisions vs Topics",
+    "Rebuilding the agent sandbox"
+   ],
+   "inspector": {
+    "id": "c-stoa-cli",
+    "words": 134,
+    "fields": [
+     "Input / output",
+     "Runs as",
+     "What it does",
+     "Current limit",
+     "Source"
+    ],
+    "sources": 2,
+    "text": "stoa CLI COMPOSED IN SOURCE One Go binary that is both the user-facing CLI and the host for the daemons. INPUT / OUTPUT In: terminal commands. Out: local state changes, RPC calls, cloud queries. RUNS AS The developer's shell process. WHAT IT DOES main.go starts Sentry and analytics, then executes cmd.RootCmd. Commands self-register from their own files; root.go registers fourteen unconditionally. Thirty command files carry //go:build tags (git, llm, advanced, config, diag, web, scribe), so the default build is deliberately slim. CURRENT LIMIT The stoa web meetings/topics/transcripts/notes/projects commands are NOT behind the web tag - only web_collab.go is - so they ship in the slim binary. help_web.go IS tagged, but it only controls the pretty help listing, so in a default build those commands work while staying invisible to stoa --help. SOURCE stoa-cli/main.go stoa-cli/cmd/root.go"
+   },
+   "restingView": {
+    "id": "v-map",
+    "words": 288
+   },
+   "foldWords": 288,
+   "bridgeLabels": [],
+   "regionCards": [
+    {
+     "label": "",
+     "head": "Your machine",
+     "blurb": "A single Go binary, two Unix sockets, a Rust CRDT core and a macOS audio helper."
+    },
+    {
+     "label": "",
+     "head": "Browser and shells",
+     "blurb": "One Next.js origin. The desktop apps are shells over it, joined by one parity-gated bridge contract."
+    },
+    {
+     "label": "",
+     "head": "Cloud services",
+     "blurb": "Vercel, Supabase, Clerk, LiveKit, E2B and one Cloudflare Worker."
+    },
+    {
+     "label": "",
+     "head": "Outside this repo",
+     "blurb": "Runtime the product depends on whose source is not in this repository."
+    }
+   ],
+   "legend": [
+    "Implemented, not  hipped Code exi t ; no relea e path reache  u er .Compo ed in  ource An entrypoint connect  it; a runtime gate may  till apply.Component-te ted A named te t or CI check e tabli he  a limited property.Out ide thi  repo Only the client  ide of the boundary can be read here.",
+    "Implemented, not  hipped Code exi t ; no relea e path reache  u er .",
+    "Implemented, not  hipped",
+    "Compo ed in  ource An entrypoint connect  it; a runtime gate may  till apply.",
+    "Compo ed in  ource",
+    "Component-te ted A named te t or CI check e tabli he  a limited property.",
+    "Component-te ted",
+    "Out ide thi  repo Only the client  ide of the boundary can be read here."
+   ],
+   "notes": [
+    {
+     "words": 43,
+     "head": "Evidence boundary.",
+     "hidden": false
+    },
+    {
+     "words": 33,
+     "head": "",
+     "hidden": false
+    },
+    {
+     "words": 25,
+     "head": "",
+     "hidden": true
+    },
+    {
+     "words": 32,
+     "head": "",
+     "hidden": true
+    },
+    {
+     "words": 9,
+     "head": "",
+     "hidden": true
+    },
+    {
+     "words": 5,
+     "head": "",
+     "hidden": true
+    },
+    {
+     "words": 41,
+     "head": "A sixth credential is easy to miss.",
+     "hidden": true
+    },
+    {
+     "words": 25,
+     "head": "",
+     "hidden": true
+    },
+    {
+     "words": 19,
+     "head": "",
+     "hidden": true
+    },
+    {
+     "words": 32,
+     "head": "",
+     "hidden": true
+    }
+   ],
+   "introWords": 35,
+   "crossLinks": 30,
+   "anchors": 57,
+   "externalRefs": 0,
+   "sourceLinks": 57,
+   "colorTokens": 20
+  },
+  "select": {
+   "clicked": "CRDT relay (intent-server)",
+   "hash": "#map/relay",
+   "words": 116,
+   "fields": [
+    "Input / output",
+    "Runs as",
+    "What it does",
+    "Current limit",
+    "Source"
+   ],
+   "sources": [
+    "stoa-web/lib/automerge/IntentServerAdapter.ts",
+    "stoa-web/lib/contexts/AutomergeRepoContext.tsx"
+   ],
+   "text": "CRDT relay (intent-server) OUTSIDE THIS REPO Merges Automerge documents between every machine and every browser. INPUT / OUTPUT In: wss://intent-relay.specstory.com:7477/ws/{teamId}/{projectHash} with a short-lived token. Out: merged document state. RUNS AS A separately deployed service. ITS SOURCE IS NOT IN THIS REPOSITORY. WHAT IT DOES Both halves of the product connect to it: the browser through IntentServerAdapter, the Go daemon through the stoa:// sync client. Documents persist on the relay's filesystem. CURRENT LIMIT This is the single most common thing a new engineer misses. If you are looking for where document content is stored and cannot find it in Postgres, this is why. Only the client side of the protocol can be read here. SOURCE stoa-web/lib/automerge/IntentServerAdapter.ts stoa-web/lib/contexts/AutomergeRepoContext.tsx"
+  },
+  "tabs": [
+   {
+    "tab": "System map",
+    "hash": "#map/relay",
+    "words": 270,
+    "heading": "System map",
+    "firstPara": "Grouped by where code actually runs, not by folder. Select a component to read its contract. The dashed region is a runtime this product depends on whose source is not in this repository."
+   },
+   {
+    "tab": "Journeys",
+    "hash": "#journey/version/1",
+    "words": 265,
+    "heading": "Journeys",
+    "firstPara": "Five real tasks, followed from the first action to the returned result. Branches and stopping points are shown as steps rather than hidden in prose."
+   },
+   {
+    "tab": "What runs",
+    "hash": "#gates/build",
+    "words": 171,
+    "heading": "What runs, and what stops it",
+    "firstPara": "These cases are read from the code and CI configuration in this repository. Selecting a case does not invoke anything and does not inspect live state. Each case assumes earlier gates passed."
+   },
+   {
+    "tab": "State",
+    "hash": "#state",
+    "words": 296,
+    "heading": "State ownership",
+    "firstPara": "Which process owns which state, and what survives what."
+   },
+   {
+    "tab": "Built & remaining",
+    "hash": "#remaining",
+    "words": 650,
+    "heading": "Built and remaining",
+    "firstPara": "Four runtimes deploy on a git push. Five deploy only when a human runs a command — which is why a dedicated drift-detection workflow exists."
+   },
+   {
+    "tab": "stoa CLI",
+    "hash": "#remaining",
+    "words": 128,
+    "heading": "",
+    "firstPara": "One Go binary that is both the user-facing CLI and the host for the daemons."
+   },
+   {
+    "tab": "Per-project daemon",
+    "hash": "#remaining",
+    "words": 111,
+    "heading": "",
+    "firstPara": "Watches one project, records versions, and serves local clients."
+   },
+   {
+    "tab": "Multi-Project Daemon (MPD)",
+    "hash": "#remaining",
+    "words": 82,
+    "heading": "",
+    "firstPara": "Supervises every project under ~/Stoa/ - a control plane above the per-project daemons."
+   },
+   {
+    "tab": "Correlation engine",
+    "hash": "#remaining",
+    "words": 97,
+    "heading": "",
+    "firstPara": "Decides which AI conversation, if any, produced a given file change."
+   },
+   {
+    "tab": "automerge-ffi (Rust)",
+    "hash": "#remaining",
+    "words": 88,
+    "heading": "",
+    "firstPara": "The CRDT core. Automerge document operations, reached from Go through cgo."
+   },
+   {
+    "tab": "Relay sync client (Go)",
+    "hash": "#remaining",
+    "words": 79,
+    "heading": "",
+    "firstPara": "Connects the daemon to the CRDT relay over WebSocket."
+   },
+   {
+    "tab": "stoa-helper-darwin",
+    "hash": "#remaining",
+    "words": 107,
+    "heading": "",
+    "firstPara": "Captures microphone and system audio on macOS for meeting transcription."
+   },
+   {
+    "tab": "VS Code extension",
+    "hash": "#remaining",
+    "words": 71,
+    "heading": "",
+    "firstPara": "Surfaces project timeline, snapshots and digests inside the editor."
+   },
+   {
+    "tab": "macOS menu bar app",
+    "hash": "#remaining",
+    "words": 74,
+    "heading": "",
+    "firstPara": "Shows meeting and scribe state in the macOS menu bar."
+   },
+   {
+    "tab": "stoa-web (Next.js)",
+    "hash": "#remaining",
+    "words": 97,
+    "heading": "",
+    "firstPara": "The product surface: spaces, documents, meetings, agents, billing."
+   },
+   {
+    "tab": "Native bridge contract",
+    "hash": "#remaining",
+    "words": 88,
+    "heading": "",
+    "firstPara": "One message protocol shared by the web app and both desktop shells."
+   },
+   {
+    "tab": "Desktop (macOS)",
+    "hash": "#remaining",
+    "words": 75,
+    "heading": "",
+    "firstPara": "Native macOS shell hosting the web app in a WKWebView."
+   },
+   {
+    "tab": "Desktop (Windows)",
+    "hash": "#remaining",
+    "words": 81,
+    "heading": "",
+    "firstPara": "Windows shell hosting the same web app in WebView2 via Tauri v2."
+   },
+   {
+    "tab": "Principals and tokens",
+    "hash": "#remaining",
+    "words": 104,
+    "heading": "",
+    "firstPara": "Decides who is making a request, for five different kinds of caller."
+   },
+   {
+    "tab": "Supabase (Postgres + edge functions)",
+    "hash": "#remaining",
+    "words": 135,
+    "heading": "",
+    "firstPara": "Owns spaces, meetings, topics, decisions and billing, plus the meeting pipeline."
+   },
+   {
+    "tab": "LiveKit transcription worker",
+    "hash": "#remaining",
+    "words": 101,
+    "heading": "",
+    "firstPara": "Joins every collab room and transcribes all participant audio."
+   },
+   {
+    "tab": "LiveKit teammate worker",
+    "hash": "#remaining",
+    "words": 78,
+    "heading": "",
+    "firstPara": "'Theo, the Guide' - a conversational AI participant on OpenAI Realtime, dispatched into a new org's Starter Space while it is still solo."
+   },
+   {
+    "tab": "E2B agent sandbox",
+    "hash": "#remaining",
+    "words": 171,
+    "heading": "",
+    "firstPara": "Runs an AI coding agent against a real checkout, isolated per participant."
+   },
+   {
+    "tab": "@stoa/agent-sandbox",
+    "hash": "#remaining",
+    "words": 177,
+    "heading": "",
+    "firstPara": "The extracted workspace package owning sandbox lifecycle, tokens and the ACP client."
+   },
+   {
+    "tab": "Cloudflare share proxy",
+    "hash": "#remaining",
+    "words": 106,
+    "heading": "",
+    "firstPara": "Gives stoa sharelocalhost tunnels a branded URL that supports WebSockets."
+   },
+   {
+    "tab": "CRDT relay (intent-server)",
+    "hash": "#remaining",
+    "words": 110,
+    "heading": "",
+    "firstPara": "Merges Automerge documents between every machine and every browser."
+   }
+  ],
+  "journey": {
+   "hasNext": true,
+   "first": {
+    "words": 25,
+    "text": "1 You save a file The per-project daemon's watcher records a journal entry. This happens regardless of whether any AI was involved. Component: Per-project daemon",
+    "hash": "#journey/version/1"
+   },
+   "second": {
+    "words": 23,
+    "text": "2 Agent activity is captured separately The agentobserver package captures AI session activity as provenance hints, on its own timeline. Component: Per-project daemon",
+    "hash": "#journey/version/2"
+   }
+  },
+  "gate": {
+   "picked": "Cutting a release",
+   "hash": "#gates/release",
+   "words": 78,
+   "text": "Cutting a release You push an ordinary commit to dev or main STOPS No release. Build, lint and test run instead - deliberately, to avoid a four-way matrix including two macOS runners on every commit. Your commit message contains [release] PROCEEDS Internal and public release, four-target matrix. You trigger the workflow by hand PROCEEDS Internal release only; no public artifacts. The commit author is github-actions[bot] STOPS Skipped, to prevent tag-push loops from the Homebrew formula updater pushing back.",
+   "worksheet": null
+  }
+ }
+]

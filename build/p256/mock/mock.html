@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en" data-scheme="dark">
+<head>
+<meta charset="utf-8">
+<title>Tortie — what this system does (Phase 256 mock)</title>
+<link rel="stylesheet" href="../../../src/renderer/styles/tokens.css">
+<style>
+/* Every colour, size, radius and font below is a token out of the file linked
+   above. Nothing here invents one; that is the rule this mock exists to obey. */
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg-canvas); color: var(--text-primary);
+  font-family: var(--font-ui); font-size: var(--text-base); line-height: var(--lh-base); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: var(--space-7) var(--space-7) var(--space-10); }
+header.mast { display: flex; align-items: baseline; gap: var(--space-5); flex-wrap: wrap; }
+h1 { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--weight-semibold); margin: 0; }
+.prov { color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); font-family: var(--font-mono); }
+[role=tablist] { display: flex; gap: var(--space-2); margin: var(--space-6) 0 0;
+  border-bottom: 1px solid var(--border); }
+.tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+  color: var(--text-secondary); font: inherit; padding: var(--space-4) var(--space-5);
+  cursor: pointer; border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.tab:hover { background: var(--bg-raised); color: var(--text-primary); }
+.tab[aria-selected=true] { color: var(--text-primary); border-bottom-color: var(--accent); }
+.tab:focus-visible, .node:focus-visible, .jump:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+[role=tabpanel] { padding-top: var(--space-6); }
+
+.map { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: var(--space-4); align-items: start; }
+.region.far { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--space-8); margin-top: var(--space-5); }
+.bridge.flat { padding-top: 0; }
+.region { background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+.region.dashed { border-style: dashed; border-color: var(--border-strong); background: transparent; }
+.region h3 { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); text-transform: uppercase;
+  letter-spacing: var(--track-caps); color: var(--text-secondary); font-weight: var(--weight-semibold); }
+.region-sub { margin: 0 0 var(--space-2); color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.region-empty { margin: 0; color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.node { display: grid; grid-template-columns: 10px 1fr; gap: 0 var(--space-4); text-align: left;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: var(--space-4) var(--space-5); color: var(--text-primary); font: inherit; cursor: pointer; }
+.node:hover { background: var(--bg-raised); border-color: var(--border-active); }
+.node[aria-pressed=true] { background: var(--bg-active); border-color: var(--accent-soft); }
+.node-name { font-weight: var(--weight-medium); }
+.node-short { grid-column: 2; color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.ev-composed { background: var(--status-idle); }
+.ev-tested { background: var(--success); }
+.ev-library { background: var(--warning); }
+.ev-offrepo { background: transparent; box-shadow: inset 0 0 0 var(--graph-dot-ring) var(--text-muted); }
+.bridge { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-9);
+  min-width: 150px; color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.wire { border-bottom: 1px solid var(--border-strong); padding-bottom: var(--space-1); }
+.wire.back { color: var(--text-muted); }
+
+.inspector { margin-top: var(--space-6); background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: var(--space-6); }
+.inspector header { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+.inspector h3 { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold); }
+.ev { font-size: var(--text-2xs); line-height: var(--lh-2xs); border-radius: var(--r-pill);
+  padding: 0 var(--space-4); border: 1px solid var(--border-strong); color: var(--text-secondary); }
+.ev.ev-tested { color: var(--success); border-color: var(--success); background: var(--success-wash); }
+.ev.ev-library { color: var(--warning); border-color: var(--warning); background: var(--warning-wash); }
+.ev-count { margin-left: auto; color: var(--text-muted); font-size: var(--text-xs); font-family: var(--font-mono); }
+.job { margin: var(--space-4) 0 var(--space-5); color: var(--text-primary); }
+.contract { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-8); margin: 0; }
+.contract div { display: grid; grid-template-columns: 86px 1fr; gap: var(--space-4); }
+.contract dt { color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-base); text-transform: uppercase; letter-spacing: var(--track-caps); }
+.contract dd { margin: 0; color: var(--text-secondary); }
+.limit { margin-top: var(--space-5); }
+.limit summary { cursor: pointer; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.limit p { margin: var(--space-3) 0 0; color: var(--text-secondary); }
+.cites { list-style: none; margin: var(--space-5) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.cites li { display: flex; align-items: center; gap: var(--space-3); }
+.cites code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.cite-chip { font-size: var(--text-2xs); line-height: var(--lh-2xs); border-radius: var(--r-xs); padding: 0 var(--space-3);
+  font-family: var(--font-mono); }
+.cite-chip.backed { color: var(--success); background: var(--success-wash); }
+.cite-chip.unbacked { color: var(--warning); background: var(--warning-wash); }
+
+.journey { display: grid; grid-template-columns: 1fr 220px; gap: var(--space-8); align-items: start; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.step { display: grid; grid-template-columns: 28px 1fr; gap: var(--space-5); background: var(--bg-surface);
+  border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--space-5); }
+.step.on { border-color: var(--accent-soft); background: var(--bg-active); }
+.seq { font-family: var(--font-mono); color: var(--text-muted); font-size: var(--text-xs); }
+.step-label { margin: 0; }
+.step-foot { margin: var(--space-4) 0 0; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+.jump { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--r-pill);
+  color: var(--text-secondary); font: inherit; font-size: var(--text-xs); line-height: var(--lh-xs);
+  padding: 0 var(--space-4); cursor: pointer; }
+.jump:hover { color: var(--text-primary); border-color: var(--border-active); }
+.step-foot .cites { margin: 0; }
+.track { position: sticky; top: var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); }
+.track-cell { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--space-4) var(--space-5);
+  color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.track-cell.on { color: var(--text-primary); border-color: var(--accent-soft); background: var(--bg-active); }
+
+.gates { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.gate { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--space-5); }
+.gate-q { margin: 0; font-weight: var(--weight-medium); }
+.gate-a { margin: var(--space-3) 0 0; color: var(--text-secondary); }
+.answer { display: inline-block; margin-right: var(--space-4); font-size: var(--text-2xs); line-height: var(--lh-2xs);
+  border-radius: var(--r-pill); padding: 0 var(--space-4); border: 1px solid var(--border-strong); color: var(--text-secondary); }
+.answer.uncertain { color: var(--warning); border-color: var(--warning); background: var(--warning-wash); }
+.answer.proceeds { color: var(--success); border-color: var(--success); background: var(--success-wash); }
+
+footer { margin-top: var(--space-9); border-top: 1px solid var(--border); padding-top: var(--space-5);
+  color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+footer p { margin: 0 0 var(--space-3); }
+@media (max-width: 1000px) { .map { grid-template-columns: 1fr; } .bridge { padding-top: 0; flex-direction: row; }
+  .journey { grid-template-columns: 1fr; } .track { position: static; flex-direction: row; flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="mast">
+  <h1>Tortie &mdash; what this system does</h1>
+  <span class="prov">3,182 files read at 2e1b4799 &middot; 9 parts named &middot; 24 of 41 sentences standing on a detected fact</span>
+</header>
+
+<div role="tablist" aria-label="Views">
+  <button class="tab" role="tab" aria-selected="true" aria-controls="v-map" id="t-map">System map</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="v-journey" id="t-journey">Follow a session</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="v-gates" id="t-gates">What runs</button>
+</div>
+
+<section role="tabpanel" id="v-map" aria-labelledby="t-map">
+  <div class="map"><div class="region"><h3>Your window</h3><p class="region-sub">the renderer</p><button class="node" type="button" aria-pressed="false" data-node="redline" id="node-redline"><span class="dot ev-tested" aria-hidden="true"></span><span class="node-name">What the agent changed, drawn over what you had</span><span class="node-short">an agent's edit, drawn over yours</span></button><button class="node" type="button" aria-pressed="false" data-node="external-door" id="node-external-door"><span class="dot ev-composed" aria-hidden="true"></span><span class="node-name">Opening a file a transcript named</span><span class="node-short">opening a path a transcript printed</span></button></div><div class="bridge"><span class="wire out">229 typed invoke channels &rarr;</span><span class="wire back">&larr; pushes the window redraws from</span></div><div class="region"><h3>The app's engine</h3><p class="region-sub">main, one process</p><button class="node" type="button" aria-pressed="false" data-node="manifest" id="node-manifest"><span class="dot ev-composed" aria-hidden="true"></span><span class="node-name">The record that makes restore possible</span><span class="node-short">the record restore reads</span></button><button class="node" type="button" aria-pressed="false" data-node="attach-host" id="node-attach-host"><span class="dot ev-composed" aria-hidden="true"></span><span class="node-name">The pane you actually type into</span><span class="node-short">one pty per attached session</span></button><button class="node" type="button" aria-pressed="false" data-node="arch-reading" id="node-arch-reading"><span class="dot ev-composed" aria-hidden="true"></span><span class="node-name">The picture of the folder you are in</span><span class="node-short">the picture, with no turn</span></button><button class="node" type="button" aria-pressed="false" data-node="guarded-write" id="node-guarded-write"><span class="dot ev-tested" aria-hidden="true"></span><span class="node-name">The one door that rewrites your file</span><span class="node-short">the one door that rewrites a file</span></button><button class="node" type="button" aria-pressed="false" data-node="logins" id="node-logins"><span class="dot ev-composed" aria-hidden="true"></span><span class="node-name">Which account an agent signs in as</span><span class="node-short">which account an agent signs in as</span></button><button class="node" type="button" aria-pressed="false" data-node="machines" id="node-machines"><span class="dot ev-composed" aria-hidden="true"></span><span class="node-name">A folder on another machine, which feels like this one</span><span class="node-short">the same work, over ssh</span></button></div><div class="bridge"><span class="wire out">commands, and one pty per attach &rarr;</span><span class="wire back">&larr; pane output and the session list</span></div><div class="region"><h3>The private tmux server</h3><p class="region-sub">the app does not own it</p><button class="node" type="button" aria-pressed="false" data-node="durable-sessions" id="node-durable-sessions"><span class="dot ev-composed" aria-hidden="true"></span><span class="node-name">Sessions that outlive the window</span><span class="node-short">named sessions that outlive the app</span></button></div></div>
+  <div class="region dashed far"><div><h3>Another machine</h3><p class="region-sub">outside this repository</p><p class="region-empty">Nothing over there is this repository&rsquo;s code.</p></div><div class="bridge flat"><span class="wire out">from the engine: ssh, fixed argv &rarr;</span><span class="wire back">&larr; a bounded mirror of the folder</span></div></div>
+  
+      <article class="inspector" data-for="durable-sessions">
+        <header>
+          <h3>Sessions that outlive the window</h3>
+          <span class="ev ev-composed">Composed in source</span>
+          <span class="ev-count">3 of 3 backed</span>
+        </header>
+        <p class="job">Keep a named terminal session alive across a quit, a crash and a reboot, in a tmux server the app does not own.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>a project folder, an agent choice and a name</dd></div>
+          <div><dt>Returns</dt><dd>a live session the app can attach to and detach from without ending it</dd></div>
+          <div><dt>Runs in</dt><dd>the private tmux server, spoken to from main</dd></div>
+          <div><dt>Keeps</dt><dd>the session itself, in tmux; nothing durable in the app</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>the app is a disposable client, so nothing here survives the tmux server being killed by hand</p></details>
+        <ul class="cites"><li><code>src/main/tmux/resolve.ts:311</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">effect/spawn</span></li><li><code>src/main/tmux/env.ts:49</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li><li><code>src/main/tmux/sessions.ts:85</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/constant</span></li></ul>
+      </article>
+      <article class="inspector" data-for="manifest" hidden>
+        <header>
+          <h3>The record that makes restore possible</h3>
+          <span class="ev ev-composed">Composed in source</span>
+          <span class="ev-count">3 of 4 backed</span>
+        </header>
+        <p class="job">Remember every session's project, agent and resume argument so the app can put the world back after it is gone.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>session lifecycle events from main</dd></div>
+          <div><dt>Returns</dt><dd>rows the restore pass reads at boot</dd></div>
+          <div><dt>Runs in</dt><dd>main, in a SQLite file under the app's data directory</dd></div>
+          <div><dt>Keeps</dt><dd>sessions, projects, restore attempts, remote projects and remote executions</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>a row can outlive the tmux session it names, which is why restore asks tmux rather than trusting the row</p></details>
+        <ul class="cites"><li><code>src/main/manifest/schema.ts:28</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">store/store-write</span></li><li><code>src/main/manifest/schema.ts:47</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li><li><code>src/main/manifest/schema.ts:143</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">store/store-write</span></li><li><code>src/main/manifest/restore-journal.ts:76</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">store/store-write</span></li></ul>
+      </article>
+      <article class="inspector" data-for="attach-host" hidden>
+        <header>
+          <h3>The pane you actually type into</h3>
+          <span class="ev ev-composed">Composed in source</span>
+          <span class="ev-count">1 of 2 backed</span>
+        </header>
+        <p class="job">Give a window a real terminal attached to one durable session, and take it away again without ending the session.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>a session id and a size</dd></div>
+          <div><dt>Returns</dt><dd>a pty the renderer draws</dd></div>
+          <div><dt>Runs in</dt><dd>main, one pty per attached session</dd></div>
+          <div><dt>Keeps</dt><dd>none of its own; the scrollback lives in tmux</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>a pane's width is the window's, so a narrow window reflows the session's history</p></details>
+        <ul class="cites"><li><code>src/main/attach/attach-host.ts:228</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li><li><code>src/main/attach/attach-plan.ts:154</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li></ul>
+      </article>
+      <article class="inspector" data-for="arch-reading" hidden>
+        <header>
+          <h3>The picture of the folder you are in</h3>
+          <span class="ev ev-composed">Composed in source</span>
+          <span class="ev-count">0 of 3 backed</span>
+        </header>
+        <p class="job">Read a repository's tracked files and imports with no model and no turn, and draw what is made of what.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>a project root</dd></div>
+          <div><dt>Returns</dt><dd>a partition, one sentence per box, and an import graph</dd></div>
+          <div><dt>Runs in</dt><dd>main, off one file watcher subscription, with a worker pool for parsing</dd></div>
+          <div><dt>Keeps</dt><dd>a derived database that can be deleted without loss</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>every edge it can draw is an import, so a system whose parts talk over HTTP or a socket shows no connection at all</p></details>
+        <ul class="cites"><li><code>src/main/arch/scan.ts:1</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li><li><code>src/main/arch/skeleton.ts:1</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li><li><code>src/main/arch/map.ts:1</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></ul>
+      </article>
+      <article class="inspector" data-for="guarded-write" hidden>
+        <header>
+          <h3>The one door that rewrites your file</h3>
+          <span class="ev ev-tested">Component-tested</span>
+          <span class="ev-count">1 of 3 backed</span>
+        </header>
+        <p class="job">Replace a file's bytes only when the bytes on disk are still the bytes the caller read.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>a path, a payload and the digest of what was read</dd></div>
+          <div><dt>Returns</dt><dd>written, stale, raced, read-only or refused</dd></div>
+          <div><dt>Runs in</dt><dd>main, synchronously, so the stat, the read and the digest describe one moment</dd></div>
+          <div><dt>Keeps</dt><dd>none; it stages beside the file and renames</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>a change of the same size inside one timestamp tick is invisible, which on this filesystem is a nanosecond</p></details>
+        <ul class="cites"><li><code>src/main/fs/guarded-write.ts:347</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li><li><code>src/main/fs/guarded-write.ts:391</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li><li><code>src/main/fs/guarded-write.ts:468</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></ul>
+      </article>
+      <article class="inspector" data-for="redline" hidden>
+        <header>
+          <h3>What the agent changed, drawn over what you had</h3>
+          <span class="ev ev-tested">Component-tested</span>
+          <span class="ev-count">1 of 2 backed</span>
+        </header>
+        <p class="job">Show an agent's edit as a marking against a shadow copy of the file, and let a person take one change back or keep it.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>the file on disk and the baseline the tab is holding</dd></div>
+          <div><dt>Returns</dt><dd>a drawn marking, and on a press either the file or the baseline rewritten</dd></div>
+          <div><dt>Runs in</dt><dd>the renderer, writing through the guarded door</dd></div>
+          <div><dt>Keeps</dt><dd>the baseline, durable under the app's data directory</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>losing the baseline store loses the narrowing and nothing on disk, because the file is the file and git is the history</p></details>
+        <ul class="cites"><li><code>src/renderer/editor/redline-write.ts:117</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li><li><code>src/renderer/editor/redline-write.ts:89</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li></ul>
+      </article>
+      <article class="inspector" data-for="machines" hidden>
+        <header>
+          <h3>A folder on another machine, which feels like this one</h3>
+          <span class="ev ev-composed">Composed in source</span>
+          <span class="ev-count">2 of 3 backed</span>
+        </header>
+        <p class="job">Run the same session and file work against a machine reached over ssh, without the surfaces saying they are remote.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>a confirmed machine and a folder on it</dd></div>
+          <div><dt>Returns</dt><dd>sessions, trees, diffs and searches that read the same as local ones</dd></div>
+          <div><dt>Runs in</dt><dd>main, through one exec plane that is the only place this product runs ssh</dd></div>
+          <div><dt>Keeps</dt><dd>remote projects and remote executions in the manifest, and a bounded local mirror for the architecture read</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>nothing Tortie writes runs on the machine beyond a fixed set of scripts, and the model slot stays local</p></details>
+        <ul class="cites"><li><code>src/main/machines/exec-plane.ts:604</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li><li><code>src/main/machines/exec-plane.ts:750</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li><li><code>src/main/manifest/schema.ts:462</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">store/store-write</span></li></ul>
+      </article>
+      <article class="inspector" data-for="logins" hidden>
+        <header>
+          <h3>Which account an agent signs in as</h3>
+          <span class="ev ev-composed">Composed in source</span>
+          <span class="ev-count">1 of 2 backed</span>
+        </header>
+        <p class="job">Let a person keep more than one vendor account and choose which one a session launches under, without a sign-in ever being performed by Tortie.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>a provider and a chosen login</dd></div>
+          <div><dt>Returns</dt><dd>the environment a pane is launched with, and a credential kept for the account a store moved away from</dd></div>
+          <div><dt>Runs in</dt><dd>main, with the keychain and the vendor's own store directories</dd></div>
+          <div><dt>Keeps</dt><dd>a login record, a scoped keychain item per login, and the vendor's own files</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>the person's own default location is read-only forever except on a deliberate switch, and there is no refresh and no rotation</p></details>
+        <ul class="cites"><li><code>src/main/logins/store.ts:656</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">effect/fs-write</span></li><li><code>src/main/credentials/nofollow.ts:35</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></ul>
+      </article>
+      <article class="inspector" data-for="external-door" hidden>
+        <header>
+          <h3>Opening a file a transcript named</h3>
+          <span class="ev ev-composed">Composed in source</span>
+          <span class="ev-count">1 of 2 backed</span>
+        </header>
+        <p class="job">Let a click on a path an agent printed open that file, without letting a click run a program.</p>
+        <dl class="contract">
+          <div><dt>Receives</dt><dd>a path span found in a terminal row</dd></div>
+          <div><dt>Returns</dt><dd>the file opened inside Tortie, or handed to the system for the one kind that is allowed</dd></div>
+          <div><dt>Runs in</dt><dd>main answers the door; the renderer only underlines</dd></div>
+          <div><dt>Keeps</dt><dd>none</dd></div>
+        </dl>
+        <details class="limit"><summary>Where it stops</summary><p>between the answer and the open the file at that path can be replaced, so the allowlist is one extension wide</p></details>
+        <ul class="cites"><li><code>src/shared/path-doors.ts:220</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/constant</span></li><li><code>src/shared/path-doors.ts:294</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></ul>
+      </article>
+</section>
+
+<section role="tabpanel" id="v-journey" aria-labelledby="t-journey" hidden>
+  <div class="journey">
+    <ol class="steps"><li class="step" data-place="The private tmux server"><span class="seq">01</span><div><p class="step-label">Tortie creates a session in the private tmux server and stamps it with an id of its own</p><p class="step-foot"><button class="jump" data-node="durable-sessions">Sessions that outlive the window</button><li><code>src/main/tmux/env.ts:49</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li></p></div></li><li class="step" data-place="The app's engine"><span class="seq">02</span><div><p class="step-label">the pane is launched under the login the person chose</p><p class="step-foot"><button class="jump" data-node="logins">Which account an agent signs in as</button><li><code>src/main/sessions/launch-plan.ts:321</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></p></div></li><li class="step" data-place="The app's engine"><span class="seq">03</span><div><p class="step-label">the row is written before anything can be lost</p><p class="step-foot"><button class="jump" data-node="manifest">The record that makes restore possible</button><li><code>src/main/manifest/schema.ts:28</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">store/store-write</span></li></p></div></li><li class="step" data-place="The app's engine"><span class="seq">04</span><div><p class="step-label">a pty attaches so the person can type</p><p class="step-foot"><button class="jump" data-node="attach-host">The pane you actually type into</button><li><code>src/main/attach/attach-host.ts:228</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></p></div></li><li class="step" data-place="The app's engine"><span class="seq">05</span><div><p class="step-label">after a reboot the restore pass reads the rows and asks tmux what is still there</p><p class="step-foot"><button class="jump" data-node="manifest">The record that makes restore possible</button><li><code>src/main/manifest/restore-journal.ts:76</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">store/store-write</span></li></p></div></li></ol>
+    <div class="track"><span class="track-cell" data-place="Your window">Your window</span><span class="track-cell" data-place="The app's engine">The app's engine</span><span class="track-cell" data-place="The private tmux server">The private tmux server</span><span class="track-cell" data-place="Another machine">Another machine</span></div>
+  </div>
+</section>
+
+<section role="tabpanel" id="v-gates" aria-labelledby="t-gates" hidden>
+  <ul class="gates"><li class="gate"><p class="gate-q">Tortie finds a session in the private tmux server. Will it adopt it?</p><p class="gate-a"><span class="answer stops">Stops</span>a session that carries neither an id option of ours nor the pane stamp is not ours, and is never adopted and never killed</p><ul class="cites"><li><code>src/main/tmux/sessions.ts:85</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/constant</span></li></ul></li><li class="gate"><p class="gate-q">A configuration file names an agent binary. Will Tortie launch it?</p><p class="gate-a"><span class="answer stops">Stops</span>nothing starts on a configuration change alone; a person confirms the fields out of band and the agreement is bound to a hash of the fields that decide what runs</p><ul class="cites"><li><code>src/main/config/confirm.ts:454</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></ul></li><li class="gate"><p class="gate-q">You press save and the file changed on disk since Tortie read it. Will it be overwritten?</p><p class="gate-a"><span class="answer stops">Stops</span>the guarded door answers stale rather than writing, and the person is asked with Compare as the default</p><ul class="cites"><li><code>src/main/fs/guarded-write.ts:347</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li></ul></li><li class="gate"><p class="gate-q">A transcript prints a path to a .command file and you click it. Will it run?</p><p class="gate-a"><span class="answer stops">Stops</span>the mode is checked before the extension and the allowlist of kinds handed to the system is one extension wide</p><ul class="cites"><li><code>src/shared/path-doors.ts:220</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/constant</span></li></ul></li><li class="gate"><p class="gate-q">The architecture check finds the contract has drifted. Will a model be started?</p><p class="gate-a"><span class="answer uncertain">It depends</span>only when an agent has been chosen in Settings, the confirm gate still holds at the spawn, the drift is real and the minimum interval has passed; otherwise nothing runs</p><ul class="cites"><li><code>src/main/overview/fold/spawn.ts:201</code><span class="cite-chip backed" title="A fact the deterministic pass emitted independently, within three lines of the cited line.">decl/function</span></li></ul></li><li class="gate"><p class="gate-q">You choose a different login while a session of that provider is running. Will the store be written?</p><p class="gate-a"><span class="answer uncertain">It depends</span>it is written under the vendor's own locks, and a lock the vendor holds is a refusal naming the lock rather than a steal</p><ul class="cites"><li><code>src/main/credentials/nofollow.ts:35</code><span class="cite-chip unbacked" title="The link resolves to a real tracked line, and the deterministic pass found nothing of the wanted shape within three lines of it. This sentence is standing on prose.">prose</span></li></ul></li></ul>
+</section>
+
+<footer>
+  <p><strong>What this is.</strong> A Phase 256 mock of direction B, drawn in Tortie&rsquo;s own tokens
+  (<code>src/renderer/styles/tokens.css</code>, linked, not copied). It is not a shipped surface and nothing here runs.</p>
+  <p><strong>Where the words come from.</strong> Every component, step and gate is read verbatim from
+  <code>build/p256/semantic/tortie.pass.json</code>, which the researcher wrote by hand on 2026-09-10 &mdash; no agent
+  wrote it and no token was spent. Every green chip was recomputed by this builder from the deterministic prototype&rsquo;s
+  fact file over this repository at <code>2e1b4799</code>
+  (3,182 tracked files, 2,537 parsed,
+  52,875 facts, 31.6 s), by the same three-line rule
+  <code>build/p256/semantic/check.mts</code> applies. An amber <code>prose</code> chip means the link resolves to a real
+  tracked line and the deterministic half found nothing of the wanted shape near it.</p>
+  <p><strong>What is the researcher&rsquo;s and not measured.</strong> Which region a part sits in, its three-to-five word
+  label, and the name on each transport.</p>
+</footer>
+</div>
+
+<script>
+// No framework, no request, no storage. Tabs, node selection, and the journey's place track.
+const tabs = [...document.querySelectorAll('[role=tab].tab')];
+for (const t of tabs) t.addEventListener('click', () => {
+  for (const o of tabs) { o.setAttribute('aria-selected', String(o === t)); document.getElementById(o.getAttribute('aria-controls')).hidden = o !== t; }
+});
+const nodes = [...document.querySelectorAll('.node')];
+const show = (id) => {
+  for (const n of nodes) n.setAttribute('aria-selected', String(n.dataset.node === id));
+  for (const p of document.querySelectorAll('.inspector')) p.hidden = p.dataset.for !== id;
+};
+for (const n of nodes) n.addEventListener('click', () => show(n.dataset.node));
+show('durable-sessions');
+const steps = [...document.querySelectorAll('.step')];
+const cells = [...document.querySelectorAll('.track-cell')];
+const mark = (s) => { for (const o of steps) o.classList.toggle('on', o === s);
+  for (const c of cells) c.classList.toggle('on', c.dataset.place === s.dataset.place); };
+for (const s of steps) { s.addEventListener('mouseenter', () => mark(s)); s.addEventListener('click', () => mark(s)); }
+if (steps[0]) mark(steps[0]);
+for (const b of document.querySelectorAll('.jump')) b.addEventListener('click', () => {
+  tabs[0].click(); show(b.dataset.node); document.getElementById('node-' + b.dataset.node)?.focus();
+});
+</script>
+</body>
+</html>
