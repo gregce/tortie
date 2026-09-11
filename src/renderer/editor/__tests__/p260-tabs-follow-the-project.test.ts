@@ -45,7 +45,7 @@ vi.stubGlobal('document', {
   body: { classList: { add() {}, remove() {}, contains: () => false } }
 });
 
-const { useEditor } = await import('../store');
+const { useEditor, visibleTabsOf } = await import('../store');
 const { useApp } = await import('../../state/store');
 const {
   disposeModels,
@@ -134,6 +134,8 @@ const switchTo = (projectId: string): void => {
   useApp.getState().setActiveProject(projectId);
 };
 const openIds = (): string[] => useEditor.getState().tabs.map((t) => t.id);
+const visibleIn = (projectId: string): string[] =>
+  visibleTabsOf(useEditor.getState().tabs, projectId).map((t) => t.id);
 
 beforeAll(() => {
   useApp.setState({ projects: [A, B, C], activeProjectId: A.id });
@@ -264,6 +266,113 @@ describe('which project a tab belongs to (research 119 §5.1)', () => {
     expect(useEditor.getState().panelOpen).toBe(false);
   });
 
+  it('the request a TERMINAL LINK really emits lands under the project whose root holds the file', async () => {
+    // FIX ROUND. The case above hands the store `repoPath: B.path`, which is
+    // the tree's shape. A path pressed in a terminal goes through
+    // `openFileAt(path, repoPath = the PANE's project)`
+    // (src/renderer/context/open-detail.ts), so `repoPath` is the project the
+    // person is IN and `relPath` is the absolute path, and the file is in the
+    // other project. Red at 8e5a5f43: `projectOf` admitted the pane's project
+    // by `p.path === req.repoPath`, the two roots tied on length, and the tab
+    // landed under alpha with the app still on alpha — `probe:p260` arm E's
+    // four findings.
+    const link = (paneRoot: string, path: string): OpenFileRequest => ({
+      repoPath: paneRoot,
+      relPath: path,
+      path,
+      mode: 'file',
+      source: 'tree',
+      preview: false
+    });
+    useEditor.getState().openFromRequest(link(A.path, `${B.path}/b-target.md`));
+    await flush();
+    expect(useEditor.getState().activeTab()?.projectId).toBe(B.id);
+    expect(useApp.getState().activeProjectId).toBe(B.id);
+    expect(useEditor.getState().projectId).toBe(B.id);
+
+    // And the other way round, where the PANE's root is the longer one, so a
+    // deepest-root tie-break over the wrong candidates cannot pass by luck.
+    const longer = { id: 'proj-l', path: '/work/alpha-longer', name: 'longer' };
+    useApp.setState({ projects: [A, B, C, longer], activeProjectId: longer.id });
+    useEditor.getState().openFromRequest(link(longer.path, `${C.path}/c-target.md`));
+    await flush();
+    expect(useEditor.getState().activeTab()?.projectId).toBe(C.id);
+    expect(useApp.getState().activeProjectId).toBe(C.id);
+    // The pane's project drew neither file.
+    expect(visibleIn(A.id)).toEqual([]);
+    expect(visibleIn(longer.id)).toEqual([]);
+  });
+
+  it('a file opened before its folder was a project moves to that project when opened from it', async () => {
+    // FIX ROUND, verifier item 3. `/work/delta/x.ts` opened from A's terminal
+    // while delta is not a project belongs to A (§5.1's second clause). Once
+    // delta IS a project, clicking the same file in delta's own tree used to
+    // hit the existing-tab path, activate it, and jump the app back to A.
+    const delta = { id: 'proj-d', path: '/work/delta', name: 'delta' };
+    useEditor.getState().openFromRequest({
+      repoPath: A.path,
+      relPath: `${delta.path}/x.ts`,
+      path: `${delta.path}/x.ts`,
+      mode: 'file',
+      source: 'tree',
+      preview: false
+    });
+    await flush();
+    const id = useEditor.getState().activeId as string;
+    expect(useEditor.getState().activeTab()?.projectId).toBe(A.id);
+    const kept = seed(id);
+
+    useApp.setState({ projects: [A, B, C, delta] });
+    switchTo(delta.id);
+    expect(useEditor.getState().visibleTabs()).toHaveLength(0);
+    useEditor.getState().openFromRequest(request(delta.path, 'x.ts'));
+    await flush();
+
+    // Same tab, re-homed: nothing disposed, and the app stays on delta.
+    expect(useEditor.getState().activeId).toBe(id);
+    expect(useEditor.getState().activeTab()?.projectId).toBe(delta.id);
+    expect(useApp.getState().activeProjectId).toBe(delta.id);
+    expect(useEditor.getState().tabs).toHaveLength(1);
+    expect(getWorkingModel(id)).toBe(kept.model);
+    expect(lastRewind(id)).toBe(kept.entry);
+    // A's strip no longer remembers it as its active tab.
+    switchTo(A.id);
+    expect(useEditor.getState().visibleTabs()).toEqual([]);
+    expect(useEditor.getState().activeId).toBeNull();
+    expect(useEditor.getState().panelOpen).toBe(false);
+  });
+
+  it('a tab opened with NO project active joins the first project that becomes active', async () => {
+    // FIX ROUND, verifier item 4. At zero projects the diagnostics tab can
+    // open; it has no project. Once a project is active the null strip is
+    // reachable from nothing, and activating that tab used to switch the
+    // editor to the null strip while the app stayed on the project.
+    useApp.setState({ projects: [], activeProjectId: null });
+    useEditor.setState({ projectId: null });
+    useEditor.getState().openFromRequest({
+      repoPath: '',
+      relPath: '',
+      path: '/nowhere',
+      mode: 'file',
+      source: 'tree',
+      preview: false,
+      diagnostics: { repoPath: '' }
+    } as unknown as OpenFileRequest);
+    await flush();
+    const id = useEditor.getState().activeId as string;
+    expect(useEditor.getState().activeTab()?.projectId).toBeNull();
+
+    useApp.setState({ projects: [A] });
+    switchTo(A.id);
+    expect(useEditor.getState().projectId).toBe(A.id);
+    expect(useEditor.getState().visibleTabs().map((t) => t.id)).toEqual([id]);
+    expect(useEditor.getState().activeId).toBe(id);
+    expect(useEditor.getState().panelOpen).toBe(true);
+    useEditor.getState().activate(id);
+    expect(useEditor.getState().projectId).toBe(A.id);
+    expect(useApp.getState().activeProjectId).toBe(A.id);
+  });
+
   it('a file outside every root belongs to the project active at the open', async () => {
     useEditor.getState().openFromRequest(request('/Users/someone/.claude', 'CLAUDE.md'));
     await flush();
@@ -385,6 +494,43 @@ describe('closing a project (research 119 §5.2)', () => {
     switchTo(A.id);
     expect(useEditor.getState().activeId).toBeNull();
     expect(useEditor.getState().panelOpen).toBe(false);
+  });
+
+  it('a Cancel at the prompt keeps EVERY tab of the project, the clean ones before the dirty one too', async () => {
+    // FIX ROUND, verifier item 2. `closeMany` walks its run in order and
+    // force-closes each clean tab until it meets a dirty one, so with the
+    // strip handed over as drawn the clean tabs AHEAD of the dirty tab were
+    // gone — model, view state, journal — before the prompt was on screen,
+    // under a button that says Cancel. Red at 8e5a5f43.
+    const clean1 = await open(A.path, 'a-clean-1.ts');
+    const dirty = await open(A.path, 'a-dirty.ts');
+    const clean2 = await open(A.path, 'a-clean-2.ts');
+    useEditor.getState().markDirty(dirty, true);
+    const kept = seed(clean1);
+    switchTo(B.id);
+    let asked: string | null = null;
+    const original = useApp.getState().setConfirm;
+    useApp.setState({
+      setConfirm: (spec: { title: string }) => {
+        asked = spec.title;
+      }
+    } as never);
+    let closed = 0;
+    try {
+      useEditor.getState().closeProjectTabs(A.id, () => {
+        closed += 1;
+      });
+    } finally {
+      useApp.setState({ setConfirm: original });
+    }
+
+    expect(asked).toBe("Save changes to 'a-dirty.ts'?");
+    expect(closed).toBe(0);
+    // Nothing answered, nothing lost: all three tabs, the same objects.
+    expect(openIds().sort()).toEqual([clean1, dirty, clean2].sort());
+    expect(getWorkingModel(clean1)).toBe(kept.model);
+    expect(takeViewState(clean1)).toBe(kept.view);
+    expect(rewindJournalDepth(clean1)).toBe(1);
   });
 
   it('a dirty tab of a closing project is asked about through the existing prompt', async () => {

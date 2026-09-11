@@ -51,7 +51,10 @@ export interface ShellOps {
    * because of the project; switching projects hides them and closes nothing.
    * The callback is what lets `closeProject` remove the project AFTER the
    * prompt rather than before it: a Cancel on any prompt stops the run, the
-   * callback never fires, and the project stays open with its tabs. Without
+   * callback never fires, and the project stays open with EVERY tab it had,
+   * because the editor asks about the dirty ones before it closes a clean one
+   * (fix round; at 8e5a5f43 the clean tabs ahead of the prompt were already
+   * gone). Without
    * that order a cancelled close would leave the tab in a project that no
    * longer exists, invisible for ever.
    *

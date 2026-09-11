@@ -91,8 +91,14 @@
  *
  * DEPS, read off the app store this file already imports for the dirty-close
  * confirm: `projects` and `activeProjectId` decide a new tab's `projectId`
- * (§5.1), and `setActiveProject` is called when a tab of ANOTHER project is
- * opened or activated, so the person sees the file they clicked.
+ * (§5.1, asked of the FILE's path and never of the request's `repoPath`,
+ * which a terminal link fills with the pane's project), and
+ * `setActiveProject` is called when a tab of ANOTHER project is opened or
+ * activated, so the person sees the file they clicked. A tab's project moves
+ * after the open in exactly two cases, neither of which disposes anything:
+ * the file's own folder becomes a project and the file is opened from it
+ * (`rehome`), and a tab of no project meets the first active project
+ * (`switchProject`).
  *
  * THE ONE HARD RULE: hiding is a filter and never a close. No forceCloseTab,
  * no preview-slot reuse and no MAX_TABS eviction ever reaches a hidden
@@ -295,7 +301,8 @@ interface EditorState {
    * project being closed (research 119 §5.2). Works on a hidden project: a
    * hidden tab's close never moves the tab on screen. `onClosed` runs once
    * every tab is gone, at once when there were none, and never after a
-   * Cancel or a failed save.
+   * Cancel or a failed save. The dirty tabs are asked about BEFORE any clean
+   * tab is closed, so a Cancel keeps every tab of the project.
    */
   closeProjectTabs(projectId: string | null, onClosed?: () => void): void;
 }
@@ -439,7 +446,9 @@ export const useEditor = create<EditorState>((set, get) => {
    * PHASE 260. `done` is called ONCE, when the run has closed its last tab,
    * and NEVER when the run stopped short: a Cancel on any prompt, or a save
    * that failed, leaves it uncalled. `closeProject` removes the project from
-   * inside it, so a cancelled close keeps the project and its tabs.
+   * inside it, so a cancelled close keeps the project and its tabs — every
+   * one of them, because `closeProjectTabs` hands the dirty ids in FIRST and
+   * no clean tab is force-closed until every prompt has been answered.
    */
   const closeMany = (ids: string[], done?: () => void): void => {
     const rest = [...ids];
@@ -470,12 +479,23 @@ export const useEditor = create<EditorState>((set, get) => {
   // -- PHASE 260: the project a tab belongs to, and the per-project memory ---
 
   /**
-   * Research 119 §5.1. The open project whose root contains the file — the
-   * DEEPEST one when roots nest — otherwise the project active at the open.
-   * A file on a machine belongs to the project that IS that folder on that
-   * machine; `fileInRepo` is never asked about a path on another computer.
+   * Research 119 §5.1's FIRST clause: the open project whose root holds the
+   * file — the DEEPEST one when roots nest — or null when none does. A file
+   * on a machine belongs to the project that IS that folder on that machine;
+   * `fileInRepo` is never asked about a path on another computer.
+   *
+   * FIX ROUND. Asked of `req.path` and NEVER of `req.repoPath`. A terminal
+   * link is emitted as `openFileAt(path, repoPath = the PANE's project)`
+   * (../context/open-detail.ts), so `repoPath` is where the person IS and
+   * says nothing about where the file is; admitting the project at
+   * `req.repoPath` made the pane's project hold every request, the two roots
+   * tied on length, and a file in bravo pressed in alpha's terminal opened
+   * under alpha (`probe:p260` arm E, 4 findings at 8e5a5f43). A map or report
+   * tab's path IS a root, which the equality covers. Nesting is the only way
+   * two roots hold one file and nested roots never tie, so the deepest wins
+   * without a tie-break.
    */
-  const projectOf = (req: OpenFileRequest): string | null => {
+  const projectHolding = (req: OpenFileRequest): string | null => {
     const app = useApp.getState();
     const remote = req.remote;
     const holding = app.projects.filter((p) => {
@@ -488,12 +508,16 @@ export const useEditor = create<EditorState>((set, get) => {
       }
       return (
         isLocalTarget(target) &&
-        (p.path === req.repoPath || fileInRepo(p.path, req.path))
+        (p.path === req.path || fileInRepo(p.path, req.path))
       );
     });
     const deepest = holding.sort((a, b) => b.path.length - a.path.length)[0];
-    return deepest?.id ?? app.activeProjectId;
+    return deepest?.id ?? null;
   };
+
+  /** Research 119 §5.1 whole: the holding project, else the active one. */
+  const projectOf = (req: OpenFileRequest): string | null =>
+    projectHolding(req) ?? useApp.getState().activeProjectId;
 
   /** The tab on screen and the panel state FOR one project, current or not. */
   const activeOf = (s: EditorState, projectId: string | null): string | null =>
@@ -540,6 +564,34 @@ export const useEditor = create<EditorState>((set, get) => {
       useApp.getState().setActiveProject(projectId);
     }
     get().switchProject(projectId);
+  };
+
+  /**
+   * FIX ROUND (verifier item 3). Move ONE tab to another project's strip,
+   * disposing nothing: the model, the view state and the journal are keyed by
+   * the tab id, which does not change. If the tab was the project it leaves
+   * remembered as its active one, that project remembers its next most recent
+   * tab instead, or nothing, and its panel closes when nothing is left — the
+   * same answer `forceCloseTab` gives, without the close.
+   */
+  const rehome = (id: string, to: string | null): void => {
+    set((s) => {
+      const tab = s.tabs.find((t) => t.id === id);
+      if (tab === undefined) return {};
+      const from = tab.projectId ?? null;
+      if (from === to) return {};
+      const tabs = s.tabs.map((t) =>
+        t.id === id ? { ...t, projectId: to } : t
+      );
+      if (activeOf(s, from) !== id) return { tabs };
+      const left = visibleTabsOf(tabs, from);
+      const next =
+        [...left].sort((a, b) => b.lastUsed - a.lastUsed)[0]?.id ?? null;
+      return {
+        tabs,
+        ...focusPatch(s, from, next, left.length > 0 ? panelOf(s, from) : false)
+      };
+    });
   };
 
   return {
@@ -621,6 +673,16 @@ export const useEditor = create<EditorState>((set, get) => {
 
       const existing = tabById(id);
       if (existing !== undefined) {
+        // FIX ROUND (verifier item 3). A file opened while its folder was not
+        // a project belongs to the project it was opened FROM (§5.1's second
+        // clause). When that folder later becomes a project and the file is
+        // opened from it, the tab moves there rather than dragging the app
+        // back to the project it happened to be opened from. Only a ROOT that
+        // holds the file moves a tab; the fallback clause never does.
+        const home = projectHolding(req);
+        if (home !== null && home !== (existing.projectId ?? null)) {
+          rehome(id, home);
+        }
         // PHASE 240. Compare is keyed by the file, so a second press lands
         // here. Its sides are the two versions AT THAT MOMENT, so they are
         // replaced rather than left: raising a tab holding a comparison from
@@ -686,8 +748,9 @@ export const useEditor = create<EditorState>((set, get) => {
       // Rule (a): a navigation lands in File mode, whatever the request or
       // the file extension would otherwise have chosen.
       const navigate = selection !== null && landsInText(image, svg);
-      // PHASE 260. Decided here, once, by research 119 §5.1, and moved by
-      // nothing after.
+      // PHASE 260. Decided here by research 119 §5.1. Moved after only by
+      // `rehome` above, when the file's own folder becomes a project, and by
+      // `switchProject`, when a tab of no project meets the first project.
       const projectId = projectOf(req);
       const tab: EditorTab = {
         id,
@@ -992,8 +1055,19 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     closeProjectTabs(projectId, onClosed) {
+      // FIX ROUND (verifier item 2). The DIRTY tabs go first. `closeMany`
+      // force-closes each clean tab it meets until it reaches a dirty one, so
+      // handed the strip in drawn order it had destroyed every clean tab ahead
+      // of the first dirty one — model, view state, journal — before the
+      // prompt was on screen, and a Cancel then "kept the project" without
+      // them. Asked first, a Cancel at any prompt leaves every clean tab and
+      // every unanswered dirty one exactly as they were; only what the person
+      // answered Save or Don't Save to is gone.
+      const own = visibleTabsOf(get().tabs, projectId);
       closeMany(
-        visibleTabsOf(get().tabs, projectId).map((t) => t.id),
+        [...own.filter((t) => t.dirty), ...own.filter((t) => !t.dirty)].map(
+          (t) => t.id
+        ),
         onClosed
       );
     },
@@ -1213,19 +1287,41 @@ export const useEditor = create<EditorState>((set, get) => {
     switchProject(projectId) {
       const s = get();
       if (projectId === s.projectId) return;
+      // FIX ROUND (verifier item 4). A tab opened while NO project was active
+      // (the diagnostics tab at zero projects) has no strip a person can reach
+      // once a project is active: ⌃Tab and the strip read the visible set, and
+      // raising it by any other path put the editor on the null strip while
+      // the app stayed on the project. So the null strip's tabs JOIN the first
+      // project that becomes active, and the null strip is left empty. Nothing
+      // is disposed: the tab id, and everything keyed by it, is unchanged.
+      const adopt = s.projectId === null && projectId !== null;
+      const adopted = adopt
+        ? s.tabs.filter((t) => (t.projectId ?? null) === null)
+        : [];
+      const tabs =
+        adopted.length > 0
+          ? s.tabs.map((t) =>
+              (t.projectId ?? null) === null ? { ...t, projectId } : t
+            )
+          : s.tabs;
       // The outgoing project's mirrors go into the maps first, so what a
       // switch back finds is what was on screen at the moment of leaving.
       const activeIdByProject = {
         ...s.activeIdByProject,
-        [keyOf(s.projectId)]: s.activeId
+        [keyOf(s.projectId)]: adopt ? null : s.activeId
       };
       const panelOpenByProject = {
         ...s.panelOpenByProject,
-        [keyOf(s.projectId)]: s.panelOpen
+        [keyOf(s.projectId)]: adopt ? false : s.panelOpen
       };
-      const visible = visibleTabsOf(s.tabs, projectId);
+      const visible = visibleTabsOf(tabs, projectId);
       const key = keyOf(projectId);
-      let activeId = activeIdByProject[key] ?? null;
+      // An adopted strip arrives as it was on screen: its tab and its panel
+      // state, not the project's remembered ones from before it was left.
+      let activeId =
+        (adopted.length > 0 ? s.activeId : null) ??
+        activeIdByProject[key] ??
+        null;
       if (activeId !== null && !visible.some((t) => t.id === activeId)) {
         activeId = null;
       }
@@ -1235,12 +1331,15 @@ export const useEditor = create<EditorState>((set, get) => {
       }
       // Research 119 §5.3: a project with no tabs shows no editor; one with
       // tabs comes back as it was left, and a project never left is open.
-      const panelOpen = visible.length > 0 && (panelOpenByProject[key] ?? true);
+      const panelOpen =
+        visible.length > 0 &&
+        (adopted.length > 0 ? s.panelOpen : (panelOpenByProject[key] ?? true));
       activeIdByProject[key] = activeId;
       panelOpenByProject[key] = panelOpen;
       // NOTHING IS DISPOSED HERE. Not a model, not a view state, not a
       // journal: the hidden project's tabs stay in `tabs` exactly as they are.
       set({
+        tabs,
         projectId,
         activeId,
         panelOpen,

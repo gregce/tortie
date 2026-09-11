@@ -163,6 +163,26 @@ describe('closing a project with a dirty tab', () => {
     expect(tabsOf(TWO.id)).toEqual([`${TWO.path}/clean.md`]);
   });
 
+  it('a Cancel keeps the clean tabs that sat before the dirty one on the strip', async () => {
+    // FIX ROUND, verifier item 2: the clean tab ahead of the dirty one was
+    // force-closed on the way to the prompt at 8e5a5f43, so a Cancel kept the
+    // project and lost the tab.
+    const clean = await open(ONE, 'clean-first.md');
+    const dirty = await open(ONE, 'draft.md');
+    useEditor.getState().markDirty(dirty, true);
+
+    useApp.getState().closeProject(ONE.id);
+    dialog().confirm();
+    await flush();
+    expect(dialog().title).toBe("Save changes to 'draft.md'?");
+    dialog().cancel();
+    await flush();
+    await flush();
+
+    expect(removed).toEqual([]);
+    expect(tabsOf(ONE.id).sort()).toEqual([clean, dirty].sort());
+  });
+
   it("removes the project once Don't Save has closed the tab, and no earlier", async () => {
     const dirty = await open(ONE, 'draft.md');
     useEditor.getState().markDirty(dirty, true);

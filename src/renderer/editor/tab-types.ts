@@ -58,7 +58,10 @@ export interface EditorTab {
    * project was active. A tab is drawn in exactly one project's strip;
    * switching projects HIDES it and never closes it, so its Monaco model, its
    * view state, its rewind journal and its shadow baseline all survive the
-   * switch. Moved by nothing after the open.
+   * switch. Moved after the open in two cases only, both in ./store and both
+   * disposing nothing: the file's own folder becomes a project and the file is
+   * opened from it, and a tab opened with no project active meets the first
+   * project that becomes active.
    *
    * Optional rather than required, for the reason `remote` is optional: every
    * tab built before this phase, and every fixture in the tests, is still a

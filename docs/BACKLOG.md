@@ -26434,6 +26434,41 @@ prompt. Memory is read against the Phase 167 plateau rule at ten tabs in each of
 Parent measured at HEAD: at the parent, the switch shows the other project's tabs and the eleventh
 open evicts a hidden one.
 
+**The fix round, and the record it corrects.** Both verifiers ran what the phase commit said could
+not run, because `markdown-it` had been put into the two scratch worktrees' `node_modules` from
+tarballs already in `~/.npm/_cacache`, each checked sha512 for sha512 against `package-lock.json`,
+no network and no lockfile write; so the phase commit's NOT RUN paragraph and the running-log line
+below it are superseded by the line the fix round appended. What they found, re-derived and fixed:
+1. **§5.1's first clause was not delivered for the one gesture it was written for.** A terminal
+   link is emitted as `openFileAt(path, repoPath = the PANE's project)`, and `projectOf` admitted the
+   project at `req.repoPath` beside the ones whose root holds `req.path`; alpha and bravo tie on
+   root length, so a file in bravo pressed in alpha's terminal opened under alpha with the app still
+   on alpha. `probe:p260` at `8e5a5f43` read 4 findings, all arm E. The phase's own unit case
+   passed only because it handed the store `repoPath: B.path`, the tree's shape. The membership
+   question is now asked of `req.path` alone (`p.path === req.path || fileInRepo(p.path, req.path)`),
+   and the test carries the terminal's real request shape in both directions of root length.
+2. **Cancel at the dirty prompt had already destroyed the clean tabs ahead of it.** `closeMany`
+   force-closes each clean tab until it meets a dirty one, and `closeProjectTabs` handed it the
+   strip in drawn order, so alpha `[a-other0.md, notes.txt*, walk.txt]` → Close project → Cancel →
+   `[notes.txt*, walk.txt]`, with the probe's arm F pinning that loss as the expectation. The dirty
+   ids go first now, so no clean tab is closed until every prompt is answered; arm F reads all three
+   after Cancel at HEAD.
+3. **A file opened before its folder was a project moves there when opened from it** (`rehome`, a
+   `patchTab` of `projectId` that disposes nothing), instead of jumping the app back to the project
+   it happened to be opened from.
+4. **A tab opened with no project active joins the first project that becomes active**, in
+   `switchProject`, carrying the null strip's own active tab and panel state; before, raising it put
+   the editor on a strip of no project while the app stayed on the project.
+5. **Not changed, by judgment:** closing a hidden project with a dirty tab asks "Save changes to
+   'x'?" about a buffer that is not on screen. The person just confirmed "Close 'alpha'?" by name and
+   the prompt names the file; showing the buffer would switch projects under a confirm dialog, and
+   "closeProjectTabs on a hidden project moves nothing on screen" is a pinned rule.
+Five new unit cases, each red at `8e5a5f43` on the assertion its finding names. Run at the fix:
+typecheck 0 errors, `npm run build` with every inner gate, `npm test` 859 files, `conformance:save`,
+`conformance:redline`, `smoke:t1` 6/6, `smoke:t3` 3/3, `probe:p260` PASS with arm G's heap
+26.92 → 27.12 MB over four blocks and nodes 606 / listeners 287 flat, the operator's `-L gmux`
+sessions 42 before and after. `package` is not run, because it signs with his identity.
+
 ### What is NOT in this phase
 
 - **No tab persisted across a restart.** Tabs are in-memory today and stay so.
@@ -27053,3 +27088,5 @@ cycle rather than only the evening it was written.
 - 2026-09-11, **PHASE 260 LAUNCHED at his word**, beside 257: its files (`src/renderer/editor/store.ts`, `EditorTabs.tsx`, `EditorPanel.tsx`, `src/renderer/state/projects-slice.ts`) and 257's (`src/main/arch/**`, `src/main/symbols/`) do not overlap, so the two run at once and the running log is the only expected conflict.
 
 - 2026-09-11, Phase 260 shipped, editor tabs follow the project: every tab carries the project it belongs to, a switch hides the other project's tabs and closes nothing, the preview slot and the ten-tab cap are per project so a hidden tab is never evicted, and closing a project asks about its unsaved tabs before it goes. `npm test` green with the two markdown-it files aside, typecheck, boundaries, cycles, `conformance:redline` and `conformance:save` green; `npm run build`, `smoke:t1`, `smoke:t3`, `package` and `probe:p260` COULD NOT RUN at HEAD or at the parent because `markdown-it` (pinned since `a0d9fd32`) is absent from the operator's `node_modules` and the rules forbade installing it, so the app run is written and self-tested and waits on an `npm ci`, this commit, 0.103.0
+
+- 2026-09-11, Phase 260 fix round, tabs follow the project: the terminal link's own request shape (`repoPath` = the pane's project) landed the file under the wrong project, `probe:p260` arm E 4 findings at `8e5a5f43`, and membership is asked of the file's path alone now; Cancel at the dirty prompt keeps every tab because the dirty ones are asked first; a file re-homes when its folder becomes a project; a no-project tab joins the first active project. The NOT RUN line above is superseded: `markdown-it` was restored into the scratch worktrees from the npm cache, and build, smoke:t1 6/6, smoke:t3 3/3 and probe:p260 PASS all ran at the fix, with the probe at the parent `38993888` reading 15 findings and at `8e5a5f43` reading 4. Five unit cases red at `8e5a5f43`. this commit, 0.103.0

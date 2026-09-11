@@ -36,7 +36,7 @@
  *      on its strip, and alpha's strip never carries it.
  *   F. CLOSING ALPHA WITH ITS DIRTY TAB asks (research 119 §5.2): the close
  *      is confirmed, THEN the editor's own Save / Don't Save / Cancel prompt
- *      is read off the DOM, and Cancel keeps the project and the tab. At the
+ *      is read off the DOM, and Cancel keeps the project and every tab. At the
  *      parent the project closes with no second question.
  *   G. MEMORY at ten tabs in each of three projects, read against the Phase
  *      167 plateau rule over blocks of switching: the renderer heap after
@@ -800,10 +800,11 @@ await withElectron(
           ...promptFindings(prompt, 'notes.txt').map((f) => [`F ${f}`, false, true]),
           ['F Cancel kept the project', projectsF.map((p) => p.name).includes('alpha'), true],
           ['F and kept the dirty tab', stripF.dirty, ['notes.txt']],
-          // closeMany's own semantics (store.ts): the clean tab BEFORE the
-          // dirty one in the strip was closed on the way to the prompt, and a
-          // Cancel keeps the rest — the dirty tab and everything after it.
-          ['F and the tabs from the prompt on', stripF.names, ['notes.txt', 'walk.txt']]
+          // FIX ROUND. `closeProjectTabs` asks about the dirty tabs FIRST, so
+          // a Cancel keeps every tab of the project: at 8e5a5f43 the clean tab
+          // before the dirty one on the strip was already closed on the way to
+          // the prompt, and this line pinned that loss as the expectation.
+          ['F and every tab it had', stripF.names, ['a-other0.md', 'notes.txt', 'walk.txt']]
         ])
       );
 
