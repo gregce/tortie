@@ -26331,6 +26331,70 @@ read only**, and says so; the others are added only at his word.
 
 ---
 
+## Phase 257 — the fact base: what a repository builds, exposes, keeps, reaches and tests, with no model (operator chose direction B, 2026-09-11)
+
+**Subject.** `feat(arch): the fact base`
+
+**First body line.** `Phase 257: the fact base`
+
+**Semver.** Minor. Nothing is drawn yet; the table exists and the gate proves it.
+
+**Tier 3.** It reads every tracked file of every open project through a new closed rule table, and it
+claims to work across seven language families. The evidence is a per-repository matrix over the
+research 118 corpus, two independent methods, one an attack on the rule table, and a fix round.
+
+**Charter.** The operator chose **direction B** of research 118 on 2026-09-11 — "ok lets build it" —
+after asking what B achieves. B is built as three phases in the order research 118 §10 specifies, and
+this is the first: §10 Phase 1, verbatim the spec. Direction A is B's own floor and lands in Phases 257
+and 258; the model half is Phase 259. **One open question in §7.6 is decided here so the later phases
+do not each decide it differently**: on a Mac with no measured agent, the journey and gates views are
+PRESENT and say in one sentence that nothing has read this repository yet and what would, because
+Phase 158's ruling is that there is one way in, and a person shown three tabs on one machine and five
+on another is being shown two products. Phase 259 draws it; this phase records it.
+
+**The mechanism, from research 118 §10 Phase 1 and §6.** New `src/main/arch/facts/` holding the
+reader, the CLOSED rule table (call sites of a fixed api set, declarations matching a path convention),
+the manifest rules (package manifests, Dockerfile and compose services, CI jobs, workspace members,
+library targets, spawned threads and workers), and the one-hop wrapper pass **as a SETTING and not
+always-on**, because §6.3 measured it at 3.15× the whole read here for a surface otherwise 0.0%
+visible and at 1.57–1.83× on four repositories where it finds nothing. `src/main/symbols/queries.ts`
+gains call-site, decorator and attribute captures per grammar. `src/main/arch/tree-facts.ts` gains a
+second pass over the read it already does, through the same `ArchFileSystem`, so a mirrored machine
+runs it LOCALLY and nothing new runs remotely. An `arch.db` migration adds `arch_fact` and
+`arch_fact_file` keyed on blob oid. `src/shared/arch.ts` gains DERIVED types only. **The fact
+categories are the eight the prototype measured** — entrypoint, boundary, surface, store, effect,
+network, gate, test — and `boundary.path.module-root` is kept SEPARATE from the build-and-start
+boundary rules in the schema, because §7.6 measured 15/15 against 30/30 and a partition drawn from
+their union would draw 75 barrel files as processes on this repository. `entrypoint.composition` at 38%
+and `store.orm` at 8% are fixed or dropped before anything seeds from them. The prototype under
+`build/p256/det/` is the reference implementation to port, not to import: it was written to measure,
+and the product version is written to the house's own module and export discipline.
+
+**The proof, run rather than read — `npm run conformance:facts`.** The per-language corpus table
+re-derived over committed fixtures; the precision sample pinned with its judging rule; the recall
+scopes asserted, **229/229 IPC channels against `docs/audits/contract-baseline.txt`**, which is already
+a gated file so the assertion cannot drift from the product; the wrapper pass's three clauses ablated
+one at a time with each turning a pinned count red, and its fact COUNT asserted unchanged on a
+repository with no wrappers; the cross-rule dedupe ablated; the vendor filter proved on planted bytes;
+a scan proving the domain spawns nothing but `git` with a fixed argv and that no repository field
+reaches any argv; and `conformance:watcher` re-run because the FSEvents exclusion budget must not move.
+The corpus run is the app run: the fact base over scratch copies of this repository and stoa in a
+scratch profile, and shallow read-only clones of the public seven, precision and recall per repository
+published beside research 118 §6.1's numbers, and the honest zeroes kept as zeroes.
+
+### What is NOT in this phase
+
+- **No surface.** Nothing new is drawn; that is Phase 258. The pane looks exactly as it does today.
+- **No model call, no agent turn, no token.** That is Phase 259.
+- **No new package.** No new watcher subscription. No fact that names a command reaching any argv.
+- **No fact written into `docs/arch/` and no key moved in its pinned set.** Direction C stays deferred
+  to him.
+- **No rule for a grammar the corpus does not exercise** — java, php, c-sharp, kotlin and objc stay out
+  until a repository in that language joins the corpus in the same commit.
+- **No `accepted-live` anywhere**, and the ladder itself is Phase 258.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -26933,3 +26997,5 @@ cycle rather than only the evening it was written.
 - 2026-09-10, **PHASE 255 PUSHED at `67d37e9e`, the preview paints fast, built at `a0d9fd32` with its fix round `34f7a36b` and the committer's round `67d37e9e`, NO version bump and NO tag because the release session owns those.** Before and after on CHOOSING PREVIEW for the research 116 twins, measured in the running app off the live DOM: the 2.56 MB twin went from **4,532 ms to first paint with a 4,131 ms task** to **36 ms with a worst task of 205 ms**, the 3.26 MB twin from **3,360 ms and 3,121 ms** to **44 ms and 57 ms**, and this repository's own 3.28 MB docs/BACKLOG.md from **3,563 ms and 3,078 ms** to **72 ms and 154 ms**, with a PageDown pressed the instant the page first paints answering in 0 to 7 ms where nothing could be pressed at all before. The whole page still finishes in about 1.0 to 1.9 s and every block is drawn exactly once, which is where the seconds went rather than away: what changed is that they are no longer spent in front of a person holding a frozen window. **Research 117 ran the bake-off and the winners are candidates 1 and 2 COMBINED**, being block-windowed rendering over a line scan that needs no parse, with markdown-it 14.1.0 under the same sanitize and Shiki steps in place of micromark and react-markdown's own walk; candidate 3, parsing off the main thread, LOST because the React walk stays on main and the transfer buys nothing the window does not already buy, and candidate 4, the digest-keyed render cache, LOST as a phase item because the block model gives per-chunk memoisation for free and a second cache would be memory and staleness bought for a paint that is already viewport-proportional; no WASM and no native parser was needed or added, and every dependency is pinned exactly and bundled at build time. **Phase 254's deferral was re-derived and is now the first BLOCK rather than the file**: a size threshold predicts nothing a person feels once first paint is viewport-proportional, so the 256 KiB source rule is GONE and a large `.md` opens rendered again, with Source kept only for a document that draws in one piece, being a first chunk past **1 MiB** or a footnote document past **256 KiB**, where the chip still says what the click will cost. The fix round made reference definitions markdown-it's own table instead of text prepended to every chunk, which had been drawing a lookalike line at the top of each chunk and reading 160 MB of input for a 1.15 MB changelog. The committer's round pinned `probe:p255`'s real-document arm to `efb4c7ce:docs/BACKLOG.md`, because it was reading the WORKING TREE and this phase's own running-log lines had already made it go red for 1,574 pixels of scroll height, and deleted the `textDigest` exemption that had been hiding the drift, so the windowed renderer is now proved to draw the same 3,166,561 characters as react-markdown over a real 3.28 MB document rather than the same element counts. `conformance:preview` is the new gate, 47 ablations one clause each, all red in about 110 s; `conformance:wideblocks` is unmoved at 20 ablations, because chunks mount as FRAGMENTS and its child combinator still sees what it keys on. **What still costs a moment, stated rather than hidden**: one enormous blank-free table from byte 0 at 1 MB is the shape the guard exists for, opens in Source, and takes about 550 ms with a 309 ms slice when Preview is clicked; and the verifier measured a 215 ms slice on a 2.4 MB document held inside one unclosed `<details>`, against a 250 ms ceiling, which is a stated limit rather than a guard.
 
 - 2026-09-10, **PHASE 256 LANDED AS RESEARCH at `cd14c232`, NO version bump, NO tag and NOT ONE LINE UNDER `src/`, the architecture that explains itself.** Research 118 plus a mock, built at `1a32fdf8`, `6157d354`, the revision round `3c9d2751` and the committer's round `cd14c232`. **The skill's thesis is true and far narrower than it reads**: its helper never reads a byte of source except to hash it, the nouns its product is made of appear ZERO times in its 1,050 lines of Python, and a document claiming *"the scheduler retries failed jobs three times ... Accepted live behaviour"* over a three-line `app.py` records clean, checks clean and passes its HTML checker with zero findings. **Tortie's pane is the opposite shape with the opposite weakness**, answering one of the skill's five reader questions well, one partly and three not at all, because every fact it holds comes from the file tree and resolved import specifiers — and needing no author, no turn and no maintenance in exchange. **THE AGNOSTICISM ANSWER, which is what he asked and is a split rather than a yes**: a third deterministic fact base — entrypoints, boundaries, surfaces, stores, spawns, network reaches, gates, tests — prototyped over NINE repositories in seven language families, 46,949 tracked files, 26,958 parsed, 80.9 MB, 53,932 facts, 53 s in one process, precision **79% overall and 84% excluding vendored bytes**, recall **229/229** on this repository's own IPC channels and 450/450, 362/362, 116/116 elsewhere — and an honest **0/108 on ripgrep and 0/5** where a project declares its surface in its own vocabulary, which is the strongest argument in the whole document for the model half existing at all. So the deterministic half travels to most codebases for STRUCTURE and reaches nothing for PURPOSE. **Three directions offered, B RECOMMENDED and built with A as its own first phase**: A restyles today's map with no model anywhere and never says what a part is FOR; **B is the hybrid reading inside the pane**, A plus a bounded model pass kept in `arch.db` with per-claim citation grading, the computed rung and stale claims drawn stale; C puts that reading into `docs/arch/` so it travels with the clone, which is about fifteen new keys against research 66's pinned key set and is his decision rather than the research's. A's fact base IS B's, so nothing is thrown away if the model half is never turned on, and the floor stays good on a Mac with no measured agent. **B buys ATTRIBUTION and not verification, and the document says so in the sentence a reader would quote**: handed seven deliberately false copies of a careful hand-written pass, the checker catches **2 of 7** — a component renamed *"Billing and card capture"* keeping its three real tmux citations raises nothing — and 58.5% backing is **2.46x a coin** against a 23.8% null floor, so the surface must DRAW that difference rather than hide it. **The evidence ladder refutes the first draft of its own design**: five rungs computed in 0.1 to 3.4 s a repository with Tortie's own shipped resolver, all five proved to fire on planted graphs and spreading properly over path-anchored parts, but **eight of the nine parts a person would put in a contract read `tested`**, unchanged when every anchor is widened from a file to a directory glob, so an unseeded walk over a 7,957-edge graph with 857 test files has two rungs and the seed a boundary chooses is named unfinished. Twelve admissions in §11, the four sharpest added by the revision and committer rounds. The mock is `build/p256/mock/mock.html`, runstory's style in Tortie's own tokens, zero colour literals, 281 words above the fold inside the exemplars' 253-288 band, its builder refusing a fact file about any other repository. Gates green: typecheck and the full build battery at the parent of the rebase, and `gate:electron`, `gate:background`, `gate:knownhosts`, `gate:checks` and `gate:contract` after it; `HELPER_USER_FLOOR` 120 -> 123 for three probes and resolved to **124** against Phase 255's 121, derived rather than maxed. **`npm run build` is RED at `3ebfac25` and it is not this phase's**: Phase 255's `markdown-it@14.1.0` is in `package.json` and the lockfile and installed in neither tree, measured at origin/main under the same `node_modules`, so an `npm install` is owed before the next build. No agent CLI launched, no session started, no token spent, no Electron launched by the committer, no machine, no ssh, no keychain; the two never-touch repositories gave up one HTML file each under his narrow lift and stayed closed otherwise.
+
+- 2026-09-11, **HE CHOSE DIRECTION B and PHASE 257 IS QUEUED, the fact base**: research 118 §10 Phase 1 verbatim — a closed rule table over eight fact categories in `src/main/arch/facts/`, manifest rules, the one-hop wrapper pass as a setting, `arch_fact` in `arch.db` keyed on blob oid, derived types only, no key moved in `docs/arch/`. Tier 3 with the nine-repository corpus as the matrix and `conformance:facts` pinning 229/229 against the already-gated contract baseline. Nothing drawn, no model, no token. Phases 258 (the computed ladder and the reading surface) and 259 (the bounded semantic pass) follow in order. The §7.6 question is decided: with no agent the journey and gates views are PRESENT and say nothing has read this yet, per Phase 158's one way in.
