@@ -26395,7 +26395,7 @@ published beside research 118 §6.1's numbers, and the honest zeroes kept as zer
 
 ---
 
-## Phase 260 — editor tabs follow the project (issue 19, JnBrymn, 2026-09-11) QUEUED, NOT LAUNCHED
+## Phase 260 — editor tabs follow the project (issue 19, JnBrymn, 2026-09-11)
 
 **Subject.** `feat(editor): tabs follow the project`
 
@@ -26440,7 +26440,6 @@ open evicts a hidden one.
 - **No pin-to-all-projects control.** The cross-project case is rare by the reporter's own word.
 - **`MAX_TABS` keeps its number**; only its scope changes.
 - **Tab identity does not move**, so Phase 244's journal-per-opening rule stands.
-- **Not launched until the operator says so** — Phases 257 to 259 hold the queue.
 
 ---
 
@@ -27050,3 +27049,5 @@ cycle rather than only the evening it was written.
 - 2026-09-11, **HE CHOSE DIRECTION B and PHASE 257 IS QUEUED, the fact base**: research 118 §10 Phase 1 verbatim — a closed rule table over eight fact categories in `src/main/arch/facts/`, manifest rules, the one-hop wrapper pass as a setting, `arch_fact` in `arch.db` keyed on blob oid, derived types only, no key moved in `docs/arch/`. Tier 3 with the nine-repository corpus as the matrix and `conformance:facts` pinning 229/229 against the already-gated contract baseline. Nothing drawn, no model, no token. Phases 258 (the computed ladder and the reading surface) and 259 (the bounded semantic pass) follow in order. The §7.6 question is decided: with no agent the journey and gates views are PRESENT and say nothing has read this yet, per Phase 158's one way in.
 
 - 2026-09-11, **PHASE 260 WRITTEN AND NOT LAUNCHED, editor tabs follow the project, from issue 19**: research 119 read the tree in an afternoon — every tab already carries `repoPath`, the store is one global list nothing filters, `setActiveProject` touches the editor nowhere, and research 10 had ruled a project tab scopes everything. The trap is `MAX_TABS = 10`'s eviction, which would take a HIDDEN project's tabs first, journals and all, so the cap goes per-project. Hidden is a filter and never a close. Three decisions written down: a tab belongs to the project whose root holds the file else the one active at open; closing a project closes its tabs through the dirty prompt; the panel's open state is per project. Tier 3 because hidden tabs hold unsaved work. Waits on his word behind 257 to 259.
+
+- 2026-09-11, **PHASE 260 LAUNCHED at his word**, beside 257: its files (`src/renderer/editor/store.ts`, `EditorTabs.tsx`, `EditorPanel.tsx`, `src/renderer/state/projects-slice.ts`) and 257's (`src/main/arch/**`, `src/main/symbols/`) do not overlap, so the two run at once and the running log is the only expected conflict.
