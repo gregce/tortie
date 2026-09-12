@@ -96,6 +96,7 @@ import { aimSelection } from './picker';
 import './arch.css';
 import './arch-drill.css';
 import './arch-reading.css';
+import './arch-evidence.css';
 
 // ---------------------------------------------------------------------------
 // The faces moved to their subject files in Phase 172 and this file
@@ -208,6 +209,11 @@ export function ArchView(): React.JSX.Element | null {
       ? null
       : (s.partMaps[partKey(repoKey, drill.groupId)] ?? null)
   );
+  // PHASE 258. The computed rung per contract component, off the same map
+  // model the reading draws from, for the chip on the outline rows.
+  const componentRungs = useArch((s) =>
+    repoKey === null ? undefined : s.maps[repoKey]?.model?.componentRungs
+  );
 
   if (status === 'unavailable') {
     return <ArchNote text={ARCH_NO_BRIDGE} />;
@@ -300,6 +306,7 @@ export function ArchView(): React.JSX.Element | null {
             selected={selected}
             onSelect={select}
             onToggle={toggleSelected}
+            rungs={componentRungs}
           />
           <GapStrip components={components} onSelect={select} />
           <AimBar />

@@ -888,5 +888,19 @@
       "src/app/view.ts",
       "src/store/db.ts:"
     ]
+  },
+  "skeleton": {
+    "paths": [
+      "docs/arch/baseline.json",
+      "docs/arch/components/src-app.json",
+      "docs/arch/components/src-core.json",
+      "docs/arch/components/src-native.json",
+      "docs/arch/components/src-store.json",
+      "docs/arch/components/tools.json",
+      "docs/arch/components/vendor-lib.json",
+      "docs/arch/contract.json",
+      "docs/arch/edges.json"
+    ],
+    "sha256": "462dc54cdb7dcf599a01a5852a6a0494d73d6037f314de4e0fd8ffb103ac72d7"
   }
 }

@@ -73,6 +73,9 @@ export const arch: GmuxArchExtras['arch'] = {
   enrich: (input) => invoke('arch:enrich', input),
   passStatus: (input) => invoke('arch:passStatus', input),
   acceptDivergence: (input) => invoke('arch:acceptDivergence', input),
+  // Phase 258: the fact rows behind one disclosure. A read over the same
+  // fact base the map composes from; it parses nothing and writes nothing.
+  facts: (input) => invoke('arch:facts', input),
   onChecked: (cb) => on(EVT_ARCH_CHECKED, cb),
   onProgress: (cb) => on(EVT_ARCH_PROGRESS, cb),
   onMapUpdated: (cb) => on(EVT_ARCH_MAP_UPDATED, cb),

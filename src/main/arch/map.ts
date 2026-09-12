@@ -36,27 +36,54 @@
  * status wins, so a broken promise can never hide behind a held one beside
  * it. An edge the contract says nothing about stays uncoloured, which is most
  * of them, and that is the honest picture rather than a gap.
+ *
+ * ## What Phase 258 put on the box, and where it comes from
+ *
+ * Every box carries a computed evidence rung (./evidence.ts, research 118
+ * §7.2), the region rule Q puts it in (./skeleton.ts) and its counts per
+ * fact kind, and the model carries the regions, the labelled transports
+ * between them, one rung per contract component and whether the repository
+ * builds one thing. All of it is read from the fact base and the import
+ * graph; none of it reads a contract field. Regions come from what a
+ * manifest declares and what a program starts, never from a module root,
+ * and a transport is only ever a count of rows the map already holds.
  */
 
 import type {
   ArchCoverage,
   ArchCoverageCounts,
   ArchDocument,
+  ArchFact,
+  ArchFactCategory,
   ArchOffending,
+  ArchRungReading,
   ArchVerdictStatus
 } from '@shared/arch';
-import { ARCH_VERDICT_STATUSES } from '@shared/arch';
+import { ARCH_FACT_KINDS, ARCH_VERDICT_STATUSES } from '@shared/arch';
 import type {
   ArchMapBand,
   ArchMapCrossing,
   ArchMapEdge,
   ArchMapGroup,
+  ArchMapKindCounts,
   ArchMapModel,
-  ArchMapPartModel
+  ArchMapPartModel,
+  ArchMapRegion,
+  ArchMapTransport
 } from '@shared/ipc';
-import { grammarFor } from '../symbols/languages';
 import { componentFiles } from './checkers/glob';
 import type { ArchFileDefinitions, ArchTreeFileFact } from './db';
+import {
+  buildImportGraph,
+  declaredEntries,
+  dirOf,
+  entrypointFilesOf,
+  namedByManifestOf,
+  rungOf,
+  seedsFor,
+  seedsOfPart,
+  type ArchEvidenceContext
+} from './evidence';
 import { readingFacts, type ArchReadingBox } from './reading';
 import {
   hoverFacts,
@@ -76,7 +103,12 @@ import {
   partModules,
   rankGroups,
   readingPartition,
+  regionCut,
+  sourceParseable,
+  unitsOf,
   READING_FOLD_ID,
+  type ArchRegionCut,
+  type ArchUnit,
   type Group
 } from './skeleton';
 
@@ -116,6 +148,15 @@ export interface ArchMapComposeInput {
   document: ArchDocument | null;
   /** Whatever the last completed check concluded. Empty is fine. */
   verdicts: readonly ArchMapVerdictFact[];
+  /**
+   * PHASE 258. Every fact of the seven non-test categories, out of
+   * `db.factsOf`. The units, the starts, the transports, the per box counts
+   * and the seeds are all read from these; absent, the map draws with no
+   * region but Elsewhere and every box `declared` or `composed`.
+   */
+  facts?: readonly ArchFact[];
+  /** PHASE 258. Distinct files carrying a `test` fact, out of `db.factFiles`. */
+  testFiles?: readonly string[];
 }
 
 /**
@@ -130,8 +171,8 @@ const STATUS_SEVERITY: Readonly<Record<ArchVerdictStatus, number>> = {
   convergent: 3
 };
 
-/** Whether this build parses a path, which is what "source" means to rule P. */
-const parseable = (path: string): boolean => grammarFor(path) !== null;
+/** Whether this build parses a path, which is what "source" means to rule P. ONE definition, in ./skeleton.ts. */
+const parseable = sourceParseable;
 
 /**
  * The resolved slice and the level 1 partition, shared by BOTH composes
@@ -227,6 +268,225 @@ function readingOf(
   };
 }
 
+// ---------------------------------------------------------------------------
+// The evidence: units, regions, starts, transports, rungs and counts
+// (Phase 258, research 118 §7.2 and §7.6, SPEC §1 to §3)
+// ---------------------------------------------------------------------------
+
+/** The five categories a box's kind counts are drawn from, every kind present at zero. */
+const COUNTED_CATEGORIES = ['surface', 'store', 'effect', 'network', 'gate'] as const;
+
+function emptyKindCounts(): ArchMapKindCounts {
+  const out = {} as Record<(typeof COUNTED_CATEGORIES)[number], Record<string, number>>;
+  for (const category of COUNTED_CATEGORIES) {
+    const kinds: Record<string, number> = {};
+    for (const kind of ARCH_FACT_KINDS[category]) kinds[kind] = 0;
+    out[category] = kinds;
+  }
+  return out;
+}
+
+/** The declared name per manifest DIRECTORY, for a unit's label (Q1). */
+function unitNamesOf(input: ArchMapComposeInput): ReadonlyMap<string, string> {
+  const names = new Map<string, string>();
+  for (const row of input.treeFacts ?? []) {
+    if (row.declares === null) continue;
+    const dir = dirOf(row.path);
+    if (!names.has(dir)) names.set(dir, row.declares);
+  }
+  for (const f of input.facts ?? []) {
+    if (f.category !== 'entrypoint' || f.kind !== 'package') continue;
+    const dir = dirOf(f.file);
+    if (names.has(dir)) continue;
+    const crate = /^crate (.+)$/.exec(f.subject);
+    if (crate !== null) names.set(dir, crate[1] as string);
+    const go = /^go module (.+)$/.exec(f.subject);
+    if (go !== null) names.set(dir, (go[1] as string).split('/').pop() ?? (go[1] as string));
+  }
+  return names;
+}
+
+/** Everything the rung, the regions and the counts are read from, computed once per compose. */
+interface ArchEvidence {
+  cut: ArchRegionCut;
+  regions: ArchMapRegion[];
+  transports: ArchMapTransport[];
+  /** The rung of one set of files, seeded from the units that own them (rule G). */
+  rungOfFiles: (files: Iterable<string>) => ArchRungReading;
+  /** The counts of one set of files, every kind of the five categories present. */
+  countsOfFiles: (files: Iterable<string>) => ArchMapKindCounts;
+  regionOfGroup: ReadonlyMap<string, string>;
+  oneThing: boolean;
+}
+
+/**
+ * Rule Q over rule P's boxes, then everything the ladder needs.
+ *
+ * Every input is a set of paths, a graph or a fact row; the contract is
+ * never read here, which `npm run conformance:evidence` rule 4 proves by
+ * composing with the document and with `document: null` and comparing the
+ * rung of every box byte for byte.
+ */
+function evidenceOf(
+  input: ArchMapComposeInput,
+  groups: readonly Group[],
+  resolved: readonly { fromPath: string; toPath: string }[],
+  ownerOf: (path: string) => string | undefined
+): ArchEvidence {
+  const facts = input.facts ?? [];
+  const tracked = new Set(input.trackedFiles);
+  const units: ArchUnit[] = unitsOf({
+    subject: input.subject,
+    trackedFiles: input.trackedFiles,
+    facts,
+    ...(input.workspaces === undefined ? {} : { workspaces: input.workspaces }),
+    ...(input.crates === undefined ? {} : { crates: input.crates }),
+    names: unitNamesOf(input)
+  });
+  const cut = regionCut({ boxes: groups, units, facts, parseable });
+
+  // The ladder's inputs, each read once.
+  const graph = buildImportGraph(input.imports);
+  const seedsByUnit = seedsFor(units, entrypointFilesOf(facts), declaredEntries(facts, tracked), tracked);
+  const testFiles = new Set(input.testFiles ?? []);
+  const namedByManifest = namedByManifestOf(facts);
+  const rungOfFiles = (files: Iterable<string>): ArchRungReading => {
+    const own = [...files];
+    const ctx: ArchEvidenceContext = {
+      tracked,
+      graph,
+      seeds: seedsOfPart(own, cut.unitOf, seedsByUnit),
+      testFiles,
+      namedByManifest,
+      parseable
+    };
+    return rungOf(own, ctx);
+  };
+
+  // The counts, per file once, then summed per box.
+  const factsByFile = new Map<string, ArchFact[]>();
+  for (const f of facts) {
+    const list = factsByFile.get(f.file);
+    if (list === undefined) factsByFile.set(f.file, [f]);
+    else list.push(f);
+  }
+  const isCounted = (c: ArchFactCategory): c is (typeof COUNTED_CATEGORIES)[number] =>
+    (COUNTED_CATEGORIES as readonly string[]).includes(c);
+  const countsOfFiles = (files: Iterable<string>): ArchMapKindCounts => {
+    const counts = emptyKindCounts();
+    for (const file of files) {
+      for (const f of factsByFile.get(file) ?? []) {
+        if (!isCounted(f.category)) continue;
+        const bucket = counts[f.category];
+        bucket[f.kind] = (bucket[f.kind] ?? 0) + 1;
+      }
+    }
+    return counts;
+  };
+
+  // The regions as the wire carries them.
+  const regions: ArchMapRegion[] = cut.regions.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    label: r.label,
+    sub: r.sub,
+    dir: r.dir,
+    groupIds: r.groupIds,
+    starts: r.starts.map((s) => ({ kind: s.kind, label: s.label, file: s.file, line: s.line })),
+    files: r.files,
+    parsed: r.parsed
+  }));
+
+  // The transports (SPEC §3.2). `imports` between two regions holding boxes,
+  // aggregated from the SAME edge list rule P's rollup uses; `spawns` and
+  // `reaches` from a region to the outside band; `listens` from the outside
+  // band to a region. A pair with a count of zero draws nothing, and an HTTP
+  // edge between two regions is never invented: an import graph cannot see
+  // it (research 118 F6) and the outside band's `reaches` is where the honest
+  // number goes.
+  const outside = regions.some((r) => r.id === 'outside');
+  const counted = new Map<string, number>();
+  const bump = (from: string, to: string, kind: ArchMapTransport['kind'], by: number): void => {
+    // A region id carries a raw directory, which may hold a space, so the key
+    // is joined on a unit separator the source spells as an escape.
+    const key = `${from}\u001f${to}\u001f${kind}`;
+    counted.set(key, (counted.get(key) ?? 0) + by);
+  };
+  for (const edge of aggregateGroupEdges(groups, resolved, ownerOf)) {
+    const from = cut.regionOfGroup.get(edge.from);
+    const to = cut.regionOfGroup.get(edge.to);
+    if (from === undefined || to === undefined || from === to) continue;
+    bump(from, to, 'imports', edge.count);
+  }
+  if (outside) {
+    for (const f of facts) {
+      const group = ownerOf(f.file);
+      const region = group === undefined ? undefined : cut.regionOfGroup.get(group);
+      if (region === undefined) continue;
+      if (f.category === 'effect' && f.kind === 'spawn') bump(region, 'outside', 'spawns', 1);
+      else if (f.category === 'network' && f.kind === 'client') bump(region, 'outside', 'reaches', 1);
+      else if (f.category === 'network' && f.kind === 'listen') bump('outside', region, 'listens', 1);
+      else if (f.category === 'surface' && f.kind === 'port') bump('outside', region, 'listens', 1);
+    }
+  }
+  const transports: ArchMapTransport[] = [...counted.entries()]
+    .filter(([, count]) => count > 0)
+    .map(([key, count]) => {
+      const [from = '', to = '', kind = 'imports'] = key.split('\u001f');
+      return { from, to, kind: kind as ArchMapTransport['kind'], count };
+    })
+    .sort(
+      (a, b) =>
+        (a.from < b.from ? -1 : a.from > b.from ? 1 : 0) ||
+        (a.to < b.to ? -1 : a.to > b.to ? 1 : 0) ||
+        (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0)
+    );
+
+  return {
+    cut,
+    regions,
+    transports,
+    rungOfFiles,
+    countsOfFiles,
+    regionOfGroup: cut.regionOfGroup,
+    oneThing: cut.oneThing
+  };
+}
+
+/**
+ * The file set one `arch:facts` scope names (Phase 258, SPEC §4.1): a rule P
+ * box id, a region id, or null for the whole repository, resolved over the
+ * SAME partition the map composed so a disclosure's rows are the box's own.
+ * Null when the scope names nothing in the current partition.
+ */
+export function archMapScope(
+  input: ArchMapComposeInput,
+  scope: string | null
+): { files: ReadonlySet<string>; parsed: number } | null {
+  const { resolved, groups, ownerOf } = level1Partition(input);
+  const count = (files: Iterable<string>): { files: ReadonlySet<string>; parsed: number } => {
+    const set = new Set(files);
+    let parsed = 0;
+    for (const f of set) if (parseable(f)) parsed += 1;
+    return { files: set, parsed };
+  };
+  if (scope === null) return count(input.trackedFiles);
+  const box = groups.find((g) => g.id === scope);
+  if (box !== undefined) return count(box.files);
+  const evidence = evidenceOf(input, groups, resolved, ownerOf);
+  const region = evidence.regions.find((r) => r.id === scope);
+  if (region === undefined) return null;
+  const files: string[] = [];
+  for (const id of region.groupIds) {
+    const held = groups.find((g) => g.id === id);
+    if (held !== undefined) files.push(...held.files);
+  }
+  return count(files);
+}
+
+/** The category and kind names the counts carry, for callers that filter rows. */
+export const ARCH_MAP_COUNTED_CATEGORIES: readonly ArchFactCategory[] = COUNTED_CATEGORIES;
+
 /**
  * One aggregated edge list with the judged promises joined on (extracted by
  * the integrator, Phase 161, from two copies): the worst verdict between the
@@ -284,6 +544,7 @@ export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
 
   const overlay = overlayComponents(owner, input);
   const reading = readingOf(groups, input, folded, ownerOf);
+  const evidence = evidenceOf(input, groups, resolved, ownerOf);
 
   const mapGroups: ArchMapGroup[] = groups.map((group, at) => {
     const counts = perGroup.get(group.id) ?? {
@@ -307,11 +568,29 @@ export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
       resolvedImports: counts.resolved,
       externalImports: counts.external,
       unresolvedImports: counts.unresolved,
-      ...reading.fieldsOf(fact)
+      ...reading.fieldsOf(fact),
+      // Phase 258. The rung, the region and the kind counts sit ON the box,
+      // computed from the box's own files and never from the contract.
+      rung: evidence.rungOfFiles(group.files),
+      regionId: evidence.regionOfGroup.get(group.id) ?? 'elsewhere',
+      counts: evidence.countsOfFiles(group.files)
     };
   });
 
   const edges: ArchMapEdge[] = judgedEdges(groups, resolved, overlay, input, ownerOf);
+
+  // Phase 258. One rung per contract component, over the files its anchors
+  // match, keyed by component id. The rung belongs on the part and never on
+  // the claim (research 118 §7.2), so the component's own text is not read.
+  const componentRungs: Record<string, ArchRungReading> = {};
+  if (input.document?.contract != null) {
+    const components = [...input.document.components].sort((a, b) => (a.id < b.id ? -1 : 1));
+    for (const component of components) {
+      componentRungs[component.id] = evidence.rungOfFiles(
+        componentFiles(component, input.trackedFiles)
+      );
+    }
+  }
 
   return {
     subject: input.subject,
@@ -330,7 +609,11 @@ export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
     totalImports,
     resolvedImports,
     unresolvedImports,
-    contractPresent: input.document?.contract != null
+    contractPresent: input.document?.contract != null,
+    regions: evidence.regions,
+    transports: evidence.transports,
+    componentRungs,
+    oneThing: evidence.oneThing
   };
 }
 
@@ -538,6 +821,11 @@ export function composeArchMapPart(
   const moduleOwner = groupOwners(modules);
   const moduleOwnerOf = groupOwnerWithDirs(modules);
   const reading = readingOf(modules, input, [], moduleOwnerOf);
+  // Phase 258. The same ladder over the same units: a module's walk is
+  // seeded from the units owning its files, which inside one part is the
+  // part's own unit, and its region is the part's.
+  const evidence = evidenceOf(input, level1, resolved, level1OwnerOf);
+  const partRegion = evidence.regionOfGroup.get(part.id) ?? 'elsewhere';
   const level1Reading = readingOf(level1, input, folded, level1OwnerOf);
   const level1Name = (group: Group): string =>
     level1Overlay.get(group.id)?.name ??
@@ -595,7 +883,10 @@ export function composeArchMapPart(
       resolvedImports: counts.resolved,
       externalImports: counts.external,
       unresolvedImports: counts.unresolved,
-      ...reading.fieldsOf(reading.facts[at] as ArchReadingBox)
+      ...reading.fieldsOf(reading.facts[at] as ArchReadingBox),
+      rung: evidence.rungOfFiles(module.files),
+      regionId: partRegion,
+      counts: evidence.countsOfFiles(module.files)
     };
   });
 

@@ -49,6 +49,8 @@ import {
   provenanceTitle,
   provenanceWord
 } from './provenance';
+import { RUNG_FACES, isRung, rungClass, rungTitle } from './rung';
+import type { ArchRungReading } from '@shared/arch';
 import { useArch } from './store';
 
 /** The glyph one verdict wears. Never the only channel; a word travels with it. */
@@ -502,7 +504,8 @@ export function Outline({
   verdicts,
   selected,
   onSelect,
-  onToggle
+  onToggle,
+  rungs
 }: {
   components: readonly ArchComponent[];
   verdicts: readonly ArchVerdict[];
@@ -510,6 +513,12 @@ export function Outline({
   onSelect: (id: string) => void;
   /** ⌘-click, which builds a scope out of more than one part (Phase 64). */
   onToggle: (id: string) => void;
+  /**
+   * PHASE 258. The computed rung per component, from the map model's
+   * `componentRungs`, drawn as the chip after the provenance word. Absent
+   * or missing a component, the row draws as it did.
+   */
+  rungs?: Readonly<Record<string, ArchRungReading>>;
 }): React.JSX.Element | null {
   if (components.length === 0) return null;
   const worst = (id: string): ArchVerdict | undefined =>
@@ -554,6 +563,7 @@ export function Outline({
                 >
                   {provenanceWord(c.provenance)}
                 </span>
+                <OutlineRung reading={rungs?.[c.id]} />
                 {v !== undefined ? (
                   <span className={`arch-row-v ${verdictClass(v.status)}`}>
                     <Codicon name={verdictIcon(v.status)} size="sm" />
@@ -565,6 +575,24 @@ export function Outline({
         })}
       </ul>
     </section>
+  );
+}
+
+/** PHASE 258. The rung chip on a contract row: glyph, tone, the hover sentence. */
+function OutlineRung({
+  reading
+}: {
+  reading: ArchRungReading | undefined;
+}): React.JSX.Element | null {
+  if (reading === undefined || !isRung(reading.rung)) return null;
+  return (
+    <span
+      className={`arch-row-rung ${rungClass(reading.rung)}`}
+      data-rung={reading.rung}
+      title={rungTitle(reading)}
+    >
+      <Codicon name={RUNG_FACES[reading.rung].icon} size="sm" />
+    </span>
   );
 }
 

@@ -51,6 +51,17 @@ const remoteArch = (await import(
 
 const NUL = '\u0000';
 
+/**
+ * PHASE 258, rule 13. The eleventh hover line is the renderer's, composed in
+ * `src/renderer/arch/ArchDrill.tsx`'s `hoverLines` from the one rung table in
+ * `src/renderer/arch/rung.ts`. The table is pure (it imports `@shared/arch`
+ * and nothing else) and is read from the SHIPPING tree, because the reading's
+ * ablations are about main's clauses; what an ablation must move here is the
+ * READING the line is composed from, which the copy under test answers.
+ */
+type rungTypes = typeof import('../src/renderer/arch/rung');
+const rungTable = (await import(join(repoRoot, 'src', 'renderer', 'arch', 'rung.ts'))) as rungTypes;
+
 /** What `arch-git` prints for one answer: base64 of the bytes and the status. */
 function encodeGitAnswer(stdout: Buffer, code = 0): string {
   return Buffer.concat([
@@ -101,6 +112,8 @@ interface Fixture {
   imports: { fromPath: string; toPath: string | null; resolution: string }[];
   treeFacts: { path: string; lines: number; declares: string | null }[];
   definitions: { path: string; kinds: Record<string, number> }[];
+  /** PHASE 258. Entrypoint, boundary, effect and network rows, for rule Q; optional. */
+  facts?: { category: string; kind: string; subject: string; file: string; line: number; rule: string; evidence: string; viaWrapper: boolean }[];
 }
 
 const spec = JSON.parse(process.argv[2] ?? '{"roots":[]}') as {
@@ -199,6 +212,12 @@ interface Composed {
   edges: string[];
   repeatable: boolean;
   drill: { part: string; modules: string[]; crossings: string[] } | null;
+  /** PHASE 258, rule 11: rule Q's regions, sorted by id, box ids sorted. */
+  regions?: { id: string; kind: string; label: string; sub: string; groupIds: string[] }[];
+  /** PHASE 258, rule 13: per box, the reading, the eleventh line as the renderer composes it, and the ten before it. */
+  hover?: Record<string, { reading: unknown; first: string[]; eleventh: string | null }>;
+  /** PHASE 258, rule 12: the draft's component ids, and what the overlay over that draft paints. */
+  draft?: { componentIds: string[]; boxIds: string[]; painted: string[] };
 }
 
 async function composeAll(root: string): Promise<Record<string, unknown>> {
@@ -220,6 +239,7 @@ async function composeAll(root: string): Promise<Record<string, unknown>> {
     ['cap', capTree(), null]
   ];
   for (const [name, fx, drillId] of trees) {
+    const facts = fx.facts ?? [];
     const input = {
       subject: fx.subject,
       trackedFiles: fx.trackedFiles,
@@ -228,6 +248,8 @@ async function composeAll(root: string): Promise<Record<string, unknown>> {
       crates: fx.crates,
       treeFacts: fx.treeFacts,
       definitions: fx.definitions,
+      facts,
+      testFiles: [...new Set(facts.filter((f) => f.category === 'test').map((f) => f.file))].sort(),
       document: null,
       verdicts: []
     };
@@ -314,6 +336,51 @@ async function composeAll(root: string): Promise<Record<string, unknown>> {
       treeFacts: farTreeFacts
     });
 
+    // -------------------------------------------------------------------
+    // PHASE 258: rule Q's regions (rule 11), the draft's overlay (rule 12,
+    // F1) and the eleventh hover line (rule 13), all off the SAME compose.
+    // -------------------------------------------------------------------
+    const skeleton = (await import(join(root, 'main', 'arch', 'skeleton.ts'))) as typeof import('../src/main/arch/skeleton');
+    const regions = [...((one as { regions?: { id: string; kind: string; label: string; sub: string; groupIds: string[] }[] }).regions ?? [])]
+      .map((r) => ({ id: r.id, kind: r.kind, label: r.label, sub: r.sub, groupIds: [...r.groupIds].sort() }))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const hover: NonNullable<Composed['hover']> = {};
+    for (const g of one.groups as (typeof one.groups[number] & { rung?: { rung: string } })[]) {
+      const r = g.rung;
+      const eleventh =
+        r !== undefined && rungTable.isRung(r.rung)
+          ? `${rungTable.RUNG_FACES[r.rung].sentence} ${rungTable.rungCountsLine(r as Parameters<typeof rungTable.rungCountsLine>[0])}`
+          : null;
+      hover[g.id] = { reading: r ?? null, first: g.facts, eleventh };
+    }
+    // The draft, from the copy under test, parsed back into a document the
+    // way `docs/arch/` would be read, then composed over so the overlay's
+    // painted set is the probe's own reading rather than a claim.
+    const buffers = skeleton.draftSkeleton({
+      subject: fx.subject,
+      trackedFiles: fx.trackedFiles,
+      imports: fx.imports.filter((i): i is { fromPath: string; toPath: string; resolution: string } => i.toPath !== null && i.resolution === 'first-party').map((i) => ({ fromPath: i.fromPath, toPath: i.toPath })),
+      workspaces: fx.workspaces,
+      crates: fx.crates
+    });
+    const components: unknown[] = [];
+    let contract: unknown = null;
+    let edges: unknown[] = [];
+    for (const b of buffers) {
+      if (/\/components\/[^/]+\.json$/.test(b.path)) components.push(JSON.parse(b.text));
+      else if (b.path.endsWith('/contract.json')) contract = JSON.parse(b.text);
+      else if (b.path.endsWith('/edges.json')) edges = (JSON.parse(b.text) as { edges: unknown[] }).edges;
+    }
+    const overlaid = map.composeArchMap({
+      ...input,
+      document: { contract, components, edges, baseline: { accepted: [] }, problems: [] } as unknown as typeof input.document
+    });
+    const draft = {
+      componentIds: (components as { id: string }[]).map((c) => c.id).sort(),
+      boxIds: one.groups.map((g) => g.id).sort(),
+      painted: overlaid.groups.filter((g) => g.componentId !== null).map((g) => g.id).sort()
+    };
+
     const composed: Composed = {
       sentence: one.sentence,
       words: sentence.wordCount(one.sentence),
@@ -331,7 +398,10 @@ async function composeAll(root: string): Promise<Record<string, unknown>> {
       })),
       edges: one.edges.map((e) => `${e.from}>${e.to}:${String(e.count)}`),
       repeatable: JSON.stringify(one) === JSON.stringify(two),
-      drill
+      drill,
+      regions,
+      hover,
+      draft
     };
     out[name] = composed;
     // The machine arm's own answer, in the SAME shape, so the gate can pin it

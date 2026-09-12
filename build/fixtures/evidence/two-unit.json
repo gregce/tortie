@@ -1,0 +1,121 @@
+{
+  "note": "TWO UNITS (gate rules 2a, 3b, 5). npm workspaces a and b with no root file: a starts at a composition root that imports across into b, and b declares its entry in its manifest with no composition root of its own. b/src/x.ts is reached only from a, so under the unit-own seed rule it reads composed while b/src/index.ts, declared by b, reads reached. One planted edge carries a toPath with a resolution that is not first-party, which the imports transport must not count.",
+  "subject": "twounit",
+  "workspaces": [
+    "a",
+    "b"
+  ],
+  "crates": [],
+  "trackedFiles": [
+    "a/package.json",
+    "a/src/main.ts",
+    "a/src/x.ts",
+    "a/src/y.ts",
+    "b/package.json",
+    "b/src/index.ts",
+    "b/src/x.ts",
+    "b/src/z.ts"
+  ],
+  "imports": [
+    {
+      "fromPath": "a/src/main.ts",
+      "toPath": "a/src/x.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "a/src/x.ts",
+      "toPath": "a/src/y.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "a/src/main.ts",
+      "toPath": "b/src/x.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "b/src/index.ts",
+      "toPath": "b/src/z.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "a/src/y.ts",
+      "toPath": "b/src/z.ts",
+      "resolution": "unresolved"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "a/package.json",
+      "lines": 8,
+      "declares": "alpha"
+    },
+    {
+      "path": "a/src/main.ts",
+      "lines": 20,
+      "declares": null
+    },
+    {
+      "path": "a/src/x.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "a/src/y.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "b/package.json",
+      "lines": 8,
+      "declares": "beta"
+    },
+    {
+      "path": "b/src/index.ts",
+      "lines": 12,
+      "declares": null
+    },
+    {
+      "path": "b/src/x.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "b/src/z.ts",
+      "lines": 10,
+      "declares": null
+    }
+  ],
+  "definitions": [],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./src/index.ts",
+      "file": "b/package.json",
+      "line": 2,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./src/index.ts\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "composition-root",
+      "subject": "composition root a/src/main.ts",
+      "file": "a/src/main.ts",
+      "line": 1,
+      "rule": "entrypoint.ts.composition-root",
+      "evidence": "app.whenReady().then(main)",
+      "viaWrapper": false
+    },
+    {
+      "category": "effect",
+      "kind": "spawn",
+      "subject": "spawn git",
+      "file": "a/src/main.ts",
+      "line": 9,
+      "rule": "effect.spawn.node",
+      "evidence": "spawn('git', argv)",
+      "viaWrapper": false
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "note": "THE FAMILY RULE (gate rule 3d). A python __main__ under docs/tools with no python manifest anywhere makes a unit at its own directory, never at the root package.json above it. That unit owns no rule P box, so it is a start of the root region, and its main is NOT a seed of the root unit, so the docs box reads composed rather than reached.",
+  "subject": "fam",
+  "workspaces": [],
+  "crates": [],
+  "trackedFiles": [
+    "package.json",
+    "README.md",
+    "lib/index.ts",
+    "lib/a.ts",
+    "lib/b.ts",
+    "docs/tools/pen.py",
+    "docs/p00.md",
+    "docs/p01.md",
+    "docs/p02.md",
+    "docs/p03.md",
+    "docs/p04.md",
+    "docs/p05.md",
+    "docs/p06.md",
+    "docs/p07.md",
+    "docs/p08.md",
+    "docs/p09.md",
+    "docs/p10.md",
+    "docs/p11.md",
+    "docs/p12.md",
+    "docs/p13.md",
+    "docs/p14.md",
+    "docs/p15.md",
+    "docs/p16.md",
+    "docs/p17.md",
+    "docs/p18.md",
+    "docs/p19.md"
+  ],
+  "imports": [
+    {
+      "fromPath": "lib/index.ts",
+      "toPath": "lib/a.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "lib/a.ts",
+      "toPath": "lib/b.ts",
+      "resolution": "first-party"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "package.json",
+      "lines": 10,
+      "declares": "fam"
+    },
+    {
+      "path": "README.md",
+      "lines": 20,
+      "declares": null
+    },
+    {
+      "path": "lib/index.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "lib/a.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "lib/b.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "docs/tools/pen.py",
+      "lines": 40,
+      "declares": null
+    },
+    {
+      "path": "docs/p00.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p01.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p02.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p03.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p04.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p05.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p06.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p07.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p08.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p09.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p10.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p11.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p12.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p13.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p14.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p15.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p16.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p17.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p18.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p19.md",
+      "lines": 8,
+      "declares": null
+    }
+  ],
+  "definitions": [],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./lib/index.ts",
+      "file": "package.json",
+      "line": 2,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./lib/index.ts\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "composition-root",
+      "subject": "composition root lib/index.ts",
+      "file": "lib/index.ts",
+      "line": 1,
+      "rule": "entrypoint.ts.composition-root",
+      "evidence": "createServer().listen()",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "main",
+      "subject": "__main__ in docs/tools/pen.py",
+      "file": "docs/tools/pen.py",
+      "line": 30,
+      "rule": "entrypoint.py.main",
+      "evidence": "if __name__ == '__main__':",
+      "viaWrapper": false
+    }
+  ]
+}

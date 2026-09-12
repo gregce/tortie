@@ -1,5 +1,5 @@
 {
-  "note": "A gmux shaped tree: five top level directories, src holding most of the source and splitting under P2, six small directories and a root file set folding into everything else. Nothing here is a real repository; every path, import, line count and definition is data.",
+  "note": "A gmux shaped tree: five top level directories, src holding most of the source and splitting under P2, six small directories and a root file set folding into everything else. Nothing here is a real repository; every path, import, line count and definition is data. Phase 258 added `facts` (a built package main, one composition root, one worker start, one spawn) so rule Q reads one unit, one thing, one start and an Outside band; the ten hover facts and every sentence are untouched by them.",
   "subject": "tortie",
   "workspaces": [],
   "crates": [],
@@ -811,6 +811,48 @@
         "function": 5,
         "constant": 3
       }
+    }
+  ],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./out/main/index.js",
+      "file": "package.json",
+      "line": 3,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./out/main/index.js\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "composition-root",
+      "subject": "composition root src/main/index.ts",
+      "file": "src/main/index.ts",
+      "line": 1,
+      "rule": "entrypoint.ts.composition-root",
+      "evidence": "app.whenReady().then(main)",
+      "viaWrapper": false
+    },
+    {
+      "category": "boundary",
+      "kind": "worker",
+      "subject": "worker ./pool.js",
+      "file": "src/main/index.ts",
+      "line": 20,
+      "rule": "boundary.worker.node",
+      "evidence": "new Worker(pool)",
+      "viaWrapper": false
+    },
+    {
+      "category": "effect",
+      "kind": "spawn",
+      "subject": "spawn tmux",
+      "file": "src/main/tmux/server.ts",
+      "line": 5,
+      "rule": "effect.spawn.node",
+      "evidence": "spawn('tmux', argv)",
+      "viaWrapper": false
     }
   ]
 }

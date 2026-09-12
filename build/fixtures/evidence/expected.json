@@ -1,0 +1,579 @@
+{
+  "note": "What npm run conformance:evidence pins over the six trees beside it and the seven planted graphs in rungs.json. EVERY VALUE HERE WAS DERIVED BY HAND FROM build/p258/SPEC.md sections 1 to 3 (the ladder, the seed rule G, rule Q) and never from the shipping code, which is what makes the pin a check rather than a recording. Region ids follow rule Q7 (unit:<dir>, unit: for the root, elsewhere, outside); groupIds and starts are compared as sorted sets; a transport is from|to|kind|count; a rung reading is rung, anchors, parsed, reached, tested, seeds; counts name the non-zero kinds and every other kind of the five categories must be present at zero. Regenerate on purpose only, and say in the commit body which reading moved and which rule of the spec moved it.",
+  "one-unit": {
+    "oneThing": true,
+    "outside": true,
+    "regions": [
+      {
+        "id": "unit:",
+        "kind": "unit",
+        "label": "onething",
+        "sub": "the one thing this repository builds",
+        "dir": "",
+        "groupIds": [
+          "app",
+          "core",
+          "docs",
+          "net",
+          "other",
+          "workers"
+        ],
+        "starts": [
+          {
+            "kind": "worker",
+            "file": "app/a.ts",
+            "line": 5
+          },
+          {
+            "kind": "worker",
+            "file": "app/a.ts",
+            "line": 9
+          }
+        ],
+        "files": 35,
+        "parsed": 13
+      },
+      {
+        "id": "outside",
+        "kind": "outside",
+        "label": "Outside this repository",
+        "sub": "programs and hosts it reaches",
+        "dir": null,
+        "groupIds": [],
+        "starts": [],
+        "files": 0,
+        "parsed": 0
+      }
+    ],
+    "transports": [
+      "outside|unit:|listens|2",
+      "unit:|outside|reaches|1",
+      "unit:|outside|spawns|2"
+    ],
+    "rungs": {
+      "app": {
+        "rung": "tested",
+        "anchors": 4,
+        "parsed": 4,
+        "reached": 3,
+        "tested": 1,
+        "seeds": 1
+      },
+      "core": {
+        "rung": "reached",
+        "anchors": 3,
+        "parsed": 3,
+        "reached": 2,
+        "tested": 0,
+        "seeds": 1
+      },
+      "docs": {
+        "rung": "declared",
+        "anchors": 20,
+        "parsed": 0,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 1
+      },
+      "net": {
+        "rung": "composed",
+        "anchors": 3,
+        "parsed": 3,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 1
+      },
+      "other": {
+        "rung": "composed",
+        "anchors": 2,
+        "parsed": 0,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 1
+      },
+      "workers": {
+        "rung": "declared",
+        "anchors": 3,
+        "parsed": 3,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 1
+      }
+    },
+    "counts": {
+      "app": {
+        "surface.ipc-channel": 2,
+        "surface.cli-command": 1,
+        "gate.flag": 1
+      },
+      "core": {
+        "store.store-write": 1,
+        "store.migration": 1,
+        "gate.refusal": 1,
+        "gate.guard": 1
+      },
+      "net": {
+        "surface.port": 1,
+        "effect.spawn": 2,
+        "network.client": 1,
+        "network.listen": 1
+      },
+      "docs": {},
+      "other": {},
+      "workers": {}
+    },
+    "worksheet": [
+      {
+        "scope": "core",
+        "gates": 2,
+        "byKind": {
+          "auth": 0,
+          "flag": 0,
+          "refusal": 1,
+          "guard": 1
+        },
+        "files": 3,
+        "parsed": 3,
+        "rows": [
+          "core/c.ts:7:refusal",
+          "core/c.ts:12:guard"
+        ]
+      },
+      {
+        "scope": "app",
+        "gates": 1,
+        "byKind": {
+          "auth": 0,
+          "flag": 1,
+          "refusal": 0,
+          "guard": 0
+        },
+        "files": 4,
+        "parsed": 4,
+        "rows": [
+          "app/b.ts:2:flag"
+        ]
+      },
+      {
+        "scope": "docs",
+        "gates": 0,
+        "byKind": {
+          "auth": 0,
+          "flag": 0,
+          "refusal": 0,
+          "guard": 0
+        },
+        "files": 20,
+        "parsed": 0,
+        "rows": []
+      },
+      {
+        "scope": "unit:",
+        "gates": 3,
+        "byKind": {
+          "auth": 0,
+          "flag": 1,
+          "refusal": 1,
+          "guard": 1
+        },
+        "files": 35,
+        "parsed": 13,
+        "rows": [
+          "app/b.ts:2:flag",
+          "core/c.ts:7:refusal",
+          "core/c.ts:12:guard"
+        ]
+      },
+      {
+        "scope": null,
+        "gates": 3,
+        "byKind": {
+          "auth": 0,
+          "flag": 1,
+          "refusal": 1,
+          "guard": 1
+        },
+        "files": 35,
+        "parsed": 13,
+        "rows": [
+          "app/b.ts:2:flag",
+          "core/c.ts:7:refusal",
+          "core/c.ts:12:guard"
+        ]
+      }
+    ]
+  },
+  "two-unit": {
+    "oneThing": false,
+    "outside": true,
+    "regions": [
+      {
+        "id": "unit:a",
+        "kind": "unit",
+        "label": "alpha",
+        "sub": "npm package",
+        "dir": "a",
+        "groupIds": [
+          "a"
+        ],
+        "starts": [],
+        "files": 4,
+        "parsed": 3
+      },
+      {
+        "id": "unit:b",
+        "kind": "unit",
+        "label": "beta",
+        "sub": "npm package",
+        "dir": "b",
+        "groupIds": [
+          "b"
+        ],
+        "starts": [],
+        "files": 4,
+        "parsed": 3
+      },
+      {
+        "id": "outside",
+        "kind": "outside",
+        "label": "Outside this repository",
+        "sub": "programs and hosts it reaches",
+        "dir": null,
+        "groupIds": [],
+        "starts": [],
+        "files": 0,
+        "parsed": 0
+      }
+    ],
+    "transports": [
+      "unit:a|outside|spawns|1",
+      "unit:a|unit:b|imports|1"
+    ],
+    "rungs": {
+      "a": {
+        "rung": "reached",
+        "anchors": 4,
+        "parsed": 3,
+        "reached": 3,
+        "tested": 0,
+        "seeds": 1
+      },
+      "b": {
+        "rung": "reached",
+        "anchors": 4,
+        "parsed": 3,
+        "reached": 2,
+        "tested": 0,
+        "seeds": 1
+      }
+    },
+    "counts": {
+      "a": {
+        "effect.spawn": 1
+      },
+      "b": {}
+    },
+    "perFile": [
+      {
+        "file": "b/src/x.ts",
+        "unitDir": "b",
+        "want": "composed"
+      },
+      {
+        "file": "b/src/index.ts",
+        "unitDir": "b",
+        "want": "reached"
+      },
+      {
+        "file": "b/src/z.ts",
+        "unitDir": "b",
+        "want": "reached"
+      },
+      {
+        "file": "a/src/y.ts",
+        "unitDir": "a",
+        "want": "reached"
+      }
+    ],
+    "seeds": {
+      "a": [
+        "a/src/main.ts"
+      ],
+      "b": [
+        "b/src/index.ts"
+      ]
+    },
+    "worksheet": []
+  },
+  "elsewhere": {
+    "oneThing": false,
+    "outside": false,
+    "regions": [
+      {
+        "id": "unit:pkg",
+        "kind": "unit",
+        "label": "pkg-lib",
+        "sub": "npm package",
+        "dir": "pkg",
+        "groupIds": [
+          "pkg"
+        ],
+        "starts": [],
+        "files": 5,
+        "parsed": 4
+      },
+      {
+        "id": "elsewhere",
+        "kind": "elsewhere",
+        "label": "Elsewhere",
+        "sub": "no manifest names these",
+        "dir": null,
+        "groupIds": [
+          "docs",
+          "other"
+        ],
+        "starts": [],
+        "files": 21,
+        "parsed": 0
+      }
+    ],
+    "transports": [],
+    "rungs": {
+      "pkg": {
+        "rung": "reached",
+        "anchors": 5,
+        "parsed": 4,
+        "reached": 3,
+        "tested": 0,
+        "seeds": 1
+      },
+      "docs": {
+        "rung": "declared",
+        "anchors": 20,
+        "parsed": 0,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 0
+      },
+      "other": {
+        "rung": "declared",
+        "anchors": 1,
+        "parsed": 0,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 0
+      }
+    },
+    "counts": {
+      "pkg": {},
+      "docs": {},
+      "other": {}
+    },
+    "worksheet": []
+  },
+  "manifest-seed": {
+    "oneThing": true,
+    "outside": false,
+    "regions": [
+      {
+        "id": "unit:",
+        "kind": "unit",
+        "label": "built-only",
+        "sub": "the one thing this repository builds",
+        "dir": "",
+        "groupIds": [
+          "lib",
+          "other",
+          "util"
+        ],
+        "starts": [
+          {
+            "kind": "service",
+            "file": "docker-compose.yml",
+            "line": 2
+          },
+          {
+            "kind": "worker",
+            "file": "lib/a.ts",
+            "line": 4
+          }
+        ],
+        "files": 11,
+        "parsed": 7
+      }
+    ],
+    "transports": [],
+    "rungs": {
+      "lib": {
+        "rung": "composed",
+        "anchors": 4,
+        "parsed": 4,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 0
+      },
+      "other": {
+        "rung": "composed",
+        "anchors": 4,
+        "parsed": 0,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 0
+      },
+      "util": {
+        "rung": "composed",
+        "anchors": 3,
+        "parsed": 3,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 0
+      }
+    },
+    "counts": {
+      "lib": {},
+      "other": {},
+      "util": {}
+    },
+    "worksheet": []
+  },
+  "family": {
+    "oneThing": true,
+    "outside": false,
+    "regions": [
+      {
+        "id": "unit:",
+        "kind": "unit",
+        "label": "fam",
+        "sub": "the one thing this repository builds",
+        "dir": "",
+        "groupIds": [
+          "docs",
+          "lib",
+          "other"
+        ],
+        "starts": [
+          {
+            "kind": "unit",
+            "file": "docs/tools/pen.py",
+            "line": 30
+          }
+        ],
+        "files": 26,
+        "parsed": 4
+      }
+    ],
+    "transports": [],
+    "rungs": {
+      "docs": {
+        "rung": "reached",
+        "anchors": 21,
+        "parsed": 1,
+        "reached": 1,
+        "tested": 0,
+        "seeds": 2
+      },
+      "lib": {
+        "rung": "reached",
+        "anchors": 3,
+        "parsed": 3,
+        "reached": 3,
+        "tested": 0,
+        "seeds": 1
+      },
+      "other": {
+        "rung": "composed",
+        "anchors": 2,
+        "parsed": 0,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 1
+      }
+    },
+    "counts": {
+      "docs": {},
+      "lib": {},
+      "other": {}
+    },
+    "worksheet": []
+  },
+  "nested": {
+    "oneThing": false,
+    "outside": false,
+    "regions": [
+      {
+        "id": "unit:",
+        "kind": "unit",
+        "label": "nest",
+        "sub": "npm package",
+        "dir": "",
+        "groupIds": [
+          "other"
+        ],
+        "starts": [],
+        "files": 2,
+        "parsed": 0
+      },
+      {
+        "id": "unit:a",
+        "kind": "unit",
+        "label": "alpha",
+        "sub": "npm package",
+        "dir": "a",
+        "groupIds": [
+          "a"
+        ],
+        "starts": [],
+        "files": 4,
+        "parsed": 3
+      },
+      {
+        "id": "unit:b",
+        "kind": "unit",
+        "label": "beta",
+        "sub": "npm package",
+        "dir": "b",
+        "groupIds": [
+          "b"
+        ],
+        "starts": [],
+        "files": 4,
+        "parsed": 3
+      }
+    ],
+    "transports": [
+      "unit:a|unit:b|imports|1"
+    ],
+    "rungs": {
+      "a": {
+        "rung": "reached",
+        "anchors": 4,
+        "parsed": 3,
+        "reached": 3,
+        "tested": 0,
+        "seeds": 1
+      },
+      "b": {
+        "rung": "reached",
+        "anchors": 4,
+        "parsed": 3,
+        "reached": 2,
+        "tested": 0,
+        "seeds": 1
+      },
+      "other": {
+        "rung": "composed",
+        "anchors": 2,
+        "parsed": 0,
+        "reached": 0,
+        "tested": 0,
+        "seeds": 0
+      }
+    },
+    "counts": {
+      "a": {},
+      "b": {},
+      "other": {}
+    },
+    "worksheet": []
+  }
+}

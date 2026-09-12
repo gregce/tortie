@@ -51,7 +51,7 @@ import { createArchGitRunner, readLsFiles } from './git-facts';
 import { createArchFileSystem, loadArchDocument } from './load';
 import { composeArchMap } from './map';
 import { scanArchImports } from './scan';
-import { draftSkeleton as draftSkeletonBuffers } from './skeleton';
+import { draftSkeleton as draftSkeletonBuffers, sourceParseable } from './skeleton';
 import {
   ArchPassRunner,
   type ArchPassChoice,
@@ -214,7 +214,12 @@ export function createArchEnrichCoordinator(deps: {
       subject: facts.subject,
       trackedFiles: facts.trackedFiles,
       imports: facts.pairs,
-      workspaces: facts.workspaces
+      workspaces: facts.workspaces,
+      // Phase 258. The draft writes one component per rule P box, so it takes
+      // rule P's two extras exactly as `archMapReadFacts` hands them to the
+      // map: the same crates and the same idea of what "source" is.
+      crates: facts.crates,
+      parseable: sourceParseable
     });
     const wrote = await writeArchFiles(repoPath, planSkeletonWrite(buffers));
     // The watcher fan out picks the write up anyway; asking now just makes the
@@ -409,7 +414,10 @@ export function createArchEnrichCoordinator(deps: {
       subject: facts.subject,
       trackedFiles: facts.trackedFiles,
       imports: facts.pairs,
-      workspaces: facts.workspaces
+      workspaces: facts.workspaces,
+      // Phase 258. Rule P's two extras, the same ones the map is handed.
+      crates: facts.crates,
+      parseable: sourceParseable
     }).map((buffer) => ({ path: buffer.path, content: buffer.text }));
     return {
       cwd: repoPath,
@@ -446,6 +454,8 @@ interface ArchGatheredFacts {
   pairs: ArchEnrichImport[];
   subject: string;
   workspaces: string[];
+  /** Directories the Cargo workspace's member crates live in (Phase 258, rule P's P1 seeds). */
+  crates: string[];
 }
 
 /**
@@ -453,12 +463,16 @@ interface ArchGatheredFacts {
  * dependency files. One directory read and no process; the gesture and the
  * drift trigger both take it, so it lives once.
  */
-function manifestFacts(repoPath: string): Pick<ArchGatheredFacts, 'subject' | 'workspaces'> {
+function manifestFacts(repoPath: string): Pick<ArchGatheredFacts, 'subject' | 'workspaces' | 'crates'> {
   const manifests = readArchManifests(repoPath);
   return {
     subject:
       manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
-    workspaces: [...manifests.workspaces.values()].map((w) => w.dir)
+    workspaces: [...manifests.workspaces.values()].map((w) => w.dir),
+    crates:
+      manifests.cargo === null
+        ? []
+        : [...manifests.cargo.crates.values()].map((c) => c.dir).filter((d) => d !== '')
   };
 }
 

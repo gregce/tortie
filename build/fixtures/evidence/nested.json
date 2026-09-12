@@ -1,0 +1,138 @@
+{
+  "note": "NESTED UNITS (gate rule 3b). The root package.json is a unit whose main names a built artefact, and two workspace members sit under it. Ownership is by the DEEPEST unit whose directory is a prefix of the box, so a and b are their own regions and only the fold belongs to the root; read shallowest first, every box would land on the root, the picture would read as one thing, and every box would walk from every seed.",
+  "subject": "nest",
+  "workspaces": [
+    "a",
+    "b"
+  ],
+  "crates": [],
+  "trackedFiles": [
+    "package.json",
+    "README.md",
+    "a/package.json",
+    "a/src/main.ts",
+    "a/src/x.ts",
+    "a/src/y.ts",
+    "b/package.json",
+    "b/src/index.ts",
+    "b/src/x.ts",
+    "b/src/z.ts"
+  ],
+  "imports": [
+    {
+      "fromPath": "a/src/main.ts",
+      "toPath": "a/src/x.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "a/src/x.ts",
+      "toPath": "a/src/y.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "a/src/main.ts",
+      "toPath": "b/src/x.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "b/src/index.ts",
+      "toPath": "b/src/z.ts",
+      "resolution": "first-party"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "package.json",
+      "lines": 10,
+      "declares": "nest"
+    },
+    {
+      "path": "README.md",
+      "lines": 20,
+      "declares": null
+    },
+    {
+      "path": "a/package.json",
+      "lines": 8,
+      "declares": "alpha"
+    },
+    {
+      "path": "a/src/main.ts",
+      "lines": 20,
+      "declares": null
+    },
+    {
+      "path": "a/src/x.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "a/src/y.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "b/package.json",
+      "lines": 8,
+      "declares": "beta"
+    },
+    {
+      "path": "b/src/index.ts",
+      "lines": 12,
+      "declares": null
+    },
+    {
+      "path": "b/src/x.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "b/src/z.ts",
+      "lines": 10,
+      "declares": null
+    }
+  ],
+  "definitions": [],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./out/index.js",
+      "file": "package.json",
+      "line": 3,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./out/index.js\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "boundary",
+      "kind": "workspace",
+      "subject": "npm workspaces a, b",
+      "file": "package.json",
+      "line": 5,
+      "rule": "boundary.pkg.workspaces",
+      "evidence": "\"workspaces\": [\"a\", \"b\"]",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./src/index.ts",
+      "file": "b/package.json",
+      "line": 2,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./src/index.ts\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "composition-root",
+      "subject": "composition root a/src/main.ts",
+      "file": "a/src/main.ts",
+      "line": 1,
+      "rule": "entrypoint.ts.composition-root",
+      "evidence": "app.whenReady().then(main)",
+      "viaWrapper": false
+    }
+  ]
+}

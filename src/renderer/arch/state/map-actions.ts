@@ -10,9 +10,10 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { canvasBridge, mapBridge, mapPartBridge } from '../bridge';
+import { canvasBridge, factsBridge, mapBridge, mapPartBridge } from '../bridge';
 import type {
   ArchCameraState,
+  ArchFactsResult,
   ArchMapPartResult,
   ArchMapResult,
   ArchModuleFilesResult
@@ -21,6 +22,8 @@ import { moduleFilesBridge } from '../modules';
 import {
   ARCH_DRILL_NO_BRIDGE,
   ARCH_DRILL_PART_ERROR,
+  ARCH_FACTS_ERROR,
+  ARCH_FACTS_NO_BRIDGE,
   ARCH_MAP_ERROR,
   ARCH_MAP_NO_BRIDGE
 } from '../copy';
@@ -29,10 +32,11 @@ import {
   canvasKey,
   DRILL_HOME,
   drillPatch,
+  factsKey,
   moduleKey,
   partKey
 } from './view-state';
-import type { ArchDrill, ArchViewState } from './view-state';
+import type { ArchDrill, ArchFactsEntry, ArchViewState } from './view-state';
 
 /**
  * Repositories whose map should be read AGAIN the moment the read in flight
@@ -162,7 +166,17 @@ type MapActions = Pick<
   | 'keepCamera'
   | 'keepLayout'
   | 'relayout'
+  | 'inspectBox'
+  | 'inspectFor'
+  | 'setMapTab'
+  | 'mapTabFor'
+  | 'loadFacts'
+  | 'factsFor'
+  | 'forgetFacts'
 >;
+
+/** PHASE 258. The disclosure reads in flight, keyed by {@link factsKey}. */
+const pendingFactsReads = new Set<string>();
 
 export const createMapActions: StateCreator<
   ArchViewState,
@@ -424,6 +438,78 @@ export const createMapActions: StateCreator<
       .catch(() => undefined);
   },
 
+  // PHASE 258. The selection is presentation: one record per repository,
+  // cleared with null, never a drill and never a write anywhere.
+  inspectBox(repoPath, groupId) {
+    set((s) => {
+      const inspect = { ...s.inspect };
+      if (groupId === null) delete inspect[repoPath];
+      else inspect[repoPath] = { groupId };
+      return { inspect };
+    });
+  },
+
+  inspectFor(repoPath) {
+    return get().inspect[repoPath]?.groupId ?? null;
+  },
+
+  setMapTab(repoPath, tab) {
+    set((s) => ({ mapTabs: { ...s.mapTabs, [repoPath]: tab } }));
+  },
+
+  mapTabFor(repoPath) {
+    return get().mapTabs[repoPath] ?? 'map';
+  },
+
+  async loadFacts(repoPath, scope, categories) {
+    const key = factsKey(repoPath, scope, categories);
+    const held = get().facts[key];
+    // Once per key per window: the rows behind a disclosure are a reading
+    // of the same fact base the map was composed from, and the map's own
+    // re-read on `arch:mapUpdated` is what invalidates them (below).
+    if (held !== undefined && held.status !== 'error') return;
+    const api = factsBridge();
+    await foldedRead<ArchFactsResult>({
+      key,
+      pending: pendingFactsReads,
+      loading: held?.status === 'loading',
+      read:
+        api === null
+          ? null
+          : () =>
+              api.facts({
+                ...archRepoInputOf(repoPath),
+                scope,
+                categories: [...categories]
+              }),
+      held: held?.result ?? null,
+      latest: () => get().facts[key]?.result ?? null,
+      patch: (status, result, error) => {
+        set((s) => ({ facts: { ...s.facts, [key]: { status, result, error } } }));
+      },
+      noBridge: ARCH_FACTS_NO_BRIDGE,
+      fallback: ARCH_FACTS_ERROR,
+      again: () => void get().loadFacts(repoPath, scope, categories)
+    });
+  },
+
+  factsFor(repoPath, scope, categories) {
+    return get().facts[factsKey(repoPath, scope, categories)] ?? null;
+  },
+
+  forgetFacts(repoPath) {
+    const prefix = `${repoPath}\u0000`;
+    set((s) => {
+      const facts: Record<string, ArchFactsEntry> = {};
+      let dropped = false;
+      for (const [key, entry] of Object.entries(s.facts)) {
+        if (key.startsWith(prefix)) dropped = true;
+        else facts[key] = entry;
+      }
+      return dropped ? { facts } : {};
+    });
+  },
+
   async relayout(repoPath, scope) {
     const key = canvasKey(repoPath, scope);
     set((s) => {
@@ -460,6 +546,11 @@ export const createMapActions: StateCreator<
  */
 export function reloadScopedReads(s: ArchViewState, cwd: string): void {
   const prefix = `${cwd}\u0000`;
+  // PHASE 258. The disclosure rows of this repository are LET GO rather than
+  // re-read: a disclosure that is open asks again on its next render, and
+  // one that is closed costs nothing. The facts moved, so the held rows are
+  // no longer a reading of them.
+  s.forgetFacts(cwd);
   for (const key of Object.keys(s.partMaps)) {
     if (key.startsWith(prefix)) {
       void s.loadPartMap(cwd, key.slice(prefix.length));

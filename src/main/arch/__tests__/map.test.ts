@@ -767,3 +767,192 @@ describe('the fold and the contract', () => {
     expect(build?.componentId).toBe('build');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 258: regions, transports, rungs, counts and the contract they never read
+// ---------------------------------------------------------------------------
+
+import type { ArchFact } from '@shared/arch';
+import { archStartsLine } from '@shared/ipc';
+import { archMapScope } from '../map';
+
+function fact(over: Partial<ArchFact> & Pick<ArchFact, 'category' | 'kind' | 'file'>): ArchFact {
+  return { subject: '', line: 1, rule: '', evidence: '', viaWrapper: false, ...over };
+}
+
+/** Two npm workspaces, a and b, a docs directory under no unit, and root files. */
+const twoUnitTree = [
+  'package.json',
+  'a/package.json',
+  'a/src/main.ts',
+  'a/src/index.ts',
+  'a/src/lib.ts',
+  'b/package.json',
+  'b/src/index.ts',
+  'b/src/x.ts',
+  'b/src/x.test.ts',
+  ...Array.from({ length: 25 }, (_, i) => `docs/p${String(i).padStart(2, '0')}.md`)
+];
+const twoUnitImports = [
+  { fromPath: 'a/src/main.ts', toPath: 'b/src/x.ts', resolution: 'first-party' },
+  { fromPath: 'a/src/main.ts', toPath: 'a/src/index.ts', resolution: 'first-party' },
+  { fromPath: 'a/src/index.ts', toPath: 'a/src/lib.ts', resolution: 'first-party' },
+  { fromPath: 'b/src/x.test.ts', toPath: 'b/src/x.ts', resolution: 'first-party' },
+  { fromPath: 'a/src/main.ts', toPath: null, resolution: 'external' }
+];
+const twoUnitFacts: ArchFact[] = [
+  fact({ category: 'boundary', kind: 'workspace', file: 'package.json', subject: 'npm workspaces declared', rule: 'boundary.pkg.workspaces' }),
+  fact({ category: 'entrypoint', kind: 'package-main', file: 'a/package.json', subject: 'node entry ./out/index.js', rule: 'entrypoint.pkg.main' }),
+  fact({ category: 'entrypoint', kind: 'composition-root', file: 'a/src/main.ts', subject: 'composes express', line: 3, rule: 'entrypoint.composition' }),
+  fact({ category: 'entrypoint', kind: 'package-main', file: 'b/package.json', subject: 'node entry ./src/index.ts', rule: 'entrypoint.pkg.main' }),
+  fact({ category: 'boundary', kind: 'worker', file: 'b/src/x.ts', subject: 'starts a Worker', line: 2, rule: 'boundary.worker' }),
+  fact({ category: 'effect', kind: 'spawn', file: 'a/src/main.ts', subject: 'runs git', line: 8, rule: 'effect.spawn.node' }),
+  fact({ category: 'network', kind: 'client', file: 'b/src/x.ts', subject: 'fetches', line: 5, rule: 'network.fetch' }),
+  fact({ category: 'network', kind: 'listen', file: 'a/src/index.ts', subject: 'listens', line: 7, rule: 'network.listen' }),
+  fact({ category: 'surface', kind: 'ipc-channel', file: 'a/src/index.ts', subject: 'IPC serves x', line: 9, rule: 'surface.ipc.electron' }),
+  fact({ category: 'gate', kind: 'refusal', file: 'b/src/x.ts', subject: 'refuses', line: 11, rule: 'gate.refusal' })
+];
+
+function twoUnit(over?: Partial<ArchMapComposeInput>): ArchMapComposeInput {
+  return {
+    subject: 'two',
+    trackedFiles: twoUnitTree,
+    imports: twoUnitImports,
+    workspaces: ['a', 'b'],
+    document: null,
+    verdicts: [],
+    facts: twoUnitFacts,
+    testFiles: ['b/src/x.test.ts'],
+    ...over
+  };
+}
+
+describe('the regions and the transports (Phase 258)', () => {
+  it('draws one region per unit holding a box, Elsewhere for the rest, and the outside band', () => {
+    const model = composeArchMap(twoUnit());
+    expect(model.oneThing).toBe(false);
+    expect(model.regions?.map((r) => [r.id, r.kind, r.label, r.groupIds])).toEqual([
+      ['unit:a', 'unit', 'a', ['a']],
+      ['unit:b', 'unit', 'b', ['b']],
+      ['elsewhere', 'elsewhere', 'Elsewhere', ['docs', 'other']],
+      ['outside', 'outside', 'Outside this repository', []]
+    ]);
+    expect(model.groups.map((g) => [g.id, g.regionId])).toEqual([
+      ['a', 'unit:a'],
+      ['b', 'unit:b'],
+      ['docs', 'elsewhere'],
+      ['other', 'elsewhere']
+    ]);
+    const b = model.regions?.find((r) => r.id === 'unit:b');
+    expect(archStartsLine(b?.starts ?? [])).toBe('starts 1 worker');
+    expect(archStartsLine([])).toBe('');
+  });
+
+  it('labels a transport with what crosses and a count, and invents none between two regions', () => {
+    const model = composeArchMap(twoUnit());
+    expect(model.transports?.map((t) => `${t.from}>${t.to}:${t.kind}:${String(t.count)}`)).toEqual([
+      'outside>unit:a:listens:1',
+      'unit:a>outside:spawns:1',
+      'unit:a>unit:b:imports:1',
+      'unit:b>outside:reaches:1'
+    ]);
+  });
+
+  it('says one thing when every box belongs to one unit, with no Elsewhere', () => {
+    const tree = ['package.json', 'src/index.ts', 'src/app.ts', 'src/b.ts', 'README.md'];
+    const model = composeArchMap({
+      subject: 'one',
+      trackedFiles: tree,
+      imports: [{ fromPath: 'src/index.ts', toPath: 'src/app.ts', resolution: 'first-party' }],
+      document: null,
+      verdicts: [],
+      facts: [fact({ category: 'entrypoint', kind: 'package-main', file: 'package.json', subject: 'node entry ./src/index.ts', rule: 'entrypoint.pkg.main' })]
+    });
+    expect(model.oneThing).toBe(true);
+    expect(model.regions?.map((r) => [r.id, r.sub])).toEqual([['unit:', 'the one thing this repository builds']]);
+    expect(model.transports).toEqual([]);
+  });
+
+  it('draws with no facts at all: every box Elsewhere, declared or composed, no transport', () => {
+    const model = composeArchMap(input());
+    expect(model.regions?.map((r) => r.id)).toEqual(['elsewhere']);
+    expect(model.transports).toEqual([]);
+    for (const g of model.groups) {
+      expect(['declared', 'composed']).toContain(g.rung?.rung);
+      expect(g.rung?.seeds).toBe(0);
+    }
+  });
+});
+
+describe('the rung on every box (Phase 258)', () => {
+  it('walks from the unit\'s own starts and declared entry, and counts the share', () => {
+    const model = composeArchMap(twoUnit());
+    const by = new Map(model.groups.map((g) => [g.id, g.rung]));
+    // a starts at a/src/main.ts (its composition root); its manifest names a built file.
+    expect(by.get('a')).toEqual({ rung: 'reached', anchors: 4, parsed: 3, reached: 3, tested: 0, seeds: 1 });
+    // b's manifest declares b/src/index.ts, which is tracked, and a test imports b/src/x.ts.
+    expect(by.get('b')).toEqual({ rung: 'tested', anchors: 4, parsed: 3, reached: 1, tested: 1, seeds: 1 });
+    expect(by.get('docs')?.rung).toBe('declared');
+    expect(by.get('other')?.rung).toBe('composed');
+  });
+
+  it('counts every kind of the five categories on the box, zeros included', () => {
+    const model = composeArchMap(twoUnit());
+    const a = model.groups.find((g) => g.id === 'a')?.counts;
+    expect(a?.surface).toEqual({ 'http-route': 0, 'ipc-channel': 1, 'cli-command': 0, 'cli-flag': 0, job: 0, port: 0 });
+    expect(a?.effect).toEqual({ spawn: 1, 'fs-write': 0 });
+    expect(a?.network).toEqual({ client: 0, listen: 1 });
+    expect(a?.gate).toEqual({ auth: 0, flag: 0, refusal: 0, guard: 0 });
+    expect(a?.store).toEqual({ 'store-write': 0, 'store-def': 0, migration: 0 });
+    expect(model.groups.find((g) => g.id === 'b')?.counts.gate.refusal).toBe(1);
+  });
+
+  it('never reads the contract: the same rung with a document that says tested and with none', () => {
+    const doc = contract();
+    doc.components[0] = { ...doc.components[0]!, anchors: ['a'], description: 'tested accepted-live everywhere.' };
+    const withDoc = composeArchMap(twoUnit({ document: doc }));
+    const without = composeArchMap(twoUnit({ document: null }));
+    expect(withDoc.groups.map((g) => g.rung)).toEqual(without.groups.map((g) => g.rung));
+    expect(JSON.stringify(withDoc.regions)).toBe(JSON.stringify(without.regions));
+    expect(JSON.stringify(withDoc.transports)).toBe(JSON.stringify(without.transports));
+    expect(without.componentRungs).toEqual({});
+    expect(Object.keys(withDoc.componentRungs ?? {}).sort()).toEqual(['engine', 'everything', 'ghost', 'the-app']);
+    expect(withDoc.componentRungs?.['the-app']?.rung).toBe('reached');
+    expect(withDoc.componentRungs?.['ghost']?.rung).toBe('off-repo');
+  });
+
+  it('carries the rung, the region and the counts on a drilled module too', () => {
+    const part = composeArchMapPart({ ...twoUnit(), verdicts: [], groupId: 'a' });
+    expect(part.known).toBe(true);
+    for (const m of part.modules) {
+      expect(m.regionId).toBe('unit:a');
+      expect(m.rung).toBeDefined();
+      expect(m.counts).toBeDefined();
+    }
+  });
+
+  it('composes the same bytes from reversed facts and reversed imports', () => {
+    const one = composeArchMap(twoUnit());
+    const two = composeArchMap(
+      twoUnit({
+        trackedFiles: [...twoUnitTree].reverse(),
+        imports: [...twoUnitImports].reverse(),
+        facts: [...twoUnitFacts].reverse()
+      })
+    );
+    expect(JSON.stringify(one)).toBe(JSON.stringify(two));
+  });
+});
+
+describe('the scope a disclosure asks about (Phase 258)', () => {
+  it('resolves a box, a region, the whole repository, and refuses a name it does not hold', () => {
+    const compose = twoUnit();
+    expect(archMapScope(compose, null)?.files.size).toBe(twoUnitTree.length);
+    expect([...(archMapScope(compose, 'a')?.files ?? [])].sort()).toEqual(['a/package.json', 'a/src/index.ts', 'a/src/lib.ts', 'a/src/main.ts']);
+    expect(archMapScope(compose, 'a')?.parsed).toBe(3);
+    expect(archMapScope(compose, 'elsewhere')?.files.size).toBe(26);
+    expect(archMapScope(compose, 'unit:b')?.files.size).toBe(4);
+    expect(archMapScope(compose, 'outside')?.files.size).toBe(0);
+    expect(archMapScope(compose, 'no-such')).toBeNull();
+  });
+});

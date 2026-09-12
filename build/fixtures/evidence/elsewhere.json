@@ -1,0 +1,201 @@
+{
+  "note": "ELSEWHERE (gate rules 3b, 3e). One unit at pkg/ with a declared entry that is also its composition root, a docs directory and a root README under no manifest at all, and no spawn, network or port fact, so the Outside band is not drawn. docs and the fold land in Elsewhere with no seeds, and Elsewhere holds no start.",
+  "subject": "elsewhere",
+  "workspaces": [],
+  "crates": [],
+  "trackedFiles": [
+    "README.md",
+    "pkg/package.json",
+    "pkg/src/index.ts",
+    "pkg/src/a.ts",
+    "pkg/src/b.ts",
+    "pkg/src/c.ts",
+    "docs/p00.md",
+    "docs/p01.md",
+    "docs/p02.md",
+    "docs/p03.md",
+    "docs/p04.md",
+    "docs/p05.md",
+    "docs/p06.md",
+    "docs/p07.md",
+    "docs/p08.md",
+    "docs/p09.md",
+    "docs/p10.md",
+    "docs/p11.md",
+    "docs/p12.md",
+    "docs/p13.md",
+    "docs/p14.md",
+    "docs/p15.md",
+    "docs/p16.md",
+    "docs/p17.md",
+    "docs/p18.md",
+    "docs/p19.md"
+  ],
+  "imports": [
+    {
+      "fromPath": "pkg/src/index.ts",
+      "toPath": "pkg/src/a.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "pkg/src/a.ts",
+      "toPath": "pkg/src/b.ts",
+      "resolution": "first-party"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "README.md",
+      "lines": 30,
+      "declares": null
+    },
+    {
+      "path": "pkg/package.json",
+      "lines": 8,
+      "declares": "pkg-lib"
+    },
+    {
+      "path": "pkg/src/index.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "pkg/src/a.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "pkg/src/b.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "pkg/src/c.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "docs/p00.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p01.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p02.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p03.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p04.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p05.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p06.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p07.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p08.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p09.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p10.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p11.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p12.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p13.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p14.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p15.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p16.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p17.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p18.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p19.md",
+      "lines": 8,
+      "declares": null
+    }
+  ],
+  "definitions": [],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./src/index.ts",
+      "file": "pkg/package.json",
+      "line": 2,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./src/index.ts\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "composition-root",
+      "subject": "composition root pkg/src/index.ts",
+      "file": "pkg/src/index.ts",
+      "line": 1,
+      "rule": "entrypoint.ts.composition-root",
+      "evidence": "createServer().listen()",
+      "viaWrapper": false
+    }
+  ]
+}

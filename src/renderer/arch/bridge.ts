@@ -213,3 +213,37 @@ export function acceptBridge(): ArchBridgeApi | null {
 export function acceptAvailable(): boolean {
   return acceptBridge() !== null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 258, the rows behind a disclosure
+// ---------------------------------------------------------------------------
+
+/**
+ * The shapes the inspector, the surfaces list and the gates worksheet read,
+ * through the same seam every other arch answer travels.
+ */
+export type {
+  ArchFactsInput,
+  ArchFactsResult,
+  ArchMapGroup,
+  ArchMapKindCounts,
+  ArchMapRegion,
+  ArchMapStart,
+  ArchMapTransport
+} from '@shared/ipc';
+
+/**
+ * The facts read (Phase 258), or null when this build cannot list the rows
+ * behind a disclosure. Feature detected like every other method here: an
+ * older preload has no `facts`, the disclosures then say one sentence, and
+ * the map, the chip and the counts still draw from the model.
+ */
+export function factsBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.facts === 'function' ? api : null;
+}
+
+/** Can this build list the rows behind a disclosure at all? */
+export function factsAvailable(): boolean {
+  return factsBridge() !== null;
+}

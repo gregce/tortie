@@ -1,0 +1,213 @@
+/**
+ * THE INSPECTOR (Phase 258): what one selected part is, below the map at
+ * full width, runstory's shape (research 118 §3.2 item 6) in Tortie's tokens.
+ *
+ * With nothing selected it is one line. With a box selected it is ONE header
+ * row and SEVEN field rows, every value COMPUTED from the counts the map
+ * composer put on the box: the region it belongs to, the surfaces it
+ * exposes, the stores it keeps, what it reaches outside, the gates under it,
+ * the test share, and the evidence rung with its counts. Four of the fields
+ * carry a Show disclosure that asks `arch:facts` for the rows, and nothing
+ * is fetched until one opens.
+ *
+ * WHAT IS NOT DRAWN, deliberately: "Receives", "Returns" and "Where it
+ * stops". Those are model fields (research 118 §3.1) and Phase 259's; a
+ * placeholder for them would be a paragraph about nothing. No number here
+ * is a badge: every count is inside a phrase a person reads.
+ */
+
+import React from 'react';
+import { ARCH_FACT_KINDS } from '@shared/arch';
+import type { ArchFactCategory } from '@shared/arch';
+import type { ArchMapGroup, ArchMapRegion } from './bridge';
+import { Codicon } from '../icons';
+import {
+  ARCH_INSPECT_EXPOSES,
+  ARCH_INSPECT_GUARDS,
+  ARCH_INSPECT_KEEPS,
+  ARCH_INSPECT_NONE,
+  ARCH_INSPECT_NO_SURFACE,
+  ARCH_INSPECT_NOTHING,
+  ARCH_INSPECT_OPEN,
+  ARCH_INSPECT_REACHES,
+  ARCH_INSPECT_RUNG,
+  ARCH_INSPECT_RUNS_IN,
+  ARCH_INSPECT_TESTS,
+  ARCH_SURFACE_KINDS,
+  archFilesWord,
+  archGatesWord,
+  archKindWord,
+  archTestsSentence
+} from './copy';
+import { FactDisclosure } from './ArchFactRows';
+import { RUNG_FACES, isRung, rungClass, rungShortLine } from './rung';
+
+/** The non-zero kinds of one category as `229 IPC channels, 6 jobs`, or null at zero. */
+export function kindPhrase(
+  category: string,
+  counts: Readonly<Record<string, number>> | undefined
+): string | null {
+  if (counts === undefined) return null;
+  // The closed table's own order for the category, the surfaces list's for
+  // surfaces, and any kind a newer main sends after them, sorted.
+  const order =
+    category === 'surface'
+      ? ARCH_SURFACE_KINDS.map((k) => k.kind)
+      : [...((ARCH_FACT_KINDS as Record<string, readonly string[] | undefined>)[category] ?? [])];
+  const seen = new Set(order);
+  for (const k of Object.keys(counts).sort()) if (!seen.has(k)) order.push(k);
+  const parts = order
+    .filter((k) => (counts[k] ?? 0) > 0)
+    .map(
+      (k) =>
+        `${(counts[k] ?? 0).toLocaleString('en-US')} ${archKindWord(category, k, counts[k] ?? 0)}`
+    );
+  return parts.length === 0 ? null : parts.join(', ');
+}
+
+/** The sum of one category's counts. */
+export function kindTotal(counts: Readonly<Record<string, number>> | undefined): number {
+  if (counts === undefined) return 0;
+  let n = 0;
+  for (const v of Object.values(counts)) n += v;
+  return n;
+}
+
+/** The Reaches phrase joins two categories: effects, then network. */
+export function reachesPhrase(group: ArchMapGroup): string | null {
+  const effect = kindPhrase('effect', group.counts?.effect);
+  const network = kindPhrase('network', group.counts?.network);
+  const parts = [effect, network].filter((p): p is string => p !== null);
+  return parts.length === 0 ? null : parts.join(', ');
+}
+
+export function ArchInspector({
+  repoKey,
+  group,
+  region,
+  scope,
+  onOpen,
+  onGates
+}: {
+  repoKey: string | null;
+  /** The selected box, or null with nothing selected. */
+  group: ArchMapGroup | null;
+  /** The region the box sits in, or null on a regionless picture. */
+  region: ArchMapRegion | null;
+  /** The `arch:facts` scope the disclosures ask under, or null to draw none. */
+  scope: string | null;
+  /** Drill into the selected box: the header's Open control. */
+  onOpen: (() => void) | null;
+  /** Open the Gates tab with this part named, the Guards field's link. */
+  onGates: (() => void) | null;
+}): React.JSX.Element {
+  if (group === null) {
+    return (
+      <div className="arch-inspector" data-slot="arch-inspector">
+        <p className="arch-inspector-none">{ARCH_INSPECT_NONE}</p>
+      </div>
+    );
+  }
+  const reading = group.rung;
+  const rung = reading !== undefined && isRung(reading.rung) ? reading.rung : null;
+  const face = rung === null ? null : RUNG_FACES[rung];
+  const exposes = kindPhrase('surface', group.counts?.surface);
+  const keeps = kindPhrase('store', group.counts?.store);
+  const reaches = reachesPhrase(group);
+  const gates = kindTotal(group.counts?.gate);
+  const parsed = reading?.parsed ?? group.fileCount;
+  const disclose = (categories: readonly ArchFactCategory[]): React.JSX.Element | null =>
+    scope === null ? null : (
+      <FactDisclosure repoKey={repoKey} scope={scope} categories={categories} />
+    );
+
+  return (
+    <div className="arch-inspector" data-slot="arch-inspector" data-group={group.id}>
+      <div className="arch-inspector-head">
+        <span className="arch-inspector-name" title={group.dir}>
+          {group.label}
+        </span>
+        {region !== null ? (
+          <span className="arch-inspector-region" title={region.sub}>
+            {region.label}
+          </span>
+        ) : null}
+        {face !== null && rung !== null ? (
+          <span
+            className={`arch-inspector-word ${rungClass(rung)}`}
+            data-rung={rung}
+            title={face.sentence}
+          >
+            <Codicon name={face.icon} size="sm" />
+            <span>{face.word}</span>
+          </span>
+        ) : null}
+        <span className="arch-inspector-files">
+          {archFilesWord(group.fileCount, parsed)}
+        </span>
+        {onOpen !== null ? (
+          <button type="button" className="arch-inspector-open" onClick={onOpen}>
+            {ARCH_INSPECT_OPEN}
+          </button>
+        ) : null}
+      </div>
+      <dl className="arch-inspector-rows">
+        <dt>{ARCH_INSPECT_RUNS_IN}</dt>
+        <dd data-field="runs-in">
+          {region === null ? ARCH_INSPECT_NOTHING : `${region.label} · ${region.sub}`}
+        </dd>
+        <dt>{ARCH_INSPECT_EXPOSES}</dt>
+        <dd data-field="exposes">
+          <span className="arch-inspector-value">
+            <span>{exposes ?? ARCH_INSPECT_NO_SURFACE}</span>
+            {exposes !== null ? disclose(['surface']) : null}
+          </span>
+        </dd>
+        <dt>{ARCH_INSPECT_KEEPS}</dt>
+        <dd data-field="keeps">
+          <span className="arch-inspector-value">
+            <span>{keeps ?? ARCH_INSPECT_NOTHING}</span>
+            {keeps !== null ? disclose(['store']) : null}
+          </span>
+        </dd>
+        <dt>{ARCH_INSPECT_REACHES}</dt>
+        <dd data-field="reaches">
+          <span className="arch-inspector-value">
+            <span>{reaches ?? ARCH_INSPECT_NOTHING}</span>
+            {reaches !== null ? disclose(['effect', 'network']) : null}
+          </span>
+        </dd>
+        <dt>{ARCH_INSPECT_GUARDS}</dt>
+        <dd data-field="guards">
+          <span className="arch-inspector-value">
+            {onGates !== null && gates > 0 ? (
+              <button type="button" className="arch-gates-link" onClick={onGates}>
+                {archGatesWord(gates)}
+              </button>
+            ) : (
+              <span>{archGatesWord(gates)}</span>
+            )}
+            {gates > 0 ? disclose(['gate']) : null}
+          </span>
+        </dd>
+        <dt>{ARCH_INSPECT_TESTS}</dt>
+        <dd data-field="tests">
+          {reading === undefined
+            ? ARCH_INSPECT_NOTHING
+            : archTestsSentence(reading.tested, reading.parsed)}
+        </dd>
+        <dt>{ARCH_INSPECT_RUNG}</dt>
+        <dd data-field="rung">
+          {face === null || reading === undefined ? (
+            ARCH_INSPECT_NOTHING
+          ) : (
+            <span className="arch-inspector-value">
+              <span>{face.sentence}</span>
+              <span className="arch-inspector-files">{rungShortLine(reading)}</span>
+            </span>
+          )}
+        </dd>
+      </dl>
+    </div>
+  );
+}

@@ -54,6 +54,21 @@ export interface ArchMapGroup {
    * computed box, and the hover then says the provenance alone.
    */
   description?: string | null;
+  /**
+   * PHASE 258. The computed evidence rung and its counts, for the chip in
+   * the box's label. Absent on a model an older main composed, and the box
+   * then draws exactly as Phase 201 left it.
+   */
+  rung?: {
+    rung: string;
+    anchors: number;
+    parsed: number;
+    reached: number;
+    tested: number;
+    seeds: number;
+  };
+  /** PHASE 258. The region this box sits in, or absent for a regionless picture. */
+  regionId?: string;
 }
 
 /** One aggregated import edge between two parts. */
@@ -83,6 +98,15 @@ export interface ArchMapModel {
    * Absent or empty on the level 1 picture, which has no outside.
    */
   frame?: readonly ArchMapFrameEdge[];
+  /**
+   * Phase 258: the regions the level 1 boxes sit inside, in draw order.
+   * Absent or empty, the picture is regionless and draws exactly as Phase
+   * 161 left it, which is what every scoped picture and every older model
+   * does.
+   */
+  regions?: readonly ArchMapRegionModel[];
+  /** Phase 258: the labelled transports between regions. */
+  transports?: readonly ArchMapTransportModel[];
 }
 
 /** The band a raw model value lands in. Unknown values go to the middle. */
@@ -128,4 +152,42 @@ export interface ArchMapFrameEdge {
   direction: 'in' | 'out';
   /** How many file to file imports the crossing aggregates. Thickness. */
   count: number;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 258: the rung on a box, the regions around the boxes, the wires
+// ---------------------------------------------------------------------------
+
+/**
+ * One region of the level 1 picture (SPEC §3.1 rule Q): a frame around the
+ * boxes one unit owns, Elsewhere for the boxes no manifest names, and the
+ * dashed Outside band that holds no box at all. Structural on purpose, like
+ * everything above: the adapter in `../map-model.ts` composes it from the
+ * wire's `ArchMapRegion`, so the drawing never imports the ipc shape.
+ */
+export interface ArchMapRegionModel {
+  id: string;
+  kind: 'unit' | 'elsewhere' | 'outside';
+  /** At most four words, drawn uppercase as the frame's heading. */
+  label: string;
+  /** At most six words, under the label. */
+  sub: string;
+  /** The box ids inside this frame, in the composer's weight order. */
+  groupIds: readonly string[];
+  /** The starts line, `starts 2 workers`, or null when the region starts nothing. */
+  startsLine: string | null;
+  /** The starts behind the hover, one `file:line` per line. */
+  startsTitle: string | null;
+}
+
+/** One labelled transport between two regions, or between a region and Outside. */
+export interface ArchMapTransportModel {
+  from: string;
+  to: string;
+  kind: string;
+  count: number;
+  /** What the wire says: `imports · 412`. The arrow is the drawing's. */
+  label: string;
+  /** The hover sentence. */
+  title: string;
 }

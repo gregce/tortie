@@ -21,9 +21,11 @@ import type {
 // repository's records.
 import type { ArchCheckResult, ArchLoadResult, ArchPassScope } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
+import type { ArchFactCategory } from '@shared/arch';
 import type {
   ArchAcceptDivergenceInput,
   ArchCameraState,
+  ArchFactsResult,
   ArchMapPartResult,
   ArchMapResult,
   ArchModuleFilesResult,
@@ -167,6 +169,44 @@ export function canvasKey(repoPath: string, scope: string): string {
 }
 
 /**
+ * PHASE 258. The map tab's three inner tabs (SPEC D5): the picture, the
+ * surfaces list and the gates worksheet. One record per repository, so a
+ * View menu row can land on the named one and the tab remembers it.
+ */
+export type ArchMapInnerTab = 'map' | 'surfaces' | 'gates';
+
+/**
+ * PHASE 258. What the inspector follows: the box a single click selected on
+ * the map, per repository. A repository with no entry has nothing selected.
+ * It is PRESENTATION and nothing else, exactly like the subject selection
+ * above, and it is not the drill: the drill is one gesture further.
+ */
+export interface ArchInspect {
+  groupId: string;
+}
+
+/**
+ * PHASE 258. One disclosure's rows as this window holds them, keyed by
+ * {@link factsKey}: the `arch:facts` answer, or the failure named. Nothing
+ * is fetched until a disclosure opens, and a held answer is what a second
+ * open of the same disclosure draws.
+ */
+export interface ArchFactsEntry {
+  status: 'loading' | 'ready' | 'error';
+  result: ArchFactsResult | null;
+  error: string | null;
+}
+
+/** One repository, one scope, one category set. NUL separated, like the rest. */
+export function factsKey(
+  repoPath: string,
+  scope: string | null,
+  categories: readonly ArchFactCategory[]
+): string {
+  return `${repoPath}\u0000${scope ?? ''}\u0000${[...categories].sort().join(',')}`;
+}
+
+/**
  * PHASE 158. One repository's pass surface as this window holds it: main's
  * status answer, plus the refusal token that stopped the last gesture
  * before any spawn, or null when the last gesture started or none was made.
@@ -226,6 +266,12 @@ export interface ArchViewState {
   partMaps: Readonly<Record<string, ArchPartMapEntry>>;
   /** The level 3 answers this window holds, keyed by {@link moduleKey}. */
   moduleViews: Readonly<Record<string, ArchModuleViewEntry>>;
+  /** PHASE 258. The box the inspector follows, per repository. */
+  inspect: Readonly<Record<string, ArchInspect>>;
+  /** PHASE 258. Which inner tab each repository's map tab is on. Absent is the map. */
+  mapTabs: Readonly<Record<string, ArchMapInnerTab>>;
+  /** PHASE 258. The disclosure rows this window holds, keyed by {@link factsKey}. */
+  facts: Readonly<Record<string, ArchFactsEntry>>;
 
   syncProject(target: WorkspaceTarget | null): void;
   /**
@@ -310,6 +356,34 @@ export interface ArchViewState {
     repoPath: string,
     moduleDir: string
   ): ArchModuleViewEntry | null;
+
+  // PHASE 258. The selection, the inner tab and the disclosure rows.
+  /** Select one box for the inspector, or clear with null. Never a drill. */
+  inspectBox(repoPath: string, groupId: string | null): void;
+  /** The selected box id, or null. */
+  inspectFor(repoPath: string): string | null;
+  /** Switch the repository's map tab to one of its three inner tabs. */
+  setMapTab(repoPath: string, tab: ArchMapInnerTab): void;
+  /** Which inner tab the repository's map tab is on. Never null. */
+  mapTabFor(repoPath: string): ArchMapInnerTab;
+  /**
+   * Read the rows behind one disclosure, once per key per window, through
+   * `arch:facts`. A read; it starts nothing. A missing bridge is an error
+   * entry with the sentence named, never a hang.
+   */
+  loadFacts(
+    repoPath: string,
+    scope: string | null,
+    categories: readonly ArchFactCategory[]
+  ): Promise<void>;
+  /** The held rows for one key, or null before the first read. */
+  factsFor(
+    repoPath: string,
+    scope: string | null,
+    categories: readonly ArchFactCategory[]
+  ): ArchFactsEntry | null;
+  /** Let every held disclosure of one repository go: the facts moved under them. */
+  forgetFacts(repoPath: string): void;
 
   // PHASE 162. The canvas: the kept camera and the kept layout, per
   // repository and per drill scope. Reads and writes go to `arch.db` through

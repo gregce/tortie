@@ -109,7 +109,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsxCli } from './ts-runner.mjs';
@@ -559,6 +560,35 @@ rows.push([
 ]);
 
 // ---------------------------------------------------------------------------
+// 9.8 THE DRAFTED BYTES ARE PINNED (Phase 258). `draftSkeleton` writes one
+// component per rule P box since F1 closed (research 118 §4.4), so the
+// buffers' paths and the sha256 of their text over this fixture are held in
+// expected.json. A change to the draft is a deliberate act in two files:
+// regenerate with `node build/conformance-arch.mjs --write-skeleton-pin` and
+// say in the commit body which component moved and why.
+// ---------------------------------------------------------------------------
+
+{
+  const sha256 = createHash('sha256').update(data.skeleton.text, 'utf8').digest('hex');
+  const paths = [...data.skeleton.paths].sort();
+  const expectedPath = join(root, 'build', 'fixtures', 'arch', 'expected.json');
+  if (process.argv.includes('--write-skeleton-pin')) {
+    writeFileSync(expectedPath, `${JSON.stringify({ ...expected, skeleton: { paths, sha256 } }, null, 2)}\n`);
+    rows.push(['skeleton pin', 'written to build/fixtures/arch/expected.json', `${paths.length} paths, sha256 ${sha256.slice(0, 12)}`]);
+  } else if (expected.skeleton === undefined) {
+    fail('the drafted bytes are not pinned: build/fixtures/arch/expected.json has no `skeleton`; run this gate once with --write-skeleton-pin');
+  } else {
+    if (JSON.stringify(paths) !== JSON.stringify(expected.skeleton.paths)) {
+      fail(`the draft writes [${paths.join(', ')}] and the pin holds [${expected.skeleton.paths.join(', ')}]; one component per rule P box (F1) is the rule`);
+    }
+    if (sha256 !== expected.skeleton.sha256) {
+      fail(`the drafted bytes read sha256 ${sha256} and the pin holds ${expected.skeleton.sha256}; regenerate on purpose with --write-skeleton-pin and say why in the commit body`);
+    }
+    rows.push(['skeleton pin', `${paths.length} paths, one component per rule P box`, sha256 === expected.skeleton.sha256 ? `sha256 ${sha256.slice(0, 12)}, byte identical to the pin` : 'DRIFTED']);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 9.6 The map (Phase 160): one picture, two states, zero processes
 // ---------------------------------------------------------------------------
 // The charter's two states over one fixture: with the contract the SAME boxes
@@ -777,7 +807,19 @@ for (const module of part.model.modules) {
         'lines',
         'entries',
         'sentence',
-        'facts'
+        'facts',
+        // Phase 258, the reading surface (SPEC §4.1). `rung` is one of five
+        // words with the per-file counts behind it, drawn as a GLYPH on the
+        // node and as words in the inspector's hover; `regionId` names the
+        // region the module sits in; `counts` is the per-kind table the
+        // inspector and the surfaces list read. None of the three is a
+        // number on the node: `conformance:evidence` rule 10 holds the chip
+        // to a glyph in one of two tokens and `conformance:arch:modules`
+        // still pins the drawn box's keys, so the no-badge rule this pin
+        // exists for still holds.
+        'rung',
+        'regionId',
+        'counts'
       ].includes(key)
   );
   if (badge.length > 0) {

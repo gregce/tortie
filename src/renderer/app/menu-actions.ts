@@ -298,6 +298,17 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       if (layerOpen) return;
       openArchMapForActiveProject();
       return;
+    // Phase 258. View > Architecture Surfaces and View > Architecture Gates.
+    // The same one door with the inner tab named: one map tab per
+    // repository, focused if open, and the inner tab switches under it.
+    case 'show-arch-surfaces':
+      if (layerOpen) return;
+      openArchMapForActiveProject('surfaces');
+      return;
+    case 'show-arch-gates':
+      if (layerOpen) return;
+      openArchMapForActiveProject('gates');
+      return;
     // Phase 163. Help > Diagnostics Report, and the row in Settings, which
     // main forwards as this same action. One door, so the two cannot drift:
     // the whole app has one report tab and a second ask focuses it.

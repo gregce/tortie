@@ -977,6 +977,24 @@ function buildTemplate(): MenuItemConstructorOptions[] {
                 'show-arch-map',
                 undefined,
                 'circuit-board'
+              ),
+              // PHASE 258. The map tab's two computed views, directly under
+              // the map row and behind the same switch: the surfaces list
+              // and the gates worksheet are inner tabs of the ONE map tab,
+              // and each row opens that tab on the named one. No chord, for
+              // the map row's own reason. `circuit-board` again: the mark of
+              // the surface they open, and a name may sit on several rows.
+              item(
+                'Architecture Surfaces',
+                'show-arch-surfaces',
+                undefined,
+                'circuit-board'
+              ),
+              item(
+                'Architecture Gates',
+                'show-arch-gates',
+                undefined,
+                'circuit-board'
               )
             ]
           : []),

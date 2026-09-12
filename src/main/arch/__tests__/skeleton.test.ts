@@ -251,3 +251,234 @@ describe('the classifier majority rule (Phase 160)', () => {
     ).toBe('vendored');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Rule Q, the units and the regions, and the draft over rule P (Phase 258)
+// ---------------------------------------------------------------------------
+
+import type { ArchFact } from '@shared/arch';
+import {
+  READING_ELSEWHERE_SUB,
+  READING_FOLD_ID,
+  READING_ONE_THING_SUB,
+  readingPartition,
+  regionCut,
+  unitsOf
+} from '../skeleton';
+
+const parseable = (p: string): boolean => /\.(ts|tsx|js|mjs|rs|py|swift)$/.test(p);
+
+function fact(over: Partial<ArchFact> & Pick<ArchFact, 'category' | 'kind' | 'file'>): ArchFact {
+  return { subject: '', line: 1, rule: '', evidence: '', viaWrapper: false, ...over };
+}
+
+/** One thing: a root package whose main is tracked, a worker, a fixture crate under build/. */
+const oneUnitTree = [
+  'package.json',
+  'README.md',
+  'src/index.ts',
+  'src/app.ts',
+  'src/worker.ts',
+  'src/pool.ts',
+  'build/probe.mjs',
+  'build/fixtures/x/Cargo.toml',
+  'build/fixtures/x/src/lib.rs'
+];
+const oneUnitFacts: ArchFact[] = [
+  fact({ category: 'entrypoint', kind: 'package-main', file: 'package.json', subject: 'node entry ./src/index.ts', line: 3, rule: 'entrypoint.pkg.main' }),
+  fact({ category: 'boundary', kind: 'worker', file: 'src/pool.ts', subject: 'starts a Worker', line: 9, rule: 'boundary.worker' }),
+  fact({ category: 'boundary', kind: 'worker', file: 'src/app.ts', subject: 'starts a Worker', line: 4, rule: 'boundary.worker' }),
+  fact({ category: 'boundary', kind: 'library', file: 'build/fixtures/x/Cargo.toml', subject: 'cargo library target', line: 6, rule: 'boundary.cargo.lib' }),
+  fact({ category: 'effect', kind: 'spawn', file: 'src/app.ts', subject: 'runs git', line: 12, rule: 'effect.spawn.node' })
+];
+
+/** Two units: npm workspaces a and b, and a docs box under no unit. */
+const twoUnitTree = [
+  'package.json',
+  'a/package.json',
+  'a/src/main.ts',
+  'a/src/index.ts',
+  'a/src/lib.ts',
+  'b/package.json',
+  'b/src/index.ts',
+  'b/src/x.ts',
+  'b/src/y.ts',
+  ...Array.from({ length: 25 }, (_, i) => `docs/p${String(i).padStart(2, '0')}.md`)
+];
+const twoUnitFacts: ArchFact[] = [
+  fact({ category: 'boundary', kind: 'workspace', file: 'package.json', subject: 'npm workspaces declared', rule: 'boundary.pkg.workspaces' }),
+  fact({ category: 'entrypoint', kind: 'package-main', file: 'a/package.json', subject: 'node entry ./src/index.ts', rule: 'entrypoint.pkg.main' }),
+  fact({ category: 'entrypoint', kind: 'package-main', file: 'b/package.json', subject: 'node entry ./src/index.ts', rule: 'entrypoint.pkg.main' }),
+  fact({ category: 'boundary', kind: 'worker', file: 'b/src/x.ts', subject: 'starts a Worker', line: 2, rule: 'boundary.worker' })
+];
+
+describe('rule Q, the units', () => {
+  it('makes a unit of what a manifest declares and a program starts, never of a module root', () => {
+    const units = unitsOf({
+      subject: 'one',
+      trackedFiles: oneUnitTree,
+      facts: [
+        ...oneUnitFacts,
+        fact({ category: 'boundary', kind: 'module-root', file: 'src/index.ts', subject: 'module root', rule: 'boundary.path.module-root' })
+      ]
+    });
+    expect(units.map((u) => [u.id, u.dir, u.kind, u.sub])).toEqual([
+      ['unit:', '', 'package', 'npm package'],
+      ['unit:build/fixtures/x', 'build/fixtures/x', 'library', 'cargo library']
+    ]);
+    expect(units[0]?.label).toBe('one');
+    expect(units[1]?.label).toBe('x');
+  });
+
+  it('labels a unit by its declared name, else its last segment', () => {
+    const units = unitsOf({
+      subject: 'two',
+      trackedFiles: twoUnitTree,
+      facts: twoUnitFacts,
+      workspaces: ['a', 'b'],
+      names: new Map([['a', '@two/alpha']])
+    });
+    expect(units.map((u) => u.label)).toEqual(['@two/alpha', 'b']);
+  });
+
+  it('puts a source main in the nearest manifest directory of its OWN family, never any manifest', () => {
+    const files = ['package.json', 'docs/pen/attack.py', 'tools/go.mod', 'tools/cmd/main.go'];
+    const units = unitsOf({
+      subject: 's',
+      trackedFiles: files,
+      facts: [
+        fact({ category: 'entrypoint', kind: 'main', file: 'docs/pen/attack.py', subject: '__main__', rule: 'entrypoint.python.dunder-main' }),
+        fact({ category: 'entrypoint', kind: 'main', file: 'tools/cmd/main.go', subject: 'func main', rule: 'entrypoint.go.main' })
+      ]
+    });
+    expect(units.map((u) => [u.dir, u.sub])).toEqual([
+      ['docs/pen', 'python program'],
+      ['tools', 'go program']
+    ]);
+  });
+
+  it('never makes a unit of a worker, a thread, a service or the workspace root', () => {
+    const units = unitsOf({ subject: 's', trackedFiles: twoUnitTree, facts: twoUnitFacts, workspaces: ['a', 'b'] });
+    expect(units.map((u) => u.dir)).toEqual(['a', 'b']);
+  });
+});
+
+describe('rule Q, the regions', () => {
+  function cutOf(tree: string[], facts: ArchFact[], extra: { workspaces?: string[] } = {}, subject = 's') {
+    const boxes = readingPartition({ subject, trackedFiles: tree, imports: [], parseable, ...extra }).boxes;
+    const units = unitsOf({ subject, trackedFiles: tree, facts, ...extra });
+    return regionCut({ boxes, units, facts, parseable });
+  }
+
+  it('Q4: a repository that builds one thing draws one region, with its starts on one line', () => {
+    const cut = cutOf(oneUnitTree, oneUnitFacts);
+    expect(cut.oneThing).toBe(true);
+    expect(cut.regions.map((r) => r.id)).toEqual(['unit:', 'outside']);
+    const one = cut.regions[0];
+    expect(one?.sub).toBe(READING_ONE_THING_SUB);
+    expect(one?.groupIds.sort()).toEqual(['build', 'other', 'src']);
+    // Two worker starts, then the boxless fixture crate as a start of the region owning it.
+    expect(one?.starts.map((s) => `${s.kind}:${s.label}:${s.file}:${String(s.line)}`)).toEqual([
+      'worker:starts a Worker:src/app.ts:4',
+      'worker:starts a Worker:src/pool.ts:9',
+      'unit:cargo library:build/fixtures/x/Cargo.toml:6'
+    ]);
+    expect(one?.files).toBe(oneUnitTree.length);
+    expect(one?.parsed).toBe(6);
+  });
+
+  it('Q2 and Q3: a box belongs to the deepest unit above it, and one under no unit goes to Elsewhere', () => {
+    const cut = cutOf(twoUnitTree, twoUnitFacts, { workspaces: ['a', 'b'] });
+    expect(cut.oneThing).toBe(false);
+    expect(cut.regions.map((r) => [r.id, r.groupIds])).toEqual([
+      ['unit:a', ['a']],
+      ['unit:b', ['b']],
+      ['elsewhere', ['docs', 'other']]
+    ]);
+    const elsewhere = cut.regions.find((r) => r.id === 'elsewhere');
+    expect(elsewhere?.sub).toBe(READING_ELSEWHERE_SUB);
+    expect(elsewhere?.starts).toEqual([]);
+    const b = cut.regions.find((r) => r.id === 'unit:b');
+    expect(b?.starts.map((s) => s.file)).toEqual(['b/src/x.ts']);
+  });
+
+  it('Q6: the outside band is drawn only when a spawn, a network fact or a port exists', () => {
+    expect(cutOf(twoUnitTree, twoUnitFacts, { workspaces: ['a', 'b'] }).regions.some((r) => r.id === 'outside')).toBe(false);
+    const withPort = [...twoUnitFacts, fact({ category: 'surface', kind: 'port', file: 'a/src/main.ts', subject: 'exposes port 80', rule: 'surface.docker.expose' })];
+    const regions = cutOf(twoUnitTree, withPort, { workspaces: ['a', 'b'] }).regions;
+    expect(regions[regions.length - 1]?.id).toBe('outside');
+    expect(regions[regions.length - 1]?.groupIds).toEqual([]);
+  });
+
+  it('Q1: seventy-five module roots make no region and move nothing', () => {
+    const plant = Array.from({ length: 75 }, (_, i) =>
+      fact({ category: 'boundary', kind: 'module-root', file: `docs/p${String(i % 25).padStart(2, '0')}.md`, subject: 'module root', line: i + 1, rule: 'boundary.path.module-root' })
+    );
+    const clean = cutOf(twoUnitTree, twoUnitFacts, { workspaces: ['a', 'b'] });
+    const planted = cutOf(twoUnitTree, [...twoUnitFacts, ...plant], { workspaces: ['a', 'b'] });
+    expect(JSON.stringify(planted.regions)).toBe(JSON.stringify(clean.regions));
+  });
+
+  it('Q7: units with boxes come first by parsed files, then Elsewhere, then Outside', () => {
+    const facts = [...twoUnitFacts, fact({ category: 'network', kind: 'client', file: 'a/src/main.ts', subject: 'fetches', rule: 'network.fetch' })];
+    const cut = cutOf(twoUnitTree, facts, { workspaces: ['a', 'b'] });
+    expect(cut.regions.map((r) => r.id)).toEqual(['unit:a', 'unit:b', 'elsewhere', 'outside']);
+  });
+});
+
+describe('the draft over rule P (F1 closed, Phase 258)', () => {
+  const draftInput = { subject: 'A test repository', trackedFiles: tree, imports, parseable };
+
+  it('writes one component per rule P box, with the box id, so the map can paint it', () => {
+    const cut = readingPartition(draftInput);
+    const buffers = draftSkeleton(draftInput);
+    const ids = buffers
+      .filter((b) => b.path.startsWith('docs/arch/components/'))
+      .map((b) => (JSON.parse(b.text) as { id: string; anchors: string[] }))
+      .map((c) => c.id)
+      .sort();
+    const boxIds = cut.boxes.map((b) => b.id).sort();
+    // The fold here holds only root files and one small vendored directory.
+    expect(ids).toEqual(boxIds.filter((id) => id !== READING_FOLD_ID || cut.folded.length > 0));
+  });
+
+  it('anchors every non fold box at its directory and the fold at the folded directories', () => {
+    const cut = readingPartition(draftInput);
+    const components = draftSkeleton(draftInput)
+      .filter((b) => b.path.startsWith('docs/arch/components/'))
+      .map((b) => JSON.parse(b.text) as { id: string; name: string; anchors: string[]; description: string });
+    for (const c of components) {
+      const box = cut.boxes.find((b) => b.id === c.id);
+      expect(box).toBeDefined();
+      if (c.id === READING_FOLD_ID) {
+        expect(c.anchors).toEqual(cut.folded);
+        expect(c.name).toBe('everything else');
+        expect(c.description).toContain('anchored nowhere');
+      } else {
+        expect(c.anchors).toEqual([box?.dir]);
+        expect(c.name).toBe(box?.dir);
+      }
+    }
+  });
+
+  it('anchors a box with another nested under it one level deep, so a majority lands in exactly that box', () => {
+    // P2 splits src and leaves its loose files as `src-loose` with dir `src`.
+    const files = [
+      'src/index.ts',
+      'src/util.ts',
+      ...Array.from({ length: 6 }, (_, i) => `src/main/m${String(i)}.ts`),
+      ...Array.from({ length: 6 }, (_, i) => `src/renderer/r${String(i)}.ts`),
+      'README.md'
+    ];
+    const cut = readingPartition({ subject: 's', trackedFiles: files, imports: [], parseable });
+    expect(cut.boxes.map((b) => b.id)).toContain('src-loose');
+    const loose = draftSkeleton({ subject: 's', trackedFiles: files, imports: [], parseable })
+      .map((b) => JSON.parse(b.text) as { id?: string; anchors?: string[] })
+      .find((c) => c.id === 'src-loose');
+    expect(loose?.anchors).toEqual(['src/*']);
+  });
+
+  it('gives the same bytes twice over rule P too', () => {
+    expect(JSON.stringify(draftSkeleton(draftInput))).toBe(JSON.stringify(draftSkeleton(draftInput)));
+  });
+});

@@ -1,5 +1,5 @@
 {
-  "note": "A multi client tree with Swift and Kotlin targets: clients splits under P2 into five parts, two of which reach a shared Swift package only through imports resolved at target grain, which P6 places. Nothing here is a real repository.",
+  "note": "A multi client tree with Swift and Kotlin targets: clients splits under P2 into five parts, two of which reach a shared Swift package only through imports resolved at target grain, which P6 places. Nothing here is a real repository. Phase 258 added `facts`: two npm package mains and one SwiftPM target, whose unit is `Sources/RookKit` and so owns no rule P box, which is why clients-rookkit reads Elsewhere.",
   "subject": "rook",
   "workspaces": [],
   "crates": [],
@@ -588,6 +588,38 @@
         "function": 4,
         "interface": 1
       }
+    }
+  ],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./src/index.mjs",
+      "file": "clients/cli/package.json",
+      "line": 2,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./src/index.mjs\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./src/index.ts",
+      "file": "server/package.json",
+      "line": 2,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./src/index.ts\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "boundary",
+      "kind": "library",
+      "subject": "swift target RookKit",
+      "file": "clients/RookKit/Package.swift",
+      "line": 3,
+      "rule": "boundary.swiftpm.target",
+      "evidence": ".target(name: \"RookKit\")",
+      "viaWrapper": false
     }
   ]
 }

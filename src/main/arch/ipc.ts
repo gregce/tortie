@@ -147,6 +147,11 @@ export function registerArchIpc(ipc: IpcMain): void {
   // It parses nothing, judges nothing, writes nothing and never waits for a
   // scan.
   handle(ipc, 'arch:mapPart', async (_event, input) => checks.mapPart(input));
+  // The rows behind one disclosure (Phase 258): a box's, a region's or the
+  // whole repository's facts in the named categories, scoped over the SAME
+  // partition arch:map composed. A read; it parses nothing, judges nothing,
+  // writes nothing and starts nothing arch:map does not already schedule.
+  handle(ipc, 'arch:facts', async (_event, input) => checks.facts(input));
   // The drilled module (Phase 161): the level 2 answer scoped to one computed
   // directory, through the SAME pure core and the same caps as arch:modules.
   handle(ipc, 'arch:moduleFiles', async (_event, input) =>

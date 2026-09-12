@@ -31,6 +31,8 @@ import {
   ARCH_SUBJECT_TITLE
 } from './copy';
 import { openArchMap } from './open-map';
+import { RUNG_FACES, isRung, rungClass, rungCountsLine } from './rung';
+import { Codicon } from '../icons';
 import { useArch } from './store';
 
 /**
@@ -145,6 +147,38 @@ function BandGlyph({ band }: { band: string }): React.JSX.Element {
 }
 
 /**
+ * PHASE 258. The rung chip after the band glyph: the glyph alone in one of
+ * two tokens, the word on `data-rung`, and the sentence with its counts on
+ * the hover. Absent on a model an older main composed, and the row then
+ * draws exactly as Phase 201 left it.
+ */
+function RungGlyph({ group }: { group: ArchMapGroup }): React.JSX.Element | null {
+  const r = group.rung;
+  if (r === undefined || !isRung(r.rung)) return null;
+  const face = RUNG_FACES[r.rung];
+  return (
+    <span
+      className={`rd-rung ${rungClass(r.rung)}`}
+      data-rung={r.rung}
+      title={`${face.sentence}\n${rungCountsLine(r)}`}
+    >
+      <Codicon name={face.icon} size="sm" />
+    </span>
+  );
+}
+
+/**
+ * PHASE 258. The hover lines: the ten facts in their pinned order, and the
+ * rung sentence as an ELEVENTH line at the END, so `conformance:reading`'s
+ * pinned ten stay first and byte identical.
+ */
+export function hoverLines(group: ArchMapGroup): string[] {
+  const r = group.rung;
+  if (r === undefined || !isRung(r.rung)) return group.facts;
+  return [...group.facts, `${RUNG_FACES[r.rung].sentence} ${rungCountsLine(r)}`];
+}
+
+/**
  * THE REPOSITORY LINE. The subject in the name row and rule R under it, the
  * one paragraph on the face, composed in main from the code alone.
  */
@@ -208,6 +242,7 @@ export function Components({
             <>
               <span className="rd-part-head">
                 <BandGlyph band={g.band} />
+                <RungGlyph group={g} />
                 <span className="rd-part-name" title={g.label}>
                   {g.label}
                 </span>
@@ -225,13 +260,13 @@ export function Components({
                   type="button"
                   className={`rd-part arch-row-drill${drilled ? ' selected' : ''}`}
                   aria-current={drilled ? 'true' : undefined}
-                  title={g.facts.join('\n')}
+                  title={hoverLines(g).join('\n')}
                   onClick={() => onOpen(g)}
                 >
                   {face}
                 </button>
               ) : (
-                <div className="rd-part" title={g.facts.join('\n')}>
+                <div className="rd-part" title={hoverLines(g).join('\n')}>
                   {face}
                 </div>
               )}
@@ -290,12 +325,21 @@ export function Reading({
   useEffect(() => {
     if (repoPath !== null) void loadMap(repoPath);
   }, [repoPath, loadMap]);
+  // Every hook above the early return: the first render of a repository has
+  // no model yet, and a hook placed after that return made the render with
+  // the model count one hook more, which is React's #310 and took the whole
+  // sidebar view down through the boundary above it (the integrator's run
+  // of probe:p258, 303 ms after the pane mounted).
+  const inspectBox = useArch((s) => s.inspectBox);
   const model = entry?.model ?? null;
   if (repoPath === null || model === null) return null;
   const drilledGroupId =
     drill !== null && drill.level !== 1 ? drill.groupId : null;
   const onOpen = mapPartAvailable()
     ? (group: ArchMapGroup): void => {
+        // PHASE 258. The row still drills, and it ALSO selects, so the
+        // inspector under the map follows the part the person named here.
+        inspectBox(repoPath, group.id);
         drillInto(repoPath, group.id, group.label);
         openArchMap(repoPath);
       }

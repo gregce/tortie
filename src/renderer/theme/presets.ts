@@ -517,11 +517,36 @@ export const STATUS_PINS_DARK: readonly ChromaticPin[] = [
   { token: '--status-exited', ground: '--bg-active', floor: 3 }
 ];
 
+/**
+ * THE RUNG CHIP FLOOR (Phase 258). The evidence chip on every map node, on
+ * every sidebar part row and in the inspector draws in one of two tokens:
+ * `--status-idle`, already pinned above on both bases, for the three rungs
+ * nothing reaches, and `--success` for `reached` and `tested`. A chip is a
+ * non text mark on the row it sits in, so `--success` owes the same 3:1 on
+ * `--bg-active` at every offered frame and every contrast level, on BOTH
+ * bases, and this list is what `conformance:hue` rule 32 asks it of.
+ *
+ * Measured before the pin went in: dark `#6bc46d` reads 4.711 on `#424238`,
+ * the lightest active fill any offered dark frame reaches (Phase 218's
+ * binding fill), and 6.764 on the shipped fill; light `#2c6a3b` reads 4.733
+ * on the shipped `#d9dce3`. No token moves for it. Should a light cell ever
+ * read under 3, the fallback is written in SPEC §4.7 rather than found
+ * later: the two reached rungs draw in `--status-idle` too and the glyph
+ * alone separates them.
+ */
+export const RUNG_PINS: readonly ChromaticPin[] = [
+  { token: '--success', ground: '--bg-active', floor: 3 }
+];
+
 /** The chromatic floors a base must keep. */
 export function chromaticPinsFor(scheme: BaseScheme): readonly ChromaticPin[] {
-  return scheme === 'light'
+  // The two base lines are BYTE PINNED by `conformance:hue`'s ablations
+  // (Phase 213's light family, Phase 218's dark one), so the rung pin is
+  // appended after them rather than written into them.
+  const base = scheme === 'light'
     ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT]
     : [...CHROMATIC_PINS, ...STATUS_PINS_DARK];
+  return [...base, ...RUNG_PINS];
 }
 
 // ---------------------------------------------------------------------------
@@ -548,7 +573,9 @@ export const ALL_THEME_TOKENS: readonly string[] = [
     // the chroma lift never moves, so the base must carry them too. Phase 218
     // added the dark pair, which is the same two tokens on the other base.
     ...STATUS_PINS_LIGHT.flatMap((p) => [p.token, p.ground]),
-    ...STATUS_PINS_DARK.flatMap((p) => [p.token, p.ground])
+    ...STATUS_PINS_DARK.flatMap((p) => [p.token, p.ground]),
+    // Phase 258: the rung chip's one chromatic token, on the same ground.
+    ...RUNG_PINS.flatMap((p) => [p.token, p.ground])
   ])
 ];
 

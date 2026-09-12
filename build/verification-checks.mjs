@@ -168,6 +168,13 @@ export const CHECKS = [
   // twenty-two ablated copies of src/main. One plain node for the watcher
   // gate, no git, no Electron, nothing under the person's home.
   pure('conformance:facts'),
+  // Phase 258. The computed ladder, the units and the reading surface's
+  // numbers: build/conformance-evidence.mjs runs the SHIPPING evidence,
+  // skeleton, map and store modules under node over six committed fixture
+  // trees and eight planted graphs, then over an ablated copy of src/main
+  // once per clause. It launches no Electron, starts no git, and its one
+  // write is a scratch arch.db under a directory it removes in a finally.
+  pure('conformance:evidence'),
   // Phase 207. The frame hue: build/conformance-hue.mjs runs the shipping
   // rotation and text rule under node over all 360 degrees and a synthetic
   // ground, then over twelve ablated copies of the code, one clause each.
@@ -998,6 +1005,7 @@ export const CHECKS = [
   // directory, the reference driver in process, then ONE Electron on a
   // scratch profile whose arch.db is read back and held against it.
   electron('probe:p257'),
+  electron('probe:p258'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the

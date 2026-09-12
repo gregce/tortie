@@ -1,0 +1,158 @@
+{
+  "note": "THE SEVEN PLANTED GRAPHS of build/p256/det/ladder.mts --self-test, one per rung and the two composed shapes, so a rung that CANNOT fire is told from one that never did over a corpus where off-repo is 0 everywhere (research 118 \u00a710, the late lesson). Each case is one anchor set, one edge list, one seed set, one test-file set and one named set, with the rung it must read.",
+  "tracked": [
+    "main.ts",
+    "mid.ts",
+    "leaf.ts",
+    "lonely.ts",
+    "named.ts",
+    "leaf.test.ts"
+  ],
+  "cases": [
+    {
+      "name": "an anchor nothing in the repository tracks",
+      "want": "off-repo",
+      "anchors": [
+        "vendor/other.ts"
+      ],
+      "edges": [],
+      "seeds": [],
+      "testFiles": [],
+      "named": []
+    },
+    {
+      "name": "here, imported by nothing, named by no manifest",
+      "want": "declared",
+      "anchors": [
+        "lonely.ts"
+      ],
+      "edges": [],
+      "seeds": [
+        "main.ts"
+      ],
+      "testFiles": [],
+      "named": []
+    },
+    {
+      "name": "imported, but by nothing that starts",
+      "want": "composed",
+      "anchors": [
+        "leaf.ts"
+      ],
+      "edges": [
+        [
+          "mid.ts",
+          "leaf.ts"
+        ]
+      ],
+      "seeds": [
+        "main.ts"
+      ],
+      "testFiles": [],
+      "named": []
+    },
+    {
+      "name": "named by a manifest and imported by nothing",
+      "want": "composed",
+      "anchors": [
+        "named.ts"
+      ],
+      "edges": [],
+      "seeds": [
+        "main.ts"
+      ],
+      "testFiles": [],
+      "named": [
+        "named.ts"
+      ]
+    },
+    {
+      "name": "on a path from something that starts",
+      "want": "reached",
+      "anchors": [
+        "leaf.ts"
+      ],
+      "edges": [
+        [
+          "main.ts",
+          "mid.ts"
+        ],
+        [
+          "mid.ts",
+          "leaf.ts"
+        ]
+      ],
+      "seeds": [
+        "main.ts"
+      ],
+      "testFiles": [],
+      "named": []
+    },
+    {
+      "name": "reached, and a test file imports it",
+      "want": "tested",
+      "anchors": [
+        "leaf.ts"
+      ],
+      "edges": [
+        [
+          "main.ts",
+          "mid.ts"
+        ],
+        [
+          "mid.ts",
+          "leaf.ts"
+        ],
+        [
+          "leaf.test.ts",
+          "leaf.ts"
+        ]
+      ],
+      "seeds": [
+        "main.ts"
+      ],
+      "testFiles": [
+        "leaf.test.ts"
+      ],
+      "named": []
+    },
+    {
+      "name": "a test imports it but nothing starts it",
+      "want": "composed",
+      "anchors": [
+        "leaf.ts"
+      ],
+      "edges": [
+        [
+          "leaf.test.ts",
+          "leaf.ts"
+        ]
+      ],
+      "seeds": [
+        "main.ts"
+      ],
+      "testFiles": [
+        "leaf.test.ts"
+      ],
+      "named": []
+    },
+    {
+      "name": "a seed nobody tracks starts no walk (rule 2d)",
+      "want": "composed",
+      "anchors": [
+        "lonely.ts"
+      ],
+      "edges": [
+        [
+          "ghost.ts",
+          "lonely.ts"
+        ]
+      ],
+      "seeds": [
+        "ghost.ts"
+      ],
+      "testFiles": [],
+      "named": []
+    }
+  ]
+}

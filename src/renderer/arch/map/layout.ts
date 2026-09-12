@@ -56,7 +56,9 @@ import {
   type ArchMapBand,
   type ArchMapFrameEdge,
   type ArchMapGroup,
-  type ArchMapModel
+  type ArchMapModel,
+  type ArchMapRegionModel,
+  type ArchMapTransportModel
 } from './types';
 import {
   MAP_BAND_COL,
@@ -66,7 +68,12 @@ import {
   MAP_BOX_MIN_H,
   MAP_BOX_MIN_W,
   MAP_LINE_GAP,
+  MAP_OUTSIDE_GAP,
+  MAP_OUTSIDE_HEAD_H,
   MAP_PAD,
+  MAP_REGION_GAP,
+  MAP_REGION_HEAD_H,
+  MAP_REGION_PAD,
   MAP_ROW_GAP,
   MAP_SAME_ROW_DIP,
   MAP_SAME_ROW_STEP,
@@ -74,6 +81,8 @@ import {
   MAP_STUB_H,
   MAP_STUB_ROW_GAP,
   MAP_STUB_W,
+  MAP_WIRE_COL,
+  MAP_WIRE_H,
   grid4,
   stubKey
 } from './geometry';
@@ -123,15 +132,57 @@ export interface MapViewport {
  */
 export const MAP_DEFAULT_VIEWPORT: MapViewport = { width: 1152, height: 704 };
 
+/**
+ * Phase 258: one region's frame, being a rounded rectangle around the boxes
+ * one unit owns, with its heading block and its own band words. The Outside
+ * band is a frame too, with no boxes and its wires listed inside it.
+ */
+export interface MapRegionFrame {
+  region: ArchMapRegionModel;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** The band rows INSIDE this frame, already offset, for the band words. */
+  rows: readonly MapRow[];
+  /** Where this frame's band words draw, the frame's own left column. */
+  bandX: number;
+}
+
+/**
+ * Phase 258: one drawn transport. A wire between two adjacent frames sits in
+ * the column between them; one to or from Outside sits inside the band; one
+ * between two frames that are not adjacent sits in the row under the frames
+ * with both names on it, so nothing the composer counted goes undrawn.
+ */
+export interface MapWire {
+  transport: ArchMapTransportModel;
+  /** The text the wire says, arrow included. */
+  text: string;
+  /** `forward` runs left to right (or into Outside); `back` the other way. */
+  direction: 'forward' | 'back';
+  x: number;
+  y: number;
+  w: number;
+}
+
 /** The finished layout: everything the geometry and the component need. */
 export interface MapLayout {
   boxes: readonly MapBox[];
+  /**
+   * The band rows for the band words. EMPTY when the picture has regions:
+   * each frame then carries its own rows, offset into the frame.
+   */
   rows: readonly MapRow[];
   /** Fast lookup for the edge planner. */
   boxById: ReadonlyMap<string, MapBox>;
   /** Phase 161: the frame stubs of a scoped picture, empty at level 1. */
   stubs: readonly MapStub[];
   stubByKey: ReadonlyMap<string, MapStub>;
+  /** Phase 258: the region frames, empty on a regionless picture. */
+  regions: readonly MapRegionFrame[];
+  /** Phase 258: the drawn transports, empty on a regionless picture. */
+  wires: readonly MapWire[];
   width: number;
   height: number;
 }
@@ -232,10 +283,26 @@ function stubRowWidth(n: number): number {
  * Lay the model out against a viewport. O(bands × prefixes × groups), with
  * at most thirty boxes, so the cost is unmeasurable beside the scan that
  * produced the facts.
+ *
+ * PHASE 258. A model carrying regions is laid out frame by frame through
+ * {@link layoutRegions}, which runs THIS SAME band layout once per region and
+ * places the frames side by side. A regionless model, being every scoped
+ * picture and every model an older main composed, takes the Phase 161 path
+ * below byte for byte.
  */
 export function layoutMap(
   model: ArchMapModel,
   viewport: MapViewport = MAP_DEFAULT_VIEWPORT
+): MapLayout {
+  const regions = model.regions ?? [];
+  if (regions.length > 0) return layoutRegions(model, regions, viewport);
+  return layoutBoxes(model, viewport);
+}
+
+/** The Phase 161 band layout, unchanged: rows, wrap, placement, the frame. */
+function layoutBoxes(
+  model: ArchMapModel,
+  viewport: MapViewport
 ): MapLayout {
   const groups = sortGroups(model.groups);
   const frame = model.frame ?? [];
@@ -452,5 +519,251 @@ export function layoutMap(
   const stubByKey = new Map<string, MapStub>();
   for (const stub of stubs) stubByKey.set(stubKey(stub.direction, stub.id), stub);
 
-  return { boxes, rows, boxById, stubs, stubByKey, width, height };
+  return {
+    boxes,
+    rows,
+    boxById,
+    stubs,
+    stubByKey,
+    regions: [],
+    wires: [],
+    width,
+    height
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 258: regions, being frames around the band layout, and the wires
+// ---------------------------------------------------------------------------
+
+/**
+ * The region layout rule, in full, beside the band rule above.
+ *
+ * 1. **Every region that holds a box is a frame**, in the order the composer
+ *    handed them (rule Q7: units by parsed files, then Elsewhere). A region
+ *    naming no box in the model draws nothing, because a frame with nothing
+ *    in it would be a claim about a box that is not there.
+ * 2. **Inside a frame is the band layout above**, run over that region's
+ *    boxes alone and the edges between them, against a viewport that is the
+ *    frame's fair share of the tab's width. Bands are per frame, so a one
+ *    region picture is the Phase 201 picture with one frame around it.
+ * 3. **Cross region edges are not drawn box to box.** The composer already
+ *    aggregated them into an `imports` transport, and that wire is what
+ *    carries them; a curve planned on one frame's rows cannot land honestly
+ *    in another's.
+ * 4. **Frames sit left to right, top aligned.** Between two ADJACENT frames
+ *    with a transport either way sits a wire column; otherwise a plain gap.
+ *    A transport between two frames that are NOT adjacent is drawn in a row
+ *    under the frames with both names on it, never dropped.
+ * 5. **Outside is a band under the frames**, drawn only when the composer
+ *    handed one, holding its heading and every wire to or from it.
+ * 6. **Everything lands on the 4px grid** and is sorted before it is placed,
+ *    so the same model draws the same bytes whatever order it arrived in.
+ */
+function layoutRegions(
+  model: ArchMapModel,
+  regions: readonly ArchMapRegionModel[],
+  viewport: MapViewport
+): MapLayout {
+  const groupById = new Map(model.groups.map((g) => [g.id, g]));
+
+  // Rule 1: the frames that hold a box, in the composer's order.
+  const framed = regions.filter(
+    (r) => r.kind !== 'outside' && r.groupIds.some((id) => groupById.has(id))
+  );
+  const outside = regions.find((r) => r.kind === 'outside') ?? null;
+
+  // Rule 4's columns: which adjacent pairs carry a transport either way.
+  const transports = [...(model.transports ?? [])].sort((a, b) => {
+    if (a.from !== b.from) return a.from < b.from ? -1 : 1;
+    if (a.to !== b.to) return a.to < b.to ? -1 : 1;
+    return a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0;
+  });
+  const between = (a: string, b: string): ArchMapTransportModel[] =>
+    transports.filter(
+      (t) => (t.from === a && t.to === b) || (t.from === b && t.to === a)
+    );
+  const columns: number[] = [];
+  for (let i = 0; i + 1 < framed.length; i += 1) {
+    const a = framed[i] as ArchMapRegionModel;
+    const b = framed[i + 1] as ArchMapRegionModel;
+    columns.push(between(a.id, b.id).length > 0 ? MAP_WIRE_COL : MAP_REGION_GAP);
+  }
+
+  // Rule 2: each frame's fair share of the width, so the wrap inside it is
+  // chosen against the surface it really gets.
+  const columnsW = columns.reduce((w, c) => w + c, 0);
+  const shareW = Math.max(
+    MAP_BOX_MIN_W + MAP_BAND_COL,
+    (viewport.width - MAP_PAD * 2 - columnsW) / Math.max(1, framed.length) -
+      MAP_REGION_PAD * 2
+  );
+  const shareH = Math.max(
+    MAP_BOX_MIN_H,
+    viewport.height - MAP_PAD * 2 - MAP_REGION_HEAD_H -
+      (outside === null ? 0 : MAP_OUTSIDE_GAP + MAP_OUTSIDE_HEAD_H)
+  );
+
+  const boxes: MapBox[] = [];
+  const frames: MapRegionFrame[] = [];
+  const wires: MapWire[] = [];
+  let x = MAP_PAD;
+  let rowH = 0;
+
+  framed.forEach((region, i) => {
+    const groups = region.groupIds
+      .map((id) => groupById.get(id))
+      .filter((g): g is ArchMapGroup => g !== undefined);
+    const inside = new Set(groups.map((g) => g.id));
+    const edges = model.edges.filter((e) => inside.has(e.from) && inside.has(e.to));
+    const sub = layoutBoxes({ groups, edges }, { width: shareW, height: shareH });
+    const fx = grid4(x);
+    const fy = MAP_PAD;
+    const w = grid4(sub.width + MAP_REGION_PAD * 2);
+    const h = grid4(MAP_REGION_HEAD_H + sub.height + MAP_REGION_PAD);
+    const dx = fx + MAP_REGION_PAD;
+    const dy = fy + MAP_REGION_HEAD_H;
+    for (const box of sub.boxes) {
+      boxes.push({ ...box, x: box.x + dx, y: box.y + dy });
+    }
+    frames.push({
+      region,
+      x: fx,
+      y: fy,
+      w,
+      h,
+      rows: sub.rows.map((r) => ({ band: r.band, y: r.y + dy, h: r.h })),
+      bandX: dx + MAP_PAD
+    });
+    rowH = Math.max(rowH, h);
+    x = fx + w;
+    const col = columns[i];
+    if (col !== undefined) {
+      // Rule 4: the wires of this adjacent pair, forward ones first, each on
+      // its own line, centred in the column.
+      const next = framed[i + 1] as ArchMapRegionModel;
+      const pair = between(region.id, next.id);
+      let wy = fy + MAP_REGION_HEAD_H;
+      for (const t of pair) {
+        const forward = t.from === region.id;
+        wires.push({
+          transport: t,
+          text: forward ? `${t.label} →` : `← ${t.label}`,
+          direction: forward ? 'forward' : 'back',
+          x: grid4(x + 8),
+          y: grid4(wy),
+          w: grid4(col - 16)
+        });
+        wy += MAP_WIRE_H;
+      }
+      x += col;
+    }
+  });
+
+  const framedIds = new Set(framed.map((r) => r.id));
+  let contentW = Math.max(0, x - MAP_PAD);
+  let y = MAP_PAD + rowH;
+
+  // Rule 4's far row: transports between frames that are not adjacent.
+  const adjacent = new Set<string>();
+  for (let i = 0; i + 1 < framed.length; i += 1) {
+    const a = (framed[i] as ArchMapRegionModel).id;
+    const b = (framed[i + 1] as ArchMapRegionModel).id;
+    adjacent.add(`${a}\u0000${b}`);
+    adjacent.add(`${b}\u0000${a}`);
+  }
+  const far = transports.filter(
+    (t) =>
+      framedIds.has(t.from) &&
+      framedIds.has(t.to) &&
+      t.from !== t.to &&
+      !adjacent.has(`${t.from}\u0000${t.to}`)
+  );
+  if (far.length > 0) {
+    y += MAP_OUTSIDE_GAP / 2;
+    const labelOf = (id: string): string =>
+      framed.find((r) => r.id === id)?.label ?? id;
+    for (const t of far) {
+      wires.push({
+        transport: t,
+        text: `${labelOf(t.from)} → ${labelOf(t.to)} · ${t.label}`,
+        direction: 'forward',
+        x: MAP_PAD,
+        y: grid4(y),
+        w: grid4(contentW)
+      });
+      y += MAP_WIRE_H;
+    }
+  }
+
+  // Rule 5: the Outside band, with its wires inside it.
+  if (outside !== null) {
+    const toOutside = transports.filter(
+      (t) => t.to === outside.id || t.from === outside.id
+    );
+    y += MAP_OUTSIDE_GAP;
+    const oy = grid4(y);
+    const ow = grid4(Math.max(contentW, MAP_STUB_W * 2));
+    const oh = grid4(MAP_OUTSIDE_HEAD_H + toOutside.length * MAP_WIRE_H + MAP_REGION_PAD);
+    const many = framed.length > 1;
+    const labelOf = (id: string): string =>
+      framed.find((r) => r.id === id)?.label ?? id;
+    let wy = oy + MAP_OUTSIDE_HEAD_H;
+    for (const t of toOutside) {
+      const forward = t.to === outside.id;
+      const who = many ? `${labelOf(forward ? t.from : t.to)} · ` : '';
+      wires.push({
+        transport: t,
+        text: forward ? `${who}${t.label} →` : `← ${who}${t.label}`,
+        direction: forward ? 'forward' : 'back',
+        x: MAP_PAD + MAP_REGION_PAD,
+        y: grid4(wy),
+        w: grid4(ow - MAP_REGION_PAD * 2)
+      });
+      wy += MAP_WIRE_H;
+    }
+    frames.push({
+      region: outside,
+      x: MAP_PAD,
+      y: oy,
+      w: ow,
+      h: oh,
+      rows: [],
+      bandX: MAP_PAD
+    });
+    contentW = Math.max(contentW, ow);
+    y = oy + oh;
+  }
+
+  const width = grid4(MAP_PAD * 2 + contentW);
+  const height = grid4(y + MAP_PAD);
+  const boxById = new Map<string, MapBox>();
+  for (const box of boxes) boxById.set(box.group.id, box);
+
+  return {
+    boxes,
+    rows: [],
+    boxById,
+    stubs: [],
+    stubByKey: new Map(),
+    regions: frames,
+    wires,
+    width,
+    height
+  };
+}
+
+/** The edges the drawing plans box to box: on a regioned picture, only those inside one frame. */
+export function drawableEdges(
+  model: ArchMapModel,
+  layout: MapLayout
+): readonly ArchMapModel['edges'][number][] {
+  if (layout.regions.length === 0) return model.edges;
+  const regionOf = new Map<string, string>();
+  for (const frame of layout.regions) {
+    for (const id of frame.region.groupIds) regionOf.set(id, frame.region.id);
+  }
+  return model.edges.filter(
+    (e) => regionOf.get(e.from) !== undefined && regionOf.get(e.from) === regionOf.get(e.to)
+  );
 }

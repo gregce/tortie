@@ -84,6 +84,21 @@ export const MAP_STUB_ROW_GAP = 64;
 /** Phase 161: the drawing never scales its abstract units up by more than
  *  this, so a two box repository does not become a billboard. */
 export const MAP_MAX_UPSCALE = 2;
+/** Phase 258: inset of a region's boxes inside its frame. */
+export const MAP_REGION_PAD = 16;
+/** Phase 258: the frame's heading block, being the label, the sub and the
+ *  starts line, three short lines. */
+export const MAP_REGION_HEAD_H = 68;
+/** Phase 258: the column between two adjacent frames, where the wires draw. */
+export const MAP_WIRE_COL = 208;
+/** Phase 258: the gap between two adjacent frames with no wire between them. */
+export const MAP_REGION_GAP = 48;
+/** Phase 258: one wire's line height inside a column or a band. */
+export const MAP_WIRE_H = 24;
+/** Phase 258: the corridor between the frame row and the Outside band. */
+export const MAP_OUTSIDE_GAP = 48;
+/** Phase 258: the Outside band's heading, two short lines plus its one sentence. */
+export const MAP_OUTSIDE_HEAD_H = 56;
 
 // ---------------------------------------------------------------------------
 // Small pure helpers

@@ -1341,6 +1341,92 @@ export class ArchStore {
     return out.sort(compareFacts);
   }
 
+  /**
+   * The facts of the named categories only, joined through the links and the
+   * wrap table, sorted (file, line, rule, subject) (Phase 258). The map
+   * compose reads the seven non-test categories through this rather than
+   * `facts()`, because the 15,816 test rows this repository carries would
+   * otherwise cross into a compose that only ever asks which FILES carry one;
+   * that question is `factFiles` below. The category list is bound as
+   * parameters, never spliced into the SQL.
+   */
+  factsOf(repoKey: string, categories: readonly ArchFactCategory[]): ArchFact[] {
+    const wanted = [...new Set(categories)].filter((c) =>
+      (ARCH_FACT_CATEGORIES as readonly string[]).includes(c)
+    );
+    if (wanted.length === 0) return [];
+    const marks = wanted.map(() => '?').join(', ');
+    const linked = this.db
+      .prepare<[string, ...string[]], FactRow>(
+        `SELECT a.rel_path, a.category, a.kind, a.subject, a.line, a.rule, a.evidence
+           FROM arch_fact a
+           JOIN arch_fact_file f ON f.oid = a.oid AND f.rel_path = a.rel_path
+          WHERE f.repo_key = ? AND a.category IN (${marks})`
+      )
+      .all(repoKey, ...wanted);
+    const wrapped = this.db
+      .prepare<[string, ...string[]], FactRow>(
+        `SELECT rel_path, category, kind, subject, line, rule, evidence
+           FROM arch_fact_wrap WHERE repo_key = ? AND category IN (${marks})`
+      )
+      .all(repoKey, ...wanted);
+    const out: ArchFact[] = [];
+    for (const row of linked) out.push(factOf(row, false));
+    for (const row of wrapped) out.push(factOf(row, true));
+    return out.sort(compareFacts);
+  }
+
+  /** The distinct files carrying a fact of one category, sorted (Phase 258). */
+  factFiles(repoKey: string, category: ArchFactCategory): string[] {
+    const linked = this.db
+      .prepare<[string, string], { rel_path: string }>(
+        `SELECT DISTINCT a.rel_path
+           FROM arch_fact a
+           JOIN arch_fact_file f ON f.oid = a.oid AND f.rel_path = a.rel_path
+          WHERE f.repo_key = ? AND a.category = ?`
+      )
+      .all(repoKey, category);
+    const wrapped = this.db
+      .prepare<[string, string], { rel_path: string }>(
+        `SELECT DISTINCT rel_path FROM arch_fact_wrap WHERE repo_key = ? AND category = ?`
+      )
+      .all(repoKey, category);
+    const out = new Set<string>();
+    for (const row of linked) out.add(row.rel_path);
+    for (const row of wrapped) out.add(row.rel_path);
+    return [...out].sort();
+  }
+
+  /**
+   * The link denominators under a set of directories (Phase 258), for the
+   * surfaces list's per region line: files linked, files rule-read (`parsed`,
+   * being a link with a grammar and no vendor reason), files the vendor
+   * filter refused, and files whose call list hit the worker's ceiling. The
+   * root '' holds everything, and a file under two of the directories is
+   * counted once.
+   */
+  linkCountsUnder(
+    repoKey: string,
+    dirs: readonly string[]
+  ): { files: number; parsed: number; vendored: number; truncated: number } {
+    const rows = this.db
+      .prepare<[string], { rel_path: string; lang: string | null; vendored: string | null; truncated: number }>(
+        'SELECT rel_path, lang, vendored, truncated FROM arch_fact_file WHERE repo_key = ?'
+      )
+      .all(repoKey);
+    const under = (path: string): boolean =>
+      dirs.some((dir) => dir === '' || path === dir || path.startsWith(`${dir}/`));
+    const out = { files: 0, parsed: 0, vendored: 0, truncated: 0 };
+    for (const row of rows) {
+      if (!under(row.rel_path)) continue;
+      out.files += 1;
+      if (row.vendored !== null) out.vendored += 1;
+      else if (row.lang !== null) out.parsed += 1;
+      if (row.truncated === 1) out.truncated += 1;
+    }
+    return out;
+  }
+
   /** Per category and per rule, plus the denominators: files linked, vendored, truncated, unread, wrap facts. */
   factCounts(repoKey: string): ArchFactCounts {
     const byCategory = {} as Record<ArchFactCategory, number>;

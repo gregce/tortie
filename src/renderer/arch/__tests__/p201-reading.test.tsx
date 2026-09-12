@@ -24,6 +24,7 @@ import {
   ARCH_REPO_LINE_TITLE,
   ARCH_SUBJECT_TITLE
 } from '../copy';
+import { RUNG_FACES, rungCountsLine } from '../rung';
 
 function group(over: Partial<ArchMapGroup> & Pick<ArchMapGroup, 'id' | 'fileCount'>): ArchMapGroup {
   return {
@@ -42,6 +43,9 @@ function group(over: Partial<ArchMapGroup> & Pick<ArchMapGroup, 'id' | 'fileCoun
     entries: [],
     sentence: `${String(over.fileCount)} files, TypeScript; no imports either way.`,
     facts: [`Size: ${String(over.fileCount)} files, ${String(over.fileCount * 10)} lines`, 'Languages: TypeScript'],
+    rung: { rung: 'composed', anchors: 1, parsed: 1, reached: 0, tested: 0, seeds: 0 },
+    regionId: 'unit:',
+    counts: { surface: {}, store: {}, effect: {}, network: {}, gate: {} },
     ...over
   };
 }
@@ -66,7 +70,11 @@ function model(): ArchMapResult {
     totalImports: 10,
     resolvedImports: 9,
     unresolvedImports: 1,
-    contractPresent: false
+    contractPresent: false,
+    regions: [],
+    transports: [],
+    componentRungs: {},
+    oneThing: false
   };
 }
 
@@ -105,7 +113,12 @@ describe('the reading', () => {
     const order = [...html.matchAll(/data-group="([a-z-]+)"/g)].map((m) => m[1]);
     expect(order).toEqual(['src-main', 'src-shared', 'build', 'other']);
     // Every row is a button with the ten facts joined by newlines on its title.
-    expect(html).toContain('title="Size: 20 files, 200 lines\nLanguages: JavaScript 20\nUses: src/main 3"');
+    // Phase 258: the rung sentence is the ELEVENTH hover line, after the ten
+    // pinned ones and never before them.
+    const build = model().groups.find((g) => g.id === 'build')!;
+    expect(html).toContain(
+      `title="Size: 20 files, 200 lines\nLanguages: JavaScript 20\nUses: src/main 3\n${RUNG_FACES.composed.sentence} ${rungCountsLine(build.rung)}"`
+    );
     expect(html).toContain('>50 files, TypeScript; no imports either way.<');
     expect(html).toContain('>everything else<');
     expect(html).toContain(`<title>${archBandTitle('surface')}</title>`);

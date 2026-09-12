@@ -505,3 +505,186 @@ export function partChangeTitle(
       : `${String(uncommittedFiles)} changed files are`;
   return `${head} ${files} not committed yet.`;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 258: the reading surface (research 118 §10 Phase 2, SPEC §4)
+// ---------------------------------------------------------------------------
+// The map tab grew an inner tab row and three computed views. Every sentence
+// here is short on purpose: the copy ruling holds on the map tab as it holds
+// on the pane, and the phase's word budgets (SPEC §4.5) are counted by the
+// probe over the resting face.
+
+/** What the whole map tab is a picture of. The tab row's label and the map's own. */
+export const ARCH_MAP_VIEW_LABEL = 'What this repository builds and starts';
+
+/** The three inner tabs, in order. */
+export const ARCH_TAB_MAP = 'Map';
+export const ARCH_TAB_SURFACES = 'Surfaces';
+export const ARCH_TAB_GATES = 'Gates';
+
+/** The one line the outside band says: nothing in it is this repository's code. */
+export const ARCH_OUTSIDE_EMPTY = "Nothing here is this repository's code.";
+
+/** The inspector with nothing selected. */
+export const ARCH_INSPECT_NONE = 'Select a part.';
+
+/** The inspector's control that opens the selected part up. */
+export const ARCH_INSPECT_OPEN = 'Open';
+
+/** The six inspector field labels, in their fixed order. */
+export const ARCH_INSPECT_RUNS_IN = 'Runs in';
+export const ARCH_INSPECT_EXPOSES = 'Exposes';
+export const ARCH_INSPECT_KEEPS = 'Keeps';
+export const ARCH_INSPECT_REACHES = 'Reaches';
+export const ARCH_INSPECT_GUARDS = 'Guards';
+export const ARCH_INSPECT_TESTS = 'Tests';
+export const ARCH_INSPECT_RUNG = 'Rung';
+
+/** A field with a count of zero. */
+export const ARCH_INSPECT_NOTHING = 'nothing';
+/** Exposes at zero: the reader saw no surface, which is a claim about the reader. */
+export const ARCH_INSPECT_NO_SURFACE = 'nothing this reader sees';
+
+/** The disclosure that lists the rows behind a field. */
+export const ARCH_FACTS_SHOW = 'Show';
+export const ARCH_FACTS_HIDE = 'Hide';
+/** The rows are still being read. */
+export const ARCH_FACTS_LOADING = 'Reading the rows.';
+/** A read that failed, one sentence. */
+export const ARCH_FACTS_ERROR = 'The rows could not be read.';
+/** An older preload with no facts channel. */
+export const ARCH_FACTS_NO_BRIDGE = 'This build cannot list the rows.';
+/** The list was cut at the channel's cap. */
+export const ARCH_FACTS_TRUNCATED = 'The first 2,000 rows. The rest are not listed.';
+/** A scope with no rows in the asked categories. */
+export const ARCH_FACTS_EMPTY = 'No rows.';
+
+/** The surfaces list's six kinds, in their fixed order, with the word each draws. */
+export const ARCH_SURFACE_KINDS: readonly { kind: string; label: string }[] = [
+  { kind: 'ipc-channel', label: 'IPC channels' },
+  { kind: 'http-route', label: 'HTTP routes' },
+  { kind: 'cli-command', label: 'commands' },
+  { kind: 'cli-flag', label: 'flags' },
+  { kind: 'job', label: 'jobs' },
+  { kind: 'port', label: 'ports' }
+];
+
+/** The hover on a surface kind at zero, saying the zero is a reading. */
+export function archZeroSurfaceTitle(label: string): string {
+  return `0 ${label} found in this part`;
+}
+
+/** The gates worksheet's four kinds, in order, all on by default. */
+export const ARCH_GATE_KINDS: readonly string[] = ['auth', 'flag', 'refusal', 'guard'];
+
+/** The worksheet's whole-repository choice. */
+export const ARCH_GATES_WHOLE = 'Whole repository';
+
+/** The worksheet's select, named for the screen reader. */
+export const ARCH_GATES_SCOPE_LABEL = 'Which part';
+
+/** The hover on a transport wire: what crosses, from where to where. */
+export function archTransportTitle(
+  kind: string,
+  count: number,
+  from: string,
+  to: string
+): string {
+  const n = count.toLocaleString('en-US');
+  switch (kind) {
+    case 'imports':
+      return `${n} resolved imports written in ${from} land in ${to}.`;
+    case 'spawns':
+      return `${from} starts ${n} programs outside this repository.`;
+    case 'reaches':
+      return `${from} reaches ${n} network addresses outside this repository.`;
+    case 'listens':
+      return `${to} listens on ${n} ports or addresses.`;
+    default:
+      return `${kind} · ${n}`;
+  }
+}
+
+/** The one word a transport says on the wire, before its count. */
+export function archTransportWord(kind: string): string {
+  return kind;
+}
+
+/**
+ * The word a fact kind counts as, in the inspector's field sentences:
+ * `229 IPC channels`, `12 store writes`, `30 spawns`. A kind this table does
+ * not know is drawn by its own name, so a new kind is never hidden.
+ */
+export function archKindWord(category: string, kind: string, n: number): string {
+  const one = n === 1;
+  const surface = ARCH_SURFACE_KINDS.find((k) => k.kind === kind);
+  if (category === 'surface' && surface !== undefined) {
+    return one ? surface.label.replace(/s$/, '') : surface.label;
+  }
+  const table: Record<string, [string, string]> = {
+    'store-write': ['store write', 'store writes'],
+    'store-def': ['store definition', 'store definitions'],
+    migration: ['migration', 'migrations'],
+    spawn: ['spawn', 'spawns'],
+    'fs-write': ['file write', 'file writes'],
+    client: ['network reach', 'network reaches'],
+    listen: ['listen', 'listens'],
+    auth: ['auth gate', 'auth gates'],
+    flag: ['flag gate', 'flag gates'],
+    refusal: ['refusal', 'refusals'],
+    guard: ['guard', 'guards']
+  };
+  const words = table[kind];
+  if (words === undefined) return kind;
+  return one ? words[0] : words[1];
+}
+
+/** `12 gates`, the Guards field's one phrase. */
+export function archGatesWord(n: number): string {
+  return `${n.toLocaleString('en-US')} ${n === 1 ? 'gate' : 'gates'}`;
+}
+
+/** The Tests field: `395 of 1,068 parsed files imported by a test`. */
+export function archTestsSentence(tested: number, parsed: number): string {
+  return `${tested.toLocaleString('en-US')} of ${parsed.toLocaleString('en-US')} parsed files imported by a test`;
+}
+
+/** The header's file count: `1,068 files, 1,068 parsed`. */
+export function archFilesWord(files: number, parsed: number): string {
+  return `${files.toLocaleString('en-US')} files, ${parsed.toLocaleString('en-US')} parsed`;
+}
+
+/** A region's denominator line on the surfaces list. */
+export function archRegionDenominator(
+  parsed: number,
+  files: number,
+  vendored: number | undefined,
+  truncated: number | undefined
+): string {
+  const parts = [`read ${parsed.toLocaleString('en-US')} of ${files.toLocaleString('en-US')} files`];
+  if (vendored !== undefined) parts.push(`${vendored.toLocaleString('en-US')} vendored`);
+  if (truncated !== undefined) parts.push(`${truncated.toLocaleString('en-US')} truncated`);
+  return parts.join(' · ');
+}
+
+/** The worksheet's first answer line. */
+export function archGatesAnswer(
+  n: number,
+  scopeName: string | null,
+  parsed: number,
+  total: number | null
+): string {
+  const where = scopeName === null ? 'in the repository' : `in ${scopeName}`;
+  const head = `${archGatesWord(n)} ${where} over ${parsed.toLocaleString('en-US')} parsed files`;
+  return scopeName === null || total === null
+    ? head
+    : `${head} · of ${total.toLocaleString('en-US')} in the repository`;
+}
+
+/** The worksheet's second answer line: the four counts, in the fixed order. */
+export function archGatesBreakdown(counts: Readonly<Record<string, number>>): string {
+  return ARCH_GATE_KINDS.map((k) => `${k} ${String(counts[k] ?? 0)}`).join(' · ');
+}
+
+/** The worksheet's placeholder option before a part is named. */
+export const ARCH_GATES_NAME_ONE = 'Name a part';

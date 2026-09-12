@@ -60,7 +60,10 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
         lines: 0,
         entries: [],
         sentence: '',
-        facts: []
+        facts: [],
+        rung: { rung: 'composed', anchors: 1, parsed: 1, reached: 0, tested: 0, seeds: 0 },
+        regionId: 'unit:',
+        counts: { surface: {}, store: {}, effect: {}, network: {}, gate: {} }
       },
       {
         id: 'vendor',
@@ -79,7 +82,10 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
         lines: 0,
         entries: [],
         sentence: '',
-        facts: []
+        facts: [],
+        rung: { rung: 'composed', anchors: 1, parsed: 1, reached: 0, tested: 0, seeds: 0 },
+        regionId: 'unit:',
+        counts: { surface: {}, store: {}, effect: {}, network: {}, gate: {} }
       }
     ],
     edges: [
@@ -91,6 +97,10 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
     resolvedImports: 40,
     unresolvedImports: 13,
     contractPresent: true,
+    regions: [],
+    transports: [],
+    componentRungs: {},
+    oneThing: false,
     ...over
   };
 }

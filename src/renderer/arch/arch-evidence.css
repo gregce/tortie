@@ -1,0 +1,408 @@
+/*
+ * Phase 258 — the reading surface: the rung chip on every surface that names
+ * a part, the map tab's inner tab row, the inspector under the map, the
+ * surfaces list and the gates worksheet. Every value is a token. The chip's
+ * two colours are the two the Phase 218 floor pins on --bg-active, and the
+ * selected inset is --accent. Nothing here is amber and nothing here moves.
+ */
+
+/* -- the chip, wherever a part is named ------------------------------------ */
+
+.arch-rung {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  line-height: 1;
+}
+
+.arch-rung-quiet {
+  color: var(--status-idle);
+}
+
+.arch-rung-reached {
+  color: var(--success);
+}
+
+/* -- the map tab's inner tab row ------------------------------------------ */
+
+.arch-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.arch-tabs button {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+
+.arch-tabs button:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.arch-tabs button[aria-selected='true'] {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.arch-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The map tab body is a column: the crumbs, the tab row, then the view. The
+   map view is the fill plus the inspector under it at full width. */
+.arch-map-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.arch-map-view > .arch-map-fill {
+  flex: 1;
+}
+
+/* -- the inspector, below the map at full width ---------------------------- */
+
+.arch-inspector {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  background: var(--bg-raised);
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.arch-inspector-none {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.arch-inspector-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+  min-width: 0;
+}
+
+.arch-inspector-name {
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arch-inspector-region {
+  color: var(--text-muted);
+}
+
+.arch-inspector-word {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  border-radius: var(--r-pill);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.arch-inspector-files {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.arch-inspector-open {
+  margin-left: auto;
+  appearance: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  padding: 0 var(--space-4);
+  cursor: pointer;
+}
+
+.arch-inspector-open:hover {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.arch-inspector-rows {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+}
+
+.arch-inspector-rows dt {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caps);
+}
+
+.arch-inspector-rows dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.arch-inspector-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* -- the fact rows behind every disclosure ------------------------------- */
+
+.arch-facts-toggle,
+.arch-gates-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.arch-facts-toggle:hover,
+.arch-gates-link:hover {
+  text-decoration: underline;
+}
+
+.arch-facts {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.arch-fact-row {
+  appearance: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 1px var(--space-2);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.arch-fact-row:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.arch-fact-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.arch-fact-where,
+.arch-fact-evidence {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
+  max-width: 40%;
+}
+
+.arch-facts-note {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* -- the surfaces list ---------------------------------------------------- */
+
+.arch-surfaces,
+.arch-gates {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3) var(--space-5) var(--space-6);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.arch-surfaces-region {
+  margin-bottom: var(--space-4);
+}
+
+.arch-surfaces-region-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-2);
+}
+
+.arch-surfaces-region-label {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.arch-surfaces-denominator {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.arch-surfaces-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-1) 0;
+  min-width: 0;
+}
+
+.arch-surfaces-part {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  min-width: 120px;
+}
+
+.arch-surfaces-kinds {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.arch-surfaces-kind {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+button.arch-surfaces-kind {
+  cursor: pointer;
+}
+
+button.arch-surfaces-kind:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+/* A zero is drawn, never omitted, in the muted colour. */
+.arch-surfaces-kind.zero {
+  color: var(--text-muted);
+}
+
+.arch-surfaces-open {
+  flex-basis: 100%;
+  padding-left: var(--space-5);
+}
+
+/* -- the gates worksheet -------------------------------------------------- */
+
+.arch-gates-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.arch-gates-select {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 2px var(--space-3);
+  max-width: 320px;
+}
+
+.arch-gates-kinds {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.arch-gates-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.arch-gates-answer {
+  margin: 0 0 var(--space-3);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.arch-gates-answer > span {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.arch-gates .arch-facts {
+  max-height: none;
+}

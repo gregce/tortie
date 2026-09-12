@@ -22,6 +22,8 @@ import { rootKeyOf, targetOfProject } from '@shared/workspace-target';
 import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
 import { useEditor } from '../editor/store';
+import { useArch } from './store';
+import type { ArchMapInnerTab } from './store';
 // Phase 175. The Architecture switch, read at the one door below.
 import { archSurfacesOn, useSettingsStore } from '../settings/settings-store';
 
@@ -34,12 +36,20 @@ import { archSurfacesOn, useSettingsStore } from '../settings/settings-store';
  * folder on a machine keys as `machine:<id>:<path>` and gets a tab of its own
  * that cannot collide with a same-named folder here.
  */
-export function openArchMap(repoKey: string): void {
+export function openArchMap(
+  repoKey: string,
+  // PHASE 258. Which of the map tab's three inner tabs to land on. The tab
+  // is view state in the arch store, so the second ask focuses the ONE map
+  // tab the editor already holds and the inner tab switches under it; the
+  // request carries the same word so the intent is on the bus too.
+  tab: ArchMapInnerTab = 'map'
+): void {
   // Phase 175. The map refuses while Architecture is off in Settings. This
   // is the single door every gesture goes through, so the View menu row, a
   // queued `show-arch-map` and the pane's own control are all refused here
   // in one line.
   if (!archSurfacesOn()) return;
+  useArch.getState().setMapTab(repoKey, tab);
   requestOpenFile({
     repoPath: repoKey,
     // The tab is a reading of the whole repository, not of a file in it. The
@@ -52,7 +62,7 @@ export function openArchMap(repoKey: string): void {
     // For keeps, never the recycled preview slot: a person asked for the map
     // by name, and the next single click on a tree row must not replace it.
     preview: false,
-    archMap: { repoPath: repoKey }
+    archMap: { repoPath: repoKey, tab }
   });
 }
 
@@ -63,11 +73,11 @@ export function openArchMap(repoKey: string): void {
  * Until this phase it refused a folder on a machine, because the map could not
  * be drawn for one. It can, so the row does what it says on either computer.
  */
-export function openArchMapForActiveProject(): void {
+export function openArchMapForActiveProject(tab: ArchMapInnerTab = 'map'): void {
   const s = useApp.getState();
   const project = s.projects.find((p) => p.id === s.activeProjectId) ?? null;
   const target = targetOfProject(project);
-  if (target !== null) openArchMap(rootKeyOf(target));
+  if (target !== null) openArchMap(rootKeyOf(target), tab);
 }
 
 /**

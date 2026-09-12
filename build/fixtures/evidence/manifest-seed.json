@@ -1,0 +1,146 @@
+{
+  "note": "A MANIFEST IS NEVER A SEED (gate rules 2b, 2c). The root package.json declares a BUILT artefact as its main, so the unit has no declared seed and no composition root: seeds is 0. The fold holds the manifest, a CI workflow, a compose file and a README, and every one of those carries a fact that must never start a walk: package-main, script, ci-job, service. lib/a.ts starts a worker, which must not seed lib either. Every box reads composed and none reads reached.",
+  "subject": "builtonly",
+  "workspaces": [],
+  "crates": [],
+  "trackedFiles": [
+    "package.json",
+    "README.md",
+    "docker-compose.yml",
+    ".github/workflows/ci.yml",
+    "lib/a.ts",
+    "lib/b.ts",
+    "lib/c.ts",
+    "lib/w.ts",
+    "util/u1.ts",
+    "util/u2.ts",
+    "util/u3.ts"
+  ],
+  "imports": [
+    {
+      "fromPath": "lib/a.ts",
+      "toPath": "lib/b.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "lib/b.ts",
+      "toPath": "lib/c.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "util/u1.ts",
+      "toPath": "util/u2.ts",
+      "resolution": "first-party"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "package.json",
+      "lines": 14,
+      "declares": "built-only"
+    },
+    {
+      "path": "README.md",
+      "lines": 20,
+      "declares": null
+    },
+    {
+      "path": "docker-compose.yml",
+      "lines": 12,
+      "declares": null
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "lines": 18,
+      "declares": null
+    },
+    {
+      "path": "lib/a.ts",
+      "lines": 20,
+      "declares": null
+    },
+    {
+      "path": "lib/b.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "lib/c.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "lib/w.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "util/u1.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "util/u2.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "util/u3.ts",
+      "lines": 10,
+      "declares": null
+    }
+  ],
+  "definitions": [],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./out/index.js",
+      "file": "package.json",
+      "line": 3,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./out/index.js\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "script",
+      "subject": "npm script start",
+      "file": "package.json",
+      "line": 5,
+      "rule": "entrypoint.pkg.script",
+      "evidence": "\"start\": \"node out/index.js\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "ci-job",
+      "subject": "ci job test",
+      "file": ".github/workflows/ci.yml",
+      "line": 1,
+      "rule": "entrypoint.ci.github",
+      "evidence": "jobs:\n  test:",
+      "viaWrapper": false
+    },
+    {
+      "category": "boundary",
+      "kind": "service",
+      "subject": "compose service web",
+      "file": "docker-compose.yml",
+      "line": 2,
+      "rule": "boundary.compose.service",
+      "evidence": "  web:",
+      "viaWrapper": false
+    },
+    {
+      "category": "boundary",
+      "kind": "worker",
+      "subject": "worker ./lib/w.ts",
+      "file": "lib/a.ts",
+      "line": 4,
+      "rule": "boundary.worker.node",
+      "evidence": "new Worker(w)",
+      "viaWrapper": false
+    }
+  ]
+}

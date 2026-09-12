@@ -46,6 +46,7 @@
 import type {
   ArchCoverageCounts,
   ArchProvenance,
+  ArchRungReading,
   ArchVerdictStatus
 } from '../arch';
 
@@ -122,6 +123,18 @@ export interface ArchMapGroup {
    * imports, used by, uses, folders, also holds. Prose, never a badge.
    */
   facts: string[];
+  /**
+   * PHASE 258. The computed evidence rung (research 118 §7.2) with the
+   * counts behind it. A function of the tracked files, the first-party
+   * import graph, the entrypoint and test facts and the units' seeds, and of
+   * nothing a person wrote: `npm run conformance:evidence` rule 4 composes
+   * with the contract and without it and compares this field byte for byte.
+   */
+  rung: ArchRungReading;
+  /** PHASE 258. The region (rule Q unit) this box belongs to. */
+  regionId: string;
+  /** PHASE 258. Counts per fact kind under this box's files, zero included. */
+  counts: ArchMapKindCounts;
 }
 
 /** One language bucket of a box: the bucket's name and how many files wear it. */
@@ -182,7 +195,47 @@ export interface ArchMapModel {
   unresolvedImports: number;
   /** True when a loadable contract overlays this picture. */
   contractPresent: boolean;
+  /**
+   * PHASE 258. The regions rule Q computes from what the repository builds
+   * and starts, in draw order (SPEC §3.1 Q7). Regions group rule P's boxes;
+   * they add no box and split none.
+   */
+  regions: ArchMapRegion[];
+  /** PHASE 258. The labelled transports between regions (SPEC §3.2). */
+  transports: ArchMapTransport[];
+  /** PHASE 258. One rung per contract component, keyed by component id; `{}` with no contract. */
+  componentRungs: Record<string, ArchRungReading>;
+  /** PHASE 258. Q4: every box belongs to one unit and nothing is Elsewhere. */
+  oneThing: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 258: regions, starts, transports and kind counts (SPEC §4.1)
+// ---------------------------------------------------------------------------
+// The shapes of build/p258/SPEC.md §4.1. `vendored` and `truncated` on a
+// region are the one addition beyond §4.1: the pure compose knows nothing of
+// the vendor filter, so main fills them after the compose from the fact
+// pass's own per-file stamps, and a compose driven over a fixture leaves
+// them absent.
+
+export interface ArchMapRegion {
+  id: string;                         // 'unit:<dir>' | 'unit:' (root) | 'elsewhere' | 'outside'
+  kind: 'unit' | 'elsewhere' | 'outside';
+  label: string;                      // ≤ 4 words
+  sub: string;                        // ≤ 6 words
+  dir: string | null;                 // the unit's extent; null for elsewhere/outside
+  groupIds: string[];                 // rule P box ids it holds, in weight order
+  starts: ArchMapStart[];             // Q5, sorted (kind, file, line)
+  files: number; parsed: number;      // the denominators the surfaces list prints
+  /** Files the vendor filter refused among this region's files, filled by main after the compose. */
+  vendored?: number;
+  /** Files whose call list hit the worker's ceiling among this region's files, filled by main. */
+  truncated?: number;
+}
+export interface ArchMapStart { kind: 'worker' | 'thread' | 'process' | 'service' | 'unit'; label: string; file: string; line: number }
+export interface ArchMapTransport { from: string; to: string; kind: 'imports' | 'spawns' | 'reaches' | 'listens'; count: number }
+/** Counts per fact kind for one box, every kind of the four categories present, zero included. */
+export interface ArchMapKindCounts { surface: Record<string, number>; store: Record<string, number>; effect: Record<string, number>; network: Record<string, number>; gate: Record<string, number> }
 
 /** The map is asked about ONE repository, by its absolute path. */
 export interface ArchMapInput {
@@ -461,4 +514,43 @@ export interface ArchCanvasWriteResult {
   ok: boolean;
   /** One sentence naming the field and the reason, when refused. */
   reason: string | null;
+}
+
+/**
+ * The starts line a region draws under its sub (Phase 258, SPEC §3.1 Q5):
+ * `starts 2 workers`, `starts 3 compose services, 1 thread`, `starts 1 cargo
+ * library`, or '' when the region starts nothing. Counted by kind in the
+ * order worker, thread, process, service, then by a boxless unit's own kind
+ * phrase, which is what its `label` carries. ONE composer, read by the
+ * renderer and by `npm run conformance:evidence`, so the face and the gate
+ * cannot count differently.
+ */
+export function archStartsLine(starts: readonly ArchMapStart[]): string {
+  const ORDER: readonly string[] = ['worker', 'thread', 'process', 'service'];
+  const WORD: Readonly<Record<string, string>> = {
+    worker: 'worker',
+    thread: 'thread',
+    process: 'process',
+    service: 'compose service'
+  };
+  const counts = new Map<string, number>();
+  for (const start of starts) {
+    const what = start.kind === 'unit' ? start.label : (WORD[start.kind] ?? start.kind);
+    counts.set(what, (counts.get(what) ?? 0) + 1);
+  }
+  const rank = (what: string): number => {
+    const at = ORDER.findIndex((k) => WORD[k] === what);
+    return at === -1 ? ORDER.length : at;
+  };
+  const parts = [...counts.entries()]
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .map(([what, n]) => `${String(n)} ${n === 1 ? what : archPlural(what)}`);
+  return parts.length === 0 ? '' : `starts ${parts.join(', ')}`;
+}
+
+/** The plural of a kind phrase: `workers`, `processes`, `cargo libraries`. */
+export function archPlural(what: string): string {
+  if (/y$/.test(what) && !/[aeiou]y$/.test(what)) return `${what.slice(0, -1)}ies`;
+  if (/(s|x|z|ch|sh)$/.test(what)) return `${what}es`;
+  return `${what}s`;
 }

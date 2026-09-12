@@ -49,6 +49,8 @@ import type {
   ArchContract,
   ArchCoverageCounts,
   ArchEdge,
+  ArchFact,
+  ArchFactCategory,
   ArchFreshness,
   ArchProblem,
   ArchVerdict,
@@ -512,6 +514,31 @@ export interface ArchInvokeChannelMap {
     req: [input: ArchAcceptDivergenceInput];
     res: ArchAcceptDivergenceResult;
   };
+  /**
+   * PHASE 258. The fact rows behind a disclosure: one part's, one region's or
+   * the whole repository's rows in the named categories, capped and sorted.
+   * A read over the same store the map composes from; it parses nothing,
+   * judges nothing and writes nothing (SPEC §4.1).
+   */
+  'arch:facts': { req: [input: ArchFactsInput]; res: ArchFactsResult };
+}
+
+/** PHASE 258 (SPEC §4.1). What one disclosure asks for. */
+export interface ArchFactsInput extends ArchRepoInput {
+  /** A rule P box id, a region id, or null for the whole repository. */
+  scope: string | null;
+  categories: readonly ArchFactCategory[];   // never 'test'
+}
+
+/** PHASE 258 (SPEC §4.1). The rows, capped at 2,000 and sorted (file, line, rule, subject). */
+export interface ArchFactsResult {
+  cwd: string;
+  scope: string | null;
+  rows: ArchFact[];
+  truncated: boolean;
+  /** Files and parsed files in scope, the denominators. */
+  files: number;
+  parsed: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -599,6 +626,8 @@ export interface GmuxArchExtras {
     acceptDivergence(
       input: ArchAcceptDivergenceInput
     ): Promise<ArchAcceptDivergenceResult>;
+    /** Phase 258: the rows behind a disclosure. A read; it starts nothing. */
+    facts(input: ArchFactsInput): Promise<ArchFactsResult>;
     onChecked(cb: (event: ArchCheckedEvent) => void): Unsubscribe;
     onProgress(cb: (progress: ArchProgressEvent) => void): Unsubscribe;
     onMapUpdated(cb: (event: ArchMapUpdatedEvent) => void): Unsubscribe;
@@ -617,7 +646,14 @@ export interface GmuxArchExtras {
  * of the active project as a full size editor tab, or focuses the tab that is
  * already open, through the same door the cockpit's own control uses.
  */
-export type ArchMenuActionId = 'show-arch' | 'show-arch-map';
+export type ArchMenuActionId =
+  | 'show-arch'
+  | 'show-arch-map'
+  // Phase 258. Two more View rows under Architecture Map, behind the same
+  // switch: the surfaces list and the gates worksheet are the map tab's own
+  // inner tabs, and each row opens the one map tab on the named one.
+  | 'show-arch-surfaces'
+  | 'show-arch-gates';
 
 /**
  * Session > Aim at a Promise… (Phase 64), the aiming verb's own menu action.

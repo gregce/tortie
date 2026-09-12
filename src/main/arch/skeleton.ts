@@ -45,15 +45,35 @@
 import {
   ARCH_DIR,
   ARCH_FILES,
+  ARCH_LIMITS,
   ARCH_PROMISE_GUIDANCE,
   ARCH_VERSION,
   type ArchComponent,
   type ArchEdge,
+  type ArchFact,
   type ArchProvenance
 } from '@shared/arch';
+import { grammarFor } from '../symbols/languages';
+import { deepestUnitOf, dirOf, underDir } from './evidence';
 
-/** How many parts a first draft aims for. */
+/**
+ * How many parts a first draft aims for.
+ *
+ * SINCE PHASE 258 THE DRAFT TAKES RULE P'S COUNT, five to thirteen, because
+ * `draftSkeleton` writes one component per `readingPartition` box (F1 of
+ * research 118 §4.4 closed: the contract and the map draw from ONE
+ * partition, or the overlay stays invisible). This pair still bounds
+ * `groupTree` and `mergeToTarget`, which `partModules` and the drilled map
+ * keep, and `min` is the floor rule P's P3 reads.
+ */
 export const SKELETON_TARGET = { min: 5, max: 9 } as const;
+
+/**
+ * Whether this build parses a path, which is what "source" means to rule P
+ * and "parsed" means on every hover. ONE definition, read by the map, the
+ * draft and the drill, so the three can never count source differently.
+ */
+export const sourceParseable = (path: string): boolean => grammarFor(path) !== null;
 
 /** What the generator is given. Every field comes from the fact base. */
 export interface SkeletonInput {
@@ -662,6 +682,343 @@ export function readingPartition(input: ReadingInput): ReadingPartition {
 }
 
 // ---------------------------------------------------------------------------
+// Rule Q, the units and the regions (Phase 258, research 118 §7.6, SPEC §3.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * A UNIT is one thing the repository builds or starts, with a directory as
+ * its extent. Regions come from units, and units come from what a manifest
+ * declares and what a program starts, NEVER from `boundary.path.module-root`:
+ * research 118 §7.6 measured the build-and-start kinds at 15 of 15 and the
+ * module roots at 30 of 30, and on this repository 75 of 80 boundary facts
+ * are `index.ts` barrels that a partition drawn from them would draw as
+ * seventy-five processes. Every step below is a fact test; nothing reads a
+ * `module-root` row and nothing here reads a file.
+ *
+ *  Q1 units. Every npm workspace member and Cargo member crate; every
+ *     `boundary.library` (the manifest's directory, or `Sources/<name>` for a
+ *     SwiftPM target when tracked); every `entrypoint` of kind
+ *     `package-main`, `bin`, `container` or `process` at the declaring file's
+ *     directory; and every source `entrypoint.main` at the nearest ancestor
+ *     directory holding a manifest OF THE FILE'S OWN FAMILY, else the file's
+ *     own directory. The family rule is the correction to a draft that walked
+ *     to ANY manifest and made stoa's root a unit through a pen-test python
+ *     script under `docs/`. Workers, threads, utility processes and compose
+ *     services are STARTS (Q5), never units; the workspace root that declares
+ *     members is not a unit, its members are. Units are deduped on directory
+ *     and the root '' is allowed.
+ *  Q2 ownership. A rule P box belongs to the deepest unit whose directory is
+ *     a prefix of the box's, the root matching everything; the fold belongs
+ *     where '' belongs. `deepestUnitOf` in ./evidence.ts is the one function,
+ *     shared with the seeds, so a part and its seeds agree about their unit.
+ *  Q3 Elsewhere. One region, `elsewhere`, for boxes under no unit, drawn only
+ *     when it holds a box. It never holds a start.
+ *  Q4 one thing. When every box belongs to ONE unit and nothing is Elsewhere,
+ *     that region's sub reads `the one thing this repository builds`. On this
+ *     repository that is the picture: one region, eight boxes, two worker
+ *     starts. Nothing invents four.
+ *  Q5 starts. Every `boundary` fact of kind `worker`, `thread`, `process` or
+ *     `service` is a start in the region owning its file; a unit that owns no
+ *     box is ALSO a start of the region owning its directory, so this
+ *     repository's seven fixture manifests under `build/fixtures/facts/**`
+ *     read `starts 7 …` on the one region, which is exactly the noise a
+ *     reader should see.
+ *  Q6 outside. One dashed band, `outside`, drawn only when the repository
+ *     carries any `effect.spawn`, `network.*` or `surface.port` fact. It holds
+ *     no box and no start.
+ *  Q7 order. Units with boxes by parsed files descending, then Elsewhere,
+ *     then Outside. Ids are `unit:<dir>`, `unit:` at the root, `elsewhere`
+ *     and `outside`.
+ */
+export type ArchUnitKind =
+  | 'package'
+  | 'crate'
+  | 'library'
+  | 'command'
+  | 'container'
+  | 'process'
+  | 'program';
+
+/** One thing the repository builds or starts. */
+export interface ArchUnit {
+  /** `unit:<dir>`, `unit:` at the root. */
+  id: string;
+  /** The extent, '' at the root. */
+  dir: string;
+  /** The declared name, else the last path segment, else the subject at the root. */
+  label: string;
+  /** The kind phrase: `npm package`, `cargo crate`, `go program` and so on. */
+  sub: string;
+  kind: ArchUnitKind;
+  /** The file that made it a unit, and the line, for the starts list. */
+  file: string;
+  line: number;
+}
+
+/** What `unitsOf` is given. Every field comes from the fact base. */
+export interface UnitsInput {
+  /** The one line at the top of the drawing; the root unit's last-resort label. */
+  subject: string;
+  trackedFiles: readonly string[];
+  /** Every `entrypoint` and `boundary` fact; other categories are ignored. */
+  facts: readonly ArchFact[];
+  /** Directories a workspace declaration named, if any. */
+  workspaces?: readonly string[];
+  /** Directories the Cargo workspace's member crates live in, if any. */
+  crates?: readonly string[];
+  /** The name a manifest declares, keyed by the manifest's directory. */
+  names?: ReadonlyMap<string, string>;
+}
+
+/** The manifest names of each source family, for Q1's `main` rule. */
+const FAMILY_MANIFESTS: readonly { ext: RegExp; manifests: readonly string[]; sub: string }[] = [
+  { ext: /\.(ts|tsx|js|mjs|cjs|jsx|mts|cts)$/, manifests: ['package.json'], sub: 'node program' },
+  { ext: /\.rs$/, manifests: ['Cargo.toml'], sub: 'rust program' },
+  { ext: /\.go$/, manifests: ['go.mod'], sub: 'go program' },
+  { ext: /\.pyi?$/, manifests: ['pyproject.toml', 'setup.py', 'setup.cfg'], sub: 'python program' },
+  { ext: /\.swift$/, manifests: ['Package.swift'], sub: 'swift app' },
+  { ext: /\.rb$/, manifests: ['Gemfile'], sub: 'ruby program' }
+];
+
+const LAST_SEGMENT = (dir: string): string => dir.slice(dir.lastIndexOf('/') + 1);
+
+/** Q1. The units, sorted by directory. */
+export function unitsOf(input: UnitsInput): ArchUnit[] {
+  const tracked = new Set(input.trackedFiles);
+  const names = input.names ?? new Map<string, string>();
+  const byDir = new Map<string, ArchUnit>();
+  const add = (dir: string, kind: ArchUnitKind, sub: string, file: string, line: number): void => {
+    if (byDir.has(dir)) return;
+    const label = names.get(dir) ?? (dir === '' ? input.subject : LAST_SEGMENT(dir));
+    byDir.set(dir, { id: `unit:${dir}`, dir, label, sub, kind, file, line });
+  };
+  const manifestAt = (dir: string, name: string): string => (dir === '' ? name : `${dir}/${name}`);
+  for (const dir of [...(input.workspaces ?? [])].sort()) {
+    add(dir, 'package', 'npm package', manifestAt(dir, 'package.json'), 1);
+  }
+  for (const dir of [...(input.crates ?? [])].filter((d) => d !== '').sort()) {
+    add(dir, 'crate', 'cargo crate', manifestAt(dir, 'Cargo.toml'), 1);
+  }
+  const ordered = [...input.facts].sort(
+    (a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line)
+  );
+  for (const f of ordered) {
+    if (f.category !== 'boundary' || f.kind !== 'library') continue;
+    const dir = dirOf(f.file);
+    if (f.rule === 'boundary.swiftpm.target') {
+      const m = /^swift \w+ (.+)$/.exec(f.subject);
+      const target = m === null ? null : `${dir === '' ? '' : `${dir}/`}Sources/${m[1] as string}`;
+      const held =
+        target !== null && input.trackedFiles.some((p) => p.startsWith(`${target}/`));
+      add(held && target !== null ? target : dir, 'library', 'swift library', f.file, f.line);
+    } else {
+      add(dir, 'library', 'cargo library', f.file, f.line);
+    }
+  }
+  for (const f of ordered) {
+    if (f.category !== 'entrypoint') continue;
+    const dir = dirOf(f.file);
+    if (f.kind === 'package-main') add(dir, 'package', 'npm package', f.file, f.line);
+    else if (f.kind === 'bin') {
+      if (f.rule === 'entrypoint.cargo.bin') add(dir, 'crate', 'cargo crate', f.file, f.line);
+      else if (f.rule === 'entrypoint.swiftpm.target') add(dir, 'program', 'swift app', f.file, f.line);
+      else add(dir, 'command', 'command', f.file, f.line);
+    } else if (f.kind === 'container') add(dir, 'container', 'container', f.file, f.line);
+    else if (f.kind === 'process') add(dir, 'process', 'procfile process', f.file, f.line);
+  }
+  for (const f of ordered) {
+    if (f.category !== 'entrypoint' || f.kind !== 'main') continue;
+    const family = FAMILY_MANIFESTS.find((fam) => fam.ext.test(f.file));
+    const own = dirOf(f.file);
+    let found: string | null = null;
+    if (family !== undefined) {
+      let d = own;
+      for (;;) {
+        if (family.manifests.some((m) => tracked.has(manifestAt(d, m)))) {
+          found = d;
+          break;
+        }
+        if (d === '') break;
+        d = dirOf(d);
+      }
+    }
+    add(found ?? own, 'program', family?.sub ?? 'program', f.file, f.line);
+  }
+  return [...byDir.values()].sort((a, b) => (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0));
+}
+
+/** One start inside a region: a worker, a thread, a process, a service, or a boxless unit. */
+export interface ArchRegionStart {
+  kind: 'worker' | 'thread' | 'process' | 'service' | 'unit';
+  /** The fact's subject, or a boxless unit's kind phrase, which is what the starts line counts. */
+  label: string;
+  file: string;
+  line: number;
+}
+
+/** One region before it becomes a wire row. */
+export interface ArchRegionDraft {
+  id: string;
+  kind: 'unit' | 'elsewhere' | 'outside';
+  label: string;
+  sub: string;
+  dir: string | null;
+  unit: ArchUnit | null;
+  /** Rule P box ids, heaviest first. */
+  groupIds: string[];
+  starts: ArchRegionStart[];
+  files: number;
+  parsed: number;
+}
+
+/** What rule Q answers over one set of boxes. */
+export interface ArchRegionCut {
+  regions: ArchRegionDraft[];
+  units: ArchUnit[];
+  /** Q2 over EVERY unit, for the seeds. */
+  unitOf: (path: string) => ArchUnit | null;
+  /** The region each box belongs to. */
+  regionOfGroup: ReadonlyMap<string, string>;
+  /** Q4. */
+  oneThing: boolean;
+}
+
+/** The kinds Q5 counts, in the order the starts line names them. */
+export const ARCH_START_KIND_ORDER: readonly ArchRegionStart['kind'][] = [
+  'worker',
+  'thread',
+  'process',
+  'service',
+  'unit'
+];
+
+const START_KINDS: ReadonlySet<string> = new Set(['worker', 'thread', 'process', 'service']);
+
+export const READING_ONE_THING_SUB = 'the one thing this repository builds';
+export const READING_ELSEWHERE_LABEL = 'Elsewhere';
+export const READING_ELSEWHERE_SUB = 'no manifest names these';
+export const READING_OUTSIDE_LABEL = 'Outside this repository';
+export const READING_OUTSIDE_SUB = 'programs and hosts it reaches';
+
+/** Q2 to Q7 over rule P's boxes. Pure, and the same bytes for the same facts. */
+export function regionCut(input: {
+  boxes: readonly Group[];
+  units: readonly ArchUnit[];
+  facts: readonly ArchFact[];
+  parseable: (path: string) => boolean;
+}): ArchRegionCut {
+  const units = [...input.units];
+  const unitOf = deepestUnitOf(units);
+  const boxes = [...input.boxes].sort(
+    (a, b) => b.files.length - a.files.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+  const byUnit = new Map<string, ArchRegionDraft>();
+  const elsewhere: ArchRegionDraft = {
+    id: 'elsewhere',
+    kind: 'elsewhere',
+    label: READING_ELSEWHERE_LABEL,
+    sub: READING_ELSEWHERE_SUB,
+    dir: null,
+    unit: null,
+    groupIds: [],
+    starts: [],
+    files: 0,
+    parsed: 0
+  };
+  const regionOfGroup = new Map<string, string>();
+  for (const box of boxes) {
+    const owner = unitOf(box.id === READING_FOLD_ID ? '' : box.dir);
+    let region: ArchRegionDraft;
+    if (owner === null) region = elsewhere;
+    else {
+      const held = byUnit.get(owner.id);
+      if (held !== undefined) region = held;
+      else {
+        region = {
+          id: owner.id,
+          kind: 'unit',
+          label: owner.label,
+          sub: owner.sub,
+          dir: owner.dir,
+          unit: owner,
+          groupIds: [],
+          starts: [],
+          files: 0,
+          parsed: 0
+        };
+        byUnit.set(owner.id, region);
+      }
+    }
+    region.groupIds.push(box.id);
+    region.files += box.files.length;
+    region.parsed += box.files.filter(input.parseable).length;
+    regionOfGroup.set(box.id, region.id);
+  }
+  // Q5. A start lands in the region owning its file, among the units that
+  // hold boxes; Elsewhere never holds one, and a start under no such unit
+  // has no region to sit in and is not drawn.
+  const withBoxes = units.filter((u) => byUnit.has(u.id));
+  const startOwner = deepestUnitOf(withBoxes);
+  const ordered = [...input.facts].sort(
+    (a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line)
+  );
+  for (const f of ordered) {
+    if (f.category !== 'boundary' || !START_KINDS.has(f.kind)) continue;
+    const owner = startOwner(f.file);
+    if (owner === null) continue;
+    byUnit.get(owner.id)?.starts.push({
+      kind: f.kind as ArchRegionStart['kind'],
+      label: f.subject,
+      file: f.file,
+      line: f.line
+    });
+  }
+  for (const u of units) {
+    if (byUnit.has(u.id)) continue;
+    const owner = startOwner(u.dir);
+    if (owner === null) continue;
+    byUnit.get(owner.id)?.starts.push({ kind: 'unit', label: u.sub, file: u.file, line: u.line });
+  }
+  for (const region of byUnit.values()) {
+    region.starts.sort(
+      (a, b) =>
+        ARCH_START_KIND_ORDER.indexOf(a.kind) - ARCH_START_KIND_ORDER.indexOf(b.kind) ||
+        (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line)
+    );
+  }
+  // Q4.
+  const oneThing = elsewhere.groupIds.length === 0 && byUnit.size === 1;
+  if (oneThing) for (const region of byUnit.values()) region.sub = READING_ONE_THING_SUB;
+  // Q6.
+  const outsideOwed = input.facts.some(
+    (f) =>
+      (f.category === 'effect' && f.kind === 'spawn') ||
+      f.category === 'network' ||
+      (f.category === 'surface' && f.kind === 'port')
+  );
+  // Q7.
+  const regions = [...byUnit.values()].sort(
+    (a, b) => b.parsed - a.parsed || b.files - a.files || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+  if (elsewhere.groupIds.length > 0) regions.push(elsewhere);
+  if (outsideOwed) {
+    regions.push({
+      id: 'outside',
+      kind: 'outside',
+      label: READING_OUTSIDE_LABEL,
+      sub: READING_OUTSIDE_SUB,
+      dir: null,
+      unit: null,
+      groupIds: [],
+      starts: [],
+      files: 0,
+      parsed: 0
+    });
+  }
+  return { regions, units, unitOf, regionOfGroup, oneThing };
+}
+
+// ---------------------------------------------------------------------------
 // The draft
 // ---------------------------------------------------------------------------
 
@@ -670,26 +1027,92 @@ function toText(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-/** Draft a whole contract from the facts. Pure, and byte for byte repeatable. */
-export function draftSkeleton(input: SkeletonInput): SkeletonBuffer[] {
-  const grouped = groupTree(input);
-  const groups = mergeToTarget(grouped, rankGroups(grouped, input.imports));
+/** What the draft is given: the skeleton input, plus rule P's two extras. */
+export interface DraftInput extends SkeletonInput {
+  /** Directories the Cargo workspace's member crates live in, if any. */
+  crates?: readonly string[];
+  /** Whether this build parses a path. Defaults to {@link sourceParseable}. */
+  parseable?: (path: string) => boolean;
+}
 
-  const components: ArchComponent[] = groups.map((group) => ({
-    id: group.id,
-    name: group.dir,
-    kind: 'component',
-    layer: bandOf(group, groups, input.imports),
-    provenance: classify(group),
-    anchors: [group.dir],
-    boundary: 'open',
-    description: '',
-    evidence: [],
-    deprecated: false,
-    gaps: []
-  }));
+/** A component name inside the format's bound: the directory, or its last segment. */
+function componentNameOf(dir: string): string {
+  if (dir.length <= ARCH_LIMITS.maxName) return dir;
+  return LAST_SEGMENT(dir).slice(0, ARCH_LIMITS.maxName);
+}
 
-  const edges: ArchEdge[] = aggregateGroupEdges(groups, input.imports)
+/**
+ * The anchors of one box, chosen so a strict majority of what they match
+ * sits in exactly that box, which is what lets the overlay paint it (the F1
+ * rule `npm run conformance:reading` rule 12 pins). A box with no other box
+ * nested under its directory is its directory. A box with one nested under
+ * it, being P2's loose files or a workspace member holding a member, is the
+ * directories its own files sit in, each matched one level deep with `dir/*`,
+ * so the nested box's files are not claimed twice. The fold is the folded
+ * directories; root files are anchored nowhere and the draft says so.
+ */
+function anchorsOf(box: Group, boxes: readonly Group[], folded: readonly string[]): string[] {
+  if (box.id === READING_FOLD_ID) return folded.slice(0, ARCH_LIMITS.maxAnchors);
+  const nested = boxes.some((b) => b !== box && b.dir !== '' && underDir(box.dir, b.dir) && b.dir !== box.dir);
+  if (!nested) return [box.dir];
+  const dirs = [...new Set(box.files.map(dirOf))].sort();
+  const globs = dirs.map((d) => (d === '' ? '*' : `${d}/*`));
+  return globs.length <= ARCH_LIMITS.maxAnchors ? globs : [box.dir];
+}
+
+/**
+ * Draft a whole contract from the facts. Pure, and byte for byte repeatable.
+ *
+ * SINCE PHASE 258 IT WRITES ONE COMPONENT PER RULE P BOX, with `id = box.id`,
+ * so the contract, the map, the drill, the sidebar, the inspector and the
+ * worksheet all name the same parts by the same ids. Before that it grouped
+ * with `groupTree` and `mergeToTarget` while the map drew `readingPartition`,
+ * and on this repository the two partitions shared no box: the draft wrote
+ * `src` where the map drew `src/main`, `src/renderer`, `src/shared` and
+ * `src/preload`, so the overlay painted 0 of 8 boxes with the drafted
+ * contract saved (research 118 §4.4 F1). `groupTree`, `rankGroups` and
+ * `mergeToTarget` stay for `partModules`.
+ */
+export function draftSkeleton(input: DraftInput): SkeletonBuffer[] {
+  const cut = readingPartition({
+    subject: input.subject,
+    trackedFiles: input.trackedFiles,
+    imports: input.imports,
+    parseable: input.parseable ?? sourceParseable,
+    ...(input.workspaces === undefined ? {} : { workspaces: input.workspaces }),
+    ...(input.crates === undefined ? {} : { crates: input.crates })
+  });
+  const groups = cut.boxes;
+  const ownerOf = groupOwnerWithDirs(groups);
+
+  const components: ArchComponent[] = [];
+  for (const group of groups) {
+    const isFold = group.id === READING_FOLD_ID;
+    const anchors = anchorsOf(group, groups, cut.folded);
+    // A component must name a place. A fold holding only root files has no
+    // directory to name, so it is left to the map, which draws it unpainted
+    // either way.
+    if (anchors.length === 0) continue;
+    components.push({
+      id: group.id,
+      name: isFold ? READING_FOLD_LABEL : componentNameOf(group.dir),
+      kind: 'component',
+      layer: bandOf(group, groups, input.imports, ownerOf),
+      provenance: classify(group),
+      anchors,
+      boundary: 'open',
+      description: isFold
+        ? `The small directories, folded together.${
+            cut.rootFiles > 0 ? ' Files at the repository root sit here too and are anchored nowhere.' : ''
+          }`
+        : '',
+      evidence: [],
+      deprecated: false,
+      gaps: []
+    });
+  }
+
+  const edges: ArchEdge[] = aggregateGroupEdges(groups, input.imports, ownerOf)
     .slice(0, ARCH_PROMISE_GUIDANCE.max)
     .map(({ from, to, count }) => {
       const row: ArchEdge = {

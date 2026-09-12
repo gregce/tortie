@@ -254,7 +254,31 @@
         "src-main>src-shared:out:1:src/shared",
         "src-main-git>build:in:1:build"
       ]
-    }
+    },
+    "regions": [
+      {
+        "id": "outside",
+        "kind": "outside",
+        "label": "Outside this repository",
+        "sub": "programs and hosts it reaches",
+        "groupIds": []
+      },
+      {
+        "id": "unit:",
+        "kind": "unit",
+        "label": "tortie",
+        "sub": "the one thing this repository builds",
+        "groupIds": [
+          "build",
+          "docs",
+          "other",
+          "src-main",
+          "src-preload",
+          "src-renderer",
+          "src-shared"
+        ]
+      }
+    ]
   },
   "cargo": {
     "sentence": "38 files, mostly Rust; 7 parts, the biggest crates/c (18%); 8 connections between parts; 20 of 26 imports lead inside the repository.",
@@ -524,7 +548,56 @@
         "crates-core>crates-b:out:1:crates/b (grep-matcher)",
         "crates-core-flags>crates-a:out:1:crates/a (globset)"
       ]
-    }
+    },
+    "regions": [
+      {
+        "id": "elsewhere",
+        "kind": "elsewhere",
+        "label": "Elsewhere",
+        "sub": "no manifest names these",
+        "groupIds": [
+          "crates-core",
+          "other",
+          "tests"
+        ]
+      },
+      {
+        "id": "unit:crates/a",
+        "kind": "unit",
+        "label": "globset",
+        "sub": "cargo crate",
+        "groupIds": [
+          "crates-a"
+        ]
+      },
+      {
+        "id": "unit:crates/a/macros",
+        "kind": "unit",
+        "label": "globset-macros",
+        "sub": "cargo crate",
+        "groupIds": [
+          "crates-a-macros"
+        ]
+      },
+      {
+        "id": "unit:crates/b",
+        "kind": "unit",
+        "label": "grep-matcher",
+        "sub": "cargo crate",
+        "groupIds": [
+          "crates-b"
+        ]
+      },
+      {
+        "id": "unit:crates/c",
+        "kind": "unit",
+        "label": "grep-printer",
+        "sub": "cargo crate",
+        "groupIds": [
+          "crates-c"
+        ]
+      }
+    ]
   },
   "clients": {
     "sentence": "54 files, Swift and Markdown; 8 parts, the biggest CHANGES (37%); 2 connections between parts; 15 of 19 imports lead inside the repository.",
@@ -791,7 +864,41 @@
         "clients-mac-sources>clients-rookkit:out:1:clients/RookKit",
         "clients-mac-sources-services>clients-rookkit:out:1:clients/RookKit"
       ]
-    }
+    },
+    "regions": [
+      {
+        "id": "elsewhere",
+        "kind": "elsewhere",
+        "label": "Elsewhere",
+        "sub": "no manifest names these",
+        "groupIds": [
+          "changes",
+          "clients-android",
+          "clients-iphone",
+          "clients-mac",
+          "clients-rookkit",
+          "other"
+        ]
+      },
+      {
+        "id": "unit:clients/cli",
+        "kind": "unit",
+        "label": "@rookery/cli",
+        "sub": "npm package",
+        "groupIds": [
+          "clients-cli"
+        ]
+      },
+      {
+        "id": "unit:server",
+        "kind": "unit",
+        "label": "rookery-server",
+        "sub": "npm package",
+        "groupIds": [
+          "server"
+        ]
+      }
+    ]
   },
   "tiny": {
     "sentence": "9 files, mostly TypeScript; 7 parts, the biggest src/app (22%); 2 connections between parts; 2 of 2 imports lead inside the repository.",
@@ -964,7 +1071,24 @@
         "entries": []
       }
     ],
-    "drill": null
+    "drill": null,
+    "regions": [
+      {
+        "id": "elsewhere",
+        "kind": "elsewhere",
+        "label": "Elsewhere",
+        "sub": "no manifest names these",
+        "groupIds": [
+          "other",
+          "src-app",
+          "src-core",
+          "src-log",
+          "src-net",
+          "src-store",
+          "vendor-lib"
+        ]
+      }
+    ]
   },
   "cap": {
     "sentence": "104 files, Rust and Markdown; 12 parts, the biggest notesc (25%); 0 connections between parts; 0 of 0 imports lead inside the repository.",
@@ -1242,7 +1366,29 @@
         "entries": []
       }
     ],
-    "drill": null
+    "drill": null,
+    "regions": [
+      {
+        "id": "elsewhere",
+        "kind": "elsewhere",
+        "label": "Elsewhere",
+        "sub": "no manifest names these",
+        "groupIds": [
+          "crates-c0-src",
+          "crates-c1-src",
+          "crates-c2-src",
+          "crates-c3-src",
+          "crates-c4-src",
+          "crates-c5-src",
+          "crates-c6-src",
+          "crates-c7-src",
+          "crates-c8-src",
+          "crates-c9-src",
+          "notesc",
+          "other"
+        ]
+      }
+    ]
   },
   "declared": [
     "package.json: @rookery/cli",
@@ -1252,5 +1398,7 @@
     "Package.swift: RookKit",
     "package.json: (null)",
     "Cargo.toml: (null)"
-  ]
+  ],
+  "regionsNote": "Phase 258, rule 11: rule Q over each tree, every value derived by hand from build/p258/SPEC.md §3.1 (Q1 to Q7) rather than from the code; regions sorted by id, groupIds sorted.",
+  "draftNote": "Phase 258, rule 12 (F1 closed): the draft writes one component per rule P box with id = box.id, and the overlay over that draft paints every non-fold box; at the parent it painted 0 of 8 on gmux."
 }

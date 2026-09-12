@@ -54,7 +54,10 @@ import type { ArchViewState } from './state/view-state';
 export type {
   ArchCanvasEntry,
   ArchDrill,
+  ArchFactsEntry,
+  ArchInspect,
   ArchMapEntry,
+  ArchMapInnerTab,
   ArchModuleViewEntry,
   ArchPartMapEntry,
   ArchPassEntry,
@@ -66,6 +69,7 @@ export {
   canvasKey,
   DRILL_HOME,
   drillPatch,
+  factsKey,
   moduleKey,
   partKey
 } from './state/view-state';
@@ -95,6 +99,9 @@ export const useArch = create<ArchViewState>((set, get, api) => ({
   canvas: {},
   partMaps: {},
   moduleViews: {},
+  inspect: {},
+  mapTabs: {},
+  facts: {},
 
   ...createDocumentActions(set, get, api),
   ...createMapActions(set, get, api),

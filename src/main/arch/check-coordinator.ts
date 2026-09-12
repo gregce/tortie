@@ -18,8 +18,11 @@ import type {
   ArchCheckResult,
   ArchComposePayloadInput,
   ArchComposePayloadResult,
+  ArchFactsInput,
+  ArchFactsResult,
   ArchLoadResult,
   ArchMapInput,
+  ArchMapRegion,
   ArchMapPartInput,
   ArchMapPartResult,
   ArchMapResult,
@@ -55,7 +58,7 @@ import {
 import { readLsFiles } from './git-facts';
 import { keepLastValid, loadArchDocument } from './load';
 import { archSourceOf, localArchSource, type ArchSource } from './remote-source';
-import { composeArchMap, composeArchMapPart } from './map';
+import { ARCH_MAP_COUNTED_CATEGORIES, archMapScope, composeArchMap, composeArchMapPart } from './map';
 import type { ArchMapComposeInput, ArchMapPartVerdictFact } from './map';
 import { gatherFacts } from './run';
 import { scanArchImports } from './scan';
@@ -91,6 +94,8 @@ export interface ArchCheckCoordinator {
   ): Promise<ArchCheckResult | null>;
   map(input: ArchMapInput): Promise<ArchMapResult>;
   mapPart(input: ArchMapPartInput): Promise<ArchMapPartResult>;
+  /** Phase 258: the fact rows behind one disclosure, scoped over the map's own partition. */
+  facts(input: ArchFactsInput): Promise<ArchFactsResult>;
   composePayload(
     input: ArchComposePayloadInput
   ): Promise<ArchComposePayloadResult>;
@@ -663,8 +668,40 @@ export function createArchCheckCoordinator(deps: {
    * -z`, and a pure compose over stored rows, measured in milliseconds.
    */
   async function readArchMap(input: ArchMapInput): Promise<ArchMapResult> {
-    const { envelope, compose } = await archMapReadFacts(sourceFor(input));
-    return { ...envelope, ...composeArchMap(compose) };
+    const { envelope, compose, repoKey } = await archMapReadFacts(sourceFor(input));
+    const model = composeArchMap(compose);
+    return { ...envelope, ...model, regions: regionDenominators(repoKey, compose, model.regions) };
+  }
+
+  /**
+   * The two denominators the surfaces list prints beside a region's `read N
+   * of M files` (Phase 258, SPEC §4.3): how many of the region's files the
+   * vendor filter refused and how many hit the worker's call ceiling. The
+   * pure compose knows nothing of either, so they are read here from the
+   * fact pass's own per-file stamps, over the SAME file set `arch:facts`
+   * answers for the region, and a region that is not a unit or Elsewhere
+   * (the outside band) holds no file and is left as composed.
+   */
+  function regionDenominators(
+    repoKey: string,
+    compose: ArchMapComposeInput,
+    regions: readonly ArchMapRegion[]
+  ): ArchMapRegion[] {
+    const stamps = archStore().factStamps(repoKey);
+    return regions.map((region) => {
+      if (region.kind === 'outside') return region;
+      const scope = archMapScope(compose, region.id);
+      if (scope === null) return region;
+      let vendored = 0;
+      let truncated = 0;
+      for (const file of scope.files) {
+        const stamp = stamps.get(file);
+        if (stamp === undefined) continue;
+        if (stamp.vendored !== null) vendored += 1;
+        if (stamp.truncated) truncated += 1;
+      }
+      return { ...region, vendored, truncated };
+    });
   }
 
   /**
@@ -689,6 +726,8 @@ export function createArchCheckCoordinator(deps: {
        */
       verdicts: readonly ArchMapPartVerdictFact[];
     };
+    /** The store key the compose was read under, for reads beside the compose. */
+    repoKey: string;
   }> {
     const repoPath = source.repoPath;
     const armed = armSource(source);
@@ -711,6 +750,7 @@ export function createArchCheckCoordinator(deps: {
     const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
     const manifests = readArchManifests(repoPath);
     return {
+      repoKey,
       envelope: {
         cwd: source.farPath,
         building,
@@ -741,8 +781,53 @@ export function createArchCheckCoordinator(deps: {
         definitions: db.definitions(repoKey),
         treeFacts: db.treeFacts(repoKey),
         document: document.contract === null ? null : document,
-        verdicts: db.verdicts(repoKey)
+        verdicts: db.verdicts(repoKey),
+        // Phase 258. The seven non-test categories as rows, and the test
+        // category as FILES only: 15,816 test rows on this repository
+        // collapse to 875 files, and the compose asks nothing more of them.
+        facts: db.factsOf(repoKey, [
+          'entrypoint',
+          'boundary',
+          'surface',
+          'store',
+          'effect',
+          'network',
+          'gate'
+        ]),
+        testFiles: db.factFiles(repoKey, 'test')
       }
+    };
+  }
+
+  /**
+   * The rows behind one disclosure (Phase 258, SPEC §4.1): a rule P box, a
+   * region, or the whole repository, in the named categories, filtered by
+   * the scope's file set out of the SAME partition the map composed. It
+   * reads what `archMapReadFacts` already read, parses nothing, judges
+   * nothing and writes nothing. `test` is never answered here, because a
+   * test is a signal on a part and not a surface of it; the cap is 2,000
+   * rows and the answer says when it cut.
+   */
+  async function readArchFacts(input: ArchFactsInput): Promise<ArchFactsResult> {
+    const source = sourceFor(input);
+    const { compose } = await archMapReadFacts(source);
+    const scope = archMapScope(compose, input.scope);
+    if (scope === null) {
+      return { cwd: source.farPath, scope: input.scope, rows: [], truncated: false, files: 0, parsed: 0 };
+    }
+    const wanted = new Set(
+      input.categories.filter(
+        (c) => c !== 'test' && (c === 'entrypoint' || c === 'boundary' || ARCH_MAP_COUNTED_CATEGORIES.includes(c))
+      )
+    );
+    const rows = (compose.facts ?? []).filter((f) => wanted.has(f.category) && scope.files.has(f.file));
+    return {
+      cwd: source.farPath,
+      scope: input.scope,
+      rows: rows.slice(0, ARCH_FACTS_CAP),
+      truncated: rows.length > ARCH_FACTS_CAP,
+      files: scope.files.size,
+      parsed: scope.parsed
     };
   }
 
@@ -851,10 +936,14 @@ export function createArchCheckCoordinator(deps: {
     runOneCheck,
     map: readArchMap,
     mapPart: readArchMapPart,
+    facts: readArchFacts,
     composePayload,
     dispose
   };
 }
+
+/** The most rows one `arch:facts` answer carries (Phase 258, SPEC §7 limit 8). */
+export const ARCH_FACTS_CAP = 2000;
 
 function emptyCounts(): ArchCoverageCounts {
   return {

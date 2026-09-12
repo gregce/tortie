@@ -378,3 +378,67 @@ describe('the arch store', () => {
     expect(store.hasFactsFor(OID_A, 'src/a.ts')).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The three Phase 258 readers: facts by category, files by category, links
+// under directories
+// ---------------------------------------------------------------------------
+
+describe('the fact readers the reading surface draws from (Phase 258)', () => {
+  const OID_A = 'a'.repeat(40);
+  const OID_B = 'b'.repeat(40);
+  function draft(over: Partial<ArchFactDraft> = {}): ArchFactDraft {
+    return { category: 'surface', kind: 'ipc-channel', subject: 'IPC serves arch:map', line: 12, rule: 'surface.ipc.electron', evidence: 'x', ...over };
+  }
+  function link(relPath: string, oid: string, over: Partial<Parameters<ArchStore['linkFactFiles']>[1][number]> = {}) {
+    return { relPath, oid, mtimeMs: 100, size: 20, lang: 'typescript', vendored: null, truncated: false, wrapDigest: null, ...over };
+  }
+
+  it('answers the named categories only, through the links AND the wrap table, sorted', () => {
+    store.saveFacts(OID_A, 'src/a.ts', [
+      draft({ category: 'test', kind: 'test-case', subject: 'it a', line: 40, rule: 'test.vitest' }),
+      draft({ category: 'effect', kind: 'spawn', subject: 'runs git', line: 20, rule: 'effect.spawn.node' }),
+      draft({ line: 12 })
+    ]);
+    store.linkFactFiles(KEY, [link('src/a.ts', OID_A, { wrapDigest: 'e'.repeat(64) })]);
+    store.saveWrapFacts(KEY, 'src/a.ts', [draft({ rule: 'surface.ipc.electron+wrap', subject: 'IPC serves arch:load', line: 30 })]);
+    const rows = store.factsOf(KEY, ['surface', 'effect']);
+    expect(rows.map((f) => `${String(f.line)} ${f.category} ${f.subject}${f.viaWrapper ? ' +wrap' : ''}`)).toEqual([
+      '12 surface IPC serves arch:map',
+      '20 effect runs git',
+      '30 surface IPC serves arch:load +wrap'
+    ]);
+    expect(store.factsOf(KEY, ['gate'])).toEqual([]);
+    expect(store.factsOf(KEY, [])).toEqual([]);
+    // A word outside the eight is not a category and is not spliced into any SQL.
+    expect(store.factsOf(KEY, ['nonsense' as ArchFactDraft['category']])).toEqual([]);
+  });
+
+  it('answers the distinct files of one category, wrap facts included', () => {
+    store.saveFacts(OID_A, 'src/a.test.ts', [
+      draft({ category: 'test', kind: 'test-case', subject: 'it a', line: 1, rule: 'test.vitest' }),
+      draft({ category: 'test', kind: 'test-case', subject: 'it b', line: 2, rule: 'test.vitest' })
+    ]);
+    store.saveFacts(OID_B, 'src/b.ts', [draft()]);
+    store.linkFactFiles(KEY, [link('src/a.test.ts', OID_A), link('src/b.ts', OID_B), link('src/c.ts', 'c'.repeat(40))]);
+    store.saveWrapFacts(KEY, 'src/c.ts', [draft({ category: 'test', kind: 'test-case', subject: 'it c', rule: 'test.vitest+wrap' })]);
+    expect(store.factFiles(KEY, 'test')).toEqual(['src/a.test.ts', 'src/c.ts']);
+    expect(store.factFiles(KEY, 'surface')).toEqual(['src/b.ts']);
+    expect(store.factFiles(KEY, 'gate')).toEqual([]);
+  });
+
+  it('counts the link denominators under a set of directories, a file once', () => {
+    store.linkFactFiles(KEY, [
+      link('src/main/a.ts', OID_A, { truncated: true }),
+      link('src/main/b.ts', OID_B),
+      link('src/shared/c.ts', 'c'.repeat(40)),
+      link('vendor/x.js', 'd'.repeat(40), { lang: null, vendored: 'path: vendor' }),
+      link('README.md', 'e'.repeat(40), { lang: null })
+    ]);
+    expect(store.linkCountsUnder(KEY, [''])).toEqual({ files: 5, parsed: 3, vendored: 1, truncated: 1 });
+    expect(store.linkCountsUnder(KEY, ['src/main', 'src/main'])).toEqual({ files: 2, parsed: 2, vendored: 0, truncated: 1 });
+    expect(store.linkCountsUnder(KEY, ['src'])).toEqual({ files: 3, parsed: 3, vendored: 0, truncated: 1 });
+    expect(store.linkCountsUnder(KEY, ['srcx'])).toEqual({ files: 0, parsed: 0, vendored: 0, truncated: 0 });
+    expect(store.linkCountsUnder(KEY, [])).toEqual({ files: 0, parsed: 0, vendored: 0, truncated: 0 });
+  });
+});

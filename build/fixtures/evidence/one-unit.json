@@ -1,0 +1,455 @@
+{
+  "note": "ONE THING (spec §3.4, gate rules 3a, 5, 6, 7). A root package.json whose main names a tracked composition root, two worker starts, spawns, one client reach, one listen and one port, a test importing app/a.ts, and five directories that land on four rungs: app tested, core reached, net and the fold composed, workers and docs declared. Nothing here is a real repository; every path, fact and import is data.",
+  "subject": "onething",
+  "workspaces": [],
+  "crates": [],
+  "trackedFiles": [
+    "package.json",
+    "README.md",
+    "app/index.ts",
+    "app/a.ts",
+    "app/b.ts",
+    "app/a.test.ts",
+    "core/c.ts",
+    "core/d.ts",
+    "core/e.ts",
+    "workers/w1.ts",
+    "workers/w2.ts",
+    "workers/w3.ts",
+    "net/n1.ts",
+    "net/n2.ts",
+    "net/n3.ts",
+    "docs/p00.md",
+    "docs/p01.md",
+    "docs/p02.md",
+    "docs/p03.md",
+    "docs/p04.md",
+    "docs/p05.md",
+    "docs/p06.md",
+    "docs/p07.md",
+    "docs/p08.md",
+    "docs/p09.md",
+    "docs/p10.md",
+    "docs/p11.md",
+    "docs/p12.md",
+    "docs/p13.md",
+    "docs/p14.md",
+    "docs/p15.md",
+    "docs/p16.md",
+    "docs/p17.md",
+    "docs/p18.md",
+    "docs/p19.md"
+  ],
+  "imports": [
+    {
+      "fromPath": "app/index.ts",
+      "toPath": "app/a.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "app/a.ts",
+      "toPath": "app/b.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "app/b.ts",
+      "toPath": "core/c.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "core/c.ts",
+      "toPath": "core/d.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "app/a.test.ts",
+      "toPath": "app/a.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "net/n1.ts",
+      "toPath": "core/e.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "workers/w1.ts",
+      "toPath": "net/n2.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "app/b.ts",
+      "toPath": null,
+      "resolution": "unresolved"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "package.json",
+      "lines": 12,
+      "declares": "onething"
+    },
+    {
+      "path": "README.md",
+      "lines": 40,
+      "declares": null
+    },
+    {
+      "path": "app/index.ts",
+      "lines": 30,
+      "declares": null
+    },
+    {
+      "path": "app/a.ts",
+      "lines": 60,
+      "declares": null
+    },
+    {
+      "path": "app/b.ts",
+      "lines": 50,
+      "declares": null
+    },
+    {
+      "path": "app/a.test.ts",
+      "lines": 20,
+      "declares": null
+    },
+    {
+      "path": "core/c.ts",
+      "lines": 80,
+      "declares": null
+    },
+    {
+      "path": "core/d.ts",
+      "lines": 30,
+      "declares": null
+    },
+    {
+      "path": "core/e.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "workers/w1.ts",
+      "lines": 25,
+      "declares": null
+    },
+    {
+      "path": "workers/w2.ts",
+      "lines": 25,
+      "declares": null
+    },
+    {
+      "path": "workers/w3.ts",
+      "lines": 25,
+      "declares": null
+    },
+    {
+      "path": "net/n1.ts",
+      "lines": 40,
+      "declares": null
+    },
+    {
+      "path": "net/n2.ts",
+      "lines": 30,
+      "declares": null
+    },
+    {
+      "path": "net/n3.ts",
+      "lines": 10,
+      "declares": null
+    },
+    {
+      "path": "docs/p00.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p01.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p02.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p03.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p04.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p05.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p06.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p07.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p08.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p09.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p10.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p11.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p12.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p13.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p14.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p15.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p16.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p17.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p18.md",
+      "lines": 8,
+      "declares": null
+    },
+    {
+      "path": "docs/p19.md",
+      "lines": 8,
+      "declares": null
+    }
+  ],
+  "definitions": [],
+  "facts": [
+    {
+      "category": "entrypoint",
+      "kind": "package-main",
+      "subject": "node entry ./app/index.ts",
+      "file": "package.json",
+      "line": 3,
+      "rule": "entrypoint.pkg.main",
+      "evidence": "\"main\": \"./app/index.ts\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "script",
+      "subject": "npm script build",
+      "file": "package.json",
+      "line": 4,
+      "rule": "entrypoint.pkg.script",
+      "evidence": "\"build\": \"tsc\"",
+      "viaWrapper": false
+    },
+    {
+      "category": "entrypoint",
+      "kind": "composition-root",
+      "subject": "composition root app/index.ts",
+      "file": "app/index.ts",
+      "line": 1,
+      "rule": "entrypoint.ts.composition-root",
+      "evidence": "app.whenReady().then(main)",
+      "viaWrapper": false
+    },
+    {
+      "category": "surface",
+      "kind": "ipc-channel",
+      "subject": "IPC serves x:one",
+      "file": "app/index.ts",
+      "line": 10,
+      "rule": "surface.ipc.electron",
+      "evidence": "ipcMain.handle('x:one', ...)",
+      "viaWrapper": false
+    },
+    {
+      "category": "surface",
+      "kind": "ipc-channel",
+      "subject": "IPC serves x:two",
+      "file": "app/index.ts",
+      "line": 11,
+      "rule": "surface.ipc.electron",
+      "evidence": "ipcMain.handle('x:two', ...)",
+      "viaWrapper": false
+    },
+    {
+      "category": "surface",
+      "kind": "cli-command",
+      "subject": "command run",
+      "file": "app/b.ts",
+      "line": 3,
+      "rule": "surface.cli.commander",
+      "evidence": "program.command('run')",
+      "viaWrapper": false
+    },
+    {
+      "category": "gate",
+      "kind": "flag",
+      "subject": "flag FEATURE_X",
+      "file": "app/b.ts",
+      "line": 2,
+      "rule": "gate.flag.env",
+      "evidence": "process.env.FEATURE_X",
+      "viaWrapper": false
+    },
+    {
+      "category": "boundary",
+      "kind": "worker",
+      "subject": "worker ./workers/w1.ts",
+      "file": "app/a.ts",
+      "line": 5,
+      "rule": "boundary.worker.node",
+      "evidence": "new Worker(w1)",
+      "viaWrapper": false
+    },
+    {
+      "category": "boundary",
+      "kind": "worker",
+      "subject": "worker ./workers/w2.ts",
+      "file": "app/a.ts",
+      "line": 9,
+      "rule": "boundary.worker.node",
+      "evidence": "new Worker(w2)",
+      "viaWrapper": false
+    },
+    {
+      "category": "gate",
+      "kind": "refusal",
+      "subject": "refuses when the path leaves the root",
+      "file": "core/c.ts",
+      "line": 7,
+      "rule": "gate.refusal.throw",
+      "evidence": "throw new Error('outside')",
+      "viaWrapper": false
+    },
+    {
+      "category": "gate",
+      "kind": "guard",
+      "subject": "guard isOwned",
+      "file": "core/c.ts",
+      "line": 12,
+      "rule": "gate.guard.if",
+      "evidence": "if (!isOwned(p)) return",
+      "viaWrapper": false
+    },
+    {
+      "category": "store",
+      "kind": "store-write",
+      "subject": "writes settings.json",
+      "file": "core/c.ts",
+      "line": 20,
+      "rule": "store.write.fs",
+      "evidence": "writeFileSync(settings)",
+      "viaWrapper": false
+    },
+    {
+      "category": "store",
+      "kind": "migration",
+      "subject": "migration 001",
+      "file": "core/d.ts",
+      "line": 1,
+      "rule": "store.migration.file",
+      "evidence": "migrations/001.sql",
+      "viaWrapper": false
+    },
+    {
+      "category": "network",
+      "kind": "client",
+      "subject": "fetch https://example.test",
+      "file": "net/n1.ts",
+      "line": 2,
+      "rule": "network.client.fetch",
+      "evidence": "fetch('https://example.test')",
+      "viaWrapper": false
+    },
+    {
+      "category": "effect",
+      "kind": "spawn",
+      "subject": "spawn git",
+      "file": "net/n1.ts",
+      "line": 4,
+      "rule": "effect.spawn.node",
+      "evidence": "spawn('git', argv)",
+      "viaWrapper": false
+    },
+    {
+      "category": "effect",
+      "kind": "spawn",
+      "subject": "spawn tmux",
+      "file": "net/n1.ts",
+      "line": 8,
+      "rule": "effect.spawn.node",
+      "evidence": "spawn('tmux', argv)",
+      "viaWrapper": false
+    },
+    {
+      "category": "network",
+      "kind": "listen",
+      "subject": "listen 8080",
+      "file": "net/n2.ts",
+      "line": 3,
+      "rule": "network.listen.node",
+      "evidence": "server.listen(8080)",
+      "viaWrapper": false
+    },
+    {
+      "category": "surface",
+      "kind": "port",
+      "subject": "port 8080",
+      "file": "net/n2.ts",
+      "line": 3,
+      "rule": "surface.port.literal",
+      "evidence": "server.listen(8080)",
+      "viaWrapper": false
+    },
+    {
+      "category": "test",
+      "kind": "test-case",
+      "subject": "test a",
+      "file": "app/a.test.ts",
+      "line": 1,
+      "rule": "test.vitest",
+      "evidence": "it('a', ...)",
+      "viaWrapper": false
+    }
+  ]
+}

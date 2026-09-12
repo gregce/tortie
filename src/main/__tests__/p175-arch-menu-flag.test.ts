@@ -5,7 +5,10 @@
  * Three rows read the switch, and they are doors rather than mentions: View
  * then Architecture opens the view, View then Architecture Map opens the map
  * tab, and Session then Aim at a Promise… reads the contract and writes a
- * promise into a session's prompt. Hidden rather than disabled, because a
+ * promise into a session's prompt. PHASE 258 ADDED TWO MORE under the map
+ * row, View then Architecture Surfaces and View then Architecture Gates,
+ * which open the one map tab on its surfaces list and its gates worksheet,
+ * behind the same switch and with no chord. Hidden rather than disabled, because a
  * disabled row is a promise with nowhere to read why, and the way back in is
  * Settings then Architecture, which is visible always.
  *
@@ -140,7 +143,13 @@ function allLabels(): string[] {
   return out;
 }
 
-const ARCH_ROWS = ['Architecture', 'Architecture Map', 'Aim at a Promise…'];
+const ARCH_ROWS = [
+  'Architecture',
+  'Architecture Map',
+  'Architecture Surfaces',
+  'Architecture Gates',
+  'Aim at a Promise…'
+];
 
 const realPlatform = process.platform;
 function setPlatform(platform: string): void {
@@ -207,12 +216,19 @@ describe('with the switch ON', () => {
     installAppMenu();
   });
 
-  it('puts both View rows back, in their Phase 160 order', () => {
+  it('puts the four View rows back, in their order, under Context and above Catch Me Up', () => {
     const labels = submenu('View').map((it) => it.label);
     const at = labels.indexOf('Architecture');
     expect(at).toBeGreaterThan(-1);
-    expect(labels[at + 1]).toBe('Architecture Map');
     expect(labels[at - 1]).toBe('Context');
+    expect(labels[at + 1]).toBe('Architecture Map');
+    // Phase 258: the two computed views, directly under the map row, so the
+    // five sidebar views stay contiguous in rail order and every row that
+    // opens a page sits together, Catch Me Up still last among them.
+    expect(labels[at + 2]).toBe('Architecture Surfaces');
+    expect(labels[at + 3]).toBe('Architecture Gates');
+    expect(labels[at + 4]).toBe('Catch Me Up');
+    expect(labels.slice(0, 4)).toEqual(['Explorer', 'Search', 'Source Control', 'Context']);
   });
 
   it('puts the Session row back', () => {
@@ -231,11 +247,14 @@ describe('with the switch ON', () => {
     expect(byLabel.get('Aim at a Promise…')?.accelerator).toBe(
       accelerator('session.aim')
     );
-    // The map row has never had a chord and must not grow one here.
+    // The map row has never had a chord and must not grow one here, and
+    // neither of Phase 258's two rows has one, for the same reason.
     expect(byLabel.get('Architecture Map')?.accelerator).toBeUndefined();
+    expect(byLabel.get('Architecture Surfaces')?.accelerator).toBeUndefined();
+    expect(byLabel.get('Architecture Gates')?.accelerator).toBeUndefined();
   });
 
-  it('keeps the circuit-board mark on all three', () => {
+  it('keeps the circuit-board mark on all five', () => {
     const byLabel = new Map(
       [...submenu('View'), ...submenu('Session')].map((it) => [it.label, it])
     );
@@ -244,7 +263,7 @@ describe('with the switch ON', () => {
     }
   });
 
-  it('forwards the three actions the renderer gates on', () => {
+  it('forwards the five actions the renderer gates on', () => {
     const win = makeWindow();
     state.windows = [win];
     const byLabel = new Map(
@@ -252,17 +271,21 @@ describe('with the switch ON', () => {
     );
     byLabel.get('Architecture')?.click?.();
     byLabel.get('Architecture Map')?.click?.();
+    byLabel.get('Architecture Surfaces')?.click?.();
+    byLabel.get('Architecture Gates')?.click?.();
     byLabel.get('Aim at a Promise…')?.click?.();
     expect(win.sent).toEqual([
       [EVT_MENU_ACTION, 'show-arch'],
       [EVT_MENU_ACTION, 'show-arch-map'],
+      [EVT_MENU_ACTION, 'show-arch-surfaces'],
+      [EVT_MENU_ACTION, 'show-arch-gates'],
       [EVT_MENU_ACTION, 'arch-aim']
     ]);
   });
 });
 
 describe('the flip is answered in the same session, with no relaunch', () => {
-  it('reveals all three rows on a rebuild', () => {
+  it('reveals all five rows on a rebuild', () => {
     installAppMenu();
     expect(allLabels()).not.toContain('Architecture');
     archEnabled = true;
@@ -272,7 +295,7 @@ describe('the flip is answered in the same session, with no relaunch', () => {
     }
   });
 
-  it('removes all three again on the next rebuild', () => {
+  it('removes all five again on the next rebuild', () => {
     archEnabled = true;
     installAppMenu();
     expect(allLabels()).toContain('Architecture Map');

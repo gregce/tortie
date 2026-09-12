@@ -43,6 +43,25 @@
  *     pin that proves nothing, and the gate names the clause.
  *  9. The two pure modules reach for a file, a process or electron.
  * 10. package.json or build/verification-checks.mjs stops naming this gate.
+ *
+ * PHASE 258 ADDED THREE, and rule 8's twelve original ablations are untouched.
+ *
+ * 11. Rule Q's regions move on any of the five trees: the region set (id,
+ *     kind, label, sub, box ids) is pinned in expected.json, derived by hand
+ *     from SPEC §3.1. gmux reads one unit, one thing; cargo reads one region
+ *     per member crate and Elsewhere for the rest; clients reads Elsewhere for
+ *     the boxes no manifest names, the SwiftPM target's included, because its
+ *     unit is `Sources/<name>` and rule P's box is the package directory.
+ * 12. F1 (research 118 §4.4) opens again: `draftSkeleton` over each tree must
+ *     write one component per rule P box with `id = box.id`, and the overlay
+ *     over THAT draft must paint every non-fold box. At the parent it painted
+ *     0 of 8 on gmux, because the draft grouped with `groupTree` while the map
+ *     drew `readingPartition`.
+ * 13. The eleventh hover line: the renderer's `hoverLines` appends the rung
+ *     sentence and its counts AFTER the ten pinned facts, so the first ten
+ *     stay byte identical to their pins; the line's bytes are re-derived here
+ *     from the one rung table and the reading the copy under test answered,
+ *     and `hoverLines`'s own body is read as text, proved on two plants.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -84,7 +103,13 @@ const ABLATIONS = [
   { name: 'the hover, its size line', file: 'sentence.ts', from: "`Size: ${plural(box.files, 'file')}, ${plural(box.lines, 'line')}`,", to: "`Size: ${plural(box.files, 'file')}`," },
   { name: 'the definitions on the hover', file: 'reading.ts', from: 'kinds.set(kind, (kinds.get(kind) ?? 0) + c);', to: 'kinds.set(kind, 0);' },
   { name: 'the manifests at the box root', file: 'reading.ts', from: 'return at === dir || at === commonDir;', to: 'return true;' },
-  { name: 'the declared name reader', file: 'tree-facts.ts', from: "name = typeof parsed.name === 'string' ? parsed.name : null;", to: 'name = null;' }
+  { name: 'the declared name reader', file: 'tree-facts.ts', from: "name = typeof parsed.name === 'string' ? parsed.name : null;", to: 'name = null;' },
+  // PHASE 258. Rule 11's clause is Q2's deepest-first ownership, in the one
+  // function the regions and the seeds share; rule 12's is F1's anchors, one
+  // directory per box, which a top-level anchor would spread over its
+  // siblings and paint nothing.
+  { name: 'rule Q2, the deepest unit owns the box', file: 'evidence.ts', from: '(a, b) => depth(b.dir) - depth(a.dir) ||', to: '(a, b) => depth(a.dir) - depth(b.dir) ||' },
+  { name: "F1, the draft's anchors one directory per box", file: 'skeleton.ts', from: 'if (!nested) return [box.dir];', to: "if (!nested) return [box.dir.split('/')[0] ?? box.dir];" }
 ];
 
 /**
@@ -132,6 +157,33 @@ function runProbe(roots) {
 // ---------------------------------------------------------------------------
 
 const expected = JSON.parse(readFileSync(join(repoRoot, 'build', 'fixtures', 'reading', 'expected.json'), 'utf8'));
+
+/** SPEC §1.4's five hover sentences, held here so the eleventh line is re-derived rather than read back. */
+const RUNG_SENTENCES = {
+  'off-repo': 'No file this part names is tracked here.',
+  declared: 'Here, and nothing imports it or names it.',
+  composed: 'Imported or named; nothing that starts reaches it.',
+  reached: 'On a path from something this unit starts.',
+  tested: 'Reached, and a test imports it.'
+};
+
+/**
+ * Rule 13's text half: `hoverLines` in src/renderer/arch/ArchDrill.tsx must
+ * spread the ten facts FIRST and append the sentence, read from the
+ * function's own body. True when the body is in that shape.
+ */
+function appendsAfterTheTen(source) {
+  const at = source.indexOf('function hoverLines(');
+  if (at < 0) return false;
+  const body = source.slice(at, source.indexOf('\n}', at));
+  const spread = body.indexOf('[...group.facts,');
+  return spread >= 0 && !/\[`\$\{RUNG_FACES|\[[^\]]*sentence[^\]]*\.\.\.group\.facts/.test(body);
+}
+
+const HOVER_PLANTS = [
+  { name: 'the ten first, then the sentence', text: 'export function hoverLines(group) {\n  return [...group.facts, `${RUNG_FACES[r.rung].sentence} x`];\n}\n', ok: true },
+  { name: 'the sentence first', text: 'export function hoverLines(group) {\n  return [`${RUNG_FACES[r.rung].sentence} x`, ...group.facts];\n}\n', ok: false }
+];
 
 function pin(got) {
   const problems = [];
@@ -209,6 +261,44 @@ function pin(got) {
       JSON.stringify(have.drill) !== JSON.stringify(want.drill)
     ) {
       problems.push(`${where}: rule 6, the drill reads ${JSON.stringify(have.drill)} and the fixture pins ${JSON.stringify(want.drill)}`);
+    }
+    // PHASE 258, rules 11 to 13, on the fixture's own arm only: the machine
+    // arm carries no facts and reads every box as Elsewhere by design.
+    if (!key.endsWith('@machine')) {
+      const wantRegions = [...(want.regions ?? [])].sort((a, b) => (a.id < b.id ? -1 : 1));
+      if (JSON.stringify(have.regions) !== JSON.stringify(wantRegions)) {
+        const show = (rs) => (rs ?? []).map((r) => `${r.id}:${r.kind}:${r.label}:${r.sub}:[${r.groupIds.join(',')}]`).join(' ; ');
+        problems.push(`${where}: rule 11, the regions read [${show(have.regions)}] and the fixture pins [${show(wantRegions)}]`);
+      }
+      const draft = have.draft ?? { componentIds: [], boxIds: [], painted: [] };
+      const nonFold = draft.boxIds.filter((id) => id !== 'other');
+      for (const id of nonFold) {
+        if (!draft.componentIds.includes(id)) problems.push(`${where}: rule 12, the draft writes no component for box ${id} (F1)`);
+      }
+      for (const id of draft.componentIds) {
+        if (!draft.boxIds.includes(id)) problems.push(`${where}: rule 12, the draft writes a component ${id} that is no rule P box (F1)`);
+      }
+      if (JSON.stringify(draft.painted) !== JSON.stringify(nonFold)) {
+        problems.push(`${where}: rule 12, the overlay over the draft paints [${draft.painted.join(', ')}] of the ${String(nonFold.length)} non-fold boxes [${nonFold.join(', ')}] (F1)`);
+      }
+      for (const wantBox of want.boxes) {
+        const h = have.hover?.[wantBox.id];
+        if (h === undefined) continue;
+        if (JSON.stringify(h.first) !== JSON.stringify(wantBox.facts)) {
+          problems.push(`${where}/${wantBox.id}: rule 13, the ten lines before the rung sentence read [${h.first.join(' | ')}] and the fixture pins [${wantBox.facts.join(' | ')}]`);
+        }
+        if (h.reading === null || h.eleventh === null) {
+          problems.push(`${where}/${wantBox.id}: rule 13, the box carries no rung, so there is no eleventh line`);
+        } else {
+          const r = h.reading;
+          const seeds = r.seeds === 0 ? 'nothing this reader recognises starts this unit' : `${r.seeds.toLocaleString('en-US')} ${r.seeds === 1 ? 'seed' : 'seeds'}`;
+          const counts = `reached ${r.reached.toLocaleString('en-US')} of ${r.parsed.toLocaleString('en-US')} parsed · ${r.tested.toLocaleString('en-US')} imported by a test · ${seeds}`;
+          const sentence = RUNG_SENTENCES[r.rung];
+          if (sentence === undefined || h.eleventh !== `${sentence} ${counts}`) {
+            problems.push(`${where}/${wantBox.id}: rule 13, the eleventh line reads "${h.eleventh}" and the reading ${JSON.stringify(r)} composes "${String(sentence)} ${counts}"`);
+          }
+        }
+      }
     }
   }
   if (JSON.stringify(got.declared) !== JSON.stringify(expected.declared)) {
@@ -330,6 +420,14 @@ try {
     }
   }
 
+  // Rule 13, the text half (Phase 258).
+  const drill = readFileSync(join(repoRoot, 'src', 'renderer', 'arch', 'ArchDrill.tsx'), 'utf8');
+  if (!appendsAfterTheTen(drill)) fail('rule 13: hoverLines in src/renderer/arch/ArchDrill.tsx does not spread the ten facts first and append the rung sentence after them');
+  for (const plant of HOVER_PLANTS) {
+    if (appendsAfterTheTen(plant.text) !== plant.ok) fail(`rule 13: the hoverLines scanner ${plant.ok ? 'refused' : 'accepted'} the planted text "${plant.name}"`);
+  }
+  say(`${TAG} rule 13: the eleventh hover line is appended after the pinned ten, proved on ${String(HOVER_PLANTS.length)} plants`);
+
   // Rule 10.
   const pkg = readFileSync(join(repoRoot, 'package.json'), 'utf8');
   const checks = readFileSync(join(repoRoot, 'build/verification-checks.mjs'), 'utf8');
@@ -346,6 +444,7 @@ if (failures.length > 0) {
 say(
   `${TAG} OK: the box set and every sentence byte for byte on five trees AND on ` +
     `the same five read through the machine arm, the rollup, the drill and the ` +
-    `declared names, ${String(ABLATIONS.length)} ablations each red, the ` +
+    `declared names, rule Q's regions, the F1 draft painting every box, the ` +
+    `eleventh hover line after the ten, ${String(ABLATIONS.length)} ablations each red, the ` +
     `composer pure, the gate named`
 );

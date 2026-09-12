@@ -737,3 +737,30 @@ export const ARCH_WRAPPER_ANCHORS: Readonly<Record<string, number>> = {
  * `src/main/arch/facts/wrappers.ts` narrows it to the typed list it exports.
  */
 export const ARCH_WRAPPER_GRAMMARS: readonly string[] = ['typescript', 'tsx', 'javascript'];
+
+// ---------------------------------------------------------------------------
+// Phase 258: the computed evidence ladder (research 118 §7.2)
+// ---------------------------------------------------------------------------
+// `ArchEvidenceRung` is derived from the const array and nothing else; a
+// sixth word cannot be added without moving the array `npm run
+// conformance:evidence` rule 1a pins, and no string reaches a rung at run
+// time because the ladder's inputs are sets of paths and a graph.
+
+/** The five computed rungs of research 118 §7.2, lowest first. There is no sixth. */
+export const ARCH_EVIDENCE_RUNGS = ['off-repo', 'declared', 'composed', 'reached', 'tested'] as const;
+export type ArchEvidenceRung = (typeof ARCH_EVIDENCE_RUNGS)[number];
+
+/** One part's rung with the per-file counts behind it, so the hover can say the denominator. */
+export interface ArchRungReading {
+  rung: ArchEvidenceRung;
+  /** Anchors that are tracked files at HEAD. 0 is `off-repo`. */
+  anchors: number;
+  /** Of those, the ones this build parses (rule P's "source"). */
+  parsed: number;
+  /** Parsed anchors a walk from the part's seeds reaches. */
+  reached: number;
+  /** Parsed anchors some file carrying a test fact imports. */
+  tested: number;
+  /** How many seed files the part's units gave the walk. 0 means nothing recognised starts it. */
+  seeds: number;
+}

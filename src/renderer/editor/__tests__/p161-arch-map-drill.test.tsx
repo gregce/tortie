@@ -68,7 +68,10 @@ function levelOne(): ArchMapResult {
         lines: 0,
         entries: [],
         sentence: '',
-        facts: []
+        facts: [],
+        rung: { rung: 'composed', anchors: 1, parsed: 1, reached: 0, tested: 0, seeds: 0 },
+        regionId: 'unit:',
+        counts: { surface: {}, store: {}, effect: {}, network: {}, gate: {} }
       },
       {
         id: 'src-renderer',
@@ -87,7 +90,10 @@ function levelOne(): ArchMapResult {
         lines: 0,
         entries: [],
         sentence: '',
-        facts: []
+        facts: [],
+        rung: { rung: 'composed', anchors: 1, parsed: 1, reached: 0, tested: 0, seeds: 0 },
+        regionId: 'unit:',
+        counts: { surface: {}, store: {}, effect: {}, network: {}, gate: {} }
       }
     ],
     edges: [
@@ -103,8 +109,12 @@ function levelOne(): ArchMapResult {
     totalImports: 90,
     resolvedImports: 78,
     unresolvedImports: 5,
-    contractPresent: false
-  };
+    contractPresent: false,
+    regions: [],
+    transports: [],
+    componentRungs: {},
+    oneThing: false
+    };
 }
 
 function partModel(): NonNullable<ArchPartMapEntry['model']> {
@@ -135,7 +145,10 @@ function partModel(): NonNullable<ArchPartMapEntry['model']> {
         lines: 0,
         entries: [],
         sentence: '',
-        facts: []
+        facts: [],
+        rung: { rung: 'composed', anchors: 1, parsed: 1, reached: 0, tested: 0, seeds: 0 },
+        regionId: 'unit:',
+        counts: { surface: {}, store: {}, effect: {}, network: {}, gate: {} }
       },
       {
         id: 'core',
@@ -154,7 +167,10 @@ function partModel(): NonNullable<ArchPartMapEntry['model']> {
         lines: 0,
         entries: [],
         sentence: '',
-        facts: []
+        facts: [],
+        rung: { rung: 'composed', anchors: 1, parsed: 1, reached: 0, tested: 0, seeds: 0 },
+        regionId: 'unit:',
+        counts: { surface: {}, store: {}, effect: {}, network: {}, gate: {} }
       }
     ],
     edges: [{ from: 'ipc', to: 'core', count: 7, status: null, edgeId: null }],

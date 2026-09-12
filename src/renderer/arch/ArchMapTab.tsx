@@ -34,6 +34,15 @@
  * The model arrives with the contract already joined onto it in main: a part
  * a contract component claims carries the person's name, and an edge a
  * judged promise rides carries that verdict. One picture for both states.
+ *
+ * ## The inner tabs, the selection and the inspector (Phase 258)
+ *
+ * The tab grew an inner tab row, Map · Surfaces · Gates, under the crumbs,
+ * held as view state per repository so a View menu row lands on the named
+ * one. On the map a single click SELECTS a box for the inspector under the
+ * picture; the drill is a double click, Enter on the selected box, the
+ * inspector's Open control, or a sidebar row, exactly as SPEC D5 wrote it.
+ * The selection is one store record beside the drill, never a second copy.
  */
 
 import React, {
@@ -69,12 +78,25 @@ import {
   ARCH_MAP_FLAT_REPO,
   ARCH_MAP_LOADING,
   ARCH_MAP_PARTIAL_PREFIX,
-  ARCH_MAP_STALE
+  ARCH_MAP_STALE,
+  ARCH_MAP_VIEW_LABEL,
+  ARCH_TAB_GATES,
+  ARCH_TAB_MAP,
+  ARCH_TAB_SURFACES
 } from './copy';
 import { ArchDrillFiles } from './ArchModules';
+import { ArchInspector } from './ArchInspector';
+import { ArchSurfaces } from './ArchSurfaces';
+import { ArchGates } from './ArchGates';
 import { canvasKey, DRILL_HOME, partKey, useArch } from './store';
-import type { ArchDrill, ArchMapEntry, ArchPartMapEntry } from './store';
+import type {
+  ArchDrill,
+  ArchMapEntry,
+  ArchMapInnerTab,
+  ArchPartMapEntry
+} from './store';
 import './arch.css';
+import './arch-evidence.css';
 
 /** The drilled part vanished from the facts, usually under a rebase. */
 export const ARCH_MAP_PART_GONE =
@@ -86,6 +108,10 @@ export interface ArchMapDrillHandlers {
   openModule?: (moduleId: string) => void;
   up?: () => void;
   home?: () => void;
+  /** PHASE 258. Select a box for the inspector, or clear with null. */
+  select?: (groupId: string | null) => void;
+  /** PHASE 258. Switch the inner tab. */
+  setTab?: (tab: ArchMapInnerTab) => void;
 }
 
 export function ArchMapTab({
@@ -106,6 +132,12 @@ export function ArchMapTab({
   const drillUp = useArch((s) => s.drillUp);
   const drillHome = useArch((s) => s.drillHome);
   const loadPartMap = useArch((s) => s.loadPartMap);
+  // PHASE 258. The selection and the inner tab, one record each per
+  // repository, beside the drill.
+  const inspectId = useArch((s) => s.inspect[repoPath]?.groupId ?? null);
+  const mapTab = useArch((s) => s.mapTabs[repoPath] ?? 'map');
+  const inspectBox = useArch((s) => s.inspectBox);
+  const setMapTab = useArch((s) => s.setMapTab);
 
   // PHASE 162. The canvas scope this drill rung draws under: the whole map
   // and each drilled part keep their own camera and their own layout. Level
@@ -276,9 +308,22 @@ export function ArchMapTab({
       home: () => {
         pendingUpStage.current = stageUpFrom;
         drillHome(repoPath);
-      }
+      },
+      select: (groupId) => inspectBox(repoPath, groupId),
+      setTab: (tab) => setMapTab(repoPath, tab)
     };
-  }, [entry, part, repoPath, drill, drillInto, drillIntoModule, drillUp, drillHome]);
+  }, [
+    entry,
+    part,
+    repoPath,
+    drill,
+    drillInto,
+    drillIntoModule,
+    drillUp,
+    drillHome,
+    inspectBox,
+    setMapTab
+  ]);
 
   return (
     <ArchMapTabBody
@@ -291,6 +336,8 @@ export function ArchMapTab({
       canvas={canvas}
       onCameraKeyDown={onCameraKeyDown}
       tabRef={tabRef}
+      mapTab={mapTab}
+      inspectId={inspectId}
     />
   );
 }
@@ -390,10 +437,15 @@ export function ArchMapCrumbs({
 function MeasuredMap({
   model,
   onOpenGroup,
+  onSelectGroup,
+  selectedId,
   canvas
 }: {
   model: ReturnType<typeof toMapModel>;
   onOpenGroup?: (groupId: string) => void;
+  /** PHASE 258: the selection seam, and the box it holds. */
+  onSelectGroup?: (groupId: string | null) => void;
+  selectedId?: string | null;
   /**
    * PHASE 162, THE SEAM: the kept camera and layout in, the live camera
    * handle and the at-rest writes out. The INTEGRATOR wires this into
@@ -438,6 +490,8 @@ function MeasuredMap({
         model={model}
         viewport={viewport ?? undefined}
         onOpenGroup={onOpenGroup}
+        onSelectGroup={onSelectGroup}
+        selectedId={selectedId}
         canvas={canvas}
       />
     </div>
@@ -463,7 +517,9 @@ export function ArchMapTabBody({
   handlers = NO_HANDLERS,
   canvas,
   onCameraKeyDown,
-  tabRef
+  tabRef,
+  mapTab = 'map',
+  inspectId = null
 }: {
   entry: ArchMapEntry | null;
   progress: { done: number; total: number } | null;
@@ -477,8 +533,13 @@ export function ArchMapTabBody({
   onCameraKeyDown?: (e: React.KeyboardEvent) => void;
   /** PHASE 162: the container element the staged drill rides on. */
   tabRef?: React.Ref<HTMLDivElement>;
+  /** PHASE 258: which inner tab is showing. */
+  mapTab?: ArchMapInnerTab;
+  /** PHASE 258: the box the inspector follows, or null. */
+  inspectId?: string | null;
 }): React.JSX.Element {
   const subject = subjectOf(entry, repoPath);
+  const model = entry?.model ?? null;
 
   if (drill.level === 2) {
     return (
@@ -493,7 +554,15 @@ export function ArchMapTabBody({
         onKeyDown={onCameraKeyDown}
       >
         <ArchMapCrumbs subject={subject} drill={drill} handlers={handlers} />
-        <ScopedBody part={part} handlers={handlers} canvas={canvas} />
+        <ScopedBody
+          part={part}
+          handlers={handlers}
+          canvas={canvas}
+          inspectId={inspectId}
+          repoPath={repoPath}
+          level1={model}
+          drill={drill}
+        />
       </div>
     );
   }
@@ -512,8 +581,6 @@ export function ArchMapTabBody({
       </div>
     );
   }
-
-  const model = entry?.model ?? null;
 
   if (model === null || model.groups.length === 0) {
     const failed = entry?.status === 'error';
@@ -560,13 +627,101 @@ export function ArchMapTabBody({
       onKeyDown={onCameraKeyDown}
     >
       <ArchMapCrumbs subject={subject} drill={drill} handlers={handlers} />
+      <InnerTabs tab={mapTab} onSetTab={handlers.setTab} />
       {entry?.status === 'error' ? (
         <p className="arch-map-stale">{ARCH_MAP_STALE}</p>
       ) : null}
       <PartialScanLine model={model} />
-      <MapBody model={model} onOpenGroup={handlers.openPart} canvas={canvas} />
+      {mapTab === 'surfaces' ? (
+        <ArchSurfaces repoKey={repoPath === '' ? null : repoPath} model={model} />
+      ) : mapTab === 'gates' ? (
+        <ArchGates
+          key={gatesKeyOf(inspectId)}
+          repoKey={repoPath === '' ? null : repoPath}
+          model={model}
+          initialScope={inspectId}
+        />
+      ) : (
+        <div className="arch-map-view">
+          <MapBody
+            model={model}
+            onOpenGroup={handlers.openPart}
+            onSelectGroup={handlers.select}
+            selectedId={inspectId}
+            canvas={canvas}
+          />
+          <ArchInspector
+            repoKey={repoPath === '' ? null : repoPath}
+            group={model.groups.find((g) => g.id === inspectId) ?? null}
+            region={regionOf(model, inspectId)}
+            scope={inspectId}
+            onOpen={
+              inspectId !== null && handlers.openPart !== undefined
+                ? () => handlers.openPart?.(inspectId)
+                : null
+            }
+            onGates={
+              handlers.setTab !== undefined ? () => handlers.setTab?.('gates') : null
+            }
+          />
+        </div>
+      )}
     </div>
   );
+}
+
+/**
+ * PHASE 258. The inner tab row: Map, Surfaces, Gates. Three words, one
+ * selected, no chord. The tab list is labelled for what the whole tab is a
+ * picture of, being what this repository builds and starts, never "where
+ * code runs", which would be a model claim.
+ */
+export function InnerTabs({
+  tab,
+  onSetTab
+}: {
+  tab: ArchMapInnerTab;
+  onSetTab?: (tab: ArchMapInnerTab) => void;
+}): React.JSX.Element {
+  const tabs: [ArchMapInnerTab, string][] = [
+    ['map', ARCH_TAB_MAP],
+    ['surfaces', ARCH_TAB_SURFACES],
+    ['gates', ARCH_TAB_GATES]
+  ];
+  return (
+    <div className="arch-tabs" role="tablist" aria-label={ARCH_MAP_VIEW_LABEL}>
+      {tabs.map(([id, word]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          data-tab={id}
+          aria-selected={tab === id}
+          title={id === 'map' ? ARCH_MAP_VIEW_LABEL : undefined}
+          onClick={() => onSetTab?.(id)}
+        >
+          {word}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The region one box sits in, or null on a regionless model. */
+function regionOf(
+  model: ArchMapResult,
+  groupId: string | null
+): NonNullable<ArchMapResult['regions']>[number] | null {
+  if (groupId === null) return null;
+  return (model.regions ?? []).find((r) => r.groupIds.includes(groupId)) ?? null;
+}
+
+/**
+ * The worksheet remounts when the Guards link names a different part, so
+ * its select starts on that part; a plain visit keeps whatever it held.
+ */
+function gatesKeyOf(inspectId: string | null): string {
+  return inspectId ?? '';
 }
 
 /**
@@ -596,11 +751,21 @@ function PartialScanLine({
 function ScopedBody({
   part,
   handlers,
-  canvas
+  canvas,
+  inspectId = null,
+  repoPath = '',
+  level1 = null,
+  drill
 }: {
   part: ArchPartMapEntry | null;
   handlers: ArchMapDrillHandlers;
   canvas?: ArchCanvasSeam;
+  /** PHASE 258: the selected module, or the drilled part itself. */
+  inspectId?: string | null;
+  repoPath?: string;
+  /** PHASE 258: the level 1 model, for the inspector when the part is what is selected. */
+  level1?: ArchMapResult | null;
+  drill?: ArchDrill;
 }): React.JSX.Element {
   const model = part?.model ?? null;
 
@@ -631,16 +796,50 @@ function ScopedBody({
     );
   }
 
+  // PHASE 258. The inspector at level 2 follows a selected MODULE when one
+  // is, and otherwise the drilled PART itself, which is what a sidebar row's
+  // click selected on the way in. A module has no `arch:facts` scope, so
+  // its disclosures are absent rather than asking a question main cannot
+  // answer for it.
+  const moduleHit = model.modules.find((m) => m.id === inspectId) ?? null;
+  const partId = drill !== undefined && drill.level !== 1 ? drill.groupId : null;
+  const partHit =
+    moduleHit === null && level1 !== null && inspectId !== null && inspectId === partId
+      ? (level1.groups.find((g) => g.id === inspectId) ?? null)
+      : null;
   return (
     <>
       {part?.status === 'error' ? (
         <p className="arch-map-stale">{ARCH_MAP_STALE}</p>
       ) : null}
-      <ScopedMapBody
-        part={model}
-        onOpenGroup={handlers.openModule}
-        canvas={canvas}
-      />
+      <div className="arch-map-view">
+        <ScopedMapBody
+          part={model}
+          onOpenGroup={handlers.openModule}
+          onSelectGroup={handlers.select}
+          selectedId={inspectId}
+          canvas={canvas}
+        />
+        <ArchInspector
+          repoKey={repoPath === '' ? null : repoPath}
+          group={moduleHit ?? partHit}
+          region={level1 === null ? null : regionOf(level1, partId)}
+          scope={partHit === null ? null : partHit.id}
+          onOpen={
+            moduleHit !== null && handlers.openModule !== undefined
+              ? () => handlers.openModule?.(moduleHit.id)
+              : null
+          }
+          onGates={
+            handlers.setTab !== undefined && handlers.home !== undefined
+              ? () => {
+                  handlers.home?.();
+                  handlers.setTab?.('gates');
+                }
+              : null
+          }
+        />
+      </div>
     </>
   );
 }
@@ -652,26 +851,50 @@ function ScopedBody({
 function MapBody({
   model,
   onOpenGroup,
+  onSelectGroup,
+  selectedId,
   canvas
 }: {
   model: ArchMapResult;
   onOpenGroup?: (groupId: string) => void;
+  onSelectGroup?: (groupId: string | null) => void;
+  selectedId?: string | null;
   canvas?: ArchCanvasSeam;
 }): React.JSX.Element {
   const drawn = useMemo(() => toMapModel(model), [model]);
-  return <MeasuredMap model={drawn} onOpenGroup={onOpenGroup} canvas={canvas} />;
+  return (
+    <MeasuredMap
+      model={drawn}
+      onOpenGroup={onOpenGroup}
+      onSelectGroup={onSelectGroup}
+      selectedId={selectedId}
+      canvas={canvas}
+    />
+  );
 }
 
 /** The same seam for the scoped payload. */
 function ScopedMapBody({
   part,
   onOpenGroup,
+  onSelectGroup,
+  selectedId,
   canvas
 }: {
   part: NonNullable<ArchPartMapEntry['model']>;
   onOpenGroup?: (moduleId: string) => void;
+  onSelectGroup?: (groupId: string | null) => void;
+  selectedId?: string | null;
   canvas?: ArchCanvasSeam;
 }): React.JSX.Element {
   const drawn = useMemo(() => toPartMapModel(part), [part]);
-  return <MeasuredMap model={drawn} onOpenGroup={onOpenGroup} canvas={canvas} />;
+  return (
+    <MeasuredMap
+      model={drawn}
+      onOpenGroup={onOpenGroup}
+      onSelectGroup={onSelectGroup}
+      selectedId={selectedId}
+      canvas={canvas}
+    />
+  );
 }
