@@ -16,7 +16,7 @@
   "lockVersionsNote": "What THIS CLI version writes. Read out of dist/cli.mjs on 2026-08-12: CURRENT_VERSION = 3 at line 3478 for the global lock, CURRENT_VERSION$1 = 1 at line 900 for the project lock. src/main/skills/lock.ts carries the same two numbers and a test asserts the two agree. Both readers DISCARD a lock whose version is below theirs, which is the whole reason the guard exists.",
   "lockVersions": { "global": 3, "project": 1 },
 
-  "treeNote": "Every package the install is allowed to produce, with its exact resolved version. The build fails on a missing package, an extra package or a changed version, so a drifted or compromised transitive cannot enter the bundle unnoticed. Measured 2026-08-12.",
+  "treeNote": "Every package the install is allowed to produce, with its exact resolved version. The build fails on a missing package, an extra package or a changed version, so a drifted or compromised transitive cannot enter the bundle unnoticed. Measured 2026-08-12. yaml was re-pinned from 2.9.0 to 2.9.1 on 2026-09-12, after reading the change rather than to make a build green: upstream v2.9.1 is four commits by the package's own maintainer, two of them fixes, being 'Limit recursive merge aliases' (#713), which bounds alias expansion, and 'Simplify line unfolding during quoted string parsing' (#714); they touch src/nodes/Alias.ts and src/compose/resolve-flow-scalar.ts and nothing else, read at github.com/eemeli/yaml/compare/v2.9.0...v2.9.1 before the pin moved.",
   "tree": {
     "@isaacs/fs-minipass": "4.0.1",
     "chownr": "3.0.0",
@@ -25,6 +25,6 @@
     "skills": "1.5.22",
     "tar": "7.5.22",
     "yallist": "5.0.0",
-    "yaml": "2.9.0"
+    "yaml": "2.9.1"
   }
 }
