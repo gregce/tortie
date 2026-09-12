@@ -6,10 +6,11 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## Unreleased
 
-This release is about the Markdown preview. A large document now shows its first screen at once and fills in the rest while you read, where it used to hold the window still for seconds before anything appeared.
+This release is about two things. A large Markdown document now shows its first screen at once and fills in the rest while you read, where it used to hold the window still for seconds before anything appeared. And the files you open now belong to the project you opened them in, so switching projects switches which files are in front of you without closing any of them.
 
 ### Changed
 
+- The files you open now belong to the project you opened them in: switch projects and only that project's files are on the strip, with the rest hidden rather than closed, so their unsaved edits, their undo and a rewind's undo are all still there when you switch back. Closing a project closes its files, and asks about any unsaved one first ([`8e5a5f43`](https://github.com/gregce/tortie/commit/8e5a5f43)), ([`721b35c6`](https://github.com/gregce/tortie/commit/721b35c6))
 - A large Markdown preview now shows its first screen at once and fills in the rest as you read, so a big file opens rendered again instead of in Source. A file that begins with one enormous table, or a large one with footnotes, still opens in Source with Preview one click away, and a jump to a heading far down the page reaches it once the page has finished filling in ([`6d754c9b`](https://github.com/gregce/tortie/commit/6d754c9b)), ([`ef8c4464`](https://github.com/gregce/tortie/commit/ef8c4464))
 
 ## 0.103.0 (2026-09-10)

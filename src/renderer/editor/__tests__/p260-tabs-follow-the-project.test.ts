@@ -157,7 +157,9 @@ beforeEach(() => {
     panelOpen: false,
     projectId: A.id,
     activeIdByProject: {},
-    panelOpenByProject: {}
+    panelOpenByProject: {},
+    lastRequest: null,
+    lastRequestProjectId: null
   });
   useApp.setState({ projects: [A, B, C], activeProjectId: A.id });
 });
@@ -342,6 +344,64 @@ describe('which project a tab belongs to (research 119 §5.1)', () => {
     expect(useEditor.getState().panelOpen).toBe(false);
   });
 
+  it('a preview tab re-homed onto a strip with its own preview takes that ONE slot', async () => {
+    // COMMITTER'S ROUND, from the round-2 verifier's unasserted reading. A
+    // strip holds one preview slot. `/work/delta/f.ts` previewed from A's
+    // terminal before delta was a project, then single-clicked in delta's own
+    // tree, arrived beside delta's own preview d1 and the strip drew two
+    // italic tabs. d1 goes, exactly as a preview click on any new file takes
+    // it, and f — the person's file — keeps its model and its journal.
+    const delta = { id: 'proj-d', path: '/work/delta', name: 'delta' };
+    const f = `${delta.path}/f.ts`;
+    useEditor.getState().openFromRequest({
+      repoPath: A.path,
+      relPath: f,
+      path: f,
+      mode: 'file',
+      source: 'tree'
+    });
+    await flush();
+    expect(useEditor.getState().activeTab()?.preview).toBe(true);
+    const kept = seed(f);
+
+    useApp.setState({ projects: [A, B, C, delta] });
+    switchTo(delta.id);
+    const d1 = await open(delta.path, 'd1.ts', false);
+    const gone = seed(d1);
+    expect(useEditor.getState().activeTab()?.preview).toBe(true);
+    useEditor.getState().openFromRequest(request(delta.path, 'f.ts', false));
+    await flush();
+
+    expect(visibleIn(delta.id)).toEqual([f]);
+    expect(useEditor.getState().activeTab()?.preview).toBe(true);
+    expect(getWorkingModel(f)).toBe(kept.model);
+    expect(lastRewind(f)).toBe(kept.entry);
+    expect(getWorkingModel(d1)).toBeNull();
+    expect(rewindJournalDepth(d1)).toBe(0);
+    expect(gone.model).not.toBe(kept.model);
+    expect(visibleIn(A.id)).toEqual([]);
+
+    // CONTROL: opened FOR KEEPS the arriving tab is pinned and takes no
+    // slot, so delta's own preview stays.
+    const g = `${delta.path}/g.ts`;
+    switchTo(A.id);
+    useEditor.getState().openFromRequest({
+      repoPath: A.path,
+      relPath: g,
+      path: g,
+      mode: 'file',
+      source: 'tree'
+    });
+    await flush();
+    switchTo(delta.id);
+    const d2 = await open(delta.path, 'd2.ts', false);
+    useEditor.getState().openFromRequest(request(delta.path, 'g.ts'));
+    await flush();
+    expect(visibleIn(delta.id).sort()).toEqual([d2, g].sort());
+    expect(useEditor.getState().tabs.find((t) => t.id === g)?.preview).toBe(false);
+    expect(useEditor.getState().tabs.find((t) => t.id === d2)?.preview).toBe(true);
+  });
+
   it('a tab opened with NO project active joins the first project that becomes active', async () => {
     // FIX ROUND, verifier item 4. At zero projects the diagnostics tab can
     // open; it has no project. Once a project is active the null strip is
@@ -365,6 +425,8 @@ describe('which project a tab belongs to (research 119 §5.1)', () => {
     useApp.setState({ projects: [A] });
     switchTo(A.id);
     expect(useEditor.getState().projectId).toBe(A.id);
+    // The record of where the last request landed joins the project too.
+    expect(useEditor.getState().lastRequestProjectId).toBe(A.id);
     expect(useEditor.getState().visibleTabs().map((t) => t.id)).toEqual([id]);
     expect(useEditor.getState().activeId).toBe(id);
     expect(useEditor.getState().panelOpen).toBe(true);
@@ -470,6 +532,53 @@ describe('the strip a person can see', () => {
     expect(useEditor.getState().projectId).toBe(B.id);
     expect(useApp.getState().activeProjectId).toBe(B.id);
     expect(useEditor.getState().panelOpen).toBe(false);
+  });
+
+  it('⌘E with no tabs never reopens a file another project holds OUTSIDE every root', async () => {
+    // COMMITTER'S ROUND, the round-2 verifier's one red case. At 721b35c6 the
+    // guard asked `projectOf(lastRequest)` at press time, and for a file no
+    // root holds that is the CURRENT project by §5.1's second clause: ⌘E in B
+    // passed the guard, found A's hidden tab and moved the app to A under a
+    // gesture that only asked for the panel. The guard reads the project the
+    // request LANDED in now, recorded when it did.
+    const global = '/Users/someone/.claude/CLAUDE.md';
+    const openGlobalFromA = (): void =>
+      useEditor.getState().openFromRequest({
+        repoPath: A.path,
+        relPath: global,
+        path: global,
+        mode: 'file',
+        source: 'tree',
+        preview: false
+      });
+    openGlobalFromA();
+    await flush();
+    expect(useEditor.getState().activeTab()?.projectId).toBe(A.id);
+    switchTo(B.id);
+    useEditor.getState().togglePanel();
+    await flush();
+    expect(useApp.getState().activeProjectId).toBe(B.id);
+    expect(useEditor.getState().projectId).toBe(B.id);
+    expect(useEditor.getState().panelOpen).toBe(false);
+    expect(visibleIn(A.id)).toEqual([global]);
+
+    // Closed, the record still says A: ⌘E in B opens nothing, and ⌘E in A
+    // brings the file back under A — so the guard is a record and not a
+    // refusal of every reopen.
+    switchTo(A.id);
+    useEditor.getState().closeAll();
+    expect(openIds()).toEqual([]);
+    switchTo(B.id);
+    useEditor.getState().togglePanel();
+    await flush();
+    expect(openIds()).toEqual([]);
+    expect(useApp.getState().activeProjectId).toBe(B.id);
+    switchTo(A.id);
+    useEditor.getState().togglePanel();
+    await flush();
+    expect(visibleIn(A.id)).toEqual([global]);
+    expect(useApp.getState().activeProjectId).toBe(A.id);
+    expect(useEditor.getState().panelOpen).toBe(true);
   });
 });
 

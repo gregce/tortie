@@ -26469,6 +26469,33 @@ typecheck 0 errors, `npm run build` with every inner gate, `npm test` 859 files,
 26.92 → 27.12 MB over four blocks and nodes 606 / listeners 287 flat, the operator's `-L gmux`
 sessions 42 before and after. `package` is not run, because it signs with his identity.
 
+**The committer's round, and the verdict it stood in for.** The round-2 verifier wrote an attack file
+of fourteen cases over the real app store and the real editor store, then never delivered a verdict:
+its last word was that the probe was still driving, and nothing was running when the committer
+arrived. So the committer re-derived it, being 13 of 14 green at `721b35c6` and ONE red, and acted on
+both things the file held. **⌘E in a project with no tabs moved the app to another project.**
+`togglePanel`'s guard asked `projectOf(lastRequest)` at press time, and `projectOf` answers where a
+request would land NOW: for a file no root holds that is the CURRENT project by §5.1's second clause,
+so a global `~/.claude/CLAUDE.md` opened from alpha, then ⌘E in bravo with no tabs, passed the guard,
+found alpha's hidden tab through the existing-tab path, and `activate` revealed alpha under a gesture
+that only asked for the panel. The store now records the project a request LANDED in
+(`lastRequestProjectId`, written beside the tab in both branches of `openFromRequest` and carried by
+adoption) and ⌘E asks that record; the case's second half closes the tab and proves the record is a
+record and not a refusal, ⌘E in bravo opening nothing and ⌘E in alpha bringing the file back under
+alpha. **The file's one unasserted reading was acted on too**: a PREVIEW tab re-homed onto a strip that
+already previews a file left two italic tabs on one strip, against the one-slot rule at the top of
+the store, so the destination's clean preview is closed exactly as a preview open of a new file closes
+it, the arriving tab is never disposed because it is the person's file, and a tab arriving for keeps
+is pinned and takes no slot. Three unit cases red with `721b35c6`'s store put back (the two new ones
+and a new assertion on the adoption case), green at HEAD, and the attack file was removed as its own
+header said it would be. Run at the committed bytes: typecheck 0 errors with its three assertions,
+`npm run build` with every inner gate, `npm test` 859 files and 13,517 tests, `conformance:redline` 39
+rules, `conformance:save` 9 rules, `smoke:t1` 6/6, `smoke:t3` 3/3, `probe:p260` PASS on every arm with arm G's
+heap 26.92 → 27.15 MB over four blocks and nodes 606 / listeners 287 flat, the operator's `-L gmux`
+sessions 42 before and after and the scratch server ended, and `package` under
+`CSC_IDENTITY_AUTO_DISCOVERY=false`, the documented unsigned shape, so it discovered nothing in his
+keychain and cut the DMG and ZIP with the nested binaries ad-hoc hardened.
+
 ### What is NOT in this phase
 
 - **No tab persisted across a restart.** Tabs are in-memory today and stay so.

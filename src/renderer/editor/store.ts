@@ -213,6 +213,18 @@ interface EditorState {
   panelOpenByProject: Record<string, boolean>;
   /** Last open request — ⌘E reopens it when every tab was closed. */
   lastRequest: OpenFileRequest | null;
+  /**
+   * PHASE 260, committer's round. The project `lastRequest` LANDED in: the
+   * tab's project at the moment the request was handled, a rehome included,
+   * and the adopting project once a null-strip tab has joined one. ⌘E asks
+   * THIS rather than `projectOf(lastRequest)`, because `projectOf` answers
+   * where the request would land NOW, and for a file outside every root its
+   * fallback clause is the CURRENT project: at 721b35c6 a global CLAUDE.md
+   * opened from alpha, then ⌘E in bravo with no tabs, passed the guard, found
+   * the hidden alpha tab and moved the app to alpha under a gesture that only
+   * asked for the panel.
+   */
+  lastRequestProjectId: string | null;
   /** Monaco chunk failed to load (retryable; blocks File mode only —
    *  Diff mode renders via @pierre/diffs without Monaco). */
   monacoError: string | null;
@@ -602,6 +614,7 @@ export const useEditor = create<EditorState>((set, get) => {
     activeIdByProject: {},
     panelOpenByProject: {},
     lastRequest: null,
+    lastRequestProjectId: null,
     monacoError: null,
     minimapEnabled: readMinimapPref(),
     diffSideBySide: readDiffSideBySidePref(),
@@ -680,9 +693,24 @@ export const useEditor = create<EditorState>((set, get) => {
         // back to the project it happened to be opened from. Only a ROOT that
         // holds the file moves a tab; the fallback clause never does.
         const home = projectHolding(req);
+        const willPin = req.preview === false || redoubled;
         if (home !== null && home !== (existing.projectId ?? null)) {
+          // COMMITTER'S ROUND. A strip holds ONE preview slot (the S5 rule at
+          // the top of this file), and a preview tab arriving from another
+          // strip would make two. The arriving tab is the click, so the
+          // destination's own clean preview is closed exactly as a preview
+          // open of a new file closes it below — unless the arriving tab is
+          // being pinned, which consumes no slot. The ARRIVING tab is never
+          // disposed: it is the person's file, journal and all.
+          if (existing.preview && !willPin) {
+            const slot = visibleTabsOf(get().tabs, home).find(
+              (t) => t.preview && !t.dirty && t.id !== id
+            );
+            if (slot !== undefined) get().forceCloseTab(slot.id);
+          }
           rehome(id, home);
         }
+        set({ lastRequestProjectId: home ?? existing.projectId ?? null });
         // PHASE 240. Compare is keyed by the file, so a second press lands
         // here. Its sides are the two versions AT THAT MOMENT, so they are
         // replaced rather than left: raising a tab holding a comparison from
@@ -694,7 +722,7 @@ export const useEditor = create<EditorState>((set, get) => {
           });
         }
         get().activate(id);
-        if (req.preview === false || redoubled) get().pin(id);
+        if (willPin) get().pin(id);
         // Rule (b). This path used to only raise the tab, which is exactly
         // right for a tree click and exactly wrong for a search hit: the
         // second match in a file the first match opened would silently do
@@ -908,7 +936,11 @@ export const useEditor = create<EditorState>((set, get) => {
             }
           }
         }
-        return { tabs, ...focusPatch(s, projectId, tab.id, true) };
+        return {
+          tabs,
+          lastRequestProjectId: projectId,
+          ...focusPatch(s, projectId, tab.id, true)
+        };
       });
 
       if (
@@ -1263,8 +1295,10 @@ export const useEditor = create<EditorState>((set, get) => {
         s.lastRequest !== null &&
         // PHASE 260. ⌘E in a project with no tabs reopens the last file OF
         // THIS PROJECT, never another project's, which would switch projects
-        // under a gesture that only asked for the panel.
-        projectOf(s.lastRequest) === s.projectId
+        // under a gesture that only asked for the panel. The question is
+        // which project the request LANDED in, recorded when it did; see
+        // `lastRequestProjectId` for why it is not re-asked here.
+        s.lastRequestProjectId === s.projectId
       ) {
         s.openFromRequest(s.lastRequest);
       }
@@ -1344,7 +1378,11 @@ export const useEditor = create<EditorState>((set, get) => {
         activeId,
         panelOpen,
         activeIdByProject,
-        panelOpenByProject
+        panelOpenByProject,
+        // The null strip's last request joins the project with its tabs.
+        ...(adopt && s.lastRequestProjectId === null
+          ? { lastRequestProjectId: projectId }
+          : {})
       });
     }
   };
