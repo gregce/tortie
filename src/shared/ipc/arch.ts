@@ -331,6 +331,31 @@ export interface ArchPassRunFace {
   /** How many parts the answer enriched. */
   components: number | null;
   /**
+   * PHASE 259 FIX ROUND. What the ask cost and what it produced, because the
+   * measurement record reads exactly these five off this shape and every one
+   * of them was absent: `readAsk` in build/p259/measure-semantic.mjs recorded
+   * `null` for all five on every ask of the run of 2026-09-12, and `totalsOf`
+   * then summed `claims: 0` for a run that kept 90 claims and 199 citations.
+   * A number that reads as a measurement and is not one is worse than no
+   * column, so they are answered here instead.
+   *
+   * `costUsd` is what the CLI itself reported and is null when it reports
+   * none, which codex does; a zero would read as free.
+   */
+  costUsd: number | null;
+  /** The composed prompt's own bytes, under the cap the runner applied. */
+  promptBytes: number | null;
+  /** The answer's bytes as they arrived, before anything was kept. */
+  answerBytes: number | null;
+  /**
+   * How many rows the answer left standing: seven claims and their gates, or
+   * every step of every journey. Null on the contract pass, which counts
+   * `components` instead.
+   */
+  claims: number | null;
+  /** How many rows R2 or R4 dropped whole. Null on the contract pass. */
+  rowsDropped: number | null;
+  /**
    * The model's explicit regroup suggestions, plain sentences. They land on
    * the run's face and are NEVER written to `docs/arch/`.
    */

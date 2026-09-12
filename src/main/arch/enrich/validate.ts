@@ -90,8 +90,13 @@ import {
   validateContract,
   validateEdges
 } from '../validate';
-import { ARCH_CITE_MAX_WHY, gradeCite, type ArchGradeSources } from '../semantic/grade';
-import { droppedRowSentence } from '../semantic/sentences';
+import {
+  ARCH_CITE_MAX_WHY,
+  gradeCite,
+  parseCiteAt,
+  type ArchGradeSources
+} from '../semantic/grade';
+import { droppedRowSentence, type DroppedCiteWhy } from '../semantic/sentences';
 import {
   ARCH_SEMANTIC_ANSWER_MAX_BYTES,
   ARCH_SEMANTIC_MAX_CITES,
@@ -622,6 +627,28 @@ export function validateArchAnswer(
 //      the substring form is measurably wrong and a looser rule on the older
 //      pass is not a feature.
 //
+//  R4  a citation naming a file the FACTS BLOCK NEVER HANDED OVER refuses its
+//      ROW whole, through R2's own mechanism and with its own sentence. R2
+//      asks whether a line EXISTS and R4 asks whether the answer could have
+//      COPIED it, which are different questions with different holes: the
+//      Phase 259 fix round measured a citation into ANOTHER PART'S BOX kept
+//      with a green `declaration` chip, because the file is real, the line is
+//      real and a declaration sits near it. The ask is per part and the block
+//      is one part's own rows plus its own sampled file names, so a path
+//      outside it was composed rather than copied, and a composed location is
+//      the one thing the grader cannot see: it grades WHERE a model pointed
+//      and every other rule in this file trusts that the pointing was a copy.
+//      The rule is asked of the PATH and never of the line, because the line
+//      is what the grader's slack is for.
+//
+//      IT IS DERIVED FROM THE BLOCK'S OWN BYTES, the way R3's token set is,
+//      rather than from a parallel list the composer hands over: what bounds
+//      the answer is what the model was SHOWN, and a second list could fall
+//      out of step with the first. Measured over the reading of 2026-09-12,
+//      all 199 kept citations name a file the block handed over and 199 of
+//      them copy a fact line's own number exactly, so the rule costs that
+//      reading nothing.
+//
 // THE DIGIT RULE NEVER READS A CITATION. `at` carries a line number, which is
 // a digit run, and it is graded by the grammar and the resolution instead.
 
@@ -661,6 +688,48 @@ const SEMANTIC_ID_RE = new RegExp(ARCH_ID_PATTERN);
 
 /** A control character anywhere in a prose field. */
 const PROSE_CONTROL_RE = /[\u0000-\u001f\u007f]/;
+
+/**
+ * An opening or closing tag anywhere in a prose field.
+ *
+ * The instruction already says never to write markdown and never to quote
+ * code; this is that instruction made a refusal. A sentence carrying
+ * `<img src=x onerror=...>` cannot reach the DOM as HTML — React draws every
+ * one of these as a text node and `arch-view.test.ts` scans the whole folder
+ * for a `dangerouslySetInnerHTML` — so this is the SECOND fence rather than
+ * the only one, and it is here because a face that draws a model's angle
+ * brackets verbatim is already drawing something nobody asked for. Measured
+ * over the reading of 2026-09-12: 0 of its 330 model-written strings carry
+ * one.
+ */
+const PROSE_MARKUP_RE = /<\/?[a-zA-Z]/;
+
+/**
+ * Every file path the composed block handed over, being the only paths a
+ * citation may name (R4).
+ *
+ * Two shapes, and they are the composer's own two: a fact line ends
+ * `... at <path>:<line>`, and a sampled FILES entry is two spaces and a path
+ * on a line of its own. Everything else the block writes carries a space in
+ * its tail — a crossing line, an honest zero, a summary line — so neither
+ * shape can match it. A path holds no whitespace and no colon, which is the
+ * same grammar {@link parseCiteAt} enforces.
+ */
+export function citablePaths(factBlock: string): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const line of factBlock.split('\n')) {
+    const fact = / at ([^\s:]+):[0-9]{1,7}$/.exec(line);
+    if (fact !== null) {
+      out.add(fact[1] ?? '');
+      continue;
+    }
+    const file = /^ {2}([^\s:]+)$/.exec(line);
+    const path = file?.[1] ?? '';
+    if (path.includes('/') || path.includes('.')) out.add(path);
+  }
+  out.delete('');
+  return out;
+}
 
 /** What the semantic answer is judged against. */
 export interface ArchSemanticContext {
@@ -730,16 +799,20 @@ export function validateArchSemanticAnswer(
   const invented = inventedNumber(top, tokens);
   if (invented !== null) return refuseWhole('invented-number', invented);
 
+  // R4's set, derived from the same bytes R3's token set is derived from.
+  const citable = citablePaths(context.factBlock);
+
   return context.kind === 'part'
-    ? keepSemanticPart(top, context, refuseWhole)
-    : keepSemanticJourneys(top, context, refuseWhole);
+    ? keepSemanticPart(top, context, refuseWhole, citable)
+    : keepSemanticJourneys(top, context, refuseWhole, citable);
 }
 
 /** The PART answer: seven claims, some gates, and R2 over both. */
 function keepSemanticPart(
   top: Record<string, unknown>,
   context: ArchSemanticContext,
-  refuseWhole: (refusal: ArchSemanticRefusal, detail: string) => ArchSemanticValidation
+  refuseWhole: (refusal: ArchSemanticRefusal, detail: string) => ArchSemanticValidation,
+  citable: ReadonlySet<string>
 ): ArchSemanticValidation {
   if (top['part'] !== context.partId) {
     return refuseWhole(
@@ -834,24 +907,24 @@ function keepSemanticPart(
   // that does not is dropped whole.
   let rowsDropped = 0;
   let dropped: string | null = null;
-  const note = (where: string, at: string): void => {
+  const note = (where: string, broken: BrokenCite): void => {
     rowsDropped += 1;
-    if (dropped === null) dropped = droppedRowSentence(where, at);
+    if (dropped === null) dropped = droppedRowSentence(where, broken.at, broken.why);
   };
   const keptClaims: KeptClaim[] = [];
   for (const claim of claims) {
-    const cites = gradeSemanticRow(claim.facts, context.grade);
+    const cites = gradeSemanticRow(claim.facts, context.grade, citable);
     if (cites === null) {
-      note(`the ${claim.field} claim`, firstBrokenCite(claim.facts, context.grade));
+      note(`the ${claim.field} claim`, firstBrokenCite(claim.facts, context.grade, citable));
       continue;
     }
     keptClaims.push({ field: claim.field, text: claim.text, cites });
   }
   const keptGates: KeptGate[] = [];
   for (const gate of gates) {
-    const cites = gradeSemanticRow(gate.facts, context.grade);
+    const cites = gradeSemanticRow(gate.facts, context.grade, citable);
     if (cites === null) {
-      note(`the gate ${gate.id}`, firstBrokenCite(gate.facts, context.grade));
+      note(`the gate ${gate.id}`, firstBrokenCite(gate.facts, context.grade, citable));
       continue;
     }
     keptGates.push({
@@ -878,7 +951,8 @@ function keepSemanticPart(
 function keepSemanticJourneys(
   top: Record<string, unknown>,
   context: ArchSemanticContext,
-  refuseWhole: (refusal: ArchSemanticRefusal, detail: string) => ArchSemanticValidation
+  refuseWhole: (refusal: ArchSemanticRefusal, detail: string) => ArchSemanticValidation,
+  citable: ReadonlySet<string>
 ): ArchSemanticValidation {
   const raw = top['journeys'];
   if (!Array.isArray(raw)) return refuseWhole('bad-shape', 'journeys must be a list');
@@ -954,13 +1028,15 @@ function keepSemanticJourneys(
   for (const journey of journeys) {
     const steps: KeptJourney['steps'] = [];
     for (const [at, step] of journey.steps.entries()) {
-      const cites = gradeSemanticRow(step.facts, context.grade);
+      const cites = gradeSemanticRow(step.facts, context.grade, citable);
       if (cites === null) {
+        const broken = firstBrokenCite(step.facts, context.grade, citable);
         rowsDropped += 1;
         if (dropped === null) {
           dropped = droppedRowSentence(
             `journey ${journey.id} step ${String(at + 1)}`,
-            firstBrokenCite(step.facts, context.grade)
+            broken.at,
+            broken.why
           );
         }
         continue;
@@ -985,15 +1061,23 @@ function keepSemanticJourneys(
 }
 
 /**
- * Grade one row's citations, or answer null when any of them does not resolve.
- * Null means the ROW is dropped whole (R2), never trimmed.
+ * Grade one row's citations, or answer null when any of them does not stand.
+ * Null means the ROW is dropped whole (R2 and R4), never trimmed.
+ *
+ * The two questions are asked in this order because they are about different
+ * things: R4 asks whether the answer could have COPIED this location at all,
+ * and R2 asks whether the line it copied is there. A path the block never
+ * handed over is refused even when the line behind it happens to resolve,
+ * which is the whole point of the rule.
  */
 function gradeSemanticRow(
   facts: readonly ArchSemanticCite[],
-  src: ArchGradeSources
+  src: ArchGradeSources,
+  citable: ReadonlySet<string>
 ): ArchCiteReading[] | null {
   const out: ArchCiteReading[] = [];
   for (const cite of facts) {
+    if (brokenCite(cite, src, citable) !== null) return null;
     const graded = gradeCite(cite, src);
     if (graded === null) return null;
     out.push(graded);
@@ -1001,12 +1085,37 @@ function gradeSemanticRow(
   return out;
 }
 
-/** The first citation of a row that did not resolve, for the sentence. */
-function firstBrokenCite(facts: readonly ArchSemanticCite[], src: ArchGradeSources): string {
-  for (const cite of facts) {
-    if (gradeCite(cite, src) === null) return cite.at;
+/** One citation that could not stand, and which rule stopped it. */
+interface BrokenCite {
+  at: string;
+  why: DroppedCiteWhy;
+}
+
+/** Why this one citation cannot stand, or null when it can. */
+function brokenCite(
+  cite: ArchSemanticCite,
+  src: ArchGradeSources,
+  citable: ReadonlySet<string>
+): BrokenCite | null {
+  const parsed = parseCiteAt(cite.at);
+  if (parsed !== null && !citable.has(parsed.relPath)) {
+    return { at: cite.at, why: 'not-handed' };
   }
-  return '';
+  if (gradeCite(cite, src) === null) return { at: cite.at, why: 'unresolved' };
+  return null;
+}
+
+/** The first citation of a row that did not stand, for the sentence. */
+function firstBrokenCite(
+  facts: readonly ArchSemanticCite[],
+  src: ArchGradeSources,
+  citable: ReadonlySet<string>
+): BrokenCite {
+  for (const cite of facts) {
+    const broken = brokenCite(cite, src, citable);
+    if (broken !== null) return broken;
+  }
+  return { at: '', why: 'unresolved' };
 }
 
 /**
@@ -1079,12 +1188,13 @@ function inventedNumber(value: unknown, tokens: ReadonlySet<string>): string | n
   return walk(value, null, 'the answer');
 }
 
-/** A bounded plain sentence, or null. */
+/** A bounded plain sentence with no control character and no markup, or null. */
 function plainSemanticText(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null;
   const text = value.trim();
   if (text.length === 0 || text.length > max) return null;
   if (PROSE_CONTROL_RE.test(text)) return null;
+  if (PROSE_MARKUP_RE.test(text)) return null;
   return text;
 }
 

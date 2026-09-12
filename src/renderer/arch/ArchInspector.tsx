@@ -56,7 +56,9 @@ import {
   archFilesWord,
   archGatesWord,
   archKindWord,
-  archTestsSentence
+  archTestsSentence,
+  ARCH_INSPECT_READING,
+  ARCH_PART_NOT_READ
 } from './copy';
 import { FactDisclosure } from './ArchFactRows';
 import { ClaimBody, ReadBy } from './ArchClaim';
@@ -144,7 +146,8 @@ export function ArchInspector({
   scope,
   onOpen,
   onGates,
-  reading = null
+  reading = null,
+  repoRead = false
 }: {
   repoKey: string | null;
   /** The selected box, or null with nothing selected. */
@@ -162,6 +165,13 @@ export function ArchInspector({
    * read it. Every row it feeds is absent rather than empty without it.
    */
   reading?: ArchPartReading | null;
+  /**
+   * True when SOMETHING has read this repository. With it true and `reading`
+   * null the inspector says so in one line, because every model row is absent
+   * by design and a part nobody reached would otherwise look like a part with
+   * nothing to say.
+   */
+  repoRead?: boolean;
 }): React.JSX.Element {
   if (group === null) {
     return (
@@ -296,6 +306,12 @@ export function ArchInspector({
             ? ARCH_INSPECT_NOTHING
             : archTestsSentence(rungReading.tested, rungReading.parsed)}
         </dd>
+        {repoRead && (reading === null || reading.claims.length === 0) ? (
+          <>
+            <dt>{ARCH_INSPECT_READING}</dt>
+            <dd data-field="reading">{ARCH_PART_NOT_READ}</dd>
+          </>
+        ) : null}
         <dt>{ARCH_INSPECT_RUNG}</dt>
         <dd data-field="rung">
           {face === null || rungReading === undefined ? (

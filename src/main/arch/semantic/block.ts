@@ -79,6 +79,26 @@ export const ARCH_SEMANTIC_CATEGORIES: readonly ArchFactCategory[] =
 const JOURNEY_KINDS_PER_PART = 6;
 
 /**
+ * Fact lines the journey ask carries FOR EACH PART, so a step can cite.
+ *
+ * THE PHASE 259 FIX ROUND ADDED THESE AND THE REASON IS A MEASURED RUN THAT
+ * COULD NOT SUCCEED. The journey instruction says every step names a fact
+ * written `path:line` and copied EXACTLY from a line of the FACTS section, and
+ * the block it was handed carried no path at all: a summary line per part and
+ * the crossings between them, with not one citable location anywhere in it. So
+ * the ask was impossible by construction, and the reading of 2026-09-12 shows
+ * exactly that — `journeys-all` refused `no-row-stood`, every step's citation
+ * having been composed out of nothing and then refused by the grader.
+ *
+ * Six per part keeps the block inside its 160 line budget over this
+ * repository's nine boxes (9 summaries, 9 headers, 54 fact lines, the
+ * crossings and the two headings) and it is a SPREAD over the categories
+ * rather than the first six of one, so a journey about what runs and what it
+ * reaches has both in front of it.
+ */
+const JOURNEY_FACTS_PER_PART = 6;
+
+/**
  * How many crossing lines one part's block may carry.
  *
  * The quiet boundaries are drawn as ZEROES (see {@link partCrossings}), which
@@ -372,17 +392,85 @@ export function journeyFactsBlock(
     );
     spent += 1;
   }
+  // The citable half, reserved BEFORE the crossings so a repository with many
+  // crossings cannot spend the budget that makes the ask answerable at all,
+  // and BOUNDED by the same budget so a repository with many parts cannot
+  // spend the cap: the composer shrinks this ask by shrinking `lineBudget`,
+  // and a section that ignored it would be a section the cap cannot reach.
+  // Half of what the summaries left, so the crossings keep the other half.
+  const samples = new Map<string, SubjectRow[]>();
+  const sampleBudget = Math.max(0, Math.floor((lineBudget - spent) / 2));
+  let reserved = sampleBudget === 0 ? 0 : 1;
+  for (const part of parts) {
+    // A header and at least one line, or this part is not sampled at all.
+    if (reserved + 2 > sampleBudget) break;
+    const take = Math.min(JOURNEY_FACTS_PER_PART, sampleBudget - reserved - 1);
+    const rows = journeySample(input, part, take);
+    if (rows.length === 0) continue;
+    samples.set(part.id, rows);
+    reserved += rows.length + 1;
+  }
+  if (samples.size === 0) reserved = 0;
+
   lines.push('imports between parts:');
   const known = new Set(parts.map((part) => part.id));
   const crossings = [...input.crossings]
     .filter((edge) => known.has(edge.from) && known.has(edge.to) && edge.from !== edge.to)
     .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : 1));
   if (crossings.length === 0) lines.push('  none resolved');
-  for (const edge of crossings.slice(0, Math.max(0, lineBudget - spent))) {
+  for (const edge of crossings.slice(0, Math.max(0, lineBudget - spent - reserved))) {
     lines.push(`  ${edge.from} imports ${edge.to}: ${String(edge.count)} ${plural(edge.count)}`);
+  }
+
+  // Every line here is one a step may copy, in the part block's own form, so
+  // the grader's resolution is a copy rather than a guess on this ask too.
+  if (samples.size > 0) {
+    lines.push('lines you may cite:');
+    for (const part of parts) {
+      const rows = samples.get(part.id);
+      if (rows === undefined) continue;
+      lines.push(`part ${part.id}:`);
+      for (const row of rows) {
+        lines.push(`  ${row.kind} ${row.subject} at ${row.file}:${String(row.line)}`);
+      }
+    }
   }
   lines.push('END FACTS');
   return lines.join('\n');
+}
+
+/**
+ * A few of one part's own fact lines, spread over the categories.
+ *
+ * Round robin in the shared category order, so a part whose `boundary` rows
+ * outnumber everything else still shows its entrypoint and its store. The
+ * ordering inside a category is `distinctSubjects`'s own total order, so
+ * reversing the input rows samples the same lines and the block stays byte
+ * identical, which is what the same-input-hash refusal rests on.
+ */
+function journeySample(
+  input: ArchSemanticFactInput,
+  part: ArchSemanticPart,
+  take: number
+): SubjectRow[] {
+  const owned = new Set(part.files);
+  const rows = distinctSubjects(input.facts.filter((fact) => owned.has(fact.file)));
+  const byCategory = ARCH_SEMANTIC_CATEGORIES.map((category) =>
+    rows.filter((row) => row.category === category)
+  );
+  const out: SubjectRow[] = [];
+  for (let at = 0; out.length < take; at += 1) {
+    let moved = false;
+    for (const list of byCategory) {
+      const row = list[at];
+      if (row === undefined) continue;
+      moved = true;
+      out.push(row);
+      if (out.length >= take) break;
+    }
+    if (!moved) break;
+  }
+  return out;
 }
 
 /**

@@ -204,10 +204,10 @@ describe('the rate', () => {
     const rate = computeRate({
       scope: 'repo',
       cites: [
-        { claimId: 'g:a:one', grade: 'call-site', gate: true },
-        { claimId: 'g:a:one', grade: 'gate', gate: true },
-        { claimId: 'g:a:two', grade: 'declaration', gate: true },
-        { claimId: 'p:a:does', grade: 'resolves', gate: false }
+        { claimId: 'g:a:one', relPath: 'a.ts', line: 10, grade: 'call-site', gate: true },
+        { claimId: 'g:a:one', relPath: 'a.ts', line: 20, grade: 'gate', gate: true },
+        { claimId: 'g:a:two', relPath: 'b.ts', line: 30, grade: 'declaration', gate: true },
+        { claimId: 'p:a:does', relPath: 'c.ts', line: 40, grade: 'resolves', gate: false }
       ],
       floor: { within: 21, lines: 100, byGrade: { gate: 7, 'call-site': 7, declaration: 7, resolves: 79 } }
     });
@@ -220,5 +220,32 @@ describe('the rate', () => {
     expect(rate.gateShaped).toBe(1);
     expect(rate.floorWithin).toBe(21);
     expect(rate.floorLines).toBe(100);
+  });
+
+  // PHASE 259 FIX ROUND. The rate's denominator is the FLOOR's denominator:
+  // one place in the repository, counted once. Six copies of one backed line
+  // beside one unbacked line read 6 of 7 before this, which is a six fold
+  // lift over the null model manufactured out of one real fact.
+  it('counts a line once however many times it is cited', () => {
+    const floor = {
+      within: 25,
+      lines: 100,
+      byGrade: { gate: 5, 'call-site': 10, declaration: 10, resolves: 75 }
+    };
+    const six = Array.from({ length: 6 }, (_, seq) => ({
+      claimId: `p:a:does#${String(seq)}`,
+      relPath: 'a.ts',
+      line: 10,
+      grade: 'call-site' as const,
+      gate: false
+    }));
+    const rate = computeRate({
+      scope: 'repo',
+      cites: [...six, { claimId: 'p:a:limit', relPath: 'a.ts', line: 90, grade: 'resolves' as const, gate: false }],
+      floor
+    });
+    expect(rate.total).toBe(2);
+    expect(rate.backed).toBe(1);
+    expect(rate.byGrade['call-site']).toBe(1);
   });
 });

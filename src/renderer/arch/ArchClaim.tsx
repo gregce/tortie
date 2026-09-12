@@ -11,7 +11,8 @@
  * ## WHAT IS NEVER DRAWN
  *
  * No verdict about the sentence. `cite.ts`'s header has the whole reason: this
- * product's refusals catch 3 of 7 planted lies, measured by
+ * product's refusals catch 5 of 7 planted lies, two of them by the citation
+ * rather than by the claim, measured by
  * `conformance:semantic` rule 7 rather than inherited from research 118's own
  * checker, so a chip is attribution and a hover says a fact was found at a
  * line. The agent's name is drawn as

@@ -132,6 +132,13 @@ function need(mod: AnyModule | null, name: string, rel: string, missing: string[
   return mod[name];
 }
 
+/** One refresh answer as three numbers, which is what the gate pins. */
+function counts(one: unknown): [number, number, number] | null {
+  const r = one as { moved?: unknown[]; dead?: unknown[]; revived?: unknown[] } | null;
+  if (r === null || r === undefined) return null;
+  return [(r.moved ?? []).length, (r.dead ?? []).length, (r.revived ?? []).length];
+}
+
 /** Never let one rule's throw take the whole root down: a thrown rule is a reading. */
 function guard<T>(what: string, problems: string[], body: () => T): T | null {
   try {
@@ -147,6 +154,8 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
   const threw: string[] = [];
 
   const compose = await load(root, 'main/arch/enrich/compose.ts', missing);
+  const ratesMod = await load(root, 'main/arch/semantic/rates.ts', missing);
+  const driftMod = await load(root, 'main/arch/semantic/drift.ts', missing);
   const validate = await load(root, 'main/arch/enrich/validate.ts', missing);
   const blockMod = await load(root, 'main/arch/semantic/block.ts', missing);
   const gradeMod = await load(root, 'main/arch/semantic/grade.ts', missing);
@@ -169,6 +178,9 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
   const gradeCite = need(gradeMod, 'gradeCite', 'semantic/grade.ts', missing);
   const parseCiteAt = need(gradeMod, 'parseCiteAt', 'semantic/grade.ts', missing);
   const citeFloor = need(floorMod, 'citeFloor', 'semantic/floor.ts', missing);
+  const computeRate = need(ratesMod, 'computeRate', 'semantic/rates.ts', missing);
+  const refreshSemantic = need(driftMod, 'refreshSemantic', 'semantic/drift.ts', missing);
+  const citablePaths = need(validate, 'citablePaths', 'validate.ts', missing);
   const GRADES = need(shared, 'ARCH_CITE_GRADES', 'shared/arch.ts', missing);
   const SLACK = need(shared, 'ARCH_CITE_SLACK', 'shared/arch.ts', missing);
 
@@ -314,7 +326,33 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
   };
 
   // --- rule 3b: resolution opens no file -----------------------------------
+  //
+  // TWO HALVES, AND THE FIRST ONE IS THE REAL ONE. The seam below is a
+  // `sources` object with throwing file readers on it, and the grader never
+  // consults it: a grader that reached for `node:fs` directly would sail past
+  // it, which the Phase 259 fix round proved by putting a real `readFileSync`
+  // import and call into `gradeCite`'s own path and watching this whole gate
+  // stay green. So the module's TEXT is read too, in the ROOT being driven, so
+  // an ablation can plant exactly that import and turn a pin red.
   const resolvesWithoutOpening = gradeOne('src/main/arch/ipc.ts:20', THROWING);
+  const IMPURE = ['node:', 'child_process', 'require(', 'electron', 'readFileSync', 'readFile('];
+  const purity = ['main/arch/semantic/grade.ts', 'main/arch/semantic/floor.ts'].map((rel) => {
+    let text = '';
+    try {
+      text = readFileSync(join(root, rel), 'utf8');
+    } catch {
+      return { file: rel, read: false, names: ['the module could not be read'] };
+    }
+    // Comments and string bodies are blanked, so a module may EXPLAIN the
+    // hazard it refuses; the shipped headers of both files do exactly that.
+    const bare = text
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+      .replace(/'[^'\n]*'/g, "''")
+      .replace(/"[^"\n]*"/g, '""')
+      .replace(/`[^`]*`/g, '``');
+    return { file: rel, read: true, names: IMPURE.filter((name) => bare.includes(name)) };
+  });
 
   // --- rules 3d and 5a: the floor -----------------------------------------
   const floorFiles = [
@@ -389,6 +427,106 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
     caughtAsToken: planted.filter((n) => !decoyTokens.has(n)).length,
     caughtAsSubstring: planted.filter((n) => !decoyed.includes(n)).length,
     blockTokens: new Set(digitRuns(block)).size
+  };
+
+  // --- rule 4d: R4, a citation the block never handed over -----------------
+  //
+  // `src/renderer/arch/ArchMapTab.tsx` is TRACKED, is 300 lines long and
+  // carries a declaration at line 40, so every question R2 asks about it
+  // answers yes and the chip it earns is a green `declaration`. It is simply
+  // not in this part's box and so not in this part's block, which means the
+  // answer cannot have copied it. That is the shape the fix round measured
+  // kept: a claim about `src-main` citing a file in the renderer's box.
+  const OUT_OF_BLOCK = 'src/renderer/arch/ArchMapTab.tsx:40';
+  const outOfBlockAnswer = JSON.parse(JSON.stringify(ANSWERS.good));
+  outOfBlockAnswer.claims[2].facts = [{ at: OUT_OF_BLOCK, why: 'a line in another box' }];
+  const markupAnswer = JSON.parse(JSON.stringify(ANSWERS.good));
+  // No digit anywhere in it, or R3 refuses it first and R4's neighbour rule
+  // would be measured by nothing.
+  markupAnswer.claims[2].text = 'It draws <img src=x onerror=alert(x)> for every row.';
+  const bracketAnswer = JSON.parse(JSON.stringify(ANSWERS.good));
+  bracketAnswer.claims[2].text = 'It stops when a < b is not so.';
+  const r4 = {
+    // The citation resolves and grades, which is what makes this rule's own.
+    gradesOnItsOwn: gradeOne(OUT_OF_BLOCK),
+    inTheBlock: citablePaths === undefined ? null : [...citablePaths(block)].length,
+    // `src/main/symbols/pool.ts` is in the box and carries a DECLARATION and
+    // no fact, so it reaches the block through the FILES section alone: it is
+    // what tells the two shapes of the citable set apart.
+    namesAFileWithNoFact:
+      citablePaths === undefined ? null : citablePaths(block).has('src/main/symbols/pool.ts'),
+    journeyCitable:
+      citablePaths === undefined
+        ? null
+        : [...citablePaths(String(journeyComposed?.factBlock ?? ''))].length,
+    namesTheBoxFile:
+      citablePaths === undefined ? null : citablePaths(block).has('src/main/arch/ipc.ts'),
+    namesTheOtherBox:
+      citablePaths === undefined
+        ? null
+        : citablePaths(block).has('src/renderer/arch/ArchMapTab.tsx'),
+    dropped: ruleOn('r4', outOfBlockAnswer),
+    markup: ruleOn('markup', markupAnswer),
+    bracket: ruleOn('bracket', bracketAnswer)
+  };
+
+  // --- rule 5c: the rate counts a LINE once --------------------------------
+  const rateFloor = { within: 25, lines: 100, byGrade: { gate: 5, 'call-site': 10, declaration: 10, resolves: 75 } };
+  const rateCites = [
+    ...Array.from({ length: 6 }, (_unused, seq) => ({
+      claimId: `p:a:does#${String(seq)}`,
+      relPath: 'src/main/arch/ipc.ts',
+      line: 20,
+      grade: 'call-site',
+      gate: false
+    })),
+    { claimId: 'p:a:limit', relPath: 'src/main/arch/ipc.ts', line: 90, grade: 'resolves', gate: false }
+  ];
+  const rate = guard('the rate over six copies of one line', threw, () =>
+    computeRate({ scope: 'repo', cites: rateCites, floor: rateFloor })
+  );
+
+  // --- rules 8a to 8d: what stale MEANS ------------------------------------
+  const stored = (over: Record<string, unknown>): Record<string, unknown> => ({
+    claimId: 'p:a:does',
+    seq: 0,
+    relPath: 'src/main/arch/ipc.ts',
+    line: 20,
+    blobOid: 'oid-one',
+    factKind: 'ipc-channel',
+    factSubject: 'arch:map',
+    grade: 'call-site',
+    dead: false,
+    ...over
+  });
+  const rowsIn = (rows: { kind: string; subject: string; line: number }[]) => ({
+    oidOf: (): string => 'oid-two',
+    rowsIn: (): { kind: string; subject: string; line: number }[] => rows
+  });
+  const refresh = {
+    // 8a: the oid did not move, so nothing is read and nothing changes.
+    unchanged: guard('the refresh over an unchanged file', threw, () =>
+      refreshSemantic([stored({})], { oidOf: (): string => 'oid-one', rowsIn: (): any[] => [] })
+    ),
+    // 8b: the oid moved and the row is still there, one line lower.
+    moved: guard('the refresh over a row that moved', threw, () =>
+      refreshSemantic([stored({})], rowsIn([{ kind: 'ipc-channel', subject: 'arch:map', line: 31 }]))
+    ),
+    // 8c: the oid moved and the row is gone: the claim turns stale.
+    died: guard('the refresh over a row that went', threw, () =>
+      refreshSemantic([stored({})], rowsIn([{ kind: 'ipc-channel', subject: 'arch:other', line: 31 }]))
+    ),
+    // 8d: the file is not tracked at all.
+    untracked: guard('the refresh over a file that went', threw, () =>
+      refreshSemantic([stored({})], { oidOf: (): null => null, rowsIn: (): any[] => [] })
+    ),
+    // And a dead citation whose row came back stands again.
+    revived: guard('the refresh over a row that came back', threw, () =>
+      refreshSemantic(
+        [stored({ dead: true })],
+        rowsIn([{ kind: 'ipc-channel', subject: 'arch:map', line: 31 }])
+      )
+    )
   };
 
   // --- rule 7: the seven planted lies against the SHIPPING refusals --------
@@ -466,6 +604,19 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
     },
     grammar,
     resolvesWithoutOpening,
+    purity,
+    r4,
+    rate,
+    refresh: {
+      unchanged: counts(refresh.unchanged),
+      moved: counts(refresh.moved),
+      movedTo: (refresh.moved as any)?.moved?.[0]?.line ?? null,
+      died: counts(refresh.died),
+      diedReason: String((refresh.died as any)?.dead?.[0]?.reason ?? ''),
+      untracked: counts(refresh.untracked),
+      untrackedReason: String((refresh.untracked as any)?.dead?.[0]?.reason ?? ''),
+      revived: counts(refresh.revived)
+    },
     ladder,
     floor,
     floorOverCited,

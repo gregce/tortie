@@ -698,6 +698,7 @@ export function ArchMapTabBody({
                 ? null
                 : (semantic.parts.find((p) => p.id === inspectId) ?? null)
             }
+            repoRead={semantic !== null && semantic.readAt !== null}
             onOpen={
               inspectId !== null && handlers.openPart !== undefined
                 ? () => handlers.openPart?.(inspectId)

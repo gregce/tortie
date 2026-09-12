@@ -1022,6 +1022,17 @@ export const CHECKS = [
   // run: it drives the same chain and reads the refusal back, spawning no
   // agent and spending nothing. `--self-test` launches nothing at all.
   electron('measure:semantic'),
+  // PHASE 259 FIX ROUND. The APP RUN the phase shipped without. One Electron
+  // on a scratch profile with a scratch HOME, over a repository it builds
+  // itself, drives the deterministic pass, the `arch:enrich` channel under a
+  // part scope and under the journeys scope, and reads the two new views off
+  // the LIVE DOM: the numbered steps, the chips and their grades, the rate
+  // beside its floor, the gates worksheet, and a claim made STALE by an edit
+  // from outside. It spends NOTHING: GMUX_FOLD_BIN points the fold at a stub
+  // that answers out of the prompt it was handed, so the citations are real
+  // lines of that repository and the grader really grades them. `--self-test`
+  // launches nothing.
+  electron('probe:p259'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the

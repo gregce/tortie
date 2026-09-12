@@ -26,6 +26,9 @@ import type { ArchCiteFloor } from './floor';
 /** One citation as the rate counts it. */
 export interface RateCite {
   claimId: string;
+  /** Where it points. The rate counts each distinct line once. */
+  relPath: string;
+  line: number;
   grade: ArchCiteGrade;
   /** True when the claim it belongs to is a GATE claim. */
   gate: boolean;
@@ -34,11 +37,26 @@ export interface RateCite {
 /**
  * Count one scope's backing beside the floor over the files it cites.
  *
- * `backed` is every citation whose grade is not `resolves`, which is the same
- * question the floor's `within` answers about a line picked at random, so the
- * two are directly comparable. `gateShaped` asks the whole citation SET of
- * each gate claim rather than its first row, which is the correction research
- * 118 §6.4 made to its own first writing.
+ * `backed` is every DISTINCT cited line whose grade is not `resolves`, which
+ * is the same question the floor's `within` answers about a line picked at
+ * random, so the two are directly comparable. `gateShaped` asks the whole
+ * citation SET of each gate claim rather than its first row, which is the
+ * correction research 118 §6.4 made to its own first writing.
+ *
+ * ## THE LINE IS COUNTED ONCE, AND THE PHASE 259 FIX ROUND IS WHY
+ *
+ * The first writing counted CITATIONS while the floor counted LINES, and the
+ * two denominators are not the same denominator. The verifier's own plant
+ * measured what that buys: one real backed line cited once reads
+ * `1 of 2 backed` beside a chance share of about a quarter, and THE SAME LINE
+ * CITED SIX TIMES reads `6 of 7 backed` beside the same share, because every
+ * copy dilutes the one citation that was not backed. A reading could then
+ * manufacture a six fold lift over the null model out of one real fact, and
+ * the lift over that model is the whole number this phase exists to publish.
+ * So the rate asks of each distinct `(file, line)` exactly what the floor asks
+ * of each line, once, and repetition is worth nothing. A line cited by two
+ * different claims is still one line: it is one place in the repository, and
+ * the floor's question is about places.
  */
 export function computeRate(input: {
   scope: string;
@@ -47,7 +65,14 @@ export function computeRate(input: {
 }): ArchRateReading {
   const byGrade = emptyGradeTally();
   let backed = 0;
+  let total = 0;
+  const counted = new Set<string>();
   for (const cite of input.cites) {
+    // JSON rather than a separator, because a path may hold any character.
+    const where = JSON.stringify([cite.relPath, cite.line]);
+    if (counted.has(where)) continue;
+    counted.add(where);
+    total += 1;
     byGrade[cite.grade] += 1;
     if (isBacked(cite.grade)) backed += 1;
   }
@@ -61,7 +86,7 @@ export function computeRate(input: {
   return {
     scope: input.scope,
     backed,
-    total: input.cites.length,
+    total,
     floorWithin: input.floor.within,
     floorLines: input.floor.lines,
     byGrade,

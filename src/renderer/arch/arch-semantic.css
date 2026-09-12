@@ -104,6 +104,15 @@ button.arch-cite:focus-visible {
   min-width: 0;
 }
 
+/* One quiet line where a part inside a read repository was not reached. It is
+ * the muted token the inspector's own metadata already uses, so an absence
+ * never draws louder than the sentences beside it. */
+.arch-gates-not-read {
+  margin: 0 0 var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 /* -- nothing has read this repository -------------------------------------- */
 
 .arch-no-reading {

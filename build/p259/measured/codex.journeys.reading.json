@@ -1,0 +1,114 @@
+{
+  "cwd": "/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p259-measure-84883/repos/tortie",
+  "parts": [],
+  "journeys": [
+    {
+      "journeyId": "jobs",
+      "name": "Request action jobs through IPC",
+      "source": "model",
+      "agentId": "codex",
+      "steps": [
+        {
+          "seq": 1,
+          "partId": "src-preload",
+          "label": "Start at the preload module root",
+          "cites": [
+            {
+              "at": "src/preload/index.ts:1",
+              "why": "Identifies the preload module root.",
+              "relPath": "src/preload/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/preload/index.ts",
+              "factLine": 1,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null
+        },
+        {
+          "seq": 2,
+          "partId": "src-preload",
+          "label": "Call the action jobs IPC channel",
+          "cites": [
+            {
+              "at": "src/preload/actions.ts:18",
+              "why": "The preload calls the action jobs IPC channel.",
+              "relPath": "src/preload/actions.ts",
+              "line": 18,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls actions:jobs",
+              "factLine": 18,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null
+        },
+        {
+          "seq": 3,
+          "partId": "src-main",
+          "label": "Serve the action jobs IPC channel",
+          "cites": [
+            {
+              "at": "src/main/actions/ipc.ts:29",
+              "why": "The main process serves the same action jobs IPC channel.",
+              "relPath": "src/main/actions/ipc.ts",
+              "line": 29,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves actions:jobs",
+              "factLine": 29,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null
+        }
+      ]
+    }
+  ],
+  "gates": [],
+  "rates": [
+    {
+      "scope": "repo",
+      "backed": 3,
+      "total": 3,
+      "floorWithin": 153,
+      "floorLines": 330,
+      "byGrade": {
+        "gate": 0,
+        "call-site": 3,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 0,
+        "call-site": 105,
+        "declaration": 48,
+        "resolves": 177
+      },
+      "gateShaped": 0,
+      "gateClaims": 0,
+      "computedAt": 1789244374029
+    }
+  ],
+  "runs": [
+    {
+      "runId": "1789244363375-journeys-all",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": null,
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 10638,
+      "claims": 3,
+      "rowsDropped": 0,
+      "startedAt": 1789244363375
+    }
+  ],
+  "readAt": 1789244363375
+}

@@ -730,6 +730,25 @@ const SEMANTIC_CLAUDE_DRAFT: FoldRecipeDraft = {
  * codex reports token counts and NO dollar figure, so a codex run's cost is
  * never recorded and never drawn. That is the CLI's limit rather than Tortie's
  * choice, and it is why the two recipes' cost columns are not comparable.
+ *
+ * ## A STATED LIMIT: THE WHOLE PROMPT IS ONE ARGV ELEMENT
+ *
+ * Every fold recipe hands its composed prompt to the child as an argument, so
+ * the FACTS block — real paths, real symbols and real line numbers, up to the
+ * 65,536 byte cap — sits on a command line any process on this machine can
+ * read with `ps`. That is Phase 138's shape and every row shares it; what the
+ * semantic asks change is the SIZE of what is on it, since a one sentence fold
+ * carried a few hundred bytes and a part ask carries about ten thousand.
+ *
+ * It is written down rather than fixed HERE, and the reason is the phase's own
+ * refusal: what is measured is what ships. `runGuarded` has carried a `stdin`
+ * seam since Phase 220 and moving a prompt onto it is a change to how every
+ * recipe's child is fed, which would make the shipped path a path nobody
+ * measured. Whoever moves it re-measures both recipes in the same commit, and
+ * the thing to check is not only that an answer still comes back: `codex exec`
+ * and `claude -p` each have their own spelling for reading a prompt from
+ * standard input, and a recipe that silently read an EMPTY prompt would still
+ * answer something.
  */
 const SEMANTIC_CODEX_DRAFT: FoldRecipeDraft = {
   agentId: 'codex',
@@ -776,24 +795,17 @@ function isMeasured(draft: FoldRecipeDraft): draft is FoldRecipe {
  * MEASURED OR DISABLED, MADE MECHANICAL. Nothing filters this by hand and no
  * row is commented out: a row the integrator did not measure is simply not
  * here, so `archSemanticRecipeFor` answers null and the offer joiner draws
- * `not-measured`. Today BOTH rows are drafts, so this table is EMPTY and the
- * semantic pass can spawn nothing at all until a measurement lands.
+ * `not-measured`. On 2026-09-12 the codex row carries a date and the claude
+ * row does not, so this table holds ONE row: a semantic ask under claude can
+ * spawn nothing at all, and the record beside the row says why (build/p259/
+ * measured/claude.json, which kept nothing).
  */
 const SEMANTIC_RECIPES: readonly FoldRecipe[] = SEMANTIC_DRAFTS.filter(isMeasured);
 
 /**
  * The row Settings preselects for the semantic pass when nothing has been
- * chosen. A suggestion only, and nothing is applied until a person picks a row.
- *
- * THE INTEGRATOR SETS THIS FROM THE MEASUREMENT, not from a preference: the
- * shipped default is whichever of the two recipes measured better against the
- * citation floor, the agreement with the hand pass and the blind sample, and
- * the reading that chose it is quoted beside this line in the same commit.
- * Until then it names claude, which is the agent this product has the most
- * measurements for.
- */
-/**
- * The row Settings preselects, and it is READ OFF THE MEASUREMENT.
+ * chosen, and it is READ OFF THE MEASUREMENT rather than off a preference. A
+ * suggestion only: nothing is applied until a person picks a row.
  *
  * On 2026-09-12 codex with `gpt-6-astra` is the only row that was measured at
  * all, so it is the default by the phase's own rule rather than by preference:
@@ -802,6 +814,19 @@ const SEMANTIC_RECIPES: readonly FoldRecipe[] = SEMANTIC_DRAFTS.filter(isMeasure
  * resolved AND landed within three lines of a real fact, 107 on a gate and 92
  * on a call site, with none on a declaration and none on a bare line, against
  * a chance floor of 3,520 of 34,116 lines for landing on either fact kind.
+ *
+ * TWO FLOORS ARE TRUE OF THAT READING AND THEY ANSWER DIFFERENT QUESTIONS, so
+ * neither may be quoted as the other. 3,520 of 34,116 is 10.32%, the share of
+ * lines within three of a FACT, and it is what the 9.7x above compares 199 of
+ * 199 against. The rate on the FACE asks the wider question its own word
+ * `backed` means, being within three of a row of ANY kind, declarations
+ * included, which is 9,572 of 34,116 or 28.06%, so the pane draws
+ * `199 of 199 backed · 56 of 199 would be by chance` and that is a 3.57x
+ * reading of the same answers. The per grade breakdown behind the hover is
+ * where the two meet: it draws each grade beside its OWN floor, so
+ * `declaration 0 · 35 of 199 by chance` is on the face beside
+ * `gate 107 · 7 of 199 by chance`, and a reader can see that the wider floor
+ * is almost entirely the declaration share nothing in this reading used.
  *
  * THE CLAUDE ROW IS UNMEASURED AND THEREFORE DISABLED, and the reason is not
  * that it answered badly: it never answered at all. Claude Code 2.1.269 can

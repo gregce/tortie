@@ -1,0 +1,41 @@
+{
+  "agentId": "codex",
+  "model": "gpt-6-astra",
+  "recipeVersion": 1,
+  "measuredOn": "2026-09-12",
+  "dryRun": false,
+  "stoppedEarly": null,
+  "cliVersion": "codex-cli 0.153.4",
+  "timeoutMs": null,
+  "asks": [
+    {
+      "scope": "journeys",
+      "partId": null,
+      "started": true,
+      "refusal": null,
+      "verdict": "kept",
+      "reason": null,
+      "detail": null,
+      "wallMs": 10621,
+      "costUsd": null,
+      "promptBytes": 5780,
+      "answerBytes": 579,
+      "claims": 3,
+      "rowsDropped": 0
+    }
+  ],
+  "totals": {
+    "asks": 1,
+    "started": 1,
+    "kept": 1,
+    "refused": 0,
+    "failed": 0,
+    "refusedBeforeSpawn": 0,
+    "wallMs": 10621,
+    "costUsd": null,
+    "promptBytes": 5780,
+    "answerBytes": 579,
+    "claims": 3,
+    "rowsDropped": 0
+  }
+}

@@ -13,7 +13,7 @@
  * 2.46x over chance and one dress for both hides the whole of that
  * difference. And no string this surface can draw may say anything stronger
  * than that a fact was found at a line, because the deterministic checker
- * refusals catch 3 of 7 planted lies, so a chip is attribution and never a
+ * refusals catch 5 of 7 planted lies, so a chip is attribution and never a
  * verdict.
  */
 
@@ -34,6 +34,9 @@ import type { ArchSemanticResult } from '../bridge';
 import {
   CITE_FACES,
   CITE_TONE_TOKEN,
+  CITE_WHY_PREFIX,
+  chanceOf,
+  citeAtChance,
   citeChanceCount,
   citeFace,
   citeFaceOf,
@@ -339,6 +342,24 @@ describe('no string here says anything stronger than a fact was found', () => {
     expect(/\bverified\b/i.test('this claim was verified')).toBe(true);
   });
 
+  // PHASE 259 FIX ROUND. The model's own `why` rides the same tooltip and is
+  // held to NO rule: a reading that wrote "this sentence is right" was drawn
+  // inside Tortie's own hover with nothing between the two halves. It is drawn
+  // LAST and under an attribution, so a person who reads one line reads ours.
+  it('attributes the model’s own reason and draws it last', () => {
+    const title = citeTitle(cite({ why: 'this sentence is right' }));
+    const lines = title.split('\n');
+    expect(lines[0]).toBe(CITE_FACES.gate.sentence);
+    expect(lines[lines.length - 1]).toBe(`${CITE_WHY_PREFIX} this sentence is right`);
+    expect(title.indexOf('refusal a write outside a project root')).toBeLessThan(
+      title.indexOf(CITE_WHY_PREFIX)
+    );
+  });
+
+  it('draws no attribution line at all when the reading gave no reason', () => {
+    expect(citeTitle(cite({ why: '' }))).not.toContain(CITE_WHY_PREFIX);
+  });
+
   it('says a fact was found at a LINE in every grade sentence', () => {
     for (const g of ARCH_CITE_GRADES) {
       expect(CITE_FACES[g].sentence).toMatch(/line/);
@@ -358,8 +379,41 @@ describe('a rate is never drawn without its floor', () => {
 
   it('puts the per grade breakdown and the gate shaped pair behind the hover', () => {
     const title = citeRateTitle(RATE);
-    expect(title).toContain('gate 0 · call 9 · declaration 15 · line only 17');
+    expect(title).toContain('gate 0');
+    expect(title).toContain('call 9');
+    expect(title).toContain('declaration 15');
+    expect(title).toContain('line only 17');
     expect(title).toContain('0 of 6 gates cite a gate');
+  });
+
+  // PHASE 259 FIX ROUND. `floorByGrade` was computed, stored, shipped and
+  // drawn NOWHERE, so the one surface that could say a declaration is common
+  // and a gate is rare said neither.
+  it('draws each grade beside its OWN floor', () => {
+    const title = citeRateTitle(RATE);
+    // 219 of 1000 lines are a declaration's, which over 41 citations is 9.
+    expect(title).toContain('declaration 15 · 9 of 41 by chance');
+    // 1 of 1000 is a gate's, which rounds to none over 41 and says so.
+    expect(title).toContain('gate 0 · under 1 of 41 by chance');
+  });
+
+  // A share that is not zero and rounds to zero said `0 of 2 would be by
+  // chance` over files where an eighth of every line is within the slack.
+  it('says under 1 rather than 0 when a share rounds away', () => {
+    expect(chanceOf(2, 0.1263)).toBe('under 1 of 2');
+    expect(chanceOf(2, 0)).toBe('0 of 2');
+    expect(chanceOf(41, 0.238)).toBe('10 of 41');
+  });
+
+  // The two halves are always on the face; nothing said which won.
+  it('marks a reading that did not beat its own floor', () => {
+    const tie: ArchRateReading = { ...RATE, backed: 10 };
+    expect(citeAtChance(tie)).toBe(true);
+    expect(citeRate(tie)).toContain('no better than chance');
+    expect(citeAtChance(RATE)).toBe(false);
+    expect(citeRate(RATE)).not.toContain('no better than chance');
+    // An empty scope is not a reading that lost.
+    expect(citeAtChance({ ...RATE, backed: 0, total: 0 })).toBe(false);
   });
 
   it('draws both halves into the markup, so the probe can read either', () => {

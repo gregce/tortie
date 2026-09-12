@@ -35,7 +35,23 @@ export const ARCH_SEMANTIC_REFUSAL_REASONS: Readonly<
     'Every sentence in the answer cited a line that is not there, so none of it was kept.'
 };
 
+/**
+ * Why one citation could not stand. `unresolved` is R2's own reason, being a
+ * line the repository does not have; `not-handed` is R4's, being a file the
+ * FACTS block never named, which is a location the answer cannot have copied
+ * and must therefore have composed.
+ */
+export type DroppedCiteWhy = 'unresolved' | 'not-handed';
+
 /** The sentence for one dropped ROW, naming the citation that broke it. */
-export function droppedRowSentence(where: string, at: string): string {
-  return `${where} cites ${at}, which is not a line of this repository, so that sentence was not kept.`;
+export function droppedRowSentence(
+  where: string,
+  at: string,
+  why: DroppedCiteWhy = 'unresolved'
+): string {
+  const because =
+    why === 'not-handed'
+      ? 'which is not a file the facts named'
+      : 'which is not a line of this repository';
+  return `${where} cites ${at}, ${because}, so that sentence was not kept.`;
 }

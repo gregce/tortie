@@ -147,8 +147,19 @@ export function letters(agents: readonly string[], salt: string): Record<string,
   return out;
 }
 
-/** The claims a reading holds, flattened out of its parts, gates and journeys. */
-function claimsOf(reading: any): Claim[] {
+/**
+ * The claims a reading holds, flattened out of its parts and its gates.
+ *
+ * IT READS `cites` AND `gateId`, WHICH ARE THE CHANNEL'S OWN SPELLINGS. The
+ * Phase 259 fix round is why this sentence is here: it read `claim.citations`
+ * and `gate.id`, neither of which `arch:semantic` answers, so over the real
+ * reading of 2026-09-12 it printed `A.json: 0 claim(s)` for a file holding 90
+ * claims and 199 citations, and `--self-test` passed green because the test
+ * built its fixtures in the TOOL's own shape rather than the channel's. The
+ * blinded ROW keeps `citations`, because that is the shape a reviewer is
+ * handed and nothing reads it back.
+ */
+export function claimsOf(reading: any): Claim[] {
   const out: Claim[] = [];
   const cite = (cs: any): Cite[] =>
     (cs ?? [])
@@ -156,11 +167,11 @@ function claimsOf(reading: any): Claim[] {
       .map((c: any) => ({ at: String(c.at), why: String(c.why ?? ''), grade: c.grade as Grade }));
   for (const part of reading?.parts ?? []) {
     for (const claim of part?.claims ?? []) {
-      out.push({ claimId: String(claim.claimId ?? `${String(part.id)}:${String(claim.field)}`), field: String(claim.field), text: String(claim.text ?? ''), citations: cite(claim.citations) });
+      out.push({ claimId: String(claim.claimId ?? `${String(part.id)}:${String(claim.field)}`), field: String(claim.field), text: String(claim.text ?? ''), citations: cite(claim.cites) });
     }
   }
   for (const gate of reading?.gates ?? []) {
-    out.push({ claimId: String(gate.claimId ?? `gate:${String(gate.id)}`), field: 'gate', text: `${String(gate.question ?? '')} ${String(gate.answer ?? '')} ${String(gate.because ?? '')}`.trim(), citations: cite(gate.citations) });
+    out.push({ claimId: String(gate.claimId ?? `gate:${String(gate.partId)}/${String(gate.gateId)}`), field: 'gate', text: `${String(gate.question ?? '')} ${String(gate.answer ?? '')} ${String(gate.because ?? '')}`.trim(), citations: cite(gate.cites) });
   }
   return out;
 }
@@ -197,11 +208,47 @@ function selfTest(): void {
   }
   eq('gradeOf takes the rarest', gradeOf({ claimId: 'c', field: 'f', text: 't', citations: [{ at: 'a:1', why: '', grade: 'resolves' }, { at: 'b:2', why: '', grade: 'gate' }] }), 'gate');
 
+  // THE READER IS DRIVEN OVER THE CHANNEL'S OWN SHAPE, which is the arm that
+  // was missing: `arch:semantic` answers `cites` on a claim and `gateId` on a
+  // gate, and a reader written to any other spelling finds nothing at all
+  // while every other check here stays green.
+  const shipped = {
+    parts: [
+      {
+        id: 'src-main',
+        name: 'The main process',
+        claims: [
+          {
+            claimId: 'p:src-main:does',
+            field: 'does',
+            text: 'It keeps the sessions.',
+            cites: [{ at: 'src/main/index.ts:12', why: 'a spawn', grade: 'call-site', relPath: 'src/main/index.ts', line: 12 }]
+          }
+        ]
+      }
+    ],
+    gates: [
+      {
+        gateId: 'confirm',
+        partId: 'src-main',
+        question: 'Where does it refuse?',
+        answer: 'stops',
+        because: 'It asks the gate first.',
+        cites: [{ at: 'src/main/gate.ts:3', why: 'a refusal', grade: 'gate', relPath: 'src/main/gate.ts', line: 3 }]
+      }
+    ]
+  };
+  const read = claimsOf(shipped);
+  eq('claimsOf reads the channel\'s own shape', read.length, 2);
+  eq('and keeps every citation', read.map((c) => c.citations.length), [1, 1]);
+  eq('and names the gate by its part and its id', read[1]?.claimId, 'gate:src-main/confirm');
+  eq('claimsOf over the tool\'s own old spelling finds nothing', claimsOf({ parts: [{ id: 'a', claims: [{ claimId: 'x', field: 'does', text: 't', citations: [{ at: 'a:1', why: '', grade: 'gate' }] }] }], gates: [] })[0]?.citations.length, 0);
+
   if (problems.length > 0) {
     for (const p of problems) process.stderr.write(`[p259-blind] SELF-TEST FAIL: ${p}\n`);
     process.exit(1);
   }
-  process.stdout.write('[p259-blind] self-test OK: 9 graders behaved, nothing was read and nothing was launched\n');
+  process.stdout.write('[p259-blind] self-test OK: 13 graders behaved, nothing was read and nothing was launched\n');
 }
 
 function main(): void {

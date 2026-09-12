@@ -11,6 +11,15 @@ answered after the asks, which is quality reading (a).
 table at all, so `archSemanticRecipeFor` answers null, Settings draws `not-measured`, and the runner
 refuses `no-recipe` before anything can spawn.
 
+**A NARROWED REPEAT is filed beside a reading and never as one.** `--only part|journeys` runs one
+kind of ask and `--out <name>` writes that run to `<name>.json` and `<name>.reading.json`, because a
+profile that only ran the journeys ask answers a reading holding only journeys and filing it as
+`codex.reading.json` would destroy the full one. `codex.journeys.json` is the fix round's own repeat
+of 2026-09-12, one ask, and it is the measured proof of the journey block's defect: at the parent the
+journeys ask was refused `no-row-stood` because the block it was handed carried no citable `path:line`
+anywhere in it, and with the block carrying sampled fact lines the SAME ask over the SAME repository
+came back kept in 10,621 ms with a three step journey whose every citation graded `call-site`.
+
 **A dry run's record is refused.** `dryRun: true` fails rule 10a by name, because a dry run spends no
 token and measures no model: it drives the same chain and reads the refusal back.
 

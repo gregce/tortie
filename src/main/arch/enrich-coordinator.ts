@@ -71,7 +71,7 @@ import {
 import { citeFloor } from './semantic/floor';
 import { computeRate } from './semantic/rates';
 import { gradeSourcesFor } from './semantic/sources';
-import type { KeptSemanticAnswer } from './semantic/types';
+import { keptRowCount } from './semantic/types';
 import type { ArchEnrichImport } from './enrich/compose';
 import { firstPartyPairs, repairSkipReason } from './repair-trigger';
 import type { ArchSemanticGather } from './check-coordinator';
@@ -219,7 +219,7 @@ export function createArchEnrichCoordinator(deps: {
       reason: record.reason,
       detail: record.detail,
       costUsd: record.costUsd,
-      claims: record.kept === null ? 0 : countKeptRows(record.kept),
+      claims: record.kept === null ? 0 : keptRowCount(record.kept),
       rowsDropped: record.rowsDropped
     });
     if (record.kept === null) return;
@@ -342,6 +342,8 @@ export function createArchEnrichCoordinator(deps: {
         .filter((cite) => keep(cite.claimId))
         .map((cite) => ({
           claimId: cite.claimId,
+          relPath: cite.relPath,
+          line: cite.line,
           grade: cite.grade,
           gate: gateClaims.has(cite.claimId)
         }));
@@ -378,12 +380,6 @@ export function createArchEnrichCoordinator(deps: {
       );
       rate(`part:${partId}`, (claimId) => mine.has(claimId));
     }
-  }
-
-  /** How many rows one kept answer holds, for the run's own count. */
-  function countKeptRows(kept: KeptSemanticAnswer): number {
-    if (kept.kind === 'part') return kept.claims.length + kept.gates.length;
-    return kept.journeys.reduce((sum, journey) => sum + journey.steps.length, 0);
   }
 
   /**
@@ -740,6 +736,11 @@ function toPassFace(
   row: StoredArchPassRun | ArchPassRunRecord | null
 ): ArchPassRunFace | null {
   if (row === null) return null;
+  // PHASE 259 FIX ROUND. The five cost and count fields are the RUNNER's own,
+  // known at the moment the ask came back. A row read back out of
+  // `arch_pass_run` has no column for them, and null is the honest answer for
+  // it rather than a zero that would read as a measurement.
+  const fresh: ArchPassRunRecord | null = 'costUsd' in row ? row : null;
   return {
     verdict: row.verdict,
     reason: row.reason,
@@ -751,6 +752,11 @@ function toPassFace(
     painted: row.painted,
     groupsTotal: row.groupsTotal,
     components: row.components,
+    costUsd: fresh?.costUsd ?? null,
+    promptBytes: fresh?.promptBytes ?? null,
+    answerBytes: fresh?.answerBytes ?? null,
+    claims: fresh?.claims ?? null,
+    rowsDropped: fresh?.rowsDropped ?? null,
     suggestions: row.suggestions,
     scope: row.scope,
     trigger: row.trigger

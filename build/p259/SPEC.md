@@ -999,3 +999,87 @@ and first body line at the top of this file, no trailers.
    into the commit body; above 1.3× the Phase 257 pass here, it goes behind a setting.
 10. **The reading does not travel with a clone.** It lives in Tortie's own disposable `arch.db`, which
     is §7.4's decision and research 77 §5's own proposal. Making it travel is a key-set move and is his.
+
+---
+
+## §10 The fix round of 2026-09-12, and what it changed
+
+Written after the phase landed at `698d85f8` and two verifiers returned `needs_work`. Every item
+below is a defect that was re-derived before it was touched, and every one of them carries the arm
+that would have caught it.
+
+**The journeys ask could not be answered honestly, and that was the phase's own biggest hole.** The
+journey instruction says every step names a fact written `path:line` and copied EXACTLY from a line of
+the FACTS section, and `journeyFactsBlock` composed a summary line per part and the crossings between
+them: NOT ONE citable location anywhere in it. The measured run of 2026-09-12 shows exactly that,
+`journeys-all` refused `no-row-stood`. The block now carries a sample of each part's own fact lines,
+spread over the categories and bounded by the same `lineBudget` the cap shrinks, and the SAME ask over
+the SAME repository through the SAME shipped path came back kept in 10,621 ms with a three step
+journey whose every citation graded `call-site` (`build/p259/measured/codex.journeys.json`, one ask,
+the operator's own repeat allowance). Gate rule 1g pins the citable count and its ablation reads zero.
+
+**R4: a citation naming a file the block never handed over drops its ROW.** R2 asks whether a line
+EXISTS; R4 asks whether the answer could have COPIED it. A citation into ANOTHER PART'S BOX was kept
+with a green `declaration` chip, because the file is real, the line is real and a declaration sits near
+it. The citable set is derived from the block's own bytes, the way R3's token set is. Over the reading
+of 2026-09-12 all 199 kept citations name a file the block handed over and all 199 copy a fact line's
+own number exactly, so the rule costs that reading nothing — and it moves the planted battery from
+3 of 7 to **5 of 7**, with the caught.json note saying plainly that two of the five are caught by
+their CITATION rather than by their claim.
+
+**The rate counted citations while the floor counted lines.** Six copies of one backed line beside one
+unbacked line read `6 of 7 backed`, so a reading could manufacture a six fold lift over the null model
+out of one real fact. The rate counts each distinct `(file, line)` once, which is the floor's own
+question.
+
+**Three things the face did not say.** `floorByGrade` was computed, stored, shipped and drawn nowhere,
+so the hover read `gate 0 · call 1 · declaration 1` with no share beside any of them; every grade is
+now drawn beside its own floor. A share that is not zero and rounds to zero drew `0 of 2 would be by
+chance` and now says `under 1 of 2`. And a reading at or under its floor was drawn exactly like one
+9.7× above it; it now says `no better than chance`, which is a reading of the two numbers already on
+the face and never a word about the sentences.
+
+**The model's own `why` rode Tortie's own tooltip under no rule at all.** Rule 6c holds every string
+this product writes to saying nothing stronger than *a fact was found here*, and the `why` is a
+model's bytes on the same hover. It is drawn LAST and under `the reading says:`.
+
+**Markup in a model sentence is refused**, which is the instruction's own "never write markdown" made
+a refusal, and `a < b` is kept because the refusal is a tag and not a bracket.
+
+**Five fields of the measurement record were structurally unrecordable.** `readAsk` reads `costUsd`,
+`promptBytes`, `answerBytes`, `claims` and `rowsDropped` off `ArchPassRunFace`, which declared none of
+them, so every ask recorded null and `totalsOf` published `claims: 0` for a run that kept 90 claims.
+The face answers all five now, `totalsOf` answers null rather than a summed zero for a column nobody
+answered, and gate rule 10e asks that every field the record reads is a field the face declares.
+
+**`build/p259/blind.mts` could not read a shipped reading**, because it read `claim.citations` and
+`gate.id` where the channel answers `cites` and `gateId`; over the real file it printed `0 claim(s)`
+for a reading holding 90, and its self-test passed because it built its fixtures in its own shape. It
+reads the channel's shape now and the self-test drives it over that shape.
+
+**Two gate rules could not fail.** Rule 3b's seam is a sources object with throwing file readers on
+it and the grader never consults it, so a grader reaching straight for `node:fs` sailed past: the
+module's TEXT is read now, in the root being driven, and the ablation plants exactly that import.
+Rule 2a asked the instruction for five of the ten rung words with a single-hyphen replace, so
+`accepted live` — the word §9's first refusal names by name — could be struck from the shipped prompt
+with the gate staying green; all nine are asked of BOTH instructions.
+
+**A part inside a read repository that nobody reached now says so**, in one line, because every model
+row is absent by design and a box with nothing drawn reads as a part with nothing to say.
+
+**§7.2's app run exists**: `npm run probe:p259`. One Electron on a scratch profile with a scratch
+HOME, over a repository it builds itself, driving the deterministic pass and `arch:enrich` under both
+scopes and reading the two views off the LIVE DOM — the one sentence and the Settings button with
+nothing read, then three numbered steps, their chips and grades, the rate beside its floor, the per
+grade hover, the gates worksheet under a named part, and a claim made STALE by a move from outside
+with its sentence kept and its reason naming the citation. It spends NOTHING: `GMUX_FOLD_BIN` points
+the fold at a stub that answers out of the prompt it was handed, so the citations are real lines and
+the grader really grades them. 13 readings, 0 findings, about 14 s.
+
+**And the probe's own first version recursed**, because its stub imported the probe for `answerFor`
+and importing a script RUNS it: the fold spawned a probe, which launched an Electron, whose fold
+spawned a probe, leaving eight Electrons and profile paths reading `p259/p259/p259/p259/profile`.
+They were ended by pid, SIGTERM then SIGKILL of the tree, never `pkill`. The stub carries the
+function's own source now and `P259_INSIDE` is the second fence.
+
+**Ablations: 22, each red one clause at a time**, against the 13 the phase shipped with.

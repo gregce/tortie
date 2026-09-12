@@ -35,6 +35,7 @@ import {
   ARCH_GATE_KINDS,
   ARCH_GATES_NAME_ONE,
   ARCH_GATES_REASONS,
+  ARCH_PART_NOT_READ,
   ARCH_GATES_SCOPE_LABEL,
   ARCH_GATES_WHOLE,
   archGatesAnswer,
@@ -181,6 +182,9 @@ export function ArchGates({
             )}
             <span>{archGatesBreakdown(counts)}</span>
           </p>
+          {reasons.length === 0 && reading !== null && reading.readAt !== null ? (
+            <p className="arch-gates-not-read">{ARCH_PART_NOT_READ}</p>
+          ) : null}
           {reasons.length === 0 ? null : (
             <section className="arch-gate-reasons">
               <p className="arch-journeys-sub">

@@ -546,6 +546,9 @@ export const ARCH_INSPECT_GUARDS = 'Guards';
 export const ARCH_INSPECT_TESTS = 'Tests';
 export const ARCH_INSPECT_RUNG = 'Rung';
 
+/** The label on the one line a part nobody read draws (Phase 259 fix round). */
+export const ARCH_INSPECT_READING = 'Reading';
+
 /** A field with a count of zero. */
 export const ARCH_INSPECT_NOTHING = 'nothing';
 /** Exposes at zero: the reader saw no surface, which is a claim about the reader. */
@@ -702,10 +705,13 @@ export const ARCH_GATES_NAME_ONE = 'Name a part';
 // EVERY STRING BELOW IS ATTRIBUTION AND NONE OF THEM IS A VERDICT. Research
 // 118 §6.4 measured ITS OWN checker catching two of seven false readings.
 // THIS product's refusals are not that checker, and driven over the same seven
-// plants by `conformance:semantic` rule 7 they catch 3 of 7, being wrong-part,
-// accepted-live and invented-numbers. The four they miss are what a confident
-// wrong reading actually looks like, so nothing here may say a sentence is
-// right, only that a fact was found at a line and who wrote the sentence.
+// plants by `conformance:semantic` rule 7 they catch 5 of 7, being wrong-part,
+// wrong-backing, wrong-order, accepted-live and invented-numbers. Two of those
+// five are caught by their CITATION rather than by their claim, being R4
+// dropping a row whose citation names a file the block never handed over. The
+// two they miss are what a confident wrong reading actually looks like, so
+// nothing here may say a sentence is right, only that a fact was found at a
+// line and who wrote the sentence.
 
 /** The first line when no agent has read this repository (SPEC §6.2). */
 export const ARCH_NO_READING = 'Nothing has read this repository yet.';
@@ -732,6 +738,18 @@ export function archReadBy(agentId: string | null): string {
 
 /** The journeys view with a reading but no journey in it. */
 export const ARCH_JOURNEYS_NONE = 'No journeys were read.';
+
+/**
+ * One part inside a repository that HAS been read, where this part was not.
+ *
+ * PHASE 259 FIX ROUND. A field nothing read is absent by design — the row is
+ * simply not drawn — and over a whole part that design draws NOTHING, which
+ * reads as a part with nothing to say rather than as a part nobody reached.
+ * Measured on the reading of 2026-09-12: the `docs` ask was refused
+ * `gate-invalid`, so that box drew no model row anywhere and said so nowhere.
+ * An absence a person can see is a refusal they can act on.
+ */
+export const ARCH_PART_NOT_READ = 'Nothing has been read about this part yet.';
 
 /** The gates view's own heading over the model's reasons, under the computed rows. */
 export const ARCH_GATES_REASONS = 'Why work stops here';

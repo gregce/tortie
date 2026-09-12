@@ -1,10 +1,12 @@
 {
- "_what": "The CAUGHT number the seven planted lies of build/p256/semantic/plant.mts produce against the SHIPPING validator and grader, ported into the shipped answer grammar in plants.json. It is MEASURED by `npm run conformance:semantic` rule 7 and written here by `--write-caught`; it is never edited by hand, and a build that moves it moves this file in the same commit, says the number in the commit body, and says it on the face, because the checker is not a lie detector and \u00a79 limit 1 is a STATED limit rather than a documented one. `by` is the SHAPES caught rather than only the count, because a count alone would hide one defence being swapped for another. The four it misses are what a confident wrong reading actually looks like: a false job on true citations, a claim cited to a real line that is evidence for something else, a journey in an impossible order, and an invented gate whose cited line really is a gate. Every plant carries its own CONTROL, which the gate requires to be KEPT, so a fixture defect can never read as a catch.",
- "caught": 3,
+ "_what": "The CAUGHT number the seven planted lies of build/p256/semantic/plant.mts produce against the SHIPPING validator and grader, ported into the shipped answer grammar in plants.json. It is MEASURED by `npm run conformance:semantic` rule 7 and written here by `--write-caught`; it is never edited by hand, and a build that moves it moves this file in the same commit, says the number in the commit body, and says it on the face, because the checker is not a lie detector and \u00a79 limit 1 is a STATED limit rather than a documented one. `by` is the SHAPES caught rather than only the count, because a count alone would hide one defence being swapped for another. It read 3 of 7 when the phase shipped and 5 of 7 after the fix round added R4, which drops a row whose citation names a file the composed block never handed over: `wrong-backing` and `wrong-order` are caught BY THEIR CITATION rather than by their claim, so the lie itself (a line that is evidence for something else, an impossible order) is still invisible and what was caught is that the location was composed rather than copied. The two it misses are what a confident wrong reading actually looks like: a false job written over true citations of files the block really handed over, and an invented gate whose cited line really is a gate. Every plant carries its own CONTROL, which the gate requires to be KEPT, so a fixture defect can never read as a catch.",
+ "caught": 5,
  "of": 7,
  "measuredOn": "2026-09-12",
  "by": [
   "wrong-part",
+  "wrong-backing",
+  "wrong-order",
   "accepted-live",
   "invented-numbers"
  ]

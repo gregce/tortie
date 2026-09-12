@@ -14,6 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { ArchFact } from '@shared/arch';
+import { citablePaths } from '../validate';
 import {
   ARCH_ENRICH_PROMPT_MAX_BYTES,
   ARCH_JOURNEY_SYSTEM_PROMPT,
@@ -181,6 +182,74 @@ describe('the journeys ask', () => {
       }))
     };
     const built = composeArchJourneyPrompt(many);
+    expect(Buffer.byteLength(built.prompt, 'utf8')).toBeLessThanOrEqual(
+      ARCH_ENRICH_PROMPT_MAX_BYTES
+    );
+  });
+});
+
+/**
+ * PHASE 259 FIX ROUND. THE JOURNEY ASK CAN BE ANSWERED HONESTLY.
+ *
+ * The instruction says every step names a fact written `path:line` and copied
+ * EXACTLY from a line of the FACTS section, and the block it was handed
+ * carried a summary line per part and the crossings between them: not one
+ * citable location anywhere in it. The measured run of 2026-09-12 shows what
+ * that costs, being `journeys-all` refused `no-row-stood` with every step's
+ * citation composed rather than copied and then refused by the grader. R4
+ * makes that refusal certain rather than likely, so the block has to carry the
+ * lines the ask asks for.
+ */
+describe('the journeys ask carries lines a step may cite', () => {
+  it('hands over a citable path for each part it sampled', () => {
+    const built = composeArchJourneyPrompt(input(4, 30));
+    const paths = citablePaths(built.factBlock);
+    expect(paths.has('src/main/a.ts')).toBe(true);
+    expect(built.factBlock).toContain('lines you may cite:');
+    expect(built.factBlock).toContain('at src/main/a.ts:');
+  });
+
+  it('spreads the sample over the categories rather than taking one kind', () => {
+    const many = input(4, 6);
+    const mixed: ArchSemanticFactInput = {
+      ...many,
+      facts: [
+        fact(0, { category: 'entrypoint', kind: 'main', subject: 'boot' }),
+        fact(1, { category: 'entrypoint', kind: 'main', subject: 'boot-two' }),
+        fact(2, { category: 'entrypoint', kind: 'main', subject: 'boot-three' }),
+        fact(3, { category: 'gate', kind: 'refusal', subject: 'refuses' }),
+        fact(4, { category: 'store', kind: 'sqlite', subject: 'keeps' })
+      ]
+    };
+    const built = composeArchJourneyPrompt(mixed);
+    expect(built.factBlock).toContain('refusal refuses at');
+    expect(built.factBlock).toContain('sqlite keeps at');
+  });
+
+  it('is byte identical over reversed facts, so the same input hash means something', () => {
+    const one = composeArchJourneyPrompt(input(4, 30));
+    const other = composeArchJourneyPrompt({
+      ...input(4, 30),
+      facts: [...input(4, 30).facts].reverse()
+    });
+    expect(other.factBlock).toBe(one.factBlock);
+  });
+
+  it('shrinks with the budget, because the cap reaches this section too', () => {
+    const parts = Array.from({ length: 400 }, (_unused, at) => ({
+      id: `p${String(at)}`,
+      label: `p${String(at)}`,
+      dirs: [`src/p${String(at)}`],
+      files: [`src/p${String(at)}/a.ts`],
+      parsed: 1,
+      region: null
+    }));
+    const built = composeArchJourneyPrompt({
+      trackedFiles: 400,
+      parts,
+      facts: parts.map((part, at) => fact(at, { file: `${part.dirs[0] ?? ''}/a.ts` })),
+      crossings: []
+    });
     expect(Buffer.byteLength(built.prompt, 'utf8')).toBeLessThanOrEqual(
       ARCH_ENRICH_PROMPT_MAX_BYTES
     );

@@ -153,3 +153,16 @@ export interface ArchSemanticAskFacts {
   /** Rows dropped under R2, whether or not the answer was kept. */
   rowsDropped: number;
 }
+
+/**
+ * How many rows one kept answer holds: seven claims and its gates, or every
+ * step of every journey.
+ *
+ * One function rather than two, because the run's own record and the store's
+ * row both count the same thing and a pair that drifted would put two
+ * different numbers beside one reading.
+ */
+export function keptRowCount(kept: KeptSemanticAnswer): number {
+  if (kept.kind === 'part') return kept.claims.length + kept.gates.length;
+  return kept.journeys.reduce((sum, journey) => sum + journey.steps.length, 0);
+}

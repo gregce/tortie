@@ -83,7 +83,11 @@ import {
 } from './compose';
 import { driftScope, readArchDrift, type ArchDriftVerdict } from './drift';
 import type { ArchGradeSources } from '../semantic/grade';
-import type { ArchSemanticAskFacts, KeptSemanticAnswer } from '../semantic/types';
+import {
+  keptRowCount,
+  type ArchSemanticAskFacts,
+  type KeptSemanticAnswer
+} from '../semantic/types';
 import {
   validateArchAnswer,
   validateArchSemanticAnswer,
@@ -139,6 +143,16 @@ export interface ArchPassRunRecord {
   groupsTotal: number | null;
   /** How many parts the answer enriched. */
   components: number | null;
+  /** What the CLI itself reported the ask cost, or null when it reports none. */
+  costUsd: number | null;
+  /** The composed prompt's own bytes. */
+  promptBytes: number | null;
+  /** The answer's bytes as they arrived. */
+  answerBytes: number | null;
+  /** Rows a kept semantic answer left standing. Null on the contract pass. */
+  claims: number | null;
+  /** Rows R2 or R4 dropped whole. Null on the contract pass. */
+  rowsDropped: number | null;
   /** The model's explicit regroup suggestions, never written to docs/arch/. */
   suggestions: string[];
   scope: ArchPassScope;
@@ -455,7 +469,12 @@ export class ArchPassRunner {
         painted: number | null,
         groupsTotal: number | null,
         components: number | null,
-        suggestions: string[]
+        suggestions: string[],
+        // PHASE 259 FIX ROUND: the two the semantic asks know and the contract
+        // pass does not. The other three are read off the run and the prompt
+        // that are already in scope here, so no caller can forget them.
+        claims: number | null = null,
+        rowsDropped: number | null = null
       ): ArchPassOutcome => {
         const record: ArchPassRunRecord & { repoPath: string } = {
           ...base,
@@ -465,6 +484,11 @@ export class ArchPassRunner {
           painted,
           groupsTotal,
           components,
+          costUsd: run.costUsd ?? null,
+          promptBytes: Buffer.byteLength(composed.prompt, 'utf8'),
+          answerBytes: run.text === null ? null : Buffer.byteLength(run.text, 'utf8'),
+          claims,
+          rowsDropped,
           suggestions
         };
         this.deps.append(record);
@@ -573,12 +597,24 @@ export class ArchPassRunner {
             null,
             null,
             null,
-            []
+            [],
+            0,
+            ruled.rowsDropped
           );
         }
         this.suspender.reset();
         noteSemantic('kept', null, ruled.dropped, ruled.rowsDropped, ruled.kept);
-        return finish('kept', null, ruled.dropped, null, null, null, []);
+        return finish(
+          'kept',
+          null,
+          ruled.dropped,
+          null,
+          null,
+          null,
+          [],
+          keptRowCount(ruled.kept),
+          ruled.rowsDropped
+        );
       }
 
       const ruling = validateArchAnswer(run.text, {
@@ -660,6 +696,11 @@ export class ArchPassRunner {
         painted: null,
         groupsTotal: null,
         components: null,
+        costUsd: null,
+        promptBytes: null,
+        answerBytes: null,
+        claims: null,
+        rowsDropped: null,
         suggestions: [],
         scope,
         trigger,

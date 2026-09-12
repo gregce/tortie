@@ -36,15 +36,22 @@
  *    recipe flags rather than a redirected home. His keychain is never opened,
  *    no `security` runs, and no token byte reaches any file this writes.
  *  - ONE FULL READING PER RECIPE, and at most one repeat if a run fails for a
- *    reason this prints. `--asks` bounds it further and never raises it.
+ *    reason this prints. `--asks` bounds it further and never raises it, and
+ *    `--only <scope>` narrows it to the part asks or to the journeys ask
+ *    alone, which is what a repeat aimed at ONE defect costs rather than a
+ *    whole reading. `--out <name>` writes that repeat beside the full record
+ *    rather than over it, because a narrowed run is not a reading.
  *
  * ## `--dry-run` IS THE ONLY MODE A BUILDER RUNS, AND IT SPENDS NOTHING
  *
  * It drives the same clone, the same profile, the same Electron and the same
- * `arch:enrich` channel, and reads the REFUSAL back. Today that refusal is
- * `no-recipe` on every ask, because both semantic rows in
- * src/main/overview/fold/recipes.ts are drafts with no measurement date and
- * the live table is therefore EMPTY. So the dry run proves the whole chain —
+ * `arch:enrich` channel, and reads the REFUSAL back. When it was written both
+ * semantic rows were drafts with no measurement date, so every ask answered
+ * `no-recipe` and the dry run proved the "measured or disabled" rule end to
+ * end. Since the codex row was measured on 2026-09-12 that row is LIVE, so a
+ * dry run against `--agent codex` refuses at the choice rather than at the
+ * table and `--agent claude` is the arm that still reads `no-recipe`. The dry
+ * run proves the whole chain —
  * the clone, the seed, the window, the part list, the channel, the record —
  * AND proves the phase's own "measured or disabled" rule end to end: with
  * nothing measured, nothing can start. It also drives `agentId: null` and
@@ -103,7 +110,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * proves it: an ask is `part` once per box that carries a fact, in the map's
  * own order, then `journeys` once, and never more than `cap`.
  */
-export function planAsks(boxes, cap) {
+export function planAsks(boxes, cap, only = null) {
   const parts = [];
   for (const box of boxes ?? []) {
     if (typeof box?.id !== 'string' || box.id.length === 0) continue;
@@ -111,7 +118,11 @@ export function planAsks(boxes, cap) {
     if (parts.some((p) => p.partId === box.id)) continue;
     parts.push({ scope: 'part', partId: box.id });
   }
-  const asks = [...parts, { scope: 'journeys', partId: null }];
+  const all = [...parts, { scope: 'journeys', partId: null }];
+  // `only` NARROWS and can never add: an unknown word leaves the plan whole
+  // rather than emptying it, because a run that silently asked nothing would
+  // record a reading of nothing.
+  const asks = only === 'part' || only === 'journeys' ? all.filter((a) => a.scope === only) : all;
   return typeof cap === 'number' && cap > 0 ? asks.slice(0, cap) : asks;
 }
 
@@ -143,7 +154,18 @@ export function readAsk(ask, answer, wallMs) {
 
 /** The totals a reader wants without adding up 9 rows by hand. */
 export function totalsOf(rows) {
-  const n = (k) => rows.reduce((a, r) => a + (typeof r[k] === 'number' ? r[k] : 0), 0);
+  // A COLUMN NOBODY ANSWERED SUMS TO NULL AND NEVER TO ZERO, which is the
+  // treatment `costUsd` already had and the other four did not. The Phase 259
+  // fix round is why: `ArchPassRunFace` carried none of `costUsd`,
+  // `promptBytes`, `answerBytes`, `claims` or `rowsDropped`, so `readAsk`
+  // recorded null for every one of them on every ask, and this function
+  // published `claims: 0` for a run that kept 90 claims and 199 citations. The
+  // face answers all five now; a zero here is a run that really produced
+  // nothing, and a null is a run that did not say.
+  const n = (k) =>
+    rows.some((r) => typeof r[k] === 'number')
+      ? rows.reduce((a, r) => a + (typeof r[k] === 'number' ? r[k] : 0), 0)
+      : null;
   return {
     asks: rows.length,
     started: rows.filter((r) => r.started).length,
@@ -151,8 +173,8 @@ export function totalsOf(rows) {
     refused: rows.filter((r) => r.verdict === 'refused').length,
     failed: rows.filter((r) => r.verdict === 'failed').length,
     refusedBeforeSpawn: rows.filter((r) => !r.started).length,
-    wallMs: n('wallMs'),
-    costUsd: rows.some((r) => typeof r.costUsd === 'number') ? n('costUsd') : null,
+    wallMs: n('wallMs') ?? 0,
+    costUsd: n('costUsd'),
     promptBytes: n('promptBytes'),
     answerBytes: n('answerBytes'),
     claims: n('claims'),
@@ -270,6 +292,23 @@ function selfTest() {
     [{ scope: 'part', partId: 'src-main' }, { scope: 'part', partId: 'build' }, { scope: 'journeys', partId: null }]
   );
   eq('planAsks with no box at all still asks for journeys', planAsks([], 0), [{ scope: 'journeys', partId: null }]);
+  // `--only` NARROWS. A word nothing knows leaves the plan whole, because a
+  // run that silently asked nothing would write down a reading of nothing.
+  eq(
+    'planAsks --only journeys',
+    planAsks([{ id: 'a', facts: 1 }, { id: 'b', facts: 1 }], 0, 'journeys'),
+    [{ scope: 'journeys', partId: null }]
+  );
+  eq(
+    'planAsks --only part',
+    planAsks([{ id: 'a', facts: 1 }], 0, 'part'),
+    [{ scope: 'part', partId: 'a' }]
+  );
+  eq(
+    'planAsks --only nonsense leaves the plan whole',
+    planAsks([{ id: 'a', facts: 1 }], 0, 'nonsense').length,
+    2
+  );
   eq('planAsks capped at 2', planAsks([{ id: 'a', facts: 1 }, { id: 'b', facts: 1 }], 2), [
     { scope: 'part', partId: 'a' },
     { scope: 'part', partId: 'b' }
@@ -324,12 +363,26 @@ function selfTest() {
   const t = totalsOf(rows);
   eq('totalsOf counts', [t.asks, t.started, t.kept, t.refused, t.refusedBeforeSpawn, t.wallMs, t.claims], [3, 2, 1, 1, 1, 151, 7]);
   eq('totalsOf cost is null when no CLI reported one', t.costUsd, null);
+  // A COLUMN NOBODY ANSWERED IS NULL AND NEVER A SUMMED ZERO. This is the fix
+  // round's own arm: the run of 2026-09-12 recorded null for all five and this
+  // function published `claims: 0` for 90 kept claims.
+  const silent = totalsOf([
+    readAsk({ scope: 'part', partId: 'a' }, { started: true, refusal: null, run: { verdict: 'kept', wallMs: 10 } }, 0)
+  ]);
+  eq(
+    'totalsOf answers null for every column no ask reported',
+    [silent.claims, silent.rowsDropped, silent.promptBytes, silent.answerBytes, silent.costUsd],
+    [null, null, null, null, null]
+  );
+  eq('totalsOf still counts a real zero as zero', totalsOf([
+    readAsk({ scope: 'part', partId: 'a' }, { started: true, refusal: null, run: { verdict: 'refused', wallMs: 10, claims: 0, rowsDropped: 0 } }, 0)
+  ]).claims, 0);
 
   if (problems.length > 0) {
     for (const p of problems) process.stderr.write(`${TAG} SELF-TEST FAIL: ${p}\n`);
     process.exit(1);
   }
-  say(`${TAG} self-test OK: 13 graders behaved, nothing was launched, no token was spent`);
+  say(`${TAG} self-test OK: 18 graders behaved, nothing was launched, no token was spent`);
 }
 
 // ---------------------------------------------------------------------------
@@ -337,7 +390,10 @@ function selfTest() {
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const out = { dryRun: false, agent: null, model: null, asks: 0, budgetMs: 0, selfTest: false };
+  const out = {
+    dryRun: false, agent: null, model: null, asks: 0, budgetMs: 0, selfTest: false,
+    only: null, out: null
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') out.dryRun = true;
@@ -345,6 +401,8 @@ function parseArgs(argv) {
     else if (a === '--agent') out.agent = argv[++i] ?? null;
     else if (a === '--model') out.model = argv[++i] ?? null;
     else if (a === '--asks') out.asks = Number(argv[++i] ?? '0');
+    else if (a === '--only') out.only = argv[++i] ?? null;
+    else if (a === '--out') out.out = argv[++i] ?? null;
     // THE FOREGROUND CAP MADE HONEST. A measurement runs in the foreground
     // under a 600 s cap, and a run hard-killed at that cap never reaches the
     // finally block that ends the Electron and removes the clone. So the
@@ -424,6 +482,14 @@ async function main() {
   // spends a token. A builder or a verifier runs --dry-run.
   const agentId = args.dryRun ? (args.agent ?? 'claude') : args.agent;
   const model = args.dryRun ? (args.model ?? 'opus') : args.model;
+  /**
+   * What this run's record and reading are called. `--out` is how a NARROWED
+   * repeat is written down beside the full reading rather than over it: the
+   * rows it holds are only the rows its own asks produced, so it is not a
+   * reading of the repository and must never be filed as one.
+   */
+  const recordName =
+    typeof args.out === 'string' && /^[a-z0-9.-]+$/.test(args.out) ? args.out : agentId;
 
   const scratch = join(tmpdir(), `p259-measure-${String(process.pid)}`);
   const home = join(scratch, 'home');
@@ -510,7 +576,7 @@ async function main() {
 
         const map = await call(cdp, `window.gmux.arch.map(${JSON.stringify({ cwd: clone })})`, 5 * 60 * 1000);
         const boxes = (map.groups ?? []).map((g) => ({ id: g.id, facts: factsUnder(g) }));
-        const asks = planAsks(boxes, args.asks);
+        const asks = planAsks(boxes, args.asks, args.only);
         say(`${TAG} ${String(asks.length)} ask(s) planned over ${String(boxes.length)} box(es): ${asks.map((a) => a.partId ?? a.scope).join(', ')}`);
 
         const runStarted = Date.now();
@@ -555,8 +621,14 @@ async function main() {
         }
 
         // Reading (a), the grades against the floor, off the shipped channel.
+        //
+        // IT FOLLOWS `--out` FOR THE REASON THE RECORD DOES: a narrowed repeat
+        // reads a profile that only ran the asks it was narrowed to, so its
+        // reading holds only those rows. The fix round measured that the hard
+        // way, writing a one journey reading over the 90 claim one the full
+        // run of 2026-09-12 produced.
         const reading = await call(cdp, `window.gmux.arch.semantic(${JSON.stringify({ cwd: clone })})`, 2 * 60 * 1000);
-        const readingPath = join(REPO, 'build', 'p259', 'measured', `${agentId}.reading.json`);
+        const readingPath = join(REPO, 'build', 'p259', 'measured', `${recordName}.reading.json`);
         if (!args.dryRun) {
           writeFileSync(readingPath, `${JSON.stringify(reading, null, 2)}\n`);
           say(`${TAG} wrote ${readingPath}`);
@@ -605,7 +677,7 @@ async function main() {
     totals
   };
   if (!args.dryRun && failed === null) {
-    const out = join(REPO, 'build', 'p259', 'measured', `${agentId}.json`);
+    const out = join(REPO, 'build', 'p259', 'measured', `${recordName}.json`);
     writeFileSync(out, `${JSON.stringify(record, null, 2)}\n`);
     say(`${TAG} wrote ${out}`);
   }

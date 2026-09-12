@@ -46,7 +46,10 @@
  *       recipe table (the conformance:arch scan, asked here of the new rows)
  *   3a  the citation grammar over 12 hostile strings and 4 real ones
  *   3b  resolution reads arch_tree_file alone: a file seam that THROWS is
- *       handed in and the grader still answers
+ *       handed in and the grader still answers, AND the module's own text
+ *       names no file reading API at all, because the seam is an object the
+ *       grader chooses to consult and a grader reaching straight for node:fs
+ *       sails past it (the fix round proved exactly that)
  *   3c  the ladder, one arm per grade, and the precedence when several are in
  *       the span (a gate beats a call site beats a declaration beats a line)
  *   3d  ARCH_CITE_SLACK is ONE constant read by the grader AND by the floor
@@ -56,18 +59,34 @@
  *   4b  R2 drops the ROW; an answer with no row left is refused whole
  *   4c  R3 as a TOKEN of the block, over research's own three planted numbers
  *       and its own three decoys, MEASURED against the substring form
+ *   4d  R4: a citation naming a file the BLOCK never handed over drops its ROW
+ *       whole even though the line resolves and grades, with the citation that
+ *       stays in the block as its control
+ *   4e  a model sentence carrying markup refuses the answer, and an honest
+ *       `a < b` does not
  *   5a  the floor from the shipping function equals this gate's own
  *       independent re-derivation over the same fixture
  *   5b  no rate is stored or drawn without its floor: the schema carries no
  *       such column and no drawn fraction has a one-argument composer
+ *   5c  the rate counts a LINE once: six copies of one backed line beside one
+ *       unbacked line read 1 of 2 and never 6 of 7
+ *   5d  every drawn fraction carries a floor: the per grade hover draws
+ *       `floorByGrade`, a share that rounds away says `under 1`, and a reading
+ *       at or under its floor says so
  *   6a  no two rows of the cite table share both a glyph and a word, and a
  *       call site and a declaration differ in glyph, word AND tone
  *   6b  removing the fact and leaving the decl moves the same line's grade
  *   6c  no drawn string says anything stronger than a fact was found
+ *   6d  the model's own `why` is drawn LAST and under an attribution, because
+ *       rule 6c holds Tortie's strings and cannot reach a model's
  *   7   THE PLANTED BATTERY: the seven lies of build/p256/semantic/plant.mts
  *       ported into the shipped grammar and run against the SHIPPING
  *       validator, the CAUGHT number MEASURED and pinned in
  *       build/fixtures/semantic/caught.json, never assumed
+ *  8a-d what stale MEANS, driven: an unchanged oid reads nothing, a row that
+ *       moved rewrites the line, a row that went turns the claim stale with
+ *       the citation named, a file that went does the same, and a row that
+ *       came back revives
  *   8e  the refresh spawns nothing: refreshSemantic and its caller name no
  *       spawn, no runner and no arch:enrich, read by matching braces
  *   9a  refusal 8, structural: every spawn reachable from a watcher event
@@ -83,6 +102,9 @@
  *       `not-measured`
  *  10c  the two model ids are exactly `opus` and `gpt-6-astra`
  *  10d  both recipes are handed byte identical system prompt bytes
+ *  10e  every field the measurement record reads off a run is a field the run
+ *       face DECLARES, because five of them were not and every ask recorded
+ *       null for all five
  *  11   registration: package.json names the gate and the harness,
  *       verification-checks.mjs classifies them, HELPER_USER_FLOOR counts the
  *       new Electron starter, and the contract baseline moved by one line
@@ -136,10 +158,19 @@ const ABLATIONS = [
   { name: 'rule 3d, the grader given a slack of its own', clause: 'ARCH_CITE_SLACK read by the grader AND by the floor (§2.3)', file: 'main/arch/semantic/grade.ts', from: 'Math.abs(row.line - parsed.line) <= ARCH_CITE_SLACK', to: 'Math.abs(row.line - parsed.line) <= 0' },
   { name: 'rule 4a, the level test made a substring search', clause: 'R1 asked of a field VALUE and never inside a sentence (§2.4)', file: 'main/arch/enrich/validate.ts', from: 'if (REFUSED_LEVELS.has(word)) {', to: 'if ([...REFUSED_LEVELS].some((one) => word.includes(one))) {' },
   { name: 'rule 4a, the refused key set emptied', clause: 'R1 refusing a key named evidence, level, rung and the rest anywhere (§2.4)', file: 'main/arch/enrich/validate.ts', from: 'if (REFUSED_KEYS.has(key.trim().toLowerCase())) {', to: 'if (false && REFUSED_KEYS.has(key.trim().toLowerCase())) {' },
-  { name: 'rule 4b, the broken row kept instead of dropped', clause: 'R2 dropping the ROW whole (§2.4)', file: 'main/arch/enrich/validate.ts', from: 'const note = (where: string, at: string): void => {\n    rowsDropped += 1;', to: 'const note = (where: string, at: string): void => {\n    rowsDropped += 0;' },
+  { name: 'rule 4b, the broken row kept instead of dropped', clause: 'R2 dropping the ROW whole (§2.4)', file: 'main/arch/enrich/validate.ts', from: 'const note = (where: string, broken: BrokenCite): void => {\n    rowsDropped += 1;', to: 'const note = (where: string, broken: BrokenCite): void => {\n    rowsDropped += 0;' },
   { name: 'rule 4c, the token set put back to a substring', clause: 'R3 asking for a TOKEN of the block (§2.4)', file: 'main/arch/enrich/validate.ts', from: 'const tokens = new Set(digitRuns(context.factBlock));', to: 'const tokens = { has: (run: string): boolean => context.factBlock.includes(run) } as unknown as Set<string>;' },
   { name: 'rule 5a, the floor marking only forward of a row', clause: 'the floor marking the SAME span either side of a row that the grader does (§2.5)', file: 'main/arch/semantic/floor.ts', from: 'for (let at = line - ARCH_CITE_SLACK; at <= line + ARCH_CITE_SLACK; at += 1) {', to: 'for (let at = line; at <= line + ARCH_CITE_SLACK; at += 1) {' },
-  { name: "rule 5a, the floor's precedence inverted", clause: "the floor splitting a line four ways under the GRADER's own precedence (§2.5)", file: 'main/arch/semantic/floor.ts', from: 'if (gate.has(line)) onGate += 1;\n      else if (call.has(line)) onCall += 1;', to: 'if (call.has(line)) onCall += 1;\n      else if (gate.has(line)) onGate += 1;' }
+  { name: "rule 5a, the floor's precedence inverted", clause: "the floor splitting a line four ways under the GRADER's own precedence (§2.5)", file: 'main/arch/semantic/floor.ts', from: 'if (gate.has(line)) onGate += 1;\n      else if (call.has(line)) onCall += 1;', to: 'if (call.has(line)) onCall += 1;\n      else if (gate.has(line)) onGate += 1;' },
+  { name: 'rule 3b, the grader given a real file reader', clause: 'the grader resolving out of arch_tree_file alone, asked of the module TEXT (§2.3)', file: 'main/arch/semantic/grade.ts', from: 'export function gradeCite(', to: "import { readFileSync } from 'node:fs';\nexport function gradeCite(" },
+  { name: 'rule 2a, accepted live struck from the instruction', clause: 'the instruction refusing every one of the ten rung words (D4, §1.4)', file: 'main/arch/enrich/compose.ts', from: 'component tested, accepted live, implemented not shipped', to: 'component tested, implemented not shipped' },
+  { name: 'rule 4d, R4 removed', clause: 'a citation naming a file the block never handed over dropping its ROW (§2.4)', file: 'main/arch/enrich/validate.ts', from: 'if (parsed !== null && !citable.has(parsed.relPath)) {', to: 'if (false && parsed !== null && !citable.has(parsed.relPath)) {' },
+  { name: "rule 4d, the citable set's FILES shape removed", clause: "the citable set read from BOTH shapes the composer writes (§2.4)", file: 'main/arch/enrich/validate.ts', from: 'const file = /^ {2}([^\\s:]+)$/.exec(line);', to: 'const file = null;' },
+  { name: 'rule 4e, the markup refusal removed', clause: 'a model sentence carrying a tag refusing the answer (§2.4)', file: 'main/arch/enrich/validate.ts', from: 'if (PROSE_MARKUP_RE.test(text)) return null;', to: '' },
+  { name: 'rule 5c, the rate counting citations again', clause: 'the rate counting each cited LINE once, as the floor does (§2.5)', file: 'main/arch/semantic/rates.ts', from: 'if (counted.has(where)) continue;', to: 'if (counted.has(where) && false) continue;' },
+  { name: 'rule 1g, the journeys block stripped of its citable lines', clause: 'the journeys ask carrying lines a step may copy (§1.2)', file: 'main/arch/semantic/block.ts', from: 'if (samples.size > 0) {', to: 'if (false) {' },
+  { name: 'rule 8a, the unchanged oid read again', clause: 'an unchanged blob oid answering current with nothing read (§3.3)', file: 'main/arch/semantic/drift.ts', from: 'if (oid === cite.blobOid) {', to: "if (oid === 'an oid nothing can equal') {" },
+  { name: "rule 8c, the fingerprint's subject clause removed", clause: 'a claim turning stale when the (kind, subject) is gone from the file (§3.3)', file: 'main/arch/semantic/drift.ts', from: '.filter((row) => row.kind === cite.factKind && row.subject === cite.factSubject)', to: '.filter(() => true)' }
 ];
 
 /**
@@ -362,9 +393,18 @@ function pin(answer) {
   if (!/not read this repository/i.test(system)) {
     out.push('rule 2a: the instruction does not tell the model it has not read the repository, which is D2 and is the whole of what bounds the answer');
   }
-  for (const word of LEVEL_WORDS.slice(0, 5)) {
-    if (!system.toLowerCase().includes(word.replace('-', ' '))) {
-      out.push(`rule 2a: the instruction does not refuse the word "${word}" as an answer, and D4 keeps every rung word out of the model's hands`);
+  // ALL NINE, AND IN BOTH INSTRUCTIONS. It asked for the first five with a
+  // single-hyphen replace, so `accepted live` — the word §9's first refusal
+  // names by name — could be deleted from the shipped prompt with this gate
+  // staying green, and `implemented-not-shipped` could never have matched.
+  const journeySystem = String(answer.systemPrompt?.journeyText ?? '');
+  for (const word of LEVEL_WORDS) {
+    const spoken = word.replaceAll('-', ' ');
+    if (!system.toLowerCase().includes(spoken)) {
+      out.push(`rule 2a: the part instruction does not refuse the word "${word}" as an answer, and D4 keeps every rung word out of the model's hands`);
+    }
+    if (!journeySystem.toLowerCase().includes(spoken)) {
+      out.push(`rule 2a: the journey instruction does not refuse the word "${word}" as an answer, and every answer is judged by R1 whatever it was asked for`);
     }
   }
   if (answer.systemPrompt?.same === true) out.push("rule 2a: the journey instruction is the part instruction's own bytes; §1.4 gives it its own text for the reason Phase 159 wrote beside ARCH_DELTA_SYSTEM_PROMPT");
@@ -388,10 +428,18 @@ function pin(answer) {
     if (row.grade === null) out.push(`rule 3a: the real citation "${row.at}" was refused, and it is a line of a tracked file`);
   }
 
-  // 3b.
+  // 3b, both halves. The seam is the behavioural one and the text is the real
+  // one: a grader that imported node:fs directly would never consult the seam.
   if (answer.resolvesWithoutOpening !== 'call-site') {
     out.push(`rule 3b: with every file reading seam throwing the grader answered ${String(answer.resolvesWithoutOpening)}; it resolves out of arch_tree_file alone and opens nothing`);
   }
+  for (const file of answer.purity ?? []) {
+    if (file.read !== true) out.push(`rule 3b: ${String(file.file)} could not be read, so its purity was asked of nothing`);
+    else if ((file.names ?? []).length > 0) {
+      out.push(`rule 3b: ${String(file.file)} names ${JSON.stringify(file.names)}; the grader and the floor resolve out of arch_tree_file alone and the whole module is pure in the sense conformance:reading rule 9 uses`);
+    }
+  }
+  if ((answer.purity ?? []).length !== 2) out.push(`rule 3b: ${String((answer.purity ?? []).length)} module(s) were read for purity and the pair is grade.ts and floor.ts`);
 
   // 3c, 3d and 6b.
   const l = answer.ladder ?? {};
@@ -449,6 +497,61 @@ function pin(answer) {
   if (r.allBroken?.kept !== null || r.allBroken?.refusal !== 'no-row-stood') out.push(`rule 4b: an answer with nothing left answered kept=${String(r.allBroken?.kept)} refusal=${String(r.allBroken?.refusal)}, and an answer with no row left is a failure rather than an empty reading`);
   if (r.invented?.kept !== null || r.invented?.refusal !== 'invented-number') out.push(`rule 4c: three numbers no line of the block carries answered refusal=${String(r.invented?.refusal)}`);
   if (r.keptNumbers?.kept !== 'kept') out.push(`rule 4c: numbers the block really carries as tokens were refused (${String(r.keptNumbers?.refusal)}), so the digit rule refuses honest prose`);
+  // 4d and 4e. R4 asks whether the answer could have COPIED a location and R2
+  // asks whether the line is there, which is why the fixture citation RESOLVES
+  // AND GRADES on its own: `src/renderer/arch/ArchMapTab.tsx:40` is tracked,
+  // 300 lines long and carries a declaration, so every R2 question about it
+  // answers yes and the chip it earned was a green declaration.
+  const r4 = answer.r4 ?? {};
+  if (r4.gradesOnItsOwn !== 'declaration') {
+    out.push(`rule 4d: the out-of-block citation graded ${String(r4.gradesOnItsOwn)} on its own; the fixture wants one that RESOLVES, or the rule is measured by R2 rather than by R4`);
+  }
+  if (r4.namesTheBoxFile !== true) out.push('rule 4d: the block did not hand over its own part\'s file, so the citable set is not read out of the block at all');
+  if (r4.namesAFileWithNoFact !== true) {
+    out.push('rule 4d: a file the block names in FILES and nowhere else is not in the citable set; the set is read from the composer\'s TWO shapes, and a claim may point at a file it was shown even where this reader found no row');
+  }
+  // 1g. The journeys ask asks every step to copy a `path:line` out of FACTS,
+  // and the block it was handed carried NO path at all until the Phase 259 fix
+  // round: the measured run of 2026-09-12 refused `no-row-stood` for exactly
+  // that reason, every citation having been composed rather than copied.
+  if ((r4.journeyCitable ?? 0) <= 0) {
+    out.push(`rule 1g: the journeys block hands over ${String(r4.journeyCitable)} citable path(s), so no step can cite what it was asked to cite and R4 refuses every one of them`);
+  }
+  if (r4.namesTheOtherBox !== false) out.push('rule 4d: the citable set holds a file from another part\'s box, and the ask is PER PART');
+  if (r4.dropped?.kept !== 'kept' || r4.dropped?.claims !== 6) {
+    out.push(`rule 4d: a claim citing a file the block never handed over answered kept=${String(r4.dropped?.kept)} with ${String(r4.dropped?.claims)} claims; R4 drops the ROW whole and leaves the other six`);
+  }
+  if ((r4.dropped?.rowsDropped ?? 0) !== 1) out.push(`rule 4d: rowsDropped reads ${String(r4.dropped?.rowsDropped)} and one row was dropped`);
+  if (typeof r4.dropped?.dropped !== 'string' || !r4.dropped.dropped.includes('not a file the facts named')) {
+    out.push(`rule 4d: the sentence does not say WHY the row went: ${String(r4.dropped?.dropped)}. R2's reason and R4's are different reasons and a person reads one of them`);
+  }
+  if (r4.markup?.kept !== null || r4.markup?.refusal !== 'claim-invalid') {
+    out.push(`rule 4e: a claim carrying an HTML tag answered kept=${String(r4.markup?.kept)} refusal=${String(r4.markup?.refusal)}; the instruction says never write markdown and this is that instruction made a refusal`);
+  }
+  if (r4.bracket?.kept !== 'kept') {
+    out.push(`rule 4e: "a < b" was refused (${String(r4.bracket?.refusal)}); the refusal is a TAG and not a bracket, or it refuses honest writing`);
+  }
+
+  // 5c, the rate's own denominator.
+  const rate = answer.rate ?? {};
+  if (rate.total !== 2 || rate.backed !== 1) {
+    out.push(`rule 5c: six copies of one backed line beside one unbacked line read ${String(rate.backed)} of ${String(rate.total)}; the floor counts LINES and so does the rate, or repetition buys a lift over the null model out of one real fact`);
+  }
+  if ((rate.byGrade?.['call-site'] ?? null) !== 1) {
+    out.push(`rule 5c: the per grade tally counted the same line ${String(rate.byGrade?.['call-site'])} times`);
+  }
+
+  // 8a to 8d, driven rather than read.
+  const rf = answer.refresh ?? {};
+  const same = (got, want) => JSON.stringify(got) === JSON.stringify(want);
+  if (!same(rf.unchanged, [0, 0, 0])) out.push(`rule 8a: an unchanged blob oid answered ${JSON.stringify(rf.unchanged)}; nothing is read and nothing changes, which is what makes the refresh cheap enough to run on every pass`);
+  if (!same(rf.moved, [1, 0, 0]) || rf.movedTo !== 31) out.push(`rule 8b: a row that moved answered ${JSON.stringify(rf.moved)} at line ${String(rf.movedTo)}; the citation is rewritten to the new line and the claim stands`);
+  if (!same(rf.died, [0, 1, 0])) out.push(`rule 8c: a row that went answered ${JSON.stringify(rf.died)}; the claim turns stale and keeps its sentence`);
+  if (typeof rf.diedReason !== 'string' || !rf.diedReason.includes('arch:map')) out.push(`rule 8c: the stale reason does not name the fact that went: ${String(rf.diedReason)}`);
+  if (!same(rf.untracked, [0, 1, 0])) out.push(`rule 8d: a file that is gone answered ${JSON.stringify(rf.untracked)}`);
+  if (typeof rf.untrackedReason !== 'string' || !rf.untrackedReason.includes('no longer a file')) out.push(`rule 8d: the reason for a file that went does not say so: ${String(rf.untrackedReason)}`);
+  if (!same(rf.revived, [0, 0, 1])) out.push(`rule 8d: a dead citation whose row came back answered ${JSON.stringify(rf.revived)}; stale is a mark and a mark can come off`);
+
   const nr = answer.numberRule ?? {};
   // The pair is read through the SHIPPING validator, one answer per planted
   // number against a block carrying research 118's own two decoys, so an
@@ -531,6 +634,26 @@ try {
     const faceFiles = ['src/renderer/arch/copy.ts', 'src/renderer/arch/cite.ts', 'src/renderer/arch/ArchJourneys.tsx', 'src/renderer/arch/ArchClaim.tsx']
       .map((rel) => ({ rel, text: read(rel) }))
       .filter((f) => f.text !== null);
+    // AND NO FACE FILE MAY STATE A DIFFERENT ONE. The rule above is satisfied
+    // by ANY of the four saying the phrase, so cite.ts could be edited to
+    // "two of seven" while copy.ts kept the measured number and this gate
+    // stayed green. A reader of the chip's own module would then be told a
+    // figure nothing measured.
+    for (const f of faceFiles) {
+      for (const m of f.text.matchAll(/(\d+) of (\d+)/g)) {
+        // The window either side, because the sentence that carries the number
+        // wraps across comment lines and the word that identifies it may be on
+        // the line before or the line after.
+        const around = f.text.slice(Math.max(0, (m.index ?? 0) - 160), (m.index ?? 0) + 160);
+        if (!/plant|lie|caught|catch/i.test(around)) continue;
+        if (m[2] === String(caughtPin.of) && m[1] !== String(caughtPin.caught)) {
+          fail(
+            `rule 7: ${f.rel} says "${m[0]}" about the planted battery and the measured number is ` +
+              `"${phrase}". One file saying the measured figure does not make another file's stale one true.`
+          );
+        }
+      }
+    }
     if (caughtPin.caught !== null && faceFiles.length > 0 && !faceFiles.some((f) => f.text.includes(phrase))) {
       fail(
         `rule 7: none of ${faceFiles.map((f) => f.rel.split('/').pop()).join(', ')} says "${phrase}". §9 limit 1 is a ` +
@@ -662,6 +785,53 @@ try {
   }
 }
 
+// Rule 10e: the measurement record reads what the run face DECLARES.
+//
+// `readAsk` reads thirteen fields off the answer and five of them —
+// `costUsd`, `promptBytes`, `answerBytes`, `claims`, `rowsDropped` — were on
+// no shape at all, so every ask of the run of 2026-09-12 recorded null for all
+// five and `totalsOf` published `claims: 0` for a run that kept 90 claims and
+// 199 citations. A number that reads as a measurement and is not one is worse
+// than no column, and nothing in the battery could see it: the harness's own
+// self-test builds its fixtures by hand, so it agrees with itself.
+{
+  const harness = read('build/p259/measure-semantic.mjs');
+  const shared = read('src/shared/ipc/arch.ts');
+  if (harness === null) fail('rule 10e: build/p259/measure-semantic.mjs is not there');
+  else if (shared === null) fail('rule 10e: src/shared/ipc/arch.ts is not there');
+  else {
+    const face = blockAt(stripComments(shared), stripComments(shared).indexOf('{', stripComments(shared).indexOf('interface ArchPassRunFace'))) ?? '';
+    const declared = new Set([...face.matchAll(/^\s*([a-zA-Z][a-zA-Z0-9]*)[?]?:/gm)].map((m) => m[1]));
+    const body = functionBodyOf(stripComments(harness), 'readAsk') ?? '';
+    const reads = [...new Set([...body.matchAll(/\brun\?\.([a-zA-Z][a-zA-Z0-9]*)/g)].map((m) => m[1]))];
+    if (reads.length === 0) fail('rule 10e: readAsk reads no field off the run at all, so the record is not a record of the run');
+    let undeclared = 0;
+    for (const field of reads) {
+      if (!declared.has(field)) {
+        undeclared += 1;
+        fail(`rule 10e: the measurement record reads \`run.${field}\` and ArchPassRunFace declares no such field, so every ask records null for it and the totals publish a zero that measures nothing`);
+      }
+    }
+    // The scanner is proved on planted pairs, of which two must fail.
+    const FACE_PLANTS = [
+      { name: 'a face that declares what the record reads', face: 'interface ArchPassRunFace { verdict: string; wallMs: number; claims: number | null; }', body: 'function readAsk(a, answer) { return { verdict: run?.verdict ?? null, claims: run?.claims ?? null }; }', caught: false },
+      { name: 'a record reading a field nothing declares', face: 'interface ArchPassRunFace { verdict: string; wallMs: number; }', body: 'function readAsk(a, answer) { return { claims: run?.claims ?? null }; }', caught: true },
+      { name: 'a record reading nothing at all', face: 'interface ArchPassRunFace { verdict: string; }', body: 'function readAsk(a, answer) { return { claims: null }; }', caught: true }
+    ];
+    for (const plant of FACE_PLANTS) {
+      const block = blockAt(plant.face, plant.face.indexOf('{')) ?? '';
+      const has = new Set([...block.matchAll(/([a-zA-Z][a-zA-Z0-9]*)[?]?:/g)].map((m) => m[1]));
+      const body = functionBodyOf(plant.body, 'readAsk') ?? '';
+      const want = [...new Set([...body.matchAll(/\brun\?\.([a-zA-Z][a-zA-Z0-9]*)/g)].map((m) => m[1]))];
+      const bad = want.length === 0 || want.some((f) => !has.has(f));
+      if (bad !== plant.caught) fail(`rule 10e: the scanner ${plant.caught ? 'missed' : 'caught'} the planted pair "${plant.name}"`);
+    }
+    if (undeclared === 0) {
+      say(`${TAG} rule 10e: the record reads ${String(reads.length)} field(s) off the run and the face declares every one of them`);
+    }
+  }
+}
+
 // Rule 5b: no rate is stored or drawn without its floor.
 {
   const db = read('src/main/arch/db.ts');
@@ -685,6 +855,80 @@ try {
     const chance = functionBodyOf(stripComments(cite), 'citeChance');
     if (chance === null) fail('rule 5b: cite.ts declares no citeChance, and the chance half is the floor over the files the answer cites');
     else if (!/floor/i.test(chance)) fail('rule 5b: citeChance reads no floor, so the number beside a rate is not the floor at all');
+  }
+}
+
+// Rule 5d: every drawn fraction carries a floor, and a reading that did not
+// beat its floor says so. `floorByGrade` was computed, stored, shipped and
+// drawn NOWHERE until the Phase 259 fix round, and rule 5b could not see it
+// because it asks about `citeRate` alone.
+{
+  const cite = read('src/renderer/arch/cite.ts');
+  if (cite === null) fail('rule 5d: src/renderer/arch/cite.ts is not there');
+  else {
+    const clean = stripComments(cite);
+    const title = functionBodyOf(clean, 'citeRateTitle');
+    if (title === null) fail('rule 5d: cite.ts declares no citeRateTitle');
+    else {
+      if (!title.includes('floorByGrade')) {
+        fail('rule 5d: the per grade hover draws no floorByGrade; §2.5 asks for the floor AGAIN PER GRADE, because a declaration at 21.9% and a gate at 0.1% are not the same chip, and a grade drawn without its share is a fraction with no denominator');
+      }
+      if (!/by chance/.test(title)) fail('rule 5d: the per grade hover names no chance share beside any grade');
+    }
+    const rate = functionBodyOf(clean, 'citeRate');
+    if (rate !== null && !/citeAtChance|no better than chance/.test(rate)) {
+      fail('rule 5d: citeRate marks nothing when the reading did not beat its own floor; `5 of 40 backed · 5 of 40 would be by chance` and `39 of 40 backed · 5 of 40 would be by chance` are the same two halves in the same order and one of them beat nothing');
+    }
+    const chance = functionBodyOf(clean, 'chanceOf');
+    if (chance === null) fail('rule 5d: cite.ts declares no chanceOf, and a share that is not zero and rounds to zero would draw `0 of 2 would be by chance`');
+    else if (!/under 1/.test(chance)) fail('rule 5d: chanceOf never says `under 1`, so a share that rounds away is drawn as no share at all');
+    say(`${TAG} rule 5d: the hover draws every grade beside its own floor, a share that rounds away says under 1, and a reading at or under its floor says so`);
+  }
+}
+
+// Rule 6d: the model's own `why` is ATTRIBUTED. Rule 6c holds every string
+// Tortie writes to saying nothing stronger than a fact was found; the `why` is
+// a model's bytes on the same hover and no rule can reach it, so the one thing
+// that can be asked is that a reader is told whose sentence it is.
+{
+  const cite = read('src/renderer/arch/cite.ts');
+  if (cite !== null) {
+    const clean = stripComments(cite);
+    const body = functionBodyOf(clean, 'citeTitle');
+    if (body === null) fail('rule 6d: cite.ts declares no citeTitle');
+    else {
+      const drawsWhy = /cite\.why/.test(body);
+      if (!drawsWhy) fail('rule 6d: citeTitle draws no why at all, and the reading\'s own reason is the half a person most wants');
+      else if (!/CITE_WHY_PREFIX/.test(body)) {
+        fail('rule 6d: citeTitle draws the model\'s own `why` with no attribution in front of it; rule 6c holds Tortie\'s own strings and cannot reach a model\'s, so a reading that wrote "this sentence is right" would be drawn inside Tortie\'s own tooltip with nothing between the two halves');
+      }
+      const whyAt = body.indexOf('cite.why');
+      const factAt = body.indexOf('factKind');
+      if (whyAt >= 0 && factAt >= 0 && whyAt < factAt) {
+        fail('rule 6d: the model\'s own `why` is drawn BEFORE the fact Tortie found; everything above it is our own reading of the line and it is not, so a person who reads one line of a tooltip should read ours');
+      }
+    }
+    // The scanner is proved on planted bodies, of which three must fail.
+    const WHY_PLANTS = [
+      { name: 'the shipped composer', text: 'function citeTitle(c) { lines.push(face.sentence); lines.push(cite.at); if (cite.factKind !== null) lines.push(k); if (cite.why.length > 0) lines.push(`${CITE_WHY_PREFIX} ${cite.why}`); }', caught: false },
+      { name: 'a composer that draws the why bare', text: 'function citeTitle(c) { lines.push(face.sentence); if (cite.factKind !== null) lines.push(k); lines.push(cite.why); }', caught: true },
+      { name: 'a composer that draws the why first', text: 'function citeTitle(c) { lines.push(`${CITE_WHY_PREFIX} ${cite.why}`); if (cite.factKind !== null) lines.push(k); }', caught: true },
+      { name: 'a composer that draws no why at all', text: 'function citeTitle(c) { lines.push(face.sentence); lines.push(cite.at); }', caught: true }
+    ];
+    for (const plant of WHY_PLANTS) {
+      const body = functionBodyOf(plant.text, 'citeTitle') ?? '';
+      const drawsWhy = /cite\.why/.test(body);
+      const whyAt = body.indexOf('cite.why');
+      const factAt = body.indexOf('factKind');
+      const bad =
+        !drawsWhy ||
+        !/CITE_WHY_PREFIX/.test(body) ||
+        (whyAt >= 0 && factAt >= 0 && whyAt < factAt);
+      if (bad !== plant.caught) {
+        fail(`rule 6d: the scanner ${plant.caught ? 'missed' : 'caught'} the planted composer "${plant.name}"`);
+      }
+    }
+    say(`${TAG} rule 6d: the reading's own reason is drawn last and under its attribution; the scanner behaved on ${String(WHY_PLANTS.length)} plants`);
   }
 }
 
@@ -835,10 +1079,16 @@ try {
   if (!pkg.includes('"conformance:semantic"')) fail('rule 11: package.json does not name conformance:semantic');
   if (!checks.includes("'conformance:semantic'")) fail('rule 11: build/verification-checks.mjs does not classify conformance:semantic');
   if (!checks.includes("'measure:semantic'")) fail('rule 11: build/verification-checks.mjs does not classify measure:semantic');
+  // The APP RUN. §7.2 names it and the phase shipped without it; a gate that
+  // does not ask for it is how it stays missing.
+  if (!pkg.includes('"probe:p259"')) fail('rule 11: package.json does not name probe:p259, which is §7.2\'s app run');
+  if (!checks.includes("'probe:p259'")) fail('rule 11: build/verification-checks.mjs does not classify probe:p259');
   const listed = spawnSync(process.execPath, [join(repoRoot, 'build', 'assert-electron-teardown.mjs'), '--list'], { encoding: 'utf8', cwd: repoRoot });
   const helperUsers = (listed.stdout ?? '').split('\n').filter(Boolean);
-  if (!helperUsers.some((l) => l.includes('measure-semantic.mjs'))) {
-    fail(`rule 11: build/p259/measure-semantic.mjs is not among the ${String(helperUsers.length)} scripts the Electron teardown gate derives, and it starts an Electron`);
+  for (const starter of ['measure-semantic.mjs', 'probe-p259.mjs']) {
+    if (!helperUsers.some((l) => l.includes(starter))) {
+      fail(`rule 11: build/p259/${starter} is not among the ${String(helperUsers.length)} scripts the Electron teardown gate derives, and it starts an Electron`);
+    }
   }
   const teardown = read('build/assert-electron-teardown.mjs') ?? '';
   const floor = teardown.match(/const HELPER_USER_FLOOR = (\d+);/);

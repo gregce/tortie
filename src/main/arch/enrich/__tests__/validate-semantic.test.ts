@@ -13,10 +13,17 @@
  * it. Research 118 §6.4 planted three numbers and measured the substring form
  * catching ONE, so the case below MEASURES both forms over those three strings
  * rather than asserting this file's own arithmetic.
+ *
+ * R4 refuses a ROW whose citation names a file THE BLOCK NEVER HANDED OVER.
+ * The Phase 259 fix round added it, and the shape it closes is a citation into
+ * another part's box: the file is real, the line is real, a declaration sits
+ * near it, and the chip drawn beside the sentence was green. R2 asks whether a
+ * line exists; R4 asks whether the answer could have copied it.
  */
 
 import { describe, expect, it } from 'vitest';
 import {
+  citablePaths,
   digitRuns,
   validateArchSemanticAnswer,
   type ArchSemanticContext
@@ -416,5 +423,103 @@ describe('the journeys answer', () => {
     expect(
       validateArchSemanticAnswer(answer(), context({ kind: 'journeys' })).refusal
     ).toBe('bad-shape');
+  });
+});
+
+describe('R4, a citation the block never handed over', () => {
+  // `src/b.ts` is TRACKED and 40 lines long, so every R2 question about it
+  // answers yes. It is simply not in this part's block.
+  it('drops the ROW whole, exactly as an unresolvable citation does', () => {
+    const ruling = validateArchSemanticAnswer(
+      answer({
+        claims: FIELDS.map((field) => ({
+          field,
+          text: `what the part ${field}`,
+          facts: [
+            {
+              at: field === 'does' ? 'src/b.ts:5' : 'src/a.ts:10',
+              why: 'the line it points at'
+            }
+          ]
+        }))
+      }),
+      context()
+    );
+    expect(ruling.kept?.kind).toBe('part');
+    expect(ruling.kept?.kind === 'part' ? ruling.kept.claims.length : 0).toBe(6);
+    expect(ruling.rowsDropped).toBe(1);
+    expect(ruling.dropped).toContain('src/b.ts:5');
+    expect(ruling.dropped).toContain('not a file the facts named');
+  });
+
+  it('keeps a row citing a file the FILES section named with no fact on it', () => {
+    const withFiles = [BLOCK.replace('END FACTS', 'FILES'), '  src/b.ts', 'END FACTS'].join('\n');
+    const ruling = validateArchSemanticAnswer(
+      answer({
+        claims: FIELDS.map((field) => ({
+          field,
+          text: `what the part ${field}`,
+          facts: [{ at: field === 'does' ? 'src/b.ts:5' : 'src/a.ts:10', why: 'a file it holds' }]
+        }))
+      }),
+      context({ factBlock: withFiles })
+    );
+    expect(ruling.rowsDropped).toBe(0);
+    expect(ruling.kept?.kind === 'part' ? ruling.kept.claims.length : 0).toBe(7);
+  });
+
+  it('reads the two shapes the composer writes and nothing else', () => {
+    const paths = citablePaths(
+      [
+        'PART src-main',
+        'FACTS',
+        'surface',
+        '  ipc-channel arch:map at src/a.ts:10',
+        '  and 4 more subjects this reader found and did not list',
+        'FILES',
+        '  src/b.ts',
+        '  and 12 more',
+        'imports crossing this part:',
+        '  src-main imports src-shared: 412 times',
+        'END FACTS'
+      ].join('\n')
+    );
+    expect([...paths].sort()).toEqual(['src/a.ts', 'src/b.ts']);
+  });
+});
+
+describe('markup in a model written sentence', () => {
+  it('refuses the answer whole rather than drawing a tag nobody asked for', () => {
+    const ruling = validateArchSemanticAnswer(
+      answer({
+        claims: FIELDS.map((field) => ({
+          field,
+          text:
+            field === 'does'
+              // No digit in it, because R3 would otherwise refuse this
+              // answer first and the markup rule would be measured by nothing.
+              ? 'It draws <img src=x onerror=alert(x)> for each row.'
+              : `what the part ${field}`,
+          facts: [{ at: 'src/a.ts:10', why: 'the channel it registers' }]
+        }))
+      }),
+      context()
+    );
+    expect(ruling.kept).toBeNull();
+    expect(ruling.refusal).toBe('claim-invalid');
+  });
+
+  it('keeps an honest comparison, because the refusal is a TAG and not a bracket', () => {
+    const ruling = validateArchSemanticAnswer(
+      answer({
+        claims: FIELDS.map((field) => ({
+          field,
+          text: field === 'limit' ? 'It stops when a < b is not true.' : `what the part ${field}`,
+          facts: [{ at: 'src/a.ts:10', why: 'the channel it registers' }]
+        }))
+      }),
+      context()
+    );
+    expect(ruling.kept?.kind === 'part' ? ruling.kept.claims.length : 0).toBe(7);
   });
 });
