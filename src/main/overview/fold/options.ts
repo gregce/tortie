@@ -35,7 +35,12 @@ import { executionFieldsOf } from '../../config/overlay';
 import { currentAgentTable } from '../../config/store';
 import type { MergedAgentEntry } from '../../config/overlay';
 import type { FoldRecipe } from './recipes';
-import { archRecipeFor, foldRecipeFor } from './recipes';
+import {
+  ARCH_SEMANTIC_SUGGESTED_AGENT_ID,
+  archRecipeFor,
+  archSemanticRecipeFor,
+  foldRecipeFor
+} from './recipes';
 
 /**
  * May this agent row run RIGHT NOW under the Phase 23 gate? The one reading
@@ -167,6 +172,26 @@ export function archOptions(deps: FoldOptionsDeps = {}): ArchOptions {
   return joinHarnessOptions(
     deps.recipeFor ?? archRecipeFor,
     ARCH_SUGGESTED_AGENT_ID,
+    deps
+  );
+}
+
+/**
+ * The semantic pass offer (Phase 259): the SAME join over the compiled
+ * SEMANTIC recipe table.
+ *
+ * There is no third joiner and there is no second door. `recipeFor` is the one
+ * thing that differs between the three surfaces, exactly as Phase 158 left it,
+ * so a row with no measured semantic recipe arrives disabled carrying
+ * `not-measured` — which today is every row, because both semantic drafts are
+ * unmeasured until the integrator runs them by hand. Reading this list starts
+ * nothing: the pass runs only from a person's gesture in the Architecture
+ * view, and the Phase 23 gate is re-read at the spawn as well.
+ */
+export function archSemanticOptions(deps: FoldOptionsDeps = {}): ArchOptions {
+  return joinHarnessOptions(
+    deps.recipeFor ?? archSemanticRecipeFor,
+    ARCH_SEMANTIC_SUGGESTED_AGENT_ID,
     deps
   );
 }

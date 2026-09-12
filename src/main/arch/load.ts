@@ -48,6 +48,7 @@ import {
   type ArchComponent,
   type ArchDocument,
   type ArchEdge,
+  type ArchFlow,
   type ArchProblem
 } from '@shared/arch';
 import {
@@ -55,7 +56,8 @@ import {
   validateBaseline,
   validateComponent,
   validateContract,
-  validateEdges
+  validateEdges,
+  validateFlow
 } from './validate';
 
 /**
@@ -77,6 +79,7 @@ const contractPath = `${ARCH_DIR}/${ARCH_FILES.contract}`;
 const edgesPath = `${ARCH_DIR}/${ARCH_FILES.edges}`;
 const baselinePath = `${ARCH_DIR}/${ARCH_FILES.baseline}`;
 const componentsDir = `${ARCH_DIR}/${ARCH_FILES.components}`;
+const flowsDir = `${ARCH_DIR}/${ARCH_FILES.flows}`;
 
 /** An empty document, which is what a repository with no contract has. */
 export function emptyArchDocument(): ArchDocument {
@@ -90,6 +93,47 @@ export function emptyArchDocument(): ArchDocument {
  * the reason, which is the same rule the machine row and the agent overlay
  * follow.
  */
+/** One flow file that read cleanly, with anything that did not named. */
+export interface ArchFlowsRead {
+  flows: ArchFlow[];
+  problems: ArchProblem[];
+}
+
+/**
+ * Read `docs/arch/flows/` (Phase 259).
+ *
+ * PHASE 63 RESERVED THESE FILES AND READ NONE OF THEM. They are read now
+ * because the Journeys view draws how setup reaches a result, and a person who
+ * has written their own walk down must see THEIRS first, above anything a
+ * model read. No key moves for it: `flow` and `flowStep` have been in
+ * `ARCH_ROW_KEYS` since Phase 63.
+ *
+ * It never throws, and one bad flow costs that flow and nothing else. The
+ * files are read in name order so a run is repeatable, and `contract.flows`
+ * is NOT consulted: a file that is there is read, because a list that names a
+ * file nobody wrote would otherwise silently hide one somebody did.
+ */
+export async function loadArchFlows(fs: ArchFileSystem): Promise<ArchFlowsRead> {
+  const problems: ArchProblem[] = [];
+  const flows: ArchFlow[] = [];
+  const entries = (await fs.readDir(flowsDir))
+    .filter((name) => name.endsWith('.json'))
+    .sort()
+    .slice(0, ARCH_LIMITS.maxFlows);
+  for (const name of entries) {
+    const file = `${flowsDir}/${name}`;
+    const text = await fs.readFile(file);
+    if (text === null) continue;
+    const parsed = parseArchJson(text, file);
+    problems.push(...parsed.problems);
+    if (parsed.problems.length > 0) continue;
+    const flow = validateFlow(parsed.value, file);
+    problems.push(...flow.problems);
+    if (flow.value !== null) flows.push(flow.value);
+  }
+  return { flows, problems };
+}
+
 export async function loadArchDocument(fs: ArchFileSystem): Promise<ArchDocument> {
   const problems: ArchProblem[] = [];
   const doc = emptyArchDocument();

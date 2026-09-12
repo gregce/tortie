@@ -309,6 +309,12 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       if (layerOpen) return;
       openArchMapForActiveProject('gates');
       return;
+    // Phase 259. View > Architecture Journeys, through that same one door
+    // with the fourth inner tab named.
+    case 'show-arch-journeys':
+      if (layerOpen) return;
+      openArchMapForActiveProject('journeys');
+      return;
     // Phase 163. Help > Diagnostics Report, and the row in Settings, which
     // main forwards as this same action. One door, so the two cannot drift:
     // the whole app has one report tab and a second ask focuses it.

@@ -175,6 +175,14 @@ export const CHECKS = [
   // once per clause. It launches no Electron, starts no git, and its one
   // write is a scratch arch.db under a directory it removes in a finally.
   pure('conformance:evidence'),
+  // Phase 259. The bounded semantic pass: build/conformance-semantic.mjs runs
+  // the SHIPPING block composer, validator, citation grader and floor under
+  // the pinned tsx over the committed fixtures in build/fixtures/semantic/,
+  // measures the seven planted lies against the shipping refusals, then runs
+  // the same probe over an ablated copy of src/main once per clause. It
+  // spawns NO AGENT, starts no Electron and spends NO TOKEN; its only writes
+  // are the ablated copies under a directory it removes in a finally.
+  pure('conformance:semantic'),
   // Phase 207. The frame hue: build/conformance-hue.mjs runs the shipping
   // rotation and text rule under node over all 360 degrees and a synthetic
   // ground, then over twelve ablated copies of the code, one clause each.
@@ -1006,6 +1014,14 @@ export const CHECKS = [
   // scratch profile whose arch.db is read back and held against it.
   electron('probe:p257'),
   electron('probe:p258'),
+  // Phase 259. THE ONE CHECK IN THIS REPOSITORY THAT SPENDS A TOKEN, and only
+  // in its live mode, which is the integrator's. It drives the SHIPPED
+  // arch:enrich channel through one Electron on a scratch profile with a
+  // scratch HOME, over a scratch clone of this checkout, under the operator's
+  // narrow lift of 2026-09-12. `--dry-run` is what a builder and a verifier
+  // run: it drives the same chain and reads the refusal back, spawning no
+  // agent and spending nothing. `--self-test` launches nothing at all.
+  electron('measure:semantic'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
   // Tortie checkout named with --project, never the one the probe runs from.
   // One launch on a scratch profile right clicks the fixture's row in the

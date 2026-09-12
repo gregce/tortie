@@ -76,6 +76,10 @@ export const arch: GmuxArchExtras['arch'] = {
   // Phase 258: the fact rows behind one disclosure. A read over the same
   // fact base the map composes from; it parses nothing and writes nothing.
   facts: (input) => invoke('arch:facts', input),
+  // Phase 259: what an agent said each part is for, with every citation
+  // already graded and every rate already carrying its floor. A read over
+  // Tortie's own `arch.db`; it spawns nothing and writes nothing.
+  semantic: (input) => invoke('arch:semantic', input),
   onChecked: (cb) => on(EVT_ARCH_CHECKED, cb),
   onProgress: (cb) => on(EVT_ARCH_PROGRESS, cb),
   onMapUpdated: (cb) => on(EVT_ARCH_MAP_UPDATED, cb),

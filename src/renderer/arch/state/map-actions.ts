@@ -10,13 +10,20 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { canvasBridge, factsBridge, mapBridge, mapPartBridge } from '../bridge';
+import {
+  canvasBridge,
+  factsBridge,
+  mapBridge,
+  mapPartBridge,
+  semanticBridge
+} from '../bridge';
 import type {
   ArchCameraState,
   ArchFactsResult,
   ArchMapPartResult,
   ArchMapResult,
-  ArchModuleFilesResult
+  ArchModuleFilesResult,
+  ArchSemanticResult
 } from '../bridge';
 import { moduleFilesBridge } from '../modules';
 import {
@@ -25,7 +32,9 @@ import {
   ARCH_FACTS_ERROR,
   ARCH_FACTS_NO_BRIDGE,
   ARCH_MAP_ERROR,
-  ARCH_MAP_NO_BRIDGE
+  ARCH_MAP_NO_BRIDGE,
+  ARCH_SEMANTIC_ERROR,
+  ARCH_SEMANTIC_NO_BRIDGE
 } from '../copy';
 import { archRepoInputOf } from './repo-key';
 import {
@@ -36,7 +45,12 @@ import {
   moduleKey,
   partKey
 } from './view-state';
-import type { ArchDrill, ArchFactsEntry, ArchViewState } from './view-state';
+import type {
+  ArchDrill,
+  ArchFactsEntry,
+  ArchSemanticEntry,
+  ArchViewState
+} from './view-state';
 
 /**
  * Repositories whose map should be read AGAIN the moment the read in flight
@@ -173,10 +187,16 @@ type MapActions = Pick<
   | 'loadFacts'
   | 'factsFor'
   | 'forgetFacts'
+  | 'loadSemantic'
+  | 'semanticFor'
+  | 'forgetSemantic'
 >;
 
 /** PHASE 258. The disclosure reads in flight, keyed by {@link factsKey}. */
 const pendingFactsReads = new Set<string>();
+
+/** PHASE 259. The semantic reads in flight, keyed by repository root. */
+const pendingSemanticReads = new Set<string>();
 
 export const createMapActions: StateCreator<
   ArchViewState,
@@ -497,6 +517,43 @@ export const createMapActions: StateCreator<
     return get().facts[factsKey(repoPath, scope, categories)] ?? null;
   },
 
+  // PHASE 259. The model-written reading: a READ through the same fold every
+  // other reading here uses. It starts nothing, it writes nothing, and a
+  // repository nothing has read answers ready with `readAt: null`.
+  async loadSemantic(repoPath) {
+    const held = get().semantic[repoPath];
+    const api = semanticBridge();
+    await foldedRead<ArchSemanticResult>({
+      key: repoPath,
+      pending: pendingSemanticReads,
+      loading: held?.status === 'loading',
+      read: api === null ? null : () => api.semantic(archRepoInputOf(repoPath)),
+      held: held?.result ?? null,
+      latest: () => get().semantic[repoPath]?.result ?? null,
+      patch: (status, result, error) => {
+        set((s) => ({
+          semantic: { ...s.semantic, [repoPath]: { status, result, error } }
+        }));
+      },
+      noBridge: ARCH_SEMANTIC_NO_BRIDGE,
+      fallback: ARCH_SEMANTIC_ERROR,
+      again: () => void get().loadSemantic(repoPath)
+    });
+  },
+
+  semanticFor(repoPath) {
+    return get().semantic[repoPath] ?? null;
+  },
+
+  forgetSemantic(repoPath) {
+    set((s) => {
+      if (s.semantic[repoPath] === undefined) return {};
+      const semantic: Record<string, ArchSemanticEntry> = { ...s.semantic };
+      delete semantic[repoPath];
+      return { semantic };
+    });
+  },
+
   forgetFacts(repoPath) {
     const prefix = `${repoPath}\u0000`;
     set((s) => {
@@ -551,6 +608,12 @@ export function reloadScopedReads(s: ArchViewState, cwd: string): void {
   // one that is closed costs nothing. The facts moved, so the held rows are
   // no longer a reading of them.
   s.forgetFacts(cwd);
+  // PHASE 259. The semantic reading is READ AGAIN rather than let go, because
+  // a moved fact is exactly what turns a claim stale, and staleness is the
+  // news this surface owes a person. The re-read costs one query against
+  // Tortie's own `arch.db` and starts nothing: no agent is asked because a
+  // file changed, which is refusal 8 and is asked structurally in main.
+  void s.loadSemantic(cwd);
   for (const key of Object.keys(s.partMaps)) {
     if (key.startsWith(prefix)) {
       void s.loadPartMap(cwd, key.slice(prefix.length));

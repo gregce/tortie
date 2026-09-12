@@ -1,0 +1,41 @@
+{
+ "_what": "The tracked files of the fixture repository at its scanned commit, with the line count arch_tree_file holds for each. The grader resolves a citation against THIS and opens no file, which is rule 3b.",
+ "files": [
+  {
+   "path": "src/main/index.ts",
+   "lines": 120
+  },
+  {
+   "path": "src/main/arch/ipc.ts",
+   "lines": 200
+  },
+  {
+   "path": "src/main/arch/enrich/run.ts",
+   "lines": 540
+  },
+  {
+   "path": "src/main/fs/guarded-write.ts",
+   "lines": 260
+  },
+  {
+   "path": "src/main/symbols/pool.ts",
+   "lines": 180
+  },
+  {
+   "path": "src/main/tmux/sessions.ts",
+   "lines": 300
+  },
+  {
+   "path": "src/renderer/arch/ArchMapTab.tsx",
+   "lines": 300
+  },
+  {
+   "path": "build/conformance-semantic.mjs",
+   "lines": 400
+  },
+  {
+   "path": "docs/BACKLOG.md",
+   "lines": 9000
+  }
+ ]
+}

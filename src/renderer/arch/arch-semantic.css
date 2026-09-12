@@ -1,0 +1,238 @@
+/*
+ * Phase 259 — the model-written half of the map tab: the citation chips, the
+ * rate beside its floor, the journeys view and the gate reasons.
+ *
+ * EVERY VALUE IS A TOKEN AND NO TOKEN MOVED. The chips draw in exactly the
+ * two colours the rung chip already draws in, --success and --status-idle,
+ * both pinned at 3:1 on --bg-active at every offered frame by
+ * ../theme/presets.ts (Phase 218), so tokens.css is untouched, the dark
+ * digest of conformance:hue rule 25 stands and its rule 32 pin set does not
+ * move. Nothing here is amber, nothing here is a badge and nothing here
+ * animates.
+ *
+ * Colour is never the only signal: every chip carries a glyph and a word, so
+ * a call site and a declaration differ three ways and not one.
+ */
+
+/* -- the citation chip ----------------------------------------------------- */
+
+.arch-cite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+}
+
+button.arch-cite {
+  cursor: pointer;
+}
+
+button.arch-cite:hover {
+  text-decoration: underline;
+}
+
+button.arch-cite:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--r-sm);
+}
+
+.arch-cite-quiet {
+  color: var(--status-idle);
+}
+
+.arch-cite-reached {
+  color: var(--success);
+}
+
+.arch-cite-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* -- the sentence, who read it, and the rate ------------------------------- */
+
+.arch-claim {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.arch-claim-text {
+  color: var(--text-primary);
+}
+
+/* A stale claim keeps its sentence and loses none of its weight: the chip is
+ * what turned, and the muted sentence would read as a deletion. */
+.arch-claim[data-stale='true'] .arch-claim-text {
+  color: var(--text-secondary);
+}
+
+.arch-read-by {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.arch-rate {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The read sentence sits UNDER the computed value of the same field, never
+ * beside it, so the two halves of Runs in can never be mistaken for one. */
+.arch-inspector-read {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+/* -- nothing has read this repository -------------------------------------- */
+
+.arch-no-reading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-3) 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.arch-no-reading p {
+  margin: 0;
+}
+
+.arch-no-reading strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+/* -- the journeys view ----------------------------------------------------- */
+
+.arch-journeys-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3) var(--space-5) var(--space-6);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.arch-journeys-rate {
+  margin: 0 0 var(--space-3);
+}
+
+.arch-journey-group {
+  margin-bottom: var(--space-5);
+}
+
+.arch-journeys-sub {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.arch-journey {
+  margin-bottom: var(--space-4);
+}
+
+.arch-journey-name {
+  margin: 0 0 var(--space-2);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.arch-journey-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.arch-journey-step {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-1) 0;
+  min-width: 0;
+}
+
+.arch-journey-seq {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 20px;
+}
+
+.arch-journey-part {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  min-width: 110px;
+}
+
+.arch-journey-label {
+  min-width: 0;
+}
+
+.arch-journey-step[data-stale='true'] .arch-journey-label {
+  color: var(--text-secondary);
+}
+
+/* -- the gate reasons, under the counts and above the rows ----------------- */
+
+.arch-gate-reasons {
+  margin: 0 0 var(--space-4);
+}
+
+.arch-gate-reason-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.arch-gate-reason {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-1) 0;
+  min-width: 0;
+}
+
+.arch-gate-question {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.arch-gate-answer {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caps);
+}

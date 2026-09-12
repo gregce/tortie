@@ -521,6 +521,12 @@ export const ARCH_MAP_VIEW_LABEL = 'What this repository builds and starts';
 export const ARCH_TAB_MAP = 'Map';
 export const ARCH_TAB_SURFACES = 'Surfaces';
 export const ARCH_TAB_GATES = 'Gates';
+/**
+ * PHASE 259. The fourth inner tab. The row reads Map, Journeys, Surfaces,
+ * Gates, which is reading order: what lives where, how setup reaches a
+ * result, what it exposes, where work stops.
+ */
+export const ARCH_TAB_JOURNEYS = 'Journeys';
 
 /** The one line the outside band says: nothing in it is this repository's code. */
 export const ARCH_OUTSIDE_EMPTY = "Nothing here is this repository's code.";
@@ -688,3 +694,61 @@ export function archGatesBreakdown(counts: Readonly<Record<string, number>>): st
 
 /** The worksheet's placeholder option before a part is named. */
 export const ARCH_GATES_NAME_ONE = 'Name a part';
+
+// ---------------------------------------------------------------------------
+// PHASE 259 — the model-written half: what is drawn when nothing has read the
+// repository, what a journey step says, and how a claim is labelled.
+// ---------------------------------------------------------------------------
+// EVERY STRING BELOW IS ATTRIBUTION AND NONE OF THEM IS A VERDICT. Research
+// 118 §6.4 measured ITS OWN checker catching two of seven false readings.
+// THIS product's refusals are not that checker, and driven over the same seven
+// plants by `conformance:semantic` rule 7 they catch 3 of 7, being wrong-part,
+// accepted-live and invented-numbers. The four they miss are what a confident
+// wrong reading actually looks like, so nothing here may say a sentence is
+// right, only that a fact was found at a line and who wrote the sentence.
+
+/** The first line when no agent has read this repository (SPEC §6.2). */
+export const ARCH_NO_READING = 'Nothing has read this repository yet.';
+
+/** The second half of the same line: what would, and where the one door is. */
+export const ARCH_NO_READING_SUB =
+  'An agent you pick in Settings says what each part is for.';
+
+/**
+ * The button beside it. It OPENS SETTINGS and does nothing else: refusal 8
+ * puts the agreement behind exactly one surface, so a second door here would
+ * be a second surface. `settings:openWindow` takes no argument, which is the
+ * same limit `editor/tab-io.ts` states in the same words.
+ */
+export const ARCH_NO_READING_SETTINGS = 'Settings';
+
+/** The sub over a group of journeys a person committed under `docs/arch/flows/`. */
+export const ARCH_JOURNEYS_FROM_CONTRACT = "from this repository's own contract";
+
+/** The sub over anything an agent read, with the agent named. Never an authority. */
+export function archReadBy(agentId: string | null): string {
+  return agentId === null || agentId === '' ? 'read by an agent' : `read by ${agentId}`;
+}
+
+/** The journeys view with a reading but no journey in it. */
+export const ARCH_JOURNEYS_NONE = 'No journeys were read.';
+
+/** The gates view's own heading over the model's reasons, under the computed rows. */
+export const ARCH_GATES_REASONS = 'Why work stops here';
+
+/** A journey step's number, as the face prints it. */
+export function archStepNumber(seq: number): string {
+  return `${String(seq)}.`;
+}
+
+/** The inspector's four model rows (SPEC §6.5). */
+export const ARCH_INSPECT_RECEIVES = 'Receives';
+export const ARCH_INSPECT_DOES = 'Does';
+export const ARCH_INSPECT_RETURNS = 'Returns';
+export const ARCH_INSPECT_LIMIT = 'Where it stops';
+
+/** PHASE 259. A semantic read that failed, one sentence, never a blank view. */
+export const ARCH_SEMANTIC_ERROR = 'The reading could not be read.';
+
+/** An older preload with no semantic channel. */
+export const ARCH_SEMANTIC_NO_BRIDGE = 'This build cannot report a reading.';

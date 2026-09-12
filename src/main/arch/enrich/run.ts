@@ -55,7 +55,11 @@ import { configRowStatus } from '../../config/confirm';
 import { currentAgentTable } from '../../config/store';
 import { foldInputHash } from '../../overview/fold/compose';
 import { harnessConfirmedNow } from '../../overview/fold/options';
-import { archRecipeFor, recipeHasModel } from '../../overview/fold/recipes';
+import {
+  archRecipeFor,
+  archSemanticRecipeFor,
+  recipeHasModel
+} from '../../overview/fold/recipes';
 import { FOLD_MIN_INTERVAL_MS } from '../../overview/fold/scheduler';
 import {
   runFold,
@@ -66,13 +70,24 @@ import { HarnessSuspension } from '../../overview/fold/suspension';
 import {
   composeArchDeltaPrompt,
   composeArchEnrichPrompt,
+  composeArchJourneyPrompt,
+  composeArchSemanticPrompt,
   ARCH_DELTA_SYSTEM_PROMPT,
   ARCH_ENRICH_SYSTEM_PROMPT,
+  ARCH_JOURNEY_SYSTEM_PROMPT,
+  ARCH_SEMANTIC_SYSTEM_PROMPT,
   type ArchEnrichComposition,
-  type ArchEnrichImport
+  type ArchEnrichImport,
+  type ArchSemanticFactInput
 } from './compose';
 import { driftScope, readArchDrift, type ArchDriftVerdict } from './drift';
-import { validateArchAnswer, type ArchEnrichAnswer } from './validate';
+import type { ArchGradeSources } from '../semantic/grade';
+import type { ArchSemanticAskFacts, KeptSemanticAnswer } from '../semantic/types';
+import {
+  validateArchAnswer,
+  validateArchSemanticAnswer,
+  type ArchEnrichAnswer
+} from './validate';
 import { planEnrichedWrite, writeArchFiles } from './write';
 
 /** The person's arch choice, read from the sealed settings value. */
@@ -94,7 +109,12 @@ export type ArchPassRefusal =
   | 'suspended'
   | 'no-drift'
   | 'interval'
-  | 'same-input';
+  | 'same-input'
+  // PHASE 259. A `part` ask that names no box the partition holds. It is a
+  // refusal rather than a guess: a box id can go stale between a person
+  // pressing and main reading, and reading a neighbour would put a model's
+  // sentences on the wrong part of the map.
+  | 'no-part';
 
 /** What one recorded run looks like, on the run's face and in the store. */
 export interface ArchPassRunRecord {
@@ -159,6 +179,21 @@ export interface ArchPassInput {
   verdicts?: readonly ArchDriftVerdict[];
   /** The published freshness rows, the same. */
   freshness?: readonly ArchFreshness[];
+  /** PHASE 259. Which rule P box a `part` ask is about. */
+  partId?: string;
+  /**
+   * PHASE 259. The partition and the facts the semantic asks compose from,
+   * gathered by the caller exactly as `document` and `imports` are. Absent on
+   * a `whole` or `drift` pass, which never reads it.
+   */
+  semantic?: ArchSemanticFactInput;
+  /**
+   * PHASE 259. How a citation resolves and grades. It opens no file: every
+   * question it answers is a lookup over rows `arch.db` already holds.
+   */
+  grade?: ArchGradeSources;
+  /** PHASE 259. The commit the facts behind a semantic ask were read at. */
+  headCommit?: string;
 }
 
 export interface ArchPassDeps {
@@ -192,7 +227,25 @@ export interface ArchPassDeps {
    * Absent, the same input check never refuses.
    */
   latestInputHash?(repoPath: string): string | null;
+  /**
+   * PHASE 259. Record one semantic ask and, on a kept answer, its claims.
+   *
+   * A separate seam from `write` because a semantic reading NEVER reaches
+   * `docs/arch/`: it lives in Tortie's own disposable `arch.db`, so
+   * `ARCH_ROW_KEYS` is untouched and `./write.ts` is never called for it.
+   * Absent, the answer is validated and graded and then thrown away, which is
+   * what every unit test that drives the runner without a store does.
+   */
+  recordSemantic?(record: ArchSemanticRecord): void;
   now?(): number;
+}
+
+/** PHASE 259. What one finished semantic ask hands the store. */
+export interface ArchSemanticRecord extends ArchSemanticAskFacts {
+  repoPath: string;
+  scope: 'part' | 'journeys';
+  /** The kept answer, already graded, or null when it was refused. */
+  kept: KeptSemanticAnswer | null;
 }
 
 /**
@@ -255,7 +308,15 @@ export class ArchPassRunner {
    * and a refused gesture is an answer rather than an exception.
    */
   async run(input: ArchPassInput): Promise<ArchPassOutcome> {
-    const refusal = this.gate(input.repoPath);
+    // PHASE 259. The scope is read FIRST, because it decides which measured
+    // recipe table the gate asks: a semantic ask runs a row measured for the
+    // semantic question, and an agent with no measured semantic row is refused
+    // `no-recipe` before anything spawns. Everything else about the gate is
+    // Phase 158's, unchanged and asked in the same order.
+    const scope: ArchPassScope = input.scope ?? 'whole';
+    const trigger: ArchPassTrigger = input.trigger ?? 'gesture';
+    const semantic = scope === 'part' || scope === 'journeys';
+    const refusal = this.gate(input.repoPath, scope);
     if (refusal !== null) {
       logEvent('arch', 'info', 'arch.pass.refused', 'an enrichment gesture was refused', {
         repoPath: input.repoPath,
@@ -266,13 +327,11 @@ export class ArchPassRunner {
     const choice = this.deps.choice();
     const agentId = choice.agentId ?? '';
     const model = choice.model ?? '';
-    const recipe = archRecipeFor(agentId);
+    const recipe = semantic ? archSemanticRecipeFor(agentId) : archRecipeFor(agentId);
     if (recipe === null || !recipeHasModel(recipe, model)) {
       return { started: false, refusal: 'no-recipe', run: null };
     }
 
-    const scope: ArchPassScope = input.scope ?? 'whole';
-    const trigger: ArchPassTrigger = input.trigger ?? 'gesture';
     const skip = (refusal: ArchPassRefusal): ArchPassOutcome => {
       logEvent('arch', 'info', 'arch.pass.skipped', 'a pass was skipped before any spawn', {
         repoPath: input.repoPath,
@@ -301,21 +360,41 @@ export class ArchPassRunner {
       }
     }
 
-    const systemPrompt =
-      drift === null ? ARCH_ENRICH_SYSTEM_PROMPT : ARCH_DELTA_SYSTEM_PROMPT;
-    const composed: ArchEnrichComposition =
-      drift === null
-        ? composeArchEnrichPrompt({
-            document: input.document,
-            trackedFiles: input.trackedFiles,
-            imports: input.imports
-          })
-        : composeArchDeltaPrompt({
-            document: input.document,
-            trackedFiles: input.trackedFiles,
-            imports: input.imports,
-            drift
-          });
+    // PHASE 259. Two more asks, composed from the partition and the fact base
+    // rather than from the contract. A `part` ask that names no box spawns
+    // nothing: it is refused `no-part` here, with the same sentence a stale
+    // gesture deserves.
+    let systemPrompt: string;
+    let composed: ArchEnrichComposition;
+    if (semantic) {
+      const facts = input.semantic;
+      if (facts === undefined || input.grade === undefined) return skip('no-part');
+      if (scope === 'part') {
+        const built = composeArchSemanticPrompt(facts, input.partId ?? '');
+        if (built === null) return skip('no-part');
+        systemPrompt = ARCH_SEMANTIC_SYSTEM_PROMPT;
+        composed = built;
+      } else {
+        systemPrompt = ARCH_JOURNEY_SYSTEM_PROMPT;
+        composed = composeArchJourneyPrompt(facts);
+      }
+    } else {
+      systemPrompt =
+        drift === null ? ARCH_ENRICH_SYSTEM_PROMPT : ARCH_DELTA_SYSTEM_PROMPT;
+      composed =
+        drift === null
+          ? composeArchEnrichPrompt({
+              document: input.document,
+              trackedFiles: input.trackedFiles,
+              imports: input.imports
+            })
+          : composeArchDeltaPrompt({
+              document: input.document,
+              trackedFiles: input.trackedFiles,
+              imports: input.imports,
+              drift
+            });
+    }
     const inputHash = foldInputHash({
       recipeAgentId: recipe.agentId,
       recipeVersion: recipe.version,
@@ -395,8 +474,40 @@ export class ArchPassRunner {
         return { started: true, refusal: null, run: face };
       };
 
+      // PHASE 259. The semantic asks record into their own store and never
+      // reach `./write.ts`: a reading lives in `arch.db` and never in
+      // `docs/arch/`, so no key moves and nothing a model wrote can become
+      // part of the format a person commits. The gate, the spawn, the
+      // suspension and the recorded row above are Phase 158's, unchanged.
+      const noteSemantic = (
+        verdict: 'kept' | 'refused' | 'failed',
+        reason: string | null,
+        detail: string | null,
+        rowsDropped: number,
+        kept: KeptSemanticAnswer | null
+      ): void => {
+        this.deps.recordSemantic?.({
+          repoPath: input.repoPath,
+          scope: scope === 'part' ? 'part' : 'journeys',
+          partId: scope === 'part' ? (input.partId ?? null) : null,
+          agentId,
+          model,
+          recipeVersion: recipe.version,
+          headCommit: input.headCommit ?? '',
+          startedAt,
+          wallMs: this.now() - startedAt,
+          verdict,
+          reason,
+          detail,
+          costUsd: run.costUsd ?? null,
+          rowsDropped,
+          kept
+        });
+      };
+
       if (run.outcome !== 'ok' || run.text === null) {
         this.suspender.noteFailure(run, input.repoPath);
+        if (semantic) noteSemantic('failed', run.reason ?? run.outcome, null, 0, null);
         return finish(
           'failed',
           run.reason ?? run.outcome,
@@ -407,6 +518,50 @@ export class ArchPassRunner {
           []
         );
       }
+
+      if (semantic) {
+        const facts = input.semantic;
+        const grade = input.grade;
+        if (facts === undefined || grade === undefined) {
+          // Unreachable: the compose branch above refused without these. The
+          // arm is here so the record cannot be written from a half input.
+          noteSemantic('failed', 'no-part', null, 0, null);
+          return finish('failed', 'no-part', null, null, null, null, []);
+        }
+        const ruled = validateArchSemanticAnswer(run.text, {
+          kind: scope === 'part' ? 'part' : 'journeys',
+          partId: input.partId ?? '',
+          partIds: facts.parts.map((part) => part.id),
+          factBlock: composed.factBlock,
+          grade
+        });
+        if (ruled.kept === null) {
+          // A refusal is the validator doing its job rather than the harness
+          // failing, so it does not count toward the suspension, and it IS
+          // recorded with its name: a refusal rate that climbs is readable.
+          this.suspender.reset();
+          noteSemantic(
+            'refused',
+            ruled.refusal ?? 'refused',
+            ruled.detail,
+            ruled.rowsDropped,
+            null
+          );
+          return finish(
+            'refused',
+            ruled.refusal ?? 'refused',
+            ruled.detail,
+            null,
+            null,
+            null,
+            []
+          );
+        }
+        this.suspender.reset();
+        noteSemantic('kept', null, ruled.dropped, ruled.rowsDropped, ruled.kept);
+        return finish('kept', null, ruled.dropped, null, null, null, []);
+      }
+
       const ruling = validateArchAnswer(run.text, {
         document: input.document,
         factBlock: composed.factBlock,
@@ -513,7 +668,7 @@ export class ArchPassRunner {
   // The gate, taken before anything spawns
   // -------------------------------------------------------------------------
 
-  private gate(repoPath: string): ArchPassRefusal | null {
+  private gate(repoPath: string, scope: ArchPassScope): ArchPassRefusal | null {
     const choice = this.deps.choice();
     if (choice.agentId === null || choice.model === null) return 'no-choice';
     if (this.suspension() !== null) return 'suspended';
@@ -524,7 +679,13 @@ export class ArchPassRunner {
       this.deps.status ?? configRowStatus
     );
     if (!confirmed) return 'not-confirmed';
-    const recipe = archRecipeFor(choice.agentId);
+    // PHASE 259. The SAME gate, asked of whichever measured table this scope
+    // runs from. A row nobody measured is not in its table, so an agent with
+    // no measured semantic recipe is refused here and spawns nothing.
+    const recipe =
+      scope === 'part' || scope === 'journeys'
+        ? archSemanticRecipeFor(choice.agentId)
+        : archRecipeFor(choice.agentId);
     if (recipe === null || !recipeHasModel(recipe, choice.model)) {
       return 'no-recipe';
     }

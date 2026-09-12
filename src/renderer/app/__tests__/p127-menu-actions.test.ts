@@ -75,6 +75,8 @@ const ARMS = [
   // on the named inner tab.
   'show-arch-surfaces',
   'show-arch-gates',
+  // Phase 259: the fourth inner tab of the one map tab, through the same door.
+  'show-arch-journeys',
   // Phase 163. Help > Diagnostics Report, and the row in Settings, which
   // main forwards as this same action. It opens the report as a full size
   // editor tab, or focuses the one already open. It sits here in source
@@ -101,7 +103,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 49 actions and no more', () => {
+  it('answers all 50 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

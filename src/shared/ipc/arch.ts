@@ -52,7 +52,12 @@ import type {
   ArchFact,
   ArchFactCategory,
   ArchFreshness,
+  ArchGateReading,
+  ArchJourneyReading,
+  ArchPartReading,
   ArchProblem,
+  ArchRateReading,
+  ArchSemanticRunFace,
   ArchVerdict,
   ArchVerdictChanges
 } from '../arch';
@@ -521,6 +526,41 @@ export interface ArchInvokeChannelMap {
    * judges nothing and writes nothing (SPEC §4.1).
    */
   'arch:facts': { req: [input: ArchFactsInput]; res: ArchFactsResult };
+  /**
+   * PHASE 259. What an agent has said each part is FOR, with every sentence's
+   * citations already graded and every rate already carrying its floor.
+   *
+   * A READ, and the only one of this phase's two directions: the ASK is
+   * `arch:enrich` with the widened scope, behind the confirm gate it has had
+   * since Phase 158. Nothing here spawns anything, and a repository nothing
+   * has read answers with `readAt: null` rather than with an error, because
+   * off must never read as broken.
+   */
+  'arch:semantic': { req: [input: ArchSemanticInput]; res: ArchSemanticResult };
+}
+
+/** PHASE 259 (SPEC §3.4). One repository's reading, asked for whole. */
+export interface ArchSemanticInput extends ArchRepoInput {
+  machineId?: string | null;
+}
+
+/**
+ * PHASE 259 (SPEC §3.4). Everything the two model-written views draw.
+ *
+ * `readAt` is null when nothing has read this repository, which is the state
+ * the journeys and the gates views say one sentence about with a link to
+ * Settings; it is never an error and never an empty list pretending to be an
+ * answer.
+ */
+export interface ArchSemanticResult {
+  cwd: string;
+  parts: readonly ArchPartReading[];
+  journeys: readonly ArchJourneyReading[];
+  gates: readonly ArchGateReading[];
+  rates: readonly ArchRateReading[];
+  /** The runs behind it, newest first. No cost is ever on the face. */
+  runs: readonly ArchSemanticRunFace[];
+  readAt: number | null;
 }
 
 /** PHASE 258 (SPEC §4.1). What one disclosure asks for. */
@@ -628,6 +668,8 @@ export interface GmuxArchExtras {
     ): Promise<ArchAcceptDivergenceResult>;
     /** Phase 258: the rows behind a disclosure. A read; it starts nothing. */
     facts(input: ArchFactsInput): Promise<ArchFactsResult>;
+    /** Phase 259: what an agent said each part is for. A read; it starts nothing. */
+    semantic(input: ArchSemanticInput): Promise<ArchSemanticResult>;
     onChecked(cb: (event: ArchCheckedEvent) => void): Unsubscribe;
     onProgress(cb: (progress: ArchProgressEvent) => void): Unsubscribe;
     onMapUpdated(cb: (event: ArchMapUpdatedEvent) => void): Unsubscribe;
@@ -653,7 +695,11 @@ export type ArchMenuActionId =
   // switch: the surfaces list and the gates worksheet are the map tab's own
   // inner tabs, and each row opens the one map tab on the named one.
   | 'show-arch-surfaces'
-  | 'show-arch-gates';
+  | 'show-arch-gates'
+  // Phase 259. The fourth inner tab, directly under Architecture Map to
+  // match the tab row's own order: what lives where, then how setup reaches
+  // a result, then what it exposes, then why work stops.
+  | 'show-arch-journeys';
 
 /**
  * Session > Aim at a Promise… (Phase 64), the aiming verb's own menu action.
@@ -679,8 +725,15 @@ export type ArchAimMenuActionId = 'arch-aim';
  * whole contract. `drift` names only the promises that broke and the parts
  * that fell behind, and the validator refuses an answer that edits anything
  * outside that scope.
+ *
+ * PHASE 259 ADDED TWO AND OPENED NO SECOND DOOR. `part` asks what ONE rule P
+ * box is for, named by {@link ArchEnrichInput.partId}, because the whole
+ * repository's facts do not fit the prompt cap and neither do its largest
+ * part's (research 118 §7.8). `journeys` asks how setup reaches a result
+ * across the parts. Both take the same confirm gate, the same minimum
+ * interval and the same same-input-hash refusal as `whole`.
  */
-export type ArchPassScope = 'whole' | 'drift';
+export type ArchPassScope = 'whole' | 'drift' | 'part' | 'journeys';
 
 /**
  * What started one pass. `gesture` is the Fill in button, `ribbon` is the
@@ -700,6 +753,12 @@ export type ArchPassTrigger = 'gesture' | 'ribbon' | 'drift';
  */
 export interface ArchEnrichInput extends ArchRepoInput {
   scope?: ArchPassScope;
+  /**
+   * PHASE 259. Which rule P box a `part` ask is about. Ignored by every other
+   * scope, and main refuses a `part` ask that names none rather than guessing
+   * one.
+   */
+  partId?: string;
 }
 
 /**

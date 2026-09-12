@@ -228,11 +228,12 @@ export interface EditorTab {
     repoPath: string;
     /**
      * PHASE 258. Which inner tab of the map tab to land on: the picture, the
-     * surfaces list or the gates worksheet. Absent is the picture. The arch
-     * store holds the tab as view state and `openArchMap` sets it before the
-     * request goes out, so the editor reads nothing from this field.
+     * journeys, the surfaces list or the gates worksheet (Phase 259 added the
+     * second). Absent is the picture. The arch store holds the tab as view
+     * state and `openArchMap` sets it before the request goes out, so the
+     * editor reads nothing from this field.
      */
-    tab?: 'map' | 'surfaces' | 'gates';
+    tab?: 'map' | 'journeys' | 'surfaces' | 'gates';
   };
   /**
    * PHASE 163. This tab is the DIAGNOSTICS REPORT, one capture of what Tortie

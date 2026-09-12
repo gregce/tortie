@@ -228,6 +228,34 @@ describe('the fact pass over the same read (Phase 257)', () => {
       .map((f) => `${f.file}:${f.line} ${f.category}/${f.kind} ${f.subject}`)
       .sort();
 
+  it('writes the declarations off the SAME parse, keyed on the same bytes (Phase 259)', async () => {
+    const out = await run(false);
+    // The symbols arrive on the worker message the calls already came on, so
+    // this is a second table off ONE parse rather than a second parse.
+    expect(out.facts.decls).toBeGreaterThan(0);
+    expect(out.facts.declsTruncated).toBe(0);
+    const decls = store.declsOf(KEY, ['src/main/typed-ipc.ts']);
+    expect(decls.map((row) => row.subject)).toContain('function handle');
+    expect(decls[0]?.evidence).toContain('export function handle');
+    // Nothing was written for a file no rule reads.
+    expect(store.declsOf(KEY, ['icon.png', 'README.md'])).toEqual([]);
+  });
+
+  it('keeps the declarations out of the fact base, so no count on any face moves', async () => {
+    await run(false);
+    const categories = new Set(store.facts(KEY).map((fact) => fact.category));
+    expect(categories.has('decl' as never)).toBe(false);
+    expect(store.factCounts(KEY).byCategory).not.toHaveProperty('decl');
+  });
+
+  it('forgets a file declarations with its facts when the tree stops tracking it', async () => {
+    await run(false);
+    expect(store.declsOf(KEY, ['src/main/typed-ipc.ts']).length).toBeGreaterThan(0);
+    await run(false, [], tracked.filter((one) => one !== 'src/main/typed-ipc.ts'));
+    store.pruneUnlinkedFacts();
+    expect(store.declsOf(KEY, ['src/main/typed-ipc.ts'])).toEqual([]);
+  });
+
   it('links every tracked file, reads the rule files, refuses the vendored one and parses only source', async () => {
     const asks: { files: string[]; wrappers: boolean }[] = [];
     const out = await run(false, asks);

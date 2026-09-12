@@ -978,6 +978,19 @@ function buildTemplate(): MenuItemConstructorOptions[] {
                 undefined,
                 'circuit-board'
               ),
+              // PHASE 259. Journeys, directly under Architecture Map, because
+              // the inner tab row reads Map, Journeys, Surfaces, Gates and a
+              // menu that disagreed with the row a person is looking at would
+              // be a second order to learn. No chord, for the map row's own
+              // reason; `circuit-board` again, the mark of the surface it
+              // opens. It is behind the same Architecture switch as every row
+              // around it.
+              item(
+                'Architecture Journeys',
+                'show-arch-journeys',
+                undefined,
+                'circuit-board'
+              ),
               // PHASE 258. The map tab's two computed views, directly under
               // the map row and behind the same switch: the surfaces list
               // and the gates worksheet are inner tabs of the ONE map tab,

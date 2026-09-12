@@ -1,0 +1,63 @@
+{
+ "_what": "Rule P's boxes for the fixture, being the file set each part owns. A part's FACTS block may carry a fact from its own box and from no other, which is rule 1's scope clause.",
+ "parts": [
+  {
+   "id": "src-main",
+   "anchors": [
+    "src/main/**"
+   ],
+   "files": [
+    "src/main/index.ts",
+    "src/main/arch/ipc.ts",
+    "src/main/arch/enrich/run.ts",
+    "src/main/fs/guarded-write.ts",
+    "src/main/symbols/pool.ts",
+    "src/main/tmux/sessions.ts"
+   ]
+  },
+  {
+   "id": "src-renderer",
+   "anchors": [
+    "src/renderer/**"
+   ],
+   "files": [
+    "src/renderer/arch/ArchMapTab.tsx"
+   ]
+  },
+  {
+   "id": "build",
+   "anchors": [
+    "build/**"
+   ],
+   "files": [
+    "build/conformance-semantic.mjs"
+   ]
+  },
+  {
+   "id": "docs",
+   "anchors": [
+    "docs/**"
+   ],
+   "files": [
+    "docs/BACKLOG.md"
+   ]
+  }
+ ],
+ "imports": [
+  {
+   "from": "src-renderer",
+   "to": "src-shared",
+   "count": 88
+  },
+  {
+   "from": "src-main",
+   "to": "src-shared",
+   "count": 412
+  },
+  {
+   "from": "src-renderer",
+   "to": "src-main",
+   "count": 0
+  }
+ ]
+}

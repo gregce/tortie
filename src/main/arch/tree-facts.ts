@@ -82,6 +82,7 @@ import {
   WRAPPER_MAX_HOPS,
   type FactReadInput
 } from './facts/index';
+import { readDecls } from './semantic/decl';
 import { bareName, MANIFEST_NAMES } from './reading';
 // From ./resolver/paths rather than the manifest reader's facade, so this
 // module pulls in no language arm and no parser: the conformance gate imports
@@ -130,6 +131,18 @@ export interface ArchFactPassResult {
   wrapDigest: string | null;
   /** One sentence when the pass stopped early, or null. Never a silent pass. */
   overBudget: string | null;
+  /**
+   * PHASE 259. Declarations written in this pass, and how many one file's read
+   * had to drop at `ARCH_DECL_MAX_PER_FILE`.
+   *
+   * They live HERE rather than on `ArchFactCounts` because a declaration is
+   * not a fact: `ArchFactCounts` is what the surfaces list and the disclosures
+   * count from, and no face in this product counts a declaration. These two
+   * are the phase's own measurement, reported by the check and written into
+   * the commit body.
+   */
+  decls: number;
+  declsTruncated: number;
 }
 
 export interface ArchTreeFactsResult {
@@ -295,6 +308,8 @@ export async function readArchTreeFacts(input: ArchTreeFactsInput): Promise<Arch
   const queued: Queued[] = [];
   const wrapWork: WrapWork[] = [];
   let factsRead = 0;
+  let declsWritten = 0;
+  let declsTruncated = 0;
   let overBudget: string | null = null;
 
   let read = 0;
@@ -438,8 +453,19 @@ export async function readArchTreeFacts(input: ArchTreeFactsInput): Promise<Arch
       // must hash to the oid the first one did, or the file is left unlinked
       // for the next run, which is the wrapper pass's own guard at step 4.
       if (blobOid(buf) !== q.oid) continue;
-      store.saveFacts(q.oid, q.relPath, readFacts({ relPath: q.relPath, lang: q.grammar, text: buf.toString('utf8'), calls }));
+      const text = buf.toString('utf8');
+      store.saveFacts(q.oid, q.relPath, readFacts({ relPath: q.relPath, lang: q.grammar, text, calls }));
       factsRead += 1;
+      // PHASE 259, the declaration half. The symbols arrive on the SAME worker
+      // message the calls do and were thrown away after their kind counts were
+      // taken, so this is a second table off one parse rather than a second
+      // parse. It is written HERE, at the one place a file is rule read, so a
+      // file whose facts are cached never needs its declarations re-read
+      // either: both are keyed on (oid, relPath) and pruned by the same link.
+      const read = readDecls(file?.symbols ?? [], text.split('\n'));
+      store.saveDecls(q.oid, q.relPath, read.decls);
+      declsWritten += read.decls.length;
+      declsTruncated += read.truncated;
       answeredFiles.add(q.relPath);
       if (input.wrapperPass && isWrapperGrammar(q.grammar)) {
         const own = file?.wrappers ?? [];
@@ -508,7 +534,15 @@ export async function readArchTreeFacts(input: ArchTreeFactsInput): Promise<Arch
     read,
     reused,
     durationMs: Date.now() - started,
-    facts: { read: factsRead, reused: factsReused, wrapFacts, wrapDigest, overBudget }
+    facts: {
+      read: factsRead,
+      reused: factsReused,
+      wrapFacts,
+      wrapDigest,
+      overBudget,
+      decls: declsWritten,
+      declsTruncated
+    }
   };
 }
 

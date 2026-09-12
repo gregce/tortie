@@ -72,12 +72,17 @@
  * refused with the refusal's name.
  */
 
+import { ARCH_CLAIM_FIELDS, ARCH_GATE_ANSWERS, ARCH_ID_PATTERN } from '@shared/arch';
 import type {
+  ArchCiteReading,
+  ArchClaimField,
   ArchComponent,
   ArchContract,
   ArchDocument,
   ArchEdge,
-  ArchProblem
+  ArchGateAnswer,
+  ArchProblem,
+  ArchSemanticCite
 } from '@shared/arch';
 import {
   parseArchJson,
@@ -85,6 +90,24 @@ import {
   validateContract,
   validateEdges
 } from '../validate';
+import { ARCH_CITE_MAX_WHY, gradeCite, type ArchGradeSources } from '../semantic/grade';
+import { droppedRowSentence } from '../semantic/sentences';
+import {
+  ARCH_SEMANTIC_ANSWER_MAX_BYTES,
+  ARCH_SEMANTIC_MAX_CITES,
+  ARCH_SEMANTIC_MAX_GATES,
+  ARCH_SEMANTIC_MAX_GATE_TEXT,
+  ARCH_SEMANTIC_MAX_JOURNEYS,
+  ARCH_SEMANTIC_MAX_LABEL,
+  ARCH_SEMANTIC_MAX_NAME,
+  ARCH_SEMANTIC_MAX_STEPS,
+  ARCH_SEMANTIC_MAX_TEXT,
+  type ArchSemanticRefusal,
+  type KeptClaim,
+  type KeptGate,
+  type KeptJourney,
+  type KeptSemanticAnswer
+} from '../semantic/types';
 import type { ArchDriftScope } from './drift';
 
 /** A generous ceiling on the raw answer, far under the spawn's own 512 KB. */
@@ -511,6 +534,12 @@ export function validateArchAnswer(
       suggestions: []
     }).map((row) => [row.field, row.text])
   );
+  // PHASE 259. A TOKEN in the fact block, never a substring of it. Research
+  // 118 §6.4 measured the substring form catching one of three planted
+  // numbers: `4096` was caught, `17` was hidden inside a fixture session named
+  // `p117-lost-9` and `92` inside the IP `192.0.2.1`. The token form catches
+  // all three, and a looser rule on the older pass is not a feature.
+  const factTokens = new Set(digitRuns(context.factBlock));
   for (const { field, text: prose } of proseOf({
     contract: answered,
     components,
@@ -519,7 +548,7 @@ export function validateArchAnswer(
   })) {
     if (draftProse.get(field) === prose) continue;
     for (const run of digitRuns(prose)) {
-      if (!context.factBlock.includes(run)) {
+      if (!factTokens.has(run)) {
         return refuse(
           'invented-number',
           `${field} carries ${run}, which is not in the facts`
@@ -561,4 +590,518 @@ export function validateArchAnswer(
     refusal: null,
     detail: null
   };
+}
+
+// ---------------------------------------------------------------------------
+// The semantic validator (Phase 259, research 118 §7.1 and §7.3; SPEC §2.4)
+// ---------------------------------------------------------------------------
+//
+// THREE REFUSALS, AND THEY DO NOT ALL REFUSE THE SAME THING.
+//
+//  R1  a model-written evidence level refuses the ANSWER WHOLE. The level is
+//      computed (Phase 258) and no model may write one, so an answer that
+//      carries one is not a reading with a bad field, it is a reading that
+//      does not understand what it was asked for. It is asked of a FIELD
+//      VALUE and never as a search inside a sentence, because four of the ten
+//      words are ordinary English and "the app is composed of three parts" is
+//      honest prose.
+//
+//  R2  an unresolvable citation refuses its ROW whole. Never a trim: research
+//      118 §7.3's rule is that a broken citation never reaches the face, and a
+//      claim that keeps its sentence while losing the citation that justified
+//      it is worse than no claim. An answer with nothing left is refused
+//      whole under `no-row-stood`, because that is a failure and not an empty
+//      reading.
+//
+//  R3  the digit rule asks for a TOKEN in the FACTS block rather than a
+//      substring anywhere in it. Research 118 §6.4 measured the substring form
+//      catching ONE of three planted numbers: 4096 caught, 17 hidden inside a
+//      fixture session named p117-lost-9 and 92 hidden inside the IP
+//      192.0.2.1. Under the token form all three are caught, and the same one
+//      line change was made to rule 8 of `validateArchAnswer` above, because
+//      the substring form is measurably wrong and a looser rule on the older
+//      pass is not a feature.
+//
+// THE DIGIT RULE NEVER READS A CITATION. `at` carries a line number, which is
+// a digit run, and it is graded by the grammar and the resolution instead.
+
+/**
+ * The ten words no model may write as an answer to anything, normalised.
+ *
+ * Five are the computed rungs of research 118 §7.2 and five are the levels the
+ * hand pass used; `composed` is in both. Normalisation lowercases, collapses
+ * every run of whitespace and hyphens to one space, and trims, so
+ * `accepted-live`, `Accepted Live` and `accepted  live` are one word.
+ */
+const REFUSED_LEVELS: ReadonlySet<string> = new Set([
+  'off repo',
+  'declared',
+  'composed',
+  'reached',
+  'tested',
+  'component tested',
+  'accepted live',
+  'implemented not shipped',
+  'outside this repo'
+]);
+
+/** Keys that name a level even when their value does not. */
+const REFUSED_KEYS: ReadonlySet<string> = new Set([
+  'evidence',
+  'level',
+  'rung',
+  'confidence',
+  'certainty',
+  'accepted',
+  'verified',
+  'baseline'
+]);
+
+const SEMANTIC_ID_RE = new RegExp(ARCH_ID_PATTERN);
+
+/** A control character anywhere in a prose field. */
+const PROSE_CONTROL_RE = /[\u0000-\u001f\u007f]/;
+
+/** What the semantic answer is judged against. */
+export interface ArchSemanticContext {
+  /** Which ask this answers. */
+  kind: 'part' | 'journeys';
+  /** The box id a `part` ask was about. Ignored by a `journeys` ask. */
+  partId: string;
+  /** Every box id the partition holds, for a journey step's `partId`. */
+  partIds: readonly string[];
+  /** The FACTS section of the composed prompt, byte for byte. */
+  factBlock: string;
+  /** How a citation resolves and grades. It opens no file. */
+  grade: ArchGradeSources;
+}
+
+/** One semantic ruling. `kept` null means the whole answer was refused. */
+export interface ArchSemanticValidation {
+  kept: KeptSemanticAnswer | null;
+  refusal: ArchSemanticRefusal | null;
+  /** One sentence a person can act on. Null when nothing was refused. */
+  detail: string | null;
+  /** Rows dropped under R2, whether or not the answer was kept. */
+  rowsDropped: number;
+  /** The first dropped row's sentence, naming the citation that broke it. */
+  dropped: string | null;
+}
+
+/** Rule on one semantic answer. Pure, and it never throws. */
+export function validateArchSemanticAnswer(
+  text: string,
+  context: ArchSemanticContext
+): ArchSemanticValidation {
+  const refuseWhole = (
+    refusal: ArchSemanticRefusal,
+    detail: string
+  ): ArchSemanticValidation => ({ kept: null, refusal, detail, rowsDropped: 0, dropped: null });
+
+  if (Buffer.byteLength(text, 'utf8') > ARCH_SEMANTIC_ANSWER_MAX_BYTES) {
+    return refuseWhole('too-large', 'the raw answer is over the byte ceiling');
+  }
+  const parsed = parseArchJson(unwrapAnswerText(text), 'answer');
+  if (parsed.value === null) return refuseWhole('bad-shape', firstProblem(parsed.problems));
+  if (
+    typeof parsed.value !== 'object' ||
+    parsed.value === null ||
+    Array.isArray(parsed.value)
+  ) {
+    return refuseWhole('bad-shape', 'the answer is not one JSON object');
+  }
+  const top = parsed.value as Record<string, unknown>;
+
+  // R1, asked of the WHOLE answer before its shape, so a level smuggled into
+  // a key nothing else reads is still a refusal.
+  const level = levelWritten(top);
+  if (level !== null) return refuseWhole('level-written', level);
+
+  const allowedKeys =
+    context.kind === 'part' ? new Set(['part', 'claims', 'gates']) : new Set(['journeys']);
+  for (const key of Object.keys(top)) {
+    if (!allowedKeys.has(key)) {
+      return refuseWhole('bad-shape', `the answer carries an unknown key: ${key}`);
+    }
+  }
+
+  // R3, over every prose field the model wrote. Citations are never read here.
+  const tokens = new Set(digitRuns(context.factBlock));
+  const invented = inventedNumber(top, tokens);
+  if (invented !== null) return refuseWhole('invented-number', invented);
+
+  return context.kind === 'part'
+    ? keepSemanticPart(top, context, refuseWhole)
+    : keepSemanticJourneys(top, context, refuseWhole);
+}
+
+/** The PART answer: seven claims, some gates, and R2 over both. */
+function keepSemanticPart(
+  top: Record<string, unknown>,
+  context: ArchSemanticContext,
+  refuseWhole: (refusal: ArchSemanticRefusal, detail: string) => ArchSemanticValidation
+): ArchSemanticValidation {
+  if (top['part'] !== context.partId) {
+    return refuseWhole(
+      'wrong-part',
+      `the answer is about "${String(top['part'])}" and the ask was about "${context.partId}"`
+    );
+  }
+  const rawClaims = top['claims'];
+  if (!Array.isArray(rawClaims)) return refuseWhole('bad-shape', 'claims must be a list');
+  if (rawClaims.length !== ARCH_CLAIM_FIELDS.length) {
+    return refuseWhole(
+      'claim-fields',
+      `the answer carries ${String(rawClaims.length)} claims and the ask is for ` +
+        `${String(ARCH_CLAIM_FIELDS.length)}, one for each field`
+    );
+  }
+  const claims: { field: ArchClaimField; text: string; facts: ArchSemanticCite[] }[] = [];
+  const seenFields = new Set<string>();
+  for (const [index, raw] of rawClaims.entries()) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return refuseWhole('claim-invalid', `claims[${String(index)}] is not an object`);
+    }
+    const row = raw as Record<string, unknown>;
+    const field = row['field'];
+    if (typeof field !== 'string' || !(ARCH_CLAIM_FIELDS as readonly string[]).includes(field)) {
+      return refuseWhole('claim-fields', `claims[${String(index)}] names the field "${String(field)}"`);
+    }
+    if (seenFields.has(field)) {
+      return refuseWhole('claim-fields', `the answer repeats the field ${field}`);
+    }
+    seenFields.add(field);
+    const bound = field === 'name' ? ARCH_SEMANTIC_MAX_NAME : ARCH_SEMANTIC_MAX_TEXT;
+    const prose = plainSemanticText(row['text'], bound);
+    if (prose === null) {
+      return refuseWhole(
+        'claim-invalid',
+        `the ${field} claim is not a plain sentence of at most ${String(bound)} characters`
+      );
+    }
+    const facts = semanticCiteList(row['facts']);
+    if (facts === null) {
+      return refuseWhole(
+        'claim-invalid',
+        `the ${field} claim names no usable fact, or more than ${String(ARCH_SEMANTIC_MAX_CITES)}`
+      );
+    }
+    claims.push({ field: field as ArchClaimField, text: prose, facts });
+  }
+
+  const rawGates = top['gates'] ?? [];
+  if (!Array.isArray(rawGates)) return refuseWhole('gate-invalid', 'gates must be a list');
+  if (rawGates.length > ARCH_SEMANTIC_MAX_GATES) {
+    return refuseWhole(
+      'gate-invalid',
+      `the answer carries ${String(rawGates.length)} gates and Tortie reads at most ` +
+        `${String(ARCH_SEMANTIC_MAX_GATES)}`
+    );
+  }
+  const gates: {
+    id: string;
+    question: string;
+    answer: ArchGateAnswer;
+    because: string;
+    facts: ArchSemanticCite[];
+  }[] = [];
+  const gateIds = new Set<string>();
+  for (const [index, raw] of rawGates.entries()) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return refuseWhole('gate-invalid', `gates[${String(index)}] is not an object`);
+    }
+    const row = raw as Record<string, unknown>;
+    const id = row['id'];
+    if (typeof id !== 'string' || !SEMANTIC_ID_RE.test(id) || gateIds.has(id)) {
+      return refuseWhole('gate-invalid', `gates[${String(index)}] has the id "${String(id)}"`);
+    }
+    gateIds.add(id);
+    const answer = row['answer'];
+    if (typeof answer !== 'string' || !(ARCH_GATE_ANSWERS as readonly string[]).includes(answer)) {
+      return refuseWhole('gate-invalid', `gate ${id} answers "${String(answer)}"`);
+    }
+    const question = plainSemanticText(row['question'], ARCH_SEMANTIC_MAX_GATE_TEXT);
+    const because = plainSemanticText(row['because'], ARCH_SEMANTIC_MAX_GATE_TEXT);
+    if (question === null || because === null) {
+      return refuseWhole('gate-invalid', `gate ${id} is not a bounded question with a reason`);
+    }
+    const facts = semanticCiteList(row['facts']);
+    if (facts === null) return refuseWhole('gate-invalid', `gate ${id} names no usable fact`);
+    gates.push({ id, question, answer: answer as ArchGateAnswer, because, facts });
+  }
+
+  // R2. Every row whose citations all resolve is kept whole; a row with one
+  // that does not is dropped whole.
+  let rowsDropped = 0;
+  let dropped: string | null = null;
+  const note = (where: string, at: string): void => {
+    rowsDropped += 1;
+    if (dropped === null) dropped = droppedRowSentence(where, at);
+  };
+  const keptClaims: KeptClaim[] = [];
+  for (const claim of claims) {
+    const cites = gradeSemanticRow(claim.facts, context.grade);
+    if (cites === null) {
+      note(`the ${claim.field} claim`, firstBrokenCite(claim.facts, context.grade));
+      continue;
+    }
+    keptClaims.push({ field: claim.field, text: claim.text, cites });
+  }
+  const keptGates: KeptGate[] = [];
+  for (const gate of gates) {
+    const cites = gradeSemanticRow(gate.facts, context.grade);
+    if (cites === null) {
+      note(`the gate ${gate.id}`, firstBrokenCite(gate.facts, context.grade));
+      continue;
+    }
+    keptGates.push({
+      id: gate.id,
+      question: gate.question,
+      answer: gate.answer,
+      because: gate.because,
+      cites
+    });
+  }
+  if (keptClaims.length === 0 && keptGates.length === 0) {
+    return { kept: null, refusal: 'no-row-stood', detail: dropped, rowsDropped, dropped };
+  }
+  return {
+    kept: { kind: 'part', partId: context.partId, claims: keptClaims, gates: keptGates },
+    refusal: null,
+    detail: null,
+    rowsDropped,
+    dropped
+  };
+}
+
+/** The JOURNEYS answer: a few numbered walks, and R2 per STEP. */
+function keepSemanticJourneys(
+  top: Record<string, unknown>,
+  context: ArchSemanticContext,
+  refuseWhole: (refusal: ArchSemanticRefusal, detail: string) => ArchSemanticValidation
+): ArchSemanticValidation {
+  const raw = top['journeys'];
+  if (!Array.isArray(raw)) return refuseWhole('bad-shape', 'journeys must be a list');
+  if (raw.length > ARCH_SEMANTIC_MAX_JOURNEYS) {
+    return refuseWhole(
+      'journey-invalid',
+      `the answer carries ${String(raw.length)} journeys and Tortie reads at most ` +
+        `${String(ARCH_SEMANTIC_MAX_JOURNEYS)}`
+    );
+  }
+  const known = new Set(context.partIds);
+  const ids = new Set<string>();
+  const journeys: {
+    id: string;
+    name: string;
+    steps: { partId: string; label: string; facts: ArchSemanticCite[] }[];
+  }[] = [];
+  for (const [index, entry] of raw.entries()) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      return refuseWhole('journey-invalid', `journeys[${String(index)}] is not an object`);
+    }
+    const row = entry as Record<string, unknown>;
+    const id = row['id'];
+    if (typeof id !== 'string' || !SEMANTIC_ID_RE.test(id) || ids.has(id)) {
+      return refuseWhole('journey-invalid', `journeys[${String(index)}] has the id "${String(id)}"`);
+    }
+    ids.add(id);
+    const name = plainSemanticText(row['name'], ARCH_SEMANTIC_MAX_LABEL);
+    if (name === null) return refuseWhole('journey-invalid', `journey ${id} has no bounded name`);
+    const steps = row['steps'];
+    if (!Array.isArray(steps) || steps.length === 0 || steps.length > ARCH_SEMANTIC_MAX_STEPS) {
+      return refuseWhole(
+        'journey-invalid',
+        `journey ${id} carries ${Array.isArray(steps) ? String(steps.length) : 'no'} steps`
+      );
+    }
+    const walk: { partId: string; label: string; facts: ArchSemanticCite[] }[] = [];
+    for (const [at, rawStep] of steps.entries()) {
+      if (rawStep === null || typeof rawStep !== 'object' || Array.isArray(rawStep)) {
+        return refuseWhole('journey-invalid', `journey ${id} step ${String(at + 1)} is not an object`);
+      }
+      const step = rawStep as Record<string, unknown>;
+      const partId = step['partId'];
+      if (typeof partId !== 'string' || !known.has(partId)) {
+        return refuseWhole(
+          'journey-invalid',
+          `journey ${id} step ${String(at + 1)} names the part "${String(partId)}", ` +
+            `which this repository does not hold`
+        );
+      }
+      const label = plainSemanticText(step['label'], ARCH_SEMANTIC_MAX_LABEL);
+      if (label === null) {
+        return refuseWhole(
+          'journey-invalid',
+          `journey ${id} step ${String(at + 1)} has no bounded label`
+        );
+      }
+      const facts = semanticCiteList(step['facts']);
+      if (facts === null) {
+        return refuseWhole(
+          'journey-invalid',
+          `journey ${id} step ${String(at + 1)} names no usable fact`
+        );
+      }
+      walk.push({ partId, label, facts });
+    }
+    journeys.push({ id, name, steps: walk });
+  }
+
+  let rowsDropped = 0;
+  let dropped: string | null = null;
+  const kept: KeptJourney[] = [];
+  for (const journey of journeys) {
+    const steps: KeptJourney['steps'] = [];
+    for (const [at, step] of journey.steps.entries()) {
+      const cites = gradeSemanticRow(step.facts, context.grade);
+      if (cites === null) {
+        rowsDropped += 1;
+        if (dropped === null) {
+          dropped = droppedRowSentence(
+            `journey ${journey.id} step ${String(at + 1)}`,
+            firstBrokenCite(step.facts, context.grade)
+          );
+        }
+        continue;
+      }
+      steps.push({ seq: steps.length + 1, partId: step.partId, label: step.label, cites });
+    }
+    // A journey whose every step was dropped is not a journey; one that lost
+    // a step keeps the rest, renumbered, because the walk a person reads must
+    // never carry a gap where a refused step used to be.
+    if (steps.length > 0) kept.push({ id: journey.id, name: journey.name, steps });
+  }
+  if (kept.length === 0) {
+    return { kept: null, refusal: 'no-row-stood', detail: dropped, rowsDropped, dropped };
+  }
+  return {
+    kept: { kind: 'journeys', journeys: kept },
+    refusal: null,
+    detail: null,
+    rowsDropped,
+    dropped
+  };
+}
+
+/**
+ * Grade one row's citations, or answer null when any of them does not resolve.
+ * Null means the ROW is dropped whole (R2), never trimmed.
+ */
+function gradeSemanticRow(
+  facts: readonly ArchSemanticCite[],
+  src: ArchGradeSources
+): ArchCiteReading[] | null {
+  const out: ArchCiteReading[] = [];
+  for (const cite of facts) {
+    const graded = gradeCite(cite, src);
+    if (graded === null) return null;
+    out.push(graded);
+  }
+  return out;
+}
+
+/** The first citation of a row that did not resolve, for the sentence. */
+function firstBrokenCite(facts: readonly ArchSemanticCite[], src: ArchGradeSources): string {
+  for (const cite of facts) {
+    if (gradeCite(cite, src) === null) return cite.at;
+  }
+  return '';
+}
+
+/**
+ * R1. Every key and every string VALUE in the answer, read for a level.
+ *
+ * The value test is EQUALITY after normalisation and never a search inside a
+ * sentence; `conformance:semantic` rule 4a drives both arms and asserts the
+ * word as a value refuses while the same word inside a `does` sentence is
+ * kept.
+ */
+function levelWritten(value: unknown, path = 'the answer'): string | null {
+  if (typeof value === 'string') {
+    const word = value.trim().toLowerCase().replace(/[\s-]+/g, ' ');
+    if (REFUSED_LEVELS.has(word)) {
+      return `${path} says "${value.trim()}", and Tortie computes how far something is proven`;
+    }
+    return null;
+  }
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      const hit = levelWritten(entry, `${path}[${String(index)}]`);
+      if (hit !== null) return hit;
+    }
+    return null;
+  }
+  if (value !== null && typeof value === 'object') {
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (REFUSED_KEYS.has(key.trim().toLowerCase())) {
+        return `${path} carries a field named "${key}", and Tortie computes that itself`;
+      }
+      const hit = levelWritten(entry, `${path}.${key}`);
+      if (hit !== null) return hit;
+    }
+  }
+  return null;
+}
+
+/**
+ * R3. Every prose field the model wrote, read for a digit run the FACTS block
+ * does not carry as a TOKEN.
+ *
+ * `at` is never read: it carries a line number by construction and the grammar
+ * and the resolution judge it instead.
+ */
+function inventedNumber(value: unknown, tokens: ReadonlySet<string>): string | null {
+  const prose = new Set(['text', 'why', 'question', 'because', 'label', 'name']);
+  const walk = (node: unknown, key: string | null, path: string): string | null => {
+    if (typeof node === 'string') {
+      if (key === null || !prose.has(key)) return null;
+      for (const run of digitRuns(node)) {
+        if (!tokens.has(run)) return `${path} carries ${run}, which is not in the facts`;
+      }
+      return null;
+    }
+    if (Array.isArray(node)) {
+      for (const [index, entry] of node.entries()) {
+        const hit = walk(entry, key, `${path}[${String(index)}]`);
+        if (hit !== null) return hit;
+      }
+      return null;
+    }
+    if (node !== null && typeof node === 'object') {
+      for (const [name, entry] of Object.entries(node as Record<string, unknown>)) {
+        const hit = walk(entry, name, `${path}.${name}`);
+        if (hit !== null) return hit;
+      }
+    }
+    return null;
+  };
+  return walk(value, null, 'the answer');
+}
+
+/** A bounded plain sentence, or null. */
+function plainSemanticText(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  if (text.length === 0 || text.length > max) return null;
+  if (PROSE_CONTROL_RE.test(text)) return null;
+  return text;
+}
+
+/** One to six citations, each with a bounded reason, or null. */
+function semanticCiteList(value: unknown): ArchSemanticCite[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > ARCH_SEMANTIC_MAX_CITES) {
+    return null;
+  }
+  const out: ArchSemanticCite[] = [];
+  for (const raw of value) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const row = raw as Record<string, unknown>;
+    const at = row['at'];
+    if (typeof at !== 'string' || at.length === 0) return null;
+    const why = plainSemanticText(row['why'], ARCH_CITE_MAX_WHY);
+    if (why === null) return null;
+    out.push({ at: at.trim(), why });
+  }
+  return out;
 }

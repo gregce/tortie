@@ -1,0 +1,786 @@
+{
+ "_what": "The seven planted lies of build/p256/semantic/plant.mts, ported into the shipped answer grammar. A plant is CAUGHT when the SHIPPING validator refuses the answer or drops the row the lie sits in. The checker is not a lie detector and the phase says so on the face: the number this fixture produces is MEASURED by the gate and pinned in caught.json, never assumed, and a build that moves it says so.",
+ "plants": [
+  {
+   "id": "wrong-job",
+   "shape": "the prose is false and every citation is real",
+   "what": "the part renamed \"Billing and card capture\", its job a monthly card charge, its four real citations untouched",
+   "answer": {
+    "part": "src-main",
+    "claims": [
+     {
+      "field": "name",
+      "text": "Billing and card capture",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "receives",
+      "text": "It takes the person's credit card number and a billing address.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       },
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     },
+     {
+      "field": "does",
+      "text": "It charges the card every month and files the receipt.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       },
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "returns",
+      "text": "A receipt and a renewed subscription.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "runsIn",
+      "text": "The payment provider's own servers.",
+      "facts": [
+       {
+        "at": "src/main/index.ts:64",
+        "why": "the composition root"
+       }
+      ]
+     },
+     {
+      "field": "keeps",
+      "text": "The card on file.",
+      "facts": [
+       {
+        "at": "src/main/tmux/sessions.ts:40",
+        "why": "the store write"
+       }
+      ]
+     },
+     {
+      "field": "limit",
+      "text": "It refuses a write outside a folder somebody opened, and says so.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       },
+       {
+        "at": "src/main/symbols/pool.ts:5",
+        "why": "the worker pool lives in this file"
+       }
+      ]
+     }
+    ],
+    "gates": [
+     {
+      "id": "outside-a-root",
+      "question": "Will it write a file outside an open folder?",
+      "answer": "stops",
+      "because": "the write asks where the path sits before it opens anything.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       }
+      ]
+     },
+     {
+      "id": "one-pass",
+      "question": "Will a second pass start while one runs?",
+      "answer": "stops",
+      "because": "the runner holds one repository in flight and refuses the next.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "wrong-part",
+   "shape": "a part that does not exist, citing files that do",
+   "what": "the answer names a part rule P never drew, with the asked part's own citations left in place",
+   "answer": {
+    "part": "migration-runner",
+    "claims": [
+     {
+      "field": "name",
+      "text": "The database migration runner",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "receives",
+      "text": "Asks from the window over named channels, and the folders a person opens.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       },
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     },
+     {
+      "field": "does",
+      "text": "It runs every pending SQL migration against the manifest at boot, inside a transaction.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       },
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "returns",
+      "text": "An answer per channel, and files written under the folder that was asked about.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "runsIn",
+      "text": "The main process of the desktop app, started at boot.",
+      "facts": [
+       {
+        "at": "src/main/index.ts:64",
+        "why": "the composition root"
+       }
+      ]
+     },
+     {
+      "field": "keeps",
+      "text": "A database of its own beside the manifest, and nothing of a person's outside it.",
+      "facts": [
+       {
+        "at": "src/main/tmux/sessions.ts:40",
+        "why": "the store write"
+       }
+      ]
+     },
+     {
+      "field": "limit",
+      "text": "It refuses a write outside a folder somebody opened, and says so.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       },
+       {
+        "at": "src/main/symbols/pool.ts:5",
+        "why": "the worker pool lives in this file"
+       }
+      ]
+     }
+    ],
+    "gates": [
+     {
+      "id": "outside-a-root",
+      "question": "Will it write a file outside an open folder?",
+      "answer": "stops",
+      "because": "the write asks where the path sits before it opens anything.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       }
+      ]
+     },
+     {
+      "id": "one-pass",
+      "question": "Will a second pass start while one runs?",
+      "answer": "stops",
+      "because": "the runner holds one repository in flight and refuses the next.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "wrong-backing",
+   "shape": "a real tracked line that is evidence for something else entirely",
+   "what": "a claim about what main does, cited to a renderer component in another part's box",
+   "answer": {
+    "part": "src-main",
+    "claims": [
+     {
+      "field": "name",
+      "text": "The main process and everything it owns",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "receives",
+      "text": "Asks from the window over named channels, and the folders a person opens.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       },
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     },
+     {
+      "field": "does",
+      "text": "It registers the channels, runs one pass at a time and writes what a pass keeps.",
+      "facts": [
+       {
+        "at": "src/renderer/arch/ArchMapTab.tsx:40",
+        "why": "the test that proves main writes the file"
+       }
+      ]
+     },
+     {
+      "field": "returns",
+      "text": "An answer per channel, and files written under the folder that was asked about.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "runsIn",
+      "text": "The main process of the desktop app, started at boot.",
+      "facts": [
+       {
+        "at": "src/main/index.ts:64",
+        "why": "the composition root"
+       }
+      ]
+     },
+     {
+      "field": "keeps",
+      "text": "A database of its own beside the manifest, and nothing of a person's outside it.",
+      "facts": [
+       {
+        "at": "src/main/tmux/sessions.ts:40",
+        "why": "the store write"
+       }
+      ]
+     },
+     {
+      "field": "limit",
+      "text": "It refuses a write outside a folder somebody opened, and says so.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       },
+       {
+        "at": "src/main/symbols/pool.ts:5",
+        "why": "the worker pool lives in this file"
+       }
+      ]
+     }
+    ],
+    "gates": [
+     {
+      "id": "outside-a-root",
+      "question": "Will it write a file outside an open folder?",
+      "answer": "stops",
+      "because": "the write asks where the path sits before it opens anything.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       }
+      ]
+     },
+     {
+      "id": "one-pass",
+      "question": "Will a second pass start while one runs?",
+      "answer": "stops",
+      "because": "the runner holds one repository in flight and refuses the next.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "wrong-order",
+   "shape": "a journey whose steps are in an impossible order",
+   "what": "the session is attached before it is created",
+   "journeys": {
+    "journeys": [
+     {
+      "id": "start-and-return",
+      "name": "Start an agent on a project, quit, and come back to it",
+      "steps": [
+       {
+        "partId": "src-renderer",
+        "label": "the window draws the session that is now there",
+        "facts": [
+         {
+          "at": "src/renderer/arch/ArchMapTab.tsx:40",
+          "why": "the view"
+         }
+        ]
+       },
+       {
+        "partId": "src-main",
+        "label": "main creates the session in the private server",
+        "facts": [
+         {
+          "at": "src/main/tmux/sessions.ts:40",
+          "why": "the store write"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "control": {
+    "journeys": [
+     {
+      "id": "start-and-return",
+      "name": "Start an agent on a project, quit, and come back to it",
+      "steps": [
+       {
+        "partId": "src-main",
+        "label": "main creates the session in the private server",
+        "facts": [
+         {
+          "at": "src/main/tmux/sessions.ts:40",
+          "why": "the store write"
+         }
+        ]
+       },
+       {
+        "partId": "src-renderer",
+        "label": "the window draws the session that is now there",
+        "facts": [
+         {
+          "at": "src/renderer/arch/ArchMapTab.tsx:40",
+          "why": "the view"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "wrong-gate",
+   "shape": "a gate that is not in the product at all",
+   "what": "a Friday deploy refusal, cited to a line that really is a gate",
+   "answer": {
+    "part": "src-main",
+    "claims": [
+     {
+      "field": "name",
+      "text": "The main process and everything it owns",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "receives",
+      "text": "Asks from the window over named channels, and the folders a person opens.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       },
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     },
+     {
+      "field": "does",
+      "text": "It registers the channels, runs one pass at a time and writes what a pass keeps.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       },
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "returns",
+      "text": "An answer per channel, and files written under the folder that was asked about.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "runsIn",
+      "text": "The main process of the desktop app, started at boot.",
+      "facts": [
+       {
+        "at": "src/main/index.ts:64",
+        "why": "the composition root"
+       }
+      ]
+     },
+     {
+      "field": "keeps",
+      "text": "A database of its own beside the manifest, and nothing of a person's outside it.",
+      "facts": [
+       {
+        "at": "src/main/tmux/sessions.ts:40",
+        "why": "the store write"
+       }
+      ]
+     },
+     {
+      "field": "limit",
+      "text": "It refuses a write outside a folder somebody opened, and says so.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       },
+       {
+        "at": "src/main/symbols/pool.ts:5",
+        "why": "the worker pool lives in this file"
+       }
+      ]
+     }
+    ],
+    "gates": [
+     {
+      "id": "outside-a-root",
+      "question": "Will it write a file outside an open folder?",
+      "answer": "stops",
+      "because": "the write asks where the path sits before it opens anything.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       }
+      ]
+     },
+     {
+      "id": "one-pass",
+      "question": "Will a second pass start while one runs?",
+      "answer": "stops",
+      "because": "the runner holds one repository in flight and refuses the next.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     },
+     {
+      "id": "friday-deploy",
+      "question": "Will Tortie refuse to deploy on a Friday?",
+      "answer": "stops",
+      "because": "the release gate reads the day of the week and refuses Friday and Saturday.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the day of week refusal"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "accepted-live",
+   "shape": "a rung nothing in a repository is evidence for",
+   "what": "runsIn reads accepted-live",
+   "answer": {
+    "part": "src-main",
+    "claims": [
+     {
+      "field": "name",
+      "text": "The main process and everything it owns",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "receives",
+      "text": "Asks from the window over named channels, and the folders a person opens.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       },
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     },
+     {
+      "field": "does",
+      "text": "It registers the channels, runs one pass at a time and writes what a pass keeps.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       },
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "returns",
+      "text": "An answer per channel, and files written under the folder that was asked about.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "runsIn",
+      "text": "accepted-live",
+      "facts": [
+       {
+        "at": "src/main/index.ts:64",
+        "why": "the composition root"
+       }
+      ]
+     },
+     {
+      "field": "keeps",
+      "text": "A database of its own beside the manifest, and nothing of a person's outside it.",
+      "facts": [
+       {
+        "at": "src/main/tmux/sessions.ts:40",
+        "why": "the store write"
+       }
+      ]
+     },
+     {
+      "field": "limit",
+      "text": "It refuses a write outside a folder somebody opened, and says so.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       },
+       {
+        "at": "src/main/symbols/pool.ts:5",
+        "why": "the worker pool lives in this file"
+       }
+      ]
+     }
+    ],
+    "gates": [
+     {
+      "id": "outside-a-root",
+      "question": "Will it write a file outside an open folder?",
+      "answer": "stops",
+      "because": "the write asks where the path sits before it opens anything.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       }
+      ]
+     },
+     {
+      "id": "one-pass",
+      "question": "Will a second pass start while one runs?",
+      "answer": "stops",
+      "because": "the runner holds one repository in flight and refuses the next.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "invented-numbers",
+   "shape": "numbers no fact carries",
+   "what": "three invented numbers in the limit sentence",
+   "answer": {
+    "part": "src-main",
+    "claims": [
+     {
+      "field": "name",
+      "text": "The main process and everything it owns",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "receives",
+      "text": "Asks from the window over named channels, and the folders a person opens.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       },
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     },
+     {
+      "field": "does",
+      "text": "It registers the channels, runs one pass at a time and writes what a pass keeps.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       },
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "returns",
+      "text": "An answer per channel, and files written under the folder that was asked about.",
+      "facts": [
+       {
+        "at": "src/main/arch/ipc.ts:20",
+        "why": "the map channel is registered here"
+       }
+      ]
+     },
+     {
+      "field": "runsIn",
+      "text": "The main process of the desktop app, started at boot.",
+      "facts": [
+       {
+        "at": "src/main/index.ts:64",
+        "why": "the composition root"
+       }
+      ]
+     },
+     {
+      "field": "keeps",
+      "text": "A database of its own beside the manifest, and nothing of a person's outside it.",
+      "facts": [
+       {
+        "at": "src/main/tmux/sessions.ts:40",
+        "why": "the store write"
+       }
+      ]
+     },
+     {
+      "field": "limit",
+      "text": "A refresh is retried 17 times over 4096 seconds, and no more than 92 credentials are kept.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       },
+       {
+        "at": "src/main/symbols/pool.ts:5",
+        "why": "the worker pool lives in this file"
+       }
+      ]
+     }
+    ],
+    "gates": [
+     {
+      "id": "outside-a-root",
+      "question": "Will it write a file outside an open folder?",
+      "answer": "stops",
+      "because": "the write asks where the path sits before it opens anything.",
+      "facts": [
+       {
+        "at": "src/main/fs/guarded-write.ts:200",
+        "why": "the write refuses a path outside a project root"
+       }
+      ]
+     },
+     {
+      "id": "one-pass",
+      "question": "Will a second pass start while one runs?",
+      "answer": "stops",
+      "because": "the runner holds one repository in flight and refuses the next.",
+      "facts": [
+       {
+        "at": "src/main/arch/enrich/run.ts:250",
+        "why": "the runner that owns one pass"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

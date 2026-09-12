@@ -10,26 +10,45 @@
  * carry a Show disclosure that asks `arch:facts` for the rows, and nothing
  * is fetched until one opens.
  *
- * WHAT IS NOT DRAWN, deliberately: "Receives", "Returns" and "Where it
- * stops". Those are model fields (research 118 §3.1) and Phase 259's; a
- * placeholder for them would be a paragraph about nothing. No number here
- * is a badge: every count is inside a phrase a person reads.
+ * PHASE 259 BROUGHT THE MODEL FIELDS IN: Receives, Does, Returns and Where it
+ * stops, each a sentence an agent wrote with its graded citations beside it,
+ * and Runs in keeps its COMPUTED value and gains the read sentence on a line
+ * of its own under it, labelled `read by <agent>`, so the computed half and
+ * the read half are never the same line. A field nothing has read is ABSENT
+ * rather than empty, because an empty row is a paragraph about nothing.
+ *
+ * THE HEADER IS NOT RENAMED BY ANY MODEL. The box keeps the label rule P
+ * computed for it even when the model wrote a `name` claim, because research
+ * 118 §6.4 measured a part renamed "Billing and card capture" keeping every
+ * green chip it had: a wrong name on true citations is the failure this
+ * surface cannot detect, so the one place a person's eye lands first stays
+ * computed. No number here is a badge: every count is inside a phrase a
+ * person reads.
  */
 
 import React from 'react';
 import { ARCH_FACT_KINDS } from '@shared/arch';
-import type { ArchFactCategory } from '@shared/arch';
+import type {
+  ArchClaimField,
+  ArchClaimReading,
+  ArchFactCategory,
+  ArchPartReading
+} from '@shared/arch';
 import type { ArchMapGroup, ArchMapRegion } from './bridge';
 import { Codicon } from '../icons';
 import {
+  ARCH_INSPECT_DOES,
   ARCH_INSPECT_EXPOSES,
   ARCH_INSPECT_GUARDS,
   ARCH_INSPECT_KEEPS,
+  ARCH_INSPECT_LIMIT,
   ARCH_INSPECT_NONE,
   ARCH_INSPECT_NO_SURFACE,
   ARCH_INSPECT_NOTHING,
   ARCH_INSPECT_OPEN,
   ARCH_INSPECT_REACHES,
+  ARCH_INSPECT_RECEIVES,
+  ARCH_INSPECT_RETURNS,
   ARCH_INSPECT_RUNG,
   ARCH_INSPECT_RUNS_IN,
   ARCH_INSPECT_TESTS,
@@ -40,6 +59,7 @@ import {
   archTestsSentence
 } from './copy';
 import { FactDisclosure } from './ArchFactRows';
+import { ClaimBody, ReadBy } from './ArchClaim';
 import { RUNG_FACES, isRung, rungClass, rungShortLine } from './rung';
 
 /** The non-zero kinds of one category as `229 IPC channels, 6 jobs`, or null at zero. */
@@ -81,13 +101,50 @@ export function reachesPhrase(group: ArchMapGroup): string | null {
   return parts.length === 0 ? null : parts.join(', ');
 }
 
+/** One field's claim out of a part's reading, or null when none stood. */
+export function claimOf(
+  reading: ArchPartReading | null,
+  field: ArchClaimField
+): ArchClaimReading | null {
+  return reading?.claims.find((c) => c.field === field) ?? null;
+}
+
+/**
+ * PHASE 259. One model row: the label, the sentence, its chips, and who read
+ * it. The whole row is ABSENT when nothing has read the field, which is why
+ * this returns a fragment and the caller spreads it into the definition list.
+ */
+export function ClaimRow({
+  label,
+  claim,
+  repoKey
+}: {
+  label: string;
+  claim: ArchClaimReading | null;
+  repoKey: string | null;
+}): React.JSX.Element | null {
+  if (claim === null) return null;
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd data-field={claim.field}>
+        <span className="arch-inspector-value">
+          <ClaimBody claim={claim} repoKey={repoKey} />
+          <ReadBy agentId={claim.agentId} />
+        </span>
+      </dd>
+    </>
+  );
+}
+
 export function ArchInspector({
   repoKey,
   group,
   region,
   scope,
   onOpen,
-  onGates
+  onGates,
+  reading = null
 }: {
   repoKey: string | null;
   /** The selected box, or null with nothing selected. */
@@ -100,6 +157,11 @@ export function ArchInspector({
   onOpen: (() => void) | null;
   /** Open the Gates tab with this part named, the Guards field's link. */
   onGates: (() => void) | null;
+  /**
+   * PHASE 259. What an agent said this part is for, or null when nothing has
+   * read it. Every row it feeds is absent rather than empty without it.
+   */
+  reading?: ArchPartReading | null;
 }): React.JSX.Element {
   if (group === null) {
     return (
@@ -108,14 +170,20 @@ export function ArchInspector({
       </div>
     );
   }
-  const reading = group.rung;
-  const rung = reading !== undefined && isRung(reading.rung) ? reading.rung : null;
+  // The COMPUTED rung reading of this box, which is main's own and is not the
+  // model's; Phase 259's prop is `reading` and the two never touch.
+  const rungReading = group.rung;
+  const rung =
+    rungReading !== undefined && isRung(rungReading.rung) ? rungReading.rung : null;
   const face = rung === null ? null : RUNG_FACES[rung];
   const exposes = kindPhrase('surface', group.counts?.surface);
   const keeps = kindPhrase('store', group.counts?.store);
   const reaches = reachesPhrase(group);
   const gates = kindTotal(group.counts?.gate);
-  const parsed = reading?.parsed ?? group.fileCount;
+  const parsed = rungReading?.parsed ?? group.fileCount;
+  // PHASE 259. The model's own sentence about where the part runs, drawn
+  // UNDER the computed region rather than in place of it.
+  const runsIn = claimOf(reading, 'runsIn');
   const disclose = (categories: readonly ArchFactCategory[]): React.JSX.Element | null =>
     scope === null ? null : (
       <FactDisclosure repoKey={repoKey} scope={scope} categories={categories} />
@@ -154,8 +222,35 @@ export function ArchInspector({
       <dl className="arch-inspector-rows">
         <dt>{ARCH_INSPECT_RUNS_IN}</dt>
         <dd data-field="runs-in">
-          {region === null ? ARCH_INSPECT_NOTHING : `${region.label} · ${region.sub}`}
+          <span className="arch-inspector-value">
+            <span>
+              {region === null
+                ? ARCH_INSPECT_NOTHING
+                : `${region.label} · ${region.sub}`}
+            </span>
+            {runsIn === null ? null : (
+              <span className="arch-inspector-read">
+                <ClaimBody claim={runsIn} repoKey={repoKey} />
+                <ReadBy agentId={runsIn.agentId} />
+              </span>
+            )}
+          </span>
         </dd>
+        <ClaimRow
+          label={ARCH_INSPECT_RECEIVES}
+          claim={claimOf(reading, 'receives')}
+          repoKey={repoKey}
+        />
+        <ClaimRow
+          label={ARCH_INSPECT_DOES}
+          claim={claimOf(reading, 'does')}
+          repoKey={repoKey}
+        />
+        <ClaimRow
+          label={ARCH_INSPECT_RETURNS}
+          claim={claimOf(reading, 'returns')}
+          repoKey={repoKey}
+        />
         <dt>{ARCH_INSPECT_EXPOSES}</dt>
         <dd data-field="exposes">
           <span className="arch-inspector-value">
@@ -190,20 +285,27 @@ export function ArchInspector({
             {gates > 0 ? disclose(['gate']) : null}
           </span>
         </dd>
+        <ClaimRow
+          label={ARCH_INSPECT_LIMIT}
+          claim={claimOf(reading, 'limit')}
+          repoKey={repoKey}
+        />
         <dt>{ARCH_INSPECT_TESTS}</dt>
         <dd data-field="tests">
-          {reading === undefined
+          {rungReading === undefined
             ? ARCH_INSPECT_NOTHING
-            : archTestsSentence(reading.tested, reading.parsed)}
+            : archTestsSentence(rungReading.tested, rungReading.parsed)}
         </dd>
         <dt>{ARCH_INSPECT_RUNG}</dt>
         <dd data-field="rung">
-          {face === null || reading === undefined ? (
+          {face === null || rungReading === undefined ? (
             ARCH_INSPECT_NOTHING
           ) : (
             <span className="arch-inspector-value">
               <span>{face.sentence}</span>
-              <span className="arch-inspector-files">{rungShortLine(reading)}</span>
+              <span className="arch-inspector-files">
+                {rungShortLine(rungReading)}
+              </span>
             </span>
           )}
         </dd>

@@ -26,7 +26,9 @@ import type {
   ArchMapPartInput,
   ArchMapPartResult,
   ArchMapResult,
-  ArchRepoInput
+  ArchRepoInput,
+  ArchSemanticInput,
+  ArchSemanticResult
 } from '@shared/ipc';
 import {
   EVT_ARCH_CHECKED,
@@ -56,7 +58,7 @@ import {
   type ArchStore
 } from './db';
 import { readLsFiles } from './git-facts';
-import { keepLastValid, loadArchDocument } from './load';
+import { keepLastValid, loadArchDocument, loadArchFlows } from './load';
 import { archSourceOf, localArchSource, type ArchSource } from './remote-source';
 import { ARCH_MAP_COUNTED_CATEGORIES, archMapScope, composeArchMap, composeArchMapPart } from './map';
 import type { ArchMapComposeInput, ArchMapPartVerdictFact } from './map';
@@ -77,6 +79,11 @@ import {
   watchArchRepo
 } from './watch';
 import type { ArchRepairInput } from './enrich-coordinator';
+import type { ArchSemanticFactInput, ArchSemanticPart } from './enrich/compose';
+import { composeSemanticReading } from './semantic/reading';
+import { refreshSemantic } from './semantic/drift';
+import { gradeSourcesFor, refreshSourcesFor } from './semantic/sources';
+import { ARCH_CITE_MAX_WHY, gradeCite, type ArchGradeSources } from './semantic/grade';
 
 const archLog = getLog('arch');
 
@@ -85,6 +92,22 @@ const archLog = getLog('arch');
  * `arch:map`, `arch:mapPart` and `arch:composePayload` channels, plus the
  * `runOneCheck` the watcher callback drives.
  */
+/**
+ * PHASE 259. Everything one semantic ask composes from, gathered once by the
+ * check coordinator because it owns the partition the map draws.
+ *
+ * It is handed to the enrichment coordinator through an injected function, the
+ * same shape `repairDrift` travels the other way, so neither workflow names
+ * the other and there is still exactly one place a pass begins and ends.
+ */
+export interface ArchSemanticGather {
+  repoKey: string;
+  /** The commit the fact base behind these parts was scanned at. */
+  headCommit: string;
+  facts: ArchSemanticFactInput;
+  grade: ArchGradeSources;
+}
+
 export interface ArchCheckCoordinator {
   load(input: ArchRepoInput): Promise<ArchLoadResult>;
   check(input: ArchRepoInput): Promise<ArchCheckResult>;
@@ -96,6 +119,10 @@ export interface ArchCheckCoordinator {
   mapPart(input: ArchMapPartInput): Promise<ArchMapPartResult>;
   /** Phase 258: the fact rows behind one disclosure, scoped over the map's own partition. */
   facts(input: ArchFactsInput): Promise<ArchFactsResult>;
+  /** Phase 259: what an agent said each part is for. A read; it starts nothing. */
+  semantic(input: ArchSemanticInput): Promise<ArchSemanticResult>;
+  /** Phase 259: the partition and the seams one semantic ask composes from. */
+  semanticFacts(input: ArchRepoInput): Promise<ArchSemanticGather>;
   composePayload(
     input: ArchComposePayloadInput
   ): Promise<ArchComposePayloadResult>;
@@ -581,6 +608,19 @@ export function createArchCheckCoordinator(deps: {
       treeRead: result.read,
       ...result.facts
     });
+    // PHASE 259 (SPEC §3.3). The one place both legs run the fact pass is the
+    // one place the stored citations are re-read against it. It spawns
+    // nothing: a claim whose citation died is drawn STALE and the re-ask is a
+    // person's gesture or the shipped settled-drift path, both through
+    // `arch:enrich`'s own confirm gate. Refusal 8 is untouched.
+    try {
+      refreshSemanticClaims(db, repoKey);
+    } catch (err) {
+      // A refresh that throws leaves every claim exactly as it was, which is
+      // the safe half: a stale claim drawn current is a smaller harm than a
+      // check that did not finish.
+      archLog.warn('the semantic refresh threw', { repoPath, error: String(err) });
+    }
   }
 
   async function scanFactsOnly(
@@ -923,6 +963,131 @@ export function createArchCheckCoordinator(deps: {
     return { cwd: source.farPath, ...block };
   }
 
+  /**
+   * The partition, the facts and the two seams one SEMANTIC ask composes from
+   * (Phase 259; SPEC §1 and §2).
+   *
+   * It reads what `archMapReadFacts` already reads and nothing else: the same
+   * rule P partition the map draws, the same fact rows the disclosures answer
+   * from, and the same tracked list. It parses nothing, judges nothing, writes
+   * nothing and starts nothing the map read does not already schedule, and it
+   * NEVER spawns: the ask itself goes through `arch:enrich`'s own gate.
+   */
+  async function gatherSemanticFacts(input: ArchRepoInput): Promise<ArchSemanticGather> {
+    const source = sourceFor(input);
+    const { compose, repoKey, envelope } = await archMapReadFacts(source);
+    const model = composeArchMap(compose);
+    const regionOf = new Map<string, string>();
+    for (const region of model.regions) {
+      for (const groupId of region.groupIds) regionOf.set(groupId, region.label);
+    }
+    const parts: ArchSemanticPart[] = model.groups.map((group) => {
+      const scope = archMapScope(compose, group.id);
+      return {
+        id: group.id,
+        label: group.label,
+        dirs: group.dir === '' ? [] : [group.dir],
+        files: scope === null ? [] : [...scope.files].sort(),
+        parsed: scope?.parsed ?? 0,
+        region: regionOf.get(group.id) ?? null
+      };
+    });
+    return {
+      repoKey,
+      headCommit: envelope.scannedAtCommit ?? '',
+      facts: {
+        trackedFiles: compose.trackedFiles.length,
+        parts,
+        facts: compose.facts ?? [],
+        crossings: model.edges.map((edge) => ({
+          from: edge.from,
+          to: edge.to,
+          count: edge.count
+        }))
+      },
+      grade: gradeSourcesFor(archStore(), repoKey)
+    };
+  }
+
+  /**
+   * What an agent has said each part is FOR (Phase 259; SPEC §3.4).
+   *
+   * A READ over the rows the ask already stored, with every citation already
+   * graded and every rate already carrying its floor. It parses nothing, opens
+   * no file, spawns nothing and never waits for a scan: a repository nothing
+   * has read answers `readAt: null` rather than an error, because off must
+   * never read as broken.
+   */
+  async function readArchSemantic(input: ArchSemanticInput): Promise<ArchSemanticResult> {
+    const source = sourceFor(input);
+    const repoKey = archRepoKey(source.repoPath);
+    const db = archStore();
+    const rows = db.semanticRows(repoKey);
+    // `ArchFlow` is finally read (research 118 §10 Phase 3). A walk a person
+    // committed is read LIVE out of their own tracked file rather than copied
+    // into Tortie's database, so there is one answer rather than two that can
+    // fall out of step, and a model journey can never overwrite one.
+    const flows = await loadArchFlows(await source.fileSystem());
+    const grade = gradeSourcesFor(db, repoKey);
+    const contract = flows.flows.map((flow) => ({
+      journeyId: flow.id,
+      name: flow.name,
+      source: 'contract' as const,
+      agentId: null,
+      steps: [...flow.steps]
+        .sort((a, b) => a.seq - b.seq)
+        .map((step, at) => ({
+          seq: at + 1,
+          partId: step.componentId,
+          label: step.label,
+          // The person's own quoted spans, graded by the SAME grader a model's
+          // citations are. One that no longer resolves simply draws no chip:
+          // their file is theirs, and refusing their step would be this pane
+          // editing a person's contract.
+          cites: (step.evidence ?? []).flatMap((row) => {
+            const graded = gradeCite(
+              { at: `${row.path}:${String(row.lineStart)}`, why: row.quote.slice(0, ARCH_CITE_MAX_WHY) },
+              grade
+            );
+            return graded === null ? [] : [graded];
+          }),
+          stale: false,
+          staleReason: null
+        }))
+    }));
+    const reading = composeSemanticReading(rows, contract);
+    return { cwd: source.farPath, ...reading };
+  }
+
+  /**
+   * Re-read every stored citation against the tree the pass just read
+   * (Phase 259, research 118 §7.5; SPEC §3.3).
+   *
+   * IT STARTS NOTHING. `refreshSemantic` is pure, the writer is an `UPDATE`,
+   * and a claim whose citation died is drawn stale rather than re-asked: the
+   * re-ask is a person's gesture or the shipped settled-drift path, both
+   * through `arch:enrich`'s own confirm gate. Refusal 8 is untouched and
+   * `conformance:semantic` rule 8e reads this function's braces to keep it so.
+   *
+   * A file whose blob oid did not move is never looked at, which is what makes
+   * this cheap enough to run on every deterministic pass.
+   */
+  function refreshSemanticClaims(db: ArchStore, repoKey: string): void {
+    const rows = db.semanticRows(repoKey);
+    if (rows.cites.length === 0) return;
+    const refresh = refreshSemantic(rows.cites, refreshSourcesFor(db, repoKey));
+    if (refresh.moved.length === 0 && refresh.dead.length === 0 && refresh.revived.length === 0) {
+      return;
+    }
+    db.applySemanticRefresh(repoKey, refresh);
+    archLog.info('semantic refresh', {
+      repoKey,
+      moved: refresh.moved.length,
+      dead: refresh.dead.length,
+      revived: refresh.revived.length
+    });
+  }
+
   function dispose(): void {
     lastValid.clear();
     lastProgressAt.clear();
@@ -937,6 +1102,8 @@ export function createArchCheckCoordinator(deps: {
     map: readArchMap,
     mapPart: readArchMapPart,
     facts: readArchFacts,
+    semantic: readArchSemantic,
+    semanticFacts: gatherSemanticFacts,
     composePayload,
     dispose
   };

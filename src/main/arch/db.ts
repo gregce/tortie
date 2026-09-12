@@ -36,12 +36,14 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import {
   ARCH_BOUNDARY_START_KINDS,
+  ARCH_CITE_GRADES,
   ARCH_FACT_CATEGORIES,
   ARCH_FACT_KINDS,
   ARCH_FACT_LIMITS,
   ARCH_MODULE_ROOT_KIND
 } from '@shared/arch';
 import type {
+  ArchCiteGrade,
   ArchCoverage,
   ArchCoverageCounts,
   ArchFact,
@@ -60,6 +62,7 @@ import type {
   ArchPassScope,
   ArchPassTrigger
 } from '@shared/ipc';
+import type { ArchSemanticAskFacts } from './semantic/types';
 import {
   addColumnIfMissing,
   immediateTransaction,
@@ -246,6 +249,130 @@ export interface ArchRepoState {
    * held count, which is the one thing the by coverage rule exists to stop.
    */
   counts: ArchCoverageCounts | null;
+}
+
+// ---------------------------------------------------------------------------
+// The semantic reading (Phase 259; SPEC §3)
+// ---------------------------------------------------------------------------
+
+/** One declaration row, keyed on the bytes it was read from. */
+export interface ArchDeclDraftRow {
+  kind: string;
+  subject: string;
+  line: number;
+  evidence: string;
+}
+
+/** One declaration joined to the file it sits in. */
+export interface ArchDeclRow extends ArchDeclDraftRow {
+  file: string;
+}
+
+/** One semantic ask to record, whatever its verdict. */
+export interface NewArchSemanticRun extends ArchSemanticAskFacts {
+  repoKey: string;
+  runId: string;
+  claims: number;
+}
+
+/** One citation to write, already graded. */
+export interface NewArchClaimCite {
+  relPath: string;
+  line: number;
+  why: string;
+  grade: ArchCiteGrade;
+  factKind: string | null;
+  factSubject: string | null;
+  factLine: number | null;
+  /** The cited file's blob oid at the moment the claim was written. */
+  blobOid: string;
+}
+
+/** One claim, gate reason or journey step label to write, with its citations. */
+export interface NewArchClaimRow {
+  claimId: string;
+  /** `part:<id>`, `gate:<partId>/<id>` or `journey:<id>#<seq>`. */
+  subject: string;
+  field: string;
+  text: string;
+  /** A gate's question, null for everything else. */
+  question: string | null;
+  /** A gate's one word answer, null for everything else. */
+  answer: string | null;
+  cites: readonly NewArchClaimCite[];
+}
+
+/** One journey's walk. */
+export interface NewArchJourneyRow {
+  journeyId: string;
+  name: string;
+  source: 'model' | 'contract';
+  steps: readonly { seq: number; partId: string; label: string }[];
+}
+
+/** One claim as the store reads it back. */
+export interface StoredArchClaim {
+  claimId: string;
+  subject: string;
+  field: string;
+  text: string;
+  question: string | null;
+  answer: string | null;
+  runId: string;
+  writtenAt: number;
+  stale: boolean;
+  staleReason: string | null;
+}
+
+/** One citation as the store reads it back. */
+export interface StoredArchCite {
+  claimId: string;
+  seq: number;
+  relPath: string;
+  line: number;
+  why: string;
+  grade: ArchCiteGrade;
+  factKind: string | null;
+  factSubject: string | null;
+  factLine: number | null;
+  blobOid: string;
+  dead: boolean;
+}
+
+/** One journey step as the store reads it back. */
+export interface StoredArchJourneyStep {
+  journeyId: string;
+  name: string;
+  source: 'model' | 'contract';
+  seq: number;
+  partId: string;
+  label: string;
+}
+
+/** One scope's backing WITH its floor. There is no shape without one. */
+export interface StoredArchRate {
+  scope: string;
+  backed: number;
+  total: number;
+  floorWithin: number;
+  floorLines: number;
+  byGrade: Record<ArchCiteGrade, number>;
+  floorByGrade: Record<ArchCiteGrade, number>;
+  gateShaped: number;
+  gateClaims: number;
+  computedAt: number;
+}
+
+/** One recorded semantic ask, read back for the face. */
+export interface StoredArchSemanticRun extends Omit<NewArchSemanticRun, 'repoKey'> {}
+
+/** Everything one repository's reading holds, as raw rows. */
+export interface ArchSemanticRows {
+  claims: StoredArchClaim[];
+  cites: StoredArchCite[];
+  journeys: StoredArchJourneyStep[];
+  rates: StoredArchRate[];
+  runs: StoredArchSemanticRun[];
 }
 
 const MIGRATIONS: readonly SqliteMigration[] = [
@@ -576,6 +703,173 @@ const MIGRATIONS: readonly SqliteMigration[] = [
       `);
     }
   }
+,
+  {
+    // PHASE 259, THE DECLARATION HALF (research 118 §6.4; SPEC §3.1).
+    //
+    // A semantic claim's best evidence is usually a DECLARATION: "the one door
+    // that rewrites your file" is evidenced by `export async function
+    // writeGuarded(`, which is not a call site and never will be. Research 118
+    // measured the hand pass's backing going from 22.0% to 58.5% once
+    // declarations joined the base, so without this table the grader's best
+    // answer for the sharpest sentence a person can write is `resolves`.
+    //
+    // IT IS NOT A NINTH FACT CATEGORY. `ARCH_FACT_CATEGORIES`,
+    // `ARCH_FACT_KINDS`, `arch:facts`, the surfaces list, the rungs and
+    // `conformance:facts`'s recall scopes do not move. Two readers exist,
+    // `declsOf` and `declCountsUnder`, and both are the grader's and the
+    // floor's; no face ever counts a declaration. The reason is the floor: a
+    // declaration within three lines beats chance by 2.46x where a call site
+    // beats it by 9.6x, and folding the two together would quietly make every
+    // count in this pane a count over a much noisier signal.
+    //
+    // Keyed on the blob oid AND the path exactly as `arch_fact` is, for the
+    // same reason and with the same prune: a branch switch, a `touch` or a
+    // fresh clone moves every stamp and no byte, and two repositories holding
+    // the same bytes at the same path share one row list. The symbols arrive
+    // on the SAME worker message `tree-facts.ts` already reads for calls, so
+    // this costs no second parse.
+    //
+    // THE EXISTING FACT ROWS ARE DROPPED, the same shape as 002, 007 and 008.
+    // A declaration is written at the moment a file is parsed for its facts,
+    // and `hasFactsFor` answers true for every file already linked, so without
+    // this the first run after the migration would re-link every file without
+    // parsing one and the declaration table would stay empty until somebody
+    // edited a file. It costs one re-parse, which the fact base was designed
+    // to be cheap enough to pay.
+    name: '011-arch-decl',
+    up: (db) => {
+      db.exec(`
+        DELETE FROM arch_fact;
+        DELETE FROM arch_fact_file;
+        DELETE FROM arch_fact_wrap;
+        CREATE TABLE IF NOT EXISTS arch_decl (
+          oid      TEXT    NOT NULL,
+          rel_path TEXT    NOT NULL,
+          seq      INTEGER NOT NULL,
+          kind     TEXT    NOT NULL,
+          subject  TEXT    NOT NULL,
+          line     INTEGER NOT NULL,
+          evidence TEXT    NOT NULL,
+          PRIMARY KEY (oid, rel_path, seq)
+        );
+        CREATE INDEX IF NOT EXISTS idx_arch_decl_line
+          ON arch_decl (oid, rel_path, line);
+      `);
+    }
+  },
+  {
+    // PHASE 259, THE READING (research 118 §7.1, §7.3 and §7.5; SPEC §3.2).
+    //
+    // What an agent said each part is FOR, with every sentence's citations
+    // already graded. Five tables and nothing dropped, nothing altered.
+    //
+    // `arch_claim` is the one row table for everything that carries a sentence
+    // and citations: a part's seven claims, a gate's reason, a journey step's
+    // label. `subject` says which, being `part:<id>`, `gate:<partId>/<id>` or
+    // `journey:<id>#<seq>`, and `stale` is the drift answer of §7.5: the
+    // sentence STAYS, the chip turns, and `stale_reason` names the citation
+    // that died. Nothing is ever deleted for being stale.
+    //
+    // `question` and `answer` are NULL for every row but a gate's. They are two
+    // columns rather than a sixth table because a gate is a sentence with
+    // citations exactly as a claim is, and the drift machinery, the grading and
+    // the rate arithmetic all want one table to walk.
+    //
+    // `arch_claim_cite` carries the GRADE and the drift fingerprint, being the
+    // cited file's blob oid plus the fact kind and subject the grade came from.
+    // `dead` is what §7.5's refresh writes when the oid moved and no row with
+    // that kind and subject is in the file any more.
+    //
+    // `arch_claim_rate` HAS NO COLUMN FOR A RATE WITHOUT ITS FLOOR, which is
+    // research 118 §7.3's ruling made structural rather than remembered: a
+    // reader shown "24 of 41" and not shown "and 10 of 41 would happen anyway"
+    // has been given a number without its denominator.
+    //
+    // `arch_journey` holds the WALK, and a journey out of `docs/arch/flows/`
+    // rides the same table with `source: 'contract'`, drawn first and never
+    // overwritten by a model's. Nothing here is written into `docs/arch/`:
+    // `ARCH_ROW_KEYS` is untouched and `conformance:arch` rule 12 runs
+    // unchanged.
+    name: '012-arch-semantic',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS arch_semantic_run (
+          repo_key       TEXT    NOT NULL,
+          run_id         TEXT    NOT NULL,
+          part_id        TEXT,
+          agent_id       TEXT    NOT NULL,
+          model          TEXT    NOT NULL,
+          recipe_version INTEGER NOT NULL,
+          head_commit    TEXT    NOT NULL,
+          started_at     INTEGER NOT NULL,
+          wall_ms        INTEGER NOT NULL,
+          verdict        TEXT    NOT NULL,
+          reason         TEXT,
+          detail         TEXT,
+          cost_usd       REAL,
+          claims         INTEGER NOT NULL DEFAULT 0,
+          rows_dropped   INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (repo_key, run_id)
+        );
+        CREATE TABLE IF NOT EXISTS arch_claim (
+          repo_key     TEXT    NOT NULL,
+          claim_id     TEXT    NOT NULL,
+          subject      TEXT    NOT NULL,
+          field        TEXT    NOT NULL,
+          text         TEXT    NOT NULL,
+          question     TEXT,
+          answer       TEXT,
+          run_id       TEXT    NOT NULL,
+          written_at   INTEGER NOT NULL,
+          stale        INTEGER NOT NULL DEFAULT 0,
+          stale_reason TEXT,
+          PRIMARY KEY (repo_key, claim_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_arch_claim_subject
+          ON arch_claim (repo_key, subject);
+        CREATE TABLE IF NOT EXISTS arch_claim_cite (
+          repo_key     TEXT    NOT NULL,
+          claim_id     TEXT    NOT NULL,
+          seq          INTEGER NOT NULL,
+          rel_path     TEXT    NOT NULL,
+          line         INTEGER NOT NULL,
+          why          TEXT    NOT NULL,
+          grade        TEXT    NOT NULL,
+          fact_kind    TEXT,
+          fact_subject TEXT,
+          fact_line    INTEGER,
+          blob_oid     TEXT    NOT NULL,
+          dead         INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (repo_key, claim_id, seq)
+        );
+        CREATE TABLE IF NOT EXISTS arch_claim_rate (
+          repo_key       TEXT    NOT NULL,
+          scope          TEXT    NOT NULL,
+          backed         INTEGER NOT NULL,
+          total          INTEGER NOT NULL,
+          floor_within   INTEGER NOT NULL,
+          floor_lines    INTEGER NOT NULL,
+          by_grade       TEXT    NOT NULL,
+          floor_by_grade TEXT    NOT NULL,
+          gate_shaped    INTEGER NOT NULL,
+          gate_claims    INTEGER NOT NULL,
+          computed_at    INTEGER NOT NULL,
+          PRIMARY KEY (repo_key, scope)
+        );
+        CREATE TABLE IF NOT EXISTS arch_journey (
+          repo_key   TEXT    NOT NULL,
+          journey_id TEXT    NOT NULL,
+          name       TEXT    NOT NULL,
+          source     TEXT    NOT NULL,
+          seq        INTEGER NOT NULL,
+          part_id    TEXT    NOT NULL,
+          label      TEXT    NOT NULL,
+          PRIMARY KEY (repo_key, journey_id, seq)
+        );
+      `);
+    }
+  }
 ];
 
 /**
@@ -717,6 +1011,161 @@ interface WrapperDeclRow {
  * from `@shared/arch`; the two lengths are `ARCH_FACT_LIMITS`, which the
  * reader cuts at and the store refuses past; the line is 1 based.
  */
+/** One stored declaration row, as SQLite hands it back. */
+interface DeclRow {
+  rel_path: string;
+  kind: string;
+  subject: string;
+  line: number;
+  evidence: string;
+}
+
+interface ClaimRow {
+  claim_id: string;
+  subject: string;
+  field: string;
+  text: string;
+  question: string | null;
+  answer: string | null;
+  run_id: string;
+  written_at: number;
+  stale: number;
+  stale_reason: string | null;
+}
+
+interface CiteRow {
+  claim_id: string;
+  seq: number;
+  rel_path: string;
+  line: number;
+  why: string;
+  grade: string;
+  fact_kind: string | null;
+  fact_subject: string | null;
+  fact_line: number | null;
+  blob_oid: string;
+  dead: number;
+}
+
+interface JourneyRow {
+  journey_id: string;
+  name: string;
+  source: string;
+  seq: number;
+  part_id: string;
+  label: string;
+}
+
+interface RateRow {
+  scope: string;
+  backed: number;
+  total: number;
+  floor_within: number;
+  floor_lines: number;
+  by_grade: string;
+  floor_by_grade: string;
+  gate_shaped: number;
+  gate_claims: number;
+  computed_at: number;
+}
+
+interface SemanticRunRow {
+  run_id: string;
+  part_id: string | null;
+  agent_id: string;
+  model: string;
+  recipe_version: number;
+  head_commit: string;
+  started_at: number;
+  wall_ms: number;
+  verdict: string;
+  reason: string | null;
+  detail: string | null;
+  cost_usd: number | null;
+  claims: number;
+  rows_dropped: number;
+}
+
+/**
+ * One sentence naming the refusing field, or null (Phase 259).
+ *
+ * A declaration is bounded by the FACT base's own two numbers, because the
+ * grader compares a declaration's subject against a fact's and two bounds
+ * would be two answers to one question.
+ */
+function refuseDecl(row: ArchDeclDraftRow): string | null {
+  if (typeof row.kind !== 'string' || row.kind.length === 0 || row.kind.length > 40) {
+    return 'arch_decl.kind must be a kind of 1 to 40 characters';
+  }
+  if (typeof row.subject !== 'string' || row.subject.length === 0) {
+    return 'arch_decl.subject must be a non-empty string';
+  }
+  if (row.subject.length > ARCH_FACT_LIMITS.maxSubject) {
+    return `arch_decl.subject holds ${String(row.subject.length)} characters and the most is ${String(ARCH_FACT_LIMITS.maxSubject)}`;
+  }
+  if (typeof row.evidence !== 'string' || row.evidence.length > ARCH_FACT_LIMITS.maxEvidence) {
+    return `arch_decl.evidence holds ${String(row.evidence.length)} characters and the most is ${String(ARCH_FACT_LIMITS.maxEvidence)}`;
+  }
+  if (!Number.isInteger(row.line) || row.line < 1) {
+    return `arch_decl.line must be a positive integer, not ${String(row.line)}`;
+  }
+  return null;
+}
+
+/**
+ * One sentence naming the refusing field of a claim, or null (Phase 259).
+ *
+ * The GRADE is the closed set: a row carrying a fifth word would put a grade
+ * on a face that no chip and no floor knows how to draw, so the whole write
+ * throws with the field named and nothing lands.
+ */
+function refuseClaim(row: NewArchClaimRow): string | null {
+  if (typeof row.claimId !== 'string' || row.claimId.length === 0 || row.claimId.length > 200) {
+    return 'arch_claim.claim_id must be an id of 1 to 200 characters';
+  }
+  if (typeof row.subject !== 'string' || row.subject.length === 0 || row.subject.length > 300) {
+    return 'arch_claim.subject must be a subject of 1 to 300 characters';
+  }
+  if (typeof row.text !== 'string' || row.text.length === 0 || row.text.length > 1000) {
+    return 'arch_claim.text must be a sentence of 1 to 1000 characters';
+  }
+  for (const cite of row.cites) {
+    if (!(ARCH_CITE_GRADES as readonly string[]).includes(cite.grade)) {
+      return `arch_claim_cite.grade "${String(cite.grade)}" is not one of ${ARCH_CITE_GRADES.join(', ')}`;
+    }
+    if (!Number.isInteger(cite.line) || cite.line < 1) {
+      return `arch_claim_cite.line must be a positive integer, not ${String(cite.line)}`;
+    }
+    if (typeof cite.blobOid !== 'string' || cite.blobOid.length === 0) {
+      return 'arch_claim_cite.blob_oid must be the cited file\'s blob name';
+    }
+  }
+  return null;
+}
+
+/**
+ * A stored per grade tally, back as a record with every grade present.
+ *
+ * A row an older build wrote, or one somebody edited by hand, reads as zeroes
+ * rather than crashing the read: a rate with a missing grade would draw a
+ * blank chip count, and a blank is read as "none" rather than as "unknown".
+ */
+function parseGradeTally(raw: string): Record<ArchCiteGrade, number> {
+  const out = {} as Record<ArchCiteGrade, number>;
+  for (const grade of ARCH_CITE_GRADES) out[grade] = 0;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return out;
+    for (const grade of ARCH_CITE_GRADES) {
+      const value = (parsed as Record<string, unknown>)[grade];
+      if (typeof value === 'number' && Number.isFinite(value)) out[grade] = value;
+    }
+  } catch {
+    // A damaged row reads as zeroes. The whole database is derived.
+  }
+  return out;
+}
+
 function refuseFact(table: string, fact: ArchFactDraft): string | null {
   if (!(ARCH_FACT_CATEGORIES as readonly string[]).includes(fact.category)) {
     return `${table}.category "${String(fact.category)}" is not one of ${ARCH_FACT_CATEGORIES.join(', ')}`;
@@ -1316,6 +1765,15 @@ export class ArchStore {
             WHERE f.oid = arch_fact_wrapper.oid AND f.rel_path = arch_fact_wrapper.rel_path)`
       )
       .run();
+    // Phase 259. The declarations are keyed on bytes exactly as the facts are,
+    // so they are pruned by the same link and never deleted by repository key.
+    this.db
+      .prepare(
+        `DELETE FROM arch_decl WHERE NOT EXISTS (
+           SELECT 1 FROM arch_fact_file f
+            WHERE f.oid = arch_decl.oid AND f.rel_path = arch_decl.rel_path)`
+      )
+      .run();
     return facts.changes + wrappers.changes;
   }
 
@@ -1889,13 +2347,504 @@ export class ArchStore {
       groupsTotal: row.groups_total,
       components: row.components,
       suggestions: parseSuggestions(row.suggestions),
-      scope: row.scope === 'drift' ? 'drift' : 'whole',
+      // PHASE 259 widened this from two words to four. A row an older build
+      // wrote carries neither of the new ones, so `whole` stays the fallback
+      // and nothing already stored moves.
+      scope:
+        row.scope === 'drift' || row.scope === 'part' || row.scope === 'journeys'
+          ? row.scope
+          : 'whole',
       trigger:
         row.trigger === 'ribbon' || row.trigger === 'drift'
           ? row.trigger
           : 'gesture',
       inputHash: row.input_hash
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // The declaration half (Phase 259; SPEC §3.1)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Replace the declaration list for (oid, relPath), in ONE transaction.
+   *
+   * A row past the subject or evidence bound makes the WHOLE call throw with
+   * the field named and writes nothing, the same rule `saveFacts` applies, so
+   * what is stored is always something the reader really produced.
+   */
+  saveDecls(oid: string, relPath: string, decls: readonly ArchDeclDraftRow[]): void {
+    for (const row of decls) {
+      const why = refuseDecl(row);
+      if (why !== null) throw new Error(`${relPath}: ${why}`);
+    }
+    const drop = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_decl WHERE oid = ? AND rel_path = ?'
+    );
+    const insert = this.db.prepare<[string, string, number, string, string, number, string]>(
+      `INSERT INTO arch_decl (oid, rel_path, seq, kind, subject, line, evidence)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+    immediateTransaction(this.db, () => {
+      drop.run(oid, relPath);
+      decls.forEach((row, seq) => {
+        insert.run(oid, relPath, seq, row.kind, row.subject, row.line, row.evidence);
+      });
+    });
+  }
+
+  /**
+   * Every declaration in the named files of one repository, sorted (file,
+   * line, kind, subject).
+   *
+   * Asked of the CITED files rather than of the whole tree, because the two
+   * readers are the grader and the floor and both only ever look at files a
+   * reading actually names.
+   */
+  declsOf(repoKey: string, files: readonly string[]): ArchDeclRow[] {
+    const wanted = [...new Set(files)];
+    if (wanted.length === 0) return [];
+    const select = this.db.prepare<[string, string], DeclRow>(
+      `SELECT d.rel_path, d.kind, d.subject, d.line, d.evidence
+         FROM arch_decl d
+         JOIN arch_fact_file f ON f.oid = d.oid AND f.rel_path = d.rel_path
+        WHERE f.repo_key = ? AND d.rel_path = ?`
+    );
+    const out: ArchDeclRow[] = [];
+    for (const file of wanted) {
+      for (const row of select.all(repoKey, file)) {
+        out.push({
+          file: row.rel_path,
+          kind: row.kind,
+          subject: row.subject,
+          line: row.line,
+          evidence: row.evidence
+        });
+      }
+    }
+    return out.sort((a, b) => {
+      if (a.file !== b.file) return a.file < b.file ? -1 : 1;
+      if (a.line !== b.line) return a.line - b.line;
+      if (a.kind !== b.kind) return a.kind < b.kind ? -1 : 1;
+      return a.subject < b.subject ? -1 : a.subject > b.subject ? 1 : 0;
+    });
+  }
+
+  /**
+   * How many declarations sit under a set of directories. The one COUNT this
+   * table answers, and it is for the phase's own measurement rather than for
+   * any face: no surface in this product counts a declaration.
+   */
+  declCountsUnder(repoKey: string, dirs: readonly string[]): number {
+    const rows = this.db
+      .prepare<[string], { rel_path: string; n: number }>(
+        `SELECT d.rel_path AS rel_path, COUNT(*) AS n
+           FROM arch_decl d
+           JOIN arch_fact_file f ON f.oid = d.oid AND f.rel_path = d.rel_path
+          WHERE f.repo_key = ?
+          GROUP BY d.rel_path`
+      )
+      .all(repoKey);
+    const under = (path: string): boolean =>
+      dirs.some((dir) => dir === '' || path === dir || path.startsWith(`${dir}/`));
+    let total = 0;
+    for (const row of rows) if (under(row.rel_path)) total += row.n;
+    return total;
+  }
+
+  // -------------------------------------------------------------------------
+  // The reading (Phase 259; SPEC §3.2 and §3.3)
+  // -------------------------------------------------------------------------
+
+  /** Record one semantic ask, whatever its verdict. Refusals are rows, never silence. */
+  writeSemanticRun(row: NewArchSemanticRun): void {
+    this.db
+      .prepare<
+        [
+          string,
+          string,
+          string | null,
+          string,
+          string,
+          number,
+          string,
+          number,
+          number,
+          string,
+          string | null,
+          string | null,
+          number | null,
+          number,
+          number
+        ]
+      >(
+        `INSERT INTO arch_semantic_run
+           (repo_key, run_id, part_id, agent_id, model, recipe_version, head_commit,
+            started_at, wall_ms, verdict, reason, detail, cost_usd, claims, rows_dropped)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(repo_key, run_id) DO UPDATE SET
+           verdict = excluded.verdict,
+           reason = excluded.reason,
+           detail = excluded.detail,
+           wall_ms = excluded.wall_ms,
+           claims = excluded.claims,
+           rows_dropped = excluded.rows_dropped`
+      )
+      .run(
+        row.repoKey,
+        row.runId,
+        row.partId,
+        row.agentId,
+        row.model,
+        row.recipeVersion,
+        row.headCommit,
+        row.startedAt,
+        row.wallMs,
+        row.verdict,
+        row.reason,
+        row.detail,
+        row.costUsd,
+        row.claims,
+        row.rowsDropped
+      );
+  }
+
+  /**
+   * Replace one reading's rows, in ONE transaction.
+   *
+   * `subjects` names the LIKE prefixes this write owns: a part ask owns
+   * `part:<id>` and `gate:<id>/`, a journeys ask owns `journey:`. Everything
+   * under them is replaced whole, so a second reading of one part never leaves
+   * half the previous one behind, and a reading of one part never touches
+   * another part's.
+   *
+   * A JOURNEY OUT OF THE CONTRACT IS NEVER OVERWRITTEN BY A MODEL'S. The
+   * contract rows are written under `source: 'contract'` by the loader and the
+   * model's write below deletes only `source = 'model'`.
+   */
+  replaceSemantic(input: {
+    repoKey: string;
+    subjects: readonly string[];
+    runId: string;
+    writtenAt: number;
+    claims: readonly NewArchClaimRow[];
+    journeys: readonly NewArchJourneyRow[];
+    /** Which journey source this write owns, or null when it writes none. */
+    journeySource: 'model' | 'contract' | null;
+  }): void {
+    for (const claim of input.claims) {
+      const why = refuseClaim(claim);
+      if (why !== null) throw new Error(`${claim.claimId}: ${why}`);
+    }
+    const dropClaims = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_claim WHERE repo_key = ? AND subject LIKE ?'
+    );
+    const dropCites = this.db.prepare<[string, string]>(
+      `DELETE FROM arch_claim_cite WHERE repo_key = ? AND claim_id IN (
+         SELECT claim_id FROM arch_claim WHERE repo_key = arch_claim_cite.repo_key AND subject LIKE ?)`
+    );
+    const dropJourneys = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_journey WHERE repo_key = ? AND source = ?'
+    );
+    const insertClaim = this.db.prepare<
+      [string, string, string, string, string, string | null, string | null, string, number]
+    >(
+      `INSERT INTO arch_claim
+         (repo_key, claim_id, subject, field, text, question, answer, run_id, written_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(repo_key, claim_id) DO UPDATE SET
+         subject = excluded.subject,
+         field = excluded.field,
+         text = excluded.text,
+         question = excluded.question,
+         answer = excluded.answer,
+         run_id = excluded.run_id,
+         written_at = excluded.written_at,
+         stale = 0,
+         stale_reason = NULL`
+    );
+    const insertCite = this.db.prepare<
+      [
+        string,
+        string,
+        number,
+        string,
+        number,
+        string,
+        string,
+        string | null,
+        string | null,
+        number | null,
+        string
+      ]
+    >(
+      `INSERT INTO arch_claim_cite
+         (repo_key, claim_id, seq, rel_path, line, why, grade, fact_kind, fact_subject,
+          fact_line, blob_oid)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const insertStep = this.db.prepare<[string, string, string, string, number, string, string]>(
+      `INSERT INTO arch_journey (repo_key, journey_id, name, source, seq, part_id, label)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(repo_key, journey_id, seq) DO UPDATE SET
+         name = excluded.name,
+         source = excluded.source,
+         part_id = excluded.part_id,
+         label = excluded.label`
+    );
+    const dropCitesOf = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_claim_cite WHERE repo_key = ? AND claim_id = ?'
+    );
+    immediateTransaction(this.db, () => {
+      for (const subject of input.subjects) {
+        dropCites.run(input.repoKey, subject);
+        dropClaims.run(input.repoKey, subject);
+      }
+      if (input.journeySource !== null) dropJourneys.run(input.repoKey, input.journeySource);
+      for (const claim of input.claims) {
+        insertClaim.run(
+          input.repoKey,
+          claim.claimId,
+          claim.subject,
+          claim.field,
+          claim.text,
+          claim.question,
+          claim.answer,
+          input.runId,
+          input.writtenAt
+        );
+        dropCitesOf.run(input.repoKey, claim.claimId);
+        claim.cites.forEach((cite, seq) => {
+          insertCite.run(
+            input.repoKey,
+            claim.claimId,
+            seq,
+            cite.relPath,
+            cite.line,
+            cite.why,
+            cite.grade,
+            cite.factKind,
+            cite.factSubject,
+            cite.factLine,
+            cite.blobOid
+          );
+        });
+      }
+      for (const journey of input.journeys) {
+        for (const step of journey.steps) {
+          insertStep.run(
+            input.repoKey,
+            journey.journeyId,
+            journey.name,
+            journey.source,
+            step.seq,
+            step.partId,
+            step.label
+          );
+        }
+      }
+    });
+  }
+
+  /**
+   * Apply one drift refresh, in ONE transaction (SPEC §3.3).
+   *
+   * A citation whose line moved is rewritten and its claim stays current; one
+   * that died is marked dead and its claim is marked stale with the sentence
+   * that says which citation it was. NOTHING IS DELETED and no sentence
+   * changes: the chip turns and the words stay, so a person can see what the
+   * reading used to stand on.
+   */
+  applySemanticRefresh(
+    repoKey: string,
+    refresh: {
+      moved: readonly { claimId: string; seq: number; line: number; blobOid: string }[];
+      dead: readonly { claimId: string; seq: number; reason: string }[];
+      revived: readonly { claimId: string; seq: number; line: number; blobOid: string }[];
+    }
+  ): void {
+    const move = this.db.prepare<[number, string, string, string, number]>(
+      `UPDATE arch_claim_cite SET line = ?, blob_oid = ?, dead = 0
+        WHERE repo_key = ? AND claim_id = ? AND seq = ?`
+    );
+    const kill = this.db.prepare<[string, string, number]>(
+      'UPDATE arch_claim_cite SET dead = 1 WHERE repo_key = ? AND claim_id = ? AND seq = ?'
+    );
+    const stale = this.db.prepare<[string, string, string]>(
+      'UPDATE arch_claim SET stale = 1, stale_reason = ? WHERE repo_key = ? AND claim_id = ?'
+    );
+    const fresh = this.db.prepare<[string, string]>(
+      `UPDATE arch_claim SET stale = 0, stale_reason = NULL
+        WHERE repo_key = ? AND claim_id = ?
+          AND NOT EXISTS (SELECT 1 FROM arch_claim_cite c
+                           WHERE c.repo_key = arch_claim.repo_key
+                             AND c.claim_id = arch_claim.claim_id AND c.dead = 1)`
+    );
+    immediateTransaction(this.db, () => {
+      for (const row of [...refresh.moved, ...refresh.revived]) {
+        move.run(row.line, row.blobOid, repoKey, row.claimId, row.seq);
+      }
+      for (const row of refresh.dead) {
+        kill.run(repoKey, row.claimId, row.seq);
+        stale.run(row.reason, repoKey, row.claimId);
+      }
+      for (const row of refresh.revived) fresh.run(repoKey, row.claimId);
+    });
+  }
+
+  /**
+   * Write one scope's backing WITH its floor.
+   *
+   * There is no overload that takes a rate alone: the table has no column for
+   * one, so a caller that wanted to store a bare rate would not compile.
+   */
+  writeClaimRate(repoKey: string, rate: StoredArchRate): void {
+    this.db
+      .prepare<
+        [string, string, number, number, number, number, string, string, number, number, number]
+      >(
+        `INSERT INTO arch_claim_rate
+           (repo_key, scope, backed, total, floor_within, floor_lines, by_grade,
+            floor_by_grade, gate_shaped, gate_claims, computed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(repo_key, scope) DO UPDATE SET
+           backed = excluded.backed,
+           total = excluded.total,
+           floor_within = excluded.floor_within,
+           floor_lines = excluded.floor_lines,
+           by_grade = excluded.by_grade,
+           floor_by_grade = excluded.floor_by_grade,
+           gate_shaped = excluded.gate_shaped,
+           gate_claims = excluded.gate_claims,
+           computed_at = excluded.computed_at`
+      )
+      .run(
+        repoKey,
+        rate.scope,
+        rate.backed,
+        rate.total,
+        rate.floorWithin,
+        rate.floorLines,
+        JSON.stringify(rate.byGrade),
+        JSON.stringify(rate.floorByGrade),
+        rate.gateShaped,
+        rate.gateClaims,
+        rate.computedAt
+      );
+  }
+
+  /** Drop every rate whose scope no reading covers any more. */
+  forgetClaimRates(repoKey: string, scopes: readonly string[]): void {
+    if (scopes.length === 0) return;
+    const drop = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_claim_rate WHERE repo_key = ? AND scope = ?'
+    );
+    immediateTransaction(this.db, () => {
+      for (const scope of scopes) drop.run(repoKey, scope);
+    });
+  }
+
+  /**
+   * Every row of one repository's reading, raw. The composing is pure and
+   * lives in `./semantic/reading.ts`: this file owns the SQL and nothing else.
+   */
+  semanticRows(repoKey: string): ArchSemanticRows {
+    const claims = this.db
+      .prepare<[string], ClaimRow>(
+        `SELECT claim_id, subject, field, text, question, answer, run_id, written_at,
+                stale, stale_reason
+           FROM arch_claim WHERE repo_key = ? ORDER BY subject, claim_id`
+      )
+      .all(repoKey)
+      .map((row) => ({
+        claimId: row.claim_id,
+        subject: row.subject,
+        field: row.field,
+        text: row.text,
+        question: row.question,
+        answer: row.answer,
+        runId: row.run_id,
+        writtenAt: row.written_at,
+        stale: row.stale === 1,
+        staleReason: row.stale_reason
+      }));
+    const cites = this.db
+      .prepare<[string], CiteRow>(
+        `SELECT claim_id, seq, rel_path, line, why, grade, fact_kind, fact_subject,
+                fact_line, blob_oid, dead
+           FROM arch_claim_cite WHERE repo_key = ? ORDER BY claim_id, seq`
+      )
+      .all(repoKey)
+      .map((row) => ({
+        claimId: row.claim_id,
+        seq: row.seq,
+        relPath: row.rel_path,
+        line: row.line,
+        why: row.why,
+        grade: row.grade as ArchCiteGrade,
+        factKind: row.fact_kind,
+        factSubject: row.fact_subject,
+        factLine: row.fact_line,
+        blobOid: row.blob_oid,
+        dead: row.dead === 1
+      }));
+    const journeys = this.db
+      .prepare<[string], JourneyRow>(
+        `SELECT journey_id, name, source, seq, part_id, label
+           FROM arch_journey WHERE repo_key = ? ORDER BY source DESC, journey_id, seq`
+      )
+      .all(repoKey)
+      .map((row) => ({
+        journeyId: row.journey_id,
+        name: row.name,
+        source: row.source === 'contract' ? ('contract' as const) : ('model' as const),
+        seq: row.seq,
+        partId: row.part_id,
+        label: row.label
+      }));
+    const rates = this.db
+      .prepare<[string], RateRow>(
+        `SELECT scope, backed, total, floor_within, floor_lines, by_grade, floor_by_grade,
+                gate_shaped, gate_claims, computed_at
+           FROM arch_claim_rate WHERE repo_key = ? ORDER BY scope`
+      )
+      .all(repoKey)
+      .map((row) => ({
+        scope: row.scope,
+        backed: row.backed,
+        total: row.total,
+        floorWithin: row.floor_within,
+        floorLines: row.floor_lines,
+        byGrade: parseGradeTally(row.by_grade),
+        floorByGrade: parseGradeTally(row.floor_by_grade),
+        gateShaped: row.gate_shaped,
+        gateClaims: row.gate_claims,
+        computedAt: row.computed_at
+      }));
+    const runs = this.db
+      .prepare<[string], SemanticRunRow>(
+        `SELECT run_id, part_id, agent_id, model, recipe_version, head_commit, started_at,
+                wall_ms, verdict, reason, detail, cost_usd, claims, rows_dropped
+           FROM arch_semantic_run WHERE repo_key = ? ORDER BY started_at DESC, run_id DESC`
+      )
+      .all(repoKey)
+      .map((row) => ({
+        runId: row.run_id,
+        partId: row.part_id,
+        agentId: row.agent_id,
+        model: row.model,
+        recipeVersion: row.recipe_version,
+        headCommit: row.head_commit,
+        startedAt: row.started_at,
+        wallMs: row.wall_ms,
+        verdict: row.verdict as StoredArchSemanticRun['verdict'],
+        reason: row.reason,
+        detail: row.detail,
+        costUsd: row.cost_usd,
+        claims: row.claims,
+        rowsDropped: row.rows_dropped
+      }));
+    return { claims, cites, journeys, rates, runs };
   }
 
   /** Drop everything about one repository. Its tab was closed for good. */
@@ -1912,6 +2861,13 @@ export class ArchStore {
         'arch_layout',
         'arch_pass_run',
         'arch_verdict_change',
+        // Phase 259. The reading is keyed by repository and goes with it; the
+        // declarations are keyed on BYTES and are pruned below with the facts.
+        'arch_semantic_run',
+        'arch_claim',
+        'arch_claim_cite',
+        'arch_claim_rate',
+        'arch_journey',
         'arch_repo'
       ]) {
         this.db

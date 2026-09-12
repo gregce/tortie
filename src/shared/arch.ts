@@ -764,3 +764,186 @@ export interface ArchRungReading {
   /** How many seed files the part's units gave the walk. 0 means nothing recognised starts it. */
   seeds: number;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 259: the semantic reading (research 118 §7.1 and §7.3, SPEC §2, §3.4)
+// ---------------------------------------------------------------------------
+// EVERY SHAPE HERE IS DERIVED AND NONE OF THEM IS A ROW KEY. `ARCH_ROW_KEYS`
+// above is untouched: a model's sentences live in Tortie's own disposable
+// `arch.db` and never in `docs/arch/`, so `conformance:arch` rule 12 runs
+// unchanged and nothing a model wrote can become part of the format a person
+// commits.
+//
+// THE LADDER IS NOT A TRUTH SCALE. A grade says how rare it is to land within
+// three lines of a fact by chance, and nothing else. Every rate the face draws
+// carries the share the same files would give at random, which is why
+// `ArchRateReading` has no room for a rate without its floor.
+
+/**
+ * How far a citation may sit from the fact that backs it, in lines.
+ *
+ * ONE constant, read by the grader in main and by the floor computed beside
+ * every rate, so an ablation of it moves both together (SPEC §2.3).
+ */
+export const ARCH_CITE_SLACK = 3;
+
+/**
+ * The four grades, rarest first (SPEC §2.3). Measured floors over the hand
+ * pass's nineteen cited files: `gate` 0.1%, any other fact 2.3%, a
+ * declaration 21.9%. `resolves` means the line is here and nothing was found
+ * at it, which is the weakest thing a citation can be without being broken.
+ */
+export const ARCH_CITE_GRADES = ['gate', 'call-site', 'declaration', 'resolves'] as const;
+export type ArchCiteGrade = (typeof ARCH_CITE_GRADES)[number];
+
+/** The seven claim fields, in the order the answer must be written in (SPEC §1.4). */
+export const ARCH_CLAIM_FIELDS = [
+  'name',
+  'receives',
+  'does',
+  'returns',
+  'runsIn',
+  'keeps',
+  'limit'
+] as const;
+export type ArchClaimField = (typeof ARCH_CLAIM_FIELDS)[number];
+
+/** The four words a gate claim may answer with, and no fifth. */
+export const ARCH_GATE_ANSWERS = ['proceeds', 'stops', 'uncertain', 'detected'] as const;
+export type ArchGateAnswer = (typeof ARCH_GATE_ANSWERS)[number];
+
+/** One citation as a model writes it: `path:line`, and why that line shows it. */
+export interface ArchSemanticCite {
+  at: string;
+  why: string;
+}
+
+/**
+ * One citation as the face draws it: where it points, why, how it graded, and
+ * the fact the grade came from so a hover can name it.
+ *
+ * `dead` is the drift fingerprint's answer (SPEC §3.3): the file moved and no
+ * row with the same kind and subject is in it any more. A dead citation makes
+ * its claim stale; nothing is deleted and the sentence does not change.
+ */
+export interface ArchCiteReading extends ArchSemanticCite {
+  /** Repository relative path, the half of `at` before the colon. */
+  relPath: string;
+  /** 1 based, the half of `at` after the colon. */
+  line: number;
+  grade: ArchCiteGrade;
+  /** The fact within the slack, or null at `resolves`. */
+  factKind: string | null;
+  factSubject: string | null;
+  factLine: number | null;
+  dead: boolean;
+}
+
+/** One model-written sentence about one field, with its graded citations. */
+export interface ArchClaimReading {
+  claimId: string;
+  field: ArchClaimField;
+  text: string;
+  cites: readonly ArchCiteReading[];
+  /** A citation of this claim died. The sentence stays and the chip turns. */
+  stale: boolean;
+  /** Which citation died, or null while the claim is current. */
+  staleReason: string | null;
+  /** The agent that wrote it, for the `read by` label. Never drawn as an authority. */
+  agentId: string;
+}
+
+/** One rule P box as the model read it. `id` is the map's own box id. */
+export interface ArchPartReading {
+  id: string;
+  /**
+   * The model's own name for the part, or null when nothing has read it.
+   *
+   * IT IS NOT THE LABEL THE MAP DRAWS. The box keeps the computed label it
+   * has always had, because a part renamed by a model keeps every chip it
+   * had (research 118 §6.4) and the map is the computed half of this pane.
+   */
+  name: string | null;
+  /** The claims that stood, at most one per field, in {@link ARCH_CLAIM_FIELDS} order. */
+  claims: readonly ArchClaimReading[];
+}
+
+/** One gate the model wrote a reason for, beside the computed rows. */
+export interface ArchGateReading {
+  gateId: string;
+  partId: string;
+  question: string;
+  answer: ArchGateAnswer;
+  because: string;
+  cites: readonly ArchCiteReading[];
+  stale: boolean;
+  staleReason: string | null;
+  agentId: string;
+}
+
+/** One numbered step of a journey: which part, what happens, and the backing. */
+export interface ArchJourneyStepReading {
+  seq: number;
+  partId: string;
+  label: string;
+  cites: readonly ArchCiteReading[];
+  stale: boolean;
+  staleReason: string | null;
+}
+
+/**
+ * One journey. `contract` is a flow a person committed under
+ * `docs/arch/flows/` and it is drawn FIRST and never overwritten; `model` is
+ * one an agent read.
+ */
+export interface ArchJourneyReading {
+  journeyId: string;
+  name: string;
+  source: 'model' | 'contract';
+  /** The agent that read it, or null for a journey out of the contract. */
+  agentId: string | null;
+  steps: readonly ArchJourneyStepReading[];
+}
+
+/**
+ * The backing of one scope, WITH the share the same files would give at
+ * random. There is no field for a rate without its floor, which is research
+ * 118 §7.3's ruling made structural rather than remembered.
+ *
+ * `floorWithin` and `floorLines` are LINE COUNTS: of `floorLines` lines in the
+ * cited files, `floorWithin` are within {@link ARCH_CITE_SLACK} of an admitted
+ * row. The chance count a face draws is `total` times that share.
+ */
+export interface ArchRateReading {
+  /** `repo`, or `part:<id>`. */
+  scope: string;
+  backed: number;
+  total: number;
+  floorWithin: number;
+  floorLines: number;
+  byGrade: Readonly<Record<ArchCiteGrade, number>>;
+  /** The same line counts per grade, so a shaped question's floor is drawn beside it. */
+  floorByGrade: Readonly<Record<ArchCiteGrade, number>>;
+  /** Gate claims whose citation set holds a `gate` graded row, and how many there are. */
+  gateShaped: number;
+  gateClaims: number;
+}
+
+/**
+ * One run as the face reports it. THERE IS NO COST FIELD: claude's figure is
+ * recorded in the measurement and codex reports none at all, so a number that
+ * exists for one agent and not the other is never drawn (SPEC §9 limit 7).
+ */
+export interface ArchSemanticRunFace {
+  runId: string;
+  agentId: string;
+  model: string;
+  /** The part this ask was about, or null for the journey ask. */
+  partId: string | null;
+  verdict: string;
+  reason: string | null;
+  wallMs: number;
+  claims: number;
+  rowsDropped: number;
+  startedAt: number;
+}

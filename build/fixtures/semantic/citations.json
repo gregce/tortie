@@ -1,0 +1,71 @@
+{
+ "_what": "Twelve citation strings the grammar must refuse and four the grader must grade. A refused citation is an unresolvable one, which is R2, so a grammar that accepted a traversal would let a row stand on a path outside the repository. Every accepted row names a TRACKED file, because the grammar and the resolution are asked together through the shipping gradeCite and a real path into an untracked file is refused for the other reason.",
+ "refuse": [
+  {
+   "at": "../x:1",
+   "why": "a parent segment"
+  },
+  {
+   "at": "/etc/passwd:1",
+   "why": "an absolute path"
+  },
+  {
+   "at": "a:0",
+   "why": "line zero, and lines are one based"
+  },
+  {
+   "at": "a:1000000000",
+   "why": "a line past the seven digit bound"
+  },
+  {
+   "at": "a\\b:1",
+   "why": "a backslash"
+  },
+  {
+   "at": "src/a\u0001.ts:1",
+   "why": "a control character"
+  },
+  {
+   "at": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:1",
+   "why": "past four hundred characters"
+  },
+  {
+   "at": "src/a.ts",
+   "why": "no colon at all"
+  },
+  {
+   "at": "src/a.ts:1:2",
+   "why": "two colons"
+  },
+  {
+   "at": "src/a.ts:-4",
+   "why": "a negative line"
+  },
+  {
+   "at": "src/a.ts:1.5",
+   "why": "a line that is not an integer"
+  },
+  {
+   "at": ":12",
+   "why": "an empty path"
+  }
+ ],
+ "accept": [
+  {
+   "at": "src/main/arch/ipc.ts:20",
+   "why": "the shape every fact line in the block is written in"
+  },
+  {
+   "at": "src/main/index.ts:64",
+   "why": "the composition root"
+  },
+  {
+   "at": "src/main/symbols/pool.ts:181",
+   "why": "the last line a 180 line file can honestly carry, which is inside it"
+  },
+  {
+   "at": "src/main/tmux/sessions.ts:40",
+   "why": "a store write"
+  }
+ ]
+}

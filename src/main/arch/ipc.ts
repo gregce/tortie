@@ -105,7 +105,15 @@ function archStore(): ArchStore {
  * coordinator takes its `repairDrift` injected, which is the one hand off
  * between the two workflows.
  */
-const enrichment = createArchEnrichCoordinator({ store: archStore });
+const enrichment = createArchEnrichCoordinator({
+  store: archStore,
+  // PHASE 259. The semantic ask composes from the partition the MAP draws, and
+  // that partition is the check coordinator's. It is reached through a lazy
+  // arrow rather than a constructor argument because the two coordinators are
+  // made in this order and each needs one narrow thing from the other: the
+  // arrow is never called until both exist.
+  semanticFacts: async (input) => checks.semanticFacts(input)
+});
 const checks = createArchCheckCoordinator({
   store: archStore,
   repairDrift: enrichment.repairDrift
@@ -152,6 +160,12 @@ export function registerArchIpc(ipc: IpcMain): void {
   // partition arch:map composed. A read; it parses nothing, judges nothing,
   // writes nothing and starts nothing arch:map does not already schedule.
   handle(ipc, 'arch:facts', async (_event, input) => checks.facts(input));
+  // What an agent said each part is for (Phase 259). A READ over the rows the
+  // ask already stored: it parses nothing, opens no file, spawns nothing and
+  // never waits for a scan. The ASK is `arch:enrich` with the widened scope,
+  // behind the confirm gate it has had since Phase 158, so this phase opens no
+  // second door to a model.
+  handle(ipc, 'arch:semantic', async (_event, input) => checks.semantic(input));
   // The drilled module (Phase 161): the level 2 answer scoped to one computed
   // directory, through the SAME pure core and the same caps as arch:modules.
   handle(ipc, 'arch:moduleFiles', async (_event, input) =>

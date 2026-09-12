@@ -30,7 +30,8 @@ import type {
   ArchMapResult,
   ArchModuleFilesResult,
   ArchNodePosition,
-  ArchPassStatusResult
+  ArchPassStatusResult,
+  ArchSemanticResult
 } from '../bridge';
 
 /**
@@ -169,11 +170,15 @@ export function canvasKey(repoPath: string, scope: string): string {
 }
 
 /**
- * PHASE 258. The map tab's three inner tabs (SPEC D5): the picture, the
- * surfaces list and the gates worksheet. One record per repository, so a
- * View menu row can land on the named one and the tab remembers it.
+ * PHASE 258. The map tab's inner tabs (SPEC D5): the picture, the surfaces
+ * list and the gates worksheet. One record per repository, so a View menu row
+ * can land on the named one and the tab remembers it.
+ *
+ * PHASE 259 ADDED `journeys` and moved no other id. `map`, `surfaces` and
+ * `gates` keep their words, their store keys and their menu actions, so a
+ * person's held tab and every queued menu action survive the change.
  */
-export type ArchMapInnerTab = 'map' | 'surfaces' | 'gates';
+export type ArchMapInnerTab = 'map' | 'journeys' | 'surfaces' | 'gates';
 
 /**
  * PHASE 258. What the inspector follows: the box a single click selected on
@@ -204,6 +209,21 @@ export function factsKey(
   categories: readonly ArchFactCategory[]
 ): string {
   return `${repoPath}\u0000${scope ?? ''}\u0000${[...categories].sort().join(',')}`;
+}
+
+/**
+ * PHASE 259. One repository's SEMANTIC reading as this window holds it: what
+ * an agent said each part is for, with every citation already graded in main.
+ *
+ * Held like {@link ArchMapEntry} and for the same reason: the last good
+ * reading stays through a failed re-read, with the failure named beside it. A
+ * repository nothing has read is a READY entry whose `readAt` is null, never
+ * an error, because off must never read as broken.
+ */
+export interface ArchSemanticEntry {
+  status: 'loading' | 'ready' | 'error';
+  result: ArchSemanticResult | null;
+  error: string | null;
 }
 
 /**
@@ -272,6 +292,11 @@ export interface ArchViewState {
   mapTabs: Readonly<Record<string, ArchMapInnerTab>>;
   /** PHASE 258. The disclosure rows this window holds, keyed by {@link factsKey}. */
   facts: Readonly<Record<string, ArchFactsEntry>>;
+  /**
+   * PHASE 259. The semantic readings this window holds, keyed by repository
+   * root. One per repository: the ask is per part, the answer is whole.
+   */
+  semantic: Readonly<Record<string, ArchSemanticEntry>>;
 
   syncProject(target: WorkspaceTarget | null): void;
   /**
@@ -384,6 +409,21 @@ export interface ArchViewState {
   ): ArchFactsEntry | null;
   /** Let every held disclosure of one repository go: the facts moved under them. */
   forgetFacts(repoPath: string): void;
+
+  // PHASE 259. The model-written reading. A READ and nothing else: the ask is
+  // `arch:enrich` behind the Phase 158 confirm gate, and nothing in this
+  // store can reach it by drawing a view.
+  /**
+   * Read what an agent has said each part of this repository is for, once per
+   * repository per window and again whenever the facts move under it. It
+   * starts nothing; a missing bridge is an error entry with the sentence
+   * named, never a hang.
+   */
+  loadSemantic(repoPath: string): Promise<void>;
+  /** The held reading, or null before the first read. */
+  semanticFor(repoPath: string): ArchSemanticEntry | null;
+  /** Let one repository's held reading go: the facts moved, so the grades may have. */
+  forgetSemantic(repoPath: string): void;
 
   // PHASE 162. The canvas: the kept camera and the kept layout, per
   // repository and per drill scope. Reads and writes go to `arch.db` through

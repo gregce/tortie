@@ -1,0 +1,45 @@
+{
+ "_what": "The declaration rows of the fixture, as arch_decl holds them. Rule 6b turns on the pair at src/main/arch/enrich/run.ts:250, where there is a declaration and NO fact, and rule 3c on the one at src/main/index.ts:64, where a fact and a declaration share a line and the fact must win.",
+ "decls": [
+  {
+   "file": "src/main/arch/enrich/run.ts",
+   "seq": 0,
+   "kind": "class",
+   "subject": "class ArchPassRunner",
+   "line": 250,
+   "evidence": "export class ArchPassRunner {"
+  },
+  {
+   "file": "src/main/arch/enrich/run.ts",
+   "seq": 1,
+   "kind": "function",
+   "subject": "function archAgentConfirmed",
+   "line": 180,
+   "evidence": "export function archAgentConfirmed("
+  },
+  {
+   "file": "src/main/index.ts",
+   "seq": 0,
+   "kind": "function",
+   "subject": "function start",
+   "line": 64,
+   "evidence": "async function start(): Promise<void> {"
+  },
+  {
+   "file": "src/main/fs/guarded-write.ts",
+   "seq": 0,
+   "kind": "function",
+   "subject": "function writeGuarded",
+   "line": 214,
+   "evidence": "export async function writeGuarded("
+  },
+  {
+   "file": "src/renderer/arch/ArchMapTab.tsx",
+   "seq": 0,
+   "kind": "function",
+   "subject": "function ArchMapTab",
+   "line": 40,
+   "evidence": "export function ArchMapTab(props: Props) {"
+  }
+ ]
+}

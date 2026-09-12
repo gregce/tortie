@@ -27,6 +27,14 @@
  * `npm run conformance:arch` holds the wall: this file is the only file under
  * `src/main/arch/` allowed to name `writeFile`, and the gate drives the plan
  * functions over hostile ids to prove the refusal bites.
+ *
+ * PHASE 259 ADDED A MODEL ANSWER THIS MODULE NEVER SEES, deliberately. The
+ * semantic pass's claims, its gates and its journeys are written into
+ * `arch.db` by `../db.ts` and into nothing else: no plan function emits them,
+ * `ArchPassRunner` reaches its own `recordSemantic` seam rather than `write`
+ * for those scopes, and `ARCH_ROW_KEYS` is untouched, so
+ * `conformance:arch` rule 12 runs unchanged. A model's sentences can never
+ * become part of the format a person commits.
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';

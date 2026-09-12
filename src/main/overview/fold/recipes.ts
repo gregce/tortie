@@ -630,3 +630,176 @@ export function foldRecipeAgentIds(): string[] {
 export function recipeHasModel(recipe: FoldRecipe, model: string): boolean {
   return recipe.models.some((option) => option.id === model);
 }
+
+// ---------------------------------------------------------------------------
+// The semantic pass rows (Phase 259)
+// ---------------------------------------------------------------------------
+
+/**
+ * A row BEFORE anybody has measured it.
+ *
+ * `FoldRecipe.measuredOn` is a date and never null, because a row in a live
+ * table is a row somebody ran by hand. A semantic row is written down before
+ * the measurement so the builders can agree on the flags, and it reaches the
+ * live table only when the integrator fills the date in and writes the record
+ * under build/p259/measured/. A draft with no date is simply not in the table:
+ * `archSemanticRecipeFor` answers null, Settings draws `not-measured` through
+ * the joiner that already exists, and nothing can spawn.
+ *
+ * That is recipes.ts's own discipline made mechanical rather than remembered.
+ * `npm run conformance:semantic` rule 10a asserts every row IN the table has a
+ * date AND a measurement record whose fields agree with the row.
+ */
+export interface FoldRecipeDraft extends Omit<FoldRecipe, 'measuredOn'> {
+  /** The date the flags below were measured, or null while nobody has. */
+  measuredOn: string | null;
+}
+
+/**
+ * The models the SEMANTIC pass offers for claude.
+ *
+ * A separate list from `CLAUDE_MODELS` for the reason the arch row is separate
+ * from the fold row: a measured row is measured for ONE question, and a per
+ * part semantic reading is a third question with a third size. The operator's
+ * word of 2026-09-12 names Opus for this one, so Opus is first and is the
+ * suggestion; `opus` is a name `claude` accepts, confirmed from the installed
+ * CLI's own `--model` help on 2026-09-12 at version 2.1.269.
+ */
+const SEMANTIC_CLAUDE_MODELS: FoldModelOption[] = [
+  { id: 'opus', label: 'Opus, the one Tortie measured' },
+  { id: 'sonnet', label: 'Sonnet, whichever is latest' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5, which costs less and reads less' }
+];
+
+/**
+ * The claude semantic row.
+ *
+ * THE ARGV IS `ARCH_CLAUDE_RECIPE`'s, BYTE FOR BYTE, and that is deliberate.
+ * Every flag in it is about CONTAINMENT and preamble cost rather than about
+ * the question: tools off, no MCP, no slash commands, no session file, no
+ * setting sources, and the fuse. Research 118 §6.4's whole bound on this pass
+ * is that the model cannot read the repository, so every citation it can
+ * honestly make is one the FACTS block handed it. Re-spelling the flags here
+ * would be a second containment set that drifts from the first.
+ *
+ * `MAX_THINKING_TOKENS: '0'` IS INHERITED AND UNPROVEN FOR THIS QUESTION. It
+ * was measured for a one sentence fold, and a reading that has to weigh seven
+ * claims may be the wrong trade for it. The integrator's first ask reports
+ * whether the answer was kept; if the environment has to move it moves in the
+ * same commit with the reading that justified it, and `version` moves with it.
+ *
+ * `--max-budget-usd` is kept. Under the operator's own subscription the CLI
+ * authenticates by OAuth and the flag's help says it bounds API spend, so
+ * whether it fuses a subscription run is UNKNOWN; the deadline is the real
+ * fuse and the measurement records what the CLI reported.
+ */
+const SEMANTIC_CLAUDE_DRAFT: FoldRecipeDraft = {
+  agentId: 'claude',
+  version: 1,
+  measuredOn: null,
+  models: SEMANTIC_CLAUDE_MODELS,
+  suggestedModel: 'opus',
+  systemPromptMode: 'flag',
+  env: ARCH_CLAUDE_RECIPE.env,
+  argv: ARCH_CLAUDE_RECIPE.argv,
+  read: readClaudeStream,
+  // The arch row's deadline, because a per part reading is smaller than a
+  // whole contract and never larger. The integrator moves it if a measured
+  // ask needs it, and says so in the same commit.
+  timeoutMs: 150_000
+};
+
+/**
+ * The codex semantic row.
+ *
+ * THE MODEL NAME WAS CONFIRMED FROM THE INSTALLED BINARY on 2026-09-12 and is
+ * not a guess. `codex --version` reads `codex-cli 0.153.4`; its compiled model
+ * catalogue carries a slug `gpt-6-astra` whose `display_name` is
+ * `GPT-6-Astra`, `visibility: list`, `supported_in_api: true` and
+ * `minimal_client_version: 0.153.0`, which the installed version clears, with
+ * `low` among its reasoning levels so the shipped `model_reasoning_effort`
+ * stands. That is the model the operator calls Astra. recipes.ts's rule is
+ * that an unconfirmed name is REPORTED and never substituted, so a later round
+ * that cannot find this slug removes the row rather than picking a neighbour.
+ *
+ * THE ARGV IS `CODEX_RECIPE`'s, BYTE FOR BYTE, for the claude row's reason:
+ * `--ephemeral`, `--ignore-user-config`, `--ignore-rules`, `-s read-only` and
+ * `-C <foldHome>` are the containment set, and the containment is what bounds
+ * the answer.
+ *
+ * codex reports token counts and NO dollar figure, so a codex run's cost is
+ * never recorded and never drawn. That is the CLI's limit rather than Tortie's
+ * choice, and it is why the two recipes' cost columns are not comparable.
+ */
+const SEMANTIC_CODEX_DRAFT: FoldRecipeDraft = {
+  agentId: 'codex',
+  version: 1,
+  measuredOn: null,
+  models: [
+    { id: 'gpt-6-astra', label: 'GPT-6-Astra, the one Tortie measured' },
+    { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol, which costs less' }
+  ],
+  suggestedModel: 'gpt-6-astra',
+  // codex has no system prompt flag, so the instruction rides the head of the
+  // prompt. `foldPromptFor` in ./spawn.ts already decides that from this field.
+  systemPromptMode: 'prepend',
+  env: NO_ENV,
+  argv: CODEX_RECIPE.argv,
+  read: readCodexJson,
+  // The codex fold's deadline is 45 s for one sentence and the arch claude row
+  // needed five times the fold's for a contract. Three minutes is the deadline
+  // rather than the expectation, and the integrator moves it if a measured ask
+  // needs it.
+  timeoutMs: 180_000
+};
+
+/**
+ * Every semantic row that has been WRITTEN DOWN, measured or not.
+ *
+ * Exported for the gate and for nothing else. A caller that wants a row it can
+ * run asks `archSemanticRecipeFor`, which only ever answers out of the
+ * measured table below.
+ */
+export const SEMANTIC_DRAFTS: readonly FoldRecipeDraft[] = [
+  SEMANTIC_CLAUDE_DRAFT,
+  SEMANTIC_CODEX_DRAFT
+];
+
+/** Has somebody run this row's flags by hand and written the date down? */
+function isMeasured(draft: FoldRecipeDraft): draft is FoldRecipe {
+  return typeof draft.measuredOn === 'string' && draft.measuredOn.length > 0;
+}
+
+/**
+ * The live semantic table, being the drafts that carry a measurement date.
+ *
+ * MEASURED OR DISABLED, MADE MECHANICAL. Nothing filters this by hand and no
+ * row is commented out: a row the integrator did not measure is simply not
+ * here, so `archSemanticRecipeFor` answers null and the offer joiner draws
+ * `not-measured`. Today BOTH rows are drafts, so this table is EMPTY and the
+ * semantic pass can spawn nothing at all until a measurement lands.
+ */
+const SEMANTIC_RECIPES: readonly FoldRecipe[] = SEMANTIC_DRAFTS.filter(isMeasured);
+
+/**
+ * The row Settings preselects for the semantic pass when nothing has been
+ * chosen. A suggestion only, and nothing is applied until a person picks a row.
+ *
+ * THE INTEGRATOR SETS THIS FROM THE MEASUREMENT, not from a preference: the
+ * shipped default is whichever of the two recipes measured better against the
+ * citation floor, the agreement with the hand pass and the blind sample, and
+ * the reading that chose it is quoted beside this line in the same commit.
+ * Until then it names claude, which is the agent this product has the most
+ * measurements for.
+ */
+export const ARCH_SEMANTIC_SUGGESTED_AGENT_ID = 'claude';
+
+/** The semantic pass recipe for an agent, or null when none is measured. */
+export function archSemanticRecipeFor(agentId: string): FoldRecipe | null {
+  return SEMANTIC_RECIPES.find((recipe) => recipe.agentId === agentId) ?? null;
+}
+
+/** Every agent Tortie has a measured semantic pass recipe for. */
+export function archSemanticRecipeAgentIds(): string[] {
+  return SEMANTIC_RECIPES.map((recipe) => recipe.agentId);
+}

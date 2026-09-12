@@ -39,7 +39,7 @@
  *
  * The tab grew an inner tab row, Map · Surfaces · Gates, under the crumbs,
  * held as view state per repository so a View menu row lands on the named
- * one. On the map a single click SELECTS a box for the inspector under the
+ * one. PHASE 259 put JOURNEYS second in that row and moved no other id. On the map a single click SELECTS a box for the inspector under the
  * picture; the drill is a double click, Enter on the selected box, the
  * inspector's Open control, or a sidebar row, exactly as SPEC D5 wrote it.
  * The selection is one store record beside the drill, never a second copy.
@@ -81,6 +81,7 @@ import {
   ARCH_MAP_STALE,
   ARCH_MAP_VIEW_LABEL,
   ARCH_TAB_GATES,
+  ARCH_TAB_JOURNEYS,
   ARCH_TAB_MAP,
   ARCH_TAB_SURFACES
 } from './copy';
@@ -88,6 +89,8 @@ import { ArchDrillFiles } from './ArchModules';
 import { ArchInspector } from './ArchInspector';
 import { ArchSurfaces } from './ArchSurfaces';
 import { ArchGates } from './ArchGates';
+import { ArchJourneys } from './ArchJourneys';
+import './arch-semantic.css';
 import { canvasKey, DRILL_HOME, partKey, useArch } from './store';
 import type {
   ArchDrill,
@@ -95,6 +98,7 @@ import type {
   ArchMapInnerTab,
   ArchPartMapEntry
 } from './store';
+import type { ArchSemanticResult } from './bridge';
 import './arch.css';
 import './arch-evidence.css';
 
@@ -138,6 +142,15 @@ export function ArchMapTab({
   const mapTab = useArch((s) => s.mapTabs[repoPath] ?? 'map');
   const inspectBox = useArch((s) => s.inspectBox);
   const setMapTab = useArch((s) => s.setMapTab);
+  // PHASE 259. What an agent has said each part is for. ONE read per
+  // repository, asked once when the tab mounts and again whenever the facts
+  // move under it (`reloadScopedReads`). It starts nothing: the ASK is
+  // `arch:enrich` behind the confirm gate, and a view drawing cannot reach it.
+  const semantic = useArch((s) => s.semantic[repoPath]?.result ?? null);
+  const loadSemantic = useArch((s) => s.loadSemantic);
+  useEffect(() => {
+    void loadSemantic(repoPath);
+  }, [repoPath, loadSemantic]);
 
   // PHASE 162. The canvas scope this drill rung draws under: the whole map
   // and each drilled part keep their own camera and their own layout. Level
@@ -338,6 +351,7 @@ export function ArchMapTab({
       tabRef={tabRef}
       mapTab={mapTab}
       inspectId={inspectId}
+      semantic={semantic}
     />
   );
 }
@@ -519,7 +533,8 @@ export function ArchMapTabBody({
   onCameraKeyDown,
   tabRef,
   mapTab = 'map',
-  inspectId = null
+  inspectId = null,
+  semantic = null
 }: {
   entry: ArchMapEntry | null;
   progress: { done: number; total: number } | null;
@@ -537,6 +552,12 @@ export function ArchMapTabBody({
   mapTab?: ArchMapInnerTab;
   /** PHASE 258: the box the inspector follows, or null. */
   inspectId?: string | null;
+  /**
+   * PHASE 259: what an agent said each part is for, or null before the read
+   * lands and on a build whose preload cannot report one. The computed half
+   * of every view here draws without it.
+   */
+  semantic?: ArchSemanticResult | null;
 }): React.JSX.Element {
   const subject = subjectOf(entry, repoPath);
   const model = entry?.model ?? null;
@@ -632,7 +653,23 @@ export function ArchMapTabBody({
         <p className="arch-map-stale">{ARCH_MAP_STALE}</p>
       ) : null}
       <PartialScanLine model={model} />
-      {mapTab === 'surfaces' ? (
+      {mapTab === 'journeys' ? (
+        <ArchJourneys
+          repoKey={repoPath === '' ? null : repoPath}
+          reading={semantic}
+          labelOf={(partId) =>
+            model.groups.find((g) => g.id === partId)?.label ?? null
+          }
+          onPart={
+            handlers.select === undefined
+              ? null
+              : (partId) => {
+                  handlers.select?.(partId);
+                  handlers.setTab?.('map');
+                }
+          }
+        />
+      ) : mapTab === 'surfaces' ? (
         <ArchSurfaces repoKey={repoPath === '' ? null : repoPath} model={model} />
       ) : mapTab === 'gates' ? (
         <ArchGates
@@ -640,6 +677,7 @@ export function ArchMapTabBody({
           repoKey={repoPath === '' ? null : repoPath}
           model={model}
           initialScope={inspectId}
+          reading={semantic}
         />
       ) : (
         <div className="arch-map-view">
@@ -655,6 +693,11 @@ export function ArchMapTabBody({
             group={model.groups.find((g) => g.id === inspectId) ?? null}
             region={regionOf(model, inspectId)}
             scope={inspectId}
+            reading={
+              inspectId === null || semantic === null
+                ? null
+                : (semantic.parts.find((p) => p.id === inspectId) ?? null)
+            }
             onOpen={
               inspectId !== null && handlers.openPart !== undefined
                 ? () => handlers.openPart?.(inspectId)
@@ -671,10 +714,15 @@ export function ArchMapTabBody({
 }
 
 /**
- * PHASE 258. The inner tab row: Map, Surfaces, Gates. Three words, one
- * selected, no chord. The tab list is labelled for what the whole tab is a
- * picture of, being what this repository builds and starts, never "where
- * code runs", which would be a model claim.
+ * PHASE 258. The inner tab row: Map, Journeys, Surfaces, Gates (Phase 259
+ * added the second). Four words, one selected, no chord. The tab list is
+ * labelled for what the whole tab is a picture of, being what this repository
+ * builds and starts, never "where code runs", which would be a model claim.
+ *
+ * THE ORDER IS READING ORDER, and it is why Journeys sits second rather than
+ * last: what lives where, then how setup reaches a result, then what it
+ * exposes, then where work stops. No id moved, so a person's held tab and
+ * every queued View menu action land exactly where they did before.
  */
 export function InnerTabs({
   tab,
@@ -685,6 +733,7 @@ export function InnerTabs({
 }): React.JSX.Element {
   const tabs: [ArchMapInnerTab, string][] = [
     ['map', ARCH_TAB_MAP],
+    ['journeys', ARCH_TAB_JOURNEYS],
     ['surfaces', ARCH_TAB_SURFACES],
     ['gates', ARCH_TAB_GATES]
   ];

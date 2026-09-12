@@ -247,3 +247,34 @@ export function factsBridge(): ArchBridgeApi | null {
 export function factsAvailable(): boolean {
   return factsBridge() !== null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 259, the model-written reading
+// ---------------------------------------------------------------------------
+
+/**
+ * The semantic shapes, re-exported through the same seam every other arch
+ * answer travels, so the store, the views and the probe name them from one
+ * place.
+ */
+export type { ArchSemanticInput, ArchSemanticResult } from '@shared/ipc';
+
+/**
+ * The semantic read (Phase 259), or null when this build cannot report one.
+ *
+ * Feature detected like every other method here: an older preload has no
+ * `semantic`, the two model-written views then say the same one sentence they
+ * say when nothing has read the repository, and every computed surface on the
+ * tab draws exactly as before. IT STARTS NOTHING. The ASK is `enrich` above,
+ * behind the Phase 23 confirm gate main holds on its own authority; this is a
+ * read of what an earlier ask already wrote into Tortie's own `arch.db`.
+ */
+export function semanticBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.semantic === 'function' ? api : null;
+}
+
+/** Can this build report what an agent said each part is for? */
+export function semanticAvailable(): boolean {
+  return semanticBridge() !== null;
+}

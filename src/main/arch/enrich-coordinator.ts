@@ -37,6 +37,7 @@ import type {
 } from '@shared/ipc';
 import { EVT_ARCH_PASS } from '@shared/ipc';
 import type {
+  ArchCiteReading,
   ArchDocument,
   ArchDrift,
   ArchFreshness,
@@ -46,7 +47,14 @@ import { broadcastEvent } from '../typed-events';
 import { getLog, logEvent } from '../log';
 import { lsFilesCall } from './argv-guard';
 import type { ArchFactBase } from './checkers';
-import { archRepoKey, type ArchStore, type StoredArchPassRun } from './db';
+import {
+  archRepoKey,
+  type ArchStore,
+  type NewArchClaimCite,
+  type NewArchClaimRow,
+  type NewArchJourneyRow,
+  type StoredArchPassRun
+} from './db';
 import { createArchGitRunner, readLsFiles } from './git-facts';
 import { createArchFileSystem, loadArchDocument } from './load';
 import { composeArchMap } from './map';
@@ -57,10 +65,16 @@ import {
   type ArchPassChoice,
   type ArchPassInput,
   type ArchPassOutcome,
-  type ArchPassRunRecord
+  type ArchPassRunRecord,
+  type ArchSemanticRecord
 } from './enrich/run';
+import { citeFloor } from './semantic/floor';
+import { computeRate } from './semantic/rates';
+import { gradeSourcesFor } from './semantic/sources';
+import type { KeptSemanticAnswer } from './semantic/types';
 import type { ArchEnrichImport } from './enrich/compose';
 import { firstPartyPairs, repairSkipReason } from './repair-trigger';
+import type { ArchSemanticGather } from './check-coordinator';
 import {
   appendAcceptedDivergence,
   planSkeletonWrite,
@@ -107,6 +121,13 @@ export interface ArchEnrichCoordinator {
 export function createArchEnrichCoordinator(deps: {
   /** The one lazily opened store, owned by the registrar. */
   store: () => ArchStore;
+  /**
+   * PHASE 259. The partition, the facts and the two seams one semantic ask
+   * composes from, injected by the registrar the way `repairDrift` travels the
+   * other way, so neither workflow names the other and there is still exactly
+   * one place a pass begins and ends.
+   */
+  semanticFacts: (input: ArchRepoInput) => Promise<ArchSemanticGather>;
 }): ArchEnrichCoordinator {
   const archStore = deps.store;
 
@@ -162,9 +183,207 @@ export function createArchEnrichCoordinator(deps: {
       // gone or the same bytes. Without this seam the interval alone would
       // spawn once a minute over a refused answer forever.
       latestInputHash: (repoPath) =>
-        archStore().latestPassRun(archRepoKey(repoPath))?.inputHash ?? null
+        archStore().latestPassRun(archRepoKey(repoPath))?.inputHash ?? null,
+      // Phase 259. The one seam a semantic answer reaches. `write` is never
+      // called for those scopes, so no path exists from a model's sentences to
+      // `docs/arch/`.
+      recordSemantic
     });
     return passRunner;
+  }
+
+  /**
+   * One kept or refused SEMANTIC ask, recorded (Phase 259; SPEC §3.2).
+   *
+   * A reading never reaches `./enrich/write.ts`: it lives in Tortie's own
+   * disposable `arch.db` and never in `docs/arch/`, so `ARCH_ROW_KEYS` is
+   * untouched and nothing a model wrote can become part of the format a person
+   * commits. A REFUSED ask is recorded too, with its name, because a refusal
+   * rate that climbs is exactly what a person needs to see.
+   */
+  function recordSemantic(record: ArchSemanticRecord): void {
+    const db = archStore();
+    const repoKey = archRepoKey(record.repoPath);
+    const runId = `${String(record.startedAt)}-${record.scope}-${record.partId ?? 'all'}`;
+    db.writeSemanticRun({
+      repoKey,
+      runId,
+      partId: record.partId,
+      agentId: record.agentId,
+      model: record.model,
+      recipeVersion: record.recipeVersion,
+      headCommit: record.headCommit,
+      startedAt: record.startedAt,
+      wallMs: record.wallMs,
+      verdict: record.verdict,
+      reason: record.reason,
+      detail: record.detail,
+      costUsd: record.costUsd,
+      claims: record.kept === null ? 0 : countKeptRows(record.kept),
+      rowsDropped: record.rowsDropped
+    });
+    if (record.kept === null) return;
+
+    // The blob oid of each cited file, which is the drift fingerprint's first
+    // half (SPEC §3.3). A file with no stamp is one the fact pass has not
+    // linked, and its citation could not have graded, so the empty string is
+    // unreachable rather than a fallback anybody relies on.
+    const oidOf = new Map(
+      [...db.factStamps(repoKey).entries()].map(([path, stamp]) => [path, stamp.oid])
+    );
+    const claims: NewArchClaimRow[] = [];
+    const journeys: NewArchJourneyRow[] = [];
+    const subjects: string[] = [];
+    const gateClaimIds = new Set<string>();
+    const toCites = (cites: readonly ArchCiteReading[]): NewArchClaimCite[] =>
+      cites.map((cite) => ({
+        relPath: cite.relPath,
+        line: cite.line,
+        why: cite.why,
+        grade: cite.grade,
+        factKind: cite.factKind,
+        factSubject: cite.factSubject,
+        factLine: cite.factLine,
+        blobOid: oidOf.get(cite.relPath) ?? ''
+      }));
+
+    if (record.kept.kind === 'part') {
+      const partId = record.kept.partId;
+      // The two prefixes this ask OWNS. A reading of one part never touches
+      // another part's rows, and a second reading of the same part replaces
+      // its own whole rather than leaving half the previous one behind.
+      subjects.push(`part:${partId}`, `gate:${partId}/%`);
+      for (const claim of record.kept.claims) {
+        claims.push({
+          claimId: `p:${partId}:${claim.field}`,
+          subject: `part:${partId}`,
+          field: claim.field,
+          text: claim.text,
+          question: null,
+          answer: null,
+          cites: toCites(claim.cites)
+        });
+      }
+      for (const gate of record.kept.gates) {
+        const claimId = `g:${partId}:${gate.id}`;
+        gateClaimIds.add(claimId);
+        claims.push({
+          claimId,
+          subject: `gate:${partId}/${gate.id}`,
+          field: 'because',
+          text: gate.because,
+          question: gate.question,
+          answer: gate.answer,
+          cites: toCites(gate.cites)
+        });
+      }
+    } else {
+      subjects.push('journey:%');
+      for (const journey of record.kept.journeys) {
+        journeys.push({
+          journeyId: journey.id,
+          name: journey.name,
+          source: 'model',
+          steps: journey.steps.map((step) => ({
+            seq: step.seq,
+            partId: step.partId,
+            label: step.label
+          }))
+        });
+        for (const step of journey.steps) {
+          claims.push({
+            claimId: `j:${journey.id}:${String(step.seq)}`,
+            subject: `journey:${journey.id}#${String(step.seq)}`,
+            field: 'label',
+            text: step.label,
+            question: null,
+            answer: null,
+            cites: toCites(step.cites)
+          });
+        }
+      }
+    }
+
+    db.replaceSemantic({
+      repoKey,
+      subjects,
+      runId,
+      writtenAt: record.startedAt,
+      claims,
+      journeys,
+      journeySource: record.kept.kind === 'journeys' ? 'model' : null
+    });
+    writeSemanticRates(db, repoKey, record.kept.kind === 'part' ? record.partId : null, gateClaimIds);
+  }
+
+  /**
+   * Recompute the rates this write moved, each WITH its floor (SPEC §2.5).
+   *
+   * Two scopes: the part that was just read, and the whole repository, because
+   * the provenance line at the top of the view carries the second and the part
+   * header carries the first. Neither is stored without its floor, and the
+   * floor is computed over the files the reading ACTUALLY CITES, which is the
+   * number `null-model.mts` prints as the one a backing rate has to beat.
+   */
+  function writeSemanticRates(
+    db: ArchStore,
+    repoKey: string,
+    partId: string | null,
+    freshGateClaims: ReadonlySet<string>
+  ): void {
+    const rows = db.semanticRows(repoKey);
+    const grade = gradeSourcesFor(db, repoKey);
+    const gateClaims = new Set(freshGateClaims);
+    for (const claim of rows.claims) {
+      if (claim.subject.startsWith('gate:')) gateClaims.add(claim.claimId);
+    }
+    const rate = (scope: string, keep: (claimId: string) => boolean): void => {
+      const cites = rows.cites
+        .filter((cite) => keep(cite.claimId))
+        .map((cite) => ({
+          claimId: cite.claimId,
+          grade: cite.grade,
+          gate: gateClaims.has(cite.claimId)
+        }));
+      const files = [...new Set(rows.cites.filter((c) => keep(c.claimId)).map((c) => c.relPath))];
+      db.writeClaimRate(repoKey, {
+        ...computeRate({ scope, cites, floor: citeFloor(files, grade) }),
+        computedAt: Date.now()
+      });
+    };
+    rate('repo', () => true);
+    // A rate whose part no longer has a reading is dropped rather than left
+    // behind: a stored number about a box nothing cites any more would be
+    // drawn beside a floor computed over files nobody named.
+    const live = new Set(
+      rows.claims
+        .filter((claim) => claim.subject.startsWith('part:'))
+        .map((claim) => `part:${claim.subject.slice('part:'.length)}`)
+    );
+    db.forgetClaimRates(
+      repoKey,
+      rows.rates
+        .map((one) => one.scope)
+        .filter((scope) => scope !== 'repo' && !live.has(scope))
+    );
+    if (partId !== null) {
+      const mine = new Set(
+        rows.claims
+          .filter(
+            (claim) =>
+              claim.subject === `part:${partId}` ||
+              claim.subject.startsWith(`gate:${partId}/`)
+          )
+          .map((claim) => claim.claimId)
+      );
+      rate(`part:${partId}`, (claimId) => mine.has(claimId));
+    }
+  }
+
+  /** How many rows one kept answer holds, for the run's own count. */
+  function countKeptRows(kept: KeptSemanticAnswer): number {
+    if (kept.kind === 'part') return kept.claims.length + kept.gates.length;
+    return kept.journeys.reduce((sum, journey) => sum + journey.steps.length, 0);
   }
 
   /**
@@ -238,8 +457,43 @@ export function createArchEnrichCoordinator(deps: {
     // The scope is the renderer's; the trigger is decided HERE from where the
     // call came, so a page cannot claim to be a check. Absent means the whole
     // pass, which keeps the shipped button's bytes unchanged.
-    const scope: ArchPassScope = input.scope === 'drift' ? 'drift' : 'whole';
+    const scope: ArchPassScope =
+      input.scope === 'drift' ||
+      input.scope === 'part' ||
+      input.scope === 'journeys'
+        ? input.scope
+        : 'whole';
     const trigger: ArchPassTrigger = scope === 'drift' ? 'ribbon' : 'gesture';
+    // PHASE 259. A semantic ask is about the PARTITION rather than about a
+    // contract, so it seeds nothing and needs none: a repository with no
+    // `docs/arch/` at all can still be read, which is the whole point of
+    // rule P drawing a map for every repository. It goes through the SAME
+    // runner, the same confirm gate re-checked at the spawn, the same
+    // interval and the same same-input-hash refusal.
+    if (scope === 'part' || scope === 'journeys') {
+      const gathered = await deps.semanticFacts(input);
+      const outcome = await drivePass({
+        repoPath,
+        document: await loadArchDocument(createArchFileSystem(repoPath)),
+        trackedFiles: [],
+        imports: [],
+        subject: '',
+        workspaces: [],
+        scope,
+        trigger,
+        ...(input.partId === undefined ? {} : { partId: input.partId }),
+        semantic: gathered.facts,
+        grade: gathered.grade,
+        headCommit: gathered.headCommit
+      });
+      return {
+        cwd: repoPath,
+        started: outcome.started,
+        refusal: outcome.refusal,
+        run: toPassFace(outcome.run),
+        seeded: []
+      };
+    }
     const facts = await gatherEnrichFacts(repoPath);
     let seeded: string[] = [];
     let document = await loadArchDocument(createArchFileSystem(repoPath));

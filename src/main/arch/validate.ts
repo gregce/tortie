@@ -41,6 +41,7 @@ import {
   ARCH_COMPONENT_KINDS,
   ARCH_EDGE_KINDS,
   ARCH_EDGE_RULES,
+  ARCH_FLOW_SHAPES,
   ARCH_LIMITS,
   ARCH_PROVENANCE,
   ARCH_ROW_KEYS,
@@ -50,6 +51,8 @@ import {
   type ArchContract,
   type ArchEdge,
   type ArchEvidence,
+  type ArchFlow,
+  type ArchFlowStep,
   type ArchLayer,
   type ArchProblem
 } from '@shared/arch';
@@ -473,6 +476,64 @@ export function validateBaseline(
     }
   });
   return { value: { accepted }, problems };
+}
+
+// ---------------------------------------------------------------------------
+// flows/<id>.json (Phase 63 reserved it; Phase 259 reads it)
+// ---------------------------------------------------------------------------
+
+/**
+ * One file under `docs/arch/flows/`.
+ *
+ * PHASE 63 VALIDATED THE FIELD THAT NAMES THESE AND READ NONE OF THEM. Phase
+ * 259 reads them, because the Journeys view draws how setup reaches a result
+ * and a person who has written that down themselves must see THEIR walk first,
+ * above anything a model read. NO KEY MOVES FOR IT: `flow` and `flowStep` have
+ * been in `ARCH_ROW_KEYS` since Phase 63 and `conformance:arch` rule 12 runs
+ * unchanged.
+ *
+ * The same rule as every other row: a bad flow is dropped whole with the file,
+ * the field and the reason named, never partially merged and never a crash.
+ */
+export function validateFlow(raw: unknown, file: string): ArchFileResult<ArchFlow> {
+  const problems: ArchProblem[] = [];
+  try {
+    const obj = objectField(raw, 'flow');
+    noteUnknown(obj, ARCH_ROW_KEYS.flow, file, 'flow', problems);
+    const shape = enumField(obj['shape'], 'flow.shape', ARCH_FLOW_SHAPES);
+    const rawSteps = arrayField(obj['steps'] ?? [], 'flow.steps', ARCH_LIMITS.maxFlowSteps);
+    const steps: ArchFlowStep[] = rawSteps.map((entry, i) => {
+      const field = `flow.steps[${i}]`;
+      const step = objectField(entry, field);
+      noteUnknown(step, ARCH_ROW_KEYS.flowStep, file, field, problems);
+      const row: ArchFlowStep = {
+        seq: intField(step['seq'], `${field}.seq`, 1, ARCH_LIMITS.maxFlowSteps),
+        componentId: idField(step['componentId'], `${field}.componentId`),
+        label: plainString(step['label'], `${field}.label`, ARCH_LIMITS.maxDescription)
+      };
+      if (step['note'] !== undefined) {
+        row.note = plainString(step['note'], `${field}.note`, ARCH_LIMITS.maxNote);
+      }
+      if (step['group'] !== undefined) {
+        row.group = idField(step['group'], `${field}.group`);
+      }
+      const evidence = evidenceList(step['evidence'], `${field}.evidence`);
+      if (evidence.length > 0) row.evidence = evidence;
+      return row;
+    });
+    return {
+      value: {
+        id: idField(obj['id'], 'flow.id'),
+        name: plainString(obj['name'], 'flow.name', ARCH_LIMITS.maxDescription),
+        shape,
+        steps
+      },
+      problems
+    };
+  } catch (err) {
+    problems.push(asProblem(err, file, 'flow'));
+    return { value: null, problems };
+  }
 }
 
 // ---------------------------------------------------------------------------

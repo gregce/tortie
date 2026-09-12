@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ARCH_COMPONENT_KINDS } from '@shared/arch';
-import { loadArchDocument, type ArchFileSystem } from '../load';
+import { loadArchDocument, loadArchFlows, type ArchFileSystem } from '../load';
 import {
   isTortieComponent,
   parseArchJson,
@@ -356,5 +356,60 @@ describe('loadArchDocument', () => {
     expect(doc.problems).toHaveLength(1);
     expect(doc.problems[0]?.field).toBe('contract');
     expect(doc.problems[0]?.message).toContain('must be an object');
+  });
+});
+
+describe('loadArchFlows (Phase 259, the files Phase 63 reserved)', () => {
+  const flow = (over: Record<string, unknown> = {}): string =>
+    JSON.stringify({
+      id: 'start-and-return',
+      name: 'starting a session and coming back to it',
+      shape: 'sequence',
+      steps: [
+        {
+          seq: 1,
+          componentId: 'durable-sessions',
+          label: 'main asks tmux for a session',
+          evidence: [
+            { path: 'src/main/tmux/sessions.ts', lineStart: 85, lineEnd: 85, quote: 'list-sessions' }
+          ]
+        },
+        { seq: 2, componentId: 'manifest', label: 'the row is written down' }
+      ],
+      ...over
+    });
+
+  it('reads a walk a person committed, with its steps and its quoted spans', async () => {
+    const read = await loadArchFlows(
+      memoryFs({ 'docs/arch/flows/start-and-return.json': flow() })
+    );
+    expect(read.problems).toEqual([]);
+    expect(read.flows).toHaveLength(1);
+    expect(read.flows[0]?.steps.map((step) => step.componentId)).toEqual([
+      'durable-sessions',
+      'manifest'
+    ]);
+    expect(read.flows[0]?.steps[0]?.evidence?.[0]?.lineStart).toBe(85);
+  });
+
+  it('drops one bad flow whole, names it, and keeps the others', async () => {
+    const read = await loadArchFlows(
+      memoryFs({
+        'docs/arch/flows/a.json': flow({ id: 'a-walk' }),
+        'docs/arch/flows/b.json': flow({ id: 'b-walk', shape: 'spiral' }),
+        'docs/arch/flows/c.json': '{ not json',
+        'docs/arch/flows/notes.md': 'ignored'
+      })
+    );
+    expect(read.flows.map((one) => one.id)).toEqual(['a-walk']);
+    expect(read.problems.map((one) => one.file).sort()).toEqual([
+      'docs/arch/flows/b.json',
+      'docs/arch/flows/c.json'
+    ]);
+    expect(read.problems.some((one) => one.field === 'flow.shape')).toBe(true);
+  });
+
+  it('answers nothing at all for a repository with no flows directory', async () => {
+    expect(await loadArchFlows(memoryFs({}))).toEqual({ flows: [], problems: [] });
   });
 });

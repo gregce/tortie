@@ -12,22 +12,37 @@
  * first line is a second read of the same channel under the null scope.
  *
  * Nothing is drawn until a part is named, so the resting face is the select
- * and the four labels. The model half of this view, being the journeys and
- * the sentences about why work proceeds or stops, is Phase 259's and there is
- * no placeholder for it here.
+ * and the four labels.
+ *
+ * PHASE 259 ADDED THE MODEL HALF AND MOVED NONE OF THE COMPUTED ONE. When an
+ * agent has read this repository, the reasons it wrote for the named part are
+ * drawn UNDER the counts and ABOVE the rows, each with the citations that back
+ * it graded and the part's backing rate beside its floor. When nothing has
+ * read it, the view says so in one line with a link to Settings and then draws
+ * the whole worksheet underneath, because the deterministic half is complete
+ * without any model and OFF MUST NEVER READ AS BROKEN.
+ *
+ * THE MODEL'S ANSWER IS NEVER THE WORKSHEET'S ANSWER. The count, the
+ * denominators and the rows are computed from the fact base; the reason is a
+ * sentence somebody's agent wrote about them. They are two blocks with two
+ * labels and the model's carries `read by <agent>`.
  */
 
 import React, { useMemo, useState } from 'react';
-import type { ArchMapResult } from './bridge';
+import type { ArchGateReading } from '@shared/arch';
+import type { ArchMapResult, ArchSemanticResult } from './bridge';
 import {
   ARCH_GATE_KINDS,
   ARCH_GATES_NAME_ONE,
+  ARCH_GATES_REASONS,
   ARCH_GATES_SCOPE_LABEL,
   ARCH_GATES_WHOLE,
   archGatesAnswer,
   archGatesBreakdown
 } from './copy';
 import { FactRows, useFacts } from './ArchFactRows';
+import { CiteChips, NoReading, RateLine, ReadBy } from './ArchClaim';
+import { partScope, rateOf } from './cite';
 import type { ArchFactsEntry } from './store';
 
 /** One choice in the select: the scope id the channel takes, and its name. */
@@ -65,15 +80,30 @@ export function gateCounts(entry: ArchFactsEntry | null): Record<string, number>
 /** The select's value for "nothing named yet", a byte no id can be. */
 const UNNAMED = ' ';
 
+/** The model's reasons for one named scope, in the order main answered with. */
+export function gateReadingsFor(
+  reading: ArchSemanticResult | null,
+  scope: string | null
+): readonly ArchGateReading[] {
+  if (reading === null || scope === null || scope === '') return [];
+  return reading.gates.filter((g) => g.partId === scope);
+}
+
 export function ArchGates({
   repoKey,
   model,
-  initialScope = null
+  initialScope = null,
+  reading = null
 }: {
   repoKey: string | null;
   model: ArchMapResult;
   /** A box id the Guards link named, or null to start unnamed. */
   initialScope?: string | null;
+  /**
+   * PHASE 259. What an agent said about this repository, or null before the
+   * read lands. The whole worksheet below draws without it.
+   */
+  reading?: ArchSemanticResult | null;
 }): React.JSX.Element {
   const scopes = useMemo(() => gateScopes(model), [model]);
   // `null` is "nothing named yet", which is the resting face; `''` is the
@@ -100,8 +130,15 @@ export function ArchGates({
           }
         };
 
+  const reasons = gateReadingsFor(reading, scope);
+  const rate =
+    reading === null || scope === null || scope === ''
+      ? null
+      : rateOf(reading.rates, partScope(scope));
+
   return (
     <div className="arch-gates" data-slot="arch-gates">
+      {reading === null || reading.readAt === null ? <NoReading /> : null}
       <div className="arch-gates-controls">
         <select
           className="arch-gates-select"
@@ -144,6 +181,38 @@ export function ArchGates({
             )}
             <span>{archGatesBreakdown(counts)}</span>
           </p>
+          {reasons.length === 0 ? null : (
+            <section className="arch-gate-reasons">
+              <p className="arch-journeys-sub">
+                {ARCH_GATES_REASONS} <ReadBy agentId={reasons[0]?.agentId ?? null} />
+                {rate === null ? null : (
+                  <>
+                    {' '}
+                    <RateLine rate={rate} />
+                  </>
+                )}
+              </p>
+              <ul className="arch-gate-reason-list" role="list">
+                {reasons.map((g) => (
+                  <li
+                    key={g.gateId}
+                    className="arch-gate-reason arch-claim"
+                    data-field="gate"
+                    data-answer={g.answer}
+                    data-stale={g.stale ? 'true' : 'false'}
+                    {...(g.stale && g.staleReason !== null
+                      ? { title: g.staleReason }
+                      : {})}
+                  >
+                    <span className="arch-gate-question">{g.question}</span>
+                    <span className="arch-gate-answer">{g.answer}</span>
+                    <span className="arch-claim-text">{g.because}</span>
+                    <CiteChips cites={g.cites} repoKey={repoKey} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="arch-gates-rows">
             <FactRows repoKey={repoKey} entry={filtered} evidence />
           </div>

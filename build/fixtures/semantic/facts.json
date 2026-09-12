@@ -1,0 +1,645 @@
+{
+ "_what": "The fact rows of the fixture repository, as arch_fact holds them. `network` is deliberately EMPTY so rule 1e can read the honest zero, and `effect` deliberately holds forty rows so rule 1b's ceiling has something to bite on. Every subject's index is ZERO PADDED on purpose: rule 4c asks whether 17, 92 and 4096 are TOKENS of this block, and a bare `a child process 17` would make one of them one and quietly turn the reading into the substring form's answer. One store fact sits at guarded-write.ts:203, three lines from the gate fact at 200, so a line is covered by BOTH a gate span and a call span and the ladder's precedence has something to decide; without it the precedence clause could be inverted and nothing would move.",
+ "facts": [
+  {
+   "category": "entrypoint",
+   "kind": "composition-root",
+   "subject": "main",
+   "file": "src/main/index.ts",
+   "line": 64,
+   "rule": "entrypoint.electron.main",
+   "evidence": "app.whenReady().then(start);",
+   "viaWrapper": false
+  },
+  {
+   "category": "boundary",
+   "kind": "worker",
+   "subject": "the symbol worker",
+   "file": "src/main/symbols/pool.ts",
+   "line": 171,
+   "rule": "boundary.worker.node",
+   "evidence": "new Worker(workerPath);",
+   "viaWrapper": false
+  },
+  {
+   "category": "boundary",
+   "kind": "library",
+   "subject": "tortie",
+   "file": "src/main/index.ts",
+   "line": 1,
+   "rule": "boundary.path.package",
+   "evidence": "{ \"name\": \"tortie\" }",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "arch:map",
+   "file": "src/main/arch/ipc.ts",
+   "line": 20,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'arch:map', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "arch:check",
+   "file": "src/main/arch/ipc.ts",
+   "line": 27,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'arch:check', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "arch:enrich",
+   "file": "src/main/arch/ipc.ts",
+   "line": 34,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'arch:enrich', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "arch:semantic",
+   "file": "src/main/arch/ipc.ts",
+   "line": 41,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'arch:semantic', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "arch:seed",
+   "file": "src/main/arch/ipc.ts",
+   "line": 48,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'arch:seed', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "fs:writeGuarded",
+   "file": "src/main/arch/ipc.ts",
+   "line": 55,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'fs:writeGuarded', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "fs:writeFile",
+   "file": "src/main/arch/ipc.ts",
+   "line": 62,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'fs:writeFile', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "ui:popupMenu",
+   "file": "src/main/arch/ipc.ts",
+   "line": 69,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'ui:popupMenu', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "sessions:list",
+   "file": "src/main/arch/ipc.ts",
+   "line": 76,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'sessions:list', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "sessions:create",
+   "file": "src/main/arch/ipc.ts",
+   "line": 83,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'sessions:create', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "logins:choose",
+   "file": "src/main/arch/ipc.ts",
+   "line": 90,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'logins:choose', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "surface",
+   "kind": "ipc-channel",
+   "subject": "machines:test",
+   "file": "src/main/arch/ipc.ts",
+   "line": 97,
+   "rule": "surface.ipc.electron",
+   "evidence": "handle(ipc, 'machines:test', run);",
+   "viaWrapper": false
+  },
+  {
+   "category": "store",
+   "kind": "store-write",
+   "subject": "the manifest schema",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 40,
+   "rule": "store.sqlite.write",
+   "evidence": "db.prepare(INSERT).run(row);",
+   "viaWrapper": false
+  },
+  {
+   "category": "store",
+   "kind": "store-write",
+   "subject": "the arch database",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 51,
+   "rule": "store.sqlite.write",
+   "evidence": "db.prepare(INSERT).run(row);",
+   "viaWrapper": false
+  },
+  {
+   "category": "store",
+   "kind": "store-write",
+   "subject": "the baselines store",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 62,
+   "rule": "store.sqlite.write",
+   "evidence": "db.prepare(INSERT).run(row);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 000",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 100,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 001",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 104,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 002",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 108,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 003",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 112,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 004",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 116,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 005",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 120,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 006",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 124,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 007",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 128,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 008",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 132,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 009",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 136,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 010",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 140,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 011",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 144,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 012",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 148,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 013",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 152,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 014",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 156,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 015",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 160,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 016",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 164,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 017",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 168,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 018",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 172,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 019",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 176,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 020",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 180,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 021",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 184,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 022",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 188,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 023",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 192,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 024",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 196,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 025",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 200,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 026",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 204,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 027",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 208,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 028",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 212,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 029",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 216,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 030",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 220,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 031",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 224,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 032",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 228,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 033",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 232,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 034",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 236,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 035",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 240,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 036",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 244,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 037",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 248,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 038",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 252,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "effect",
+   "kind": "spawn",
+   "subject": "a child process no. 039",
+   "file": "src/main/tmux/sessions.ts",
+   "line": 256,
+   "rule": "effect.spawn.node",
+   "evidence": "spawn(bin, argv);",
+   "viaWrapper": false
+  },
+  {
+   "category": "gate",
+   "kind": "refusal",
+   "subject": "a write outside a project root",
+   "file": "src/main/fs/guarded-write.ts",
+   "line": 200,
+   "rule": "gate.refusal.throw",
+   "evidence": "throw new Error('a write outside a project root');",
+   "viaWrapper": false
+  },
+  {
+   "category": "gate",
+   "kind": "refusal",
+   "subject": "a link at the staged name",
+   "file": "src/main/fs/guarded-write.ts",
+   "line": 206,
+   "rule": "gate.refusal.throw",
+   "evidence": "throw new Error('a link at the staged name');",
+   "viaWrapper": false
+  },
+  {
+   "category": "gate",
+   "kind": "refusal",
+   "subject": "a store a session runs under",
+   "file": "src/main/fs/guarded-write.ts",
+   "line": 212,
+   "rule": "gate.refusal.throw",
+   "evidence": "throw new Error('a store a session runs under');",
+   "viaWrapper": false
+  },
+  {
+   "category": "gate",
+   "kind": "refusal",
+   "subject": "a path that is not absolute",
+   "file": "src/main/fs/guarded-write.ts",
+   "line": 218,
+   "rule": "gate.refusal.throw",
+   "evidence": "throw new Error('a path that is not absolute');",
+   "viaWrapper": false
+  },
+  {
+   "category": "gate",
+   "kind": "refusal",
+   "subject": "an answer carrying a rung word",
+   "file": "src/main/fs/guarded-write.ts",
+   "line": 224,
+   "rule": "gate.refusal.throw",
+   "evidence": "throw new Error('an answer carrying a rung word');",
+   "viaWrapper": false
+  },
+  {
+   "category": "store",
+   "kind": "store-write",
+   "subject": "the write's own staged copy",
+   "file": "src/main/fs/guarded-write.ts",
+   "line": 203,
+   "rule": "store.fs.write",
+   "evidence": "writeFileSync(staged, bytes);",
+   "viaWrapper": false
+  }
+ ]
+}

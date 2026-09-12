@@ -62,6 +62,7 @@ export type {
   ArchPartMapEntry,
   ArchPassEntry,
   ArchSelection,
+  ArchSemanticEntry,
   ArchStatus,
   ArchViewState
 } from './state/view-state';
@@ -102,6 +103,9 @@ export const useArch = create<ArchViewState>((set, get, api) => ({
   inspect: {},
   mapTabs: {},
   facts: {},
+  // PHASE 259. The model-written reading, one per repository. A read of
+  // Tortie's own disposable `arch.db`; nothing here asks any agent anything.
+  semantic: {},
 
   ...createDocumentActions(set, get, api),
   ...createMapActions(set, get, api),
