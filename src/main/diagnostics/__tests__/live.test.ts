@@ -340,6 +340,15 @@ describe('Phase 219: the live capture window is the interval', () => {
 
   it('every tick reports the interval, not the interval minus a stream wait', async () => {
     const interval = 2_000;
+    // THE CLOCK IS PINNED, because the fake clock otherwise starts at the real
+    // Date.now() and the harness waits `2008 - (now % 2008)` for its block.
+    // With the start residue in [8, 104) of 2008, one block lands AFTER the
+    // next tick, that tick is skipped as in flight, and the window after it
+    // reads 4000: measured at 2 of 30 runs on 2026-09-12, at residue 50 tick
+    // 7 read 4000 on every run, and at residue 500 none did. From 0 the wait
+    // is 8k at tick k, which is the 0.4 percent slow stream this harness
+    // models and never a block past a tick boundary.
+    vi.setSystemTime(0);
     const h = windowHarness(interval, 2_008);
     startLiveSampling(h.deps);
     for (let i = 0; i < 12; i += 1) {
