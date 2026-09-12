@@ -26576,6 +26576,85 @@ is the agnosticism floor made visible.
 
 ---
 
+## Phase 259 — the model says what a part is for, and every sentence carries its evidence (direction B, third phase, 2026-09-12)
+
+**Subject.** `feat(arch): the bounded semantic pass`
+
+**First body line.** `Phase 259: the semantic pass`
+
+**Semver.** Minor. Two new views in the Architecture pane and the first model-written sentences on it.
+
+**Tier 3, and this phase SPENDS HIS TOKENS.** It spawns a process under his account, writes a model's
+words onto a face people will believe, and claims to bound them. The evidence is two agents measured
+over real runs, an attack that plants false claims and asks what the checker catches, and the parent
+measured.
+
+**Charter.** Research 118 §10 Phase 3 verbatim, on Phase 258's `e125e800`; §7.1 is the division of
+labour, §7.3 the backing drawn rather than hidden, §7.5 the refresh rule, §7.6 the floor and the
+decision already taken, §7.8 the cost. **His word of 2026-09-12, recorded at `4c69d193`**: two
+measured recipes rather than one — claude with the Opus model and codex with the model he calls Astra,
+both on this Mac under his own subscriptions, through the SHIPPED enrich path, to measure the ability
+to derive the semantic layer. The "spend no token" rule is lifted for exactly those measured runs.
+
+**The mechanism, from research 118 §10 Phase 3.** `src/main/arch/enrich/compose.ts` gains the per-part
+FACTS block at the measured budget — the whole-repository block does not fit the 64 KB cap and neither
+does its largest part, so the ask is PER PART at about 120 fact lines, 10 KB, 2,600 tokens (§7.8).
+`src/main/arch/enrich/validate.ts` gains citation grading and three refusals: a model-written evidence
+level refuses the answer WHOLE, an unresolvable citation refuses its row whole, and the digit rule asks
+for a TOKEN in the FACTS block rather than a substring anywhere, which the research proved catches
+three planted numbers where the substring form catches one. A new `src/main/arch/semantic/` store in
+`arch.db` holds claims, citations, grades and the drift fingerprint of the facts each claim cites.
+`src/main/overview/fold/recipes.ts` gains the two recipes his word names, each measured the way the
+shipped one was on 2026-08-23 or it stays `not-measured` and disabled; the codex model name is
+confirmed from the installed CLI and REPORTED if absent, never substituted. `src/renderer/arch/**`
+gains the journey view, the gates view, the per-claim chips, and the stale drawing; `ArchFlow` is
+finally read, because a journey may live in `docs/arch/` with no pin moved. **The chips draw backing
+beside its floor and by its KIND**: a call site within three lines beats chance by 9.6×, a declaration
+by 2.46×, and the two are never drawn identically; every rate is drawn with the null-model share over
+the same files, so "24 of 41 backed" is never shown without "and 10 of 41 would be anyway". **No chip
+may read as a truth mark** — the face and every hover say *a fact was found here* and nothing stronger,
+because the research's checker caught 2 of 7 planted lies and a part renamed "Billing and card capture"
+keeps every green chip it had. **A stale claim is drawn stale and never silently redrawn**; nothing
+re-runs a model because a file changed (refusal 8), and every spawn reachable from a watcher event is
+proved to pass through `repairSkipReason` and the runner's confirm re-check. **With no agent the
+journey and gates views are PRESENT** and say in one sentence that nothing has read this repository
+yet and what would, with a Settings link — the §7.6 decision, taken so there is one way in (Phase 158).
+
+**The measurement, which is the phase's own reason.** Each recipe runs the research's ~8-ask full
+reading of a SCRATCH COPY of this repository — never his checkout, never another repository, never a
+second time without cause — under his own login on this Mac, through the guarded one-shot child with
+the confirm gate re-checked at the spawn, the prompt cap, the minimum interval and the same-input-hash
+refusal. Recorded per agent: asks, wall time, tokens and dollars where the CLI reports them. Quality
+read three ways: the checker's citation grades against the **23.8% null floor**; agreement with the
+hand-written pass in research 118 §6.4 (component names by job, contract fields, journeys); and a
+verifier's BLIND hand review of a sampled claim set from each agent, the agent's identity hidden. The
+two readings are published side by side in the commit body and the running log, honest numbers
+included, and the shipped default recipe is the one that measured better.
+
+**The proof, run rather than read — `npm run conformance:semantic`.** The checker's three rules driven
+over the committed hand pass with per-clause ablations; a model answer carrying an evidence level
+refused whole; a citation that does not resolve refused whole; a stale claim proved DRAWN stale and
+proved never silently redrawn; the watcher-to-spawn scan asked structurally over the real source; the
+prompt cap asserted at its measured byte size; **the planted battery's CAUGHT number asserted** — 2 of
+7 today, and a build that does not move it says so on the face — with the FLOOR computed beside every
+rate and the KIND of backing never drawn the same for a call site and a declaration. The app run,
+`probe:p259`, drives the pane with the two measured readings loaded: the journey view stepping, the
+gates view answering a named part, chips and floors read off the DOM against the store, a claim made
+stale by a fact edit and read as stale, and the no-agent run drawing both views present with their
+one sentence. Parent measured: at `e125e800` neither view exists.
+
+### What is NOT in this phase
+
+- **No `accepted-live`, written or computed.** Nothing Tortie reads is evidence about a running system.
+- **No model turn on a file change.** Refusal 8 stands and is asked structurally.
+- **No key moved in `docs/arch/`.** Direction C stays deferred to him.
+- **No second repository measured.** His word covered this repository; a second is added at his word.
+- **No credential touched.** The CLIs use their own logins; the keychain is never opened.
+- **No chip that claims truth.** Attribution, not verification, and the face says which.
+- **No bespoke harness around the enrich path** for the measurement — what is measured is what ships.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -27206,3 +27285,5 @@ cycle rather than only the evening it was written.
 - 2026-09-12, **HIS WORD ON PHASE 259'S MEASUREMENT**: "use claude on this machine (with our sub) and codex on this machine (with our sub) with Opus and Astra models respectively to measure the ability to derive the semantic layer." So 259 measures TWO recipes rather than one, both through the SHIPPED enrich path (the guarded one-shot child, the confirm gate, the prompt cap, never a bespoke harness around refusal 8), each under his own subscription login on this Mac: claude with the Opus model and codex with the model he calls Astra, the exact CLI model name confirmed from the installed binary rather than assumed and REPORTED rather than substituted if no such name exists. Each agent gets the research's ~8-ask full reading of a scratch COPY of this repository and nothing else; cost and wall time recorded per agent; quality read three ways — the checker's citation grades against the 23.8% null floor, agreement with the hand-written pass in research 118 §6.4, and a verifier's blind hand review of a sampled claim set from each. The "spend no token" rule is lifted for exactly those runs and no other; his credentials and keychain stay untouched, the CLIs use their own logins. A second repository would answer the agnosticism doubt and is added only at his word.
 
 - 2026-09-12, Phase 258 landed, the reading surface: with Architecture on the map is drawn from the fact base with no model, grouped by what the repository builds and starts (rule Q, never the module roots), the wires labelled, a computed rung on every part, the inspector below the map, the Surfaces list with its zeroes and the Gates worksheet. The seed rule is G, a part's `reached` walk starting from what its own units start plus the tracked file a unit's manifest declares, picked from six rules measured over rule P's boxes in `build/p258/seed-measure.mts`: on this repository at `88165be1` (3,330 tracked, 8,140 first-party edges, 37 entrypoint files, one unit) the 8 boxes read off-repo/declared/composed/reached/tested 0/0/5/0/3 under G, where the all-entrypoints baseline reads 0/0/4/1/3 with its one `reached` being the fold that holds package.json, the manifest-file artefact G removes; on stoa's 22 boxes G reads 0/1/12/7/2, the only rule using four of the five rungs. Per file under G here: src-main 583 reached and 395 tested of 1,068, src-shared 73 and 39 of 99, build 10 and 1 of 455, and src-renderer 0 and 336 of 968, so `composed`, because the closed table recognises no renderer root, the stated limit that re-enters through Phase 257's table and never here. The no-agent run, `probe:p258` with ONE Electron at `agentId: null` and two local clones removed in a finally, drew every box's rung equal to the gate's own computation, 8 of 8 here and 22 of 22 on stoa, the inspector on src-main at 229 IPC channels, 25 jobs, 243 store writes, 152 spawns and 229 gates, the worksheet at 229 gates in src/main of 820, F1's draft painting 7 of 8 boxes against the parent's 3, words above the fold 88, 137 and 8 against caps of 300, 220 and 120, 0 findings at HEAD on every arm and 5 at the parent, his `-L gmux` at 42 sessions before and after. Two verifiers approved at Tier 3: one re-derived every rung by a BACKWARD walk of its own over four clones at 0 mismatches on 55 boxes after finding and fixing its own bug, and attacked the seed with ten planted graphs; the other drove five attack repositories of its own at HEAD and the parent, 27 of 28 rungs agreeing and the one disagreement a `main` spelled with `..` that under-seeds in the safe direction, noted and not fixed. **THE LAST FIX IS THE COMMITTER'S OWN and outside the phase's files, so the loop owner may order an independent re-verify of it**: the battery went red twice at `npm test` in `live.test.ts`, a Phase 219 test whose fake clock starts at the real `Date.now()`, so a wall-clock residue in [8, 104) of 2008 at test start makes one window read 4000; measured at 2 of 30 runs alone and the IDENTICAL array at the parent with the residue pinned to 50, so it is not a Phase 258 regression, and `2d7e7169` pins the clock in that one test, 30 of 30 after and the full suite 13,740 passed. Rebased over `4c69d193`; `conformance:hue` was not re-run by the committer, because no token moved and its 681 s exceeds the 600 s foreground cap, with the builder's 664 s and the verifier's 681 s runs green over byte-identical `presets.ts`; `HELPER_USER_FLOOR` 127, contract baseline byte identical, typecheck, build with its gates, smoke:t1 6/6, smoke:t3 3/3, package, conformance:evidence, facts, arch, arch:modules and reading all green in the foreground; version 0.103.0 unmoved, no tag. `84b0848e`, `62ab3918`, `2d7e7169`. Phase 259 is the model half.
+
+- 2026-09-12, **258's COMMITTER-OWN FIX `2d7e7169` INDEPENDENTLY CHECKED**: a nine-line, test-only change pinning vitest's fake clock in `src/main/diagnostics/__tests__/live.test.ts`, the flake reproduced deterministically at the PARENT by residue, so it was Phase 219's defect and not this phase's; the loop owner re-ran that file five times at `e125e800`, 14 of 14 each time. **PHASE 259 QUEUED on `e125e800`, the semantic pass**: research 118 §10 Phase 3 verbatim plus his two-recipe measurement — claude with Opus and codex with Astra, each one ~8-ask reading of a scratch copy of this repository through the shipped enrich path, quality read three ways against the 23.8% floor, the hand pass and a blind review, the better one shipped as the default. Tier 3; it spends his tokens for exactly those runs.
