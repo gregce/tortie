@@ -31,6 +31,12 @@
  *   semantic/floor.ts    citeFloor(files, sources)
  *   @shared/arch         ARCH_CITE_GRADES, ARCH_CITE_SLACK, ARCH_FACT_CATEGORIES
  *
+ * And ONE module a root may not carry, loaded through {@link tryLoad} so a
+ * root without it answers null rather than failing: `renderer/arch/cite.ts`,
+ * whose `citeRate` and `citeRateTitle` rule 10f re-derives the recipe header's
+ * quoted face strings with. The ablated copies hold `main` and
+ * `shared/arch.ts` alone, so only the shipping root answers that arm.
+ *
  * `sources` is `ArchGradeSources`, being `{ lines, facts, decls }`, and the
  * probe hands in a version whose file reads THROW so rule 3b can prove the
  * grader opens nothing.
@@ -112,6 +118,21 @@ function partContext(factBlock: string, grade: unknown): Record<string, unknown>
     factBlock,
     grade
   };
+}
+
+/**
+ * A module a root may or may not carry, loaded without failing the root.
+ *
+ * Rule 10f reads the RENDERER's own formatter, and the ablated copies hold
+ * `main` and `shared/arch.ts` alone, so a missing `renderer/` has to answer
+ * null rather than turn every pin in that root red for the wrong reason.
+ */
+async function tryLoad(root: string, rel: string): Promise<AnyModule | null> {
+  try {
+    return (await import(pathToFileURL(join(root, rel)).href)) as AnyModule;
+  } catch {
+    return null;
+  }
 }
 
 async function load(root: string, rel: string, missing: string[]): Promise<AnyModule | null> {
@@ -486,6 +507,62 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
     computeRate({ scope: 'repo', cites: rateCites, floor: rateFloor })
   );
 
+  // --- rule 10f: the face over the COMMITTED MEASURED READING --------------
+  //
+  // The recipe table's header states what the pane draws over the measured
+  // reading, and until the fix round it stated the arithmetic the rate used
+  // BEFORE the fix round made it count lines: every count in that paragraph
+  // described a pane that no longer existed, and nothing in the battery could
+  // see it, because no gate pins a drawn count. So the strings are re-derived
+  // here through the SHIPPING `computeRate` and the SHIPPING `citeRate`, over
+  // every citation the reading really carries, flattened exactly the way
+  // `writeSemanticRates` flattens them, and the gate asks the header to say
+  // what came out. The floor travels with the reading, because it is a
+  // property of the FILES the run cited and no arithmetic in this phase moves
+  // it.
+  const citeMod = await tryLoad(root, 'renderer/arch/cite.ts');
+  const measuredFace = citeMod === null ? null : guard('the face over the measured readings', threw, () => {
+    const out: Record<string, unknown> = {};
+    for (const one of READINGS) {
+      const reading = JSON.parse(readFileSync(one.path, 'utf8'));
+      const cites: any[] = [];
+      for (const part of reading.parts ?? []) {
+        for (const claim of part.claims ?? []) {
+          for (const cite of claim.cites ?? []) {
+            cites.push({ claimId: claim.claimId, relPath: cite.relPath, line: cite.line, grade: cite.grade, gate: false });
+          }
+        }
+      }
+      for (const gate of reading.gates ?? []) {
+        for (const cite of gate.cites ?? []) {
+          cites.push({ claimId: `gate:${String(gate.partId)}/${String(gate.gateId)}`, relPath: cite.relPath, line: cite.line, grade: cite.grade, gate: true });
+        }
+      }
+      for (const journey of reading.journeys ?? []) {
+        for (const step of journey.steps ?? []) {
+          for (const cite of step.cites ?? []) {
+            cites.push({ claimId: String(journey.journeyId), relPath: cite.relPath, line: cite.line, grade: cite.grade, gate: false });
+          }
+        }
+      }
+      const storedRepo = (reading.rates ?? []).find((r: any) => r.scope === 'repo') ?? null;
+      if (storedRepo === null) continue;
+      const computed = computeRate({
+        scope: 'repo',
+        cites,
+        floor: { within: storedRepo.floorWithin, lines: storedRepo.floorLines, byGrade: storedRepo.floorByGrade }
+      });
+      out[one.agentId] = {
+        citations: cites.length,
+        stored: { backed: storedRepo.backed, total: storedRepo.total },
+        computed: { backed: computed.backed, total: computed.total, byGrade: computed.byGrade },
+        face: citeMod.citeRate(computed),
+        hover: citeMod.citeRateTitle(computed).split('\n')
+      };
+    }
+    return out;
+  });
+
   // --- rules 8a to 8d: what stale MEANS ------------------------------------
   const stored = (over: Record<string, unknown>): Record<string, unknown> => ({
     claimId: 'p:a:does',
@@ -607,6 +684,7 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
     purity,
     r4,
     rate,
+    measuredFace,
     refresh: {
       unchanged: counts(refresh.unchanged),
       moved: counts(refresh.moved),
@@ -626,8 +704,15 @@ async function forRoot(root: string): Promise<Record<string, unknown>> {
   };
 }
 
+/** The committed measurement readings rule 10f re-derives the face over. */
+let READINGS: { agentId: string; path: string }[] = [];
+
 async function main(): Promise<void> {
-  const input = JSON.parse(process.argv[2] ?? '{}') as { roots: { name: string; root: string }[] };
+  const input = JSON.parse(process.argv[2] ?? '{}') as {
+    roots: { name: string; root: string }[];
+    readings?: { agentId: string; path: string }[];
+  };
+  READINGS = input.readings ?? [];
   const out: Record<string, unknown> = {};
   for (const { name, root } of input.roots ?? []) {
     try {

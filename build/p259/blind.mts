@@ -14,8 +14,11 @@
  * person who knows which agent wrote a claim is not reading the claim.
  *
  * HOW THE IDENTITY IS HIDDEN, and how it can be SEEN that it stayed hidden.
- * The two recipes' samples are written as A.json and B.json, the letter
- * assigned by sorting sha256(agentId + salt); the salt is written to
+ * The samples are written as A.json, B.json and so on, ONE PER READING, the
+ * letter assigned by sorting sha256(label + salt) where the label is one per
+ * reading rather than one per agent — two readings of one agent are two draws,
+ * and a collision refuses the whole run rather than writing over a draw. The
+ * salt is written to
  * `.salt` in the same directory. THE VERIFIER MUST NOT OPEN `.salt` UNTIL THE
  * VERDICTS ARE WRITTEN. `--unblind` prints the two tallies and prints the
  * `.salt` file's mtime beside each verdicts file's, so a salt read before the
@@ -133,18 +136,54 @@ export function blindRow(claim: Claim): Claim {
   };
 }
 
-/** A → B by sha256(agentId + salt), so the letter is not the alphabet and not the argument order. */
-export function letters(agents: readonly string[], salt: string): Record<string, string> {
-  const ranked = [...agents].sort((a, b) => {
+/**
+ * A → B by sha256(label + salt), so the letter is not the alphabet and not the
+ * argument order.
+ *
+ * THE KEY IS THE READING AND IT WAS THE AGENT, which is the committer's round.
+ * Two readings from ONE agent — a full one and a narrowed repeat, which is
+ * exactly what this directory holds — collapsed onto one key here: the map
+ * held a single entry, both draws were written to `B.json`, the second wrote
+ * over the first, and the closing sentence told the reader to judge an
+ * `A.json` that was never written. Exit 0, no refusal, and the twenty claim
+ * draw was gone. So the key is a LABEL that is one per reading, and
+ * {@link labelsOf} is what makes it one.
+ */
+export function letters(labels: readonly string[], salt: string): Record<string, string> {
+  const ranked = [...labels].sort((a, b) => {
     const x = createHash('sha256').update(a + salt).digest('hex');
     const y = createHash('sha256').update(b + salt).digest('hex');
     return x < y ? -1 : x > y ? 1 : 0;
   });
   const out: Record<string, string> = {};
-  ranked.forEach((agent, i) => {
-    out[agent] = String.fromCharCode(65 + i);
+  ranked.forEach((label, i) => {
+    out[label] = String.fromCharCode(65 + i);
   });
   return out;
+}
+
+/**
+ * One label per reading, being the agent alone when the agents differ and the
+ * agent with its run beside it when they do not.
+ *
+ * The agent alone is kept wherever it can be, because it is what `--unblind`
+ * prints and a label nobody needs is noise. The run id is added only to the
+ * readings that share an agent, and the FILE is the last resort, because two
+ * readings of one agent may carry one run id when a record was written twice.
+ * The labels never leave this process: only the letters do.
+ */
+export function labelsOf(readings: readonly { agent: string; runId: string; file: string }[]): string[] {
+  const seen = new Map<string, number>();
+  for (const r of readings) seen.set(r.agent, (seen.get(r.agent) ?? 0) + 1);
+  const used = new Set<string>();
+  return readings.map((r) => {
+    let label = (seen.get(r.agent) ?? 0) > 1 ? `${r.agent} · ${r.runId}` : r.agent;
+    if (used.has(label)) label = `${label} · ${r.file}`;
+    let n = 2;
+    while (used.has(label)) label = `${r.agent} · ${r.file} · ${String(n++)}`;
+    used.add(label);
+    return label;
+  });
 }
 
 /**
@@ -202,6 +241,41 @@ function selfTest(): void {
   if (JSON.stringify(row).includes('claude') || JSON.stringify(row).includes('opus')) problems.push('the blinded row carried the agent or the model');
   const l = letters(['claude', 'codex'], 'salt-a');
   eq('two agents get two letters', Object.values(l).sort(), ['A', 'B']);
+
+  // THE COMMITTER'S ROUND: two readings of ONE agent are two draws.
+  const oneAgent = labelsOf([
+    { agent: 'codex', runId: 'run-one', file: 'codex.reading.json' },
+    { agent: 'codex', runId: 'run-two', file: 'codex.journeys.reading.json' }
+  ]);
+  eq('two readings of one agent get two labels', new Set(oneAgent).size, 2);
+  eq('and two letters', Object.values(letters(oneAgent, 'salt-a')).sort(), ['A', 'B']);
+  eq(
+    'two agents that differ keep the agent as the label, because the run id is noise nobody needs',
+    labelsOf([
+      { agent: 'claude', runId: 'r1', file: 'claude.reading.json' },
+      { agent: 'codex', runId: 'r2', file: 'codex.reading.json' }
+    ]),
+    ['claude', 'codex']
+  );
+  // AND THE DEFECT ITSELF IS A FIXTURE. Keying on the agent alone is what the
+  // tool did, and over these two readings it answers ONE key, which is one
+  // file written twice. A later round that "tidies" the label back to the
+  // agent turns this red rather than destroying a draw in silence.
+  eq(
+    'keying on the agent alone collapses two readings of one agent onto one letter',
+    Object.keys(letters(['codex', 'codex'], 'salt-a')).length,
+    1
+  );
+  eq(
+    'and one agent with one run id twice still gets two labels, because a record may be written twice',
+    new Set(
+      labelsOf([
+        { agent: 'codex', runId: 'r', file: 'a.reading.json' },
+        { agent: 'codex', runId: 'r', file: 'b.reading.json' }
+      ])
+    ).size,
+    2
+  );
   const l2 = letters(['claude', 'codex'], 'salt-b');
   if (JSON.stringify(l) === JSON.stringify(l2)) {
     process.stdout.write('[p259-blind] note: the two salts happened to assign the same letters; that is a 1 in 2 coincidence and not a defect\n');
@@ -248,7 +322,7 @@ function selfTest(): void {
     for (const p of problems) process.stderr.write(`[p259-blind] SELF-TEST FAIL: ${p}\n`);
     process.exit(1);
   }
-  process.stdout.write('[p259-blind] self-test OK: 13 graders behaved, nothing was read and nothing was launched\n');
+  process.stdout.write('[p259-blind] self-test OK: 18 graders behaved, nothing was read and nothing was launched\n');
 }
 
 function main(): void {
@@ -261,9 +335,12 @@ function main(): void {
 
   if (argv.includes('--unblind')) {
     const salt = readFileSync(join(outDir, '.salt'), 'utf8').trim();
+    // label → agent. The letters are recomputed from the LABELS, which is what
+    // the draw keyed on, and the agent is what gets printed.
     const map = JSON.parse(readFileSync(join(outDir, 'agents.json'), 'utf8')) as Record<string, string>;
     const assigned = letters(Object.keys(map), salt);
-    for (const [agent, letter] of Object.entries(assigned)) {
+    for (const [label, letter] of Object.entries(assigned)) {
+      const agent = map[label] ?? label;
       const verdictsPath = join(outDir, `${letter}.verdicts.json`);
       if (!existsSync(verdictsPath)) {
         process.stdout.write(`${agent} is ${letter}: no verdicts written yet\n`);
@@ -290,24 +367,65 @@ function main(): void {
   }
   mkdirSync(outDir, { recursive: true });
   const salt = randomBytes(16).toString('hex');
-  const readings = files.map((f) => ({ file: f, reading: JSON.parse(readFileSync(f, 'utf8')) as any }));
-  const agents = readings.map((r) => String(r.reading?.runs?.[0]?.agent ?? r.file.split('/').pop()?.replace(/\..*$/, '') ?? 'unknown'));
-  const assigned = letters(agents, salt);
+  const readings = files.map((f) => {
+    const reading = JSON.parse(readFileSync(f, 'utf8')) as any;
+    const agent = String(reading?.runs?.[0]?.agent ?? f.split('/').pop()?.replace(/\..*$/, '') ?? 'unknown');
+    return {
+      file: String(f.split('/').pop() ?? f),
+      reading,
+      agent,
+      runId: String(reading?.runs?.[0]?.runId ?? `${agent}-run`)
+    };
+  });
+  const labels = labelsOf(readings);
+  const assigned = letters(labels, salt);
+  // EVERY READING GETS ITS OWN LETTER OR NOTHING IS WRITTEN. A draw that
+  // overwrites a draw is a judgment destroyed in silence, and it is the one
+  // failure this tool cannot be allowed to have: the verdicts it collects are
+  // the only reading of whether the sentences are TRUE.
+  const taken = new Map<string, string>();
+  for (const [i, label] of labels.entries()) {
+    const letter = assigned[label];
+    if (letter === undefined || taken.has(letter)) {
+      process.stderr.write(
+        `[p259-blind] REFUSED: ${files[i]} and ${String(taken.get(letter ?? '') ?? '(nothing)')} both drew the letter ` +
+          `${String(letter)}, so one draw would have been written over the other. Nothing was written.\n`
+      );
+      process.exit(1);
+    }
+    taken.set(letter, files[i]);
+  }
   writeFileSync(join(outDir, '.salt'), `${salt}\n`);
-  writeFileSync(join(outDir, 'agents.json'), `${JSON.stringify(Object.fromEntries(agents.map((a) => [a, a])), null, 2)}\n`);
+  // label → agent, so `--unblind` still names the AGENT rather than the label,
+  // and two readings of one agent are two rows rather than one.
+  writeFileSync(
+    join(outDir, 'agents.json'),
+    `${JSON.stringify(Object.fromEntries(labels.map((label, i) => [label, readings[i].agent])), null, 2)}\n`
+  );
+  const written: string[] = [];
   readings.forEach((r, i) => {
-    const agent = agents[i];
-    const runId = String(r.reading?.runs?.[0]?.runId ?? `${agent}-run`);
-    const seed = createHash('sha256').update(runId).digest('hex');
+    const seed = createHash('sha256').update(r.runId).digest('hex');
     const { rows, strata, short } = draw(claimsOf(r.reading), seed);
-    const letter = assigned[agent];
+    const letter = assigned[labels[i]];
     writeFileSync(
       join(outDir, `${letter}.json`),
       `${JSON.stringify({ seed, strata, short, rows: rows.map(blindRow) }, null, 2)}\n`
     );
-    process.stdout.write(`wrote ${outDir}/${letter}.json: ${String(rows.length)} claim(s), strata ${JSON.stringify(strata)}${short.length === 0 ? '' : `, ${short.join('; ')}`}\n`);
+    written.push(`${letter}.json`);
+    // A DRAW OF NOTHING IS SAID OUT LOUD. A reading holding only journeys has
+    // no part claim and no gate in it, so an empty draw is honest rather than
+    // broken — and a reviewer handed an empty file with no word about it would
+    // read it as a tool that failed.
+    const empty = rows.length === 0 ? ' — THIS READING HAS NO CLAIM TO JUDGE, so there is nothing in it' : '';
+    process.stdout.write(
+      `wrote ${outDir}/${letter}.json: ${String(rows.length)} claim(s), strata ${JSON.stringify(strata)}` +
+        `${short.length === 0 ? '' : `, ${short.join('; ')}`}${empty}\n`
+    );
   });
-  process.stdout.write(`\nJudge ${outDir}/A.json and ${outDir}/B.json TRUE / FALSE / CANNOT TELL into <letter>.verdicts.json.\nDO NOT OPEN ${outDir}/.salt until both verdict files are written. Then run --unblind.\n`);
+  process.stdout.write(
+    `\nJudge ${written.map((name) => `${outDir}/${name}`).join(' and ')} TRUE / FALSE / CANNOT TELL into ` +
+      `<letter>.verdicts.json.\nDO NOT OPEN ${outDir}/.salt until every verdict file is written. Then run --unblind.\n`
+  );
 }
 
 main();

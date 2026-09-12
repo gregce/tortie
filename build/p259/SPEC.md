@@ -652,8 +652,11 @@ similarity score, each recomputable by a second person from two JSON files:
 **(c) The blind sample.** `build/p259/blind.mts` draws **20 claims per recipe**, stratified 5 per grade
 (`gate`, `call-site`, `declaration`, `resolves`) and refilled in ladder order when a stratum is short,
 with a seeded PRNG whose seed is `sha256(runId)` and is printed. Identity is hidden: the two recipes'
-samples are written as `build/p259/blind/A.json` and `B.json`, the letter assigned by sorting
-`sha256(agentId + salt)`, the salt written to `build/p259/blind/.salt` which **the verifier must not
+samples are written as `build/p259/blind/A.json`, `B.json` and so on, ONE PER READING, the letter
+assigned by sorting `sha256(label + salt)` where the label is one per READING rather than one per
+agent — two readings of one agent are two draws, and a letter drawn twice refuses the whole run
+rather than writing one draw over the other, which is what keying on the agent alone did — and the
+salt is written to `build/p259/blind/.salt` which **the verifier must not
 open until after judging**; each row carries only `{claimId, field, text, citations: [{at, why, grade}]}`
 with the agent, the model and the recipe version stripped. The verifier judges each claim
 **TRUE / FALSE / CANNOT TELL** against the repository, writes `build/p259/blind/<letter>.verdicts.json`,

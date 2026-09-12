@@ -76,7 +76,9 @@
  *   6a  no two rows of the cite table share both a glyph and a word, and a
  *       call site and a declaration differ in glyph, word AND tone
  *   6b  removing the fact and leaving the decl moves the same line's grade
- *   6c  no drawn string says anything stronger than a fact was found
+ *   6c  no drawn string says anything stronger than a fact was found, over a
+ *       face set DERIVED by what draws a graded citation rather than named,
+ *       and over the copy.ts declarations those faces import
  *   6d  the model's own `why` is drawn LAST and under an attribution, because
  *       rule 6c holds Tortie's strings and cannot reach a model's
  *   7   THE PLANTED BATTERY: the seven lies of build/p256/semantic/plant.mts
@@ -105,6 +107,10 @@
  *  10e  every field the measurement record reads off a run is a field the run
  *       face DECLARES, because five of them were not and every ask recorded
  *       null for all five
+ *  10f  the recipe header states the rate the SHIPPING code draws over the
+ *       committed measured reading, re-derived through `computeRate` and the
+ *       renderer's own `citeRate`, because the fix round moved the arithmetic
+ *       and left the old arithmetic's counts in shipped prose
  *  11   registration: package.json names the gate and the harness,
  *       verification-checks.mjs classifies them, HELPER_USER_FLOOR counts the
  *       new Electron starter, and the contract baseline moved by one line
@@ -191,10 +197,24 @@ function ablatedCopy(root, edit) {
   return null;
 }
 
+/**
+ * Rule 10f's input: every measured reading beside a live recipe row, named by
+ * the agent whose row it belongs to. Derived off the measured directory rather
+ * than listed, so a second measured recipe is re-derived the day it lands.
+ */
+function measuredReadings() {
+  const dir = join(repoRoot, 'build', 'p259', 'measured');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.reading.json'))
+    .map((name) => ({ agentId: name.slice(0, -'.reading.json'.length), path: join(dir, name) }))
+    .sort((a, b) => (a.agentId < b.agentId ? -1 : 1));
+}
+
 function runProbe(roots) {
   const probe = spawnSync(
     process.execPath,
-    [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/semantic-conformance-probe.mts', JSON.stringify({ roots })],
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/semantic-conformance-probe.mts', JSON.stringify({ roots, readings: measuredReadings() })],
     { encoding: 'utf8', cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 }
   );
   if (probe.status !== 0) throw new Error(`the probe did not run: ${(probe.stderr || '(no output)').slice(0, 2000)}`);
@@ -254,6 +274,66 @@ export function floorBySweep(files, facts, decls, linesOf, slack) {
 // ---------------------------------------------------------------------------
 // The scanners, each proved on planted texts of which some must fail.
 // ---------------------------------------------------------------------------
+
+/**
+ * Rule 6c's floor on the derived semantic face set. Six on 2026-09-12, being
+ * cite.ts, arch-semantic.css, ArchClaim, ArchGates, ArchInspector and
+ * ArchJourneys. Adding a surface can never turn the rule red, so a floor left
+ * behind is what would let one be deleted in silence; a deliberate deletion
+ * lowers it in the same commit and names the file in the commit body.
+ */
+const SEMANTIC_FACE_FLOOR = 6;
+
+/**
+ * The text of one top level declaration, by name, or null.
+ *
+ * Rule 6c needs it because copy.ts is scanned by NAME rather than whole, and
+ * neither shared helper answers on its own: `functionBodyOf` reads a function
+ * and nothing else, and `assignedValues` reads a plain `const NAME =` and
+ * misses `const NAME: readonly string[] =`, which is what `ARCH_GATE_KINDS`
+ * is. A function answers its body; a const answers everything up to the `;`
+ * that closes it at depth zero, read with brackets and quotes counted so a
+ * semicolon inside a template or an object cannot end it early.
+ */
+export function declaredText(code, name) {
+  const clean = stripComments(code);
+  const body = functionBodyOf(clean, name);
+  if (body !== null) return body;
+  const decl = new RegExp(`\\b(?:const|let|var)\\s+${name}\\b`).exec(clean);
+  if (decl === null) return null;
+  const from = decl.index;
+  let depth = 0;
+  let quote = '';
+  for (let i = from; i < clean.length; i += 1) {
+    const c = clean[i];
+    if (quote !== '') {
+      if (c === '\\') {
+        i += 1;
+        continue;
+      }
+      if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      quote = c;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') {
+      depth -= 1;
+      if (depth < 0) return clean.slice(from, i);
+    } else if (c === ';' && depth === 0) return clean.slice(from, i);
+  }
+  return clean.slice(from);
+}
+const DECL_PLANTS = [
+  { plant: 'a plain string const', code: "export const A = 'it was found here';", name: 'A', holds: 'it was found here' },
+  { plant: 'a const wearing a type', code: "export const B: readonly string[] = ['found', 'here'];", name: 'B', holds: "'found'" },
+  { plant: 'a function', code: 'export function c(n: number): string { return `${String(n)} found`; }', name: 'c', holds: 'found' },
+  { plant: 'a const holding an object with a semicolon in a template', code: "export const D = { a: `one; two`, b: 'three' };", name: 'D', holds: "'three'" },
+  { plant: 'a name that is not there', code: "export const E = 'x';", name: 'F', holds: null },
+  { plant: 'a const that stops at its own semicolon', code: "export const G = 'kept';\nexport const H = 'this belongs to H';", name: 'G', holds: 'kept', notHolds: 'belongs to H' }
+];
 
 /** Rule 6c: does this text say anything stronger than a fact was found here? */
 const TRUTH_WORDS = [
@@ -968,25 +1048,80 @@ try {
     }
     say(`${TAG} rule 6a: ${String(rows.length)} chip rows in two tokens, no two sharing a glyph and a word, a call and a declaration differing in all three`);
   }
-  // 6c, over the files THIS PHASE writes, derived by name with a floor of
-  // four. It is deliberately not every file under src/renderer/arch: the
-  // Phase 63 promise checker says "Not checked yet" about a DETERMINISTIC
-  // check of its own, which is honest and is not a claim about a model's
-  // sentence, and main's own refusal sentences have to be able to say "the
-  // answer says how far something is proven" in order to REFUSE it. What this
-  // rule owns is the chip and what the chip's own surfaces draw beside it.
-  const named = walk(join(repoRoot, 'src', 'renderer', 'arch'), []).filter((f) =>
-    /(^|\/)(cite|ArchJourneys|ArchClaim|arch-semantic)\b/.test(f.slice(repoRoot.length))
-  );
-  if (named.length < 4) fail(`rule 6c: only ${String(named.length)} semantic face file(s) were found, and the set is cite.ts, ArchJourneys, ArchClaim and arch-semantic.css`);
-  for (const file of named) {
-    const text = stripComments(readFileSync(file, 'utf8'));
-    for (const m of text.matchAll(/'([^'\\\n]{12,})'|"([^"\\\n]{12,})"|`([^`\\$\n]{12,})`/g)) {
+  // 6c, over the files THIS PHASE writes. It is deliberately not every file
+  // under src/renderer/arch: the Phase 63 promise checker says "Not checked
+  // yet" about a DETERMINISTIC check of its own, which is honest and is not a
+  // claim about a model's sentence, and main's own refusal sentences have to
+  // be able to say "the answer says how far something is proven" in order to
+  // REFUSE it. What this rule owns is the chip and what the chip's own
+  // surfaces draw beside it.
+  //
+  // THE SET IS DERIVED BY BEHAVIOUR AND IT WAS A HAND-WRITTEN NAME LIST, which
+  // is the defect the committer's round found. `cite|ArchJourneys|ArchClaim|
+  // arch-semantic` named four files and missed BOTH of the views this phase
+  // shipped: `ArchGates.tsx`, which is the gates worksheet, and
+  // `ArchInspector.tsx`, which is where the model's four contract fields are
+  // drawn. A semantic face is a file that draws a graded citation, so the set
+  // is every file under src/renderer/arch that imports from `./cite` or from
+  // `./ArchClaim`, plus those two modules' own files, with a floor of six. A
+  // deliberate deletion lowers the floor in the same commit; adding a surface
+  // can never turn this red, which is why the floor is here at all.
+  const archDir = join(repoRoot, 'src', 'renderer', 'arch');
+  const named = walk(archDir, []).filter((f) => {
+    const base = f.slice(archDir.length + 1);
+    if (base.includes('/')) return false;
+    if (base === 'cite.ts' || base === 'arch-semantic.css') return true;
+    const text = readFileSync(f, 'utf8');
+    return /from '\.\/cite'/.test(text) || /from '\.\/ArchClaim'/.test(text);
+  });
+  if (named.length < SEMANTIC_FACE_FLOOR) {
+    fail(`rule 6c: ${String(named.length)} semantic face file(s) were found and the floor is ${String(SEMANTIC_FACE_FLOOR)}; a surface that stopped drawing a graded citation, or was deleted, lowers the floor in the same commit`);
+  }
+  const scanStrings = (what, text) => {
+    for (const m of stripComments(text).matchAll(/'([^'\\\n]{12,})'|"([^"\\\n]{12,})"|`([^`\\$\n]{12,})`/g)) {
       const value = m[1] ?? m[2] ?? m[3];
       if (!/[a-z] [a-z]/.test(value)) continue;
       for (const word of claimsTruth(value)) {
-        fail(`rule 6c: ${file.slice(repoRoot.length + 1)} can draw "${value.slice(0, 70)}", which says ${word}; attribution is not verification and the face says a fact was found here and nothing stronger`);
+        fail(`rule 6c: ${what} can draw "${value.slice(0, 70)}", which says ${word}; attribution is not verification and the face says a fact was found here and nothing stronger`);
       }
+    }
+  };
+  for (const file of named) scanStrings(file.slice(repoRoot.length + 1), readFileSync(file, 'utf8'));
+  // AND THE STRINGS THOSE SURFACES TAKE OUT OF copy.ts, WHICH THE FILE SET
+  // CANNOT REACH. copy.ts is the whole renderer's copy module and fifteen of
+  // its strings legitimately say `checks` about the Phase 63 promise checker,
+  // so scanning the file whole would refuse honest copy; scanning none of it
+  // let this phase put `ARCH_PART_NOT_READ` and `ARCH_INSPECT_READING` in
+  // there under no rule at all, and a planted verdict beside them passed. So
+  // the SEMANTIC names are derived: every declaration a semantic face imports
+  // from './copy' is read out of copy.ts by name and scanned like any other
+  // drawn string. A new semantic string enters this rule by being imported,
+  // which is the only way a face can draw it.
+  const copyText = read('src/renderer/arch/copy.ts');
+  if (copyText === null) fail('rule 6c: src/renderer/arch/copy.ts is not there');
+  else {
+    const wanted = new Set();
+    for (const file of named) {
+      for (const m of readFileSync(file, 'utf8').matchAll(/import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*'\.\/copy'/g)) {
+        for (const raw of m[1].split(',')) {
+          const name = raw.trim().split(/\s+as\s+/)[0].trim();
+          if (name !== '' && name !== 'type') wanted.add(name);
+        }
+      }
+    }
+    if (wanted.size === 0) fail('rule 6c: no semantic face imports anything from ./copy, and every one of them draws a label, so the derivation found nothing and would refuse nothing');
+    let unread = 0;
+    for (const name of [...wanted].sort()) {
+      const text = declaredText(copyText, name);
+      if (text === null) {
+        unread += 1;
+        fail(`rule 6c: a semantic face imports \`${name}\` from ./copy and no declaration of that name could be read, so whatever it draws is scanned by nothing`);
+        continue;
+      }
+      scanStrings(`copy.ts's \`${name}\``, text);
+    }
+    if (unread === 0) {
+      say(`${TAG} rule 6c: ${String(wanted.size)} copy declaration(s) the semantic faces import were read and scanned`);
     }
   }
   for (const plant of TRUTH_PLANTS) {
@@ -994,7 +1129,86 @@ try {
       fail(`rule 6c: the scanner ${plant.caught ? 'missed' : 'caught'} the planted string "${plant.name}"`);
     }
   }
-  say(`${TAG} rule 6c: ${String(named.length)} semantic face file(s) draw nothing stronger than a fact was found; the scanner behaved on ${String(TRUTH_PLANTS.length)} plants`);
+  for (const plant of DECL_PLANTS) {
+    const got = declaredText(plant.code, plant.name);
+    const ok = plant.holds === null ? got === null : got !== null && got.includes(plant.holds);
+    if (!ok) fail(`rule 6c: the declaration reader ${plant.holds === null ? 'found' : 'missed'} "${plant.name}" in the planted source "${plant.plant}"`);
+    // A reader that ran past the end of the declaration would scan a
+    // NEIGHBOUR's string under this name, which is a refusal aimed at the
+    // wrong line and the likeliest way this reader goes wrong.
+    if (plant.notHolds !== undefined && got !== null && got.includes(plant.notHolds)) {
+      fail(`rule 6c: the declaration reader ran past "${plant.name}" and took the next declaration's text with it, in "${plant.plant}"`);
+    }
+  }
+  say(`${TAG} rule 6c: ${String(named.length)} semantic face file(s) draw nothing stronger than a fact was found; the scanners behaved on ${String(TRUTH_PLANTS.length)} string plants and ${String(DECL_PLANTS.length)} declaration plants`);
+}
+
+// Rule 10f: the recipe header states the rate the SHIPPING code draws.
+//
+// THE FIX ROUND MOVED THE ARITHMETIC AND LEFT THE OLD ARITHMETIC'S FACE
+// STRINGS IN SHIPPED SOURCE, in the one passage whose whole job is to stop two
+// numbers being confused. The rate counts each cited LINE once now; the
+// recipe's own header went on quoting the citation-counted pane, so every
+// count in it described a pane that no longer existed and a reader comparing
+// the comment to the face met a third set of numbers. Nothing in the battery
+// could see it, because no rule pinned a DRAWN count: rule 10e's sentence
+// about a number that reads as a measurement and is not one was written in the
+// same commit that reintroduced the class.
+//
+// So the strings are re-derived rather than remembered. The probe runs the
+// shipping `computeRate` and the shipping `citeRate`/`citeRateTitle` over
+// every citation in each committed reading, and this rule asks the header to
+// state what they answered. It is not a tautology: the reading and the header
+// are two files, and the ablation that puts the rate back to counting
+// citations moves what the probe answers and leaves the header where it is.
+{
+  const recipes = read('src/main/overview/fold/recipes.ts');
+  const faces = answers.shipping?.measuredFace ?? null;
+  if (recipes === null) fail('rule 10f: src/main/overview/fold/recipes.ts is not there');
+  else if (faces === null || typeof faces !== 'object') {
+    fail('rule 10f: the probe answered no face over the measured readings, so the header states numbers nothing re-derived');
+  } else {
+    const suggested = /ARCH_SEMANTIC_SUGGESTED_AGENT_ID = '([^']+)'/.exec(stripComments(recipes))?.[1] ?? null;
+    if (suggested === null) fail('rule 10f: recipes.ts names no suggested agent, so there is no reading its header is about');
+    else {
+      const one = faces[suggested] ?? null;
+      if (one === null) {
+        fail(`rule 10f: the suggested row is ${suggested} and there is no build/p259/measured/${suggested}.reading.json for the header to be about`);
+      } else {
+        // The header is PROSE and the numbers in it are the only thing pinned,
+        // so each is asked as the phrase the face draws rather than as a digit.
+        const missingPhrases = [];
+        if (!recipes.includes(one.face)) missingPhrases.push(one.face);
+        // Two of the four grade lines are named in the header on purpose: the
+        // declaration line and the gate line are where the two floors meet.
+        for (const line of one.hover) {
+          if (!/^(gate|declaration) /.test(line)) continue;
+          if (!recipes.includes(line)) missingPhrases.push(line);
+        }
+        for (const phrase of missingPhrases) {
+          fail(
+            `rule 10f: the shipping rate over build/p259/measured/${suggested}.reading.json draws "${phrase}" and ` +
+              'src/main/overview/fold/recipes.ts does not say so. The header is what a later round reads to learn ' +
+              'what the pane shows, and a count there that the arithmetic no longer produces is the defect this rule exists for'
+          );
+        }
+        // AND THE OLD COUNT MAY NOT STILL BE THERE. Stating the new number
+        // does not make a neighbouring stale one true, which is rule 7's own
+        // lesson applied to the count rather than to the planted battery.
+        const stale = `${String(one.stored.backed)} of ${String(one.stored.total)} backed`;
+        if (one.stored.total !== one.computed.total && recipes.includes(stale)) {
+          fail(
+            `rule 10f: recipes.ts still says "${stale}", which is what the rate answered before it counted lines; ` +
+              `the shipping code draws "${one.face}"`
+          );
+        }
+        say(
+          `${TAG} rule 10f: ${String(one.citations)} citation(s) on ${String(one.computed.total)} distinct line(s) in ` +
+            `${suggested}.reading.json, the shipping face reads "${one.face}", and the header states it`
+        );
+      }
+    }
+  }
 }
 
 // Rules 8e, 9a, 9b, 9c, 9d: refusal 8, asked structurally.

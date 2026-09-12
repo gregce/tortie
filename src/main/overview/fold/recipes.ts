@@ -817,16 +817,33 @@ const SEMANTIC_RECIPES: readonly FoldRecipe[] = SEMANTIC_DRAFTS.filter(isMeasure
  *
  * TWO FLOORS ARE TRUE OF THAT READING AND THEY ANSWER DIFFERENT QUESTIONS, so
  * neither may be quoted as the other. 3,520 of 34,116 is 10.32%, the share of
- * lines within three of a FACT, and it is what the 9.7x above compares 199 of
- * 199 against. The rate on the FACE asks the wider question its own word
- * `backed` means, being within three of a row of ANY kind, declarations
- * included, which is 9,572 of 34,116 or 28.06%, so the pane draws
- * `199 of 199 backed · 56 of 199 would be by chance` and that is a 3.57x
- * reading of the same answers. The per grade breakdown behind the hover is
- * where the two meet: it draws each grade beside its OWN floor, so
- * `declaration 0 · 35 of 199 by chance` is on the face beside
- * `gate 107 · 7 of 199 by chance`, and a reader can see that the wider floor
- * is almost entirely the declaration share nothing in this reading used.
+ * lines within three of a FACT, and it is what the 9.7x above compares the
+ * whole answer against. The rate on the FACE asks the wider question its own
+ * word `backed` means, being within three of a row of ANY kind, declarations
+ * included, which is 9,572 of 34,116 or 28.06%, a 3.56x reading of the same
+ * answers.
+ *
+ * AND THE FACE COUNTS LINES WHERE THE PARAGRAPH ABOVE COUNTS CITATIONS, which
+ * is the one place in this file two numbers may be confused for each other. A
+ * citation is one thing an answer wrote; a LINE is one place in the
+ * repository, and the floor's question is about places, so the rate asks of
+ * each distinct `(file, line)` exactly what the floor asks of each line, once
+ * (src/main/arch/semantic/rates.ts). Those 199 citations sit on 139 distinct
+ * lines, so the pane draws `139 of 139 backed · 39 of 139 would be by chance`
+ * and the per grade breakdown behind the hover, which is where the two floors
+ * meet, draws `declaration 0 · 25 of 139 by chance` beside
+ * `gate 69 · 5 of 139 by chance`, so a reader can see that the wider floor is
+ * almost entirely the declaration share nothing in this reading used. Both
+ * lifts are the answers' own and neither moved when the counting did.
+ *
+ * THE NUMBERS IN THE TWO PARAGRAPHS ABOVE ARE RE-DERIVED RATHER THAN
+ * REMEMBERED. `npm run conformance:semantic` rule 10f runs the shipping
+ * `computeRate` and the shipping `citeRate` over every citation in
+ * build/p259/measured/<row>.reading.json and fails unless this file states
+ * what they answer. The record beside that reading keeps the rate the run
+ * itself computed, which counted citations, because it is what that run
+ * answered and a measurement record is not edited after the fact; rule 10f is
+ * what stops the two ever being read as one number again.
  *
  * THE CLAUDE ROW IS UNMEASURED AND THEREFORE DISABLED, and the reason is not
  * that it answered badly: it never answered at all. Claude Code 2.1.269 can

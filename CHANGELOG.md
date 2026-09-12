@@ -6,11 +6,12 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## Unreleased
 
-This release is about three things. A large Markdown document now shows its first screen at once and fills in the rest while you read, and the files you open now belong to the project you opened them in, so switching projects switches which files are in front of you without closing any of them. And with Architecture on, the map is now drawn from the repository itself: grouped by what it builds and starts, with what each part exposes and how far each part is proven.
+This release is about three things. A large Markdown document now shows its first screen at once and fills in the rest while you read, and the files you open now belong to the project you opened them in, so switching projects switches which files are in front of you without closing any of them. And with Architecture on, the map is now drawn from the repository itself: grouped by what it builds and starts, with what each part exposes and how far each part is proven, and an agent you have confirmed can be asked to say what each part is for.
 
 ### Added
 
 - With Architecture on, the map now groups a repository by what it builds and starts, each package, program or service in its own frame with the wires between them named for what carries them, and every part wears a mark saying how far it is proven: declared, composed, reached from something that starts, or tested. Click a part and the panel below the map says what it exposes, what it writes and what guards it, a Surfaces tab lists every route, command and channel the code declares, and a Gates worksheet counts the checks in front of them, all read from the code with no model in the loop; the map still does not say what a part is FOR ([`62ab3918`](https://github.com/gregce/tortie/commit/62ab3918))
+- With Architecture on, you can now ask the agent you confirmed in Settings to read a repository and say what each part is FOR, in a sentence per part, with the steps a piece of work takes through it and the reasons work stops. Every sentence carries the lines it was found at, each marked with what sits there and how rare that is to hit by chance, and a sentence whose line has moved is marked stale rather than quietly redrawn — though a mark only says a fact was found near a claim, never that the claim is true ([`ff5b413c`](https://github.com/gregce/tortie/commit/ff5b413c)), ([`b5cd92ff`](https://github.com/gregce/tortie/commit/b5cd92ff)), ([`ac27f8d9`](https://github.com/gregce/tortie/commit/ac27f8d9))
 
 ### Changed
 
