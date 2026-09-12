@@ -251,10 +251,23 @@ const TSC_SUFFIX = /^(.*?)[([](\d+)(?:[,:] ?(\d+))?[)\]]$/;
  * "any word", because our opener opens files where theirs opens a search: a
  * lettered stem, one dot, a 1–8 character lettered extension, or one of the
  * six extensionless specials. A version (`1.2.3`, `v0.102.0`), an all-digit
- * shape, a plain word and a dotfile all stay refused; a domain-shaped token
+ * shape, a plain word and a SINGLE-DOT dotfile (`.env`, `.gitignore`,
+ * `.npmrc`, `.DS_Store`) all stay refused; a domain-shaped token
  * (`github.com`) passes the shape test and is refused by nothing extra —
  * measured at 92 occurrences and 0 matching any project file, the join's
  * `lstat` answers `missing` for every one.
+ *
+ * A MULTI-DOT DOTFILE PASSES THE SHAPE TEST, and Phase 261 corrected this
+ * sentence rather than the code, because a sentence wider than its code is
+ * the class this repository's own conventions forbid. `lastIndexOf('.')` is 0
+ * for `.env` and the extension test below needs a stem, which is what refuses
+ * the single-dot family; it is POSITIVE for `.env.local` and
+ * `.eslintrc.json`, so both are admitted. That is right for the second, which
+ * is a file a person clicking it means to open, and harmless for the first,
+ * which `decidePathDoor` refuses at step 5 as `secret-name` before any door
+ * — `src/shared/preview-types.ts` matches `.env` and anything opening
+ * `.env.`. `src/shared/__tests__/p247-path-spans.test.ts` pins both halves
+ * and the refusal, so the sentence cannot widen away from the code again.
  */
 const BARE_SPECIALS = new Set([
   'Makefile',

@@ -75,6 +75,22 @@ export const SURFACE_RULES: readonly FactRule[] = [
       // fix round's tenth repository (miniflux) declares 167 of its 177
       // routes this way and a `pathish` that refuses the space read 10.
       const method = GO_METHOD_PATTERN.exec(p);
+      // A ROUTE IS NEVER AN ABSOLUTE URL, and `pathish` accepts one because
+      // the token carries a slash and no character outside its set, so
+      // `HandleFunc("GET https://evil.example.com/abs", h)` read as a route
+      // this repository serves and `HandleFunc("https://evil.example.com/plain",
+      // h)` did too: the plain branch is affected as well as the pattern one,
+      // which is why the refusal is asked ONCE over the resolved target rather
+      // than twice. It is deliberately a second spelling of the same two word
+      // regex `surface.http.method-call` carries above, and NOT a shared
+      // constant, because that line is the `from` text of `conformance:facts`'
+      // H3 ablation and an ablation that finds nothing to edit is a gate that
+      // dies rather than a gate that fails. The two lines BELOW are left
+      // spelled exactly as they were for the same reason: the Go 1.22 method
+      // pattern line is that gate's own `from` text, so the refusal is added
+      // in front of it rather than folded into it.
+      const target = method !== null ? method[2]! : p;
+      if (/^(https?|wss?):\/\//.test(target)) return null;
       if (method !== null) return pathish(method[2]!) ? `HTTP ${method[1]} ${method[2]}` : null;
       return pathish(p) ? `HTTP ${p}` : null;
     }

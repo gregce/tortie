@@ -103,6 +103,15 @@
  * THE ONE HARD RULE: hiding is a filter and never a close. No forceCloseTab,
  * no preview-slot reuse and no MAX_TABS eviction ever reaches a hidden
  * project's tab (§2, §3). The preview slot and the cap are per project.
+ *
+ * AND THE CAP IS ASKED ON THE OPEN PATH ONLY. `rehome` moves a tab onto
+ * another project's strip without asking `MAX_TABS`, and `switchProject`
+ * hands a tab of no project to the first active one the same way, so a strip
+ * can hold eleven until the next open there evicts it back down to ten. It
+ * was true at Phase 260's parent as well as at its HEAD, and Phase 261 stated
+ * it rather than fixing it: the two movers dispose nothing, and evicting
+ * somebody's tab as a side effect of a project being ADDED is a worse answer
+ * than a strip that is briefly one over.
  */
 
 import { create } from 'zustand';

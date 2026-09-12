@@ -67,6 +67,35 @@ and the patch is reviewed, not skipped.
 | `npm run pin:tmux:check` | Prove `build/tmux-release.json` and `src/main/tmux/version.ts` say the same thing. Spawns nothing, makes no request, measured at 0.1 s. `npm run package` runs it too, so a drifted pin cannot reach a build. |
 | `npm run conformance:tmux-pair` | Drive the release's one tested tmux version pair with a real attach: a warm server on the older tmux, the app's create and verify smoke halves as the newer client, and proof the old server never moved. |
 
+**A drive script writes its result to a file** (Phase 261). `build/drive-result.mjs`
+is the convention: call `writeDriveResult(name, value)` at the end of a run and
+the answer lands at `<dir>/<name>-<pid>.json` with the path printed on one line,
+where `<dir>` is `GMUX_DRIVE_RESULTS`, else `GMUX_HARNESS_DIR`, else
+`${TMPDIR:-/tmp}/tortie-drive-results`. The verifier reads that file with
+`readDriveResult`. It exists because a console is not evidence once the
+transcript is gone: Phase 90.2 lost the numbers for its own Escape re-drive to
+three `console.log` calls and had to record the fix as unmeasured, and Phase 87
+lost a whole study the same way. Nothing already in the tree was rewritten onto
+it — the convention is stated and the probes written from here on follow it.
+Prove the module with `node build/drive-result.mjs --self-test`, which launches
+nothing and writes only inside a scratch directory it removes in a `finally`.
+
+**Every Electron a script under `build/` starts is refused unless its socket
+override will really be honoured** (Phase 261). `build/electron-run.mjs` reads
+the composed child environment before it spawns anything and throws when
+`GMUX_TMUX_SOCKET` is set with none of `GMUX_SMOKE`, `GMUX_SHOT`,
+`GMUX_UPDATE_REHEARSAL` or `GMUX_PROBES` beside it, because the app would then
+ignore the variable and run on `-L gmux`, the operator's live server; it throws
+again when a launch names a scratch `tmuxSocket` for its teardown that the
+child's environment does not point the app at. The app prints
+`[gmux-socket] local tmux socket: …` once per launch and the helper ENDS a
+launch whose answer disagrees with what it asked for, and it counts the sessions
+on `-L gmux` before and after any launch that named a scratch socket.
+`build/harness-socket.mjs` hands every wrapped run `GMUX_PROBES=0` beside the
+socket it composes, so a wrapped script inherits a launch the app will honour
+without writing a line of its own. `npm run gate:electron`'s rule 5 is what
+keeps all of it there, and `npm run probe:p261socket` is the app run.
+
 ### Which gate a change has to run
 
 Some gates are pinned to the paths they protect. Run the gate when the commit
@@ -455,6 +484,7 @@ from the running program.
 | --- | --- |
 | `GMUX_TMUX_BIN` | Names the tmux binary a development build uses, in place of the PATH probe. A packaged Tortie ignores it and logs one warning, so it cannot redirect a user's copy. It is what lets the interop probes drive a real version pair instead of simulating one. |
 | `GMUX_TMUX_TARBALL_DIR` | A directory holding the three source tarballs `build/build-tmux.mjs` needs, for an offline or air-gapped build. Files found there are used in place of a download and are checked against the same pinned hashes, so the escape hatch cannot smuggle different sources in. |
+| `GMUX_DRIVE_RESULTS` | Where a drive script writes its result file (Phase 261). It beats `GMUX_HARNESS_DIR`, which beats `${TMPDIR:-/tmp}/tortie-drive-results`. It is read by `build/drive-result.mjs` only, it is never read by the app, and setting it changes nothing a launch does. |
 
 ## tmux safety
 

@@ -53,7 +53,13 @@
  *    happening on somebody's computer. The block draws one sentence saying so.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { AgentGrid } from './AgentGrid';
 import type { LaunchableAgentKind } from '@shared/types';
 import type { MachineRowView, RemoteProjectFindResult } from '@shared/ipc';
@@ -497,6 +503,34 @@ export function optionsSummaryText(activeCount: number): string {
 export const OPTIONS_DANGER_SENTENCE =
   'One of the options that is on changes what the agent is allowed to do.';
 
+/**
+ * PHASE 261. Whether the prefilled session name should be selected right now.
+ *
+ * Exported pure so a test can prove the rule without a DOM: this tree's vitest
+ * environment is `node`.
+ *
+ * `domValue === name` is the whole fix. It is not a tidiness check — it IS the
+ * question "has React committed the prefilled name yet", asked of the DOM
+ * rather than assumed by a frame callback. The open effect sets the name in a
+ * passive effect, so the commit that turns `open` true still carries the
+ * PREVIOUS value in the DOM; a `requestAnimationFrame` scheduled from that
+ * effect could fire on either side of the second commit, which is the race
+ * Phase 86 measured (6 of 6 selected unloaded, 1 of 3 losing at load average
+ * 13.5, reading 0 of 262 frames selected and settling at caret 8).
+ *
+ * `touched` is what stops a re-select after the person types. An empty name is
+ * refused because there is nothing to select and `select()` on an empty input
+ * would still move the caret.
+ */
+export function shouldSelectName(
+  open: boolean,
+  touched: boolean,
+  domValue: string,
+  name: string
+): boolean {
+  return open && !touched && name !== '' && domValue === name;
+}
+
 export function CreateSessionModal(): React.JSX.Element | null {
   const open = useApp((s) => s.createOpen);
   const setOpen = useApp((s) => s.setCreateOpen);
@@ -720,9 +754,37 @@ export function CreateSessionModal(): React.JSX.Element | null {
     // A new opening of the sheet has no choice behind it yet, so the first
     // settle is allowed to hop again.
     agentPickedByUser.current = false;
-    requestAnimationFrame(() => nameRef.current?.select());
+    // PHASE 261. The prefilled name is selected by the layout effect below and
+    // NOT from here. A `requestAnimationFrame` scheduled from this passive
+    // effect races React's commit of the `setName` two lines above it: when the
+    // frame wins, `select()` runs against the DOM's previous value and the
+    // prefill is never selected. Do not put a frame callback back.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  /**
+   * PHASE 261. Select the prefilled name, in the commit that carries it.
+   *
+   * A LAYOUT effect, so it runs after React has mutated the DOM and before the
+   * browser paints: on the commit that first carries the prefill the guard is
+   * true and the selection is in place in the same frame the value appears, so
+   * no painted frame can show the prefilled name unselected. On the earlier
+   * commit — the one where `open` turned true — the input still holds the
+   * previous value, the guard is false, and nothing is selected against the
+   * wrong text.
+   *
+   * There is no `once` ref, deliberately. The guard is about the VALUE, so a
+   * reopen that computes the same name finds the stale DOM already equal and
+   * selects on the first commit, which is equally correct. The Phase 48 settle
+   * hop rewrites the name while it is untouched and re-selects, which is right
+   * for the same reason ⌘T selects at all.
+   */
+  useLayoutEffect(() => {
+    const el = nameRef.current;
+    if (el === null) return;
+    if (!shouldSelectName(open, nameTouched, el.value, name)) return;
+    el.select();
+  }, [open, nameTouched, name]);
 
   // If detection settles AFTER open and the selected agent turned out to be
   // missing, hop to the best installed one.

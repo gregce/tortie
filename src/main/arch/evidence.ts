@@ -281,6 +281,18 @@ function beside(dir: string, rel: string): string {
  * says `nothing this reader recognises starts this unit` when the unit has
  * no source start either. Python console scripts (`mod:fn`) name a module
  * and not a file and never seed (SPEC §7 limit 3).
+ *
+ * A RELATIVE ENTRY SPELLED WITH `..` SEEDS NOTHING, and that is limit 4.
+ * `beside` folds `./` and `/./` and nothing else, so a workspace member whose
+ * `"main"` is `"../dist/index.js"` composes a path carrying `..`, which is
+ * never in `tracked` because `git ls-files` never spells one, so `keep` drops
+ * it and the unit reads `composed` where it would otherwise read `reached`.
+ * It errs on the SAFE side: a missing seed lowers a rung and can never raise
+ * one, and raising a rung is a claim about somebody else's code. It is
+ * written down rather than fixed for that reason, and because folding `..`
+ * correctly means deciding what a path that climbs above the repository root
+ * means, which is a question this reader has no answer to. Phase 261 left it
+ * as it is deliberately.
  */
 export function declaredEntries(
   facts: readonly ArchFact[],

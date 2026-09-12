@@ -113,7 +113,7 @@
  * launches no Electron, and it takes about 0.1 s.
  */
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -168,6 +168,12 @@ const HELPER = 'electron-run.mjs';
  * into the population they had always been outside of. Part of the rise in the
  * floor below is therefore a measurement rather than new files, and a round
  * that puts an Electron in a subdirectory no longer has to move it up first.
+ * PHASE 261 RAISED IT FROM 129 TO 131, for the two probes that round added:
+ * build/p261/probe-p261-socket.mjs, the app run for the socket refusal, and
+ * build/p261/probe-p261-cmdt.mjs, the app run for the name selection race.
+ * Adding a probe cannot turn this gate red, so a floor left where it was is a
+ * floor that would let either of them be deleted again in silence.
+ *
  * Lower it ONLY in the same commit
  * that deletes a probe on purpose, and say in the commit body which file went
  * and why. Do not lower it to make a red gate green: red here means either a
@@ -179,7 +185,7 @@ const HELPER = 'electron-run.mjs';
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 129;
+const HELPER_USER_FLOOR = 131;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.
@@ -554,6 +560,565 @@ function runFixtures(failures) {
 }
 
 // ---------------------------------------------------------------------------
+// Rule 5 (Phase 261). The socket refusal, the announcement and the census.
+// ---------------------------------------------------------------------------
+/**
+ * WHY RULE 5 IS HERE AND WHY IT DRIVES RATHER THAN READS.
+ *
+ * Twice a probe launched with `GMUX_TMUX_SOCKET` set and no harness term, the
+ * app therefore ignored it, and sessions appeared on `-L gmux`, the operator's
+ * live server. Phase 86.1's table says the next round touching build/ must make
+ * the HARNESS refuse such a launch rather than rely on a person reading a
+ * warning, because a person reading it had been measured at 0 of 2.
+ *
+ * The refusal lives in build/electron-run.mjs, and this rule proves it by
+ * CALLING the shipping `withElectron` rather than by reading it, for the reason
+ * `conformance:redline-write` gives about the guarded write: a gate on a
+ * refusal has to run the refusal, because reading it is what let the defect
+ * ship. Nothing is launched. Every arm here is refused BEFORE a spawn, which is
+ * exactly what arm 5b establishes.
+ *
+ * The arms:
+ *
+ *   5a  a composed env naming a socket with no harness term is refused, the
+ *       message names GMUX_PROBES, and a sentinel proves the body never ran.
+ *   5b  the same call with GMUX_PROBES added and a program that is not there
+ *       is refused for the PROGRAM. That is how this rule proves 5a passed
+ *       without launching anything: a different refusal is a refusal reached
+ *       later.
+ *   5c  a named tmuxSocket against an env naming a different socket, and
+ *       against an env naming none. Both refused, both messages naming the pair.
+ *   5d  the reader and the judgement, over fixture texts.
+ *   5e  build/harness-socket.mjs names a harness term inside the argument
+ *       object of the same spawn() call that names GMUX_TMUX_SOCKET, read by
+ *       matching brackets, proved on three planted texts.
+ *   5f  every `-L gmux` argv composed in electron-run.mjs is a list-sessions,
+ *       proved on two plants.
+ *
+ * And five ablations, one clause each, every one of which must turn a named arm
+ * red. Each ablated copy is required to LOAD and answer before its arm is
+ * judged, because a copy that will not load fails for the wrong reason and
+ * proves nothing about the clause, which is Phase 219's rule.
+ */
+
+/** The four terms, scrubbed from a fixture env so 5a can be driven here. */
+const HARNESS_TERM_NAMES = [
+  'GMUX_SMOKE',
+  'GMUX_SHOT',
+  'GMUX_UPDATE_REHEARSAL',
+  'GMUX_PROBES'
+];
+
+/**
+ * A scratch profile path outside the repository and outside the home, so the
+ * profile refusal is never what answers in these arms.
+ */
+function fixtureProfile() {
+  return join(tmpdir(), 'p261-gate-profile-never-created');
+}
+
+/** Call `withElectron` and report what it did, never what it should have done. */
+async function drive(helper, options) {
+  let ran = false;
+  try {
+    await helper.withElectron(options, async () => {
+      ran = true;
+      return 'the body ran';
+    });
+    return { threw: false, message: '', ran };
+  } catch (err) {
+    return { threw: true, message: String(err?.message ?? err), ran };
+  }
+}
+
+/**
+ * The runtime arms, over one loaded copy of the helper. `tag` names which copy,
+ * so an ablation's failures read as its own.
+ *
+ * Returns the readings rather than pushing failures, so the ablation half can
+ * assert that a reading MOVED without repeating the expectations.
+ */
+async function socketReadings(helper) {
+  const profile = fixtureProfile();
+  // The process's own terms are scrubbed out of every fixture env, because this
+  // gate may itself be run from inside a harness and an inherited GMUX_PROBES
+  // would make 5a unable to fail.
+  const scrub = {};
+  for (const n of HARNESS_TERM_NAMES) scrub[n] = undefined;
+
+  // EVERY ARM NAMES A PROGRAM THAT IS NOT THERE, and that is a safety property
+  // rather than tidiness. An ablated copy of the 2a clause accepts the launch,
+  // and with the default program it would then really start the operator's app
+  // against -L gmux, which is the very thing this rule exists to stop. With no
+  // program on disk the ablated copy is refused by the program check instead,
+  // so the reading moves from one message to the other and nothing is ever
+  // spawned. The ORDER, being that layer 2 sits above the profile refusal and
+  // above the program check, is asked separately by the `order` arm below,
+  // where the profile is the thing that is wrong.
+  const dead = { program: '/nonexistent/p261', entry: false };
+
+  const a = await drive(helper, {
+    label: 'p261-5a',
+    userDataDir: profile,
+    ...dead,
+    env: { ...scrub, GMUX_TMUX_SOCKET: 'gmux-p261-gate' }
+  });
+  const b = await drive(helper, {
+    label: 'p261-5b',
+    userDataDir: profile,
+    ...dead,
+    env: { ...scrub, GMUX_TMUX_SOCKET: 'gmux-p261-gate', GMUX_PROBES: '0' }
+  });
+  const order = await drive(helper, {
+    label: 'p261-5a-order',
+    userDataDir: 'not-absolute-and-not-a-profile',
+    ...dead,
+    env: { ...scrub, GMUX_TMUX_SOCKET: 'gmux-p261-gate' }
+  });
+  const cDiffers = await drive(helper, {
+    label: 'p261-5c-differs',
+    userDataDir: profile,
+    ...dead,
+    tmuxSocket: 'gmux-p261-teardown',
+    env: { ...scrub, GMUX_TMUX_SOCKET: 'gmux-p261-other', GMUX_PROBES: '0' }
+  });
+  const cAbsent = await drive(helper, {
+    label: 'p261-5c-absent',
+    userDataDir: profile,
+    ...dead,
+    tmuxSocket: 'gmux-p261-teardown',
+    env: { ...scrub, GMUX_TMUX_SOCKET: undefined }
+  });
+  return { a, b, order, cDiffers, cAbsent };
+}
+
+/** True when this reading is the layer 2 socket refusal and not a later one. */
+function isSocketRefusal(reading) {
+  return (
+    reading.threw &&
+    /GMUX_TMUX_SOCKET is |names the scratch tmux socket/.test(reading.message)
+  );
+}
+
+/** 5d, over the pure reader and the pure judgement. */
+function announcementReadings(helper) {
+  const line = '[gmux-socket] local tmux socket: gmux-p261-1 (GMUX_TMUX_SOCKET=gmux-p261-1, harness launch: yes)';
+  const wrong = '[gmux-socket] local tmux socket: gmux (GMUX_TMUX_SOCKET=gmux-p261-1, harness launch: no)';
+  return {
+    absent: helper.socketFromAnnouncement('nothing here at all\n'),
+    present: helper.socketFromAnnouncement(`${line}\n`),
+    twice: helper.announcedSockets(`${line}\n${wrong}\n`),
+    leadingNoise: helper.socketFromAnnouncement(`some log\nmore log\n${line}\n`),
+    // The line arriving as two chunks. The reader is asked of the accumulated
+    // text, so what matters is that a half line followed by its other half
+    // reads as one line once both have landed.
+    chunked: helper.socketFromAnnouncement(
+      '[gmux-socket] local tmux so' + 'cket: gmux-p261-1 (rest)\n'
+    ),
+    // A line the app quoted out of its own child's output. It is read, and that
+    // is the fail-closed direction: it can only ever refuse a launch, never
+    // pass one.
+    quoted: helper.socketFromAnnouncement(`said: "x"\n${wrong}\n`),
+    // The four combinations of the judgement.
+    noWant: helper.announcementFinding({ wanted: '', announced: 'gmux' }),
+    noAnswer: helper.announcementFinding({ wanted: 'gmux-p261-1', announced: null }),
+    agrees: helper.announcementFinding({ wanted: 'gmux-p261-1', announced: 'gmux-p261-1' }),
+    differs: helper.announcementFinding({ wanted: 'gmux-p261-1', announced: 'gmux' })
+  };
+}
+
+/** 5e's scanner, and the fixture texts that prove it. */
+export function harnessTermBesideSocket(source) {
+  const code = stripComments(source);
+  const call = /\bspawn\s*\(/g;
+  let m;
+  let found = false;
+  let sawSocket = false;
+  while ((m = call.exec(code)) !== null) {
+    const open = m.index + m[0].length - 1;
+    const args = callArguments(code, open);
+    const carries = args.find((a) => a.includes('GMUX_TMUX_SOCKET'));
+    if (carries === undefined) continue;
+    sawSocket = true;
+    if (HARNESS_TERM_NAMES.some((n) => carries.includes(n))) found = true;
+  }
+  return { sawSocket, found };
+}
+
+const TERM_FIXTURES = [
+  {
+    name: 'the shape that ships',
+    text: `const c = spawn(cmd, { shell: true, env: { GMUX_TMUX_SOCKET: socket, GMUX_PROBES: '0' } });`,
+    want: true
+  },
+  {
+    name: 'the socket with no term, which is what shipped before Phase 261',
+    text: `const c = spawn(cmd, { shell: true, env: { GMUX_TMUX_SOCKET: socket, GMUX_HARNESS_DIR: runDir } });`,
+    want: false
+  },
+  {
+    name: 'the term in a comment beside the socket',
+    text:
+      `const c = spawn(cmd, { shell: true, env: {\n` +
+      `  // GMUX_PROBES would go here\n` +
+      `  GMUX_TMUX_SOCKET: socket\n} });`,
+    want: false
+  }
+];
+
+/** 5f's scanner: every -L gmux argv in one file, with the verb it was given. */
+export function operatorSocketVerbs(source) {
+  const code = stripComments(source);
+  const verbs = [];
+  const re = /\[\s*'-L'\s*,\s*'gmux'\s*,\s*'([A-Za-z-]+)'/g;
+  let m;
+  while ((m = re.exec(code)) !== null) verbs.push(m[1]);
+  return verbs;
+}
+
+const VERB_FIXTURES = [
+  { name: 'the reader that ships', text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions', '-F', 'x'])`, want: ['list-sessions'] },
+  { name: 'a planted kill-server', text: `spawnSync('tmux', ['-L', 'gmux', 'kill-server'])`, want: ['kill-server'] },
+  { name: 'a planted new-session', text: `spawnSync('tmux', ['-L', 'gmux', 'new-session', '-d'])`, want: ['new-session'] }
+];
+
+/**
+ * The ablations. Each is one clause of the shipping text, removed from a copy
+ * of the file in a scratch directory, and the reading it must move.
+ */
+const SOCKET_ABLATIONS = [
+  {
+    name: 'the 2a clause, the refusal of a socket with no harness term',
+    file: HELPER,
+    from: `  if (want !== '' && terms.length === 0) {`,
+    to: `  if (false) {`,
+    moved: (before, after) =>
+      isSocketRefusal(before.a) &&
+      !isSocketRefusal(after.a) &&
+      /is not there/.test(after.a.message)
+  },
+  {
+    name: 'the 2b clause, the refusal of a teardown socket the app is not using',
+    file: HELPER,
+    from: `  if (typeof tmuxSocket === 'string' && tmuxSocket !== '') {`,
+    to: `  if (false) {`,
+    moved: (before, after) =>
+      isSocketRefusal(before.cDiffers) &&
+      isSocketRefusal(before.cAbsent) &&
+      !isSocketRefusal(after.cDiffers) &&
+      !isSocketRefusal(after.cAbsent)
+  },
+  {
+    name: 'the announcement comparison',
+    file: HELPER,
+    from: `  const wrong = announced.filter((s) => s !== wanted);`,
+    to: `  const wrong = [];`,
+    moved: (before, after) =>
+      before.announce.differs !== null && after.announce.differs === null
+  },
+  {
+    name: 'the census comparison',
+    file: HELPER,
+    from: `  const added = [...now].filter((n) => !was.has(n));`,
+    to: `  const added = [];`,
+    moved: (before, after) => before.censusAdded !== null && after.censusAdded === null
+  },
+  {
+    name: "the harness term build/harness-socket.mjs hands its child",
+    file: 'harness-socket.mjs',
+    from: `    GMUX_PROBES: process.env['GMUX_PROBES'] ?? '0'`,
+    // The replacement is deliberately NOT a GMUX_* name. build/contract-
+    // inventory.mjs sweeps build/ for that pattern, so an invented one here
+    // would enter the contract baseline as a name nothing reads.
+    to: `    TORTIE_ABLATED_NOT_A_HARNESS_TERM: '0'`,
+    moved: (before, after) => before.term.found && !after.term.found
+  }
+];
+
+/**
+ * Run rule 5. Returns a one line summary for the pass sentence, or pushes
+ * failures.
+ */
+async function runRule5(failures) {
+  const helper = await import('./electron-run.mjs');
+  const helperSource = readFileSync(join(buildDir, HELPER), 'utf8');
+  const harnessSource = readFileSync(join(buildDir, 'harness-socket.mjs'), 'utf8');
+
+  // 5a, 5b, 5c: the shipping refusals, driven.
+  const live = await socketReadings(helper);
+  if (!isSocketRefusal(live.a)) {
+    failures.push({
+      what: '5a: a launch naming a socket with no harness term was NOT refused',
+      detail:
+        'withElectron accepted it. That is the shape that put sessions on the ' +
+        "operator's live -L gmux server twice, and it is what rule 5 exists for."
+    });
+  } else if (!/GMUX_PROBES/.test(live.a.message)) {
+    failures.push({
+      what: '5a: the refusal does not name GMUX_PROBES',
+      detail:
+        `It said "${live.a.message}". The message is the whole remedy a probe ` +
+        'author gets, so it has to name the smallest correct fix.'
+    });
+  }
+  if (live.a.ran) {
+    failures.push({
+      what: '5a: the body ran even though the launch was refused',
+      detail:
+        'The sentinel inside the body was reached, so the refusal happened ' +
+        'after the launch rather than before it.'
+    });
+  }
+  if (!isSocketRefusal(live.order)) {
+    failures.push({
+      what: '5a: the socket refusal is not the FIRST thing withElectron asks',
+      detail:
+        `A launch with a bad profile AND a socket with no harness term ` +
+        `answered "${live.order.message}". Layer 2 must sit above the profile ` +
+        'refusal and above the program check, so a launch in the wrong shape ' +
+        'is refused before anything is created.'
+    });
+  }
+  if (!live.b.threw || !/is not there/.test(live.b.message)) {
+    failures.push({
+      what: '5b: the same call with GMUX_PROBES did not reach the program check',
+      detail:
+        `It answered threw=${String(live.b.threw)} "${live.b.message}". This ` +
+        'arm is how rule 5 proves 5a passed without launching anything: with ' +
+        'a harness term set, the next refusal reached must be the program.'
+    });
+  }
+  for (const [name, reading] of [
+    ['differs', live.cDiffers],
+    ['absent', live.cAbsent]
+  ]) {
+    if (!isSocketRefusal(reading)) {
+      failures.push({
+        what: `5c: a named tmuxSocket with the env socket ${name} was NOT refused`,
+        detail:
+          'The teardown would end one server while the app used another, ' +
+          'which is build/p256/probe-explorers.mjs\'s shape exactly.'
+      });
+    } else if (!/gmux-p261-teardown/.test(reading.message)) {
+      failures.push({
+        what: `5c: the refusal for the ${name} case does not name the pair`,
+        detail: `It said "${reading.message}".`
+      });
+    }
+  }
+
+  // 5d, the reader and the judgement.
+  const announce = announcementReadings(helper);
+  const expectations = [
+    ['absent', announce.absent, null],
+    ['present', announce.present, 'gmux-p261-1'],
+    ['leadingNoise', announce.leadingNoise, 'gmux-p261-1'],
+    ['chunked', announce.chunked, 'gmux-p261-1'],
+    ['quoted', announce.quoted, 'gmux'],
+    ['noWant', announce.noWant, null],
+    ['noAnswer', announce.noAnswer, null],
+    ['agrees', announce.agrees, null]
+  ];
+  for (const [name, got, want] of expectations) {
+    if (got !== want) {
+      failures.push({
+        what: `5d: the ${name} fixture read ${JSON.stringify(got)}`,
+        detail: `It must read ${JSON.stringify(want)}.`
+      });
+    }
+  }
+  if (announce.twice.length !== 2 || announce.twice[1] !== 'gmux') {
+    failures.push({
+      what: '5d: an app that announced twice was read as announcing once',
+      detail:
+        `The reader answered ${JSON.stringify(announce.twice)}. A second ` +
+        'announcement naming a different socket must not be able to hide ' +
+        'behind the first.'
+    });
+  }
+  if (announce.differs === null || !/gmux/.test(String(announce.differs))) {
+    failures.push({
+      what: '5d: an announcement that disagrees was not a finding',
+      detail:
+        'announcementFinding answered null for a launch that asked for one ' +
+        'socket and was told another, which is the reading that ends a run.'
+    });
+  }
+
+  // 5d's other half, the census.
+  const censusAdded = helper.censusFinding(['a', 'b'], ['a', 'b', 'shell-1-6']);
+  const censusGone = helper.censusFinding(['a', 'b'], ['a']);
+  const censusSame = helper.censusFinding(['a', 'b'], ['b', 'a']);
+  const censusBoth = helper.censusFinding(['a', 'b'], ['a', 'claude-1-4']);
+  if (censusSame !== null) {
+    failures.push({
+      what: '5d: an unchanged census was reported as a change',
+      detail: `It said "${String(censusSame)}". Order is not a change.`
+    });
+  }
+  for (const [name, reading, needle] of [
+    ['a session that appeared', censusAdded, 'shell-1-6'],
+    ['a session that went', censusGone, 'b'],
+    ['both at once', censusBoth, 'claude-1-4']
+  ]) {
+    if (reading === null || !String(reading).includes(needle)) {
+      failures.push({
+        what: `5d: the census did not report ${name}`,
+        detail: `It answered ${JSON.stringify(reading)}.`
+      });
+    }
+  }
+
+  // 5e, the harness term beside the socket.
+  const term = harnessTermBesideSocket(harnessSource);
+  if (!term.sawSocket) {
+    failures.push({
+      what: '5e: no spawn in build/harness-socket.mjs names GMUX_TMUX_SOCKET',
+      detail:
+        'The scanner found nothing to judge, so this rule cannot fail and is ' +
+        'not a rule. Either the file moved or the scanner is broken.'
+    });
+  } else if (!term.found) {
+    failures.push({
+      what: '5e: build/harness-socket.mjs hands its child a socket and no harness term',
+      detail:
+        'The app ignores GMUX_TMUX_SOCKET unless one of ' +
+        `${HARNESS_TERM_NAMES.join(', ')} is set, so every wrapped run that ` +
+        "inherits its own environment runs on -L gmux, the operator's live " +
+        "server. Put GMUX_PROBES: process.env['GMUX_PROBES'] ?? '0' back " +
+        'beside GMUX_TMUX_SOCKET in that spawn.'
+    });
+  }
+  for (const f of TERM_FIXTURES) {
+    const got = harnessTermBesideSocket(f.text);
+    if (got.found !== f.want) {
+      failures.push({
+        what: `5e: the fixture "${f.name}" read found=${String(got.found)}`,
+        detail: `It must read found=${String(f.want)}. A scanner nobody has seen fail is not a scanner.`
+      });
+    }
+  }
+
+  // 5f, the one verb this file may aim at -L gmux.
+  const verbs = operatorSocketVerbs(helperSource);
+  if (verbs.length === 0) {
+    failures.push({
+      what: `5f: build/${HELPER} composes no -L gmux argv at all`,
+      detail:
+        'liveSessionNames() is the census reader and it is supposed to be ' +
+        'there. Either it went or the scanner is broken, and both make rule ' +
+        '5f vacuous.'
+    });
+  }
+  for (const verb of verbs) {
+    if (verb !== 'list-sessions') {
+      failures.push({
+        what: `5f: build/${HELPER} aims "${verb}" at -L gmux`,
+        detail:
+          "list-sessions is the only verb this file may ever give the " +
+          "operator's private server. Everything else writes to it."
+      });
+    }
+  }
+  for (const f of VERB_FIXTURES) {
+    const got = operatorSocketVerbs(f.text);
+    if (JSON.stringify(got) !== JSON.stringify(f.want)) {
+      failures.push({
+        what: `5f: the fixture "${f.name}" read ${JSON.stringify(got)}`,
+        detail: `It must read ${JSON.stringify(f.want)}.`
+      });
+    }
+  }
+
+  // The ablations.
+  const before = {
+    ...live,
+    announce,
+    censusAdded,
+    term
+  };
+  let ablationsRed = 0;
+  const dir = mkdtempSync(join(tmpdir(), 'p261-ablate-'));
+  try {
+    for (const ab of SOCKET_ABLATIONS) {
+      const copyDir = join(dir, `ab-${String(ablationsRed)}-${Date.now()}`);
+      mkdirSync(copyDir, { recursive: true });
+      const sources = {
+        [HELPER]: helperSource,
+        'harness-socket.mjs': harnessSource
+      };
+      if (!sources[ab.file].includes(ab.from)) {
+        failures.push({
+          what: `the ablation "${ab.name}" found nothing to edit`,
+          detail:
+            `It looks for ${JSON.stringify(ab.from)} in build/${ab.file} and ` +
+            'that text is not there. An ablation that edits nothing proves ' +
+            'nothing, so the clause moved and this list has to move with it.'
+        });
+        continue;
+      }
+      // Only the file being ablated is copied out; the other is read in place,
+      // because these two do not import each other.
+      const target = join(copyDir, ab.file);
+      writeFileSync(target, sources[ab.file].replace(ab.from, ab.to));
+
+      let after;
+      if (ab.file === HELPER) {
+        let copy;
+        try {
+          copy = await import(`${target}?p261=${String(Date.now())}`);
+        } catch (err) {
+          failures.push({
+            what: `the ablated copy for "${ab.name}" would not load`,
+            detail:
+              `${String(err?.message ?? err)}. A copy that fails to load fails ` +
+              'this gate for the wrong reason and says nothing about the ' +
+              'clause, which is Phase 219\'s rule.'
+          });
+          continue;
+        }
+        if (typeof copy.withElectron !== 'function') {
+          failures.push({
+            what: `the ablated copy for "${ab.name}" answered nothing`,
+            detail: 'It loaded but exports no withElectron, so it was not driven.'
+          });
+          continue;
+        }
+        after = {
+          ...(await socketReadings(copy)),
+          announce: announcementReadings(copy),
+          censusAdded: copy.censusFinding(['a', 'b'], ['a', 'b', 'shell-1-6']),
+          term
+        };
+      } else {
+        after = {
+          ...before,
+          term: harnessTermBesideSocket(readFileSync(target, 'utf8'))
+        };
+      }
+      if (ab.moved(before, after)) ablationsRed += 1;
+      else {
+        failures.push({
+          what: `the ablation "${ab.name}" moved no reading`,
+          detail:
+            'The clause was removed and rule 5 still passed, so nothing in ' +
+            'this gate is holding it.'
+        });
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  return {
+    refusals: [live.a, live.order, live.cDiffers, live.cAbsent].filter(
+      isSocketRefusal
+    ).length,
+    ablationsRed
+  };
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -591,7 +1156,7 @@ function list() {
   for (const name of helperUsers(files, read)) console.log(name);
 }
 
-function main() {
+async function main() {
   const failures = [];
   const files = buildFiles();
 
@@ -634,6 +1199,9 @@ function main() {
   // Rule 4, the fixtures.
   const fixtures = runFixtures(failures);
 
+  // Rule 5, the socket refusal, driven rather than read.
+  const socket = await runRule5(failures);
+
   if (failures.length > 0) {
     console.error(
       '[electron-teardown] a launch under build/ is outside the helper.'
@@ -653,9 +1221,16 @@ function main() {
       `block. Fixtures: the good one produced ${String(fixtures.good)} ` +
       `findings, the bad one produced ${String(fixtures.bad)}, the one that ` +
       `hides the name produced ${String(fixtures.sly)}, and the floor refused ` +
-      `${String(fixtures.floorRefused)} of the 2 populations it was shown.`
+      `${String(fixtures.floorRefused)} of the 2 populations it was shown. ` +
+      `The socket refusal was CALLED rather than read: ` +
+      `${String(socket.refusals)} of 4 launches in the wrong shape were ` +
+      `refused before anything was spawned, the announcement reader and the ` +
+      `census judged their fixtures, build/harness-socket.mjs hands its child ` +
+      `a harness term beside the socket, list-sessions is the only verb aimed ` +
+      `at -L gmux, and ${String(socket.ablationsRed)} of ` +
+      `${String(SOCKET_ABLATIONS.length)} ablations each moved a reading.`
   );
 }
 
 if (process.argv.includes('--list')) list();
-else main();
+else await main();

@@ -74,6 +74,11 @@
  * ended by a later run. This is a cleanup and not a promise that the directory
  * is empty at any instant.
  *
+ * WHAT PHASE 261 ADDED. The child is also handed `GMUX_PROBES=0` beside the
+ * socket, because handing a run a socket the app will then ignore is the defect
+ * that put sessions on the operator's live server twice. The reason is on the
+ * line itself, at the spawn below.
+ *
  * Usage: node build/harness-socket.mjs [--fresh] <socket-name> '<shell command>'
  */
 
@@ -252,7 +257,29 @@ const child = spawn(command, {
     ...process.env,
     PATH: `${binDir}:${process.env['PATH'] ?? ''}`,
     GMUX_TMUX_SOCKET: socket,
-    GMUX_HARNESS_DIR: runDir
+    GMUX_HARNESS_DIR: runDir,
+    // PHASE 261, LAYER 1, and it is one line because the defect is one line.
+    // `activeTmuxSocket` honours GMUX_TMUX_SOCKET only while one of
+    // GMUX_SMOKE, GMUX_SHOT, GMUX_UPDATE_REHEARSAL or GMUX_PROBES is set. This
+    // script handed every wrapped run a socket and no term at all, so any
+    // wrapped script that launched the app with its own environment inherited
+    // and no term of its own ran against -L gmux, which is the operator's live
+    // server. That is how build/p134-about-shot.mjs was launching: it re-runs
+    // itself through this script and then spreads process.env into the child.
+    //
+    // '0' IS THE DOCUMENTED PAIR and not a shortcut. src/main/harness/
+    // launch-gate.ts says isHarnessLaunch counts GMUX_PROBES at ANY value, so
+    // the socket moves, while probesRequested needs exactly '1', so no renderer
+    // drive is armed; isIsolatedLaunch reads neither, so the single-instance
+    // lock and use-mock-keychain behave exactly as before. An inherited value
+    // is PRESERVED rather than clobbered, so a GMUX_PROBES=1 run is unchanged.
+    //
+    // Two safety improvements follow rather than side effects: a harness launch
+    // gets the FILE credential vault instead of the person's keychain
+    // (src/main/credentials/index.ts) and the vault migration refuses outright
+    // (src/main/credentials/migrate.ts). A wrapped run that used to reach his
+    // real keychain now cannot.
+    GMUX_PROBES: process.env['GMUX_PROBES'] ?? '0'
   }
 });
 

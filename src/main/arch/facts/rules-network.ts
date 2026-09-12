@@ -30,6 +30,39 @@
  * test that the hand method counts as product code, and the number Phase 258
  * draws "the network reaches" from is the one this header states, not
  * "fixed".
+ *
+ * PHASE 261 CLOSED TWO MORE OF THOSE CLASSES AND REFUSED THE THIRD, and the
+ * refusal is written down here rather than dropped in silence.
+ *
+ * Closed: an msw handler, `http.get('https://api…', …)` in a file that
+ * imports msw, which DECLARES a route a test will answer and reaches nothing;
+ * and `requests.Request('GET', url)`, a CONSTRUCTION reached by a call rather
+ * than by `new`. The second one changes nothing where the URL is a LITERAL,
+ * because the URL argument branch above answers that site whatever the
+ * receiver is, and saying so is the honest half of the fix.
+ *
+ * REFUSED, AND IT STAYS A STATED LIMIT: the URL argument branch fires on ANY
+ * callee, so `anything("https://x.example.com")` reads as a reach and a URL
+ * that is only ever logged or documented does too. Every mechanical answer
+ * costs more than it buys. A callee ALLOWLIST is the wrong way round for an
+ * open set, which this domain has already paid for once (`predicates.ts`: an
+ * allowlist of router names found 7 of gotify's 41 routes). Narrowing the
+ * literal branch would move the 48% this header publishes with nobody
+ * re-judging a row, and that branch is the rule's recall engine — it is what
+ * finds `stub_request(:get, "https://…")` and `URL(string: "https://…")`.
+ * Telling "the code reaches this URL" from "this string happens to be a URL"
+ * needs data flow, which means types or a model, and this base has neither by
+ * charter. Closing it is a phase that can re-judge the rows, not a nit.
+ *
+ * Two more shapes belong beside it, because Phase 261 measured both and left
+ * both alone. `http.get(PREFIX + '/z', h)` answers `HTTP client call` on the
+ * receiver branch even though it is a route declaration, because the receiver
+ * decides and no literal is read. And a CONCATENATED url,
+ * `fetch('https://a.example.com' + '/y')`, reads `talks to
+ * https://a.example.com`, the first half of its own URL, because
+ * `argString` in `src/main/symbols/calls.ts` reads the first literal of a
+ * join; that file's header carries the measurement that refused the obvious
+ * fix and the reason it is a rule's judgement rather than the reader's.
  */
 
 import type { FactRule } from './types';
@@ -50,6 +83,17 @@ const VOCABULARY_HOST = /^(https?):\/\/(www\.)?(w3\.org|w3id\.org|purl\.org|sche
  */
 const URL_PARSE = /^(URL|URI|Uri|NSURL)$/;
 
+/**
+ * A file that names the msw package. An msw handler DECLARES a route a test
+ * will answer and reaches nothing, and the test-path refusal never caught
+ * them because they live in `src/mocks/handlers.ts` rather than under a test
+ * path. So the test is the FILE, the way `NAMES_CLAP` is in
+ * `./rules-surface.ts`.
+ */
+const NAMES_MSW = /\bfrom\s+['"]msw(\/\w+)?['"]|require\(['"]msw(\/\w+)?['"]\)/;
+/** The msw receivers. `http.get`, `https.post` and `graphql.query` are its whole surface. */
+const MSW_RECV = /^(http|https|graphql)$/;
+
 /** Is a string argument a URL the code could reach, rather than a name? */
 export function reachableUrl(a: string): boolean {
   if (!LITERAL_URL.test(a)) return false;
@@ -65,12 +109,30 @@ export const NETWORK_RULES: readonly FactRule[] = [
     kind: 'client',
     langs: '*',
     match: (s, c) => {
+      // An msw handler reaches nothing, and the refusal is asked FIRST
+      // because the URL argument branch below fires ahead of the receiver
+      // branch and would otherwise keep answering for the same site. The cost
+      // is a real `http.get` in a file that also imports msw, which is the
+      // narrower mistake.
+      if (MSW_RECV.test(s.recv) && NAMES_MSW.test(c.text)) return null;
       const test = isTestPath(c.file);
       const first = s.args[0] ?? '';
       const u = URL_PARSE.test(s.last) ? (reachableUrl(first) ? first : undefined) : s.args.find(reachableUrl);
       if (u !== undefined) return test ? null : `talks to ${u.slice(0, 80)}`;
       if (s.last === 'fetch' && s.recv === '' && s.argc > 0) return test ? null : 'HTTP client call';
       if (s.form !== 'new' && /^(axios|requests|httpx|urllib|http|reqwest|HttpClient|URLSession|RestTemplate|WebClient)$/i.test(s.recv)) {
+        // `requests.Request('GET', url)` BUILDS a request and reaches nothing
+        // until a session sends it, which is the same refusal Phase 257 made
+        // for Go's `&http.Request{}` in the condition above, reached by a CALL
+        // rather than by `new`. Two clauses carry it and both are load
+        // bearing. The case matters, because `requests.request('GET', url)` is
+        // a real reach and the verb test below is case insensitive, so it
+        // would swallow both. And the FORM is asked even though this block is
+        // already inside `s.form !== 'new'`: without it this clause would
+        // catch Go's struct literal too, and `conformance:facts`' ablation of
+        // the `new` refusal could no longer fail, which is a guard made
+        // unfalsifiable by a neighbour rather than a guard kept.
+        if (s.form === 'call' && (s.last === 'Request' || s.last === 'HttpRequest')) return null;
         if (/^(get|post|put|patch|delete|request|send|Do|execute|dataTask)$/i.test(s.last)) return 'HTTP client call';
       }
       if (s.last === 'WebSocket' || s.recv === 'WebSocket') return 'opens a websocket';

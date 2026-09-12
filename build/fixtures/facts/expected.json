@@ -45,8 +45,8 @@
  "fixtures": {
   "ts-electron": {
    "counts": {
-    "tracked": 26,
-    "parsed": 17,
+    "tracked": 27,
+    "parsed": 18,
     "manifests": 4,
     "pathOnly": 0,
     "vendored": 4,
@@ -55,10 +55,10 @@
     "byCategory": {
      "entrypoint": 10,
      "boundary": 7,
-     "surface": 16,
+     "surface": 17,
      "store": 2,
      "effect": 4,
-     "network": 3,
+     "network": 6,
      "gate": 4,
      "test": 3
     }
@@ -271,6 +271,20 @@
      "rule": "gate.env-read",
      "sample": "fix round (a NUL at byte 8,100 is a binary to every reader)",
      "evidence": "export const x = process.env.LATE_NUL_SECRET;"
+    },
+    {
+     "file": "src/mocks/handlers.ts",
+     "line": 9,
+     "rule": "network.client",
+     "sample": "Phase 261 item 6 (an msw handler declares a route a test will answer and reaches nothing)",
+     "evidence": "http.get('https://api.example/v1/users', () => HttpResponse.json({})),"
+    },
+    {
+     "file": "src/mocks/handlers.ts",
+     "line": 10,
+     "rule": "network.client",
+     "sample": "Phase 261 item 6 (the receiver branch half of the same handler set)",
+     "evidence": "http.post('/local', () => HttpResponse.json({}))"
     }
    ],
    "facts": [
@@ -555,6 +569,26 @@
      "viaWrapper": false
     },
     {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /",
+     "line": 47,
+     "rule": "surface.http.method-call",
+     "evidence": "app.get('/' + 'a', h);",
+     "file": "src/main/decoys.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://a.example",
+     "line": 48,
+     "rule": "network.client",
+     "evidence": "fetch('https://a.example' + '/y');",
+     "file": "src/main/decoys.ts",
+     "viaWrapper": false
+    },
+    {
      "category": "boundary",
      "kind": "module-root",
      "subject": "module root src/main/index.ts",
@@ -611,6 +645,26 @@
      "line": 4,
      "rule": "network.client",
      "evidence": "const res = await fetch('https://api.example/v1');",
+     "file": "src/main/net.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://api.example/v3",
+     "line": 12,
+     "rule": "network.client",
+     "evidence": "await http.get('https://api.example/v3', () => undefined);",
+     "file": "src/main/net.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "HTTP client call",
+     "line": 13,
+     "rule": "network.client",
+     "evidence": "await http.post(endpoint, () => undefined);",
      "file": "src/main/net.ts",
      "viaWrapper": false
     },
@@ -897,7 +951,7 @@
      "surface": 11,
      "store": 1,
      "effect": 1,
-     "network": 3,
+     "network": 4,
      "gate": 1,
      "test": 3
     }
@@ -946,6 +1000,13 @@
      "rule": "entrypoint.py.script",
      "sample": "spec §1.4 (outside a scripts table)",
      "evidence": "y = \"a:b\""
+    },
+    {
+     "file": "src/client.py",
+     "line": 13,
+     "rule": "network.client",
+     "sample": "Phase 261 item 6 (a Request is built here and reaches nothing until a session sends it)",
+     "evidence": "r = requests.Request(\"GET\", url)"
     }
    ],
    "facts": [
@@ -1190,6 +1251,16 @@
      "viaWrapper": false
     },
     {
+     "category": "network",
+     "kind": "client",
+     "subject": "HTTP client call",
+     "line": 16,
+     "rule": "network.client",
+     "evidence": "requests.request(\"GET\", url)",
+     "file": "src/client.py",
+     "viaWrapper": false
+    },
+    {
      "category": "effect",
      "kind": "spawn",
      "subject": "runs ls",
@@ -1256,7 +1327,7 @@
      "surface": 13,
      "store": 0,
      "effect": 1,
-     "network": 1,
+     "network": 2,
      "gate": 4,
      "test": 3
     }
@@ -1368,6 +1439,20 @@
      "rule": "entrypoint.composition",
      "sample": "fix round (a composition root in _test.go, 2 of miniflux's 7)",
      "evidence": "mux := http.NewServeMux()"
+    },
+    {
+     "file": "main.go",
+     "line": 38,
+     "rule": "surface.http.handlefunc",
+     "sample": "Phase 261 item 4 (an absolute URL inside the Go 1.22 method pattern is not a route)",
+     "evidence": "mux.HandleFunc(\"GET https://evil.example.com/abs\", h)"
+    },
+    {
+     "file": "main.go",
+     "line": 39,
+     "rule": "surface.http.handlefunc",
+     "sample": "Phase 261 item 4 (the plain branch is affected too)",
+     "evidence": "mux.HandleFunc(\"https://evil.example.com/plain\", h)"
     }
    ],
    "facts": [
@@ -1438,6 +1523,16 @@
      "line": 23,
      "rule": "surface.http.handlefunc",
      "evidence": "mux.HandleFunc(\"GET /v1/me\", me)",
+     "file": "main.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://evil.example.com/plain",
+     "line": 39,
+     "rule": "network.client",
+     "evidence": "mux.HandleFunc(\"https://evil.example.com/plain\", h)",
      "file": "main.go",
      "viaWrapper": false
     },

@@ -75,6 +75,7 @@ import {
   type TmuxBinarySource
 } from '../tmux/resolve';
 import { resetTmuxVersionState } from '../tmux/version';
+import { isHarnessLaunch } from '../harness/launch-gate';
 import { gmuxError } from '../errors';
 import {
   assertMachineMayConnect,
@@ -305,6 +306,35 @@ const remoteContexts = new Map<string, RemoteMachineContext>();
  *   the machine, and TMUX_NOT_FOUND when the configuration file is missing,
  *   empty, a directory or unreadable.
  */
+/**
+ * The one line a launch prints saying which tmux socket it really chose.
+ * PHASE 261, layer 3 of the harness socket refusal.
+ *
+ * WHY IT EXISTS. Twice a probe launched with `GMUX_TMUX_SOCKET` set and no
+ * harness term, `activeTmuxSocket` therefore ignored it, and the app created
+ * sessions on `-L gmux`, the operator's live server. The app said so, in a
+ * warning nobody read. A person noticing has been measured at 0 of 2, so
+ * build/electron-run.mjs now READS this line and ends a launch whose answer
+ * disagrees with what it asked for. That is an assertion rather than a trust:
+ * a variable that never reached the child, a term spelled wrongly, and a
+ * future change to `isHarnessLaunch` are all caught by the same reading.
+ *
+ * IT IS PURE, and it is exported, because this tree's vitest environment is
+ * `node` and the composed sentence is what
+ * `src/main/machines/__tests__/p261-socket-announcement.test.ts` pins.
+ */
+export function socketAnnouncement(
+  socket: string,
+  env: NodeJS.ProcessEnv
+): string {
+  const raw = (env['GMUX_TMUX_SOCKET'] ?? '').trim();
+  const harness = isHarnessLaunch(env) ? 'yes' : 'no';
+  return (
+    `[gmux-socket] local tmux socket: ${socket} ` +
+    `(GMUX_TMUX_SOCKET=${raw === '' ? 'unset' : raw}, harness launch: ${harness})`
+  );
+}
+
 export function localMachineContext(): LocalMachineContext {
   if (localContext !== null) return localContext;
   const res = resolveTmux();
@@ -323,6 +353,14 @@ export function localMachineContext(): LocalMachineContext {
     binSource: res.source,
     packaged: res.packaged
   };
+  // PHASE 261, layer 3. It is a raw console.log rather than a scoped logger,
+  // for the reason the harness protocol families in src/main/log/index.ts are
+  // raw: the line must read identically in every launch shape, packaged or
+  // not, with or without GMUX_LOG_FILE, because a harness reads it off the
+  // child's own output. This function caches, so it prints exactly once per
+  // launch.
+  // eslint-disable-next-line no-console
+  console.log(socketAnnouncement(localContext.socket, process.env));
   return localContext;
 }
 

@@ -705,8 +705,18 @@ export function readingPartition(input: ReadingInput): ReadingPartition {
  *     to ANY manifest and made stoa's root a unit through a pen-test python
  *     script under `docs/`. Workers, threads, utility processes and compose
  *     services are STARTS (Q5), never units; the workspace root that declares
- *     members is not a unit, its members are. Units are deduped on directory
- *     and the root '' is allowed.
+ *     members is not a unit, its members are. Units are deduped on DIRECTORY
+ *     and the root '' is allowed, and the WINNER at a directory is the first
+ *     fact in this order: declared workspaces, then declared crates, then
+ *     `boundary` libraries, then entrypoints, then source `main`s, each group
+ *     sorted by file path and then by line. The path sort is what decides
+ *     between two entrypoints in one directory, so a root holding both a
+ *     `Dockerfile` and a `package.json` reads `container`, because `D` sorts
+ *     before `p`. THAT IS ARBITRARY, and it is written down here rather than
+ *     left to be rediscovered. Phase 261 did not change it: a kind precedence
+ *     would move the drawn label of every repository that carries both, which
+ *     is a judgement about a picture and belongs to a round that can re-judge
+ *     it, not to one whose charter is to move no measured number.
  *  Q2 ownership. A rule P box belongs to the deepest unit whose directory is
  *     a prefix of the box's, the root matching everything; the fold belongs
  *     where '' belongs. `deepestUnitOf` in ./evidence.ts is the one function,

@@ -866,6 +866,26 @@ export const CHECKS = [
   // the Phase 167 plateau rule. At the parent the switch shows the first
   // project's tabs under the second and the eleventh open evicts a hidden one.
   electron('probe:p260'),
+  // PHASE 261 item 1. The harness socket refusal, DRIVEN. ONE Electron at a
+  // time, never two, on a scratch profile with a scratch HOME under its own
+  // GMUX_HARNESS_DIR and the socket gmux-p261-<pid>. Five arms: the real app
+  // in the right shape announcing its own socket with a tmux server really
+  // there; the same launch with the harness term removed refused before
+  // anything is spawned; an app that ANSWERS `gmux` ended in flight, which is
+  // driven against a six line stand-in written by the probe rather than
+  // against the real app, so the answer `gmux` is proved without ever putting
+  // Tortie on the operator's live server; a copy of the helper with the
+  // refusal clause removed, so the refusal arm is shown able to read the other
+  // answer; and the census over four fixtures. It spawns no agent, spends no
+  // token, opens no keychain and makes no request, and `-L gmux` is read twice
+  // with list-sessions and never written.
+  electron('probe:p261socket'),
+  // PHASE 261 item 3. The ⌘T name selection race, measured on PAINTED FRAMES
+  // at HEAD and at the parent. ONE Electron on a scratch profile with a
+  // scratch HOME and its own socket, over a project it writes itself. It opens
+  // and Escapes the sheet only: no session is created, no agent is spawned and
+  // no token is spent.
+  electron('probe:p261cmdt'),
   // PHASE 248. The block that got the pane: ONE launch on a scratch profile, a
   // scratch HOME and its own socket, over a one-document project it writes
   // itself. It drags the editor's divider to four pane widths and reads the

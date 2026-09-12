@@ -21,7 +21,7 @@ import {
   stripDecoration,
   tokensInRow
 } from '../path-spans';
-import { couldBeAbsolute } from '../path-doors';
+import { couldBeAbsolute, decidePathDoor } from '../path-doors';
 
 describe('what looks like a path', () => {
   it('accepts an absolute path and a relative one', () => {
@@ -173,6 +173,44 @@ describe('the suffixes VS Code taught us (Phase 253)', () => {
     // Domain-shaped tokens pass the shape test on purpose: measured at 92
     // occurrences and 0 project files, the join's lstat is the filter.
     expect(bareFileShaped('github.com')).toBe(true);
+  });
+
+  /**
+   * PHASE 261 item 9. The grammar's comment said "a dotfile stays refused",
+   * which holds for a SINGLE-DOT name and not for a multi-dot one:
+   * `lastIndexOf('.')` is 0 for `.env` and positive for `.env.local`. The
+   * comment was what changed, because the behaviour is safe, and these are
+   * the pins that stop the sentence widening away from the code again.
+   */
+  it('refuses a single-dot dotfile and admits a multi-dot one, which the door then judges', () => {
+    expect(bareFileShaped('.gitignore')).toBe(false);
+    expect(bareFileShaped('.DS_Store')).toBe(false);
+    expect(bareFileShaped('.env.local')).toBe(true);
+    expect(bareFileShaped('.eslintrc.json')).toBe(true);
+    // And the reason admitting `.env.local` is harmless: the door refuses it
+    // by NAME at step 5, before any door is chosen, with everything else
+    // about the file as ordinary as it can be.
+    expect(
+      decidePathDoor({
+        spelling: '/Users/x/proj/.env.local',
+        realPath: '/Users/x/proj/.env.local',
+        kind: 'file',
+        bundle: false,
+        executable: false,
+        resolvedFrom: null
+      })
+    ).toEqual({ door: null, refusal: 'secret-name' });
+    // The control beside it, so a door that refused everything could not pass.
+    expect(
+      decidePathDoor({
+        spelling: '/Users/x/proj/.eslintrc.json',
+        realPath: '/Users/x/proj/.eslintrc.json',
+        kind: 'file',
+        bundle: false,
+        executable: false,
+        resolvedFrom: null
+      })
+    ).toEqual({ door: 'editor', path: '/Users/x/proj/.eslintrc.json' });
   });
 });
 

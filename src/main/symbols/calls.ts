@@ -23,6 +23,41 @@
  * exercise, being java, php, c-sharp, kotlin and objc, are present in the shape
  * table with EMPTY sets so the record type is total, and they answer no call at
  * all (spec D4).
+ *
+ * A CONCATENATED ARGUMENT READS ITS FIRST LITERAL, AND PHASE 261 MEASURED
+ * THAT IT MUST STAY THAT WAY. `argString`'s last loop returns the first string
+ * child of any node with at most two named children, which is there to unwrap
+ * a ruby `to: "a#b"` pair and a swift `value_argument`, and a concatenation is
+ * the same shape, so `app.get('/' + 'a', h)` declares `/a` and is reported as
+ * `/`. No RULE can tell that from a real root route, because the rule is
+ * handed the string `/` and nothing else, which is why the obvious fix was
+ * tried HERE: the joining nodes are a CLOSED set and were read off the shipped
+ * wasm on 2026-09-12 — `binary_expression` in js/ts/tsx, go and rust,
+ * `binary_operator` in python, `binary` in ruby and `additive_expression` in
+ * swift — so a node of one of those types could simply answer ''.
+ *
+ * IT WAS REFUSED ON THE MEASUREMENT, and the measurement refutes the argument
+ * for it. "Precision cannot fall, because a row removed is a row whose subject
+ * was never the value the code holds" is false for the two rules that read a
+ * PREFIX rather than a whole value. Driven over the eight committed fixtures
+ * and this checkout's own `src/` with and without the clause
+ * (`build/p261/spec-probe.mts --capture`, then `--diff`), the fact set went
+ * 18,869 → 18,813: **56 rows lost, 0 gained, every one of them in `src/` and
+ * every one of them correct** — 46 `gate.refusal` and 10 `store.sql`, and in
+ * every case an ordinary long string wrapped across two lines with a `+`: a
+ * refusal message written as two template halves, and a schema statement
+ * written as two quoted halves. The first half of a wrapped message IS the
+ * message, and the first half of a wrapped statement IS its keyword and its
+ * table, so both rules were reading exactly what they meant to read.
+ *
+ * So the class is stated rather than closed, and the sentence above this one
+ * is why: a path wants the whole value and a message wants its prefix, and
+ * that is a judgement a RULE makes about its own subject, not something this
+ * file can know about a node. Closing it belongs to a phase that can re-judge
+ * the rows on both sides — narrowing it per rule, or reading the joined value
+ * whole — and not to a nits round, whose charter is to move no measured
+ * number. The stated cost is recall on a repository that writes a route or a
+ * URL as a concatenation.
  */
 
 import type { Node as TsNode } from 'web-tree-sitter';
@@ -173,6 +208,9 @@ function isString(shape: CallShape, n: TsNode): boolean {
  * The string value of an argument node, or ''. One level of unwrapping for
  * the grammars that wrap an argument, being `(value_argument value: (…))` in
  * swift, and a ruby `to: "a#b"` pair, whose value is kept.
+ *
+ * A CONCATENATION READS ITS FIRST LITERAL and that is a MEASURED decision
+ * rather than an oversight; the module header above carries the numbers.
  */
 function argString(shape: CallShape, n: TsNode): string {
   if (isString(shape, n)) return unquoteLiteral(n.text).slice(0, MAX_ARG);

@@ -80,7 +80,10 @@ const DECOYS: Record<(typeof FIXTURES)[number], [string, string, string, string]
     ['src/main/decoys.ts', 'elasticsearch/#', 'network.client', 'fix round (a fragment is never sent on the wire; only the fragment clause refuses this one)'],
     ['src/main/decoys.ts', 'w3id.org/security/v1', 'network.client', 'fix round (a vocabulary host with no fragment; only the host clause refuses this one)'],
     ['src/main/decoys.ts', "fetchIt('https:///path');", 'network.client', 'fix round (no host)'],
-    ['src/main/late-nul.ts', 'LATE_NUL_SECRET', 'gate.env-read', 'fix round (a NUL at byte 8,100 is a binary to every reader)']
+    ['src/main/late-nul.ts', 'LATE_NUL_SECRET', 'gate.env-read', 'fix round (a NUL at byte 8,100 is a binary to every reader)'],
+    // Phase 261 item 6, class 1: the msw handlers, which live outside every test path.
+    ['src/mocks/handlers.ts', "http.get('https://api.example/v1/users'", 'network.client', 'Phase 261 item 6 (an msw handler declares a route a test will answer and reaches nothing)'],
+    ['src/mocks/handlers.ts', "http.post('/local'", 'network.client', 'Phase 261 item 6 (the receiver branch half of the same handler set)']
   ],
   'ts-next': [],
   python: [
@@ -89,7 +92,9 @@ const DECOYS: Record<(typeof FIXTURES)[number], [string, string, string, string]
     ['tests/test_items.py', 'requests.get("https://example.test/items")', 'network.client', 'spec §1.1 (a literal URL in a test is a fixture)'],
     ['cli.py', 'arr.flag(1)', 'surface.cli.arg', 'spec §1.1 (the x.flag(1) shape)'],
     ['cli.py', 'cache.option("k")', 'surface.cli.arg', "spec §1.1 (the map.option('k') shape)"],
-    ['pyproject.toml', 'y = "a:b"', 'entrypoint.py.script', 'spec §1.4 (outside a scripts table)']
+    ['pyproject.toml', 'y = "a:b"', 'entrypoint.py.script', 'spec §1.4 (outside a scripts table)'],
+    // Phase 261 item 6, class 2: a construction reached by a call rather than by new.
+    ['src/client.py', 'requests.Request("GET", url)', 'network.client', 'Phase 261 item 6 (a Request is built here and reaches nothing until a session sends it)']
   ],
   go: [
     ['main.go', 'viper.Default()', 'entrypoint.composition', "spec §1.1 (gotify's shape)"],
@@ -106,7 +111,10 @@ const DECOYS: Record<(typeof FIXTURES)[number], [string, string, string, string]
     ['router/router.go', 'client.Get(url)', 'surface.http.method-call', 'spec §1.1 (a client receiver)'],
     ['router/router.go', 'update plugin conf failed', 'store.sql', "fix round (gotify's error message beginning with a verb)"],
     ['main.go', '&http.Request{Method: "GET"}', 'network.client', "fix round (a struct literal captured as new, 25 of miniflux's 48)"],
-    ['router/router_test.go', 'http.NewServeMux()', 'entrypoint.composition', "fix round (a composition root in _test.go, 2 of miniflux's 7)"]
+    ['router/router_test.go', 'http.NewServeMux()', 'entrypoint.composition', "fix round (a composition root in _test.go, 2 of miniflux's 7)"],
+    // Phase 261 item 4: BOTH branches of surface.http.handlefunc, which is the half the entry's summary did not name.
+    ['main.go', 'mux.HandleFunc("GET https://evil.example.com/abs", h)', 'surface.http.handlefunc', 'Phase 261 item 4 (an absolute URL inside the Go 1.22 method pattern is not a route)'],
+    ['main.go', 'mux.HandleFunc("https://evil.example.com/plain", h)', 'surface.http.handlefunc', 'Phase 261 item 4 (the plain branch is affected too)']
   ],
   rust: [
     ['build.rs', 'Command::new("git").args(args).output()', 'surface.cli.clap', 'ripgrep/surface/2'],

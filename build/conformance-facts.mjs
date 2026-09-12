@@ -35,6 +35,21 @@
  * opening and the migration extension. Each is a decoy line in a fixture that
  * rule 1 pins byte for byte, so each ablation names the fixture line it moves.
  *
+ * PHASE 261 ADDED NO RULE AND THREE ABLATIONS, one per clause it shipped.
+ * Item 4: `surface.http.handlefunc` refuses an absolute URL, over the RESOLVED
+ * target so the plain branch is covered as well as the Go 1.22 pattern one,
+ * which the entry's summary did not name. Item 6: an msw handler declares a
+ * route and reaches nothing, and `requests.Request(...)` builds a request
+ * rather than sending one. It added NO ablation for item 5, because item 5
+ * shipped no clause: the closed set of joining nodes that would stop
+ * `app.get('/' + 'a', h)` reading `/` was driven over these fixtures and this
+ * checkout's own `src/` and cost 56 correct rows for 0 gained, so
+ * `src/main/symbols/calls.ts`'s header carries the measurement and the class
+ * stays open. Two of the round's stated limits are pinned instead of ablated,
+ * being that concatenation in `src/main/decoys.ts` and the class 3 reach in
+ * the go fixture's `main.go`: a round that closes either moves a pinned line
+ * and has to re-judge the row rather than discovering it later.
+ *
  *
  *  1. The per-language table: over build/fixtures/facts/* the reader's facts
  *     equal expected.json byte for byte, and the count table is pinned.
@@ -398,6 +413,33 @@ const ABLATIONS = [
     arms: ['fixtures'],
     red: 'rule 1'
   },
+  // ── Phase 261, items 4 and 6. Item 5 has no ablation because it has no
+  // clause: it was measured and refused, and src/main/symbols/calls.ts's
+  // header carries the numbers. ──
+  {
+    name: 'rule 1, the absolute-URL refusal removed from surface.http.handlefunc (Phase 261 item 4)',
+    file: 'main/arch/facts/rules-surface.ts',
+    from: 'if (/^(https?|wss?):\\/\\//.test(target)) return null;',
+    to: 'if (false) return null;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: 'rule 13, the msw refusal removed from network.client (Phase 261 item 6 class 1)',
+    file: 'main/arch/facts/rules-network.ts',
+    from: 'if (MSW_RECV.test(s.recv) && NAMES_MSW.test(c.text)) return null;',
+    to: 'if (false) return null;',
+    arms: ['fixtures'],
+    red: 'rule 13'
+  },
+  {
+    name: 'rule 13, the Request construction refusal removed from the receiver branch (Phase 261 item 6 class 2)',
+    file: 'main/arch/facts/rules-network.ts',
+    from: "if (s.form === 'call' && (s.last === 'Request' || s.last === 'HttpRequest')) return null;",
+    to: 'if (false) return null;',
+    arms: ['fixtures'],
+    red: 'rule 13'
+  },
   {
     name: 'rule 1, the absolute-URL refusal removed from surface.http.method-call (H3)',
     file: 'main/arch/facts/rules-surface.ts',
@@ -597,6 +639,21 @@ function pinFixtures(got, problems) {
         if (d !== undefined && net.some((f) => f.file === d.file && f.line === d.line)) problems.push(`rule 13: ${why} reads as a network reach (${d.evidence})`);
       }
       if (!net.some((f) => f.file === 'src/main/decoys.ts' && f.subject === 'talks to https://api.example/v2')) problems.push('rule 13: the control reach(https://api.example/v2) yields no network fact');
+      // Rule 13, Phase 261 item 6 class 1: an msw handler DECLARES a route a
+      // test will answer and reaches nothing, and it lives outside every test
+      // path, which is why the refusal is the file naming msw. The controls
+      // are the SAME receiver on both branches in a file that does not.
+      const mswDecoys = expected.fixtures['ts-electron'].decoys.filter((x) => x.file === 'src/mocks/handlers.ts');
+      if (mswDecoys.length !== 2) problems.push(`rule 13: the msw table names ${mswDecoys.length} decoy(s) and the fixture plants two`);
+      for (const d of mswDecoys) {
+        if (net.some((f) => f.file === d.file && f.line === d.line)) problems.push(`rule 13: an msw handler reads as a network reach (${d.evidence})`);
+      }
+      if (!net.some((f) => f.file === 'src/main/net.ts' && f.subject === 'talks to https://api.example/v3')) {
+        problems.push('rule 13: the control http.get in a file that does not name msw yields no reach');
+      }
+      if (!net.some((f) => f.file === 'src/main/net.ts' && f.subject === 'HTTP client call')) {
+        problems.push('rule 13: the control http.post in a file that does not name msw yields no client call');
+      }
       const effectKinds = [...new Set(have.facts.filter((f) => f.category === 'effect').map((f) => f.kind))].sort();
       if (effectKinds.some((k) => k !== 'spawn' && k !== 'fs-write')) problems.push(`rule 13: effect holds ${effectKinds.join(', ')}`);
       // Rule 14: gate.auth and gate.refusal on their decoys.
@@ -620,6 +677,18 @@ function pinFixtures(got, problems) {
       }
       const tests = have.facts.filter((f) => f.file === 'tests/test_items.py' && f.category === 'test');
       if (tests.length !== 3) problems.push(`rule 14: three python tests, one decorated, read ${tests.length} test facts (one per test is the rule)`);
+      // Rule 13, Phase 261 item 6 class 2: `requests.Request(...)` BUILDS a
+      // request and reaches nothing until a session sends it, the same
+      // refusal Phase 257 made for Go's &http.Request{} reached by a call
+      // rather than by new. The control is lower case `requests.request`,
+      // which IS a reach, and it is what makes the case clause load bearing.
+      const pyNet = have.facts.filter((f) => f.category === 'network');
+      for (const d of expected.fixtures.python.decoys.filter((x) => x.rule === 'network.client')) {
+        if (pyNet.some((f) => f.file === d.file && f.line === d.line)) problems.push(`rule 13: ${d.evidence} reads as a network reach`);
+      }
+      if (!pyNet.some((f) => f.file === 'src/client.py' && f.subject === 'HTTP client call')) {
+        problems.push('rule 13: the control requests.request("GET", url) yields no client call');
+      }
     }
     if (name === 'go') {
       const comp = have.facts.filter((f) => f.rule === 'entrypoint.composition');
@@ -628,7 +697,27 @@ function pinFixtures(got, problems) {
       }
       if (comp.some((f) => f.file.endsWith('_test.go'))) problems.push('rule 14: a composition root in _test.go reads as the program start');
       // Rule 13: a struct literal captured as a construction is not a client call.
-      if (have.facts.some((f) => f.file === 'main.go' && f.kind === 'client')) problems.push('rule 13: &http.Request{…} in main.go reads as an HTTP client call');
+      // ASKED OF ITS OWN LINE since Phase 261, because main.go now carries a
+      // second client row on purpose: the class 3 limit two lines below.
+      const reqDecoy = expected.fixtures.go.decoys.find((d) => d.evidence.includes('&http.Request{'));
+      if (reqDecoy === undefined) problems.push('rule 13: the &http.Request{…} decoy is gone from the go table');
+      else if (have.facts.some((f) => f.file === reqDecoy.file && f.line === reqDecoy.line && f.kind === 'client')) problems.push('rule 13: &http.Request{…} in main.go reads as an HTTP client call');
+      // Rule 13, Phase 261 item 6 class 3, PINNED AS IT IS. The URL argument
+      // branch fires on any callee, so an absolute URL handed to HandleFunc
+      // reads as a reach the code may never make. rules-network.ts's header
+      // says why every mechanical answer to it costs more than it buys; a
+      // round that closes it moves this line and has to re-judge the row.
+      if (!have.facts.some((f) => f.file === 'main.go' && f.subject === 'talks to https://evil.example.com/plain')) {
+        problems.push('rule 13: the class 3 limit moved — an absolute URL argument on any callee no longer reads as a reach');
+      }
+      // Rule 14, Phase 261 item 4: NEITHER branch of surface.http.handlefunc
+      // reads an absolute URL as a route, with the real route beside them.
+      for (const d of expected.fixtures.go.decoys.filter((x) => x.rule === 'surface.http.handlefunc')) {
+        if (have.facts.some((f) => f.file === d.file && f.line === d.line && f.rule === 'surface.http.handlefunc')) {
+          problems.push(`rule 14: ${d.evidence} reads as a route`);
+        }
+      }
+      if (!have.facts.some((f) => f.file === 'main.go' && f.subject === 'HTTP GET /v1/me')) problems.push('rule 14: the control mux.HandleFunc("GET /v1/me", me) yields no route');
       if (!have.facts.some((f) => f.file === 'main.go' && f.kind === 'listen')) problems.push('rule 13: the control http.ListenAndServe in main.go yields no listen');
       if (!have.facts.some((f) => f.file === 'main.go' && f.subject === 'CLI flag verbose')) problems.push("rule 14: flag.BoolVar(&v, \"verbose\", …) yields no flag (the pointer is args[0])");
     }

@@ -27,7 +27,14 @@ try {
       echo: true,
       args: [join(here, 'explorer-app')],
       env: { HOME: home, GMUX_HARNESS_DIR: home, P256_FILES: files.join(',') },
-      tmuxSocket: `gmux-p256-${process.pid}`,
+      // PHASE 261. It was `gmux-p256-${process.pid}`, a scratch socket named
+      // for the teardown with NOTHING in this child's environment pointing the
+      // app at it. This launch opens its own explorer page rather than Tortie
+      // main (`entry: false`), so it started no tmux at all and the teardown
+      // ended a server nobody had created; had it been Tortie, the app would
+      // have used -L gmux while the teardown tidied an empty scratch server.
+      // withElectron refuses that pair now, and null is the honest answer.
+      tmuxSocket: null,
       ceilingMs: 120000
     },
     async (handle) => {
