@@ -1069,10 +1069,18 @@ try {
   const archDir = join(repoRoot, 'src', 'renderer', 'arch');
   const named = walk(archDir, []).filter((f) => {
     const base = f.slice(archDir.length + 1);
-    if (base.includes('/')) return false;
+    // PHASE 259'S INDEPENDENT RE-VERIFY, finding F2. The blanket subdirectory
+    // drop was the hand-list class this rule exists to close, one level down:
+    // a chip planted at src/renderer/arch/map/ArchPlantNested.tsx importing
+    // '../cite' left the count at six and the gate exit 0. Only __tests__ is
+    // excluded now, and it must be, because
+    // src/renderer/arch/__tests__/p259-semantic.test.tsx deliberately holds
+    // 'this claim was verified' and would fail the scan below. The import test
+    // reaches a face at any depth.
+    if (base.split('/').includes('__tests__')) return false;
     if (base === 'cite.ts' || base === 'arch-semantic.css') return true;
     const text = readFileSync(f, 'utf8');
-    return /from '\.\/cite'/.test(text) || /from '\.\/ArchClaim'/.test(text);
+    return /from '(?:\.\.\/)*\.?\/?(?:cite|ArchClaim)'/.test(text);
   });
   if (named.length < SEMANTIC_FACE_FLOOR) {
     fail(`rule 6c: ${String(named.length)} semantic face file(s) were found and the floor is ${String(SEMANTIC_FACE_FLOOR)}; a surface that stopped drawing a graded citation, or was deleted, lowers the floor in the same commit`);
