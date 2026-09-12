@@ -34,12 +34,31 @@
  * PHASE 261 CLOSED TWO MORE OF THOSE CLASSES AND REFUSED THE THIRD, and the
  * refusal is written down here rather than dropped in silence.
  *
- * Closed: an msw handler, `http.get('https://api…', …)` in a file that
- * imports msw, which DECLARES a route a test will answer and reaches nothing;
- * and `requests.Request('GET', url)`, a CONSTRUCTION reached by a call rather
+ * Closed: an msw handler, `http.get('https://api…', …)` in a file that NAMES
+ * msw, which DECLARES a route a test will answer and reaches nothing; and
+ * `requests.Request('GET', url)`, a CONSTRUCTION reached by a call rather
  * than by `new`. The second one changes nothing where the URL is a LITERAL,
  * because the URL argument branch above answers that site whatever the
  * receiver is, and saying so is the honest half of the fix.
+ *
+ * NAMES, NOT IMPORTS, AND THE FIX ROUND CORRECTED THIS SENTENCE. It read "in
+ * a file that imports msw" while `NAMES_MSW` is tested against `c.text`, being
+ * the WHOLE file, so a mention inside a COMMENT counts. That is the same
+ * question `NAMES_CLAP` asks in `./rules-surface.ts` and the one
+ * `RuleContext.text` exists for, and it is deliberately the wide direction: a
+ * file that names msw at all is a file whose `http.get` is most likely a
+ * handler, and the cost of being wrong that way is a row this base does not
+ * draw rather than a row it invents.
+ *
+ * THE COST IS MEASURED AND IS THE STATED LIMIT. A file whose ONLY mention of
+ * msw is a comment loses its real client rows: driven through the shipping
+ * rule, `http.get('https://really.example.com/v1')` and `http.post('/x')` in
+ * such a file both answer nothing, where the same two sites in a file that
+ * never says msw answer `talks to https://really.example.com/v1` and `HTTP
+ * client call`. `__tests__/p261-msw-names.test.ts` pins both readings, so this
+ * paragraph cannot drift away from the code the way the first one did. The
+ * second half of the same limit is a REAL `http.get` in a file that also names
+ * msw, which is the narrower mistake and is named above.
  *
  * REFUSED, AND IT STAYS A STATED LIMIT: the URL argument branch fires on ANY
  * callee, so `anything("https://x.example.com")` reads as a reach and a URL
@@ -84,11 +103,13 @@ const VOCABULARY_HOST = /^(https?):\/\/(www\.)?(w3\.org|w3id\.org|purl\.org|sche
 const URL_PARSE = /^(URL|URI|Uri|NSURL)$/;
 
 /**
- * A file that names the msw package. An msw handler DECLARES a route a test
- * will answer and reaches nothing, and the test-path refusal never caught
- * them because they live in `src/mocks/handlers.ts` rather than under a test
- * path. So the test is the FILE, the way `NAMES_CLAP` is in
- * `./rules-surface.ts`.
+ * A file that NAMES the msw package, a mention in a comment included, because
+ * this is asked of `RuleContext.text` and that is the whole file. An msw
+ * handler DECLARES a route a test will answer and reaches nothing, and the
+ * test-path refusal never caught them because they live in
+ * `src/mocks/handlers.ts` rather than under a test path. So the test is the
+ * FILE, the way `NAMES_CLAP` is in `./rules-surface.ts`. What that costs, and
+ * why it is not narrowed to an import, is in this file's header.
  */
 const NAMES_MSW = /\bfrom\s+['"]msw(\/\w+)?['"]|require\(['"]msw(\/\w+)?['"]\)/;
 /** The msw receivers. `http.get`, `https.post` and `graphql.query` are its whole surface. */

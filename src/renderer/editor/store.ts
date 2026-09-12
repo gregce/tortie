@@ -106,12 +106,34 @@
  *
  * AND THE CAP IS ASKED ON THE OPEN PATH ONLY. `rehome` moves a tab onto
  * another project's strip without asking `MAX_TABS`, and `switchProject`
- * hands a tab of no project to the first active one the same way, so a strip
- * can hold eleven until the next open there evicts it back down to ten. It
- * was true at Phase 260's parent as well as at its HEAD, and Phase 261 stated
- * it rather than fixing it: the two movers dispose nothing, and evicting
- * somebody's tab as a side effect of a project being ADDED is a worse answer
- * than a strip that is briefly one over.
+ * hands EVERY tab of no project to the first active one the same way, so a
+ * strip can hold more than ten. It was true at Phase 260's parent as well as
+ * at its HEAD, and Phase 261 stated it rather than fixing it: the two movers
+ * dispose nothing, and evicting somebody's tab as a side effect of a project
+ * being ADDED is a worse answer than a strip that is over.
+ *
+ * PHASE 261'S FIX ROUND CORRECTED THIS PARAGRAPH, because the first version
+ * of it said "eleven, until the next open there evicts it back down to ten"
+ * and BOTH HALVES ARE FALSE. They are measured now, by driving this store in
+ * `__tests__/p261-strip-high-water.test.ts` rather than by reading it:
+ *
+ *   eleven is `rehome`'s ceiling and nobody else's. `rehome` moves ONE tab, so
+ *   a strip already at ten goes to eleven and no further. `switchProject`
+ *   adopts the WHOLE null strip in one go, so what it leaves is whatever the
+ *   destination held plus whatever that strip held: five own tabs and eight
+ *   adopted reads 13, and a second leave-and-adopt cycle reads 21. There is no
+ *   ceiling in it at all, only the size of the strip being adopted.
+ *
+ *   the next open does not bring it down. The eviction below removes EXACTLY
+ *   ONE tab for the one it just pushed, so an over-cap strip stays where it is:
+ *   measured at 11, 11, 11 across two further opens after a rehome, and at 21,
+ *   21, 21, 21 across four after two adopt cycles. The high-water mark is where
+ *   the strip lives until a person closes something.
+ *
+ * A strip that DRAINED would have to evict more than it adds, which is the
+ * same "close somebody's tab because a project moved" this paragraph refuses,
+ * so the limit is stated at its real size rather than made smaller by a
+ * sentence.
  */
 
 import { create } from 'zustand';

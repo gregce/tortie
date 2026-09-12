@@ -121,7 +121,14 @@ import { fileURLToPath } from 'node:url';
 // The lexer both this gate and build/assert-known-hosts-scoped.mjs read source
 // with. It was extracted from this file in Phase 193 rather than copied.
 import { buildScriptNames } from './build-scripts.mjs';
-import { blockAt, callArguments, lineAt, stripComments } from './scan-source.mjs';
+import {
+  blockAt,
+  callArguments,
+  closeOf,
+  functionBodyOf,
+  lineAt,
+  stripComments
+} from './scan-source.mjs';
 
 export { stripComments };
 
@@ -594,6 +601,20 @@ function runFixtures(failures) {
  *       matching brackets, proved on three planted texts.
  *   5f  every `-L gmux` argv composed in electron-run.mjs is a list-sessions,
  *       proved on two plants.
+ *   5g  an env naming the operator's OWN server is refused whatever else the
+ *       launch sets, with a control that must still reach the program check.
+ *   5h  the two backstops are WIRED into withElectron rather than merely
+ *       exported, read by matching braces and proved on seven planted texts.
+ *
+ * 5g AND 5h ARE THE FIX ROUND'S AND EACH CLOSES A HOLE A VERIFIER DROVE. 5g's
+ * shape walked past all four layers: `GMUX_TMUX_SOCKET: 'gmux'` with a harness
+ * term beside it and `tmuxSocket: null`, which is an override the app OBEYS
+ * rather than one it ignores. 5h's hole was this gate's own: it drove the pure
+ * `announcementFinding` and `censusFinding` and never asked whether anything
+ * CALLED them, so deleting the three lines in `withElectron`'s reader that
+ * reject on a disagreeing announcement, and replacing the census read with
+ * `null`, each left this gate printing OK at exit 0 while the backstops did
+ * nothing. A judgement nothing asks is not a backstop.
  *
  * And five ablations, one clause each, every one of which must turn a named arm
  * red. Each ablated copy is required to LOAD and answer before its arm is
@@ -689,8 +710,45 @@ async function socketReadings(helper) {
     tmuxSocket: 'gmux-p261-teardown',
     env: { ...scrub, GMUX_TMUX_SOCKET: undefined }
   });
-  return { a, b, order, cDiffers, cAbsent };
+  // 5g's three, and the control is what stops a clause that refuses everything
+  // reading as a clause that refuses the right thing.
+  const liveGmux = await drive(helper, {
+    label: 'p261-5g-gmux',
+    userDataDir: profile,
+    ...dead,
+    tmuxSocket: null,
+    env: { ...scrub, GMUX_TMUX_SOCKET: 'gmux', GMUX_PROBES: '0' }
+  });
+  const liveDefault = await drive(helper, {
+    label: 'p261-5g-default',
+    userDataDir: profile,
+    ...dead,
+    tmuxSocket: null,
+    env: { ...scrub, GMUX_TMUX_SOCKET: 'default', GMUX_PROBES: '0' }
+  });
+  const liveControl = await drive(helper, {
+    label: 'p261-5g-control',
+    userDataDir: profile,
+    ...dead,
+    tmuxSocket: null,
+    env: { ...scrub, GMUX_TMUX_SOCKET: 'gmux-p261-gate', GMUX_PROBES: '0' }
+  });
+  return { a, b, order, cDiffers, cAbsent, liveGmux, liveDefault, liveControl };
 }
+
+/**
+ * Every driven launch that is in a shape layer 2 must refuse. The pass sentence
+ * counts this list rather than quoting a number, so an arm added here moves the
+ * sentence with it.
+ */
+const WRONG_SHAPES = (live) => [
+  live.a,
+  live.order,
+  live.cDiffers,
+  live.cAbsent,
+  live.liveGmux,
+  live.liveDefault
+];
 
 /** True when this reading is the layer 2 socket refusal and not a later one. */
 function isSocketRefusal(reading) {
@@ -766,6 +824,245 @@ const TERM_FIXTURES = [
   }
 ];
 
+/**
+ * 5h's scanner. Are the two backstops WIRED into `withElectron`, or merely
+ * exported?
+ *
+ * This is asked of `withElectron`'s OWN braces, because the hole it closes was
+ * a judgement that still answered while nothing asked it. Two properties, and
+ * each is read structurally rather than by searching the file for a word:
+ *
+ *   announcement  the body calls `announcementFinding(`, assigns it a name, and
+ *                 the guard that decides on THAT NAME holds a call to the
+ *                 rejection. `if (false) {` therefore reads as unwired, which
+ *                 is the ablation, and so does a block with the reject deleted.
+ *   census        `censusBefore` is read from `liveSessionNames()`, that read
+ *                 sits ABOVE the spawn, and the `finally` block hands it to
+ *                 `censusFinding` with a fresh reading beside it. A census read
+ *                 after the spawn would miss exactly the sessions it exists to
+ *                 see.
+ *
+ * @param {string} source
+ * @returns {{announcement: boolean, census: boolean, why: string[]}}
+ */
+export function backstopWiring(source) {
+  const why = [];
+  const code = stripComments(source);
+  const body = functionBodyOf(code, 'withElectron');
+  if (body === null) {
+    return {
+      announcement: false,
+      census: false,
+      why: ['withElectron has no body this scanner can read']
+    };
+  }
+
+  // The announcement half.
+  let announcement = false;
+  const call = body.indexOf('announcementFinding(');
+  if (call === -1) why.push('withElectron never calls announcementFinding()');
+  else {
+    const named = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(
+      body.slice(0, call)
+    );
+    if (named === null) {
+      why.push('the announcementFinding() call is not assigned to a name');
+    } else {
+      const name = named[1];
+      const guards = /if\s*\(/g;
+      guards.lastIndex = call;
+      let g;
+      while ((g = guards.exec(body)) !== null) {
+        const open = g.index + g[0].length - 1;
+        const shut = closeOf(body, open);
+        if (shut === -1) break;
+        const condition = body.slice(open + 1, shut);
+        if (!new RegExp(`\\b${name}\\b`).test(condition)) continue;
+        // Both spellings of a guarded statement: a braced block, and the one
+        // statement form a refactor may well produce. Taking only the braced
+        // one would read a correct refactor as unwired, which is a gate that
+        // cries wolf, and this scanner has to be able to fail for the right
+        // reason only.
+        const rest = body.slice(shut + 1);
+        const lead = /^\s*/.exec(rest)?.[0].length ?? 0;
+        const guarded =
+          rest[lead] === '{'
+            ? blockAt(body, shut + 1 + lead)
+            : rest.slice(lead, rest.indexOf(';', lead) + 1);
+        // `announcementRejected` is a FLAG and not the rejection: the call is
+        // what has to be there, so the name is read as a call rather than as a
+        // substring.
+        if (guarded !== null && /announcementReject\s*\??\.?\(/.test(guarded)) {
+          announcement = true;
+        }
+        break;
+      }
+      if (!announcement) {
+        why.push(
+          `nothing in withElectron rejects on ${name}: the guard that names ` +
+            'it is gone, or it no longer holds the rejection'
+        );
+      }
+    }
+  }
+
+  // The census half.
+  let census = false;
+  const assigned = /\b(?:const|let|var)\s+censusBefore\s*=\s*([^;]+);/.exec(body);
+  if (assigned === null) why.push('withElectron never reads censusBefore');
+  else if (!/liveSessionNames\s*\(\s*\)/.test(assigned[1])) {
+    why.push(`censusBefore is ${assigned[1].trim()} rather than a live reading`);
+  } else {
+    // Asked as a pattern rather than as the literal text, because
+    // build/assert-background-teardown.mjs discovers spawn call names by
+    // scanning for exactly that literal and a string holding it reads as a
+    // call this file makes.
+    const spawnAt = body.search(/\bspawn\s*\(/);
+    if (spawnAt !== -1 && assigned.index > spawnAt) {
+      why.push('the census is read AFTER the spawn, so it cannot see the launch');
+    } else {
+      const fin = /\bfinally\s*\{/.exec(body);
+      const block = fin === null ? null : blockAt(body, fin.index + fin[0].length - 1);
+      if (block === null) why.push('withElectron has no finally block to read');
+      else if (!/censusFinding\s*\(\s*censusBefore\s*,/.test(block)) {
+        why.push('the finally block never hands censusBefore to censusFinding');
+      } else census = true;
+    }
+  }
+  return { announcement, census, why };
+}
+
+/**
+ * 5h's fixtures. Five of the seven must make the scanner answer false, and the
+ * two that pass are the shipping shape and a spelling of it a refactor might
+ * reasonably produce, so the scanner is seen to fail AND seen not to be a
+ * tautology.
+ */
+const WIRING_FIXTURES = [
+  {
+    name: 'the shape that ships',
+    text: `export async function withElectron(options, body) {
+      const censusBefore = tmuxSocket !== null ? liveSessionNames() : null;
+      try {
+        const child = spawn(bin, argv, {});
+        const onText = (b) => {
+          const finding = announcementFinding({ wanted, announced: all });
+          if (finding !== null) {
+            announcementRejected = true;
+            announcementReject?.(new Error(finding));
+          }
+        };
+      } finally {
+        await teardown(entry, grace);
+        if (censusBefore !== null) {
+          const drift = censusFinding(censusBefore, liveSessionNames());
+        }
+      }
+    }`,
+    want: { announcement: true, census: true }
+  },
+  {
+    name: 'a truthy guard spelled without the comparison',
+    text: `export async function withElectron(options, body) {
+      const censusBefore = liveSessionNames();
+      try {
+        const child = spawn(bin, argv, {});
+        const say = () => {
+          const finding = announcementFinding({ wanted, announced: all });
+          if (finding) announcementReject?.(new Error(finding));
+        };
+      } finally {
+        const drift = censusFinding(censusBefore, liveSessionNames());
+      }
+    }`,
+    want: { announcement: true, census: true }
+  },
+  {
+    name: 'the guard made constant, which is the ablation',
+    text: `export async function withElectron(options, body) {
+      const censusBefore = liveSessionNames();
+      try {
+        const child = spawn(bin, argv, {});
+        const say = () => {
+          const finding = announcementFinding({ wanted, announced: all });
+          if (false) {
+            announcementReject?.(new Error(finding));
+          }
+        };
+      } finally {
+        const drift = censusFinding(censusBefore, liveSessionNames());
+      }
+    }`,
+    want: { announcement: false, census: true }
+  },
+  {
+    name: 'the finding computed and thrown away',
+    text: `export async function withElectron(options, body) {
+      const censusBefore = liveSessionNames();
+      try {
+        const child = spawn(bin, argv, {});
+        const say = () => {
+          const finding = announcementFinding({ wanted, announced: all });
+          if (finding !== null) {
+            announcementRejected = true;
+          }
+        };
+      } finally {
+        const drift = censusFinding(censusBefore, liveSessionNames());
+      }
+    }`,
+    want: { announcement: false, census: true }
+  },
+  {
+    name: 'the census read replaced by null',
+    text: `export async function withElectron(options, body) {
+      const censusBefore = null;
+      try {
+        const child = spawn(bin, argv, {});
+        const say = () => {
+          const finding = announcementFinding({ wanted, announced: all });
+          if (finding !== null) announcementReject?.(new Error(finding));
+        };
+      } finally {
+        const drift = censusFinding(censusBefore, liveSessionNames());
+      }
+    }`,
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census read after the spawn',
+    text: `export async function withElectron(options, body) {
+      try {
+        const child = spawn(bin, argv, {});
+        const censusBefore = liveSessionNames();
+        const say = () => {
+          const finding = announcementFinding({ wanted, announced: all });
+          if (finding !== null) announcementReject?.(new Error(finding));
+        };
+      } finally {
+        const drift = censusFinding(censusBefore, liveSessionNames());
+      }
+    }`,
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census never judged in the finally',
+    text: `export async function withElectron(options, body) {
+      const censusBefore = liveSessionNames();
+      try {
+        const child = spawn(bin, argv, {});
+        const say = () => {
+          const finding = announcementFinding({ wanted, announced: all });
+          if (finding !== null) announcementReject?.(new Error(finding));
+        };
+      } finally {
+        await teardown(entry, grace);
+      }
+    }`,
+    want: { announcement: true, census: false }
+  }
+];
+
 /** 5f's scanner: every -L gmux argv in one file, with the verb it was given. */
 export function operatorSocketVerbs(source) {
   const code = stripComments(source);
@@ -822,6 +1119,35 @@ const SOCKET_ABLATIONS = [
     from: `  const added = [...now].filter((n) => !was.has(n));`,
     to: `  const added = [];`,
     moved: (before, after) => before.censusAdded !== null && after.censusAdded === null
+  },
+  // ── The fix round's three. Each is a clause a verifier drove past, or one
+  //    this gate could not see at all. ──
+  {
+    name: 'the 2c clause, the refusal of an env naming the operator\'s own server',
+    file: HELPER,
+    from: `    const notScratch = refuseSocketReason(want);`,
+    to: `    const notScratch = null;`,
+    moved: (before, after) =>
+      isSocketRefusal(before.liveGmux) &&
+      isSocketRefusal(before.liveDefault) &&
+      !isSocketRefusal(after.liveGmux) &&
+      !isSocketRefusal(after.liveDefault) &&
+      /is not there/.test(after.liveGmux.message)
+  },
+  {
+    name: 'the announcement rejection, wired into withElectron\'s own reader',
+    file: HELPER,
+    from: `          if (finding !== null) {`,
+    to: `          if (false) {`,
+    moved: (before, after) =>
+      before.wiring.announcement && !after.wiring.announcement
+  },
+  {
+    name: 'the census read that sits above the spawn',
+    file: HELPER,
+    from: `  const censusBefore = tmuxSocket !== null ? liveSessionNames() : null;`,
+    to: `  const censusBefore = null;`,
+    moved: (before, after) => before.wiring.census && !after.wiring.census
   },
   {
     name: "the harness term build/harness-socket.mjs hands its child",
@@ -1030,12 +1356,89 @@ async function runRule5(failures) {
     }
   }
 
+  // 5g, the env that names the operator's own server. It is refused whatever
+  // else the launch sets, and the control must still reach the program check,
+  // because a clause that refuses everything is not this clause.
+  for (const [name, reading] of [
+    ['gmux', live.liveGmux],
+    ['default', live.liveDefault]
+  ]) {
+    if (!isSocketRefusal(reading)) {
+      failures.push({
+        what: `5g: an env naming "${name}" with a harness term was NOT refused`,
+        detail:
+          `It answered threw=${String(reading.threw)} "${reading.message}". A ` +
+          'harness term makes the app OBEY that name, so this launch would ' +
+          "have run its sessions on the operator's live server, and with " +
+          'tmuxSocket null the census never reads and layer 3 sees the app ' +
+          'agree with what was asked for. Every layer passes it.'
+      });
+    } else if (!/OBEY/.test(reading.message)) {
+      failures.push({
+        what: `5g: the refusal for "${name}" does not say the app would obey it`,
+        detail:
+          `It said "${reading.message}". The message is the whole remedy, and ` +
+          'the reason this shape is worse than the one 2a catches is that the ' +
+          'override works.'
+      });
+    }
+    if (reading.ran) {
+      failures.push({
+        what: `5g: the body ran for the env naming "${name}"`,
+        detail: 'The sentinel inside the body was reached, so the refusal came too late.'
+      });
+    }
+  }
+  if (!live.liveControl.threw || !/is not there/.test(live.liveControl.message)) {
+    failures.push({
+      what: '5g: the control launch on a scratch socket did not reach the program check',
+      detail:
+        `It answered threw=${String(live.liveControl.threw)} ` +
+        `"${live.liveControl.message}". A clause that refuses every env is ` +
+        'not the clause 5g is about, and this arm is what tells the two apart.'
+    });
+  }
+
+  // 5h, the wiring. The judgements above are pure and this gate drives them;
+  // what nothing asked until the fix round is whether withElectron CALLS them.
+  const wiring = backstopWiring(helperSource);
+  if (!wiring.announcement) {
+    failures.push({
+      what: '5h: nothing in withElectron rejects a launch on a disagreeing announcement',
+      detail:
+        `${wiring.why.join('; ')}. announcementFinding can answer perfectly ` +
+        'and change nothing, which is how layer 3 stops being a layer.'
+    });
+  }
+  if (!wiring.census) {
+    failures.push({
+      what: '5h: withElectron does not read the census around the launch',
+      detail:
+        `${wiring.why.join('; ')}. The read has to happen before the spawn ` +
+        'and be judged in the finally block, or layer 4 is a function nobody ' +
+        'calls.'
+    });
+  }
+  for (const f of WIRING_FIXTURES) {
+    const got = backstopWiring(f.text);
+    if (got.announcement !== f.want.announcement || got.census !== f.want.census) {
+      failures.push({
+        what: `5h: the fixture "${f.name}" read announcement=${String(got.announcement)} census=${String(got.census)}`,
+        detail:
+          `It must read announcement=${String(f.want.announcement)} ` +
+          `census=${String(f.want.census)}. A scanner nobody has seen fail is ` +
+          'not a scanner.'
+      });
+    }
+  }
+
   // The ablations.
   const before = {
     ...live,
     announce,
     censusAdded,
-    term
+    term,
+    wiring
   };
   let ablationsRed = 0;
   const dir = mkdtempSync(join(tmpdir(), 'p261-ablate-'));
@@ -1088,7 +1491,11 @@ async function runRule5(failures) {
           ...(await socketReadings(copy)),
           announce: announcementReadings(copy),
           censusAdded: copy.censusFinding(['a', 'b'], ['a', 'b', 'shell-1-6']),
-          term
+          term,
+          // The wiring is a property of the TEXT, so an ablation of it is read
+          // off the ablated copy rather than driven. It is the one reading here
+          // that no drive can take, which is exactly why it was missing.
+          wiring: backstopWiring(readFileSync(target, 'utf8'))
         };
       } else {
         after = {
@@ -1111,9 +1518,11 @@ async function runRule5(failures) {
   }
 
   return {
-    refusals: [live.a, live.order, live.cDiffers, live.cAbsent].filter(
-      isSocketRefusal
-    ).length,
+    // COUNTED, and the denominator is counted too, because a hand written
+    // number beside a measured one is how this file's rule 2 used to lie.
+    refusals: WRONG_SHAPES(live).filter(isSocketRefusal).length,
+    shapes: WRONG_SHAPES(live).length,
+    wiredBackstops: [wiring.announcement, wiring.census].filter(Boolean).length,
     ablationsRed
   };
 }
@@ -1223,9 +1632,12 @@ async function main() {
       `hides the name produced ${String(fixtures.sly)}, and the floor refused ` +
       `${String(fixtures.floorRefused)} of the 2 populations it was shown. ` +
       `The socket refusal was CALLED rather than read: ` +
-      `${String(socket.refusals)} of 4 launches in the wrong shape were ` +
-      `refused before anything was spawned, the announcement reader and the ` +
-      `census judged their fixtures, build/harness-socket.mjs hands its child ` +
+      `${String(socket.refusals)} of ${String(socket.shapes)} launches in ` +
+      `the wrong shape were refused before anything was spawned, an env ` +
+      `naming the operator's own server among them and a control beside it, ` +
+      `the announcement reader and the census judged their fixtures, ` +
+      `${String(socket.wiredBackstops)} of 2 backstops are wired into ` +
+      `withElectron's own braces, build/harness-socket.mjs hands its child ` +
       `a harness term beside the socket, list-sessions is the only verb aimed ` +
       `at -L gmux, and ${String(socket.ablationsRed)} of ` +
       `${String(SOCKET_ABLATIONS.length)} ablations each moved a reading.`

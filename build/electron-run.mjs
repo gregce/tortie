@@ -36,8 +36,10 @@
  * touching build/ must make the harness REFUSE such a launch rather than rely
  * on a person noticing, because relying on a person had been measured at 0 of 2.
  *
- * So this file now refuses a launch whose socket override would be ignored
- * (`socketRefusalReason`), asks the app which socket it really used and ends
+ * So this file now refuses a launch whose socket override would be ignored, and
+ * since Phase 261's fix round one that names the live server ITSELF, which is
+ * an override the app would OBEY (`socketRefusalReason`); it asks the app
+ * which socket it really used and ends
  * the launch when the answer disagrees (`announcedSockets`,
  * `announcementFinding`), and counts the operator's own sessions before and
  * after any launch that named a scratch socket (`liveSessionNames`,
@@ -335,10 +337,31 @@ const HARNESS_TERMS = Object.freeze([
 /**
  * Why this launch may not start, or null when it is fine. Layer 2.
  *
- * Two refusals, and each is a measured incident rather than a tidiness rule.
+ * Three refusals, and each is a measured incident rather than a tidiness rule.
+ * They are listed in the ORDER THEY ARE ASKED rather than by their letters, so
+ * 2c sits in the middle: it was added after 2b existed, and where it is asked
+ * is the property that keeps every other launch shape reading what it read
+ * before, so the letters are left alone and the order is what is written down.
  *
  *   2a. The env names a socket and no harness term is set. `activeTmuxSocket`
  *       would ignore the socket and the app would run on `-L gmux`.
+ *   2c. The env names a socket that is NOT a scratch socket, being `gmux`,
+ *       `default` or any name that does not start with `gmux-`, whatever else
+ *       the launch sets. PHASE 261'S FIX ROUND ADDED THIS ONE, and it is the
+ *       opposite half of 2a: 2a catches an override the app would IGNORE, and
+ *       this catches one the app would OBEY. The first verifier drove
+ *       `GMUX_TMUX_SOCKET: 'gmux'` with a harness term beside it and
+ *       `tmuxSocket: null`, and all four layers let it through — 2a permits it
+ *       because a term IS set, the no-socket warning does not print because a
+ *       socket WAS named, layer 3 finds the app's honest answer `gmux` equal to
+ *       the `gmux` that was asked for, and layer 4 never runs because the
+ *       census is read only for a launch that named a scratch socket. The app
+ *       would then have created its sessions on the operator's live server with
+ *       nothing anywhere saying so. It is refused whatever else is set, because
+ *       a launch has no legitimate reason to point the app at that server.
+ *       `refuseSocketReason` is the one spelling of what a scratch socket is,
+ *       asked here of the ENV and below of the TEARDOWN name, so the two halves
+ *       cannot drift apart.
  *   2b. `options.tmuxSocket` is a string and the composed env names a different
  *       socket, or names none at all. The teardown would then end a scratch
  *       server the app never used while the app used `-L gmux`. That is
@@ -360,6 +383,24 @@ export function socketRefusalReason(env, tmuxSocket) {
       `answer is GMUX_PROBES: '0', which makes it a harness launch for the ` +
       `socket and still arms no renderer drive.`
     );
+  }
+  if (want !== '') {
+    // 2c. The env points the app at a server that is not one of ours. This is
+    // asked AFTER 2a and BEFORE 2b deliberately: every other launch shape reads
+    // exactly what it read before this clause existed, and the one shape that
+    // moves is the one that was walking through.
+    const notScratch = refuseSocketReason(want);
+    if (notScratch !== null) {
+      return (
+        `GMUX_TMUX_SOCKET is "${want}" in this launch's environment, and ` +
+        `${notScratch} A harness term makes the app OBEY that name rather ` +
+        `than ignore it, so this launch would put its own sessions there and ` +
+        `neither the announcement nor the census would say anything was ` +
+        `wrong. Name a scratch socket of this run's own, being ` +
+        `gmux-<phase>-<pid>, or run through build/harness-socket.mjs, which ` +
+        `composes one.`
+      );
+    }
   }
   if (typeof tmuxSocket === 'string' && tmuxSocket !== '') {
     if (want === '') {
