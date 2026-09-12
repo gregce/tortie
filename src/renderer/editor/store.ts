@@ -1297,8 +1297,16 @@ export const useEditor = create<EditorState>((set, get) => {
         // THIS PROJECT, never another project's, which would switch projects
         // under a gesture that only asked for the panel. The question is
         // which project the request LANDED in, recorded when it did; see
-        // `lastRequestProjectId` for why it is not re-asked here.
-        s.lastRequestProjectId === s.projectId
+        // `lastRequestProjectId` for why the record is asked.
+        s.lastRequestProjectId === s.projectId &&
+        // AND where it would land NOW. The two disagree when a folder BECAME
+        // a project after the open: the record says alpha, `projectOf` says
+        // delta, and `openFromRequest` would reveal delta under a gesture that
+        // only asked for alpha's panel. The record alone shipped that
+        // regression at d15cd0c7; the re-ask alone shipped the CLAUDE.md one
+        // at 721b35c6. Both clauses are needed, and the independent
+        // re-verifier's RV4 case below pins the second.
+        projectOf(s.lastRequest) === s.projectId
       ) {
         s.openFromRequest(s.lastRequest);
       }

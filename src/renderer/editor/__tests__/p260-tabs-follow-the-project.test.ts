@@ -580,6 +580,42 @@ describe('the strip a person can see', () => {
     expect(useApp.getState().activeProjectId).toBe(A.id);
     expect(useEditor.getState().panelOpen).toBe(true);
   });
+
+  it('⌘E with no tabs never moves the app to a folder that BECAME a project after the open', async () => {
+    // THE INDEPENDENT RE-VERIFIER'S RV4, the one red at d15cd0c7 and green at
+    // 721b35c6. /work/delta/f.ts is opened from alpha while delta is not a
+    // project, so the tab is alpha's by §5.1's second clause and the record
+    // says alpha. Then delta is ADDED as a project. Close All in alpha, ⌘E in
+    // alpha: the record passed, `projectOf` now answered delta because a root
+    // holds the file, and `openFromRequest` revealed delta under a gesture
+    // that only asked for alpha's panel. The guard asks both.
+    const D = { id: 'proj-d', path: '/work/delta', name: 'delta' };
+    const f = `${D.path}/f.ts`;
+    try {
+      useEditor.getState().openFromRequest({
+        repoPath: A.path,
+        relPath: f,
+        path: f,
+        mode: 'file',
+        source: 'tree',
+        preview: false
+      });
+      await flush();
+      expect(useEditor.getState().activeTab()?.projectId).toBe(A.id);
+      useApp.setState({ projects: [A, B, C, D] });
+      useEditor.getState().closeAll();
+      expect(openIds()).toEqual([]);
+      expect(useApp.getState().activeProjectId).toBe(A.id);
+      useEditor.getState().togglePanel();
+      await flush();
+      expect(useApp.getState().activeProjectId).toBe(A.id);
+      expect(useEditor.getState().projectId).toBe(A.id);
+      expect(visibleIn(D.id)).toEqual([]);
+      expect(openIds()).toEqual([]);
+    } finally {
+      useApp.setState({ projects: [A, B, C], activeProjectId: A.id });
+    }
+  });
 });
 
 describe('closing a project (research 119 §5.2)', () => {
