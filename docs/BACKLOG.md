@@ -11878,7 +11878,7 @@ button itself and show ONE session created rather than two. A double create is a
 Item 2 adds a setting, which is a Settings surface rather than a menu item, so no native menu
 changes. State that in the commit body so the house rule is visibly satisfied rather than skipped.
 
-## Phase 86.1 — the third recorded nits round, NOT QUEUED
+## Phase 86.1 — the third recorded nits round, ITS TABLE TAKEN BY PHASE 261 (2026-09-12)
 
 Small things that shipped phases left behind, collected as they were found so none is lost. None
 blocks a rung. Phase 73.1 emptied the previous table on 2026-08-18, so this is where a nit goes now.
@@ -26655,6 +26655,100 @@ one sentence. Parent measured: at `e125e800` neither view exists.
 
 ---
 
+## Phase 261 — the sixth nits round, and the harness rule two rounds failed to keep (operator asked 2026-09-12)
+
+**Subject.** `fix(nits): the small things, and the harness that refuses`
+
+**First body line.** `Phase 261: the sixth nits round`
+
+**Semver.** Patch, unless the Cmd-T item changes a behaviour a person will notice, in which case minor.
+
+**Tier is PER ITEM, never promoted to the round.** Most items are Tier 1 (a comment, a count, a
+sentence) and are proved by the gate battery alone. **The Cmd-T selection race is Tier 2** — the
+operator reported the behaviour, so the parent commit measurement is mandatory and it gets one app run.
+**The harness refusal is Tier 3**, because it is the guard that twice failed to stop a probe writing
+to his live session server, and its evidence is a driven refusal rather than a read of the code.
+
+**Charter.** He asked for the small fixes on 2026-09-12. The round collects what shipped phases left
+behind: Phase 86.1's four recorded nits, which have waited since 2026-08-19, plus what later verdicts
+recorded and nobody fixed. **A nit is only in this round if it is written down somewhere already** —
+an entry in 86.1's table, a verdict, a commit body or a module header. This round invents nothing, and
+it empties 86.1's table the way Phase 73.1 emptied its predecessor.
+
+**THE ITEMS, and each names where it was recorded.**
+
+1. **The harness must refuse a launch whose socket override was ignored (86.1, from Phases 86 and 87;
+   Tier 3, and it is the most important item in the round).** `activeTmuxSocket` in
+   `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only on a harness launch. Twice a probe
+   launched without `GMUX_SHOT` or a smoke mode, the override was ignored, and the app ran against his
+   live `-L gmux` server and created sessions on it: `shell-1-5`, `cursor-1-2` and `claude-1-4` on
+   2026-08-18, then `shell-1-6` and `claude-1-4` on 2026-08-19. The app logged *"GMUX_TMUX_SOCKET is
+   set but this is not a harness launch, so it is ignored"* three times and nobody read it. **Prose has
+   now been measured at 0 of 2**, so the fix is mechanical: `build/electron-run.mjs` — the one helper
+   every launch goes through — refuses to start, or stops the run, when `GMUX_TMUX_SOCKET` is set and
+   the launch is not a harness launch, and asserts which socket the app actually used. A `gate:`
+   arm proves the refusal fires, and the ablation of the guard turns it red.
+2. **A drive script writes its result to a file (86.1, from Phase 90.2).** `p902rv/p90.2-rv-escape.mjs`
+   ended in three `console.log` calls and held no write, so its numbers died with the transcript, as
+   Phase 87's whole study had. The rule goes into `build/` where a script can read it, and the round
+   states it as a convention rather than retrofitting every existing script.
+3. **The Cmd-T name selection race (86.1, from Phase 86; Tier 2, operator-visible).**
+   `requestAnimationFrame(() => nameRef.current?.select())` at
+   `src/renderer/app/CreateSessionModal.tsx:408` races React's commit of the prefilled name, so typing
+   one letter replaces the name most of the time and appends to it the rest. Measured 6 of 6 selected
+   unloaded, and the opposite on 1 of 3 opens at load average 13.5. **The recorded 6 of 6 is optimistic
+   and a later reader must not treat it as reproducible.** The fix is a layout effect after the value
+   is committed. The app run measures the parent and HEAD under induced load, because that is the only
+   arm that can tell the fix from the race.
+4. **`surface.http.handlefunc` accepts an absolute URL (Phase 257's verifier, nit 1).**
+   `mux.HandleFunc("GET https://evil.example.com/abs", h)` reads as a surface; `surface.http.method-call`
+   already refuses it. Give the pattern branch the same refusal, with a fixture.
+5. **A concatenated path reads its first literal (Phase 257's verifier, nit 2).** `app.get('/' + 'a', h)`
+   reads `HTTP GET /`. Refuse a non-literal argument rather than taking half of it.
+6. **The remaining network false classes (Phase 257's verifier, nit 3).** msw `http.<verb>` mock
+   handlers, `requests.Request(...)` by call rather than `new`, and the URL-argument branch firing on
+   any callee. Each is mechanically nameable; fix what can be fixed without moving precision down, and
+   record what stays as a stated limit in the rule's own header.
+7. **A `main` spelled with `..` under-seeds a unit (Phase 258's verifier, item 3).** `beside()` folds
+   only `./`, so `../victim/src/index.ts` is dropped and the unit reads `composed`. It errs safe. **One
+   clause in `evidence.ts`'s header, not a code change**, unless the builder measures that fixing it
+   moves no other rung.
+8. **`unitsOf` dedupes a directory on the first fact by filename order (Phase 258's verifier).** Honest
+   but arbitrary — `Dockerfile` sorts before `package.json`, so a root region can be labelled
+   `container`. State the rule in the header or make the order deliberate; do not leave it accidental.
+9. **The multi-dot dotfile comment (Phase 253's verifier, nit).** The grammar's comment says a dotfile
+   stays refused, which holds only for single-dot names: `.env.local` and `.eslintrc.json` pass
+   `bareFileShaped`. Behaviour is safe — `.env.local` is caught at the door as a secret — so **the
+   comment is what changes**, because a sentence wider than its code is the class this repository's own
+   conventions forbid.
+10. **`re-homing onto a full strip is not asked the cap` (Phase 260's re-verifier, observation 4).** A
+    strip can briefly hold eleven tabs. One clause in the store header as a stated limit.
+
+**What the round must also do.** Empty Phase 86.1's table and say so in its entry, the way Phase 73.1
+did. Every item names its origin in the commit body. **An item a builder cannot fix is reported as a
+stated limit with its reason, never dropped in silence.**
+
+**The proof, run rather than read.** The battery for every touched domain: `conformance:facts` for the
+rule changes, `conformance:evidence` and `conformance:reading` for the header and seed items,
+`conformance:pathdoors` for the grammar comment, `gate:electron` and `gate:background` for the harness
+item, plus typecheck, build, `npm test`, `smoke:t1`. **The harness refusal is driven**: a probe that
+sets `GMUX_TMUX_SOCKET` without a harness mode must be refused, proved by running it, with his
+`-L gmux` session count read before and after and unchanged. The Cmd-T item gets one app run at the
+parent and at HEAD under induced load, with the selection state read off the DOM across at least
+twenty opens each side.
+
+### What is NOT in this phase
+
+- **No item that is not already written down.** No sweep for new nits, no refactor, no tidying.
+- **No retrofit of every existing drive script** for item 2 — the convention is stated and new scripts
+  follow it.
+- **No precision regression** in the fact rules: an item that would lower a measured number is refused
+  and reported instead.
+- **Nothing from the audits.** F6 and F5b are the audit's own open findings and are not nits.
+- **No release cut and no GitHub post.** Both are his word.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -27287,3 +27381,5 @@ cycle rather than only the evening it was written.
 - 2026-09-12, Phase 258 landed, the reading surface: with Architecture on the map is drawn from the fact base with no model, grouped by what the repository builds and starts (rule Q, never the module roots), the wires labelled, a computed rung on every part, the inspector below the map, the Surfaces list with its zeroes and the Gates worksheet. The seed rule is G, a part's `reached` walk starting from what its own units start plus the tracked file a unit's manifest declares, picked from six rules measured over rule P's boxes in `build/p258/seed-measure.mts`: on this repository at `88165be1` (3,330 tracked, 8,140 first-party edges, 37 entrypoint files, one unit) the 8 boxes read off-repo/declared/composed/reached/tested 0/0/5/0/3 under G, where the all-entrypoints baseline reads 0/0/4/1/3 with its one `reached` being the fold that holds package.json, the manifest-file artefact G removes; on stoa's 22 boxes G reads 0/1/12/7/2, the only rule using four of the five rungs. Per file under G here: src-main 583 reached and 395 tested of 1,068, src-shared 73 and 39 of 99, build 10 and 1 of 455, and src-renderer 0 and 336 of 968, so `composed`, because the closed table recognises no renderer root, the stated limit that re-enters through Phase 257's table and never here. The no-agent run, `probe:p258` with ONE Electron at `agentId: null` and two local clones removed in a finally, drew every box's rung equal to the gate's own computation, 8 of 8 here and 22 of 22 on stoa, the inspector on src-main at 229 IPC channels, 25 jobs, 243 store writes, 152 spawns and 229 gates, the worksheet at 229 gates in src/main of 820, F1's draft painting 7 of 8 boxes against the parent's 3, words above the fold 88, 137 and 8 against caps of 300, 220 and 120, 0 findings at HEAD on every arm and 5 at the parent, his `-L gmux` at 42 sessions before and after. Two verifiers approved at Tier 3: one re-derived every rung by a BACKWARD walk of its own over four clones at 0 mismatches on 55 boxes after finding and fixing its own bug, and attacked the seed with ten planted graphs; the other drove five attack repositories of its own at HEAD and the parent, 27 of 28 rungs agreeing and the one disagreement a `main` spelled with `..` that under-seeds in the safe direction, noted and not fixed. **THE LAST FIX IS THE COMMITTER'S OWN and outside the phase's files, so the loop owner may order an independent re-verify of it**: the battery went red twice at `npm test` in `live.test.ts`, a Phase 219 test whose fake clock starts at the real `Date.now()`, so a wall-clock residue in [8, 104) of 2008 at test start makes one window read 4000; measured at 2 of 30 runs alone and the IDENTICAL array at the parent with the residue pinned to 50, so it is not a Phase 258 regression, and `2d7e7169` pins the clock in that one test, 30 of 30 after and the full suite 13,740 passed. Rebased over `4c69d193`; `conformance:hue` was not re-run by the committer, because no token moved and its 681 s exceeds the 600 s foreground cap, with the builder's 664 s and the verifier's 681 s runs green over byte-identical `presets.ts`; `HELPER_USER_FLOOR` 127, contract baseline byte identical, typecheck, build with its gates, smoke:t1 6/6, smoke:t3 3/3, package, conformance:evidence, facts, arch, arch:modules and reading all green in the foreground; version 0.103.0 unmoved, no tag. `84b0848e`, `62ab3918`, `2d7e7169`. Phase 259 is the model half.
 
 - 2026-09-12, **258's COMMITTER-OWN FIX `2d7e7169` INDEPENDENTLY CHECKED**: a nine-line, test-only change pinning vitest's fake clock in `src/main/diagnostics/__tests__/live.test.ts`, the flake reproduced deterministically at the PARENT by residue, so it was Phase 219's defect and not this phase's; the loop owner re-ran that file five times at `e125e800`, 14 of 14 each time. **PHASE 259 QUEUED on `e125e800`, the semantic pass**: research 118 §10 Phase 3 verbatim plus his two-recipe measurement — claude with Opus and codex with Astra, each one ~8-ask reading of a scratch copy of this repository through the shipped enrich path, quality read three ways against the 23.8% floor, the hand pass and a blind review, the better one shipped as the default. Tier 3; it spends his tokens for exactly those runs.
+
+- 2026-09-12, **PHASE 261 QUEUED at his ask, the sixth nits round**: ten items, every one already written down in Phase 86.1's table, a verdict, a commit body or a module header, and the round invents nothing. Tier is PER ITEM: most are Tier 1, the Cmd-T selection race is Tier 2 with the parent measured under induced load because he can see it, and **the harness refusal is Tier 3** — `activeTmuxSocket` honours `GMUX_TMUX_SOCKET` only on a harness launch, and twice a probe launched without one, ran against his live `-L gmux` server and left sessions on it while the app logged the warning three times and nobody read it, so prose is measured at 0 of 2 and `build/electron-run.mjs` must refuse the launch rather than ask a person to remember. It empties 86.1's table the way 73.1 emptied its predecessor.
