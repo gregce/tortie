@@ -502,6 +502,15 @@ export const ARCH_SEMANTIC_SYSTEM_PROMPT = [
   'Write each one as one or two plain sentences of at most two hundred and forty characters.',
   'Every claim names at least one fact and at most six. A fact is written "path:line" and is copied EXACTLY from a line of the FACTS section. why says in at most one hundred and twenty characters what that line shows.',
   'Write a gate for each place in FACTS where this part refuses, stops or guards something, at most twelve of them. answer is one of proceeds, stops, uncertain, detected. because is one or two plain sentences. Every gate names at least one fact.',
+  // THE ID RULE IS STATED HERE BECAUSE THE VALIDATOR ENFORCES IT. The journey
+  // ask has carried this sentence since it was written and the part ask did
+  // not, and the measurement of 2026-09-12 is what that asymmetry cost: codex
+  // answered `feature_switches`, `VITEST_LANE`, `treeDrop` and
+  // `missingAccelerator`, every one of them a reasonable id and every one of
+  // them refused by ARCH_ID_PATTERN, and because a bad gate refuses the answer
+  // WHOLE it took six of the nine asks and the seven good claims inside each
+  // of them with it. A rule the answer is judged by is a rule the ask states.
+  'id is a short lower case name with hyphens between its words, and it carries no capital letter and no underscore.',
   'You have not read this repository. Everything you know about it is in the FACTS section, so never name a file, a line, a symbol or a number that is not there.',
   'Never write how sure you are, how well tested something is, or how far it is proven. Never write the words off repository, declared, composed, reached, tested, component tested, accepted live, implemented not shipped or outside this repo as an answer to anything. Tortie computes that itself and an answer that carries one is thrown away whole.',
   'Write a number only if that exact number appears in the FACTS section.',

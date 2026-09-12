@@ -75,6 +75,16 @@ vi.mock('../../overview/fold/recipes', () => {
         : null,
     archRecipeFor: (agentId: string) =>
       agentId === 'claude' ? recipe(['arch-model']) : null,
+    // PHASE 259. The pane has TWO recipe tables and one choice, and
+    // `sanitizeArch` admits a pair EITHER table names. `semantic-only` is the
+    // agent that exists in this one and not in the contract one, which is
+    // what the codex row really is on this machine.
+    archSemanticRecipeFor: (agentId: string) =>
+      agentId === 'claude'
+        ? recipe(['arch-model'])
+        : agentId === 'semantic-only'
+          ? recipe(['semantic-model'])
+          : null,
     recipeHasModel: (
       r: { models: { id: string }[] },
       model: string
@@ -173,6 +183,35 @@ describe('sanitizeArchSettings drops an invalid value WHOLE', () => {
     expect(store.sanitizeArchSettings({ agentId: AGENT, model: MODEL })).toEqual(
       { enabled: false, agentId: AGENT, model: MODEL, wrapperPass: false }
     );
+  });
+
+  // PHASE 259, AND IT IS THE DEFECT THE MEASUREMENT FOUND. The pane has two
+  // recipe tables and one choice, and until this rule was written only the
+  // CONTRACT table was asked here. Driven through the app's own settings door
+  // on 2026-09-12, choosing codex with `gpt-6-astra` read back `null/null`,
+  // because codex names no contract recipe, so every semantic ask refused
+  // `no-choice` before it reached the runner and the row Phase 259 adds could
+  // not be selected by anybody. The pair below is admitted by the SEMANTIC
+  // table alone, which is exactly codex's shape on this machine.
+  it('keeps a pair only the SEMANTIC recipe table has', async () => {
+    const store = await freshStore();
+    expect(
+      store.sanitizeArchSettings({ agentId: 'semantic-only', model: 'semantic-model' })
+    ).toEqual({
+      enabled: false,
+      agentId: 'semantic-only',
+      model: 'semantic-model',
+      wrapperPass: false
+    });
+  });
+
+  // Widening which agents may be chosen never widened which MODELS may be:
+  // a model neither table gives that agent is still dropped whole.
+  it('drops a model neither table gives the semantic-only agent', async () => {
+    const store = await freshStore();
+    expect(
+      store.sanitizeArchSettings({ agentId: 'semantic-only', model: 'arch-model' })
+    ).toEqual({ enabled: false, agentId: null, model: null, wrapperPass: false });
   });
 });
 

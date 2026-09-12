@@ -51,6 +51,7 @@ import type { ArchDocument, ArchFreshness } from '@shared/arch';
 // construction. Only `drift` is refused on the interval or the hash.
 import type { ArchPassScope, ArchPassTrigger } from '@shared/ipc';
 import { logEvent } from '../../log';
+import { oneLine } from '../payload';
 import { configRowStatus } from '../../config/confirm';
 import { currentAgentTable } from '../../config/store';
 import { foldInputHash } from '../../overview/fold/compose';
@@ -262,6 +263,16 @@ export function archAgentConfirmed(
 }
 
 /** One runner per process, held by the arch registrar. */
+/**
+ * How much of an agent's own refusal sentence is kept on the record.
+ *
+ * It is a DIAGNOSTIC and never drawn, so it is bounded the way every other
+ * value out of somebody else's process is bounded in this domain, and it goes
+ * through `oneLine` so nothing out of a child's stdout carries a control
+ * character into a log line.
+ */
+const ARCH_FAILURE_DETAIL_MAX = 400;
+
 export class ArchPassRunner {
   private readonly deps: ArchPassDeps;
   private readonly now: () => number;
@@ -507,11 +518,19 @@ export class ArchPassRunner {
 
       if (run.outcome !== 'ok' || run.text === null) {
         this.suspender.noteFailure(run, input.repoPath);
-        if (semantic) noteSemantic('failed', run.reason ?? run.outcome, null, 0, null);
+        // WHAT THE AGENT SAID, bounded and one-lined, as the detail. `reason`
+        // is one word out of the result record's subtype and it was measured
+        // reading `success` on a failed run (see FoldRun.errorText), so a
+        // record carrying the word alone names nothing anybody can act on.
+        const said =
+          run.errorText === null || run.errorText === undefined || run.errorText.trim() === ''
+            ? null
+            : oneLine(run.errorText).slice(0, ARCH_FAILURE_DETAIL_MAX);
+        if (semantic) noteSemantic('failed', run.reason ?? run.outcome, said, 0, null);
         return finish(
           'failed',
           run.reason ?? run.outcome,
-          null,
+          said,
           null,
           null,
           null,

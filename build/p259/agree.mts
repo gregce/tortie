@@ -47,7 +47,17 @@ interface HandPass { components: HandComponent[]; journeys: HandJourney[] }
 
 /** The model reading, as `arch:semantic` answers it (spec §3.4). */
 interface Reading {
-  parts?: { id: string; name?: string | null; files?: string[]; claims?: { field: string; citations?: Cite[] }[] }[];
+  // THE SHIPPED FIELD IS `cites`. This file was written against a guessed
+  // shape and read `citations`, which no answer carries, so every model file
+  // set came back EMPTY and all nine components read an overlap of zero that
+  // looked like total disagreement. Both names are accepted now, and the
+  // shipped one is what the real reading uses.
+  parts?: {
+    id: string;
+    name?: string | null;
+    files?: string[];
+    claims?: { field: string; cites?: Cite[]; citations?: Cite[] }[];
+  }[];
   journeys?: { id: string; steps?: { partId: string }[] }[];
 }
 
@@ -70,15 +80,42 @@ export function jaccard(a: ReadonlySet<string>, b: ReadonlySet<string>): number 
  * Reading 1's mapping, computed and never chosen. Ties break on the part id so
  * the answer is the same on two machines, and a zero overlap maps to null.
  */
+/**
+ * The file set a part is mapped on.
+ *
+ * The spec asks for the part's ANCHOR file set, and `ArchSemanticResult`
+ * carries no such field: a reading is claims and citations, and the anchors
+ * live on the map. So when a caller hands `files` it is used, and otherwise
+ * the part's own CITED files stand in for it. That substitution is stated in
+ * the output as `anchorFrom`, because a metric computed off a different set
+ * than the one the spec named has to say so rather than read as the same
+ * number.
+ */
+export function partFiles(part: {
+  files?: string[];
+  claims?: { cites?: Cite[]; citations?: Cite[] }[];
+}): Set<string> {
+  if (Array.isArray(part.files) && part.files.length > 0) return new Set(part.files);
+  const out = new Set<string>();
+  for (const claim of part.claims ?? []) {
+    for (const f of citedFiles(claim.cites ?? claim.citations)) out.add(f);
+  }
+  return out;
+}
+
 export function mapComponents(
   hand: readonly HandComponent[],
-  parts: readonly { id: string; files?: string[] }[]
+  parts: readonly {
+    id: string;
+    files?: string[];
+    claims?: { cites?: Cite[]; citations?: Cite[] }[];
+  }[]
 ): { componentId: string; partId: string | null; overlap: number }[] {
   return hand.map((c) => {
     const want = citedFiles(c.facts);
     let best: { partId: string | null; overlap: number } = { partId: null, overlap: 0 };
     for (const part of [...parts].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0))) {
-      const score = jaccard(want, new Set(part.files ?? []));
+      const score = jaccard(want, partFiles(part));
       if (score > best.overlap) best = { partId: part.id, overlap: score };
     }
     return { componentId: c.id, ...best };
@@ -114,7 +151,9 @@ export function agree(hand: HandPass, reading: Reading): Record<string, unknown>
     const component = hand.components.find((c) => c.id === m.componentId);
     const part = m.partId === null ? undefined : partById.get(m.partId);
     const modelFiles = new Set<string>();
-    for (const claim of part?.claims ?? []) for (const f of citedFiles(claim.citations)) modelFiles.add(f);
+    for (const claim of part?.claims ?? []) {
+      for (const f of citedFiles(claim.cites ?? claim.citations)) modelFiles.add(f);
+    }
     return {
       componentId: m.componentId,
       partId: m.partId,
@@ -123,6 +162,9 @@ export function agree(hand: HandPass, reading: Reading): Record<string, unknown>
     };
   });
   const mean = overlaps.length === 0 ? 0 : overlaps.reduce((a, o) => a + o.citationOverlap, 0) / overlaps.length;
+  const anchorFrom = parts.some((p) => Array.isArray(p.files) && p.files.length > 0)
+    ? 'the parts own anchor file sets'
+    : 'the files each part CITED, because the reading carries no anchor set';
 
   const journeys = hand.journeys.map((j) => {
     const handIds = j.steps.map((s) => byComponent.get(s.componentId) ?? `unmapped:${s.componentId}`);
@@ -137,6 +179,7 @@ export function agree(hand: HandPass, reading: Reading): Record<string, unknown>
   return {
     mapping: overlaps,
     unmapped: mapping.filter((m) => m.partId === null).map((m) => m.componentId),
+    anchorFrom,
     meanCitationOverlap: Number(mean.toFixed(4)),
     journeys
   };

@@ -1,0 +1,3510 @@
+{
+  "cwd": "/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p259-measure-90515/repos/tortie",
+  "parts": [
+    {
+      "id": "build",
+      "name": "Build automation and application probes",
+      "claims": [
+        {
+          "claimId": "p:build:name",
+          "field": "name",
+          "text": "Build automation and application probes",
+          "cites": [
+            {
+              "at": "build/build-tmux-version.mjs:226",
+              "why": "Runs configuration for a build.",
+              "relPath": "build/build-tmux-version.mjs",
+              "line": 226,
+              "grade": "call-site",
+              "factKind": "spawn",
+              "factSubject": "runs ./configure",
+              "factLine": 226,
+              "dead": false
+            },
+            {
+              "at": "build/probe-p213-scheme.mjs:801",
+              "why": "A probe queries a local service.",
+              "relPath": "build/probe-p213-scheme.mjs",
+              "line": 801,
+              "grade": "call-site",
+              "factKind": "client",
+              "factSubject": "talks to http://127.0.0.1:${String(port)}/json/version",
+              "factLine": 801,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:build:receives",
+          "field": "receives",
+          "text": "Receives command options for packaging and probes, plus environment settings for signing and local execution.",
+          "cites": [
+            {
+              "at": "build/update-rehearsal.mjs:206",
+              "why": "Exposes a packaging option.",
+              "relPath": "build/update-rehearsal.mjs",
+              "line": 206,
+              "grade": "call-site",
+              "factKind": "cli-flag",
+              "factSubject": "CLI flag --package-only",
+              "factLine": 206,
+              "dead": false
+            },
+            {
+              "at": "build/probe-p1741-font-field.mjs:70",
+              "why": "Exposes an application option.",
+              "relPath": "build/probe-p1741-font-field.mjs",
+              "line": 70,
+              "grade": "call-site",
+              "factKind": "cli-flag",
+              "factSubject": "CLI flag --app",
+              "factLine": 70,
+              "dead": false
+            },
+            {
+              "at": "build/sign-nested-binaries.cjs:141",
+              "why": "Reads a signing environment switch.",
+              "relPath": "build/sign-nested-binaries.cjs",
+              "line": 141,
+              "grade": "gate",
+              "factKind": "flag",
+              "factSubject": "environment switch CSC_LINK",
+              "factLine": 141,
+              "dead": false
+            },
+            {
+              "at": "build/p259/measure-semantic.mjs:370",
+              "why": "Reads a socket environment switch.",
+              "relPath": "build/p259/measure-semantic.mjs",
+              "line": 370,
+              "grade": "gate",
+              "factKind": "flag",
+              "factSubject": "environment switch GMUX_TMUX_SOCKET",
+              "factLine": 370,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:build:does",
+          "field": "does",
+          "text": "Runs build commands, changes files and queries local application services.",
+          "cites": [
+            {
+              "at": "build/build-tmux-version.mjs:226",
+              "why": "Runs configuration.",
+              "relPath": "build/build-tmux-version.mjs",
+              "line": 226,
+              "grade": "call-site",
+              "factKind": "spawn",
+              "factSubject": "runs ./configure",
+              "factLine": 226,
+              "dead": false
+            },
+            {
+              "at": "build/assert-shared-types.mjs:176",
+              "why": "Copies files.",
+              "relPath": "build/assert-shared-types.mjs",
+              "line": 176,
+              "grade": "call-site",
+              "factKind": "fs-write",
+              "factSubject": "writes the filesystem (copyFileSync)",
+              "factLine": 176,
+              "dead": false
+            },
+            {
+              "at": "build/p248/probe-p248-wide.mjs:557",
+              "why": "Queries a local HTTP service.",
+              "relPath": "build/p248/probe-p248-wide.mjs",
+              "line": 557,
+              "grade": "call-site",
+              "factKind": "client",
+              "factSubject": "talks to http://127.0.0.1:${String(port)}/json/list",
+              "factLine": 557,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:build:returns",
+          "field": "returns",
+          "text": "Produces filesystem output and refusal messages for missing launch binaries or waits without a match.",
+          "cites": [
+            {
+              "at": "build/assert-background-teardown.mjs:377",
+              "why": "Writes filesystem output.",
+              "relPath": "build/assert-background-teardown.mjs",
+              "line": 377,
+              "grade": "call-site",
+              "factKind": "fs-write",
+              "factSubject": "writes the filesystem (writeFileSync)",
+              "factLine": 377,
+              "dead": false
+            },
+            {
+              "at": "build/electron-run.mjs:573",
+              "why": "Reports that a launch binary is missing.",
+              "relPath": "build/electron-run.mjs",
+              "line": 573,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: ${TAG} ${label}: ${bin} is not there. Run the build, or the package for a packaged launch.",
+              "factLine": 573,
+              "dead": false
+            },
+            {
+              "at": "build/electron-run.mjs:666",
+              "why": "Reports that a wait found no match.",
+              "relPath": "build/electron-run.mjs",
+              "line": 666,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: ${TAG} ${label}: nothing matched ${String(re)} in ${String(ms)} ms.",
+              "factLine": 666,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:build:runsIn",
+          "field": "runsIn",
+          "text": "Runs in a host environment with shell commands and filesystem access, and contacts local HTTP services.",
+          "cites": [
+            {
+              "at": "build/capture-machine-goldens.mjs:471",
+              "why": "Starts a host shell.",
+              "relPath": "build/capture-machine-goldens.mjs",
+              "line": 471,
+              "grade": "call-site",
+              "factKind": "spawn",
+              "factSubject": "runs /bin/sh",
+              "factLine": 471,
+              "dead": false
+            },
+            {
+              "at": "build/assert-css-order.mjs:274",
+              "why": "Creates filesystem directories.",
+              "relPath": "build/assert-css-order.mjs",
+              "line": 274,
+              "grade": "call-site",
+              "factKind": "fs-write",
+              "factSubject": "writes the filesystem (mkdirSync)",
+              "factLine": 274,
+              "dead": false
+            },
+            {
+              "at": "build/probe-p213-scheme.mjs:801",
+              "why": "Contacts a loopback HTTP service.",
+              "relPath": "build/probe-p213-scheme.mjs",
+              "line": 801,
+              "grade": "call-site",
+              "factKind": "client",
+              "factSubject": "talks to http://127.0.0.1:${String(port)}/json/version",
+              "factLine": 801,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:build:keeps",
+          "field": "keeps",
+          "text": "Contains language and framework fixtures, including migration examples, and appends data to files.",
+          "cites": [
+            {
+              "at": "build/fixtures/facts/rust/Cargo.toml:9",
+              "why": "Contains a Rust library fixture.",
+              "relPath": "build/fixtures/facts/rust/Cargo.toml",
+              "line": 9,
+              "grade": "call-site",
+              "factKind": "library",
+              "factSubject": "cargo library target",
+              "factLine": 9,
+              "dead": false
+            },
+            {
+              "at": "build/fixtures/facts/python/migrations/0001_initial.py:1",
+              "why": "Contains a Python migration fixture.",
+              "relPath": "build/fixtures/facts/python/migrations/0001_initial.py",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "migration",
+              "factSubject": "migration build/fixtures/facts/python/migrations/0001_initial.py",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "build/p138-drift-lab.mjs:123",
+              "why": "Appends data to the filesystem.",
+              "relPath": "build/p138-drift-lab.mjs",
+              "line": 123,
+              "grade": "call-site",
+              "factKind": "fs-write",
+              "factSubject": "writes the filesystem (appendFileSync)",
+              "factLine": 123,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:build:limit",
+          "field": "limit",
+          "text": "The launch helper refuses unsupported program choices and missing binaries, and stops waiting when nothing matches within its wait period.",
+          "cites": [
+            {
+              "at": "build/electron-run.mjs:264",
+              "why": "Restricts program choices.",
+              "relPath": "build/electron-run.mjs",
+              "line": 264,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: ${TAG} program must be \"shim\", \"app\", \"packaged\" or an absolute path. Got ${String(program",
+              "factLine": 264,
+              "dead": false
+            },
+            {
+              "at": "build/electron-run.mjs:573",
+              "why": "Refuses a missing binary.",
+              "relPath": "build/electron-run.mjs",
+              "line": 573,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: ${TAG} ${label}: ${bin} is not there. Run the build, or the package for a packaged launch.",
+              "factLine": 573,
+              "dead": false
+            },
+            {
+              "at": "build/electron-run.mjs:666",
+              "why": "Refuses when a timed wait finds no match.",
+              "relPath": "build/electron-run.mjs",
+              "line": 666,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: ${TAG} ${label}: nothing matched ${String(re)} in ${String(ms)} ms.",
+              "factLine": 666,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        }
+      ]
+    },
+    {
+      "id": "demo",
+      "name": "Demo session bridge",
+      "claims": [
+        {
+          "claimId": "p:demo:name",
+          "field": "name",
+          "text": "Demo session bridge",
+          "cites": [
+            {
+              "at": "demo/bridge/install.ts:106",
+              "why": "The demo bridge refuses an unknown session.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 106,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: demo: unknown session",
+              "factLine": 106,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:demo:receives",
+          "field": "receives",
+          "text": "The bridge handles session references that can identify an unknown session.",
+          "cites": [
+            {
+              "at": "demo/bridge/install.ts:106",
+              "why": "An unknown session triggers a refusal.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 106,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: demo: unknown session",
+              "factLine": 106,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:demo:does",
+          "field": "does",
+          "text": "The bridge makes client network calls and writes to local storage.",
+          "cites": [
+            {
+              "at": "demo/bridge/install.ts:147",
+              "why": "The client talks to an HTTPS address.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 147,
+              "grade": "call-site",
+              "factKind": "client",
+              "factSubject": "talks to https://$1/",
+              "factLine": 147,
+              "dead": false
+            },
+            {
+              "at": "demo/bridge/install.ts:424",
+              "why": "The bridge writes to localStorage.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 424,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "writes localStorage",
+              "factLine": 424,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:demo:returns",
+          "field": "returns",
+          "text": "The bridge returns a refusal for an unknown session.",
+          "cites": [
+            {
+              "at": "demo/bridge/install.ts:106",
+              "why": "The refusal identifies an unknown session.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 106,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: demo: unknown session",
+              "factLine": 106,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:demo:runsIn",
+          "field": "runsIn",
+          "text": "The demo uses local storage and has an environment switch in its Vite configuration.",
+          "cites": [
+            {
+              "at": "demo/bridge/install.ts:424",
+              "why": "The bridge uses localStorage.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 424,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "writes localStorage",
+              "factLine": 424,
+              "dead": false
+            },
+            {
+              "at": "demo/vite.config.ts:21",
+              "why": "NODE_ENV controls an environment switch.",
+              "relPath": "demo/vite.config.ts",
+              "line": 21,
+              "grade": "gate",
+              "factKind": "flag",
+              "factSubject": "environment switch NODE_ENV",
+              "factLine": 21,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:demo:keeps",
+          "field": "keeps",
+          "text": "The bridge saves data in local storage.",
+          "cites": [
+            {
+              "at": "demo/bridge/install.ts:424",
+              "why": "A storage write targets localStorage.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 424,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "writes localStorage",
+              "factLine": 424,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:demo:limit",
+          "field": "limit",
+          "text": "The bridge refuses an unknown session.",
+          "cites": [
+            {
+              "at": "demo/bridge/install.ts:106",
+              "why": "Unknown sessions trigger the recorded refusal.",
+              "relPath": "demo/bridge/install.ts",
+              "line": 106,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: demo: unknown session",
+              "factLine": 106,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Build, launch and CI coordination",
+      "claims": [
+        {
+          "claimId": "p:other:name",
+          "field": "name",
+          "text": "Build, launch and CI coordination",
+          "cites": [
+            {
+              "at": "package.json:12",
+              "why": "Provides the build command.",
+              "relPath": "package.json",
+              "line": 12,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run build",
+              "factLine": 12,
+              "dead": false
+            },
+            {
+              "at": ".github/workflows/gates.yml:36",
+              "why": "Provides a CI gates job.",
+              "relPath": ".github/workflows/gates.yml",
+              "line": 36,
+              "grade": "call-site",
+              "factKind": "ci-job",
+              "factSubject": "CI job gates",
+              "factLine": 36,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:other:receives",
+          "field": "receives",
+          "text": "It receives development, build, start and test command invocations, plus scheduled CI triggers.",
+          "cites": [
+            {
+              "at": "package.json:11",
+              "why": "Provides the development command.",
+              "relPath": "package.json",
+              "line": 11,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run dev",
+              "factLine": 11,
+              "dead": false
+            },
+            {
+              "at": "package.json:12",
+              "why": "Provides the build command.",
+              "relPath": "package.json",
+              "line": 12,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run build",
+              "factLine": 12,
+              "dead": false
+            },
+            {
+              "at": "package.json:201",
+              "why": "Provides the start command.",
+              "relPath": "package.json",
+              "line": 201,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run start",
+              "factLine": 201,
+              "dead": false
+            },
+            {
+              "at": "package.json:196",
+              "why": "Provides the test command.",
+              "relPath": "package.json",
+              "line": 196,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run test",
+              "factLine": 196,
+              "dead": false
+            },
+            {
+              "at": ".github/workflows/compat.yml:8",
+              "why": "Defines a CI schedule.",
+              "relPath": ".github/workflows/compat.yml",
+              "line": 8,
+              "grade": "call-site",
+              "factKind": "job",
+              "factSubject": "CI schedule",
+              "factLine": 8,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:other:does",
+          "field": "does",
+          "text": "It supplies compatibility, durability, gates and release CI jobs, and runs git during build configuration.",
+          "cites": [
+            {
+              "at": ".github/workflows/compat.yml:17",
+              "why": "Identifies the compatibility CI job.",
+              "relPath": ".github/workflows/compat.yml",
+              "line": 17,
+              "grade": "call-site",
+              "factKind": "ci-job",
+              "factSubject": "CI job compat",
+              "factLine": 17,
+              "dead": false
+            },
+            {
+              "at": ".github/workflows/durability.yml:35",
+              "why": "Identifies the durability CI job.",
+              "relPath": ".github/workflows/durability.yml",
+              "line": 35,
+              "grade": "call-site",
+              "factKind": "ci-job",
+              "factSubject": "CI job durability",
+              "factLine": 35,
+              "dead": false
+            },
+            {
+              "at": ".github/workflows/gates.yml:36",
+              "why": "Identifies the gates CI job.",
+              "relPath": ".github/workflows/gates.yml",
+              "line": 36,
+              "grade": "call-site",
+              "factKind": "ci-job",
+              "factSubject": "CI job gates",
+              "factLine": 36,
+              "dead": false
+            },
+            {
+              "at": ".github/workflows/release.yml:43",
+              "why": "Identifies the release CI job.",
+              "relPath": ".github/workflows/release.yml",
+              "line": 43,
+              "grade": "call-site",
+              "factKind": "ci-job",
+              "factSubject": "CI job release",
+              "factLine": 43,
+              "dead": false
+            },
+            {
+              "at": "electron.vite.config.ts:32",
+              "why": "Records a git process invocation.",
+              "relPath": "electron.vite.config.ts",
+              "line": 32,
+              "grade": "call-site",
+              "factKind": "spawn",
+              "factSubject": "runs git",
+              "factLine": 32,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:other:returns",
+          "field": "returns",
+          "text": "It exposes a Node entry point and build and launch commands; their output contents are not specified in these facts.",
+          "cites": [
+            {
+              "at": "package.json:7",
+              "why": "Identifies the package main Node entry.",
+              "relPath": "package.json",
+              "line": 7,
+              "grade": "call-site",
+              "factKind": "package-main",
+              "factSubject": "node entry ./out/main/index.js",
+              "factLine": 7,
+              "dead": false
+            },
+            {
+              "at": "package.json:12",
+              "why": "Identifies the build command without describing its output.",
+              "relPath": "package.json",
+              "line": 12,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run build",
+              "factLine": 12,
+              "dead": false
+            },
+            {
+              "at": "package.json:201",
+              "why": "Identifies the start command without describing its output.",
+              "relPath": "package.json",
+              "line": 201,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run start",
+              "factLine": 201,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:other:runsIn",
+          "field": "runsIn",
+          "text": "It operates through npm commands and CI jobs, with a Node package entry point.",
+          "cites": [
+            {
+              "at": "package.json:11",
+              "why": "Identifies an npm development command.",
+              "relPath": "package.json",
+              "line": 11,
+              "grade": "call-site",
+              "factKind": "script",
+              "factSubject": "npm run dev",
+              "factLine": 11,
+              "dead": false
+            },
+            {
+              "at": ".github/workflows/release.yml:43",
+              "why": "Identifies a CI execution context.",
+              "relPath": ".github/workflows/release.yml",
+              "line": 43,
+              "grade": "call-site",
+              "factKind": "ci-job",
+              "factSubject": "CI job release",
+              "factLine": 43,
+              "dead": false
+            },
+            {
+              "at": "package.json:7",
+              "why": "Identifies a Node entry point.",
+              "relPath": "package.json",
+              "line": 7,
+              "grade": "call-site",
+              "factKind": "package-main",
+              "factSubject": "node entry ./out/main/index.js",
+              "factLine": 7,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:other:keeps",
+          "field": "keeps",
+          "text": "It holds CI schedule settings and a test lane environment switch; these facts do not identify retained application data.",
+          "cites": [
+            {
+              "at": ".github/workflows/compat.yml:9",
+              "why": "Records the compatibility schedule setting.",
+              "relPath": ".github/workflows/compat.yml",
+              "line": 9,
+              "grade": "call-site",
+              "factKind": "job",
+              "factSubject": "cron 0 9 * * 1",
+              "factLine": 9,
+              "dead": false
+            },
+            {
+              "at": ".github/workflows/durability.yml:27",
+              "why": "Records the durability schedule setting.",
+              "relPath": ".github/workflows/durability.yml",
+              "line": 27,
+              "grade": "call-site",
+              "factKind": "job",
+              "factSubject": "cron 0 9 * * *",
+              "factLine": 27,
+              "dead": false
+            },
+            {
+              "at": "vitest.config.ts:21",
+              "why": "Records the VITEST_LANE environment switch.",
+              "relPath": "vitest.config.ts",
+              "line": 21,
+              "grade": "gate",
+              "factKind": "flag",
+              "factSubject": "environment switch VITEST_LANE",
+              "factLine": 21,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:other:limit",
+          "field": "limit",
+          "text": "Test configuration has a VITEST_LANE environment switch, but the facts do not specify which values allow or stop execution.",
+          "cites": [
+            {
+              "at": "vitest.config.ts:21",
+              "why": "Identifies a switch without its conditions or consequences.",
+              "relPath": "vitest.config.ts",
+              "line": 21,
+              "grade": "gate",
+              "factKind": "flag",
+              "factSubject": "environment switch VITEST_LANE",
+              "factLine": 21,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        }
+      ]
+    },
+    {
+      "id": "src-main",
+      "name": "Desktop application services and persistent state manager.",
+      "claims": [
+        {
+          "claimId": "p:src-main:name",
+          "field": "name",
+          "text": "Desktop application services and persistent state manager.",
+          "cites": [
+            {
+              "at": "src/main/index.ts:443",
+              "why": "Connects application readiness to startup.",
+              "relPath": "src/main/index.ts",
+              "line": 443,
+              "grade": "call-site",
+              "factKind": "composition-root",
+              "factSubject": "composes app.whenReady",
+              "factLine": 443,
+              "dead": false
+            },
+            {
+              "at": "src/main/manifest/schema.ts:27",
+              "why": "Creates storage for sessions.",
+              "relPath": "src/main/manifest/schema.ts",
+              "line": 27,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "CREATE TABLE IF NOT EXISTS sessions",
+              "factLine": 27,
+              "dead": false
+            },
+            {
+              "at": "src/main/arch/ipc.ts:128",
+              "why": "Serves architecture checking requests.",
+              "relPath": "src/main/arch/ipc.ts",
+              "line": 128,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves arch:check",
+              "factLine": 128,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-main:receives",
+          "field": "receives",
+          "text": "Receives IPC requests for action runs, agent discovery, architecture checks, baseline storage and image capture.",
+          "cites": [
+            {
+              "at": "src/main/actions/ipc.ts:28",
+              "why": "Serves action run requests.",
+              "relPath": "src/main/actions/ipc.ts",
+              "line": 28,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves actions:runs",
+              "factLine": 28,
+              "dead": false
+            },
+            {
+              "at": "src/main/agents/index.ts:111",
+              "why": "Serves agent listing requests.",
+              "relPath": "src/main/agents/index.ts",
+              "line": 111,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves agents:list",
+              "factLine": 111,
+              "dead": false
+            },
+            {
+              "at": "src/main/arch/ipc.ts:128",
+              "why": "Serves architecture check requests.",
+              "relPath": "src/main/arch/ipc.ts",
+              "line": 128,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves arch:check",
+              "factLine": 128,
+              "dead": false
+            },
+            {
+              "at": "src/main/baselines/ipc.ts:60",
+              "why": "Serves baseline storage requests.",
+              "relPath": "src/main/baselines/ipc.ts",
+              "line": 60,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves baselines:store",
+              "factLine": 60,
+              "dead": false
+            },
+            {
+              "at": "src/main/capture/ipc.ts:49",
+              "why": "Serves image capture requests.",
+              "relPath": "src/main/capture/ipc.ts",
+              "line": 49,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves capture:image",
+              "factLine": 49,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-main:does",
+          "field": "does",
+          "text": "Handles architecture mapping and checks, rescans agents, accesses GitHub and writes persistent data.",
+          "cites": [
+            {
+              "at": "src/main/arch/ipc.ts:151",
+              "why": "Provides architecture mapping.",
+              "relPath": "src/main/arch/ipc.ts",
+              "line": 151,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves arch:map",
+              "factLine": 151,
+              "dead": false
+            },
+            {
+              "at": "src/main/arch/ipc.ts:128",
+              "why": "Provides architecture checking.",
+              "relPath": "src/main/arch/ipc.ts",
+              "line": 128,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves arch:check",
+              "factLine": 128,
+              "dead": false
+            },
+            {
+              "at": "src/main/agents/index.ts:112",
+              "why": "Provides agent rescanning.",
+              "relPath": "src/main/agents/index.ts",
+              "line": 112,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves agents:rescan",
+              "factLine": 112,
+              "dead": false
+            },
+            {
+              "at": "src/main/actions/repo.ts:47",
+              "why": "Connects to GitHub.",
+              "relPath": "src/main/actions/repo.ts",
+              "line": 47,
+              "grade": "call-site",
+              "factKind": "client",
+              "factSubject": "talks to https://github.com/",
+              "factLine": 47,
+              "dead": false
+            },
+            {
+              "at": "src/main/durable/write.ts:336",
+              "why": "Writes to the filesystem through rename.",
+              "relPath": "src/main/durable/write.ts",
+              "line": 336,
+              "grade": "call-site",
+              "factKind": "fs-write",
+              "factSubject": "writes the filesystem (rename)",
+              "factLine": 336,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-main:returns",
+          "field": "returns",
+          "text": "Exposes action jobs and runs, agent availability, architecture facts and saved baselines through IPC.",
+          "cites": [
+            {
+              "at": "src/main/actions/ipc.ts:29",
+              "why": "Serves action jobs.",
+              "relPath": "src/main/actions/ipc.ts",
+              "line": 29,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves actions:jobs",
+              "factLine": 29,
+              "dead": false
+            },
+            {
+              "at": "src/main/actions/ipc.ts:28",
+              "why": "Serves action runs.",
+              "relPath": "src/main/actions/ipc.ts",
+              "line": 28,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves actions:runs",
+              "factLine": 28,
+              "dead": false
+            },
+            {
+              "at": "src/main/agents/index.ts:107",
+              "why": "Serves agent availability.",
+              "relPath": "src/main/agents/index.ts",
+              "line": 107,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves agents:availability",
+              "factLine": 107,
+              "dead": false
+            },
+            {
+              "at": "src/main/arch/ipc.ts:162",
+              "why": "Serves architecture facts.",
+              "relPath": "src/main/arch/ipc.ts",
+              "line": 162,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves arch:facts",
+              "factLine": 162,
+              "dead": false
+            },
+            {
+              "at": "src/main/baselines/ipc.ts:59",
+              "why": "Provides baseline loading.",
+              "relPath": "src/main/baselines/ipc.ts",
+              "line": 59,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC serves baselines:load",
+              "factLine": 59,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-main:runsIn",
+          "field": "runsIn",
+          "text": "Runs in the desktop application's main process, with application readiness startup and a window creating fault harness.",
+          "cites": [
+            {
+              "at": "src/main/index.ts:443",
+              "why": "Uses application readiness as an entry point.",
+              "relPath": "src/main/index.ts",
+              "line": 443,
+              "grade": "call-site",
+              "factKind": "composition-root",
+              "factSubject": "composes app.whenReady",
+              "factLine": 443,
+              "dead": false
+            },
+            {
+              "at": "src/main/fault/harness.ts:123",
+              "why": "Creates a browser window in the fault harness.",
+              "relPath": "src/main/fault/harness.ts",
+              "line": 123,
+              "grade": "call-site",
+              "factKind": "composition-root",
+              "factSubject": "composes BrowserWindow",
+              "factLine": 123,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-main:keeps",
+          "field": "keeps",
+          "text": "Keeps sessions, restore attempts, remote projects and executions, architecture facts and camera state in database tables.",
+          "cites": [
+            {
+              "at": "src/main/manifest/schema.ts:27",
+              "why": "Creates the sessions table.",
+              "relPath": "src/main/manifest/schema.ts",
+              "line": 27,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "CREATE TABLE IF NOT EXISTS sessions",
+              "factLine": 27,
+              "dead": false
+            },
+            {
+              "at": "src/main/manifest/schema.ts:142",
+              "why": "Creates the restore attempts table.",
+              "relPath": "src/main/manifest/schema.ts",
+              "line": 142,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "CREATE TABLE IF NOT EXISTS restore_attempts",
+              "factLine": 142,
+              "dead": false
+            },
+            {
+              "at": "src/main/manifest/schema.ts:461",
+              "why": "Creates the remote projects table.",
+              "relPath": "src/main/manifest/schema.ts",
+              "line": 461,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "CREATE TABLE IF NOT EXISTS remote_projects",
+              "factLine": 461,
+              "dead": false
+            },
+            {
+              "at": "src/main/manifest/schema.ts:546",
+              "why": "Creates the remote executions table.",
+              "relPath": "src/main/manifest/schema.ts",
+              "line": 546,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "CREATE TABLE IF NOT EXISTS remote_executions",
+              "factLine": 546,
+              "dead": false
+            },
+            {
+              "at": "src/main/arch/db.ts:649",
+              "why": "Creates the architecture facts table.",
+              "relPath": "src/main/arch/db.ts",
+              "line": 649,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "CREATE TABLE IF NOT EXISTS arch_fact",
+              "factLine": 649,
+              "dead": false
+            },
+            {
+              "at": "src/main/arch/db.ts:470",
+              "why": "Creates the architecture camera table.",
+              "relPath": "src/main/arch/db.ts",
+              "line": 470,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "CREATE TABLE IF NOT EXISTS arch_camera",
+              "factLine": 470,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-main:limit",
+          "field": "limit",
+          "text": "Guards architecture arguments and supports aborting architecture watching; session identifier harvesting can refuse on cancellation or failure.",
+          "cites": [
+            {
+              "at": "src/main/arch/argv-guard.ts:151",
+              "why": "Identifies an argument authorization guard.",
+              "relPath": "src/main/arch/argv-guard.ts",
+              "line": 151,
+              "grade": "gate",
+              "factKind": "auth",
+              "factSubject": "auth gate elementIsAllowed",
+              "factLine": 151,
+              "dead": false
+            },
+            {
+              "at": "src/main/arch/watch.ts:132",
+              "why": "Identifies an abort refusal.",
+              "relPath": "src/main/arch/watch.ts",
+              "line": 132,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses (abort)",
+              "factLine": 132,
+              "dead": false
+            },
+            {
+              "at": "src/main/manifest/harvest/watch.ts:946",
+              "why": "Reports cancellation of session identifier harvesting.",
+              "relPath": "src/main/manifest/harvest/watch.ts",
+              "line": 946,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: ${agent} session-id harvest cancelled",
+              "factLine": 946,
+              "dead": false
+            },
+            {
+              "at": "src/main/manifest/harvest/watch.ts:556",
+              "why": "Reports failure of session identifier harvesting.",
+              "relPath": "src/main/manifest/harvest/watch.ts",
+              "line": 556,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: ${agent} session-id harvest failed",
+              "factLine": 556,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        }
+      ]
+    },
+    {
+      "id": "src-preload",
+      "name": "Preload access to application services through IPC.",
+      "claims": [
+        {
+          "claimId": "p:src-preload:name",
+          "field": "name",
+          "text": "Preload access to application services through IPC.",
+          "cites": [
+            {
+              "at": "src/preload/index.ts:179",
+              "why": "Lists an IPC call for quitting the application.",
+              "relPath": "src/preload/index.ts",
+              "line": 179,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls app:quit",
+              "factLine": 179,
+              "dead": false
+            },
+            {
+              "at": "src/preload/files.ts:19",
+              "why": "Lists an IPC call for reading files.",
+              "relPath": "src/preload/files.ts",
+              "line": 19,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls fs:readFile",
+              "factLine": 19,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-preload:receives",
+          "field": "receives",
+          "text": "Takes requests for file operations, Git operations, terminal capture and application controls.",
+          "cites": [
+            {
+              "at": "src/preload/files.ts:20",
+              "why": "Lists a file write IPC call.",
+              "relPath": "src/preload/files.ts",
+              "line": 20,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls fs:writeFile",
+              "factLine": 20,
+              "dead": false
+            },
+            {
+              "at": "src/preload/git.ts:26",
+              "why": "Lists a Git commit IPC call.",
+              "relPath": "src/preload/git.ts",
+              "line": 26,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls git:commit",
+              "factLine": 26,
+              "dead": false
+            },
+            {
+              "at": "src/preload/terminal.ts:73",
+              "why": "Lists a viewport capture IPC call.",
+              "relPath": "src/preload/terminal.ts",
+              "line": 73,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls capture:viewport",
+              "factLine": 73,
+              "dead": false
+            },
+            {
+              "at": "src/preload/index.ts:179",
+              "why": "Lists an application quit IPC call.",
+              "relPath": "src/preload/index.ts",
+              "line": 179,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls app:quit",
+              "factLine": 179,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-preload:does",
+          "field": "does",
+          "text": "Calls IPC channels for application services, including architecture inspection, context scanning and agent discovery.",
+          "cites": [
+            {
+              "at": "src/preload/arch.ts:43",
+              "why": "Lists an architecture check IPC call.",
+              "relPath": "src/preload/arch.ts",
+              "line": 43,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls arch:check",
+              "factLine": 43,
+              "dead": false
+            },
+            {
+              "at": "src/preload/context.ts:25",
+              "why": "Lists a context scan IPC call.",
+              "relPath": "src/preload/context.ts",
+              "line": 25,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls context:scan",
+              "factLine": 25,
+              "dead": false
+            },
+            {
+              "at": "src/preload/index.ts:152",
+              "why": "Lists an agent listing IPC call.",
+              "relPath": "src/preload/index.ts",
+              "line": 152,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls agents:list",
+              "factLine": 152,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-preload:returns",
+          "field": "returns",
+          "text": "Provides IPC access to file contents, Git status and agent availability; the listed calls do not describe response formats.",
+          "cites": [
+            {
+              "at": "src/preload/files.ts:19",
+              "why": "Lists file reading without a response format.",
+              "relPath": "src/preload/files.ts",
+              "line": 19,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls fs:readFile",
+              "factLine": 19,
+              "dead": false
+            },
+            {
+              "at": "src/preload/git.ts:23",
+              "why": "Lists Git status without a response format.",
+              "relPath": "src/preload/git.ts",
+              "line": 23,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls git:status",
+              "factLine": 23,
+              "dead": false
+            },
+            {
+              "at": "src/preload/index.ts:149",
+              "why": "Lists agent availability without a response format.",
+              "relPath": "src/preload/index.ts",
+              "line": 149,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls agents:availability",
+              "factLine": 149,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-preload:runsIn",
+          "field": "runsIn",
+          "text": "Sits in the preload module rooted at src/preload/index.ts.",
+          "cites": [
+            {
+              "at": "src/preload/index.ts:1",
+              "why": "Identifies the preload module root.",
+              "relPath": "src/preload/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/preload/index.ts",
+              "factLine": 1,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-preload:keeps",
+          "field": "keeps",
+          "text": "Exposes IPC calls to store baselines and record skill pins; these calls do not identify storage held within this part.",
+          "cites": [
+            {
+              "at": "src/preload/baselines.ts:15",
+              "why": "Lists baseline storage as an IPC call.",
+              "relPath": "src/preload/baselines.ts",
+              "line": 15,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls baselines:store",
+              "factLine": 15,
+              "dead": false
+            },
+            {
+              "at": "src/preload/context.ts:34",
+              "why": "Lists skill pin recording as an IPC call.",
+              "relPath": "src/preload/context.ts",
+              "line": 34,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls context:skillPinRecord",
+              "factLine": 34,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-preload:limit",
+          "field": "limit",
+          "text": "The listed surface stops at IPC calls; guarded file writing is named, but its refusal conditions are not described.",
+          "cites": [
+            {
+              "at": "src/preload/files.ts:44",
+              "why": "Lists guarded writing as an IPC call without guard conditions.",
+              "relPath": "src/preload/files.ts",
+              "line": 44,
+              "grade": "call-site",
+              "factKind": "ipc-channel",
+              "factSubject": "IPC calls fs:writeGuarded",
+              "factLine": 44,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        }
+      ]
+    },
+    {
+      "id": "src-renderer",
+      "name": "Workspace interface for editors, terminals and files.",
+      "claims": [
+        {
+          "claimId": "p:src-renderer:name",
+          "field": "name",
+          "text": "Workspace interface for editors, terminals and files.",
+          "cites": [
+            {
+              "at": "src/renderer/editor/index.ts:1",
+              "why": "Identifies the editor module.",
+              "relPath": "src/renderer/editor/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/editor/index.ts",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/terminal/index.ts:1",
+              "why": "Identifies the terminal module.",
+              "relPath": "src/renderer/terminal/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/terminal/index.ts",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/tree/index.ts:1",
+              "why": "Identifies the file tree module.",
+              "relPath": "src/renderer/tree/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/tree/index.ts",
+              "factLine": 1,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-renderer:receives",
+          "field": "receives",
+          "text": "It handles image attachment requests and requests to create projects or change remote files.",
+          "cites": [
+            {
+              "at": "src/renderer/terminal/drop/acquire.ts:114",
+              "why": "Guards the size of an image being attached.",
+              "relPath": "src/renderer/terminal/drop/acquire.ts",
+              "line": 114,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: That image is too large to attach (25 MB max).",
+              "factLine": 114,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/state/projects-slice.ts:291",
+              "why": "Handles a project creation capability refusal.",
+              "relPath": "src/renderer/state/projects-slice.ts",
+              "line": 291,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: This build cannot create projects.",
+              "factLine": 291,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/tree/remote-bridge.ts:120",
+              "why": "Handles a remote file rename capability refusal.",
+              "relPath": "src/renderer/tree/remote-bridge.ts",
+              "line": 120,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: This build cannot rename a file on another machine.",
+              "factLine": 120,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-renderer:does",
+          "field": "does",
+          "text": "It provides editor, terminal, file tree, search and settings modules.",
+          "cites": [
+            {
+              "at": "src/renderer/editor/index.ts:1",
+              "why": "Marks the editor module boundary.",
+              "relPath": "src/renderer/editor/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/editor/index.ts",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/terminal/index.ts:1",
+              "why": "Marks the terminal module boundary.",
+              "relPath": "src/renderer/terminal/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/terminal/index.ts",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/tree/index.ts:1",
+              "why": "Marks the file tree module boundary.",
+              "relPath": "src/renderer/tree/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/tree/index.ts",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/search/index.ts:1",
+              "why": "Marks the search module boundary.",
+              "relPath": "src/renderer/search/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/search/index.ts",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/settings/index.ts:1",
+              "why": "Marks the settings module boundary.",
+              "relPath": "src/renderer/settings/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/renderer/settings/index.ts",
+              "factLine": 1,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-renderer:returns",
+          "field": "returns",
+          "text": "Its terminal capture path produces encoded images or reports why drawing or encoding cannot proceed.",
+          "cites": [
+            {
+              "at": "src/renderer/terminal/capture/rasterize.ts:112",
+              "why": "Refuses capture when there is nothing to draw.",
+              "relPath": "src/renderer/terminal/capture/rasterize.ts",
+              "line": 112,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: nothing to draw",
+              "factLine": 112,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/terminal/capture/rasterize.ts:146",
+              "why": "Reports failure to encode the image.",
+              "relPath": "src/renderer/terminal/capture/rasterize.ts",
+              "line": 146,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: the image could not be encoded",
+              "factLine": 146,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-renderer:runsIn",
+          "field": "runsIn",
+          "text": "It runs in renderer pages that require a root element, including a separate settings renderer.",
+          "cites": [
+            {
+              "at": "src/renderer/main.tsx:31",
+              "why": "The main renderer refuses to start without its root element.",
+              "relPath": "src/renderer/main.tsx",
+              "line": 31,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie renderer: #root element missing from index.html",
+              "factLine": 31,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/settings/main.tsx:25",
+              "why": "The settings renderer also requires a root element.",
+              "relPath": "src/renderer/settings/main.tsx",
+              "line": 25,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie settings renderer: #root element missing",
+              "factLine": 25,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-renderer:keeps",
+          "field": "keeps",
+          "text": "It writes an agent menu icon cache and stores tip state in localStorage.",
+          "cites": [
+            {
+              "at": "src/renderer/icons/agent-menu-icon.ts:43",
+              "why": "Records a cache write in the agent menu icon module.",
+              "relPath": "src/renderer/icons/agent-menu-icon.ts",
+              "line": 43,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "writes cache",
+              "factLine": 43,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/app/one-time-tip.ts:112",
+              "why": "Records a localStorage write in the tip module.",
+              "relPath": "src/renderer/app/one-time-tip.ts",
+              "line": 112,
+              "grade": "call-site",
+              "factKind": "store-write",
+              "factSubject": "writes localStorage",
+              "factLine": 112,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-renderer:limit",
+          "field": "limit",
+          "text": "It refuses images above 25 MB and can refuse project creation or remote file changes when the build lacks those capabilities.",
+          "cites": [
+            {
+              "at": "src/renderer/terminal/drop/acquire.ts:114",
+              "why": "Sets the image attachment size limit.",
+              "relPath": "src/renderer/terminal/drop/acquire.ts",
+              "line": 114,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: That image is too large to attach (25 MB max).",
+              "factLine": 114,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/state/projects-slice.ts:291",
+              "why": "Reports that the build cannot create projects.",
+              "relPath": "src/renderer/state/projects-slice.ts",
+              "line": 291,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: This build cannot create projects.",
+              "factLine": 291,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/tree/remote-bridge.ts:120",
+              "why": "Reports that the build cannot rename remote files.",
+              "relPath": "src/renderer/tree/remote-bridge.ts",
+              "line": 120,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: This build cannot rename a file on another machine.",
+              "factLine": 120,
+              "dead": false
+            },
+            {
+              "at": "src/renderer/tree/use-tree-rename.ts:126",
+              "why": "Reports that the build cannot save remote files.",
+              "relPath": "src/renderer/tree/use-tree-rename.ts",
+              "line": 126,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: This build cannot save files on another machine.",
+              "factLine": 126,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        }
+      ]
+    },
+    {
+      "id": "src-shared",
+      "name": "Shared IPC and keymap support",
+      "claims": [
+        {
+          "claimId": "p:src-shared:name",
+          "field": "name",
+          "text": "Shared IPC and keymap support",
+          "cites": [
+            {
+              "at": "src/shared/ipc/index.ts:1",
+              "why": "Identifies the shared IPC module root.",
+              "relPath": "src/shared/ipc/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/shared/ipc/index.ts",
+              "factLine": 1,
+              "dead": false
+            },
+            {
+              "at": "src/shared/keymap.ts:1229",
+              "why": "Identifies keymap handling of accelerators.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1229,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: \"${id}\" has no accelerator",
+              "factLine": 1229,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-shared:receives",
+          "field": "receives",
+          "text": "Keymap requests refer to entries by identifier.",
+          "cites": [
+            {
+              "at": "src/shared/keymap.ts:1217",
+              "why": "The refusal identifies a missing entry by its identifier.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1217,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: no entry \"${id}\"",
+              "factLine": 1217,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-shared:does",
+          "field": "does",
+          "text": "Guards keymap requests against missing entries and missing accelerators.",
+          "cites": [
+            {
+              "at": "src/shared/keymap.ts:1217",
+              "why": "Refuses when the requested entry is absent.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1217,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: no entry \"${id}\"",
+              "factLine": 1217,
+              "dead": false
+            },
+            {
+              "at": "src/shared/keymap.ts:1229",
+              "why": "Refuses when the requested entry has no accelerator.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1229,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: \"${id}\" has no accelerator",
+              "factLine": 1229,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-shared:returns",
+          "field": "returns",
+          "text": "Reports refusals for missing keymap entries or accelerators. Successful return values are not described.",
+          "cites": [
+            {
+              "at": "src/shared/keymap.ts:1217",
+              "why": "Provides the missing entry refusal.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1217,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: no entry \"${id}\"",
+              "factLine": 1217,
+              "dead": false
+            },
+            {
+              "at": "src/shared/keymap.ts:1229",
+              "why": "Provides the missing accelerator refusal.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1229,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: \"${id}\" has no accelerator",
+              "factLine": 1229,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-shared:runsIn",
+          "field": "runsIn",
+          "text": "The IPC code has a shared module root. Its execution environment is not identified.",
+          "cites": [
+            {
+              "at": "src/shared/ipc/index.ts:1",
+              "why": "Identifies a module boundary without specifying a runtime.",
+              "relPath": "src/shared/ipc/index.ts",
+              "line": 1,
+              "grade": "call-site",
+              "factKind": "module-root",
+              "factSubject": "module root src/shared/ipc/index.ts",
+              "factLine": 1,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-shared:keeps",
+          "field": "keeps",
+          "text": "The keymap refers to entries and their accelerators. Their storage and lifetime are not described.",
+          "cites": [
+            {
+              "at": "src/shared/keymap.ts:1217",
+              "why": "Names keymap entries.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1217,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: no entry \"${id}\"",
+              "factLine": 1217,
+              "dead": false
+            },
+            {
+              "at": "src/shared/keymap.ts:1229",
+              "why": "Associates an accelerator with an entry.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1229,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: \"${id}\" has no accelerator",
+              "factLine": 1229,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        },
+        {
+          "claimId": "p:src-shared:limit",
+          "field": "limit",
+          "text": "Keymap requests stop when an entry is absent or has no accelerator.",
+          "cites": [
+            {
+              "at": "src/shared/keymap.ts:1217",
+              "why": "Refuses a request for a missing entry.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1217,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: no entry \"${id}\"",
+              "factLine": 1217,
+              "dead": false
+            },
+            {
+              "at": "src/shared/keymap.ts:1229",
+              "why": "Refuses a request when an accelerator is missing.",
+              "relPath": "src/shared/keymap.ts",
+              "line": 1229,
+              "grade": "gate",
+              "factKind": "refusal",
+              "factSubject": "refuses: Tortie keymap: \"${id}\" has no accelerator",
+              "factLine": 1229,
+              "dead": false
+            }
+          ],
+          "stale": false,
+          "staleReason": null,
+          "agentId": "codex"
+        }
+      ]
+    }
+  ],
+  "journeys": [],
+  "gates": [
+    {
+      "gateId": "authentication",
+      "partId": "build",
+      "question": "Where are authentication guards identified?",
+      "answer": "detected",
+      "because": "Authentication guards appear in detection rules, machine tooling and an application fixture.",
+      "cites": [
+        {
+          "at": "build/p256/det/rules.mts:529",
+          "why": "Identifies an authentication detection rule.",
+          "relPath": "build/p256/det/rules.mts",
+          "line": 529,
+          "grade": "gate",
+          "factKind": "auth",
+          "factSubject": "auth gate /(authenticate|authoriz|requireAuth|require_login|login_requ",
+          "factLine": 529,
+          "dead": false
+        },
+        {
+          "at": "build/machines-conformance-probe.mts:3440",
+          "why": "Identifies an authorized keys guard.",
+          "relPath": "build/machines-conformance-probe.mts",
+          "line": 3440,
+          "grade": "gate",
+          "factKind": "auth",
+          "factSubject": "auth gate AUTHORIZED_KEYS_SCRIPT.includes",
+          "factLine": 3440,
+          "dead": false
+        },
+        {
+          "at": "build/capture-machine-goldens.mjs:182",
+          "why": "Identifies an authentication guard in machine capture.",
+          "relPath": "build/capture-machine-goldens.mjs",
+          "line": 182,
+          "grade": "gate",
+          "factKind": "auth",
+          "factSubject": "auth gate [ `Port ${String(port)}`, 'ListenAddress 127.0.0.1', `HostKe",
+          "factLine": 182,
+          "dead": false
+        },
+        {
+          "at": "build/fixtures/facts/ts-electron/src/main/auth.ts:6",
+          "why": "Identifies a fixture authentication guard.",
+          "relPath": "build/fixtures/facts/ts-electron/src/main/auth.ts",
+          "line": 6,
+          "grade": "gate",
+          "factKind": "auth",
+          "factSubject": "auth gate authenticate",
+          "factLine": 6,
+          "dead": false
+        },
+        {
+          "at": "build/machines-conformance-probe.mts:1101",
+          "why": "Identifies an authorized keys command guard.",
+          "relPath": "build/machines-conformance-probe.mts",
+          "line": 1101,
+          "grade": "gate",
+          "factKind": "auth",
+          "factSubject": "auth gate composeAuthorizedKeysCommand",
+          "factLine": 1101,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "build-dependency",
+      "partId": "build",
+      "question": "What prompts the build dependency refusal?",
+      "answer": "uncertain",
+      "because": "The refusal gives a package installation instruction but does not expose its triggering condition.",
+      "cites": [
+        {
+          "at": "build/build-tmux.mjs:459",
+          "why": "Shows a refusal with a dependency installation instruction.",
+          "relPath": "build/build-tmux.mjs",
+          "line": 459,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"brew install pkg-config\".",
+          "factLine": 459,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "copy-root",
+      "partId": "build",
+      "question": "Is the copy root constrained?",
+      "answer": "stops",
+      "because": "The refusal requires the copy root to be the directory identified in its message.",
+      "cites": [
+        {
+          "at": "build/assert-skills-cli.cjs:50",
+          "why": "Requires a particular copy root directory.",
+          "relPath": "build/assert-skills-cli.cjs",
+          "line": 50,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses:   app-builder-lib/out/util/filter.js, so the copy root must BE that directory.",
+          "factLine": 50,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "fixture-spawn",
+      "partId": "build",
+      "question": "What does the fixture spawn refusal guard?",
+      "answer": "uncertain",
+      "because": "The refusal contains a shell expression in a message but does not expose the guard condition.",
+      "cites": [
+        {
+          "at": "build/fixtures/facts/ts-electron/src/main/spawn.ts:17",
+          "why": "Identifies a refusal containing a shell expression.",
+          "relPath": "build/fixtures/facts/ts-electron/src/main/spawn.ts",
+          "line": 17,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: $(touch /tmp/p) in a message",
+          "factLine": 17,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "geometry-minimum",
+      "partId": "build",
+      "question": "Can the geometry probe continue without its expected minimum?",
+      "answer": "stops",
+      "because": "The probe refuses when the expected editor minimum is absent from the geometry source.",
+      "cites": [
+        {
+          "at": "build/probe-p219-geometry.mjs:103",
+          "why": "Refuses when the expected geometry minimum is absent.",
+          "relPath": "build/probe-p219-geometry.mjs",
+          "line": 103,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${TAG} EDITOR_MIN is no longer declared in ${GEOMETRY}",
+          "factLine": 103,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "install-copy",
+      "partId": "build",
+      "question": "Can the installation copy probe refuse?",
+      "answer": "stops",
+      "because": "The probe contains a refusal that raises an error.",
+      "cites": [
+        {
+          "at": "build/probe-p130-install-copy.mjs:285",
+          "why": "Identifies a refusal through raising an error.",
+          "relPath": "build/probe-p130-install-copy.mjs",
+          "line": 285,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses (raise)",
+          "factLine": 285,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "launch-invalid-value",
+      "partId": "build",
+      "question": "What triggers the launch helper's invalid value refusal?",
+      "answer": "uncertain",
+      "because": "The refusal reports a variable value without identifying its condition.",
+      "cites": [
+        {
+          "at": "build/electron-run.mjs:568",
+          "why": "Shows a refusal with a variable diagnostic.",
+          "relPath": "build/electron-run.mjs",
+          "line": 568,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${TAG} ${label}: ${bad}",
+          "factLine": 568,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "launch-reason",
+      "partId": "build",
+      "question": "What triggers the launch helper's reason based refusal?",
+      "answer": "uncertain",
+      "because": "The refusal uses a supplied reason whose content is not shown.",
+      "cites": [
+        {
+          "at": "build/electron-run.mjs:563",
+          "why": "Shows a refusal with a variable reason.",
+          "relPath": "build/electron-run.mjs",
+          "line": 563,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${TAG} ${label}: ${why}",
+          "factLine": 563,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "missing-binary",
+      "partId": "build",
+      "question": "Can launch proceed when its binary is missing?",
+      "answer": "stops",
+      "because": "The helper refuses and directs the operator to build or package the application.",
+      "cites": [
+        {
+          "at": "build/electron-run.mjs:573",
+          "why": "Refuses when the requested binary is absent.",
+          "relPath": "build/electron-run.mjs",
+          "line": 573,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${TAG} ${label}: ${bin} is not there. Run the build, or the package for a packaged launch.",
+          "factLine": 573,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "program-choice",
+      "partId": "build",
+      "question": "Can the helper launch an arbitrary relative program choice?",
+      "answer": "stops",
+      "because": "The helper requires shim, app, packaged or an absolute path.",
+      "cites": [
+        {
+          "at": "build/electron-run.mjs:264",
+          "why": "Restricts the program argument to named choices or an absolute path.",
+          "relPath": "build/electron-run.mjs",
+          "line": 264,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${TAG} program must be \"shim\", \"app\", \"packaged\" or an absolute path. Got ${String(program",
+          "factLine": 264,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "signing-settings",
+      "partId": "build",
+      "question": "Do environment settings control signing?",
+      "answer": "detected",
+      "because": "The signing script reads identity discovery, pull request, signing link and event settings.",
+      "cites": [
+        {
+          "at": "build/sign-nested-binaries.cjs:123",
+          "why": "Reads the identity discovery switch.",
+          "relPath": "build/sign-nested-binaries.cjs",
+          "line": 123,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "environment switch CSC_IDENTITY_AUTO_DISCOVERY",
+          "factLine": 123,
+          "dead": false
+        },
+        {
+          "at": "build/sign-nested-binaries.cjs:127",
+          "why": "Reads the pull request signing switch.",
+          "relPath": "build/sign-nested-binaries.cjs",
+          "line": 127,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "environment switch CSC_FOR_PULL_REQUEST",
+          "factLine": 127,
+          "dead": false
+        },
+        {
+          "at": "build/sign-nested-binaries.cjs:141",
+          "why": "Reads the signing link switch.",
+          "relPath": "build/sign-nested-binaries.cjs",
+          "line": 141,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "environment switch CSC_LINK",
+          "factLine": 141,
+          "dead": false
+        },
+        {
+          "at": "build/sign-nested-binaries.cjs:126",
+          "why": "Reads the event name switch.",
+          "relPath": "build/sign-nested-binaries.cjs",
+          "line": 126,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "environment switch GITHUB_EVENT_NAME",
+          "factLine": 126,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "wait-match",
+      "partId": "build",
+      "question": "Does a wait continue indefinitely without a match?",
+      "answer": "stops",
+      "because": "The helper refuses when nothing matches within the specified wait period.",
+      "cites": [
+        {
+          "at": "build/electron-run.mjs:666",
+          "why": "Reports no match within a timed interval.",
+          "relPath": "build/electron-run.mjs",
+          "line": 666,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${TAG} ${label}: nothing matched ${String(re)} in ${String(ms)} ms.",
+          "factLine": 666,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "environment",
+      "partId": "demo",
+      "question": "Does the environment switch allow execution to proceed?",
+      "answer": "uncertain",
+      "because": "The fact identifies a NODE_ENV switch but gives no branch behavior.",
+      "cites": [
+        {
+          "at": "demo/vite.config.ts:21",
+          "why": "An environment switch is recorded without its branch behavior.",
+          "relPath": "demo/vite.config.ts",
+          "line": 21,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "environment switch NODE_ENV",
+          "factLine": 21,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "session",
+      "partId": "demo",
+      "question": "Does an unknown session proceed?",
+      "answer": "stops",
+      "because": "The bridge explicitly refuses an unknown session.",
+      "cites": [
+        {
+          "at": "demo/bridge/install.ts:106",
+          "why": "The recorded refusal concerns an unknown session.",
+          "relPath": "demo/bridge/install.ts",
+          "line": 106,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: demo: unknown session",
+          "factLine": 106,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "lane",
+      "partId": "other",
+      "question": "Does the VITEST_LANE setting allow execution to proceed?",
+      "answer": "uncertain",
+      "because": "The fact identifies an environment switch but gives no values or resulting execution rules.",
+      "cites": [
+        {
+          "at": "vitest.config.ts:21",
+          "why": "Identifies the test lane environment switch as a gate.",
+          "relPath": "vitest.config.ts",
+          "line": 21,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "environment switch VITEST_LANE",
+          "factLine": 21,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "arguments",
+      "partId": "src-main",
+      "question": "Are architecture argument elements allowed?",
+      "answer": "detected",
+      "because": "The argument guard contains an authorization check.",
+      "cites": [
+        {
+          "at": "src/main/arch/argv-guard.ts:151",
+          "why": "Identifies the element authorization gate.",
+          "relPath": "src/main/arch/argv-guard.ts",
+          "line": 151,
+          "grade": "gate",
+          "factKind": "auth",
+          "factSubject": "auth gate elementIsAllowed",
+          "factLine": 151,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "armed",
+      "partId": "src-main",
+      "question": "Does the durability harness guard armed commands and their recorded arguments?",
+      "answer": "stops",
+      "because": "It refuses apparent execution of an armed command, a missing argument marker or incorrect recorded resume arguments.",
+      "cites": [
+        {
+          "at": "src/main/harness/durability.ts:330",
+          "why": "Rejects apparent execution of an armed command.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 330,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${kase.name}: armed command appears to have EXECUTED",
+          "factLine": 330,
+          "dead": false
+        },
+        {
+          "at": "src/main/harness/durability.ts:275",
+          "why": "Rejects a missing marker in recorded arguments.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 275,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${kase.name}: marker missing from recorded argv",
+          "factLine": 275,
+          "dead": false
+        },
+        {
+          "at": "src/main/harness/durability.ts:277",
+          "why": "Rejects incorrect recorded resume arguments.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 277,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${kase.name}: recorded resume argv wrong: \"${armed}\"",
+          "factLine": 277,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "capture",
+      "partId": "src-main",
+      "question": "Does the capture harness reject a missing history directory?",
+      "answer": "stops",
+      "because": "It refuses when the history directory was never created, identifying that capture did not start.",
+      "cites": [
+        {
+          "at": "src/main/harness/capture.ts:180",
+          "why": "Rejects a missing capture history directory.",
+          "relPath": "src/main/harness/capture.ts",
+          "line": 180,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${historyDir} was never created — the wrapper did not start capturing",
+          "factLine": 180,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "claim",
+      "partId": "src-main",
+      "question": "Can architecture storage refuse a claim?",
+      "answer": "detected",
+      "because": "Architecture storage has a refusal that includes a claim identifier and a reason.",
+      "cites": [
+        {
+          "at": "src/main/arch/db.ts:2537",
+          "why": "Records a claim specific refusal with a reason.",
+          "relPath": "src/main/arch/db.ts",
+          "line": 2537,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${claim.claimId}: ${why}",
+          "factLine": 2537,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "command",
+      "partId": "src-main",
+      "question": "Does the agent harness reject a missing command?",
+      "answer": "stops",
+      "because": "It refuses when the pane reports that a command was not found.",
+      "cites": [
+        {
+          "at": "src/main/harness/agent.ts:100",
+          "why": "Rejects command lookup failure in pane output.",
+          "relPath": "src/main/harness/agent.ts",
+          "line": 100,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"command not found\" in pane:\\n${capture.slice(-500)}",
+          "factLine": 100,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "harvest",
+      "partId": "src-main",
+      "question": "Does session identifier harvesting stop on cancellation or failure?",
+      "answer": "stops",
+      "because": "Harvest watching contains refusals for both cancellation and failure.",
+      "cites": [
+        {
+          "at": "src/main/manifest/harvest/watch.ts:946",
+          "why": "Reports cancelled harvesting.",
+          "relPath": "src/main/manifest/harvest/watch.ts",
+          "line": 946,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${agent} session-id harvest cancelled",
+          "factLine": 946,
+          "dead": false
+        },
+        {
+          "at": "src/main/manifest/harvest/watch.ts:556",
+          "why": "Reports failed harvesting.",
+          "relPath": "src/main/manifest/harvest/watch.ts",
+          "line": 556,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${agent} session-id harvest failed",
+          "factLine": 556,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "manifest",
+      "partId": "src-main",
+      "question": "Does the durability harness reject missing manifest sessions?",
+      "answer": "stops",
+      "because": "The harness refuses when the keeper or a case session is missing from the manifest.",
+      "cites": [
+        {
+          "at": "src/main/harness/durability.ts:91",
+          "why": "Rejects a keeper missing from the manifest.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 91,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"${SMOKE_KEEPER}\" missing from the manifest",
+          "factLine": 91,
+          "dead": false
+        },
+        {
+          "at": "src/main/harness/durability.ts:262",
+          "why": "Rejects a case session missing from the manifest.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 262,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"${kase.name}\" missing from the manifest",
+          "factLine": 262,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "marks",
+      "partId": "src-main",
+      "question": "Does the menu harness reject marks with incorrect dimensions?",
+      "answer": "stops",
+      "because": "It contains a refusal for marks whose dimensions do not match the expected size.",
+      "cites": [
+        {
+          "at": "src/main/harness/p156-menus.ts:158",
+          "why": "Rejects marks with incorrect dimensions.",
+          "relPath": "src/main/harness/p156-menus.ts",
+          "line": 158,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${String(wrongSize.length)} marks are not 16×16 and ",
+          "factLine": 158,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "restore",
+      "partId": "src-main",
+      "question": "Does the durability harness reject inconsistent session and restore records?",
+      "answer": "stops",
+      "because": "It refuses unexpected manifest status, a restore without live status, an unexpected restore kind or a missing restore result record.",
+      "cites": [
+        {
+          "at": "src/main/harness/durability.ts:264",
+          "why": "Rejects unexpected manifest status.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 264,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${kase.name}: manifest status is \"${rec.status}\", expected ",
+          "factLine": 264,
+          "dead": false
+        },
+        {
+          "at": "src/main/harness/durability.ts:288",
+          "why": "Rejects restore status that is not live.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 288,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${kase.name}: restore left status \"${restored.status}\", expected a live one",
+          "factLine": 288,
+          "dead": false
+        },
+        {
+          "at": "src/main/harness/durability.ts:296",
+          "why": "Rejects an unexpected restore kind.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 296,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${kase.name}: restore recorded \"${restored.restore.kind}\", expected ",
+          "factLine": 296,
+          "dead": false
+        },
+        {
+          "at": "src/main/harness/durability.ts:293",
+          "why": "Rejects a missing restore result record.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 293,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: ${kase.name}: restore stored no record of what came back",
+          "factLine": 293,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "running",
+      "partId": "src-main",
+      "question": "Does the durability harness require expected sessions to be running?",
+      "answer": "stops",
+      "because": "It refuses when the keeper is absent from the session list or a required case session is not running.",
+      "cites": [
+        {
+          "at": "src/main/harness/durability.ts:82",
+          "why": "Rejects a keeper missing from the session list.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 82,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"${SMOKE_KEEPER}\" missing from tmux list-sessions — T1 durability FAILED",
+          "factLine": 82,
+          "dead": false
+        },
+        {
+          "at": "src/main/harness/durability.ts:349",
+          "why": "Rejects a case session that is not running.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 349,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"${kase.name}\" not running — run GMUX_SMOKE=t3-prep first",
+          "factLine": 349,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "termination",
+      "partId": "src-main",
+      "question": "Does the harness reject incorrect state after a session kill?",
+      "answer": "stops",
+      "because": "The harnesses refuse when a keeper remains alive or a killed session fails to report the expected rest status.",
+      "cites": [
+        {
+          "at": "src/main/harness/durability.ts:105",
+          "why": "Rejects a keeper still alive after kill.",
+          "relPath": "src/main/harness/durability.ts",
+          "line": 105,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"${SMOKE_KEEPER}\" still alive after kill",
+          "factLine": 105,
+          "dead": false
+        },
+        {
+          "at": "src/main/fault/harness.ts:313",
+          "why": "Rejects an unexpected status after a session kill.",
+          "relPath": "src/main/fault/harness.ts",
+          "line": 313,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: \"${last.name}\" still reads ${String(status)} 10 s after an out-of-band kill, expected rest",
+          "factLine": 313,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "watch",
+      "partId": "src-main",
+      "question": "Can architecture watching abort?",
+      "answer": "stops",
+      "because": "Architecture watching has an abort refusal.",
+      "cites": [
+        {
+          "at": "src/main/arch/watch.ts:132",
+          "why": "Records an abort refusal.",
+          "relPath": "src/main/arch/watch.ts",
+          "line": 132,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses (abort)",
+          "factLine": 132,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "capture-drawing",
+      "partId": "src-renderer",
+      "question": "Can terminal capture proceed without drawable content or a drawing context?",
+      "answer": "stops",
+      "because": "Rasterization refuses both missing drawable content and a missing drawing context.",
+      "cites": [
+        {
+          "at": "src/renderer/terminal/capture/rasterize.ts:112",
+          "why": "Reports that there is nothing to draw.",
+          "relPath": "src/renderer/terminal/capture/rasterize.ts",
+          "line": 112,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: nothing to draw",
+          "factLine": 112,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/terminal/capture/rasterize.ts:137",
+          "why": "Reports a missing drawing context.",
+          "relPath": "src/renderer/terminal/capture/rasterize.ts",
+          "line": 137,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: no 2d context",
+          "factLine": 137,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "capture-encoding",
+      "partId": "src-renderer",
+      "question": "Can capture finish when image encoding fails?",
+      "answer": "stops",
+      "because": "Rasterization reports that the image could not be encoded.",
+      "cites": [
+        {
+          "at": "src/renderer/terminal/capture/rasterize.ts:146",
+          "why": "Contains the image encoding refusal.",
+          "relPath": "src/renderer/terminal/capture/rasterize.ts",
+          "line": 146,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: the image could not be encoded",
+          "factLine": 146,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "feature-flags",
+      "partId": "src-renderer",
+      "question": "Are feature flag checks identified?",
+      "answer": "detected",
+      "because": "The overview rules and source control shot contain feature flag markers, but their governing conditions are not supplied.",
+      "cites": [
+        {
+          "at": "src/renderer/overview/__tests__/p143-story-rules.test.ts:377",
+          "why": "Lists button and toggle feature flag markers.",
+          "relPath": "src/renderer/overview/__tests__/p143-story-rules.test.ts",
+          "line": 377,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "feature flag </button>",
+          "factLine": 377,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/scm/p105-runs-shot.ts:402",
+          "why": "Lists expansion and click feature flag markers.",
+          "relPath": "src/renderer/scm/p105-runs-shot.ts",
+          "line": 402,
+          "grade": "gate",
+          "factKind": "flag",
+          "factSubject": "feature flag aria-expanded",
+          "factLine": 402,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "filesystem-operations",
+      "partId": "src-renderer",
+      "question": "Can unavailable filesystem operations proceed?",
+      "answer": "stops",
+      "because": "The filesystem bridges refuse unavailable operations, including directory reading and file revealing.",
+      "cites": [
+        {
+          "at": "src/renderer/tree/fs-ops-bridge.ts:61",
+          "why": "Reports an unavailable filesystem operation.",
+          "relPath": "src/renderer/tree/fs-ops-bridge.ts",
+          "line": 61,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: fs.${name} is not available",
+          "factLine": 61,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/tree/fs-bridge.ts:23",
+          "why": "Refuses unavailable directory reading.",
+          "relPath": "src/renderer/tree/fs-bridge.ts",
+          "line": 23,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: fs.readDir is not available",
+          "factLine": 23,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/tree/fs-bridge.ts:36",
+          "why": "Refuses unavailable file revealing.",
+          "relPath": "src/renderer/tree/fs-bridge.ts",
+          "line": 36,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: fs.reveal is not available",
+          "factLine": 36,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "image-size",
+      "partId": "src-renderer",
+      "question": "Can an image larger than 25 MB be attached?",
+      "answer": "stops",
+      "because": "Image acquisition refuses attachments above the size limit.",
+      "cites": [
+        {
+          "at": "src/renderer/terminal/drop/acquire.ts:114",
+          "why": "Reports that the image is too large to attach.",
+          "relPath": "src/renderer/terminal/drop/acquire.ts",
+          "line": 114,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: That image is too large to attach (25 MB max).",
+          "factLine": 114,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "open-with",
+      "partId": "src-renderer",
+      "question": "Can opening with another application proceed without the required operations?",
+      "answer": "stops",
+      "because": "The opening path refuses unavailable application opening and application listing operations.",
+      "cites": [
+        {
+          "at": "src/renderer/tree/open-with.ts:232",
+          "why": "Reports that opening with an application is unavailable.",
+          "relPath": "src/renderer/tree/open-with.ts",
+          "line": 232,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: fs.openWith is not available",
+          "factLine": 232,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/tree/open-with.ts:157",
+          "why": "Reports that listing opening applications is unavailable.",
+          "relPath": "src/renderer/tree/open-with.ts",
+          "line": 157,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: fs.openWithApps is not available",
+          "factLine": 157,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "project-creation",
+      "partId": "src-renderer",
+      "question": "Can project creation proceed when the build lacks that capability?",
+      "answer": "stops",
+      "because": "The project state path reports that this build cannot create projects.",
+      "cites": [
+        {
+          "at": "src/renderer/state/projects-slice.ts:291",
+          "why": "Contains the project creation refusal.",
+          "relPath": "src/renderer/state/projects-slice.ts",
+          "line": 291,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: This build cannot create projects.",
+          "factLine": 291,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "remote-file-changes",
+      "partId": "src-renderer",
+      "question": "Can unsupported remote folder creation, renaming or saving proceed?",
+      "answer": "stops",
+      "because": "These paths refuse changes that the build cannot perform on another machine.",
+      "cites": [
+        {
+          "at": "src/renderer/tree/remote-bridge.ts:104",
+          "why": "Refuses remote folder creation.",
+          "relPath": "src/renderer/tree/remote-bridge.ts",
+          "line": 104,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: This build cannot make a folder on another machine.",
+          "factLine": 104,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/tree/remote-bridge.ts:120",
+          "why": "Refuses remote file renaming.",
+          "relPath": "src/renderer/tree/remote-bridge.ts",
+          "line": 120,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: This build cannot rename a file on another machine.",
+          "factLine": 120,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/tree/use-tree-rename.ts:126",
+          "why": "Refuses remote file saving.",
+          "relPath": "src/renderer/tree/use-tree-rename.ts",
+          "line": 126,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: This build cannot save files on another machine.",
+          "factLine": 126,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "renderer-root",
+      "partId": "src-renderer",
+      "question": "Can renderer startup proceed without its root element?",
+      "answer": "stops",
+      "because": "Both the main renderer and settings renderer refuse a missing root element.",
+      "cites": [
+        {
+          "at": "src/renderer/main.tsx:31",
+          "why": "Reports the missing main renderer root.",
+          "relPath": "src/renderer/main.tsx",
+          "line": 31,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: Tortie renderer: #root element missing from index.html",
+          "factLine": 31,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/settings/main.tsx:25",
+          "why": "Reports the missing settings renderer root.",
+          "relPath": "src/renderer/settings/main.tsx",
+          "line": 25,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: Tortie settings renderer: #root element missing",
+          "factLine": 25,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "required-bridges",
+      "partId": "src-renderer",
+      "question": "Can the theme and chrome paths proceed without their required bridges?",
+      "answer": "stops",
+      "because": "The theme path refuses a missing settings bridge, and the chrome state path refuses a missing bridge.",
+      "cites": [
+        {
+          "at": "src/renderer/theme/p207-hue-drive.ts:277",
+          "why": "Reports that the settings bridge is absent.",
+          "relPath": "src/renderer/theme/p207-hue-drive.ts",
+          "line": 277,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: the settings bridge is not present",
+          "factLine": 277,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/state/chrome-slice.ts:552",
+          "why": "Reports that there is no bridge.",
+          "relPath": "src/renderer/state/chrome-slice.ts",
+          "line": 552,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: there is no bridge",
+          "factLine": 552,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "selection-terminal",
+      "partId": "src-renderer",
+      "question": "Can the selection probe proceed without a live terminal for the session?",
+      "answer": "stops",
+      "because": "The selection probe refuses a session with no live terminal.",
+      "cites": [
+        {
+          "at": "src/renderer/terminal/selection-shot-probe.ts:137",
+          "why": "Reports the missing live terminal.",
+          "relPath": "src/renderer/terminal/selection-shot-probe.ts",
+          "line": 137,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: selection probe: no live terminal for ${sessionId}",
+          "factLine": 137,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "tree-drop-probe",
+      "partId": "src-renderer",
+      "question": "Can the tree drop probe proceed without its session leaf, visible tree or permitted paths?",
+      "answer": "stops",
+      "because": "The probe refuses a missing session leaf, a hidden file tree or paths refused by drag initiation.",
+      "cites": [
+        {
+          "at": "src/renderer/terminal/drop/shot-probe.ts:290",
+          "why": "Reports that the session has no leaf.",
+          "relPath": "src/renderer/terminal/drop/shot-probe.ts",
+          "line": 290,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: treeDrop: no leaf for the session",
+          "factLine": 290,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/terminal/drop/shot-probe.ts:294",
+          "why": "Reports that the file tree is not showing.",
+          "relPath": "src/renderer/terminal/drop/shot-probe.ts",
+          "line": 294,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: treeDrop: the file tree is not showing",
+          "factLine": 294,
+          "dead": false
+        },
+        {
+          "at": "src/renderer/terminal/drop/shot-probe.ts:335",
+          "why": "Reports that drag initiation refused the paths.",
+          "relPath": "src/renderer/terminal/drop/shot-probe.ts",
+          "line": 335,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: treeDrop: beginTreeDrag refused the paths",
+          "factLine": 335,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "missing-accelerator",
+      "partId": "src-shared",
+      "question": "Does the requested keymap entry lack an accelerator?",
+      "answer": "stops",
+      "because": "The keymap refuses when the identified entry has no accelerator.",
+      "cites": [
+        {
+          "at": "src/shared/keymap.ts:1229",
+          "why": "Explicit refusal for a missing accelerator.",
+          "relPath": "src/shared/keymap.ts",
+          "line": 1229,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: Tortie keymap: \"${id}\" has no accelerator",
+          "factLine": 1229,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    },
+    {
+      "gateId": "missing-entry",
+      "partId": "src-shared",
+      "question": "Is the requested keymap entry absent?",
+      "answer": "stops",
+      "because": "The keymap refuses when no entry matches the identifier.",
+      "cites": [
+        {
+          "at": "src/shared/keymap.ts:1217",
+          "why": "Explicit refusal for a missing entry.",
+          "relPath": "src/shared/keymap.ts",
+          "line": 1217,
+          "grade": "gate",
+          "factKind": "refusal",
+          "factSubject": "refuses: Tortie keymap: no entry \"${id}\"",
+          "factLine": 1217,
+          "dead": false
+        }
+      ],
+      "stale": false,
+      "staleReason": null,
+      "agentId": "codex"
+    }
+  ],
+  "rates": [
+    {
+      "scope": "part:build",
+      "backed": 40,
+      "total": 40,
+      "floorWithin": 4947,
+      "floorLines": 16881,
+      "byGrade": {
+        "gate": 26,
+        "call-site": 14,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 611,
+        "call-site": 1312,
+        "declaration": 3024,
+        "resolves": 11934
+      },
+      "gateShaped": 12,
+      "gateClaims": 12,
+      "computedAt": 1789239961018
+    },
+    {
+      "scope": "part:demo",
+      "backed": 11,
+      "total": 11,
+      "floorWithin": 51,
+      "floorLines": 633,
+      "byGrade": {
+        "gate": 7,
+        "call-site": 4,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 14,
+        "call-site": 14,
+        "declaration": 23,
+        "resolves": 582
+      },
+      "gateShaped": 2,
+      "gateClaims": 2,
+      "computedAt": 1789239981211
+    },
+    {
+      "scope": "part:other",
+      "backed": 23,
+      "total": 23,
+      "floorWithin": 86,
+      "floorLines": 981,
+      "byGrade": {
+        "gate": 3,
+        "call-site": 20,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 7,
+        "call-site": 75,
+        "declaration": 4,
+        "resolves": 895
+      },
+      "gateShaped": 1,
+      "gateClaims": 1,
+      "computedAt": 1789240095287
+    },
+    {
+      "scope": "part:src-main",
+      "backed": 51,
+      "total": 51,
+      "floorWithin": 2619,
+      "floorLines": 8557,
+      "byGrade": {
+        "gate": 25,
+        "call-site": 26,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 348,
+        "call-site": 631,
+        "declaration": 1640,
+        "resolves": 5938
+      },
+      "gateShaped": 12,
+      "gateClaims": 12,
+      "computedAt": 1789240174772
+    },
+    {
+      "scope": "part:src-preload",
+      "backed": 16,
+      "total": 16,
+      "floorWithin": 356,
+      "floorLines": 675,
+      "byGrade": {
+        "gate": 0,
+        "call-site": 16,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 0,
+        "call-site": 291,
+        "declaration": 65,
+        "resolves": 319
+      },
+      "gateShaped": 0,
+      "gateClaims": 0,
+      "computedAt": 1789240197403
+    },
+    {
+      "scope": "part:src-renderer",
+      "backed": 44,
+      "total": 44,
+      "floorWithin": 1207,
+      "floorLines": 4457,
+      "byGrade": {
+        "gate": 34,
+        "call-site": 10,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 165,
+        "call-site": 34,
+        "declaration": 1008,
+        "resolves": 3250
+      },
+      "gateShaped": 12,
+      "gateClaims": 12,
+      "computedAt": 1789240273054
+    },
+    {
+      "scope": "part:src-shared",
+      "backed": 14,
+      "total": 14,
+      "floorWithin": 306,
+      "floorLines": 1932,
+      "byGrade": {
+        "gate": 12,
+        "call-site": 2,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 14,
+        "call-site": 4,
+        "declaration": 288,
+        "resolves": 1626
+      },
+      "gateShaped": 2,
+      "gateClaims": 2,
+      "computedAt": 1789240300126
+    },
+    {
+      "scope": "repo",
+      "backed": 199,
+      "total": 199,
+      "floorWithin": 9572,
+      "floorLines": 34116,
+      "byGrade": {
+        "gate": 107,
+        "call-site": 92,
+        "declaration": 0,
+        "resolves": 0
+      },
+      "floorByGrade": {
+        "gate": 1159,
+        "call-site": 2361,
+        "declaration": 6052,
+        "resolves": 24544
+      },
+      "gateShaped": 41,
+      "gateClaims": 41,
+      "computedAt": 1789240300126
+    }
+  ],
+  "runs": [
+    {
+      "runId": "1789240300239-journeys-all",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": null,
+      "verdict": "refused",
+      "reason": "no-row-stood",
+      "wallMs": 7951,
+      "claims": 0,
+      "rowsDropped": 0,
+      "startedAt": 1789240300239
+    },
+    {
+      "runId": "1789240273263-part-src-shared",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "src-shared",
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 26843,
+      "claims": 9,
+      "rowsDropped": 0,
+      "startedAt": 1789240273263
+    },
+    {
+      "runId": "1789240197533-part-src-renderer",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "src-renderer",
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 75499,
+      "claims": 19,
+      "rowsDropped": 0,
+      "startedAt": 1789240197533
+    },
+    {
+      "runId": "1789240174998-part-src-preload",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "src-preload",
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 22383,
+      "claims": 7,
+      "rowsDropped": 0,
+      "startedAt": 1789240174998
+    },
+    {
+      "runId": "1789240095500-part-src-main",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "src-main",
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 79255,
+      "claims": 19,
+      "rowsDropped": 0,
+      "startedAt": 1789240095500
+    },
+    {
+      "runId": "1789240066940-part-other",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "other",
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 28326,
+      "claims": 8,
+      "rowsDropped": 0,
+      "startedAt": 1789240066940
+    },
+    {
+      "runId": "1789239981446-part-docs",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "docs",
+      "verdict": "refused",
+      "reason": "gate-invalid",
+      "wallMs": 85359,
+      "claims": 0,
+      "rowsDropped": 0,
+      "startedAt": 1789239981446
+    },
+    {
+      "runId": "1789239961210-part-demo",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "demo",
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 19982,
+      "claims": 9,
+      "rowsDropped": 0,
+      "startedAt": 1789239961210
+    },
+    {
+      "runId": "1789239889965-part-build",
+      "agentId": "codex",
+      "model": "gpt-6-astra",
+      "partId": "build",
+      "verdict": "kept",
+      "reason": null,
+      "wallMs": 71032,
+      "claims": 19,
+      "rowsDropped": 0,
+      "startedAt": 1789239889965
+    }
+  ],
+  "readAt": 1789240273263
+}

@@ -66,6 +66,7 @@ import {
 } from '@shared/settings';
 import {
   archRecipeFor,
+  archSemanticRecipeFor,
   foldRecipeFor,
   recipeHasModel
 } from '../overview/fold/recipes';
@@ -586,8 +587,27 @@ export function sanitizeArchSettings(raw: unknown): ArchSettings {
   if (typeof agentId !== 'string' || typeof model !== 'string') {
     return { ...noArchChosen(), enabled, wrapperPass };
   }
-  const recipe = archRecipeFor(agentId);
-  if (recipe === null || !recipeHasModel(recipe, model)) {
+  // PHASE 259. THE ARCHITECTURE PANE NOW HAS TWO RECIPE TABLES AND ONE
+  // CHOICE, so a pair is valid when EITHER table admits it.
+  //
+  // The contract pass reads `archRecipeFor` and the semantic pass reads
+  // `archSemanticRecipeFor` (enrich/run.ts), and until this line was written
+  // only the first was asked here. Measured on 2026-09-12: choosing
+  // `codex`/`gpt-6-astra` through the app's own settings door read back
+  // `null/null`, because codex names no CONTRACT recipe, so every semantic
+  // ask refused `no-choice` before it reached the runner and the row this
+  // phase adds could not be selected by anybody, ever.
+  //
+  // THIS WIDENS WHAT MAY BE CHOSEN AND NOTHING ELSE. The seal, the Phase 23
+  // confirm gate and the runner's re-check at the spawn are untouched, and an
+  // agent that names only one of the two tables still refuses `no-recipe` on
+  // the pass it has no row for, which is a result rather than a failure.
+  const contract = archRecipeFor(agentId);
+  const semantic = archSemanticRecipeFor(agentId);
+  const known =
+    (contract !== null && recipeHasModel(contract, model)) ||
+    (semantic !== null && recipeHasModel(semantic, model));
+  if (!known) {
     return { ...noArchChosen(), enabled, wrapperPass };
   }
   return { enabled, agentId, model, wrapperPass };

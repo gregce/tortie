@@ -84,8 +84,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -337,7 +337,7 @@ function selfTest() {
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const out = { dryRun: false, agent: null, model: null, asks: 0, selfTest: false };
+  const out = { dryRun: false, agent: null, model: null, asks: 0, budgetMs: 0, selfTest: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') out.dryRun = true;
@@ -345,8 +345,69 @@ function parseArgs(argv) {
     else if (a === '--agent') out.agent = argv[++i] ?? null;
     else if (a === '--model') out.model = argv[++i] ?? null;
     else if (a === '--asks') out.asks = Number(argv[++i] ?? '0');
+    // THE FOREGROUND CAP MADE HONEST. A measurement runs in the foreground
+    // under a 600 s cap, and a run hard-killed at that cap never reaches the
+    // finally block that ends the Electron and removes the clone. So the
+    // harness owns its own wall budget: it starts no NEW ask once the budget
+    // is spent, records `stoppedEarly` on the record, and leaves through its
+    // own finally. It never shortens an ask that has already begun and never
+    // changes what an ask is, so a run that fits the budget is byte for byte
+    // the run it would have been without one.
+    else if (a === '--budget-ms') out.budgetMs = Number(argv[++i] ?? '0');
   }
   return out;
+}
+
+/**
+ * MAKE THE AGENT CLIs' OWN LOGINS REACHABLE FROM THE SCRATCH HOME, and change
+ * nothing else about them.
+ *
+ * The operator's word of 2026-09-12 is that the CLIs keep their own real
+ * logins on this Mac under his own subscriptions. Tortie itself runs on a
+ * scratch `HOME` so it writes nothing into his, and the model child inherits
+ * that `HOME` from the app exactly as it inherits it in production. Measured
+ * on 2026-09-12 with nothing linked, the child answered
+ * `Not logged in · Please run /login` in 458 ms and the record read
+ * `failed/success`, which is this phase's first measurement and its first
+ * defect both.
+ *
+ * A SYMBOLIC LINK IS THE MECHANISM, and it is chosen over the two obvious
+ * alternatives on purpose. `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are NOT set,
+ * because the brief forbids pointing either of them anywhere and because a
+ * redirected home is exactly what the recipe header says the containment is
+ * NOT. Giving the app his real `HOME` is refused too, because then Tortie
+ * writes into his home rather than into scratch. So the ONLY things reachable
+ * outside the scratch home are the two agent configuration entries themselves,
+ * which is precisely and only what his word asked for.
+ *
+ * NOTHING HERE READS A CREDENTIAL. It makes a link and stats a path; it never
+ * opens a file, never runs `security`, and never copies a byte. The child
+ * reads its own login the way it does in production, which is the point.
+ */
+function linkRealLogins(home) {
+  const real = process.env.P259_REAL_HOME ?? realHome();
+  if (real === null || real === home) return;
+  const linked = [];
+  for (const entry of ['.claude', '.claude.json', '.codex']) {
+    const from = join(real, entry);
+    if (!existsSync(from)) continue;
+    try {
+      symlinkSync(from, join(home, entry));
+      linked.push(entry);
+    } catch {
+      /* it is already there, which is the same outcome */
+    }
+  }
+  say(`${TAG} the scratch HOME links the CLIs' own logins: ${linked.join(', ') || '(nothing found to link)'}`);
+}
+
+/** The person's real home, read from the passwd record rather than from HOME. */
+function realHome() {
+  try {
+    return userInfo().homedir ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function main() {
@@ -375,6 +436,7 @@ async function main() {
   }
   mkdirSync(home, { recursive: true });
   mkdirSync(profile, { recursive: true });
+  linkRealLogins(home);
 
   const before = gmuxSessions();
   const versions = preflight();
@@ -383,6 +445,8 @@ async function main() {
   say(`${TAG} mode: ${args.dryRun ? 'DRY RUN — no token is spent' : `LIVE — ${agentId} / ${model}`}`);
 
   const rows = [];
+  let closeCdp = null;
+  let stoppedEarly = null;
   let noChoice = null;
   let clone = null;
   let failed = null;
@@ -417,6 +481,15 @@ async function main() {
       },
       async () => {
         const { cdp } = await cdpForAppWindow(profile, 120_000);
+        // THE SOCKET IS CLOSED IN A FINALLY, whatever happened. Measured on
+        // 2026-09-12: the run finished every ask, wrote both files and printed
+        // its totals in 2.3 s, and then node stayed alive for twenty minutes
+        // because this websocket was still open, so a foreground call looked
+        // like a hung measurement and was killed by its cap. An open handle is
+        // not a leaked process, but it reads exactly like one.
+        closeCdp = () => {
+          try { cdp.close(); } catch { /* it was already gone */ }
+        };
         await cdp.call('Runtime.enable');
         for (;;) {
           if ((await cdpEval(cdp, `performance.getEntriesByType('navigation')[0].loadEventEnd`)) > 0) break;
@@ -440,7 +513,13 @@ async function main() {
         const asks = planAsks(boxes, args.asks);
         say(`${TAG} ${String(asks.length)} ask(s) planned over ${String(boxes.length)} box(es): ${asks.map((a) => a.partId ?? a.scope).join(', ')}`);
 
+        const runStarted = Date.now();
         for (const ask of asks) {
+          if (args.budgetMs > 0 && Date.now() - runStarted >= args.budgetMs) {
+            stoppedEarly = `the wall budget of ${String(args.budgetMs)} ms was spent after ${String(rows.length)} of ${String(asks.length)} ask(s); no further ask was started`;
+            say(`${TAG} ${stoppedEarly}`);
+            break;
+          }
           const t0 = Date.now();
           const input = { cwd: clone, scope: ask.scope, ...(ask.partId === null ? {} : { partId: ask.partId }) };
           const answer = await call(cdp, `window.gmux.arch.enrich(${JSON.stringify(input)})`, 10 * 60 * 1000);
@@ -449,7 +528,9 @@ async function main() {
           say(
             `${TAG}   ${ask.scope}${ask.partId === null ? '' : ` ${ask.partId}`}: ` +
               `${row.started ? String(row.verdict) : `refused before any spawn (${String(row.refusal)})`}` +
-              `${row.reason === null ? '' : ` — ${row.reason}`} in ${String(row.wallMs)} ms` +
+              `${row.reason === null ? '' : ` — ${row.reason}`}` +
+              `${row.detail === null || row.detail === undefined ? '' : ` — the agent said: ${String(row.detail)}`}` +
+              ` in ${String(row.wallMs)} ms` +
               `${row.costUsd === null ? '' : ` at $${String(row.costUsd)}`}`
           );
           if (args.dryRun && row.started) {
@@ -487,9 +568,21 @@ async function main() {
   } catch (err) {
     failed = String(err);
   } finally {
+    if (closeCdp !== null) closeCdp();
     spawnSync('bash', [join(REPO, 'build', 'p259', 'corpus.sh'), scratch, 'clean'], { encoding: 'utf8' });
     rmSync(scratch, { recursive: true, force: true });
     if (ownSocket) {
+      // END THE SERVER BEFORE UNLINKING ITS SOCKET, because unlinking the file
+      // leaves the process running with nothing pointing at it. Measured on
+      // 2026-09-12: five runs left five `tmux -L gmux-p259-<pid>` servers
+      // behind, which is the rule in CLAUDE.md that says a probe ends its own
+      // scratch tmux server in a finally block. The socket is this run's own
+      // `gmux-p259-<pid>` and never `gmux`, which the name refuses by shape.
+      if (socket.startsWith('gmux-p259')) {
+        spawnSync(join(REPO, 'build', 'vendor', 'tmux', 'bin', 'tmux'), ['-L', socket, 'kill-server'], {
+          encoding: 'utf8'
+        });
+      }
       for (const dir of [process.env.TMPDIR ?? '/tmp', '/tmp']) {
         for (const candidate of [join(dir, `tmux-${String(process.getuid?.() ?? 0)}`, socket), join(dir, socket)]) {
           try { unlinkSync(candidate); } catch { /* the socket was never made */ }
@@ -505,6 +598,7 @@ async function main() {
     recipeVersion: 1,
     measuredOn: new Date().toISOString().slice(0, 10),
     dryRun: args.dryRun,
+    stoppedEarly,
     cliVersion: versions[agentId] ?? null,
     timeoutMs: null,
     asks: rows,
@@ -550,7 +644,18 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  process.stderr.write(`${TAG} FAIL: ${String(err)}\n`);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    // EVERY PROCESS THIS STARTED IS ALREADY ENDED by the finally block above,
+    // and the record is already written. What is left is an OPEN HANDLE
+    // rather than a running child: measured twice on 2026-09-12, the run
+    // finished every ask, wrote both files and printed its totals, and then
+    // node sat for twenty minutes, which under a foreground cap is
+    // indistinguishable from a hung measurement and got the run killed. The
+    // work is done at this line, so the exit is explicit.
+    process.exit(0);
+  })
+  .catch((err) => {
+    process.stderr.write(`${TAG} FAIL: ${String(err)}\n`);
+    process.exit(1);
+  });

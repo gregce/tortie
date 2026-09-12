@@ -734,7 +734,7 @@ const SEMANTIC_CLAUDE_DRAFT: FoldRecipeDraft = {
 const SEMANTIC_CODEX_DRAFT: FoldRecipeDraft = {
   agentId: 'codex',
   version: 1,
-  measuredOn: null,
+  measuredOn: '2026-09-12',
   models: [
     { id: 'gpt-6-astra', label: 'GPT-6-Astra, the one Tortie measured' },
     { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol, which costs less' }
@@ -792,7 +792,32 @@ const SEMANTIC_RECIPES: readonly FoldRecipe[] = SEMANTIC_DRAFTS.filter(isMeasure
  * Until then it names claude, which is the agent this product has the most
  * measurements for.
  */
-export const ARCH_SEMANTIC_SUGGESTED_AGENT_ID = 'claude';
+/**
+ * The row Settings preselects, and it is READ OFF THE MEASUREMENT.
+ *
+ * On 2026-09-12 codex with `gpt-6-astra` is the only row that was measured at
+ * all, so it is the default by the phase's own rule rather than by preference:
+ * over a scratch clone of this repository it answered 9 asks in 416 s and 7 of
+ * them were KEPT, and every one of the 199 citations those answers carry
+ * resolved AND landed within three lines of a real fact, 107 on a gate and 92
+ * on a call site, with none on a declaration and none on a bare line, against
+ * a chance floor of 3,520 of 34,116 lines for landing on either fact kind.
+ *
+ * THE CLAUDE ROW IS UNMEASURED AND THEREFORE DISABLED, and the reason is not
+ * that it answered badly: it never answered at all. Claude Code 2.1.269 can
+ * only see the person's login when it runs with their REAL home directory,
+ * measured on 2026-09-12 in three arms of `claude auth status` that spend no
+ * token — real home with the real config directory reads `loggedIn: true`,
+ * and a scratch home reads false even with `~/.claude` symlinked into it and
+ * even with `CLAUDE_CONFIG_DIR` naming the real directory, as does the real
+ * home with a scratch config directory. The measurement harness runs Tortie on
+ * a scratch home so it writes nothing into the person's own, so the child
+ * inherited that home and answered `Not logged in · Please run /login` in
+ * 458 ms. That is a property of the harness rather than of the recipe, and
+ * the row stays disabled until somebody measures it rather than being shipped
+ * on the strength of a run that never happened.
+ */
+export const ARCH_SEMANTIC_SUGGESTED_AGENT_ID = 'codex';
 
 /** The semantic pass recipe for an agent, or null when none is measured. */
 export function archSemanticRecipeFor(agentId: string): FoldRecipe | null {

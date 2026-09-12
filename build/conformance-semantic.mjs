@@ -602,7 +602,30 @@ try {
     const recordPath = join(measuredDir, `${agentId}.json`);
     if (date === null) {
       // 10b: a row with no record is a DRAFT and cannot be in the live table.
-      if (existsSync(recordPath)) fail(`rule 10b: build/p259/measured/${agentId}.json exists and ${draft.name} still reads measuredOn: null; a measured row carries its date`);
+      // A RECORD IS NOT A MEASUREMENT, and the difference is the record's own
+      // totals rather than its existence. A run that spawned and KEPT nothing
+      // measured nothing, and the honest thing is to keep its record and leave
+      // the row disabled: on 2026-09-12 the claude row answered
+      // `Not logged in · Please run /login` on every ask it started, because
+      // Claude Code 2.1.269 only sees the person's login under their real home
+      // and the harness runs Tortie under a scratch one. Deleting that record
+      // to satisfy this rule would erase the only evidence of why the row is
+      // off, so the rule reads the file instead.
+      if (existsSync(recordPath)) {
+        let kept = null;
+        try {
+          kept = JSON.parse(readFileSync(recordPath, 'utf8'))?.totals?.kept ?? null;
+        } catch {
+          kept = null;
+        }
+        if (kept === null) {
+          fail(`rule 10b: build/p259/measured/${agentId}.json is there and unreadable, so it cannot say whether ${draft.name} was measured`);
+        } else if (kept > 0) {
+          fail(`rule 10b: build/p259/measured/${agentId}.json records ${String(kept)} kept answer(s) and ${draft.name} still reads measuredOn: null; a row that measured something carries its date`);
+        } else {
+          say(`${TAG} rule 10b: ${draft.name} has a record that kept NOTHING, so the row is correctly disabled and the record says why`);
+        }
+      }
       say(`${TAG} rule 10b: ${draft.name} is unmeasured, so it is not in the live table and Settings reads not-measured`);
       continue;
     }

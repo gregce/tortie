@@ -92,7 +92,7 @@ describe('the two semantic drafts', () => {
   });
 });
 
-describe('measured or disabled, and today nothing is measured', () => {
+describe('measured or disabled, one row measured and one not', () => {
   it('keeps an unmeasured draft out of the live table entirely', () => {
     for (const row of SEMANTIC_DRAFTS) {
       if (row.measuredOn === null) {
@@ -114,8 +114,21 @@ describe('measured or disabled, and today nothing is measured', () => {
     );
   });
 
-  it('suggests claude until the measurement says which recipe read better', () => {
-    expect(ARCH_SEMANTIC_SUGGESTED_AGENT_ID).toBe('claude');
+  // THE DEFAULT IS READ OFF THE MEASUREMENT, and on 2026-09-12 codex with
+  // `gpt-6-astra` is the only row that was measured at all: 9 asks, 7 kept,
+  // 199 of 199 citations landing on a real fact. The claude row is unmeasured
+  // and therefore disabled, because Claude Code 2.1.269 only sees the person's
+  // login under their real home and the harness runs Tortie under a scratch
+  // one, so it never answered rather than answering badly.
+  it('suggests the row the measurement kept, and it is one the live table has', () => {
+    expect(ARCH_SEMANTIC_SUGGESTED_AGENT_ID).toBe('codex');
+    expect(archSemanticRecipeAgentIds()).toContain(ARCH_SEMANTIC_SUGGESTED_AGENT_ID);
+  });
+
+  // A SUGGESTION THAT NAMES A ROW NOBODY CAN RUN IS WORSE THAN NONE, so the
+  // suggested agent is asked of the LIVE table rather than of the drafts.
+  it('never suggests a row that is written down but not measured', () => {
+    expect(archSemanticRecipeFor(ARCH_SEMANTIC_SUGGESTED_AGENT_ID)).not.toBeNull();
   });
 });
 

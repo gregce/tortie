@@ -80,6 +80,22 @@ export interface FoldRun {
   text: string | null;
   /** One short name for what went wrong. Null when nothing did. */
   reason: string | null;
+  /**
+   * WHAT THE AGENT ITSELF SAID WHEN IT REFUSED, and null when it did not.
+   *
+   * `reason` is one WORD, composed by `outcomeForError` out of the result
+   * record's `subtype`, and on 2026-09-12 that word was `success` on a run
+   * that failed: the CLI answered `is_error: true` with `subtype: "success"`,
+   * so the record read `failed/success` and named nothing a person or a later
+   * agent could act on. The agent's own sentence was in the result record all
+   * along and was dropped on the floor one line later, which cost a whole
+   * measurement run to discover.
+   *
+   * It is the CLI's own text and never a token: it is bounded and one-lined
+   * at the one place that reads it, and it is recorded and logged rather than
+   * drawn, exactly as `costUsd` above is.
+   */
+  errorText?: string | null;
   window: FoldRateWindow | null;
   wallMs: number;
   /**
@@ -208,6 +224,7 @@ export async function runFold(
     outcome: 'ok',
     text: null,
     reason: null,
+    errorText: null,
     window: null,
     wallMs: now() - startedAt,
     costUsd: null,
@@ -265,12 +282,23 @@ export async function runFold(
       reading.subtype,
       reading.apiErrorStatus
     );
-    return done({ outcome, reason, window: reading.window, costUsd: reading.costUsd });
+    // The agent's own sentence rides along, because `reason` alone was
+    // measured saying `success` about a failure. See FoldRun.errorText.
+    return done({
+      outcome,
+      reason,
+      errorText: reading.text,
+      window: reading.window,
+      costUsd: reading.costUsd
+    });
   }
   if (!reading.sawResult || reading.text === null) {
     return done({
       outcome: 'bad-output',
       reason: run.code === 0 ? 'no-result' : `exit-${String(run.code)}`,
+      // Nothing was parsed, so the last resort is the first of whatever the
+      // child printed, which is how a usage error reaches the record at all.
+      errorText: run.stdout.trim().slice(0, 2000) || run.stderr.trim().slice(0, 2000) || null,
       window: reading.window
     });
   }

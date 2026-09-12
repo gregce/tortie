@@ -1,0 +1,46 @@
+{
+  "cwd": "/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p259-measure-69964/repos/tortie",
+  "parts": [],
+  "journeys": [],
+  "gates": [],
+  "rates": [],
+  "runs": [
+    {
+      "runId": "1789238930193-part-docs",
+      "agentId": "claude",
+      "model": "opus",
+      "partId": "docs",
+      "verdict": "failed",
+      "reason": "success",
+      "wallMs": 658,
+      "claims": 0,
+      "rowsDropped": 0,
+      "startedAt": 1789238930193
+    },
+    {
+      "runId": "1789238929567-part-demo",
+      "agentId": "claude",
+      "model": "opus",
+      "partId": "demo",
+      "verdict": "failed",
+      "reason": "success",
+      "wallMs": 510,
+      "claims": 0,
+      "rowsDropped": 0,
+      "startedAt": 1789238929567
+    },
+    {
+      "runId": "1789238928607-part-build",
+      "agentId": "claude",
+      "model": "opus",
+      "partId": "build",
+      "verdict": "failed",
+      "reason": "success",
+      "wallMs": 830,
+      "claims": 0,
+      "rowsDropped": 0,
+      "startedAt": 1789238928607
+    }
+  ],
+  "readAt": null
+}
