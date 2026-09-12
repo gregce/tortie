@@ -26505,6 +26505,77 @@ keychain and cut the DMG and ZIP with the nested binaries ad-hoc hardened.
 
 ---
 
+## Phase 258 — the map that says what runs, what it exposes and how far it is proven, with no model (direction B, second phase, 2026-09-11)
+
+**Subject.** `feat(arch): the computed ladder and the reading surface`
+
+**First body line.** `Phase 258: the reading surface`
+
+**Semver.** Minor. The Architecture pane changes for a person who has it switched on.
+
+**Tier 2 for the surface, Tier 3 for the ladder.** The surface is a rendered pane with no new state
+beyond what Phase 257's table already holds: one app run drives every claim at the parent and at HEAD,
+plus an independent method. The evidence rungs are a computed claim about a person's code — *reached*
+and *tested* say something a reader will believe — so they are Tier 3: re-derived by a second
+implementation over the corpus, with an attack on the walk and the seeds.
+
+**Charter.** Research 118 §10 Phase 2, verbatim the spec, on top of Phase 257's fact base at
+`c8072b36`. Its §7.2 is the ladder, §7.6 is the floor a machine with no agent gets, §3.1 and §3.2 are
+what makes runstory's explorer read as a system in motion rather than a set of shelves, and §4.4's F1
+is the defect this phase closes on the way. **Still no model, no agent turn, no token.** This is
+direction A shipped whole, and it is B's floor: everything drawn here stays drawn when Phase 259's model
+half is never turned on.
+
+**The mechanism, from research 118 §10 Phase 2.** New `src/main/arch/evidence.ts` computes the five
+rungs of §7.2 from data that already exists — `arch_import`, the anchors, and the new entrypoint and
+test facts: `off-repo`, `declared`, `composed`, `reached`, `tested`. **There is no `accepted-live`
+rung and no code path may produce one**, because nothing Tortie reads is evidence about a running
+system. **`reached` is walked from a SEED a boundary chooses**, never from every entrypoint fact at
+once, because §7.2 measured the unseeded walk answering `tested` for eight of nine parts here; this is
+the one Phase 2 design question the research left open and the builder answers it with a measurement.
+`src/main/arch/map.ts` gains REGIONS from the build-and-start boundary facts (SwiftPM targets, compose
+services, Cargo workspaces and libs, workers, spawned threads — the 15 of 15) and **never from
+`boundary.path.module-root`** (the 30 of 30 that would draw 75 barrel files as processes here), and
+labelled TRANSPORTS carrying what crosses (IPC, HTTP, a spawn). `src/main/arch/skeleton.ts` gains the
+process partition beside rule P, **and F1 is closed**: the contract and the map draw from ONE partition,
+or the overlay stays invisible. `src/renderer/arch/**` gains the region columns, the node chip carrying
+the computed rung, the inspector BELOW the map at full width (runstory's §3.2 item 6), the surfaces list
+grouped by part with its denominator and its honest zeroes, and **the gates worksheet in runstory's
+shape** — a person names a part and the view answers which gate facts sit under it, with denominators —
+which is the one device runstory has that its successors lost and which needs no model at all. The
+native menus change in the same commit and the phase brief says what changed. The view is labelled
+for what it is: *what this repository builds and starts*, never *where code runs*, which is a model
+claim.
+
+**The proof, run rather than read — `npm run conformance:evidence`.** Each rung computed over fixtures
+with a per-clause ablation going red; **a planted graph per rung** so a rung that CANNOT fire is told
+apart from one that never did (§10's late lesson: over the corpus `off-repo` is 0 everywhere and that
+is the shape a gate goes blind to); a proof that no code path produces `accepted-live`; a proof the
+rung is never read from any contract field; `conformance:reading` extended to the new partition with
+rule P's own ablations kept; `conformance:arch`'s key-set pin re-run unchanged; and, for every new dot
+or chip, the Phase 218 floor of **3:1 on `--bg-active` at every offered frame and every contrast
+level**, with `conformance:hue` for any token that moves. The app run, `probe:p258`, drives the pane
+at the parent and at HEAD over scratch copies of this repository and stoa: the regions, the transports,
+every node's rung read off the DOM against the gate's own computation, the inspector's contents for a
+selected part, the surfaces list's counts against Phase 257's table, and the worksheet's answer for a
+named part — and on a scratch copy with NO agent configured the same pane draws the same picture, which
+is the agnosticism floor made visible.
+
+### What is NOT in this phase
+
+- **No model call, no agent turn, no token.** That is Phase 259.
+- **No count badge on any node** — `conformance:arch:modules` already refuses it and stays green.
+- **No operator fork between a deterministic and a semantic mode.** There is one way in (Phase 158).
+- **No process partition drawn from `boundary.path.module-root`.**
+- **No `accepted-live`, anywhere, ever.**
+- **No key moved in `docs/arch/`.** Direction C stays deferred to him.
+- **No paragraph on the resting face.** Just enough words; explanation lives behind hover.
+- **The journey and gates VIEWS that need a model** are not drawn here; on this phase's tree the gates
+  worksheet is the computed half and the model half's views arrive in 259, present and saying nothing
+  has read this yet, per the §7.6 decision already taken.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -27127,3 +27198,5 @@ cycle rather than only the evening it was written.
 - 2026-09-11, **PHASE 257 FIX ROUND, the fact base, two `needs_work` verdicts answered; the landing hash is the committer's.** Both verifiers found `probe:p257` red at HEAD: the committed fixtures under `build/fixtures/facts/` register four channels of their own and re-register two, so the whole-clone recall read 235 subjects and 4 extras; the tortie scope and Arm B's 229 now read `src/**`, the scope the baseline is generated from. **The "port regression" on Ruby receivers is REFUTED and the fix is taken anyway**: `build/p256/det/parse.mts` reads Ruby's `method` field alone exactly as the port did, driven side by side, so it is a divergence from the prototype and not a regression, and it is the largest false class measured, 195 of mastodon's 365 `network.client` facts being `ENV.fetch` read as a bare `fetch`; `calls.ts` composes `receiver.method` for Ruby now and every receiver clause is live there (mastodon `store.kv` 36 → 92, `network` 367 → 29). `network.client` gained four mechanical refusals, a fragment or a vocabulary host (136 of mastodon's IRIs), a construction on the receiver branch (25 of miniflux's 48), the base of a URL parse, and a URL with no host, and its header states 48% on fresh rows rather than "fixed". `store.sql` accepts a lower case keyword only when the statement continues past its subject, so `update check failed` is prose again (tortie 244 → 239, gotify 2 → 0; the verifier's ~65 was an over-estimate, since 133 of the rest are multi-line templates whose keyword is real). Go 1.22's `"GET /path"` pattern (miniflux 10 → 177 of 177 routes), pflag's pointer-first `*Var` (0 → 18 of 18), a composition root in `_test.go` refused, `DROP TABLE IF EXISTS` naming its table. The three unread shapes are ONE table now, `FACT_LIMITS.maxReadBytes / binarySniffBytes / maxParseBytes`, read by the extractor, the fact pass and the driver, with `BINARY_SNIFF_BYTES` 8,192 in `languages.ts` where it was 8,000 in `tree-facts.ts`; the driver links over-cap and binary files `lang: null` with no fact as the product does and honours the 2 MiB parse cap; `compareArms` compares per-language link counts and `unread`, **and that arm found what the old one could not on its first run**: the product linked `setup.py`, `Rakefile`, `Package.swift` and a `.go` under `migrations/` as python, ruby, swift and go and parsed them, where the driver linked them as manifests, four differences on tortie and three on stoa; a manifest is a manifest first now, never handed to the worker, and the arm reads 0 differences on both clones. The base pass hashes its second read against the first read's oid and leaves a rewritten file unlinked (the verifier's `race:before` cited at `race:after`). A suffixed Dockerfile is read only when it opens with `FROM` or `ARG`; a migration directory entry needs a migration extension; and a bare `migrate/` segment is not one, which was silently reading `src/main/migrate/*.ts` as manifests and never parsing them (tortie parsed 2,630 → 2,636). Six clauses the verifiers removed by hand with every gate green are each a decoy line now and `conformance:facts` carries 42 ablations, was 22, each red; `#[cfg(test)]`'s second exclusion clause was dead code no ablation could turn red and is removed, the attribute's own shape being the exclusion. The hand sample re-read: 226 of 250 true rows kept (unchanged), 55 of 62 false rows removed (was 50), 97.0% on answered rows (was 95.0%). Stated and not fixed: a line rule sees no parse tree, so a docstring `def test_` and a commented `process.env.X` are facts; a manifest is read wherever it sits; the committed fixtures are Tortie's own entrypoints because there is no fixture notion in the vendor filter; the parent build measured by the verifiers at 2.39–2.64× the open-and-check wall on tortie and stoa is the stated cost of the second parse (spec D1). `markdown-it` and its two companions are absent from the operator's own `node_modules` and are installed by `npm install` there, not by this round.
 
 - 2026-09-11, Phase 257 landed, the fact base: nothing is drawn, and the closed rule table over the eight categories now reads into `arch.db` on every Architecture check, off by default behind a setting with no control. Over the corpus the product read alamofire 848 facts in 737 ms, babel 4,399 in 5,712, fastapi-app 231 in 102, gotify 535 in 181, mastodon 15,695 in 2,839, requests 536 in 81, ripgrep 565 in 326, stoa 5,195 in 5,158 and tortie 22,178 in 6,702 with the wrapper pass (58 entrypoint, 99 boundary, 619 surface, 292 store, 4,414 effect, 97 network, 815 gate, 15,784 test over 3,326 files, 2,636 parsed, 102 vendored), every recall scope identical to research 118 §6.1 with tortie's 229 of 229 invoke channels under `src/` at 0 extras and the two honest zeroes kept (ripgrep 0 of 108 flags, requests 0 of 5 reaches), and the hand sample re-read at 226 of 250 true rows kept and 55 of 62 false rows removed, 97.0% on answered rows. The tenth repository, miniflux `bbf082ab`, read 1,690 facts in 444 ms with 177 of 177 routes and 18 of 18 flags after the fix round taught the Go 1.22 method pattern and pflag's pointer-first `*Var`, and 23 network.client where the first read had 48. Dropped from the rule table, each with its re-entry condition in `build/p257/SPEC.md`: `surface.handler.on` at 44%, because every emitter answers to `on` and `sock.on('data')` is no surface; `store.orm` at 8%, because every ORM verb has a non-ORM homonym and a name rule has no types; `gate.refusal-guard`, unusable by the prototype's own note; and every java, kotlin, php, c-sharp and objc rule, because the corpus exercises none of those grammars and a capture with no rule behind it is dead parse cost. The product's own pass equals the reference driver's on the tortie and stoa clones at 0 differences, at 2.67× and 2.75× the parent's open-and-check wall, the stated cost of the second parse. Rebased over Phase 260, `HELPER_USER_FLOOR` 126, no CHANGELOG item because nothing a person can see changed, no version bump, no tag. `cb2353c2`, `97c021ef`; Phase 258 draws from it.
+
+- 2026-09-11, **PHASE 258 QUEUED on 257's `c8072b36`, the reading surface**: research 118 §10 Phase 2 verbatim — the five computed rungs with no `accepted-live` and a SEEDED `reached` walk, regions from the 15-of-15 build-and-start boundary facts never the module roots, labelled transports, the rung chip on every node, the inspector below the map, the surfaces list with its zeroes, and runstory's gates worksheet, which computes and needs no model. F1 closed so contract and map draw one partition. Still no model, no token: this is direction A shipped whole and B's floor. Tier 3 on the ladder with a planted graph per rung so a rung that cannot fire is told from one that never did; Tier 2 on the surface with the pane driven at parent and HEAD and once with NO agent configured.
