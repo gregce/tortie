@@ -16,3 +16,11 @@ func main() {
 	http.ListenAndServe(":8080", r)
 	_, _, _ = v, c, d
 }
+
+func flags(mux *http.ServeMux) {
+	var verbose bool
+	flag.BoolVar(&verbose, "verbose", false, "say more")
+	mux.HandleFunc("GET /v1/me", me)
+	req := &http.Request{Method: "GET"}
+	_ = req
+}

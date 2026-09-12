@@ -45,20 +45,20 @@
  "fixtures": {
   "ts-electron": {
    "counts": {
-    "tracked": 25,
+    "tracked": 26,
     "parsed": 17,
     "manifests": 4,
     "pathOnly": 0,
     "vendored": 4,
     "truncated": 0,
-    "unread": 0,
+    "unread": 1,
     "byCategory": {
      "entrypoint": 10,
      "boundary": 7,
      "surface": 16,
-     "store": 0,
+     "store": 2,
      "effect": 4,
-     "network": 1,
+     "network": 3,
      "gate": 4,
      "test": 3
     }
@@ -173,6 +173,104 @@
      "rule": "entrypoint.ci.job",
      "sample": "spec §1.4",
      "evidence": "pull_request:"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 14,
+     "rule": "effect.fs.write",
+     "sample": "fix round H13 (a bare write( is not a filesystem write)",
+     "evidence": "write(buf);"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 15,
+     "rule": "surface.http.method-call",
+     "sample": "fix round H3 (an absolute URL is a client call, never a route)",
+     "evidence": "app.get('https://api.example/v1/users', h);"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 17,
+     "rule": "surface.http.method-call",
+     "sample": "fix round H11 (a path over 200 characters is not a route)",
+     "evidence": "app.get('/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 18,
+     "rule": "surface.http.method-call",
+     "sample": "fix round (a real line break inside a route is not a route)",
+     "evidence": "app.get(`/multi"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 20,
+     "rule": "gate.refusal",
+     "sample": "fix round H14 (no message, no refusal)",
+     "evidence": "throw new Error();"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 23,
+     "rule": "gate.env-read",
+     "sample": "fix round H15 (a two character name is not a switch)",
+     "evidence": "const two = process.env.OK;"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 24,
+     "rule": "store.sql",
+     "sample": "fix round (tortie's own prose beginning with a verb, ~65 of 244)",
+     "evidence": "log('update check failed');"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 25,
+     "rule": "store.sql",
+     "sample": "fix round (fastapi's test name)",
+     "evidence": "fail('Update password successfully');"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 28,
+     "rule": "network.client",
+     "sample": "fix round (the base of a URL parse reaches nothing)",
+     "evidence": "new URL(path, 'http://127.0.0.1');"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 29,
+     "rule": "network.client",
+     "sample": "fix round (a vocabulary IRI, 136 of mastodon's 367)",
+     "evidence": "jsonld('https://www.w3.org/ns/activitystreams#Public');"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 31,
+     "rule": "network.client",
+     "sample": "fix round (a fragment is never sent on the wire; only the fragment clause refuses this one)",
+     "evidence": "docs('https://docs.joinmastodon.org/admin/elasticsearch/#');"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 32,
+     "rule": "network.client",
+     "sample": "fix round (a vocabulary host with no fragment; only the host clause refuses this one)",
+     "evidence": "context('https://w3id.org/security/v1');"
+    },
+    {
+     "file": "src/main/decoys.ts",
+     "line": 30,
+     "rule": "network.client",
+     "sample": "fix round (no host)",
+     "evidence": "fetchIt('https:///path');"
+    },
+    {
+     "file": "src/main/late-nul.ts",
+     "line": 1,
+     "rule": "gate.env-read",
+     "sample": "fix round (a NUL at byte 8,100 is a binary to every reader)",
+     "evidence": "export const x = process.env.LATE_NUL_SECRET;"
     }
    ],
    "facts": [
@@ -415,6 +513,46 @@
      "evidence": "on('push:ready', () => undefined);",
      "file": "src/main/consumers.ts",
      "viaWrapper": true
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://api.example/v1/users",
+     "line": 15,
+     "rule": "network.client",
+     "evidence": "app.get('https://api.example/v1/users', h);",
+     "file": "src/main/decoys.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-write",
+     "subject": "UPDATE users",
+     "line": 26,
+     "rule": "store.sql",
+     "evidence": "db.exec('update users set name = ?');",
+     "file": "src/main/decoys.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-write",
+     "subject": "DROP TABLE IF EXISTS sessions",
+     "line": 27,
+     "rule": "store.sql",
+     "evidence": "sql('DROP TABLE IF EXISTS sessions');",
+     "file": "src/main/decoys.ts",
+     "viaWrapper": false
+    },
+    {
+     "category": "network",
+     "kind": "client",
+     "subject": "talks to https://api.example/v2",
+     "line": 33,
+     "rule": "network.client",
+     "evidence": "reach('https://api.example/v2');",
+     "file": "src/main/decoys.ts",
+     "viaWrapper": false
     },
     {
      "category": "boundary",
@@ -1115,12 +1253,12 @@
     "byCategory": {
      "entrypoint": 4,
      "boundary": 0,
-     "surface": 11,
+     "surface": 13,
      "store": 0,
      "effect": 1,
      "network": 1,
-     "gate": 3,
-     "test": 2
+     "gate": 4,
+     "test": 3
     }
    },
    "wrapFacts": 0,
@@ -1209,6 +1347,27 @@
      "rule": "surface.http.method-call",
      "sample": "spec §1.1 (a client receiver)",
      "evidence": "resp, _ := client.Get(url)"
+    },
+    {
+     "file": "router/router.go",
+     "line": 29,
+     "rule": "store.sql",
+     "sample": "fix round (gotify's error message beginning with a verb)",
+     "evidence": "return errors.New(\"update plugin conf failed\")"
+    },
+    {
+     "file": "main.go",
+     "line": 24,
+     "rule": "network.client",
+     "sample": "fix round (a struct literal captured as new, 25 of miniflux's 48)",
+     "evidence": "req := &http.Request{Method: \"GET\"}"
+    },
+    {
+     "file": "router/router_test.go",
+     "line": 23,
+     "rule": "entrypoint.composition",
+     "sample": "fix round (a composition root in _test.go, 2 of miniflux's 7)",
+     "evidence": "mux := http.NewServeMux()"
     }
    ],
    "facts": [
@@ -1259,6 +1418,26 @@
      "line": 16,
      "rule": "network.listen",
      "evidence": "http.ListenAndServe(\":8080\", r)",
+     "file": "main.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "cli-flag",
+     "subject": "CLI flag verbose",
+     "line": 22,
+     "rule": "surface.cli.arg",
+     "evidence": "flag.BoolVar(&verbose, \"verbose\", false, \"say more\")",
+     "file": "main.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "surface",
+     "kind": "http-route",
+     "subject": "HTTP GET /v1/me",
+     "line": 23,
+     "rule": "surface.http.handlefunc",
+     "evidence": "mux.HandleFunc(\"GET /v1/me\", me)",
      "file": "main.go",
      "viaWrapper": false
     },
@@ -1373,6 +1552,16 @@
      "viaWrapper": false
     },
     {
+     "category": "gate",
+     "kind": "refusal",
+     "subject": "refuses: update plugin conf failed",
+     "line": 29,
+     "rule": "gate.refusal",
+     "evidence": "return errors.New(\"update plugin conf failed\")",
+     "file": "router/router.go",
+     "viaWrapper": false
+    },
+    {
      "category": "test",
      "kind": "test-case",
      "subject": "Test Routes",
@@ -1389,6 +1578,16 @@
      "line": 12,
      "rule": "test.go.func",
      "evidence": "func TestVersion(t *testing.T) {",
+     "file": "router/router_test.go",
+     "viaWrapper": false
+    },
+    {
+     "category": "test",
+     "kind": "test-case",
+     "subject": "Test Mux",
+     "line": 22,
+     "rule": "test.go.func",
+     "evidence": "func TestMux(t *testing.T) {",
      "file": "router/router_test.go",
      "viaWrapper": false
     },
@@ -1498,6 +1697,13 @@
      "rule": "gate.auth",
      "sample": "ripgrep/gate/2",
      "evidence": "let regex = RegexBuilder::new(pattern)"
+    },
+    {
+     "file": "tests/a.rs",
+     "line": 16,
+     "rule": "test.rust.fn",
+     "sample": "fix round H10 (#[cfg(test)] marks a module, not a test)",
+     "evidence": "fn cfg_helper() {"
     }
    ],
    "facts": [
@@ -1726,7 +1932,7 @@
      "entrypoint": 3,
      "boundary": 0,
      "surface": 6,
-     "store": 5,
+     "store": 6,
      "effect": 1,
      "network": 0,
      "gate": 2,
@@ -1770,6 +1976,20 @@
      "rule": "store.orm",
      "sample": "spec §1.1 (the Rails bang form, not measured)",
      "evidence": "Model.create!(name: \"x\")"
+    },
+    {
+     "file": "lib/run.rb",
+     "line": 8,
+     "rule": "network.client",
+     "sample": "fix round (ENV.fetch read as a bare fetch was 195 of mastodon's 365)",
+     "evidence": "key = ENV.fetch('API_KEY')"
+    },
+    {
+     "file": "lib/run.rb",
+     "line": 10,
+     "rule": "network.client",
+     "sample": "fix round (Hash#fetch on a receiver)",
+     "evidence": "Rails.cache.fetch('c')"
     }
    ],
    "facts": [
@@ -1940,6 +2160,16 @@
      "line": 4,
      "rule": "gate.refusal",
      "evidence": "raise \"no key here\" if env.nil?",
+     "file": "lib/run.rb",
+     "viaWrapper": false
+    },
+    {
+     "category": "store",
+     "kind": "store-write",
+     "subject": "writes redis[k]",
+     "line": 9,
+     "rule": "store.kv",
+     "evidence": "redis.set('k', key)",
      "file": "lib/run.rb",
      "viaWrapper": false
     },
@@ -2141,10 +2371,10 @@
   },
   "manifests": {
    "counts": {
-    "tracked": 7,
+    "tracked": 9,
     "parsed": 0,
-    "manifests": 7,
-    "pathOnly": 0,
+    "manifests": 8,
+    "pathOnly": 1,
     "vendored": 0,
     "truncated": 0,
     "unread": 0,
@@ -2168,6 +2398,34 @@
      "rule": "boundary.compose.service",
      "sample": "spec §5.1 (a top level volumes: key)",
      "evidence": "data:"
+    },
+    {
+     "file": "docs/Dockerfile.md",
+     "line": 5,
+     "rule": "entrypoint.docker.cmd",
+     "sample": "fix round (a Dockerfile.<suffix> that does not open as one)",
+     "evidence": "ENTRYPOINT [\"node\", \"server.js\"]"
+    },
+    {
+     "file": "docs/Dockerfile.md",
+     "line": 6,
+     "rule": "surface.docker.expose",
+     "sample": "fix round",
+     "evidence": "EXPOSE 8080"
+    },
+    {
+     "file": "docs/migrations/guide.md",
+     "line": 1,
+     "rule": "store.path.migration",
+     "sample": "fix round (a migration directory entry with no migration extension)",
+     "evidence": "# Migrations"
+    },
+    {
+     "file": "docs/migrations/guide.md",
+     "line": 3,
+     "rule": "store.sql.file",
+     "sample": "fix round",
+     "evidence": "CREATE TABLE guide is prose here."
     }
    ],
    "facts": [

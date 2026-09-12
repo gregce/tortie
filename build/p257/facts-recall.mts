@@ -99,7 +99,13 @@ export const SCOPES: Scope[] = [
       return out;
     },
     match: (f) => f.kind === 'ipc-channel' && f.subject.startsWith('IPC serves '),
-    inScope: () => true
+    // src/** and nothing else, which is the scope the gate's rule 3 reads and
+    // the scope the baseline is generated from: the committed fixtures under
+    // build/fixtures/facts/ register four channels of their own (`a:b`,
+    // `$(touch /tmp/p)`, `a:b/../../etc/passwd`, `push:ready` through a
+    // wrapper) and re-register two, and the fix round read them as 4 extras
+    // and 235 subjects over the whole clone.
+    inScope: (file) => file.startsWith('src/')
   },
   {
     repo: 'gotify',

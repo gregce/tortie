@@ -23,6 +23,21 @@ describe('pathFacts', () => {
     expect(pathFacts('src/index.ts').map((f) => f.rule)).toEqual(['entrypoint.path.by-name', 'boundary.path.module-root']);
   });
 
+  it('a migration directory entry is a migration only with a migration extension (the fix round)', () => {
+    expect(pathFacts('migrations/001_init.sql').map((f) => f.rule)).toEqual(['store.path.migration']);
+    expect(pathFacts('app/migrations/0001_initial.py').map((f) => f.rule)).toEqual(['store.path.migration']);
+    expect(pathFacts('docs/migrations/guide.md')).toEqual([]);
+    expect(pathFacts('docs/migration/diagram.png')).toEqual([]);
+    expect(isManifestPath('docs/migrations/guide.md')).toBe(false);
+    expect(isManifestPath('docs/migration/diagram.png')).toBe(false);
+    // A bare `migrate/` segment is a module, not a migration directory: this
+    // repository's src/main/migrate/userdata.ts was a manifest to the reader
+    // and never parsed as TypeScript before the fix round.
+    expect(pathFacts('src/main/migrate/userdata.ts')).toEqual([]);
+    expect(isManifestPath('src/main/migrate/userdata.ts')).toBe(false);
+    expect(isManifestPath('db/migrate/20260911_x.rb')).toBe(true);
+  });
+
   it('the by-name extensions are the exercised grammars only', () => {
     expect(pathFacts('src/main.kt')).toEqual([]);
     expect(pathFacts('src/main.java')).toEqual([]);
@@ -121,6 +136,11 @@ describe('readManifestFacts', () => {
       '2 surface.docker.expose surface/port exposes port 3000',
       '3 entrypoint.docker.cmd entrypoint/container CMD ["node", "x"]'
     ]);
+    // A suffixed Dockerfile is read only when it opens as one (the fix round's docs/Dockerfile.md).
+    expect(facts('Dockerfile.dev', '# dev\n\nFROM node\nENTRYPOINT ["node", "x"]')).toEqual(['4 entrypoint.docker.cmd entrypoint/container ENTRYPOINT ["node", "x"]']);
+    expect(facts('Dockerfile.prod', 'ARG BASE\nFROM $BASE\nEXPOSE 80')).toEqual(['3 surface.docker.expose surface/port exposes port 80']);
+    expect(facts('docs/Dockerfile.md', '# Writing one\n\n    ENTRYPOINT ["node", "server.js"]\n    EXPOSE 8080\n')).toEqual([]);
+    expect(facts('Dockerfile', '# comment only\nEXPOSE 8080')).toEqual(['2 surface.docker.expose surface/port exposes port 8080']);
     expect(facts('compose.yaml', 'services:\n  web:\n    image: x\n  db:\n    image: y\nvolumes:\n  data:\n')).toEqual([
       '2 boundary.compose.service boundary/service compose service web',
       '4 boundary.compose.service boundary/service compose service db'

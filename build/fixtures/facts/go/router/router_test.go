@@ -18,3 +18,8 @@ func TestVersion(t *testing.T) {
 	expected := &model.Application{ID: 2}
 	_ = expected
 }
+
+func TestMux(t *testing.T) {
+	mux := http.NewServeMux()
+	_ = mux
+}

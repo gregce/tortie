@@ -188,6 +188,7 @@ describe('the fact pass over the same read (Phase 257)', () => {
     write('src/main/arch/ipc.ts', REGISTRAR);
     write('src/main/run.ts', "import { spawn } from 'node:child_process';\nspawn('git', ['status']);\n");
     write('package.json', '{"name":"fixture","main":"out/main.js","scripts":{"test":"vitest run"}}\n');
+    write('setup.py', "from setuptools import setup\nsetup(entry_points={'console_scripts': ['fx = fx.cli:main']})\n");
     write('vendor/lib.js', "app.get('/vendored', h);\n");
     write('icon.png', Buffer.from([0x89, 0x50, 0x00, 0x0a]));
     write('README.md', '# fixture\n');
@@ -205,6 +206,7 @@ describe('the fact pass over the same read (Phase 257)', () => {
     'src/main/arch/ipc.ts',
     'src/main/run.ts',
     'package.json',
+    'setup.py',
     'vendor/lib.js',
     'icon.png',
     'README.md'
@@ -229,9 +231,9 @@ describe('the fact pass over the same read (Phase 257)', () => {
   it('links every tracked file, reads the rule files, refuses the vendored one and parses only source', async () => {
     const asks: { files: string[]; wrappers: boolean }[] = [];
     const out = await run(false, asks);
-    // Four source files, the manifest and the README; the vendored file and
-    // the binary are linked with no rule read.
-    expect(out.facts.read).toBe(6);
+    // Four source files, the two manifests and the README; the vendored file
+    // and the binary are linked with no rule read.
+    expect(out.facts.read).toBe(7);
     expect(out.facts.reused).toBe(0);
     expect(out.facts.wrapDigest).toBeNull();
     expect(out.facts.overBudget).toBeNull();
@@ -242,12 +244,14 @@ describe('the fact pass over the same read (Phase 257)', () => {
     expect([...stamps.keys()].sort()).toEqual([...tracked].sort());
     expect(stamps.get('src/main/ipc.ts')?.lang).toBe('typescript');
     expect(stamps.get('package.json')?.lang).toBe('manifest');
+    // A manifest that carries a grammar is a manifest first, never parsed.
+    expect(stamps.get('setup.py')?.lang).toBe('manifest');
     expect(stamps.get('README.md')?.lang).toBe('path');
     expect(stamps.get('vendor/lib.js')?.lang).toBeNull();
     expect(stamps.get('icon.png')?.lang).toBeNull();
     for (const stamp of stamps.values()) expect(stamp.oid).toMatch(/^[0-9a-f]{40}$/);
     const counts = store.factCounts(KEY);
-    expect(counts.files).toBe(8);
+    expect(counts.files).toBe(9);
     expect(counts.vendored).toBe(1);
     expect(counts.wrapFacts).toBe(0);
     // With the pass off, the direct registration and the spawn are seen and
@@ -256,6 +260,7 @@ describe('the fact pass over the same read (Phase 257)', () => {
     expect(got).toContain('src/main/arch/ipc.ts:3 surface/ipc-channel IPC serves direct:one');
     expect(got).toContain('src/main/run.ts:2 effect/spawn runs git');
     expect(got).toContain('package.json:1 entrypoint/package-main node entry out/main.js');
+    expect(got).toContain('setup.py:2 entrypoint/bin python console script table');
     expect(got.some((s) => s.includes('arch:map'))).toBe(false);
     expect(got.some((s) => s.includes('arch:load'))).toBe(false);
     expect(got.some((s) => s.includes('vendored'))).toBe(false);
@@ -266,14 +271,14 @@ describe('the fact pass over the same read (Phase 257)', () => {
     const asks: { files: string[]; wrappers: boolean }[] = [];
     const warm = await run(false, asks);
     expect(warm.facts.read).toBe(0);
-    expect(warm.facts.reused).toBe(8);
+    expect(warm.facts.reused).toBe(9);
     expect(asks).toEqual([]);
     // A touch moves the stamp and no byte: hashed, linked, not parsed.
     const later = new Date(Date.now() + 5_000);
     utimesSync(join(repo, 'src/main/run.ts'), later, later);
     const touched = await run(false, asks);
     expect(touched.facts.read).toBe(0);
-    expect(touched.facts.reused).toBe(8);
+    expect(touched.facts.reused).toBe(9);
     expect(asks).toEqual([]);
     expect(Math.round(store.factStamps(KEY).get('src/main/run.ts')?.mtimeMs ?? 0)).toBe(later.getTime());
     // A real change is parsed again, and the old fact list is pruned once
@@ -401,6 +406,91 @@ describe('the fact pass over the same read (Phase 257)', () => {
     expect(got.some((s) => s.startsWith('test/route.test.ts') && s.includes('http-route'))).toBe(false);
     const stamps = store.factStamps(KEY);
     expect(stamps.get('src/route.ts')?.oid).toBe(stamps.get('test/route.test.ts')?.oid);
+  });
+
+  it('links a late NUL as a binary, lang null and no fact, over the one window the extractor sniffs (the fix round)', async () => {
+    // A NUL at byte 8,100: text to git's 8,000 byte window, binary to the
+    // extractor's 8,192. The product stored `environment switch LATE_NUL`
+    // from it while the reference driver called it unreadable.
+    // Short lines, so the vendor filter's bytes half (a line of 2,000 bytes)
+    // stays out of it and the binary window alone decides.
+    let text = 'export const x = process.env.LATE_NUL_SECRET;\n';
+    while (text.length + 80 <= 8100) text += `// ${'p'.repeat(76)}\n`;
+    text += `// ${'q'.repeat(8100 - text.length - 3)}`;
+    expect(Buffer.byteLength(text)).toBe(8100);
+    const body = Buffer.concat([Buffer.from(text), Buffer.from([0]), Buffer.from('\n')]);
+    write('src/main/late-nul.ts', body);
+    const asks: { files: string[]; wrappers: boolean }[] = [];
+    await run(false, asks, ['src/main/late-nul.ts']);
+    expect(asks).toEqual([]);
+    const stamp = store.factStamps(KEY).get('src/main/late-nul.ts');
+    expect(stamp?.lang).toBeNull();
+    expect(stamp?.truncated).toBe(false);
+    expect(subjects().some((s) => s.includes('LATE_NUL'))).toBe(false);
+    expect(store.factCounts(KEY).unread).toBe(1);
+  });
+
+  it('keeps the line and path facts of a source file the worker refuses over its cap, and links it truncated (T4)', async () => {
+    const text = `export const big = process.env.BIG_SWITCH;\n${'// pad\n'.repeat(400_000)}`;
+    expect(text.length).toBeGreaterThan(2 * 1024 * 1024);
+    write('src/main/big.ts', text);
+    await run(false, [], ['src/main/big.ts']);
+    const stamp = store.factStamps(KEY).get('src/main/big.ts');
+    expect(stamp?.lang).toBe('typescript');
+    expect(stamp?.truncated).toBe(true);
+    expect(subjects()).toContain('src/main/big.ts:1 gate/flag environment switch BIG_SWITCH');
+    expect(store.factCounts(KEY).truncated).toBe(1);
+  });
+
+  it('leaves a file rewritten between the parse and the second read UNLINKED, and reads it next time (the base pass guard)', async () => {
+    // The verifier drove this through the parser seam: pass 1 stored
+    // `IPC serves race:before` under the before-oid with evidence citing
+    // `race:after`. The second read must hash to the first read's oid.
+    write('src/main/race.ts', "ipcMain.handle('race:before', f);\n");
+    const racing: ArchFactParser = {
+      batchSize: 4,
+      run: async (files, ask) => {
+        const out = await inProcessParser().run(files, ask);
+        if (files.some((f) => f.relPath === 'src/main/race.ts')) write('src/main/race.ts', "ipcMain.handle('race:after', g);\n");
+        return out;
+      }
+    };
+    const first = await readArchTreeFacts({ repoPath: repo, repoKey: KEY, store, trackedFiles: ['src/main/race.ts'], wrapperPass: false, parser: racing });
+    expect(first.facts.read).toBe(0);
+    expect(store.factStamps(KEY).has('src/main/race.ts')).toBe(false);
+    expect(subjects().some((s) => s.includes('race:'))).toBe(false);
+    const second = await run(false, [], ['src/main/race.ts']);
+    expect(second.facts.read).toBe(1);
+    expect(subjects()).toContain('src/main/race.ts:1 surface/ipc-channel IPC serves race:after');
+    expect(subjects().some((s) => s.includes('race:before'))).toBe(false);
+  });
+
+  it('leaves the source files a cancelled parser loop never reached unlinked, so the next run reads them (T9)', async () => {
+    for (let i = 0; i < 6; i += 1) write(`src/main/many${i}.ts`, `ipcMain.handle('many:${i}', f);\n`);
+    const files = [0, 1, 2, 3, 4, 5].map((i) => `src/main/many${i}.ts`);
+    const controller = new AbortController();
+    const parser: ArchFactParser = {
+      batchSize: 4,
+      run: async (batch, ask) => {
+        const out = await inProcessParser().run(batch, ask);
+        controller.abort();
+        return out;
+      }
+    };
+    const first = await readArchTreeFacts({ repoPath: repo, repoKey: KEY, store, trackedFiles: files, wrapperPass: false, parser, signal: controller.signal });
+    expect(first.facts.overBudget).toBe('The check was cancelled by a newer one.');
+    expect(first.facts.read).toBe(4);
+    // The queue is filled in read completion order, so WHICH four is not
+    // fixed; that exactly the other two are unlinked and read next time is.
+    const linked = new Set(store.factStamps(KEY).keys());
+    expect(linked.size).toBe(4);
+    const unreached = files.filter((f) => !linked.has(f));
+    expect(unreached).toHaveLength(2);
+    const asks: { files: string[]; wrappers: boolean }[] = [];
+    const second = await run(false, asks, files);
+    expect(second.facts.read).toBe(2);
+    expect(asks.flatMap((a) => a.files).sort()).toEqual(unreached.sort());
+    expect(subjects().filter((s) => s.includes('many:'))).toHaveLength(6);
   });
 
   it('links a file over the read cap under a streamed hash with no rule read', async () => {

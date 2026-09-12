@@ -17,6 +17,7 @@
 import type { CallForm } from '../../symbols/extract';
 import type { GrammarId } from '../../symbols/languages';
 import type { FactRule } from './types';
+import { isTestPath } from './predicates';
 
 const JS: readonly GrammarId[] = ['typescript', 'tsx', 'javascript'];
 
@@ -72,6 +73,10 @@ export const ENTRYPOINT_RULES: readonly FactRule[] = [
     kind: 'composition-root',
     langs: '*',
     match: (s, c) => {
+      // A composition root in a test is a fixture: miniflux composes
+      // `http.NewServeMux()` inside `_test.go` files, 2 of its 7 (the fix
+      // round's tenth repository), and none of them is where the program starts.
+      if (isTestPath(c.file)) return null;
       for (const r of COMPOSITION_ROOTS) {
         if (r.last !== s.last || r.form !== s.form) continue;
         if (!r.langs.includes(c.lang)) continue;

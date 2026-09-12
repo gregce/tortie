@@ -24,3 +24,7 @@ func Mount(g *gin.Engine) {
 	resp, _ := client.Get(url)
 	_ = resp
 }
+
+func failing() error {
+	return errors.New("update plugin conf failed")
+}

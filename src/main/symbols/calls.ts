@@ -16,7 +16,10 @@
  * shipped wasm on 2026-09-10 and again on 2026-09-11 rather than remembered.
  * Where this file could have improved on the prototype it did not, on purpose:
  * the numbers were measured with exactly these shapes, and a change here moves
- * them without anybody re-judging a row. The five grammars the corpus does not
+ * them without anybody re-judging a row. THE ONE EXCEPTION IS RUBY'S RECEIVER,
+ * read by `calleeOf` below since the Phase 257 fix round and re-measured over
+ * the corpus in the same round (mastodon's network facts 367 → 29, its kv
+ * writes 36 → 92). The five grammars the corpus does not
  * exercise, being java, php, c-sharp, kotlin and objc, are present in the shape
  * table with EMPTY sets so the record type is total, and they answer no call at
  * all (spec D4).
@@ -215,10 +218,25 @@ export function findArgList(shape: CallShape, call: TsNode): TsNode | null {
  * The callee text of a call node. A `function` or `method` field answers
  * first, which is every grammar here but swift's, whose callee is the first
  * named child that is not the call suffix.
+ *
+ * RUBY IS THE ONE DELIBERATE DIVERGENCE FROM THE PROTOTYPE. Its `call` node
+ * holds the receiver in a field of its own, `receiver`, beside `method`, and
+ * `build/p256/det/parse.mts` read the `method` field alone, so `ENV.fetch('X')`,
+ * `Model.create!` and `redis.set('k', 'v')` all reached the rules as bare
+ * `fetch`, `create!` and `set` with an empty receiver. The Phase 257 fix round
+ * measured the consequence on mastodon: 195 of its 365 `network.client` facts
+ * were `ENV.fetch` and `Hash#fetch` read as a bare `fetch`, and every receiver
+ * clause in the table was inert on Ruby. The receiver is composed in front of
+ * the method here, `receiver.method`, exactly as the prototype composed it for
+ * the grammars whose receiver field it did read (`object`, `scope`).
  */
 export function calleeOf(shape: CallShape, call: TsNode, argList: TsNode | null): string {
   const byField = call.childForFieldName('function') ?? call.childForFieldName('method');
-  if (byField !== null) return collapse(byField.text).slice(0, MAX_CALLEE);
+  if (byField !== null) {
+    const receiver = call.type === 'call' ? call.childForFieldName('receiver') : null;
+    if (receiver !== null) return collapse(`${receiver.text}.${byField.text}`).slice(0, MAX_CALLEE);
+    return collapse(byField.text).slice(0, MAX_CALLEE);
+  }
   for (let i = 0; i < call.namedChildCount; i += 1) {
     const c = call.namedChild(i);
     if (c === null) continue;

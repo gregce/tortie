@@ -22,7 +22,19 @@
  * removed in a finally block. That is why it is `pure` in
  * build/verification-checks.mjs.
  *
- * THE SEVENTEEN RULES, each printed as it is read:
+ * THE SEVENTEEN RULES, each printed as it is read. The Phase 257 fix round
+ * added no rule and nineteen ablations, one per clause the verifiers removed
+ * by hand and found pinned by nothing (the gate stayed green with the bare
+ * `*Sync` requirement of `effect.fs.write` gone, with the absolute URL refusal
+ * of the route rule gone, with `#[cfg(test)]` counted as a test attribute,
+ * with the 200 character path cap, the messageless `new Error()` and the three
+ * character environment name all gone), plus one per clause the round added:
+ * the Ruby receiver, the network rule's four refusals, the SQL keyword's case
+ * or continuation, Go 1.22's method pattern, pflag's pointer, the composition
+ * root's test path refusal, the one binary window, the suffixed Dockerfile's
+ * opening and the migration extension. Each is a decoy line in a fixture that
+ * rule 1 pins byte for byte, so each ablation names the fixture line it moves.
+ *
  *
  *  1. The per-language table: over build/fixtures/facts/* the reader's facts
  *     equal expected.json byte for byte, and the count table is pinned.
@@ -295,6 +307,169 @@ const ABLATIONS = [
     to: 'DELETE FROM arch_fact WHERE 0 AND NOT EXISTS (',
     arms: ['store'],
     red: 'rule 16'
+  },
+  // ── The fix round's seventeen, each a fixture line rule 1 pins. ──
+  {
+    name: 'rule 1, the Ruby receiver dropped (calls.ts reads the method field alone again)',
+    file: 'main/symbols/calls.ts',
+    from: 'if (receiver !== null) return collapse(`${receiver.text}.${byField.text}`).slice(0, MAX_CALLEE);',
+    to: 'if (false) return collapse(`${receiver!.text}.${byField.text}`).slice(0, MAX_CALLEE);',
+    arms: ['fixtures'],
+    red: 'rule 1',
+    direction: (a) => a.fixtures !== undefined && a.fixtures.ruby.facts.some((f) => f.file === 'lib/run.rb' && f.category === 'network')
+  },
+  {
+    name: 'rule 13, the construction refusal removed from the network receiver branch',
+    file: 'main/arch/facts/rules-network.ts',
+    from: "if (s.form !== 'new' && /^(axios|requests|httpx|urllib|http|reqwest|HttpClient|URLSession|RestTemplate|WebClient)$/i.test(s.recv)) {",
+    to: 'if (/^(axios|requests|httpx|urllib|http|reqwest|HttpClient|URLSession|RestTemplate|WebClient)$/i.test(s.recv)) {',
+    arms: ['fixtures'],
+    red: 'rule 13'
+  },
+  {
+    name: 'rule 13, a URL parse reads every string argument again',
+    file: 'main/arch/facts/rules-network.ts',
+    from: 'const u = URL_PARSE.test(s.last) ? (reachableUrl(first) ? first : undefined) : s.args.find(reachableUrl);',
+    to: 'const u = s.args.find(reachableUrl) ?? (first === "" ? undefined : first);',
+    arms: ['fixtures'],
+    red: 'rule 13'
+  },
+  {
+    name: 'rule 13, the fragment refusal removed (a vocabulary IRI is a reach again)',
+    file: 'main/arch/facts/rules-network.ts',
+    from: "if (a.includes('#')) return false;",
+    to: 'if (false) return false;',
+    arms: ['fixtures'],
+    red: 'rule 13'
+  },
+  {
+    name: 'rule 13, the vocabulary host refusal removed',
+    file: 'main/arch/facts/rules-network.ts',
+    from: 'if (VOCABULARY_HOST.test(a)) return false;',
+    to: 'if (false) return false;',
+    arms: ['fixtures'],
+    red: 'rule 13'
+  },
+  {
+    name: 'rule 13, a URL with no host accepted again',
+    file: 'main/arch/facts/rules-network.ts',
+    from: `const LITERAL_URL = /^(https?|wss?|grpc):\\/\\/[^\\s'"/]{1,}[^\\s'"]{2,}/;`,
+    to: `const LITERAL_URL = /^(https?|wss?|grpc):\\/\\/[^\\s'"]{3,}/;`,
+    arms: ['fixtures'],
+    red: 'rule 13'
+  },
+  {
+    name: "rule 1, store.sql's case or continuation clause removed",
+    file: 'main/arch/facts/rules-store.ts',
+    from: 'if (keyword !== keyword.toUpperCase() && !SQL_CONTINUES.test(rest)) continue;',
+    to: 'if (false) continue;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: "rule 14, surface.cli.arg reads args[0] again (pflag's pointer)",
+    file: 'main/arch/facts/rules-surface.ts',
+    from: 'const n = dashed ?? s.args.find((a) => a.length > 0);',
+    to: 'const n = dashed ?? s.args[0];',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: "rule 1, Go 1.22's method pattern refused again",
+    file: 'main/arch/facts/rules-surface.ts',
+    from: 'if (method !== null) return pathish(method[2]!) ? `HTTP ${method[1]} ${method[2]}` : null;',
+    to: 'if (method !== null) return null;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: 'rule 14, the test-path refusal removed from entrypoint.composition',
+    file: 'main/arch/facts/rules-entrypoint.ts',
+    from: '      if (isTestPath(c.file)) return null;\n      for (const r of COMPOSITION_ROOTS) {',
+    to: '      for (const r of COMPOSITION_ROOTS) {',
+    arms: ['fixtures'],
+    red: 'rule 14'
+  },
+  {
+    name: "rule 1, effect.fs.write's bare-call *Sync requirement removed (H13)",
+    file: 'main/arch/facts/rules-effect.ts',
+    from: "if (s.recv === '' && !/Sync$/.test(s.last)) return null;",
+    to: 'if (false) return null;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: 'rule 1, the absolute-URL refusal removed from surface.http.method-call (H3)',
+    file: 'main/arch/facts/rules-surface.ts',
+    from: 'if (/^(https?|wss?):\\/\\//.test(p)) return null;',
+    to: 'if (false) return null;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: 'rule 1, the test attribute matched anywhere in the path, so #[cfg(test)] counts (H10)',
+    file: 'main/arch/facts/line-rules.ts',
+    from: 'const RUST_TEST_ATTRIBUTE = /^\\s*#\\[[\\w:]*test\\b[^\\]]*\\]\\s*$/;',
+    to: 'const RUST_TEST_ATTRIBUTE = /^\\s*#\\[[^\\]]*test\\b[^\\]]*\\]\\s*$/;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: "rule 1, pathish's 200 character cap removed (H11)",
+    file: 'main/arch/facts/predicates.ts',
+    from: 'if (v.length === 0 || v.length > 200) return false;',
+    to: 'if (v.length === 0) return false;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: "rule 1, pathish's control character refusal removed",
+    file: 'main/arch/facts/predicates.ts',
+    from: 'if (/[\\x00-\\x1f\\x7f]/.test(v)) return false;',
+    to: 'if (false) return false;',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: 'rule 1, a messageless new Error() is a refusal (H14)',
+    file: 'main/arch/facts/rules-gate.ts',
+    from: "s.form === 'new') {\n        return msg !== undefined ? `refuses: ${msg.slice(0, 90)}` : null;",
+    to: "s.form === 'new') {\n        return msg !== undefined ? `refuses: ${msg.slice(0, 90)}` : `refuses (${s.last})`;",
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: "rule 1, gate.env-read's three character minimum lowered (H15)",
+    file: 'main/arch/facts/line-rules.ts',
+    from: 'process\\.env\\.([A-Z][A-Z0-9_]{2,})',
+    to: 'process\\.env\\.([A-Z][A-Z0-9_]{1,})',
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: "rule 1, the binary window put back to git's 8,000 (the product and the driver move together)",
+    file: 'main/symbols/languages.ts',
+    from: 'export const BINARY_SNIFF_BYTES = 8192;',
+    to: 'export const BINARY_SNIFF_BYTES = 8000;',
+    arms: ['fixtures'],
+    red: 'rule 1',
+    direction: (a) => a.fixtures !== undefined && a.fixtures['ts-electron'].counts.unread === 0
+  },
+  {
+    name: 'rule 1, a suffixed Dockerfile read without its opening instruction',
+    file: 'main/arch/facts/manifests.ts',
+    from: "if (base === 'dockerfile' || (base.startsWith('dockerfile.') && opensAsDockerfile(L))) {",
+    to: "if (base === 'dockerfile' || base.startsWith('dockerfile.')) {",
+    arms: ['fixtures'],
+    red: 'rule 1'
+  },
+  {
+    name: 'rule 1, a migration directory entry of any extension',
+    file: 'main/arch/facts/manifests.ts',
+    from: 'export const MIGRATION_FILE = /(^|\\/)(migrations?|db\\/migrate)\\/.*\\.(sql|prisma|rb|py|ts|tsx|js|mjs|cjs|go|rs|swift)$/;',
+    to: 'export const MIGRATION_FILE = /(^|\\/)(migrations?|db\\/migrate)\\//;',
+    arms: ['fixtures'],
+    red: 'rule 1'
   }
 ];
 
@@ -410,6 +585,18 @@ function pinFixtures(got, problems) {
       if (have.facts.some((f) => f.file.startsWith('src/__tests__/') && f.category === 'network')) {
         problems.push('rule 13: a network fact landed on a test path');
       }
+      // Rule 13, the fix round's refusals: the base of a URL parse, a vocabulary IRI and a URL with no host.
+      for (const [needle, why] of [
+        ["new URL(path, 'http://127.0.0.1')", 'the base of a URL parse'],
+        ['activitystreams#Public', 'a vocabulary IRI'],
+        ['elasticsearch/#', 'a URL with a fragment'],
+        ['w3id.org/security/v1', 'a vocabulary host with no fragment'],
+        ["'https:///path'", 'a URL with no host']
+      ]) {
+        const d = expected.fixtures['ts-electron'].decoys.find((x) => x.evidence.includes(needle));
+        if (d !== undefined && net.some((f) => f.file === d.file && f.line === d.line)) problems.push(`rule 13: ${why} reads as a network reach (${d.evidence})`);
+      }
+      if (!net.some((f) => f.file === 'src/main/decoys.ts' && f.subject === 'talks to https://api.example/v2')) problems.push('rule 13: the control reach(https://api.example/v2) yields no network fact');
       const effectKinds = [...new Set(have.facts.filter((f) => f.category === 'effect').map((f) => f.kind))].sort();
       if (effectKinds.some((k) => k !== 'spawn' && k !== 'fs-write')) problems.push(`rule 13: effect holds ${effectKinds.join(', ')}`);
       // Rule 14: gate.auth and gate.refusal on their decoys.
@@ -439,6 +626,11 @@ function pinFixtures(got, problems) {
       if (comp.length !== 1 || comp[0].subject !== 'composes gin.Default') {
         problems.push(`rule 14: gin.Default() beside viper/cfg/x.Default() reads ${comp.map((f) => f.subject).join(', ') || 'nothing'}`);
       }
+      if (comp.some((f) => f.file.endsWith('_test.go'))) problems.push('rule 14: a composition root in _test.go reads as the program start');
+      // Rule 13: a struct literal captured as a construction is not a client call.
+      if (have.facts.some((f) => f.file === 'main.go' && f.kind === 'client')) problems.push('rule 13: &http.Request{…} in main.go reads as an HTTP client call');
+      if (!have.facts.some((f) => f.file === 'main.go' && f.kind === 'listen')) problems.push('rule 13: the control http.ListenAndServe in main.go yields no listen');
+      if (!have.facts.some((f) => f.file === 'main.go' && f.subject === 'CLI flag verbose')) problems.push("rule 14: flag.BoolVar(&v, \"verbose\", …) yields no flag (the pointer is args[0])");
     }
     if (name === 'rust') {
       const cli = have.facts.filter((f) => f.kind === 'cli-command');

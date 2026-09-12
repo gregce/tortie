@@ -13,6 +13,11 @@
 
 import type { FactRule } from './types';
 
+const SQL_STATEMENT =
+  /(?:^|[\n;])\s*(INSERT\s+INTO|UPDATE|DELETE\s+FROM|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE(?:\s+IF\s+EXISTS)?|DROP\s+TABLE(?:\s+IF\s+EXISTS)?)\s+`?"?\[?([A-Za-z_][A-Za-z0-9_.]*)/i;
+/** What follows a table name in a statement and never in a sentence. */
+const SQL_CONTINUES = /^[`"\]]?\s*(?:\(|(?:AS\s+\w+\s+)?(?:SET|VALUES|SELECT|WHERE|ADD|DROP|RENAME|MODIFY|ALTER|DEFAULT)\b)/i;
+
 export const STORE_RULES: readonly FactRule[] = [
   {
     id: 'store.sql',
@@ -23,12 +28,22 @@ export const STORE_RULES: readonly FactRule[] = [
       for (const a of s.args) {
         // Anchored at the start of the string or after a statement break: an
         // unanchored \bUPDATE matched English prose in 40 of this
-        // repository's own error messages.
-        const m =
-          /(?:^|[\n;])\s*(INSERT\s+INTO|UPDATE|DELETE\s+FROM|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+`?"?\[?([A-Za-z_][A-Za-z0-9_.]*)/i.exec(
-            a
-          );
-        if (m) return `${m[1]!.toUpperCase().replace(/\s+/g, ' ')} ${m[2]}`;
+        // repository's own error messages. THE ANCHOR WAS NOT ENOUGH: the
+        // Phase 257 fix round read `errors.New("update plugin conf failed")`
+        // as `UPDATE plugin` on gotify and `'update check failed'` on this
+        // repository, about 65 of tortie's 244 store facts by a line count,
+        // because a sentence BEGINS with a verb too. So a keyword is a
+        // statement only when it is written in SQL's own upper case, or when
+        // the statement continues past its subject the way SQL does, being
+        // `SET`, `VALUES`, `SELECT`, `WHERE`, a column clause or a `(`. The
+        // stated limit is a lower case whole-table statement with nothing
+        // after the table name, `"delete from sessions"`, which is missed.
+        const m = SQL_STATEMENT.exec(a);
+        if (m === null) continue;
+        const keyword = m[1]!;
+        const rest = a.slice(m.index + m[0].length);
+        if (keyword !== keyword.toUpperCase() && !SQL_CONTINUES.test(rest)) continue;
+        return `${keyword.toUpperCase().replace(/\s+/g, ' ')} ${m[2]}`;
       }
       return null;
     }

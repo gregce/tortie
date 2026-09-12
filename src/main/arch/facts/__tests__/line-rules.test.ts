@@ -96,4 +96,15 @@ describe('the environment switch', () => {
     expect(read('a.ts', 'typescript', 'process.env.HOME_X;\nprocess.env.HOME_X;')).toHaveLength(1);
     expect(read('a.ts', 'typescript', `${'x'.repeat(601)} process.env.HOME_X;`)).toEqual([]);
   });
+
+  it('H15: a name under three characters is not a switch; H10: #[cfg(test)] alone marks no fn', () => {
+    expect(read('a.ts', 'typescript', 'const a = process.env.OK;\nconst b = process.env.A;')).toEqual([]);
+    expect(read('a.ts', 'typescript', 'const a = process.env.OKAY;')).toEqual(['1 gate.env-read environment switch OKAY']);
+    expect(read('tests/a.rs', 'rust', '#[cfg(test)]\nfn cfg_helper() {}')).toEqual([]);
+  });
+
+  it('the stated limit: a line rule sees no parse tree, so a docstring or a comment reads as code', () => {
+    expect(read('a.py', 'python', "'''\ndef test_in_docstring():\n'''")).toEqual(['2 test.python.def test test_in_docstring']);
+    expect(read('a.ts', 'typescript', '// process.env.CMT_SECRET')).toEqual(['1 gate.env-read environment switch CMT_SECRET']);
+  });
 });

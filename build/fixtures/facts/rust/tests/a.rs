@@ -11,3 +11,8 @@ async fn two() {
 fn helper() {
     let _ = 1;
 }
+
+#[cfg(test)]
+fn cfg_helper() {
+    let _ = 2;
+}

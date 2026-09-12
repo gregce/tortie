@@ -11,11 +11,13 @@
  * arguments read per site and the call ceiling past which a file is marked
  * `callsTruncated`, are imported from `src/main/symbols/calls.ts` rather than
  * restated, so one number exists and `conformance:facts` rule 15 drives the
- * worker at the same value this table prints.
+ * worker at the same value this table prints. The binary window and the parse
+ * cap are imported from `src/main/symbols/languages.ts` for the same reason.
  */
 
 import { ARCH_FACT_LIMITS } from '@shared/arch';
 import { MAX_ARG, MAX_ARGS, MAX_CALLEE, MAX_CALLS_PER_FILE } from '../../symbols/calls';
+import { BINARY_SNIFF_BYTES, MAX_INDEXED_FILE_BYTES } from '../../symbols/languages';
 
 export const FACT_LIMITS = {
   ...ARCH_FACT_LIMITS,
@@ -30,5 +32,17 @@ export const FACT_LIMITS = {
   /** A manifest over this size yields no manifest facts. */
   maxManifestBytes: 2 * 1024 * 1024,
   /** The worker stops capturing call sites at this many and flags the file. */
-  maxCallsPerFile: MAX_CALLS_PER_FILE
+  maxCallsPerFile: MAX_CALLS_PER_FILE,
+  /**
+   * The three readers of a file's bytes agree on what is not read, and these
+   * are the numbers they agree on (the Phase 257 fix round; the driver under
+   * `build/p257/` reads them from here rather than restating them). A file at
+   * or past `maxReadBytes` is never buffered and yields no fact; a NUL inside
+   * the first `binarySniffBytes` marks a binary, which yields no fact either;
+   * a source file over `maxParseBytes` keeps its line and path facts and is
+   * linked `truncated`, because its call list is the thing that is missing.
+   */
+  maxReadBytes: 4_000_000,
+  binarySniffBytes: BINARY_SNIFF_BYTES,
+  maxParseBytes: MAX_INDEXED_FILE_BYTES
 } as const;

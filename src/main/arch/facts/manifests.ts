@@ -19,7 +19,29 @@
  * format is read as text; no value read from any file reaches an argv. The
  * five manifest kinds of the unexercised grammars, being AndroidManifest,
  * gradle, pom, csproj and sln, are not read (spec D4).
+ *
+ * STATED LIMITS, from the Phase 257 fix round's hostile tree. A manifest is
+ * read wherever it sits, so `docs/examples/Gemfile` is a ruby project file
+ * exactly as `packages/cli/package.json` is a package, because monorepos put
+ * manifests in subdirectories and a path rule cannot tell an example from a
+ * member. Two shapes ARE refused since that round: a `Dockerfile.<suffix>`
+ * whose first instruction is not `FROM` or `ARG` (`docs/Dockerfile.md` yielded
+ * an `ENTRYPOINT` and an exposed port), and a migration directory entry whose
+ * extension is not a migration's (`docs/migrations/guide.md` and
+ * `docs/migration/diagram.png` were store facts).
  */
+
+/**
+ * What a migration directory holds: SQL, prisma, or a source file of an
+ * exercised grammar, under `migrations/`, `migration/` or Rails' `db/migrate/`
+ * (spec §1.3). A bare `migrate/` segment is NOT one: this reader used to name
+ * it while the path rule did not, so `src/main/migrate/userdata.ts` in this
+ * repository was read as a MANIFEST, scanned for SQL and never parsed as
+ * TypeScript, which the fix round found when the two tests became one.
+ */
+export const MIGRATION_FILE = /(^|\/)(migrations?|db\/migrate)\/.*\.(sql|prisma|rb|py|ts|tsx|js|mjs|cjs|go|rs|swift)$/;
+/** A suffixed Dockerfile is a Dockerfile only when it begins as one. */
+const DOCKERFILE_OPENS = /^\s*(FROM|ARG)\b/i;
 
 import type { ArchFactDraft, ArchFactCategory } from '@shared/arch';
 import { FACT_LIMITS } from './limits';
@@ -49,7 +71,7 @@ const MANIFEST_BASENAMES: ReadonlySet<string> = new Set([
 export function isManifestPath(relPath: string): boolean {
   const base = relPath.slice(relPath.lastIndexOf('/') + 1).toLowerCase();
   if (/\.github\/workflows\/.*\.ya?ml$/.test(relPath)) return true;
-  if (/(^|\/)(migrations?|migrate|db\/migrate)\//.test(relPath)) return true;
+  if (MIGRATION_FILE.test(relPath)) return true;
   if (/\.(sql|prisma|gemspec)$/.test(base)) return true;
   if (/^docker-compose(\.[a-z]+)?\.ya?ml$/.test(base)) return true;
   return MANIFEST_BASENAMES.has(base) || base.startsWith('dockerfile.');
@@ -97,7 +119,7 @@ export function readManifestFacts(relPath: string, text: string): ArchFactDraft[
       if (m) add('entrypoint', 'process', `${m[1]}: ${m[2]!.slice(0, 80)}`, i + 1, 'entrypoint.procfile');
     });
   }
-  if (base === 'dockerfile' || base.startsWith('dockerfile.')) {
+  if (base === 'dockerfile' || (base.startsWith('dockerfile.') && opensAsDockerfile(L))) {
     L.forEach((ln, i) => {
       const m = /^\s*(CMD|ENTRYPOINT)\s+(.+)$/i.exec(ln);
       if (m) add('entrypoint', 'container', `${m[1]!.toUpperCase()} ${m[2]!.slice(0, 90)}`, i + 1, 'entrypoint.docker.cmd');
@@ -144,7 +166,7 @@ export function readManifestFacts(relPath: string, text: string): ArchFactDraft[
     });
   }
   // SQL / migration files: the store DEFINITIONS.
-  if (/\.sql$/.test(base) || /(^|\/)(migrations?|migrate|db\/migrate)\//.test(relPath) || base === 'schema.rb' || /\.prisma$/.test(base)) {
+  if (/\.sql$/.test(base) || MIGRATION_FILE.test(relPath) || base === 'schema.rb' || /\.prisma$/.test(base)) {
     L.forEach((ln, i) => {
       const m = /\b(CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|CREATE\s+INDEX)\s+`?"?\[?([A-Za-z_][A-Za-z0-9_.]*)/i.exec(ln);
       if (m) add('store', 'store-def', `${m[1]!.toUpperCase().replace(/\s+/g, ' ')} ${m[2]}`, i + 1, 'store.sql.file');
@@ -158,6 +180,15 @@ export function readManifestFacts(relPath: string, text: string): ArchFactDraft[
 }
 
 type Add = (category: ArchFactCategory, kind: string, subject: string, line: number, rule: string) => void;
+
+/** The first non blank, non comment line is a Dockerfile instruction. */
+function opensAsDockerfile(L: readonly string[]): boolean {
+  for (const ln of L) {
+    if (ln.trim() === '' || ln.trim().startsWith('#')) continue;
+    return DOCKERFILE_OPENS.test(ln);
+  }
+  return false;
+}
 
 function readPackageJson(text: string, L: readonly string[], add: Add): void {
   let j: Record<string, unknown>;

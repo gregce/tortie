@@ -17,12 +17,12 @@
 
 import type { ArchFactDraft } from '@shared/arch';
 import { FACT_LIMITS } from './limits';
+import { MIGRATION_FILE } from './manifests';
 
 const ENTRY_BY_NAME = /^(src\/)?(main|index|app|server|cli|bin|__main__)\.(ts|tsx|js|mjs|cjs|py|rs|go|rb|swift)$/;
 const CMD_DIR = /^(cmd|bin)\//;
 const CMD_EXT = /\.(go|rs|ts|js|py|rb)$/;
 const MODULE_ROOTS: ReadonlySet<string> = new Set(['lib.rs', 'mod.rs', '__init__.py', 'index.ts']);
-const MIGRATION_DIR = /(^|\/)(migrations?|db\/migrate)\//;
 
 const NEXT_ROUTE = /^(.*\/)?(app|src\/app|pages\/api)\/(.+)\/route\.(ts|tsx|js|mjs)$/;
 const NEXT_EXPORT = /^export\s+(?:async\s+)?(?:const|function)\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/;
@@ -52,7 +52,9 @@ export function pathFacts(relPath: string): ArchFactDraft[] {
   if (MODULE_ROOTS.has(base)) {
     add('boundary', 'module-root', `module root ${relPath}`, 'boundary.path.module-root');
   }
-  if (MIGRATION_DIR.test(relPath)) {
+  // The same test the manifest reader uses, so a directory named
+  // `migrations` holding a diagram yields nothing on either side.
+  if (MIGRATION_FILE.test(relPath)) {
     add('store', 'migration', `migration ${relPath}`, 'store.path.migration');
   }
   return out;

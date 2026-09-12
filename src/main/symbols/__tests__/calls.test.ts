@@ -112,16 +112,26 @@ describe('the call captures, per grammar', () => {
     expect(one(calls, 'println!', 'macro')).toMatchObject({ args: ['x {}', ''], argc: 2 });
   });
 
-  it('reads a Ruby call with a symbol as a literal, colon on', async () => {
-    const calls = await callsOf('a.rb', ['get :activity', 'post "/x", to: "a#b"', 'resources :users', 'system("ls")', 'Foo.bar(1)'].join('\n'));
+  it('reads a Ruby call with a symbol as a literal, colon on, and the receiver in front of the method', async () => {
+    const calls = await callsOf(
+      'a.rb',
+      ['get :activity', 'post "/x", to: "a#b"', 'resources :users', 'system("ls")', 'Foo.bar(1)', "ENV.fetch('X')", 'Net::HTTP.new("h")', 'Rails.application.routes.draw'].join('\n')
+    );
     expect(one(calls, 'get')).toMatchObject({ args: [':activity'], argc: 1, line: 1 });
     // A pair's VALUE is the argument's string.
     expect(one(calls, 'post')).toMatchObject({ args: ['/x', 'a#b'], argc: 2 });
     expect(one(calls, 'resources')).toMatchObject({ args: [':users'] });
-    expect(one(calls, 'system')).toMatchObject({ args: ['ls'] });
-    // The method field answers the callee; the measured shape reads the name
-    // alone, and the ruby rules were ported against that.
-    expect(one(calls, 'bar')).toMatchObject({ recv: '', args: [''], argc: 1 });
+    expect(one(calls, 'system')).toMatchObject({ recv: '', args: ['ls'] });
+    // THE ONE DIVERGENCE FROM THE PROTOTYPE: Ruby's `call` holds the receiver
+    // in a field of its own, and reading the `method` field alone made
+    // `ENV.fetch('X')` a bare `fetch`, which was 195 of mastodon's 365
+    // network facts (the Phase 257 fix round). The receiver is composed in
+    // front, as it is for every other grammar's dotted callee.
+    expect(one(calls, 'Foo.bar')).toMatchObject({ last: 'bar', recv: 'Foo', args: [''], argc: 1 });
+    expect(one(calls, 'ENV.fetch')).toMatchObject({ last: 'fetch', recv: 'ENV', args: ['X'] });
+    expect(one(calls, 'Net::HTTP.new')).toMatchObject({ last: 'new', recv: 'HTTP', args: ['h'] });
+    expect(one(calls, 'Rails.application.routes.draw')).toMatchObject({ last: 'draw', recv: 'routes' });
+    expect(calls.some((c) => c.callee === 'bar' || c.callee === 'fetch')).toBe(false);
   });
 
   it('reads a Swift call through its suffix and an attribute with the at sign off', async () => {

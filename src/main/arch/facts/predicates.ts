@@ -57,9 +57,18 @@ export function isTestPath(file: string): boolean {
   );
 }
 
-/** Does a string literal read as a route or file PATH rather than prose? */
+/**
+ * Does a string literal read as a route or file PATH rather than prose?
+ *
+ * A leading slash decides on its own, so a hostile route reaches its subject
+ * verbatim (`conformance:facts` rule 8 pins `/x; rm -rf ~`), and the one thing
+ * refused after it is a CONTROL CHARACTER: a real line break inside a route
+ * is not a route, it is a string that happened to begin with a slash.
+ */
 export function pathish(v: string): boolean {
   if (v.length === 0 || v.length > 200) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(v)) return false;
   if (v.startsWith('/')) return true;
   return /^[a-z0-9\-][a-z0-9_\-/:{}*.<>=]*$/i.test(v) && v.includes('/');
 }

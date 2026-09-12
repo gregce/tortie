@@ -18,6 +18,16 @@
  * wrapper arm read per parsed file against its own base. Nothing here writes
  * a row; the store's half is `src/main/arch/db.ts` and rule 16 drives it.
  *
+ * THE THREE UNREAD SHAPES ARE THE PRODUCT'S, READ FROM ITS OWN TABLE. The
+ * Phase 257 fix round found this driver linking a file over the 4 MB cap as
+ * `lang: 'path'` with path facts where the product links it `lang: null`
+ * with none, sniffing a NUL over 8,192 bytes where the product read 8,000,
+ * and parsing a 2.5 MB source file the worker refuses. All three numbers are
+ * `FACT_LIMITS.maxReadBytes`, `.binarySniffBytes` and `.maxParseBytes` now,
+ * and a file at any of them is linked the way `unreadLink` links it: over the
+ * cap or binary is `lang: null` and no fact; over the parse cap is its
+ * grammar, `truncated`, line and path facts kept and no call read.
+ *
  * IT SPAWNS NOTHING. The file list is handed in; `walkFiles` below is a plain
  * `node:fs` walk for callers that have no `git ls-files` to hand.
  */
@@ -72,6 +82,7 @@ export interface FactsModule {
   isManifestPath(relPath: string): boolean;
   WRAPPER_GRAMMARS: readonly string[];
   WRAPPER_MAX_HOPS: number;
+  FACT_LIMITS: { maxReadBytes: number; binarySniffBytes: number; maxParseBytes: number };
 }
 
 /** What `SymbolExtractor` answers when asked for calls and wrappers. */
@@ -129,9 +140,6 @@ export interface DriverResult {
   wrapFacts: number;
   wrapDigest: string | null;
 }
-
-/** The same ceiling `src/main/arch/tree-facts.ts` reads at. */
-const MAX_READ_BYTES = 4_000_000;
 
 /** A plain walk of a directory, `.git` and `node_modules` skipped, sorted, forward slashed. */
 export function walkFiles(root: string, rel = ''): string[] {
@@ -217,31 +225,41 @@ export async function readTree(input: DriverInput): Promise<DriverResult> {
       truncated: false,
       wrapDigest: null
     };
+    const { maxReadBytes, binarySniffBytes, maxParseBytes } = F.FACT_LIMITS;
     // The product reads no file at or past its cap, so for one of those only
     // the PATH half of the vendor test can answer, exactly as in tree-facts.ts.
-    const reason = F.vendoredReason(relPath, buf.length >= MAX_READ_BYTES ? Buffer.alloc(0) : buf);
+    const overCap = buf.length >= maxReadBytes;
+    const reason = F.vendoredReason(relPath, overCap ? Buffer.alloc(0) : buf);
     if (reason !== null) {
       link.vendored = reason;
       vendored += 1;
       links.push(link);
       continue;
     }
-    const binary = buf.length >= MAX_READ_BYTES || buf.subarray(0, 8192).includes(0);
-    const text = binary ? null : buf.toString('utf8');
+    // Over the cap or binary: `unreadLink` in tree-facts.ts, lang null, no fact.
+    if (overCap || buf.subarray(0, binarySniffBytes).includes(0)) {
+      unread += 1;
+      links.push(link);
+      continue;
+    }
+    const text = buf.toString('utf8');
     const lang = input.grammarFor(relPath);
     if (F.isManifestPath(relPath)) {
       push(relPath, F.readFacts({ relPath, lang: null, text, calls: [] }), false);
-      link.lang = text === null ? null : 'manifest';
+      link.lang = 'manifest';
       manifests += 1;
-      if (text === null) unread += 1;
-    } else if (lang === null || text === null) {
+    } else if (lang === null) {
       push(relPath, F.readFacts({ relPath, lang: null, text: null, calls: [] }), false);
       link.lang = 'path';
       pathOnly += 1;
-      if (lang !== null && text === null) unread += 1;
     } else {
       const wrappers = input.wrapperPass && F.WRAPPER_GRAMMARS.includes(lang);
-      const read = await extractor.extractAll(relPath, text, { calls: true, wrappers });
+      // The worker refuses a source file over its cap; the product then keeps
+      // the line and path facts and links the file truncated with no call.
+      const read =
+        buf.length > maxParseBytes
+          ? { calls: [] as DriverCall[], wrappers: [] as DriverWrapper[], callsTruncated: true }
+          : await extractor.extractAll(relPath, text, { calls: true, wrappers });
       const base = F.readFacts({ relPath, lang, text, calls: read.calls });
       push(relPath, base, false);
       link.lang = lang;

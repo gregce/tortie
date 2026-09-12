@@ -72,6 +72,7 @@ import type { ArchFactParser } from './fact-parser';
 import {
   blobOid,
   closeWrappers,
+  FACT_LIMITS,
   isManifestPath,
   readFacts,
   readWrapFacts,
@@ -93,8 +94,11 @@ import type { IndexedFile } from '../symbols/worker';
 
 export type { ArchTreeFileFact } from './db';
 
-/** Files past this size are not read; they are binaries or generated blobs. */
-const MAX_READ_BYTES = 4_000_000;
+/**
+ * Files past this size are not read; they are binaries or generated blobs.
+ * The number is the fact table's, so the reference driver reads the same one.
+ */
+const MAX_READ_BYTES = FACT_LIMITS.maxReadBytes;
 /** The no-bytes buffer the vendor test's path half is asked over for a file that was not read. */
 const EMPTY = Buffer.alloc(0);
 /** How many files one round of reads holds open at once. */
@@ -168,15 +172,20 @@ export function declaredNameOf(fileName: string, text: string): string | null {
 
 /** Newlines in a buffer, or zero when it is a binary. Exported for the tests. */
 export function countLines(buf: Buffer): number {
-  if (buf.length >= MAX_READ_BYTES || buf.subarray(0, 8000).includes(0)) return 0;
+  if (buf.length >= MAX_READ_BYTES || isBinary(buf)) return 0;
   let n = 0;
   for (let i = 0; i < buf.length; i += 1) if (buf[i] === 10) n += 1;
   return n;
 }
 
-/** The same binary heuristic git uses, and the one `countLines` answers zero for. */
+/**
+ * A NUL inside the window the extractor sniffs. ONE window: the Phase 257 fix
+ * round found this at git's 8,000 while the extractor and the reference driver
+ * read 8,192, so a NUL at byte 8,100 was text here and binary there, and a
+ * fact was stored from a file the reference called unreadable.
+ */
 function isBinary(buf: Buffer): boolean {
-  return buf.subarray(0, 8000).includes(0);
+  return buf.subarray(0, FACT_LIMITS.binarySniffBytes).includes(0);
 }
 
 /**
@@ -348,7 +357,13 @@ export async function readArchTreeFacts(input: ArchTreeFactsInput): Promise<Arch
           links.set(file.relPath, unreadLink(file, oid, null));
           return;
         }
-        const grammar = grammarFor(file.relPath);
+        // A manifest is a manifest first: `setup.py`, `Rakefile`, `Package.swift`
+        // and a `.go` under `migrations/` all carry a grammar, and the rules read
+        // them as manifests whatever the worker answers, so the parse is not
+        // asked for and the link says `manifest`. The fix round's probe read
+        // the product linking four of this repository's manifests as python,
+        // ruby and swift where the reference driver linked them as manifests.
+        const grammar = isManifestPath(file.relPath) ? null : grammarFor(file.relPath);
         const lang = langOf(file.relPath, grammar);
         const link: ArchFactFileLink = {
           relPath: file.relPath,
@@ -409,13 +424,21 @@ export async function readArchTreeFacts(input: ArchTreeFactsInput): Promise<Arch
       // A file the worker did not answer (over its own cap, or half written)
       // keeps its line and path facts; what is missing is the call list.
       q.link.truncated = file === undefined || file.callsTruncated === true;
-      let text: string;
+      let buf: Buffer;
       try {
-        text = await readFile(q.absPath, 'utf8');
+        buf = await readFile(q.absPath);
       } catch {
         continue;
       }
-      store.saveFacts(q.oid, q.relPath, readFacts({ relPath: q.relPath, lang: q.grammar, text, calls }));
+      // The bytes are read a second time here, after the worker's own read,
+      // and a file rewritten in between would store facts under the FIRST
+      // read's oid with evidence from the second: the Phase 257 fix round
+      // drove exactly that through the parser seam and read `IPC serves
+      // race:before` cited at a line holding `race:after`. So the second read
+      // must hash to the oid the first one did, or the file is left unlinked
+      // for the next run, which is the wrapper pass's own guard at step 4.
+      if (blobOid(buf) !== q.oid) continue;
+      store.saveFacts(q.oid, q.relPath, readFacts({ relPath: q.relPath, lang: q.grammar, text: buf.toString('utf8'), calls }));
       factsRead += 1;
       answeredFiles.add(q.relPath);
       if (input.wrapperPass && isWrapperGrammar(q.grammar)) {
@@ -426,8 +449,10 @@ export async function readArchTreeFacts(input: ArchTreeFactsInput): Promise<Arch
     }
   }
   // A queued file the pass did not reach, being past the ceiling, past a
-  // cancellation or unreadable at the second read, is left UNLINKED so the
-  // next run reads it; the ones answered keep their facts and their link.
+  // cancellation, unreadable at the second read or rewritten between the two
+  // reads, is left UNLINKED so the next run reads it; the ones answered keep
+  // their facts and their link. Without this a file past the ceiling would be
+  // linked with a fresh stamp and never parsed again.
   for (const q of queued) if (!answeredFiles.has(q.relPath)) links.delete(q.relPath);
 
   let wrapFacts = 0;

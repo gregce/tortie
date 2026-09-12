@@ -65,7 +65,22 @@ const DECOYS: Record<(typeof FIXTURES)[number], [string, string, string, string]
     ['src/__tests__/auth.test.ts', "await fetch('https://api.example/v1')", 'network.client', 'spec §5 rule 13'],
     ['src/__tests__/auth.test.ts', 'SymbolExtractor.create({', 'store.orm', 'tortie/store/5'],
     ['.github/workflows/ci.yml', '  push:', 'entrypoint.ci.job', 'spec §1.4 (a trigger under on: is not a job)'],
-    ['.github/workflows/ci.yml', '  pull_request:', 'entrypoint.ci.job', 'spec §1.4']
+    ['.github/workflows/ci.yml', '  pull_request:', 'entrypoint.ci.job', 'spec §1.4'],
+    // The fix round's clauses, one line each; the gate's ablations turn each red.
+    ['src/main/decoys.ts', 'write(buf);', 'effect.fs.write', 'fix round H13 (a bare write( is not a filesystem write)'],
+    ['src/main/decoys.ts', "app.get('https://api.example/v1/users', h);", 'surface.http.method-call', 'fix round H3 (an absolute URL is a client call, never a route)'],
+    ['src/main/decoys.ts', "app.get('/aaaa", 'surface.http.method-call', 'fix round H11 (a path over 200 characters is not a route)'],
+    ['src/main/decoys.ts', 'app.get(`/multi', 'surface.http.method-call', 'fix round (a real line break inside a route is not a route)'],
+    ['src/main/decoys.ts', 'throw new Error();', 'gate.refusal', 'fix round H14 (no message, no refusal)'],
+    ['src/main/decoys.ts', 'process.env.OK', 'gate.env-read', 'fix round H15 (a two character name is not a switch)'],
+    ['src/main/decoys.ts', "log('update check failed');", 'store.sql', "fix round (tortie's own prose beginning with a verb, ~65 of 244)"],
+    ['src/main/decoys.ts', "fail('Update password successfully');", 'store.sql', "fix round (fastapi's test name)"],
+    ['src/main/decoys.ts', "new URL(path, 'http://127.0.0.1');", 'network.client', 'fix round (the base of a URL parse reaches nothing)'],
+    ['src/main/decoys.ts', 'activitystreams#Public', 'network.client', 'fix round (a vocabulary IRI, 136 of mastodon\'s 367)'],
+    ['src/main/decoys.ts', 'elasticsearch/#', 'network.client', 'fix round (a fragment is never sent on the wire; only the fragment clause refuses this one)'],
+    ['src/main/decoys.ts', 'w3id.org/security/v1', 'network.client', 'fix round (a vocabulary host with no fragment; only the host clause refuses this one)'],
+    ['src/main/decoys.ts', "fetchIt('https:///path');", 'network.client', 'fix round (no host)'],
+    ['src/main/late-nul.ts', 'LATE_NUL_SECRET', 'gate.env-read', 'fix round (a NUL at byte 8,100 is a binary to every reader)']
   ],
   'ts-next': [],
   python: [
@@ -88,7 +103,10 @@ const DECOYS: Record<(typeof FIXTURES)[number], [string, string, string, string]
     ['router/router_test.go', 't.Fatalf("put: %v"', 'gate.refusal', 'stoa/gate/1'],
     ['router/router_test.go', 'http://go.example.com', 'network.client', 'gotify/effect/1'],
     ['router/router_test.go', 'expected := &model.Application{ID: 2}', 'entrypoint.composition', 'gotify/entrypoint/1'],
-    ['router/router.go', 'client.Get(url)', 'surface.http.method-call', 'spec §1.1 (a client receiver)']
+    ['router/router.go', 'client.Get(url)', 'surface.http.method-call', 'spec §1.1 (a client receiver)'],
+    ['router/router.go', 'update plugin conf failed', 'store.sql', "fix round (gotify's error message beginning with a verb)"],
+    ['main.go', '&http.Request{Method: "GET"}', 'network.client', "fix round (a struct literal captured as new, 25 of miniflux's 48)"],
+    ['router/router_test.go', 'http.NewServeMux()', 'entrypoint.composition', "fix round (a composition root in _test.go, 2 of miniflux's 7)"]
   ],
   rust: [
     ['build.rs', 'Command::new("git").args(args).output()', 'surface.cli.clap', 'ripgrep/surface/2'],
@@ -96,17 +114,26 @@ const DECOYS: Record<(typeof FIXTURES)[number], [string, string, string, string]
     ['tests/util.rs', 'Command::new(program).arg("--help")', 'surface.cli.arg', 'ripgrep/surface/3'],
     ['tests/util.rs', 'cmd.arg("--path-separator").arg("/")', 'surface.cli.arg', 'ripgrep/surface/4 and /5'],
     ['tests/a.rs', 'fn helper()', 'test.rust.fn', 'spec §1.2 (no attribute above it)'],
-    ['src/net.rs', 'let regex = RegexBuilder::new(pattern)', 'gate.auth', 'ripgrep/gate/2']
+    ['src/net.rs', 'let regex = RegexBuilder::new(pattern)', 'gate.auth', 'ripgrep/gate/2'],
+    ['tests/a.rs', 'fn cfg_helper()', 'test.rust.fn', 'fix round H10 (#[cfg(test)] marks a module, not a test)']
   ],
   ruby: [
     ['spec/x_spec.rb', 'stub_request(:get, "https://example.com/x")', 'network.client', 'spec §1.1'],
     ['spec/x_spec.rb', 'featured_collection_url', 'network.client', 'mastodon/effect/2'],
     ['spec/x_spec.rb', "a_request(:get, 'https://example.com/alice')", 'network.client', 'mastodon/effect/4'],
     ['spec/x_spec.rb', 'expect(subject).to_not permit(alice, john)', 'gate.auth', 'mastodon/gate/5'],
-    ['app/models/u.rb', 'Model.create!(name: "x")', 'store.orm', 'spec §1.1 (the Rails bang form, not measured)']
+    ['app/models/u.rb', 'Model.create!(name: "x")', 'store.orm', 'spec §1.1 (the Rails bang form, not measured)'],
+    ['lib/run.rb', "ENV.fetch('API_KEY')", 'network.client', "fix round (ENV.fetch read as a bare fetch was 195 of mastodon's 365)"],
+    ['lib/run.rb', "Rails.cache.fetch('c')", 'network.client', 'fix round (Hash#fetch on a receiver)']
   ],
   swift: [['Tests/KitTests/KitTests.swift', 'URL(string: "https://example.com/image.jpg")', 'network.client', 'alamofire/effect/5']],
-  manifests: [['compose.yaml', '  data:', 'boundary.compose.service', 'spec §5.1 (a top level volumes: key)']]
+  manifests: [
+    ['compose.yaml', '  data:', 'boundary.compose.service', 'spec §5.1 (a top level volumes: key)'],
+    ['docs/Dockerfile.md', 'ENTRYPOINT ["node", "server.js"]', 'entrypoint.docker.cmd', 'fix round (a Dockerfile.<suffix> that does not open as one)'],
+    ['docs/Dockerfile.md', 'EXPOSE 8080', 'surface.docker.expose', 'fix round'],
+    ['docs/migrations/guide.md', '# Migrations', 'store.path.migration', 'fix round (a migration directory entry with no migration extension)'],
+    ['docs/migrations/guide.md', 'CREATE TABLE guide', 'store.sql.file', 'fix round']
+  ]
 };
 
 const DROPPED = [

@@ -12,6 +12,13 @@
  * heuristic, and that is its stated limit: a generated file with short lines
  * and no banner is read as first party. A vendored file is linked with no
  * facts and counted, so the denominator stays honest.
+ *
+ * THERE IS NO FIXTURE NOTION EITHER. The committed fixtures under
+ * `build/fixtures/facts/` are read as this repository's own code, so this
+ * repository's own fact base carries `python/main.py` and `rust/Cargo.toml`
+ * as entrypoints of Tortie; `src/main/arch/facts/` has no rule that says a
+ * file exists to be measured, and a segment named `fixtures` is not vendored
+ * because a test fixture is the project's own bytes.
  */
 
 /** Path segments that mean "not this project's code". One segment, or two joined by `/`. */

@@ -12,6 +12,13 @@
  * one fact carrying its own name, and a plain helper next to it is nothing.
  * `entrypoint.rails.application` is new, because Rails' composition root is a
  * class declaration the pair table in `./rules-entrypoint.ts` cannot express.
+ *
+ * STATED LIMIT: A LINE RULE SEES NO PARSE TREE. It reads a line of text, so
+ * `def test_in_docstring():` inside a Python docstring is a test case and
+ * `process.env.CMT_SECRET` inside a `//` comment or a string literal is an
+ * environment switch (the Phase 257 fix round's hostile tree). Both are
+ * faithful to the prototype the numbers were measured with, and the call
+ * shaped rules, which DO read the tree, were fooled by none of those shapes.
  */
 
 import type { ArchFactDraft } from '@shared/arch';
@@ -19,9 +26,15 @@ import { FACT_LIMITS } from './limits';
 import { evidenceAt } from './rules';
 import { ruleReads, type LineRule, type RuleContext } from './types';
 
+/**
+ * A test attribute is one whose PATH ends in `test`: `#[test]`,
+ * `#[tokio::test]`, `#[test(flavor = …)]`. `#[cfg(test)]` does not match,
+ * because `test` there is an argument and not the path's last segment, and
+ * that is the whole exclusion: the Phase 257 fix round found a second clause
+ * spelling it again that no ablation could turn red, and removed it.
+ */
 const RUST_TEST_ATTRIBUTE = /^\s*#\[[\w:]*test\b[^\]]*\]\s*$/;
 const RUST_ANY_ATTRIBUTE = /^\s*#\[[^\]]*\]\s*$/;
-const RUST_CFG_TEST = /^\s*#\[cfg\(test\)\]\s*$/;
 
 /**
  * Is the `fn` at `index` marked by a test attribute? The nearest preceding
@@ -35,7 +48,7 @@ function rustTestAttributeAbove(lines: readonly string[], index: number): boolea
     if (ln.trim() === '') continue;
     if (!RUST_ANY_ATTRIBUTE.test(ln)) return false;
     read += 1;
-    if (RUST_TEST_ATTRIBUTE.test(ln) && !RUST_CFG_TEST.test(ln)) return true;
+    if (RUST_TEST_ATTRIBUTE.test(ln)) return true;
   }
   return false;
 }

@@ -24,6 +24,8 @@ import { channelish, CLIENT_RECV, firstPath, HTTP_VERBS, ipcChannelName, isAnnot
 const PARSER_RECV =
   /^(parser|subparser|subparsers|argparser|program|cmd|command|cli|app|flag|flags|pflag|opts|options|yargs|commander|Arg)$/;
 const CLI_ARG_VERB_OWN = /^(add_argument|addOption|StringVar|BoolVar|IntVar)$/;
+/** Go 1.22 `"METHOD /path"` as one string argument. */
+const GO_METHOD_PATTERN = /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|CONNECT|TRACE)\s+(\S+)$/;
 const CLI_ARG_VERB_AMBIGUOUS = /^(option|arg|flag)$/;
 
 /** A file that names the clap crate. `Command::new` is clap's only there. */
@@ -68,7 +70,13 @@ export const SURFACE_RULES: readonly FactRule[] = [
       if (isTestPath(c.file)) return null;
       if (!/^(HandleFunc|Handle)$/.test(s.last)) return null;
       const p = s.args[0];
-      return p !== undefined && pathish(p) ? `HTTP ${p}` : null;
+      if (p === undefined) return null;
+      // Go 1.22's method pattern, `mux.HandleFunc("GET /v1/me", h)`: the
+      // fix round's tenth repository (miniflux) declares 167 of its 177
+      // routes this way and a `pathish` that refuses the space read 10.
+      const method = GO_METHOD_PATTERN.exec(p);
+      if (method !== null) return pathish(method[2]!) ? `HTTP ${method[1]} ${method[2]}` : null;
+      return pathish(p) ? `HTTP ${p}` : null;
     }
   },
   {
@@ -186,7 +194,10 @@ export const SURFACE_RULES: readonly FactRule[] = [
       // `-` or the receiver is a parser. A bare `x.flag(1)` or `map.option('k')`
       // answers nothing; those were 3 of the 4 sampled facts.
       if (!own && dashed === undefined && !PARSER_RECV.test(s.recv)) return null;
-      const n = dashed ?? s.args[0];
+      // The first STRING argument, not the first argument: pflag's
+      // `flag.BoolVar(&v, "info", false, "…")` carries the pointer first, and
+      // the fix round read 0 of miniflux's 18 flags through `args[0]`.
+      const n = dashed ?? s.args.find((a) => a.length > 0);
       return n !== undefined && n.length > 0 && n.length < 60 && !n.includes(' ') ? `CLI flag ${n}` : null;
     }
   },

@@ -24,7 +24,7 @@ import { Language, Parser, Query } from 'web-tree-sitter';
 import type { Node as TsNode, Tree } from 'web-tree-sitter';
 import type { SymbolKind } from '@shared/symbols';
 import type { GrammarId } from './languages';
-import { grammarFor, MAX_INDEXED_FILE_BYTES } from './languages';
+import { BINARY_SNIFF_BYTES, grammarFor, MAX_INDEXED_FILE_BYTES } from './languages';
 import { describeCall, MAX_CALLS_PER_FILE, unquoteLiteral } from './calls';
 import type { CallForm, ExtractedCall } from './calls';
 import { readWrapperDecls } from './wrappers';
@@ -278,8 +278,9 @@ export class SymbolExtractor {
       return null;
     }
     // A NUL in the first 8 KB is the same binary heuristic git uses. Parsing a
-    // binary file is not wrong so much as pointless, and it is slow.
-    const probe = buf.subarray(0, 8192);
+    // binary file is not wrong so much as pointless, and it is slow. The
+    // window is the one number the fact pass and its driver read too.
+    const probe = buf.subarray(0, BINARY_SNIFF_BYTES);
     if (probe.includes(0)) return null;
     const found = await this.extractAll(relPath, buf.toString('utf8'), ask);
     return { ...found, mtimeMs, size };

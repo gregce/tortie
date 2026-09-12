@@ -23,10 +23,12 @@
  *          pre-written on, opens the `tortie` and `stoa` clones as projects,
  *          runs the arch check on each and reads its durationMs, ends the app,
  *          opens the profile's arch.db READ ONLY and holds its per-category
- *          counts, wrapper digest, wrap-fact count, IPC serves subjects and
- *          denominators against Arm A's for the same two clones. Any
- *          difference is a finding: the product's pass is the reference
- *          driver's.
+ *          counts, wrapper digest, wrap-fact count, IPC serves subjects,
+ *          per-language link counts and denominators against Arm A's for the
+ *          same two clones. Any difference is a finding: the product's pass
+ *          is the reference driver's. The 229 is asserted over `src/**`, the
+ *          scope the baseline is generated from, because the committed
+ *          fixtures register channels of their own.
  *
  * With P257_PARENT_CHECKOUT naming a BUILT worktree at the parent commit, a
  * second Electron is launched from that checkout, one after the other and
@@ -88,8 +90,16 @@ export function compareArms(name, fromDb, fromDriver) {
   }
   if (fromDb.wrapFacts !== fromDriver.wrapFacts) out.push(`${name}: ${fromDb.wrapFacts} wrapper-only facts in arch.db and ${fromDriver.wrapFacts} from the driver`);
   if (fromDb.wrapDigest !== fromDriver.wrapDigest) out.push(`${name}: the wrapper digest reads ${fromDb.wrapDigest} in arch.db and ${fromDriver.wrapDigest} from the driver`);
-  for (const k of ['files', 'vendored', 'truncated']) {
+  for (const k of ['files', 'vendored', 'truncated', 'unread']) {
     if (fromDb[k] !== fromDriver[k]) out.push(`${name}: ${k} reads ${fromDb[k]} in arch.db and ${fromDriver[k]} from the driver`);
+  }
+  // The per-language link counts, `null` included: a file the product links
+  // unread and the driver links `path` is invisible to every count above.
+  const langs = new Set([...Object.keys(fromDriver.langs ?? {}), ...Object.keys(fromDb.langs ?? {})]);
+  for (const l of [...langs].sort()) {
+    const a = fromDriver.langs?.[l] ?? 0;
+    const b = fromDb.langs?.[l] ?? 0;
+    if (a !== b) out.push(`${name}: lang ${l} reads ${b} link(s) in arch.db and ${a} from the driver`);
   }
   const a = new Set(fromDriver.served);
   const b = new Set(fromDb.served);
@@ -117,8 +127,28 @@ export function summarizeRows(factRows, linkRows, wrapRows) {
     files: linkRows.length,
     vendored: linkRows.filter((l) => l.vendored !== null).length,
     truncated: linkRows.filter((l) => l.truncated === 1).length,
+    unread: linkRows.filter((l) => l.vendored === null && (l.lang ?? null) === null).length,
+    langs: langCounts(linkRows.map((l) => (l.vendored === null ? (l.lang ?? null) : 'vendored'))),
     served
   };
+}
+
+/** Links per language, `null` for a file no rule read, sorted by name. */
+export function langCounts(langs) {
+  const out = {};
+  for (const l of langs) {
+    const k = l === null ? 'null' : String(l);
+    out[k] = (out[k] ?? 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(out).sort((a, b) => (a[0] < b[0] ? -1 : 1)));
+}
+
+/** The served channels under src/ alone, the scope the baseline is generated from. */
+export function servedUnderSrc(rows) {
+  return rows
+    .filter((r) => r.kind === 'ipc-channel' && r.subject.startsWith('IPC serves ') && String(r.rel_path ?? r.file ?? '').startsWith('src/'))
+    .map((r) => r.subject.slice('IPC serves '.length))
+    .sort();
 }
 
 /** The driver's summary for one clone as facts-corpus.mts wrote it, in the same terms. */
@@ -134,6 +164,8 @@ export function summarizeDriver(written) {
     files: written.links.length,
     vendored: written.summary.vendored,
     truncated: written.summary.truncated,
+    unread: written.summary.unread,
+    langs: langCounts(written.links.map((l) => (l.vendored === null ? (l.lang ?? null) : 'vendored'))),
     served
   };
 }
@@ -147,30 +179,42 @@ function selfTest() {
     files: 3,
     vendored: 1,
     truncated: 0,
+    unread: 0,
+    langs: { typescript: 2, vendored: 1 },
     served: ['a:b', 'arch:map']
   };
   const same = compareArms('x', { ...driver }, driver);
   if (same.length !== 0) problems.push(`equal arms read ${same.length} difference(s)`);
+  const movedLang = compareArms('x', { ...driver, langs: { typescript: 1, null: 1, vendored: 1 } }, driver);
+  if (movedLang.length !== 2 || !movedLang.some((l) => l.includes('lang null')) || !movedLang.some((l) => l.includes('lang typescript'))) problems.push(`a link moved from typescript to null read ${JSON.stringify(movedLang)}`);
+  const movedUnread = compareArms('x', { ...driver, unread: 1 }, driver);
+  if (movedUnread.length !== 1 || !movedUnread[0].includes('unread')) problems.push(`a moved unread count read ${JSON.stringify(movedUnread)}`);
+  const src = servedUnderSrc([
+    { kind: 'ipc-channel', subject: 'IPC serves a:b', rel_path: 'src/main/ipc.ts' },
+    { kind: 'ipc-channel', subject: 'IPC serves $(touch /tmp/p)', rel_path: 'build/fixtures/facts/ts-electron/src/main/ipc.ts' },
+    { kind: 'ipc-channel', subject: 'IPC calls a:b', rel_path: 'src/renderer/x.ts' }
+  ]);
+  if (src.join(',') !== 'a:b') problems.push(`servedUnderSrc reads ${JSON.stringify(src)}; the fixture's channel must not count`);
   const moved = compareArms('x', { ...driver, byCategory: { ...driver.byCategory, surface: 1 }, served: ['a:b'] }, driver);
   if (moved.length !== 2 || !moved[0].includes('surface') || !moved[1].includes('IPC serves')) problems.push(`a moved category and a lost channel read ${JSON.stringify(moved)}`);
   const digest = compareArms('x', { ...driver, wrapDigest: null }, driver);
   if (digest.length !== 1 || !digest[0].includes('digest')) problems.push(`a null digest read ${JSON.stringify(digest)}`);
   const rows = summarizeRows(
     [{ category: 'surface', kind: 'ipc-channel', subject: 'IPC serves a:b' }, { category: 'entrypoint', kind: 'main', subject: 'main() in x' }],
-    [{ wrap_digest: 'd'.repeat(64), vendored: null, truncated: 0 }, { wrap_digest: null, vendored: 'path: segment vendor', truncated: 1 }],
+    [{ wrap_digest: 'd'.repeat(64), vendored: null, truncated: 0, lang: 'typescript' }, { wrap_digest: null, vendored: 'path: segment vendor', truncated: 1, lang: null }, { wrap_digest: null, vendored: null, truncated: 0, lang: null }],
     [{ category: 'surface', kind: 'ipc-channel', subject: 'IPC serves arch:map' }]
   );
-  if (rows.byCategory.surface !== 2 || rows.wrapFacts !== 1 || rows.vendored !== 1 || rows.truncated !== 1 || rows.served.join(',') !== 'a:b,arch:map' || rows.wrapDigest !== 'd'.repeat(64)) {
+  if (rows.byCategory.surface !== 2 || rows.wrapFacts !== 1 || rows.vendored !== 1 || rows.truncated !== 1 || rows.unread !== 1 || rows.served.join(',') !== 'a:b,arch:map' || rows.wrapDigest !== 'd'.repeat(64) || JSON.stringify(rows.langs) !== JSON.stringify({ null: 1, typescript: 1, vendored: 1 })) {
     problems.push(`summarizeRows reads ${JSON.stringify(rows)}`);
   }
   const mixed = summarizeRows([], [{ wrap_digest: 'a', vendored: null, truncated: 0 }, { wrap_digest: 'b', vendored: null, truncated: 0 }], []);
   if (mixed.wrapDigest !== 'MIXED(2)') problems.push(`two digests read ${mixed.wrapDigest}`);
   const written = summarizeDriver({
-    summary: { byCategory: { surface: 1 }, wrapFacts: 0, wrapDigest: null, vendored: 0, truncated: 0 },
-    links: [{}, {}],
+    summary: { byCategory: { surface: 1 }, wrapFacts: 0, wrapDigest: null, vendored: 1, truncated: 0, unread: 0 },
+    links: [{ lang: 'go', vendored: null }, { lang: null, vendored: 'path: segment vendor' }],
     facts: [{ kind: 'ipc-channel', subject: 'IPC serves z' }, { kind: 'ipc-channel', subject: 'IPC calls y' }]
   });
-  if (written.files !== 2 || written.served.join(',') !== 'z') problems.push(`summarizeDriver reads ${JSON.stringify(written)}`);
+  if (written.files !== 2 || written.served.join(',') !== 'z' || JSON.stringify(written.langs) !== JSON.stringify({ go: 1, vendored: 1 })) problems.push(`summarizeDriver reads ${JSON.stringify(written)}`);
   const score = spawnSync(process.execPath, [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/p257/facts-score.mts', '--self-test'], { cwd: REPO, encoding: 'utf8' });
   if (score.status !== 0) problems.push(`facts-score --self-test: ${(score.stderr || score.stdout).slice(0, 300)}`);
   return problems;
@@ -356,14 +400,14 @@ function readArchDb(profileDir) {
     for (const r of repos) {
       const facts = db
         .prepare(
-          `SELECT a.category, a.kind, a.subject FROM arch_fact a
+          `SELECT a.category, a.kind, a.subject, a.rel_path FROM arch_fact a
              JOIN arch_fact_file f ON f.oid = a.oid AND f.rel_path = a.rel_path
             WHERE f.repo_key = ?`
         )
         .all(r.repo_key);
-      const links = db.prepare('SELECT wrap_digest, vendored, truncated FROM arch_fact_file WHERE repo_key = ?').all(r.repo_key);
-      const wraps = db.prepare('SELECT category, kind, subject FROM arch_fact_wrap WHERE repo_key = ?').all(r.repo_key);
-      out[r.repo_path] = summarizeRows(facts, links, wraps);
+      const links = db.prepare('SELECT wrap_digest, vendored, truncated, lang FROM arch_fact_file WHERE repo_key = ?').all(r.repo_key);
+      const wraps = db.prepare('SELECT category, kind, subject, rel_path FROM arch_fact_wrap WHERE repo_key = ?').all(r.repo_key);
+      out[r.repo_path] = { ...summarizeRows(facts, links, wraps), servedSrc: servedUnderSrc([...facts, ...wraps]) };
     }
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'arch_fact%' ORDER BY name").all().map((t) => t.name);
     return { repos: out, tables };
@@ -438,7 +482,10 @@ try {
       for (const d of diffs) say(`  ${d}`);
       check(diffs.length === 0, `${name}: the product's pass is the reference driver's (${String(diffs.length)} difference(s))`);
       check(fromDb.wrapDigest !== null && !String(fromDb.wrapDigest).startsWith('MIXED'), `${name}: every wrapper-grammar link carries one wrap_digest (${String(fromDb.wrapDigest).slice(0, 12)})`);
-      if (name === 'tortie') check(fromDb.served.length === 229, `${name}: 229 IPC serves subjects in arch.db (${String(fromDb.served.length)})`);
+      if (name === 'tortie') {
+        const srcServed = fromDb.servedSrc ?? [];
+        check(srcServed.length === 229 && new Set(srcServed).size === 229, `${name}: 229 distinct IPC serves subjects under src/ in arch.db (${String(srcServed.length)}, ${String(new Set(srcServed).size)} distinct; ${String(fromDb.served.length)} over the whole clone, the fixtures included)`);
+      }
     }
   }
 

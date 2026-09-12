@@ -153,3 +153,14 @@ export const INDEXABLE_EXTENSIONS: readonly string[] = Object.keys(BY_EXTENSION)
  * it out rather than to make the whole index slow.
  */
 export const MAX_INDEXED_FILE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * A NUL inside this many leading bytes marks a file binary, and a binary file
+ * is neither parsed nor rule read. ONE NUMBER, read by the extractor, by the
+ * fact pass in `src/main/arch/tree-facts.ts` and by the reference driver
+ * under `build/p257/`: the Phase 257 fix round found the extractor and the
+ * driver at 8,192 and the fact pass at 8,000 (git's own window), so a NUL at
+ * byte 8,100 was a text file to one reader and a binary to the other, and the
+ * product stored a fact from a file the reference called unreadable.
+ */
+export const BINARY_SNIFF_BYTES = 8192;
