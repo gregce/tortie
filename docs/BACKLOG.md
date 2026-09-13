@@ -26802,6 +26802,246 @@ twenty opens each side.
 
 ---
 
+## Phase 262 — the runtime the checks are allowed to run on (audit R4, 2026-09-12)
+
+**Subject.** `build(runtime): pin the runtime the checks are verified on`
+
+**First body line.** `Phase 262: the runtime the checks are allowed to run on`
+
+**Semver.** Patch. Nothing a person using Tortie can see changes.
+
+**Tier 2, because it is invisible to a person.** The gates ARE the evidence, so the verifier
+re-derives rather than photographs. One independent method: **re-derive independently** — the
+verifier resolves, by its own method, which Node binary each of `npm test`, `npm run build` and the
+release workflow actually executes, and does not take the phase's word for it.
+
+**Charter.** [The 0.103.0 audit](audits/2026-09-12-electron-typescript-architecture-0.103.0.md) R4,
+and the saved fixture at `audits/fixtures/2026-09-09/registry-loader.mts.fixture`. The audit puts
+this FIRST of the four, not because it is the largest but because the other three are repaired and
+proved on a runtime this repository has never named.
+
+**What the tree actually says, read 2026-09-12 and worse than the audit charged.** `DEVELOPMENT.md`
+line 31 says `Node 22+`. `package.json` has **no `engines` field at all**. There is **no `.nvmrc` and
+no `.node-version`**. And `.github/workflows/` contains **no `setup-node` step in any workflow**, so
+every gate, every packaged smoke and every signed release build runs on whatever Node the GitHub
+runner image happens to ship that week, which nothing in this repository records or pins. The
+operator's own machine runs `v22.23.1` with npm 10.9.8 — inside the only range the repository
+documents, and nine patch releases from the 22.14.0 on which the registry fixture splits module
+identity and two of three lookups fail. The audit measured a fixture; the unpinned release pipeline
+is the larger finding and this phase owns both.
+
+**The mechanism.** One decided range, written in the three places that must agree and asserted by a
+gate rather than by prose. `package.json` gains an `engines.node` naming the range the checks are
+verified on; a `.nvmrc` names the one version the repository develops against; every workflow under
+`.github/workflows/` gains an explicit `actions/setup-node` reading that file, so the release that
+gets signed is built on a runtime this repository chose. `DEVELOPMENT.md` line 31 is rewritten to
+the decided range and says what happens outside it. A preflight in `build/verification-checks.mjs`
+reads `process.versions.node` against the range and refuses with a sentence naming the found version,
+the range and the file that decides it, before any expensive probe spends minutes on a runtime that
+cannot pass. **Whether the range admits 22.x or starts at 24 is the phase's to decide from the
+fixture, not mine to assert here** — if it admits 22.x then the loader path must be made to work on
+22.14.0, and if it does not then the operator's own machine is outside it and the phase says so in
+its report rather than discovering it at his next `npm test`.
+
+**The proof, run rather than read.** `gate:checks` gains the clause, and the registry fixture is
+retained as a committed regression rather than an audit artefact: it is run under every Node line
+the decided range admits, and each must produce ONE registration identity. The full deadline probe
+(`probe:controldeadline`) runs on the range's floor and its ceiling — fallback after the deadline,
+healthy greeting, the timer-removal arm taking the opposite path, and forced-failure cleanup leaving
+0 of 3 processes and 0 of 2 directories. An ablation removes the preflight and the gate goes red.
+The parent is measured: at the parent, `npm run typecheck` on 22.14.0 and on 24.20.0 both report
+success while the fixture disagrees with itself, which is the whole finding.
+
+**What is NOT in this phase.** The production deadline timer does not move to accommodate a test
+driver that cannot share its fixture registry — the audit names that refusal and it stands. No
+dependency is upgraded to reach a runtime. `electron`'s own bundled Node is not in scope and is not
+what these checks run on. Nothing about the packaged app's behaviour changes, and no `engines`
+constraint is added that would make `npm install` refuse on a machine that can currently build.
+
+---
+
+## Phase 263 — a parsed fact names the bytes it was parsed from (audit R1, 2026-09-12)
+
+**Subject.** `fix(arch): a fact carries the identity of the bytes it was read from`
+
+**First body line.** `Phase 263: a parsed fact names the bytes it was parsed from`
+
+**Semver.** Patch. It corrects derived evidence; no surface moves.
+
+**Tier 3, because it can corrupt the person's derived evidence and that evidence is shared between
+repositories.** Two independent methods, one of which is an attack: **re-derive independently** (the
+verifier writes its own change-and-revert driver against the real extractor, not the phase's) and
+**attack, do not confirm** (the verifier tries to defeat the new guard rather than reproduce the old
+bug — an mtime collision, a size-preserving rewrite, a worker answering a file that vanished). A fix
+round is part of the phase if either comes back needs_work.
+
+**Charter.** The 0.103.0 audit R1 and its independent fixture
+`audits/fixtures/2026-09-12/fact-identity.test.ts.fixture`, which reproduces at `cb2353c2` and at
+`7a2ca3ff` and whose steady-file control passes on both. Introduced with Phase 257; the `97c021ef`
+repair catches a change between the two main reads and not a change followed by a revert.
+
+**The mechanism, from the three files the audit names.** There are THREE reads of the same path and
+only two of them are compared. `src/main/arch/tree-facts.ts` reads the bytes once to compute `oid`,
+the worker reads them again inside `extractFile`, and tree-facts reads a third time and asserts
+`blobOid(buf) !== q.oid` at the publication site. A change and a revert between reads one and three
+passes that assertion while the worker parsed something else entirely. The repair is that the
+extractor names its own input: `src/main/symbols/extract.ts`'s `extractFile` already holds the exact
+buffer it parsed (`buf = readFileSync(absPath)`), so it computes `blobOid(buf)` and returns it beside
+`mtimeMs` and `size`; `IndexedFile` in `src/main/symbols/worker.ts` carries that field across the
+real worker message; and tree-facts requires the ANSWER's identity to equal `q.oid` before
+`store.saveFacts`, keeping the existing third-read guard rather than replacing it. A disagreement
+leaves the file unlinked for the next run, which is the wrapper pass's own step-4 behaviour and not a
+new refusal. The rule applies to every row the same message carries — calls, the Phase 259
+declaration half, and the wrapper declarations cached by oid in `arch_fact_wrapper` — not only the
+example IPC row. Rows already written under a wrong identity are invalidated by a migration
+generation bump in `src/main/arch/db.ts`, which deletes derived Architecture cache rows and nothing
+else: **not source files, not the manifest, not the `gmux` directory**, and `gate:cache-policy`
+already asserts that boundary.
+
+**The proof, run rather than read.** The audit's fixture is committed as
+`src/main/arch/__tests__/` rather than left as an inert artefact, and its two safety assertions must
+go from red at the parent to green at HEAD with the steady-file control green on both. It is joined
+by a **real worker-message test** and a **shared-cache upgrade test**, both named by the audit as
+insufficient if replaced by an in-process adapter test. `conformance:facts` gains an ablation per
+clause and each goes red on the rule that owns it. The existing race, cancellation, wrapper and
+declaration tests stay green.
+
+**What is NOT in this phase.** The completeness flag is Phase 264's and its schema change is
+coordinated with this one rather than competing with it — the audit is explicit that separate
+commits are useful and competing migrations are not. No parser is replaced, no grammar upgraded, and
+the 2 MiB parser limit and 4,000,000-byte reader threshold do not move. This does not claim to
+measure how often ordinary editing hits the race; it is a controlled interleaving and the phase says
+so in the same words the audit does.
+
+---
+
+## Phase 264 — a cached parse keeps the reason it was incomplete (audit R2, 2026-09-12)
+
+**Subject.** `fix(arch): completeness travels with the bytes, not with the repository`
+
+**First body line.** `Phase 264: a cached parse keeps the reason it was incomplete`
+
+**Semver.** Patch.
+
+**Tier 3, for the same reason as 263 and by the same shared cache boundary.** Two independent
+methods, one an attack: **run over real data** (the two-repository reuse driven over this
+repository's own large files rather than a synthetic one) and **attack, do not confirm** (the
+verifier tries to produce a false `truncated: false` by a route the builder did not close — a third
+repository, a reopened database, a migration from a store written at the parent).
+
+**Charter.** The 0.103.0 audit R2, whose fixture scans one 2,800,045-byte file in two fresh
+repositories sharing one Architecture store and reads `truncated: true` in the first and
+`truncated: false` in the second, for the same content identity and the same path.
+
+**The mechanism, and the rule the schema already states.** `src/main/arch/db.ts`'s `hasFactsFor(oid,
+relPath)` answers across repositories — the index `idx_arch_fact_file_oid` is on `(oid, rel_path)`
+and exists for exactly that. But `src/main/arch/tree-facts.ts`, at the reuse arm, recovers the flag
+from `carried`, which is THIS repository's own previous link:
+`link.truncated = carried !== undefined && carried.oid === oid ? carried.truncated : false`. With no
+such link the default is `false`, which is the unsafe direction: the second repository has not gained
+the missing call list, it has lost the sentence explaining why the list is missing. The schema's own
+comment beside `arch_fact_wrap` already writes the governing rule down — folding a repository-keyed
+row under a bytes-keyed primary key is wrong — and `truncated` is the same error inverted: a fact
+about the BYTES (did the parser decline these?) living on `arch_fact_file`, whose primary key is
+`(repo_key, rel_path)`. The repair moves completeness to a bytes-keyed row written beside the facts
+in the same transaction `saveFacts` already owns, and the per-repository link reads it rather than
+guessing. **`wrapDigest` on the line above has the identical shape and the phase must rule on it
+explicitly rather than leave it**: `carried?.wrapDigest ?? null` also collapses in a second
+repository, but null there forces a re-read, so it defaults SAFE where `truncated` defaults UNSAFE.
+The phase states that asymmetry as the finding, and either fixes it or writes down why null is
+correct. Unknown completeness is treated conservatively — retain the incomplete outcome or reparse,
+never assume complete. The four states the audit asks to be separated are defined and each gets a
+test: no facts, an unread file, a truncated result, and a complete empty result. Existing links that
+may already hold a false completeness are backfilled or invalidated by the same migration generation
+263 introduces.
+
+**The proof, run rather than read.** The audit's two-repository fixture is committed and must
+preserve `truncated: true` in the second repository **including after closing and reopening the
+database**, which is the arm that catches a fix living only in memory. Complete-empty,
+unavailable-parser and migration-from-parent cases join it. `conformance:facts` gains the ablations.
+The regional disclosure that consumes these stamps through
+`src/main/arch/check-coordinator.ts` is driven in the app run and must still NAME incomplete
+coverage rather than silently report full coverage — and a warm second scan must not create a retry
+loop, which is the failure mode a conservative default invites and which the verifier attacks
+directly.
+
+**What is NOT in this phase.** The older remote-source incompleteness handling is not touched; both
+existing `markScanPartial` paths stay where they are, and the audit is clear this is a distinct
+failure at a different boundary. The parser's 2 MiB limit does not move to make the fixture's file
+parse — that would hide the finding rather than fix it. Fact-cache persistence is not separated from
+semantic-reading persistence: the audit lists that under improvements that carry no deduction and
+says to complete the cache fixes first.
+
+---
+
+## Phase 265 — work scheduled for a terminal ends when the terminal does (audit R3, 2026-09-12)
+
+**Subject.** `fix(terminal): scheduled work ends with the terminal that scheduled it`
+
+**First body line.** `Phase 265: work scheduled for a terminal ends when the terminal does`
+
+**Semver.** Patch.
+
+**Tier 3, because it is a resource defect in the surface his agents run in, and because the second
+half of it is a quit-time write.** Two independent methods, one an attack: **measure the parent
+commit** (profile d at the parent and at HEAD, same workload, same census, same planted control) and
+**attack, do not confirm** — the phase will conclude it has found the retaining owner, and the
+verifier's job is to try to make the growth reappear under a condition the builder did not drive:
+occluded window, background window, a split cycle faster than a frame, a session that exits on its
+own mid-cycle.
+
+**Charter.** The 0.103.0 audit R3, carried forward and reproduced rather than quoted, plus
+[research 109](research/109-phase-244-split-retention.md), which records the same class of retaining
+path. The audit also binds the baseline shutdown contract to this phase: it says a comprehensive
+Lifecycle 3 requires both, and one flat rerun closes neither.
+
+**The measurement it starts from.** P167 profile d, three blocks of six split/close/reattach cycles
+at full speed on the built renderer, 24 sessions discarded per block: renderer heap after collection
+11.4 → 15.7 → 20.3 MB, DOM nodes 623 → 1,643 → 2,663, detached elements 140 → 980 → 1,820, while
+elements on screen held at 278, listeners at 231, and main ptmx/ttys descriptors at 0/0 throughout.
+The planted control detected all 1,032 held elements and none after release, so the detector is
+sound. Past Sessions grew 24 → 48 → 72 and that growth is intentional; the detached trees are not.
+
+**Where it is NOT, read 2026-09-12.** `src/renderer/terminal/TerminalPane.tsx` cancels its OWN
+animation frame correctly — `raf` is assigned at line 503 and cancelled at both 502 and in the effect
+teardown at 596 — and that teardown also disposes the scroller, the path-link provider, the webgl
+addon, four subscriptions, the observer and the terminal itself. So the phase does not begin by
+re-reading that list. The audit's retaining path runs through an xterm object captured by a closure,
+`V8FrameRequestCallback`, `V8FrameCallback`, `ScriptedAnimationController` and the document, which
+places the pending frame inside `@xterm/xterm` ^6.0.0's own render debouncer, scheduled before
+`term.dispose()` and holding the instance after it. **Finding the owner is the phase's research
+step and must be written to `docs/research/` before the repair**, with the pending frame IDs and
+their scheduling stacks captured across disposal, and with visible/occluded and
+active/background window conditions controlled — because that is what explains why earlier samples
+of this same profile passed.
+
+**The second half: settle the baseline write contract.** `src/main/baselines/store.ts` documents its
+own gap in its header — "Nothing owns a write at quit. `capabilities.ts` registers this domain's IPC
+and its pruning timer and no disposer" — so a quit during an outstanding store operation can lose the
+latest accepted narrowing. It cannot lose the person's source file, and the phase says that plainly
+rather than dressing it up. The choice is the phase's: either a bounded shutdown owner joined in
+`capabilities.ts`'s ordered disposer, which is awaited inside `before-quit` and whose ordering is
+contract, or an explicitly accepted best-effort contract written down. **Either way the choice is
+TESTED**, and a bounded owner must not lengthen the quit path in a way that risks the napi_fatal_error
+the disposer's own header records from 2026-08-14.
+
+**The proof, run rather than read.** A deterministic regression that is RED before the repair and
+green after — not a profile rerun, which is a sample. Then full profile d rerun with census, workload
+floor, descriptor checks and planted control all intact and none weakened: the repair may not remove
+history, reduce churn or soften the detector, and the audit names each of those three refusals.
+`P167_SNAPSHOT=1` keeps the heap snapshot and the retaining-path report for the phase's record.
+
+**What is NOT in this phase.** No xterm upgrade is performed to reach a fix unless the research
+establishes upstream as the only owner, and if it does, the phase vendors a bounded patch under
+`patches/` in the shape `node-pty+1.1.0.patch` already uses rather than moving a major version late
+in a release cycle. Past Sessions history is not trimmed. The retention is not attributed to any one
+new commit: the audit's own run overlapped other scratch probes and it demonstrates retention under
+that workload rather than a frequency in an idle window, and the phase repeats that qualification
+rather than quietly dropping it. The other P167 profiles, long soaks and large-document performance
+comparisons stay out.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -27453,3 +27693,5 @@ cycle rather than only the evening it was written.
 - 2026-09-12, **PHASE 261 LANDED, the sixth nits round, and its committer answered the second verifier's `needs_work` himself**, `ae7f2bf6`, `84725570`, `4f20b715`, `e6c3ef26`; version 0.103.0 unmoved, no tag, pushed. **Of the ten items, five changed code and five became stated limits.** Code: item 1's four-layer harness refusal, item 3's ⌘T layout effect, item 4's absolute-URL refusal on `surface.http.handlefunc`, item 6's two closed network classes (msw handlers keyed on the file's msw import spelling, `requests.Request(...)` by call), and item 2's `build/drive-result.mjs` convention. Stated limits: item 5, refused on its own measurement, because closing `argString`'s join moved this checkout from 18,869 facts to 18,813 and **every one of the 56 rows lost was correct**; item 6's third class, the URL-argument branch firing on any callee; items 7, 8 and 10, being the `..` `main` that under-seeds a unit, the arbitrary `Dockerfile`-before-`package.json` dedupe order, and the cap asked on the open path only; plus item 9's comment narrowed to what its code really refuses. **⌘T, the one thing he will notice, measured on PAINTED FRAMES at the parent and at HEAD under CPU throttle 1 and throttle 20, 20 opens each: 40 of 40 bad at the parent and 0 of 40 at HEAD**, the name field focused on all 80, and the honest half is that the parent's bad frame is the first committed frame of every open and settles selected after, so the callback lost by one frame rather than outright. No load generator was started; 2026-09-02 is why. **What the harness now refuses, and item 1 is why the round exists:** `withElectron` stops a launch, first and before any mkdir or program check, whose composed env names a socket with no harness term set (the app would ignore it and run on `-L gmux`), whose env names `gmux`, `default` or any name not starting with `gmux-` (a harness term makes the app OBEY it), or whose `tmuxSocket` and env socket disagree; `localMachineContext()` announces the socket it really chose and the helper ends a launch whose answer disagrees; and his `-L gmux` is counted before and after any launch that named a scratch socket, `list-sessions` being the only verb that file may aim at that server. **THE LAST THREE COMMITS ARE FIX AND COMMITTER ROUNDS AND AN INDEPENDENT RE-VERIFY MAY BE ORDERED OF THE LAST**, `e6c3ef26`, which is the committer's own: the fix round's replacement sentences were wider than their code in exactly the class items 7 to 10 exist for. `store.ts` called eleven `rehome`'s CEILING when it is an INCREMENT — driven through the shipping store, two rehomes onto a strip of ten read 11 then **12** — and `rules-network.ts` said the msw refusal fires on a file that NAMES msw when `NAMES_MSW` carries only the `from '…'` and `require('…')` spellings, so a bare `import 'msw'`, a dynamic `import('msw')` and a plain mention are all ANSWERED, which is a limit as well as a wording; both are now pinned executably, 12 shapes and the second rehome, and no regex and no measured number moved. A third spelling of "one of ours" was RECORDED rather than changed: layer 2c asks `startsWith('gmux-')` and the app asks `/^[A-Za-z0-9][A-Za-z0-9._-]*$/`, so `gmux-a/b` and `gmux-!!` pass 2c and the app falls back to `gmux` — layer 3 catches every one, so the property holds through a different layer than the two spellings agreeing. The battery ran twice in the foreground, once before the rebase and once on the pushed bytes: typecheck, build with its gates (`HELPER_USER_FLOOR` 131 unmoved, contract baseline byte identical), npm test **13,935 passed 2 skipped**, conformance:facts 45 ablations each red, smoke:t1 6/6, smoke:t3 3/3, and `probe:p261socket` at **0 findings** on the pushed bytes. `conformance:hue` skipped and the skip re-derived rather than inherited: the round's 36-file diff touches nothing in its scan set. **His `-L gmux` read 42 before and 43 after**, and the one session added is his own "Product Comparison" on `/Users/gdc/tortiedotsh`, created by the `electron-vite dev` Tortie under /Users/gdc/gmux while this round had spawned nothing; the probe read 43 before and 43 after on the final bytes. Nothing of this round's was left running.
 
 - 2026-09-12, **PHASE 261's LAST COMMIT IS THE COMMITTER'S OWN AND AN INDEPENDENT RE-VERIFY MAY BE ORDERED OF IT**, `a6f2baa0`, version 0.103.0 unmoved, no tag, pushed. Found by counting what was left on disk after the round rather than by reading the probe: `probe:p261socket` finished at **0 findings with `-L gmux` 43 before and 43 after** and left `/private/tmp/tmux-501/gmux-p261-95622` on disk, the server already gone, so the finally's `kill-server` had nothing to end and took no file with it. This phase's own brief says a scratch socket is "ended in a finally with the socket unlinked" and the probe did the first half only; the unlink now sits beside the kill under a guard re-asking the `gmux-p261-` name this file composes. Re-driven on the committed bytes: 0 findings, 43 before and after, and **no `gmux-p261-*` file left**. The cmdt probe needs nothing, launching with `tmuxSocket: null`. `gate:electron` floor 131 unmoved with 8 of 8 ablations red, `gate:background` 19 of 19, `gate:knownhosts` 36 fixtures, `gate:checks` PASS.
+
+- 2026-09-12, **v0.104.0 IS OUT AND PHASES 262 TO 265 ARE QUEUED FROM THE 0.103.0 AUDIT.** The cut is `146cb345`, tagged `v0.104.0`, signed, notarized, stapled and promoted; verified from the DOWNLOADED artifact rather than from CI's word, `spctl -a -vv` on the app inside the DMG reading `accepted` and `source=Notarized Developer ID` at version 0.104.0 with the ticket stapled, the DMG itself reading "no usable signature" as electron-builder always leaves it. **The hash check caught three dead links before the tag and they are fixed in the release commit**: `51dd840c`, `6d754c9b` and `ef8c4464` were PRE-REBASE ids for `ae7f2bf6`, `a0d9fd32` and `34f7a36b`, whose subjects match exactly — a changelog line written from a worktree names a commit that ceases to exist when the worktree is rebased onto main, which is the same failure the 0.102.0 cut shipped six of. The whole file was then audited rather than only the new section: **324 links, all resolving and all ancestors of origin/main**. **BOTH CI LANES WERE READ GREEN ON THE TIP BEFORE THE TAG**, at his instruction, and durability had looked red all evening for a reason worth recording: it is NIGHTLY at 09:00 UTC, its last run was on `88165be1` fourteen hours before the fix, and the failure was the SAME `yaml is 2.9.1, pin says 2.9.0` that `assertTreeMatchesPin` raised in gates — one cause, two lanes, fixed at `bf161f4f`. **So durability is now dispatched explicitly on the exact tip on any release day rather than inferred from a nightly that predates it**, and gates' `paths-ignore: ['docs/**','**/*.md']` means a docs-only tip inherits the run of the code commit below it, which must be checked as a docs-only diff rather than assumed. tortie.sh is synced at `9748c8e6`: the Architecture page now describes the map grouped by what a repository BUILDS AND STARTS with its named wires and its four evidence marks, two new sections for the inspector with Surfaces and Gates and for the model reading with its citations and stale marks, the honesty note saying the checker catches **5 of 7** planted lies read from `build/fixtures/semantic/caught.json` rather than from a phase entry, and CODEX with GPT-6-Astra named as the only agent measured for that reading because the claude semantic row carries `measuredOn: null` and is not in the live table at all. **And one CORRECTION shipped with it**: the Files page had said a large Markdown file opens in Source past about a quarter of a megabyte, which Phase 255 removed, so it had been wrong since. Issue 19 is closed with what shipped. **262 to 265 are QUEUED AND NOT STARTED**, in the audit's own order and its own expected recovery: 262 is R4 the runtime contract at 33/36, 263 is R1 binding a fact to the bytes it was parsed from at 34/36, 264 is R2 completeness surviving cache reuse at 35/36, 265 is R3 terminal retention plus the baseline quit contract at 36/36; 263 and 264 share one cache boundary so 264's migration builds on 263's rather than competing with it. **Reading the tree sharpened two of them beyond what the audit charged.** R4 found a fixture failing on Node 22.14.0; what is actually true is that `package.json` has no `engines`, there is no `.nvmrc`, and NO workflow carries a `setup-node` step, so every gate and every SIGNED RELEASE builds on whatever Node the runner shipped that week and his own machine is 22.23.1. And R2's `truncated` sits on `arch_fact_file` under a `(repo_key, rel_path)` key while being a fact about the BYTES — the exact error the schema's own `arch_fact_wrap` comment forbids in the opposite direction — and `wrapDigest` on the line above collapses the same way in a second repository but fails SAFE where `truncated` fails UNSAFE, which is the asymmetry 264 must rule on rather than fix one and leave the other. R3's retainer is NOT `TerminalPane.tsx`, which cancels its own rAF at 502 and 596 and disposes everything it owns; it is inside `@xterm/xterm` 6's render debouncer, and naming its owner is a research step written to docs/research/ before any repair. **The four entries cite `docs/audits/2026-09-12-electron-typescript-architecture-0.103.0.md`, which he committed himself at `2ac94493` and has NOT pushed, so those links are dead on origin until he does; his checkout also holds the 0.102.0 audit and its fixtures untracked. Neither was touched, and both cuts above were made from scratch worktrees at origin/main for that reason.**
