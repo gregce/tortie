@@ -18,6 +18,10 @@ This release is about three things. A large Markdown document now shows its firs
 - The files you open now belong to the project you opened them in: switch projects and only that project's files are on the strip, with the rest hidden rather than closed, so their unsaved edits, their undo and a rewind's undo are all still there when you switch back. Closing a project closes its files, and asks about any unsaved one first ([`8e5a5f43`](https://github.com/gregce/tortie/commit/8e5a5f43)), ([`721b35c6`](https://github.com/gregce/tortie/commit/721b35c6))
 - A large Markdown preview now shows its first screen at once and fills in the rest as you read, so a big file opens rendered again instead of in Source. A file that begins with one enormous table, or a large one with footnotes, still opens in Source with Preview one click away, and a jump to a heading far down the page reaches it once the page has finished filling in ([`6d754c9b`](https://github.com/gregce/tortie/commit/6d754c9b)), ([`ef8c4464`](https://github.com/gregce/tortie/commit/ef8c4464))
 
+### Fixed
+
+- The name Tortie suggests when you press Command-T is now selected the moment the sheet appears, so the first letter you type replaces it. It used to be left unselected on the sheet's first frame, and a keystroke that landed there was added to the suggested name instead of replacing it ([`51dd840c`](https://github.com/gregce/tortie/commit/51dd840c))
+
 ## 0.103.0 (2026-09-10)
 
 This release is about clicking a file an agent named. A path printed into a session underlines when you point at it and opens when you click it — absolute or relative, mid-sentence or at the end of the line, and a bare filename too. The redline has been given the room to read like a marked-up document rather than a stack of tiles, a wide table in a preview takes the room its content needs, and a large prose file opens at once instead of after seconds.

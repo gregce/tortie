@@ -112,17 +112,22 @@
  * dispose nothing, and evicting somebody's tab as a side effect of a project
  * being ADDED is a worse answer than a strip that is over.
  *
- * PHASE 261'S FIX ROUND CORRECTED THIS PARAGRAPH, because the first version
- * of it said "eleven, until the next open there evicts it back down to ten"
- * and BOTH HALVES ARE FALSE. They are measured now, by driving this store in
- * `__tests__/p261-strip-high-water.test.ts` rather than by reading it:
+ * PHASE 261 CORRECTED THIS PARAGRAPH TWICE, and the second correction is the
+ * reason it is worth reading. The first version said "eleven, until the next
+ * open there evicts it back down to ten" and both halves were false. The fix
+ * round's replacement kept one of them: it called eleven `rehome`'s CEILING,
+ * which is the same mistake in a smaller place, a number that is really an
+ * increment stated as a bound. Every number below is measured by driving this
+ * store in `__tests__/p261-strip-high-water.test.ts` rather than by reading it:
  *
- *   eleven is `rehome`'s ceiling and nobody else's. `rehome` moves ONE tab, so
- *   a strip already at ten goes to eleven and no further. `switchProject`
- *   adopts the WHOLE null strip in one go, so what it leaves is whatever the
- *   destination held plus whatever that strip held: five own tabs and eight
- *   adopted reads 13, and a second leave-and-adopt cycle reads 21. There is no
- *   ceiling in it at all, only the size of the strip being adopted.
+ *   NEITHER MOVER HAS A CEILING. `rehome` moves one tab and never asks the
+ *   cap, so it adds one PER MOVE: a strip at ten reads 11 after one rehome and
+ *   12 after a second. `switchProject` adopts the WHOLE null strip in one go,
+ *   so what it leaves is whatever the destination held plus whatever that
+ *   strip held: five own tabs and eight adopted reads 13, and a second
+ *   leave-and-adopt cycle reads 21. What bounds a strip is how many moves land
+ *   on it and how big the adopted strip was, and neither is a number this file
+ *   can state.
  *
  *   the next open does not bring it down. The eviction below removes EXACTLY
  *   ONE tab for the one it just pushed, so an over-cap strip stays where it is:

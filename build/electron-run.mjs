@@ -362,6 +362,21 @@ const HARNESS_TERMS = Object.freeze([
  *       `refuseSocketReason` is the one spelling of what a scratch socket is,
  *       asked here of the ENV and below of the TEARDOWN name, so the two halves
  *       cannot drift apart.
+ *
+ *       AND A THIRD SPELLING EXISTS, WHICH THE COMMITTER'S ROUND RECORDED
+ *       RATHER THAN CHANGED. The app has its own, `/^[A-Za-z0-9][A-Za-z0-9._-]*$/`
+ *       in `src/main/tmux/resolve.ts`'s `activeTmuxSocket`, and it is STRICTER
+ *       than this one. Driven: `gmux-a/b`, `gmux-a b`, `gmux-x/../gmux` and
+ *       `gmux-!!` all pass 2c, because they start with `gmux-`, and the app
+ *       then refuses each one and falls back to `gmux`, the live server. Layer
+ *       3 catches every one of them, because the socket the app ANNOUNCES is
+ *       then `gmux` and not the name that was asked for, subject to layer 3's
+ *       own stated mid-line limit. So the safety property holds through a
+ *       different layer than the one you would expect, and the two spellings
+ *       agreeing is NOT what makes it hold. Tightening 2c to the app's own
+ *       regex would be the tidier answer and it moves no reading this gate
+ *       measures, which is exactly why it is a phase with a re-derivation
+ *       rather than a nit: 2c was added to move one shape and nothing else.
  *   2b. `options.tmuxSocket` is a string and the composed env names a different
  *       socket, or names none at all. The teardown would then end a scratch
  *       server the app never used while the app used `-L gmux`. That is

@@ -10,9 +10,12 @@
  * What is pinned, and every number here was read off this store rather than
  * reasoned about:
  *
- *   `rehome` moves ONE tab, so eleven is ITS ceiling and nobody else's.
- *   `switchProject` adopts the WHOLE null strip at once, so its ceiling is ten
- *   plus however many tabs were on that strip: 13 after one cycle here, 21
+ *   `rehome` moves ONE tab and never asks the cap, so it adds one PER MOVE and
+ *   is not a ceiling at all: 11 after one rehome and 12 after a second. The
+ *   fix round's own replacement sentence called eleven a ceiling, which is why
+ *   the second-rehome case below exists.
+ *   `switchProject` adopts the WHOLE null strip at once, so what it leaves is
+ *   ten plus however many tabs were on that strip: 13 after one cycle here, 21
  *   after two.
  *   An open on an over-cap strip evicts exactly one for the one it adds, so
  *   the count STAYS at its high-water mark instead of draining to ten.
@@ -131,6 +134,41 @@ describe('the cap is asked on the open path only', () => {
     expect(held(D.id)).toBe(11);
     await open(D.path, 'd-again.ts');
     expect(held(D.id)).toBe(11);
+  });
+
+  it('a SECOND rehome is TWELVE, so rehome adds one per move and caps nothing', async () => {
+    // COMMITTER'S ROUND. The fix round's replacement sentence said eleven was
+    // `rehome`'s ceiling. It is not a ceiling, it is an increment: the cap is
+    // not asked on this path at all, so every move adds one more.
+    const moving: string[] = [];
+    for (const name of ['x.ts', 'y.ts']) {
+      useEditor.getState().openFromRequest({
+        repoPath: A.path,
+        relPath: `${D.path}/${name}`,
+        path: `${D.path}/${name}`,
+        mode: 'file',
+        source: 'tree',
+        preview: false
+      });
+      await flush();
+      expect(useEditor.getState().activeTab()?.projectId).toBe(A.id);
+      moving.push(useEditor.getState().activeId as string);
+    }
+
+    useApp.setState({ projects: [A, D] });
+    useApp.getState().setActiveProject(D.id);
+    for (let n = 1; n <= 10; n += 1) await open(D.path, `d-${String(n)}.ts`);
+    expect(held(D.id)).toBe(10);
+
+    useEditor.getState().openFromRequest(request(D.path, 'x.ts'));
+    await flush();
+    expect(useEditor.getState().activeId).toBe(moving[0]);
+    expect(held(D.id)).toBe(11);
+
+    useEditor.getState().openFromRequest(request(D.path, 'y.ts'));
+    await flush();
+    expect(useEditor.getState().activeId).toBe(moving[1]);
+    expect(held(D.id)).toBe(12);
   });
 
   it('an adopt is THIRTEEN and a second cycle is TWENTY-ONE, and opens do not drain it', async () => {
