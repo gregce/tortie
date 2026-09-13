@@ -404,6 +404,17 @@ try {
   // The scratch server, whatever happened above. withElectron already ends the
   // one arm A named; this is the belt for an arm that threw before it got there.
   spawnSync('tmux', ['-L', SOCKET, 'kill-server'], { stdio: 'ignore' });
+  // AND THE SOCKET FILE, which kill-server does not always take with it: the
+  // committer found `/private/tmp/tmux-501/gmux-p261-95622` still on disk after
+  // a clean 0-finding run whose server was already gone. The brief for this
+  // phase says a scratch socket is "ended in a finally with the socket
+  // unlinked", and ending it was only half of that. The name is composed by
+  // this file and the guard re-asks it, so nothing else can ever be the target.
+  if (SOCKET.startsWith('gmux-p261-')) {
+    rmSync(join(process.env['TMUX_TMPDIR'] ?? '/tmp', `tmux-${String(process.getuid())}`, SOCKET), {
+      force: true
+    });
+  }
   rmSync(root, { recursive: true, force: true });
 }
 
