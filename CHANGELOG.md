@@ -4,9 +4,9 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
-## Unreleased
+## 0.104.0 (2026-09-12)
 
-This release is about three things. A large Markdown document now shows its first screen at once and fills in the rest while you read, and the files you open now belong to the project you opened them in, so switching projects switches which files are in front of you without closing any of them. And with Architecture on, the map is now drawn from the repository itself: grouped by what it builds and starts, with what each part exposes and how far each part is proven, and an agent you have confirmed can be asked to say what each part is for.
+This release is mostly about Architecture. With it on, the map is now drawn from the repository itself, grouped by what it builds and starts, with what each part exposes and how far each part is proven, and an agent you have confirmed can be asked to say what each part is for. Alongside it, the files you open now belong to the project you opened them in, so switching projects switches what is in front of you without closing anything, and a large Markdown document shows its first screen at once and fills in the rest while you read.
 
 ### Added
 
@@ -16,11 +16,11 @@ This release is about three things. A large Markdown document now shows its firs
 ### Changed
 
 - The files you open now belong to the project you opened them in: switch projects and only that project's files are on the strip, with the rest hidden rather than closed, so their unsaved edits, their undo and a rewind's undo are all still there when you switch back. Closing a project closes its files, and asks about any unsaved one first ([`8e5a5f43`](https://github.com/gregce/tortie/commit/8e5a5f43)), ([`721b35c6`](https://github.com/gregce/tortie/commit/721b35c6))
-- A large Markdown preview now shows its first screen at once and fills in the rest as you read, so a big file opens rendered again instead of in Source. A file that begins with one enormous table, or a large one with footnotes, still opens in Source with Preview one click away, and a jump to a heading far down the page reaches it once the page has finished filling in ([`6d754c9b`](https://github.com/gregce/tortie/commit/6d754c9b)), ([`ef8c4464`](https://github.com/gregce/tortie/commit/ef8c4464))
+- A large Markdown preview now shows its first screen at once and fills in the rest as you read, so a big file opens rendered again instead of in Source. A file that begins with one enormous table, or a large one with footnotes, still opens in Source with Preview one click away, and a jump to a heading far down the page reaches it once the page has finished filling in ([`a0d9fd32`](https://github.com/gregce/tortie/commit/a0d9fd32)), ([`34f7a36b`](https://github.com/gregce/tortie/commit/34f7a36b))
 
 ### Fixed
 
-- The name Tortie suggests when you press Command-T is now selected the moment the sheet appears, so the first letter you type replaces it. It used to be left unselected on the sheet's first frame, and a keystroke that landed there was added to the suggested name instead of replacing it ([`51dd840c`](https://github.com/gregce/tortie/commit/51dd840c))
+- The name Tortie suggests when you press Command-T is now selected the moment the sheet appears, so the first letter you type replaces it. It used to be left unselected on the sheet's first frame, and a keystroke that landed there was added to the suggested name instead of replacing it ([`ae7f2bf6`](https://github.com/gregce/tortie/commit/ae7f2bf6))
 
 ## 0.103.0 (2026-09-10)
 
