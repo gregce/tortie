@@ -279,7 +279,18 @@ export function captureLoginShellPath(
       if (settled) return;
       settled = true;
       const capturedDirs =
-        captured === null ? [] : captured.split(delimiter).filter(Boolean);
+        captured === null
+          ? []
+          : captured
+              .split(delimiter)
+              .filter(Boolean)
+              .map((entry) =>
+                entry === '~'
+                  ? homedir()
+                  : entry.startsWith('~/')
+                    ? join(homedir(), entry.slice(2))
+                    : entry
+              );
       // Captured dirs first (user's own ordering wins), then the safety net.
       const merged = mergePathDirs(
         capturedDirs,

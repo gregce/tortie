@@ -117,7 +117,9 @@ export function recoverLaunchExtras(
   // that display would need a manifest field, and one dialog line does not
   // earn one.
   if (rec.agent === 'shell') {
-    return argv[1] === LOGIN_SHELL_FLAG ? argv.slice(2) : argv.slice(1);
+    return [LOGIN_SHELL_FLAG, '-l', '-li'].includes(argv[1] ?? '')
+      ? argv.slice(2)
+      : argv.slice(1);
   }
 
   // Narrowed by the shell early-return above, and by getLaunchableEntry

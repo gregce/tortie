@@ -16,8 +16,8 @@
  * three callers read the same definition.
  */
 
-/** The flag that makes a shell a login shell. */
-export const LOGIN_SHELL_FLAG = '-l';
+/** The flags that make a shell an interactive login shell. */
+export const LOGIN_SHELL_FLAG = '-il';
 
 /**
  * `argv` with the login flag directly after the binary.
@@ -34,6 +34,8 @@ export const LOGIN_SHELL_FLAG = '-l';
 export function withLoginShellFlag(argv: readonly string[]): string[] {
   const bin = argv[0];
   if (bin === undefined) return [...argv];
-  if (argv.includes(LOGIN_SHELL_FLAG)) return [...argv];
+  if (argv.some((arg) => arg === LOGIN_SHELL_FLAG || arg === '-l' || arg === '-li')) {
+    return [...argv];
+  }
   return [bin, LOGIN_SHELL_FLAG, ...argv.slice(1)];
 }
