@@ -260,8 +260,8 @@ async function scrollFrom(
  * that is the `-e` flag, not something we have to detect.
  *
  * A delta larger than one slice is re-expressed as an absolute seek, so the
- * one path that can produce a huge relative jump — `anchorPaneScroll` after
- * an agent dumped tens of thousands of lines between polls — cannot walk the
+ * one path that can produce a huge relative jump — a fallback scroll after an
+ * agent dumped tens of thousands of lines between two reads — cannot walk the
  * server line by line either.
  */
 export async function scrollPaneBy(
@@ -294,34 +294,43 @@ export async function scrollPaneBy(
 }
 
 /**
- * Poll the state, holding the reader's place under new output.
- *
- * MEASURED: `#{scroll_position}` is relative to the LIVE bottom, so while an
- * agent keeps writing, a pane parked at position 10 slides forward — the row
- * on screen was LINE-272 and became LINE-280 after eight new lines. Reading
- * back through a working agent's transcript is the whole point of this
- * feature, so the poll compensates: `seenHistory` is the history the caller
- * last rendered, and anything past it is added to the offset.
- */
-export async function anchorPaneScroll(
-  run: TmuxScrollRunner,
-  target: string,
-  seenHistory: number
-): Promise<PaneScrollState> {
-  const state = await readPaneScroll(run, target);
-  const grew = state.history - Math.max(0, Math.trunc(seenHistory));
-  if (!state.inMode || state.position === 0 || grew <= 0) return state;
-  const room = state.history - state.position;
-  return scrollPaneBy(run, target, Math.min(grew, room));
-}
-
-/**
  * Scrub to an absolute position (0 = live). Used by the scrollbar drag.
  *
  * The read up front is not bookkeeping the seek needs — tmux clamps
  * `goto-line` itself. It is the alt-screen guard (see `scrollFrom`), and it
  * also skips the round trip entirely when a drag re-sends the pixel the pane
  * is already parked on.
+ *
+ * ## NOTHING HERE HOLDS A PARKED VIEW AGAINST THE OUTPUT, AND THAT IS THE FIX
+ *
+ * Phase 12.3 shipped a poll that re-scrolled a parked pane on every tick, on a
+ * measurement that said `#{scroll_position}` is relative to the live bottom so
+ * a reader's page slides forward as the agent writes. THE VIEW DOES NOT SLIDE.
+ * MEASURED on tmux 3.7b, 2026-09-16, through a real terminal emulator fed the
+ * bytes an attached client receives — the only reading that sees what the
+ * reader sees, because `capture-pane` answers the LIVE screen and never the
+ * copy-mode view:
+ *
+ *     parked, transcript growing 187 -> 313 over seven seconds
+ *     first visible line: "line 151" before and after, unchanged
+ *
+ * Copy-mode holds the reader's content by itself. So every "correction" the
+ * product applied was an extra scroll on top of that hold, and it dragged the
+ * reader backwards by exactly the amount the agent had written — the operator's
+ * two reports, 2026-09-16: "that message for some reason scrolls down whenever
+ * the session generates more text", and "it's just moving down instead of
+ * staying anchored, but with the same exact cadence of the lines being produced".
+ * The first was read as a leak to be tightened, the second named it exactly.
+ *
+ * THE FOUNDING MEASUREMENT WAS READ OFF THE WRONG SURFACE. Phase 12.3's row
+ * "LINE-272 became LINE-280 after eight new lines" is what a live-screen read
+ * does while a parked view stands still, which is why the defect it described
+ * could never be reproduced here once the reading was taken from the view.
+ * The whole anchor apparatus — the poll target, `refresh-from-pane`, the
+ * output nudge — was deleted with this note. A later round must not rebuild it:
+ * the ONLY things that move a parked reader are the reader's own gestures, a
+ * resize rewrap, and a keystroke (which leaves copy-mode on purpose, see
+ * `sendInput`).
  */
 export async function scrollPaneTo(
   run: TmuxScrollRunner,

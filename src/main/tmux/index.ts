@@ -191,7 +191,6 @@ export {
 // alternate buffer where it has no scrollback of its own.
 export {
   readPaneScroll,
-  anchorPaneScroll,
   scrollPaneBy,
   scrollPaneTo,
   exitPaneScroll,

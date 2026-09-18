@@ -2441,14 +2441,11 @@ export class GmuxCore {
   ): Promise<TerminalScrollState> {
     const target = this.scrollTarget(input.sessionId);
     if (target === null) return NO_PANE_HERE;
-    const state =
-      input.anchorFrom === undefined
-        ? await tmux.readPaneScroll(this.runScrollCommand, target)
-        : await tmux.anchorPaneScroll(
-            this.runScrollCommand,
-            target,
-            input.anchorFrom
-          );
+    // A READ AND NOTHING ELSE. Copy-mode holds a parked reader's content by
+    // itself as the agent writes; the correcting scroll this used to run here
+    // was the thing dragging the reader backwards. `tmux/scroll.ts`'s
+    // `scrollPaneTo` carries the measurement and the deletion.
+    const state = await tmux.readPaneScroll(this.runScrollCommand, target);
     return { ...state, hasPane: true };
   }
 

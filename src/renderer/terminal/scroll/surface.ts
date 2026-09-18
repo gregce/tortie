@@ -40,11 +40,20 @@ import { gmuxBridge } from '../../bridge';
 /** Poll cadence while the pane shows live output — keeps the thumb honest. */
 const LIVE_POLL_MS = 1000;
 /**
- * Poll cadence while scrolled. Faster because this is also the re-anchor
- * tick: `#{scroll_position}` is relative to the live bottom, so a streaming
- * agent slides the reader's page away unless we add its growth back.
+ * Poll cadence while a line is being held (2026-09-16).
+ *
+ * THE WOBBLE IS THE INTERVAL'S WORTH OF OUTPUT. Correcting a held line is a
+ * read and, when it has moved, a scroll; between two corrections the agent's
+ * own write slides the reader's page forward by however much it wrote in that
+ * gap, and the correction puts it back. So the tighter this is, the stiller
+ * the page: a hundred milliseconds is under half of tmux's own repaint cadence
+ * for a parked view (measured at 664 bytes over two seconds while parked
+ * against 2,100 live, so about three repaints a second), which is what makes
+ * every repaint show the line the reader chose. The cost is a `display-message`
+ * over the control client, about a millisecond, once per tick and only while a
+ * line is held.
  */
-const SCROLLED_POLL_MS = 250;
+const SCROLLED_POLL_MS = 100;
 /** Wheel deltas are batched over this window into ONE tmux scroll command. */
 const WHEEL_COALESCE_MS = 16;
 /**
@@ -340,21 +349,22 @@ export class ScrollSurface {
     }, RESIZE_SETTLE_MS);
   }
 
-  /** Re-read the pane, holding the reader's place under new output. */
+  /**
+   * Re-read the pane. NOTHING IS RE-SCROLLED HERE, AND THAT IS THE WHOLE FIX.
+   *
+   * A parked copy-mode view holds the reader's content by itself as the agent
+   * writes; the correcting scroll this used to run was the only thing moving
+   * it. src/main/tmux/scroll.ts's `scrollPaneTo` carries the measurement,
+   * including how the founding one came to say otherwise.
+   *
+   * It is still polled while the pane is scrolled, because the scrollbar's
+   * thumb is drawn from the same read and tmux's history grows under it.
+   */
   refresh(): void {
     if (this.noPane) return;
     const api = scrollBridge();
     if (api === null) return;
-    const anchorFrom =
-      this.dragging || this.state.position === 0
-        ? undefined
-        : this.state.history;
-    this.enqueue(() =>
-      api.state({
-        sessionId: this.sessionId,
-        ...(anchorFrom !== undefined ? { anchorFrom } : {})
-      })
-    );
+    this.enqueue(() => api.state({ sessionId: this.sessionId }));
   }
 
   // -- internals ------------------------------------------------------------
