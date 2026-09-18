@@ -11,7 +11,6 @@
 import { beforeEach, describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import {
-  anchorPaneScroll,
   exitPaneScroll,
   readPaneScroll,
   resetSeekSupportForTests,
@@ -220,8 +219,8 @@ describe('scroll fallback (a tmux without goto-line)', () => {
 
 describe('a huge relative scroll', () => {
   it('is re-expressed as a seek rather than walked line by line', async () => {
-    // anchorPaneScroll can produce one of these when an agent dumps tens of
-    // thousands of lines between polls.
+    // A fallback scroll can produce one of these when an agent dumps tens of
+    // thousands of lines between two reads.
     const { run, calls } = recorder([state('1', '100', '90000')]);
     await scrollPaneBy(run, '$3', 40000);
     assert.deepEqual(calls[2], [
@@ -238,30 +237,6 @@ describe('a huge relative scroll', () => {
   });
 });
 
-describe('anchorPaneScroll', () => {
-  it('adds new output back to the offset so the reader keeps their place', async () => {
-    // MEASURED: scroll_position is relative to the LIVE bottom, so eight new
-    // lines slid a pane parked at 10 from LINE-272 to LINE-280.
-    const { run, calls } = recorder([state('1', '10', '282'), state('1', '18', '282')]);
-    const s = await anchorPaneScroll(run, '$3', 274);
-    assert.deepEqual(calls[2], [
-      'send-keys', '-t', '$3', '-X', '-N', '8', 'scroll-up'
-    ]);
-    assert.equal(s.position, 18);
-  });
-
-  it('does not anchor a pane that is at live output', async () => {
-    const { run, calls } = recorder([state('0', '', '282')]);
-    await anchorPaneScroll(run, '$3', 274);
-    assert.equal(calls.length, 1);
-  });
-
-  it('does not anchor when history did not grow', async () => {
-    const { run, calls } = recorder([state('1', '10', '274')]);
-    await anchorPaneScroll(run, '$3', 274);
-    assert.equal(calls.length, 1);
-  });
-});
 
 describe('exitPaneScroll', () => {
   it('cancels and re-reads, swallowing "not in a mode"', async () => {

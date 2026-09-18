@@ -358,12 +358,6 @@ export interface TerminalScrollState {
 
 export interface TerminalScrollPollInput {
   sessionId: string;
-  /**
-   * History the caller last rendered. New output pushes a scrolled pane
-   * forward (`scroll_position` is relative to the LIVE bottom), so main adds
-   * the growth back to the offset and the reader keeps their place.
-   */
-  anchorFrom?: number;
 }
 
 export interface TerminalScrollByInput {

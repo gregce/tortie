@@ -21,13 +21,20 @@
  */
 
 import { execFile } from 'node:child_process';
+import * as pty from 'node-pty';
+import { Terminal } from '@xterm/xterm';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PANE_FORMAT } from '../../activity/panes';
-import { resetSeekSupportForTests, scrollPaneTo, type TmuxScrollRunner } from '../scroll';
+import {
+  readPaneScroll,
+  resetSeekSupportForTests,
+  scrollPaneTo,
+  type TmuxScrollRunner
+} from '../scroll';
 
 const run = promisify(execFile);
 
@@ -154,5 +161,149 @@ describe.skipIf(!enabled)('a full-height drag on a 200,000-line session', () => 
     // true the comparison above has stopped meaning anything.
     expect(walkMs).toBeGreaterThan(SEEK_BUDGET_MS);
     expect(worstMs).toBeGreaterThan(POLL_STALL_BUDGET_MS);
+  }, 60_000);
+});
+
+/**
+ * A PARKED VIEW HOLDS ITS PLACE BY ITSELF (2026-09-16).
+ *
+ * The operator reported this about the pane he was reading: "if I type a
+ * question and then press return... then I scroll back to its last message to
+ * read it carefully. That message for some reason scrolls down whenever the
+ * session generates more text."
+ *
+ * THE PRODUCT WAS THE CAUSE. Copy-mode does not slide a parked reader's
+ * content as the agent writes — it holds it — and Phase 12.3 shipped a poll
+ * that re-scrolled the pane on every tick on the belief that it did. So every
+ * "correction" was an extra scroll on top of a view that was already still, and
+ * it dragged the reader backwards by exactly what the agent had written. The
+ * operator's second report named it: "it's just moving down instead of staying
+ * anchored, but with the same exact cadence of the lines being produced."
+ *
+ * WHY A TERMINAL EMULATOR IS THE ONLY HONEST RULER HERE. `capture-pane` answers
+ * the LIVE screen and never the copy-mode view, so the question "did the line
+ * the reader is looking at move?" cannot be asked of tmux's own formats: a
+ * live-screen reading advances with the output whatever the view does, which is
+ * exactly how the founding measurement — "LINE-272 became LINE-280 after eight
+ * new lines" — came to say a still view was sliding. So this rig attaches a
+ * real client the way the app does, feeds the bytes it receives into
+ * @xterm/xterm, and reads the FIRST VISIBLE LINE off that screen.
+ *
+ * The arms are: the line does not move while the transcript grows by a hundred
+ * lines; and, for the record, applying the deleted correction every 250 ms DOES
+ * move it — the defect, executable, so nobody rebuilds the mechanism on the
+ * strength of a live-screen reading again.
+ *
+ * Opt-in with the rest of this file: `GMUX_SCROLL_IT=1 npx vitest run scroll.integration`.
+ */
+describe.skipIf(!enabled)('a parked view', () => {
+  const S = 'zz-hold';
+  let client: pty.IPty | null = null;
+  let term: Terminal | null = null;
+  let dir = '';
+
+  const historyOf = async (): Promise<number> =>
+    Number(
+      (await tmux(['display-message', '-p', '-t', S, '#{history_size}'])).trim()
+    );
+
+  /** The first line a person would see at the top of the pane, or '(blank)'. */
+  const firstVisible = (): string => {
+    const buffer = term?.buffer.active ?? null;
+    if (buffer === null) return '(no terminal)';
+    for (let i = 0; i < 30; i += 1) {
+      const line = buffer.getLine(i);
+      const text = line === undefined ? '' : line.translateToString(true);
+      if (text.trim() !== '') return text.trim();
+    }
+    return '(blank)';
+  };
+
+  /** The number in a fixture line, so an arm can say which way it moved. */
+  const lineNumber = (text: string): number => {
+    const m = /line (\d+)/.exec(text);
+    return m === null ? -1 : Number(m[1]);
+  };
+
+  beforeAll(async () => {
+    await tmux(['kill-server']).catch(() => undefined);
+    dir = mkdtempSync(join(tmpdir(), 'gmux-scroll-hold-'));
+    const script = join(dir, 'stream.sh');
+    writeFileSync(
+      script,
+      '#!/bin/sh\ni=0\nwhile :; do i=$((i+1)); printf "line %s\\n" "$i"; sleep 0.05; done\n',
+      { mode: 0o755 }
+    );
+    await tmux(['new-session', '-d', '-s', S, '-x', '100', '-y', '30', script]);
+    // 200 lines of history before anybody parks, so a deep park is possible.
+    for (let i = 0; i < 80; i += 1) {
+      if ((await historyOf()) >= 200) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    term = new Terminal({ cols: 100, rows: 30 });
+    client = pty.spawn(TMUX, ['-L', SOCKET, 'attach', '-t', S], {
+      cols: 100,
+      rows: 30,
+      env: process.env
+    });
+    client.onData((d: string) => term?.write(d));
+    await new Promise((r) => setTimeout(r, 1200));
+  }, 60_000);
+
+  afterAll(async () => {
+    if (client !== null) client.kill();
+    await tmux(['kill-server']).catch(() => undefined);
+  });
+
+  const park = async (): Promise<void> => {
+    await tmux(['send-keys', '-t', S, '-X', 'cancel']).catch(() => undefined);
+    await new Promise((r) => setTimeout(r, 300));
+    await tmux(['copy-mode', '-e', '-t', S]);
+    const history = await historyOf();
+    await tmux([
+      'send-keys',
+      '-t',
+      S,
+      '-X',
+      'goto-line',
+      String(Math.max(1, history - 150))
+    ]);
+    await new Promise((r) => setTimeout(r, 500));
+  };
+
+  it('holds the reader’s line by itself while the transcript keeps growing', async () => {
+    await park();
+    const first = firstVisible();
+    const started = await historyOf();
+    await new Promise((r) => setTimeout(r, 5000));
+    const grown = (await historyOf()) - started;
+    const later = firstVisible();
+    // eslint-disable-next-line no-console
+    console.log(
+      `[park] first visible line "${first}" stayed "${later}" while history grew ${String(started)} -> ${String(started + grown)}`
+    );
+    expect(grown).toBeGreaterThan(50);
+    expect(lineNumber(first)).toBeGreaterThan(0);
+    expect(later).toBe(first);
+  }, 60_000);
+
+  it('and a correcting scroll is what moves it, for the record', async () => {
+    await park();
+    const first = firstVisible();
+    const held = (await historyOf()) - (await readPaneScroll(runner, S)).position;
+    for (let i = 0; i < 12; i += 1) {
+      const history = await historyOf();
+      const want = history - held;
+      if (want > 0) {
+        await tmux(['send-keys', '-t', S, '-X', 'goto-line', String(want)]);
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    const later = firstVisible();
+    // eslint-disable-next-line no-console
+    console.log(
+      `[park] the deleted rule moved the reader from "${first}" to "${later}"`
+    );
+    expect(later).not.toBe(first);
   }, 60_000);
 });
