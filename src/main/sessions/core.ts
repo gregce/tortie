@@ -525,6 +525,8 @@ const NO_PANE_HERE: TerminalScrollState = {
   position: 0,
   history: 0,
   rows: 0,
+  cols: 0,
+  frameHistory: null,
   inMode: false,
   innerAlt: false,
   innerMouse: false

@@ -37,6 +37,7 @@ function stateLine(over?: {
   rows?: string;
   alt?: string;
   mouse?: string;
+  cols?: string;
 }): string {
   const f = {
     inMode: '1',
@@ -45,9 +46,13 @@ function stateLine(over?: {
     rows: '42',
     alt: '0',
     mouse: '0',
+    // Phase 292. The pane's width, last in the format.
+    cols: '152',
     ...over
   };
-  return [f.inMode, f.position, f.history, f.rows, f.alt, f.mouse].join('\t');
+  return [f.inMode, f.position, f.history, f.rows, f.alt, f.mouse, f.cols].join(
+    '\t'
+  );
 }
 
 interface Harness {
@@ -97,6 +102,8 @@ describe('no session on this Mac: the four methods answer', () => {
         position: 0,
         history: 0,
         rows: 0,
+        cols: 0,
+        frameHistory: null,
         inMode: false,
         innerAlt: false,
         innerMouse: false
@@ -136,6 +143,9 @@ describe('the live path is unchanged', () => {
       position: 120,
       history: 5000,
       rows: 42,
+      cols: 152,
+      // Phase 292. This line carries no frame depth, as a tmux before 3.7 answers.
+      frameHistory: null,
       inMode: true,
       innerAlt: false,
       innerMouse: false

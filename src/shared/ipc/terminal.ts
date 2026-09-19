@@ -338,12 +338,35 @@ export interface TerminalScrollState {
    * field ends.
    */
   hasPane: boolean;
-  /** Lines scrolled above the live bottom. 0 = live output. */
+  /**
+   * tmux's `#{scroll_position}`. 0 = live output.
+   *
+   * Phase 292. While scrolled back this counts from the bottom of the frame
+   * tmux FROZE when the pane entered copy mode, not from the live bottom, so
+   * it holds still while the session writes and `history` below grows. The two
+   * do not share a zero; the one account is on `scrollPaneTo` in
+   * src/main/tmux/scroll.ts.
+   */
   position: number;
-  /** Scrollback lines tmux holds above the screen. */
+  /** Scrollback lines tmux holds above the LIVE screen. */
   history: number;
   /** Visible rows. */
   rows: number;
+  /**
+   * Visible columns (Phase 292). With `rows` it says which SIZE this answer
+   * was taken at: a change of size rewraps the history, so `history` moves
+   * without a line being printed, and the scrollbar must not read that as
+   * output.
+   */
+  cols: number;
+  /**
+   * The depth of the frame tmux froze when the pane entered copy mode, as tmux
+   * itself counts it (`#{copy_position_limit}`, tmux 3.7 and later), Phase 292.
+   * Null outside copy mode and on a tmux that does not say, where the
+   * renderer infers it. The account is on `PaneScrollState.frameHistory` in
+   * src/main/tmux/scroll.ts.
+   */
+  frameHistory: number | null;
   /** tmux copy-mode is active on this pane. */
   inMode: boolean;
   /**
@@ -368,13 +391,17 @@ export interface TerminalScrollByInput {
 
 export interface TerminalScrollToInput {
   sessionId: string;
-  /** Absolute offset above the live bottom; 0 returns to live output. */
+  /**
+   * Absolute offset above the bottom of the frame tmux froze when the pane
+   * was scrolled back (Phase 292), which is the live bottom only for a pane
+   * that was live when asked; 0 returns to live output.
+   */
   position: number;
 }
 
 /** New invoke channels appended by the scrollback stream. */
 export interface TerminalScrollInvokeChannelMap {
-  /** Read the pane's scroll geometry (optionally re-anchoring it). */
+  /** Read the pane's scroll geometry. Since Phase 292 nothing re-anchors it. */
   'terminal:scrollState': {
     req: [input: TerminalScrollPollInput];
     res: TerminalScrollState;

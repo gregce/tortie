@@ -59,6 +59,8 @@ function rig(owned: boolean): Rig {
   const view: ScrollView = {
     position: 0,
     history: 900,
+    // Phase 292. Live, so no frame is frozen and there is no entry history.
+    historyAtEntry: null,
     rows: 40,
     atLive: true,
     owned,

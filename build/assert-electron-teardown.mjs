@@ -228,12 +228,19 @@ const HELPER = 'electron-run.mjs';
  * on 2026-09-17 with `node build/assert-electron-teardown.mjs --list`, which
  * derives the population and never reads this constant.
  *
+ * PHASE 292 RAISED IT FROM 143 TO 144, for build/p292/probe-p292.mjs
+ * (`probe:p292`), the app run for scrollback that holds its place: one
+ * Electron, the issue's own loop typed with real keys, real wheel events back
+ * a hundred lines, and the screen, tmux's own numbers and the thumb's
+ * rectangle read together through a hold, a held drag, a window resize and the
+ * way back to live. Measured at 144 names on 2026-09-18 with `--list`.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 143;
+const HELPER_USER_FLOOR = 144;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

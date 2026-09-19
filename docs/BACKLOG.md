@@ -30741,9 +30741,20 @@ Two reproducers, independently, neither trusting the issue nor the pull request
    history. Computed in the renderer from the two numbers the poll already returns, so it is the same
    on 3.6a and 3.7b and asks tmux for nothing new. The poll returns to 250 ms and its comment says what
    it is for now: the thumb.
-3. **The window-resize hold.** `holdPositionAcrossResize` is called from the fit that follows a window
-   resize as well as from zoom and font, so narrowing the window keeps the reader's line. Under PR 30
-   the held position is stable, which makes the existing hold correct where main's kept growing.
+3. **A resized window keeps the reader's line, by tmux and not by the app.** CORRECTED IN PLACE when
+   the phase landed (2026-09-19). This item first called `holdPositionAcrossResize` from the window
+   resize too. The attack verifier measured that it re-sent a position that counts ROWS, so over
+   soft-wrapped lines the same number is a different place: a widen threw a reader 127 lines where
+   today's build moved 15, while tmux alone had the line exactly right 150 ms after the resize. What
+   shipped instead: main puts tmux's copy cursor on the reader's top row after every scroll that parks
+   (`cursorToTopRow`, src/main/tmux/scroll.ts), tmux keeps that line across any reflow, and the hold is
+   deleted. The frame's depth comes from tmux 3.7b's `#{copy_position_limit}` (a `frameHistory` field
+   beside `cols` in the scroll state) with the renderer's own reading as the 3.6a fallback. Two more
+   roads that threw a reader to live, measured the same today, close in the same round: a pane's own
+   answers (focus, colour, device attributes) go through `sendReport` and not as typing
+   (src/renderer/terminal/keys/pane-report.ts), and a program opening its alternate screen while the
+   reader is parked leaves the wheel with the reader. While scrolled back the terminal's cursor sits at
+   the start of the top row.
 4. **The founding comment is corrected in place**, saying which ruler it used and why that ruler cannot
    see a scrolled-back view, so nobody rebuilds the correction from a `capture-pane` reading again.
 5. **His rig, made honest and cheap**: its "for the record" arm drives the SHIPPED function from the

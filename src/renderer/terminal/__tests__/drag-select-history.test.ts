@@ -44,8 +44,14 @@ interface Rig {
   press: (col: number, row: number) => void;
   moveTo: (clientX: number, clientY: number) => void;
   release: () => void;
-  /** Move the surface's view, as an answered scroll or a poll would. */
-  setView: (position: number, history: number) => void;
+  /**
+   * Move the surface's view, as an answered scroll or a poll would. `entry`
+   * is the history the surface recorded when the pane was parked (Phase 292):
+   * left out, a parked view takes the history of the first call that parked
+   * it and keeps it until the view is live again, which is what the surface
+   * does.
+   */
+  setView: (position: number, history: number, entry?: number | null) => void;
   /** xterm reports a selection change that was not ours. */
   foreignChange: () => void;
   detach: () => void;
@@ -75,6 +81,8 @@ function rig(): Rig {
   const view: ScrollView = {
     position: 0,
     history: 900,
+    // Phase 292. Live, so no frame is frozen and there is no entry history.
+    historyAtEntry: null,
     rows: 40,
     atLive: true,
     owned: true,
@@ -142,10 +150,16 @@ function rig(): Rig {
     release: () => {
       for (const fn of ups) fn();
     },
-    setView: (position, history) => {
+    setView: (position, history, entry) => {
       view.position = position;
       view.history = history;
       view.atLive = position === 0;
+      view.historyAtEntry =
+        entry !== undefined
+          ? entry
+          : position === 0
+            ? null
+            : (view.historyAtEntry ?? history);
       for (const fn of listeners) fn({ ...view });
     },
     foreignChange: () => changed?.(),
@@ -208,10 +222,16 @@ describe('a drag that scrolls keeps its anchor in the history', () => {
     r.setView(6, 900);
     expect(r.select).toHaveBeenLastCalledWith(...span(6, 28, 11 * 80 + 80 - 6));
     const before = r.select.mock.lastCall;
-    // The pane streams. The poll re-anchors a parked view by exactly what
-    // arrived, so both numbers grow by 38, the same span is drawn, and the
-    // range still ends on the line that was pressed.
-    r.setView(44, 938);
+    const drawn = r.select.mock.calls.length;
+    // The pane streams. tmux holds a parked view still by itself (Phase 292):
+    // the position stays 6 while the LIVE history grows by 38 under it. The
+    // frame on screen is still the 900 deep one the pane was parked in, so
+    // nothing is redrawn, and the range still ends on the line that was
+    // pressed. Until Phase 292 this read "the poll re-anchors a parked view
+    // by exactly what arrived, so both numbers grow by 38"; that poll's
+    // scroll was the defect pull request 30 deleted.
+    r.setView(6, 938);
+    expect(r.select.mock.calls.length).toBe(drawn);
     expect(r.select.mock.lastCall).toEqual(before);
     expect(historyRangeToCopy('s1')).toEqual({
       start: { line: 922, col: 6 },
@@ -220,6 +240,102 @@ describe('a drag that scrolls keeps its anchor in the history', () => {
     });
     r.release();
     r.detach();
+  });
+
+  it('counts a parked pane\'s rows from the frame on screen, however much printed since the park', async () => {
+    // Phase 292, the re-derive verifier's P1 and the attack's ATK-3. Parked
+    // 100 back when the history was 900, so rows 0..39 show lines 800..839,
+    // and since then 140 lines printed while tmux held the view still. The
+    // press-time reading below answers the LIVE history, 1041, and no entry:
+    // counted from that, row 20 was line 961, 141 lines newer than the text
+    // under the pointer, and a copy took lines that were on screen nowhere.
+    vi.useFakeTimers();
+    const r = rig();
+    r.setView(100, 1040, 900);
+    vi.stubGlobal('window', {
+      gmux: {
+        scroll: {
+          state: async () => ({
+            hasPane: true,
+            position: 100,
+            history: 1041,
+            rows: 40,
+            cols: 80,
+            inMode: true,
+            innerAlt: false,
+            innerMouse: false
+          })
+        }
+      }
+    });
+    try {
+      r.press(4, 20);
+      for (let i = 0; i < 4; i += 1) await Promise.resolve();
+      r.moveTo(xOf(10), RECT.top - 20);
+      vi.advanceTimersByTime(60);
+      expect(r.scrollBy).toHaveBeenCalled();
+      // The edge tick's answer: five lines further back, the frame the same.
+      r.setView(105, 1045);
+      // Line 820 is on row 25, and the head under the pointer is row 0,
+      // line 795. Drawn from (10, 0) to (4, 25).
+      expect(r.select).toHaveBeenLastCalledWith(...span(10, 0, 25 * 80 + 5 - 10));
+      expect(historyRangeToCopy('s1')).toEqual({
+        start: { line: 795, col: 10 },
+        end: { line: 820, col: 4 },
+        cols: 80
+      });
+      // And printing more moves neither the drawing nor the range.
+      const drawn = r.select.mock.calls.length;
+      r.setView(105, 1200);
+      expect(r.select.mock.calls.length).toBe(drawn);
+      expect(historyRangeToCopy('s1')?.end).toEqual({ line: 820, col: 4 });
+      r.release();
+    } finally {
+      r.detach();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('takes the frame depth tmux names in the press-time reading over the surface\'s inference', async () => {
+    // tmux 3.7b says how deep the frozen frame is. The surface's own number
+    // here is one line deep, the way a line printed between the park and its
+    // answer made it in the app; the press-time reading carries tmux's.
+    vi.useFakeTimers();
+    const r = rig();
+    r.setView(100, 1040, 901);
+    vi.stubGlobal('window', {
+      gmux: {
+        scroll: {
+          state: async () => ({
+            hasPane: true,
+            position: 100,
+            history: 1041,
+            rows: 40,
+            cols: 80,
+            frameHistory: 900,
+            inMode: true,
+            innerAlt: false,
+            innerMouse: false
+          })
+        }
+      }
+    });
+    try {
+      r.press(4, 20);
+      for (let i = 0; i < 4; i += 1) await Promise.resolve();
+      r.moveTo(xOf(10), RECT.top - 20);
+      vi.advanceTimersByTime(60);
+      r.setView(105, 1045, 900);
+      expect(historyRangeToCopy('s1')).toEqual({
+        start: { line: 795, col: 10 },
+        end: { line: 820, col: 4 },
+        cols: 80
+      });
+      r.release();
+    } finally {
+      r.detach();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('keeps the range after the button comes up and draws it again where the view goes', () => {

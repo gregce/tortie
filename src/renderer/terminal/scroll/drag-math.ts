@@ -15,19 +15,33 @@
  * what the pointer and xterm's `Terminal.select` speak.
  *
  * The HISTORY. tmux numbers the lines it holds from the oldest, and one
- * `display-message` answers where the screen sits in them: `#{history_size}`
- * is how many lines lie above the LIVE screen and `#{scroll_position}` is how
- * far above the live bottom the view is parked. So screen row `r` shows
- * history line `history - position + r`, and it is that NUMBER a selection
- * end is kept as rather than the row, which is what makes it survive a
- * stream. The stable thing is the absolute line and not the screen, and not
- * `position` either: measured on 2026-09-03 against a pane printing in
- * bursts, `scroll_position` stayed at 11 while `history_size` went 21 to 51,
- * so the same screen row went from LINE-22 to LINE-52 while absolute line 10
- * still read LINE-11 at both ends. tmux does not hold a parked view still by
- * moving `position`; what re-anchors the drawn view is this app's own poll,
- * which `ScrollSurface` suspends for as long as a drag is in progress. A
- * `HistoryPos` is where a selection end really is, and it is never clamped;
+ * `display-message` answers where the screen sits in them. Screen row `r`
+ * shows history line `depth - position + r`, where `depth` is the depth of THE
+ * FRAME ON SCREEN and `#{scroll_position}` is how far above that frame's
+ * bottom the view is parked. It is that line NUMBER a selection end is kept
+ * as rather than the row, which is what makes it survive a stream: a line
+ * keeps its number for as long as tmux holds it, whatever is printed after.
+ *
+ * WHICH DEPTH (Phase 292). Live, the frame on screen is the live pane and its
+ * depth is `#{history_size}`. SCROLLED BACK, the screen shows the frame tmux
+ * froze when the pane entered copy mode, and tmux holds that frame still by
+ * itself while the agent writes: its depth is the history AT ENTRY, which
+ * `ScrollSurface` records, and `#{history_size}` beside it goes on growing.
+ * `frameDepth` in ./live-distance.ts is the one spelling of that choice.
+ *
+ * This header said otherwise until Phase 292, and what it said was true of the
+ * app as it then was. It read a 2026-09-03 measurement (`scroll_position`
+ * stayed 11 while `history_size` went 21 to 51, and the same screen row went
+ * from LINE-22 to LINE-52) as a parked view sliding, and named the app's own
+ * poll as what re-anchored it. That poll scrolled UP by every line printed, so
+ * position and history grew together and `history - position` stood still;
+ * the arithmetic was right BECAUSE the poll was dragging the page. Pull
+ * request 30 deleted the poll's scroll, the position now holds while the
+ * history grows, and the live history is the wrong depth for a parked pane by
+ * exactly the lines printed since the park. `scrollPaneTo` in
+ * src/main/tmux/scroll.ts carries the one account of the deletion.
+ *
+ * A `HistoryPos` is where a selection end really is, and it is never clamped;
  * only the DRAWING of it is, in `visibleSpan`.
  */
 
@@ -74,13 +88,16 @@ export interface HistoryRange {
 }
 
 /**
- * Where the screen sits in the history right now, read from ONE
- * `display-message` so `history` and `position` belong to the same instant.
+ * Where the screen sits in the history right now: the frame it shows and how
+ * far up that frame the view is parked.
  */
 export interface HistoryFrame {
-  /** `#{history_size}`: lines above the live screen. */
+  /**
+   * The depth of the frame ON SCREEN: `#{history_size}` while live, and the
+   * history at entry while scrolled back (`frameDepth`, ./live-distance.ts).
+   */
   history: number;
-  /** `#{scroll_position}`: lines the view is parked above the live bottom. */
+  /** `#{scroll_position}`: lines the view is parked above that frame's bottom. */
   position: number;
   /** Visible rows. */
   rows: number;

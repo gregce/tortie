@@ -53,6 +53,8 @@ function stateOf(over: Partial<TerminalScrollState> = {}): TerminalScrollState {
     position: 0,
     history: 0,
     rows: 0,
+    cols: 0,
+    frameHistory: null,
     inMode: false,
     innerAlt: false,
     innerMouse: false,
@@ -219,7 +221,7 @@ describe('the poll stops for a session with nothing to poll', () => {
 // ---------------------------------------------------------------------------
 
 describe('after hasPane false the surface is quiet', () => {
-  it('makes no call for scrollBy, scrollTo, scrollPages or the resize hold', async () => {
+  it('makes no call for scrollBy, scrollTo or scrollPages', async () => {
     const h = harness(stateOf({ hasPane: false }));
     const surface = await started();
     const before = h.counts.state;
@@ -227,7 +229,8 @@ describe('after hasPane false the surface is quiet', () => {
     surface.scrollBy(5);
     surface.scrollTo(10);
     surface.scrollPages(1);
-    surface.holdPositionAcrossResize();
+    // Phase 292 deleted the resize hold that stood here: tmux keeps a parked
+    // reader's line across a resize by itself (`cursorToTopRow`).
     await vi.advanceTimersByTimeAsync(2_000);
     await settle();
 

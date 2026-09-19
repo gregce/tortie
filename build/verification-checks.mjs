@@ -1226,6 +1226,38 @@ export const CHECKS = [
   // depends on is newer than the newest bundle under out/renderer/assets of
   // the checkout it measures, before anything is launched.
   electron('probe:p288'),
+  // PHASE 292's app run: the reader's line stays where they put it (GitHub
+  // issue 29 and pull request 30, John Berryman). ONE Electron on a scratch
+  // profile with a scratch HOME under its own GMUX_HARNESS_DIR and the socket
+  // gmux-p292-<pid>, one plain shell session. The issue's own loop is TYPED
+  // with real keys, a line every 50 ms, the pane is scrolled back 100 lines
+  // with real mouse-wheel events, and three rulers are read together: the
+  // SCREEN (the pane's xterm buffer rows, which is what a person sees, because
+  // capture-pane answers the live screen and cannot see a scrolled-back view),
+  // tmux's own scroll_position and history_size on the harness socket, and the
+  // scrollbar thumb's rectangle. Five arms, each able to run alone: the top
+  // line holds for 8 s while at least 100 lines print; the thumb moves UP and
+  // sits within 2 px of position + (history - historyAtEntry) over the live
+  // history, the entry history read off the probe's own screen ruler; a held
+  // thumb drag under real pointer events, where the thumb must not slide DOWN
+  // under a still pointer and stays on the same formula, so it goes up as
+  // lines print; a window resize while parked, TWICE,
+  // the first at least 33 s after the attach, where tmux asks the terminal for
+  // its colours again and xterm's OSC 10 and 11 answers must not be sent the
+  // way a keystroke is, and the second inside tmux's rate limit, where what is
+  // read is tmux's own rows - 1 move and the app's hold; and the way back to
+  // live. P292_CHECKOUT points the same run at another BUILT
+  // worktree, one Electron and never two: origin/main must fail the hold at
+  // about -1.0 lines per line printed, and pull request 30's head before this
+  // phase must fail the thumb, the drag's slide and the resize. GMUX_TMUX_BIN
+  // is passed through so a run reads the bundled 3.7b or the system 3.6a, and
+  // the run prints the version the server reports. It writes readings and two
+  // photographs under out/p292, spawns no agent and spends no token. `node
+  // build/p292/probe-p292.mjs --self-test` proves the graders on 60 fixtures
+  // and launches nothing. BUILD FIRST: the script carries no `npm run build &&`
+  // on purpose, because a run against another checkout must not rebuild this
+  // one, and it REFUSES (exit 2) an out/ older than the scroll sources.
+  electron('probe:p292'),
   // PHASE 281's app run, and the ONE probe in this table whose app reads the
   // person's real login keychain: the Claude meter's shipping reader, at the
   // parent and at HEAD, never at once, with P281_EXPECT naming the answer. A

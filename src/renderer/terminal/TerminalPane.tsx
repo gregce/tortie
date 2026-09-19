@@ -36,7 +36,7 @@ import { zoomedFontSize, useZoom } from '../zoom';
 import { snapshotSelection } from './capture';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
-import { isFocusReport } from './keys/focus-report';
+import { isPaneReport } from './keys/pane-report';
 import {
   classifyThroughBridge,
   handToMac,
@@ -427,9 +427,16 @@ export function TerminalPane({
     // answer a session that was waiting for input and they must not cancel
     // copy-mode — which is what threw the reader's place away every time the
     // window lost focus. ./keys/focus-report.ts carries the measurement.
+    // Phase 292: the colour reports and the device-attribute answers are the
+    // same thing by two more roads. tmux asks the terminal for its colours
+    // again on a resize made half a minute or more after it last asked, and
+    // asks what the terminal IS every time a pane attaches, which is every
+    // return to a session; xterm answers HERE, and treated as a keystroke
+    // each answer threw a scrolled-back reader to live output. One question,
+    // ./keys/pane-report.ts, and each kind's file carries its measurement.
     const dataSub = term.onData((d) => {
       if (paneRefusesInput(statusRef.current)) return;
-      if (isFocusReport(d)) {
+      if (isPaneReport(d)) {
         scroll.sendReport(d);
         return;
       }
@@ -443,6 +450,16 @@ export function TerminalPane({
     });
 
     // ---- single resize path: fit → xterm onResize → tmux client ----------
+    //
+    // Phase 292. NOTHING HERE PUTS A SCROLLED-BACK READER BACK AFTER A RESIZE,
+    // and nothing should. tmux keeps the line its copy cursor is on across a
+    // resize, main keeps that cursor on the reader's top row
+    // (`cursorToTopRow`, src/main/tmux/scroll.ts), and so a window resize, a
+    // split, ⌘+ and a font change all keep the top line by themselves,
+    // soft-wrapped lines included. The hold that used to be called from here
+    // and from the two effects below re-sent a number that counts ROWS, which
+    // a rewrap makes a different place; it is deleted, and
+    // `ScrollSurface.noteEntry` carries the account.
     const resizeSub = term.onResize(({ cols, rows }) => {
       void gmux.sessions.resize({ sessionId, cols, rows }).catch(() => {
         /* hidden/unattached panes may race a resize; harmless */
@@ -638,11 +655,12 @@ export function TerminalPane({
   //    for the old geometry for up to a second. (The wheel's line height is
   //    safe by construction: metrics.ts MEASURES the cell box off the DOM on
   //    every event and never computes it from the font size.)
-  //  - **A scrolled pane must keep its place.** tmux moves the copy-mode view
-  //    with the reflow — measured A/B, a pane parked 40 lines back landed at
-  //    30 when 42 rows became 27 — so the surface re-asserts the position
-  //    once the resize lands (ScrollSurface.holdPositionAcrossResize: drift
-  //    10 lines → 0).
+  //  - **A scrolled pane must keep its place.** It does by itself since Phase
+  //    292: tmux keeps the line its copy cursor is on across the reflow and
+  //    main keeps that cursor on the reader's top row. The position NUMBER
+  //    moves, because it counts rows (measured A/B in Phase 12.11, 40 became
+  //    30 when 42 rows became 27), and re-sending the old number, which is
+  //    what this effect used to ask the surface for, is what moved the text.
   //  - **It must not read as activity.** A redraw is output, and Phase 13's
   //    detector would score it as `working`; main is told a geometry change
   //    happened (GmuxCore.resizeSession → activity.noteGeometryChange) and
@@ -667,15 +685,14 @@ export function TerminalPane({
       /* fitting a pane with no size yet is a no-op, not an error */
     }
     surface?.refresh();
-    surface?.holdPositionAcrossResize();
   }, [zoomFactor, surface, attachEpoch]);
 
   // ---- the work-area font preset (Phase 78) --------------------------------
   // Written as a copy of the zoom effect above, because zoom is the working
   // sibling for exactly this problem. The cell size changes, the pane re-fits,
   // and the new cols/rows reach tmux through the same onResize path a window
-  // resize uses. The scrollbar refresh and the position hold are here for the
-  // two reasons the zoom effect gives.
+  // resize uses. The scrollbar refresh is here for the reason the zoom effect
+  // gives, and a scrolled pane keeps its place by itself, as it does there.
   //
   // THE ONE THING THAT IS NOT LIKE ZOOM, and it is the whole reason this is an
   // async effect. A `@font-face` is fetched only when something renders in it.
@@ -721,7 +738,6 @@ export function TerminalPane({
         /* fitting a pane with no size yet is a no-op, not an error */
       }
       surface?.refresh();
-      surface?.holdPositionAcrossResize();
     })();
     return () => {
       cancelled = true;

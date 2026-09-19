@@ -17,9 +17,13 @@
  *     and `copy-mode -e` scrolls them. BACKLOG's "agents are alt-screen apps"
  *     premise was measured false; case (b) of the spec is the real world.
  *  3. `copy-mode -e` is the exact primitive we want: `#{scroll_position}` is
- *     lines above the live bottom, scroll-up clamps at `#{history_size}`, and
- *     the `-e` flag makes tmux LEAVE copy-mode by itself the moment the user
- *     scrolls back to the bottom.
+ *     lines above the bottom AS IT WAS WHEN THE PANE ENTERED COPY MODE,
+ *     scroll-up clamps at `#{history_size}`, and the `-e` flag makes tmux
+ *     LEAVE copy-mode by itself the moment the user scrolls back to the
+ *     bottom. (Phase 292 corrected this item. It said "lines above the live
+ *     bottom" from Phase 12.3 on, and that one word is what a correction that
+ *     dragged every reader's page was built on. `scrollPaneTo` below carries
+ *     the account, and nothing else in this file retells it.)
  *  4. A REAL alt-screen app inside the pane (vim: `alternate_on` = 1) has no
  *     history to reach — copy-mode over it shows blank `~` rows — so the
  *     wheel must go to the app there instead. That decision is the renderer's
@@ -69,12 +73,55 @@
 export type TmuxScrollRunner = (args: readonly string[]) => Promise<string>;
 
 export interface PaneScrollState {
-  /** Lines scrolled above the live bottom. 0 = live output. */
+  /**
+   * `#{scroll_position}`: lines scrolled above the bottom AS IT WAS when the
+   * pane entered copy mode. 0 = live output. It is a frozen-frame number and
+   * `history` beside it is live, so while an agent writes under a parked view
+   * this stays still and the reader's distance from live is this PLUS what
+   * the history has grown by since entry (Phase 292, see `scrollPaneTo`).
+   */
   position: number;
-  /** Lines of scrollback tmux holds above the screen (`#{history_size}`). */
+  /**
+   * Lines of scrollback tmux holds above the LIVE screen (`#{history_size}`).
+   * It keeps growing under a parked view; `position` does not follow it.
+   */
   history: number;
   /** Visible rows (`#{pane_height}`). */
   rows: number;
+  /**
+   * Visible columns (`#{pane_width}`), Phase 292. Carried so a caller can tell
+   * an answer taken at one size from an answer taken at another: a change of
+   * width REWRAPS the history, so `history` moves without a line being printed,
+   * and the renderer's thumb must not read that as output (`noteEntry` in
+   * src/renderer/terminal/scroll/surface.ts).
+   */
+  cols: number;
+  /**
+   * The DEPTH OF THE FROZEN FRAME, Phase 292's fix round: how many lines of
+   * history the pane held when it entered copy mode, re-counted by tmux itself
+   * across a rewrap. `#{copy_position_limit}`, which tmux 3.7 added with its
+   * copy mode line numbers; read in 3.7b's window-copy.c, it is
+   * `screen_hsize(data->backing)`, the history of the clone copy mode reads,
+   * for as long as `copy-mode-line-numbers` is not set to one of its
+   * absolute modes, and resources/gmux-tmux.conf does not set it.
+   *
+   * WHY IT IS READ AND NOT INFERRED. The renderer used to take the history of
+   * the first answer that showed the pane parked as this number, and that
+   * answer is read after copy mode was entered and the view was scrolled, so
+   * every line printed in between was counted into the frame. MEASURED
+   * 2026-09-19 on a scratch server, 3.7b, a pane printing in bursts of 50:
+   * the history read right after the park was 50 lines deeper than the frame
+   * in 4 of 6 parks, while this format named the frame's top line exactly in
+   * 6 of 6 (the copy cursor's line on the top row was the history line at
+   * index frameHistory - position every time). In the app it put a scrolled
+   * selection one line off at 20 lines a second.
+   *
+   * NULL when tmux does not say: outside copy mode, and on any tmux before
+   * 3.7, where the format answers empty (3.6a, what `npm run dev` finds). The
+   * renderer then falls back to the entry it infers (`noteEntry` in
+   * src/renderer/terminal/scroll/surface.ts), with the limits it states.
+   */
+  frameHistory: number | null;
   /** tmux copy-mode is active on this pane. */
   inMode: boolean;
   /** The app INSIDE the pane is on the alternate screen (vim, a picker). */
@@ -90,7 +137,11 @@ const STATE_FORMAT = [
   '#{history_size}',
   '#{pane_height}',
   '#{alternate_on}',
-  '#{mouse_any_flag}'
+  '#{mouse_any_flag}',
+  // Last, so the six fields before them keep the places they have always
+  // had. Both Phase 292.
+  '#{pane_width}',
+  '#{copy_position_limit}'
 ].join('\t');
 
 /** A pane with no history and no scroll — the safe answer when tmux is mute. */
@@ -98,6 +149,8 @@ const EMPTY_STATE: PaneScrollState = {
   position: 0,
   history: 0,
   rows: 0,
+  cols: 0,
+  frameHistory: null,
   inMode: false,
   innerAlt: false,
   innerMouse: false
@@ -106,7 +159,8 @@ const EMPTY_STATE: PaneScrollState = {
 function parseState(out: string): PaneScrollState {
   const line = out.split('\n').find((l) => l.length > 0);
   if (line === undefined) return EMPTY_STATE;
-  const [inMode, position, history, rows, alt, mouse] = line.split('\t');
+  const [inMode, position, history, rows, alt, mouse, cols, frame] =
+    line.split('\t');
   // `#{scroll_position}` is EMPTY outside copy-mode — Number('') is 0, but be
   // explicit so a future format change cannot silently produce NaN.
   const num = (v: string | undefined): number => {
@@ -114,14 +168,33 @@ function parseState(out: string): PaneScrollState {
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   };
   const innerAlt = alt === '1';
+  const parked = inMode === '1';
   return {
     position: num(position),
     // An alt-screen app's own drawing never enters tmux history, and
     // copy-mode over it shows blank rows (measured with vim) — so there is
     // nothing to scroll, whatever history the shell underneath still holds.
-    history: innerAlt ? 0 : num(history),
+    //
+    // EXCEPT A PANE THAT WAS ALREADY SCROLLED BACK when the program opened its
+    // alternate screen (Phase 292). Copy mode reads the frame it froze at
+    // entry, which is the ordinary screen and its history, so the reader is
+    // still looking at real lines and can still scroll them. MEASURED
+    // 2026-09-18 on a scratch server, tmux 3.6a and 3.7b, an attached client's
+    // row 0 as the ruler: parked 100 back, the program opened its alternate
+    // screen, row 0 held "line 294", `scroll-up` 5 showed "line 289" and
+    // `goto-line 300` showed "line 94", while `#{history_size}` stood still at
+    // 434 for as long as the alternate screen was up. In the app the same park
+    // held "line 362", and because this answered 0 the scrollbar drew no thumb
+    // and the wheel went to the program as an arrow key, which threw the
+    // reader to live.
+    history: innerAlt && !parked ? 0 : num(history),
     rows: num(rows),
-    inMode: inMode === '1',
+    cols: num(cols),
+    // Only in copy mode, and only when tmux answered a number: empty is a tmux
+    // without the format, and 0 is taken at its word.
+    frameHistory:
+      parked && frame !== undefined && /^\d+$/.test(frame) ? Number(frame) : null,
+    inMode: parked,
     innerAlt,
     innerMouse: mouse === '1'
   };
@@ -197,9 +270,67 @@ async function chunkedScrollBy(
 }
 
 /**
- * Put the copy-mode view at an ABSOLUTE offset above the live bottom.
- * `position` is clamped by tmux itself, so callers do not have to know the
- * history depth. Caller must have entered copy-mode.
+ * Put tmux's copy cursor on the TOP ROW of the view, so that tmux keeps the
+ * reader's top line across a resize BY ITSELF — Phase 292.
+ *
+ * WHAT tmux DOES ON A RESIZE, measured 2026-09-18 on a scratch server, 3.6a and
+ * 3.7b alike, 900 soft-wrapped lines, parked 720 rows back, an attached
+ * client's row 0 as the ruler. It keeps the line THE COPY CURSOR IS ON and puts
+ * it on the top row. A wheel scroll leaves that cursor where the program's own
+ * cursor was at entry, which for a full pane is the bottom row:
+ *
+ *     cursor where the scroll left it    124 -> 152 columns   top line 647 -> 662
+ *     cursor on the top row (this)       124 -> 152 -> 124    top line 647, 647, 647
+ *                                        44 -> 37 -> 44 rows  top line 647, 647, 647
+ *
+ * The first row is the "rows - 1 jump" a window resize used to make, and it is
+ * the bottom line landing on top. The second is every resize this file's
+ * author could think of, streaming and quiet, with `#{scroll_position}` going
+ * 720 -> 466 -> 720 as the rows were re-counted. `scroll-up`, `scroll-down` and
+ * `goto-line` all leave the cursor on the row it is on (`#{copy_cursor_y}` read
+ * 0 after each), and `scroll-down` still leaves copy mode at the bottom.
+ *
+ * WHY THE APP DOES NOT PUT THE READER BACK ITSELF. It did, from Phase 12.11:
+ * it re-sent the position it had read before the resize once the resize had
+ * landed. `#{scroll_position}` counts ROWS of the frozen frame, and a rewrap
+ * changes how many rows lie below the reader, so the same number is a
+ * different place. Measured in the app over the same 900 lines: tmux alone had
+ * the line exactly right 150 ms after a widening and the re-issue at 300 ms
+ * threw it 127 lines, about eight screens. The renderer's hold is deleted and
+ * this is what holds the line now.
+ *
+ * It runs after EVERY scroll that leaves the pane parked, not only the first,
+ * so a pane parked by an older build heals on its next wheel notch. "not in a
+ * mode" is the ordinary answer when a `scroll-down` has just reached the bottom
+ * and left copy mode.
+ *
+ * PINNED at the tmux layer by `__tests__/scroll.integration.test.ts` (opt-in),
+ * an attached client's row 0 over 900 soft-wrapped lines on 3.6a and 3.7b:
+ * the park through `scrollPaneBy` held line 646 across 124 -> 152 -> 124 ->
+ * 152 columns and 44 -> 37 -> 44 rows; a park that leaves the cursor where a
+ * wheel scroll does moved to line 661 on the first widening; and re-sending
+ * the pre-resize position, as the deleted hold did, moved a line tmux had
+ * kept from 646 to 519.
+ *
+ * WHAT A PERSON SEES OF IT: tmux draws its cursor where the copy cursor is, so
+ * while scrolled back the cursor sits in the top left corner rather than on
+ * whichever row the program's cursor was on when the scroll began.
+ */
+async function cursorToTopRow(
+  run: TmuxScrollRunner,
+  target: string
+): Promise<void> {
+  await run(['send-keys', '-t', target, '-X', 'top-line']).catch(
+    () => undefined
+  );
+}
+
+/**
+ * Put the copy-mode view at an ABSOLUTE offset above the bottom of the frame
+ * copy mode froze at entry, which is the live bottom only for a pane that
+ * entered this instant (Phase 292, see `scrollPaneTo`). `position` is clamped
+ * by tmux itself, so callers do not have to know the history depth. Caller
+ * must have entered copy-mode.
  */
 async function seekPaneTo(
   run: TmuxScrollRunner,
@@ -250,6 +381,7 @@ async function scrollFrom(
   if (clamped === 0) return exitPaneScroll(run, target);
   await run(['copy-mode', '-e', '-t', target]);
   await seekPaneTo(run, target, clamped, now.position);
+  await cursorToTopRow(run, target);
   return readPaneScroll(run, target);
 }
 
@@ -259,10 +391,13 @@ async function scrollFrom(
  * preserves `#{scroll_position}`), and scrolling past the bottom exits it —
  * that is the `-e` flag, not something we have to detect.
  *
- * A delta larger than one slice is re-expressed as an absolute seek, so the
- * one path that can produce a huge relative jump — a fallback scroll after an
- * agent dumped tens of thousands of lines between two reads — cannot walk the
- * server line by line either.
+ * A delta larger than one slice is re-expressed as an absolute seek, so no
+ * relative jump can walk the server line by line either. NO CALLER PRODUCES
+ * ONE TODAY (Phase 292): the path that could, `anchorPaneScroll` after an
+ * agent dumped tens of thousands of lines between polls, is deleted, and the
+ * wheel and ⇧PageUp stay far under a slice. The guard stays because `lines`
+ * arrives over IPC as any number, and a 3,958 ms freeze of every session is
+ * not a cost to leave one refactor away (see the Phase 13.7 header).
  */
 export async function scrollPaneBy(
   run: TmuxScrollRunner,
@@ -278,9 +413,11 @@ export async function scrollPaneBy(
   if (n > 0) {
     await run(['copy-mode', '-e', '-t', target]);
     await run(['send-keys', '-t', target, '-X', '-N', String(n), 'scroll-up']);
+    await cursorToTopRow(run, target);
   } else {
-    // "not in a mode" is the expected answer when we are already live.
-    await run([
+    // "not in a mode" is the expected answer when we are already live, and
+    // then there is no copy cursor to place either.
+    const scrolled = await run([
       'send-keys',
       '-t',
       target,
@@ -288,7 +425,11 @@ export async function scrollPaneBy(
       '-N',
       String(-n),
       'scroll-down'
-    ]).catch(() => undefined);
+    ]).then(
+      () => true,
+      () => false
+    );
+    if (scrolled) await cursorToTopRow(run, target);
   }
   return readPaneScroll(run, target);
 }
@@ -303,34 +444,82 @@ export async function scrollPaneBy(
  *
  * ## NOTHING HERE HOLDS A PARKED VIEW AGAINST THE OUTPUT, AND THAT IS THE FIX
  *
- * Phase 12.3 shipped a poll that re-scrolled a parked pane on every tick, on a
- * measurement that said `#{scroll_position}` is relative to the live bottom so
- * a reader's page slides forward as the agent writes. THE VIEW DOES NOT SLIDE.
- * MEASURED on tmux 3.7b, 2026-09-16, through a real terminal emulator fed the
- * bytes an attached client receives — the only reading that sees what the
- * reader sees, because `capture-pane` answers the LIVE screen and never the
- * copy-mode view:
+ * (Pull request 30, John Berryman, opened 2026-09-18, on a measurement of his
+ * dated 2026-09-16; Phase 292. THIS IS THE ONE ACCOUNT. The state handler in `sessions/core.ts`, the renderer's `refresh()`,
+ * the header of this file and both test files point here and do not retell it.)
+ *
+ * WHAT PHASE 12.3 BELIEVED. Its comment stood on the function deleted from this
+ * spot, `anchorPaneScroll`: "`#{scroll_position}` is relative to the LIVE
+ * bottom, so while an agent keeps writing, a pane parked at position 10 slides
+ * forward — the row on screen was LINE-272 and became LINE-280 after eight new
+ * lines." So the renderer's 250 ms poll carried the history it had last drawn
+ * (`anchorFrom`), and main scrolled UP by whatever had grown past it.
+ *
+ * THE VIEW DOES NOT SLIDE. tmux holds it still by itself. MEASURED on tmux
+ * 3.7b, 2026-09-16, through a real terminal emulator fed the bytes an attached
+ * client receives:
  *
  *     parked, transcript growing 187 -> 313 over seven seconds
  *     first visible line: "line 151" before and after, unchanged
  *
- * Copy-mode holds the reader's content by itself. So every "correction" the
- * product applied was an extra scroll on top of that hold, and it dragged the
- * reader backwards by exactly the amount the agent had written — the operator's
- * two reports, 2026-09-16: "that message for some reason scrolls down whenever
- * the session generates more text", and "it's just moving down instead of
- * staying anchored, but with the same exact cadence of the lines being produced".
- * The first was read as a leak to be tightened, the second named it exactly.
+ * and again on 2026-09-18 in the app with real wheel events, on the bundled
+ * 3.7b and the system 3.6a alike: with the correction gone the top line read
+ * 261 at all 33 samples over eight seconds, and with it the top line fell 259
+ * to 117, one line for every line printed. So every "correction" the product
+ * applied was an extra scroll on top of a view that was already still, and it
+ * dragged the reader backwards by exactly what the agent had written. The two
+ * reports John Berryman's commit quotes in its own comment, dated 2026-09-16
+ * there (neither is in GitHub issue 29's text or the pull request's): "that
+ * message for some reason scrolls down whenever the session generates more
+ * text", and "it's just moving down instead of staying anchored, but with the
+ * same exact cadence of the lines being produced". The first was read as a
+ * leak to be tightened, the second named it exactly.
  *
- * THE FOUNDING MEASUREMENT WAS READ OFF THE WRONG SURFACE. Phase 12.3's row
- * "LINE-272 became LINE-280 after eight new lines" is what a live-screen read
- * does while a parked view stands still, which is why the defect it described
- * could never be reproduced here once the reading was taken from the view.
- * The whole anchor apparatus — the poll target, `refresh-from-pane`, the
- * output nudge — was deleted with this note. A later round must not rebuild it:
- * the ONLY things that move a parked reader are the reader's own gestures, a
- * resize rewrap, and a keystroke (which leaves copy-mode on purpose, see
- * `sendInput`).
+ * THE FOUNDING MEASUREMENT USED A RULER THAT CANNOT SEE THE VIEW. The founding
+ * commit (`6ef60e00`) never names what it read "LINE-272 became LINE-280" with,
+ * and its own numbers say: position 10 throughout, history 274 to 282, top row
+ * LINE-272 to LINE-280. That is top row = history - 2 at both readings, and a
+ * view parked 10 back under a history of 274 cannot show a line numbered above
+ * 265 on its top row. So it was the LIVE screen, which is what `capture-pane
+ * -p` answers, and never the scrolled-back view. Measured 2026-09-18: by
+ * `capture-pane` the newest line went 414 to 554 while the screen a person was
+ * looking at showed 259 to 302 throughout; and on a scratch server, both
+ * versions, its top line went 308 to 362 in three seconds while row 0 of an
+ * attached client read "line 163" at every sample. A live-screen read advances
+ * with the output whatever the view does, and eight new lines moving it by
+ * eight is that and nothing more.
+ *
+ * tmux's OWN FORMATS CANNOT SETTLE IT EITHER. Copy mode reads a CLONE of the
+ * screen made when the pane entered it (`window_copy_clone_screen`, read in
+ * 3.7b's source), so `#{scroll_position}` counts from the bottom AS IT WAS
+ * FROZEN AT ENTRY while `#{history_size}` is live. Measured to the line in the
+ * app's reproduction: on-screen top line = history at entry - position - 2,
+ * the 2 being that fixture's own offset. `goto-line` counts in the same frame
+ * (entered at 262, sought 100 once the history read 297, and row 0 showed line
+ * 163, not 198). So on the BROKEN build, where the correction added every new
+ * line to the position, `history_size - scroll_position` stayed constant and
+ * LOOKED like a held view while the screen slid; on this one it grows while
+ * the screen is still. A reading that looks right on the broken build and
+ * wrong on the fixed one is not a ruler.
+ *
+ * THE ONLY HONEST RULER IS AN ATTACHED CLIENT'S SCREEN: row 0 of a terminal
+ * emulator fed what a real client receives. `__tests__/scroll.integration.test.ts`
+ * reads that, holds the still view and drives main's deleted rule as it shipped
+ * to show it moving; the app probe reads the pane's own xterm rows.
+ *
+ * What was deleted from the tree is `anchorPaneScroll` here and the
+ * `anchorFrom` field of the poll's input; `__tests__/scroll.test.ts` pins both
+ * absent. A later round must not rebuild them. The ONLY things that move a
+ * parked reader are the reader's own gestures and a keystroke (which leaves
+ * copy-mode on purpose, see `sendInput`). A RESIZE does not: tmux keeps the
+ * line its copy cursor is on, and `cursorToTopRow` above keeps that cursor on
+ * the reader's top line, so nothing re-scrolls a parked pane after a resize
+ * either. One consequence is left
+ * for callers: `position` is a frozen-frame number beside a live `history`, so
+ * the reader's distance from live is `position + (history - history at entry)`,
+ * which is what the renderer's `distanceFromLive` draws the thumb from. On
+ * tmux 3.7 and later the history at entry is tmux's own number,
+ * `frameHistory` above; before 3.7 the renderer infers it.
  */
 export async function scrollPaneTo(
   run: TmuxScrollRunner,

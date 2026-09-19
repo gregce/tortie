@@ -24,7 +24,9 @@
  * over a pane printing ten lines a second under a live drag, the pane's own
  * xterm held `857` on the rows tmux's grid held `STREAM-6` on, about fifty
  * lines behind, because the client's paint of a parked copy mode view runs
- * behind the grid while the poll keeps re-anchoring it. The copy took the
+ * behind the grid while the poll keeps re-anchoring it (that re-anchoring poll
+ * was deleted in Phase 292; `scrollPaneTo` in src/main/tmux/scroll.ts has the
+ * account). The copy took the
  * stale rows and the highlight was drawn on the right ones. With the stream
  * stopped and the same view parked the two agreed exactly, so the lag is the
  * paint and not the arithmetic. The rule is therefore the plain one: a

@@ -49,8 +49,9 @@
  * screen at the far end, where Apple's own Terminal accumulates across the
  * whole travel. Reproduced at a87a826 on 2026-09-03 at 324 travelled and 43
  * copied, the same law at a smaller overshoot. Now each end is a HISTORY
- * position, being `history - position + row` and a column, read from the
- * same display-message the surface already makes, and it is never clamped.
+ * position, being `depth - position + row` and a column, where `depth` is the
+ * depth of the frame on screen (./drag-math.ts, WHICH DEPTH), read from the
+ * surface's own view, and it is never clamped.
  * The highlight is that range projected through the current view and
  * clamped only for drawing, by ./drag-math.ts's `visibleSpan`, and it is
  * re-projected on every view change for as long as xterm keeps it, so
@@ -62,13 +63,21 @@
  * drag that never scrolled holds nothing and keeps xterm's own path byte for
  * byte.
  *
- * A STREAMING PANE cannot move the anchor, and that is arithmetic rather than
- * care: the poll re-anchors a parked view by exactly the lines that arrived,
- * so `history` and `position` grow together and the line under a row is the
- * line that was there. MEASURED at the parent with a pane printing ten lines
- * a second under a live drag: the screen cell anchor slid 38 rows in four
- * seconds and the line the person anchored on fell out of the copy, while
- * the history position of that line was the same number before and after.
+ * A STREAMING PANE cannot move the anchor, because a line keeps its number
+ * whatever is printed after it. What has to be right is the DEPTH a screen row
+ * is counted from, and Phase 292 corrected it. tmux holds a scrolled-back view
+ * still by itself, on the frame it froze at entry, so while parked the depth
+ * is the history AT ENTRY and not the live one, which keeps growing. This
+ * paragraph used to say the app's poll re-anchored a parked view by the lines
+ * that arrived, so that history and position grew together; that poll's scroll
+ * was the defect pull request 30 deleted, and with it gone the live depth put
+ * every row `growth` lines too new. MEASURED 2026-09-18 in the app, parked 100
+ * back at 20 lines a second, one wheel notch with the button held: the
+ * highlight was drawn over lines 466 to 472, the range it held was the lines
+ * reading 622 to 628, 156 lines newer and exactly the growth, and the
+ * highlight slid off the top of a screen that was standing still inside a
+ * second. With the frame's own depth the row under the pointer is the line
+ * that is there.
  *
  * THE LIMIT NOW, with the number a person will meet it at. The history is
  * tmux's and it is finite: the Scrollback depth setting, 25,000 lines by
@@ -114,6 +123,7 @@ import {
   toHistory,
   visibleSpan
 } from './drag-math';
+import { frameDepth } from './live-distance';
 import { scrollBridge } from './surface';
 import type { ScrollSurface, ScrollView } from './surface';
 
@@ -156,8 +166,12 @@ export class DragSelect {
    * last poll can be a second old.
    */
   private anchor: HistoryPos | null = null;
-  /** The latest view, so the anchor can be projected without a round trip. */
-  private history = 0;
+  /**
+   * The latest view, so the anchor can be projected without a round trip.
+   * `depth` is the depth of the frame ON SCREEN (`frameDepth`): the live
+   * history while live, the history at entry while scrolled back.
+   */
+  private depth = 0;
   private position = 0;
   private pointer: { x: number; y: number } | null = null;
   /** True once the buffer has moved under this drag and we own the range. */
@@ -187,11 +201,12 @@ export class DragSelect {
     this.stop();
   };
   private readonly onView = (view: ScrollView): void => {
+    const depth = frameDepth(view);
     const moved = view.position !== this.position;
-    const grew = view.history !== this.history;
+    const grew = depth !== this.depth;
     if (!moved && !grew) return;
     this.position = view.position;
-    this.history = view.history;
+    this.depth = depth;
     if (this.anchor !== null) {
       // The buffer moved while a button is down. That is the takeover moment,
       // and it is the same one for the edge tick and for a wheel. History
@@ -263,7 +278,7 @@ export class DragSelect {
     this.box = box;
     const cell = this.pressedCell(event.clientX, event.clientY, box);
     const view = this.surface.view;
-    this.history = view.history;
+    this.depth = frameDepth(view);
     this.position = view.position;
     this.anchor = toHistory(cell, this.frame(box));
     this.pointer = { x: event.clientX, y: event.clientY };
@@ -279,8 +294,16 @@ export class DragSelect {
       .then((state) => {
         if (gesture !== this.gesture || this.anchor === null) return;
         if (!state.hasPane) return;
+        // Phase 292. A fresh reading carries the LIVE history. Scrolled back,
+        // the frame on screen is the frozen one: its depth is what tmux says
+        // it is when tmux says (3.7 and later), else the surface's, which does
+        // not age. Only a live pane's depth moves.
+        const parked = state.position > 0 || state.inMode;
+        const entry = parked
+          ? (state.frameHistory ?? this.surface.view.historyAtEntry)
+          : null;
         this.anchor = toHistory(cell, {
-          history: state.history,
+          history: frameDepth({ ...state, historyAtEntry: entry }),
           position: state.position,
           rows: box.rows,
           cols: box.cols
@@ -329,7 +352,7 @@ export class DragSelect {
 
   private frame(box: PaneBox): HistoryFrame {
     return {
-      history: this.history,
+      history: this.depth,
       position: this.position,
       rows: box.rows,
       cols: box.cols
