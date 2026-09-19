@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- Scrolling back in a session and reading stays where you put it while the agent keeps writing, when you resize the window and when you look at another session and come back, and the scrollbar shows how far back you really are. It used to slide away from you, a line for every line printed, until it reached the top, and a resize or a trip to another session could throw you back to the bottom. Contributed by [John Berryman](https://github.com/JnBrymn) in [#30](https://github.com/gregce/tortie/pull/30)
+- Scrolling back in a session and reading stays where you put it while the agent keeps writing, when you resize the window and when you look at another session and come back, and the scrollbar shows how far back you really are. It used to slide away from you, a line for every line printed, until it reached the top, and a resize or a trip to another session could throw you back to the bottom. Contributed by [John Berryman](https://github.com/JnBrymn) in [#30](https://github.com/gregce/tortie/pull/30) ([`6414ab2c`](https://github.com/gregce/tortie/commit/6414ab2c)), ([`3f0f0f54`](https://github.com/gregce/tortie/commit/3f0f0f54))
 
 ## 0.108.0 (2026-09-18)
 
