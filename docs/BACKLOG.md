@@ -30786,6 +30786,558 @@ Two reproducers, independently, neither trusting the issue nor the pull request
 - No release.
 
 
+## Phase 294 — the lines printed while you read are skipped on the way back down (Phase 292's reproduction, stated when 292 landed, 2026-09-19)
+
+**Subject.** `fix(terminal): the way back down shows what printed while you read`
+
+**First body line.** `Phase 294: every line printed while you read is on the way back down`
+
+**Semver.** Patch. Scroll back to read while an agent keeps printing, then scroll back down. You now pass
+through everything it printed while you were reading before you reach the bottom. Today the view comes
+down to the screen as it was when you started reading, and the next notch jumps to the bottom. The lines
+in between are never on screen, and the only way to read them is to scroll back up again.
+
+**Tier 3.** It adds a new copy-mode command under every scrolled-back reader on the private tmux server.
+Without a guard, that command's measured failure throws the reader to the top of the transcript: row 0
+went from line 923 to line 101 over a 1,000-line history. It costs a clone of the whole history on the
+single-threaded server, which is the class of cost Phase 13.7 measured freezing every session. It also
+changes what a person sees in every local session, whatever the agent, so the evidence carries a row per
+agent. The phase needs two independent methods, and one of them is an attack. The parent measurement is
+mandatory, and the side-by-side follows the operator's standing rule. Fix once, reverify, stop.
+
+**Charter.** Phase 292's reproduction found this, and 292 stated it rather than widening into it. Its
+entry lists it under what moves a parked view on both builds: "Lines printed during the park are skipped
+on the way down, because scrolling to the bottom leaves copy mode and jumps to live". It lists it again
+under What is NOT in this phase: "a real cost to the issue's own use, but a different mechanism (leaving
+copy mode), and its own entry once this one lands". `3f0f0f54`'s STILL NOT TRUE says it a third time, and
+the running log's 292 line of 2026-09-19 queues it next. This phase finishes issue 29's own use case:
+read the agent's long answer while it works on the next prompt, then scroll down through what it wrote.
+That log line also queues a second limit, a history copy one line off from two tmux calls in
+`src/main/capture/service.ts`. That limit is not this entry.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Every tmux reading below ran on its own `-L p294-draft-*` scratch server with `resources/gmux-tmux.conf`.
+Each used a 120 × 40 pane printing `line N` every 50 ms (about 17 a second) and was ended by a `trap` in
+the same command. The scripts are `scratchpad/p294/*.sh` in the session that wrote this entry. The bundled
+3.7b is `build/vendor/tmux/bin/tmux` and the system 3.6a is `/opt/homebrew/bin/tmux`. No Electron was
+started, so the app-level readings are the phase's to take.
+
+- **The road down today, read.** A wheel notch toward live is coalesced for 16 ms (`WHEEL_COALESCE_MS`,
+  `src/renderer/terminal/scroll/surface.ts:75`, `handleWheel` `:275-306`) and sent as `scrollBy`
+  (`:323-328`) to `scrollBy` in `src/main/sessions/core.ts:2454-2462`. That runs the toward-live branch
+  of `scrollPaneBy` (`src/main/tmux/scroll.ts:417-433`), which sends `send-keys -X -N n scroll-down` into
+  a copy mode entered with `-e` (`:414`, `:382`). ⇧PageDown (`src/renderer/terminal/keys/index.ts:139-152`,
+  `scrollPages` at `surface.ts:331-335`) takes the same branch, and so does a selection dragged against
+  the pane's bottom edge (`drag-select.ts:340-351`). tmux 3.7b's `window_copy_cmd_scroll_down`
+  (window-copy.c:2217-2227) cancels copy mode when `scroll_exit && oy == 0`. `oy` counts in the frame
+  copy mode cloned at entry (`window_copy_init`, window-copy.c:476; the account is at `scroll.ts:492-503`).
+  So the notch that reaches the bottom of the FROZEN frame leaves copy mode, and the next thing drawn is
+  the live screen. Item 3 of scroll.ts's header (`:19-26`) still says `-e` leaves "the moment the user
+  scrolls back to the bottom". The bottom it means is the bottom of the frozen frame.
+- **What a person sees, with tmux's own copy cursor as the ruler.** The pane was parked 100 lines back
+  and left for four seconds of printing. Then 3-line notches went toward live 40 ms apart, with the copy
+  cursor put on the top row after each, as `cursorToTopRow` (`scroll.ts:319-326`) does. Row 0 was read as
+  `#{copy_cursor_line}` at `#{copy_cursor_y}` 0 while in copy mode. Once live it was read as `capture-pane`
+  row 0, which is honest only then. Every in-mode reading satisfied row 0 = `line (frame depth − position
+  + 1)`. The frame depth is tmux's own number on 3.7b and the history at the park on 3.6a.
+
+  | tmux | Row 0 at the park | Last view in copy mode | The next notch, 3 lines asked | Printed since the park | Never on screen |
+  | --- | --- | --- | --- | --- | --- |
+  | 3.7b | line 302 (position 100, frame 401) | lines 401 to 440, position 1 | live, lines 513 to 551 | 110 | 72, lines 441 to 512 |
+  | 3.6a | line 301 (position 100, history 400) | lines 400 to 439, position 1 | live, lines 516 to 554 | 113 | 76, lines 440 to 515 |
+
+  Everything printed since the park beyond one screen of it is never on screen. It is not lost. It sits
+  above the live screen, and the person has to scroll back up to find it.
+- **The same with an attached client's screen as the ruler.** This is the ruler Phase 292 settled on. An
+  outer scratch server's pane runs `tmux attach` to the inner one, and the outer pane's capture is what
+  that client draws. On 3.7b with 60 ms between notches, the client drew up to line 441 in copy mode and
+  then lines 527 to 565. **85 lines, 442 to 526, were never drawn**, out of about 123 printed.
+- **The honest thumb shows the jump.** At the last in-mode reading on 3.7b, the thumb's distance was
+  1 + (511 − 401) = 111 lines from live (`distanceFromLive`,
+  `src/renderer/terminal/scroll/live-distance.ts:101-103`). The next 3-line notch put the thumb at the
+  foot of the lane. This is derived from the readings above and was not photographed.
+- **The scrollbar drag has the same skip, as a band. Read, not measured.** `positionForDistance`
+  (`live-distance.ts:122-130`, the clause at `:114-118`) sends any distance inside the growth as position
+  1, the frozen frame's bottom. That is deliberate, because leaving copy mode mid-drag throws the frame
+  away. Only the lane's foot sends 0, which is the `cancel` in `exitPaneScroll` (`scroll.ts:535-541`).
+  `scrollFrom` returns early when the position asked for is the one already held (`:378`). So the lowest
+  `growth / history` share of the lane shows the frame's bottom. There the thumb is drawn at 1 + growth
+  and stops following the pointer.
+- **Nothing grades it today.** Arm e of `probe:p292` (`build/p292/probe-p292.mjs:1562-1581`) wheels to
+  live. It grades that the newest line is on screen and that the thumb is at the foot, and it never looks
+  at the lines in between.
+- **tmux 3.7b can re-freeze a parked view in place.** `refresh-from-pane` (window-copy.c:2790-2816)
+  re-clones the pane and keeps the view's line index counted from the top of the history (`oy_from_top`).
+  In the test the pane was parked 100 back, left for three seconds of printing, then sent
+  `refresh-from-pane`. On **3.7b** row 0 held line 302 while the position went from 100 to 152 and
+  `#{copy_position_limit}` from 401 to 453. On **3.6a** the position stayed at 100 and row 0 slid from
+  line 301 to line 355, which is the 54 lines printed. Both agree with Phase 292's reading.
+- **The re-freeze as a way down, modelled on 3.7b.** The model used the guard proposed below and
+  re-froze only before a notch that would reach the frame's bottom. With the attached client there were
+  11 re-freezes, and **none of lines 305 to 714 went undrawn**. With the copy-cursor ruler there were 7
+  re-freezes, and the last copy-mode view overlapped the live screen by 37 rows; today, 72 lines are
+  skipped. Reaching live took 124 and 103 notches, against today's 34, because the reader now scrolls
+  through what printed. That count depends on the reader's speed against the agent's.
+- **The re-freeze's failure, which the guard exists for.** With `history-limit` 1,000, tmux trims a
+  tenth of the limit at a time (`grid_collect_history`, grid.c:385-405). `isDiscarding` in
+  `src/main/scrollback/watch.ts:86-89` already names that band. With the pane parked 100 back across one
+  trim, `refresh-from-pane` moved row 0 from line 826 to line 926, which is the 100 lines trimmed. With
+  it parked 3 back at the frame's bottom across one trim, the index no longer existed. tmux took its else
+  branch, `oy = hsize`, and **row 0 went from line 923 to line 101, the top of the history**, 911 lines
+  from live.
+- **An alternate screen opened after the park.** `history_size` stayed at 361 and `refresh-from-pane`
+  held row 0 at line 361. But row 1 changed from `line 362` to `ALT SCREEN`. The re-frozen frame puts
+  the program's alternate screen under the transcript, which is a frame no terminal ever drew.
+- **What one re-freeze costs the server.** This was timed as ten re-freezes in one command list against
+  ten no-ops, at 162 columns. One re-freeze took about 16 ms at 100,000 lines of history and 3 ms at
+  25,000. Entering copy mode and leaving it, which every park already pays for, took 15 ms and 3 ms
+  measured the same way. The server is single-threaded, so every other session waits for that time.
+
+### The mechanism
+
+Three ways to close this were weighed. The entry recommends the first one. There are two rulings it
+cannot make, and they are named at the end of this section.
+
+- **A. Re-freeze in place at the frame's bottom, on the reader's own way down (recommended).** Before a
+  notch toward live that would reach the frozen frame's bottom, main checks whether the live history has
+  grown past the frame. If it has, main sends `refresh-from-pane` and then the scroll. tmux keeps the
+  reader's line by its own index inside a single command. The app computes no position and there is no
+  gap between a read and a seek. That kind of number is what Phase 292 stopped trusting after it threw a
+  reader 127 lines. A runs only on a gesture toward live and only at the frame's bottom, so Phase 292's
+  rule stands as written: the only things that move a parked reader are the reader's own gestures and a
+  keystroke (`scroll.ts:512-514`). A reader who touches nothing is not touched, and each catch-up costs
+  one clone, the same as a park. A has four costs:
+  - It works on 3.7b only.
+  - It cannot run without the guard.
+  - The rows that were the live screen at the park are redrawn as the transcript now holds them. For an
+    agent that redraws its prompt area, that is a visible change below the reader's line.
+  - Reaching live by the wheel takes as many extra lines as were printed.
+- **B. Leave copy mode, then re-enter a new frame at the same line.** This means `cancel`, then
+  `copy-mode -e`, then `goto-line` to the position plus the growth. It works on 3.6a too, but the app
+  computes the seek from numbers read before it. Every line printed between the read and the seek would
+  land as a jump. On 3.6a the growth also rests on the inferred entry, whose stated error is up to 50
+  lines at the park in 4 of 6 parks (`surface.ts:468-472`). Whether the live screen is drawn for a
+  frame between the `cancel` and the re-entry was not measured.
+- **C. Keep the frame current on the poll. Refused.** It would move tmux's view under a parked reader on
+  a timer, which is the shape Phase 292 deleted. One wrong answer produces the measured jump from line
+  923 to line 101. At 100,000 lines it blocks the server for about 16 ms four times a second for every
+  parked pane.
+
+What A needs, and the files it touches:
+
+1. **One pure decision, beside `parseState`** (`scroll.ts:159-201`), tested by table. Re-freeze only
+   when all of these hold:
+   - the pane is in copy mode;
+   - tmux names the frame's depth (`frameHistory` is not null, which means 3.7 or later);
+   - `#{alternate_on}` is 0;
+   - the live history is deeper than the frame;
+   - the live history is below the trim band, meaning `!isDiscarding(history, historyLimit)`. Reuse the
+     function from `src/main/scrollback/watch.ts:86-89` rather than writing it again, and move it if the
+     import direction refuses it;
+   - the notch reaches the frame's bottom (`position ≤ |n|`).
+
+   Anything else runs today's path byte for byte. `#{history_limit}` is appended LAST to `STATE_FORMAT`
+   (`:134-145`) so every field keeps its place, and it stays on the main side.
+2. **The wheel, ⇧PageDown and the selection's edge scroll.** The toward-live branch of `scrollPaneBy`
+   (`:417-433`) reads first. That is one more `display-message`, about a millisecond over the control
+   client. It re-freezes when the decision says so, scrolls, and puts the copy cursor on the top row as
+   it does today. The `-e` flag stays, so the pane still leaves copy mode by itself at the live bottom.
+3. **The scrollbar's band.** Sometimes a drag asks for position 1 while the frame lags. In that case
+   `scrollFrom` (`:371-386`) re-freezes under the same decision, before its early return at `:378`. It
+   then seeks to the position asked for plus the frame's growth across the re-freeze, so the reader stays
+   where they are. That growth is tmux's own depth before and after, not the live history. `positionAt`
+   in `TerminalScrollbar.tsx` (`:98-118`) re-sends the held pointer once when an answer mid-drag carries a
+   different `frameHistory`, so the band narrows to what printed since. If this needs a contract field,
+   the drag leaves this phase as its own entry and the wheel lands alone.
+4. **The renderer needs nothing new on 3.7b, and a test pins that rather than assuming it.** `noteEntry`
+   takes `frameHistory` from every answer (`surface.ts:511-516`). A re-freeze therefore moves the entry
+   and the position by the same growth, and `distanceFromLive` stays continuous. The selection's anchor,
+   `depth − position + row` (`drag-select.ts:52`, followed in `onView` at `:202-221`), does not change
+   across a re-freeze.
+5. **Two comments corrected in place.** Item 3 of scroll.ts's header says which bottom `-e` leaves at.
+   The `scrollPaneTo` account says the re-freeze is the reader's own gesture and why it is guarded,
+   quoting the jump from line 923 to line 101. That stops a later round running it on a timer or
+   without the band.
+
+The operator's two rulings:
+
+- **Reaching live by the wheel.** It now takes as many extra lines as were printed; 34 notches became
+  124 and 103 in the models. Typing and the lane's foot still go to live at once. This is the point of
+  the phase, but it is also a scenario that takes longer than today, so he decides whether it counts
+  against the no-regression rule.
+- **3.6a.** Only a development build runs 3.6a, and under A it keeps today's jump. The alternative is to
+  use B on 3.6a alone, with B's costs.
+
+### The proof, run rather than read
+
+- **`probe:p292` gains arm h, the way down**, in the same launch as arms a to g.
+  - Setup: park the way arm a does, then eight seconds of printing. Send real wheel events toward live,
+    one notch at a time. Read every row of the pane's xterm buffer after each notch until tmux says the
+    pane has left copy mode, then once more 500 ms later.
+  - Graded: every `line N` from the park's top row to the newest line on screen at the end was drawn on
+    some row of some sample. No notch moved row 0 by more than its own lines plus what printed between
+    two samples. The thumb never fell toward live by more than that.
+  - Expected: red at the parent, where the scratch servers say 72 to 85 lines are never drawn after 110
+    to 123 printed; green at HEAD.
+  - Printed and not graded, for the first ruling: the notches and seconds taken to reach live on both
+    builds.
+  - Variants in the same arm:
+    - ⇧PageDown instead of the wheel.
+    - The scrollbar drag through the band.
+    - A quiet pane with the loop stopped, graded EQUAL to the parent notch for notch. Nothing may change
+      where nothing printed.
+    - A history at its limit, lowered the way Phase 292's attack verifier lowered it. Graded equal to
+      the parent's jump, and never toward older text.
+    - A program opening its alternate screen while parked, graded equal to the parent.
+  - Run on 3.7b and on 3.6a (`GMUX_TMUX_BIN`). 3.6a is graded equal to the parent under the ruling
+    above. The parent runs through `P292_CHECKOUT`.
+  - `P292_ARMS` learns `h`. No new script reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` does
+    not move.
+- **Unit.**
+  - The decision's table goes in `src/main/tmux/__tests__/scroll.test.ts`, with one ablation per clause
+    (the trim band, the alternate screen, the frame's depth, the growth, the bottom). Each ablation must
+    go red.
+  - `p292-honest-thumb.test.ts` gains a re-freeze answer sequence: the thumb stays continuous and a held
+    selection's rows are unchanged.
+  - `scroll.integration.test.ts` (opt-in with `GMUX_SCROLL_IT=1`) gains the attached-client arm above:
+    every line drawn on 3.7b.
+- **The attack.**
+  - A history exactly at the band's edge (`limit − ceil(limit / 10)`), plus one below it and one above.
+  - ⌘K while parked (`keys/index.ts:173-181`, `clear-history`), then printing past the frame's depth,
+    then the way down. There an index hold points at lines that are no longer the ones it held.
+  - A taller window after a trim. That pulls lines back out of the history and can put it under the
+    band.
+  - An agent-shaped fixture that redraws a prompt area at the bottom of the normal screen, to see which
+    rows change at the re-freeze.
+  - A selection held across a re-freeze, and a selection edge-scrolling toward live across one.
+  - A trackpad fling that coalesces hundreds of lines into one notch.
+  - A split with two parked panes.
+  - Going to another session and back halfway down.
+- **The server's cost, by Phase 13.7's method.** Sample at 20 Hz the worst round trip a second client
+  sees while a reader comes back to live over a 100,000-line history, at the parent and at HEAD.
+- **Real data, run by the verifier and never by the probe.** On a scratch server, run a shell, `claude`
+  and `codex`, each asked for one answer long enough to scroll. Read the way down off an attached client,
+  one row per agent. The probe keeps its refusal: it spawns no agent and spends no token.
+- **No regression, under his standing rule.** Re-run every row of `3f0f0f54`'s side-by-side at the
+  parent and at HEAD with the same probe. Add the new rows beside them: the way down while printing,
+  ⇧PageDown, the drag's band, a quiet pane, a history at its limit, an alternate screen, the server's
+  worst stall and notches to live. If any row is worse at HEAD, drop the part that makes it worse. The
+  exception is notches to live, which is his first ruling.
+- **Gates.**
+  - typecheck
+  - build, with `gate:contract` byte for byte, or regenerated with the moved lines named if the drag
+    needs a field
+  - npm test
+  - smoke:t1
+  - gate:checks
+  - probe:p292 on both tmuxes and against the parent
+  - probe:p95
+  - probe:p284
+
+### What is NOT in this phase
+
+- A keystroke still takes a scrolled pane to live at once (`sendInput`, `surface.ts:369-394`). That is on
+  purpose, because the key is for the agent.
+- Nothing moves a reader who is not scrolling. There is no re-freeze on the poll, on a resize, on a
+  return to the session or on a timer.
+- A history at its limit keeps today's jump. The thumb's band there, which is Phase 292's other stated
+  limit, also stays.
+- 3.6a gains nothing unless the operator rules for B there.
+- No words on the pane: no count of new lines, no badge and no marker at the jump.
+- The history copy that comes out one line off on a busy pane (`src/main/capture/service.ts`) is its own
+  entry.
+- Remote sessions have no scrollback today and gain none.
+- No change to how the scrollbar looks. No native menu changes, because no surface is added.
+- No release.
+
+
+## Phase 295 — a history copy on a busy pane can come out one line off (Phase 292's verifiers, 2026-09-19)
+
+**Subject.** `fix(capture): a copy from a busy session's history is the lines you selected`
+
+**First body line.** `Phase 295: one tmux call, one instant`
+
+**Semver.** Patch. Sometimes you select text by dragging past the edge of a session, so the view scrolls, and then copy it while the session keeps printing. Today the clipboard can then hold different lines from the ones highlighted. A pane printing ten lines a second gets this a few percent of the time. Faster panes get it more often and by more lines. After this phase the clipboard holds the highlighted lines. Copy, Copy as HTML and Capture Selection all read through the same path and are all fixed.
+
+**Tier 3.** A copy that puts different text on the clipboard from what is highlighted corrupts the person's work, and nothing tells them. They paste it into a prompt or a document. The phase also changes the argv of a call to the session server. So the budget is:
+- the gates
+- a matrix over real tmux, covering both versions Tortie runs and three print rates
+- two independent methods, one of them an attack
+- the parent measurement, which is mandatory under the operator's no-regression rule
+- fix once, reverify, stop.
+
+**Charter.** Phase 292's STILL NOT TRUE paragraph (`3f0f0f54`) says: "A history copy on a busy pane can come out one line off a few percent of the time, from two tmux calls in the capture channel that today has too." The Phase 292 running-log line of 2026-09-19 queues it as its own entry. The limit is older than Phase 292. It has been stated in `src/renderer/terminal/scroll/drag-select.ts:91-98` since Phase 209 (2026-09-03), which reads "AND THE COPY IS TWO CALLS RATHER THAN ONE INSTANT … tmux offers no absolute line addressing to close that with." The second half of that sentence is what this entry refutes. tmux has no absolute addressing, but it will compute the offset itself at the moment it captures.
+
+### What was measured before this entry was written, so no round re-derives it
+
+**The two calls are these.** `captureHistoryRange` in `src/main/capture/service.ts:174-189` makes two calls to the session server:
+1. It calls `tmux.readPaneExtent` (`:179`). That is `display-message -p -F '#{history_size}\t#{pane_height}'` in `src/main/tmux/sessions.ts:346-361`.
+2. It awaits the answer and converts the renderer's line numbers, which count from the oldest line, into `-S`/`-E` offsets from the top of the live screen.
+3. It calls `tmux.capturePane` with those offsets (`:184`, `sessions.ts:308-331`).
+
+Each call is its own `execFile` of a tmux client (`spawnTmux`, `src/main/machines/exec-plane.ts:607-629`). The server reads the pane between the two calls. Every line printed in that gap moves the top of the live screen down one row. So the offsets now name a line that many rows newer.
+
+**What a person gets.** This path is used only by a selection that a drag scrolled and that `history-selection.ts` holds. There is one caller with a `range`, `readHistoryRows` in `src/renderer/terminal/capture/history-copy.ts:64-78`. It serves three verbs:
+- ⌘C and Copy, through `composeFromHistory` (`capture/index.ts:228-249`, `-J`)
+- Copy as HTML, through the same function
+- Capture Selection, through `captureHistorySelection` (`capture/index.ts:664-696`, no `-J`).
+
+Suppose k lines arrived in the gap. The clipboard then:
+- loses the first k lines the person selected
+- gains k lines after the end of the selection
+- cuts the start column on the wrong row. Main still answers `firstLine: start` (`service.ts:188`), and `bufferRangeFor` (`history-copy.ts:141-159`) cuts columns by that number.
+
+The highlight on screen is right. Only the clipboard moves. Every error measured below moved toward newer text.
+
+**The rate.** The measurement setup:
+- A scratch server, `tmux -L p295-draft-<hex>`, with its own conf (a large `history-limit`, `exit-empty off`).
+- One 200×40 pane runs perl. It prints `L<n>`, 2,000 lines at once and then one line per interval, so grid line n holds `Ln` and every answer names its own line.
+- Each trial asks for exactly one line, 200 above the last reading.
+- Every call goes through Node's `execFile`, the spawn `exec-plane.ts` uses.
+- The server is killed and its socket unlinked in a `finally`.
+- A run counts only if line 0 still reads `L0` at its end, meaning nothing was trimmed.
+
+The columns are:
+- **Today's pair:** the two calls above, as two spawns.
+- **One invocation:** `display-message … ';' capture-pane … -S '#{e|-:<start>,#{history_size}}' -E '#{e|-:<end>,#{history_size}}'`.
+- **Re-check:** read the history, capture, read it again, and retry while the two readings differ, up to 5 tries.
+
+| tmux | printing | today's pair | one invocation | re-check |
+| --- | --- | --- | --- | --- |
+| 3.7b | 10 lines/s | 8 of 300 off (2.7%), each by 1 | 0 of 300 | 0 of 300, 1.04 tries, 7.1 ms |
+| 3.7b | 84 lines/s | 92 of 300 (30.7%), each by 1 | 0 of 300 | 2 of 300 still off, 17 reached the cap, 15.1 ms |
+| 3.7b | 705 lines/s | 200 of 200, by up to 6 | 0 of 200 | 200 of 200 off, every one at the cap, 37.5 ms |
+| 3.7b | flood, about 2.4M lines/s | 20 of 20, by up to 9,790 | 0 of 20 | 20 of 20 off |
+| 3.6a | 9 lines/s | 7 of 300 (2.3%), each by 1 | 0 of 300 | 0 of 300, 1.08 tries, 8.6 ms |
+| 3.6a | 83 lines/s | 84 of 300 (28.0%), by up to 2 | 0 of 300 | 9 of 300 still off, 33 reached the cap, 20.7 ms |
+| 3.6a | 671 lines/s | 200 of 200, by up to 30 | 0 of 200 | 200 of 200 off, every one at the cap, 56.7 ms |
+
+Median time per copy was 4.7 to 7.2 ms for today's pair and 2.4 to 3.6 ms for one invocation.
+
+2.7% at 10 lines/s and 30.7% at 84 lines/s both put the gap at about 3 to 4 ms, which is one tmux client spawn. That was measured from a bare Node process. Inside the app, main's event loop also sits between the two awaits, so the app's gap is at least that wide. The app run below measures it.
+
+**One invocation is one instant, by source and by measurement.** The source is the vendored 3.7b under `build/vendor/tmux/work/tmux-3.7b/`:
+- `cmd-capture-pane.c:192-224` reads `-S` and `-E` through `args_strtonum_and_expand`. That function expands formats against the target pane when the command runs (`arguments.c:930-960`).
+- `server_loop` (`server.c:263-277`) drains every client's command queue before it returns to libevent.
+- `cmdq_next` (`cmd-queue.c:730`) runs the queued items back to back until one returns `CMD_RETURN_WAIT`. `display-message` returns that only under `-I` (`cmd-display-message.c:77-89`), and `capture-pane -p` never does.
+- A pane's output is parsed in `window_pane_read_callback` (`window.c:1137-1160`), which is a libevent callback. It cannot run between two commands of one invocation.
+
+The measurement ran the chain `display-message -p '#{history_size}' ';' capture-pane -p -S 0 -E 0` against the same two commands as separate spawns, under the flood:
+
+| tmux | rate | one invocation disagreed | two spawns disagreed |
+| --- | --- | --- | --- |
+| 3.7b | 1.7M lines/s | 0 of 40 | 40 of 40, median gap 7,329 lines |
+| 3.7b | 2.1M lines/s | 0 of 40 | 40 of 40, median gap 7,686 lines |
+| 3.6a | 2.4M lines/s | 0 of 100 | 100 of 100, median gap 8,983 lines |
+
+A first 3.7b run of 100 trials outran its 8,000,000-line history and was discarded. Its oldest line read `L12000000`, so its 10 disagreements came from the trim and not from the chain.
+
+**Chaining alone is not the fix.** Main composes the argv before it spawns. A chain that carries offsets computed from an earlier read has the same race inside one invocation. The fix is that tmux computes the offsets.
+
+**How tmux answers a bad offset.** On both versions, `-S NaN -E NaN` and `-S 40000 -E 40001` answer the live screen with exit 0. 40,000 is above the `SHRT_MAX` bound at `cmd-capture-pane.c:196`, and the source sets `top = gd->hsize` on any parse failure. `-S '#{e|-:10,#{history_size}}' -E '#{e|-:12,#{history_size}}'` answers `L10 L11 L12` on both versions. Today a NaN range reaches tmux as the string `NaN`: `Math.max(0, NaN)` is NaN, and `end < start` is false, so nothing stops it.
+
+**The frozen frame.** Both versions have `capture-pane -M`. On 3.7b it reads `data->backing` (`window-copy.c:1040-1044`), the grid cloned when copy mode began.
+
+**A full history.** When the history is full, tmux trims a tenth of `history-limit` at a time (`grid_collect_history`, `grid.c:385-410`). So `#{history_size}` saw-tooths and still moves with every line.
+
+**Existing tests and probes.** `src/main/capture/__tests__/history-range.test.ts` pins the two-call shape (`readPaneExtent` called once, `capturePane` given main-computed offsets). Its header says the extent is read "at the instant of the capture", which is not true. `probe:p209` arm D copies from a streaming pane. Its grader accepts either of two anchor lines and a line count within one, so it cannot see this defect.
+
+### The fix options, with their cost. Recommended: 1. The ruling is his, and the build does not start before it.
+
+1. **One invocation, with tmux computing the offsets.**
+   - What it is: `display-message -p -t T -F '#{history_size}\t#{pane_height}' ';' capture-pane -p -e [-J] -t T -S '#{e|-:<start>,#{history_size}}' -E '#{e|-:<end>,#{history_size}}'`.
+   - Evidence: measured exact on 3.6a and 3.7b at every rate above, including the flood.
+   - Cost: one function, one call site, four comments and the tests. No renderer change and no contract change.
+   - Side effect: one spawn instead of two, so a copy also gets about 2 to 3 ms quicker.
+   - Two firsts:
+     - It is the first `#{e|…}` arithmetic in `src/main`.
+     - It is the second `;` chain, after the remote boot's `start-server ';' set-option` (`src/main/machines/remote-server.ts:72`).
+   - Its risk is the clamp, which must move to after the call (mechanism item 2). The attack aims there.
+2. **The frozen frame, `capture-pane -M`.**
+   - No race while the pane is parked, because the backing grid does not grow.
+   - A held selection copied after the reader goes back to live reads the live grid, with the race intact.
+   - The offsets would have to count from the frame's depth. Only 3.7b names that depth (`#{copy_position_limit}`). On 3.6a it would be the renderer's own reading, the stand-in Phase 292 says loses lines on a resize.
+   - Cost: two code paths and a version split, and it covers only part of the cases.
+3. **Re-check and retry.** The table above is its whole case:
+   - It fixes a slow pane at the cost of a third spawn, 7 to 9 ms per copy.
+   - At about 80 lines/s it still copies 2 to 9 in 300 wrong after five tries.
+   - At about 700 lines/s it never settles.
+4. **Capture the whole history (`-S -`) in one call and cut it in main.** This is also one instant. But every copy then reads up to the whole Scrollback depth: 25,000 lines by default and 100,000 at most, even for a three-line copy. Not measured, and not recommended.
+
+### The mechanism (option 1)
+
+1. **One function asks once.**
+   - `src/main/tmux/sessions.ts` gains `captureHistoryLines(target, start, end, join)`. It makes one `execTmux` with the chain above and answers `{ history, rows, ansi }`, split at the first newline.
+   - It takes an optional runner, the `TmuxScrollRunner` shape `src/main/tmux/scroll.ts` already uses, so the integration test drives the shipped argv.
+   - `start` and `end` are refused unless `Number.isSafeInteger`, before anything is composed. tmux would read a bad value as the live screen.
+   - `readPaneExtent` and the `range` arm of `capturePane` lose their only caller. They are deleted along with their barrel exports (`src/main/tmux/index.ts:209`, `:215`), so the two-call shape cannot be rebuilt from its parts.
+   - The last-N arm of `capturePane` keeps its argv byte for byte. Snapshots, the harness and the conformance readers all call it.
+2. **The clamp that needs the extent moves after the call and reads the same instant.**
+   - Before the call, `captureHistoryRange` keeps the two clamps that need no extent: the start is floored at 0, and an end above the start answers nothing, because that range is gone above the top.
+   - After the call it reads the extent the same invocation printed. A start past the last row answers `''` and throws away what tmux answered, which was the last row, or the live screen for an offset over 32,767.
+   - An end past the last row is cut by tmux exactly where main cuts it today.
+   - `firstLine` keeps its meaning.
+3. **The comments that describe two calls are corrected:**
+   - `drag-select.ts:91-98`
+   - `service.ts:161-173`
+   - `sessions.ts:333-345`, which says "against the same instant" of a reading taken a spawn before the capture
+   - the header of `history-range.test.ts`.
+4. **`CapturePaneInput` and `CapturePaneResult` do not change.** `gate:contract` is byte for byte.
+
+### The proof, run rather than read
+
+- **Unit tests.** `history-range.test.ts` is rewritten around a fake server whose grid gains k lines on every spawn. The fake mocks `readPaneExtent`, `capturePane` and `captureHistoryLines`, and the test drives `capturePaneText`, so the same file runs at both builds:
+  - At the parent the answer is k lines newer, so it is red.
+  - At HEAD it is exact.
+  - It also covers each of today's clamp cases, plus a start past the last row answering nothing when tmux answered the last row.
+  - NaN, ±Infinity and 1.5 are refused with no spawn.
+- **Integration over real tmux.** The test is opt-in (`GMUX_CAPTURE_IT=1`) and sits beside `scroll.integration.test.ts`. It uses a scratch socket and ends its server in a `finally`.
+  - It drives `captureHistoryLines` through its runner at about 10, 80 and 700 lines/s, on 3.7b (`GMUX_TMUX_BIN`) and on 3.6a: 300, 300 and 200 copies. Zero off is required.
+  - A control arm in the same file issues the two-call pair and must read off at about 80 lines/s, which proves the rig can fail.
+- **The app run.** This is arm h of `probe:p292`, which already owns the numbered stream, `P292_CHECKOUT` and `GMUX_TMUX_BIN`, or a probe of its own that raises `HELPER_USER_FLOOR`. It runs one Electron at a time.
+  - First, 200 calls of the shipped channel, `window.gmux.capture.pane({ tmuxName, historyLines: 0, range, join: true })`, on a stream at about 80 lines/s. The rate is recorded at a built parent worktree and at HEAD, on 3.7b and on 3.6a. HEAD must read 0.
+  - Second, a real drag that scrolls and parks, then ⌘C twenty times while the pane prints. Each pasteboard is compared line for line with the highlighted rows read off the screen. The pasteboard is saved and restored in a `finally`, as `probe:p209` does.
+  - The parent's wrong count is recorded, and HEAD must read 0.
+- **No regression against today.** The same probe runs at both builds:
+
+| scenario | parent | HEAD must read |
+| --- | --- | --- |
+| quiet pane, held range copied over a wrapped row and a wide row (`probe:p209` arm E) | measured bytes | identical bytes |
+| busy pane at 10, 80 and 700 lines/s | measured rate | 0 |
+| range starting above the oldest line | `firstLine` 0 | the same |
+| range wholly above the oldest line | nothing | nothing |
+| range starting past the last row, after Clear | nothing | nothing, not the last row and not the live screen |
+| range running past the last row | cut at the last row | the same |
+| Capture Selection of a held range | rows | the same rows quiet, the right rows busy |
+| Capture Last N Lines, snapshots and harness captures | argv | argv byte for byte (unit) |
+| time to copy a held range, measured in the app | median | not slower |
+| session ended between selecting and copying | "Couldn't read this session's history." | the same sentence |
+| full history trimmed while a range is held | measured | no worse |
+
+- **The attack** hits the post-hoc clamp and the chain:
+  - a start more than 32,767 rows below the top
+  - a Clear between selecting and copying
+  - a pane in its alternate screen
+  - a pane parked in copy mode
+  - a pane that dies between the two commands' parsing and their run
+  - a trim by `grid_collect_history` landing between the selection and the copy.
+- **Re-derive.** The verifier writes its own counter with a different ruler. On 3.7b, `capture-pane -L` numbers each row from the server itself, independent of the printed text. Rows that wrap and carry SGR exercise `-J` and `-e`.
+- **Gates:** typecheck, build, npm test, smoke:t1, gate:checks (a test file is added), gate:contract unchanged, `probe:p209` arms D and E (a regression check only, per its grader above), and `probe:p292`.
+
+### What is NOT in this phase
+
+- Phase 292's other stated limit, that the lines printed while you read are skipped when you scroll back to live. It is its own entry.
+- Whether the held range is the line the person pressed. Phase 292 states the press-time depth in `drag-select.ts` as a looser pin. This phase makes the copy equal the held range, and does not make the held range equal the press.
+- A selection held across a full history. Its numbers jump by a tenth of the limit at each trim. That is the limit stated in `drag-select.ts`'s header.
+- The emoji pad cell that copies one space narrower from the history.
+- In-screen selections, which stay on xterm's own path byte for byte. Capture Last N Lines and every last-N caller of `capturePane` are also untouched.
+- The local verb guard. `assertVerbAllowedOnSocket` asks about `args[0]` alone (`supervisor.ts:382`, `resolve.ts:1800`), while `remoteVerbsOf` (`exec-plane.ts:415`) reads every verb of a chain. Both verbs in this chain are read-only, and the guard does not change.
+- Sessions on another machine. The menu refuses the "Capture Last N Lines" items for them because the channel reads this Mac's server by name (`terminal-menu.ts:126-136`). Copy and Capture Selection of a history-held range reach the same channel. Whether a remote session can hold one at all was not checked for this entry.
+- No new IPC channel, no renderer change, and no release.
+
+
+## Phase 296 — conformance:handback has been red on main since 25 August (found by Phase 293's battery, 2026-09-19)
+
+**Subject.** `test(gates): the handback gate finds End Session by its action, not its arguments`
+
+**First body line.** `Phase 296: the handback gate reads a row by what never changes`
+
+**Semver.** None. Nothing a person sees, drives or reads moves. No menu row, mark, order or sentence changes, and no release follows.
+
+**Tier 2, with no app run, and the parent measurement is mandatory.** The change is invisible to a person. CLAUDE.md sends that to Tier 2, where the gates are the evidence and the verifier re-derives rather than photographs. Nothing on screen moves, so there is no app run to spend. It is not Tier 1, because the defect IS a gate that stopped being able to fail. A green gate after the fix proves nothing on its own. The fix has to show, over ablated copies, that every clause of the menu section goes red again. The independent method is an attack: the verifier writes `menu.ts` shapes the builder did not write, and runs the gate at the parent.
+
+**Charter.** Phase 293's battery, run by the main session on 2026-09-19 in a clean worktree at origin/main (`50bd2561`): `node build/conformance-handback.mjs` exited 1 with one failure. It binds two earlier phases:
+- Phase 141 (`b4f0fc93`, 2026-08-24) wrote the gate and the rule it keeps. The resume row sits between End Session and the per agent hotkeys, and it has no accelerator.
+- Phase 156 (`3c3ea84a`, 2026-08-25) gave every menu row a fourth argument, its mark. It updated the one menu reader inside the battery and left this one alone.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Every gate run below was in a scratch `git worktree add --detach` under the session scratchpad. `node_modules` was symlinked from the operator's checkout, and each worktree was removed in the same command. `/private/tmp/wt-release` has no `node_modules`, so the gate cannot run there as it stands (`tsx is not installed under node_modules`).
+
+- **Red since the commit that added the marks, green at its parent.** `node build/conformance-handback.mjs` takes about 1 s per run.
+  - It exits 1 at `50bd2561` (today's origin/main) and at `3c3ea84a` (2026-08-25 12:40). Each run has exactly one failure: "the Session menu no longer holds End Session, the resume row and the per agent hotkeys together, so the row cannot be placed."
+  - It exits 0 with PASS at `ac56d370`, the parent (2026-08-25 11:04).
+  - The gate was written in `b4f0fc93` the day before and has not passed since `3c3ea84a`.
+- **The needle that misses.** `build/handback-conformance-probe.mts:288` finds End Session with `lineWith("'end-session')")`. That is a substring of the row as Phase 141 found it: `item('End Session…', 'end-session'),` at `src/main/menu.ts:528` at `ac56d370`. `3c3ea84a` changed the row to `item('End Session…', 'end-session', undefined, 'close'),`, which is `src/main/menu.ts:866` today. The closing parenthesis no longer follows the id, so no line matches. The probe's own three needles over `menu.ts` answer:
+
+  | Revision | End Session | Resume row (`'resume-conversation'`) | Hotkeys (`...agentHotkeyItems()`) |
+  | --- | --- | --- | --- |
+  | `ac56d370` | 528 | 542 | 545 |
+  | `50bd2561` | not found | 883 | 924 |
+
+  The resume row and the hotkeys are found. Only End Session misses. By its id alone it sits at 866, in the right order.
+- **The failure blames the menu for the reader's miss.** All three rows are in the Session menu, in the order Phase 141 wants. The table the gate prints beside the FAIL reads yes for `placed after End Session`. Its tick at `build/conformance-handback.mjs:623` asks `-1 < rowAt && rowAt < hotkeysAt`, which is true. The verdict at `:292` asks a stronger question than the table does.
+- **A second needle broke the same way and nobody noticed.** `pastSessionsAt: lineWith("'past-sessions')")` at `:290` has also missed since `3c3ea84a`. The row is now `item('Past Sessions…', 'past-sessions', undefined, 'history')` at `menu.ts:932`. Nothing in `conformance-handback.mjs` reads the field.
+- **Five arms over a scratch copy of `50bd2561`.** `src/main/menu.ts` and the probe were edited and restored in a `finally`. Six gate runs took 3.8 s in all.
+  1. As it is: exit 1, the one failure.
+  2. End Session put back in its pre-156 shape: exit 0. The needle is the only miss.
+  3. The needle shortened to the id, `lineWith("'end-session'")`: exit 0. **With the End Session row then deleted, it still exits 0.** The comment at `src/main/menu.ts:876`, `// 'end-session' already does for a session that has exited.`, sits between where the row was and the resume row, and the needle finds the comment. A repair that only drops the parenthesis builds a clause that cannot fail.
+  4. Arm 2, plus the resume row reflowed across five lines with `accel('session.aim')` on its own line: exit 0, and the table reads `accelerated NO`. `rowLine` (`:286`) is the one line that holds the id, so the accelerator clause at `conformance-handback.mjs:278` has the same defect: it reads one line of an argument list.
+  5. Arm 2, plus the resume row moved below `...agentHotkeyItems()`: exit 1 with the placement sentence. The order clause works when all three rows are found.
+- **The other readers of `menu.ts` rows, and whether each still finds what it looks for.**
+  - `build/assert-menu-accelerators.mjs`, added in `3c3ea84a` itself. It reads every `accelerator:` property and every string literal with comments removed, and never an argument position. At `50bd2561` it prints `OK: 7 files, 36 accelerator sites` and exits 0. It is in `npm run build`.
+  - `build/assert-menu-glyphs.mjs` reads `src/shared/menu-codicons.ts`, `src/main/menu-icons.generated.ts` and the codicon stylesheet, and no row of `menu.ts`. It is in `npm run build`.
+  - `src/shared/__tests__/overview-contract.test.ts:182` and `:252`. The first checks that `...agentHotkeyItems()` comes before `item('Catch Me Up', 'show-overview'`. The second checks for exactly one row matching the full four-argument call with `'comment'`, which Phase 156 updated in its own commit. Each fails when it finds nothing, and it is in `npm test`.
+  - `src/shared/__tests__/keymap-single-source.test.ts` reads every source line for a modifier glyph, so the argument list does not matter to it. It and the suite above pass at `50bd2561` (2 files, 20 tests).
+  - `build/probe-p129-projects.mjs` imports the real `menu.ts` against a mocked `Menu` rather than reading its text. `build/probe-fullscreen-menu.mjs` and `build/probe-p96-remote-surfaces.mjs` name `menu.ts` in comments only.
+
+  So the handback probe is the one reader Phase 156 broke, and it is the one reader outside every battery.
+- **Why nobody noticed.**
+  - CLAUDE.md's path-triggered table has no row for `conformance:handback`, and no document names a path that adds it. `docs/BACKLOG.md` never names the gate. `docs/research/64-agent-dropped-to-shell.md:799` lists it as something Phase 141 builds, not as a trigger.
+  - It is not in `npm run build`'s chain or in `npm test`. `.github/workflows/gates.yml` runs typecheck, test, build and a packaged smoke.
+  - `build/verification-checks.mjs:387` classifies it `pure`, and nothing runs that list.
+  - Since `3c3ea84a`, 1,156 commits have landed on main. 14 of them touched `src/main/menu.ts` and none touched the gate or its probe.
+
+### The mechanism
+
+1. **Read `menu.ts` once, with comments blanked.** `build/handback-conformance-probe.mts` reads the file once, with every `//` and `/* */` comment replaced by spaces and its newlines kept. A line number the gate prints is then still the file's line number, and every menu needle searches that text.
+   - Grep before writing a stripper. `stripProse` in `build/assert-menu-accelerators.mjs` already reads this file and has not missed. But that module runs its gate and calls `process.exit` when it is imported, and it drops a block comment whole with its newlines (`menu.ts` holds 33 block comments).
+   - The reuse is to lift `stripProse` into a module both scripts import, with the newlines kept. A third stripper is not. Blanking a comment down to its own newlines changes no string literal the accelerator gate finds.
+2. **End Session is found by its action id.** The needle is the string literal `'end-session'` in code, and it must appear exactly once, as `rowCount` already requires of `'resume-conversation'`. Nothing after the id is read. A second occurrence in code fails with both lines named. The first match never wins by default.
+3. **The accelerator clause reads the whole call.** `rowLine` becomes the `item(` call the resume id sits in, read by matching parentheses from the `item(` that opens it. An `accel(` on any line of the row is then seen (arm 4).
+4. **The failure names what it did not find.** Each needle that misses is named, with what it searched for. This replaces "the Session menu no longer holds…", which for 25 days said the menu had changed when it was the reader that had broken.
+5. **The table asks the verdict's own question.** `placed after End Session` reads yes only when all three rows are found and in order, so the table and the FAIL can never disagree again.
+6. **`pastSessionsAt` is removed.** It is a field nothing reads, and it has read -1 since 25 August. It is this defect with nobody watching.
+7. **CLAUDE.md gains the gate's row**, one line in the house shape. Touching any of these adds `conformance:handback`, at about 1 s, spawning only the pinned tsx:
+   - `src/main/menu.ts`
+   - `MenuActionId` in `src/shared/ipc/app.ts`
+   - the handback unions in `src/shared/ipc/sessions.ts`
+   - `src/renderer/state/resume.ts`
+   - `src/main/activity/state-machine.ts` or `monitor.ts`
+   - `src/main/restore/restore.ts`
+   - `src/main/manifest/codecs.ts`
+   - the `session.*` ids in `src/shared/keymap.ts`
+8. **`ablation:p296`**, at `build/p296/ablation.mjs`. It is declared in `package.json` and classified `pure` in `build/verification-checks.mjs` in the same commit, as `gate:checks` requires. It edits sibling copies of `src/main/menu.ts`, runs the gate over each, and restores every file, checked by sha256, in a `finally`. Each arm must go red on the sentence of the clause it breaks:
+   - End Session row deleted, with the `:876` comment kept (clauses 1 and 2). This arm is green under arm 3's naive needle.
+   - `'end-session'` appearing twice in code (clause 2).
+   - End Session moved below the resume row, and separately the resume row moved below the hotkeys (the order clause).
+   - `...agentHotkeyItems()` deleted (clause 4, named as the hotkeys).
+   - The resume row reflowed with `accel(` on its own line (clause 3). This arm is green today.
+   - For every red arm, the table's `placed after End Session` must read NO (clause 5).
+
+   Three controls must stay green. They are the shapes that turned it red on 25 August: End Session in its pre-156 two-argument shape, End Session reflowed across lines, and End Session with an argument added after its mark.
+
+### The proof, run rather than read
+
+- **The parent measurement.** `npm run conformance:handback` exits 1 at `50bd2561` with the one failure quoted above, and exits 0 at HEAD.
+- **The old file under the new reader.** Run over `git show ac56d370:src/main/menu.ts`, the new reader finds the three rows the old reader found: 528, 542 and 545. The change moves no answer the gate gave while it was still green.
+- **`npm run ablation:p296`.** Every arm is red on its own clause, every control is green, and every file's sha256 equals its original afterwards.
+- **The attack, the verifier's own.** The verifier writes `menu.ts` shapes the builder did not, and each must answer the way the rule says. At least:
+  - a row inside a conditional spread, the way `'arch-aim'` sits at `menu.ts:912`
+  - a string holding `//`
+  - `'end-session'` in a block comment above the resume row
+- **Gates.** typecheck; build, which runs `assert-menu-accelerators` over the lifted stripper, `gate:checks` and `gate:contract`; test, for the sibling reader `overview-contract.test.ts`; smoke:t1; conformance:handback; ablation:p296.
+
+### What is NOT in this phase
+
+- No change to `src/main/menu.ts` or any menu. No row, mark, order or accelerator moves, and the phase brief's menus line reads "no change".
+- Sections 1, 3, 4 and 5 of the gate assert what they asserted before. Only Section 2's reader and the printed table change.
+- The gate does not join `npm run build`, `npm test` or CI. Whether the `pure` gates outside every battery should run somewhere is the operator's ruling. This phase makes this one findable by its paths and does not decide that.
+- No sweep of the other gates outside the battery. Whether any of them is red today was not measured for this entry, and finding out is its own entry.
+- No release.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -31577,7 +32129,10 @@ cycle rather than only the evening it was written.
 
 - 2026-09-18, **ISSUE 29 REPRODUCED AND PHASE 292 QUEUED, scrollback is not anchored (John Berryman, pull request 30), Tier 3.** Two reproducers, independently. In the app with his own steps and the screen as the ruler, the line a person scrolled back to slides toward older text at one line for every line printed, 259 to 117 in eight seconds, the same on the bundled tmux 3.7b and the system 3.6a, and runs to the top of the transcript and sticks; on his build it holds at 261 for all 33 samples on both. **He is right about the cause**: tmux holds a scrolled-back view still by itself (measured three ways, one of them inside the main build during a held drag, when the app's correction is suspended), and the 250 ms correction is what drags it; the measurement that correction was built on in Phase 12.3 was read with `capture-pane`, which shows the live screen and cannot see the view. **What his pull request leaves, measured**: the scrollbar thumb now lies, creeping DOWN while the reader gets further from live, because it divides a frozen-frame position by a live history; the poll went 250 to 100 ms under a comment describing the deleted mechanism; and its rig's "for the record" arm drives its own rule and not the shipped function. A window resize moves a parked view on both builds, because the hold is wired to zoom and font only. The phase takes his deletion as it is on his own branch, under his name, and adds an honest thumb, the window-resize hold and the corrected founding comment; the changelog item names him.
 
-
 - 2026-09-19, **PHASE 292 LANDED, the reader's line stays where they put it (issue 29, John Berryman's pull request 30), `6414ab2c` and `3f0f0f54`, unreleased.** His commit is on main under his name, cherry-picked because main's history is linear, and the same work went onto his branch as `badbc18d` before the pull request was closed with the hashes; issue 29 is closed saying what is still not true. His cause held: tmux holds a scrolled-back view by itself and the app's 250 ms correction was the drag. Ours adds the scrollbar's real distance from live, tmux keeping the reader's line across a resize (the copy cursor put on the top row, `cursorToTopRow`, which replaced the build round's resize hold after the attack verifier measured that hold moving a reader 127 lines over wrapped text where today's build moved 15), the pane's own replies sent without leaving scrollback (`pane-report.ts`), and a selection counted from the frozen frame. Verify returned needs_work twice, one fix round took every item, both reverifiers passed it live. FIRST PHASE UNDER THE OPERATOR'S NO-REGRESSION RULE: twelve scenarios measured on `739a9109` and on this tree with the same probe, every one had findings on today's build and none here, on 3.7b and on 3.6a where 3.6a applies; the table is in `3f0f0f54`'s body. Gates on the landed tree, which is byte for byte the tested tree: typecheck, build, npm test at 942 files and 15,087 tests, smoke:t1, gate:checks, gate:electron at floor 144, the contract unchanged; probe:p292 0 on both tmuxes and 1 against the parent on arms a, f and g by design; probe:p95 0; probe:p284 0. VISIBLE: while scrolled back the cursor sits at the start of the top row; kept unless the operator says otherwise. CLAUDE.md gains the `probe:p292` row, arms d and f after any xterm upgrade. Still not true, and queued next as their own entries: the lines printed while you read are skipped on the way back down, and a history copy on a busy pane can come out one line off from two tmux calls in `src/main/capture/service.ts`.
 
 - 2026-09-19, **PHASE 293 BUILT, not yet verified.** The build workflow, stopped overnight by the usage limit and resumed, finished at 13:30 with seven builders and an integrator over `/private/tmp/wt-p293` and no commit. Next: the rebase over Phase 292 (HELPER_USER_FLOOR becomes 145), the battery, then the Tier 3 verify with the side-by-side against today's Past Sessions window and session menus.
+
+- 2026-09-19, **PHASE 290 STARTED, a rewind's caution belongs to the file (Tier 3).** The build workflow runs in `/private/tmp/wt-p290` at `50bd2561`, beside Phase 293's verify: a spec, an attack on the spec before anything is built, the spec revised, four builders on disjoint files (the product, the gates, the probe's arm M, the attack tests) and an integrator, no commit.
+
+- 2026-09-19, **PHASES 294, 295 AND 296 QUEUED, each with its full section above.** 294, the lines printed while you read are skipped on the way back down (Phase 292's stated limit): measured on scratch servers, 72 to 85 of 110 to 123 printed lines are never on screen on the way down; the entry recommends re-freezing the frame in place with `refresh-from-pane` on the reader's own gesture toward live, guarded against the trim band where it throws a reader to the top of the history, and it WAITS on two of the operator's rulings (reaching live by the wheel then takes as many extra lines as were printed; 3.6a keeps today's jump). 295, a history copy on a busy pane can come out one line off (Phase 292's other stated limit): today's two tmux calls copy the wrong lines 2.7% of the time at 10 lines a second and 30.7% at 84, and one invocation in which tmux computes the offsets itself copied 0 wrong at every rate on 3.7b and 3.6a; the operator was told on 2026-09-19 that option 1 is the default. 296, `conformance:handback` has been red on main since `3c3ea84a` (2026-08-25): its needle `'end-session')` stopped matching when menu rows gained a mark argument, a repair that only drops the parenthesis would match a comment and never fail, and the gate has no row in CLAUDE.md's path table. FOUND BESIDE IT, a sweep of every path-triggered gate at `50bd2561` in a scratch worktree with real `node_modules`: every conformance gate, every `gate:*`, every ablation and `conformance:tmux-pair` after a build exit 0, except `conformance:handback`; not run were `conformance:hue` (13 min), the `conformance:resume` family (real turns), `conformance:watcher:cap` and `conformance:specstory:entitlement`. Also measured beside it: `npm run package` fails in any worktree whose `node_modules` is a SYMLINK (electron-builder leaves ripgrep's `rg` out of `app.asar.unpacked`), and passes from a `cp -Rc` copy; a phase's package step runs from a real copy.
