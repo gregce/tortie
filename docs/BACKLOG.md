@@ -31338,6 +31338,215 @@ Every gate run below was in a scratch `git worktree add --detach` under the sess
 - No release.
 
 
+## Phase 297 — typing in one Redline tab and clicking another puts the first file's text into the second, and ⌘S writes it there (Phase 290's verifiers, 2026-09-19)
+
+**Subject.** `fix(editor): a keystroke stays in the tab it was typed in`
+
+**First body line.** `Phase 297: the typing state belongs to its tab`
+
+**Semver.** Patch. Type in one file's Redline view, click another Redline tab, and the second file's
+buffer is now the first file's whole text: the tab reads unsaved, the page draws every word of it as
+deleted, and ⌘S writes the first file's contents over the second file with nothing asked. Auto save,
+off by default, does it with no key at all. After this, a keystroke reaches the buffer of the tab it
+was typed in and no other.
+
+**Tier 3.** It writes one file's text over another file on disk, so it loses the person's work, and
+nothing is said while it happens: `conformance:save`'s whole point is that ⌘S never writes over a
+file that changed on disk, and this write passes that test honestly — the file did not change on
+disk, the BUFFER did, and it changed to somebody else's file. Two independent methods, one of them
+an attack, the parent measurement mandatory, a fix round if any verdict is needs_work, reverify once,
+then stop.
+
+**Charter.** Phase 290's three Tier 3 verifiers, independently, 2026-09-19, each driving the real app:
+P3, PV-2 and P4 (`scratchpad/crosstab-findings.md`). All three graded it major, all three measured it
+IDENTICAL at `50bd2561`, which is release 0.108.0's product plus docs, and at Phase 290's HEAD, and
+all three said the same thing about scope: it is outside Phase 290's files, it is not that phase's
+regression, and it belongs in its own entry. This is the entry. It was raised as concern 3 by Phase
+290's integrator and the unit round (§9) could not reproduce it, which is itself part of the finding.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Everything in this block is the verifiers' app readings, quoted. Nothing was re-run while this entry
+was written: `/private/tmp/wt-release` carries no `node_modules`, so the reading below the app
+readings is source read at `a4f44588`, file and line, and not executed.
+
+- **PV-2, arm H.** Typed `"qq"` in `typeswitch.txt` in the Redline view, clicked the `other.txt` tab,
+  also Redline. At 150, 600 and 1200 ms `other.txt` is dirty and its value is `typeswitch.txt`'s
+  1007 characters, and it is still that after switching back.
+- **PV-2, arm H2, the write.** Typed `"zz"` in `h2.txt`, ⌘S (clean, on disk), clicked `other2.txt`.
+  `other2.txt` is dirty holding `h2.txt`'s text; ⌘S there wrote 1007 characters equal to `h2.txt`
+  over `other2.txt`, `toasts []`, `confirm null`. Identical at `50bd2561` and at Phase 290's HEAD.
+- **P3, arms K, J, A, B, S.** `notesValueAfterSwitch` equals `other.txt`'s text. J's ⌘S left
+  `notes.txt` on disk as `'The other file.\n\nIt has two paragraphs and qenough sentences to type
+  into.\n'` — the eight paragraphs that were the file are gone. A (the departing tab SAVED first) and
+  B (the departing tab's typing UNDONE first) both read `notesHoldsOthersText true`. S reads
+  `otherWhileAway` dirty true with a value that is not `other.txt`'s own, at both builds.
+- **P4, arms L1, L2, R9 and its control.** L1, the arriving tab having a working model already:
+  `arrived.after 'l1a.txt:AGENT'`, dirty true, `saveOnB.diskOfB 'l1a.txt:AGENT'`, `confirm null`.
+  L2, the arriving tab with NO model: `arrived.after 'l2a.txt:AGENT'`. R9: `o9`'s buffer became
+  `'r9.txt:AGENT+x'`, `holdsDepartingText true`. **The control is what bounds it**: a switch with no
+  typing in the departing mount leaks nothing.
+- **So the trigger is one keystroke in the departing tab's Redline view and a click on another
+  Redline tab.** It does not matter whether that typing was left dirty, saved, or undone, and P4's
+  L1/L2 pair says the arriving tab's model does not decide it either. PV-2 named a model on the
+  arriving tab as a precondition and P4's L2 leaked without one; the two readings differ in what the
+  DEPARTING tab had, which the mechanism below explains and the unit case must pin.
+- **What was read here, at `a4f44588`.** `src/renderer/editor/redline-edits.ts` whole (452 lines);
+  `src/renderer/editor/RedlineDocument.tsx:289-294`, where `useLiveTabText` and `useRedlineTyping` are
+  mounted; `src/renderer/editor/EditorPanel.tsx:828`, `<RedlineDocument tab={activeTab} />`, **with no
+  `key`**, so one mount serves every tab and the switch is a prop change rather than a remount
+  (`src/renderer/editor/__tests__/p2822-second-undo.test.ts:590` already records that fact);
+  `src/renderer/editor/store.ts:1221` `activate(id)`, the door a tab click goes through;
+  `src/renderer/editor/monaco-loader.ts:260-278` `ensureWorkingModel`, `:171-197` `applyModelText`,
+  `:128-133` `getWorkingModel`; `src/renderer/editor/store.ts:1457` `markDirty`;
+  `src/renderer/editor/live-text.ts` whole; `src/renderer/editor/tab-io.ts:1550` `saveOnce`, whose
+  `:1588` reads `getWorkingModel(id).getValue()`.
+- **Which releases carry it.** `git log -- src/renderer/editor/redline-edits.ts` has four commits:
+  `fd700484` (2026-09-08, "feat(redline): typing, folded into the current side and drawn as an
+  insertion"), `87d2925a`, `9bcdfaf2` (both 2026-09-08) and `3ea54ad9` (2026-09-17, Phase 282).
+  `git tag --contains` puts the first three in **v0.102.0** and the last in **v0.108.0**. The
+  ordering that leaks is in `fd700484` itself: read at that commit, the `[tabId]` effect already sets
+  `written.current = 0` and the edit effect below it already sets `wanted.current = state.text` and
+  applies it after `await ensureWorkingModel`. **So every release from 0.102.0 through 0.108.0 has
+  it**, and Phase 282 changed only how it presents: it added the provisional `markDirty(tabId, true)`
+  BEFORE the await (`redline-edits.ts:244`), which is why the arriving tab reads dirty even on the
+  paths that then refuse, and the `!had && now.savedContents !== typedOn` guard (`:287-290`), which
+  narrows but does not close the no-model arrival. Nothing in 0.108.0 caused it and nothing in it
+  fixed it.
+
+### The mechanism
+
+The verifiers' reading is exactly right, and the source says why each step is forced.
+
+1. **One mount, two tabs.** `EditorPanel.tsx:828` draws `<RedlineDocument tab={activeTab} />` with no
+   `key`, so clicking tab B re-renders the mount that was serving tab A. The render that carries
+   `tabId = B` still carries A's `state` — `state.edits = N > 0`, `state.text` = A's typed text —
+   because `state` is this hook's own `useState` and nothing has reset it yet.
+2. **The reset is a render, and the reset render has not happened.** The `[tabId]` effect
+   (`redline-edits.ts:182-192`) runs first, as its comment promises: `written.current = 0`,
+   `wanted.current = null`, `setState(initialTyping(liveText))`. `setState` inside a passive effect
+   schedules a re-render as a TASK. Nothing has been reset yet in the commit that is running.
+3. **The edit effect then runs for B with A's state.** Its deps include `tabId`
+   (`:294`), so it runs; `state.edits` (A's `N`) `!== written.current` (now 0), so it does not return
+   at `:209`. It sets `written.current = N`, **`wanted.current = A's text`** (`:211`), takes
+   `typedOn = lastLive.current` (`:212`, which the tab effect above just set), and — Phase 282's
+   line — marks B dirty before the await (`:244`).
+4. **The continuation wins the race by construction.** `ensureWorkingModel` (`monaco-loader.ts:260`)
+   returns the existing model at `:266` and, with Monaco already loaded because A typed, builds a new
+   one at `:277` with no await of its own; either way the `await` at `redline-edits.ts:250` resolves
+   in **one microtask**. React's reset re-render is a task. A microtask cannot lose to a task, so the
+   continuation always runs first: `want = wanted.current` is A's text, `applyModelText(model, want, …)`
+   (`:291`) writes it into **B's** model, and `markDirty(tabId, want !== now.savedContents)` (`:292`)
+   makes B dirty against B's own saved bytes. Phase 282's comment at `:274-277` is what missed this:
+   it reasoned that "with a model already there the gap is a microtask, and no watcher reply or IPC
+   answer lands inside it", which is true, and beside the point — the thing that has to land inside
+   it is React's own re-render, and it never can.
+5. **Then the model listener spreads it.** `:313-329` is subscribed to B's model in the same commit;
+   the write fires it, `markDirty` confirms dirty, and `dispatch({kind:'outside'})` puts A's text into
+   the typing state, so the page composes A's text against B's baseline — B's whole file drawn as
+   deleted, which is what the verifiers saw.
+6. **⌘S then writes it with every guard satisfied.** `tab-io.ts:1588` reads `getWorkingModel(id)`,
+   whose value is now A's text, and the guarded write's expectation is B's own saved bytes, which
+   still match B's disk. Nothing changed on disk, so there is nothing to ask about: `toasts []`,
+   `confirm null`, A's bytes in B's file. Auto save needs no key.
+7. **Why the second run does not save it, and why `wanted.current = null` buys nothing.** The tab
+   effect nulls `wanted` one line before the edit effect re-fills it. When the reset render finally
+   arrives, `state.edits` is 0 and `written.current` is `N`, so the edit effect runs a THIRD time —
+   for a keystroke nobody typed — creating a model on a mount, marking dirty, and applying whatever
+   `state.text` now is. That run is also the one that makes the unit rig look clean.
+8. **Why no unit test saw it.** Under `act`, an update scheduled from a passive effect is flushed
+   inside the act loop before the continuation's microtask, so the rig observes the order the app
+   never has: reset first, then a continuation that finds B's own text in `wanted`. Any unit case for
+   this phase that wraps the switch in `act` and asserts afterwards will pass at the parent.
+9. **A second, smaller strand that the same fix has to survive** (read, not measured):
+   `live-text.ts:26` holds `modelText` in state, so at the switch render `liveText` is still the
+   DEPARTING tab's model value when that tab had a model, and `typedOn` and the seed in step 2 are
+   taken from it. That is what reconciles PV-2's "the arriving tab needs a model" with P4's L2: with
+   `typedOn` equal to B's saved bytes the guard at `:287` passes and a model-less B leaks too; with
+   `typedOn` still A's text it returns and only a B that already had a model leaks. The fix must be
+   correct in both, which means it cannot be a comparison of texts.
+
+### The fix options, and the recommendation
+
+- **A. Carry the tab id in the typing state and return when it is not this tab.** The hook's state
+  becomes `{tabId, typing}` (wrapped in `redline-edits.ts`; `TypingState` in the pure
+  `redline-typing.ts` is not touched), and the edit effect returns before `:211` when the state was
+  typed on another tab. Small, local, and it closes the whole chain at its head: `wanted` is never
+  set to a departing text, so no continuation, no `markDirty`, no listener, no save. It also makes
+  step 7's phantom third run disappear, because `written.current` stays 0. Cost: about fifteen lines
+  in one file, plus the two ablations and the seed test.
+- **B. Re-check the tab id in the continuation before `applyModelText`.** On its own this closes
+  nothing: the effect that leaks is running FOR B and its closure's `tabId` IS the live tab, so the
+  check passes and the write happens. It only helps when it asks a different question — was the text
+  in `wanted` typed on THIS tab — and that question needs A's answer to exist first.
+- **C. Both, with `wanted` keyed by the tab that typed it.** A, plus `wanted.current` holding
+  `{tabId, text}` and the continuation applying only its own tab's text. This covers the one shape A
+  leaves: a first keystroke whose real chunk load is still in flight when the person clicks away — a
+  task-length window, not a microtask one — where A's own continuation must still apply A's text to
+  A's model rather than find `null` and drop the keystroke while the provisional dirty mark stands.
+- **D. `key={activeTab.id}` on `<RedlineDocument>`.** Rejected: it would remount the view on every
+  switch and move the lifetime of `rewindHolds`, `advanceAfterPress`, the chip and the scroller,
+  which Phase 282 deliberately made per-mount. It fixes this defect by changing five others' rules.
+
+**Recommend C**, built as A first so the phase has a one-clause head, then the keyed `wanted` as its
+second clause with its own ablation. Reset `lastEdit.current` in the `[tabId]` effect in the same
+commit: it is not reset today, so B's first keystroke can be folded into B's previous undo step by a
+timer and a caret left behind by A.
+
+### The proof, run rather than read
+
+- **The app arm, red at today's build and green at HEAD.** `build/probe-redline-move-on.mjs` gains an
+  arm over TWO scratch prose files, both opened in the Redline view (`REDLINEMOVEON_ARMS` takes it by
+  letter, `REDLINEMOVEON_CHECKOUT` points the same run at `50bd2561` for the parent reading). It
+  types one character in A, clicks B's tab, and reads, at B: the drawn text, `dirty`, the working
+  model's value, and the bytes on disk; then presses ⌘S on B and reads B's disk, the toasts and
+  `confirm`. Four sub-arms, because the verifiers' matrix has four corners and a control: A left
+  dirty, A saved first (PV-2's H2), A's typing undone first (P3's B), B with a model (opened in the
+  File view first, P4's L1) and B without (L2), plus the control with no typing that must stay
+  clean. The parent readings it must move are the quoted ones: `notesHoldsOthersText true`,
+  `arrived.after 'l1a.txt:AGENT'`, `diskOfB 'l1a.txt:AGENT'`, 1007 characters over `other2.txt`.
+- **The unit case that reproduces the app's order, and says how.** Beside
+  `src/renderer/editor/__tests__/p282-keystroke-in-transit.test.ts`, on a two-tab extension of
+  `p282-typing-rig.ts` (the rig mounts one tab today; the second tab and the `activate` switch are
+  this phase's addition to it). The order is reproduced, not assumed, in one of two ways, and the
+  case states which: drive the switch OUTSIDE `act` — `useEditor.getState().activate(B)`, then await a
+  single microtask turn before the assertion — or let the rig hold the Monaco chunk and release its
+  promise between the switch commit and React's reset render, which is the same
+  microtask-before-render shape. Either way the assertion is order-proof: subscribe to B's model's
+  `onDidChangeContent` and record every value it ever holds, then assert A's text is not among them,
+  so a later render that happens to correct the buffer cannot hide the write. A case that wraps the
+  switch in `act` and reads the end state is the parent-green shape and is explicitly refused. Both
+  cases red at the parent by construction.
+- **Ablations.** One per clause of the fix, each red on the rule that owns it: the tab-id return
+  taken out, the keyed `wanted` unkeyed, the `lastEdit` reset removed. `conformance:redline` rule 9's
+  file set already covers `redline-edits.ts`, so the new clause is asked there with the floor raised
+  in the same commit if a file is added.
+- **Gates.** `typecheck`, `build`, `test`, `smoke:t1`, `conformance:redline`, `conformance:save`
+  (rules 25 to 27c are the ones that reason about what may move a buffer under ⌘S; this phase adds
+  the clause that a keystroke reaches one tab's buffer only), `conformance:redline-write`,
+  `ablation:p268`, `probe:p268` and `probe:p237`, because the typing path and the auto-save timer are
+  both under the changed effect.
+- **The no-regression side-by-side, under the operator's standing rule.** The same probe run against
+  `50bd2561` and against HEAD over the same fixture: typing in one tab, switching away and back,
+  ⌘Z, ⌘Z then ⌘⇧Z, ⌘S, auto save on with its delay, and the File view chip both ways. Every reading
+  identical except the leak and its dirty flag. A scenario that reads worse at HEAD drops the clause
+  that caused it.
+
+### What is NOT in this phase
+
+- **No remount per tab.** `<RedlineDocument>` stays unkeyed and `rewindHolds`, `advanceAfterPress`,
+  the chip and the scroller keep the per-mount lifetime Phase 282 gave them on purpose.
+- **No change to `live-text.ts`.** Its one-render lag at a tab change (step 9) is read, not measured,
+  and once the edit effect is tied to its tab that lag writes nothing and can only draw the departing
+  text for a frame. If the flash is worth closing it is its own entry, with its own measurement.
+- **No change to what ⌘S writes, to the stale dialog, to any sentence, or to auto save's timer.** The
+  defect is that the buffer is wrong, and the door is right.
+- **No change to the undo semantics of a keystroke** beyond resetting `lastEdit` at a tab change.
+- **No widening into Phase 290's mark, holds or reads.** This phase touches
+  `src/renderer/editor/redline-edits.ts`, its tests, its ablations and the probe's new arm.
+- **No release.**
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -32136,3 +32345,5 @@ cycle rather than only the evening it was written.
 - 2026-09-19, **PHASE 290 STARTED, a rewind's caution belongs to the file (Tier 3).** The build workflow runs in `/private/tmp/wt-p290` at `50bd2561`, beside Phase 293's verify: a spec, an attack on the spec before anything is built, the spec revised, four builders on disjoint files (the product, the gates, the probe's arm M, the attack tests) and an integrator, no commit.
 
 - 2026-09-19, **PHASES 294, 295 AND 296 QUEUED, each with its full section above.** 294, the lines printed while you read are skipped on the way back down (Phase 292's stated limit): measured on scratch servers, 72 to 85 of 110 to 123 printed lines are never on screen on the way down; the entry recommends re-freezing the frame in place with `refresh-from-pane` on the reader's own gesture toward live, guarded against the trim band where it throws a reader to the top of the history, and it WAITS on two of the operator's rulings (reaching live by the wheel then takes as many extra lines as were printed; 3.6a keeps today's jump). 295, a history copy on a busy pane can come out one line off (Phase 292's other stated limit): today's two tmux calls copy the wrong lines 2.7% of the time at 10 lines a second and 30.7% at 84, and one invocation in which tmux computes the offsets itself copied 0 wrong at every rate on 3.7b and 3.6a; the operator was told on 2026-09-19 that option 1 is the default. 296, `conformance:handback` has been red on main since `3c3ea84a` (2026-08-25): its needle `'end-session')` stopped matching when menu rows gained a mark argument, a repair that only drops the parenthesis would match a comment and never fail, and the gate has no row in CLAUDE.md's path table. FOUND BESIDE IT, a sweep of every path-triggered gate at `50bd2561` in a scratch worktree with real `node_modules`: every conformance gate, every `gate:*`, every ablation and `conformance:tmux-pair` after a build exit 0, except `conformance:handback`; not run were `conformance:hue` (13 min), the `conformance:resume` family (real turns), `conformance:watcher:cap` and `conformance:specstory:entitlement`. Also measured beside it: `npm run package` fails in any worktree whose `node_modules` is a SYMLINK (electron-builder leaves ripgrep's `rg` out of `app.asar.unpacked`), and passes from a `cp -Rc` copy; a phase's package step runs from a real copy.
+
+- 2026-09-19, **PHASE 297 QUEUED FIRST, and it is a defect a person can meet today.** Typing in one file's Redline view and then clicking another Redline tab puts the first file's whole text into the second tab's buffer: it reads unsaved, the page draws the second file as entirely deleted, and ⌘S writes the first file's contents over the second file with nothing asked (auto save, off by default, needs no key). All three of Phase 290's Tier 3 verifiers reproduced it in the app, independently, and measured it IDENTICAL at `50bd2561` and at 290's HEAD, so it is not 290's; their readings are quoted in the entry above. Read at `a4f44588`, the ordering that causes it has been in `src/renderer/editor/redline-edits.ts` since `fd700484`, so every release from 0.102.0 through 0.108.0 carries it; Phase 282 changed only how it presents. The operator was told at 16:40, with what to avoid until it lands, and a 0.108.1 is his call once it does. It builds as soon as a workflow slot frees.
