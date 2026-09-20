@@ -65,6 +65,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { stripProse } from './source-prose.mjs';
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[menu-accelerators]';
 
@@ -72,77 +74,19 @@ const TAG = '[menu-accelerators]';
 export const ALLOWED_LITERAL = 'Control+Command+F';
 
 /**
- * Every complaint about one source file.
+ * The reading both menu readers share, lifted out in Phase 296.
  *
- * A value is fine when it is an `accel(...)` call or a bare identifier. It is
- * fine when it is the one allowed literal. Anything else is a typed chord.
+ * `build/handback-conformance-probe.mts` needs the same view of
+ * `src/main/menu.ts` this gate needs, for a different question, so the function
+ * moved to `build/source-prose.mjs` and neither script owns it. Its header says
+ * why it is not `stripComments` in `build/scan-source.mjs` and what the one
+ * change was: newlines are kept, so a line number read from the result is still
+ * the file's own line number. That cannot move what this gate finds, and
+ * Phase 296 measured it both ways.
+ *
+ * It is re-exported so nothing that named it here has to change.
  */
-/**
- * The source with comments and substituting template literals blanked out.
- *
- * Chords are named in prose all over these files, and the whole reason the
- * literal pass can be strict is that it never reads a comment. A template
- * literal that SUBSTITUTES goes too, because `${...}` inside one is not a
- * chord and the display strings the overlay builds live in them. A template
- * literal with no substitution is kept, because it is a plain string in every
- * way that matters here and a chord can be typed in one.
- *
- * A quoted string is copied through whole rather than read character by
- * character, so a backtick inside one cannot be mistaken for the start of a
- * template and blank the code that follows it.
- */
-export function stripProse(source) {
-  let out = '';
-  let i = 0;
-  while (i < source.length) {
-    const two = source.slice(i, i + 2);
-    if (two === '//') {
-      const end = source.indexOf('\n', i);
-      i = end === -1 ? source.length : end;
-      continue;
-    }
-    if (two === '/*') {
-      const end = source.indexOf('*/', i + 2);
-      i = end === -1 ? source.length : end + 2;
-      continue;
-    }
-    const ch = source[i];
-    if (ch === "'" || ch === '"') {
-      let j = i + 1;
-      while (j < source.length && source[j] !== ch && source[j] !== '\n') {
-        if (source[j] === '\\') j += 1;
-        j += 1;
-      }
-      if (j < source.length && source[j] === ch) {
-        out += source.slice(i, j + 1);
-        i = j + 1;
-      } else {
-        out += source.slice(i, j);
-        i = j;
-      }
-      continue;
-    }
-    if (ch === '`') {
-      let j = i + 1;
-      while (j < source.length && source[j] !== '`') {
-        if (source[j] === '\\') j += 1;
-        j += 1;
-      }
-      const closed = j < source.length;
-      const body = source.slice(i + 1, j);
-      if (!closed || body.includes('${')) {
-        out += ' ';
-      } else {
-        out += source.slice(i, j + 1);
-      }
-      i = j + 1;
-      continue;
-    }
-    out += ch;
-    i += 1;
-  }
-  return out;
-}
+export { stripProse };
 
 /** Anything shaped like an Electron accelerator. */
 const CHORD =
@@ -171,6 +115,12 @@ export function checkLiterals(source, label) {
   return findings;
 }
 
+/**
+ * Every complaint about one source file's `accelerator:` properties.
+ *
+ * A value is fine when it is an `accel(...)` call or a bare identifier. It is
+ * fine when it is the one allowed literal. Anything else is a typed chord.
+ */
 export function check(source, label) {
   const findings = [];
   for (const m of source.matchAll(/accelerator:\s*([^,\n]+)/g)) {

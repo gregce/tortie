@@ -95,6 +95,7 @@
     "ablation:p275": "node build/p275/ablation.mjs",
     "ablation:p276": "node build/p276/ablation.mjs",
     "ablation:p293": "node build/p293/ablation.mjs",
+    "ablation:p296": "node build/p296/ablation.mjs",
     "probe:p249": "npm run build && node build/p249/probe-p249.mjs",
     "probe:p243": "npm run build && node build/harness-socket.mjs --fresh gmux-p243 'node build/probe-p243-durable.mjs'",
     "probe:p236": "npm run build && node build/probe-p236-chip.mjs",

@@ -35,7 +35,12 @@
  *   between End Session and the per agent hotkeys, dispatched by the renderer,
  *   and named by no keymap entry anywhere. The row is the only surface that
  *   works in session focus mode, where the session list is hidden by design, so
- *   its absence is not cosmetic.
+ *   its absence is not cosmetic. Each of the three rows is found by something
+ *   that does not change, being an action id or a spread, and End Session must
+ *   appear exactly once so the first match cannot win by default. A row this
+ *   section cannot find is named in the failure WITH THE NEEDLE that missed,
+ *   because for 25 days from 25 August 2026 this section said the menu had
+ *   changed when the menu was right and the needle had broken.
  *
  * SECTION 3 — the refusals, and this is the section the phase is for.
  *   1. `SessionStatus` gained no member. Phase 23 refusal 5 says nothing may set
@@ -275,9 +280,16 @@ if (menu.rowCount !== 1) {
       'row, in the Session menu.'
   );
 }
-if (/accel\(/.test(menu.rowLine)) {
+// The row's own `item(` call, read by matching parentheses, so an `accel(` on
+// any line of a reflowed row is seen. One expression answers the clause below
+// and the printed table, so the two cannot disagree.
+const rowCall = String(menu.rowLine ?? '');
+const accelerated = /accel\(/.test(rowCall);
+
+if (accelerated) {
   fail(
-    `the Session menu row carries an accelerator: ${menu.rowLine}\n` +
+    `the Session menu row carries an accelerator: ` +
+      `${rowCall.replace(/\s+/g, ' ').trim()}\n` +
       '      It is unaccelerated on purpose, for the reason End Session beside ' +
       'it is: it acts on the live session the person is looking at, and typing ' +
       'into that session deserves the same care as ending it.'
@@ -289,12 +301,157 @@ if (menu.keymapNames.length > 0 || menu.keymapResumeIds.includes('session.resume
       'adds no shortcuts overlay row.'
   );
 }
-if (menu.rowAt === -1 || menu.endSessionAt === -1 || menu.hotkeysAt === -1) {
+// The three rows the placement rule is about, each with the needle it is found
+// by, so a miss can say WHAT WAS SEARCHED FOR rather than blame the menu.
+//
+// `menu.needles` is the probe's own record of what it looked for, read here when
+// the probe publishes it. The fallback is the needle Phase 296's mechanism pins:
+// the End Session row is found by its action id and by nothing that follows it,
+// the resume row by its own id, and the hotkeys by their spread.
+const needleOf = (key, pinned) => {
+  const published = menu.needles?.[key];
+  const known = typeof published === 'string' && published.length > 0;
+  return { key, needle: known ? published : pinned, published: known };
+};
+
+const menuRows = [
+  {
+    at: menu.endSessionAt,
+    name: 'the End Session row',
+    ...needleOf('endSession', "the action id 'end-session' in code"),
+    consequence:
+      'It is the row the resume row has to sit after, so with it missing there ' +
+      'is no upper bound to place against.'
+  },
+  {
+    at: menu.rowAt,
+    name: `the ${data.action} row`,
+    ...needleOf('row', `the action id '${data.action}' in code`),
+    consequence:
+      'It is the row this section is about. In session focus mode the session ' +
+      'list is hidden by design and the menu bar is the only surface the verb ' +
+      'has, so its absence is not cosmetic.'
+  },
+  {
+    at: menu.hotkeysAt,
+    name: 'the per agent hotkeys',
+    ...needleOf('hotkeys', 'the spread ...agentHotkeyItems()'),
+    consequence:
+      'They are the lower bound of the resume row\'s place, so the order ' +
+      'cannot be judged without them.'
+  }
+];
+
+// How many times the End Session action id occurs in code. The probe answers
+// with a line only when it finds exactly ONE, so a second occurrence leaves the
+// line at -1 rather than letting the first match win by default, and the count is
+// what turns that into a sentence naming both lines. `endSessionLines` is the
+// 1-based line of every occurrence; `endSessionCount` is read as well because a
+// count alone answers the clause.
+const endSessionLines = Array.isArray(menu.endSessionLines)
+  ? menu.endSessionLines
+  : null;
+const endSessionCount =
+  endSessionLines !== null
+    ? endSessionLines.length
+    : typeof menu.endSessionCount === 'number'
+      ? menu.endSessionCount
+      : null;
+
+// A row whose own clause already names it with its count is not named twice. The
+// resume row has been counted by `rowCount` since Phase 141 and End Session is
+// counted just below, so for those two a line of -1 with a count above one is
+// already a failure with the lines in it.
+const countedElsewhere = {
+  endSession: endSessionCount !== null && endSessionCount > 1,
+  row: typeof menu.rowCount === 'number' && menu.rowCount > 1
+};
+
+// Whether every row has a line, which is what the placement question needs. The
+// suppression above decides which SENTENCE is printed and never this.
+const allMenuRowsLocated = menuRows.every((row) => row.at !== -1);
+
+const missingMenuRows = menuRows.filter(
+  (row) => row.at === -1 && countedElsewhere[row.key] !== true
+);
+
+// ONE expression, read by the verdict just below and by the table at the bottom
+// of this file, so a FAIL and a printed tick can never disagree again. Before
+// Phase 296 they asked different questions: the table compared endSessionAt with
+// rowAt without asking whether either was FOUND, so a missing End Session left it
+// reading -1 < rowAt, which is true, and it printed
+// `placed after End Session  yes` beside a FAIL saying the rows were not there
+// together.
+//
+// It reads yes only when this gate can stand behind the answer: all three rows
+// found, End Session found exactly once, and the three in order. Two occurrences
+// of the id mean two candidate rows and no answer at all, so that reads NO too.
+const placedAfterEndSession =
+  allMenuRowsLocated &&
+  endSessionCount === 1 &&
+  menu.endSessionAt < menu.rowAt &&
+  menu.rowAt < menu.hotkeysAt;
+
+for (const row of missingMenuRows) {
+  // Say what was searched for when the probe records it, and say that it does
+  // not record it when it does not, rather than claiming a needle on its behalf.
+  const searched = row.published
+    ? `It searched for ${row.needle}.`
+    : `It publishes no record of the needle it used, being ` +
+      `menu.needles.${row.key}, so this failure can only say what the row must ` +
+      `be found by, which is ${row.needle}.`;
   fail(
-    'the Session menu no longer holds End Session, the resume row and the per ' +
-      'agent hotkeys together, so the row cannot be placed.'
+    `build/handback-conformance-probe.mts has no line for ${row.name} in ` +
+      `src/main/menu.ts. ${searched}\n` +
+      '      It answers with a line only when it finds exactly one occurrence, ' +
+      'so either nothing matched or more than one did.\n' +
+      `      ${row.consequence}\n` +
+      '      Read that row in src/main/menu.ts before you change any menu. A ' +
+      'needle that stopped matching a row nobody moved is this gate reporting ' +
+      'its own defect, and that is what this failure was for 25 days from ' +
+      '25 August 2026: the needle looked for the action id followed by a ' +
+      'closing parenthesis, the row grew a fourth argument for its mark, and ' +
+      'the gate said the menu had changed.'
   );
-} else if (!(menu.endSessionAt < menu.rowAt && menu.rowAt < menu.hotkeysAt)) {
+}
+
+// End Session appears exactly ONCE, as rowCount already requires of the resume
+// row. Finding it by its id alone is only sound if the first match cannot win by
+// default: Phase 296 measured a naive id needle answering the comment at
+// src/main/menu.ts:876 with the row itself deleted, which is a clause that cannot
+// fail. A count of 0 is the miss above and is not said twice.
+if (endSessionCount === null) {
+  fail(
+    'build/handback-conformance-probe.mts published no count for the End ' +
+      'Session row, so this gate cannot say the row appears exactly once and ' +
+      'the first match wins by default. The probe publishes ' +
+      '`menu.endSessionLines`, being the 1-based line of every occurrence of ' +
+      'the action id in code with comments blanked, or `menu.endSessionCount`.'
+  );
+} else if (endSessionCount > 1) {
+  fail(
+    `the End Session action id appears ${endSessionCount} times in ` +
+      'src/main/menu.ts' +
+      (endSessionLines === null ? '' : ` at ${endSessionLines.join(', ')}`) +
+      '.\n      One row ends a session. The placement rule reads the FIRST ' +
+      'match, so a second occurrence in code decides where this gate thinks ' +
+      'End Session is, and the answer it gives stops meaning anything. That is ' +
+      'why the row below reads NO: with two candidates there is no placement ' +
+      'to report.'
+  );
+} else if (endSessionCount === 0 && menu.endSessionAt !== -1) {
+  fail(
+    `build/handback-conformance-probe.mts reports the End Session row at line ` +
+      `${menu.endSessionAt + 1} and counts the action id 0 times. The line and ` +
+      'the count are read from the same matches, so the probe is disagreeing ' +
+      'with itself and neither answer can be used.'
+  );
+}
+
+// The order, asked only once the three rows are each found exactly where the
+// gate can say they are. A miss and a duplicate each have their own sentence
+// above, and the order is not re-blamed for them.
+if (allMenuRowsLocated && endSessionCount === 1 && !placedAfterEndSession) {
   fail(
     `the row sits at line ${menu.rowAt + 1}, End Session at ` +
       `${menu.endSessionAt + 1} and the hotkeys at ${menu.hotkeysAt + 1}. It ` +
@@ -618,9 +775,11 @@ process.stdout.write('-'.repeat(96) + '\n');
 process.stdout.write(
   `${pad('action', 34)} ${data.action}\n` +
     `${pad('rows in the Session menu', 34)} ${menu.rowCount}\n` +
-    `${pad('accelerated', 34)} ${tick(/accel\(/.test(menu.rowLine))}\n` +
-    `${pad('placed after End Session', 34)} ` +
-    `${tick(menu.endSessionAt < menu.rowAt && menu.rowAt < menu.hotkeysAt)}\n` +
+    `${pad('accelerated', 34)} ${tick(accelerated)}\n` +
+    // The verdict's own question, and the same expression it asked. yes means
+    // all three rows were found, End Session exactly once, and the three in
+    // order. It can no longer read yes beside a failure.
+    `${pad('placed after End Session', 34)} ${tick(placedAfterEndSession)}\n` +
     `${pad('dispatched by', 34)} ${list(menu.dispatchedIn)}\n` +
     `${pad('keymap entries naming it', 34)} ${list(menu.keymapNames)}\n`
 );

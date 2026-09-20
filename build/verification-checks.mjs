@@ -1323,6 +1323,29 @@ export const CHECKS = [
   // `finally` and on a signal. About 50 s. No Electron, no tmux, no ssh, no
   // agent, no token.
   pure('ablation:p293'),
+  // PHASE 296's attack on `conformance:handback`'s menu section, and the reason
+  // that phase is worth doing: the section had been RED SINCE 25 AUGUST because a
+  // needle stopped matching a row nobody moved, and nothing could tell that from
+  // a gate that was working. Eleven arms over sibling copies of
+  // `src/main/menu.ts`. Seven break one clause each — the End Session row
+  // deleted with the :876 comment kept, the action id appearing twice, End
+  // Session moved below the resume row, the resume row moved below the hotkeys,
+  // the hotkey spread deleted, the resume row reflowed with `accel(` on a line of
+  // its own (green before this phase), and the probe's comment blanking removed
+  // over the real menu — and each must go red ON THE SENTENCE OF THE CLAUSE IT
+  // BREAKS, with the printed `placed after End Session` tick reading NO wherever a
+  // row was not found or is out of order. Four must go GREEN: the three shapes
+  // that turned the gate red on 25 August, being End Session in its pre-156
+  // two-argument shape, End Session reflowed across lines and End Session with an
+  // argument added after its mark; and the naive id-only needle, which finds the
+  // :876 comment where the deleted row used to be and passes, which is what makes
+  // the comment blanking load-bearing rather than decorative. Like ablation:p293
+  // it never writes into the working tree: it clones src/ and build/ with `cp -Rc`
+  // under /private/tmp, copies docs/audits/contract-baseline.txt because section 1
+  // reads it, symlinks node_modules, restores each edited clone file and proves it
+  // by sha256, and removes the clone in a `finally` and on a signal. About 10 s.
+  // No Electron, no tmux, no ssh, no agent, no token.
+  pure('ablation:p296'),
   // PHASE 261 item 1. The harness socket refusal, DRIVEN. ONE Electron at a
   // time, never two, on a scratch profile with a scratch HOME under its own
   // GMUX_HARNESS_DIR and the socket gmux-p261-<pid>. Five arms: the real app
