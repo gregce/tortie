@@ -102,12 +102,16 @@ const ARMS = [
   'sessions-right',
   'projects-top',
   'projects-left',
+  // Phase 293. Session > Manage Sessions…, directly above Past Sessions… in
+  // the menu and in source order, because the two are one arm: two doors into
+  // one sheet, on its first tab and on its second.
+  'manage-sessions',
   'past-sessions',
   'settings'
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 50 actions and no more', () => {
+  it('answers all 51 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

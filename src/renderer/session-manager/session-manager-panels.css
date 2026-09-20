@@ -1,0 +1,262 @@
+/* Phase 293 — the session manager's inline panels and its batch confirmation.
+
+   Every colour here is a token and every rule is scoped under `.session-sheet`,
+   so an override of a shared class wins on specificity and never on the order
+   the bundler happens to put two stylesheets in.
+
+   THE GROUND DECIDES THE TEXT COLOUR. A panel is drawn on the raised ground,
+   over a row ground of the active one. The muted text token measures 4.91 on
+   the surface ground and falls below the floor on both of these (tokens.css),
+   so nothing below uses it: secondary text is `--text-secondary`. A hairline
+   drawn ON the active ground is `--border-active`. */
+
+/* The row the panel sits in, on the Managed tab. */
+.session-sheet .sm-inline-row > td {
+  padding: var(--space-3) var(--space-7) var(--space-5);
+  background: var(--bg-active);
+  border-bottom: 1px solid var(--border-active);
+  white-space: normal;
+}
+
+/* The same, on the Past tab, which is not a table. */
+.session-sheet .sm-inline-row-past {
+  padding: var(--space-3) var(--space-7) var(--space-5);
+  background: var(--bg-active);
+  border-bottom: 1px solid var(--border-active);
+}
+
+/* The panel, and the batch confirmation, which is styled as one. */
+.session-sheet .sm-inline,
+.session-sheet .sm-batch {
+  padding: var(--space-6);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  scroll-margin-top: 60px;
+  white-space: normal;
+  text-align: left;
+}
+
+.session-sheet .sm-batch {
+  margin: var(--space-5) var(--space-7);
+}
+
+.session-sheet .sm-inline-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.session-sheet .sm-inline-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.session-sheet .sm-inline-label {
+  font: inherit;
+  color: inherit;
+}
+
+.session-sheet .sm-inline-body {
+  margin-top: var(--space-4);
+  max-width: 80ch;
+  font-size: var(--text-sm);
+  line-height: var(--lh-base);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-inline-text {
+  margin: 0;
+}
+
+.session-sheet .sm-inline-text + .sm-inline-text {
+  margin-top: var(--space-3);
+}
+
+/* The error line: above the buttons, in the error colour, and announced. */
+.session-sheet .sm-inline-error {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-base);
+  color: var(--error);
+}
+
+/* Buttons sit right, Cancel first. */
+.session-sheet .sm-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+/* The panel's close icon: the shared `.icon-btn`, at the 28px the sheet uses.
+   The shared hover is `--bg-raised`, which is this panel's own ground and
+   would draw nothing, so the hover here is one step up. */
+.session-sheet .icon-btn.sm-panel-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+}
+
+.session-sheet .icon-btn.sm-panel-icon:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.session-sheet .icon-btn.sm-panel-icon:focus-visible,
+.session-sheet .sm-inline .btn:focus-visible,
+.session-sheet .sm-batch .btn:focus-visible,
+.session-sheet .sm-rename-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.session-sheet .icon-btn.sm-panel-icon:disabled {
+  color: var(--text-disabled);
+  background: transparent;
+}
+
+/* Rename */
+.session-sheet .sm-rename-input {
+  width: 100%;
+  max-width: 48ch;
+}
+
+/* Details: the facts in three columns, then the help line. */
+.session-sheet .sm-details-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5) var(--space-7);
+  margin: 0;
+}
+
+.session-sheet .sm-details-fact {
+  min-width: 0;
+}
+
+.session-sheet .sm-details-facts dt {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-details-facts dd {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.session-sheet .sm-details-help {
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* The saved output, inside a panel rather than a modal. The words are
+   SavedOutputBody's, shared with the modal, and the modal's own rules are
+   scoped to that modal, so the block is restated here for this ground. The
+   capture time still leads and the text scrolls in its own box, so the moment
+   the copy was taken never scrolls away. */
+.session-sheet .sm-inline .saved-output-header {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-inline .saved-output-conversation,
+.session-sheet .sm-inline .saved-output-warning {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-inline .saved-output-body {
+  margin: 0;
+  min-height: 96px;
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.session-sheet .sm-inline .saved-output-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* The panel's body is 80ch for sentences; a screen of output takes the row. */
+.session-sheet [data-kind='output'] .sm-inline-body {
+  max-width: none;
+}
+
+/* The batch: its targets, ruled and scrolling, and the skipped line. */
+.session-sheet .sm-batch-targets {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  max-height: 144px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+}
+
+.session-sheet .sm-batch-targets li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.session-sheet .sm-batch-targets li > strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-sheet .sm-batch-targets li > span {
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-batch-outcome {
+  margin-left: auto;
+  flex: 0 1 auto;
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-batch-targets li[data-outcome='failed'] .sm-batch-outcome {
+  color: var(--error);
+}
+
+.session-sheet .sm-batch-skipped {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}

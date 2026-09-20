@@ -38,8 +38,17 @@ export async function runSmokeCreate(): Promise<void> {
     smokeLog('1/5 core booted: tmux server + manifest + control client + reconcile');
 
     // Deterministic re-runs: discard any smoke-keeper left by aborted runs.
+    // Phase 293. `listSessionRecords()` includes tombstones, and main now
+    // refuses to end a removed row (../sessions/lifecycle-gate.ts). This kill is
+    // uncaught on purpose, so without the second clause a leftover tombstone
+    // named smoke-keeper would abort the smoke instead of going straight to the
+    // hard delete on the next line, which is all it ever needed.
     for (const rec of core.listSessionRecords()) {
-      if (rec.name === SMOKE_KEEPER && rec.status !== 'exited') {
+      if (
+        rec.name === SMOKE_KEEPER &&
+        rec.status !== 'exited' &&
+        rec.status !== 'discarded'
+      ) {
         await core.killSession(rec.id);
       }
       if (rec.name === SMOKE_KEEPER) core.discardSession(rec.id);

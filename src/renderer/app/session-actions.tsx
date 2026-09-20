@@ -13,6 +13,7 @@ import type { Session, SessionMachine, SessionStatus } from '@shared/types';
 // machines bridge. It is feature detected the way Settings detects it, so a
 // build without the bridge simply does not offer the verb.
 import type {
+  CaptureChoice,
   InstalledGmuxApi,
   MachineReviewFile,
   MachineReviewList
@@ -32,14 +33,13 @@ import {
   RESUME_IN_PLACE_SUBLABEL,
   RESUME_VERB,
   RESUME_VERB_TITLE,
-  hasRestoreMaterial,
-  offersBareRecovery,
   resumeMarkLabel,
   resumeNote,
   resumeReadiness,
+  sessionActionGates,
   showsResumeVerb
 } from '../state/resume';
-import type { SessionHandback } from '../state/resume';
+import type { SessionGateEnv, SessionHandback } from '../state/resume';
 import { Codicon, menuGlyph } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import { openOverviewForSession } from '../overview/open-overview';
@@ -427,6 +427,126 @@ export function SavedMark({ className }: { className: string }): React.JSX.Eleme
   );
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 293 — the host: the policy's items, another surface's presentation.
+//
+// The session manager sheet draws the same menu every other surface draws, and
+// it must not answer a verb the way they do. Their End raises a stacked
+// `ConfirmDialog`; the sheet asks inside itself, under the row. Their Restore
+// lands on the restored session; the sheet stays open and offers the way
+// there. A SECOND POLICY for the sheet is the thing refused: a second list of
+// rows is a second set of gates, and the two drift the first time one is
+// edited. So the policy below keeps deciding WHICH rows exist, in which order,
+// under which label, glyph, hint and sublabel, enabled or not, and a host
+// changes exactly one thing about a row, which is what `run` does.
+//
+// EVERY HOST METHOD TAKES A SESSION ID AND NOTHING ELSE. A native menu runs the
+// closure that was built when the menu was drawn, which can be seconds old, and
+// a sheet is the first surface where a row can sit on screen for minutes while
+// another window, a machine reconnecting or the session itself changes it. A
+// host handed a `Session` would act on that stale object. Handed an id, it has
+// to read the row again, and it re-checks the verb's own gate when it does.
+//
+// WITH NO HOST NOTHING MOVES. The items are the very objects the policy built,
+// with the very `run` each one shipped with, so the four surfaces that pass no
+// host are untouched. __tests__/p293-menu-characterisation.test.ts records
+// that from the parent commit, and __tests__/p293-menu-host.test.ts holds the
+// parity rule: with a host and without one, a menu is equal in everything but
+// `run`.
+// ---------------------------------------------------------------------------
+
+/** What a surface that presents the policy's verbs itself must answer. */
+export interface SessionActionHost {
+  rename(sessionId: string): void;
+  restore(sessionId: string, options?: CaptureChoice): void;
+  restart(sessionId: string, options?: CaptureChoice): void;
+  end(sessionId: string): void;
+  remove(sessionId: string): void;
+  savedOutput(sessionId: string): void;
+  /**
+   * A verb that draws OVER everything and needs no session in front of it.
+   * The host leaves, then runs.
+   */
+  leaveThen(run: () => void): void;
+  /**
+   * A verb that acts ON a session the host covers. The host goes to that
+   * session first and runs ONLY when the jump answered ok.
+   *
+   * `needs` names the gate the verb itself requires, for the one row that has
+   * one: `Resume conversation` types into a session, so its host re-checks
+   * `offersResumeInPlace` over the fresh row before it goes anywhere. The two
+   * rows that only read (`Show what it loaded…`, the review) pass nothing.
+   */
+  goThen(
+    sessionId: string,
+    run: () => void,
+    needs?: 'offersResumeInPlace'
+  ): void;
+}
+
+/**
+ * The environment half of `sessionActionGates`, read from the store NOW.
+ *
+ * One reader, so the policy below and the sheet's press-time re-check
+ * (`freshRow` in ../session-manager/actions.ts) can never feed the one gates
+ * predicate two different environments.
+ */
+export function sessionGateEnv(sessionId: string): SessionGateEnv {
+  const s = useApp.getState();
+  return {
+    canRestore: s.canRestore(),
+    canDiscard: s.canDiscard(),
+    shellPathReady: s.shellPathReady,
+    handback: s.handbacks[sessionId]
+  };
+}
+
+/** The live row for an id, read at the moment a hosted run fires. */
+function freshSession(sessionId: string): Session | undefined {
+  return useApp.getState().sessions.find((one) => one.id === sessionId);
+}
+
+/**
+ * What each row does under a host, kept BESIDE the row and off it.
+ *
+ * It is a side table rather than a field on the item because an item is handed
+ * to the native menu bridge as it is, and a field the bridge does not know is a
+ * field every existing menu test would have to learn. A row that registers
+ * nothing here, being a disabled row, a copy row or a separator, is the same
+ * object under a host as without one.
+ */
+const HOSTED = new WeakMap<MenuItemSpec, (host: SessionActionHost) => void>();
+
+/** Register a row's hosted run. Answers the row itself, untouched. */
+function hosted(
+  item: MenuItemSpec,
+  via: (host: SessionActionHost) => void
+): MenuItemSpec {
+  HOSTED.set(item, via);
+  return item;
+}
+
+/**
+ * One item under a host: `run` moves and nothing else does.
+ *
+ * The policy MAPS its finished list through this and never filters, pushes or
+ * reorders for a host, which is what makes the parity rule true by
+ * construction rather than by care. With no host the item comes back as the
+ * very object it went in as.
+ */
+function underHost(
+  host: SessionActionHost | undefined
+): (item: MenuItemSpec | 'sep') => MenuItemSpec | 'sep' {
+  return (item) => {
+    if (host === undefined || item === 'sep') return item;
+    const via = HOSTED.get(item);
+    return via === undefined ? item : { ...item, run: () => via(host) };
+  };
+}
+
+/** The separator, typed once so a list literal does not widen it. */
+const SEPARATOR: MenuItemSpec | 'sep' = 'sep';
+
 /**
  * Phase 22 §8.3 — the readout. This is the launch snapshot's only entry
  * point, and it is why the snapshot is written at all: no agent records
@@ -451,11 +571,22 @@ function showLoadedItem(session: Session): MenuItemSpec {
       run: () => {}
     };
   }
-  return {
-    label: 'Show what it loaded…',
-    ...menuGlyph('layers'),
-    run: () => openSessionContext(session)
-  };
+  return hosted(
+    {
+      label: 'Show what it loaded…',
+      ...menuGlyph('layers'),
+      run: () => openSessionContext(session)
+    },
+    // Phase 293. The Context sidebar belongs to whichever project is active
+    // and is not mounted with no project open, so a host that covers the
+    // session goes to it first. The row is read again by ID when the run
+    // fires, because the closure a native menu runs can be seconds old.
+    (host) =>
+      host.goThen(session.id, () => {
+        const fresh = freshSession(session.id);
+        if (fresh !== undefined) openSessionContext(fresh);
+      })
+  );
 }
 
 /**
@@ -481,11 +612,14 @@ function savedOutputItem(session: Session): MenuItemSpec {
       run: () => {}
     };
   }
-  return {
-    label: SAVED_OUTPUT_ITEM,
-    ...menuGlyph('output'),
-    run: () => useApp.getState().openSavedOutput(session.id)
-  };
+  return hosted(
+    {
+      label: SAVED_OUTPUT_ITEM,
+      ...menuGlyph('output'),
+      run: () => useApp.getState().openSavedOutput(session.id)
+    },
+    (host) => host.savedOutput(session.id)
+  );
 }
 
 /**
@@ -501,15 +635,24 @@ function savedOutputItem(session: Session): MenuItemSpec {
  * never hidden and never disabled.
  */
 function catchMeUpItem(session: Session): MenuItemSpec {
-  return {
-    label: 'Catch me up…',
-    // Settings draws `comment` on the Catch Me Up section's rail, for the
-    // reason Phase 138 wrote there. This row opens that feature.
-    ...menuGlyph('comment'),
-    run: () => {
-      void openOverviewForSession(session.id, session.projectPath);
-    }
-  };
+  return hosted(
+    {
+      label: 'Catch me up…',
+      // Settings draws `comment` on the Catch Me Up section's rail, for the
+      // reason Phase 138 wrote there. This row opens that feature.
+      ...menuGlyph('comment'),
+      run: () => {
+        void openOverviewForSession(session.id, session.projectPath);
+      }
+    },
+    // Phase 293. The page draws over the whole work area for any session,
+    // with a project open or with none, so a host only has to get out of its
+    // way first. It needs no session in front of it.
+    (host) =>
+      host.leaveThen(() => {
+        void openOverviewForSession(session.id, session.projectPath);
+      })
+  );
 }
 
 /**
@@ -683,12 +826,26 @@ function reviewChangesItem(
       run: () => {}
     };
   }
-  return {
-    label,
-    ...menuGlyph('git-compare'),
-    sublabel: REVIEW_ITEM_SUBLABEL,
-    run: () => void openRemoteReview(session, machine)
-  };
+  return hosted(
+    {
+      label,
+      ...menuGlyph('git-compare'),
+      sublabel: REVIEW_ITEM_SUBLABEL,
+      run: () => void openRemoteReview(session, machine)
+    },
+    // Phase 293. The file list is a second native menu drawn at the row that
+    // stamps `data-session-id`, and a host that covers the session stamps
+    // none on purpose. So the host goes to the session first, and only then
+    // is there a row for `menuPointFor` to find. The session and its machine
+    // are read again by ID when the run fires.
+    (host) =>
+      host.goThen(session.id, () => {
+        const fresh = freshSession(session.id);
+        if (fresh?.machine !== undefined) {
+          void openRemoteReview(fresh, fresh.machine);
+        }
+      })
+  );
 }
 
 /**
@@ -728,20 +885,40 @@ function copyDirectoryPathItem(session: Session): MenuItemSpec {
  * plain id; the identity strip prefixes 'strip:' so only one input renders).
  * An `unknown` row (Phase 67) gets only the two verbs that read Tortie's
  * own records; see the branch below.
+ *
+ * PHASE 293. Every gate below is READ from `sessionActionGates` in
+ * ../state/resume.ts and none is derived here any more. The Restore gate had
+ * been written three times, in this function, in TerminalRegion.tsx and in
+ * split/SplitSurface.tsx, and the third copy had already drifted. The sheet's
+ * visible button and its batch would have been a fourth, so the predicate
+ * moved down to where a state module and an app module can both read it, and
+ * the policy is its first reader. PRESENCE AND ENABLEMENT ARE TWO FIELDS ON
+ * PURPOSE: `Remove` is PRESENT whenever the row has ended and DISABLED when
+ * this build cannot discard, and `Restore` is present on `offersRestore` and
+ * disabled until the login shell has answered. A rewrite that made a row's
+ * presence depend on its enabling fact would pass a host-parity test, because
+ * both arms would share the regression, which is why
+ * __tests__/p293-menu-characterisation.test.ts was recorded from the parent
+ * commit before this function was touched.
+ *
+ * `host` is optional and changes what `run` does and nothing else. See the
+ * block above `SessionActionHost`.
  */
 export function sessionMenuItems(
   session: Session,
-  renameTarget: string
+  renameTarget: string,
+  host?: SessionActionHost
 ): (MenuItemSpec | 'sep')[] {
   const s = useApp.getState();
   const status = s.effectiveStatus(session);
+  const gates = sessionActionGates(session, status, sessionGateEnv(session.id));
   // Phase 67. An `unknown` row is one Tortie cannot currently see: the
   // session server did not answer and nothing proved the session dead. Every
   // verb that acts on the tmux side (Rename, Restore, Restart, End
   // session…, Remove) is omitted, because acting on a session that may be
   // alive is how a second agent lands on one conversation. What remains are
   // the two verbs that read only Tortie's own records.
-  if (status === 'unknown') {
+  if (gates.unknown) {
     // Phase 137.2. The Catch Me Up row joins this branch because it is the
     // same kind of verb the branch exists to keep, a read of Tortie's own
     // records that touches no tmux side.
@@ -755,9 +932,28 @@ export function sessionMenuItems(
       // is exactly the row a person needs to identify by hand.
       ...sessionIdentityItems(session),
       copyDirectoryPathItem(session)
-    ];
+    ].map(underHost(host));
   }
-  const ended = status === 'exited' || status === 'restorable';
+  // PHASE 293. A REMOVED row gets its own arm, beside the `unknown` one and for
+  // the same kind of reason. Until this phase a `discarded` row was neither
+  // `unknown` nor ended, so it fell through to the last arm and was offered
+  // `Rename` and `End session…`, two verbs that act on a session that is not
+  // running anywhere. Nothing called this function with one. The session
+  // manager's Past tab is the first caller, and the policy learns the status
+  // here so that the sheet never has to filter what the policy answered,
+  // which would be a second policy. What is left is what identifies the row.
+  // The saved-output row is left out too, because Remove deleted the saved
+  // copies and the row would only ever say there is none. Restore is not a
+  // menu row for a removed session: it is the one visible button on its row.
+  if (gates.removed) {
+    return [...sessionIdentityItems(session), copyDirectoryPathItem(session)];
+  }
+  // `ended` and `remote` are the gates' own two facts, named as locals because
+  // the Restart row below is spelled with them. That spelling is pinned by
+  // __tests__/status-seam.test.ts, and it IS `gates.offersRestart`:
+  // __tests__/p293-menu-host.test.ts holds the row's presence equal to that
+  // field over every status, on this Mac and on a machine.
+  const { ended, remote } = gates;
   // PHASE 72. Restore is offered for a session on another machine for the
   // first time, and it is offered from ONE fact: `machine.canRestore`, which
   // main sets only when every condition holds. The conditions are in
@@ -767,77 +963,90 @@ export function sessionMenuItems(
   // the ending half is a verb aimed at another machine that this rung did not
   // build.
   const machine = session.machine;
-  const remote = machine !== undefined;
   // Phase 26.3: Restore extends from restorable rows to exited rows that
   // still have material to bring back (saved scrollback or an armed resume
   // command). Main accepts a restore for any exited row; this gate is what
   // keeps the offered verb truthful.
   const offersRestore =
-    s.canRestore() &&
-    (machine !== undefined
-      ? machine.canRestore
-      : status === 'restorable' ||
-        (status === 'exited' && hasRestoreMaterial(session)));
+    // PHASE 293. The expression moved to `sessionActionGates`, unchanged: a row
+    // on another machine is offered Restore from `machine.canRestore` and from
+    // nothing else, and a row on this Mac from its status and its material.
+    // This function still re-derives none of main's conditions, which is what
+    // __tests__/status-seam.test.ts reads this declaration to hold. It reads
+    // the one field.
+    gates.offersRestore;
   // PHASE 119. The insurance verb, both halves. This is the surface the UI rule
   // names, it is native, and its sublabel slot is the only room a menu has for
   // the sentence that explains the row. The predicate is the one in resume.ts,
   // read here and on the ended card so the two cannot drift: this Mac, a
   // capture that is on, and a session that has ended.
-  const offersBare = offersBareRecovery(session);
+  const offersBare = gates.offersBare;
   // PHASE 141. The row that puts the resume command on the person's prompt. It
   // reads the same predicate the word on the row reads, so the menu and the row
   // can never disagree about whether the verb exists. The `unknown` branch
   // above deliberately does NOT get it: that branch keeps only the verbs that
   // read Tortie's own records, and this one types into a live session.
-  const offersResumeInPlace = showsResumeVerb(
-    session,
-    s.handbacks[session.id],
-    status
-  );
+  const offersResumeInPlace = gates.offersResumeInPlace;
 
   return [
-    {
-      label: 'Rename',
-      // A CHOSEN mark, the same one the tree's Rename… and the split group's
-      // Rename wear. It changes a name in place, which is what this pencil is.
-      ...menuGlyph('edit'),
-      hint: 'F2',
-      run: () => useApp.getState().setRenaming(renameTarget)
-    },
+    hosted(
+      {
+        label: 'Rename',
+        // A CHOSEN mark, the same one the tree's Rename… and the split group's
+        // Rename wear. It changes a name in place, which is what this pencil is.
+        ...menuGlyph('edit'),
+        hint: 'F2',
+        run: () => useApp.getState().setRenaming(renameTarget)
+      },
+      (to) => to.rename(session.id)
+    ),
     ...(offersRestore
       ? [
-          {
-            label: 'Restore',
-            // The glyph the `SavedMark` above draws under the tooltip
-            // "Saved — ready to restore", which is the state this row acts on.
-            ...menuGlyph('history'),
-            // PHASE 81. Off until the login shell has said where the person's
-            // tools are installed. A native menu carries no tooltip, so this
-            // item says nothing extra, and a greyed item for about one second
-            // is better than an item that does nothing. Main awaits the same
-            // promise, so a restore that got through would still be correct.
-            // The renderer's own field is `disabled`; ContextMenu turns it
-            // into the bridge's `enabled: false` at the one place that talks
-            // to the native menu.
-            disabled: !useApp.getState().shellPathReady,
-            run: () => void useApp.getState().restoreSession(session.id)
-          }
+          hosted(
+            {
+              label: 'Restore',
+              // The glyph the `SavedMark` above draws under the tooltip
+              // "Saved — ready to restore", which is the state this row acts
+              // on.
+              ...menuGlyph('history'),
+              // PHASE 81. Off until the login shell has said where the
+              // person's tools are installed. A native menu carries no
+              // tooltip, so this item says nothing extra, and a greyed item
+              // for about one second is better than an item that does
+              // nothing. Main awaits the same promise, so a restore that got
+              // through would still be correct. The renderer's own field is
+              // `disabled`; ContextMenu turns it into the bridge's
+              // `enabled: false` at the one place that talks to the native
+              // menu.
+              //
+              // PHASE 293. ENABLEMENT, read from the gates beside the presence
+              // above it: `canRestoreNow` is `offersRestore` and a shell that
+              // has answered.
+              disabled: !gates.canRestoreNow,
+              run: () => void useApp.getState().restoreSession(session.id)
+            },
+            (to) => to.restore(session.id)
+          )
         ]
       : []),
     ...(ended && !remote
       ? [
-          {
-            label: 'Restart',
-            // A CHOSEN mark, and the bare row below wears it for the same
-            // reason. It is the one mark in the set for starting a stopped
-            // thing again under the SAME identity, which is this row exactly:
-            // the same session, the same name, a new process. `refresh` and
-            // `sync` both say re-read something already running. The word
-            // debug is the codicon's own naming rather than the act, and
-            // Tortie draws no debugger, so nothing contradicts it.
-            ...menuGlyph('debug-restart'),
-            run: () => void useApp.getState().restartSession(session.id)
-          }
+          hosted(
+            {
+              label: 'Restart',
+              // A CHOSEN mark, and the bare row below wears it for the same
+              // reason. It is the one mark in the set for starting a stopped
+              // thing again under the SAME identity, which is this row
+              // exactly: the same session, the same name, a new process.
+              // `refresh` and `sync` both say re-read something already
+              // running. The word debug is the codicon's own naming rather
+              // than the act, and Tortie draws no debugger, so nothing
+              // contradicts it.
+              ...menuGlyph('debug-restart'),
+              run: () => void useApp.getState().restartSession(session.id)
+            },
+            (to) => to.restart(session.id)
+          )
         ]
       : []),
     // PHASE 119. The two bare rows sit after the two ordinary ones, because
@@ -848,32 +1057,38 @@ export function sessionMenuItems(
     // row's capture and the projection stops carrying it.
     ...(offersBare && offersRestore
       ? [
-          {
-            label: BARE_RESTORE_LABEL,
-            ...menuGlyph('history'),
-            sublabel: BARE_RESTORE_SUBLABEL,
-            // The same gate the Restore row above carries, for the same
-            // reason: an armed command cannot find the agent until the login
-            // shell has said where the person's tools are installed.
-            disabled: !useApp.getState().shellPathReady,
-            run: () =>
-              void useApp
-                .getState()
-                .restoreSession(session.id, { withoutCapture: true })
-          }
+          hosted(
+            {
+              label: BARE_RESTORE_LABEL,
+              ...menuGlyph('history'),
+              sublabel: BARE_RESTORE_SUBLABEL,
+              // The same gate the Restore row above carries, for the same
+              // reason: an armed command cannot find the agent until the
+              // login shell has said where the person's tools are installed.
+              disabled: !gates.canRestoreNow,
+              run: () =>
+                void useApp
+                  .getState()
+                  .restoreSession(session.id, { withoutCapture: true })
+            },
+            (to) => to.restore(session.id, { withoutCapture: true })
+          )
         ]
       : []),
     ...(offersBare
       ? [
-          {
-            label: BARE_RESTART_LABEL,
-            ...menuGlyph('debug-restart'),
-            sublabel: BARE_RESTART_SUBLABEL,
-            run: () =>
-              void useApp
-                .getState()
-                .restartSession(session.id, { withoutCapture: true })
-          }
+          hosted(
+            {
+              label: BARE_RESTART_LABEL,
+              ...menuGlyph('debug-restart'),
+              sublabel: BARE_RESTART_SUBLABEL,
+              run: () =>
+                void useApp
+                  .getState()
+                  .restartSession(session.id, { withoutCapture: true })
+            },
+            (to) => to.restart(session.id, { withoutCapture: true })
+          )
         ]
       : []),
     // PHASE 141. It sits directly above the read only rows, because it is the
@@ -884,14 +1099,26 @@ export function sessionMenuItems(
     // line is the only room the menu has to say either.
     ...(offersResumeInPlace
       ? [
-          {
-            label: RESUME_IN_PLACE_LABEL,
-            // It types into the session in front of the person, and the
-            // terminal is the surface it acts on.
-            ...menuGlyph('terminal'),
-            sublabel: RESUME_IN_PLACE_SUBLABEL,
-            run: () => void useApp.getState().resumeInPlace(session.id)
-          }
+          hosted(
+            {
+              label: RESUME_IN_PLACE_LABEL,
+              // It types into the session in front of the person, and the
+              // terminal is the surface it acts on.
+              ...menuGlyph('terminal'),
+              sublabel: RESUME_IN_PLACE_SUBLABEL,
+              run: () => void useApp.getState().resumeInPlace(session.id)
+            },
+            // PHASE 293. Nothing types into a session a person cannot see
+            // (keyboard.ts rules the same for the chord), so a host that
+            // covers the session goes to it first, and types only when it got
+            // there and the verb is still offered for the row as it is NOW.
+            (to) =>
+              to.goThen(
+                session.id,
+                () => void useApp.getState().resumeInPlace(session.id),
+                'offersResumeInPlace'
+              )
+          )
         ]
       : []),
     showLoadedItem(session),
@@ -906,29 +1133,40 @@ export function sessionMenuItems(
     // the block and is unchanged.
     ...sessionIdentityItems(session),
     copyDirectoryPathItem(session),
-    'sep',
-    ...(ended
+    SEPARATOR,
+    // PHASE 293. PRESENCE is `showsRemove`, which is the row having ended.
+    // ENABLEMENT is `canRemove`, which also needs a build that can discard.
+    // They are two fields so that this row can never disappear on a build
+    // that cannot discard, where it has always been drawn greyed.
+    ...(gates.showsRemove
       ? [
-          {
-            label: 'Remove',
-            // The × on the row performs exactly this verb and draws exactly
-            // this glyph, so the two cannot read as different things.
-            ...menuGlyph('close'),
-            destructive: true,
-            disabled: !s.canDiscard(),
-            run: () => void useApp.getState().removeSession(session.id)
-          }
+          hosted(
+            {
+              label: 'Remove',
+              // The × on the row performs exactly this verb and draws exactly
+              // this glyph, so the two cannot read as different things.
+              ...menuGlyph('close'),
+              destructive: true,
+              disabled: !gates.canRemove,
+              run: () => void useApp.getState().removeSession(session.id)
+            },
+            (to) => to.remove(session.id)
+          )
         ]
       : [
-          {
-            label: 'End session…',
-            // The × on the row performs exactly this verb for a live session.
-            ...menuGlyph('close'),
-            destructive: true,
-            run: () => useApp.getState().endSession(session.id)
-          }
+          hosted(
+            {
+              label: 'End session…',
+              // The × on the row performs exactly this verb for a live
+              // session.
+              ...menuGlyph('close'),
+              destructive: true,
+              run: () => useApp.getState().endSession(session.id)
+            },
+            (to) => to.end(session.id)
+          )
         ])
-  ];
+  ].map(underHost(host));
 }
 
 /**
@@ -937,14 +1175,23 @@ export function sessionMenuItems(
  */
 export function closeSession(session: Session): void {
   const s = useApp.getState();
-  const status = s.effectiveStatus(session);
+  const gates = sessionActionGates(
+    session,
+    s.effectiveStatus(session),
+    sessionGateEnv(session.id)
+  );
   // Phase 67. Ending acts on the tmux side and removing acts on the
   // manifest row, and neither is safe while Tortie cannot see the server:
   // the session may be alive. The × does nothing for an `unknown` row.
-  if (status === 'unknown') return;
-  if (status === 'exited' || status === 'restorable') {
+  if (gates.unknown) return;
+  // PHASE 293. It does nothing for a REMOVED row either. The old `else` arm
+  // took every status that was not unknown and not ended, `discarded` with
+  // it, and asked to end a session that is not running anywhere. The × reads
+  // the same gates the menu reads, so the two cannot answer differently.
+  if (gates.removed) return;
+  if (gates.ended) {
     void s.removeSession(session.id);
-  } else {
+  } else if (gates.canEnd) {
     s.endSession(session.id);
   }
 }

@@ -27,6 +27,7 @@ import type {
 import type { AgentRegistryId } from '@shared/types';
 import { getRegistryEntry } from '../agents/registry';
 import type { ManifestSessionRecord, ManifestStore } from '../manifest';
+import { isOnAnotherMachine, parseIsoMs } from './activity-map';
 import { markTurn, readGitEvidence, type GitEvidence } from './git-mark';
 import {
   keepMapHash,
@@ -49,6 +50,16 @@ const DEFAULT_TURN_LIMIT = 50;
  * every existing caller of this module still finds them.
  */
 export { CLIP_CHARACTERS, MAX_TURN_LIMIT, clip, toTurnView } from './turn-view';
+
+/**
+ * Phase 293. The one time parser, exported because the session manager's
+ * counts parse the same clocks and a second parser would be a second answer
+ * about what a clock is. Its BODY moved to ./activity-map.ts, which is pure
+ * and which this file imports, because the map of a stored row to its counts
+ * must be drivable with no reader, no git and no registry behind it. It is
+ * re-exported here under the name it always had.
+ */
+export { parseIsoMs } from './activity-map';
 
 export interface OverviewServiceDeps {
   /** The same getter registerContextIpc takes, because the manifest opens during boot. */
@@ -204,7 +215,13 @@ function readOneRow(
 ): RowState {
   const prior = store.getSession(row.id);
 
-  if (row.machine !== undefined) {
+  // Phase 293, finding F3. This asked `row.machine !== undefined`, and a
+  // manifest record carries `machineId` and NEVER `machine`, so the guard was
+  // dead for every real row. A session on another machine fell through to the
+  // resolver below and was looked for under THIS Mac's home, where its cwd
+  // names nothing, or at worst names a stranger's record with the same id.
+  // The spelling is shared with the classifier in ./activity-map.ts.
+  if (isOnAnotherMachine(row.machineId)) {
     store.upsertSession(carryForward(row, prior, row.agent, 'remote', null));
     return quietState(row, prior, null, 'remote', null);
   }
@@ -361,7 +378,10 @@ export async function refreshSessionForFold(
     .listSessions()
     .find((candidate) => candidate.id === sessionId);
   if (row === undefined || row.status === 'discarded') return null;
-  if (row.machine !== undefined || row.agent === 'shell') return null;
+  // Phase 293, finding F3. The same dead guard as readOneRow's, fixed the
+  // same way, so the fold never sends a model turns read from this Mac for a
+  // session that runs somewhere else.
+  if (isOnAnotherMachine(row.machineId) || row.agent === 'shell') return null;
 
   const state = readOneRow(
     deps,
@@ -380,6 +400,52 @@ export async function refreshSessionForFold(
     turns: state.turns,
     providerMapVersion: providerVersion(state.provider)
   };
+}
+
+// ---------------------------------------------------------------------------
+// The session manager's read (Phase 293)
+// ---------------------------------------------------------------------------
+
+/**
+ * Bring ONE session's stored turns up to date, for the counts.
+ *
+ * It is the same read path the page and the fold use, on one row, and it
+ * answers NOTHING: the caller asks the store for an aggregate afterwards
+ * (OverviewStore.listActivity), so no turn is listed here and no text crosses
+ * into JS. It runs no git command, for the reason the fold's read runs none.
+ *
+ * It is not optional. The store is written only when Catch Me Up opens a
+ * project or the fold runs, and the fold refuses closed projects, so a bare
+ * SELECT would answer stale for exactly the rows the session manager exists
+ * to show. An unchanged record costs one watermark comparison.
+ *
+ * TWO DIFFERENCES FROM THE FOLD'S READ, both deliberate.
+ *
+ *  - It does not filter. The caller hands it the rows it wants read, a
+ *    removed session included, because Details on a Past row asks. The
+ *    filters in buildOverview and refreshSessionForFold do not move.
+ *  - IT CATCHES, PER ROW. readOneRow promises never to throw, and it keeps
+ *    that promise for the READ. The RESOLVE above it runs outside any `try`,
+ *    and it opens a small SQLite file for two providers, so it can throw. On
+ *    the page one throw rejects one project's read. Here it would reject the
+ *    counts of up to a hundred sessions across every project for one bad
+ *    row. A caught row writes nothing, and the caller maps it by whatever the
+ *    store already holds, which is `unreadable` when it holds nothing.
+ */
+export function refreshRowForActivity(
+  deps: OverviewServiceDeps,
+  store: OverviewStore,
+  row: ManifestSessionRecord,
+  recordedProviders: Set<string>,
+  now: number
+): void {
+  try {
+    // No turn is listed: the limit is zero, so the tail read at the end of
+    // readOneRow answers no row and decodes no text.
+    readOneRow(deps, store, row, row.projectPath, 0, recordedProviders, now);
+  } catch {
+    // Nothing to do, and nothing to write. The store keeps what it held.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -573,10 +639,4 @@ function labelFor(agent: string): string {
   } catch {
     return agent;
   }
-}
-
-function parseIsoMs(iso: string | null): number | null {
-  if (iso === null) return null;
-  const ms = Date.parse(iso);
-  return Number.isNaN(ms) ? null : ms;
 }

@@ -11,6 +11,11 @@
  * Phase 143 added two more. `timeline` asks for the story one session told,
  * version by version, and `timelineTurns` asks for the turns one row of that
  * story covers. Both read tables Tortie already wrote.
+ *
+ * Phase 293 added `activity`. It asks how many messages the named sessions'
+ * current conversations hold and when the last one was, for the session
+ * manager's two activity columns. It names sessions by id and carries no text
+ * of any conversation back.
  */
 
 import type { GmuxOverviewExtras } from '../shared/ipc';
@@ -23,7 +28,8 @@ import { invoke } from './bridge';
  * their last turns. `foldOptions` answers with the harnesses and models
  * Settings may offer for the fold (Phase 138). `timeline` and `timelineTurns`
  * answer the story one session told and the turns one row of it covers
- * (Phase 143).
+ * (Phase 143). `activity` answers the counts for the sessions it is handed
+ * (Phase 293).
  */
 export const overview: GmuxOverviewExtras['overview'] = {
   project: (input) => invoke('overview:project', input),
@@ -33,5 +39,8 @@ export const overview: GmuxOverviewExtras['overview'] = {
   // read of a table main already holds; nothing starts and nothing spawns.
   archOptions: () => invoke('arch:options'),
   timeline: (sessionId) => invoke('overview:timeline', sessionId),
-  timelineTurns: (input) => invoke('overview:timelineTurns', input)
+  timelineTurns: (input) => invoke('overview:timelineTurns', input),
+  // Phase 293. The session manager's counts, by session id. A read like its
+  // siblings: nothing starts, nothing spawns, and no session changes.
+  activity: (input) => invoke('overview:activity', input)
 };

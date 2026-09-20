@@ -295,7 +295,14 @@ describe('projectOverview', () => {
     const rows = [
       row({ id: 'A', agent: 'claude' }),
       row({ id: 'B', agent: 'shell', agentSessionId: undefined }),
-      row({ id: 'C', machine: { machineId: 'm1' } }),
+      // Phase 293, finding F3. A manifest record carries `machineId` and
+      // NEVER `machine`: the decoder sets the one and nothing sets the other.
+      // This row used to plant `machine`, which no real row has, so the test
+      // held a guard that was dead for every real row while a session on
+      // another machine was resolved against THIS Mac's home. It is the real
+      // shape now, and at the parent this row IS read, so the two lines below
+      // that count the reads go red.
+      row({ id: 'C', machineId: 'm1' }),
       row({ id: 'D', status: 'discarded' }),
       row({ id: 'E', projectPath: '/elsewhere' })
     ];
@@ -313,6 +320,24 @@ describe('projectOverview', () => {
     expect(lines.get('C')).toBe('remote');
     expect(store.sessions.get('B')?.readState).toBe('shell');
     expect(store.sessions.get('C')?.readState).toBe('remote');
+    // The resolver was asked about the one local agent row and no other. A
+    // row on another machine never reaches it, because its cwd names a folder
+    // on that machine and this Mac's home is the wrong place to look.
+    expect(seams.resolveSessionLog).toHaveBeenCalledTimes(1);
+    expect(seams.resolveSessionLog.mock.calls[0]?.[0]?.agentSessionId).toBe('aaaa');
+  });
+
+  it('reads a row whose machineId is this Mac, which is every row written before machines existed', async () => {
+    const store = new FakeStore();
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns: [turn(0)], watermark: byteWatermark(1) })
+    );
+    const payload = await projectOverview(
+      makeDeps([row({ id: 'A', machineId: 'local' })], store),
+      { projectPath: PROJECT }
+    );
+    expect(payload.reads).toEqual({ A: 'full' });
+    expect(store.sessions.get('A')?.readState).toBe('ok');
   });
 
   it('builds the payload from store rows, never from reader output', async () => {

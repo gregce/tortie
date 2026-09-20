@@ -320,6 +320,17 @@ export interface GmuxSessionRestartExtras {
 //   and a removal cannot happen while the panel is open (the panel is a modal
 //   and Remove lives behind it), so a stale list is not reachable.
 //
+//   PHASE 293. THAT REASON NO LONGER HOLDS, and the list still has no push
+//   event. The session manager sheet shows the managed sessions and the
+//   removed ones on two tabs of ONE surface, and its own Remove runs while it
+//   is open, so a removal CAN happen under an open list, from the sheet and
+//   from any other surface behind it. The sheet answers by refetching rather
+//   than by a new event: at once after its own Remove and Restore, and
+//   debounced after every `sessions:changed` push while it is open. A push
+//   event was not added because a refetch of a list this short costs less
+//   than a second contract change, and because main still sorts it, so there
+//   is still one opinion about the order.
+//
 // Restore from the panel reuses the existing `sessions:restore` channel — the
 // Phase 26.3 machinery — and Remove keeps its shipped `sessions:discard`
 // channel name while the handler behind it writes a tombstone instead of a
@@ -353,6 +364,17 @@ export interface GmuxPastSessionsExtras {
  * unaccelerated: restoring starts a process, so the user reads a name first.
  */
 export type PastSessionsMenuActionId = 'past-sessions';
+
+/**
+ * The Session menu gained "Manage Sessions…" (Phase 293), directly above the
+ * row above. It opens the session manager sheet on its Managed tab, and
+ * `past-sessions` now opens the same sheet on its Past tab. Its own id union,
+ * the same one-line shape, folded into AnyMenuActionWithProjects in ./app.ts.
+ * Deliberately unaccelerated for the reason its neighbour gives, and more so:
+ * the sheet ends processes, one and many at a time, so a person reads a name
+ * first.
+ */
+export type ManageSessionsMenuActionId = 'manage-sessions';
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 60 (the restore ask) — ONE new invoke channel. The one

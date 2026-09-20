@@ -46,10 +46,17 @@ export const NO_SUCH_SESSION = 'Tortie no longer has a record of that session.';
  * they were trying to reach is still there.
  */
 export function folderGone(path: string): string {
-  return (
-    `Tortie could not open ${path} again, because there is no folder there ` +
-    'now. The session is still running and Tortie did not end it.'
-  );
+  return `${noFolderThere(path)} The session is still running and Tortie did not end it.`;
+}
+
+/**
+ * Phase 293. The first sentence of `folderGone` alone, for a RESTORE whose
+ * project tab could not be opened. The session being restored runs nowhere,
+ * so the second sentence would be false under its row; the session manager's
+ * failed panel says what happened to the session itself on its next line.
+ */
+export function noFolderThere(path: string): string {
+  return `Tortie could not open ${path} again, because there is no folder there now.`;
 }
 
 /**

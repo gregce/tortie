@@ -173,3 +173,104 @@ export interface OverviewTimelineTurnsInput {
   fromTurn: number;
   toTurn: number;
 }
+
+// ---------------------------------------------------------------------------
+// What a session's current conversation holds, as counts (Phase 293)
+// ---------------------------------------------------------------------------
+
+/**
+ * How much of the answer can be believed.
+ *
+ * The session manager draws a number only when a record was READ. `complete`
+ * is a record read whole. `partial` is a record that was read and is known to
+ * hold less than the conversation, being an agent whose record keeps the asks
+ * and not the replies, or a record that has since gone from disk while the
+ * store still holds what it read. `unavailable` is a record Tortie could not
+ * read from this Mac, and `not-applicable` is a session that has no
+ * conversation to count, which is a shell.
+ *
+ * A fourth word was not folded into the third on purpose. A shell that read
+ * "not recorded" would promise a record that can never exist.
+ */
+export type OverviewActivityCoverage =
+  | 'complete'
+  | 'partial'
+  | 'unavailable'
+  | 'not-applicable';
+
+/** Why the coverage is what it is. Null exactly when coverage is `complete`. */
+export type OverviewActivityReason =
+  | 'shell'              // agent === 'shell'. There is no conversation
+  | 'remote'             // the session runs on another machine, so its record is not on this Mac
+  | 'unknown-session'    // the id is not in this Mac's manifest, which is a feed-only remote row
+  | 'no-id'              // the agent has not told Tortie which conversation is its own yet
+  | 'not-yet'            // the id is known and nothing is on disk. Also what a resolver miss looks like
+  | 'no-store'           // the agent keeps no record on this Mac, which is droid
+  | 'unreadable'         // a record exists and could not be read, or the read threw
+  | 'wrong-conversation' // the record names a different folder
+  | 'ask-only'           // the record keeps the asks and not the replies, which is gemini
+  | 'record-gone';       // the record has gone from disk and the store still holds what it read
+
+/**
+ * Which clock `lastMessageAt` was read from.
+ *
+ * `message` is the last message's own time. `ask` is the time of the PROMPT
+ * on a turn that holds a reply whose record carries no time, which is cursor
+ * today. `session` is the record's own updated time, for an agent that
+ * records no time per message at all, which is deepseek today. The renderer
+ * says which one it drew, because a prompt's time drawn as a reply's is a
+ * lie about when the agent last spoke.
+ */
+export type OverviewActivityClock = 'message' | 'ask' | 'session';
+
+/**
+ * One session's counts.
+ *
+ * THE TWO INVARIANTS, and main keeps both so the renderer never has to guess.
+ *
+ *  1. When coverage is `unavailable` or `not-applicable`, every one of the
+ *     five value fields is null. A zero is made only after a record was read.
+ *  2. When coverage is `complete` or `partial`, `userMessages` is a NUMBER.
+ *     So no reader of this type ever writes `?? 0` on it. `agentMessages` may
+ *     still be null under `partial`, for an agent whose record keeps no
+ *     replies, and a null there is drawn as words and never as a digit.
+ *
+ * "Agent messages" are closing replies on record, at most one per turn, so
+ * the agent count never exceeds the turn count. The counts are of the CURRENT
+ * conversation record: they restart when the agent starts writing a different
+ * record file.
+ */
+export interface OverviewSessionActivity {
+  sessionId: string;
+  coverage: OverviewActivityCoverage;
+  /** Null exactly when coverage is `complete`. */
+  reason: OverviewActivityReason | null;
+  /** The asks on record. A turn that held two queued asks counts two. */
+  userMessages: number | null;
+  /** The closing replies on record, at most one per turn. */
+  agentMessages: number | null;
+  /** Epoch ms. */
+  lastMessageAt: number | null;
+  lastMessageBy: 'you' | 'agent' | null;
+  /** Null exactly when `lastMessageAt` is null. */
+  lastMessageClock: OverviewActivityClock | null;
+  /** When Tortie last read the record, epoch ms. */
+  readAt: number | null;
+}
+
+export interface OverviewActivityInput {
+  sessionIds: string[];
+}
+
+/** One row per asked id, in the asked order. */
+export interface OverviewActivity {
+  readAt: number;
+  sessions: OverviewSessionActivity[];
+}
+
+/**
+ * The most ids one call may name. More than this is refused whole rather than
+ * clipped, because a clipped answer would leave rows pending with no reason.
+ * The renderer asks in chunks well under it.
+ */
+export const OVERVIEW_ACTIVITY_MAX_IDS = 200;

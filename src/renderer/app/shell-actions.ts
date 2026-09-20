@@ -98,7 +98,17 @@ export function modalLayerOpen(): boolean {
     s.remoteProjectOpen ||
     s.shortcutsOpen ||
     s.attentionOpen ||
-    s.pastOpen ||
+    // Phase 293. The session manager took the place `s.pastOpen` held here
+    // when the Past Sessions modal became its second tab. It is a layer like
+    // the rest, so ⇧⌘↩, the ⌃⇧P picker and the view rows are swallowed while
+    // it is open. Its two doors cannot ask THIS question, because it would
+    // refuse a second press that only switches the tab; they ask
+    // `otherLayerOpen()` in ../session-manager/open.ts, which is this list
+    // without this line and without the two layers that always sit UNDER an
+    // open sheet (`createOpen` and `overview`, the fix round's W3), plus the
+    // two palettes. p293-doors.test.ts reads both as text and holds that they
+    // differ by exactly those three.
+    s.sessionSheet !== null ||
     // Phase 137. The Catch Me Up page counts as a layer, so ⇧⌘↩ and the
     // other view actions are swallowed while it is open. Its own chord and
     // Escape are handled above this guard and still work.

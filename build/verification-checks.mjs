@@ -267,6 +267,18 @@ export const CHECKS = [
   pure('conformance:installs'),
   pure('conformance:context'),
   pure('conformance:overview'),
+  // PHASE 293. The session manager: build/p293/conformance-manager.mjs runs
+  // build/p293/manager-conformance-probe.mts under the pinned tsx, which drives
+  // the SHIPPING gates predicate, batch loop, projection, view, cells and truth
+  // table, and the press and the batch in actions.ts over the REAL renderer
+  // store with every lifecycle verb replaced by a recorder, then reads the
+  // domain's source with the TypeScript parser for the refusals: no DOM menu,
+  // no stacked confirm, no data-session-id, the discard and kill bridges
+  // reached only through the store's verbs, every per-row verb below a
+  // freshRow(, no name handed to a lifecycle call. One plain node, no
+  // Electron, no tmux, no ssh, no agent; its one write is an asset stub under a
+  // mkdtemp in the system temporary directory, removed in a finally.
+  pure('conformance:manager'),
   pure('conformance:redline'),
   // Phase 226. The guarded write channel: build/conformance-redline-write.mjs
   // drives the SHIPPING src/main/fs/guarded-write.ts under node over a scratch
@@ -526,6 +538,21 @@ export const CHECKS = [
   remote('probe:remoteclone'),
   remote('probe:remotearm'),
   remote('probe:p187'),
+  // PHASE 293's app run: the session manager, driven with real pointer and key
+  // events over the DevTools protocol, ONE Electron through
+  // build/electron-run.mjs's withElectron on a scratch profile, a scratch HOME
+  // and the socket gmux-p293-<pid>, over three scratch git projects it builds
+  // itself, AND the loopback scratch machine from build/scratch-machine.mjs
+  // (its own sshd on 127.0.0.1, its own keys and agent, its own TMUX_TMPDIR),
+  // reached only through build/ssh-run.mjs and stopped in a `finally` that
+  // names it. That sshd is why this is `remote` and not `electron`. Its drive
+  // window.__p293 (src/renderer/app/p293-session-manager-drive.ts) supplies only
+  // what a probe cannot do for real: the menu door through runMenuAction, the
+  // native row menu's items as labels, a captured item run late, and one held
+  // needs_input. P293_ARMS picks the arms so a run fits a budget. Env names
+  // are P293_*, never GMUX_*, so the contract's env list does not move. It
+  // spawns no agent and spends no token.
+  remote('probe:p293'),
 
   // The three that need a machine the operator names and a loaded key.
   realRemote('probe:realmachine'),
@@ -1281,6 +1308,21 @@ export const CHECKS = [
   // `finally` and on a signal, because a phase runs three builders in one worktree
   // at once. About 44 s. No Electron, no tmux, no shell, no agent, no token.
   pure('ablation:p276'),
+  // PHASE 293's attack on its own gate. It breaks FORTY-TWO clauses one at a
+  // time — the batch loop's fresh read, lookup by id, the absent id, the
+  // failure that must not stop it and the stop it must ask; the freeze at the
+  // press in both of its locks, the hidden checked id and the run id a stop is
+  // bound to; who a batch may end; canEnd for an unknown and a removed row; the
+  // rule of the press for a menu pick and a Retry; the continuation's own
+  // panel; Remove's presence and the parity rule; the grouping, the view and
+  // the cells; the truth table's row 6; and every source rule — and proves each
+  // reddens THE RULE THAT OWNS IT, as a DELTA against the base. Like
+  // ablation:p276 it never writes into the working tree: it clones src/ and
+  // build/ with `cp -Rc` under /private/tmp, symlinks node_modules, restores
+  // each edited clone file and proves it by sha256, and removes the clone in a
+  // `finally` and on a signal. About 50 s. No Electron, no tmux, no ssh, no
+  // agent, no token.
+  pure('ablation:p293'),
   // PHASE 261 item 1. The harness socket refusal, DRIVEN. ONE Electron at a
   // time, never two, on a scratch profile with a scratch HOME under its own
   // GMUX_HARNESS_DIR and the socket gmux-p261-<pid>. Five arms: the real app

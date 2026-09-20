@@ -923,12 +923,31 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // when assigned; rebuilt on every hotkey change.
         ...agentHotkeyItems(),
         { type: 'separator' },
+        // Phase 293. The door on to the session manager, which draws every
+        // session Tortie manages across every project and machine, and the row
+        // below is now the same sheet opened on its second tab. It sits above
+        // that row and below the separator, so build/handback-conformance-
+        // probe.mts, which reads positions above the hotkey rows only, sees
+        // nothing move.
+        //
+        // `list-selection`: the sheet is a list a person selects rows in, and
+        // selecting is what its one new verb, End selected sessions…, acts on.
+        // The name is already in `MENU_CODICONS` with its bitmap generated, so
+        // build/assert-menu-glyphs.mjs has nothing new to weigh.
+        //
+        // Unaccelerated for the reason the row below gives: it ends processes,
+        // so a person reads a name first. No badge, no count.
+        item('Manage Sessions…', 'manage-sessions', undefined, 'list-selection'),
         // Phase 29. Deliberately unaccelerated and at the bottom: restoring
         // starts a process, so the user reads a name first. No badge, no
         // count.
         // `history`, the mark session-actions.tsx:853 wears on Restore, which
         // is the verb this modal performs, and the one the SavedMark draws
         // under "Saved — ready to restore".
+        //
+        // Phase 293. The modal is gone and this row opens the session manager
+        // on its Past tab. The id, the label and the mark are unchanged, because
+        // Restore is still the verb that tab performs.
         item('Past Sessions…', 'past-sessions', undefined, 'history')
       ]
     },

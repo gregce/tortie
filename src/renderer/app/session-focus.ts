@@ -40,6 +40,7 @@ import {
   workspaceTarget
 } from '@shared/workspace-target';
 import { useApp } from '../state/store';
+import type { OpenTargetResult } from '../state/projects-slice';
 import { machineLabelFor } from '../state/machines-slice';
 import { displayPath } from '../format';
 import { addRemoteRefusal } from '../machines/project-tab';
@@ -128,6 +129,49 @@ function hadATabBefore(session: Session): boolean {
   );
 }
 
+/**
+ * The sentence for a tab that could not be opened.
+ *
+ * PHASE 293 EXTRACTED IT, and no word of it moved. It was the last expression
+ * of `jumpToSession` below, which still reads it. The session manager sheet
+ * opens a closed project's tab before it restores a session into it, and when
+ * that open is refused the sheet has to say why, under the row, in the words a
+ * person already reads on a refused jump. A second mapping from main's refusal
+ * to a sentence would be a second answer to one question.
+ *
+ * `shown` is the folder as the ⌘J row draws it, and `machineLabel` is the name
+ * Tortie has for the computer it is on. Both are passed in rather than read
+ * here, so the function is pure and the two callers say where each came from.
+ * A refusal on this Mac never reads the label.
+ *
+ * The remote arm used to be handed `target.path` where it is now handed
+ * `shown`, and they are the same string there: `displayPath` draws a path on
+ * another machine exactly as that machine states it, and only a target on
+ * another machine can be refused with `kind: 'remote'`.
+ *
+ * `gone` is the folder-gone sentence, and it is the one thing a caller may
+ * choose, because only its SECOND sentence is about the session: a jump is
+ * reaching a session that is running, and a restore is bringing back one that
+ * runs nowhere. The session manager's restore passes `noFolderThere`, so its
+ * failed panel never says the session "is still running" (the integrator's
+ * round, found by probe:p293 arm 6). Which refusal is which stays here, once.
+ */
+export function targetOpenRefusal(
+  result: Extract<OpenTargetResult, { ok: false }>,
+  shown: string,
+  machineLabel: string,
+  gone: (shown: string) => string = folderGone
+): string {
+  if (result.kind === 'local') {
+    return result.code === 'INVALID_INPUT' || result.code === 'PROJECT_NOT_FOUND'
+      ? gone(shown)
+      : folderRefused(shown, result.message);
+  }
+  return result.kind === 'remote'
+    ? couldNotReachMachine(addRemoteRefusal(result.reason, shown, machineLabel))
+    : cannotOpenOnMachine(machineLabel);
+}
+
 /** Reveal a session wherever it lives, or say what could not be reached. */
 export async function jumpToSession(sessionId: string): Promise<JumpResult> {
   const s = useApp.getState();
@@ -163,16 +207,7 @@ export async function jumpToSession(sessionId: string): Promise<JumpResult> {
     return { ok: true };
   }
 
-  const message =
-    result.kind === 'local'
-      ? result.code === 'INVALID_INPUT' || result.code === 'PROJECT_NOT_FOUND'
-        ? folderGone(shown)
-        : folderRefused(shown, result.message)
-      : result.kind === 'remote'
-        ? couldNotReachMachine(
-            addRemoteRefusal(result.reason, target.path, labelOf(session, target))
-          )
-        : cannotOpenOnMachine(labelOf(session, target));
+  const message = targetOpenRefusal(result, shown, labelOf(session, target));
   useApp.getState().toast('error', message, { sticky: true });
   return { ok: false, message };
 }

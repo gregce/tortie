@@ -18,7 +18,8 @@ const seams = vi.hoisted(() => ({
   getPath: vi.fn(() => '/fake/userData'),
   openOverviewStore: vi.fn(),
   projectOverview: vi.fn(),
-  sessionsOverview: vi.fn()
+  sessionsOverview: vi.fn(),
+  sessionActivity: vi.fn()
 }));
 
 vi.mock('electron', () => ({ app: { getPath: seams.getPath } }));
@@ -27,6 +28,9 @@ vi.mock('../service', () => ({
   projectOverview: seams.projectOverview,
   sessionsOverview: seams.sessionsOverview
 }));
+// Phase 293. The seventh channel's orchestration is its own module, so it is
+// its own seam here. The registrar's whole job for it is the routing.
+vi.mock('../activity', () => ({ sessionActivity: seams.sessionActivity }));
 vi.mock('../../security/trusted-window', () => ({
   assertTrustedIpcSender: () => undefined
 }));
@@ -69,10 +73,12 @@ beforeEach(() => {
   seams.projectOverview.mockResolvedValue({ sessions: [] });
   seams.sessionsOverview.mockReset();
   seams.sessionsOverview.mockResolvedValue({ sessions: [] });
+  seams.sessionActivity.mockReset();
+  seams.sessionActivity.mockResolvedValue({ readAt: 0, sessions: [] });
 });
 
 describe('registerOverviewIpc', () => {
-  it('registers exactly the six channels, and all six READ', () => {
+  it('registers exactly the seven channels, and all seven READ', () => {
     const { ipc, handlers } = fakeIpc();
     registerOverviewIpc(ipc, manifestGetter);
     expect([...handlers.keys()].sort()).toEqual([
@@ -80,9 +86,13 @@ describe('registerOverviewIpc', () => {
       // table and the confirm gate and starts nothing. Phase 143 added the
       // last two. They read the summary chain and the turns behind one row,
       // and they write nothing. Phase 158 added the arch option list, the
-      // same join over the arch recipe table, and it reads too.
+      // same join over the arch recipe table, and it reads too. Phase 293
+      // added `overview:activity`, the session manager's counts by session
+      // id. It reads the logs the first two read and writes the store they
+      // write, and it changes no session.
       'arch:options',
       'fold:options',
+      'overview:activity',
       'overview:project',
       'overview:sessions',
       'overview:timeline',
@@ -152,6 +162,24 @@ describe('registerOverviewIpc', () => {
       projectPath: '/p',
       sessionIds: ['S1']
     });
+  });
+
+  // Phase 293. The input goes through untouched, because the refusals (a
+  // non-array, more ids than the cap) are the orchestration's and are pinned
+  // in activity.test.ts. The deps object is the SAME one the other reads get,
+  // so the counts are read through the one store open and the one manifest
+  // getter, never a second of either.
+  it('routes overview:activity to the orchestration with the input intact and the shared deps', async () => {
+    const { ipc, handlers } = fakeIpc();
+    registerOverviewIpc(ipc, manifestGetter);
+    const input = { sessionIds: ['S1', 'S2'] };
+    const out = await handlers.get('overview:activity')?.(EVENT, input);
+    expect(out).toEqual({ readAt: 0, sessions: [] });
+    expect(seams.sessionActivity).toHaveBeenCalledTimes(1);
+    expect(seams.sessionActivity.mock.calls[0]?.[1]).toBe(input);
+    await handlers.get('overview:project')?.(EVENT, { projectPath: '/p' });
+    expect(seams.sessionActivity.mock.calls[0]?.[0]).toBe(lastDeps());
+    expect(seams.openOverviewStore).not.toHaveBeenCalled();
   });
 
   it('opens the store once, under the protected gmux directory, for both channels', async () => {

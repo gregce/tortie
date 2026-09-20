@@ -125,6 +125,82 @@ export interface NewFoldVersion {
   writtenAt: number;
 }
 
+/**
+ * What one session's stored conversation holds, as counts (Phase 293). The
+ * eleven columns of LIST_ACTIVITY_SQL below and nothing else.
+ *
+ * It carries NO TEXT. The session manager draws how many messages a
+ * conversation holds and when the last one was, for every session on the
+ * sheet at once, and loading each session's turns to count them in JS would
+ * load whole histories per row. The counting happens inside SQLite.
+ *
+ * Every aggregate is `number | null`, and the null is the point: it comes out
+ * of the LEFT JOIN for a session that holds no turn, and ../activity-map.ts
+ * decides what that null means from `readState`. This type never turns it
+ * into a zero.
+ */
+export interface StoredActivity {
+  sessionId: string;
+  provider: string;
+  readState: StoredReadState;
+  lastReadAt: number | null;
+  lastTouchedAt: string | null;
+  /** COUNT(*) over the session's turns. Null when it holds none. */
+  turns: number | null;
+  /** SUM(queued), because one turn can hold more than one ask. */
+  userMessages: number | null;
+  /** COUNT(answer_text): the closing replies on record, at most one per turn. */
+  agentReplies: number | null;
+  /** The LAST turn's clocks, the last turn being the highest index. */
+  lastAskAt: string | null;
+  lastAnswerAt: string | null;
+  /** Whether the last turn holds a reply. Null when there is no last turn. */
+  lastHasAnswer: boolean | null;
+}
+
+/**
+ * The activity aggregate for ONE session (Phase 293).
+ *
+ * ONE ID PER RUN, BOTH READS OF `turn` KEYED ON IT. The first form of this
+ * statement had no WHERE: it grouped every turn of every session the store
+ * has ever held, on every call, and this store never prunes. The inner
+ * `WHERE session_id = @id` is what makes the aggregate walk one session's
+ * turns and nobody else's, through the primary key (session_id, turn_index),
+ * and the last turn is then fetched by that same key. A test reads the query
+ * plan and fails on a scan of `turn`, so a later edit cannot quietly bring
+ * the walk back.
+ *
+ * What it still costs is stated rather than hidden. `queued` sits after the
+ * two text columns in the row, so SUM(queued) reads each of THAT session's
+ * turn rows, overflow pages included. That is bounded by one session's own
+ * turns, it stays inside SQLite, and no text crosses into JS.
+ *
+ * The last turn is read BY INDEX and never by MAX() over a time column,
+ * because clock shapes differ per provider and position is the safe order.
+ *
+ * The parameter is NAMED. better-sqlite3 binds `?1` as a parameter called
+ * "1" rather than as the first positional one, so the numbered form the
+ * phase's spec drew refuses a plain `.get(id)`. One name, used twice.
+ *
+ * Exported for the plan pin and for the conformance gate, which run EXPLAIN
+ * QUERY PLAN over these exact bytes. Nothing else should need it.
+ */
+export const LIST_ACTIVITY_SQL =
+  'SELECT s.session_id, s.provider, s.read_state, s.last_read_at, ' +
+  's.last_touched_at, a.turns, a.user_messages, a.agent_replies, ' +
+  'l.ask_at AS last_ask_at, l.answer_at AS last_answer_at, ' +
+  'CASE WHEN l.session_id IS NULL THEN NULL ' +
+  'ELSE (l.answer_text IS NOT NULL) END AS last_has_answer ' +
+  'FROM session s ' +
+  'LEFT JOIN (SELECT session_id, COUNT(*) AS turns, ' +
+  'SUM(queued) AS user_messages, COUNT(answer_text) AS agent_replies, ' +
+  'MAX(turn_index) AS last_index ' +
+  'FROM turn WHERE session_id = @id GROUP BY session_id) a ' +
+  'ON a.session_id = s.session_id ' +
+  'LEFT JOIN turn l ' +
+  'ON l.session_id = s.session_id AND l.turn_index = a.last_index ' +
+  'WHERE s.session_id = @id';
+
 // ---------------------------------------------------------------------------
 // Row shapes, named so every read is typed end to end.
 // ---------------------------------------------------------------------------
@@ -179,6 +255,37 @@ interface SummaryRow {
   provider_map_version: number;
   input_hash: string;
   written_at: number;
+}
+
+interface ActivityRow {
+  session_id: string;
+  provider: string;
+  read_state: string;
+  last_read_at: number | null;
+  last_touched_at: string | null;
+  turns: number | null;
+  user_messages: number | null;
+  agent_replies: number | null;
+  last_ask_at: string | null;
+  last_answer_at: string | null;
+  last_has_answer: number | null;
+}
+
+/** Column for column. A NULL stays a null, and only the flag changes type. */
+function toStoredActivity(row: ActivityRow): StoredActivity {
+  return {
+    sessionId: row.session_id,
+    provider: row.provider,
+    readState: row.read_state as StoredReadState,
+    lastReadAt: row.last_read_at,
+    lastTouchedAt: row.last_touched_at,
+    turns: row.turns,
+    userMessages: row.user_messages,
+    agentReplies: row.agent_replies,
+    lastAskAt: row.last_ask_at,
+    lastAnswerAt: row.last_answer_at,
+    lastHasAnswer: row.last_has_answer === null ? null : row.last_has_answer !== 0
+  };
 }
 
 function toStoredSummary(row: SummaryRow): StoredSummary {
@@ -391,6 +498,11 @@ export class OverviewStore {
     [string, number, number, number],
     TurnJoinRow
   >;
+  // Phase 293. One more SELECT. It answers counts and clocks and no text.
+  private readonly stmtListActivity: Database.Statement<
+    [{ id: string }],
+    ActivityRow
+  >;
 
   /** Internal. Open through openOverviewStore, which runs the schema first. */
   constructor(db: Database.Database, dbPath: string) {
@@ -493,6 +605,7 @@ export class OverviewStore {
       `${TURN_JOIN_SELECT} AND t.turn_index >= ? AND t.turn_index <= ? ` +
         'ORDER BY t.turn_index DESC LIMIT ?'
     );
+    this.stmtListActivity = db.prepare(LIST_ACTIVITY_SQL);
   }
 
   getSession(sessionId: string): StoredSession | null {
@@ -611,6 +724,37 @@ export class OverviewStore {
 
   countTurns(sessionId: string): number {
     return this.stmtCountTurns.get(sessionId)?.c ?? 0;
+  }
+
+  /**
+   * The counts for the named sessions (Phase 293): ONE prepared statement,
+   * run once per asked id, inside one read transaction. It never scans the
+   * store, whatever the store holds, and it answers no text.
+   *
+   * An id the store does not hold answers NO ROW, so the result can be
+   * shorter than `ids`. The caller matches by `sessionId` and never by
+   * position. A repeated id is answered once.
+   *
+   * The transaction is the plain deferred kind on purpose. The write helpers
+   * in ../../db/sqlite take the write lock up front because a transaction
+   * that reads and THEN writes can find its snapshot gone. This one never
+   * writes, so it has nothing to upgrade and nothing to lose, and taking the
+   * write lock to read would only make a reader wait on a writer. What the
+   * transaction buys is one snapshot across every id, so two rows of one
+   * answer cannot come from two different moments of the store.
+   */
+  listActivity(ids: readonly string[]): StoredActivity[] {
+    const unique = [...new Set(ids)];
+    if (unique.length === 0) return [];
+    const read = this.db.transaction((): StoredActivity[] => {
+      const out: StoredActivity[] = [];
+      for (const id of unique) {
+        const row = this.stmtListActivity.get({ id });
+        if (row !== undefined) out.push(toStoredActivity(row));
+      }
+      return out;
+    });
+    return read();
   }
 
   setGitVerdict(

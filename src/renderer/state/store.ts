@@ -51,6 +51,7 @@ import { createNoticesSlice } from './notices-slice';
 import { createOverlaysSlice } from './overlays-slice';
 import { createOverviewSlice } from './overview-slice';
 import { createProjectsSlice } from './projects-slice';
+import { createSessionManagerSlice } from './session-manager-slice';
 import { createSessionsSlice } from './sessions-slice';
 import type { SidebarViewId } from './sidebar-views';
 
@@ -76,6 +77,22 @@ export {
   whenSessionsPositionPushed
 } from './chrome-slice';
 export { nextOrdinal } from './sessions-slice';
+// Phase 293: the session manager's shapes, exported from the facade for the
+// reason the machine helpers below are: a surface imports one module for the
+// store and what it holds. Types only, so nothing runs and no cycle closes.
+export type {
+  BatchRowOutcome,
+  BatchSkipReason,
+  SessionManagerSlice,
+  SessionSheetBatch,
+  SessionSheetBatchTarget,
+  SessionSheetFilterPatch,
+  SessionSheetInline,
+  SessionSheetInlineKind,
+  SessionSheetRetry,
+  SessionSheetState,
+  SessionSheetTab
+} from './session-manager-slice';
 // Phase 71: the two pure reads over the machine link state, exported from the
 // facade so a surface imports one module for the store and its helpers.
 export {
@@ -112,6 +129,10 @@ export const useApp = create<AppState>((set, get, api) => ({
   ...createMachinesSlice(set, get, api),
   // Phase 137: the Catch Me Up page, one field and four verbs.
   ...createOverviewSlice(set, get, api),
+  // Phase 293: the session manager. `sessionSheet` is `null` on a fresh store
+  // and never `undefined`, which is the slice's first rule: every reader asks
+  // `!== null`, and `undefined !== null` would read as an open sheet.
+  ...createSessionManagerSlice(set, get, api),
 
   // -- lifecycle state -----------------------------------------------------
   //

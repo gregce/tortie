@@ -36,6 +36,12 @@ import { focusTerminal } from '../app/session-focus';
  */
 export async function launchAgent(agentId: string): Promise<void> {
   const s = useApp.getState();
+  // PHASE 293, the fix round (the press attack's P3). Under the session
+  // manager a hotkey starts nothing. It started a session in the project
+  // BEHIND the sheet, made it the active one and handed its terminal the
+  // keyboard, and today's Past Sessions does the same: a process a person
+  // cannot see, started by a key they may have meant for the list.
+  if (s.sessionSheet !== null) return;
   const project = s.activeProject();
   if (!project) {
     s.toast('info', `Open a project first (${keyDisplay('project.open')})`);

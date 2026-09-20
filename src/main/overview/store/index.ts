@@ -10,6 +10,7 @@ export { OVERVIEW_SCHEMA_VERSION, OVERVIEW_TABLES } from './schema';
 export { OverviewStore, openOverviewStore } from './store';
 export type {
   NewFoldVersion,
+  StoredActivity,
   StoredReadState,
   StoredSession,
   StoredSummary,

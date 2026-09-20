@@ -172,7 +172,22 @@ describe('a recorded \u21e7\u2318U per-agent hotkey still wins (Phase 137.1)', (
     const keyboard = stripComments(
       readFileSync(join(SRC, 'renderer', 'app', 'keyboard.ts'), 'utf8')
     );
-    const branch = /toLowerCase\(\) === 'u'\)\s*\{\s*if \(overviewChordYields\(\)\) return;\s*e\.preventDefault\(\);/;
+    // PHASE 293 put ONE statement ahead of the yield, and this pin admits that
+    // one and nothing else. While the session manager sheet is open the chord
+    // is swallowed whole, before the yield is asked, because the page would
+    // open UNDER the sheet and a recorded per-agent chord would start a
+    // session behind its scrim. That guard asks about the sheet alone. With no
+    // sheet open the order this test has always held is unchanged: the yield
+    // is asked first and preventDefault comes after it. The group is optional
+    // so the pin reads the same over a tree that has no sheet.
+    const sheetGuard =
+      "(?:if \\((?:s|useApp\\.getState\\(\\))\\.sessionSheet !== null\\)\\s*\\{\\s*" +
+      'e\\.preventDefault\\(\\);\\s*return;\\s*\\}\\s*)?';
+    const branch = new RegExp(
+      "toLowerCase\\(\\) === 'u'\\)\\s*\\{\\s*" +
+        sheetGuard +
+        'if \\(overviewChordYields\\(\\)\\) return;\\s*e\\.preventDefault\\(\\);'
+    );
     expect(branch.test(keyboard)).toBe(true);
   });
 
@@ -202,7 +217,10 @@ describe('the overview channels close', () => {
   // the last two. They are the summary chain for one session and the turns
   // behind one row of it, and both only read. Phase 158 added the arch option
   // list, the same three way join over the arch recipe table, and it reads too.
-  it('declares the six channels on OverviewInvokeChannelMap and nothing else', () => {
+  // Phase 293 added the seventh, `overview:activity`. It answers counts for
+  // the sessions it is handed by id, for the session manager's two activity
+  // columns, and it reads what the first two read and writes what they write.
+  it('declares the seven channels on OverviewInvokeChannelMap and nothing else', () => {
     const body = /export interface OverviewInvokeChannelMap \{([\s\S]*?)\n\}/.exec(
       ipcSource
     );
@@ -213,6 +231,7 @@ describe('the overview channels close', () => {
     expect(channels.sort()).toEqual([
       'arch:options',
       'fold:options',
+      'overview:activity',
       'overview:project',
       'overview:sessions',
       'overview:timeline',
@@ -232,6 +251,7 @@ describe('the overview channels close', () => {
     expect(count(preloadSource, /\binvoke\('arch:options'/g)).toBe(1);
     expect(count(preloadSource, /\binvoke\('overview:timeline'/g)).toBe(1);
     expect(count(preloadSource, /\binvoke\('overview:timelineTurns'/g)).toBe(1);
+    expect(count(preloadSource, /\binvoke\('overview:activity'/g)).toBe(1);
   });
 
   it('registers each channel exactly once in main', () => {
@@ -246,6 +266,27 @@ describe('the overview channels close', () => {
     expect(count(mainSource, registration('arch:options'))).toBe(1);
     expect(count(mainSource, registration('overview:timeline'))).toBe(1);
     expect(count(mainSource, registration('overview:timelineTurns'))).toBe(1);
+    expect(count(mainSource, registration('overview:activity'))).toBe(1);
+  });
+
+  // Phase 293. The Session menu's new row folds into the dispatchable union
+  // the way `show-overview` does above, proved by the compiler: if
+  // ManageSessionsMenuActionId ever falls out of the fold, this line fails
+  // typecheck. The sheet it opens is where `overview:activity` is asked from.
+  it('folds the session manager menu id into the dispatchable union', () => {
+    const action = 'manage-sessions' satisfies AnyMenuActionWithProjects;
+    expect(action).toBe('manage-sessions');
+  });
+
+  // The bridge method is declared where the channel is, so a preload that
+  // names the channel and a contract that forgot the method cannot both pass.
+  it('declares the bridge method beside the channel it invokes', () => {
+    const extras = /export interface GmuxOverviewExtras \{([\s\S]*?)\n\}/.exec(
+      ipcSource
+    );
+    expect(extras?.[1]).toMatch(
+      /activity\(input: OverviewActivityInput\): Promise<OverviewActivity>;/
+    );
   });
 
   it('gives the View menu one Catch Me Up row wearing the keymap chord and the comment mark', () => {

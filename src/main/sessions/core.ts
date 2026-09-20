@@ -178,6 +178,11 @@ import {
   refuseRemoteRestore,
   remoteKill,
   remoteRename,
+  // PHASE 293. The badge AND the restore verdict for one row, which
+  // `listRemovedSessions` stamps on a removed session whose machine is still
+  // registered. It is the function `projectRemoteRecord` stamps a managed row
+  // with, so a removed row and a managed one cannot carry two opinions.
+  remoteSessionMachine,
   remoteSessionRow,
   remoteSessions,
   setRemotePollFocused,
@@ -404,12 +409,62 @@ function atHomeOnItsMachine(session: Session): Session {
   return home === session.projectPath ? session : { ...session, projectPath: home };
 }
 
+/**
+ * PHASE 293, finding F1. One REMOVED session, as the session manager's Past tab
+ * reads it. It reads the machines file's memory and the feed's maps and writes
+ * nothing durable. Asking the restore gate about a machine this run has not
+ * polled yet seeds that machine's empty feed state in memory, which is what
+ * `listSessions` below already does for every managed row on it.
+ *
+ * `toSession` never sets `Session.machine`, and until this phase that did not
+ * show: the old Past Sessions modal drew one flat list. The sheet groups by
+ * folder AND machine, and `targetOfSession` composes a target from `machine`
+ * and nothing else. So a removed session on a machine that is STILL registered
+ * carried neither `machine` nor `machineGone`, read as a session on this Mac,
+ * grouped under this Mac, and a restore from it would have asked to open a
+ * LOCAL folder with another machine's path. That is the Phase 90.3 defect
+ * arriving by a second door.
+ *
+ * The three cases, and each keeps what it had:
+ *
+ *   a row on this Mac                 toSession, unchanged
+ *   a row whose machine was removed   toSession, unchanged: it carries
+ *                                     `machineGone`, and a machine id here would
+ *                                     be an id a renderer looks up and finds
+ *                                     nothing behind (../manifest/codecs.ts)
+ *   a row on a registered machine     toSession, plus the machine, re-homed
+ *
+ * NOT THROUGH `projectRemoteRecord`, on purpose. That function replaces the
+ * status with what the machine says now, and a removed row reading
+ * `restorable` or `unknown` is no longer a Past row. It also builds a session
+ * from eight named fields, which would drop the conversation id, `removedAt`
+ * and the closed tab the list orders and draws by.
+ *
+ * `remoteSessionMachine(id, sessionId)` carries the restore verdict main's own
+ * restore asks (`refuseRemoteRestore` reads the same `remoteRestoreVerdictFor`),
+ * so the button the sheet draws and the verb behind it cannot disagree.
+ */
+function removedSessionOf(rec: ManifestSessionRecord): Session {
+  const session = toSession(rec);
+  const machineId = rec.machineId;
+  if (machineId === undefined || machineId === LOCAL_MACHINE) return session;
+  if (rec.machineTombstone !== undefined) return session;
+  return atHomeOnItsMachine({
+    ...session,
+    machine: remoteSessionMachine(machineId, rec.id)
+  });
+}
+
 // The pure launch and reconcile decisions (Phase 42 stage 5). This class is
 // the orchestrator: it runs the execs and the writes, and asks these two
 // modules what the launch or the judgement should be.
 // PHASE 48. The last words of a dead pane, as one pure function beside this
 // file. The reaper is its only caller.
 import { exitDetailFrom } from './exit-detail';
+// PHASE 293. The two refusals main makes for itself, as one pure leaf beside
+// this file: an End on a removed row and a Remove on a live local one. This
+// class owns the throw and the error code; the leaf owns whether and what.
+import { endRefusal, removeRefusal } from './lifecycle-gate';
 // PHASE 125. The fail closed durability gate, as its own leaf. It imports
 // nothing from this file: it learns whether the core is disposed and how to
 // build the refusal through the object the constructor hands it.
@@ -2639,12 +2694,17 @@ export class GmuxCore {
     return this.manifest.listSessions();
   }
 
-  /** Past Sessions data (Phase 29): discarded rows only, newest removal first. */
+  /**
+   * Past Sessions data (Phase 29): discarded rows only, newest removal first.
+   *
+   * PHASE 293. Each row now says which machine it is on, through
+   * {@link removedSessionOf} above. The filter and the order are unchanged.
+   */
   listRemovedSessions(): Session[] {
     return this.manifest
       .listSessions()
       .filter((rec) => rec.status === 'discarded')
-      .map(toSession)
+      .map(removedSessionOf)
       // A discarded row with NULL removed_at cannot be produced by this
       // build. If one exists anyway (a hand edited file), it sorts last and
       // is never pruned.
@@ -2749,6 +2809,24 @@ export class GmuxCore {
   }
 
   private async killSessionAdmitted(sessionId: string): Promise<void> {
+    // PHASE 293. ASKED FIRST, ABOVE THE REMOTE BRANCH, and the position is the
+    // rule. This body had no status gate, so an End that landed on a row another
+    // window had just removed wrote `exited` over `discarded` below while
+    // `removed_at` stayed set and the saved output was already gone: the row
+    // left Past Sessions and came back under the managed list with nothing
+    // behind it. The session manager's batch End makes a fresh read and then
+    // this call with an await between them, which is exactly that window.
+    //
+    // Above the remote branch because a removed row on another machine is
+    // normally out of the feed maps already (`forgetRemoteRow`) and falls to
+    // the local path, but a row some map still holds must not reach a machine
+    // on the strength of a tombstone. A row only a feed holds has no record,
+    // and `endRefusal` passes it. The sentence and the reasons for what is NOT
+    // refused are in ./lifecycle-gate.ts.
+    const endRefused = endRefusal(this.manifest.getSession(sessionId));
+    if (endRefused !== null) {
+      throw gmuxError('INVALID_INPUT', endRefused, sessionId);
+    }
     // PHASE 84, ITEM 2. THE ORDER HERE IS THE PROMISE, exactly as it is on the
     // local branch below.
     //
@@ -2924,7 +3002,19 @@ export class GmuxCore {
       this.broadcastSessions();
       return;
     }
-    this.mustGetSession(sessionId);
+    // PHASE 293. The LOCAL path only, and directly after the lookup, so a
+    // refused Remove has cancelled no watch and deleted no saved output. This
+    // method never killed anything and had no status gate, so a Remove that
+    // landed on a row that had turned live since its menu was drawn tombstoned
+    // it while the process ran on with no row pointing at it, which is issue
+    // 27. For a session on this Mac the status column IS what every surface
+    // draws, so the record is the truth. The remote branch above is untouched,
+    // because a remote record's column is not the truth and that branch sends
+    // nothing to any machine (./lifecycle-gate.ts).
+    const removeRefused = removeRefusal(this.mustGetSession(sessionId));
+    if (removeRefused !== null) {
+      throw gmuxError('INVALID_INPUT', removeRefused, sessionId);
+    }
     // A live harvest watch must not write a conversation id onto a tombstone.
     const watch = this.idCaptureWatches.get(sessionId);
     if (watch !== undefined) {

@@ -208,6 +208,9 @@ describe('the shared reads live in one place', () => {
   });
 
   it('modalLayerOpen still reads all seven layers', () => {
+    // Phase 293. The seventh was `s.pastOpen` until the Past Sessions modal
+    // became the second tab of the session manager. The count did not move:
+    // one sheet left the list and the sheet that replaced it took its line.
     for (const layer of [
       's.confirm !== null',
       's.createOpen',
@@ -215,7 +218,7 @@ describe('the shared reads live in one place', () => {
       's.remoteProjectOpen',
       's.shortcutsOpen',
       's.attentionOpen',
-      's.pastOpen'
+      's.sessionSheet !== null'
     ]) {
       expect(shellActions).toContain(layer);
     }

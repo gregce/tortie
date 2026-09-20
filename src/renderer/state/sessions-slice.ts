@@ -3,6 +3,15 @@
  * verb the UI has for it: create, rename, end, restart, remove, restore,
  * Past Sessions, and the ⌘J attention bookkeeping.
  *
+ * PHASE 293 gave five of those verbs a second form. `endSession`,
+ * `removeSession`, `restoreSession`, `restartSession` and `renameSession` each
+ * raise a stacked confirm, a toast, or both, which is right for a row, a strip
+ * and a menu. The session manager draws its confirmations and its failures
+ * INSIDE itself, under the row they are about, so beside each shipped verb
+ * there is a `*Now` verb that raises neither and ANSWERS what happened. The
+ * two forms share one core each, so there is one call to the bridge per verb
+ * and the shipped verbs do today exactly what they did.
+ *
  * Session status is MAIN's, full stop (Phase 13). The renderer used to derive
  * working / needs-input / idle itself from the `term:data:<id>` byte stream
  * and hold it in a `statusOverrides` map that outranked main — but bytes only
@@ -20,7 +29,6 @@ import type {
   SessionStatus
 } from '@shared/types';
 import type {
-  AskRestoreProjectAnswer,
   CaptureChoice,
   InstalledGmuxApi,
   InstalledSessionsApi,
@@ -36,20 +44,29 @@ import { loginProviderForAgent } from '@shared/logins';
 import { settleSignIns, watchSignIn } from './sign-in-watch';
 import { setLoginSwitchedListener } from './logins';
 import { offerRestartNow } from './login-switch';
-// Pure over Session fields; resume.ts imports only types and state/agents,
-// and agents.ts does not import this store, so no cycle closes here.
+// Pure over Session fields; resume.ts imports only types, state/agents and
+// (Phase 293) src/shared/workspace-target, and neither of those imports this
+// store, so no cycle closes here.
 import {
+  LIFECYCLE_BRIDGE_MISSING,
+  LIFECYCLE_SESSION_CHANGED,
+  SHELL_PATH_PENDING_TITLE,
   bareRestartConfirm,
   bareRestoreConfirm,
-  pastRestoreNeedsAsk,
+  endSessionConfirm,
+  removeSessionConfirm,
+  restoreLandedNote,
   resumeInPlaceAnswerNote,
   resumeInPlaceLanded,
-  resumeReadiness,
+  sessionActionGates,
   showsResumeVerb
 } from './resume';
 import type {
+  LifecycleResult,
+  RestoreOutcome,
   ResumeInPlaceLanding,
   ResumeInPlaceRefusal,
+  SessionActionGates,
   SessionHandback
 } from './resume';
 // Every sentence about a machine comes from one file, which is the one the
@@ -232,6 +249,66 @@ export interface SessionsSlice {
   removeSession(sessionId: string): Promise<void>;
   /** Whether the optional sessions:discard bridge method exists. */
   canDiscard(): boolean;
+  // -- the verbs that answer instead of raising (Phase 293) --------------------
+  //
+  // THE RULE OF THE PRESS, held here as well as in the sheet. Each of these
+  // takes a session ID and nothing else. It re-reads that row from this store
+  // at the moment of the call and asks the verb's OWN field of
+  // `sessionActionGates` over it, and when the row is gone or the gate is
+  // false it reaches no bridge and answers `LIFECYCLE_SESSION_CHANGED`. A sheet
+  // is the first surface where a row can sit on screen for minutes while
+  // another window, a machine reconnecting or the session itself changes it,
+  // and a stale Restart is the one press that ends in a hard delete.
+  //
+  // None of them raises a confirm. None of them raises an error toast. Each
+  // answers `LIFECYCLE_BRIDGE_MISSING` when the bridge method it needs is not
+  // there, read at CALL time, the way `machinesExtras` below reads its own.
+  /**
+   * End one live session and say whether it ended. Gate: `canEnd`. The kill is
+   * awaited, so a refusal from main is this verb's answer rather than a toast
+   * that arrives after the caller has moved on.
+   */
+  endSessionNow(sessionId: string): Promise<LifecycleResult>;
+  /**
+   * Remove one ended session to Past Sessions, then apply main's list and
+   * refetch the removed list. Gate: `canRemove`. It is the only route in the
+   * renderer's session manager to `sessions:discard`.
+   */
+  removeSessionNow(sessionId: string): Promise<LifecycleResult>;
+  /**
+   * Rename one session by id, which works whether or not its project has a
+   * tab. Gate: `canRename`. An empty name sends nothing.
+   */
+  renameSessionNow(sessionId: string, name: string): Promise<LifecycleResult>;
+  /**
+   * Restart one ended session on this Mac. Gate: `offersRestart`, and
+   * `offersBare` as well for the form without SpecStory. It is `runRestart`
+   * without the bare confirm and without the error toast; the one sentence the
+   * bare form says on success is kept, because it is the only place a person
+   * learns the replacement saves no history.
+   */
+  restartSessionNow(
+    sessionId: string,
+    options?: CaptureChoice
+  ): Promise<LifecycleResult>;
+  /**
+   * Restore one ended session and answer what happened. Gate: `canRestoreNow`,
+   * and `offersBare` as well for the form without SpecStory. It sets the
+   * restoring flag, restores, and applies main's list. IT NEVER LANDS: it calls
+   * neither `setActiveSession` nor `setActiveProject`, because the sheet stays
+   * open and the person chooses whether to go there.
+   */
+  restoreSessionNow(
+    sessionId: string,
+    options?: CaptureChoice
+  ): Promise<RestoreOutcome>;
+  /**
+   * Read main's session list, APPLY it, and answer it. Null when it could not
+   * be read, which is a throw or a build with no bridge. It never throws. The
+   * batch End reads this before every single call, so it never ends a session
+   * on the strength of a list it did not just read.
+   */
+  refreshSessions(): Promise<Session[] | null>;
   // -- restore (Phase 6) ------------------------------------------------------
   /** Session ids with a restore in flight (buttons show progress). */
   restoringIds: Record<string, boolean>;
@@ -267,30 +344,43 @@ export interface SessionsSlice {
   /** Restore every restorable session in the active project (sequential). */
   restoreAllSessions(): Promise<void>;
   // -- past sessions (Phase 29) -----------------------------------------------
-  /** Whether the Past Sessions panel is open (Session menu, Past Sessions…). */
-  pastOpen: boolean;
+  //
+  // PHASE 293. The Past Sessions panel was a modal of its own with an open
+  // flag here. It is the second tab of the session manager now, so whether it
+  // is on screen is `sessionSheet` in ./session-manager-slice and this slice
+  // keeps the DATA: the rows, the loading flag and the two verbs over them.
   /**
    * Discarded rows from every project, exactly as main sorted them (newest
    * removal first). The panel never re-sorts.
    */
   pastSessions: Session[];
-  /** True while the open fetch is in flight, so the empty copy never flashes. */
+  /** True while a fetch is in flight, so the empty copy never flashes. */
   pastLoading: boolean;
   /**
-   * Open or close the Past Sessions panel. Opening fetches through the
-   * optional sessions:listRemoved bridge method; a missing method means the
-   * panel opens in its empty state with no error, the same posture every
-   * extras consumer takes.
+   * Fetch the removed rows through the optional sessions:listRemoved bridge
+   * method. A missing method means an empty list with no error, the same
+   * posture every extras consumer takes.
+   *
+   * It never throws and it raises no toast. There is no push for this list, so
+   * the sheet calls this on every change to the session list while it is open,
+   * and a toast per failed read would be a toast per change. A read that failed
+   * keeps the rows already held and, while the sheet is open, says so in the
+   * sheet's own read-failure state.
    */
-  setPastOpen(open: boolean): void;
+  refreshPastSessions(): Promise<void>;
   /**
    * Restore one discarded row through the existing Phase 26.3 verb (no new
-   * channel). Success closes the panel, refreshes the session list and lands
-   * on the restored session, the same landing the restart path gives.
-   * Failure toasts sticky and re-fetches the list. The row is still there
-   * because main kept it 'discarded'.
+   * channel), and answer what happened.
+   *
+   * PHASE 293 REWROTE IT IN PLACE. It used to ask through a native dialog,
+   * close the panel and land on the restored session, and it answered nothing.
+   * It now asks nothing, closes nothing, lands nowhere and raises no toast: the
+   * sheet asks inline, stays open, and offers the way to the session. Gate:
+   * `canRestorePastNow`, over the row re-read by id from `pastSessions`. A
+   * failure re-fetches the list, as it always did, because main kept the row
+   * 'discarded' and a failed restore is not a second loss.
    */
-  restorePastSession(sessionId: string): Promise<void>;
+  restorePastSession(sessionId: string): Promise<RestoreOutcome>;
   // -- saved output (Phase 72) -----------------------------------------------
   /**
    * The session whose saved output panel is open, or null when it is closed.
@@ -583,81 +673,171 @@ export const createSessionsSlice: StateCreator<
    */
   const armingInFlight = new Set<string>();
 
+  // -------------------------------------------------------------------------
+  // PHASE 293. The cores the shipped verbs and the `*Now` verbs share.
+  //
+  // Each verb has two forms now, one that raises a confirm and a toast and one
+  // that answers. Two copies of the bridge call would be two places for the
+  // Phase 19 ordering rule or the Phase 119 option to drift, so each call is
+  // written once below and both forms read it. A core raises NOTHING. It
+  // answers, and its caller decides what a person sees.
+  //
+  // THE BRIDGE IS READ AT CALL TIME in every core, not captured when the store
+  // was built. A `*Now` verb has to be able to say this build cannot change
+  // sessions, and a captured null would say it for ever.
+  // -------------------------------------------------------------------------
+
+  /** The installed sessions bridge right now, or null when there is none. */
+  const sessionsBridge = (): InstalledSessionsApi | null =>
+    gmuxBridge()?.sessions ?? null;
+
   /**
-   * PHASE 119. The one restore runner, shared by the ordinary restore and the
-   * declined one, so the in-flight guard, the active-session switch and the
-   * error handling exist once. `withoutCapture` changes exactly two things: the
-   * option it sends to main, and which sentence the toast carries.
+   * Whether the restored or restarted session belongs to the project a person
+   * is looking at, and the landing when it does.
+   *
+   * PHASE 293, A CORRECTION FOR EVERY CALLER. `runRestore` and `runRestart`
+   * called `setActiveSession` with no condition, and that verb writes the
+   * ACTIVE project's slot whatever project the session belongs to. No surface
+   * could restore a session outside the active project, so nothing met it. The
+   * session manager is the first that can, and without this guard restoring a
+   * session of project B from the sheet would have moved project A's selection
+   * to an id that is not in project A. The pair is compared, being the machine
+   * and the folder, so the same path on another machine is not this project.
    */
-  const runRestore = async (
-    restore: InstalledSessionsApi['restore'],
-    session: Session,
-    withoutCapture: boolean
-  ): Promise<void> => {
-    const sessionId = session.id;
-    if (get().restoringIds[sessionId] === true) return;
+  const landWhenActive = (landed: Session): void => {
+    const active = get().activeProject();
+    if (active === null) return;
+    if (!sameTarget(targetOfSession(landed), targetOfProject(active))) return;
+    get().setActiveSession(landed.id);
+  };
+
+  /** The gates for one row of this store, read at this instant. */
+  const gatesNow = (session: Session): SessionActionGates =>
+    sessionActionGates(session, get().effectiveStatus(session), {
+      canRestore: get().canRestore(),
+      canDiscard: get().canDiscard(),
+      shellPathReady: get().shellPathReady,
+      handback: get().handbacks[session.id]
+    });
+
+  /**
+   * THE RULE OF THE PRESS, for a `*Now` verb. Re-read the row BY ID from the
+   * list that holds it, and ask `allows` of its gates. Null means the row is
+   * gone or the verb is no longer offered, and the caller reaches no bridge.
+   *
+   * It takes an id because the closure that called it may be seconds old: a
+   * native menu runs the item that was built when the menu was drawn, and a
+   * confirmation can stand on screen while another window changes the row.
+   */
+  const freshSession = (
+    sessionId: string,
+    from: 'sessions' | 'pastSessions',
+    allows: (gates: SessionActionGates) => boolean
+  ): Session | null => {
+    if (sessionId.length === 0) return null;
+    const session = get()[from].find((x) => x.id === sessionId);
+    if (session === undefined) return null;
+    return allows(gatesNow(session)) ? session : null;
+  };
+
+  /** Read main's list and apply it. False when it could not be read. */
+  const applyFreshList = async (): Promise<boolean> => {
+    try {
+      const api = sessionsBridge();
+      if (api === null || typeof api.list !== 'function') return false;
+      get().applySessions(await api.list());
+      return true;
+    } catch {
+      // The verb before this read already happened. `sessions:changed` brings
+      // the same list a moment later, so a failed read here loses nothing.
+      return false;
+    }
+  };
+
+  /** End one session by id. */
+  const killCore = async (sessionId: string): Promise<LifecycleResult> => {
+    const api = sessionsBridge();
+    if (api === null || typeof api.kill !== 'function') {
+      return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+    }
+    try {
+      await api.kill(sessionId);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: errorText(err) };
+    }
+  };
+
+  /** Remove one session by id, then apply main's list. */
+  const discardCore = async (sessionId: string): Promise<LifecycleResult> => {
+    const api = sessionsBridge();
+    if (api === null || typeof api.discard !== 'function') {
+      return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+    }
+    try {
+      await api.discard(sessionId);
+      get().applySessions(await api.list());
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: errorText(err) };
+    }
+  };
+
+  /** Rename one session by id. The caller has already trimmed the name. */
+  const renameCore = async (
+    sessionId: string,
+    name: string
+  ): Promise<LifecycleResult> => {
+    const api = sessionsBridge();
+    if (api === null || typeof api.rename !== 'function') {
+      return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+    }
+    try {
+      await api.rename({ sessionId, name });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: errorText(err) };
+    }
+  };
+
+  /**
+   * PHASE 119. The one restore runner, shared by the ordinary restore, the
+   * declined one and, since Phase 293, the two verbs the sheet calls, so the
+   * in-flight guard and the error handling exist once. `withoutCapture` changes
+   * exactly two things: the option it sends to main, and which sentence the
+   * note carries.
+   *
+   * It lands nowhere and says nothing. `after` runs while the restoring flag is
+   * still up, so a caller that re-reads the list does it before the row's
+   * button can read Restore again.
+   */
+  const restoreCore = async (
+    before: Session,
+    withoutCapture: boolean,
+    after?: () => Promise<void>
+  ): Promise<RestoreOutcome> => {
+    const sessionId = before.id;
+    const api = sessionsBridge();
+    if (api === null || typeof api.restore !== 'function') {
+      return { kind: 'failed', message: LIFECYCLE_BRIDGE_MISSING };
+    }
+    if (get().restoringIds[sessionId] === true) return { kind: 'busy' };
     set((s) => ({
       restoringIds: { ...s.restoringIds, [sessionId]: true }
     }));
     try {
-      const restored = await restore(
+      const restored = await api.restore(
         sessionId,
         withoutCapture ? { withoutCapture: true } : undefined
       );
-      get().setActiveSession(restored.id);
-      const armed = (session.resumeArgv?.length ?? 0) > 0;
-      // The decline is claimed only when the row proves it took. Main leaves
-      // the capture setting alone in the one case it cannot honour the
-      // request, which is a recorded resume command it cannot separate from
-      // SpecStory, and the returned row still carries its capture there. Saying
-      // "no longer saves its history" about that row would be false, so this
-      // reads the answer back rather than repeating the request.
-      const declined =
-        withoutCapture &&
-        session.capture !== undefined &&
-        restored.capture === undefined;
-      if (declined) {
-        get().toast(
-          'success',
-          armed
-            ? `'${session.name}' is back and no longer saves its history. Press Enter in the terminal to resume the conversation.`
-            : `'${session.name}' is back and no longer saves its history.`
-        );
-        return;
-      }
-      // PHASE 119 FIX ROUND. THE DECLINE MAIN COULD NOT HONOUR, and it is the
-      // only path in this runner that reads `restored.restore`.
-      //
-      // Main writes one sentence for it, being "Tortie could not separate this
-      // session's resume command from SpecStory, so nothing was armed in the
-      // pane." Before this round that sentence went to the main log and to the
-      // row's `restore.armFailure` column, and no renderer file read either
-      // one. The person got the ordinary success toast instead, which told
-      // them to press Enter to resume a conversation that was never armed,
-      // while a separate sticky toast said the session came back without its
-      // agent. The two disagreed and the first one was false.
-      //
-      // The sentence is not rewritten here. Main is the one author of it, so
-      // echoing the column is what keeps the log and the screen saying the
-      // same thing. The gate is `withoutCapture` plus a row that was captured,
-      // so an ordinary restore's arm failure still takes the path it always
-      // took and nothing about the ordinary restore moved.
-      const declineFailure =
-        withoutCapture && session.capture !== undefined
-          ? restored.restore?.armFailure
-          : undefined;
-      if (declineFailure !== undefined) {
-        get().toast('error', declineFailure, { sticky: true });
-        return;
-      }
-      get().toast(
-        'success',
-        armed
-          ? `'${session.name}' restored — press Enter in the terminal to resume the conversation.`
-          : `'${session.name}' restored.`
-      );
+      if (after !== undefined) await after();
+      return {
+        kind: 'restored',
+        session: restored,
+        note: restoreLandedNote(before, restored, withoutCapture)
+      };
     } catch (err) {
-      get().toast('error', errorText(err), { sticky: true });
+      return { kind: 'failed', message: errorText(err) };
     } finally {
       set((s) => {
         const restoringIds = { ...s.restoringIds };
@@ -668,43 +848,71 @@ export const createSessionsSlice: StateCreator<
   };
 
   /**
+   * The shipped restore: the core, then the landing and the toast. The
+   * sentences are `restoreLandedNote`'s, which is where Phase 293 moved them,
+   * verbatim, so the sheet's one toast and this one cannot say two things.
+   */
+  const runRestore = async (
+    session: Session,
+    withoutCapture: boolean
+  ): Promise<void> => {
+    const outcome = await restoreCore(session, withoutCapture);
+    if (outcome.kind === 'busy') return;
+    if (outcome.kind === 'failed') {
+      get().toast('error', outcome.message, { sticky: true });
+      return;
+    }
+    landWhenActive(outcome.session);
+    const { note } = outcome;
+    get().toast(note.kind, note.text, note.sticky ? { sticky: true } : undefined);
+  };
+
+  /**
    * PHASE 119. The one restart runner, for the same reason. The four-step
    * order below is Phase 19 item 8 and nothing about it moved: nothing is
    * discarded until the replacement exists.
+   *
+   * PHASE 293. It ANSWERS a failure rather than toasting it, so the shipped
+   * verb and the sheet's verb are one runner, and it lands only in the active
+   * project (`landWhenActive`). The success sentence of the bare form stays
+   * here, because it is the only place a person is told the replacement saves
+   * no history and both callers owe it.
    */
   const runRestart = async (
     session: Session,
     options: CaptureChoice | undefined
-  ): Promise<void> => {
-    const api = gmux;
-    if (!api) return;
+  ): Promise<LifecycleResult> => {
+    const api = sessionsBridge();
+    if (api === null) return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
     const withoutCapture = options?.withoutCapture === true;
     try {
-      if (typeof sessionExtras?.restart === 'function') {
+      if (typeof api.restart === 'function') {
         // PHASE 211, FIX ROUND. The whole option rides through, so a
         // `Restart now` beside a switch reaches main with `underChosenLogin`
         // and the replacement comes back under the chosen login.
-        const created = await sessionExtras.restart(
+        const created = await api.restart(
           session.id,
           options !== undefined && (withoutCapture || options.underChosenLogin === true)
             ? options
             : undefined
         );
-        get().setActiveSession(created.id);
+        landWhenActive(created);
         if (withoutCapture) {
           get().toast(
             'success',
             `'${session.name}' started fresh and does not save its history.`
           );
         }
-        return;
+        return { ok: true };
       }
       // PHASE 90.3. The fallback below sends no machine, so it would start a
       // process on THIS Mac in a folder path that names a folder over there.
       // A session on a machine is restarted by main, through the extra above,
       // or not at all.
-      if (session.machine !== undefined) return;
-      const created = await api.sessions.create({
+      if (session.machine !== undefined) {
+        return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+      }
+      const created = await api.create({
         name: session.name,
         projectPath: session.projectPath,
         cwd: session.cwd,
@@ -718,20 +926,43 @@ export const createSessionsSlice: StateCreator<
           : {})
       });
       // Only now. A discard before this line is the defect.
-      if (typeof sessionExtras?.discard === 'function') {
-        await sessionExtras.discard(session.id);
+      if (typeof api.discard === 'function') {
+        await api.discard(session.id);
       }
-      get().setActiveSession(created.id);
+      landWhenActive(created);
       if (withoutCapture) {
         get().toast(
           'success',
           `'${session.name}' started fresh and does not save its history.`
         );
       }
+      return { ok: true };
     } catch (err) {
-      get().toast('error', errorText(err), { sticky: true });
+      return { ok: false, message: errorText(err) };
     }
   };
+
+  /**
+   * The shipped restart: the runner, and its failure as a sticky toast. A build
+   * that cannot restart at all stays SILENT here, as it always has. That is the
+   * posture every extras consumer takes, and only a caller that asked for an
+   * answer is given one.
+   */
+  const runRestartLoud = async (
+    session: Session,
+    options: CaptureChoice | undefined
+  ): Promise<void> => {
+    const result = await runRestart(session, options);
+    if (result.ok || result.message === LIFECYCLE_BRIDGE_MISSING) return;
+    get().toast('error', result.message, { sticky: true });
+  };
+
+  /**
+   * One read of the removed list at a time wins. A person can remove a session
+   * while the debounced refetch for the last change is still in the air, and
+   * the older answer must not land over the newer one.
+   */
+  let pastRequestSeq = 0;
 
   return {
     sessions: [],
@@ -1056,56 +1287,26 @@ export const createSessionsSlice: StateCreator<
       if (!gmux) return;
       const trimmed = name.trim();
       if (trimmed.length === 0) return;
-      try {
-        await gmux.sessions.rename({ sessionId, name: trimmed });
-      } catch (err) {
-        get().toast('error', errorText(err), { sticky: true });
-      }
+      const result = await renameCore(sessionId, trimmed);
+      if (!result.ok) get().toast('error', result.message, { sticky: true });
     },
 
     endSession(sessionId) {
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || !gmux) return;
-      // Phase 26.3 — the old body promised "its scrollback will be discarded.
-      // This cannot be undone", and both halves stopped being true once
-      // manual end writes a snapshot capsule and keeps the manifest row, so
-      // the session can be restored. The first sentence keeps the one fact
-      // that IS irreversible in front of the user: the running process dies
-      // and does not resume mid-task. "First" is the Phase 19 ordering
-      // promise (main captures before it kills); main's capture-failure
-      // notice is what keeps that word honest on a full disk.
-      // PHASE 84, item 2. A session on another machine gets its own body, and
-      // it is read from `session.machine`, which the projection already
-      // carries. The old body was false twice for such a session. It promised a
-      // copy that main never took, and it promised a restore that brings the
-      // conversation back, which no remote restore did. Main now takes the
-      // copy before it kills anything, so "first" is true.
-      //
-      // PHASE 89 CHANGED THE LAST SENTENCE, because it said flatly that the
-      // conversation does not come back and that is no longer true for every
-      // row. A remote restore now types the command that continues the
-      // conversation for a row two answers prove, being the arming gate in
-      // main's `machines/resume-arming.ts` and the composer in
-      // `machines/remote-arm.ts`. THE RENDERER CANNOT KNOW WHICH ROW THAT IS.
-      // Both answers are read at restore time, one of them against the machine
-      // itself, and the projection for a remote session carries neither
-      // `resumeCapture` nor `resumeArgv`. So the sentence says what is true of
-      // every row and promises nothing about this one.
-      const machine = session.machine;
-      const resumable = resumeReadiness(session) === 'conversation';
+      // PHASE 293. The words moved to `endSessionConfirm` in ./resume, byte for
+      // byte, with the three phases of reasons that were written here. The
+      // sheet draws the same title and body under a row, and one author for
+      // them is what stops the two surfaces saying two things.
+      const ask = endSessionConfirm(session);
       get().setConfirm({
-        title: `End '${session.name}'?`,
-        body:
-          machine !== undefined
-            ? `This stops what is running in it on ${machine.label}. Tortie saves a copy of what it printed first, so you can read that copy here afterwards. Bringing it back always returns the folder, and it returns the conversation only when Tortie recorded one for this agent.`
-            : resumable
-              ? 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.'
-              : 'This stops what is running in it. The scrollback is saved first, so you can restore this session later.',
-        confirmLabel: 'End session',
+        title: ask.title,
+        body: ask.body,
+        confirmLabel: ask.confirmLabel,
         destructive: true,
         onConfirm: () => {
-          void gmux.sessions.kill(sessionId).catch((err: unknown) => {
-            get().toast('error', errorText(err), { sticky: true });
+          void killCore(sessionId).then((result) => {
+            if (!result.ok) get().toast('error', result.message, { sticky: true });
           });
         }
       });
@@ -1144,38 +1345,137 @@ export const createSessionsSlice: StateCreator<
           body: ask.body,
           confirmLabel: ask.confirmLabel,
           onConfirm: () => {
-            void runRestart(session, options);
+            void runRestartLoud(session, options);
           }
         });
         return;
       }
-      await runRestart(session, options);
+      await runRestartLoud(session, options);
     },
 
     async removeSession(sessionId) {
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || typeof sessionExtras?.discard !== 'function') return;
-      const discard = sessionExtras.discard.bind(sessionExtras);
-      // Phase 29. Remove is reversible now (main writes a tombstone behind
-      // the same sessions:discard channel), so the body names the way back
-      // instead of promising a loss that no longer happens.
+      // PHASE 293. The words moved to `removeSessionConfirm` in ./resume,
+      // unchanged, for the reason `endSession` above gives.
+      const ask = removeSessionConfirm(session);
       get().setConfirm({
-        title: `Remove '${session.name}'?`,
-        body: 'It moves to Past Sessions and you can restore it from there.',
-        confirmLabel: 'Remove',
+        title: ask.title,
+        body: ask.body,
+        confirmLabel: ask.confirmLabel,
         destructive: true,
         onConfirm: () => {
-          void (async () => {
-            try {
-              await discard(sessionId);
-              const sessions = await gmux!.sessions.list();
-              get().applySessions(sessions);
-            } catch (err) {
-              get().toast('error', errorText(err), { sticky: true });
-            }
-          })();
+          void discardCore(sessionId).then((result) => {
+            if (!result.ok) get().toast('error', result.message, { sticky: true });
+          });
         }
       });
+    },
+
+    // -- the verbs that answer instead of raising (Phase 293) ------------------
+
+    async endSessionNow(sessionId) {
+      if (typeof sessionsBridge()?.kill !== 'function') {
+        return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+      }
+      if (freshSession(sessionId, 'sessions', (g) => g.canEnd) === null) {
+        return { ok: false, message: LIFECYCLE_SESSION_CHANGED };
+      }
+      return killCore(sessionId);
+    },
+
+    async removeSessionNow(sessionId) {
+      if (typeof sessionsBridge()?.discard !== 'function') {
+        return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+      }
+      // THE GATE THAT MATTERS MOST HERE. `sessions:discard` tombstones a row
+      // and kills nothing, so a Remove over a row that turned live leaves a
+      // process running with no row pointing at it. Main refuses that for a
+      // row on this Mac since this phase; this is the lock in front of it.
+      if (freshSession(sessionId, 'sessions', (g) => g.canRemove) === null) {
+        return { ok: false, message: LIFECYCLE_SESSION_CHANGED };
+      }
+      const result = await discardCore(sessionId);
+      // The row has just joined the removed list, and there is no push for
+      // that list, so it is refetched at once rather than on the next change.
+      if (result.ok) await get().refreshPastSessions();
+      return result;
+    },
+
+    async renameSessionNow(sessionId, name) {
+      if (typeof sessionsBridge()?.rename !== 'function') {
+        return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+      }
+      if (freshSession(sessionId, 'sessions', (g) => g.canRename) === null) {
+        return { ok: false, message: LIFECYCLE_SESSION_CHANGED };
+      }
+      const trimmed = name.trim();
+      if (trimmed.length === 0) {
+        // Main's own words for the same refusal (`renameSessionAdmitted`), said
+        // without the round trip. The shipped verb returns in silence here; a
+        // verb that answers has to answer something.
+        return { ok: false, message: 'Session name cannot be empty.' };
+      }
+      return renameCore(sessionId, trimmed);
+    },
+
+    async restartSessionNow(sessionId, options) {
+      if (sessionsBridge() === null) {
+        return { ok: false, message: LIFECYCLE_BRIDGE_MISSING };
+      }
+      // THE ONE VERB HERE THAT ENDS IN A HARD DELETE. Main kills the old
+      // session and deletes its row once the replacement exists, so a stale
+      // pick over a row that has turned live would end a person's running work
+      // and leave nothing to restore. It is offered for an ended row on this
+      // Mac and it is RUN for nothing else.
+      const bare = options?.withoutCapture === true;
+      const session = freshSession(
+        sessionId,
+        'sessions',
+        (g) => g.offersRestart && (!bare || g.offersBare)
+      );
+      if (session === null) {
+        return { ok: false, message: LIFECYCLE_SESSION_CHANGED };
+      }
+      return runRestart(session, options);
+    },
+
+    async restoreSessionNow(sessionId, options) {
+      if (typeof sessionsBridge()?.restore !== 'function') {
+        return { kind: 'failed', message: LIFECYCLE_BRIDGE_MISSING };
+      }
+      const bare = options?.withoutCapture === true;
+      const offered = freshSession(
+        sessionId,
+        'sessions',
+        (g) => g.offersRestore && (!bare || g.offersBare)
+      );
+      if (offered === null) {
+        return { kind: 'failed', message: LIFECYCLE_SESSION_CHANGED };
+      }
+      // Offered and not yet enabled is its own answer: the row did not change,
+      // Tortie is still waiting for the login shell, and the sentence every
+      // Restore control already carries says exactly that.
+      if (!get().shellPathReady) {
+        return { kind: 'failed', message: SHELL_PATH_PENDING_TITLE };
+      }
+      return restoreCore(offered, bare, async () => {
+        await applyFreshList();
+      });
+    },
+
+    async refreshSessions() {
+      try {
+        const api = sessionsBridge();
+        if (api === null || typeof api.list !== 'function') return null;
+        const sessions = await api.list();
+        get().applySessions(sessions);
+        return sessions;
+      } catch {
+        // Null is the whole report. The batch End reads it as "I could not
+        // read the list, so I did not end this one" and goes on to the next.
+        return null;
+      }
     },
 
     canDiscard() {
@@ -1242,7 +1542,6 @@ export const createSessionsSlice: StateCreator<
 
     async restoreSession(sessionId, options) {
       if (typeof sessionExtras?.restore !== 'function') return;
-      const restore = sessionExtras.restore.bind(sessionExtras);
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || get().restoringIds[sessionId] === true) return;
       // PHASE 119. The declined restore asks first. The choice is written onto
@@ -1259,12 +1558,12 @@ export const createSessionsSlice: StateCreator<
           // Not destructive. Nothing on disk is deleted and a red button would
           // say otherwise.
           onConfirm: () => {
-            void runRestore(restore, session, true);
+            void runRestore(session, true);
           }
         });
         return;
       }
-      await runRestore(restore, session, false);
+      await runRestore(session, false);
     },
 
     async restoreAllSessions() {
@@ -1280,107 +1579,70 @@ export const createSessionsSlice: StateCreator<
 
     // -- past sessions (Phase 29) ------------------------------------------------
 
-    pastOpen: false,
     pastSessions: [],
     pastLoading: false,
 
-    setPastOpen(open) {
-      if (!open) {
-        set({ pastOpen: false });
+    async refreshPastSessions() {
+      const request = ++pastRequestSeq;
+      const api = sessionsBridge();
+      if (api === null || typeof api.listRemoved !== 'function') {
+        // Older preload: the list is empty, with no error.
+        set({ pastSessions: [], pastLoading: false });
         return;
       }
-      const listRemoved = sessionExtras?.listRemoved;
-      if (typeof listRemoved !== 'function') {
-        // Older preload: the panel opens empty, with no error.
-        set({ pastOpen: true, pastSessions: [], pastLoading: false });
-        return;
-      }
-      set({ pastOpen: true, pastLoading: true });
-      void listRemoved.call(sessionExtras).then(
-        (rows) => set({ pastSessions: rows, pastLoading: false }),
-        (err: unknown) => {
-          set({ pastLoading: false });
-          get().toast('error', errorText(err), { sticky: true });
+      set({ pastLoading: true });
+      try {
+        const rows = await api.listRemoved();
+        // A newer read is in the air and its answer is the one that counts.
+        if (request !== pastRequestSeq) return;
+        set({ pastSessions: rows, pastLoading: false });
+      } catch (err) {
+        if (request !== pastRequestSeq) return;
+        // The rows already held are kept: a failed read is not an empty list.
+        set({ pastLoading: false });
+        // While the sheet is open it has a state for exactly this, and that is
+        // where the failure is said. With the sheet closed nothing draws this
+        // list, so there is nobody to tell.
+        const sheet = get().sessionSheet;
+        if (sheet !== null) {
+          set({ sessionSheet: { ...sheet, listError: errorText(err) } });
         }
-      );
+      }
     },
 
     async restorePastSession(sessionId) {
-      if (typeof sessionExtras?.restore !== 'function') return;
-      if (get().restoringIds[sessionId] === true) return;
-      const restore = sessionExtras.restore.bind(sessionExtras);
-      // Phase 60. A restore into a project that is not an open tab asks
-      // FIRST, before the restoring flag, so the row's button never reads
-      // "Restoring…" while the question is on screen. The open-project case
-      // never reaches this block, by control flow rather than by promise;
-      // an older preload without the extra keeps today's silent behavior.
-      const row = get().pastSessions.find((x) => x.id === sessionId);
-      if (
-        row !== undefined &&
-        // PHASE 90.3. Never for a row that names a machine. The ask ends in
-        // `addProjectPath`, which opens a folder on THIS Mac, and the path on
-        // that row is a path over there. Opening it here would be a local tab
-        // wearing another machine's folder name, which is the exact defect this
-        // phase exists to remove.
-        row.machine === undefined &&
-        row.machineGone === undefined &&
-        pastRestoreNeedsAsk(row, get().projects.map((p) => p.path)) &&
-        typeof sessionExtras.askRestoreProject === 'function'
-      ) {
-        let answer: AskRestoreProjectAnswer = 'cancel';
-        try {
-          answer = await sessionExtras.askRestoreProject({
-            sessionName: row.name,
-            projectPath: row.projectPath
-          });
-        } catch {
-          /* an error on the ask changes nothing, which is the cancel behavior */
-        }
-        if (answer !== 'open') return;
-        // Open the tab first so the restore lands somewhere visible.
-        // addProjectPath toasts its own failures; if it failed, the restore
-        // still proceeds exactly as a closed-project restore did before.
-        await get().addProjectPath(row.projectPath);
+      if (typeof sessionsBridge()?.restore !== 'function') {
+        return { kind: 'failed', message: LIFECYCLE_BRIDGE_MISSING };
       }
-      set((s) => ({
-        restoringIds: { ...s.restoringIds, [sessionId]: true }
-      }));
-      try {
-        const restored = await restore(sessionId);
-        set({ pastOpen: false });
-        const sessions = await gmux!.sessions.list();
-        get().applySessions(sessions);
-        // Land on the restored session, the same landing restart gives. Its
-        // project may not be an open tab (closing a tab keeps session rows);
-        // in that case the restore still happened and the list refresh above
-        // is the whole visible effect.
-        const restoredTarget = targetOfSession(restored);
-        const project = get().projects.find((p) =>
-          sameTarget(targetOfProject(p), restoredTarget)
-        );
-        if (project !== undefined) {
-          get().setActiveProject(project.id);
-          get().setActiveSession(restored.id);
-        }
-      } catch (err) {
-        get().toast('error', errorText(err), { sticky: true });
-        // A failed restore is not a second loss. Main kept the row
-        // 'discarded', so the re-fetch shows it still in the panel.
-        const listRemoved = sessionExtras.listRemoved;
-        if (typeof listRemoved === 'function') {
-          try {
-            set({ pastSessions: await listRemoved.call(sessionExtras) });
-          } catch {
-            /* keep the list we have */
-          }
-        }
-      } finally {
-        set((s) => {
-          const restoringIds = { ...s.restoringIds };
-          delete restoringIds[sessionId];
-          return { restoringIds };
-        });
+      // PHASE 293. The row is re-read BY ID from the removed list at the press,
+      // and the gate is the one main's own restore asks: removed, a machine
+      // that is still here when it names one, and a build that can restore.
+      const removed = freshSession(
+        sessionId,
+        'pastSessions',
+        (g) => g.canRestorePastNow
+      );
+      if (removed === null) {
+        const waiting =
+          !get().shellPathReady &&
+          get().pastSessions.some((x) => x.id === sessionId);
+        return {
+          kind: 'failed',
+          message: waiting ? SHELL_PATH_PENDING_TITLE : LIFECYCLE_SESSION_CHANGED
+        };
       }
+      // NO ASK, NO CLOSE, NO LANDING, NO TOAST. Phase 60's native ask and the
+      // landing that followed it belonged to a modal that closed itself. The
+      // sheet asks inline before it calls this, stays open after, and offers
+      // the way to the session, so this verb restores and answers.
+      const outcome = await restoreCore(removed, false, async () => {
+        await applyFreshList();
+      });
+      // Either way the removed list has moved or must be shown still to hold
+      // the row. A failed restore is not a second loss: main kept the row
+      // 'discarded', and the re-fetch shows it still there.
+      if (outcome.kind !== 'busy') await get().refreshPastSessions();
+      return outcome;
     },
 
     // -- saved output (Phase 72) -------------------------------------------------

@@ -22,6 +22,10 @@
  * and wrote the number in its proof; `preloadModals` exists for a later round
  * that measures a reason to warm it after first paint.
  *
+ * Phase 293 took one wrapper out. The Past Sessions panel is the second tab
+ * of the session manager now, which has its own door and its own chunk in
+ * `../session-manager/lazy.tsx`, so this family no longer carries it.
+ *
  * The door is `../lazy/door.ts` and not `React.lazy`, for the 300 ms reason
  * written there: with a Suspense boundary the ⌘T sheet would have drawn 300
  * ms after the chord on every launch's first press, however fast the chunk.
@@ -70,13 +74,6 @@ export function CloneRepoModalLazy(): React.JSX.Element | null {
   const mod = door.use(useClone((s) => s.open));
   if (mod === null) return null;
   return <mod.CloneRepoModal />;
-}
-
-/** Phase 29. The Past Sessions panel. Reads `pastOpen`. */
-export function PastSessionsModalLazy(): React.JSX.Element | null {
-  const mod = door.use(useApp((s) => s.pastOpen));
-  if (mod === null) return null;
-  return <mod.PastSessionsModal />;
 }
 
 /** Phase 72. The saved output panel. Open while a session id is set. */

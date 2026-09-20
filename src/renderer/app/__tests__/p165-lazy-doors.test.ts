@@ -59,7 +59,13 @@ const DOORS: Array<[string, string, string[]]> = [
   ['quickopen/lazy.tsx', './QuickOpenPalette', ['quickopen/lazy.tsx']],
   ['app/lazy-modals.tsx', './modals', ['app/lazy-modals.tsx']],
   ['overview/lazy.tsx', './OverviewLayer', ['overview/lazy.tsx']],
-  ['arch/lazy.tsx', './subject', ['arch/lazy.tsx']]
+  ['arch/lazy.tsx', './subject', ['arch/lazy.tsx']],
+  // Phase 293. The session manager, its own chunk behind its own door. The
+  // shell reaches the domain through two EAGER leaves, `open.ts` and
+  // `escape.ts`, which import the store and nothing drawn; a second file that
+  // names the sheet itself would pull the whole grid back into the entry
+  // chunk, and this row is what says so before the build does in bytes.
+  ['session-manager/lazy.tsx', './SessionManagerSheet', ['session-manager/lazy.tsx']]
 ];
 
 describe('each door names its room inside import(...) and never in a from clause', () => {
@@ -95,10 +101,12 @@ describe('each room has exactly one production importer, its door', () => {
 
 describe('the shell reaches the split domains through leaves, never through a door barrel', () => {
   const forbidden: Array<[string, string[]]> = [
-    ['app/App.tsx', ["from '../editor'", "from '../quickopen'", "from '../search'", "from '../context'", "from '../overview/OverviewLayer'", "from './CreateSessionModal'", "from './NewProjectModal'", "from './RemoteProjectModal'", "from './CloneRepoModal'", "from './PastSessionsModal'", "from './SavedOutputModal'", "from './RemoteLinesModal'", "from './ShortcutsOverlay'"]],
+    ['app/App.tsx', ["from '../editor'", "from '../quickopen'", "from '../search'", "from '../context'", "from '../overview/OverviewLayer'", "from './CreateSessionModal'", "from './NewProjectModal'", "from './RemoteProjectModal'", "from './CloneRepoModal'", "from '../session-manager/SessionManagerSheet'", "from './SavedOutputModal'", "from './RemoteLinesModal'", "from './ShortcutsOverlay'"]],
     ['app/Sidebar.tsx', ["from '../scm'", "from '../tree'", "from '../search'", "from '../context'", "from '../arch'", "from '../scm/ScmSection'", "from '../tree/FilesSection'", "from '../search/SearchView'", "from '../context/ContextView'", "from '../arch/ArchView'"]],
-    ['app/keyboard.ts', ["from '../search'", "from '../quickopen'", "from './ShortcutsOverlay'", "from '../editor'"]],
-    ['app/menu-actions.ts', ["from '../search'", "from '../quickopen'", "from '../editor'"]],
+    // Phase 293. Both controllers name the session manager's two leaves and
+    // never the sheet or its door: `App.tsx` is the door's only importer.
+    ['app/keyboard.ts', ["from '../search'", "from '../quickopen'", "from './ShortcutsOverlay'", "from '../editor'", "from '../session-manager/SessionManagerSheet'", "from '../session-manager/lazy'"]],
+    ['app/menu-actions.ts', ["from '../search'", "from '../quickopen'", "from '../editor'", "from '../session-manager/SessionManagerSheet'", "from '../session-manager/lazy'"]],
     ['app/shell-actions.ts', ["from '../search'"]],
     ['app/fill-chord.ts', ["from '../editor'"]],
     ['app/ActivityBar.tsx', ["from '../search'"]]
@@ -183,7 +191,9 @@ describe('every door reads the bit its surface reads first', () => {
     ['app/lazy-modals.tsx', 's.newProjectOpen', 'app/NewProjectModal.tsx'],
     ['app/lazy-modals.tsx', 's.remoteProjectOpen', 'app/RemoteProjectModal.tsx'],
     ['app/lazy-modals.tsx', 'useClone((s) => s.open)', 'app/CloneRepoModal.tsx'],
-    ['app/lazy-modals.tsx', 's.pastOpen', 'app/PastSessionsModal.tsx'],
+    // Phase 293. `s.pastOpen` and the Past Sessions modal stood here. The
+    // modal is the session manager's second tab and the bit is the sheet's.
+    ['session-manager/lazy.tsx', 's.sessionSheet !== null', 'session-manager/SessionManagerSheet.tsx'],
     ['app/lazy-modals.tsx', 's.savedOutputSessionId', 'app/SavedOutputModal.tsx'],
     ['app/lazy-modals.tsx', 's.remoteLinesSessionId', 'app/RemoteLinesModal.tsx'],
     ['app/lazy-modals.tsx', 's.shortcutsOpen', 'app/ShortcutsOverlay.tsx'],

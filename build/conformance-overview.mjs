@@ -39,6 +39,18 @@
  *     under a kill mid write, the path index misses the fixture's tool call
  *     paths, or a file under src/main/overview or src/renderer/overview
  *     writes a session status.
+ *  8. In product mode (Phase 293): the session manager's counts disagree with
+ *     the per-provider truth table of build/p293/SPEC.md section 3.4, which
+ *     ACTIVITY_EXPECT below copies by hand. Two layers are held. The store
+ *     layer writes what the product reader kept from each fixture into a
+ *     scratch store and maps the shipping aggregate through the shipping truth
+ *     table, with rows for a shell, a record with nothing on disk, droid and a
+ *     record read `ok` that held nothing. The call layer drives
+ *     `sessionActivity` itself over a fake manifest and a scratch home. It
+ *     also fails when a dash comes back as a zero, when a row decided without
+ *     a read reaches the store, when the answer is not in the asked order,
+ *     when more ids than the cap are answered, and when the aggregate's query
+ *     plan scans a table instead of reading it by its keys.
  *
  * TWO MODES. The default runs the product reader in src/main/overview/. With
  * `--reference` it runs the research 63 reference reader instead, which still
@@ -202,6 +214,54 @@ const EXPECT = [
 ];
 
 const RATIO_TOLERANCE = 0.05;
+
+// ---------------------------------------------------------------------------
+// Phase 293. The session manager's counts, beside EXPECT. Written BY HAND from
+// the per-provider truth table in build/p293/SPEC.md section 3.4, never read
+// back from the code, so a change to the aggregate or to the truth table that
+// the spec did not make turns this gate red. `user` is SUM(queued) and never
+// the turn count, which is why codex reads 4 over 3 turns. `agent` is closing
+// replies on record, at most one per turn. A null is a DASH and is compared
+// as a null: nothing here may come back as a zero.
+// ---------------------------------------------------------------------------
+
+const ACTIVITY_EXPECT = [
+  { row: 'claude', user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  { row: 'codex', user: 4, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  { row: 'grok', user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  // The last turn holds no answer, so the last author is the person.
+  { row: 'antigravity', user: 3, agent: 2, coverage: 'complete', reason: null, by: 'you', clock: 'message' },
+  { row: 'qwen', user: 4, agent: 4, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  { row: 'pi', user: 2, agent: 2, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  { row: 'omp', user: 2, agent: 2, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  { row: 'muse', user: 2, agent: 2, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  // Real gemini files hold an answer in 1 of 216, so the row is partial
+  // whatever this one fixture holds.
+  { row: 'gemini', user: 3, agent: 3, coverage: 'partial', reason: 'ask-only', by: 'agent', clock: 'message' },
+  // No time on either slot: the record's own updated time, clock SESSION.
+  { row: 'deepseek', user: 3, agent: 1, coverage: 'complete', reason: null, by: 'you', clock: 'session' },
+  // The last turn holds a reply that carries no time: the PROMPT's time,
+  // clock ASK, and never `message` over the prompt's time.
+  { row: 'cursor', user: 3, agent: 2, coverage: 'complete', reason: null, by: 'agent', clock: 'ask' },
+  { row: 'shell', user: null, agent: null, coverage: 'not-applicable', reason: 'shell', by: null, clock: null },
+  { row: 'no-file', user: null, agent: null, coverage: 'unavailable', reason: 'not-yet', by: null, clock: null },
+  { row: 'droid', user: null, agent: null, coverage: 'unavailable', reason: 'no-store', by: null, clock: null },
+  // The one zero: a record WAS read and held no message Tortie keeps.
+  { row: 'ok, zero turns', user: 0, agent: 0, coverage: 'complete', reason: null, by: null, clock: null }
+];
+
+/** The same answers through `sessionActivity` itself, in the ASKED order. */
+const ORCHESTRATION_EXPECT = [
+  { row: 'on another machine', user: null, agent: null, coverage: 'unavailable', reason: 'remote', by: null, clock: null },
+  { row: 'live, read through the scratch home', user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  { row: 'not in the manifest', user: null, agent: null, coverage: 'unavailable', reason: 'unknown-session', by: null, clock: null },
+  { row: 'shell', user: null, agent: null, coverage: 'not-applicable', reason: 'shell', by: null, clock: null },
+  { row: 'removed, still answered', user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  { row: 'nothing on disk', user: null, agent: null, coverage: 'unavailable', reason: 'not-yet', by: null, clock: null },
+  { row: 'ok, zero turns', user: 0, agent: 0, coverage: 'complete', reason: null, by: null, clock: null },
+  { row: 'no conversation id', user: null, agent: null, coverage: 'unavailable', reason: 'no-id', by: null, clock: null },
+  { row: 'droid', user: null, agent: null, coverage: 'unavailable', reason: 'no-store', by: null, clock: null }
+];
 
 const failures = [];
 const fail = (s) => failures.push(s);
@@ -526,6 +586,131 @@ if (!referenceMode) {
 }
 
 // ---------------------------------------------------------------------------
+// 8. Product only: the session manager's counts (Phase 293)
+// ---------------------------------------------------------------------------
+
+const activityRows = [];
+
+/**
+ * One answer against its expected row, field by field, and against the two
+ * invariants every answer keeps whatever its row.
+ */
+const checkActivity = (where, want, got) => {
+  if (got === undefined) {
+    fail(`activity ${where} "${want.row}": no answer came back.`);
+    activityRows.push([where, want.row, 'MISSING', '', '', '', '', '']);
+    return;
+  }
+  if (got.error !== undefined) {
+    fail(`activity ${where} "${want.row}": the fixture did not read (${got.error}).`);
+    activityRows.push([where, want.row, 'failed', '', '', '', '', '']);
+    return;
+  }
+  for (const [field, key] of [
+    ['coverage', 'coverage'],
+    ['reason', 'reason'],
+    ['user', 'user'],
+    ['agent', 'agent'],
+    ['by', 'by'],
+    ['clock', 'clock']
+  ]) {
+    if (got[key] !== want[field]) {
+      fail(
+        `activity ${where} "${want.row}": ${field} ${JSON.stringify(got[key])}, the spec's truth table says ${JSON.stringify(want[field])}.`
+      );
+    }
+  }
+  // Invariant 1. A dash carries no value at all.
+  if (got.coverage === 'unavailable' || got.coverage === 'not-applicable') {
+    if ([got.user, got.agent, got.at, got.by, got.clock].some((v) => v !== null)) {
+      fail(`activity ${where} "${want.row}": ${got.coverage} carries a value. It must carry five nulls.`);
+    }
+  }
+  // Invariant 2. A record that was read always carries a NUMBER of asks.
+  if ((got.coverage === 'complete' || got.coverage === 'partial') && typeof got.user !== 'number') {
+    fail(`activity ${where} "${want.row}": ${got.coverage} with no number of asks.`);
+  }
+  if ((got.reason === null) !== (got.coverage === 'complete')) {
+    fail(`activity ${where} "${want.row}": the reason is ${JSON.stringify(got.reason)} under ${got.coverage}.`);
+  }
+  if ((got.clock === null) !== (got.at === null)) {
+    fail(`activity ${where} "${want.row}": a time with no clock, or a clock with no time.`);
+  }
+  // A clock the table names must come with a time that parsed.
+  if (want.clock !== null && typeof got.at !== 'number') {
+    fail(`activity ${where} "${want.row}": clock ${String(want.clock)} with no time.`);
+  }
+  activityRows.push([
+    where,
+    want.row,
+    `${String(got.coverage)}${got.reason === null ? '' : ` / ${String(got.reason)}`}`,
+    got.user === null ? '-' : String(got.user),
+    got.agent === null ? '-' : String(got.agent),
+    got.by === null ? '-' : String(got.by),
+    got.clock === null ? '-' : String(got.clock),
+    got.storedTurns === null ? 'NULL' : String(got.storedTurns)
+  ]);
+};
+
+if (!referenceMode) {
+  const act = data.product?.activity ?? { ran: false, why: 'the probe returned no activity result' };
+  if (!act.ran) skips.push(`activity: skipped, ${act.why}`);
+  else if (act.failed !== undefined) fail(`activity: the check threw. ${act.failed}`);
+  else {
+    const byLabel = (list, label) => (list ?? []).find((r) => r.label === label);
+    for (const want of ACTIVITY_EXPECT) checkActivity('store', want, byLabel(act.rows, want.row));
+    if ((act.rows ?? []).length !== ACTIVITY_EXPECT.length) {
+      fail(`activity store: ${String((act.rows ?? []).length)} rows came back for ${String(ACTIVITY_EXPECT.length)} asked.`);
+    }
+    // The store's NULL for a session that holds no turn stays NULL. It is the
+    // mapping, and only under `ok`, that ever turns it into a zero.
+    for (const label of ['shell', 'no-file', 'droid', 'ok, zero turns']) {
+      const r = byLabel(act.rows, label);
+      if (r === undefined) continue;
+      for (const [what, v] of [
+        ['turns', r.storedTurns],
+        ['asks', r.storedUser],
+        ['replies', r.storedAgent]
+      ]) {
+        if (v !== null) {
+          fail(`activity store "${label}": the aggregate answered ${JSON.stringify(v)} ${what} for a session that holds no turn. It must be NULL.`);
+        }
+      }
+    }
+    for (const want of ORCHESTRATION_EXPECT) checkActivity('call', want, byLabel(act.orchestration, want.row));
+    if (JSON.stringify(act.answered) !== JSON.stringify(act.asked)) {
+      fail(`activity call: answered ${JSON.stringify(act.answered)} for ${JSON.stringify(act.asked)}. One row per asked id, in the asked order.`);
+    }
+    // The rows decided without a read never reach the store. The row on
+    // another machine names a record that IS on disk here, so a dead remote
+    // guard would have written it.
+    for (const label of ['on another machine', 'not in the manifest', 'shell', 'no conversation id']) {
+      const r = byLabel(act.orchestration, label);
+      if (r !== undefined && r.storedState !== 'no row') {
+        fail(`activity call "${label}": the store holds a ${String(r.storedState)} row for it. It must never have been read.`);
+      }
+    }
+    if (act.refusal !== 'INVALID_INPUT') {
+      fail(`activity call: 201 ids answered ${JSON.stringify(act.refusal)}. More than the cap is refused whole as INVALID_INPUT.`);
+    }
+    // The plan. Both reads of `turn` go through its primary key, and no table
+    // of the store is ever scanned, whatever the store holds.
+    const plan = act.plan ?? [];
+    if (!plan.some((l) => /^SEARCH turn USING (COVERING )?INDEX sqlite_autoindex_turn_1 \(session_id=\?\)$/.test(l))) {
+      fail(`activity plan: the aggregate does not read \`turn\` by its key. Plan: ${JSON.stringify(plan)}.`);
+    }
+    if (!plan.some((l) => /^SEARCH l USING INDEX sqlite_autoindex_turn_1 \(session_id=\? AND turn_index=\?\)/.test(l))) {
+      fail(`activity plan: the last turn is not read by the whole key. Plan: ${JSON.stringify(plan)}.`);
+    }
+    for (const line of plan) {
+      if (/\bSCAN (turn|l|s|session)\b/.test(line)) fail(`activity plan: "${line}". The aggregate must never scan the store.`);
+    }
+  }
+} else {
+  skips.push('activity: product mode only');
+}
+
+// ---------------------------------------------------------------------------
 // The tables, printed whatever the verdict
 // ---------------------------------------------------------------------------
 
@@ -551,6 +736,19 @@ for (const d of defects) {
   process.stdout.write(pad(d[0], 26) + pad(d[1], 52) + pad(d[2], 9) + d[3] + '\n');
 }
 
+if (activityRows.length > 0) {
+  process.stdout.write('\nthe session manager\'s counts (Phase 293), against the spec\'s truth table\n');
+  process.stdout.write(
+    pad('through', 8) + pad('row', 37) + pad('coverage / reason', 32) + pad('you', 5) + pad('agent', 7) + pad('last by', 9) + pad('clock', 9) + 'stored turns\n'
+  );
+  process.stdout.write('-'.repeat(120) + '\n');
+  for (const r of activityRows) {
+    process.stdout.write(
+      pad(r[0], 8) + pad(r[1], 37) + pad(r[2], 32) + pad(r[3], 5) + pad(r[4], 7) + pad(r[5], 9) + pad(r[6], 9) + r[7] + '\n'
+    );
+  }
+}
+
 if (skips.length > 0) {
   process.stdout.write('\nnot checked in this run\n');
   for (const s of skips) process.stdout.write(`  - ${s}\n`);
@@ -565,5 +763,10 @@ if (failures.length > 0) {
 process.stdout.write(
   '\nPASS. Every mapped provider fills its slots at yesterday\'s counts, no trap ' +
     'string leaked, the ratios sit on their bank, the cache key costs nothing on an ' +
-    'unchanged file, and every defect check answered for this mode.\n'
+    'unchanged file, and every defect check answered for this mode.' +
+    (activityRows.length > 0
+      ? ' The session manager\'s counts match the spec\'s truth table row for row, no dash came ' +
+        'back as a zero, and the aggregate reads the store by its keys.'
+      : '') +
+    '\n'
 );

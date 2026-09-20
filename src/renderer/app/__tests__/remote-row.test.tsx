@@ -157,7 +157,9 @@ describe('the menu for a row on another machine', () => {
       );
       // An `unknown` row keeps Phase 67's rule and gets no verb that acts on
       // a session at all, so Restore is absent there whatever the gate says.
-      if (status === 'unknown') {
+      // Phase 293 gave a `discarded` row the same arm: a removed session runs
+      // nowhere, and the Past tab's own button is its only way back.
+      if (status === 'unknown' || status === 'discarded') {
         expect(offered, `status ${status}`).not.toContain('Restore');
       } else {
         expect(offered, `status ${status}`).toContain('Restore');

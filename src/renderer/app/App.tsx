@@ -87,12 +87,15 @@ import {
   CreateSessionModalLazy,
   AddLoginModalLazy,
   NewProjectModalLazy,
-  PastSessionsModalLazy,
   RemoteLinesModalLazy,
   RemoteProjectModalLazy,
   SavedOutputModalLazy,
   ShortcutsOverlayLazy
 } from './lazy-modals';
+// Phase 293. The session manager, behind its own door in its own chunk. It
+// took the place the Past Sessions sheet held in the family above, which is
+// now its second tab. The door reads one bit, whether the sheet is open.
+import { SessionManagerSheetLazy } from '../session-manager/lazy';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
 // PHASE 165. The install sheet's door, in the Context subject's chunk. It
@@ -379,12 +382,16 @@ export function App(): React.JSX.Element {
           the home screen, those two of them work from INSIDE a project. It
           renders null unless the clone store says it is open. */}
       <CloneRepoModalLazy />
-      {/* Phase 29. Mounted with the other sheets; it renders null unless the
-          store says it is open, and only the Session menu opens it. */}
-      <PastSessionsModalLazy />
-      {/* Phase 72. Mounted beside Past Sessions for the same reason: it
-          renders null unless the store says a session's saved output is
-          open, and only the session menu opens it. */}
+      {/* Phase 293. The session manager, where the Past Sessions sheet stood
+          since Phase 29. It is mounted HERE, outside the no-projects branch
+          above, because its whole point is the sessions of projects that have
+          no tab: both of its doors must work with no project open at all. It
+          renders null unless the store says it is open, and only the Session
+          menu opens it. */}
+      <SessionManagerSheetLazy />
+      {/* Phase 72. Mounted beside it for the same reason: it renders null
+          unless the store says a session's saved output is open, and only
+          the session menu opens it. */}
       <SavedOutputModalLazy />
       {/* Phase 100. Mounted beside the saved output panel, which is its
           nearest sibling. It renders null unless the store says a session's

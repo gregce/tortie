@@ -23,6 +23,10 @@
  */
 
 import type { Session, SessionStatus } from '@shared/types';
+// Phase 293. A pure pair over two fields. src/shared/workspace-target.ts
+// imports nothing, so reading it here closes no cycle.
+import { isLocalTarget, sameTarget, targetOfSession } from '@shared/workspace-target';
+import type { WorkspaceTarget } from '@shared/workspace-target';
 import { agentShortLabel } from './agents';
 
 /**
@@ -284,15 +288,38 @@ export function pastSessionPromise(
 }
 
 /**
- * Phase 60. Whether restoring this past session must ask first. It must ask
- * exactly when its project is not one of the open project tabs. Pure so the
- * test can hold it; the store passes the live projects list.
+ * Whether restoring this session must first ask to open its project as a tab.
+ *
+ * Phase 60 wrote the question and Phase 293 changed what it is asked OF. It
+ * was `pastRestoreNeedsAsk(session, openProjectPaths)`, which compared bare
+ * paths, so a tab on another machine that happened to hold the same path
+ * suppressed the ask for a row on this Mac, and the restore then ran into a
+ * project with no tab at all. It takes TARGETS now, being the machine and the
+ * path together, which is the pair every other session-to-tab comparison in
+ * the renderer has used since Phase 90.3.
+ *
+ * True exactly when all three hold.
+ *
+ *  - The session is on THIS Mac. The ask ends in opening a folder as a tab,
+ *    and a row on another machine never opens one here: main re-homes it
+ *    (src/main/machines/remote-rehome.ts). Opening that path on this Mac would
+ *    be a local tab wearing another machine's folder name.
+ *  - Its machine was not removed. Such a row carries no machine id on purpose
+ *    and is not restorable at all, so there is nothing to ask about.
+ *  - No open tab is the same target.
+ *
+ * The comparison is `sameTarget`, which compares the STORED strings and folds
+ * nothing. One folder is one project row since Phase 274, so both sides carry
+ * the one stored spelling.
  */
-export function pastRestoreNeedsAsk(
-  session: Pick<Session, 'projectPath'>,
-  openProjectPaths: readonly string[]
+export function restoreNeedsOpenAsk(
+  session: Pick<Session, 'projectPath' | 'machine' | 'machineGone'>,
+  openTargets: readonly WorkspaceTarget[]
 ): boolean {
-  return !openProjectPaths.includes(session.projectPath);
+  if (session.machineGone !== undefined) return false;
+  const target = targetOfSession(session);
+  if (!isLocalTarget(target)) return false;
+  return !openTargets.some((open) => sameTarget(open, target));
 }
 
 /**
@@ -769,3 +796,328 @@ export function resumeInPlaceAnswerNote(answer: {
   }
   return 'Tortie typed nothing and did not say why.';
 }
+
+// ---------------------------------------------------------------------------
+// PHASE 293 — the session manager, and the ONE reading of what a session
+// offers.
+//
+// THE REFUSAL THIS BLOCK EXISTS TO KEEP: there is no second action policy. The
+// session manager is a sheet that lists every session Tortie manages and lets a
+// person end, restore, remove, restart and rename them from one place, and the
+// cheapest way to build it was a fourth copy of the gates the session menu
+// already had. The Restore gate was written three times before this phase, in
+// src/renderer/app/session-actions.tsx, in TerminalRegion.tsx and in
+// split/SplitSurface.tsx, and the third copy had already lost the
+// `machine.canRestore` arm. So the rule moved HERE, below both the policy and
+// the sheet, where `hasRestoreMaterial`, `offersBareRecovery` and
+// `showsResumeVerb` already live for the same reason: a state module cannot
+// import an app one, and the store's own verbs have to ask the same question
+// the menu asks.
+//
+// `sessionMenuItems` reads this predicate, the sheet's visible button reads it,
+// the batch reads it, and every `*Now` verb in the sessions slice asks its own
+// field of it over a fresh row before it touches the bridge.
+// ---------------------------------------------------------------------------
+
+/**
+ * What the gates need to know that is not on the row.
+ *
+ * Three facts about this build and this moment, and the one per-session record
+ * that is not a field of `Session`. They are passed in rather than read from
+ * the store so the predicate stays pure and a caller that re-reads at a press
+ * passes the values it read at that press.
+ */
+export interface SessionGateEnv {
+  /** Whether this build's bridge can restore at all. */
+  canRestore: boolean;
+  /** Whether this build's bridge can remove at all. */
+  canDiscard: boolean;
+  /** Phase 81. False until the login shell has said where the tools are. */
+  shellPathReady: boolean;
+  /** Phase 141. This session's handback record, when main holds one. */
+  handback: SessionHandback | undefined;
+}
+
+/**
+ * Everything a surface may offer for one session, decided once.
+ *
+ * PRESENCE AND ENABLEMENT ARE TWO FIELDS, ON PURPOSE. The shipped `Remove` row
+ * is drawn whenever the row has ended and is greyed when this build cannot
+ * discard, and the shipped `Restore` row is drawn when there is something to
+ * restore and is greyed until the login shell has answered. A predicate that
+ * folded either pair into one field would make a row disappear that the policy
+ * draws, and a test that compared two surfaces built on it would pass, because
+ * both would share the regression.
+ */
+export interface SessionActionGates {
+  /** Tortie cannot currently see this session. Nothing that acts is offered. */
+  unknown: boolean;
+  /** A person removed it. Its only verb is coming back. */
+  removed: boolean;
+  /** `exited` or `restorable`. */
+  ended: boolean;
+  /** `running`, `idle` or `needs_input`. */
+  live: boolean;
+  /** It runs on another machine. */
+  remote: boolean;
+  /** Rename is offered. */
+  canRename: boolean;
+  /** The Restore row is PRESENT. */
+  offersRestore: boolean;
+  /** The Restore row is ENABLED. */
+  canRestoreNow: boolean;
+  /** A removed row can be restored right now. The Past tab's one verb. */
+  canRestorePastNow: boolean;
+  /** Restart is offered: ended, and on this Mac. */
+  offersRestart: boolean;
+  /** Phase 119. The two rows that bring a session back without SpecStory. */
+  offersBare: boolean;
+  /** Phase 141. The row that puts the resume command on the prompt. */
+  offersResumeInPlace: boolean;
+  /** End is offered, and it is offered for a live session only. */
+  canEnd: boolean;
+  /** The Remove row is PRESENT. */
+  showsRemove: boolean;
+  /** The Remove row is ENABLED. */
+  canRemove: boolean;
+}
+
+/**
+ * The gates for one session, from its row, its status and the env.
+ *
+ * `status` is handed in, because status is main's and every surface reads it
+ * through one expression (`effectiveStatusOf` in ./store). This function does
+ * not reach for a second one.
+ *
+ * Every expression below is the one the policy carried at the commit before
+ * this phase, moved and not rewritten, with ONE named difference: `removed`. A
+ * `discarded` row was neither unknown nor ended, so the policy offered Rename
+ * and End session on it. Nothing called the policy with one. The sheet's Past
+ * tab is the first caller, and the policy learns the status here rather than
+ * the sheet filtering what the policy answers.
+ *
+ * AN `unknown` ROW GAINS NOTHING THAT ACTS, EVER. It is a session the server
+ * did not answer for, and acting on a session that may be alive is how a second
+ * agent lands on one conversation (Phase 67).
+ */
+export function sessionActionGates(
+  session: Session,
+  status: SessionStatus,
+  env: SessionGateEnv
+): SessionActionGates {
+  const unknown = status === 'unknown';
+  const removed = status === 'discarded';
+  const ended = status === 'exited' || status === 'restorable';
+  const live =
+    status === 'running' || status === 'idle' || status === 'needs_input';
+  const machine = session.machine;
+  const remote = machine !== undefined;
+  // A row that may be acted on at all. Every acting field below starts here.
+  const acts = !unknown && !removed;
+  // Phase 72. A row on another machine reads ONE fact, which main sets only
+  // when every condition holds. Phase 26.3, the material rule, decides a row
+  // on this Mac.
+  const offersRestore =
+    acts &&
+    env.canRestore &&
+    (machine !== undefined
+      ? machine.canRestore
+      : status === 'restorable' ||
+        (status === 'exited' && hasRestoreMaterial(session)));
+  return {
+    unknown,
+    removed,
+    ended,
+    live,
+    remote,
+    canRename: acts,
+    offersRestore,
+    canRestoreNow: offersRestore && env.shellPathReady,
+    // A row whose machine a person removed carries `machineGone` and no
+    // machine id, by design, so nothing could say where to bring it back.
+    canRestorePastNow:
+      removed &&
+      env.canRestore &&
+      env.shellPathReady &&
+      session.machineGone === undefined &&
+      (machine !== undefined ? machine.canRestore : true),
+    // Restart stays absent for every remote row: it ends a session and starts
+    // a new one, and the ending half is a verb aimed at another machine.
+    offersRestart: ended && !remote,
+    offersBare: acts && offersBareRecovery(session),
+    offersResumeInPlace: acts && showsResumeVerb(session, env.handback, status),
+    canEnd: live,
+    showsRemove: ended,
+    canRemove: ended && env.canDiscard
+  };
+}
+
+/** What an End or a Remove confirmation needs. The shape of {@link BareRecoveryConfirm}. */
+export interface LifecycleConfirm {
+  title: string;
+  body: string;
+  confirmLabel: string;
+}
+
+/**
+ * The words a person reads before a session ends. MOVED here in Phase 293 from
+ * `endSession` in ./sessions-slice, byte for byte, so the stacked confirm every
+ * other surface raises and the panel the sheet draws under a row cannot say
+ * two things. `end-remote-copy.test.ts` pins the sentences through the store
+ * and was not touched by the move.
+ *
+ * Phase 26.3 — the old body promised "its scrollback will be discarded. This
+ * cannot be undone", and both halves stopped being true once manual end writes
+ * a snapshot capsule and keeps the manifest row, so the session can be
+ * restored. The first sentence keeps the one fact that IS irreversible in front
+ * of the user: the running process dies and does not resume mid-task. "First"
+ * is the Phase 19 ordering promise (main captures before it kills); main's
+ * capture-failure notice is what keeps that word honest on a full disk.
+ *
+ * PHASE 84, item 2. A session on another machine gets its own body, and it is
+ * read from `session.machine`, which the projection already carries. The old
+ * body was false twice for such a session. It promised a copy that main never
+ * took, and it promised a restore that brings the conversation back, which no
+ * remote restore did. Main now takes the copy before it kills anything, so
+ * "first" is true.
+ *
+ * PHASE 89 CHANGED THE LAST SENTENCE, because it said flatly that the
+ * conversation does not come back and that is no longer true for every row. A
+ * remote restore now types the command that continues the conversation for a
+ * row two answers prove, being the arming gate in main's
+ * `machines/resume-arming.ts` and the composer in `machines/remote-arm.ts`. THE
+ * RENDERER CANNOT KNOW WHICH ROW THAT IS. Both answers are read at restore
+ * time, one of them against the machine itself, and the projection for a remote
+ * session carries neither `resumeCapture` nor `resumeArgv`. So the sentence
+ * says what is true of every row and promises nothing about this one.
+ */
+export function endSessionConfirm(session: Session): LifecycleConfirm {
+  const machine = session.machine;
+  const resumable = resumeReadiness(session) === 'conversation';
+  return {
+    title: `End '${session.name}'?`,
+    body:
+      machine !== undefined
+        ? `This stops what is running in it on ${machine.label}. Tortie saves a copy of what it printed first, so you can read that copy here afterwards. Bringing it back always returns the folder, and it returns the conversation only when Tortie recorded one for this agent.`
+        : resumable
+          ? 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.'
+          : 'This stops what is running in it. The scrollback is saved first, so you can restore this session later.',
+    confirmLabel: 'End session'
+  };
+}
+
+/**
+ * The words a person reads before a session is removed. Moved the same way.
+ *
+ * Phase 29. Remove is reversible now (main writes a tombstone behind the same
+ * sessions:discard channel), so the body names the way back instead of
+ * promising a loss that no longer happens.
+ */
+export function removeSessionConfirm(session: Session): LifecycleConfirm {
+  return {
+    title: `Remove '${session.name}'?`,
+    body: 'It moves to Past Sessions and you can restore it from there.',
+    confirmLabel: 'Remove'
+  };
+}
+
+/**
+ * What a `*Now` verb answers. The sessions slice's shipped verbs raise a
+ * confirm and a toast; the `*Now` verbs raise neither and answer this, so the
+ * surface that called them decides where the sentence is drawn.
+ */
+export type LifecycleResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * The one sentence a build with no lifecycle bridge can say. Every `*Now` verb
+ * answers it when the bridge method it needs is missing. The shape of
+ * `OVERVIEW_BRIDGE_MISSING` in ./overview-slice.
+ */
+export const LIFECYCLE_BRIDGE_MISSING = 'This build cannot change sessions.';
+
+/**
+ * What a `*Now` verb answers when the row it was handed an id for is gone, or
+ * no longer offers the verb.
+ *
+ * Every `*Now` verb re-reads its row by id and asks the verb's own gate before
+ * it reaches the bridge. The sheet asks the same question a moment earlier and
+ * says these same words in a toast, so this is the answer of the second lock
+ * rather than a second sentence: whichever of the two refuses, a person reads
+ * one thing.
+ */
+export const LIFECYCLE_SESSION_CHANGED =
+  'This session changed. Nothing was done.';
+
+/** What a person is told once a restore has landed. */
+export interface RestoreNote {
+  kind: 'success' | 'error';
+  text: string;
+  sticky: boolean;
+}
+
+/**
+ * The sentence for a restore that came back, read from the row as it was and
+ * the row main answered. MOVED here in Phase 293 from `runRestore` in
+ * ./sessions-slice, verbatim, because two callers say it now: the shipped verb
+ * toasts it at once, and the sheet puts it in one toast beside a way to the
+ * session.
+ *
+ * The decline is claimed only when the row proves it took. Main leaves the
+ * capture setting alone in the one case it cannot honour the request, which is
+ * a recorded resume command it cannot separate from SpecStory, and the returned
+ * row still carries its capture there. Saying "no longer saves its history"
+ * about that row would be false, so this reads the answer back rather than
+ * repeating the request.
+ *
+ * PHASE 119 FIX ROUND. THE DECLINE MAIN COULD NOT HONOUR is the only path that
+ * reads `restored.restore`. Main writes one sentence for it and that sentence
+ * is echoed rather than rewritten, because main is its one author and echoing
+ * it is what keeps the log and the screen saying the same thing. The gate is
+ * `withoutCapture` plus a row that was captured, so an ordinary restore's arm
+ * failure still takes the path it always took.
+ */
+export function restoreLandedNote(
+  before: Session,
+  restored: Session,
+  withoutCapture: boolean
+): RestoreNote {
+  const armed = (before.resumeArgv?.length ?? 0) > 0;
+  const declined =
+    withoutCapture &&
+    before.capture !== undefined &&
+    restored.capture === undefined;
+  if (declined) {
+    return {
+      kind: 'success',
+      text: armed
+        ? `'${before.name}' is back and no longer saves its history. Press Enter in the terminal to resume the conversation.`
+        : `'${before.name}' is back and no longer saves its history.`,
+      sticky: false
+    };
+  }
+  const declineFailure =
+    withoutCapture && before.capture !== undefined
+      ? restored.restore?.armFailure
+      : undefined;
+  if (declineFailure !== undefined) {
+    return { kind: 'error', text: declineFailure, sticky: true };
+  }
+  return {
+    kind: 'success',
+    text: armed
+      ? `'${before.name}' restored — press Enter in the terminal to resume the conversation.`
+      : `'${before.name}' restored.`,
+    sticky: false
+  };
+}
+
+/**
+ * What a restore that raises nothing answers.
+ *
+ * `busy` is a second press while the first is in the air, and it is an answer
+ * rather than a failure because nothing went wrong and nothing should be drawn.
+ */
+export type RestoreOutcome =
+  | { kind: 'restored'; session: Session; note: RestoreNote }
+  | { kind: 'busy' }
+  | { kind: 'failed'; message: string };

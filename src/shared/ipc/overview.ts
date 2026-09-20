@@ -20,11 +20,21 @@
  * one drawn row of that story covers. Both are SELECTs against tables Tortie
  * already wrote. Neither spawns a model, and neither runs a git command.
  *
+ * Phase 293 added the seventh channel on this map, `overview:activity`. It
+ * answers COUNTS for the sessions it is handed by id, being how many messages
+ * the current conversation holds and when the last one was, for the session
+ * manager's two activity columns. It takes ids rather than a project because
+ * that sheet lists every project and machine at once, closed tabs included.
+ * It reads what the other reads read and writes what they write, and no text
+ * of any conversation crosses it.
+ *
  * MAIN: src/main/overview/ipc.ts, the one `overview:*` registrar.
  */
 
 import type { ArchOptions, FoldOptions } from '../fold';
 import type {
+  OverviewActivity,
+  OverviewActivityInput,
   OverviewProject,
   OverviewProjectInput,
   OverviewSessionsInput,
@@ -68,6 +78,20 @@ export interface OverviewInvokeChannelMap {
     req: [input: OverviewTimelineTurnsInput];
     res: OverviewTurnView[];
   };
+  /**
+   * What each named session's current conversation holds, as counts
+   * (Phase 293). One row per asked id, in the asked order, for any project and
+   * a removed session included. Like its siblings it reads agent logs read
+   * only, writes only Tortie's own overview store, spawns nothing, writes no
+   * manifest row, touches no tmux and changes no session's state. A session
+   * whose record Tortie cannot read from this Mac is answered with nulls and
+   * a reason, never with zeros. More than OVERVIEW_ACTIVITY_MAX_IDS ids, or
+   * an input that holds no array, is refused as INVALID_INPUT.
+   */
+  'overview:activity': {
+    req: [input: OverviewActivityInput];
+    res: OverviewActivity;
+  };
 }
 
 /**
@@ -85,6 +109,12 @@ export interface GmuxOverviewExtras {
     timelineTurns(
       input: OverviewTimelineTurnsInput
     ): Promise<OverviewTurnView[]>;
+    /**
+     * The counts for the named sessions (Phase 293). The session manager asks
+     * it, and a build whose preload has no such method draws a dash in both
+     * activity columns rather than breaking.
+     */
+    activity(input: OverviewActivityInput): Promise<OverviewActivity>;
   };
 }
 

@@ -9,6 +9,9 @@
  * used to be parsed before first paint. Nothing else imports this file, and
  * nothing here runs: it is eight re-exports.
  *
+ * Phase 293 took the Past Sessions panel out of this chunk. It is the second
+ * tab of the session manager, whose chunk is its own.
+ *
  * What is NOT here, on purpose: the attention overlay, the confirm dialog,
  * the toasts, the empty states and the home screen. Those are refusal and
  * recovery surfaces that can be the first thing a person sees, and they stay
@@ -19,7 +22,6 @@ export { CreateSessionModal } from './CreateSessionModal';
 export { NewProjectModal } from './NewProjectModal';
 export { RemoteProjectModal } from './RemoteProjectModal';
 export { CloneRepoModal } from './CloneRepoModal';
-export { PastSessionsModal } from './PastSessionsModal';
 export { SavedOutputModal } from './SavedOutputModal';
 export { RemoteLinesModal } from './RemoteLinesModal';
 export { ShortcutsOverlay } from './ShortcutsOverlay';

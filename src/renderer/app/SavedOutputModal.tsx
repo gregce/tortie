@@ -62,15 +62,8 @@ import type { SavedSessionOutput } from '@shared/ipc';
 import type { Session } from '@shared/types';
 import { useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
-import {
-  conversationCopyLine,
-  SAVED_OUTPUT_LOADING,
-  SAVED_OUTPUT_NONE,
-  SAVED_OUTPUT_TITLE,
-  SAVED_OUTPUT_UNVERIFIED,
-  savedOutputHeader,
-  savedOutputHeaderLocal
-} from '../machines/session-restore';
+import { SAVED_OUTPUT_TITLE } from '../machines/session-restore';
+import { SavedOutputBody } from './SavedOutputBody';
 import './saved-output.css';
 
 export interface SavedOutputPanelProps {
@@ -86,12 +79,10 @@ export interface SavedOutputPanelProps {
 /**
  * The panel itself. Pure over its props.
  *
- * The machine label comes from the SESSION row rather than from the capsule's
- * machine id, because the row carries the label a person chose and the capsule
- * carries an identifier. A row whose machine a person removed keeps the label
- * in `machineGone`, so a tombstoned session still says where its output came
- * from. With neither, the header names no machine rather than naming an
- * identifier nobody recognises.
+ * PHASE 293. What it draws between its title and its Close button moved to
+ * ./SavedOutputBody.tsx, unchanged, because the session manager draws the same
+ * words in an expansion under a row. This frame keeps the scrim, the title and
+ * the button.
  */
 export function SavedOutputPanel({
   session,
@@ -104,29 +95,6 @@ export function SavedOutputPanel({
   useEffect(() => {
     requestAnimationFrame(() => closeRef.current?.focus());
   }, []);
-
-  const label = session?.machine?.label ?? session?.machineGone?.label ?? null;
-  const header =
-    output === null
-      ? null
-      : label === null
-        ? savedOutputHeaderLocal(output.capturedAt)
-        : savedOutputHeader(label, output.capturedAt);
-
-  // PHASE 73, item 5. The second line, and it is drawn only for a session that
-  // runs on a machine right now. A session on this Mac keeps its conversation
-  // on this Mac, so there is nothing to copy and nothing to say. A row whose
-  // machine a person removed has no `machine` either, and the line would be a
-  // statement about a copy nothing can refresh.
-  //
-  // It is drawn in every other state of this panel, including the state where
-  // there is no saved screen at all, because the two are separate copies: the
-  // screen is what a pane printed and this is the agent's own conversation
-  // file. A person who has one may not have the other.
-  const conversation =
-    session?.machine === undefined
-      ? null
-      : conversationCopyLine(session.machine.conversationSyncedAt);
 
   return (
     <div
@@ -154,23 +122,7 @@ export function SavedOutputPanel({
             : `${SAVED_OUTPUT_TITLE}: ${session.name}`}
         </h2>
 
-        {header === null ? null : (
-          <p className="saved-output-header">{header}</p>
-        )}
-        {conversation === null ? null : (
-          <p className="saved-output-conversation">{conversation}</p>
-        )}
-        {output !== null && !output.verified ? (
-          <p className="saved-output-warning">{SAVED_OUTPUT_UNVERIFIED}</p>
-        ) : null}
-
-        {loading ? (
-          <p className="saved-output-empty">{SAVED_OUTPUT_LOADING}</p>
-        ) : output === null ? (
-          <p className="saved-output-empty">{SAVED_OUTPUT_NONE}</p>
-        ) : (
-          <pre className="saved-output-body">{output.text}</pre>
-        )}
+        <SavedOutputBody session={session} output={output} loading={loading} />
 
         <div className="modal-actions">
           <button
@@ -187,8 +139,16 @@ export function SavedOutputPanel({
   );
 }
 
-/** The store connected wrapper. It renders null unless a session is open. */
+/**
+ * The store connected wrapper. It renders null unless a session is open.
+ *
+ * PHASE 293. It also renders null while the session manager is open. That
+ * sheet draws a saved output as an expansion under its row, over the same
+ * store trio, and no modal stacks over the sheet: a second layer there is a
+ * second place the keyboard can fall.
+ */
 export function SavedOutputModal(): React.JSX.Element | null {
+  const sheetOpen = useApp((s) => s.sessionSheet !== null);
   const sessionId = useApp((s) => s.savedOutputSessionId);
   const output = useApp((s) => s.savedOutput);
   const loading = useApp((s) => s.savedOutputLoading);
@@ -207,7 +167,7 @@ export function SavedOutputModal(): React.JSX.Element | null {
     );
   }, [sessionId, sessions, pastSessions]);
 
-  if (sessionId === null) return null;
+  if (sessionId === null || sheetOpen) return null;
   return (
     <SavedOutputPanel
       session={session}

@@ -65,6 +65,17 @@ import { focusInsideSearch } from '../search/focus';
 import { focusResultsList } from '../search/results-focus';
 import { useSearch } from '../search/store';
 import { useSymbols } from '../search/symbols-store';
+// Phase 293. The session manager's two EAGER leaves. They import the store
+// and nothing drawn, so naming them here loads no sheet: the sheet itself is
+// behind ../session-manager/lazy.tsx and is fetched on the first open.
+import {
+  closeSessionManager,
+  leaveSessionManagerFor,
+  reclaimSessionSheetFocus,
+  renameFocusedManageRow,
+  sheetIsTopLayer
+} from '../session-manager/open';
+import { sessionSheetTookEscape } from '../session-manager/escape';
 import {
   focusedSessionRowId,
   modalLayerOpen,
@@ -106,6 +117,24 @@ export function useKeyboardMap(): void {
         s.noteTerminalInput();
       }
 
+      // Phase 293. Tab, while the session manager is the top layer and the
+      // keyboard is OUTSIDE it. The sheet's own trap is bound to the sheet, so
+      // it never sees a Tab pressed from `body`, which is where focus falls
+      // when the node that held it unmounts. From there Tab, Enter, Enter
+      // reaches a session's × BEHIND the scrim and then a confirmation whose
+      // focus is on its destructive button. Only this ladder can stop that,
+      // because it is capture phase on `window`. Inside the sheet the leaf
+      // answers false and the sheet's trap does the wrap.
+      if (
+        e.key === 'Tab' &&
+        s.sessionSheet !== null &&
+        reclaimSessionSheetFocus()
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       // Esc — close the topmost layer only (overlay → modals). Native
       // context menus swallow their own Esc before the renderer sees it.
       if (e.key === 'Escape') {
@@ -127,7 +156,11 @@ export function useKeyboardMap(): void {
           e.preventDefault();
           e.stopPropagation();
           s.setConfirm(null);
-        } else if (s.createOpen) {
+        } else if (s.createOpen && s.sessionSheet === null) {
+          // Phase 293, the fix round (W3). The session manager may open OVER
+          // the New Session sheet, as Past Sessions did, and nothing opens the
+          // create sheet while the manager is up, so when both are open the
+          // manager is the one on top and this rung yields to its rung below.
           e.preventDefault();
           e.stopPropagation();
           // PHASE 90.2. Escape does nothing at all while a copy is running on
@@ -155,6 +188,26 @@ export function useKeyboardMap(): void {
           // that can make the call, because it is capture-phase on window and
           // runs before anything inside the overlay.
           if (!shortcutSearchTookEscape()) s.setShortcutsOpen(false);
+        } else if (s.sessionSheet !== null) {
+          // Phase 293. ONE rung for the session manager, and where it sits is
+          // the rule. It is ABOVE `s.overview` and ABOVE `s.sessionFocus`:
+          // under an open sheet the focus rung below would take this key and
+          // leave focus mode behind the scrim without closing anything, which
+          // is a defect the old Past Sessions modal had. The rungs above this
+          // one are layers whose doors are refused while the sheet is open,
+          // and the two palettes, which open over any layer and own their
+          // Escape by design. One that is up anyway is drawn OVER the sheet,
+          // so it is rightly asked first.
+          //
+          // The sheet is asked first, through the leaf it registers a closure
+          // on while mounted, the way the shortcuts rung asks its search
+          // field: a non-empty search, a running batch, a batch panel and an
+          // open expansion each take one Escape before the sheet closes. A
+          // held key closes ONE layer, so a repeat is swallowed and ignored.
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.repeat) return;
+          if (!sessionSheetTookEscape()) closeSessionManager();
         } else if (s.overview !== null) {
           // Phase 137. Escape steps out of the Catch Me Up page. A
           // conversation opened from the project view goes back to the
@@ -214,6 +267,22 @@ export function useKeyboardMap(): void {
       // sessions list (§4 "rename focused item"); anywhere else (terminal,
       // editor) it renames the active session.
       if (e.key === 'F2') {
+        if (s.sessionSheet !== null) {
+          // Phase 293. THIS branch is the one that matters, not the menu arm.
+          // No row in the session manager stamps `data-session-id`, so the
+          // line below would resolve to the ACTIVE session, and this ladder
+          // runs before the native accelerator: a person with focus on sheet
+          // row X who pressed F2, typed and pressed Enter renamed the session
+          // BEHIND the scrim, through an input whose autoFocus had just pulled
+          // the keyboard out of the sheet. Under the sheet F2 opens the focused
+          // row's own rename, when the sheet is the top layer, and otherwise
+          // does nothing. It is swallowed either way so `rename-session` never
+          // arrives a few milliseconds later.
+          e.preventDefault();
+          e.stopPropagation();
+          if (!e.repeat && sheetIsTopLayer()) renameFocusedManageRow();
+          return;
+        }
         const renameId = focusedSessionRowId() ?? s.activeSession()?.id ?? null;
         if (renameId !== null && s.renamingSessionId === null) {
           e.preventDefault();
@@ -371,6 +440,16 @@ export function useKeyboardMap(): void {
       // owner this branch is the one that runs, and the View menu row
       // mirrors it as 'show-overview' for discoverability.
       if (e.shiftKey && e.key.toLowerCase() === 'u') {
+        // Phase 293. Under the session manager the chord does nothing, and it
+        // is swallowed so neither menu row that carries it fires: the page
+        // would open UNDER the sheet. It is asked before the yield below, so a
+        // recorded per-agent ⇧⌘U starts no session behind the scrim either.
+        // This asks about the sheet and not about `modalLayerOpen()`, which
+        // counts the page itself, because the chord must still CLOSE a page.
+        if (s.sessionSheet !== null) {
+          e.preventDefault();
+          return;
+        }
         if (overviewChordYields()) return;
         e.preventDefault();
         void toggleOverview('chord');
@@ -431,6 +510,11 @@ export function useKeyboardMap(): void {
       switch (e.key) {
         case 't':
           e.preventDefault();
+          // Phase 293. Under the session manager ⌘T returns before it acts:
+          // today it opens the New Session sheet BEHIND Past Sessions with the
+          // keyboard in a field nobody can see. Prevented first, so the menu
+          // row never fires. ⌘J and ⌘/ below are different, and say why.
+          if (s.sessionSheet !== null) return;
           if (s.projects.length === 0) {
             s.toast('info', `Open a project first (${keyDisplay('project.open')})`);
           } else if (s.bootBlock === null) {
@@ -443,6 +527,15 @@ export function useKeyboardMap(): void {
           return;
         case 'j':
           e.preventDefault();
+          // Phase 293, the fix round (W6). Today ⌘J draws its list ABOVE Past
+          // Sessions and a person uses it there. Under the manager it closes
+          // the manager first and then opens, so the person gets the list and
+          // nothing is stacked on the sheet: the list's rows act with no sheet
+          // host, and over the sheet they reached a session behind it.
+          if (s.sessionSheet !== null) {
+            leaveSessionManagerFor(() => useApp.getState().setAttentionOpen(true));
+            return;
+          }
           s.setAttentionOpen(!s.attentionOpen);
           return;
         case 'p':
@@ -457,6 +550,11 @@ export function useKeyboardMap(): void {
           return;
         case '/':
           e.preventDefault();
+          // Phase 293, the fix round (W6): the same as ⌘J, for the same reason.
+          if (s.sessionSheet !== null) {
+            leaveSessionManagerFor(() => useApp.getState().setShortcutsOpen(true));
+            return;
+          }
           s.setShortcutsOpen(!s.shortcutsOpen);
           return;
         case 'b':
@@ -512,6 +610,15 @@ export function useKeyboardMap(): void {
       if (!(e.metaKey && e.altKey && !e.ctrlKey)) return;
       const dir = NAV_KEYS[e.key];
       if (dir === undefined) return;
+      // Phase 293, the fix round (the press attack's P1). Under the session
+      // manager the chord moves nothing. It selected another session BEHIND
+      // the sheet and its terminal took the keyboard, so the next characters
+      // reached an agent nobody could see. Prevented, so the Session menu's
+      // Next and Previous Session rows, which share the chord, never fire.
+      if (useApp.getState().sessionSheet !== null) {
+        e.preventDefault();
+        return;
+      }
       const el = document.activeElement;
       if (el instanceof Element && el.closest('.ed-panel') !== null) return;
       e.preventDefault();

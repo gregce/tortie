@@ -19,6 +19,7 @@ import type { NoticesSlice } from './notices-slice';
 import type { OverlaysSlice } from './overlays-slice';
 import type { OverviewSlice } from './overview-slice';
 import type { ProjectsSlice } from './projects-slice';
+import type { SessionManagerSlice } from './session-manager-slice';
 import type { SessionsSlice } from './sessions-slice';
 
 /**
@@ -87,4 +88,10 @@ export type AppState = LifecycleSlice &
   MachinesSlice &
   // Phase 137: the Catch Me Up page. One field holds the open page and its
   // request, or null while the page is closed.
-  OverviewSlice;
+  OverviewSlice &
+  // Phase 293: the session manager. One field, `sessionSheet`, holds the open
+  // sheet or null while it is closed. It replaced the sessions slice's
+  // `pastOpen` flag, because Past Sessions is that sheet's second tab now and
+  // four readers (the modal layer, the saved output modal, the lazy door and
+  // the Escape rung) ask one question of one field.
+  SessionManagerSlice;

@@ -235,12 +235,19 @@ const HELPER = 'electron-run.mjs';
  * rectangle read together through a hold, a held drag, a window resize and the
  * way back to live. Measured at 144 names on 2026-09-18 with `--list`.
  *
+ * PHASE 293 RAISED IT FROM 144 TO 145, for build/p293/probe-p293.mjs
+ * (`probe:p293`), the session manager's app run: one Electron beside the
+ * loopback scratch machine, driving both doors, the inline End, Remove and
+ * Restore, the select-all and the batch confirmation with real pointer and key
+ * events. It was built beside Phase 292 and landed second, so it raised the
+ * floor once more at its rebase.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 144;
+const HELPER_USER_FLOOR = 145;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

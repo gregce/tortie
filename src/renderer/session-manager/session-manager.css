@@ -1,0 +1,653 @@
+/* Phase 293 — the session manager's frame: the sheet, its title bar and
+   tabs, the toolbar, the Managed grid, the Past list, the states that replace
+   the grid, and the footer. The inline panels and the batch confirmation are
+   ./session-manager-panels.css.
+
+   EVERY COLOUR IS A TOKEN, and no token is added: tokens.css is not edited by
+   this phase. The numbers below that are not tokens are geometry (the 52px
+   title bar, the 47px toolbar, the 46px select column, the 1180px sheet) and
+   live as custom properties on the sheet, so a later round reads them in one
+   place.
+
+   THE GROUND DECIDES THE TEXT COLOUR. `--text-muted` measures 4.91 on
+   `--bg-surface` and falls below the floor on `--bg-active` (tokens.css), so it
+   is used here ONLY on the surface ground: the group count, the open-tab chip,
+   the group's folder and the footer. On the raised ground (the sticky
+   headings, a row under the pointer) and the active ground (a checked row, a
+   row with its panel open) secondary text is `--text-secondary`, and a
+   hairline drawn on the active ground is `--border-active`.
+
+   Every override of a shared class carries the sheet's own class as well, so
+   it wins on specificity and never on the order the bundler happens to put
+   two stylesheets in. */
+
+/* ---------------------------------------------------------------- the sheet */
+
+/* The shipped scrim gives a short sheet 20vh of headroom. This sheet is as
+   tall as the window allows, so its headroom is one gutter, the same gutter
+   `.modal-scrim::after` leaves below it. */
+.modal-scrim.session-sheet-scrim::before {
+  flex: 0 0 var(--space-8);
+}
+
+.modal.session-sheet {
+  --sm-width: 1180px;
+  --sm-gutter: 48px;
+  --sm-title-h: 52px;
+  --sm-toolbar-h: 47px;
+  --sm-select-col: 46px;
+  --sm-check-target: 32px;
+  --sm-check-box: 14px;
+  --sm-icon-btn: 28px;
+  --sm-session-min: 155px;
+  --sm-name-max: 175px;
+  --sm-actions-min: 170px;
+  --sm-past-state: 145px;
+  --sm-past-row: 64px;
+  --sm-skeleton-row: 62px;
+  --sm-state-pad: 70px;
+  --sm-state-max: 540px;
+  width: min(var(--sm-width), calc(100vw - var(--sm-gutter)));
+  max-width: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The sheet takes the keyboard when a person clicks its empty ground, so the
+   keyboard stays inside it; that focus is not a control and draws no ring. */
+.modal.session-sheet:focus,
+.modal.session-sheet:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-3);
+}
+
+.session-sheet .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------ the title bar */
+
+.session-sheet .sm-title {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: var(--sm-title-h);
+  min-height: var(--sm-title-h);
+  padding: 0 var(--space-7);
+  gap: var(--space-8);
+  border-bottom: 1px solid var(--border);
+}
+
+/* `.modal-title` is 20px and too tall for a 52px bar. */
+.session-sheet .sm-heading {
+  margin: 0;
+  flex: 0 0 auto;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.session-sheet .sm-tabs {
+  display: flex;
+  align-self: stretch;
+  gap: var(--space-7);
+}
+
+.session-sheet .sm-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.session-sheet .sm-tab:hover {
+  color: var(--text-primary);
+}
+
+.session-sheet .sm-tab[aria-selected='true'] {
+  color: var(--text-primary);
+}
+
+.session-sheet .sm-tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* Refused while a batch runs, and never `disabled`: it stays the last stop of
+   every focus chain. */
+.session-sheet .sm-tab[aria-disabled='true'] {
+  cursor: default;
+}
+
+.session-sheet .sm-count {
+  min-width: 19px;
+  padding: 2px 5px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.session-sheet .sm-title-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+}
+
+/* The shipped `.icon-btn` is a 20px target. The sheet's are 28, the height of
+   the controls beside them. */
+.session-sheet .sm-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--sm-icon-btn);
+  height: var(--sm-icon-btn);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-icon-btn:hover:not(:disabled) {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.session-sheet .sm-icon-btn:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- the panel */
+
+.session-sheet .sm-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------- the toolbar */
+
+/* ONE element in both modes, 47px in both, STATED rather than summed: a 28px
+   field and a 24px button would not come to the same height by themselves. */
+.session-sheet .sm-toolbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  box-sizing: border-box;
+  height: var(--sm-toolbar-h);
+  min-height: var(--sm-toolbar-h);
+  padding: 0 var(--space-7);
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.session-sheet .sm-toolbar[data-mode='selection'] {
+  background: var(--accent-wash);
+}
+
+.session-sheet .filter-field.sm-search {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 180px;
+}
+
+.session-sheet .sm-select {
+  flex: 0 0 auto;
+  height: var(--field-h);
+  padding: 0 var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+}
+
+.session-sheet .sm-select:focus-visible {
+  border-color: var(--accent);
+}
+
+.session-sheet .sm-select-project {
+  width: 170px;
+}
+
+.session-sheet .sm-select-tab {
+  width: 136px;
+}
+
+.session-sheet .sm-select-state {
+  width: 114px;
+}
+
+.session-sheet .sm-selected {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.session-sheet .sm-selection-summary {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.session-sheet .sm-spacer {
+  flex: 1 1 auto;
+}
+
+/* ------------------------------------------------------------ the scroller */
+
+/* The batch panel and the grid both live in here, and the batch panel draws
+   above whatever replaces the grid. */
+.session-sheet .sm-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---------------------------------------------------------------- the grid */
+
+.session-sheet .sm-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* The rule under a sticky heading is a shadow: a border on a sticky `th` under
+   `border-collapse: collapse` drops out in Chromium. */
+.session-sheet .sm-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-5);
+  background: var(--bg-raised);
+  box-shadow: inset 0 -1px 0 var(--border-strong);
+  color: var(--text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.session-sheet .sm-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  border-radius: var(--r-sm);
+}
+
+.session-sheet .sm-sort:hover {
+  color: var(--text-primary);
+}
+
+.session-sheet .sm-grid tbody td {
+  padding: var(--space-6) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.session-sheet .sm-grid td > small {
+  display: block;
+  margin-top: var(--space-3);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-row:hover > td {
+  background: var(--bg-raised);
+}
+
+.session-sheet .sm-row.checked > td,
+.session-sheet .sm-row.sm-row-open > td {
+  background: var(--bg-active);
+  border-bottom-color: var(--border-active);
+}
+
+/* The select column: a 32px target around a 14px box. */
+.session-sheet .sm-grid th.sm-col-select,
+.session-sheet .sm-grid td.sm-col-select {
+  width: var(--sm-select-col);
+  padding: 0 0 0 var(--space-4);
+}
+
+.session-sheet .sm-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sm-check-target);
+  height: var(--sm-check-target);
+  cursor: pointer;
+}
+
+.session-sheet .sm-check input {
+  width: var(--sm-check-box);
+  height: var(--sm-check-box);
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.session-sheet .sm-check input:disabled {
+  cursor: default;
+}
+
+.session-sheet .sm-grid td.sm-col-session {
+  min-width: var(--sm-session-min);
+}
+
+.session-sheet .sm-grid th.sm-col-actions,
+.session-sheet .sm-grid td.sm-col-actions {
+  min-width: var(--sm-actions-min);
+  padding-right: var(--space-7);
+}
+
+/* ------------------------------------------------------------- the row cells */
+
+.session-sheet .sm-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.session-sheet .sm-agent {
+  flex: 0 0 auto;
+}
+
+.session-sheet .sm-name-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.session-sheet .sm-name-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.session-sheet .sm-name strong {
+  max-width: var(--sm-name-max);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-medium);
+}
+
+.session-sheet .sm-name small {
+  margin-top: var(--space-1);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The label is `statusVisual`'s own text, so a probe reads what the policy
+   wrote; the first letter is raised here and nowhere else. */
+.session-sheet .sm-state-label {
+  display: inline-block;
+}
+
+.session-sheet .sm-state-label::first-letter {
+  text-transform: uppercase;
+}
+
+.session-sheet .sm-state-label[data-dot='attention'] {
+  color: var(--status-attention);
+}
+
+.session-sheet .sm-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* End reads as a quiet button until the pointer is on it. */
+.session-sheet .btn.sm-end:hover:not(:disabled) {
+  background: var(--error-wash);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* --------------------------------------------------------- the group headers */
+
+/* A group header scrolls with its rows. It does not stick and does not fold. */
+.session-sheet .sm-grid tr.sm-group > th {
+  padding: var(--space-6) var(--space-8) var(--space-2);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  font-weight: var(--weight-regular);
+  text-align: left;
+}
+
+.session-sheet .sm-past .sm-group {
+  padding: var(--space-6) var(--space-8) var(--space-2);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.session-sheet .sm-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.session-sheet .sm-group-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.session-sheet .sm-group-name > .codicon {
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-group-name strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.session-sheet .sm-group-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.session-sheet .sm-chip {
+  padding: 1px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+
+.session-sheet .sm-chip-open {
+  color: var(--text-muted);
+}
+
+.session-sheet .sm-chip-closed {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-group-path {
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------ the Past list */
+
+.session-sheet .sm-past {
+  padding-bottom: var(--space-6);
+}
+
+.session-sheet .sm-past-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: var(--sm-past-row);
+  padding: var(--space-4) var(--space-8);
+  border-bottom: 1px solid var(--border);
+}
+
+.session-sheet .sm-past-row:hover {
+  background: var(--bg-raised);
+}
+
+.session-sheet .sm-past-row.sm-row-open {
+  background: var(--bg-active);
+  border-bottom-color: var(--border-active);
+}
+
+.session-sheet .sm-past-identity {
+  flex: 1 1 var(--sm-actions-min);
+  min-width: var(--sm-actions-min);
+}
+
+/* A tombstone's line is a sentence, and a sentence wraps. */
+.session-sheet .sm-past-identity .sm-name small {
+  white-space: normal;
+}
+
+.session-sheet .sm-past-state {
+  flex: 0 0 var(--sm-past-state);
+  width: var(--sm-past-state);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-past-note {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------- the states that replace the grid */
+
+.session-sheet .sm-state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: var(--sm-state-max);
+  margin: 0 auto;
+  padding: var(--sm-state-pad) var(--space-8);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-state-block h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.session-sheet .sm-state-block p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-base);
+}
+
+.session-sheet .sm-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-8);
+}
+
+.session-sheet .sm-loading-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.session-sheet .sm-skeleton {
+  height: var(--sm-skeleton-row);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+}
+
+/* --------------------------------------------------------------- the footer */
+
+.session-sheet .sm-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-7);
+  flex: 0 0 auto;
+  padding: var(--space-5) var(--space-8);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- narrower */
+
+/* The grid scroller scrolls sideways; below 1100px the cells give first. */
+@media (max-width: 1100px) {
+  .modal.session-sheet {
+    --sm-name-max: 135px;
+  }
+
+  .session-sheet .sm-grid tbody td {
+    padding: var(--space-5) var(--space-4);
+  }
+}

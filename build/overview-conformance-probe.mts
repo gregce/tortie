@@ -26,6 +26,14 @@
  * repository typecheck does not cover build/*.mts (tsconfig.node.json includes
  * only electron.vite.config.ts), and a computed import keeps this file
  * loadable in reference mode on a tree where the product reader is absent.
+ *
+ * PHASE 293 added one product-only step, `runActivityCheck`: the session
+ * manager's counts over the same fixtures. It writes what the product reader
+ * kept into a scratch overview store through the product's own write path,
+ * asks the shipping aggregate and maps it through the shipping truth table,
+ * then drives the shipping orchestration end to end over a scratch home that
+ * holds one claude record. The checker holds the answers against numbers
+ * written by hand from the phase's spec, never read back from the code.
  */
 
 import { createHash } from 'node:crypto';
@@ -911,6 +919,268 @@ async function runCrashCheck(scratch: string): Promise<any> {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 293. The session manager's counts, over the same fixtures
+// ---------------------------------------------------------------------------
+
+/**
+ * The providers a managed row can wear, in the spec's truth table order.
+ * cursoride and copilotide are in the keep map and are not launchable, so no
+ * row of the session manager ever wears them and they are not asked here.
+ */
+const ACTIVITY_PROVIDERS = [
+  'claude',
+  'codex',
+  'grok',
+  'antigravity',
+  'qwen',
+  'pi',
+  'omp',
+  'muse',
+  'gemini',
+  'deepseek',
+  'cursor'
+];
+
+/** The claude fixture's own session id, which the scratch home files it under. */
+const ACTIVITY_CLAUDE_ID = '11111111-2222-4333-8444-555555555555';
+
+/** One answer, flattened for the checker. The stored aggregate rides beside it. */
+function activityRow(label: string, answer: any, stored: any): any {
+  return {
+    label,
+    sessionId: answer?.sessionId ?? null,
+    coverage: answer?.coverage ?? null,
+    reason: answer?.reason ?? null,
+    user: answer?.userMessages ?? null,
+    agent: answer?.agentMessages ?? null,
+    at: answer?.lastMessageAt ?? null,
+    by: answer?.lastMessageBy ?? null,
+    clock: answer?.lastMessageClock ?? null,
+    readAt: answer?.readAt ?? null,
+    storedTurns: stored === undefined ? 'no row' : stored.turns,
+    storedUser: stored === undefined ? 'no row' : stored.userMessages,
+    storedAgent: stored === undefined ? 'no row' : stored.agentReplies,
+    storedState: stored === undefined ? 'no row' : stored.readState
+  };
+}
+
+/**
+ * Two layers, both over the SHIPPING modules.
+ *
+ *  1. THE TRUTH TABLE. Each base fixture is read by the product reader,
+ *     written into a scratch store the way the service writes a read, then
+ *     asked through `listActivity` and mapped through `toActivity`. Four
+ *     quiet rows sit beside them: a shell, a record with nothing on disk, an
+ *     agent that keeps no record (droid), and a record read `ok` that held no
+ *     message Tortie keeps.
+ *  2. THE ORCHESTRATION. `sessionActivity` itself, over a fake manifest that
+ *     answers by id, and a scratch home holding the claude fixture under its
+ *     own id and a claude record that holds only a queue record. Every row
+ *     that reaches the resolver is a claude row or a droid row, and neither
+ *     reads the environment, so nothing outside the scratch home is looked
+ *     at. The row on another machine names the claude record's REAL id on
+ *     purpose: if the remote guard ever died it would read `complete`.
+ *
+ * It also reads the aggregate's query plan off the scratch file.
+ */
+async function runActivityCheck(
+  mod: any,
+  scratch: string,
+  baseJobs: Record<string, ReadJob>
+): Promise<any> {
+  const overview = join(root, 'src', 'main', 'overview');
+  const entries = {
+    store: join(overview, 'store', 'index.ts'),
+    statement: join(overview, 'store', 'store.ts'),
+    map: join(overview, 'activity-map.ts'),
+    activity: join(overview, 'activity.ts'),
+    errors: join(root, 'src', 'main', 'errors.ts')
+  };
+  for (const p of Object.values(entries)) {
+    if (!existsSync(p)) return { ran: false, why: `${p.slice(root.length + 1)} is not in the tree yet` };
+  }
+  const storeMod: any = await import(pathToFileURL(entries.store).href);
+  const statementMod: any = await import(pathToFileURL(entries.statement).href);
+  const mapMod: any = await import(pathToFileURL(entries.map).href);
+  const activityMod: any = await import(pathToFileURL(entries.activity).href);
+  const errorsMod: any = await import(pathToFileURL(entries.errors).href);
+
+  const now = Date.UTC(2026, 8, 18, 12, 0, 0);
+  const dbPath = join(scratch, 'overview-activity.db');
+  const store = storeMod.openOverviewStore(dbPath);
+  const out: any = { ran: true, rows: [], orchestration: [], asked: [], answered: [], refusal: null, plan: [] };
+  try {
+    // ---- Layer 1 --------------------------------------------------------
+    const session = (id: string, agent: string, readState: string, r: any) => ({
+      sessionId: id,
+      agent,
+      provider: agent,
+      agentSessionId: agent === 'shell' ? null : 'fixture',
+      logPath: r === null ? null : '/scratch/log',
+      watermark: r === null ? null : r.watermark,
+      mapVersionAtLastRead: r === null ? null : 1,
+      lastReadAt: r === null ? null : now,
+      readState,
+      readDetail: null,
+      lastTouchedAt: r === null ? null : r.lastTouchedAt,
+      model: null,
+      branch: null,
+      honest: null
+    });
+    // The service's write, in the service's order: the session row, then the
+    // turns from the first index the read returned.
+    const writeRead = (id: string, provider: string, r: any) => {
+      store.upsertSession(session(id, provider, 'ok', r));
+      store.replaceTurnsFrom(id, r.turns[0]?.index ?? 0, r.turns, r.watermark, 1, now);
+    };
+    const asked: Array<{ label: string; id: string; agent: string }> = [];
+    for (const provider of ACTIVITY_PROVIDERS) {
+      const job = baseJobs[provider];
+      const id = `activity-${provider}`;
+      if (job === undefined) {
+        out.rows.push({ label: provider, error: 'the base fixture never ran' });
+        continue;
+      }
+      let r: any;
+      try {
+        r = mod.readSessionLog({ ...job, watermark: null });
+      } catch (err) {
+        out.rows.push({ label: provider, error: String((err as Error).message) });
+        continue;
+      }
+      writeRead(id, provider, r);
+      asked.push({ label: provider, id, agent: provider });
+    }
+    store.upsertSession(session('activity-shell', 'shell', 'shell', null));
+    asked.push({ label: 'shell', id: 'activity-shell', agent: 'shell' });
+    store.upsertSession(session('activity-nofile', 'claude', 'no-file', null));
+    asked.push({ label: 'no-file', id: 'activity-nofile', agent: 'claude' });
+    store.upsertSession(session('activity-droid', 'droid', 'no-store', null));
+    asked.push({ label: 'droid', id: 'activity-droid', agent: 'droid' });
+    const emptyRead = mod.readSessionLog({
+      ...baseJobs['claude'],
+      file: writeQueueOnly(join(scratch, 'activity-queue-only.jsonl')),
+      watermark: null
+    });
+    writeRead('activity-ok-zero', 'claude', emptyRead);
+    asked.push({ label: 'ok, zero turns', id: 'activity-ok-zero', agent: 'claude' });
+
+    const stored = new Map<string, any>();
+    for (const s of store.listActivity(asked.map((a) => a.id))) stored.set(s.sessionId, s);
+    for (const a of asked) {
+      const facts = {
+        id: a.id,
+        agent: a.agent,
+        machineId: 'local',
+        agentSessionId: a.agent === 'shell' ? null : 'fixture',
+        known: true
+      };
+      out.rows.push(activityRow(a.label, mapMod.toActivity(facts, stored.get(a.id)), stored.get(a.id)));
+    }
+
+    // ---- Layer 2 --------------------------------------------------------
+    const home = join(scratch, 'activity-home');
+    const cwd = join(scratch, 'activity-project');
+    mkdirSync(cwd, { recursive: true });
+    const projects = join(home, '.claude', 'projects', cwd.replace(/\//g, '-'));
+    mkdirSync(projects, { recursive: true });
+    copyFileSync(join(FIXTURES, 'claude-session.jsonl'), join(projects, `${ACTIVITY_CLAUDE_ID}.jsonl`));
+    const removedId = '22222222-2222-4333-8444-555555555555';
+    copyFileSync(join(FIXTURES, 'claude-session.jsonl'), join(projects, `${removedId}.jsonl`));
+    const zeroId = '33333333-2222-4333-8444-555555555555';
+    writeQueueOnly(join(projects, `${zeroId}.jsonl`));
+
+    const record = (id: string, over: Record<string, unknown>) => ({
+      id,
+      name: id,
+      tmuxName: id,
+      projectPath: cwd,
+      cwd,
+      agent: 'claude',
+      agentSessionId: ACTIVITY_CLAUDE_ID,
+      status: 'running',
+      createdAt: Date.UTC(2026, 7, 20, 9, 0, 0),
+      argv: ['claude'],
+      lastSeen: now,
+      machineId: 'local',
+      ...over
+    });
+    const manifestRows = [
+      record('orc-live', {}),
+      record('orc-removed', { agentSessionId: removedId, status: 'discarded' }),
+      record('orc-zero', { agentSessionId: zeroId }),
+      record('orc-nofile', { agentSessionId: '44444444-2222-4333-8444-555555555555' }),
+      record('orc-shell', { agent: 'shell', agentSessionId: undefined }),
+      record('orc-remote', { machineId: 'm1' }),
+      record('orc-noid', { agentSessionId: undefined }),
+      record('orc-droid', { agent: 'droid', agentSessionId: 'droid-session' })
+    ];
+    const deps = {
+      manifest: () =>
+        Promise.resolve({ getSession: (id: string) => manifestRows.find((r) => r.id === id) }),
+      store: () => store,
+      home,
+      now: () => now
+    };
+    const labels: Array<[string, string]> = [
+      ['orc-remote', 'on another machine'],
+      ['orc-live', 'live, read through the scratch home'],
+      ['orc-unknown', 'not in the manifest'],
+      ['orc-shell', 'shell'],
+      ['orc-removed', 'removed, still answered'],
+      ['orc-nofile', 'nothing on disk'],
+      ['orc-zero', 'ok, zero turns'],
+      ['orc-noid', 'no conversation id'],
+      ['orc-droid', 'droid']
+    ];
+    out.asked = labels.map(([id]) => id);
+    const answer = await activityMod.sessionActivity(deps, { sessionIds: out.asked });
+    out.answered = answer.sessions.map((s: any) => s.sessionId);
+    const orcStored = new Map<string, any>();
+    for (const s of store.listActivity(out.asked)) orcStored.set(s.sessionId, s);
+    for (const [id, label] of labels) {
+      const a = answer.sessions.find((s: any) => s.sessionId === id);
+      out.orchestration.push(activityRow(label, a, orcStored.get(id)));
+    }
+    try {
+      await activityMod.sessionActivity(deps, {
+        sessionIds: Array.from({ length: 201 }, (_, i) => `over-${String(i)}`)
+      });
+      out.refusal = 'answered';
+    } catch (err) {
+      out.refusal = errorsMod.gmuxErrorPayloadOf(err)?.code ?? String((err as Error).message);
+    }
+  } finally {
+    store.close();
+  }
+
+  // The plan, read off the scratch file by a second connection.
+  const Database = req('better-sqlite3');
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    out.plan = (
+      db.prepare(`EXPLAIN QUERY PLAN ${String(statementMod.LIST_ACTIVITY_SQL)}`).all({
+        id: 'activity-claude'
+      }) as Array<{ detail: string }>
+    ).map((line) => line.detail);
+  } finally {
+    db.close();
+  }
+  return out;
+}
+
+/**
+ * A claude record that holds one queue record and no message. The product
+ * reader reads it `ok` with zero turns, which is the one zero the session
+ * manager draws.
+ */
+function writeQueueOnly(file: string): string {
+  const first = readFileSync(join(FIXTURES, 'claude-session.jsonl'), 'utf8').split('\n')[0] ?? '';
+  writeFileSync(file, first + '\n', 'utf8');
+  return file;
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -967,6 +1237,9 @@ async function main(): Promise<void> {
     }
 
     const adapterFiles: Record<string, string> = {};
+    // Phase 293. Each base case's job, kept so the activity check reads the
+    // same file with the same session id, cursor's adapter store included.
+    const baseJobs: Record<string, ReadJob> = {};
 
     // Base cases, then a second read of the same file with the watermark the
     // first read returned. A file that has not moved must cost nothing.
@@ -988,6 +1261,7 @@ async function main(): Promise<void> {
         projectPath: c.cwd,
         watermark: null
       };
+      baseJobs[c.provider] = job;
       const first = read(job);
       out.cases[`base-${c.provider}`] = first;
       if (first.ok && first.watermark !== null) {
@@ -1114,6 +1388,11 @@ async function main(): Promise<void> {
           ran: true,
           ok: false,
           why: String((err as Error).message)
+        })),
+        // Phase 293. After the crash check, so its scratch store is its own.
+        activity: await runActivityCheck(mod, SCRATCH, baseJobs).catch((err) => ({
+          ran: true,
+          failed: String((err as Error).stack ?? (err as Error).message)
         }))
       };
     }

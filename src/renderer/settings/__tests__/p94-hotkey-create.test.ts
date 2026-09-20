@@ -136,6 +136,7 @@ function seedTab(onMachine: boolean): void {
     sessions: [],
     toasts: [],
     bootBlock: null,
+    sessionSheet: null,
     machineStates: [
       {
         id: 'macpro',
@@ -187,5 +188,22 @@ describe('a per-agent hotkey pressed in a tab on this Mac', () => {
     expect(Object.keys(created[0] ?? {})).not.toContain('projectMachineId');
     expect(created[0]?.projectPath).toBe('/here/work');
     expect(useApp.getState().toasts).toHaveLength(0);
+  });
+});
+
+describe('a per-agent hotkey pressed under the session manager (Phase 293, the fix round)', () => {
+  it('starts nothing, says nothing, and leaves the active session where it was', async () => {
+    // The press attack's P3: under the sheet a hotkey started a session in the
+    // project BEHIND it, made it active and handed its terminal the keyboard.
+    seedTab(false);
+    useApp.getState().openSessionSheet('managed');
+    const activeBefore = useApp.getState().activeProjectId;
+    await launchAgent('claude');
+    expect(created).toHaveLength(0);
+    expect(useApp.getState().toasts).toHaveLength(0);
+    expect(useApp.getState().activeProjectId).toBe(activeBefore);
+    useApp.getState().closeSessionSheet();
+    await launchAgent('claude');
+    expect(created).toHaveLength(1);
   });
 });

@@ -180,11 +180,17 @@ export const MENU_CODICONS = [
  *    covers all of them. Each hands the path to a program outside Tortie and
  *    the journey off this app is the whole of what they have in common, which
  *    is what this mark draws. `folder-opened` would say Tortie opened it.
- *  - `list-selection`, worn by the terminal menu's Select All and the branch
- *    header menu's Manage branches. Chosen because both rows hand a person a
- *    whole list at once. Select All takes the terminal's entire buffer, and
+ *  - `list-selection`, worn by the terminal menu's Select All, the branch
+ *    header menu's Manage branches and, since Phase 293, the Session menu's
+ *    Manage Sessions…. Chosen because every one of those rows hands a person
+ *    a whole list at once. Select All takes the terminal's entire buffer, and
  *    Manage branches leaves the one-keystroke switcher for the BRANCHES
- *    section, which is the full list.
+ *    section, which is the full list. Manage Sessions… opens the sheet that
+ *    lists every session across every project and machine, and it is a list
+ *    a person selects rows IN: selecting is what its one new verb, End
+ *    selected sessions…, acts on, so the mark draws the act as well as the
+ *    list. `history` stays on Past Sessions… beside it, because that row is
+ *    about what was and this one is about what is.
  *  - `multiple-windows`, worn by Break up into tabs on a split group and by
  *    Move to its own tab on one leaf. Both name a destination rather than a
  *    source, being several separate tabs where one split surface stood, and

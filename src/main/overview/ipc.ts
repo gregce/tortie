@@ -5,7 +5,7 @@
  *     import { registerOverviewIpc } from './overview/ipc';
  *     registerOverviewIpc(ipcMain, async () => (await getGmuxCore()).manifest);
  *
- * Six channels, and all six READ. Each one lists the project's manifest rows
+ * Seven channels, and all seven READ. Each one lists the project's manifest rows
  * read only, opens the agent logs through the keep map, writes the redacted
  * slice into Tortie's own overview store, and answers from store rows.
  * No channel here spawns a process, writes the manifest, touches tmux or
@@ -24,6 +24,14 @@
  * a git command, because the turn read hands back the git mark the page's own
  * read already stored.
  *
+ * Phase 293 added the seventh, `overview:activity`. It answers the session
+ * manager's counts for the sessions it is handed by id: how many messages the
+ * current conversation holds and when the last one was. It reads what the
+ * first two read and writes what they write, being agent logs read only and
+ * Tortie's own overview store. It spawns nothing, writes no manifest row,
+ * touches no tmux and changes no session's state. The orchestration is
+ * ./activity.ts and the judgement is ./activity-map.ts.
+ *
  * The store opens on the first call, at `<userData>/gmux/overview.db`, inside
  * the protected inner `gmux/` directory beside the manifest. It never opens
  * at registration, so a person who never presses the chord never pays for it.
@@ -36,6 +44,7 @@ import { app } from 'electron';
 import type { IpcMain } from 'electron';
 import type { ManifestStore } from '../manifest';
 import { handle } from '../typed-ipc';
+import { sessionActivity } from './activity';
 import {
   projectOverview,
   sessionsOverview,
@@ -62,7 +71,7 @@ export function overviewStore(): OverviewStore {
 }
 
 /**
- * Registers the six channels exactly once. It takes a manifest getter
+ * Registers the seven channels exactly once. It takes a manifest getter
  * rather than a manifest, because the manifest is opened during boot and the
  * registrars are installed before that finishes.
  *
@@ -114,6 +123,13 @@ export function registerOverviewIpc(
   );
   handle(ipc, 'overview:timelineTurns', (_event, input) =>
     timelineTurns(deps.store(), input)
+  );
+  // Phase 293. The session manager's counts, by session id. It takes the SAME
+  // deps the first two channels take, so it reads through the one manifest
+  // getter and the one store open. The input goes through untouched: the
+  // refusals are the orchestration's, so they hold for any caller of it.
+  handle(ipc, 'overview:activity', (_event, input) =>
+    sessionActivity(deps, input)
   );
 }
 

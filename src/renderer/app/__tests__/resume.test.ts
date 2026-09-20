@@ -14,14 +14,15 @@ import { describe, expect, it } from 'vitest';
 import type { Session } from '@shared/types';
 import {
   hasRestoreMaterial,
-  pastRestoreNeedsAsk,
   restoreActionCopy,
   restoreExitedCopy,
+  restoreNeedsOpenAsk,
   restoreSummary,
   resumeMarkLabel,
   resumeNote,
   resumeReadiness
 } from '../../state/resume';
+import { workspaceTarget } from '@shared/workspace-target';
 
 /**
  * `Session.agent` is typed against the FROZEN three-value AgentKind while the
@@ -257,16 +258,84 @@ describe('restoreExitedCopy', () => {
   });
 });
 
-describe('pastRestoreNeedsAsk (Phase 60)', () => {
-  it('asks exactly when the project is not among the open tabs', () => {
-    expect(pastRestoreNeedsAsk(session(), ['/elsewhere'])).toBe(true);
-    expect(pastRestoreNeedsAsk(session(), [])).toBe(true);
+/**
+ * Phase 293 replaced `pastRestoreNeedsAsk` with this, and the reason is the
+ * third case below. The old predicate compared BARE paths, so a tab on another
+ * machine that happened to hold the same path suppressed the ask for a row on
+ * this Mac, and the restore then ran into a project with no tab at all. The
+ * question is asked of TARGETS now, being the machine and the path together.
+ */
+describe('restoreNeedsOpenAsk (Phase 60, by target since Phase 293)', () => {
+  it('asks exactly when no open tab is this session’s own folder', () => {
+    expect(
+      restoreNeedsOpenAsk(session(), [workspaceTarget('/elsewhere')])
+    ).toBe(true);
+    expect(restoreNeedsOpenAsk(session(), [])).toBe(true);
   });
 
   it('never asks for a project that is an open tab', () => {
-    expect(pastRestoreNeedsAsk(session(), ['/repo'])).toBe(false);
-    expect(pastRestoreNeedsAsk(session(), ['/elsewhere', '/repo'])).toBe(
+    expect(restoreNeedsOpenAsk(session(), [workspaceTarget('/repo')])).toBe(
       false
+    );
+    expect(
+      restoreNeedsOpenAsk(session(), [
+        workspaceTarget('/elsewhere'),
+        workspaceTarget('/repo')
+      ])
+    ).toBe(false);
+  });
+
+  it('a tab on another machine with the SAME PATH does not suppress the ask', () => {
+    // Red at the parent: `pastRestoreNeedsAsk(session(), ['/repo'])` answered
+    // false here, because the list it was handed had already lost the machine.
+    expect(
+      restoreNeedsOpenAsk(session(), [workspaceTarget('/repo', 'studio')])
+    ).toBe(true);
+    expect(
+      restoreNeedsOpenAsk(session(), [
+        workspaceTarget('/repo', 'studio'),
+        workspaceTarget('/repo')
+      ])
+    ).toBe(false);
+  });
+
+  it('never asks for a session on another machine, whatever is open', () => {
+    // The ask ends in opening a folder as a tab, and main re-homes a remote
+    // row itself. Opening that path HERE would be a local tab wearing another
+    // machine's folder name, which is the Phase 90.3 defect.
+    const far = session({
+      machine: {
+        id: 'studio',
+        label: 'Studio',
+        color: 'orange',
+        answering: true,
+        canRestore: true,
+        restoreReason: null
+      }
+    });
+    expect(restoreNeedsOpenAsk(far, [])).toBe(false);
+    expect(restoreNeedsOpenAsk(far, [workspaceTarget('/repo')])).toBe(false);
+  });
+
+  it('never asks for a row whose machine a person removed', () => {
+    const gone = session({
+      status: 'discarded',
+      machineGone: {
+        label: 'Studio',
+        lastStatus: 'running',
+        lastSeenAt: 0,
+        forgottenAt: 1
+      }
+    });
+    expect(restoreNeedsOpenAsk(gone, [])).toBe(false);
+  });
+
+  it('compares the stored spelling and folds nothing', () => {
+    // Phase 274 rule 23. One folder is one project row, so there is one
+    // stored spelling on both sides and a fold here would only ever merge two
+    // folders that really are two.
+    expect(restoreNeedsOpenAsk(session(), [workspaceTarget('/Repo')])).toBe(
+      true
     );
   });
 });

@@ -56,6 +56,27 @@ vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => {
   return 0;
 });
 
+/**
+ * PHASE 293. What a server render of a store connected component reads.
+ *
+ * zustand answers a server render from `getInitialState`, so seeding the real
+ * store changes nothing on the page. The hook below runs the same selector over
+ * the REAL store's initial state with the seed laid over it, which is what the
+ * real hook returns on a server render. The seed is empty for every test but
+ * the one that needs the session manager open, so every other test reads
+ * exactly what it read before, over the real store, whose `sessionSheet`
+ * starts `null`. Every other member of the store (`getState` above all, which
+ * the session menu reads) is the real one.
+ */
+let storeSeed: Record<string, unknown> = {};
+vi.mock('../../state/store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../state/store')>();
+  const real = actual.useApp;
+  const hook = (selector: (state: unknown) => unknown): unknown =>
+    selector({ ...real.getInitialState(), ...storeSeed });
+  return { ...actual, useApp: Object.assign(hook, real) };
+});
+
 const {
   conversationCopyLine,
   RESTORE_KEPT_HERE,
@@ -176,6 +197,44 @@ describe('the panel', () => {
     // The wrapper reads the store, and zustand answers a server render from
     // the store's INITIAL state, in which no session is open.
     expect(renderToStaticMarkup(<SavedOutputModal />)).toBe('');
+  });
+
+  // PHASE 293. The session manager draws a saved output as an expansion under
+  // its row, and nothing stacks as a modal over that sheet. The control half
+  // proves the seed reaches the render: the same open output with no sheet
+  // draws the modal.
+  it('renders nothing while the session manager is open, and draws without it', () => {
+    const open = {
+      savedOutputSessionId: 'sess-1',
+      savedOutput: null,
+      savedOutputLoading: false,
+      sessions: [sess()]
+    };
+    try {
+      storeSeed = { ...open, sessionSheet: null };
+      expect(renderToStaticMarkup(<SavedOutputModal />)).toContain(
+        SAVED_OUTPUT_NONE
+      );
+      storeSeed = {
+        ...open,
+        sessionSheet: {
+          tab: 'managed',
+          search: '',
+          project: 'all',
+          tabFilter: 'all',
+          stateFilter: 'all',
+          sort: null,
+          checked: {},
+          inline: { id: 'sess-1', kind: 'output' },
+          batch: null,
+          listError: null,
+          activity: {}
+        }
+      };
+      expect(renderToStaticMarkup(<SavedOutputModal />)).toBe('');
+    } finally {
+      storeSeed = {};
+    }
   });
 
   it('says it has nothing when there is no copy, and still opens', () => {

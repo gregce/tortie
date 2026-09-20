@@ -30547,6 +30547,13 @@ agent session in a closed project held memory for a week, unseen), by making suc
 endable; the issue's other half, suspending sessions on a timer or when a project closes, is a policy
 this phase does not make.
 
+**The contract the build was made from is `build/p293/SPEC.md`.** Its §9 lists the operator's open
+rulings, R1 to R16, each with the default that was built, then the findings queued for later rounds and
+the refusals restated; its §10 answers two adversaries finding by finding; its §7 is the proof each
+builder owes and the gates the commit passes, `probe:p167` once among them, which the proof list below
+does not name. Five sentences of this entry were corrected in place against the tree when the spec was
+written, and each says so where it stands.
+
 ### What the study and the tree already say, so no round re-derives it
 
 - **The inventory is already global.** `src/main/sessions/core.ts:2536` `listSessions()` answers every
@@ -30556,18 +30563,24 @@ this phase does not make.
 - **The lifecycle verbs exist and are the ONLY action boundary.** End is `endSession` in
   `src/renderer/state/sessions-slice.ts:1066` over core's `killSession` (`core.ts:2743`), and it keeps
   the recovery material and leaves the row under Managed as Ended. Remove is `removeSession`
-  (`sessions-slice.ts:1155`) over core's `removeSession` (`:2890`), a tombstone for 90 days; **never**
-  core's `discardSession` (`:2864`), the hard delete. Restore is `restorePastSession`
-  (`sessions-slice.ts:293`) with `src/main/restore/ask-open-project.ts` asking to open a closed local
-  project first, and `src/renderer/state/resume.ts` (`pastSessionPromise`, `restoreActionCopy`) saying
-  whether a conversation continues or a fresh shell opens.
+  (`sessions-slice.ts:1155`) over core's `removeSession` (`:2890`), a tombstone for 90 days. **No NEW
+  path reaches core's `discardSession` (`:2864`), the hard delete** (corrected: this read "never").
+  Restart, a verb the policy already offers on ended local rows, reaches it for the OLD row only, and
+  only after the replacement exists. Restore is `restorePastSession`, DECLARED at
+  `sessions-slice.ts:293` and IMPLEMENTED at `:1308` (corrected: only the declaration was cited).
+  **The ask to open a closed local project first is drawn INLINE in the sheet, and the native ask in
+  `src/main/restore/ask-open-project.ts` is not called** (corrected: ruling R1;
+  `sessions:askRestoreProject` stays registered and unused until he rules). `src/renderer/state/resume.ts`
+  (`pastSessionPromise`, `restoreActionCopy`) says whether a conversation continues or a fresh shell
+  opens.
 - **The action policy exists once.** `src/renderer/app/session-actions.tsx:732` `sessionMenuItems()` and
   `:938` `closeSession()` carry the state-dependent gates: unknown rows get saved-record reads only,
   remote rows have capability limits. The sheet REUSES them; a second action policy is this phase's
   first refusal.
 - **The surface to extend exists.** `src/renderer/app/PastSessionsModal.tsx` and `past-sessions.css`:
   search, the recovery promise, the busy state, the machine-removed refusal, 90-day retention. The
-  Session menu already carries `Past Sessions…` (`src/main/menu.ts:932`).
+  Session menu already carries `Past Sessions…` (`src/main/menu.ts:932`). Both files are DELETED by
+  this phase (ruling R8): the modal is the sheet's second tab, not a surface kept beside it.
 - **The activity columns do NOT exist.** `Session.createdAt` (`src/shared/types.ts:206`) is the original
   creation time. Message counts and the last message's time are nowhere: `overview:sessions`
   (`src/shared/ipc/overview.ts`) returns a BOUNDED turn payload (50 by default, 200 at most), so its
@@ -30598,7 +30611,9 @@ this phase does not make.
 5. **Batch End.** Row checkboxes and a header checkbox that selects all FILTERED rows. While anything
    is selected the toolbar's filters are replaced, at no cost in height, by a count and **End selected
    sessions…**. ONE inline confirmation names the eligible running sessions across projects and says
-   how many selected records are skipped and why (already ended, unavailable, identity unknown).
+   how many selected records are skipped and why (already ended, unreachable, no longer here;
+   corrected: this read "unavailable, identity unknown", and no row without a session id can enter
+   the sheet, so an unknown identity is not a reason a person can meet).
    Cancel keeps the selection. Confirm calls the EXISTING per-session end for each target, re-checking
    capability immediately before each call, leaving ineligible targets untouched, and reports partial
    results row by row. Ending keeps saved material and leaves each row under Managed as Ended.
@@ -30641,8 +30656,10 @@ this phase does not make.
 
 - **No second action policy.** Every gate is `sessionMenuItems()`'s and the existing lifecycle methods';
   the sheet presents them.
-- **No permanent delete**, no batch Remove, no batch Restore: D draws batch End only (B draws the
-  others; they stay in the study).
+- **No permanent delete by any NEW path**, no batch Remove, no batch Restore: D draws batch End only
+  (B draws the others; they stay in the study). Corrected: this read "No permanent delete". Restart,
+  which the policy already offers, is the one verb on the sheet that reaches the hard delete, for the
+  old row after its replacement exists, and it is never in a batch.
 - **No policy that ends or suspends sessions by itself**, on a timer or when a project closes (issue
   27's second half). His ruling first.
 - **No memory or CPU meters on the sheet**; those stay in Diagnostics.

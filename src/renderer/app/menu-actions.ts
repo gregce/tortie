@@ -59,6 +59,18 @@ import { openDiagnosticsReport } from '../diagnostics/open-report';
 import { useQuickOpen } from '../quickopen/store';
 import { useSymbols } from '../search/symbols-store';
 import { gmuxBridge } from '../bridge';
+// Phase 293. The session manager's eager leaf: the two doors, the question
+// they ask instead of `modalLayerOpen()`, and the rename of a focused sheet
+// row. It imports the store and nothing drawn, so this file still loads no
+// sheet; the sheet is behind ../session-manager/lazy.tsx.
+import {
+  closeSessionManager,
+  leaveSessionManagerFor,
+  openSessionManager,
+  otherLayerOpen,
+  renameFocusedManageRow,
+  sheetIsTopLayer
+} from '../session-manager/open';
 import {
   focusedSessionRowId,
   modalLayerOpen,
@@ -101,6 +113,13 @@ export const RESUME_CONVERSATION_ACTION = 'resume-conversation';
 export function runMenuAction(action: AnyMenuActionWithProjects): void {
   const s = useApp.getState();
   const layerOpen = modalLayerOpen();
+  // Phase 293. The session manager is open. It is asked apart from
+  // `layerOpen`, which it is also part of, because the doors below did not
+  // all ask about layers before it existed and each of them, under the sheet,
+  // acted on the session or the surface BEHIND it. Every arm that reads this
+  // returns before it acts: a row in the menu bar stays clickable while a
+  // sheet is up, so the refusal has to be here and not in the sheet.
+  const sheetOpen = s.sessionSheet !== null;
 
   // PHASE 141. This is read before the switch rather than as a case in it, and
   // the reason is a build ordering one rather than a design one: the id belongs
@@ -109,6 +128,8 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
   // Once the id is in the union this branch is one `case` line in the switch
   // beside `end-session`, and nothing about what it does changes.
   if ((action as string) === RESUME_CONVERSATION_ACTION) {
+    // Phase 293. Under the sheet this typed into a session nobody could see.
+    if (sheetOpen) return;
     const target = s.activeSession();
     if (!target) return;
     // Every condition worth checking is checked once, in the store's own verb:
@@ -120,6 +141,8 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
 
   switch (action) {
     case 'new-session':
+      // Phase 293. Under the sheet this stacked the create sheet on it.
+      if (sheetOpen) return;
       if (s.projects.length === 0) {
         s.toast('info', `Open a project first (${keyDisplay('project.open')})`);
       } else if (s.bootBlock === null) {
@@ -130,6 +153,18 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       // The native menu owns the F2 accelerator (it fires before renderer
       // keydown), so the focused-row resolution lives here too: rename the
       // focused sidebar row, falling back to the active session (§4).
+      //
+      // Phase 293. Under the session manager the row renames the focused
+      // SHEET row, in the sheet's own rename, or nothing: no sheet row stamps
+      // the attribute the resolution below reads, so it fell through to the
+      // active session behind the scrim. This sits ABOVE the layer guard
+      // because the sheet is itself a layer and the guard would return first.
+      // The keydown branch in ./keyboard.ts is the one F2 actually reaches;
+      // this one is for a real click on the menu row.
+      if (sheetOpen) {
+        if (sheetIsTopLayer()) renameFocusedManageRow();
+        return;
+      }
       if (layerOpen || s.renamingSessionId !== null) return;
       const renameId = focusedSessionRowId() ?? s.activeSession()?.id ?? null;
       if (renameId !== null) s.setRenaming(renameId);
@@ -139,6 +174,16 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       const target = s.activeSession();
       if (!target) return;
       if (target.status === 'exited' || target.status === 'restorable') return;
+      // Phase 293, the fix round (W6). Today this row raises its confirmation
+      // ABOVE Past Sessions, for the active session, and a person uses it
+      // there. Stacked on the sheet it asked about a session hidden behind a
+      // list of other sessions, focus on its destructive button. So under the
+      // sheet the sheet closes FIRST and the confirmation is raised over the
+      // session it names, exactly as it is with no sheet at all.
+      if (sheetOpen) {
+        leaveSessionManagerFor(() => useApp.getState().endSession(target.id));
+        return;
+      }
       s.endSession(target.id);
       return;
     }
@@ -146,9 +191,16 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       // ⌥⌘↓ — with splits (S4A) this moves focus to the split below,
       // falling through to the next surface at the edge (= the round-1
       // session cycling on unsplit surfaces).
+      //
+      // Phase 293, the fix round (the press attack's P1). Under the session
+      // manager both rows do nothing: they selected a session BEHIND the sheet
+      // and its terminal took the keyboard. The chord is refused in
+      // ./keyboard.ts; this is the click on the row.
+      if (sheetOpen) return;
       useLayout.getState().navigate('down');
       return;
     case 'prev-session':
+      if (sheetOpen) return;
       useLayout.getState().navigate('up');
       return;
     case 'open-project':
@@ -157,6 +209,12 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'new-project':
       // ⇧⌘N (File menu). The dialog is the only path that writes a folder,
       // so an older preload without projects:create simply never opens it.
+      //
+      // Phase 293, the fix round (the press attack's P2). Under the session
+      // manager this row, Open Remote Project… and Clone Repository… do
+      // nothing: each drew its dialog UNDER the sheet with the keyboard in a
+      // field nobody could see, which is what today's Past Sessions does too.
+      if (sheetOpen) return;
       if (s.canCreateProject()) s.setNewProjectOpen(true);
       else s.toast('info', 'This build cannot create projects.');
       return;
@@ -167,18 +225,31 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     // above it, so a preload with no `projects:addRemote` says so out loud
     // rather than opening a sheet whose only button cannot work.
     case 'open-remote-project':
+      if (sheetOpen) return;
       if (s.canAddRemoteProject()) s.setRemoteProjectOpen(true);
       else s.toast('info', 'This build cannot open a folder on a machine.');
       return;
     case 'clone-repository': {
+      if (sheetOpen) return;
       const clone = cloneAction();
       if (clone === undefined) s.toast('info', 'This build cannot clone repositories.');
       else clone();
       return;
     }
-    case 'close-project':
-      if (s.activeProjectId !== null) s.closeProject(s.activeProjectId);
+    case 'close-project': {
+      const projectId = s.activeProjectId;
+      if (projectId === null) return;
+      // Phase 293, the fix round (the press attack's P2). Today its
+      // confirmation is drawn ABOVE Past Sessions, focus on its primary
+      // button, about the tab behind it. Under the manager the manager closes
+      // first, so the question is asked over the tab it names (as W6's doors).
+      if (sheetOpen) {
+        leaveSessionManagerFor(() => useApp.getState().closeProject(projectId));
+        return;
+      }
+      s.closeProject(projectId);
       return;
+    }
     case 'next-project':
       s.cycleProject(1);
       return;
@@ -275,12 +346,31 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     // have advertised keys that do one thing and done another. The 'menu'
     // argument only decides whether a click from neither region says why.
     case 'toggle-session-focus':
+      // Phase 293. Under the sheet this flew a region a person cannot see.
+      // The chord is already swallowed there; this is the click.
+      if (sheetOpen) return;
       void runFillChord('menu');
       return;
     case 'attention':
+      // Phase 293. The ⌘J list's rows act on sessions with no sheet host, so
+      // over the sheet they reached a confirmation for a session behind it,
+      // and its Catch me up… row opened the page UNDER the sheet. The fix
+      // round (W6): today the list is drawn ABOVE Past Sessions and used
+      // there, so under the manager the manager closes first and the list
+      // opens over the app, never stacked on the sheet.
+      if (sheetOpen) {
+        leaveSessionManagerFor(() => useApp.getState().setAttentionOpen(true));
+        return;
+      }
       s.setAttentionOpen(!s.attentionOpen);
       return;
     case 'shortcuts':
+      // Phase 293. Over the sheet this stacked the overlay on it. The fix
+      // round (W6): the same as the ⌘J row above, for the same reason.
+      if (sheetOpen) {
+        leaveSessionManagerFor(() => useApp.getState().setShortcutsOpen(true));
+        return;
+      }
       s.setShortcutsOpen(!s.shortcutsOpen);
       return;
     // Round-1 View menu additions (src/main/menu.ts).
@@ -372,7 +462,13 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     // It is handled without the layer guard on purpose, because
     // while the page is open modalLayerOpen() counts it, and the row must
     // still be able to CLOSE the page.
+    //
+    // Phase 293. It asks about the session manager ALONE, for that same
+    // reason: under the sheet the page would open beneath it. That ⇧⌘U is
+    // refused under no OTHER layer is a finding this phase reports and does
+    // not rule on.
     case 'show-overview':
+      if (sheetOpen) return;
       void toggleOverview('menu');
       return;
     // Phase 14 Find menu.
@@ -402,11 +498,34 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       if (position !== null) s.setProjectsPosition(position);
       return;
     }
-    // Phase 29. The Session menu's Past Sessions… item. Menu-only: there is
-    // no accelerator and no keydown branch mirrors it.
-    case 'past-sessions':
-      s.setPastOpen(true);
+    // Phase 293. Session → Manage Sessions… and, since Phase 29, Past
+    // Sessions…: two doors into ONE sheet, on its first and its second tab.
+    // Menu-only, with no accelerator and no keydown branch, because the sheet
+    // ends processes and a person reads a name first.
+    //
+    // THERE IS NO PROJECT GUARD, on purpose: the sheet lists sessions whose
+    // project has no tab, so it must open with no project open at all.
+    //
+    // Under a boot block no sheet mounts (App.tsx returns before the sheets),
+    // and an open flag over nothing would hold `modalLayerOpen()` true for
+    // the rest of the launch, hence the first guard.
+    //
+    // The second guard is `otherLayerOpen()` and NOT `layerOpen`. The sheet
+    // is part of `layerOpen`, and a second press on either row while the
+    // sheet is the top layer must switch its tab, which the store refuses by
+    // itself while a batch runs. Any layer that is drawn OVER the sheet
+    // refuses the door, the two palettes included, so a tab never changes
+    // under something drawn over it. The Catch Me Up page and the New Session
+    // sheet do not: the door opens OVER them, as Past Sessions did, because
+    // refusing there was a silent no-op (the fix round, W3; ./open.ts says
+    // why each is always under the sheet).
+    case 'manage-sessions':
+    case 'past-sessions': {
+      if (s.bootBlock !== null) return;
+      if (otherLayerOpen()) return;
+      openSessionManager(action === 'past-sessions' ? 'past' : 'managed');
       return;
+    }
     case 'settings':
       // The settings surface is the activity-bar gear's menu (one setting
       // in v1); ⌘, routes through it so the shortcut stays honest.
@@ -428,10 +547,21 @@ export function useMenuActions(): void {
       // Phase 12.85: the menu-bar sentinel's rows carry a session id.
       if (action.startsWith(FOCUS_SESSION_PREFIX)) {
         // PHASE 93. The jump is asynchronous now, because a session whose
-        // folder has no tab gets one opened before it is landed in. Nothing
-        // here waits for it: the answer is a toast the jump raises itself, and
-        // this handler has no panel of its own to keep open.
-        void jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length));
+        // folder has no tab gets one opened before it is landed in. A refusal
+        // is a toast the jump raises itself.
+        //
+        // Phase 293. A person who asked for a session from OUTSIDE the window
+        // gets it: when the jump landed and the session manager is open, the
+        // sheet closes and the close itself hands the keyboard to the
+        // terminal, one frame later, because a terminal under a sheet that is
+        // still drawn may refuse focus. A refused jump leaves the sheet open.
+        void jumpToSession(action.slice(FOCUS_SESSION_PREFIX.length)).then(
+          (r) => {
+            if (r.ok && useApp.getState().sessionSheet !== null) {
+              closeSessionManager({ give: 'terminal' });
+            }
+          }
+        );
         return;
       }
       // Phase 18.6: File > Open Recent > a row. The path travels on the id

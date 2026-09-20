@@ -15,7 +15,10 @@ import type {
   RemoteProjectMenuActionId
 } from './projects';
 import type { FindMenuActionId } from './search';
-import type { PastSessionsMenuActionId } from './sessions';
+import type {
+  ManageSessionsMenuActionId,
+  PastSessionsMenuActionId
+} from './sessions';
 import type { ContextMenuActionId } from './context';
 import type { OverviewMenuActionId } from './overview';
 import type { ArchAimMenuActionId, ArchMenuActionId } from './arch';
@@ -548,6 +551,10 @@ export type AnyMenuActionWithProjects =
   | ChromeMenuActionId
   | CloneMenuActionId
   | PastSessionsMenuActionId
+  // Phase 293. The Session menu gained "Manage Sessions…", the same one-line
+  // fold. It opens the session manager sheet, and the row above it now opens
+  // the same sheet on its second tab.
+  | ManageSessionsMenuActionId
   // Phase 60. The View menu gained "Context", the same one-line fold.
   | ContextMenuActionId
   // Phase 137. The View menu gained "Catch Me Up", the same one-line fold.

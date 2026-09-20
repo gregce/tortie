@@ -65,6 +65,10 @@ import { registerP268AutoSaveDrive } from '../editor/p268-auto-save-drive';
 // PHASE 277. The save-completion drive, read by build/p277/probe-p277-save.mjs.
 // Same shape again: one object on `window`, nothing read until it is called.
 import { registerP277SaveDrive } from '../editor/p277-save-drive';
+// PHASE 293. The session manager's drive, read by build/p293/probe-p293.mjs.
+// Same shape: one object on `window`, and the manager's own modules are
+// imported only when one of its methods is called.
+import { registerP293SessionManagerDrive } from './p293-session-manager-drive';
 import { driveZoom } from '../zoom/shot-probe';
 import type { ZoomProbeSpec } from '../zoom/shot-probe';
 import { driveQuickOpen } from '../quickopen/shot-probe';
@@ -407,6 +411,11 @@ function armModuleLoadDrives(): void {
   // It exposes each tab's dirty flag, baseline and live buffer, and the one
   // gesture a mouse cannot make: start a save and type in the same turn.
   registerP277SaveDrive();
+
+  // PHASE 293 hook, same shape again, read by build/p293/probe-p293.mjs. It
+  // opens the manager through the menu's own function, answers the native row
+  // menu's items as labels, holds one needs_input, and reads the sheet's DOM.
+  registerP293SessionManagerDrive();
 }
 
 /**

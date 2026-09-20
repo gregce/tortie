@@ -174,8 +174,11 @@ describe('a session on another machine with no record of it', () => {
 });
 
 describe('a session on this Mac', () => {
+  // Phase 293. Both rows here are ENDED: `removeRefusal` now refuses to
+  // tombstone a live session on this Mac (lifecycle-gate.ts), and this
+  // describe is about which PATH a removable row takes, not about that gate.
   it('takes the local path, and is tombstoned exactly once', () => {
-    row({ id: 'local-1', machineId: 'local' });
+    row({ id: 'local-1', machineId: 'local', status: 'exited' });
 
     removeSession.call(host(), 'local-1');
 
@@ -184,7 +187,7 @@ describe('a session on this Mac', () => {
   });
 
   it('takes the local path for a row written before machines existed', () => {
-    row({ id: 'old-1' });
+    row({ id: 'old-1', status: 'exited' });
     expect(store.getSession('old-1')?.machineId).toBe('local');
 
     removeSession.call(host(), 'old-1');

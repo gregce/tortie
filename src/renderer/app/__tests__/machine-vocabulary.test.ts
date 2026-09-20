@@ -81,6 +81,11 @@ const FILES: readonly string[] = [
   // machine's label and a time, and it must not draw a word from the
   // transport layer while doing it.
   'src/renderer/app/SavedOutputModal.tsx',
+  // Phase 293. What the panel draws between its title and its buttons moved
+  // here, machine label and conversation line included, so the session
+  // manager's saved output expansion draws the same words. The audit follows
+  // the words, or it would stop reading them without a sound.
+  'src/renderer/app/SavedOutputBody.tsx',
   // Phase 84. The folder picker for another machine. It is a new surface that
   // says things about a machine, so it is audited like the rest.
   //
@@ -214,7 +219,26 @@ const FILES: readonly string[] = [
   // Settings. The sentence is the only one this phase wrote and it is here.
   'src/renderer/machines/confirm-action.ts',
   'src/renderer/app/MachineConfirmAction.tsx',
-  'src/renderer/app/new-session-menu.ts'
+  'src/renderer/app/new-session-menu.ts',
+  // Phase 293. The session manager. It lists sessions on every machine, names
+  // the machine in a group header, a filter option, a batch target and the
+  // Details facts, and says why a row on a machine Tortie cannot reach offers
+  // reads only. Every sentence it draws is a named export of `copy.ts`, and
+  // the five files that draw them are read as well, so a later round cannot
+  // type a sentence straight into the grid or a panel.
+  //
+  // ONE FILE IS DELIBERATELY NOT ADDED, being src/renderer/state/resume.ts,
+  // where this phase puts the End and Remove confirmation sentences it lifted
+  // out of sessions-slice.ts byte for byte. It stays off for the reason given
+  // above for sessions-slice.ts itself: it holds many unrelated strings and a
+  // sweep of them belongs to its own round. Those sentences are checked by
+  // review, and the phase report records that reading.
+  'src/renderer/session-manager/copy.ts',
+  'src/renderer/session-manager/SessionManagerSheet.tsx',
+  'src/renderer/session-manager/ManagedGrid.tsx',
+  'src/renderer/session-manager/PastList.tsx',
+  'src/renderer/session-manager/InlinePanel.tsx',
+  'src/renderer/session-manager/BatchPanel.tsx'
 ];
 
 /**

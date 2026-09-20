@@ -443,7 +443,44 @@ describe('Phase 156: every menu bar row wears the mark its own surface draws', (
     expect(markOf(session, 'Previous Session')).toBe('arrow-up');
     expect(markOf(session, 'End Session…')).toBe('close');
     expect(markOf(session, 'Resume Conversation')).toBe('terminal');
+    // Phase 293. `list-selection`: the sheet is a list a person selects rows
+    // in, and selecting is what its one new verb acts on.
+    expect(markOf(session, 'Manage Sessions…')).toBe('list-selection');
     expect(markOf(session, 'Past Sessions…')).toBe('history');
+  });
+
+  // Phase 293. The two doors on to the one sheet. The mark is pinned above;
+  // these three pin what a later round could move without touching a mark.
+  it('puts Manage Sessions… directly above Past Sessions…, at the foot of the Session menu', () => {
+    const labels = submenuOf('Session').map((it) => it.label ?? it.type);
+    const manage = labels.indexOf('Manage Sessions…');
+    expect(manage).toBeGreaterThan(0);
+    // The separator that sets the pair apart from the hotkey rows is kept, and
+    // build/handback-conformance-probe.mts reads positions ABOVE it only.
+    expect(labels[manage - 1]).toBe('separator');
+    expect(labels.slice(manage)).toEqual(['Manage Sessions…', 'Past Sessions…']);
+  });
+
+  it('leaves both doors unaccelerated, because the sheet ends processes', () => {
+    const session = submenuOf('Session');
+    for (const label of ['Manage Sessions…', 'Past Sessions…']) {
+      const row = session.find((it) => it.label === label);
+      expect(row, label).toBeDefined();
+      expect(row?.accelerator, label).toBeUndefined();
+      expect(row?.sublabel, label).toBeUndefined();
+    }
+  });
+
+  it('clicking Manage Sessions… forwards manage-sessions, and the old door keeps its id', () => {
+    const win = makeWindow();
+    state.windows = [win];
+    const session = submenuOf('Session');
+    session.find((it) => it.label === 'Manage Sessions…')?.click?.();
+    session.find((it) => it.label === 'Past Sessions…')?.click?.();
+    expect(win.sent).toEqual([
+      [EVT_MENU_ACTION, 'manage-sessions'],
+      [EVT_MENU_ACTION, 'past-sessions']
+    ]);
   });
 
   it('marks the Find menu', () => {

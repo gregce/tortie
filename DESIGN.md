@@ -419,6 +419,11 @@ View menu (native, mirrors §2.2): "Sessions on top" / "Sessions on right" — a
 13. **History, no commits yet.** History section shows one quiet line: "No commits yet — your first commit starts the history."
 14. **Settings — no agents detected.** Agents section shows one line: "No agent CLIs found. Install one and re-scan — sessions can always run a plain shell." + [Re-scan].
 15. **Branches — no remotes.** Not an error: the Remotes group and the fetch accessory are simply hidden. Local-only repos get the Local group alone, no explanatory copy.
+16. **Session manager, nothing to manage (Phase 293).** Items 16 to 20 are the five states that replace the session manager's grid, headings included, while its title bar, toolbar and footer stay (geometry: docs/DESIGN-SPEC.md S15). Managed tab, no session at all. Codicon `search`. Title: "No sessions to manage". Body: "Start a session from the Session menu. Projects don’t need to stay open for sessions to appear here." No button.
+17. **Session manager, no past sessions.** Past Sessions tab, nothing removed in the last 90 days. Codicon `history`. Title: "No past sessions yet". Body: "Sessions you remove will appear here for 90 days." No button.
+18. **Session manager, no match.** Either tab, when the search and the filters leave no row. Codicon `search`, or `history` on the Past Sessions tab. Title: "No matching sessions". Body: "Try another project or clear your filters." [Clear filters] resets the project, the search, the tab filter, the state filter and the selection.
+19. **Session manager, loading.** Past Sessions tab only, while the list is being read and no row is held yet, announced as a status. "Loading sessions…" over five skeleton rows. No button. The Managed tab has no such state: its list is already in the window.
+20. **Session manager, read failure.** When the list could not be read. Codicon `warning`. Title: "Sessions couldn’t be read". Body: "Your sessions haven’t changed. Try reading the list again." Primary: [Try again].
 
 ## 7. Voice & copy rules
 
