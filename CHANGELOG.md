@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
-- Session > Manage Sessions… shows every session Tortie manages in one sheet, across every project and machine and including projects whose tab is closed, with each one's state, when it was created, how many messages its conversation holds and how long ago the last one was. You can end a session or restore an ended one from there, or tick several and end them together after one confirmation that names each, and Past Sessions… opens the same sheet on its second tab; a session on another machine shows a dash for its messages
+- Session > Manage Sessions… shows every session Tortie manages in one sheet, across every project and machine and including projects whose tab is closed, with each one's state, when it was created, how many messages its conversation holds and how long ago the last one was. You can end a session or restore an ended one from there, or tick several and end them together after one confirmation that names each, and Past Sessions… opens the same sheet on its second tab; a session on another machine shows a dash for its messages ([`f6c11f57`](https://github.com/gregce/tortie/commit/f6c11f57))
 
 ### Fixed
 
