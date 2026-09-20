@@ -12,7 +12,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Changed
 
-- The Manage Sessions sheet now shows about twice as many sessions at once — seventeen rows where it showed nine in the same window — because a session takes one line rather than two, and it reads like the rest of Tortie, with the same type and icon sizes and a row that fills under the pointer the way the session list does. No column was dropped and nothing on a row is smaller to click, and a message that appears while the sheet is open now sits above its footer instead of over the End button on the lowest rows
+- The Manage Sessions sheet now shows about twice as many sessions at once — seventeen rows where it showed nine in the same window — because a session takes one line rather than two, and it reads like the rest of Tortie, with the same type and icon sizes and a row that fills under the pointer the way the session list does. No column was dropped and nothing on a row is smaller to click, and a message that appears while the sheet is open now sits above its footer instead of over the End button on the lowest rows ([`4f08e8f0`](https://github.com/gregce/tortie/commit/4f08e8f0))
 
 ### Fixed
 
