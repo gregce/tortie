@@ -84,6 +84,73 @@ import type { EditorTab } from './tab-types';
  */
 const TYPING_RUN_MS = 1_000;
 
+/**
+ * PHASE 297. THE TYPING STATE AND THE TAB IT WAS TYPED ON, which is the whole
+ * fix and is why it is a wrapper here rather than a field in
+ * ./redline-typing's `TypingState`.
+ *
+ * One mount serves every tab — `EditorPanel.tsx` draws
+ * `<RedlineDocument tab={activeTab} />` with no `key`, deliberately, so a
+ * switch is a prop change and the view's per-mount lifetimes survive it. The
+ * render that carries the ARRIVING tab therefore still carries the DEPARTING
+ * tab's typing state, and the effects below run in that render's commit. The
+ * only honest question an effect can ask in that commit is "is this state
+ * mine", and a text comparison cannot answer it: the two files can hold the
+ * same bytes, and the departing text is sometimes exactly what the arriving
+ * tab's saved bytes are. So the state carries an identity.
+ *
+ * The pure half stays pure. `TypingState` names no tab, no file and no model
+ * on purpose (./redline-typing's header, `conformance:redline` rule 17), so
+ * the identity is wrapped around it in this file, which is the one file of the
+ * three that already knows a tab exists.
+ *
+ * ## THE BOUND, stated rather than claimed away
+ *
+ * What this closes is a keystroke reaching a buffer it was not typed in, which
+ * needed no timing luck at all: one character, one click, and the write landed
+ * every time. It does NOT close the one frame in which ./live-text still
+ * answers the DEPARTING tab's model value, measured against the shipping hook:
+ * the seed below is taken from that answer, so for one render the arriving tab
+ * is drawn with the departing file's text. Nothing is written in that frame,
+ * because the seed carries no edits — but an edit landing INSIDE it is
+ * honestly this tab's state typed on the other file's text, every clause here
+ * passes, and the other file's text goes into this buffer.
+ *
+ * MEASURED IN THE APP, because what bounds that window is not what this
+ * comment first claimed. It is not one frame: the departing file's whole
+ * picture is drawn on the arriving tab for 3.3 to 8.6 ms on a 1.1 kB document
+ * and up to 107 ms, about six frames, on a 180 kB one. And a PERSON cannot
+ * reach it, whatever its width: at every tab change the keyboard has already
+ * left this document for `.ed-redline-scroll` by the first task after the
+ * switch, so 42 real keys over 8 switches — a click, Chromium's own pointer,
+ * ⇧⌘[ from the keyboard, held repeats at 12 ms, and a held ⌥⌫ — inserted
+ * nothing anywhere, while the same repeats with no switch inserted every one.
+ * The window opens only for an event dispatched AT this document, which is a
+ * harness seam and no input path; dispatched there it wrote 184,213 characters
+ * of one file over another with no toast and no dialog, which is what the
+ * window would cost if it were ever reachable.
+ *
+ * SO THE RULE FOR A LATER ROUND, and it is the reason this paragraph is long:
+ * giving the arriving tab's document the caret across a tab change — an
+ * ordinary improvement, and the kind Phase 282's work makes — re-opens that
+ * write, and no gate here would catch it, because every clause below passes
+ * inside the window. Whoever moves the caret closes ./live-text's lag in the
+ * SAME commit, by resetting its `modelText` during the render the tab changes
+ * in. It is the same window as the flash.
+ *
+ * ONE MORE THING NOTHING ELSE SAYS: an edit that lands in the switch commit's
+ * own task is dropped in silence. The state still belongs to the departing tab,
+ * the effect below returns, and the character reaches neither buffer. It is
+ * unreachable by a real key for the same reason the window is, and it is a
+ * dropped character rather than a misplaced one, which is the safer of the two.
+ */
+interface TabTyping {
+  /** The tab whose keystrokes `typing` holds. */
+  tabId: string;
+  /** The pure state, exactly as ./redline-typing answers it. */
+  typing: TypingState;
+}
+
 /** What the view needs back from the hook. */
 export interface RedlineTyping {
   /** The current side to draw, or null when this tab cannot be typed in. */
@@ -149,7 +216,10 @@ export function useRedlineTyping(args: {
   const path = tab.path;
 
   const [doc, setDoc] = useState<HTMLElement | null>(null);
-  const [state, setState] = useState<TypingState>(() => initialTyping(liveText));
+  const [state, setState] = useState<TabTyping>(() => ({
+    tabId,
+    typing: initialTyping(liveText)
+  }));
   const [caretMove, setCaretMove] = useState<CaretMove | null>(null);
   // What the restore below last put back, so the selection listener can tell
   // this view's own act from the person's. It is consumed on the first
@@ -162,13 +232,32 @@ export function useRedlineTyping(args: {
   stateRef.current = state;
   const lastLive = useRef(liveText);
   const written = useRef(0);
-  const wanted = useRef<string | null>(null);
+  /**
+   * PHASE 297. THE TEXT WAITING TO BE WRITTEN, PER TAB. It was one slot for a
+   * hook that serves every tab, and two tabs can have a write in the air at
+   * once: both continuations await the SAME Monaco chunk promise
+   * (./monaco-loader `loadMonaco` memoizes one), so a keystroke in one tab, a
+   * click, and a keystroke in the other is not a rare interleaving — it is one
+   * release. With one slot the second keystroke overwrote the first and the
+   * first tab's continuation applied the second tab's text to the first tab's
+   * buffer. A map closes the class rather than one member of it, and the
+   * continuation TAKES its own entry, so the map is empty again between
+   * keystrokes.
+   */
+  const wanted = useRef(new Map<string, string>());
   // Where the last keystroke left the caret and when, so a run of typing is
   // ONE undo step and a fresh start is a new one. See `continuesTyping`.
   const lastEdit = useRef<{ at: number; when: number } | null>(null);
 
   const dispatch = useCallback((event: TypingEvent): void => {
-    setState((current) => typingStep(current, event));
+    setState((current) => {
+      const next = typingStep(current.typing, event);
+      // PHASE 297. ./redline-typing answers the SAME object when nothing
+      // changed, so React can compare by identity and skip the render; the
+      // wrapper keeps that promise or every ignored event — every input inside
+      // an open composition — would redraw the document.
+      return next === current.typing ? current : { tabId: current.tabId, typing: next };
+    });
   }, []);
 
   /** The selection now, or null when the caret is not in this document. */
@@ -181,9 +270,31 @@ export function useRedlineTyping(args: {
   // below see the seeded state rather than the last tab's.
   useEffect(() => {
     lastLive.current = liveText;
+    // PHASE 297: THIS LINE IS LOAD BEARING AND IT IS NOT ENOUGH ON ITS OWN.
+    // Without it the reset render below — `state.typing.edits` back at 0 while
+    // `written.current` still holds the departing tab's count — reads as a
+    // keystroke nobody typed, and the edit effect writes the SEED into the
+    // arriving tab's buffer. That is the write the app verifiers actually read:
+    // the arriving tab holding the departing file's text with no keystroke in
+    // it. With it, and with the identity return below, the reset render's
+    // `0 === 0` is the end of the matter.
     written.current = 0;
-    wanted.current = null;
-    setState(initialTyping(liveText));
+    // PHASE 297: `wanted` IS NOT CLEARED HERE, and clearing it dropped a
+    // character the person typed. The first keystroke of a session waits on a
+    // real Monaco chunk load, which is a task-length window; click away inside
+    // it and the departing tab's own continuation resumes afterwards and must
+    // still find its text. Cleared, it found nothing, wrote nothing, returned
+    // before it could re-derive dirty, and left the tab reading unsaved with
+    // nothing unsaved. Nothing needs clearing now that the map is keyed by tab:
+    // the arriving tab's entry, if it has one, is its own in-flight keystroke.
+    //
+    // PHASE 297. A fresh tab is a fresh undo run. `lastEdit` is the caret and
+    // the clock of the last keystroke, and a run of typing is one ⌘Z only while
+    // the next keystroke continues it; left behind, the arriving tab's FIRST
+    // keystroke could be folded into the departing tab's undo step by a caret
+    // that happened to be a character away and a timer that had not run out.
+    lastEdit.current = null;
+    setState({ tabId, typing: initialTyping(liveText) });
     setCaretMove(null);
     restored.current = null;
     // The seed is the live text at the moment the tab changed; a later change
@@ -206,9 +317,39 @@ export function useRedlineTyping(args: {
   // rewind's adoption wrote the agent's text back over the rewind on the next
   // ⌘S (p282-keystroke-in-transit.test.ts, its fourth arm).
   useEffect(() => {
-    if (!editable || state.edits === written.current) return;
-    written.current = state.edits;
-    wanted.current = state.text;
+    if (!editable) return;
+    // PHASE 297: A KEYSTROKE BELONGS TO THE TAB IT WAS TYPED IN, AND THIS
+    // RETURN IS BEFORE `written.current` MOVES. Both halves of that sentence
+    // were measured.
+    //
+    // Why the return at all. This effect runs in the commit of the render that
+    // already carries the ARRIVING tab while `state` still holds the DEPARTING
+    // tab's text, because the tab effect above resets that state with
+    // `setState`, and a `setState` from a passive effect is a RE-RENDER — work
+    // React schedules — while the continuation below resumes after one
+    // microtask. A render cannot win against a microtask. So the departing
+    // tab's whole text was written into the arriving tab's buffer, the tab read
+    // unsaved, the page drew the arriving file as deleted, and ⌘S wrote one
+    // file over the other with every guard satisfied, because nothing had
+    // changed on disk — the BUFFER had.
+    //
+    // Why BEFORE the line below. Measured in the effect's own shape: with the
+    // return placed one line lower, `written.current` moves to the departing
+    // tab's count, and the reset render then reads `edits 0 !== written N` as a
+    // keystroke nobody typed and writes the SEED — which is the departing tab's
+    // text, because ./live-text answers the departing tab's model value for one
+    // more render. The leak survives byte for byte with the return in place.
+    // Moving this one line down is the mistake to guard against, not deleting
+    // it.
+    //
+    // Why an identity and not a comparison of texts. Two files can hold the
+    // same bytes, and in one corner the departing text IS the arriving tab's
+    // saved bytes, which is exactly the corner where a text comparison would
+    // say "nothing to see" and the write would land.
+    if (state.tabId !== tabId) return;
+    if (state.typing.edits === written.current) return;
+    written.current = state.typing.edits;
+    wanted.current.set(tabId, state.typing.text);
     const typedOn = lastLive.current;
     const had = getWorkingModel(tabId) !== null;
     // WHERE ONE UNDO STEP ENDS. A run of typing is one ⌘Z, which is what every
@@ -219,7 +360,7 @@ export function useRedlineTyping(args: {
     // all of it, which the app run read as `"s a throwa"` where it wanted the
     // saved text back.
     const live = useEditor.getState().tabs.find((t) => t.id === tabId);
-    const at = state.caret?.focus ?? null;
+    const at = state.typing.caret?.focus ?? null;
     const previous = lastEdit.current;
     const continues =
       previous !== null &&
@@ -252,6 +393,16 @@ export function useRedlineTyping(args: {
         () => useEditor.getState().tabs.find((t) => t.id === tabId)?.savedContents ?? typedOn,
         path
       );
+      // PHASE 297. THIS TAB'S OWN ENTRY, AND IT IS TAKEN. Read after the await
+      // so it is the LATEST current side rather than the edit that asked for the
+      // write, which is what makes a keystroke landing inside a chunk load
+      // safe; keyed by tab so a second tab's keystroke in the same window
+      // cannot answer for this one; and taken, so nothing stale is left behind
+      // for a later run to find. Taken here rather than below the refusals
+      // because a keystroke this tab cannot write is not a keystroke waiting to
+      // be written.
+      const want = wanted.current.get(tabId) ?? null;
+      wanted.current.delete(tabId);
       if (model === null) {
         // There is no buffer for the keystroke to be in, so the provisional
         // mark above is withdrawn before the sentence says so.
@@ -262,8 +413,17 @@ export function useRedlineTyping(args: {
         return;
       }
       if (!had) setModelTick((n) => n + 1);
-      const want = wanted.current;
       const now = useEditor.getState().tabs.find((t) => t.id === tabId);
+      // PHASE 297. THE PROVISIONAL MARK ABOVE STANDS ON THIS RETURN, and it is
+      // honest where the mark for a missing model is withdrawn. `want` is null
+      // only when another continuation for THIS tab took the entry first, which
+      // is what happens when several keystrokes wait on one chunk load: that
+      // continuation applied the latest current side and re-derived dirty from
+      // it, so the reading this return leaves behind is the one it wrote, and
+      // re-deriving here would read the same model again. The one corner where a
+      // standing mark could be wrong is a chunk load that FAILED, where the run
+      // that got the null model withdrew the mark and said so in a toast — an
+      // editor that did not load, which that sentence already names.
       if (want === null || now === undefined) return;
       // PHASE 282: NEVER A TEXT TYPED ON A PICTURE THAT WAS REPLACED. `want` is
       // the whole current side computed on `typedOn`; applied over bytes that
@@ -291,7 +451,11 @@ export function useRedlineTyping(args: {
       applyModelText(model, want, !continues);
       useEditor.getState().markDirty(tabId, want !== now.savedContents);
     })();
-  }, [editable, state.edits, state.text, tabId, path]);
+    // PHASE 297. `state.tabId` is a dep because the return above reads it.
+    // It moves only in the reset render, which the seed text already moves, so
+    // it adds no run of its own — and the run it is part of returns at the
+    // `edits === written` line.
+  }, [editable, state.tabId, state.typing.edits, state.typing.text, tabId, path]);
 
   // The buffer changed under the view. Only a CHANGE is an event: the value
   // merely differing is what a tab whose model this hook has not yet created
@@ -324,7 +488,7 @@ export function useRedlineTyping(args: {
       if (live !== undefined) {
         useEditor.getState().markDirty(tabId, text !== live.savedContents);
       }
-      if (text === stateRef.current.text) return;
+      if (text === stateRef.current.typing.text) return;
       dispatch({ kind: 'outside', text, caret: caretNow() });
     });
     return () => {
@@ -428,18 +592,18 @@ export function useRedlineTyping(args: {
   // read what happens without this: the anchor is the document element itself
   // at offset zero, 227 to 474 characters from where the person was.
   useLayoutEffect(() => {
-    if (!editable || doc === null || state.caret === null) return;
+    if (!editable || doc === null || state.typing.caret === null) return;
     const active = doc.ownerDocument.activeElement;
     if (active === null || !doc.contains(active)) return;
     // MARKED BEFORE THE CALL. `selectionchange` is queued rather than
     // dispatched synchronously, so the listener above always reads this.
-    restored.current = state.caret;
-    restoreCurrentSelection(doc, state.caret);
+    restored.current = state.typing.caret;
+    restoreCurrentSelection(doc, state.typing.caret);
   }, [editable, doc, state]);
 
   if (!editable) return { text: null, docProps: { ref: setDoc }, caretMove: null, canUndoTyping: false };
   return {
-    text: state.text,
+    text: state.typing.text,
     docProps: {
       ref: setDoc,
       contentEditable: 'plaintext-only',

@@ -578,6 +578,91 @@
  *      because this gate runs in the commit battery; the four files' sha256
  *      are compared in a `finally` to prove it.
  *
+ *  41. A KEYSTROKE BELONGS TO THE TAB IT WAS TYPED IN (Phase 297). Type one
+ *      character in one file's Redline view, click another Redline tab, and
+ *      the second file's buffer became the first file's whole text: the tab
+ *      read unsaved, the page drew every word of the second file as deleted,
+ *      and ⌘S wrote the first file's bytes over the second file with nothing
+ *      asked. Every release from 0.102.0 through 0.108.0 had it. One mount
+ *      serves every tab (`<RedlineDocument>` is unkeyed on purpose, and
+ *      keying it is refused — it would move five other per-mount lifetimes),
+ *      so the render that carries the ARRIVING tab still carries the
+ *      DEPARTING tab's typing state; the `[tabId]` effect's `setState` is a
+ *      task, the edit effect below it runs in the same commit, and its
+ *      continuation after `await ensureWorkingModel` is a microtask. A
+ *      microtask cannot lose to a task, so the departing tab's text reached
+ *      the arriving tab's model every time, before React's reset render could
+ *      land. Five clauses, all in ./redline-edits:
+ *
+ *        41a THE STATE CARRIES ITS TAB, in the `useState` and in the reseed
+ *            the `[tabId]` effect makes, because a state with no tab id is a
+ *            state the effect below cannot tell from its own. The reseed
+ *            stamps the tab the effect is running FOR: `{ tabId: state.tabId }`
+ *            names a tab id to any question that only asks whether one is
+ *            mentioned, and the id it names is the one the state ALREADY
+ *            carried, which at a tab change is the departing tab's — so the
+ *            arriving tab is handed a state that still belongs to the tab it
+ *            came from and every return below it passes.
+ *        41b THE EDIT EFFECT RETURNS ON ANOTHER TAB'S STATE, THE RIGHT WAY
+ *            ROUND, AND RETURNS FIRST. The return must be taken when the state
+ *            belongs to ANOTHER tab: flipped — `===` where `!==` belongs, one
+ *            character — it drops every keystroke this tab really typed and
+ *            lets the departing tab's text through, and it answers every other
+ *            question this rule asks. The test is read in the honest spellings
+ *            rather than in one: the field either way round, a negation of it,
+ *            and a BOOLEAN NAMED for it (`const mine = state.tabId === tabId;`
+ *            above `if (!mine) return;`), which is the same test and must not
+ *            be reported as a missing one. And the return must stand ABOVE the
+ *            line that records `written.current`: the Phase 297 attack measured
+ *            the other placement leaking BYTE FOR BYTE, because the seed the
+ *            `[tabId]` effect stamped is the departing tab's text and the
+ *            phantom third run then applies it. One line down is the mistake a
+ *            builder really makes, so it is an ablation of its own rather than
+ *            the deleted return anything would catch.
+ *        41c THE SLOT IS KEYED BY THE TAB THAT TYPED IT. `wanted` holds a
+ *            text per tab (a map, or a pair carrying the id), every write
+ *            files it under `tabId`, and the continuation applies only this
+ *            tab's own text, so two tabs with continuations in flight cannot
+ *            take each other's.
+ *        41d `lastEdit` IS RESET AT A TAB CHANGE, or the arriving tab's first
+ *            keystroke folds into the departing tab's undo step.
+ *        41e AND THE `[tabId]` EFFECT NEVER EMPTIES THE WHOLE SLOT. The
+ *            attack's second finding: with the slot blanked, a first keystroke
+ *            whose real chunk load is still in flight when the person clicks
+ *            away finds nothing to apply, the character is DROPPED and the
+ *            provisional dirty mark stands on nothing. Dropping the ARRIVING
+ *            tab's own entry is allowed; blanking the slot is not.
+ *        41f AND IT RESETS THE COUNT, `written.current = 0`, in the same
+ *            effect. Left at the departing tab's count, the reset render — this
+ *            hook's own edits back at 0 against that count — reads as a
+ *            keystroke nobody typed, and the phantom third run the return above
+ *            exists to stop is back with the seed, which is the departing tab's
+ *            own text. The line is in the shipping source and was load bearing
+ *            from the first build; nothing asked for it until now, so a round
+ *            that dropped it would have left this rule green.
+ *
+ *      IT IS A SCAN FOR THE REASON RULE 40 IS ONE, and for one more: under
+ *      `act` an update scheduled from a passive effect is flushed before the
+ *      continuation's microtask, so a unit case that wraps the switch in `act`
+ *      observes the order the app never has and passes at the parent. The
+ *      order is reproduced in ./__tests__ by driving the switch outside it;
+ *      this rule pins the WIRING, which is the half a later round would drop.
+ *      One scanner over the shipping file, proved on planted hooks written
+ *      here in BOTH shapes the fix may take and in both honest spellings of
+ *      the return, one plant per clause that must fail, and then on ablations
+ *      of the shipping source — the seed's tab id taken out of the declaration
+ *      and out of the reseed, the reseed stamped with the id the state already
+ *      carried, the return deleted, the return moved one line down, the return
+ *      flipped the wrong way round in the comparison and again through a
+ *      boolean named for it, the slot unkeyed, the write filed under no tab,
+ *      the continuation's key dropped, the `lastEdit` reset deleted, the count
+ *      reset deleted and the blanket drop put back — each of which must turn
+ *      this rule red on its own clause. Made on the string in memory, with the
+ *      file's sha256 compared in a `finally`, because this gate runs in the
+ *      commit battery.
+ *      Rule 9's derived set already covers ./redline-edits and no file is
+ *      added, so its floor of 23 is unchanged.
+ *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
 
@@ -6463,6 +6548,1047 @@ function gridOf(css, cls) {
   );
   say(
     `40. ${String(ablationsRed)} of ${String(ABLATIONS.length)} ablations of the SHIPPING source turned this rule red on their own clause, made on the strings in memory with the four files' sha256 compared in a finally`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// A KEYSTROKE BELONGS TO THE TAB IT WAS TYPED IN, rule 41 (Phase 297).
+//
+// Type one character in one file's Redline view, click another Redline tab,
+// and the second file's buffer became the first file's whole text: the tab
+// read unsaved, the page drew every word of the second file as deleted, and
+// ⌘S wrote the first file's bytes over the second file with nothing asked —
+// auto save, off by default, with no key at all. Phase 290's three Tier 3
+// verifiers each measured it in the running app and every release from
+// 0.102.0 through 0.108.0 carried it.
+//
+// WHY THE ORDER IS FORCED, which is what makes this a wiring rule rather than
+// a taste. `EditorPanel.tsx` draws `<RedlineDocument tab={activeTab} />` with
+// no `key` ON PURPOSE, and `key={activeTab.id}` is the entry's option D, which
+// it REFUSES: Phase 282 made `rewindHolds`, `advanceAfterPress`, the chip and
+// the scroller per-MOUNT, so keying the view would remount it at every switch
+// and move five other lifetimes to fix this one. So clicking tab B re-renders
+// the mount that was serving tab A, and that render carries B's `tabId` with
+// A's typing state still in it. The `[tabId]` effect runs first and reseeds by
+// `setState`, which is a TASK; the edit effect below it runs in the SAME
+// commit, with A's state; and its continuation after `await
+// ensureWorkingModel` is a MICROTASK. A microtask cannot lose to a task, so
+// the departing tab's whole text reached the arriving tab's model every time,
+// before React's reset render could land.
+//
+// THE SIX CLAUSES, all in ./redline-edits:
+//
+//   41a THE STATE CARRIES ITS TAB, in the `useState` and in the reseed the
+//       `[tabId]` effect makes. A state with no tab id is a state the effect
+//       below cannot tell from its own, and every clause under this one needs
+//       the question to be answerable at all. The reseed stamps THE TAB THE
+//       EFFECT IS RUNNING FOR, which is not the same question as whether a tab
+//       id is mentioned: `setState({ tabId: state.tabId, … })` mentions one and
+//       the one it mentions is the id the state ALREADY carried, so at a tab
+//       change the arriving tab is handed a state stamped with the DEPARTING
+//       tab, the return below reads `state.tabId === tabId` and passes it, and
+//       the leak is back with every clause here satisfied.
+//   41b THE EDIT EFFECT RETURNS ON ANOTHER TAB'S STATE, THE RIGHT WAY ROUND,
+//       AND RETURNS FIRST.
+//
+//       THE WAY ROUND IS A CLAUSE, not a detail of one. `state.tabId === tabId`
+//       where `!==` belongs is one character, it returns on the run that is
+//       honestly this tab's and lets the run carrying the departing tab's text
+//       through, and it satisfies every other question this rule asks — the
+//       comparison is there, it is above the count, the slot is keyed. So the
+//       test is read with its POLARITY: the return has to be the one taken when
+//       the state belongs to ANOTHER tab.
+//
+//       AND IT IS READ IN THE HONEST SPELLINGS RATHER THAN IN ONE. The field
+//       either way round, a negation of it, and a boolean NAMED for the question
+//       — `const mine = state.tabId === tabId;` above `if (!mine) return;` is
+//       the same test and the Phase 297 verifier wrote it by hand to see
+//       whether this rule would call it missing. A rule that refuses an honest
+//       spelling is a rule a builder works around; a rule that refuses it with
+//       the words "never returns" is also saying something untrue, so the
+//       refusal below names what it looked for instead.
+//
+//       THE PLACEMENT IS THE THIRD HALF: the return must stand ABOVE the line
+//       that records `written.current`. The Phase 297 attack measured the other
+//       placement leaking BYTE FOR BYTE: the seed the `[tabId]` effect stamped
+//       is the departing tab's own text (./live-text holds `modelText` in state,
+//       so at the switch render `liveText` is still the departing tab's model
+//       value), and with `written.current` already moved, the phantom third run
+//       applies that seed to the arriving tab. One line down is the mistake a
+//       builder really makes, so it is an ablation of its own rather than the
+//       deleted return anything would catch.
+//   41c THE SLOT IS KEYED BY THE TAB THAT TYPED IT. `wanted` holds a text per
+//       tab — a map, or a pair carrying the id — every write files it under
+//       `tabId`, and the continuation applies only this tab's own text. Two
+//       tabs can have continuations in flight at once, because both await the
+//       same `loadMonaco()` promise, so one slot for the hook is one keystroke
+//       taking another's.
+//   41d `lastEdit` IS RESET AT A TAB CHANGE, or the arriving tab's first
+//       keystroke folds into the departing tab's undo step, which a timer and
+//       a caret left behind by the other tab are enough to do.
+//   41e AND THE `[tabId]` EFFECT NEVER EMPTIES THE WHOLE SLOT. The attack's
+//       second finding: with the slot blanked, a first keystroke whose real
+//       chunk load is still in flight when the person clicks away finds
+//       nothing to apply, the character is DROPPED, and the provisional dirty
+//       mark Phase 282 makes before the await is never withdrawn on that path,
+//       so the tab reads unsaved with nothing unsaved. Today that character
+//       survives only because the leaking run re-fills the slot one line
+//       later, so the fix must take the line out rather than leave it.
+//       Dropping the ARRIVING tab's own entry is allowed and is read as such.
+//   41f AND IT RESETS THE COUNT. `written.current = 0` is in the shipping
+//       `[tabId]` effect and its own comment there says it is load bearing:
+//       without it the reset render — this hook's own `state.typing.edits` back
+//       at 0 against the departing tab's count — reads as a keystroke nobody
+//       typed, and the edit effect writes the SEED into the arriving tab's
+//       buffer, which is the write the app verifiers actually read. Until this
+//       round nothing here asked for it, so a builder who took the line out
+//       while tidying the effect would have left this rule green and the phantom
+//       third run would be back. It is asked in the same effect as 41d and 41e
+//       because it is the same reset.
+//
+// IT IS A SCAN FOR THE REASON RULE 40 IS ONE, and for one more that is this
+// defect's own: under `act` an update scheduled from a passive effect is
+// flushed inside the act loop BEFORE the continuation's microtask, so a unit
+// case that wraps the tab switch in `act` observes an order the app has never
+// had and passes at the parent — which is why no test saw this for seven
+// releases. The order is reproduced in ./__tests__ by driving the switch
+// outside `act`; this rule pins the wiring, which is the half a later round
+// would drop.
+//
+// ONE SCANNER, proved on planted hooks written here in BOTH shapes the fix may
+// take (a map keyed by tab, and a pair carrying the id) and in BOTH honest
+// spellings of the return (the comparison, and a boolean named for it), one
+// plant per clause that must fail — the return written the wrong way round
+// among them — and then on ABLATIONS OF THE SHIPPING SOURCE. The ablations
+// are made on the string in memory and never on the tree, for rule 40's
+// reason: this gate runs in the commit battery, and a rule that edited his own
+// source and crashed between the edit and the restore would leave him an
+// ablated file. The file's sha256 is compared in a `finally`.
+//
+// Rule 9's derived set already covers ./redline-edits and this phase adds no
+// file, so REDLINE_FILES_FLOOR is unchanged at 23.
+// ---------------------------------------------------------------------------
+{
+  const EDITS = 'src/renderer/editor/redline-edits.ts';
+
+  /**
+   * Every `useEffect`/`useLayoutEffect` call in `code`, with the offset its
+   * body opens at, its body as text and its dependency array as text.
+   *
+   * Read by MATCHING PARENTHESES, so one effect's references are never
+   * mistaken for another's, and the dependency array is the LAST argument
+   * rather than a search for a bracket: the two effects this rule reads are
+   * both found by what they ARE — one by its dependencies, one by the loader
+   * it awaits — because neither has a name.
+   */
+  const effectsOf = (code) => {
+    const out = [];
+    const opener = /\buse(?:Layout)?Effect\(/g;
+    let m;
+    while ((m = opener.exec(code)) !== null) {
+      const open = m.index + m[0].length - 1;
+      const close = closeOf(code, open);
+      if (close === -1) continue;
+      const args = callArguments(code, open);
+      const deps = args.length === 0 ? null : args[args.length - 1].trim();
+      const arrow = code.indexOf('=>', open);
+      const brace = arrow === -1 || arrow > close ? -1 : code.indexOf('{', arrow);
+      const body = brace === -1 || brace > close ? null : blockAt(code, brace);
+      out.push({ start: m.index, close, deps, body, bodyAt: brace + 1 });
+      opener.lastIndex = close;
+    }
+    return out;
+  };
+
+  /** Every call of `name` in `text`, with the span of its arguments. */
+  const callsNaming = (text, name) => {
+    const out = [];
+    const finder = new RegExp(`\\b${name}\\s*(?:<[^<>()]*>)?\\(`, 'g');
+    let m;
+    while ((m = finder.exec(text)) !== null) {
+      const open = m.index + m[0].length - 1;
+      const close = closeOf(text, open);
+      if (close === -1) continue;
+      out.push({ at: m.index, open, close, text: text.slice(open + 1, close) });
+      finder.lastIndex = close;
+    }
+    return out;
+  };
+
+  /** The statement in `text` that holds the offset `at`, up to its own `;`. */
+  const statementAt = (text, at) => {
+    const from = text.lastIndexOf('\n', at) + 1;
+    const end = text.indexOf(';', at);
+    return end === -1 ? text.slice(from) : text.slice(from, end + 1);
+  };
+
+  /**
+   * The comparison in `condition` that asks whether the state in hand was
+   * typed on the tab this render carries, as `{ text, index }`, or null.
+   *
+   * `state.tabId !== tabId` is the plain spelling and the first two forms read
+   * it in either order. A hook that destructured the field first is read too,
+   * by asking whether the bare name on the other side of the comparison was
+   * bound FROM a `.tabId` anywhere in the file — so the builder's own local
+   * name cannot make this rule read nothing, while `path !== tabId` still
+   * cannot pass for it. The MATCH rather than a yes is handed back because the
+   * ablation that neutralises the comparison cuts exactly this span.
+   */
+  const tabComparisonIn = (condition, code) => {
+    for (const form of [
+      /[A-Za-z_$][\w$.]*\.tabId\s*[!=]==?\s*tabId\b/,
+      /\btabId\s*[!=]==?\s*[A-Za-z_$][\w$.]*\.tabId\b/
+    ]) {
+      const m = form.exec(condition);
+      if (m !== null) return { text: m[0], index: m.index };
+    }
+    const bare = /\b([A-Za-z_$][\w$]*)\s*[!=]==?\s*tabId\b|\btabId\s*[!=]==?\s*([A-Za-z_$][\w$]*)\b/g;
+    let m;
+    while ((m = bare.exec(condition)) !== null) {
+      const name = m[1] ?? m[2];
+      if (name === undefined || name === 'tabId') continue;
+      const bound = new RegExp(
+        `tabId\\s*:\\s*${name}\\b|\\b${name}\\s*=\\s*[A-Za-z_$][\\w$.]*\\.tabId\\b`
+      );
+      if (bound.test(code)) return { text: m[0], index: m.index };
+    }
+    return null;
+  };
+
+  /**
+   * The same comparison as `tabComparisonIn`, WITH WHICH WAY ROUND IT READS:
+   * `{ text, index, other }`, where `other` is true when the comparison is TRUE
+   * for a state typed on ANOTHER tab, or null when there is none.
+   *
+   * The spellings are the three above; the difference is that the OPERATOR is
+   * captured rather than lumped into `[!=]==?`. This phase's own defect written
+   * the wrong way round is one character — `===` where `!==` belongs — and it
+   * satisfies every other question this rule asks while returning on the run
+   * that is honestly this tab's and letting the departing tab's text through.
+   */
+  const tabComparisonWayRound = (text, code) => {
+    for (const form of [
+      /[A-Za-z_$][\w$.]*\.tabId\s*(!==?|===?)\s*tabId\b/,
+      /\btabId\s*(!==?|===?)\s*[A-Za-z_$][\w$.]*\.tabId\b/
+    ]) {
+      const m = form.exec(text);
+      if (m !== null) return { text: m[0], index: m.index, other: m[1].startsWith('!') };
+    }
+    const bare =
+      /\b([A-Za-z_$][\w$]*)\s*(!==?|===?)\s*tabId\b|\btabId\s*(!==?|===?)\s*([A-Za-z_$][\w$]*)\b/g;
+    let m;
+    while ((m = bare.exec(text)) !== null) {
+      const name = m[1] ?? m[4];
+      const op = m[2] ?? m[3];
+      if (name === undefined || op === undefined || name === 'tabId') continue;
+      const bound = new RegExp(
+        `tabId\\s*:\\s*${name}\\b|\\b${name}\\s*=\\s*[A-Za-z_$][\\w$.]*\\.tabId\\b`
+      );
+      if (bound.test(code)) return { text: m[0], index: m.index, other: op.startsWith('!') };
+    }
+    return null;
+  };
+
+  /**
+   * The expression inside `condition` whose truth answers "was the state in
+   * hand typed on another tab", as `{ text, index, other }` — `other` being
+   * that expression's own reading — or null when the condition holds no such
+   * test.
+   *
+   * The comparison is read first. A BOOLEAN NAMED FOR THE QUESTION is read
+   * second, because `const mine = state.tabId === tabId;` above an
+   * `if (!mine) return;` is the same test honestly spelled and the Phase 297
+   * verifier wrote it by hand to see whether this rule would report the guard
+   * missing. The name is resolved to its declaration anywhere in the file and
+   * accepted only when what it was bound FROM is itself a comparison of the two
+   * tabs, so a boolean bound from anything else — `editable`, `had`, `live` —
+   * is not this test and cannot stand in for it.
+   */
+  const tabTestIn = (condition, code) => {
+    const comparison = tabComparisonWayRound(condition, code);
+    if (comparison !== null) return comparison;
+    const names = /\b([A-Za-z_$][\w$]*)\b/g;
+    let m;
+    while ((m = names.exec(condition)) !== null) {
+      const name = m[1];
+      if (name === 'tabId') continue;
+      const decl = new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*(?::[^=;\\n]*)?=\\s*([^;\\n]+)`);
+      const bound = decl.exec(code);
+      if (bound === null) continue;
+      const from = tabComparisonWayRound(bound[1], code);
+      if (from === null) continue;
+      return { text: name, index: m.index, other: from.other };
+    }
+    return null;
+  };
+
+  /**
+   * How many `!` stand between the start of a condition and the test inside it,
+   * or null when anything else does.
+   *
+   * Only `(`, whitespace and `!` are read, so the plain comparison,
+   * `if (!mine)` and `if (!(state.tabId === tabId))` are all answered. A
+   * COMPOUND condition is answered by null rather than by a guess: a test
+   * sitting in an `&&` chain is not taken on every foreign state, so this rule
+   * says it cannot read the return — and names what it looked for — instead of
+   * reading half of one.
+   */
+  const negationsBefore = (pre) => {
+    let bangs = 0;
+    for (const ch of pre) {
+      if (ch === '!') bangs += 1;
+      else if (ch === '(' || /\s/.test(ch)) continue;
+      else return null;
+    }
+    return bangs;
+  };
+
+  /** Whether nothing but the condition's own closing parentheses follow the test. */
+  const nothingAfter = (post) => /^[\s)]*$/.test(post);
+
+  /**
+   * The return the edit effect takes because the state belongs to another tab:
+   * `{ at, open, close, test, other }` — the offset of that `if` in `body`, the
+   * span of its condition, the test inside it, and WHICH WAY ROUND the return
+   * is taken — or null when no `if` in the body is a readable test of the two
+   * tabs whose consequent returns.
+   *
+   * Every `if` is read by matching parentheses and asked three questions in
+   * this order — does its condition test the two tabs, is that test the whole
+   * of the condition, and does its consequent RETURN. The third is not a
+   * formality: Phase 282.1 measured a gate reading mention order alone stay
+   * green on `if (…) void 0;`, so a test that is present but answers nothing is
+   * not a test.
+   *
+   * An honest guard is answered the moment it is found. A guard written the
+   * WRONG WAY ROUND is remembered and answered only when no honest one follows,
+   * because "there is no return this rule can read" and "the return is taken on
+   * the wrong answer" are different findings and the caller says them in
+   * different words.
+   */
+  const tabGuardIn = (body, code) => {
+    const ifs = /\bif\s*\(/g;
+    let inverted = null;
+    let m;
+    while ((m = ifs.exec(body)) !== null) {
+      const open = body.indexOf('(', m.index);
+      const close = open === -1 ? -1 : closeOf(body, open);
+      if (close === -1) continue;
+      const condition = body.slice(open, close + 1);
+      const test = tabTestIn(condition, code);
+      if (test === null) continue;
+      const flips = negationsBefore(condition.slice(0, test.index));
+      if (flips === null) continue;
+      if (!nothingAfter(condition.slice(test.index + test.text.length))) continue;
+      const rest = body.slice(close + 1);
+      const braced = /^\s*\{/.exec(rest);
+      const returns =
+        braced === null
+          ? /^\s*return\b/.test(rest)
+          : (blockAt(body, close + braced[0].length) ?? '').includes('return');
+      if (!returns) continue;
+      const found = {
+        at: m.index,
+        open,
+        close,
+        test,
+        other: flips % 2 === 0 ? test.other : !test.other
+      };
+      if (found.other) return found;
+      if (inverted === null) inverted = found;
+    }
+    return inverted;
+  };
+
+  /**
+   * Where `text` names the tab a reseed is FOR, as `{ text, index }`, or null.
+   *
+   * `tabId` has to appear as a VALUE: not as the property key `tabId:`, and not
+   * as a field of something else. `{ tabId: state.tabId, … }` answers any
+   * `\btabId\b` question with a yes, and the id it names is the one the state
+   * ALREADY carried — at a tab change, the departing tab's — so the arriving
+   * tab is handed a state stamped with the tab it came from and the return in
+   * the edit effect passes it. The MATCH is handed back because the ablation
+   * that stamps the state's own id cuts exactly this span.
+   */
+  const tabStampIn = (text) => {
+    const finder = /\btabId\b/g;
+    let m;
+    while ((m = finder.exec(text)) !== null) {
+      if (/[.?]\s*$/.test(text.slice(0, m.index))) continue;
+      if (/^\s*:/.test(text.slice(m.index + m[0].length))) continue;
+      return { text: m[0], index: m.index };
+    }
+    return null;
+  };
+
+  /** Every offset in `text` where `wanted.current` is WRITTEN, not read. */
+  const wantedWritesIn = (text) => {
+    const out = [];
+    const finder =
+      /wanted\.current\s*(?:=[^=]|\.\s*(?:set|clear|delete)\s*\(|\[[^\]]*\]\s*=[^=])/g;
+    let m;
+    while ((m = finder.exec(text)) !== null) out.push(m.index);
+    return out;
+  };
+
+  /** Where the keystroke is recorded, which the return above must beat. */
+  const WRITTEN_WRITE = /written\.current\s*=[^=]/;
+  /** The reset of that count which the tab change has to make (clause 41f). */
+  const WRITTEN_RESET = /written\.current\s*=\s*0\s*;/;
+  /** A read of the slot that names the tab it is asking for. */
+  const KEYED_READ = /wanted\.current\s*(?:\.\s*get\s*\(|\[)\s*tabId\b/;
+
+  /**
+   * The parts of the hook both the clauses and the ablations need, with
+   * ABSOLUTE offsets into the comment-stripped text — which are the file's own
+   * offsets, because `stripComments` blanks character for character, so an
+   * ablation can cut the shipping bytes at a span found here.
+   *
+   * The typing state is found by the SEED it takes rather than by its name,
+   * with the setter the `[tabId]` effect calls as the second way in, because
+   * the names are the builder's and a hook that seeds through a helper of its
+   * own would otherwise make this rule read nothing.
+   */
+  const piecesOf = (code) => {
+    const effects = effectsOf(code);
+    const tabEffect = effects.find((e) => e.deps === '[tabId]') ?? null;
+    const edit =
+      effects.find((e) => e.body !== null && e.body.includes('ensureWorkingModel(')) ?? null;
+    const decls = [];
+    const finder =
+      /const\s*\[\s*([A-Za-z_$][\w$]*)\s*,\s*([A-Za-z_$][\w$]*)\s*\]\s*=\s*useState\s*(?:<[^<>()]*>)?\(/g;
+    let m;
+    while ((m = finder.exec(code)) !== null) {
+      const open = m.index + m[0].length - 1;
+      const close = closeOf(code, open);
+      if (close === -1) continue;
+      decls.push({
+        getter: m[1],
+        setter: m[2],
+        open,
+        close,
+        arg: code.slice(open + 1, close)
+      });
+      finder.lastIndex = close;
+    }
+    let typing = decls.find((d) => d.arg.includes('initialTyping(')) ?? null;
+    if (typing === null && tabEffect !== null && tabEffect.body !== null) {
+      typing = decls.find((d) => tabEffect.body.includes(`${d.setter}(`)) ?? null;
+    }
+    const slot = /const\s+wanted\s*=\s*useRef[^;]*;/.exec(code);
+    return {
+      tabEffect,
+      edit,
+      typing,
+      slot: slot === null ? null : { at: slot.index, text: slot[0] }
+    };
+  };
+
+  /** What is wrong with the hook, or an empty list. One line per clause. */
+  const keystrokeFindings = (source) => {
+    const code = stripComments(source);
+    const { tabEffect, edit, typing, slot } = piecesOf(code);
+    const out = [];
+    if (tabEffect === null || tabEffect.body === null) {
+      out.push(
+        'there is no effect keyed on [tabId] alone, so nothing reseeds this hook when the person clicks another tab and clauses 41a, 41d and 41e read nothing'
+      );
+    }
+    if (edit === null || edit.body === null) {
+      out.push(
+        'no effect in this hook awaits ensureWorkingModel, so the path that writes a keystroke into a tab’s buffer is not where this rule reads it'
+      );
+      return out;
+    }
+    const body = edit.body;
+
+    // 41a. THE STATE CARRIES ITS TAB, declared and reseeded.
+    if (typing === null) {
+      out.push(
+        'nothing in this hook holds the typing state in a useState this rule could read, so 41a read nothing'
+      );
+    } else if (!/\btabId\b/.test(typing.arg)) {
+      out.push(
+        'the typing state is declared with no tab id, so the edit effect cannot tell a state typed on the departing tab from one typed on this one'
+      );
+    }
+    if (typing !== null && tabEffect !== null && tabEffect.body !== null) {
+      const reseed = callsNaming(tabEffect.body, typing.setter)[0] ?? null;
+      if (reseed === null) {
+        out.push(
+          `the [tabId] effect never calls ${typing.setter}, so the arriving tab goes on holding the departing tab’s typing state`
+        );
+      } else if (!/\btabId\b/.test(reseed.text)) {
+        out.push(
+          'the reseed at a tab change carries no tab id, so the state the arriving tab starts with belongs to nobody and the guard below cannot refuse it'
+        );
+      } else if (tabStampIn(reseed.text) === null) {
+        out.push(
+          'the reseed at a tab change stamps the tab id the state already carried rather than the tab this effect is running FOR, so the arriving tab is handed a state that still belongs to the departing tab, the return in the edit effect reads it as its own, and the departing tab’s text goes through with every other clause satisfied'
+        );
+      }
+    }
+
+    // 41b. THE RETURN, THE RIGHT WAY ROUND, AND ABOVE THE LINE THAT RECORDS
+    // THE KEYSTROKE. The refusal SAYS WHAT WAS LOOKED FOR rather than what is
+    // missing: an earlier draft answered the honest `const mine = …; if (!mine)
+    // return;` spelling with "never returns on another tab's state", which is
+    // both a refusal of a correct fix and a sentence that is not true of it.
+    const guard = tabGuardIn(body, code);
+    if (guard === null) {
+      out.push(
+        'the edit effect has no return this rule can read for a typing state typed on another tab: it looked for an if of its own whose whole condition is state.tabId against tabId — either order, a negation of it, or a boolean bound from it — and whose consequent returns, so as it stands clicking another Redline tab files the departing tab’s whole text in wanted and the continuation applies it to the arriving tab’s model'
+      );
+    } else {
+      if (!guard.other) {
+        out.push(
+          'the edit effect’s return is taken when the typing state belongs to THIS tab, which is the test the wrong way round: the run that has to return is the one carrying ANOTHER tab’s state, and as written every keystroke this tab really typed returns before it is written while the departing tab’s text goes on to the arriving tab’s model'
+        );
+      }
+      const written = WRITTEN_WRITE.exec(body);
+      const filed = wantedWritesIn(body);
+      const recorded = [written === null ? -1 : written.index, filed[0] ?? -1].filter(
+        (n) => n !== -1
+      );
+      if (recorded.length > 0 && guard.at > Math.min(...recorded)) {
+        out.push(
+          'the edit effect records the keystroke before it returns on another tab’s state, so the seed the [tabId] effect stamped — which is the departing tab’s own text — is applied to the arriving tab anyway'
+        );
+      }
+    }
+
+    // 41c. THE SLOT IS KEYED BY THE TAB THAT TYPED IT, written and read.
+    if (slot === null) {
+      out.push('this hook holds no wanted ref, so 41c read nothing');
+    } else if (!/\btabId\b|\bMap\s*[<(]/.test(slot.text)) {
+      out.push(
+        'the wanted slot holds one text for every tab, so a continuation cannot tell whose keystroke it is holding and two tabs in flight at once take each other’s'
+      );
+    }
+    for (const at of wantedWritesIn(body)) {
+      if (!/\btabId\b/.test(statementAt(body, at))) {
+        out.push(
+          'the edit effect writes the wanted slot without naming a tab, so the text it holds belongs to whichever tab’s continuation reads it next'
+        );
+      }
+    }
+    const asyncAt = body.indexOf('void (async');
+    const tail = asyncAt === -1 ? body : body.slice(asyncAt);
+    const applyAt = tail.indexOf('applyModelText(');
+    if (applyAt === -1) {
+      out.push('the edit effect applies no text to a model at all, so 41c read nothing');
+    } else {
+      const region = tail.slice(0, applyAt);
+      if (!KEYED_READ.test(region) && tabComparisonIn(region, code) === null) {
+        out.push(
+          'the continuation applies whatever the slot holds without asking which tab typed it, so a text typed in one tab still reaches another tab’s buffer'
+        );
+      }
+    }
+
+    // 41d, 41e AND 41f. THE TAB CHANGE RESETS THE UNDO RUN AND THE COUNT, AND
+    // EMPTIES NO SLOT.
+    if (tabEffect !== null && tabEffect.body !== null) {
+      if (!/lastEdit\.current\s*=/.test(tabEffect.body)) {
+        out.push(
+          'the [tabId] effect leaves lastEdit where the departing tab left it, so the arriving tab’s first keystroke can be folded into another tab’s undo step'
+        );
+      }
+      if (!WRITTEN_RESET.test(tabEffect.body)) {
+        out.push(
+          'the [tabId] effect leaves written.current at the departing tab’s count, so the reset render — this hook’s own edits back at 0 against that count — reads as a keystroke nobody typed and the edit effect writes the seed, which is the departing tab’s own text, into the arriving tab’s buffer'
+        );
+      }
+      for (const at of wantedWritesIn(tabEffect.body)) {
+        const stmt = statementAt(tabEffect.body, at);
+        if (/wanted\.current\s*\.\s*delete\s*\(\s*tabId\b/.test(stmt)) continue;
+        out.push(
+          'the [tabId] effect empties the whole wanted slot, so a first keystroke whose chunk load is still in flight when the person clicks away is dropped and the provisional dirty mark stands on nothing'
+        );
+      }
+    }
+    return out;
+  };
+
+  // ---- The shipping source, read once and judged. ---------------------------
+  let shipping = null;
+  if (!existsSync(EDITS)) fail(`41. ${EDITS} is not there, so rule 41 proves nothing`);
+  else {
+    shipping = readFileSync(EDITS, 'utf8');
+    for (const line of keystrokeFindings(shipping)) fail(`41. ${EDITS}: ${line}`);
+  }
+
+  // ---- The scanner, proved on planted hooks, one clause each. ---------------
+  // Written here rather than copied out of the tree: a fixture taken from the
+  // source cannot prove a scanner reads the source. Both shapes the fix may
+  // take are planted honest, because the rule must pass either.
+  const hook = (o) => {
+    const seed =
+      o.declTab === false
+        ? '() => initialTyping(liveText)'
+        : '() => ({ tabId, typing: initialTyping(liveText) })';
+    const reseed =
+      o.resetTab === false
+        ? 'initialTyping(liveText)'
+        : o.resetTab === 'stale'
+          ? '{ tabId: state.tabId, typing: initialTyping(liveText) }'
+          : '{ tabId, typing: initialTyping(liveText) }';
+    const slot =
+      o.slot === 'plain'
+        ? 'const wanted = useRef<string | null>(null);'
+        : o.slot === 'pair'
+          ? 'const wanted = useRef<{ tabId: string; text: string } | null>(null);'
+          : 'const wanted = useRef<Map<string, string>>(new Map());';
+    const write =
+      o.write === 'plain'
+        ? 'wanted.current = state.typing.text;'
+        : o.slot === 'pair'
+          ? 'wanted.current = { tabId, text: state.typing.text };'
+          : 'wanted.current.set(tabId, state.typing.text);';
+    const read =
+      o.read === 'any'
+        ? 'const want = wanted.current.values().next().value ?? null;'
+        : o.slot === 'pair'
+          ? 'const held = wanted.current;\n      if (held !== null && held.tabId !== tabId) return;\n      const want = held === null ? null : held.text;'
+          : 'const want = wanted.current.get(tabId) ?? null;';
+    // BOTH HONEST SPELLINGS OF THE RETURN, AND THE ONE THAT IS NOT. `boolean`
+    // is the shape the Phase 297 verifier wrote by hand — the same test, named
+    // — and it has to pass; `inverted` is one character from the shipping line
+    // and must not, because it returns on the tab that DID type the state.
+    const guardLines =
+      o.guard === 'none'
+        ? []
+        : o.guard === 'inverted'
+          ? ['    if (state.tabId === tabId) return;']
+          : o.guard === 'boolean'
+            ? ['    const mine = state.tabId === tabId;', '    if (!mine) return;']
+            : ['    if (state.tabId !== tabId) return;'];
+    return [
+      'export function useRedlineTyping(args: { tab: EditorTab; liveText: string }): RedlineTyping {',
+      `  const [state, setState] = useState(${seed});`,
+      '  const written = useRef(0);',
+      `  ${slot}`,
+      '  const lastEdit = useRef<{ at: number; when: number } | null>(null);',
+      '',
+      '  useEffect(() => {',
+      '    lastLive.current = liveText;',
+      ...(o.writtenReset === false ? [] : ['    written.current = 0;']),
+      ...(o.blank === true ? ['    wanted.current = null;'] : []),
+      ...(o.dropOwn === true ? ['    wanted.current.delete(tabId);'] : []),
+      ...(o.lastEditReset === false ? [] : ['    lastEdit.current = null;']),
+      `    setState(${reseed});`,
+      `  }, ${o.deps ?? '[tabId]'});`,
+      '',
+      '  useEffect(() => {',
+      ...(o.guard === 'late' ? [] : guardLines),
+      '    if (!editable || state.typing.edits === written.current) return;',
+      '    written.current = state.typing.edits;',
+      ...(o.guard === 'late' ? guardLines : []),
+      `    ${write}`,
+      '    void (async () => {',
+      '      const model = await ensureWorkingModel(tabId, () => saved, path);',
+      '      if (model === null) return;',
+      `      ${read}`,
+      '      if (want === null) return;',
+      '      applyModelText(model, want, true);',
+      '    })();',
+      '  }, [editable, state.typing.edits, state.typing.text, tabId, path]);',
+      '}',
+      ''
+    ].join('\n');
+  };
+  const PLANTS = [
+    { name: 'the map shape, all five clauses honest', o: {}, want: null },
+    {
+      name: 'the pair shape, the continuation comparing the id it filed',
+      o: { slot: 'pair' },
+      want: null
+    },
+    {
+      name: 'the arriving tab’s own entry dropped at the tab change, which is allowed',
+      o: { dropOwn: true },
+      want: null
+    },
+    {
+      name: 'the state declared with no tab id',
+      o: { declTab: false },
+      want: 'declared with no tab id'
+    },
+    {
+      name: 'the reseed carrying no tab id',
+      o: { resetTab: false },
+      want: 'reseed at a tab change carries no tab id'
+    },
+    {
+      name: 'the reseed stamped with the id the state already carried',
+      o: { resetTab: 'stale' },
+      want: 'stamps the tab id the state already carried'
+    },
+    {
+      name: 'the return deleted, which is the parent',
+      o: { guard: 'none' },
+      want: 'no return this rule can read'
+    },
+    {
+      // THE HONEST SPELLING THE VERIFIER WROTE BY HAND. It must pass, and an
+      // earlier draft refused it with the words "never returns", which was a
+      // refusal of a correct fix and a sentence untrue of it.
+      name: 'the tab test named as a boolean, which is the same test',
+      o: { guard: 'boolean' },
+      want: null
+    },
+    {
+      name: 'the tab test written the wrong way round',
+      o: { guard: 'inverted' },
+      want: 'is taken when the typing state belongs to THIS tab'
+    },
+    {
+      name: 'the return one line below written.current, the attack’s cLate shape',
+      o: { guard: 'late' },
+      want: 'records the keystroke before it returns'
+    },
+    {
+      name: 'the parent’s own slot, write and read',
+      o: { slot: 'plain', write: 'plain', read: 'any' },
+      want: 'holds one text for every tab'
+    },
+    {
+      name: 'the typed text filed under no tab',
+      o: { write: 'plain' },
+      want: 'writes the wanted slot without naming a tab'
+    },
+    {
+      name: 'the continuation applying whatever the slot holds',
+      o: { read: 'any' },
+      want: 'without asking which tab typed it'
+    },
+    {
+      name: 'the lastEdit reset removed',
+      o: { lastEditReset: false },
+      want: 'leaves lastEdit where the departing tab left it'
+    },
+    {
+      name: 'the written.current reset removed from the [tabId] effect',
+      o: { writtenReset: false },
+      want: 'leaves written.current at the departing tab'
+    },
+    {
+      name: 'the blanket drop put back',
+      o: { blank: true },
+      want: 'empties the whole wanted slot'
+    },
+    {
+      // THE RESET IS FOUND BY ITS DEPENDENCIES, which are the ruling: an
+      // effect that also watches `liveText` runs on an outside write too, so
+      // it is a different effect and must never be judged in the reset's
+      // place.
+      name: 'the reset effect watching liveText too, so it is not the reset',
+      o: { deps: '[tabId, liveText]' },
+      want: 'there is no effect keyed on [tabId] alone'
+    }
+  ];
+  let plantsOk = 0;
+  let plantsCaught = 0;
+  for (const plant of PLANTS) {
+    if (plant.want !== null) plantsCaught += 1;
+    const hits = keystrokeFindings(hook(plant.o));
+    const ok =
+      plant.want === null ? hits.length === 0 : hits.some((line) => line.includes(plant.want));
+    if (ok) plantsOk += 1;
+    else fail(`41. the scanner behaved wrongly on "${plant.name}": ${JSON.stringify(hits)}`);
+  }
+
+  // ---- ABLATIONS OF THE SHIPPING SOURCE. -----------------------------------
+  // A planted hook proves the scanner CAN fail. These prove it is anchored in
+  // the bytes that really ship: each takes the real file, removes or moves
+  // exactly one clause in the COPY, and must produce that clause's own
+  // finding. Every one is cut at a span the readers above FIND rather than at
+  // a string, because a fix whose spelling this file guessed would be a rule
+  // pinned to the guess. An ablation whose edit matched nothing fails too: a
+  // clause that was re-anchored while its ablation went on matching nothing is
+  // a clause nobody is watching.
+  const digestBefore =
+    shipping === null ? null : createHash('sha256').update(readFileSync(EDITS)).digest('hex');
+  const lineStart = (text, at) => text.lastIndexOf('\n', at) + 1;
+  /**
+   * `source` with the operator of the comparison `cmp` — found in a region that
+   * begins at `base` in the source — turned the other way round, or null when
+   * `cmp` is a name rather than a comparison. `!==` becomes `===` and `===`
+   * becomes `!==`, so the edit is one character either way and the polarity is
+   * reversed whichever spelling ships.
+   */
+  const flipOperator = (source, base, cmp) => {
+    const op = /!==?|===?/.exec(cmp.text);
+    if (op === null) return null;
+    const at = base + cmp.index + op.index;
+    const to = op[0].startsWith('!')
+      ? '='.repeat(op[0].length)
+      : `!${'='.repeat(op[0].length - 1)}`;
+    return `${source.slice(0, at)}${to}${source.slice(at + op[0].length)}`;
+  };
+  const ABLATIONS = [
+    {
+      name: 'the tab id taken out of the typing state’s declaration',
+      edit: (source) => {
+        const { typing } = piecesOf(stripComments(source));
+        if (typing === null) return source;
+        const to = '() => initialTyping(liveText)';
+        return `${source.slice(0, typing.open + 1)}${to}${source.slice(typing.close)}`;
+      },
+      want: 'declared with no tab id'
+    },
+    {
+      name: 'the tab id taken out of the reseed the [tabId] effect makes',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { tabEffect, typing } = piecesOf(code);
+        if (tabEffect === null || tabEffect.body === null || typing === null) return source;
+        const call = callsNaming(tabEffect.body, typing.setter)[0];
+        if (call === undefined) return source;
+        const open = tabEffect.bodyAt + call.open;
+        const close = tabEffect.bodyAt + call.close;
+        return `${source.slice(0, open + 1)}initialTyping(liveText)${source.slice(close)}`;
+      },
+      want: 'reseed at a tab change carries no tab id'
+    },
+    {
+      // THE STAMP THAT IS A TAB ID AND IS THE WRONG ONE. Cut at the span the
+      // clause itself found, so the edit is the shorthand turned into the
+      // state's own field and nothing else moves: `{ tabId, … }` becomes
+      // `{ tabId: state.tabId, … }`, which is the departing tab at a tab change.
+      name: 'the reseed stamped with the id the state already carried, not the tab the effect runs for',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { tabEffect, typing } = piecesOf(code);
+        if (tabEffect === null || tabEffect.body === null || typing === null) return source;
+        const call = callsNaming(tabEffect.body, typing.setter)[0];
+        if (call === undefined) return source;
+        const stamp = tabStampIn(call.text);
+        if (stamp === null) return source;
+        const at = tabEffect.bodyAt + call.open + 1 + stamp.index;
+        const to = `tabId: ${typing.getter}.tabId`;
+        return `${source.slice(0, at)}${to}${source.slice(at + stamp.text.length)}`;
+      },
+      want: 'stamps the tab id the state already carried'
+    },
+    {
+      name: 'the return on another tab’s state neutralised, which is the parent',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { edit } = piecesOf(code);
+        if (edit === null || edit.body === null) return source;
+        const guard = tabGuardIn(edit.body, code);
+        if (guard === null) return source;
+        const at = edit.bodyAt + guard.open + guard.test.index;
+        return `${source.slice(0, at)}false${source.slice(at + guard.test.text.length)}`;
+      },
+      want: 'no return this rule can read'
+    },
+    {
+      // THE ONE-CHARACTER SHAPE: the same comparison, the other way round. It
+      // returns on the run that is honestly this tab's and lets the run
+      // carrying the departing tab's state through, and every other question
+      // this rule asks is satisfied by it.
+      name: 'THE TEST THE WRONG WAY ROUND: the guard’s operator flipped, one character',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { edit } = piecesOf(code);
+        if (edit === null || edit.body === null) return source;
+        const guard = tabGuardIn(edit.body, code);
+        if (guard === null || !guard.other) return source;
+        const inPlace = flipOperator(source, edit.bodyAt + guard.open, guard.test);
+        if (inPlace !== null) return inPlace;
+        // The guard names a boolean, so the operator to turn round is in the
+        // declaration it was bound from.
+        const decl = new RegExp(
+          `\\b(?:const|let|var)\\s+${guard.test.text}\\s*(?::[^=;\\n]*)?=\\s*([^;\\n]+)`
+        ).exec(code);
+        if (decl === null) return source;
+        const bound = tabComparisonWayRound(decl[1], code);
+        if (bound === null) return source;
+        return flipOperator(source, decl.index + decl[0].lastIndexOf(decl[1]), bound) ?? source;
+      },
+      want: 'is taken when the typing state belongs to THIS tab'
+    },
+    {
+      // THE HONEST SPELLING, AND THEN THE WRONG ANSWER TAKEN FROM IT. Naming
+      // the test is a fix this rule must accept, so the ablation proves the
+      // acceptance is not a blanket one: through the boolean the polarity is
+      // still read, and the return taken when the state IS this tab's is still
+      // refused.
+      name: 'THE TEST NAMED AS A BOOLEAN AND READ THE WRONG WAY ROUND',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { edit } = piecesOf(code);
+        if (edit === null || edit.body === null) return source;
+        const guard = tabGuardIn(edit.body, code);
+        if (guard === null || !guard.other) return source;
+        if (/^\s*\{/.test(edit.body.slice(guard.close + 1))) return source;
+        const semi = edit.body.indexOf(';', guard.close);
+        if (semi === -1) return source;
+        const from = lineStart(edit.body, guard.at);
+        const indent = ' '.repeat(guard.at - from);
+        const named = `${indent}const mine = ${guard.test.text};\n${indent}if (${
+          guard.test.other ? '!' : ''
+        }mine) return;`;
+        return source.slice(0, edit.bodyAt + from) + named + source.slice(edit.bodyAt + semi + 1);
+      },
+      want: 'is taken when the typing state belongs to THIS tab'
+    },
+    {
+      name: 'THE ATTACK’S cLate SHAPE: the return moved one line below written.current',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { edit } = piecesOf(code);
+        if (edit === null || edit.body === null) return source;
+        const guard = tabGuardIn(edit.body, code);
+        const write = WRITTEN_WRITE.exec(edit.body);
+        if (guard === null || write === null || write.index < guard.at) return source;
+        const from = lineStart(edit.body, write.index);
+        const semi = edit.body.indexOf(';', write.index);
+        if (semi === -1) return source;
+        const to = semi + 2 > edit.body.length ? semi + 1 : semi + 2;
+        const statement = edit.body.slice(from, to);
+        const above = edit.bodyAt + lineStart(edit.body, guard.at);
+        return (
+          source.slice(0, above) +
+          statement +
+          source.slice(above, edit.bodyAt + from) +
+          source.slice(edit.bodyAt + to)
+        );
+      },
+      want: 'records the keystroke before it returns'
+    },
+    {
+      name: 'the slot unkeyed, back to one text for the whole hook',
+      edit: (source) => {
+        const { slot } = piecesOf(stripComments(source));
+        if (slot === null) return source;
+        const to = 'const wanted = useRef<string | null>(null);';
+        if (slot.text === to) return source;
+        return source.slice(0, slot.at) + to + source.slice(slot.at + slot.text.length);
+      },
+      want: 'holds one text for every tab'
+    },
+    {
+      name: 'the typed text filed under no tab, which is the parent’s own line',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { edit } = piecesOf(code);
+        if (edit === null || edit.body === null) return source;
+        const at = wantedWritesIn(edit.body)[0];
+        if (at === undefined) return source;
+        const semi = edit.body.indexOf(';', at);
+        if (semi === -1) return source;
+        const from = edit.bodyAt + at;
+        const to = edit.bodyAt + semi + 1;
+        const parent = 'wanted.current = state.text;';
+        if (source.slice(from, to) === parent) return source;
+        return source.slice(0, from) + parent + source.slice(to);
+      },
+      want: 'writes the wanted slot without naming a tab'
+    },
+    {
+      name: 'the continuation’s key dropped, so it applies whatever the slot holds',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { edit } = piecesOf(code);
+        if (edit === null || edit.body === null) return source;
+        const asyncAt = edit.body.indexOf('void (async');
+        const base = edit.bodyAt + (asyncAt === -1 ? 0 : asyncAt);
+        const tail = asyncAt === -1 ? edit.body : edit.body.slice(asyncAt);
+        const applyAt = tail.indexOf('applyModelText(');
+        const region = applyAt === -1 ? tail : tail.slice(0, applyAt);
+        const keyed = /wanted\.current\s*\.\s*get\s*\(\s*tabId\s*\)/.exec(region);
+        if (keyed !== null) {
+          const at = base + keyed.index;
+          return `${source.slice(0, at)}wanted.current.values().next().value${source.slice(at + keyed[0].length)}`;
+        }
+        const cmp = tabComparisonIn(region, code);
+        if (cmp === null) return source;
+        const at = base + cmp.index;
+        return `${source.slice(0, at)}false${source.slice(at + cmp.text.length)}`;
+      },
+      want: 'without asking which tab typed it'
+    },
+    {
+      name: 'the lastEdit reset deleted from the [tabId] effect',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { tabEffect } = piecesOf(code);
+        if (tabEffect === null || tabEffect.body === null) return source;
+        const m = /lastEdit\.current\s*=[^;]*;/.exec(tabEffect.body);
+        if (m === null) return source;
+        const from = tabEffect.bodyAt + lineStart(tabEffect.body, m.index);
+        const to = tabEffect.bodyAt + m.index + m[0].length + 1;
+        return source.slice(0, from) + source.slice(to);
+      },
+      want: 'leaves lastEdit where the departing tab left it'
+    },
+    {
+      // ONE LINE OUT OF THE RESET EFFECT, which is the tidy a later round makes:
+      // the line looks like bookkeeping and its own comment in the source is the
+      // only thing that said otherwise until this clause existed.
+      name: 'the written.current reset deleted from the [tabId] effect',
+      edit: (source) => {
+        const code = stripComments(source);
+        const { tabEffect } = piecesOf(code);
+        if (tabEffect === null || tabEffect.body === null) return source;
+        const m = WRITTEN_RESET.exec(tabEffect.body);
+        if (m === null) return source;
+        const from = tabEffect.bodyAt + lineStart(tabEffect.body, m.index);
+        const to = tabEffect.bodyAt + m.index + m[0].length + 1;
+        return source.slice(0, from) + source.slice(to);
+      },
+      want: 'leaves written.current at the departing tab'
+    },
+    {
+      name: 'the blanket drop put back in the [tabId] effect',
+      edit: (source) => {
+        const { tabEffect } = piecesOf(stripComments(source));
+        if (tabEffect === null) return source;
+        const at = tabEffect.bodyAt;
+        return `${source.slice(0, at)}\n    wanted.current = null;${source.slice(at)}`;
+      },
+      want: 'empties the whole wanted slot'
+    }
+  ];
+  let ablationsRed = 0;
+  try {
+    for (const arm of ABLATIONS) {
+      if (shipping === null) continue;
+      const ablated = arm.edit(shipping);
+      if (ablated === shipping) {
+        fail(
+          `41. the ablation "${arm.name}" found nothing to edit in ${EDITS}, so it proves nothing; re-anchor it`
+        );
+        continue;
+      }
+      const hits = keystrokeFindings(ablated);
+      if (hits.some((line) => line.includes(arm.want))) ablationsRed += 1;
+      else {
+        fail(
+          `41. the ablation "${arm.name}" did not turn this rule red on its own clause: ${JSON.stringify(hits)}`
+        );
+      }
+    }
+  } finally {
+    if (digestBefore !== null) {
+      const after = createHash('sha256').update(readFileSync(EDITS)).digest('hex');
+      if (after !== digestBefore) {
+        fail(
+          `41. ${EDITS} changed while rule 41 ran; the ablations are made on the string in memory and this rule must never write to the tree`
+        );
+      }
+    }
+  }
+
+  say(
+    `41. a keystroke belongs to the tab it was typed in: the typing state carries its tab in the declaration and in a reseed stamped with the tab the effect runs FOR, the edit effect returns on another tab’s state — the right way round, in either spelling, and ABOVE the line that records it — the wanted slot is keyed by the tab that typed it and the continuation applies only that tab’s own text, and the [tabId] effect resets lastEdit and the count while emptying no slot (${String(plantsOk)} of ${String(PLANTS.length)} planted hooks behaved, ${String(plantsCaught)} of them must fail)`
+  );
+  say(
+    `41. ${String(ablationsRed)} of ${String(ABLATIONS.length)} ablations of the SHIPPING source turned this rule red on their own clause, each cut at a span the readers found rather than at a guessed spelling, made on the string in memory with ${EDITS}'s sha256 compared in a finally`
   );
 }
 

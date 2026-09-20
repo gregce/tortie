@@ -391,11 +391,24 @@ function argumentsOfCall(body, name) {
   return callArguments(body, body.indexOf('(', at));
 }
 
-// PHASE 282. The line the redline's typing effect opens with, which is what
-// tells this gate WHICH of that module's four effects to read; the mark that
-// makes a keystroke visible; and the step that makes the rest of the effect
-// asynchronous.
-const TYPING_ANCHOR = 'if (!editable || state.edits === written.current) return;';
+// PHASE 282. The line that tells this gate WHICH of that module's four effects
+// to read; the mark that makes a keystroke visible; and the step that makes the
+// rest of the effect asynchronous. The reader takes the whole effect the line
+// sits IN, so the line never had to be the effect's first one — which is what
+// let Phase 297 move it without moving the rules.
+//
+// PHASE 297 MOVED THE ANCHOR, and moved nothing else. The typing state now
+// carries the tab it was typed on, so the old line,
+// `if (!editable || state.edits === written.current) return;`, matched nothing
+// and rules 27, 27b and 27c read an empty effect: three rules unasked rather
+// than red, on the very file that phase changed. The line below appears exactly
+// once in redline-edits.ts and is inside the edit effect, so it names the same
+// effect the old one did. Two anchors that look better are refused and here is
+// why, so a later round does not try them again: `if (!editable) return;`
+// stands in five other effects in that module, and `await ensureWorkingModel(`,
+// which is the effect's own identity, makes rule 0 misread two of this gate's
+// fixtures, because every fixture is written to OPEN with this line.
+const TYPING_ANCHOR = 'if (state.typing.edits === written.current) return;';
 const DIRTY_MARK = 'markDirty(tabId, true)';
 const ASYNC_STEP = 'void (async';
 
@@ -1936,7 +1949,7 @@ const PROJECT_CLOSED_SENTENCE =
   const body = effectBodyHolding(source(REDLINE_EDITS), TYPING_ANCHOR);
   if (body === null) {
     fail(
-      `27. ${REDLINE_EDITS} holds no effect opening with \`${TYPING_ANCHOR}\`, so rules 27 to 27c read nothing`
+      `27. ${REDLINE_EDITS} holds no effect containing \`${TYPING_ANCHOR}\`, so rules 27 to 27c read nothing`
     );
   } else {
     // 27. The mark is synchronous: it is made before the step that makes the

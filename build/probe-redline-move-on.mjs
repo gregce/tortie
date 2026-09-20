@@ -139,6 +139,44 @@
  *      the read back. Like U its expectations never flip, and it is not run
  *      under `ACCEPT_ADVANCE_PARENT=282`.
  *
+ * PHASE 297's ARM, X, runs last and writes its own files (docs/BACKLOG.md
+ * `## Phase 297`):
+ *
+ *   X. A KEYSTROKE STAYS IN THE TAB IT WAS TYPED IN. Two prose files, both
+ *      opened in the Redline view. One character is typed in the first, the
+ *      second's TAB IS CLICKED, and the arm reads at the second: the drawn
+ *      text, `dirty`, the working model's value and the bytes on disk; then
+ *      ⌘S there, and the disk, the toasts and whether a confirmation was drawn.
+ *      Six sub-arms, being the verifiers' matrix and its control: A left dirty,
+ *      A saved first (PV-2's H2), A's typing undone first (P3's B), B with a
+ *      working model because the File view was open first (P4's L1), B with no
+ *      model at all (L2), and B holding a model its OWN keystroke made, which
+ *      ./live-text never saw. Every reading is printed whatever the outcome.
+ *
+ *      THE BUFFER'S WHOLE VALUE HISTORY IS THE READING, NOT ITS SETTLED VALUE.
+ *      Where the arriving tab's seed is its own text the write lasts one task —
+ *      the run after it puts the tab's own bytes back and `dirty` reads false
+ *      again — while a ⌘S pressed inside that window still writes the other
+ *      file. So a recorder goes into the page BEFORE the click and keeps every
+ *      value each of the two buffers holds, sampled from a MessageChannel drain
+ *      loop that shares React's own task queue, from requestAnimationFrame,
+ *      from an 8 ms timer and from a MutationObserver; the claim is that the
+ *      other file's text is never among them. The busy part of that loop is
+ *      short on purpose, so the settled readings at 150, 600 and 1200 ms —
+ *      PV-2's own clock — are not queued behind it, and the recorder stops
+ *      itself on the clock as well as in this arm's own read.
+ *
+ *      X's EXPECTATIONS NEVER FLIP, like U's and Z's, so its findings ARE the
+ *      parent reading. Every release from 0.102.0 through 0.108.0 carries this
+ *      defect, so the parent drive is this arm against a parent BUILD
+ *      (`REDLINEMOVEON_CHECKOUT`), and the readings it has to move are the
+ *      verifiers' own: a buffer holding the other file's text, `arrived.after`
+ *      naming the departing file, `diskOfB` naming it too, and about a thousand
+ *      characters written over a file nobody typed in. It is not run under
+ *      `ACCEPT_ADVANCE_PARENT=282`: PR 28's head carries the defect as well,
+ *      but nobody measured it there, and grading a shape nobody measured is
+ *      what this probe refuses everywhere else.
+ *
  * ## ENVIRONMENT
  *
  *   ACCEPT_ADVANCE_PARENT   The grading mode above: unset, `1` or `282`.
@@ -148,8 +186,9 @@
  *                           probe, the helper and the scratch socket stay this
  *                           checkout's. This is how arm U is read against the
  *                           Phase 282.1 bytes. One Electron either way.
- *   REDLINEMOVEON_ARMS      A subset of `H,O,L,C,R,T,U,Z`, commas between. Unset
- *                           is every arm the mode has. R, T, U and Z stand alone;
+ *   REDLINEMOVEON_ARMS      A subset of `H,O,L,C,R,T,U,Z,X`, commas between.
+ *                           Unset is every arm the mode has. R, T, U, Z and X
+ *                           stand alone;
  *                           O and C need H, and L needs O, because they are
  *                           written against the picture the arm before them
  *                           left, and a subset that breaks that is refused by
@@ -176,6 +215,10 @@
  * not, and read the tab through `window.__gmuxP277`, the Phase 277 drive every
  * harness launch already registers; they add nothing to the app. Arm Z writes
  * one more file, `elsewhere.txt`, beside the fixture in the scratch project.
+ * Arm X writes two more files per sub-arm, twelve in all, and commits them to
+ * the scratch repository under GMUX_HARNESS_DIR; it reads the tabs through the
+ * same Phase 277 drive, clicks a tab and a dialog's Cancel on the shipped
+ * elements, and its one addition to the page is a recorder it stops itself.
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -214,11 +257,26 @@ const PR28_HEAD = PARENT_MODE === '282';
  * it needs the picture H emptied; L accepts down to the last change O left;
  * and C compares the file with the word that stood there before its own write,
  * which is the baseline's only once H has accepted the draft. R and U accept
- * everything first and T asks only for a clean tab, so those three stand alone.
+ * everything first, T asks only for a clean tab and X opens files of its own,
+ * so those four stand alone.
  */
-const ALL_ARMS = ['H', 'O', 'L', 'C', 'R', 'T', 'U', 'Z'];
-/** Phase 282.2's arms: PR 28's head has no hold to linger, so neither has a shape to show there. */
-const HOLD_ARMS = ['U', 'Z'];
+const ALL_ARMS = ['H', 'O', 'L', 'C', 'R', 'T', 'U', 'Z', 'X'];
+/**
+ * THE ARMS GRADED ONE WAY ROUND, at HEAD, and never run under
+ * `ACCEPT_ADVANCE_PARENT=282`, each with the reason its refusal says. U and Z
+ * are Phase 282.2's: PR 28's head has no hold to linger, so there is no shape
+ * there for them to show. X is Phase 297's: the keystroke that lands in another
+ * tab's buffer is in PR 28's head as well, but it was measured at `50bd2561`
+ * and at Phase 290's HEAD and nowhere else, and grading a shape nobody measured
+ * is what this probe refuses everywhere else. X's parent reading is the arm run
+ * against a parent BUILD through `REDLINEMOVEON_CHECKOUT`.
+ */
+const HOLD_ARMS = ['U', 'Z', 'X'];
+const HOLD_WHY = {
+  U: 'which has no hold to linger',
+  Z: 'which has no hold to linger',
+  X: 'where nobody measured the keystroke that lands in another tab’s buffer'
+};
 const NEEDS = { O: ['H'], L: ['H', 'O'], C: ['H'] };
 function armsFrom(raw, parentMode) {
   const named = raw
@@ -237,7 +295,10 @@ function armsFrom(raw, parentMode) {
   }
   const heldHere = named.filter((a) => HOLD_ARMS.includes(a));
   if (parentMode === '282' && heldHere.length > 0) {
-    return { arms: [], refusal: `arm ${heldHere[0]} is not graded at PR 28’s head, which has no hold to linger` };
+    return {
+      arms: [],
+      refusal: `arm ${heldHere[0]} is not graded at PR 28’s head, ${HOLD_WHY[heldHere[0]] ?? 'which is not a build it was measured against'}`
+    };
   }
   const arms = ALL_ARMS.filter((a) => named.includes(a));
   for (const arm of arms) {
@@ -386,6 +447,13 @@ const HELD_ACCEPT = `A change in ${NOTES} is still being rewound, so nothing was
 const WAY_OUT = 'Save or undo your edits first';
 
 const WORDS = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel'];
+/**
+ * PHASE 297. How many changes each of arm X's two fixtures draws, being seven
+ * moved paragraphs and an eighth left as it was committed for the caret to sit
+ * in. It is declared here rather than beside the arm because `gradeArms` names
+ * it and the self-test grades before the declarations below it are initialised.
+ */
+const X_CHANGES = 7;
 /** Eight paragraphs, each with one marker word that differs between versions. */
 const version = (n) =>
   WORDS.map(
@@ -417,7 +485,7 @@ function paragraphsMoved(a, b) {
  * arm whose own fixture did not draw measured nothing either way.
  */
 function gradeArms(reading, mode) {
-  const out = { o: [], l: [], c: [], r: [], t: [], u: [], z: [] };
+  const out = { o: [], l: [], c: [], r: [], t: [], u: [], z: [], x: [] };
   const head = mode === 'head';
 
   const o = reading.o;
@@ -632,10 +700,97 @@ function gradeArms(reading, mode) {
       if (z.savedIsDisk !== true) out.z.push('the tab’s savedContents is not what the disk holds at the end');
     }
   }
+
+  // PHASE 297. X IS GRADED LIKE U AND Z: one way round, at HEAD, and its
+  // findings against a build with the defect ARE the parent reading. Every
+  // sub-arm is graded on its own, because the matrix is the point — a fix that
+  // closes the corner where the arriving tab has a buffer and leaves the corner
+  // where it has none is the shape Phase 282's own guard already had.
+  //
+  // THE FIXTURE FINDINGS COME FIRST AND THEY STOP THE SUB-ARM, because every
+  // claim after them is about a gesture that did not happen: two pictures that
+  // never drew, a tab that was not on the strip, a click that did not arrive, or
+  // a keystroke that never reached the departing buffer each mean this sub-arm
+  // measured nothing rather than that it passed.
+  //
+  // ONE READING IS PRINTED AND NOT GRADED, and that is deliberate: the page
+  // drawing the departing file's words for a frame is ./live-text's one-render
+  // lag, which the entry defers with its own reasons ("No change to
+  // live-text.ts"). What IS graded is the picture at the LAST settled reading,
+  // because a lag a person cannot see is a frame and a lag that is still there
+  // at 1200 ms is the defect.
+  const x = reading.x;
+  if (head) {
+    if (x === undefined) out.x.push('arm X did not run');
+    else {
+      if (x.seam !== true) {
+        out.x.push('window.__gmuxP277 is not on this page, so no tab’s buffer, dirty flag or savedContents was read');
+      }
+      const subs = x.subs ?? [];
+      if (subs.length === 0) out.x.push('arm X drove no sub-arm');
+      for (const s of subs) {
+        const at = `X ${String(s.name)}`;
+        if (s.drawnBoth !== true) {
+          out.x.push(
+            `${at}: the two fixtures did not both draw their ${String(X_CHANGES)} changes (${String(s.aChanges)} in ${String(s.a)}, ${String(s.bChanges)} in ${String(s.b)}), so this sub-arm measured nothing`
+          );
+          continue;
+        }
+        if (s.clicked !== true) {
+          out.x.push(`${at}: ${String(s.b)} was not on the tab strip to click, so this sub-arm measured nothing`);
+          continue;
+        }
+        if (s.arrived !== true) {
+          out.x.push(
+            `${at}: the click never made ${String(s.b)} the active tab (${JSON.stringify(s.settled)}), so this sub-arm measured nothing`
+          );
+          continue;
+        }
+        if (s.typedInA === false) {
+          out.x.push(`${at}: the keystroke never reached ${String(s.a)}’s buffer, so there was no edit to leak`);
+          continue;
+        }
+        // THE RECORDER KEPT NOTHING IS A FINDING AND NOT A CLEAN READING. The
+        // strongest claim below is over the value history, so a recorder that
+        // recorded none would leave the corner where the write lasts one task
+        // graded on its settled value alone, which is the reading the attack
+        // showed heals itself.
+        if (s.sampled !== true) {
+          out.x.push(
+            `${at}: the recorder kept no values (${String(s.bEver?.length ?? 0)} of ${String(s.b)}, ${String(s.drawnEver?.length ?? 0)} of the page), so the buffer’s history was never read`
+          );
+          continue;
+        }
+        if (s.bHoldsOthersText === true) {
+          out.x.push(
+            `${at}: ${String(s.b)}’s buffer held ${String(s.a)}’s text — every value it held from before the click was ${JSON.stringify(s.bEver)}`
+          );
+        }
+        if (s.drawnKeptOthers === true) {
+          out.x.push(
+            `${at}: the page was still drawing ${String(s.a)}’s text in ${String(s.b)} at the last settled reading (${JSON.stringify(s.settled)})`
+          );
+        }
+        if (s.bDirtyUnasked === true) {
+          out.x.push(
+            `${at}: ${String(s.b)} read unsaved although nothing was typed in it (dirty before ${String(s.bBeforeSwitch?.dirty)}, after ${JSON.stringify(s.settled.map((r) => r.dirty))})`
+          );
+        }
+        if (s.diskOfBIsOwn !== true) {
+          out.x.push(
+            `${at}: ⌘S on ${String(s.b)} left ${String(s.diskOfB)} on disk${s.charsOverB > 0 ? `, ${String(s.charsOverB)} characters over ${String(s.b)}` : ''}, with toasts ${JSON.stringify(s.toastsAtSave)} and confirm ${JSON.stringify(s.confirmAtSave)}`
+          );
+        }
+        if (s.diskOfAIsExpected !== true) {
+          out.x.push(`${at}: ${String(s.a)} on disk is ${String(s.diskOfA)} where it should be ${String(s.diskOfAExpected)}`);
+        }
+      }
+    }
+  }
   return out;
 }
-/** Every finding of the arms named, or of all seven when none is. */
-const armFindings = (graded, arms = ['O', 'L', 'C', 'R', 'T', 'U', 'Z']) =>
+/** Every finding of the arms named, or of all eight when none is. */
+const armFindings = (graded, arms = ['O', 'L', 'C', 'R', 'T', 'U', 'Z', 'X']) =>
   arms.flatMap((a) => graded[a.toLowerCase()] ?? []);
 
 if (process.argv.includes('--self-test')) {
@@ -766,6 +921,61 @@ if (process.argv.includes('--self-test')) {
       savedIsDisk: true
     }
   };
+  // PHASE 297. One sub-arm of X as the fixed build reads it, and the leak as
+  // every release from 0.102.0 reads it: the arriving buffer holding the
+  // departing file's text, the picture still drawing it at 1200 ms, an unsaved
+  // flag nobody asked for, and ⌘S putting those bytes on the other file's disk.
+  const xClean = {
+    name: 'dirty',
+    a: 'x1a.txt',
+    b: 'x1b.txt',
+    drawnBoth: true,
+    aChanges: 8,
+    bChanges: 8,
+    clicked: true,
+    arrived: true,
+    typedInA: true,
+    bBeforeSwitch: { dirty: false, buffer: 'x1b.txt', saved: 'x1b.txt', mode: 'redline' },
+    settled: [
+      { ms: 150, at: 162, drawn: 'x1b.txt', dirty: false, buffer: 'x1b.txt', changes: 8, active: true },
+      { ms: 1200, at: 1213, drawn: 'x1b.txt', dirty: false, buffer: 'x1b.txt', changes: 8, active: true }
+    ],
+    bEver: [{ ms: 0, text: 'none' }, { ms: 41, text: 'x1b.txt' }],
+    aEver: [{ ms: 0, text: 'x1a.txt+x' }],
+    bHoldsOthersText: false,
+    drawnKeptOthers: false,
+    drawnBothMarks: false,
+    drawnEver: [{ ms: 0, chars: 2014, 'x1a.txt': true, 'x1b.txt': false }, { ms: 27, chars: 2014, 'x1a.txt': false, 'x1b.txt': true }],
+    sampled: true,
+    bDirtyUnasked: false,
+    diskOfB: 'x1b.txt',
+    diskOfBIsOwn: true,
+    charsOverB: 0,
+    diskOfA: 'x1a.txt',
+    diskOfAExpected: 'x1a.txt',
+    diskOfAIsExpected: true,
+    toastsAtSave: [],
+    confirmAtSave: null
+  };
+  const xLeak = {
+    ...xClean,
+    settled: [
+      { ms: 150, at: 158, drawn: 'x1a.txt+x', dirty: true, buffer: 'x1a.txt+x', changes: 8, active: true },
+      { ms: 1200, at: 1209, drawn: 'x1a.txt+x', dirty: true, buffer: 'x1a.txt+x', changes: 8, active: true }
+    ],
+    bEver: [{ ms: 0, text: 'none' }, { ms: 3, text: 'x1a.txt+x' }],
+    bHoldsOthersText: true,
+    drawnKeptOthers: true,
+    drawnBothMarks: true,
+    bDirtyUnasked: true,
+    diskOfB: 'x1a.txt+x',
+    diskOfBIsOwn: false,
+    charsOverB: 1008
+  };
+  armsHead.x = {
+    seam: true,
+    subs: [xClean, { ...xClean, name: 'control', typedInA: null }]
+  };
   // PHASE 282.2's FIX ROUND. What the build before it read, from the attack
   // verifier's own arm X at HEAD and at the 282.1 bytes alike: after ⌘⇧Z the
   // tab is clean over the agent's bytes, nothing reads, the rewound change is
@@ -812,9 +1022,9 @@ if (process.argv.includes('--self-test')) {
   cases.push(
     ['PHASE 282: the arms at HEAD, graded as HEAD', arm(armsHead, 'head'), 0],
     ['PHASE 282: the five arms at PR 28’s head, graded as PR 28’s head', arm(armsPr28, 'pr28'), 0],
-    ['PHASE 282: HEAD graded as PR 28’s head, so no defect reproduced, and U is not graded there', arm(armsHead, 'pr28'), 5],
+    ['PHASE 282: HEAD graded as PR 28’s head, so no defect reproduced, and U, Z and X are not graded there', arm(armsHead, 'pr28'), 5],
     ['PHASE 282: PR 28’s head graded as HEAD, which is every defect', arm(armsPr28, 'head', FIVE), 11],
-    ['PHASE 282: no arm ran', arm({}, 'head'), 7],
+    ['PHASE 282: no arm ran', arm({}, 'head'), 8],
     ['U: the Phase 282.1 bytes, where the hold lingers: held, still drawn, and no read', arm({ ...armsHead, u: u2821 }, 'head', ['U']), 3],
     ['U: and the first of those findings is the sentence the app said', [arm({ ...armsHead, u: u2821 }, 'head', ['U'])[0]?.includes(`⌥↩ answered "${HELD_ACCEPT}"`) === true ? null : 'it is not'].filter((x) => x !== null), 0],
     ['U: the keystroke reached the page after the write, so nothing lingered', arm({ ...armsHead, u: { ...armsHead.u, landedDirty: false, drawnAtLanding: false } }, 'head', ['U']), 1],
@@ -834,16 +1044,20 @@ if (process.argv.includes('--self-test')) {
     ['Z: the repeat landed AFTER the read, which the arm prints and does not grade', arm({ ...armsHead, z: { ...armsHead.z, secondUndoInsideTheRead: false } }, 'head', ['Z']), 0],
     ['Z: the keystroke reached the page after the write, so no hold was left to lose', arm({ ...armsHead, z: { ...armsHead.z, landedDirty: false, drawnAtLanding: false } }, 'head', ['Z']), 1],
     ['Z is not graded at PR 28’s head', arm({ z: zBeforeTheFix }, 'pr28', ['Z']), 0],
-    ['THE KNOB: unset is every arm', [armsFrom('', '').arms.join('') === 'HOLCRTUZ' ? null : 'it is not'].filter((x) => x !== null), 0],
-    ['THE KNOB: unset at PR 28’s head leaves U and Z out', [armsFrom('', '282').arms.join('') === 'HOLCRT' ? null : 'it does not'].filter((x) => x !== null), 0],
+    ['THE KNOB: unset is every arm', [armsFrom('', '').arms.join('') === 'HOLCRTUZX' ? null : 'it is not'].filter((x) => x !== null), 0],
+    ['THE KNOB: unset at PR 28’s head leaves U, Z and X out', [armsFrom('', '282').arms.join('') === 'HOLCRT' ? null : 'it does not'].filter((x) => x !== null), 0],
     ['THE KNOB: Z alone stands, and Z at PR 28’s head is refused', [...refusals('z', ''), ...(refusals('Z', '282').length === 1 ? [] : ['it is not refused'])], 0],
     ['THE KNOB: U alone, in any case and with spaces', [armsFrom(' u ', '').arms.join('') === 'U' ? null : 'it is not'].filter((x) => x !== null), 0],
     ['THE KNOB: the arms run in their own order whatever order names them', [armsFrom('U,T,R', '').arms.join('') === 'RTU' ? null : 'they do not'].filter((x) => x !== null), 0],
     ['THE KNOB: O without H is refused', refusals('O,U', ''), 1],
     ['THE KNOB: L without O is refused', refusals('H,L', ''), 1],
     ['THE KNOB: C without H is refused', refusals('C', ''), 1],
-    ['THE KNOB: a letter that is no arm is refused', refusals('U,X', ''), 1],
+    // PHASE 297 took X, so the letter that is no arm is Q. The case is here to
+    // prove the refusal still fires, not to reserve a letter.
+    ['THE KNOB: a letter that is no arm is refused', refusals('U,Q', ''), 1],
     ['THE KNOB: U at PR 28’s head is refused', refusals('U', '282'), 1],
+    ['THE KNOB: X alone stands, and X at PR 28’s head is refused', [...refusals('x', ''), ...(refusals('X', '282').length === 1 ? [] : ['it is not refused'])], 0],
+    ['THE KNOB: X alone is X', [armsFrom(' x ', '').arms.join('') === 'X' ? null : 'it is not'].filter((x) => x !== null), 0],
     ['THE KNOB: any subset under the parent drive is refused', refusals('H', '1'), 1],
     ['THE KNOB: H, O and L together are allowed', refusals('L,O,H', ''), 0],
     ['O: the move landed on the change before, which is the index rule', arm({ ...armsHead, o: armsPr28.o }, 'head'), 1],
@@ -860,7 +1074,26 @@ if (process.argv.includes('--self-test')) {
     ['R: a consumed repeat reached the document as an edit', arm({ ...armsHead, r: { ...armsHead.r, unsaved: true } }, 'head'), 1],
     ['R: the page never saw a repeated keydown, so the key was not held', arm({ ...armsHead, r: { ...armsHead.r, repeatsSeen: 0 } }, 'head'), 1],
     ['T: the save wrote something other than what was typed', arm({ ...armsHead, t: { ...armsHead.t, savedExact: false } }, 'head'), 1],
-    ['T: the document never drew the file, so nothing was measured', arm({ ...armsHead, t: { ...armsHead.t, precondition: false } }, 'head'), 1]
+    ['T: the document never drew the file, so nothing was measured', arm({ ...armsHead, t: { ...armsHead.t, precondition: false } }, 'head'), 1],
+    ['X: both sub-arms at HEAD', arm(armsHead, 'head', ['X']), 0],
+    ['X: THE PARENT READING: the buffer, the picture, the unsaved flag and the disk', arm({ x: { seam: true, subs: [xLeak] } }, 'head', ['X']), 4],
+    ['X: and the first of those findings names the buffer and every value it held', [arm({ x: { seam: true, subs: [xLeak] } }, 'head', ['X'])[0]?.includes('x1b.txt’s buffer held x1a.txt’s text') === true ? null : 'it does not'].filter((v) => v !== null), 0],
+    ['X: the leak in the control, where nothing was typed at all', arm({ x: { seam: true, subs: [{ ...xLeak, name: 'control', typedInA: null }] } }, 'head', ['X']), 4],
+    ['X: ⌘S wrote the other file’s bytes and nothing else moved', arm({ x: { seam: true, subs: [{ ...xClean, diskOfB: 'x1a.txt+x', diskOfBIsOwn: false, charsOverB: 1008 }] } }, 'head', ['X']), 1],
+    ['X: the picture still drew the other file at the last settled reading', arm({ x: { seam: true, subs: [{ ...xClean, drawnKeptOthers: true }] } }, 'head', ['X']), 1],
+    ['X: the arriving tab read unsaved with nothing typed in it', arm({ x: { seam: true, subs: [{ ...xClean, bDirtyUnasked: true }] } }, 'head', ['X']), 1],
+    ['X: the departing file’s own bytes moved', arm({ x: { seam: true, subs: [{ ...xClean, diskOfA: 'x1a.txt+x', diskOfAIsExpected: false }] } }, 'head', ['X']), 1],
+    ['X: THE FLASH is printed and not graded, being ./live-text’s one render', arm({ x: { seam: true, subs: [{ ...xClean, drawnBothMarks: true }] } }, 'head', ['X']), 0],
+    ['X: a sub-arm whose fixtures never drew measured nothing, and its later clauses are not asked', arm({ x: { seam: true, subs: [{ ...xLeak, drawnBoth: false, aChanges: 0 }] } }, 'head', ['X']), 1],
+    ['X: the tab was not on the strip', arm({ x: { seam: true, subs: [{ ...xLeak, clicked: false }] } }, 'head', ['X']), 1],
+    ['X: the click never arrived at the other tab', arm({ x: { seam: true, subs: [{ ...xLeak, arrived: false }] } }, 'head', ['X']), 1],
+    ['X: the keystroke never reached the departing buffer', arm({ x: { seam: true, subs: [{ ...xLeak, typedInA: false }] } }, 'head', ['X']), 1],
+    ['X: the recorder kept nothing, so the history was never read and the corner is not called clean', arm({ x: { seam: true, subs: [{ ...xClean, sampled: false, bEver: [], drawnEver: [] }] } }, 'head', ['X']), 1],
+    ['X: the Phase 277 drive is not on the page', arm({ x: { seam: false, subs: [xClean] } }, 'head', ['X']), 1],
+    ['X: no sub-arm ran', arm({ x: { seam: true, subs: [] } }, 'head', ['X']), 1],
+    ['X: six sub-arms and one of them leaks', arm({ x: { seam: true, subs: [xClean, xClean, xClean, xLeak, xClean, xClean] } }, 'head', ['X']), 4],
+    ['X is not graded at PR 28’s head', arm({ x: { seam: true, subs: [xLeak] } }, 'pr28', ['X']), 0],
+    ['X alone: the arms that did not run are not findings', arm({ x: armsHead.x }, 'head', ['X']), 0]
   );
   // THE FIXTURE TEXTS the arms write, proved here rather than in the app: the
   // paragraph walk that every arm's expected file is computed with round trips,
@@ -2200,7 +2433,654 @@ async function armZ(cdp) {
   );
 }
 
-const ARM_DRIVES = { O: armO, L: armL, C: armC, R: armR, T: armT, U: armU, Z: armZ };
+// ---------------------------------------------------------------------------
+// PHASE 297's ARM, X. The header has the claim; what follows is the five things
+// it needs that no arm before it did.
+// ---------------------------------------------------------------------------
+
+/**
+ * X's FIXTURE TEXTS NAME THEIR OWN FILE AND THEIR OWN VERSION IN THEIR FIRST
+ * THIRTY-TWO CHARACTERS, because every reading of this arm is "whose text is
+ * this" and the fingerprint below reads windows of a value rather than the whole
+ * of it. `version` above puts the marker word late in the paragraph, and written
+ * that way a file's committed version and its written one print the SAME head
+ * and the SAME tail and are told apart only by where the middle window happens
+ * to land, which is luck rather than a design. So the marker goes first, beside
+ * the name. It is otherwise `version`: eight paragraphs, one marker word each.
+ */
+const xText = (name, n) =>
+  WORDS.map(
+    (_, i) =>
+      `${name} paragraph ${String(i + 1)}, marker ${WORDS[(i + n) % WORDS.length]}, whose body carries enough sentences to make the document worth scrolling through when somebody reads it.\n`
+  ).join('\n');
+/**
+ * THE WRITTEN VERSION: seven paragraphs moved and the eighth left exactly as it
+ * was committed, so the caret can go into a paragraph with no change in it. Arm
+ * U puts its caret below every change for the same reason, and arm T types into
+ * the one paragraph the arm before it left alone.
+ */
+const xWritten = (name, n) => {
+  const moved = paragraphsOf(xText(name, n));
+  moved[moved.length - 1] = paragraphsOf(xText(name, 0))[moved.length - 1];
+  return moved.join('\n\n');
+};
+/** The offset of the untouched last paragraph's body, which is where the caret goes. */
+const xCaretAt = (name, text) => text.indexOf('enough sentences', text.indexOf(`${name} paragraph 8,`));
+/**
+ * The string every paragraph of one file carries and no paragraph of the other,
+ * which is the file's own name: neither name is a substring of the other, and
+ * `.ed-redline-doc` holds the document alone, so a picture composing one file
+ * against the other's baseline shows both names at once.
+ */
+const xMark = (name) => name;
+const xRead = (rel) => readFileSync(join(project, rel), 'utf8');
+
+/**
+ * A VALUE'S FINGERPRINT RATHER THAN THE VALUE: its length and three windows of
+ * it. Six texts exist inside a sub-arm, being each file's committed version,
+ * each file's written version and each with the keystroke in it, and the head
+ * window alone names the file because `xText` puts the file's name in every
+ * paragraph; the length separates a text from the same text with the character
+ * in it. It is cheap enough to take thousands of times, which is what catching
+ * a write that lasts one task costs.
+ *
+ * SPELLED TWICE, once for the page and once here, for the reason `HELD_ACCEPT`
+ * is spelled here rather than imported: this script is plain node and the page
+ * is the app. A row that matches nothing prints its own head, so a drift
+ * between the two spellings shows up in the line rather than passing quietly.
+ */
+const X_PRINT_JS = `(v) => ({ n: v.length, head: v.slice(0, 32), mid: v.slice(Math.max(0, (v.length >> 1) - 8), (v.length >> 1) + 8), tail: v.slice(-16) })`;
+function xPrint(text) {
+  const half = text.length >> 1;
+  return {
+    n: text.length,
+    head: text.slice(0, 32),
+    mid: text.slice(Math.max(0, half - 8), half + 8),
+    tail: text.slice(-16)
+  };
+}
+
+/** The CURRENT side of whatever redline document is mounted, which is the text a person reads. */
+const X_DRAWN = `(() => {
+  const doc = document.querySelector('.ed-redline-doc');
+  if (doc === null) return null;
+  const walk = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
+  const out = [];
+  for (let n = walk.nextNode(); n !== null; n = walk.nextNode()) {
+    if (n.parentElement !== null && n.parentElement.closest('[data-redline-del]') === null) out.push(n.nodeValue);
+  }
+  return out.join('');
+})()`;
+
+/**
+ * THE TWO TABS, through the same Phase 277 drive arms U and Z read the one tab
+ * through: the store's own `dirty`, its `savedContents`, the working model's
+ * text, the mode, which tab is active, the toasts and any dialog on screen.
+ * `value` is `null` for a tab with no buffer, which is one of the two corners
+ * this arm is about and never an absent reading.
+ */
+const X_STATE = (aName, bName) => `(() => {
+  const p = window.__gmuxP277;
+  if (p === null || typeof p !== 'object' || typeof p.read !== 'function') {
+    return { seam: false, a: null, b: null, toasts: [], confirm: null, confirmLabels: null };
+  }
+  const r = p.read();
+  const of = (name) => {
+    const t = r.tabs.find((x) => x.name === name) ?? null;
+    return t === null
+      ? null
+      : { id: t.id, mode: t.mode, dirty: t.dirty, saved: t.savedContents, value: t.value, active: r.activeId === t.id };
+  };
+  return {
+    seam: true,
+    a: of(${JSON.stringify(aName)}),
+    b: of(${JSON.stringify(bName)}),
+    toasts: r.toasts,
+    confirm: r.confirm,
+    confirmLabels: r.confirmLabels
+  };
+})()`;
+
+/**
+ * THE RECORDER AND THE CLICK IN ONE EXPRESSION, so nothing can land between the
+ * recorder starting and the gesture.
+ *
+ * WHY A BUSY LOOP AND NOT A TIMER. The write this arm is about happens in the
+ * microtask after the click's own commit, and the render that would put the
+ * arriving tab's own text back is React's next TASK. A `setInterval` is a timer
+ * task and Chromium serves a posted message before it, so a sampler on a timer
+ * alone reads the picture after the correction and calls the corner clean. The
+ * drain loop posts into the same queue React's scheduler posts into, so its
+ * message was queued first and is served first: the sample lands between the
+ * write and the render. It is bounded to `busyMs` and is why this arm's settled
+ * readings are further out than that.
+ *
+ * `rows` is per tab and `drawn` is the document, which carries both files' marks
+ * so a picture composing one file against the other's baseline is visible as
+ * both marks at once. Each list keeps only a CHANGE and is capped, and the
+ * recorder stops itself once past `capMs` whatever the probe does next.
+ */
+const X_WATCH_AND_CLICK = (aName, bName, busyMs, capMs) => `(() => {
+  const p = window.__gmuxP277;
+  const seam = p !== null && typeof p === 'object' && typeof p.read === 'function';
+  const print = ${X_PRINT_JS};
+  const aName = ${JSON.stringify(aName)};
+  const bName = ${JSON.stringify(bName)};
+  const aMark = ${JSON.stringify(xMark(aName))};
+  const bMark = ${JSON.stringify(xMark(bName))};
+  const rows = { [aName]: [], [bName]: [] };
+  const drawn = [];
+  const t0 = performance.now();
+  const at = () => Math.round(performance.now() - t0);
+  const none = { n: -1, head: '', mid: '', tail: '' };
+  const push = (into, row) => {
+    const last = into[into.length - 1];
+    if (
+      last !== undefined &&
+      last.n === row.n &&
+      last.head === row.head &&
+      last.mid === row.mid &&
+      last.tail === row.tail &&
+      last.a === row.a &&
+      last.b === row.b
+    ) {
+      return;
+    }
+    if (into.length < 80) into.push(row);
+  };
+  const record = () => {
+    if (seam) {
+      let r = null;
+      try {
+        r = p.read();
+      } catch {
+        r = null;
+      }
+      if (r !== null) {
+        for (const name of [aName, bName]) {
+          const tab = r.tabs.find((t) => t.name === name) ?? null;
+          const value = tab === null ? null : tab.value;
+          push(rows[name], value === null ? { ms: at(), ...none } : { ms: at(), ...print(value) });
+        }
+      }
+    }
+    const doc = document.querySelector('.ed-redline-doc');
+    const text = doc === null ? null : (doc.textContent ?? '');
+    push(
+      drawn,
+      text === null
+        ? { ms: at(), ...none, a: false, b: false }
+        : { ms: at(), ...print(text), a: text.includes(aMark), b: text.includes(bMark) }
+    );
+  };
+  let live = true;
+  const stopAt = performance.now() + ${String(capMs)};
+  const busyUntil = performance.now() + ${String(busyMs)};
+  const observer = new MutationObserver(() => {
+    if (live) record();
+  });
+  function stop() {
+    live = false;
+    clearInterval(timer);
+    try {
+      observer.disconnect();
+    } catch {
+      /* already gone */
+    }
+  }
+  const timer = setInterval(() => {
+    if (!live || performance.now() > stopAt) {
+      stop();
+      return;
+    }
+    record();
+  }, 8);
+  const frame = () => {
+    if (!live || performance.now() > stopAt) {
+      stop();
+      return;
+    }
+    record();
+    requestAnimationFrame(frame);
+  };
+  const channel = new MessageChannel();
+  channel.port1.onmessage = () => {
+    if (!live) return;
+    record();
+    if (performance.now() < busyUntil) channel.port2.postMessage(0);
+  };
+  observer.observe(document.querySelector('.ed-panel') ?? document.body, {
+    subtree: true,
+    childList: true,
+    characterData: true
+  });
+  window.__moveOnX = { read: () => ({ rows, drawn }), stop };
+  record();
+  channel.port2.postMessage(0);
+  requestAnimationFrame(frame);
+  // THE GESTURE: a person's click on the other tab, on the shipped element,
+  // which runs the store's own activate through React's discrete lane.
+  const tabs = Array.from(document.querySelectorAll('.ed-tab'));
+  const wanted = tabs.find((t) => (t.querySelector('.ed-tab-name')?.textContent ?? '') === bName) ?? null;
+  if (wanted !== null) wanted.click();
+  return { installed: true, clicked: wanted !== null, seam };
+})()`;
+/** What the recorder kept, and the recorder stopped and taken off the page. */
+const X_HISTORY = `(() => {
+  const held = window.__moveOnX;
+  if (held === undefined || held === null) return null;
+  const out = held.read();
+  held.stop();
+  delete window.__moveOnX;
+  return out;
+})()`;
+/** The recorder stopped whatever happened, which is this arm's own `finally`. */
+const X_STOP = `(() => {
+  const held = window.__moveOnX;
+  if (held === undefined || held === null) return false;
+  held.stop();
+  delete window.__moveOnX;
+  return true;
+})()`;
+/**
+ * A DIALOG ON SCREEN IS A READING AND NOT A BUTTON TO PRESS. Its alt on a stale
+ * save is Overwrite, which is the write this arm exists to refuse, so it is
+ * recorded and then CANCELLED — the answer Escape and the scrim already give —
+ * because a dialog left open would block the next sub-arm's click.
+ */
+const X_CANCEL = `(() => {
+  const btn = Array.from(document.querySelectorAll('.modal-actions .btn')).find((b) => (b.textContent ?? '').trim() === 'Cancel') ?? null;
+  if (btn === null) return false;
+  btn.click();
+  return true;
+})()`;
+/** Close one of this arm's own tabs, answering Don't Save when it is dirty. */
+const X_CLOSE = (id) => `(() => {
+  const p = window.__gmuxP277;
+  if (p === null || typeof p !== 'object' || typeof p.closeTab !== 'function') return false;
+  p.closeTab(${JSON.stringify(id)});
+  // A dirty tab asks first, and this arm's answer is Don't Save: at a build with
+  // the defect the buffer holds another file's text, and saving it is the loss
+  // the arm is about.
+  if (p.read().confirm !== null) p.pressAlt();
+  return true;
+})()`;
+
+/** An evaluation whose failure is a reading of `null` rather than the end of the arm. */
+async function xQuiet(cdp, expr) {
+  try {
+    return await cdpEval(cdp, expr, 20000);
+  } catch {
+    return null;
+  }
+}
+
+/** The one character typed into the departing tab; `UNDO_CAP` above caps the ⌘Z that takes it back. */
+const X_KEYSTROKE = 'x';
+/** How long the drain loop is busy, and how long the recorder keeps sampling after that. */
+const X_BUSY_MS = 120;
+const X_WATCH_MS = 1400;
+/** PV-2's own clock: the readings it took at the arriving tab after the click. */
+const X_SETTLE_MS = [150, 600, 1200];
+/** How long the disk is watched after ⌘S before it is read and reported. */
+const X_SAVE_WAIT_MS = 2000;
+
+/**
+ * X's SIX SUB-ARMS: the verifiers' matrix and its control. `aAfter` is what
+ * happens to the departing tab's one keystroke before the click, and the two
+ * doors are how each tab came to be what it is.
+ *
+ *   sub-arm  the departing tab   its keystroke     the arriving tab
+ *   dirty    the File view       left unsaved      the File view, so a buffer (P4's L1)
+ *   saved    the File view       ⌘S, so clean      the File view (PV-2's H2 is the A state)
+ *   undone   the File view       ⌘Z, so clean      the File view (P3's B is the A state)
+ *   nomodel  Redline only        left unsaved      Redline only, so NO buffer (P4's L2)
+ *   typed    Redline only        left unsaved      a buffer its OWN keystroke made
+ *   control  the File view       nothing typed     the File view, and nothing may move
+ *
+ * The `typed` corner is not in the entry's list and is the attack's: a buffer a
+ * tab's own first keystroke made is one ./live-text never saw, so the matrix has
+ * three corners for the arriving buffer rather than two.
+ *
+ * WHY THE DEPARTING TAB'S DOOR IS A KNOB TOO, and why a later round must not
+ * simplify it away. ./live-text holds the model's text in STATE, so at the
+ * switch render it is still the DEPARTING tab's text when that tab's model
+ * existed the last time its own effect ran, and the ARRIVING tab's own
+ * savedContents when it did not (src/renderer/editor/live-text.ts:26 to 37).
+ * That value is what ./redline-edits seeds its state with and what it takes
+ * `typedOn` from, and Phase 282's guard there — `!had && now.savedContents !==
+ * typedOn`, named by its own text because this phase is editing the file around
+ * it — compares `typedOn` with the arriving tab's savedContents: a tab arriving
+ * with NO buffer is written into only when those two agree, which is exactly when
+ * the departing tab's model was invisible to ./live-text. One WITH a buffer never
+ * reaches that guard at all. So both mechanisms are in the matrix — the File
+ * view door for the corners that leak past the guard, and the door that leaves
+ * no buffer for the corner that leaks through it — and a matrix with one door
+ * would have measured one of them and called the other clean.
+ */
+const X_SUBS = [
+  { name: 'dirty', types: true, aAfter: 'none', aDoor: 'file', bDoor: 'file' },
+  { name: 'saved', types: true, aAfter: 'save', aDoor: 'file', bDoor: 'file' },
+  { name: 'undone', types: true, aAfter: 'undo', aDoor: 'file', bDoor: 'file' },
+  { name: 'nomodel', types: true, aAfter: 'none', aDoor: 'redline', bDoor: 'redline' },
+  { name: 'typed', types: true, aAfter: 'none', aDoor: 'redline', bDoor: 'typed' },
+  { name: 'control', types: false, aAfter: 'none', aDoor: 'file', bDoor: 'file' }
+];
+const X_DOOR_WORDS = {
+  file: 'through the File view, so it has a working model',
+  redline: 'in Redline only, so it has no working model',
+  typed: 'in Redline, with a model its own keystroke made and undone again'
+};
+const X_AFTER_WORDS = {
+  none: 'left unsaved',
+  save: 'saved with ⌘S, so the tab is clean',
+  undo: 'undone with ⌘Z, so the tab is clean'
+};
+
+/**
+ * Open a prose file straight into Redline with NO Monaco under it, so the tab
+ * reaches the view having never had a buffer. `mode: 'diff'` mounts Pierre
+ * rather than Monaco and `editorMode` then moves the same tab through the
+ * store's own `setMode`, which is what the mode chip does — a person clicking
+ * Redline from the Diff view. `openRedline` above is the other door, through
+ * the File view, and it leaves a buffer behind.
+ */
+async function xOpenRedlineNoBuffer(cdp, rel) {
+  await drive(cdp, { projectPath: project, openRel: rel, mode: 'diff', editorMode: 'redline' });
+  return xRedlineDrew(cdp);
+}
+
+/**
+ * Open a prose file in the File view and then put it in Redline, which leaves a
+ * working model behind — `openRedline` above, which the head drive opens
+ * notes.txt with.
+ */
+async function xOpenRedlineWithBuffer(cdp, rel) {
+  await openRedline(cdp, rel);
+  return xRedlineDrew(cdp);
+}
+
+/**
+ * The picture, waited for and the chip pressed again if it has not drawn. The
+ * chip only exists once the HEAD version has come back, and a sub-arm whose
+ * picture never drew measures nothing, so this is worth three presses rather
+ * than a finding.
+ */
+async function xRedlineDrew(cdp) {
+  await until(cdp, docSettled, 20000);
+  await sleep(400);
+  let shown = await face(cdp);
+  for (let i = 0; i < 3 && shown.changes === 0; i += 1) {
+    await cdpEval(cdp, clickMode('Redline'));
+    await until(cdp, docSettled, 10000);
+    await sleep(500);
+    shown = await face(cdp);
+  }
+  return shown;
+}
+
+/** ⌘Z with the caret put back in the document first, which is where ./redline-edits takes it. */
+async function xUndoTyping(cdp, at) {
+  await cdpEval(cdp, `window.__moveOn.put(${String(at)})`);
+  await keyNow(cdp, CHORD.undoTyping);
+  await sleep(300);
+}
+
+/** One sub-arm, over two files of its own, from the commit to the ⌘S. */
+async function xDriveSub(cdp, sub, index) {
+  const aRel = `x${String(index)}a.txt`;
+  const bRel = `x${String(index)}b.txt`;
+  // BOTH FILES COMMITTED AND THEN WRITTEN FROM OUTSIDE, so each has a HEAD
+  // version of its own and each draws eight changes; the path limiter keeps the
+  // commit to these two files, so the fixture the arms above left in notes.txt
+  // is not committed under them.
+  const aHead = xText(aRel, 0);
+  const bHead = xText(bRel, 0);
+  writeFileSync(join(project, aRel), aHead);
+  writeFileSync(join(project, bRel), bHead);
+  git('add', '--', aRel, bRel);
+  git('commit', '-q', '-m', `the X ${sub.name} fixture`, '--', aRel, bRel);
+  const aFile = xWritten(aRel, 3);
+  const bFile = xWritten(bRel, 5);
+  shellWrite(aRel, aFile);
+  shellWrite(bRel, bFile);
+
+  // THE ARRIVING TAB FIRST, through its own door, so the click arrives at a tab
+  // that is already what this sub-arm says it is; then the departing tab,
+  // through the door this sub-arm gives it, which is what decides whether
+  // ./live-text ever saw its buffer (see X_SUBS).
+  const bDrawn = sub.bDoor === 'file' ? await xOpenRedlineWithBuffer(cdp, bRel) : await xOpenRedlineNoBuffer(cdp, bRel);
+  const bTypeAt = xCaretAt(bRel, bFile);
+  if (sub.bDoor === 'typed') {
+    await cdpEval(cdp, TYPING_READS);
+    await cdpEval(cdp, `window.__moveOn.put(${String(bTypeAt)})`);
+    await sleep(200);
+    await typeChar(cdp, X_KEYSTROKE);
+    await sleep(900);
+    for (let i = 0; i < UNDO_CAP; i += 1) {
+      const held = await cdpEval(cdp, X_STATE(aRel, bRel));
+      if (held.b === null || held.b.dirty !== true) break;
+      await xUndoTyping(cdp, bTypeAt);
+    }
+  }
+
+  const aDrawn = sub.aDoor === 'file' ? await xOpenRedlineWithBuffer(cdp, aRel) : await xOpenRedlineNoBuffer(cdp, aRel);
+  await cdpEval(cdp, TYPING_READS);
+  const typeAt = xCaretAt(aRel, aFile);
+  const aWithChar = `${aFile.slice(0, typeAt)}${X_KEYSTROKE}${aFile.slice(typeAt)}`;
+  const bWithChar = `${bFile.slice(0, bTypeAt)}${X_KEYSTROKE}${bFile.slice(bTypeAt)}`;
+  let typedInA = null;
+  if (sub.types) {
+    await cdpEval(cdp, `window.__moveOn.put(${String(typeAt)})`);
+    await sleep(200);
+    await typeChar(cdp, X_KEYSTROKE);
+    // The first keystroke of a tab is a real chunk load, so the buffer is waited
+    // for rather than assumed, exactly as arm U waits for it.
+    let held = await cdpEval(cdp, X_STATE(aRel, bRel));
+    for (const stop = Date.now() + 15000; held.a?.value !== aWithChar && Date.now() < stop; ) {
+      await sleep(100);
+      held = await cdpEval(cdp, X_STATE(aRel, bRel));
+    }
+    typedInA = held.a?.value === aWithChar;
+    if (sub.aAfter === 'save') {
+      await press(cdp, CHORD.save);
+      for (const stop = Date.now() + 8000; xRead(aRel) !== aWithChar && Date.now() < stop; ) await sleep(100);
+    }
+    if (sub.aAfter === 'undo') {
+      for (let i = 0; i < UNDO_CAP; i += 1) {
+        const now = await cdpEval(cdp, X_STATE(aRel, bRel));
+        if (now.a === null || now.a.dirty !== true) break;
+        await xUndoTyping(cdp, typeAt);
+      }
+    }
+  }
+
+  // THE CLICK, with the recorder already running (see X_WATCH_AND_CLICK), then
+  // the three settled readings on PV-2's clock.
+  const before = await cdpEval(cdp, X_STATE(aRel, bRel));
+  await cdpEval(cdp, CLEAR_TOASTS);
+  const clickedAt = Date.now();
+  const watch = await cdpEval(cdp, X_WATCH_AND_CLICK(aRel, bRel, X_BUSY_MS, X_WATCH_MS), 20000);
+  const settled = [];
+  for (const ms of X_SETTLE_MS) {
+    while (Date.now() - clickedAt < ms) await sleep(20);
+    const at = Date.now() - clickedAt;
+    const drawnNow = await xQuiet(cdp, X_DRAWN);
+    const held = await cdpEval(cdp, X_STATE(aRel, bRel));
+    const shown = await face(cdp);
+    settled.push({
+      ms,
+      at,
+      drawn: drawnNow,
+      dirty: held.b?.dirty ?? null,
+      buffer: held.b?.value ?? null,
+      changes: shown.changes,
+      active: held.b?.active ?? null
+    });
+  }
+  let history = null;
+  try {
+    history = await xQuiet(cdp, X_HISTORY);
+  } finally {
+    await xQuiet(cdp, X_STOP);
+  }
+
+  // ⌘S AT THE ARRIVING TAB, and the disk, the toasts and the dialog after it.
+  // THE WAIT IS SHORT ON PURPOSE: at a build where the buffer is the arriving
+  // tab's own the press writes nothing and the disk never moves, so waiting for
+  // a change that must not happen would spend the ceiling on the good reading.
+  // A write goes out in one IPC round trip, which this is many times over.
+  const diskBBefore = xRead(bRel);
+  await cdpEval(cdp, CLEAR_TOASTS);
+  await pressTimed(cdp, CHORD.save);
+  for (const stop = Date.now() + X_SAVE_WAIT_MS; xRead(bRel) === diskBBefore && Date.now() < stop; ) await sleep(100);
+  const toastsAtSave = await toastsFor(cdp, 900);
+  const afterSave = await cdpEval(cdp, X_STATE(aRel, bRel));
+  const diskBAfter = xRead(bRel);
+  const diskAAfter = xRead(aRel);
+  const confirmAtSave = afterSave.confirm ?? null;
+  if (confirmAtSave !== null) await xQuiet(cdp, X_CANCEL);
+
+  // EVERY VALUE NAMED. The six texts a sub-arm can hold, so a buffer, a picture
+  // or a file on disk is reported as the file it came from; anything else prints
+  // its length and its first words rather than being called unknown.
+  const named = [
+    [aRel, aFile],
+    [`${aRel}+x`, aWithChar],
+    [`${aRel}@HEAD`, aHead],
+    [bRel, bFile],
+    [`${bRel}+x`, bWithChar],
+    [`${bRel}@HEAD`, bHead]
+  ];
+  const prints = named.map(([name, text]) => [name, xPrint(text)]);
+  const label = (value) => {
+    if (typeof value !== 'string') return 'none';
+    const found = named.find(([, text]) => text === value);
+    return found === undefined ? `other(${String(value.length)} chars, "${value.slice(0, 24)}…")` : found[0];
+  };
+  const labelRow = (row) => {
+    if (row.n < 0) return 'none';
+    const found = prints.find(([, p]) => p.n === row.n && p.head === row.head && p.mid === row.mid && p.tail === row.tail);
+    return found === undefined ? `other(${String(row.n)} chars, "${row.head}…")` : found[0];
+  };
+  /**
+   * WHOSE TEXT IS THIS, ASKED OF THE TEXT AND NEVER OF THE LABEL. A value that
+   * matches none of the six exactly is labelled `other(...)`, and the claim must
+   * not rest on an exact match: the departing file's text with one more
+   * character in it, or with a second keystroke in it, is still the departing
+   * file's. Every paragraph carries its own file's name, so the head window of a
+   * sample answers this as well as the whole value does.
+   */
+  const othersValue = (value) => typeof value === 'string' && value.includes(xMark(aRel));
+  const othersRow = (row) => row.n >= 0 && row.head.includes(xMark(aRel));
+  const bRows = (history?.rows ?? {})[bRel] ?? [];
+  const bEver = bRows.map((r) => ({ ms: r.ms, text: labelRow(r) }));
+  const aEver = ((history?.rows ?? {})[aRel] ?? []).map((r) => ({ ms: r.ms, text: labelRow(r) }));
+  const drawnEver = (history?.drawn ?? []).map((r) => ({ ms: r.ms, chars: r.n, [aRel]: r.a === true, [bRel]: r.b === true }));
+  const settledLabelled = settled.map((s) => ({
+    ms: s.ms,
+    at: s.at,
+    drawn: label(s.drawn),
+    dirty: s.dirty,
+    buffer: label(s.buffer),
+    changes: s.changes,
+    active: s.active
+  }));
+  const diskOfAExpected = sub.aAfter === 'save' ? `${aRel}+x` : aRel;
+  const reading = {
+    name: sub.name,
+    a: aRel,
+    b: bRel,
+    aAfter: X_AFTER_WORDS[sub.aAfter],
+    aDoor: X_DOOR_WORDS[sub.aDoor],
+    bDoor: X_DOOR_WORDS[sub.bDoor],
+    seam: before.seam === true && afterSave.seam === true && watch?.seam === true,
+    drawnBoth: aDrawn.changes === X_CHANGES && bDrawn.changes === X_CHANGES,
+    aChanges: aDrawn.changes,
+    bChanges: bDrawn.changes,
+    typedInA,
+    clicked: watch?.clicked === true,
+    arrived: settled.some((s) => s.active === true),
+    aBeforeSwitch: {
+      dirty: before.a?.dirty ?? null,
+      buffer: label(before.a?.value ?? null),
+      saved: label(before.a?.saved ?? null)
+    },
+    bBeforeSwitch: {
+      dirty: before.b?.dirty ?? null,
+      buffer: label(before.b?.value ?? null),
+      saved: label(before.b?.saved ?? null),
+      mode: before.b?.mode ?? null
+    },
+    settled: settledLabelled,
+    bEver,
+    aEver,
+    drawnEver,
+    sampled: bEver.length >= 1 && drawnEver.length >= 1,
+    // THE CLAIM, over the whole history rather than a settled value: the
+    // arriving buffer never held the departing file's text, at any moment from
+    // before the click to the end of the recorder's window.
+    bHoldsOthersText: bRows.some(othersRow) || settled.some((s) => othersValue(s.buffer)),
+    // The picture STILL drawing the other file at the last settled reading. The
+    // flash a frame long is `drawnBothMarks` below, printed and not graded.
+    drawnKeptOthers: othersValue(settled[settled.length - 1]?.drawn ?? null),
+    drawnBothMarks: drawnEver.some((r) => r[aRel] === true && r[bRel] === true),
+    bDirtyUnasked: before.b?.dirty === false && settledLabelled.some((s) => s.dirty === true),
+    diskOfBBefore: label(diskBBefore),
+    diskOfB: label(diskBAfter),
+    diskOfBIsOwn: diskBAfter === bFile || diskBAfter === bWithChar,
+    charsOverB: othersValue(diskBAfter) ? diskBAfter.length : 0,
+    diskOfA: label(diskAAfter),
+    diskOfAExpected,
+    diskOfAIsExpected: label(diskAAfter) === diskOfAExpected,
+    bDirtyAfterSave: afterSave.b?.dirty ?? null,
+    toastsAtSave,
+    confirmAtSave,
+    confirmLabelsAtSave: afterSave.confirmLabels ?? null
+  };
+
+  // THIS SUB-ARM'S TABS CLOSED AGAIN, so the strip never reaches MAX_TABS and
+  // the recorder of the next sub-arm reads two buffers rather than twelve.
+  for (const id of [afterSave.b?.id ?? before.b?.id, afterSave.a?.id ?? before.a?.id]) {
+    if (typeof id === 'string') await xQuiet(cdp, X_CLOSE(id));
+  }
+  await sleep(300);
+  return reading;
+}
+
+async function armX(cdp) {
+  readings.x = { seam: false, subs: [] };
+  for (let i = 0; i < X_SUBS.length; i += 1) {
+    const sub = X_SUBS[i];
+    const s = await xDriveSub(cdp, sub, i + 1);
+    readings.x.subs.push(s);
+    note(
+      `X${String(i + 1)}`,
+      `${s.name}: ${s.a} opened ${s.aDoor} and its keystroke ${s.aAfter}, ${s.b} opened ${s.bDoor}`,
+      `${String(s.aChanges)} and ${String(s.bChanges)} changes drawn; typed in ${s.a} ${String(s.typedInA)}; ${s.b} before the click: buffer ${s.bBeforeSwitch.buffer}, dirty ${String(s.bBeforeSwitch.dirty)}, mode ${JSON.stringify(s.bBeforeSwitch.mode)}; clicked ${String(s.clicked)}, arrived ${String(s.arrived)}; settled ${JSON.stringify(s.settled)}`
+    );
+    note(
+      `X${String(i + 1)}b`,
+      `${s.name}: every value ${s.b}’s buffer held, and the ⌘S`,
+      `${s.b} ever held ${JSON.stringify(s.bEver)}; ${s.a} ever held ${JSON.stringify(s.aEver)}; the picture ever showed both files’ words ${String(s.drawnBothMarks)} (${JSON.stringify(s.drawnEver)}, a frame of it is ./live-text’s lag and is not graded); disk of ${s.b} ${s.diskOfBBefore} -> ${s.diskOfB}${s.charsOverB > 0 ? ` (${String(s.charsOverB)} characters over ${s.b})` : ''}; disk of ${s.a} ${s.diskOfA}, wanted ${s.diskOfAExpected}; toasts ${JSON.stringify(s.toastsAtSave)}; confirm ${JSON.stringify(s.confirmAtSave)} ${JSON.stringify(s.confirmLabelsAtSave)}; ${s.b} dirty after the save ${String(s.bDirtyAfterSave)}`
+    );
+  }
+  readings.x.seam = readings.x.subs.length > 0 && readings.x.subs.every((s) => s.seam === true);
+  armCheck(
+    'X',
+    'x',
+    'X. A KEYSTROKE STAYS IN THE TAB IT WAS TYPED IN: over six shapes the arriving tab’s buffer never holds the departing file’s text, it does not read unsaved, and ⌘S there writes its own bytes',
+    'X is not graded at PR 28’s head',
+    readings.x.subs
+      .map(
+        (s) =>
+          `${s.name}: buffer ${s.bHoldsOthersText ? `HELD ${s.a}` : 'its own'}, unsaved unasked ${String(s.bDirtyUnasked)}, disk ${s.diskOfB}`
+      )
+      .join(' | ')
+  );
+}
+
+const ARM_DRIVES = { O: armO, L: armL, C: armC, R: armR, T: armT, U: armU, Z: armZ, X: armX };
 async function driveArms(cdp) {
   for (const arm of CHOSEN.arms) {
     const armDrive = ARM_DRIVES[arm];
@@ -2276,7 +3156,7 @@ await withElectron(
             ? `THE ARMS CHOSEN, ${ranArms.join(', ')}, graded ${PR28_HEAD ? 'as PR 28’s head' : 'as HEAD'}`
             : PR28_HEAD
               ? 'PR 28’S HEAD: the move lands one change early after an outside write, the keyboard drops with the last change, ⌥⌫ ⌥↩ draws a change backwards, a held ⌥⌫ rewinds more than one, and a typing burst is saved scrambled'
-              : 'PHASE 282 AND 282.2: the move follows the change that came next, the keyboard stays, one press is one press, a typing burst is saved whole, undoing your edits lets a rewound change be accepted, and a ⌘Z too many taken back does not lose that',
+              : 'PHASE 282, 282.2 AND 297: the move follows the change that came next, the keyboard stays, one press is one press, a typing burst is saved whole, undoing your edits lets a rewound change be accepted, a ⌘Z too many taken back does not lose that, and a keystroke stays in the tab it was typed in',
           armBad.length === 0,
           armBad.length === 0 ? 'every arm that ran agrees' : armBad.join('; ')
         );
