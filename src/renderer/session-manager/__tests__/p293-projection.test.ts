@@ -68,9 +68,11 @@ const {
   restoreExitedCopy,
   SHELL_PATH_PENDING_TITLE
 } = await import('../../state/resume');
-const { tombstoneRestoreRefused } = await import(
-  '../../settings/machines-copy'
-);
+// Phase 298, rough edge 4: the sheet's own refusal, which names NO machine.
+// Settings keeps `machines-copy.ts`'s two-sentence form, which names it; the
+// row had already named it twice — in `tombstoneLine` and in the name line's
+// badge — so the sheet reads its own shorter sentence and the button's hover
+// and the row's note draw that one string.
 
 type Input = Parameters<typeof buildManageProjection>[0];
 
@@ -752,7 +754,7 @@ describe('the visible button, row by row (Phase 293, SPEC 2.7)', () => {
     expect(primaryOf(one)).toEqual({
       verb: 'restore',
       enabled: false,
-      title: tombstoneRestoreRefused('Old Mini'),
+      title: copy.TOMBSTONE_RESTORE_REFUSED,
       busy: false
     });
   });

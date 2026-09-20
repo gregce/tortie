@@ -2113,6 +2113,35 @@
   z-index: var(--z-toast);
 }
 
+/* PHASE 298, rough edge 1 — the stack docked inside the session manager sheet.
+   The rule above is `position: fixed` at `--z-toast` 700 and the sheet draws at
+   `--z-modal` 500 with 24px of bottom gutter under it, so a toast landed ON the
+   sheet: one overlapped its bottom 36px, two 88px, three 140px, and the stack
+   covered the sheet's rightmost 210px while the End/Restore column is 190px plus
+   its cell padding. With two toasts up the last row's End button was under a
+   toast and the click went to the toast. DESIGN-SPEC S15 says nothing is ever
+   stacked on the sheet.
+
+   So while the sheet is open `app/Toasts.tsx` portals the stack into the sheet's
+   own `.sm-toasts` strip, which sits between the scroller and the footer and
+   takes its height from the scroller, and adds this modifier. All it does is
+   undo the fixed placement — every other declaration above still applies and the
+   `.toast` box below is untouched, so a docked toast is the same box in the same
+   order with the same enter animation, just in flow.
+
+   `pointer-events: none` IS REFUSED as the fix. It would break DESIGN-SPEC S10's
+   pause-on-hover promise, and a sticky toast's only exits are its own × and its
+   action button (the store never auto-dismisses a sticky one), so with pointer
+   events off an error toast would be undismissable for the life of the window.
+
+   This modifier is never on an undocked stack, so no other surface can see it. */
+.toasts-docked {
+  position: static;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+}
+
 .toast {
   display: flex;
   align-items: flex-start;

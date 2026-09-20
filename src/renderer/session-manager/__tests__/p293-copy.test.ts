@@ -485,6 +485,34 @@ describe('the Messages cell, SPEC 3.4 row by row (Phase 293)', () => {
     expect(JSON.stringify(cell)).not.toMatch(/\bnull\b.*agent|0 agent/);
   });
 
+  // Phase 298, rough edge 2. The same record used to draw `0+ / Replies not
+  // recorded` beside a Last message cell reading `No messages yet`, computed by
+  // `lastMessageOf` from the very same two halves: a `+` on a zero promises more
+  // where the cell beside it says there is none. The reading is narrow on
+  // purpose — a record that KEPT both halves and counted zero of each still
+  // draws its `0`, because that is a true zero and not an unrecorded one.
+  it('partial with no reply count AND no asks: the dash and No messages yet, and the sort agrees', () => {
+    const answer = activity({
+      coverage: 'partial',
+      reason: 'ask-only',
+      userMessages: 0,
+      agentMessages: null
+    });
+    expect(copy.messagesCell(answer, 'gemini', false)).toEqual({
+      main: '—',
+      small: 'No messages yet',
+      title: null,
+      busy: false
+    });
+    // The Messages column sorts by what the cell DRAWS, which is that
+    // function's own stated promise, so a dash sorts with the other dashes.
+    expect(copy.drawnMessageTotal(answer, 'gemini', false)).toBeNull();
+    // A kept zero on both halves is a true zero and still reads as one.
+    const both = activity({ userMessages: 0, agentMessages: 0 });
+    expect(copy.messagesCell(both, 'gemini', false).main).toBe('0');
+    expect(copy.drawnMessageTotal(both, 'gemini', false)).toBe(0);
+  });
+
   it('not applicable: a dash and the word Shell', () => {
     expect(
       copy.messagesCell(

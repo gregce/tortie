@@ -18,7 +18,11 @@
  *  - A NULL SORTS LAST IN BOTH DIRECTIONS. The study sorted a missing count as
  *    -1, which put every shell first on an ascending Messages sort. A dash is
  *    not a small number; it is the absence of one. A `createdAt` that is not
- *    above 0 is such a null, because the Created cell draws a dash for it.
+ *    above 0 is such a null, because the Created cell draws a dash for it, and
+ *    so is a record that kept no reply count and no ask, because Phase 298's
+ *    rough edge 2 made that cell a dash too (./copy.ts's `nothingSaidYet`).
+ *    Every one of them comes from the CELL'S OWN reading and never a second
+ *    one, which is why this file computes no count of its own.
  *  - Sorting reorders rows INSIDE each group. Groups never reorder, because a
  *    group is a place (a folder on a computer) and a person finds it where it
  *    was.

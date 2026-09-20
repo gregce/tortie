@@ -178,6 +178,20 @@ export const RESTORE = 'Restore';
 export const RESTORING = 'Restoring…';
 export const CONVERSATION_SAVED = 'Conversation saved';
 export const OUTPUT_SAVED = 'Output saved';
+
+/**
+ * The third answer for an ended row's small line, in the slot that drew
+ * NOTHING at all (Phase 298, rough edge 5). `Output saved` there would be
+ * false and the silence was honest, but it left the disabled button's hover as
+ * the only thing saying why Restore is off, on a row sitting beside others
+ * that all say what they kept.
+ *
+ * A LABEL and not a sentence, because no row in either tree carries a
+ * sentence; `NOTHING_TO_RESTORE_TITLE` is still the hover that explains it
+ * (./ManagedGrid.tsx's `endedSmall`).
+ */
+export const NOTHING_SAVED = 'Nothing saved';
+
 export const CHIP_OPEN = 'Open tab';
 export const CHIP_CLOSED = 'Tab closed';
 export const DASH = '—';
@@ -194,6 +208,24 @@ export const END_UNREACHABLE_TITLE =
 /** Why `Restore` is off on an ended row that saved nothing. */
 export const NOTHING_TO_RESTORE_TITLE =
   'Nothing was saved for this session, so there is nothing to restore.';
+
+/**
+ * Why `Restore` is off on a past row whose machine a person removed. THIS
+ * SHEET'S OWN SENTENCE, and never `../settings/machines-copy.ts`'s
+ * `tombstoneRestoreRefused`, which Settings reads and keeps unchanged (Phase
+ * 298, rough edge 4).
+ *
+ * The row names the machine twice before this sentence reaches it — once in
+ * `tombstoneLine`'s "You removed <label> on <day>." and once in the name
+ * line's machine badge — so a refusal that named it a third time was the same
+ * fact said again. What is left is the one thing a person can do about it. It
+ * stays BESIDE THE BUTTON (Phase 293's ruling), which in this sheet is two
+ * places from one string: the row's own note (./PastList.tsx) and the button's
+ * hover (./projection.ts's `pastRestoreTitle`), so the two cannot drift into
+ * two different refusals.
+ */
+export const TOMBSTONE_RESTORE_REFUSED =
+  'Add the machine again to bring this session back.';
 
 export function createdOld(age: string): string {
   return `${age} old`;
@@ -302,6 +334,28 @@ function countsOf(
   return { user, agent: typeof agent === 'number' ? agent : null };
 }
 
+/**
+ * Nothing was said yet, read from the halves alone: no reply count was kept
+ * and the asks that were kept are none of them.
+ *
+ * THE CLAUSE SPEC 3.4 LACKED (Phase 298, rough edge 2). Without it a gemini
+ * record with no kept ask drew `0+ / Replies not recorded` while the Last
+ * message cell beside it drew `No messages yet` from these same halves — a `+`
+ * on a zero promising more where the cell next door said there is none. It is
+ * asked in ONE place so `messagesCell` and the number its column sorts by
+ * (`drawnMessageTotal`) cannot answer it differently.
+ *
+ * It is NOT `lastMessageOf`'s `known === 0`, which is the broader question over
+ * whichever halves are known: a record that kept both halves and counted zero
+ * of each still draws its `0`, because that zero is a count and not a gap.
+ */
+function nothingSaidYet(counts: {
+  user: number;
+  agent: number | null;
+}): boolean {
+  return counts.agent === null && counts.user === 0;
+}
+
 /** The word under a Messages dash, decided from the answer alone. */
 function noCountWord(activity: OverviewSessionActivity): string {
   if (activity.coverage === 'not-applicable') return SHELL_WORD;
@@ -319,6 +373,8 @@ function noCountWord(activity: OverviewSessionActivity): string {
  *
  * A shell and a session on another machine are decided from `agent` and
  * `remote`, without the answer, so neither ever draws the pending mark.
+ *
+ * Phase 298 adds the clause that table lacked: `nothingSaidYet` above.
  */
 export function messagesCell(
   activity: OverviewSessionActivity | null,
@@ -332,6 +388,9 @@ export function messagesCell(
   if (counts === null) return dashCell(noCountWord(activity));
   const { user, agent: replies } = counts;
   if (replies === null) {
+    // No reply count and no ask either: there is nothing to put a `+` on, and
+    // the honest word is the one the cell beside it draws (rough edge 2).
+    if (nothingSaidYet(counts)) return dashCell(NO_MESSAGES_WORD);
     return {
       main: `${user.toLocaleString()}+`,
       small: NO_REPLIES_WORD,
@@ -459,6 +518,10 @@ export function drawnMessageTotal(
   if (agent === 'shell' || remote || activity === null) return null;
   const counts = countsOf(activity);
   if (counts === null) return null;
+  // The cell draws a dash here, so the column sorts this row with the other
+  // dashes and not with the zeros (rough edge 2, and this function's own
+  // promise one line above).
+  if (nothingSaidYet(counts)) return null;
   return counts.agent === null
     ? counts.user
     : sumOf(counts.user, counts.agent);
@@ -756,6 +819,18 @@ export const PAST_FOOTER_HOVER =
  * (R2), and a machine a person removed is named by the tombstone sentence.
  * Filtered to one project the rows sit under that project's head, which says
  * the folder, so `folder` is null there unless the session ran outside it.
+ *
+ * PHASE 298 LEAVES THIS JOINED, and the integrator's round says so here rather
+ * than leaving an unjoined sibling nothing calls. The phase's inline rule 3
+ * wants the FOLDER to be the field that gives way, which a joined string cannot
+ * do part by part; what the row draws instead is this whole line as ONE field
+ * at `flex: 0 100 auto` with the ellipsis on it, which gives way ahead of the
+ * name and truncates from the right, and the whole path is the row's own
+ * `title`. Splitting the line into per-part elements ALSO turns the promise into
+ * a mark and takes `Starts fresh` off the resting face, which is a fourth change
+ * to what a person reads where the entry caps the phase at three; it is its own
+ * entry, and it needs a four-part answer (agent, folder, promise, tombstone)
+ * rather than a repackaging of these three.
  */
 export function pastRowSmall(
   agentLabel: string,

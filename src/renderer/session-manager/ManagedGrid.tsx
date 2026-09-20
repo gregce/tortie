@@ -38,6 +38,7 @@ import {
   END_SESSION,
   lastMessageCell,
   messagesCell,
+  NOTHING_SAVED,
   OUTPUT_SAVED,
   remoteActivity,
   RESTORE,
@@ -73,11 +74,16 @@ export function GroupHeading({
   return (
     <div className="sm-group-head">
       <span className="sm-group-name">
-        <Codicon name="folder" size="md" />
+        {/* `lg`, the size the rail draws a folder at (ProjectRail.tsx:260).
+            Phase 298, mechanism 9. */}
+        <Codicon name="folder" size="lg" />
         <strong>{group.label}</strong>
         <span className="sm-group-count">{group.rows.length}</span>
+        {/* `chip-sm` is the app's own 16px chip box (globals.css:345-349), so
+            this chip stops carrying its own off-grid padding (Phase 298,
+            mechanism 6). */}
         <span
-          className={`sm-chip ${group.tabOpen ? 'sm-chip-open' : 'sm-chip-closed'}`}
+          className={`chip-sm sm-chip ${group.tabOpen ? 'sm-chip-open' : 'sm-chip-closed'}`}
         >
           {group.tabOpen ? CHIP_OPEN : CHIP_CLOSED}
         </span>
@@ -100,7 +106,9 @@ export function CellView({ cell }: { cell: ActivityCell }): React.JSX.Element {
       >
         {cell.main}
       </span>
-      {cell.small !== null ? <small>{cell.small}</small> : null}
+      {cell.small !== null ? (
+        <small className="sm-cell-small">{cell.small}</small>
+      ) : null}
     </>
   );
 }
@@ -115,11 +123,17 @@ function activityOf(row: ManageRow): OverviewSessionActivity | null {
 }
 
 /**
- * The small word under an ended LOCAL row's state. A row on another machine
+ * The small word beside an ended LOCAL row's state. A row on another machine
  * draws none, because the projection carries neither its resume argv nor its
- * capture and the renderer cannot know which is true. An exited row with
- * nothing saved draws none either: `Output saved` would be false there, and
- * its Restore button already says why it is off.
+ * capture and the renderer cannot know which is true.
+ *
+ * AN EXITED ROW WITH NOTHING SAVED SAYS SO (Phase 298, rough edge 5). It drew
+ * nothing at all, so the only thing that said why Restore is off was the
+ * disabled button's hover, on a row sitting beside others that all say what
+ * they kept. `Output saved` there would be false and the silence was honest,
+ * but silence was not the only honest answer: `Nothing saved` is a label rather
+ * than a sentence, and `NOTHING_TO_RESTORE_TITLE` is still the hover that
+ * explains it (./projection.ts's `managedRestoreTitle`).
  */
 function endedSmall(row: ManageRow): string | null {
   if (!row.gates.ended || row.gates.remote) return null;
@@ -127,7 +141,7 @@ function endedSmall(row: ManageRow): string | null {
   if (row.status === 'restorable' || hasRestoreMaterial(row.session)) {
     return OUTPUT_SAVED;
   }
-  return null;
+  return NOTHING_SAVED;
 }
 
 /**
@@ -202,7 +216,12 @@ export function MoreButton({
   return (
     <button
       type="button"
-      className="sm-icon-btn"
+      // The shared icon button FIRST, the sheet's modifier second, exactly as
+      // `.sm-panel-icon` already does it (InlinePanel.tsx:446). One vocabulary:
+      // `.icon-btn` brings the display, the radius and the eased background,
+      // and `.session-sheet .sm-icon-btn` keeps this one at 28px (Phase 298,
+      // mechanism 8).
+      className="icon-btn sm-icon-btn"
       data-manage-more={row.id}
       aria-haspopup="menu"
       aria-label={rowActionsLabel(row.session.name)}
@@ -217,10 +236,19 @@ export function MoreButton({
 /** The name button: the agent's mark, the name, the machine, the agent. */
 export function NameButton({
   row,
-  small
+  small,
+  smallTitle = null
 }: {
   row: ManageRow;
   small: string;
+  /**
+   * The whole secondary line, on hover, for the ONE surface where that line can
+   * be truncated: a Past row, where `.sm-past-row .sm-name-line .sm-cell-small`
+   * is the field that gives way. The grid passes none, because its own cell is
+   * as wide as its content and the agent's short label is never cut — a hover
+   * repeating a word a person can already read is noise.
+   */
+  smallTitle?: string | null;
 }): React.JSX.Element {
   const { session } = row;
   return (
@@ -231,13 +259,35 @@ export function NameButton({
       disabled={row.id.length === 0}
       onClick={() => openDetails(row.id, row.tab)}
     >
-      <AgentIcon agent={session.agent} size={19} className="sm-agent" />
-      <span className="sm-name-text">
-        <span className="sm-name-line">
-          <strong>{session.name}</strong>
-          <MachineBadge machine={session.machine} className="sm-machine" />
-        </span>
-        <small>{small}</small>
+      {/* NO `size`. 19 appeared nowhere else in the app; the component's own
+          default is 16, which is what every other agent mark is drawn at
+          (SessionRail.tsx:411, `.rail-glyph`, `.set-agent-icon`), so passing
+          nothing is what keeps this call site from drifting again (Phase 298,
+          mechanism 9). */}
+      <AgentIcon agent={session.agent} className="sm-agent" />
+      {/* ONE LINE, NOT TWO (Phase 298, mechanism 3, and the integrator's round).
+          The small word is a SIBLING of the name inside `.sm-name-line`, which
+          is the flex row that carries the `--space-3` gap between them. It sat
+          in a `.sm-name-text` COLUMN above this, one `.sm-name-line` over one
+          `<small>`, so the Session cell was still 20 + 16 + 2 × `--space-3` =
+          48 and `tr.sm-row`'s `height` — a MINIMUM on a table row — could not
+          pull it down to 40. Taking the column out is what makes the row 40,
+          and taking the wrapper out with it is what stops a later round
+          stacking a second child back into it. `.sm-name-line .sm-cell-small`
+          in ./session-manager.css zeroes the margin the class carries for the
+          `td` case, where there is no flex gap to serve.
+          The `title` is the whole name: `.sm-name strong` ellipsises at
+          `--sm-name-max`, and the entry's clipping attack requires every
+          element that may ellipsis to carry its whole value on hover. */}
+      <span className="sm-name-line">
+        <strong title={session.name}>{session.name}</strong>
+        <MachineBadge machine={session.machine} className="sm-machine" />
+        <small
+          className="sm-cell-small"
+          {...(smallTitle !== null ? { title: smallTitle } : {})}
+        >
+          {small}
+        </small>
       </span>
     </button>
   );
@@ -256,7 +306,21 @@ export function rowIsInert(
   return sheet.inline?.busy === true && sheet.inline.id === row.id;
 }
 
-function ManagedRow({
+/**
+ * ONE ROW, HELD (Phase 298, rough edge 3). A sort keeps every row object
+ * IDENTICAL and changes only the array order, and the props this row takes are
+ * that object plus four primitives, so `React.memo` turns a sort at 300
+ * sessions into a REORDER: React moves the existing nodes instead of
+ * re-rendering about 33 elements a row, roughly 10,000 of them. The projection
+ * and the view are already memoized (./use-sheet-refresh.ts:110, :147), so
+ * React's render was the whole remaining cost of a press.
+ *
+ * THE LIMIT, NAMED RATHER THAN HIDDEN: `now` is `useNow(10_000)`
+ * (./SessionManagerSheet.tsx) and it is a prop on every row, so the
+ * ten-second tick still re-renders all 300. That is a TICK and not a press —
+ * nobody is waiting on it — and closing it is its own entry.
+ */
+const ManagedRow = React.memo(function ManagedRow({
   row,
   group,
   checked,
@@ -313,7 +377,9 @@ function ManagedRow({
             {visual.label}
           </span>
         </span>
-        {small !== null ? <small>{small}</small> : null}
+        {small !== null ? (
+          <small className="sm-cell-small">{small}</small>
+        ) : null}
       </td>
       <td className="sm-col-created">
         <CellView cell={created} />
@@ -334,14 +400,21 @@ function ManagedRow({
       </td>
     </tr>
   );
-}
+});
 
 /** The sort glyph: unsorted, ascending, descending. */
 function sortGlyph(
   key: ManageSortKey,
   sort: SessionSheetState['sort']
 ): { glyph: string; aria: 'ascending' | 'descending' | 'none' } {
-  if (sort === null || sort.key !== key) return { glyph: 'unfold', aria: 'none' };
+  // `arrow-both`, not `unfold` (Phase 298, mechanism 9). `arrow-both` is the
+  // glyph this app already draws (GraphGutterControl.tsx:78), and `unfold` is
+  // one the app refused once before with the reason written down: at 12px it
+  // reads as ✕, "a delete affordance … not a mistake worth risking"
+  // (search/ResultsList.tsx:371). This mark is drawn at `sm`, which is 12.
+  if (sort === null || sort.key !== key) {
+    return { glyph: 'arrow-both', aria: 'none' };
+  }
   return sort.dir === 1
     ? { glyph: 'arrow-up', aria: 'ascending' }
     : { glyph: 'arrow-down', aria: 'descending' };

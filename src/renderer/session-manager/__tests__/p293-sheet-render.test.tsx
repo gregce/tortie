@@ -26,6 +26,18 @@
  *
  * The vitest environment is node, so this reads static markup from
  * react-dom/server. Effects do not run here; the keyboard is the probe's.
+ *
+ * PHASE 298 moved four node shapes this file reads as literal HTML, and no
+ * builder owned this file, so the integrator's round moved them here. The
+ * bare-element selectors carrying type gained classes (mechanism 17), so a
+ * `<small>` is `<small class="sm-cell-small">` and an `<h2>` is
+ * `<h2 class="sm-state-heading">`; the tab counts reuse the app's chip box
+ * (mechanism 6), so `<span class="sm-count">` is `<span class="chip-sm
+ * sm-count">`; and a tombstoned row's refusal names no machine (rough edge 4).
+ * The two `not.toContain('<small>')` assertions were TIGHTENED to
+ * `not.toContain('<small')` in the same pass: once every `<small>` carries a
+ * class they would have passed vacuously, and one of them is the only thing
+ * guarding the slot rough edge 5 fills.
  */
 
 import { readFileSync } from 'node:fs';
@@ -314,8 +326,8 @@ describe('the counts, the tabs and the checkboxes (Phase 293, SPEC 2.3 and 2.10)
   it('the tab counts are whole-tab totals, which a filter never changes', () => {
     open('managed', { stateFilter: 'needs-input', search: 'name-b' });
     const html = render();
-    expect(html).toMatch(/id="sm-tab-managed"[^>]*>.*?<span class="sm-count">4<\/span>/);
-    expect(html).toMatch(/id="sm-tab-past"[^>]*>.*?<span class="sm-count">2<\/span>/);
+    expect(html).toMatch(/id="sm-tab-managed"[^>]*>.*?<span class="chip-sm sm-count">4<\/span>/);
+    expect(html).toMatch(/id="sm-tab-past"[^>]*>.*?<span class="chip-sm sm-count">2<\/span>/);
     // The footer counts what the filters leave.
     expect(html).toContain('<span>1 managed session</span>');
   });
@@ -425,7 +437,7 @@ describe('the cells (Phase 293, SPEC 2.5)', () => {
     };
     expect(row('a1')).toContain('aria-busy="true">…</span>');
     expect(row('r1')).not.toContain('aria-busy');
-    expect(row('r1')).toContain('<small>Unavailable</small>');
+    expect(row('r1')).toContain('<small class="sm-cell-small">Unavailable</small>');
   });
 
   it('a createdAt of 0 is a dash with no small and no title', () => {
@@ -437,7 +449,7 @@ describe('the cells (Phase 293, SPEC 2.5)', () => {
     expect(html).not.toMatch(/19(69|70)/);
   });
 
-  it('an ended local row says what was saved; a row on another machine says nothing', () => {
+  it('an ended local row says what was saved, nothing saved included; a row on another machine says nothing', () => {
     open('managed', {}, {
       sessions: [
         session('e1', '/w/e', 'exited', { hasSavedScrollback: true }),
@@ -451,9 +463,21 @@ describe('the cells (Phase 293, SPEC 2.5)', () => {
       const cell = html.indexOf('class="sm-col-state"', at);
       return html.slice(cell, html.indexOf('</td>', cell));
     };
-    expect(state('e1')).toContain('<small>Output saved</small>');
-    expect(state('e2')).not.toContain('<small>');
-    expect(state('e3')).not.toContain('<small>');
+    expect(state('e1')).toContain(
+      '<small class="sm-cell-small">Output saved</small>'
+    );
+    // e2 is local, exited and kept NOTHING, and it drew no word at all until
+    // Phase 298's rough edge 5: the only thing that said why Restore is off was
+    // the disabled button's hover, on a row sitting beside others that all say
+    // what they kept. `NOTHING_TO_RESTORE_TITLE` is still that hover.
+    expect(state('e2')).toContain(
+      '<small class="sm-cell-small">Nothing saved</small>'
+    );
+    // e3 is on another machine: the projection carries neither its resume argv
+    // nor its capture, so the renderer cannot know which is true and says
+    // nothing. `'<small'` and not `'<small>'` — every `<small>` in the sheet
+    // carries a class now, so the closing-bracket form would pass vacuously.
+    expect(state('e3')).not.toContain('<small');
   });
 });
 
@@ -489,7 +513,7 @@ describe('the Past tab (Phase 293, SPEC 2.11)', () => {
     const html = render();
     const at = html.indexOf('data-manage-row="w1"');
     const row = html.slice(at, html.indexOf('data-manage-primary="w1"', at));
-    expect(row).toMatch(/<small>Claude Code · [^<]*alpha-wt · Starts fresh<\/small>/);
+    expect(row).toMatch(/<small class="sm-cell-small"[^>]*>Claude Code · [^<]*alpha-wt · Starts fresh<\/small>/);
     // The whole folder is on the row, so a shortened path is never the only
     // thing a person has to tell two projects apart.
     expect(row).toContain('title="/Users/me/src/alpha-wt"');
@@ -502,7 +526,7 @@ describe('the Past tab (Phase 293, SPEC 2.11)', () => {
     const html = render();
     const at = html.indexOf('data-manage-row="p1"');
     const row = html.slice(at, html.indexOf('data-manage-primary="p1"', at));
-    expect(row).toMatch(/<small>Claude Code · [^<]*src\/alpha · Starts fresh<\/small>/);
+    expect(row).toMatch(/<small class="sm-cell-small"[^>]*>Claude Code · [^<]*src\/alpha · Starts fresh<\/small>/);
   });
 
   it('two projects whose folders share a name are told apart (the reverify, R1)', () => {
@@ -516,7 +540,7 @@ describe('the Past tab (Phase 293, SPEC 2.11)', () => {
     const smallAt = (id: string): string => {
       const at = html.indexOf(`data-manage-row="${id}"`);
       const row = html.slice(at, html.indexOf(`data-manage-primary="${id}"`, at));
-      return /<small>([^<]*)<\/small>/.exec(row)?.[1] ?? '';
+      return /<small[^>]*>([^<]*)<\/small>/.exec(row)?.[1] ?? '';
     };
     expect(smallAt('one')).toContain('/nr/one/app');
     expect(smallAt('two')).toContain('/nr/two/app');
@@ -533,10 +557,10 @@ describe('the Past tab (Phase 293, SPEC 2.11)', () => {
     const html = render();
     const at = html.indexOf('data-manage-row="p2"');
     const row = html.slice(at, html.indexOf('</p>', at));
-    expect(row).toContain('Tortie can no longer reach Old Mini');
+    expect(row).toContain('Add the machine again to bring this session back.');
     // The machine is on the name line's badge and in the tombstone sentence,
     // and not a third time in the small line (the reverify, R2).
-    expect(row).toMatch(/<small>Claude Code · [^<]*srv\/old · You removed Old Mini/);
+    expect(row).toMatch(/<small class="sm-cell-small"[^>]*>Claude Code · [^<]*srv\/old · You removed Old Mini/);
     expect(tagsWith(row, 'data-manage-primary="p2"')[0]).toContain('disabled=""');
   });
 });
@@ -559,7 +583,7 @@ describe('the Past tab is ONE list in main’s removal order (the operator’s r
   const smallOf = (html: string, id: string): string => {
     const at = html.indexOf(`data-manage-row="${id}"`);
     const row = html.slice(at, html.indexOf(`data-manage-primary="${id}"`, at));
-    return /<small>([^<]*)<\/small>/.exec(row)?.[1] ?? '';
+    return /<small[^>]*>([^<]*)<\/small>/.exec(row)?.[1] ?? '';
   };
 
   it('under All: main’s order, no heading, and each row names the folder it ran in', () => {
@@ -597,20 +621,20 @@ describe('the states that replace the grid (Phase 293, SPEC 2.12)', () => {
   it('empty Managed', () => {
     open('managed', {}, { sessions: [] });
     const html = render();
-    expect(html).toContain('<h2>No sessions to manage</h2>');
+    expect(html).toContain('<h2 class="sm-state-heading">No sessions to manage</h2>');
     expect(html).not.toContain('sm-grid');
     expect(html).not.toContain('sm-select-all');
   });
 
   it('empty Past', () => {
     open('past', {}, { pastSessions: [] });
-    expect(render()).toContain('<h2>No past sessions yet</h2>');
+    expect(render()).toContain('<h2 class="sm-state-heading">No past sessions yet</h2>');
   });
 
   it('no match, with the one way out', () => {
     open('managed', { search: 'nothing-matches-this' });
     const html = render();
-    expect(html).toContain('<h2>No matching sessions</h2>');
+    expect(html).toContain('<h2 class="sm-state-heading">No matching sessions</h2>');
     expect(html).toContain('data-sm="clear-filters"');
     expect(html).toContain('codicon-search');
   });
@@ -627,7 +651,7 @@ describe('the states that replace the grid (Phase 293, SPEC 2.12)', () => {
   it('a read failure says the sessions have not changed, and offers Try again', () => {
     open('managed', { listError: 'Main did not answer.' });
     const html = render();
-    expect(html).toContain('<h2>Sessions couldn’t be read</h2>');
+    expect(html).toContain('<h2 class="sm-state-heading">Sessions couldn’t be read</h2>');
     expect(html).toContain('Your sessions haven’t changed. Try reading the list again.');
     expect(html).toContain('>Try again</button>');
   });

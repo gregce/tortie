@@ -21,8 +21,10 @@
  * or starts fresh (`pastSessionPromise`, Phase 29's honest disclosure). A row
  * whose machine a person removed says what Tortie last knew and when, and its
  * Restore is off with the reason beside it rather than missing. Those two
- * sentences are DIFFERENT, as shipped (`../settings/machines-copy.ts`); the
- * study printed one sentence twice.
+ * sentences are DIFFERENT; the study printed one sentence twice. The first is
+ * `../settings/machines-copy.ts`'s `tombstoneLine`, as shipped. The second is
+ * this sheet's own `TOMBSTONE_RESTORE_REFUSED` and names no machine, because
+ * the row has already named it twice by then (Phase 298, rough edge 4).
  *
  * Every handler hands `row.id` to ./actions.ts, which re-reads the row from
  * `pastSessions` and asks `canRestorePastNow` over the fresh row.
@@ -31,10 +33,7 @@
 import React from 'react';
 import { isOutsideProject } from '../app/session-actions';
 import { displayPath } from '../format';
-import {
-  tombstoneLine,
-  tombstoneRestoreRefused
-} from '../settings/machines-copy';
+import { tombstoneLine } from '../settings/machines-copy';
 import { agentShortLabel } from '../state/agents';
 import { pastSessionPromise } from '../state/resume';
 import type { SessionSheetState } from '../state/session-manager-slice';
@@ -42,7 +41,8 @@ import {
   pastRowSmall,
   RECOVERY_CONTINUES,
   RECOVERY_FRESH,
-  removedLabel
+  removedLabel,
+  TOMBSTONE_RESTORE_REFUSED
 } from './copy';
 import { exactTime, removedDate } from './format';
 import { InlinePanel } from './InlinePanel';
@@ -87,7 +87,21 @@ function promiseOf(row: ManageRow): string {
     : RECOVERY_FRESH;
 }
 
-function PastRow({
+/**
+ * ONE PAST ROW, HELD (Phase 298, rough edge 3). The Managed grid's row is held
+ * for the same reason and the account is there (./ManagedGrid.tsx's
+ * `ManagedRow`): a press keeps the row objects IDENTICAL and changes only the
+ * order, so `React.memo` lets React move the existing nodes.
+ *
+ * TWO LIMITS, NAMED RATHER THAN HIDDEN. `now` is `useNow(10_000)`
+ * (./SessionManagerSheet.tsx), a prop on every row, so the ten-second tick
+ * still re-renders all of them; that is a tick and not a press, and closing it
+ * is its own entry. And this row takes the whole `sheet` — it asks
+ * `rowIsInert` and its own `open` from it — so its memo holds only while that
+ * object is unchanged, which a filter change is not. Narrowing these props the
+ * way the Managed row's already are is a shape change this phase does not make.
+ */
+const PastRow = React.memo(function PastRow({
   row,
   group,
   underHead,
@@ -122,7 +136,16 @@ function PastRow({
           // one, so two projects deep in different trees are still told apart.
           title={row.session.cwd}
         >
-          <NameButton row={row} small={smallOf(row, underHead)} />
+          {/* The secondary line is this row's give-way field — it truncates
+              from the right when the folder is long — so it carries the WHOLE
+              line on hover as well. The block's own `title` above stays the
+              unabbreviated `cwd`, which is what tells two projects deep in
+              different trees apart and what `conformance:manager` T16 reads. */}
+          <NameButton
+            row={row}
+            small={smallOf(row, underHead)}
+            smallTitle={smallOf(row, underHead)}
+          />
         </div>
         <div
           className="sm-past-state"
@@ -143,7 +166,15 @@ function PastRow({
           </div>
         ) : null}
         {gone !== undefined ? (
-          <p className="sm-past-note">{tombstoneRestoreRefused(gone.label)}</p>
+          // THE SHEET'S OWN REFUSAL, naming no machine (Phase 298, rough edge
+          // 4). The row says the machine's name twice before this note reaches
+          // it — in `tombstoneLine`'s "You removed <label> on <day>." and once
+          // more in the name line's badge — so a third naming was the same
+          // fact again. `machines-copy.ts`'s own `tombstoneRestoreRefused` is
+          // Settings' sentence and is unchanged there; this note and the
+          // button's own hover draw ONE string (./projection.ts's
+          // `pastRestoreTitle`), so the two cannot drift apart.
+          <p className="sm-past-note">{TOMBSTONE_RESTORE_REFUSED}</p>
         ) : null}
       </div>
       {open ? (
@@ -158,7 +189,7 @@ function PastRow({
       ) : null}
     </>
   );
-}
+});
 
 export function PastList({
   groups,

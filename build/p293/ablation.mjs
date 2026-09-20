@@ -7,8 +7,10 @@
  * asserts every rule the sheet enforces: the batch loop's five rules, the
  * freeze at the press, the run id a stop is bound to, who a batch may end, the
  * one gates predicate, the rule of the press, the parity rule, the grouping,
- * the view, the cells, and the source rules. This script breaks ONE CLAUSE AT
- * A TIME in the shipping source and proves it reddens THE RULE THAT OWNS IT.
+ * the view, the cells, the source rules, and — since Phase 298 — the domain's
+ * TYPE AND SPACING rules (T17 to T22) and the two cell readings that phase's
+ * rough edges 2 and 6 settled. This script breaks ONE CLAUSE AT A TIME in the
+ * shipping source and proves it reddens THE RULE THAT OWNS IT.
  *
  * An ablation that leaves the gate green is a hole in the gate. An ablation
  * that reddens only rules OTHER than its own is a finding about the gate rather
@@ -45,9 +47,11 @@
  * ## It starts nothing
  *
  * No Electron, no tmux, no ssh, no agent, no token and no network. The gate
- * spawns one plain node per run, its own TypeScript probe. About 50 s for the
- * whole list, one gate run per entry plus the base and the restore; it runs
- * once per phase beside the gate it attacks, and is not in the commit battery.
+ * spawns one plain node per run, its own TypeScript probe. About 85 s for the
+ * whole list (69 entries since Phase 298, measured at 84.4 s), one gate run per
+ * entry plus the base and the restore; it runs once per phase beside the gate it
+ * attacks, and is not in the commit battery. `P293_ONLY` is how a builder under
+ * a time budget runs a part of it.
  *
  * ## The delta rule
  *
@@ -91,6 +95,7 @@ const OPEN = 'src/renderer/session-manager/open.ts';
 const KEYBOARD = 'src/renderer/app/keyboard.ts';
 const MENU = 'src/renderer/app/menu-actions.ts';
 const LAUNCH = 'src/renderer/settings/launch-agent.ts';
+const CSS = 'src/renderer/session-manager/session-manager.css';
 
 /**
  * The ablations. `n` is the row of build/p293/SPEC.md §7's table where it has
@@ -662,6 +667,101 @@ const ABLATIONS = [
     file: MENU,
     from: '        leaveSessionManagerFor(() => useApp.getState().closeProject(projectId));',
     to: '        useApp.getState().closeProject(projectId);'
+  },
+  // -------------------------------------------------------------------------
+  // Phase 298, mechanism 18: the type scale, the spacing scale and the icons
+  //
+  // Each of these writes back ONE of the divergences Phase 298 measured and
+  // closed, in the SHIPPING stylesheet or the shipping component, and each must
+  // redden its own rule and no other. They are anchored on a DECLARATION and
+  // never on a selector: the phase renamed four selectors (`td > small` and
+  // `.sm-name small` became `.sm-cell-small`, `.sm-state-block h2` and `p`
+  // became `.sm-state-heading` and `.sm-state-body`) and a later round will
+  // rename more, while the pair `font-size: var(--text-xs); line-height:
+  // var(--lh-xs);` is written seven times in the file this phase leaves. Each
+  // hits the FIRST rule in the file that carries the shape, which is enough:
+  // the rules are about every rule in the domain and not about one selector.
+  // -------------------------------------------------------------------------
+  {
+    n: 'T17',
+    rule: 'T17',
+    name: 'a RATIO line-height back on a secondary line',
+    why: 'the sheet drew `line-height: 1.5` on a 10px step, so its second line was a 15px box — the only ratio line-height in any row in either tree, and one pixel off --lh-2xs. A ratio multiplies whatever the size turns out to be, so the next size change silently moves every row that carries it.',
+    file: CSS,
+    from: '  font-size: var(--text-xs);\n  line-height: var(--lh-xs);',
+    to: '  font-size: var(--text-xs);\n  line-height: 1.5;'
+  },
+  {
+    n: 'T18',
+    rule: 'T18',
+    name: 'a font-size left with no line-height beside it',
+    why: '`body { line-height: var(--lh-base) }` (styles/globals.css:55-61) is a LENGTH, so it inherits as a computed 20px: a rule that sets only a font-size draws a 20px line box whatever its size. That is how a 10px step came to sit in a 20px box, and it is why every row sum in this sheet was wrong before the phase measured it.',
+    file: CSS,
+    from: '  font-size: var(--text-xs);\n  line-height: var(--lh-xs);',
+    to: '  font-size: var(--text-xs);'
+  },
+  {
+    n: 'T19',
+    rule: 'T19',
+    name: '--text-2xs back under a run of prose',
+    why: 'the token\'s own text at tokens.css:219-225 says "Never body text", and the sheet drew five runs of prose in it: the column heading, a cell\'s small word, a row\'s second line and a dt label. Ten pixels is for a chip and for the footnote at the bottom of the sheet.',
+    file: CSS,
+    from: '  font-size: var(--text-xs);\n  line-height: var(--lh-xs);',
+    to: '  font-size: var(--text-2xs);\n  line-height: var(--lh-2xs);'
+  },
+  {
+    n: 'T20',
+    rule: 'T20',
+    name: 'a spacing literal that spells the step\'s own value',
+    why: 'the sheet had `padding: 2px 5px` and `padding: 1px 6px`, and 19, 5 and 1 are on no grid. The literal here is the pixel value the token resolves to TODAY, which is the shape a grid change silently leaves behind, so the rule has to read the spelling and never the pixel.',
+    file: CSS,
+    from: 'padding: 0 var(--space-7);',
+    to: 'padding: 0 20px;'
+  },
+  {
+    n: 'T21',
+    rule: 'T21',
+    name: 'an uppercase rule with no --track-caps',
+    why: 'the app raises text to uppercase in 26 rules and tracks every one of them; uppercase at 11px with no 0.04em closes the letters up, and the sheet\'s column heading had none of the four properties of the idiom.',
+    file: CSS,
+    from: '  display: inline-block;\n}',
+    to: '  display: inline-block;\n  text-transform: uppercase;\n}'
+  },
+  {
+    n: 'T22',
+    rule: 'T22',
+    name: 'a 19 back on an icon in the grid',
+    why: 'THE SIZE THAT APPEARS NOWHERE ELSE IN THE CODEBASE. `AgentIcon size={19}` was the only 19 in the tree and `Codicon size={28}` was larger than anything the app draws; the scale is 12/14/16 as sm/md/lg with 24 the one sanctioned larger step, and the call site the phase leaves passes no size at all so it cannot drift again.',
+    file: GRID,
+    from: 'size="sm"',
+    to: 'size={19}'
+  },
+  {
+    n: 'Rs',
+    rule: 'C4',
+    name: 'remote decided before shell, so a shell on another machine loses its word',
+    why: 'Phase 298 rough edge 6. `messagesCell` decides `shell` BEFORE `remote` on purpose: a shell has no messages on ANY machine, so `Shell` is the truer word and `Unavailable` would promise a count exists somewhere. Swapping the two lines changes a word a person reads and nothing else in the tree notices, which is the whole reason the order is driven rather than described.',
+    file: COPY,
+    from: "  if (agent === 'shell') return dashCell(SHELL_WORD);\n  if (remote) return dashCell(UNAVAILABLE_WORD);",
+    to: "  if (remote) return dashCell(UNAVAILABLE_WORD);\n  if (agent === 'shell') return dashCell(SHELL_WORD);"
+  },
+  {
+    n: 'Nz',
+    rule: 'C1',
+    name: 'a zero with no reply count drawn as `0+` again (the cell)',
+    why: 'Phase 298 rough edge 2. `0+ / Replies not recorded` sat beside `No messages yet` on the same row: a `+` on a zero promising more where the cell next door said there is none. Both halves come from one `countsOf`, so one of the two was wrong and it was the `+`.',
+    file: COPY,
+    from: '    if (nothingSaidYet(counts)) return dashCell(NO_MESSAGES_WORD);\n',
+    to: ''
+  },
+  {
+    n: 'Nz2',
+    rule: 'C1',
+    name: 'the Messages sort reading 0 where its cell draws a dash',
+    why: 'the second half of rough edge 2, and it has its own entry because removing either clause alone leaves the other answering and an end-to-end read green. `drawnMessageTotal`\'s own promise is that the column sorts by WHAT THE CELL DRAWS, so a dash must sort with the dashes and never with the zeros.',
+    file: COPY,
+    from: '  if (nothingSaidYet(counts)) return null;\n',
+    to: ''
   }
 ];
 

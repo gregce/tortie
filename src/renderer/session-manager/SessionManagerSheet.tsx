@@ -153,9 +153,15 @@ function StateBlock({
 }): React.JSX.Element {
   return (
     <div className="sm-state-block">
-      <Codicon name={state.icon} size={28} />
-      <h2>{state.heading}</h2>
-      <p>{state.body}</p>
+      {/* 24, the app's ceiling and one of the four sizes `<Codicon>`'s own doc
+          sanctions off the 12/14/16 scale. 28 was larger than anything the app
+          draws (Phase 298, mechanism 9). */}
+      <Codicon name={state.icon} size={24} />
+      {/* Classed, because this phase rewrites their type and a bare element
+          selector carrying type is what `.set-row-label` and `.srow-name`
+          already avoid (Phase 298, mechanism 17). */}
+      <h2 className="sm-state-heading">{state.heading}</h2>
+      <p className="sm-state-body">{state.body}</p>
       {children}
     </div>
   );
@@ -191,9 +197,16 @@ function Tab({
       {...(running ? { 'aria-disabled': 'true' as const } : {})}
       onClick={() => useApp.getState().setSessionSheetTab(tab)}
     >
-      <Codicon name={icon} size="md" />
+      {/* `sm`, the size the row's own Restore draws `history` at
+          (./ManagedGrid.tsx's `PrimaryButton`): one glyph, one size. The two
+          MARKS themselves stay `terminal` and `history` — docs/DESIGN-SPEC.md
+          S15 names them, so a later round changes the size and never the glyph
+          (Phase 298, mechanism 9). */}
+      <Codicon name={icon} size="sm" />
       {label}
-      <span className="sm-count">{count}</span>
+      {/* `chip-sm`: the app's 16px chip box (globals.css:345-349), the same one
+          the machine badge beside it is (Phase 298, mechanism 6). */}
+      <span className="chip-sm sm-count">{count}</span>
     </button>
   );
 }
@@ -491,9 +504,14 @@ export function SessionManagerSheet(): React.JSX.Element | null {
             />
           </div>
           <div className="sm-title-actions">
+            {/* `icon-btn` first, the sheet's modifier second, as
+                `.sm-panel-icon` already does it (InlinePanel.tsx:446). The
+                shared class is the vocabulary — display, radius, eased
+                background — and `.session-sheet .sm-icon-btn` keeps these at
+                28px (Phase 298, mechanism 8). */}
             <button
               type="button"
-              className="sm-icon-btn"
+              className="icon-btn sm-icon-btn"
               aria-label={REFRESH_LABEL}
               title={REFRESH_LABEL}
               onClick={refresh}
@@ -502,7 +520,7 @@ export function SessionManagerSheet(): React.JSX.Element | null {
             </button>
             <button
               type="button"
-              className="sm-icon-btn"
+              className="icon-btn sm-icon-btn"
               aria-label={CLOSE_LABEL}
               title={CLOSE_LABEL}
               onClick={() => closeSessionManager()}
@@ -527,7 +545,7 @@ export function SessionManagerSheet(): React.JSX.Element | null {
               <>
                 <button
                   type="button"
-                  className="sm-icon-btn"
+                  className="icon-btn sm-icon-btn"
                   aria-label={CLEAR_SELECTION_LABEL}
                   title={CLEAR_SELECTION_LABEL}
                   disabled={running}
@@ -552,7 +570,12 @@ export function SessionManagerSheet(): React.JSX.Element | null {
                   disabled={eligible === 0 || batch !== null || inlineBusy}
                   onClick={() => startBatch()}
                 >
-                  <Codicon name="debug-stop" size="sm" />
+                  {/* `close`, the glyph the row's own End button draws
+                      (./ManagedGrid.tsx's `PrimaryButton`) and the only one of
+                      the two in `MENU_CODICONS`, so the sheet says "end a
+                      session" with one mark wherever it says it (Phase 298,
+                      mechanism 9). */}
+                  <Codicon name="close" size="sm" />
                   {END_SELECTED}
                 </button>
               </>
@@ -650,6 +673,27 @@ export function SessionManagerSheet(): React.JSX.Element | null {
             ) : null}
             {body}
           </div>
+
+          {/*
+           * WHERE A TOAST GOES WHILE THIS SHEET IS OPEN (Phase 298, rough edge
+           * 1). `.toasts` is fixed at the window's bottom right over
+           * `--z-modal`, so with two toasts up the last row's End button was
+           * under one and the click landed on the toast — the comment on the
+           * focus effect above already admitted it. Docked here it is a
+           * `flex: 0 0 auto` strip that takes its height from the scroller and
+           * covers nothing.
+           *
+           * A DOM CONTRACT, NOT A REF, and not conditional. A shared ref would
+           * need a module both ../app/Toasts.tsx and this domain import, and an
+           * eager import from `app` into this domain pulls the lazily loaded
+           * sheet (./lazy.tsx) into the first bundle. The toast host finds this
+           * node by `[data-sm="toast-outlet"]` and portals into it; drawn
+           * always, so the host never races the sheet's own mount, and empty it
+           * takes no height at all, which is why the row counts hold with
+           * nothing toasted. With no outlet present the host draws exactly
+           * where it draws today.
+           */}
+          <div className="sm-toasts" data-sm="toast-outlet" />
 
           <footer className="sm-foot" data-sm="foot">
             <span>

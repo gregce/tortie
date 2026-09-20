@@ -259,6 +259,7 @@ try {
   const createdCell = copy['createdCell'] as (at: number, now: number) => any;
   const messagesCell = copy['messagesCell'] as (a: OverviewSessionActivity | null, agent: string, remote: boolean) => any;
   const lastMessageCell = copy['lastMessageCell'] as (a: OverviewSessionActivity | null, agent: string, now: number) => any;
+  const drawnMessageTotal = copy['drawnMessageTotal'] as (a: OverviewSessionActivity | null, agent: string, remote: boolean) => number | null;
   const BATCH_LIST_FAILED = copy['BATCH_LIST_FAILED'] as string;
   const SESSION_CHANGED = copy['SESSION_CHANGED'] as string;
   const toActivity = activityMap['toActivity'] as (facts: unknown, stored: unknown) => OverviewSessionActivity;
@@ -871,6 +872,17 @@ try {
     const gemini = act({ coverage: 'partial', reason: 'ask-only', userMessages: 3, agentMessages: null });
     const g = messagesCell(gemini, 'gemini', false);
     c.eq([g.main, g.small], ['3+', 'Replies not recorded'], 'replies not recorded are words');
+    // A gemini record with no reply count AND no kept ask (Phase 298, rough
+    // edge 2). Its time halves are empty too, which is what such a record holds.
+    const nothingSaid = act({
+      coverage: 'partial',
+      reason: 'ask-only',
+      userMessages: 0,
+      agentMessages: null,
+      lastMessageAt: null,
+      lastMessageBy: null,
+      lastMessageClock: null
+    });
     const cases: [string, OverviewSessionActivity | null, string, boolean][] = [
       ['complete', act({}), 'claude', false],
       ['zero replies', act({ userMessages: 2, agentMessages: 0 }), 'claude', false],
@@ -878,7 +890,8 @@ try {
       ['unavailable', act({ coverage: 'unavailable', reason: 'not-yet', userMessages: null, agentMessages: null, lastMessageAt: null, lastMessageBy: null, lastMessageClock: null }), 'claude', false],
       ['a shell', act({ coverage: 'not-applicable', reason: 'shell', userMessages: null, agentMessages: null, lastMessageAt: null, lastMessageBy: null, lastMessageClock: null }), 'shell', false],
       ['a remote row', null, 'claude', true],
-      ['pending', null, 'claude', false]
+      ['pending', null, 'claude', false],
+      ['nothing said yet', nothingSaid, 'gemini', false]
     ];
     for (const [what, a, agent, remote] of cases) {
       for (const cell of [messagesCell(a, agent, remote), lastMessageCell(a, agent, NOW)]) {
@@ -887,6 +900,70 @@ try {
     }
     const none = messagesCell(cases[3]?.[1] ?? null, 'claude', false);
     c.eq(none.main, '—', 'a count that was never read is a dash');
+
+    // PHASE 298, ROUGH EDGE 2. The two cells beside each other contradicted
+    // themselves: `0+ / Replies not recorded` next to `No messages yet`, a `+`
+    // on a zero promising more where the cell next door said there is none.
+    // Both halves come from the same `countsOf`, so the cell, the cell beside it
+    // and the NUMBER THE COLUMN SORTS BY must all read the one answer.
+    const empty = messagesCell(nothingSaid, 'gemini', false);
+    c.eq([empty.main, empty.small], ['—', 'No messages yet'], 'no kept ask and no reply count draws the dash and the word the cell beside it draws');
+    c.eq(lastMessageCell(nothingSaid, 'gemini', NOW).small, 'No messages yet', 'the Last message cell reads the same word from the same halves');
+    c.eq(drawnMessageTotal(nothingSaid, 'gemini', false), null, 'the Messages sort answers null, so the row sorts with the other dashes and not with the zeros');
+    // And a `0` that IS a count — both halves kept, each of them zero — still
+    // draws its zero, because that is a fact about the conversation and not a
+    // gap in the record.
+    const countedZero = act({ userMessages: 0, agentMessages: 0 });
+    c.eq(messagesCell(countedZero, 'claude', false).main, '0', 'a record that kept both halves and counted zero still draws its 0');
+    c.eq(drawnMessageTotal(countedZero, 'claude', false), 0, 'and that zero sorts as a zero');
+    // One kept ask is still `1+`: the clause is about the ZERO and not about a
+    // missing reply count.
+    c.eq(messagesCell(act({ coverage: 'partial', reason: 'ask-only', userMessages: 1, agentMessages: null }), 'gemini', false).main, '1+', 'one kept ask with no reply count is still 1+');
+  });
+
+  await rule('C4', '§3.4, Phase 298 rough edge 6', 'a shell is decided BEFORE remote: a shell on another machine reads — / Shell, because a shell has no messages on ANY machine and that is the truer word', (c) => {
+    // §3.4's Messages table is keyed on the activity, and `remoteActivity()`
+    // answers `coverage: 'unavailable', reason: 'remote'`, so BY THE TABLE the
+    // cell would read `Unavailable`. The code short-circuits on the agent first
+    // and reads `Shell`, and the prose under that same table blesses it: "In the
+    // renderer a shell is decided before remote". The product is right and the
+    // table was wrong; §3.4's table moves and this case pins the order so a
+    // later round cannot quietly flip it back. NO WORD A PERSON READS CHANGES.
+    const shellAnswer = act({
+      coverage: 'not-applicable',
+      reason: 'shell',
+      userMessages: null,
+      agentMessages: null,
+      lastMessageAt: null,
+      lastMessageBy: null,
+      lastMessageClock: null
+    });
+    const remoteAnswer = act({
+      coverage: 'unavailable',
+      reason: 'remote',
+      userMessages: null,
+      agentMessages: null,
+      lastMessageAt: null,
+      lastMessageBy: null,
+      lastMessageClock: null
+    });
+    const arms: [string, OverviewSessionActivity | null][] = [
+      ['the shell answer', shellAnswer],
+      ['the remote answer, which is what a remote row actually carries', remoteAnswer],
+      ['no answer at all', null]
+    ];
+    for (const [what, a] of arms) {
+      const cell = messagesCell(a, 'shell', true);
+      c.eq([cell.main, cell.small], ['—', 'Shell'], `a shell on another machine reads the shell word, with ${what}`);
+      c.eq(drawnMessageTotal(a, 'shell', true), null, `and its Messages sort is a dash, with ${what}`);
+      c.eq(lastMessageCell(a, 'shell', NOW).small, 'Not applicable', `and its Last message cell is Not applicable, with ${what}`);
+    }
+    // The same word on this Mac, so the machine is not what decides it.
+    c.eq(messagesCell(shellAnswer, 'shell', false).small, 'Shell', 'a shell on this Mac reads the same word');
+    // And it is an ORDER and not a blanket answer: a row that is not a shell
+    // still reads Unavailable on another machine.
+    c.eq(messagesCell(null, 'claude', true).small, 'Unavailable', 'an agent row on another machine still reads Unavailable');
+    c.eq(messagesCell(remoteAnswer, 'claude', false).small, 'Unavailable', 'and so does a local row whose answer says remote');
   });
 
   await rule('C2', '§3.4', 'one clock is never drawn as another: ask and session each say which clock the age is', (c) => {

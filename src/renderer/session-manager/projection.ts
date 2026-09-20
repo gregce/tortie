@@ -50,7 +50,6 @@ import {
 import { statusVisual, type StatusVisual } from '../app/status';
 import { baseName } from '../editor/paths';
 import { displayPath } from '../format';
-import { tombstoneRestoreRefused } from '../settings/machines-copy';
 import { agentShortLabel } from '../state/agents';
 import { machineLabelFor } from '../state/machines-slice';
 import {
@@ -64,7 +63,11 @@ import {
   type SessionHandback
 } from '../state/resume';
 import { effectiveStatusOf } from '../state/store';
-import { END_UNREACHABLE_TITLE, NOTHING_TO_RESTORE_TITLE } from './copy';
+import {
+  END_UNREACHABLE_TITLE,
+  NOTHING_TO_RESTORE_TITLE,
+  TOMBSTONE_RESTORE_REFUSED
+} from './copy';
 
 export interface ManageProjectionInput {
   sessions: readonly Session[];
@@ -252,7 +255,12 @@ function pastRestoreTitle(
   input: ManageProjectionInput
 ): string | null {
   const gone = session.machineGone;
-  if (gone !== undefined) return tombstoneRestoreRefused(gone.label);
+  // The sheet's own refusal, which names no machine: the row already says the
+  // name in its tombstone line and again in its badge, and this hover sits
+  // beside the note that draws the same one string (./copy.ts's
+  // TOMBSTONE_RESTORE_REFUSED, Phase 298 rough edge 4). Settings keeps
+  // `tombstoneRestoreRefused`, where the machine is the subject.
+  if (gone !== undefined) return TOMBSTONE_RESTORE_REFUSED;
   const machine = session.machine;
   if (machine !== undefined && !machine.canRestore) {
     return machine.restoreReason;

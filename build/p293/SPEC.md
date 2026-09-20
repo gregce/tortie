@@ -129,24 +129,32 @@ read from the tree at `ac011d9d`.
 | Toolbar | `height: 47px; box-sizing: border-box; padding: 0 var(--space-7); gap: var(--space-4); align-items: center; flex-wrap: nowrap; border-bottom: 1px solid var(--border)` | `--sm-toolbar-h: 47px`. STATED OUTRIGHT in both modes. Tortie's `--field-h` is 28px and `.btn-sm` is 24px, so the study's arithmetic gives 45 and the equality would not hold by itself |
 | Selection toolbar | the same element, `data-mode="selection"`, ground `--accent-wash` | the same 47px |
 | Grid scroller | `.sm-scroll { flex: 1; min-height: 0; overflow: auto }`. The batch panel and the grid both live inside it, and the batch panel draws above whatever state replaces the grid | |
-| Sticky headings | `thead th { position: sticky; top: 0; z-index: 1; background: var(--bg-raised); padding: var(--space-5); font-size: var(--text-2xs); font-weight: var(--weight-medium); text-align: left; white-space: nowrap; color: var(--text-secondary) }` | Draw the rule under it with `box-shadow: inset 0 -1px 0 var(--border-strong)`. A border on a sticky `th` under `border-collapse: collapse` drops out in Chromium |
-| Grid | a real `<table class="sm-grid">`, one `<tbody>` per group: `border-collapse: collapse; width: 100%; table-layout: auto; font-size: var(--text-sm); font-variant-numeric: tabular-nums` | |
-| Data cell | `padding: var(--space-6) var(--space-5); border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap`. `td > small { display: block; font-size: var(--text-2xs); line-height: 1.5; margin-top: var(--space-3); color: var(--text-secondary) }` | row hover `--bg-raised` |
+| Sticky headings | `thead th { position: sticky; top: 0; z-index: 1; background: var(--bg-raised); padding: var(--space-3) var(--space-5); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: var(--weight-medium); text-transform: uppercase; letter-spacing: var(--track-caps); text-align: left; white-space: nowrap; color: var(--text-secondary) }` — **28px**, `--sm-head-h` (Phase 298 mechanism 4) | Draw the rule under it with `box-shadow: inset 0 -1px 0 var(--border-strong)`. A border on a sticky `th` under `border-collapse: collapse` drops out in Chromium. The app's heading idiom is unanimous across 26 rules; the colour is the ONE deliberate deviation from it and stays `--text-secondary`, because `--text-muted` measures 4.15 on `--bg-raised` and is under the floor |
+| Grid | a real `<table class="sm-grid">`, one `<tbody>` per group: `border-collapse: collapse; width: 100%; table-layout: auto; font-variant-numeric: tabular-nums`. NO `font-size`: it inherits `body`'s `--text-base` / `--lh-base` (Phase 298 mechanism 2) | the grid's own `--text-sm` made `.sm-name` draw 12px here and 13px in the Past list, for the same name |
+| Row | `tr.sm-row { height: var(--sm-row-h) }` where `--sm-row-h: calc(28px + 2 * var(--space-3))` — box **40**, pitch **41** (Phase 298 mechanism 1) | row height = tallest child + 2 × `--space-n`, and the tallest child is `.btn`'s own 28px. `border-collapse: collapse` puts the hairline BETWEEN two rows, which is the pixel between 40 and 41; the Past list's `box-sizing: border-box` holds its own hairline inside the box, so its box and pitch are both 40. The two readings are taken SEPARATELY by `probe:p293` arm 11 so the two layout models are never conflated |
+| Data cell | `padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap`. `.sm-cell-small { font-size: var(--text-xs); line-height: var(--lh-xs); margin-left: var(--space-3); color: var(--text-secondary) }`, INLINE (Phase 298 mechanisms 3 and 17) | row hover `--bg-raised`, `transition: background var(--dur-fast) var(--ease-out)`. The class replaces `td > small` AND `.sm-name small`, whose two different top margins were two spellings of one thing, and the ratio `line-height: 1.5` they shared was the only ratio line-height in either tree |
 | Checked row | ground `--bg-active`, hairline `--border-active` | |
 | Select column | `width: 46px; padding: 0 0 0 var(--space-4)`. Hit target 32 by 32, input 14 by 14, `accent-color: var(--accent)` | precedent `app.css:1764` |
-| Session column | `min-width: 155px`. Name `max-width: 175px`, ellipsis | |
-| Actions column | `min-width: 170px; padding-right: var(--space-7)`. `.sm-row-actions { display: flex; justify-content: flex-end; gap: var(--space-3) }` | |
-| Group header | `<tr class="sm-group"><th colspan="7" scope="rowgroup">`, padding `var(--space-6) var(--space-8) var(--space-2)`, ground `--bg-surface`, bottom rule `--border`. It scrolls. It does not stick and does not collapse | the study's 26px inset has no token; `--space-8` is 24 |
-| Inline panel | `padding: var(--space-6); border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--bg-raised); scroll-margin-top: 60px`. Its row's ground is `--bg-active` | title `--text-base` at `--weight-semibold`, body `--text-sm` at `--lh-base`, `max-width: 80ch`, buttons right, Cancel first |
-| Footer | `padding: var(--space-5) var(--space-8); border-top: 1px solid var(--border); font-size: var(--text-2xs); color: var(--text-muted)` | |
-| Icon button | 28 by 28, `--r-sm` | reuse the shipped icon button class if one fits, else `.sm-icon-btn` |
-| Focus | `box-shadow: var(--focus-ring)` on `:focus-visible` | `tokens.css:364` |
-| Title | `Sessions`, `font-size: var(--text-md); font-weight: var(--weight-semibold)` | `.modal-title` is 20px and too tall for a 52px bar |
+| Session column | `min-width: 155px`. Name `flex: 0 1 auto; min-width: var(--sm-name-min); max-width: 175px`, ellipsis, at `--text-base` / `--lh-base` and `--weight-medium` | `--sm-name-min` is MEASURED and never chosen: canvas `measureText` on the live `.sm-name strong`, with that element's own computed font, over the run's own session names and the operator's twelve, taking the first FOUR characters of each — the shortest prefix that both reads as a word and tells the operator's twelve apart — and rounding up onto the 4px grid, which is the method `app.css:198-220` records for `.ptab-name`'s 46px. `probe:p293` arm 11 re-reads the number the CSS declares and holds it to a BAND: the prefix alone is the floor, the prefix plus the ellipsis glyph is the ceiling. The two differ because `text-overflow: ellipsis` takes its own width out of the visible text, so only the stricter form guarantees four characters are still there once it has; the tab's 46 does not, and the entry points at the tab. A number outside the band was chosen rather than measured. It is NOT a row in `gate:tab-floor`'s table: that gate measures a different surface at a different size |
+| Actions column | `min-width: var(--sm-actions-min); padding-right: var(--space-7)`. `.sm-row-actions { display: flex; justify-content: flex-end; gap: var(--space-3) }` | `--sm-actions-min` is re-derived from what the cell HOLDS — a `.btn.btn-sm` reading `End session…`, a 28px ellipsis and one `--space-3` gap — and arm 11 reads it. The 170px it replaces was given rather than derived, and it had a second job as the Past row's flex basis, which now has its own name, `--sm-past-identity-min` |
+| Group header | `<tr class="sm-group"><th colspan="7" scope="rowgroup">`, padding `var(--space-2) var(--space-8)` — box **28**, pitch **29** — ground `--bg-surface`, bottom rule `--border`. It scrolls. It does not stick and does not collapse | the study's 26px inset has no token; `--space-8` is 24. The 28 is `.section-header`'s height without its uppercase, and it is exact because the label is `--text-base` / `--lh-base`: 20 + 2 × `--space-2` |
+| Inline panel | `padding: var(--space-6); border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--bg-raised); scroll-margin-top: calc(var(--sm-head-h) + var(--space-6))`. Its row's ground is `--bg-active` | title `--text-base` at `--weight-semibold`, body `--text-sm` at `--lh-base`, `max-width: 80ch`, buttons right, Cancel first. The scroll margin is what 60px always was: the sticky heading's height plus a gap |
+| Footer | `padding: var(--space-3) var(--space-8); border-top: 1px solid var(--border); font-size: var(--text-2xs); line-height: var(--lh-2xs); color: var(--text-muted)` — **29px** | kept at the 10px step deliberately: a footer is a footnote, which is what that step is for, and it is the sheet's ONE user of `--text-2xs` outside a chip |
+| Icon button | 28 by 28, `--r-sm`, and it carries the shipped `icon-btn` class — `.sm-icon-btn` keeps only placement, size and hover | hover `--bg-raised`, the value twenty `.icon-btn` sites use, except on a row, where the row's own hover has already taken `--bg-raised` so the row's button goes to `--bg-active` |
+| Chips | the shipped `.chip-sm` (`globals.css:345-349`: `height: 16px; font-size: var(--text-2xs); padding: 0 var(--space-2)`) with `min-width: 16px` from `.ab-badge`, for the tab counts and the group header's `Open tab` / `Tab closed` | the 19px min-width, the `2px 5px` and the `1px 6px` it replaces are on no grid, and the result is the same 16px box the machine badge beside them already is |
+| Focus | `box-shadow: var(--focus-ring)` on `:focus-visible` | `tokens.css:364`. There is exactly ONE focus rule in the tree and it is the global; the sheet states all three declarations on `.sm-select:focus-visible` so a later reader can tell the ring is intended, and the sheet CONTAINER's suppressed ring stays, because the sheet takes focus when a person clicks its empty ground and that is not a control |
+| Title | `Sessions`, `font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--weight-semibold)` | `.modal-title` and `.empty-title` are the app's title step, and a 28px line box clears the 52px bar with 12px to spare. The earlier note here said 20px was too tall for the bar; it was about 20px beside a 15px tab label, not about the bar's height |
 | Status dot | the shipped `.dot .dot-working .dot-attention .dot-idle .dot-ended .dot-failed` (`src/renderer/styles/globals.css:281-315`), 8px | the kind comes from `statusVisual`. NO dashed ring: `status.ts` says no new shape is invented for a state a person cannot act on |
 | Buttons | End: `.btn.btn-secondary.btn-sm`, and on hover `background: var(--error-wash); border-color: var(--error); color: var(--error)`. Restore: `.btn.btn-secondary.btn-sm`, and on the Past tab it ALSO carries `past-restore`, which `src/renderer/app/shell-path-shot-drive.ts:170` reads. Confirm: `.btn.btn-destructive`. Primary inline: `.btn.btn-primary` | `globals.css:157` |
-| Narrow | the grid scroller scrolls sideways. Below 1100px the cell padding drops to `var(--space-5) var(--space-4)` and the name to 135px | |
+| Narrow | the grid scroller scrolls sideways. Below 1100px the cell padding drops to `var(--space-3) var(--space-4)` and the name to 135px | only the HORIZONTAL term moves, so the narrow row can never be TALLER than the wide one, which the first spelling of this row would have made it. The 1100 stays a literal because a custom property is not readable in a media query |
+| Toast strip | `.sm-toasts`, a `flex: 0 0 auto` column between `.sm-scroll` and the footer: `align-items: flex-end; gap: var(--space-4); padding: var(--space-4) var(--space-8)`, and `:empty { display: none; padding: 0 }` | while the sheet is open the toast host portals its stack into `[data-sm="toast-outlet"]`, so a toast takes height from the scroller and covers nothing. Empty it takes no height, which is what keeps the rows-per-sheet reading honest. `pointer-events: none` is refused: a sticky toast's only exit is its own × and its action button |
 
-Reduced motion: the sheet uses `.modal`'s own `gmux-modal-in`. Nothing else animates.
+Motion: rows and the Past rows ease `background var(--dur-fast) var(--ease-out)`; the icon buttons,
+the tabs and the sort headings ease background and colour; `.btn.sm-end` names `background,
+border-color, color`, because its hover moves three. The sheet still uses `.modal`'s own
+`gmux-modal-in` and nothing MOVES. **No `prefers-reduced-motion` block in either stylesheet**:
+`tokens.css:655-697` drops the duration tokens to 1ms and sets `transition-property: none !important`
+on `*` app-wide, which is the reason to write the durations as tokens in the first place.
 
 ### 2.3 The title bar, left to right
 
@@ -213,7 +221,7 @@ Reduced motion: the sheet uses `.modal`'s own `gmux-modal-in`. Nothing else anim
 | 7 | `<span class="sr-only">Actions</span>` | | none |
 
 **Sort.** Each heading is a `<button data-sort="<key>">`. First click ascending, second click on
-the same column flips. Glyph `chevron-expand` unsorted, `arrow-up` ascending, `arrow-down`
+the same column flips. Glyph `arrow-both` unsorted (Phase 298 mechanism 9; `unfold` reads as ✕ at 12px, which `search/ResultsList.tsx:371` already refused in those words), `arrow-up` ascending, `arrow-down`
 descending. The `th` carries `aria-sort`. On first open nothing is sorted and rows keep main's
 order. **Sorting reorders rows inside each group. Groups never reorder.** **A null sorts LAST in
 both directions.** The study sorts null as -1, which puts every shell first on an ascending Messages
@@ -470,7 +478,9 @@ var(--space-7)`, styled as an inline panel.
   returns the folder, and it returns the conversation only when Tortie recorded one for this
   agent.` The study's `Saved output and conversations are kept` is NOT used: it is false for a row
   with no recorded conversation and unknowable for a remote one (R5).
-- Targets: `<ul class="sm-batch-targets">`, `max-height: 144px`, scrolling, ruled. Each item is
+- Targets: `<ul class="sm-batch-targets">`, `max-height: calc(4 * 33px + var(--space-5))` — four whole
+  rows and a visible hint of the fifth, where the 144px it replaces cut the fifth 33px row mid-row and
+  read as the end of the list — scrolling, ruled. Each item is
   `<li data-batch-target="<id>"><strong><name></strong><span><group label> · <State></span>`,
   the name and state read from the store by id at render. A group on another machine reads
   `<group label> · <machine label> · <State>`.
@@ -514,13 +524,20 @@ header of §2.6 is drawn only when the project filter names one project (§9, th
 
 | Slot | Content |
 | --- | --- |
-| Identity | `<button class="sm-name" data-manage-name="<id>">`: `AgentIcon`, `<strong>` name, `MachineBadge` when a machine is known, and `<small>` `pastRowSmall(agentShortLabel(agent), <project>, <machine>, <promise>, <own folder>)`: the agent; in the single list the row's project (its group's label) and its machine when that is not this Mac (its group's machine label), in the project filter's own `label · machine` form, both null under a project's heading, which says them; the promise (`Continues the conversation` or `Starts fresh`, `pastSessionPromise`, `src/renderer/state/resume.ts:277`); and `displayPath(cwd)` when `isOutsideProject(session)`, a worktree. Today's panel drew the agent and the folder on every row (§11, W5; §12). A machine-removed row draws `tombstoneLine(label, forgottenAt, lastSeenAt, lastStatus)` as the promise (`src/renderer/settings/machines-copy.ts:463`) |
-| State slot, 145px | `Removed <removedDate>`, with `exactTime(removedAt)` as its hover title, because the day alone cannot tell two removals on one day apart |
+| Identity | `<button class="sm-name" data-manage-name="<id>">`: `AgentIcon`, `<strong>` name, `MachineBadge` when a machine is known, and `<small>` `pastRowSmall(agentShortLabel(agent), <project>, <machine>, <promise>, <own folder>)`: the agent; in the single list the row's project (its group's label) and its machine when that is not this Mac (its group's machine label), in the project filter's own `label · machine` form, both null under a project's heading, which says them; the promise (`Continues the conversation` or `Starts fresh`, `pastSessionPromise`, `src/renderer/state/resume.ts:277`); and `displayPath(cwd)` when `isOutsideProject(session)`, a worktree. Today's panel drew the agent and the folder on every row (§11, W5; §12). A machine-removed row draws `tombstoneLine(label, forgottenAt, lastSeenAt, lastStatus)` as the promise (`src/renderer/settings/machines-copy.ts:463`). **Phase 298 draws that line INLINE BESIDE the name rather than stacked under it, and makes it the field that gives way.** It stays ONE joined string in one `.sm-cell-small` element inside `.sm-name-line`, at `flex: 0 100 auto; min-width: 0` with `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` — an order of magnitude above the name's shrink factor, which is inline rule 3, and truncating from the RIGHT, which is rule 6, because `search.css:357-362` refuses `direction: rtl` for a path: bidi reordering moves the `/` and `.` runs and a path can land mid-word with no ellipsis at all. The `white-space` is load-bearing: `.sm-past-row` sets none of its own, so without it a long folder wraps and the 40px row becomes 56. Rule 5's trailing mark is `.sm-past-state` at `flex: 0 0 auto` with `margin-left: auto` for the slack, which is rule 4 without a field taking it. `smallOf` keeps its name, still calls `displayPath(session.cwd)`, still asks `!underHead`, and `title={row.session.cwd}` stays on the row (`conformance:manager` T16). **SPLITTING THE LINE INTO PER-PART ELEMENTS IS DEFERRED, and the integrator's round says so rather than leaving a documented shape unbuilt.** It only earns its keep together with turning the promise into the ↺ mark `.srow-saved` already draws, with the sentence in the hover and the inline panel (`session-rail.css:207-218`: the resume sentence is "a paragraph under the scan line, not part of it"), and that takes `Starts fresh` off a resting row — a FOURTH change to what a person reads where this phase names three and the no-regression rule asks for the side-by-side. It also needs a four-part answer (agent, folder, promise, tombstone), which `PastList.tsx`'s `promiseOf` computes and collapses into `detail` before `copy.ts` ever sees it, so it is a prop reshape on a `NameButton` the Managed grid shares. Its own entry |
+| State slot, content sized (`flex: 0 0 auto`) | `Removed <removedDate>`, with `exactTime(removedAt)` as its hover title, because the day alone cannot tell two removals on one day apart. Phase 298 deleted the 145px it was given: a trailing mark is sized by its own content and right-aligned, and 145px of slot for `Removed Sep 16` was the widest thing on the row after the promise |
 | Actions | `Restore` with a `history` codicon and the class `past-restore`; `Restoring…` while busy; disabled when the machine was removed, when `machine.canRestore` is false, or while `!shellPathReady`. Then the ellipsis |
 | Full-width note, machine-removed rows only | `tombstoneRestoreRefused(label)` (`machines-copy.ts:489`). Two DIFFERENT sentences, as shipped. The study prints one sentence twice |
 
 The row is `<div class="sm-past-row" data-manage-row="<id>" data-row-group="<groupKey>"
-data-machine-gone="yes|no">`, `min-height: 64px`. It carries its group itself because the single
+data-machine-gone="yes|no">`, `min-height: var(--sm-row-h)` with `padding: var(--space-3)
+var(--space-8)` — box **40** and pitch **40**, because `* { box-sizing: border-box }` holds this
+row's own hairline inside its declared height where the grid's sits between two rows (Phase 298
+mechanism 1). Only the vertical padding moved: the horizontal stays `--space-8` so the row is still
+aligned with its own group header. Its identity block is `flex: 0 1 auto; min-width:
+var(--sm-past-identity-min)`, which reads the Managed Session cell's own floor because it holds what
+that cell holds. A machine-removed row keeps its note on its own line and is the ONE row in the
+sheet above 40px, because a tombstone is a sentence. It carries its group itself because the single
 list draws no heading. The Past menu is `Session details`, `'sep'`, then what `sessionMenuItems`
 answers for a `discarded` row (§4.2). Footer left `<n> session(s)`, plus ` across <k> projects`
 when the project filter is All. Footer right `Kept for 90 days.`, whose hover title carries
@@ -540,15 +557,18 @@ round's group ordering (§11, W2), which the reverify measured as worse than tod
 ### 2.12 The states that replace the grid
 
 Each replaces the grid, headings included. The title bar, toolbar and footer stay. The block is
-centred, `max-width: 540px`, padding `70px var(--space-8)`, a 28px codicon, the heading at
-`--text-md`.
+centred, `max-width: 540px`, padding `70px var(--space-8)`, a **24px** codicon, the heading
+(`.sm-state-heading`) at `--text-lg` / `--lh-lg` and the body (`.sm-state-body`) at `--text-base` /
+`--lh-base` (Phase 298 mechanisms 5, 9 and 17). 24 is the app's ceiling and one of the four sizes
+`<Codicon>`'s own doc sanctions off the 12/14/16 scale; the 28 it replaces was larger than anything
+the app draws.
 
 | State | Codicon | Heading | Body | Button |
 | --- | --- | --- | --- | --- |
 | Empty, Managed | `search` | `No sessions to manage` | `Start a session from the Session menu. Projects don’t need to stay open for sessions to appear here.` | none |
 | Empty, Past | `history` | `No past sessions yet` | `Sessions you remove will appear here for 90 days.` | none |
 | No match | `search`, or `history` on Past | `No matching sessions` | `Try another project or clear your filters.` | `<button data-sm="clear-filters">Clear filters</button>`: resets project, search, tab filter, state filter and the selection |
-| Loading, `role="status"`, Past tab while `pastLoading` and no row is held | | | `Loading sessions…` over five 62px skeleton rows in `--bg-raised` | none |
+| Loading, `role="status"`, Past tab while `pastLoading` and no row is held | | | `Loading sessions…` over five skeleton rows at `var(--sm-row-h)` in `--bg-raised`, with `.sm-loading`'s gap at 0 so the loading pitch is the row's own | none |
 | Read failure, when `refreshSessionSheet` could not read | `warning` | `Sessions couldn’t be read` | `Your sessions haven’t changed. Try reading the list again.` | primary `Try again` |
 
 These five are recorded in `DESIGN.md` §6 as items 16 to 20 (builder F), because that section's
@@ -631,6 +651,9 @@ heading says its copy is final and a state that is not in it is not a state.
 names one project (§2.11).
 `[data-manage-primary="<id>"][data-verb="end|restore"]`. `[data-manage-check="<id>"]`.
 `section.sm-batch[data-phase]` › `li[data-batch-target="<id>"][data-outcome]`. `[data-sm="foot"]`.
+`.sm-toasts[data-sm="toast-outlet"]`, between `.sm-scroll` and the footer, ALWAYS drawn and never
+conditional (Phase 298, rough edge 1): `src/renderer/app/Toasts.tsx` finds that node and portals its
+stack into it while the sheet is open, so a stamp deleted as unused would silently un-dock the toasts.
 Rows NEVER stamp `data-session-id`: `focusedSessionRowId()` and `menuPointFor()`
 (`session-actions.tsx:554-562`) read it, and a second bearer behind a modal is how the remote
 review menu would land on the wrong row. F2 is closed separately (§5.3), because with no bearer in
@@ -954,12 +977,19 @@ export function messagesCell(activity: OverviewSessionActivity | null, agent: st
 export function lastMessageCell(activity: OverviewSessionActivity | null, agent: string, now: number): ActivityCell;
 ```
 
+**THE TABLE IS ASKED IN THIS ORDER, and the first two rows are keyed on the AGENT rather than on the
+activity.** That is not a bug in the code and it was a bug in this table: see the two corrections
+under it.
+
 | Activity | Messages main / small / title |
 | --- | --- |
-| null (not answered) | `…` / none / none, `busy: true`. A shell and a remote row never pass through this: `agent === 'shell'` and `remote` are decided without the answer |
+| `agent === 'shell'`, on ANY machine, whatever the activity says | `—` / `Shell` / none. Decided FIRST, before `remote` and before the answer, so a shell never draws the pending mark and a shell on another machine reads `Shell` and not `Unavailable` |
+| `remote`, and the agent is not a shell | `—` / `Unavailable` / none. Decided without the answer, so a remote row never draws the pending mark either |
+| null (not answered) | `…` / none / none, `busy: true` |
 | complete | `<total>` with `toLocaleString()` / `<u> you · <a> agent` / `<u> user messages + <a> agent replies. Tool events excluded.` |
 | partial, `agentMessages` a number | `<total>+` / `Partial history` / `Only the available history is counted.` |
-| partial, `agentMessages` null | `<u>+` / `Replies not recorded` / `This agent’s record keeps your messages and not its replies.` |
+| partial, `agentMessages` null AND `userMessages` 0 | `—` / `No messages yet` / none. **The clause this table lacked** (Phase 298, rough edge 2): `0+` promises more where the cell beside it says there is none, and `lastMessageOf` already computes `No messages yet` from the same two halves. `drawnMessageTotal` answers **null** here, so the Messages column sorts by what a person sees in the cell, which is that function's own stated promise, and a dash sorts with the other dashes |
+| partial, `agentMessages` null (`userMessages` above 0) | `<u>+` / `Replies not recorded` / `This agent’s record keeps your messages and not its replies.` |
 | not-applicable | `—` / `Shell` / none |
 | unavailable, reason `remote` or `unknown-session` | `—` / `Unavailable` / none |
 | unavailable, any other reason | `—` / `Not recorded` / none |
@@ -968,6 +998,7 @@ export function lastMessageCell(activity: OverviewSessionActivity | null, agent:
 
 | Last message | main / small / title |
 | --- | --- |
+| `agent === 'shell'`, on ANY machine, whatever the activity says | `—` / `Not applicable` / none. Decided FIRST, as in the table above, so a shell on another machine reads `Not applicable` and not `Not recorded` |
 | clock `message` | `<age> ago` / `Your prompt` or `Agent reply` / `<exactTime>` |
 | clock `ask` | `<age> ago` / `Agent reply` / `<exactTime>. Time of your last prompt. This agent records no reply time.` |
 | clock `session` | `<age> ago` / `Session updated` / `<exactTime>. This agent records no time per message.` |
@@ -981,6 +1012,16 @@ remote. **In the renderer a shell is decided before remote** (`copy.ts`), so a s
 machine reads `— / Shell` and `— / Not applicable` rather than `— / Unavailable`: a shell has no
 messages on any machine, which is the truer word (the matrix verifier's P4). Main's classifier
 answers `remote` for it, and the renderer never asks main about a remote row.
+
+**THE PRODUCT WAS RIGHT AND THIS TABLE WAS WRONG** (Phase 298, rough edge 6). As first written both
+tables above were keyed on the ACTIVITY alone, and `remoteActivity()` answers `coverage:
+'unavailable', reason: 'remote'` for a shell on another machine, so BY THE TABLE such a row read
+`— / Unavailable` and `— / Not recorded`. `messagesCell` and `lastMessageOf` short-circuit on
+`agent === 'shell'` FIRST, so the shipping product reads `— / Shell` and `— / Not applicable` — and
+the prose in this very paragraph blessed that behaviour while the tables contradicted it. The fix is
+to the tables, which now carry the shell as their first row on both sides, plus a driven case in
+`build/p293/manager-conformance-probe.mts` so a later round cannot silently flip it back.
+**No product code changes and no word a person reads changes.**
 
 ### 3.5 When the activity is asked, and who owns the triggers
 
@@ -2063,7 +2104,15 @@ select-all under the `Running` filter, then a second click clearing; **(8)** the
 confirmation's eligible and skipped counts against the fixture's own truth; **(9)** a batch in
 which one target is killed by the probe between the confirmation and its call; **(10)** the matrix
 of §8.1 for the rows it can stand up; **(11)** both toolbar modes measured at 47px and the title
-bar at 52px; **(12)** Go to session on a live session in a closed project, local and remote, the
+bar at 52px — which Phase 298 keeps as its CONTROL and widens around: the box and the pitch of every
+row surface read SEPARATELY, the hit areas each at or above the parent's reading, the rows a 900px
+sheet holds counted over twenty one rows it stands up itself, `--sm-name-min` and `--sm-actions-min`
+measured against what the stylesheet declares, the hover, checked, open, focus and transition states
+computed against the tokens' own resolved values and again under an emulated
+`prefers-reduced-motion`, every icon size, the clipping attack at three widths, and every text
+node's contrast through the app's own `contrastOf` on both colour bases, with
+`P293_PARENT_CHECKOUT` pointing the same run at `f6c11f57` for the parent reading;
+**(12)** Go to session on a live session in a closed project, local and remote, the
 keyboard in that session's terminal after; **(13)** F2 on a sheet row with an active session
 behind it, the active session's name unchanged; **(14)** after arm 9's batch under the `Running`
 filter, `document.activeElement` inside the sheet; **(15)** the machine that comes back, §8.2's

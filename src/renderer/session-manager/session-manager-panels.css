@@ -33,7 +33,14 @@
   border-radius: var(--r-md);
   background: var(--bg-raised);
   color: var(--text-primary);
-  scroll-margin-top: 60px;
+  /* An opened panel scrolls clear of the sticky column heading, and that is
+     what the 60px here always was: the heading's height plus a gap. It was
+     written as a literal while the heading measured 44, so Phase 298's 28px
+     heading would have left 32px of dead space above every panel.
+     `--sm-head-h` is declared with the rest of the sheet's geometry on
+     `.modal.session-sheet` (./session-manager.css), so the gap and the heading
+     can no longer drift apart. */
+  scroll-margin-top: calc(var(--sm-head-h) + var(--space-6));
   white-space: normal;
   text-align: left;
 }
@@ -111,13 +118,15 @@
   color: var(--text-primary);
 }
 
-.session-sheet .icon-btn.sm-panel-icon:focus-visible,
-.session-sheet .sm-inline .btn:focus-visible,
-.session-sheet .sm-batch .btn:focus-visible,
-.session-sheet .sm-rename-input:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
+/* NO FOCUS RULE HERE, and that is the point. `:focus-visible` in
+   styles/globals.css:94-101 is the app's ONE focus rule, and it already draws
+   `--focus-ring` on the close icon, on both panels' buttons and on the rename
+   input — the input twice over, since `.input:focus` (globals.css:256-259)
+   names the same ring on the same element. This file restated all four
+   selectors until Phase 298, which bought nothing and only meant a panel's
+   ring could go out of step with the app's. A later round that wants a
+   different ring on a panel control changes the global, or says here why this
+   one surface differs. */
 
 .session-sheet .icon-btn.sm-panel-icon:disabled {
   color: var(--text-disabled);
@@ -142,8 +151,14 @@
   min-width: 0;
 }
 
+/* A fact's label is prose, not a chip, so it leaves the 10px step behind:
+   `--text-2xs`'s own token says never body text (tokens.css) and this label is
+   read as a word. Every size below states its paired line height, because a
+   size on its own draws `body`'s 20px line box (globals.css:55-61 sets a
+   LENGTH, which inherits as a computed value) whatever the size says. */
 .session-sheet .sm-details-facts dt {
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
 }
@@ -151,6 +166,7 @@
 .session-sheet .sm-details-facts dd {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
+  line-height: var(--lh-sm);
   color: var(--text-primary);
   overflow-wrap: anywhere;
 }
@@ -158,6 +174,7 @@
 .session-sheet .sm-details-help {
   margin: var(--space-5) 0 0;
   font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-secondary);
 }
 
@@ -165,7 +182,26 @@
    SavedOutputBody's, shared with the modal, and the modal's own rules are
    scoped to that modal, so the block is restated here for this ground. The
    capture time still leads and the text scrolls in its own box, so the moment
-   the copy was taken never scrolls away. */
+   the copy was taken never scrolls away.
+
+   THE THREE COLOURS BELOW ARE `--text-secondary` WHERE THE MODAL USES
+   `--text-muted`, AND THAT IS CORRECT — DO NOT "RESTORE" THE SUBORDINATION.
+   app/saved-output.css draws the conversation line, the unverified warning and
+   the empty line muted so they read as subordinate to the capture time above
+   them, on the modal's own surface ground where muted measures 4.91. This
+   panel's ground is `--bg-raised`, where the same token measures below the 4.5
+   floor, so the subordination is not available here and the honest answer is
+   the flattening: three sentences at one weight a person can actually read,
+   rather than a hierarchy one of whose steps is unreadable. The rule is not
+   local taste — __tests__/p293-css-tokens.test.ts forbids `--text-muted` under
+   any `.sm-inline` selector and would go red on the alternative.
+
+   The modal's own rules CANNOT serve this ground. Every one of them is scoped
+   `.modal.saved-output-modal` (app/saved-output.css:30, :40, :49, :58, :77)
+   and the sheet is `.modal.session-sheet` (SessionManagerSheet.tsx:430), so
+   not one of those selectors matches a node inside the panel: deleting the
+   declarations below would drop the size, the line height and the mono family
+   from a person's saved output. */
 .session-sheet .sm-inline .saved-output-header {
   margin: 0 0 var(--space-4);
   font-size: var(--text-sm);
@@ -183,8 +219,18 @@
 
 .session-sheet .sm-inline .saved-output-body {
   margin: 0;
-  min-height: 96px;
-  max-height: 320px;
+  /* The output box is a whole number of its OWN mono lines, six at the floor
+     and twenty at the cap — `--lh-xs` is the line height this same rule sets
+     below. Both were 96px and 320px, and both resolve to exactly those numbers
+     still, so nothing a person sees moves; what moves is that a later round
+     changing the line height can no longer leave the box cutting a line in
+     half. The box's border and padding take about one line, so roughly five
+     lines show at the floor and nineteen at the cap. The modal's own 120px and
+     52vh are deliberately not these: a panel opens INSIDE a row of a list, and
+     a box measured against the viewport would push the rest of the list out of
+     reach (mechanism 16 derives this number beside the batch list's). */
+  min-height: calc(6 * var(--lh-xs));
+  max-height: calc(20 * var(--lh-xs));
   overflow: auto;
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--border);
@@ -216,11 +262,25 @@
   list-style: none;
   margin: var(--space-4) 0 0;
   padding: 0;
-  max-height: 144px;
+  /* Four whole rows and a hint of the fifth, so the list says "there is more"
+     without a row cut in half being the thing that says it. A row is its own
+     line box plus its padding above and below plus the hairline under it —
+     `--lh-base` 20 + 2 × `--space-3` 6 + 1px = 33, read off the rule directly
+     below — and `--space-5` is the hint. That is 144px, which is what this was
+     before Phase 298: the number does not move, the reason it is that number
+     now does, and a later round that shortens the row shortens this with it. */
+  max-height: calc(4 * (var(--lh-base) + 2 * var(--space-3) + 1px) + var(--space-5));
   overflow: auto;
   border-top: 1px solid var(--border);
 }
 
+/* `--lh-base` and not `--lh-sm`, which is the pair the token table gives
+   `--text-sm`: it is what this row has always drawn (a size with no line
+   height inherits `body`'s 20px LENGTH, globals.css:55-61), it is what
+   `.sm-inline-body` and `.sm-inline-error` above already pair `--text-sm` with
+   for a sentence on this ground, and it is what keeps the row at the 33px the
+   list's own height is derived from. Stating it changes not one drawn pixel;
+   leaving it unstated is what let the height above be a bare literal. */
 .session-sheet .sm-batch-targets li {
   display: flex;
   align-items: baseline;
@@ -228,6 +288,7 @@
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border);
   font-size: var(--text-sm);
+  line-height: var(--lh-base);
 }
 
 .session-sheet .sm-batch-targets li > strong {
@@ -258,5 +319,6 @@
 .session-sheet .sm-batch-skipped {
   margin: var(--space-4) 0 0;
   font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-secondary);
 }

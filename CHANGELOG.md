@@ -10,6 +10,10 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - Session > Manage Sessions… shows every session Tortie manages in one sheet, across every project and machine and including projects whose tab is closed, with each one's state, when it was created, how many messages its conversation holds and how long ago the last one was. You can end a session or restore an ended one from there, or tick several and end them together after one confirmation that names each, and Past Sessions… opens the same sheet on its second tab; a session on another machine shows a dash for its messages ([`f6c11f57`](https://github.com/gregce/tortie/commit/f6c11f57))
 
+### Changed
+
+- The Manage Sessions sheet now shows about twice as many sessions at once — seventeen rows where it showed nine in the same window — because a session takes one line rather than two, and it reads like the rest of Tortie, with the same type and icon sizes and a row that fills under the pointer the way the session list does. No column was dropped and nothing on a row is smaller to click, and a message that appears while the sheet is open now sits above its footer instead of over the End button on the lowest rows
+
 ### Fixed
 
 - Scrolling back in a session and reading stays where you put it while the agent keeps writing, when you resize the window and when you look at another session and come back, and the scrollbar shows how far back you really are. It used to slide away from you, a line for every line printed, until it reached the top, and a resize or a trip to another session could throw you back to the bottom. Contributed by [John Berryman](https://github.com/JnBrymn) in [#30](https://github.com/gregce/tortie/pull/30) ([`6414ab2c`](https://github.com/gregce/tortie/commit/6414ab2c)), ([`3f0f0f54`](https://github.com/gregce/tortie/commit/3f0f0f54))

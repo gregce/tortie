@@ -19,7 +19,19 @@
 
    Every override of a shared class carries the sheet's own class as well, so
    it wins on specificity and never on the order the bundler happens to put
-   two stylesheets in. */
+   two stylesheets in.
+
+   PHASE 298 — ONE ROW SCALE, ONE TYPE SCALE, ONE ICON SCALE. Every row in the
+   sheet is `--sm-row-h`, one number, and the reasoning for that number is
+   beside it. Every type step is a step the app already draws and every
+   `font-size` names its `line-height`, so nothing inherits body's 20px length
+   by accident. `--text-2xs` survives in exactly one place, the footer, because
+   a footnote is what that step is for. The sheet also eases for the first
+   time: the row, the icon button, the tab, the sort and the End button name
+   `--dur-fast` and `--ease-out`, which is why there is NO
+   `prefers-reduced-motion` block here — tokens.css drops the durations to 1ms
+   app-wide and sets `transition-property: none` under that query, and writing
+   the durations as tokens is what buys that. */
 
 /* ---------------------------------------------------------------- the sheet */
 
@@ -35,16 +47,123 @@
   --sm-gutter: 48px;
   --sm-title-h: 52px;
   --sm-toolbar-h: 47px;
+  /* THE ROW, and every row in this sheet is this one number.
+     ------------------------------------------------------------------------
+     A row's height is its TALLEST CHILD plus its own padding. Padding does not
+     clip — the row grows — so a declared height under that sum is a number no
+     browser ever draws.
+
+     28px is `.btn`'s own height (styles/globals.css:127, a literal there too),
+     and it is what `--sm-icon-btn` below is set from. The tallest child a row
+     here carries is that 28px ellipsis. The primary button beside it is
+     `.btn.btn-sm` at 24 (styles/app.css:2702) and the select cell's check
+     target is 32 (`--sm-check-target`), and both sit INSIDE the 40 — the check
+     with 4px above and below, which is what lets `td.sm-col-select` keep the
+     zero vertical padding it has always had.
+
+     WHY NOT 32, AND WHY NOT 28. A declared 32 would have RENDERED at 40 in the
+     actions cell (6 + 28 + 6) and at 44 in the select cell (6 + 32 + 6). A
+     declared 28 cannot hold the button at all: the padding would be zero, the
+     row's box and the button's box would be the same rectangle, and the focus
+     ring — `--focus-ring` is a box-shadow with no `inset`, so it extends 2px
+     beyond the element on every side — would land wholly outside the row,
+     where `.sm-scroll`'s unreachable block-start overflow cuts it and the
+     sticky `thead`'s `--bg-raised` fill at `z-index: 1` paints over it.
+
+     IT IS WRITTEN AS THE SUM AND NOT AS `40px` because 40 says nothing about
+     what decides it. A later round that wants a shorter row has to shorten the
+     button first. There is no row-height token in Tortie — every row height in
+     the app is a literal — so the sheet states its own here, once. */
+  --sm-row-h: calc(28px + 2 * var(--space-3));
+  /* THE CELL'S CONTENT BOX, which is what a control that fills its cell reads:
+     the row less the vertical padding `tbody td` puts inside it, so 40 less 12
+     is 28 — the same 28 the row was built from.
+     ------------------------------------------------------------------------
+     IT EXISTS FOR THE NAME BUTTON (the fix round). That button is the only
+     control in the Session cell and the ONLY door to Details, because the `<tr>`
+     carries no click handler. Taking the two-line `.sm-name-text` column out
+     (mechanism 3) left it as its own tallest child at 20 tall — under the 24 ×
+     24 floor WCAG 2.2 AA 2.5.8 asks for on BOTH dimensions, and 17 short of the
+     37 the parent drew. Reading this property gives it the whole cell back at no
+     cost in density at all: the actions cell already holds 28.
+
+     IT IS A PROPERTY RATHER THAN A CALC IN THE RULE because the `--space-3` in
+     it is `tbody td`'s own padding, declared down there; a later round that
+     changes that padding changes this number, and it should have one place to
+     change it. */
+  --sm-cell-h: calc(var(--sm-row-h) - 2 * var(--space-3));
+  /* The sticky column heading: one `--lh-xs` line box with `--space-3` above and
+     below it, so 6 + 16 + 6 = 28. It was 44 before this phase. The
+     `scroll-margin-top` in ./session-manager-panels.css reads this, which is
+     what its 60px always was — the sticky heading's height plus a gap.
+
+     THOSE TWO 6s ARE THE SORT BUTTON'S OWN BOX AND NOT THE CELL'S PADDING (the
+     fix round). `thead th` draws no vertical padding, `.sm-sort` reads this
+     property for its height, and the heading cell's whole height is therefore
+     the sort target. The label lands in the same place either way.
+
+     A HEADING ROW IS AS TALL AS ITS TALLEST CELL, and the tallest cell is not
+     a heading. The select-all's 32px target held the whole row at 32 while the
+     six text headings beside it drew 28, so `thead th.sm-col-select .sm-check`
+     below reads THIS property for its height. That rule is what makes this
+     number the one the browser draws. */
+  --sm-head-h: calc(var(--lh-xs) + 2 * var(--space-3));
   --sm-select-col: 46px;
   --sm-check-target: 32px;
   --sm-check-box: 14px;
   --sm-icon-btn: 28px;
   --sm-session-min: 155px;
   --sm-name-max: 175px;
-  --sm-actions-min: 170px;
-  --sm-past-state: 145px;
-  --sm-past-row: 64px;
-  --sm-skeleton-row: 62px;
+  /* MEASURED, NEVER CHOSEN, the way styles/app.css:198-220 records
+     `.ptab-name`'s 46px.
+     ------------------------------------------------------------------------
+     `.sm-name strong` now computes to `500 13px --font-ui`, which is the exact
+     font that measurement was taken at. Re-measured 2026-09-20 with CoreText
+     against the system font at that size and weight, over the operator's own
+     twelve project names (build/probe-p189-tabs.mjs:95-108): the widest first
+     four characters plus the ellipsis is `dead…` at 42.04px, set by
+     `deadreckon`, with the ellipsis glyph at 11.10px. `npm run probe:p189`
+     read the same pair off the live element with canvas `measureText` as 41.90
+     and 11.03, so the two agree to 0.14px and the name that sets the floor is
+     the same one. 44 is that reading rounded up to the 4px grid.
+
+     A LATER ROUND RE-MEASURES RATHER THAN NUDGES IT, and arm 11 of
+     build/p293/probe-p293.mjs re-reads it off this element. It is NOT a row in
+     `gate:tab-floor`'s table: that gate measures a different surface, and the
+     tab's own 46 is this same reading with 4.1px of headroom rather than 2.1. */
+  --sm-name-min: 44px;
+  /* Re-derived from what the actions cell actually holds, rather than the 170
+     it was given.
+     ------------------------------------------------------------------------
+     `.btn.btn-sm` reading `End session…` is the widest the cell ever draws:
+     2 × `--space-5` of button padding, a 12px `--icon-sm` glyph, the button's
+     own `--space-3` gap and 79.41px of label at `--text-sm`/`--weight-medium`
+     = 121.41; plus the row's `--space-3` gap and the 28px `--sm-icon-btn`
+     ellipsis, `.sm-row-actions` measures 155.41 by that arithmetic, which is
+     156 on the grid. (Measured 2026-09-20 with CoreText at the same size and
+     weight, by the method `--sm-name-min` above records.)
+
+     THE LIVE READING WINS OVER THE ARITHMETIC, AND IT IS 160. Arm 11 of
+     build/p293/probe-p293.mjs measures the block the way this floor is used —
+     the rightmost child's right edge less the leftmost child's left edge,
+     across every `.sm-row-actions` the sheet draws — and the app run read
+     157.2, which is 160 on the 4px grid. The 1.8px the CoreText sum missed is
+     the button's own border and the sub-pixel advance of a label the canvas
+     rounds; a floor that is re-derived from a measurement takes the
+     measurement that includes everything the browser draws. A later round
+     re-reads that arm rather than nudging this number, and nothing here shrank
+     to make the smaller one fit.
+
+     `box-sizing: border-box` puts the cell's own `--space-5` and `--space-7`
+     of padding inside this floor, so the drawn column is wider than 160 and
+     `table-layout: auto` never draws it narrower than its content. What this
+     number is FOR is the row that draws no actions at all: it stops the column
+     collapsing and reflowing the six columns beside it. */
+  --sm-actions-min: 160px;
+  /* The Past row's identity block had `--sm-actions-min` as its flex basis,
+     which is a different job wearing one name. It holds what the Managed
+     Session cell holds, so it reads that cell's own floor. */
+  --sm-past-identity-min: var(--sm-session-min);
   --sm-state-pad: 70px;
   --sm-state-max: 540px;
   width: min(var(--sm-width), calc(100vw - var(--sm-gutter)));
@@ -59,7 +178,13 @@
 }
 
 /* The sheet takes the keyboard when a person clicks its empty ground, so the
-   keyboard stays inside it; that focus is not a control and draws no ring. */
+   keyboard stays inside it. THAT FOCUS IS NOT A CONTROL AND DRAWS NO RING, and
+   this is the third legal variant of globals.css:94-101 — the ring suppressed
+   with the reason written down. The sheet is a container, not something a
+   person can press; a 2px ring around the whole modal would read as the sheet
+   itself being the thing focused, and the ring a person needs is already on
+   whatever control they reach next. `--shadow-3` is the modal's own elevation
+   and is restated so the shorthand does not drop it. */
 .modal.session-sheet:focus,
 .modal.session-sheet:focus-visible {
   outline: none;
@@ -91,11 +216,16 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* `.modal-title` is 20px and too tall for a 52px bar. */
+/* The app's titles are one step: `.modal-title` and `.empty-title` are both
+   `--text-lg`. A 28px line box clears the 52px bar with 12px to spare, so the
+   bar does not move. (The note that stood here said 20px was "too tall for a
+   52px bar"; it was about reading 20 beside a 15px tab label, and the tab is
+   13 now.) */
 .session-sheet .sm-heading {
   margin: 0;
   flex: 0 0 auto;
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
@@ -112,10 +242,14 @@
   align-items: center;
   gap: var(--space-3);
   padding: 0 var(--space-1);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
   white-space: nowrap;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
 .session-sheet .sm-tab:hover {
@@ -126,13 +260,18 @@
   color: var(--text-primary);
 }
 
+/* The app has one other tab underline, `.set-agent-page` at
+   settings.css:572-583: inset by `--space-2` at each end and rounded at the
+   top, so the bar reads as belonging to the label rather than to the row.
+   `bottom: -1px`, `height: 2px` and `--accent` already agreed. */
 .session-sheet .sm-tab[aria-selected='true']::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--space-2);
+  right: var(--space-2);
   bottom: -1px;
   height: 2px;
+  border-radius: var(--r-bar) var(--r-bar) 0 0;
   background: var(--accent);
 }
 
@@ -142,14 +281,23 @@
   cursor: default;
 }
 
+/* The count is the shared chip primitive (`.chip` + `.chip-sm`,
+   globals.css:329-349), so its 16px box, its step and its inline padding come
+   from there and the 19/5/1 literals that were here — none of them on the 4px
+   grid — are gone. `min-width` is `.ab-badge`'s (app.css:494), so a one-digit
+   count is the same box as a two-digit one. The display and the line height are
+   restated because a height does not apply to a non-replaced inline box and a
+   16px box needs a 16px line: both hold whichever half of the primitive the
+   call site ends up carrying. */
 .session-sheet .sm-count {
-  min-width: 19px;
-  padding: 2px 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
   border-radius: var(--r-sm);
   background: var(--bg-raised);
   color: var(--text-secondary);
-  font-size: var(--text-xs);
-  text-align: center;
+  line-height: var(--lh-xs);
 }
 
 .session-sheet .sm-title-actions {
@@ -159,8 +307,10 @@
   margin-left: auto;
 }
 
-/* The shipped `.icon-btn` is a 20px target. The sheet's are 28, the height of
-   the controls beside them. */
+/* `.icon-btn` (globals.css:199-214) is the vocabulary and the call sites carry
+   it, so the radius, the resting colour and the hover are ITS. This class adds
+   only what is the sheet's own: placement, and a 28px target instead of 20
+   because that is the height of the controls beside it. */
 .session-sheet .sm-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -168,13 +318,26 @@
   flex: 0 0 auto;
   width: var(--sm-icon-btn);
   height: var(--sm-icon-btn);
-  border-radius: var(--r-sm);
-  color: var(--text-secondary);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
+/* `--bg-raised` is the value twenty `.icon-btn` sites hover to, and the title
+   bar's buttons take it. */
 .session-sheet .sm-icon-btn:hover:not(:disabled) {
-  background: var(--bg-active);
+  background: var(--bg-raised);
   color: var(--text-primary);
+}
+
+/* ON A ROW, AND ONLY ON A ROW, THE HOVER IS `--bg-active` INSTEAD. The row's
+   own hover already took `--bg-raised`, so a button that hovered to the same
+   value would vanish into the row it sits in. This is the one deliberate
+   divergence from the shared hover and it is not a fifth row treatment: the
+   row's fill has not changed. */
+.session-sheet .sm-row .sm-icon-btn:hover:not(:disabled),
+.session-sheet .sm-past-row .sm-icon-btn:hover:not(:disabled) {
+  background: var(--bg-active);
 }
 
 .session-sheet .sm-icon-btn:disabled {
@@ -218,6 +381,8 @@
   min-width: 180px;
 }
 
+/* `--text-sm` is `--view-field-text`, the step every field in the app reads at
+   minimum. */
 .session-sheet .sm-select {
   flex: 0 0 auto;
   height: var(--field-h);
@@ -227,11 +392,17 @@
   border-radius: var(--r-sm);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
+/* All three declarations STATED, the way `.set-select` (settings.css:492-496)
+   and `.input` do, so a later reader can tell the ring is intended here rather
+   than inherited by accident: a field takes the accent border AND the ring. */
 .session-sheet .sm-select:focus-visible {
+  outline: none;
   border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 
 .session-sheet .sm-select-project {
@@ -248,6 +419,7 @@
 
 .session-sheet .sm-selected {
   font-size: var(--text-sm);
+  line-height: var(--lh-sm);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   white-space: nowrap;
@@ -255,6 +427,7 @@
 
 .session-sheet .sm-selection-summary {
   font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -275,71 +448,221 @@
 
 /* ---------------------------------------------------------------- the grid */
 
+/* NO `font-size` HERE. It was `--text-sm`, which made the same `.sm-name` draw
+   12px inside the grid and 13px inside the Past list, because `font: inherit`
+   picked up the table on one tab and `body` on the other. The grid inherits
+   body's `--text-base`/`--lh-base` and the two tabs draw one size. */
 .session-sheet .sm-grid {
   width: 100%;
   border-collapse: collapse;
   table-layout: auto;
-  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
 
-/* The rule under a sticky heading is a shadow: a border on a sticky `th` under
-   `border-collapse: collapse` drops out in Chromium. */
+/* THE HEADING IDIOM, unanimous across 26 rules in the app: `--text-xs`,
+   uppercase, `--track-caps`. `.diag-table th` (diagnostics.css:211-217) is the
+   type and `.section-header` (app.css:707) is the 28px height.
+
+   ITS COLOUR IS `--text-secondary` AND NOT THE IDIOM'S `--text-muted`, and
+   that is the one deliberate deviation: this heading's ground is
+   `--bg-raised`, where `--text-muted` measures 4.15 and is under the floor.
+   `__tests__/p293-css-tokens.test.ts` already refuses the alternative.
+
+   THE RULE UNDER IT STAYS A SHADOW, NEVER A BORDER: a border on a sticky `th`
+   under `border-collapse: collapse` drops out in Chromium.
+
+   NO VERTICAL PADDING, AND THAT IS WHAT MAKES THE WHOLE HEADING CELL THE SORT
+   TARGET (the fix round). The 6 above and below the heading's one line box is
+   the sort button's own box now, exactly as `.section-header` (app.css:707-729)
+   carries `padding: 0 var(--space-4)` so that `.section-toggle` inside it can be
+   the full height of the heading. The cell is the same 28 either way — the
+   select-all's target holds that floor on its own (`--sm-head-h`) — and the
+   label does not move a pixel. */
 .session-sheet .sm-grid thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: var(--space-5);
+  padding: 0 var(--space-5);
   background: var(--bg-raised);
   box-shadow: inset 0 -1px 0 var(--border-strong);
   color: var(--text-secondary);
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caps);
   text-align: left;
   white-space: nowrap;
 }
 
+/* THE SORT TARGET IS THE WHOLE HEADING CELL, the way `.section-toggle`
+   (app.css:731-741) is the whole height of its own 28px `.section-header`: the
+   heading carries no vertical padding and the button carries the height.
+   ---------------------------------------------------------------------------
+   With `padding: 0` against a cell that padded itself, this button was one
+   `--lh-xs` line box and nothing else — 16 tall, under WCAG 2.2 AA 2.5.8's 24,
+   and 4 SHORTER than the 20 the parent drew, because the parent's `th` set no
+   line-height and `font: inherit` took body's 20px length. A phase that promised
+   no hit area would get smaller shortened this one twice over.
+
+   `--sm-head-h` IS THE HEIGHT, which is the same property the select-all's own
+   target reads (`thead th.sm-col-select .sm-check` below), so the two controls
+   in this row are spelled one way: as tall as the row they sit in. 28 clears the
+   24 × 24 floor on both dimensions — the narrowest heading is `STATE` at
+   `--text-xs` plus the `--space-3` gap and the 12px glyph, which is over 50 wide
+   — and it costs NO density, because the heading row was 28 before and is 28
+   after. `height: 100%` is not used for it: a percentage inside a table cell is
+   not a length the cell can always resolve, while this property is the number
+   the heading is already stated from.
+
+   THE LABEL DOES NOT MOVE. The flex line is the 16px `--lh-xs` box and
+   `align-items: center` centres it in the 28, so the text still sits 6 below the
+   cell's top edge — where the cell's own padding used to put it — and the
+   heading's baseline is unchanged, which is what keeps the row at 28 under the
+   baseline alignment a table row gives its cells. */
 .session-sheet .sm-sort {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
+  height: var(--sm-head-h);
   padding: 0;
   font: inherit;
   color: inherit;
   border-radius: var(--r-sm);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
 .session-sheet .sm-sort:hover {
   color: var(--text-primary);
 }
 
+/* 6 above and 6 below one line box. The transition is `--dur-fast`, the step
+   `.scm-row` and `.ptab` use, because a modal table row is closest in kind to
+   those; the fill is on the CELL and not the row, since a row's own box paints
+   under its cells in a collapsed table. */
 .session-sheet .sm-grid tbody td {
-  padding: var(--space-6) var(--space-5);
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
   white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
-.session-sheet .sm-grid td > small {
-  display: block;
-  margin-top: var(--space-3);
-  font-size: var(--text-2xs);
-  line-height: 1.5;
+/* THE ROW IS 40. 6 + 28 + 6 in the actions cell and, since the fix round, in
+   the Session cell too — its name button reads `--sm-cell-h` for exactly that
+   reason — and 6 + 20 + 6 = 32 in the four text cells, so this declaration is
+   what makes every row the same. Box 40, pitch 41: `border-collapse: collapse`
+   puts the hairline BETWEEN two rows, so it adds a pixel to the pitch. */
+.session-sheet .sm-grid tr.sm-row {
+  height: var(--sm-row-h);
+}
+
+/* ONE SECONDARY FIELD, INLINE. It was two rules — a block `small` under the
+   cell at `--space-3` and another under the name at `--space-1` — both at
+   `--text-2xs` 10px on a ratio line-height of 1.5, which computed to 15 and
+   landed a pixel off `--lh-2xs`. It is one class now, one step UP to
+   `--text-xs`, and beside its field rather than under it: `.scm-row-dir`,
+   `.qo-project`, `.set-row-caption` and `.rail-card-detail` all read that way,
+   and putting the second field beside the first is the whole reason those rows
+   are 22 to 28px. */
+.session-sheet .sm-cell-small {
+  margin-left: var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-secondary);
+}
+
+/* Inside the name line the gap is the flex container's, so the class's own
+   margin would be counted twice. `white-space` is load-bearing rather than
+   decoration: in a `td` the cell's own `nowrap` reaches this inline box, but
+   `.sm-past-row` sets none, and a secondary line that wraps makes the 40px row
+   56. */
+.session-sheet .sm-name-line .sm-cell-small {
+  margin-left: 0;
+  white-space: nowrap;
+}
+
+/* ON A PAST ROW THIS IS THE FIELD THAT GIVES WAY, and it is the only place in
+   the sheet where a secondary field can be squeezed at all.
+   ---------------------------------------------------------------------------
+   This one word carries the whole secondary line — the agent, the FOLDER the
+   session ran in, and what Restore will do — so it is what must shrink, at a
+   shrink factor an order of magnitude above the name's `flex: 0 1 auto`
+   (inline rule 3). search.css:328-333 records the measurement that forced that
+   ordering: with equal shrink a short filename truncated while a long directory
+   still had room, "exactly backwards, since the name is the thing being looked
+   for".
+
+   IT TRUNCATES FROM THE RIGHT (inline rule 6). `.scm-row-dir` truncates left
+   with `direction: rtl` and search.css:357-362 refuses exactly that for a path,
+   because bidi reordering moves the `/` and `.` runs and a path can render with
+   its separators in the wrong places and land mid-word with no ellipsis at all.
+   PastList.tsx hands the whole line to the element's own `title`, so a
+   truncated line says all of itself on hover.
+
+   IT IS SCOPED TO THE PAST ROW ON PURPOSE. In the grid the same class draws the
+   agent's short label in a cell `table-layout: auto` has already made as wide as
+   its content, so there is no pressure on it and nothing to hide; leaving the
+   ellipsis off there keeps the grid's own promise that a long honesty word
+   WIDENS the table and scrolls `.sm-scroll` sideways rather than being cut. */
+.session-sheet .sm-past-row .sm-name-line .sm-cell-small {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .session-sheet .sm-row:hover > td {
   background: var(--bg-raised);
 }
 
+/* A CHECKED ROW IS FILL PLUS ITS HAIRLINE, AND DELIBERATELY NOT `.srow`'s
+   INSET OUTLINE. A full-width table row on `--bg-surface` is not `.srow` on
+   `--bg-sidebar`, and project-rail.css:159-166 already refuses copying that
+   outline onto a full-bleed row in these words: "a 1px outline on a full-bleed
+   row is two rules across the rail". The hairline is `--border-active` because
+   the plain `--border` disappears on the active ground. There is no `:active`
+   state and no row radius. */
 .session-sheet .sm-row.checked > td,
 .session-sheet .sm-row.sm-row-open > td {
   background: var(--bg-active);
   border-bottom-color: var(--border-active);
 }
 
-/* The select column: a 32px target around a 14px box. */
+/* THE KEYBOARD CURSOR INSIDE A CHECKED BLOCK, adopted from scm.css:446-456,
+   which exists for this exact problem: every checked row wears `--bg-active`,
+   so the row holding the keyboard needs its own quiet mark or shift-arrows
+   move something invisible. Gated on `.sm-scroll:focus-within`, because a
+   selection left behind by a click should read as one block. No new token and
+   NO NEW STATE — the row holding the keyboard is the row holding the focus.
+
+   ONE DEVIATION FROM THE SOURCE, and it is the layout model rather than a
+   choice. `.scm-row` is a flex row and takes the whole `inset 0 0 0 1px`
+   outline. A `tr` cannot: in a collapsed table the row's own box paints UNDER
+   its cells, so the opaque `--bg-active` above would cover it, and putting the
+   full outline on each cell instead draws a doubled hairline at every cell
+   boundary. So the grid draws the same 1px in the same colours on the cells'
+   top and bottom edges, which is one continuous line across the row. The Past
+   row below is a flex row and takes the source form verbatim. */
+.session-sheet .sm-scroll:focus-within .sm-row:focus-within > td {
+  box-shadow:
+    inset 0 1px 0 var(--border-strong),
+    inset 0 -1px 0 var(--border-strong);
+}
+
+.session-sheet .sm-scroll:focus-within .sm-row.checked:focus-within > td,
+.session-sheet .sm-scroll:focus-within .sm-row.sm-row-open:focus-within > td {
+  box-shadow:
+    inset 0 1px 0 var(--accent),
+    inset 0 -1px 0 var(--accent);
+}
+
+/* The select column: a 32px target around a 14px box. The vertical padding
+   stays ZERO, which is what lets that target keep its size inside a 40px row
+   with 4px above and below it. */
 .session-sheet .sm-grid th.sm-col-select,
 .session-sheet .sm-grid td.sm-col-select {
   width: var(--sm-select-col);
@@ -367,6 +690,31 @@
   cursor: default;
 }
 
+/* THE HEADING'S TARGET IS ITS OWN ROW, AND THIS IS WHAT DREW THE HEADING AT 32.
+   ---------------------------------------------------------------------------
+   The app run read `thead th` at 32 where the phase declares 28, and the 20px
+   line box was not the cause: `thead th` computes `font-size: 11px` with
+   `line-height: 16px`, so the six text headings each draw 6 + 16 + 6 = 28 —
+   those 6s being the sort button's own box since the fix round, which changes
+   where the padding is declared and not one pixel of what is drawn. A
+   table cell cannot be shorter than its content and a row is as tall as its
+   tallest cell — and every cell is then STRETCHED to that row, which is why all
+   seven `th` rects read the same 32 and why reading any one of them reads the
+   row. The select-all's 32px target, in a cell with zero vertical padding, was
+   that tallest cell.
+
+   So in the heading, and only in the heading, the target is the height of the
+   row it sits in: 32 wide by `--sm-head-h` 28 tall. That is 896px² against WCAG
+   2.2 AA's 24 × 24 floor, and it is every reachable pixel of its own row — a
+   taller one could only be taken from the toolbar above or from the first row
+   below, where this cell's `z-index: 1` would put the select-all over that
+   row's own checkbox. The BODY row keeps the full 32, because a 40px row has
+   4px to spare above and below it (`--sm-row-h`). The 14px box inside is
+   centred either way, 7px above and below it here. */
+.session-sheet .sm-grid thead th.sm-col-select .sm-check {
+  height: var(--sm-head-h);
+}
+
 .session-sheet .sm-grid td.sm-col-session {
   min-width: var(--sm-session-min);
 }
@@ -379,12 +727,42 @@
 
 /* ------------------------------------------------------------- the row cells */
 
+/* THE TARGET IS THE CELL AND NOT THE TEXT (the fix round).
+   ---------------------------------------------------------------------------
+   This button is the ONLY control in the Session cell and the ONLY door to
+   Details — the `<tr>` carries no click handler — so what a person aims at is
+   the cell. With `padding: 0` and nothing to stretch against it was its own
+   tallest child: one `.sm-name-line`, 20 tall, four short of WCAG 2.2 AA
+   2.5.8's 24 on the vertical and seventeen short of the 37 the parent's
+   two-line `.sm-name-text` column drew. `--sm-cell-h` is the cell's whole
+   content box, 28, so the target is 28 by its own width, and that width can
+   never be under 68: the 16px agent mark, the `--space-4` gap beside it and the
+   name's own measured `--sm-name-min` floor of 44.
+
+   IT COSTS NOTHING IN DENSITY. The actions cell already holds 28 inside the same
+   40px row, so the Session cell now matches it instead of being the short one,
+   and `tr.sm-row`'s height is unchanged. NO PADDING IS ADDED HERE — padding on
+   this button would grow the row, and the row is the deliverable.
+
+   WHY A DECLARED HEIGHT AND NOT A STRETCH. A `td` is not a flex container, so
+   there is no `align-self` for this to stretch against, and a percentage height
+   inside a table cell is not a length the cell can always resolve; the property
+   states the same arithmetic the row is stated from. THE TEXT DOES NOT MOVE
+   EITHER WAY: `align-items: center` centres the 20px name line in the 28, which
+   is where `vertical-align: middle` on the cell already put it.
+
+   28 IS ALSO THE CEILING, and the reason is the focus ring. `--focus-ring` is a
+   box-shadow with no `inset` (globals.css:98-101), so it extends 2px on every
+   side; at 28 it lands inside the cell's own 6px of padding, and a button given
+   the row's full 40 would put its ring in the rows above and below, which is the
+   same thing `--sm-row-h` refuses for the row itself. */
 .session-sheet .sm-name {
   display: flex;
   align-items: center;
   gap: var(--space-4);
   min-width: 0;
   max-width: 100%;
+  height: var(--sm-cell-h);
   padding: 0;
   border-radius: var(--r-sm);
   font: inherit;
@@ -392,16 +770,19 @@
   text-align: left;
 }
 
+/* The agent mark LEADS the row and does not follow the name. */
 .session-sheet .sm-agent {
   flex: 0 0 auto;
 }
 
-.session-sheet .sm-name-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
+/* THE NAME CELL IS ONE LINE, and this is the only flex row in it. There was a
+   `.sm-name-text` COLUMN above this holding `.sm-name-line` over the `<small>`,
+   which kept the Session cell two lines high — 20 + 16 + 2 × `--space-3` = 48 —
+   and `tr.sm-row`'s `height` is a MINIMUM on a table row, so it could not pull
+   that back to 40. The column and its wrapper are gone (the integrator's round)
+   and the small word is a sibling of the name here, at the `--space-3` gap
+   mechanism 3 names. A later round that wants a second line has to put the
+   column back deliberately. */
 .session-sheet .sm-name-line {
   display: flex;
   align-items: center;
@@ -409,19 +790,19 @@
   min-width: 0;
 }
 
+/* The name is `flex: 0 1 auto` with a MEASURED floor, never `flex: 1` and
+   never `min-width: 0`: the thing being looked for is not the field that gives
+   way. `--sm-name-min` records how the floor was measured. */
 .session-sheet .sm-name strong {
+  flex: 0 1 auto;
+  min-width: var(--sm-name-min);
   max-width: var(--sm-name-max);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
   font-weight: var(--weight-medium);
-}
-
-.session-sheet .sm-name small {
-  margin-top: var(--space-1);
-  font-size: var(--text-2xs);
-  line-height: 1.5;
-  color: var(--text-secondary);
 }
 
 .session-sheet .sm-state {
@@ -431,11 +812,16 @@
 }
 
 /* The label is `statusVisual`'s own text, so a probe reads what the policy
-   wrote; the first letter is raised here and nowhere else. */
+   wrote; the first letter is raised here and nowhere else. The state does NOT
+   become a chip: it is the shipped `.dot` plus the shipped label, and a pill
+   around it would be the second status-looking mark machine-badge.css:9-11
+   already refuses. */
 .session-sheet .sm-state-label {
   display: inline-block;
 }
 
+/* The heading idiom pairs uppercase with `--track-caps`; this rule raises ONE
+   letter, and tracking one letter only adds a space after it. */
 .session-sheet .sm-state-label::first-letter {
   text-transform: uppercase;
 }
@@ -444,6 +830,11 @@
   color: var(--status-attention);
 }
 
+/* THE ROW'S VERBS ARE PERMANENTLY DRAWN AND ARE NOT REVEALED ON HOVER, and
+   that is a decision rather than an omission: a management sheet's verbs are
+   the reason the sheet exists, and a person scanning for the row to end should
+   not have to hover each one to find out it can be ended. It reads as an
+   oversight today only because nothing said so. */
 .session-sheet .sm-row-actions {
   display: flex;
   align-items: center;
@@ -451,7 +842,15 @@
   gap: var(--space-3);
 }
 
-/* End reads as a quiet button until the pointer is on it. */
+/* End reads as a quiet button until the pointer is on it. It moves THREE
+   properties where `.btn` animates one, so it names all three. */
+.session-sheet .btn.sm-end {
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
 .session-sheet .btn.sm-end:hover:not(:disabled) {
   background: var(--error-wash);
   border-color: var(--error);
@@ -460,9 +859,11 @@
 
 /* --------------------------------------------------------- the group headers */
 
-/* A group header scrolls with its rows. It does not stick and does not fold. */
+/* A group header scrolls with its rows. It does not stick and does not fold.
+   4 + 20 + 4 = 28, `.section-header`'s height without its uppercase, and the
+   20 is `--lh-base` from `.sm-group-name strong` below. */
 .session-sheet .sm-grid tr.sm-group > th {
-  padding: var(--space-6) var(--space-8) var(--space-2);
+  padding: var(--space-2) var(--space-8);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   font-weight: var(--weight-regular);
@@ -470,7 +871,7 @@
 }
 
 .session-sheet .sm-past .sm-group {
-  padding: var(--space-6) var(--space-8) var(--space-2);
+  padding: var(--space-2) var(--space-8);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
 }
@@ -496,21 +897,28 @@
 }
 
 .session-sheet .sm-group-name strong {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
   font-weight: var(--weight-semibold);
 }
 
 .session-sheet .sm-group-count {
   font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-muted);
 }
 
+/* The chip is the shared primitive too (`.chip` + `.chip-sm`), so the `1px 6px`
+   that was here — neither number on the grid — is gone and the box is the same
+   16px the machine badge beside it is. The border and the colour are what stay
+   the sheet's own. */
 .session-sheet .sm-chip {
-  padding: 1px 6px;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid transparent;
   border-radius: var(--r-sm);
-  font-size: var(--text-2xs);
   white-space: nowrap;
+  line-height: var(--lh-xs);
 }
 
 .session-sheet .sm-chip-open {
@@ -528,6 +936,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-muted);
 }
 
@@ -537,14 +946,59 @@
   padding-bottom: var(--space-6);
 }
 
+/* BOX 40 AND PITCH 40, AND THE HAIRLINE IS THE PIXEL THIS ROW COULD NOT FIND.
+   ---------------------------------------------------------------------------
+   Only the VERTICAL term moves from the row this phase inherited: the
+   horizontal stays `--space-8` so the row stays aligned with its own group
+   header above it.
+
+   `box-sizing: border-box` (globals.css:13-15) holds a border INSIDE a declared
+   height, and the app run is what showed which way that cuts. `min-height` is a
+   MINIMUM: with 6 + 6 of padding and a 1px `border-bottom` inside 40, the
+   content box was 27, the tallest child on the row is the 28px `--sm-icon-btn`
+   ellipsis at `flex: 0 0 auto` — and since the fix round the identity block
+   beside it is 28 too, because the name button inside it reads `--sm-cell-h`,
+   so the sum is the same one either way — and a flex item that cannot shrink
+   makes its container grow — 6 + 28 + 6 + 1 = 41, box and pitch both. One pixel
+   over is one row fewer: a 770px scroller holds 19 rows at 40 and 18 at 41,
+   which is the whole reason this phase shortened the row at all.
+
+   SO THE HAIRLINE COMES OUT OF THE FLOW and is painted by the `::after` below,
+   1px inside the row's own bottom edge. 6 + 28 + 6 = 40 exactly, with the
+   hairline on the fortieth pixel row, under the buttons and touching nothing.
+   The declared `min-height` still does its one job — a Past row that draws no
+   actions at all is held at 40 rather than collapsing to its name line.
+
+   THE GRID KEEPS ITS `border-bottom`, and the two tabs still differ by a pixel
+   of pitch for a reason that is real: under `border-collapse: collapse` the
+   hairline sits BETWEEN two rows and a `tr`'s own rect includes it, so the grid
+   is 40 of row plus 1 of shared hairline. Both tabs draw 40 of row. */
 .session-sheet .sm-past-row {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-5);
-  min-height: var(--sm-past-row);
-  padding: var(--space-4) var(--space-8);
-  border-bottom: 1px solid var(--border);
+  min-height: var(--sm-row-h);
+  padding: var(--space-3) var(--space-8);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+/* The hairline the rule above took out of the flow — the same 1px it was as a
+   border, and a colour token either way.
+
+   `position: absolute` is load-bearing TWICE, and a later round that drops it
+   breaks the row rather than the line: an in-flow `::after` on a flex container
+   is a FLEX ITEM, so it would take a slot on the line, and `.sm-past-row` is
+   `flex-wrap: wrap`, so it could break the line and make the 40px row two rows
+   tall. Out of flow it takes no part in the flex layout and no part in the 40. */
+.session-sheet .sm-past-row::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
 }
 
 .session-sheet .sm-past-row:hover {
@@ -553,26 +1007,63 @@
 
 .session-sheet .sm-past-row.sm-row-open {
   background: var(--bg-active);
-  border-bottom-color: var(--border-active);
 }
 
+/* The open row's hairline is `--border-active`, the value it took as a
+   `border-bottom-color` before the line moved out of the flow. It is the same
+   rule the grid's open row keeps, in the one place this row can carry it. */
+.session-sheet .sm-past-row.sm-row-open::after {
+  background: var(--border-active);
+}
+
+/* A flex row takes scm.css:446-456's own form: one inset outline, and the
+   accent when the row is also the open one. */
+.session-sheet .sm-scroll:focus-within .sm-past-row:focus-within {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.session-sheet .sm-scroll:focus-within .sm-past-row.sm-row-open:focus-within {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* THE BASIS STAYS A BASIS, under its own name. It read
+   `flex: 1 1 var(--sm-actions-min)`, one property doing two unrelated jobs; the
+   entry's mechanism 16 renames that second job and does not change it, so this
+   is the same flex it has always been reading `--sm-past-identity-min`.
+
+   THE INTEGRATOR'S ROUND PUT THE GROW AND THE SMALL BASIS BACK, against
+   build/p298/SPEC.md §3, which asked for `flex: 0 1 auto; min-width:
+   var(--sm-past-identity-min)`. The entry wins and the reason is mechanical:
+   `.sm-past-row` is `flex-wrap: wrap` — it has to be, because `.sm-past-note`
+   is `flex: 1 0 100%` — and a flex line BREAKS on the items' base sizes before
+   anything shrinks. With a basis of `auto` a long folder makes this block's base
+   size the whole line, `.sm-row-actions` wraps below it, and the 40px row is
+   two rows tall. A 155px basis can never break the line, and the block then
+   grows to take the slack, which is what gives the secondary field below
+   something to shrink against.
+
+   NO `min-width`. A flex item's automatic minimum is its content-based
+   minimum, which here is the name's own measured floor plus the marks beside
+   it — about 110px — and that is the floor that should hold, not a number. */
 .session-sheet .sm-past-identity {
-  flex: 1 1 var(--sm-actions-min);
-  min-width: var(--sm-actions-min);
+  flex: 1 1 var(--sm-past-identity-min);
 }
 
-/* A tombstone's line is a sentence, and a sentence wraps. */
-.session-sheet .sm-past-identity .sm-name small {
-  white-space: normal;
-}
-
+/* CONTENT-SIZED, rather than the 145px slot it had: a trailing mark is sized by
+   its own content (inline rule 5), and 145px of slot for `Removed Sep 16` was
+   the widest thing on the row after the name. It needs no auto margin to sit
+   right: the identity block above it grows and takes every pixel of slack, so
+   this and the actions beside it are already pushed to the end of the row. */
 .session-sheet .sm-past-state {
-  flex: 0 0 var(--sm-past-state);
-  width: var(--sm-past-state);
+  flex: 0 0 auto;
   font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-secondary);
 }
 
+/* A tombstone is a SENTENCE, and a sentence wraps, so it keeps its own line
+   below the row's fields. This is the one row in the sheet above 40px, and it
+   is above it for that reason. */
 .session-sheet .sm-past-note {
   flex: 1 0 100%;
   margin: 0;
@@ -595,59 +1086,103 @@
   color: var(--text-secondary);
 }
 
-.session-sheet .sm-state-block h2 {
+/* `.empty-title`'s step. */
+.session-sheet .sm-state-heading {
   margin: 0;
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
 
-.session-sheet .sm-state-block p {
+/* `.empty-body`'s step. It read 12px on a 20px line box, which is a size and
+   a line height that were never a pair. */
+.session-sheet .sm-state-body {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   line-height: var(--lh-base);
 }
 
+/* THE GAP IS ZERO so the skeletons stack at the ROW's own pitch. It was
+   `--space-4`, which with the old 62px block came to 70 — exactly the old
+   two-line pitch — so against a 40px row the loading state would have been
+   30px per row too tall and the list would visibly resettle when the real rows
+   landed. The label keeps its own space below it, since the gap can no longer
+   give it any. */
 .session-sheet .sm-loading {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 0;
   padding: var(--space-6) var(--space-8);
 }
 
 .session-sheet .sm-loading-label {
+  margin-bottom: var(--space-3);
   font-size: var(--text-sm);
+  line-height: var(--lh-sm);
   color: var(--text-secondary);
 }
 
 .session-sheet .sm-skeleton {
-  height: var(--sm-skeleton-row);
+  height: var(--sm-row-h);
   border-radius: var(--r-md);
   background: var(--bg-raised);
 }
 
+/* ---------------------------------------------------------- the toast strip */
+
+/* While the sheet is open the toast stack docks INSIDE it, above the footer,
+   so it takes height from the scroller and covers no row's verbs. It was
+   `position: fixed` over the sheet at `--z-toast`, and two toasts up put the
+   last row's End button under a toast — a click then landed on whatever was
+   under the pointer, which the sheet's own note already admitted. `:empty`
+   takes no height at all, so a sheet with nothing toasted holds exactly as
+   many rows as it did. */
+.session-sheet .sm-toasts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex: 0 0 auto;
+  padding: var(--space-4) var(--space-8);
+}
+
+.session-sheet .sm-toasts:empty {
+  display: none;
+  padding: 0;
+}
+
 /* --------------------------------------------------------------- the footer */
 
+/* 6 + 16 + 6 + the 1px top border = 29. `--text-2xs` is KEPT here and it is
+   the only place in the sheet that reads it: a footer is a footnote, which is
+   what that step is for. */
 .session-sheet .sm-foot {
   display: flex;
   justify-content: space-between;
   gap: var(--space-7);
   flex: 0 0 auto;
-  padding: var(--space-5) var(--space-8);
+  padding: var(--space-3) var(--space-8);
   border-top: 1px solid var(--border);
   font-size: var(--text-2xs);
+  line-height: var(--lh-2xs);
   color: var(--text-muted);
 }
 
 /* ---------------------------------------------------------------- narrower */
 
-/* The grid scroller scrolls sideways; below 1100px the cells give first. */
+/* The grid scroller scrolls sideways; below 1100px the cells give first. The
+   1100 is a literal and has to be: a custom property is not readable in a
+   media query. ONLY THE HORIZONTAL TERM NARROWS — the vertical term is the
+   wide row's, so a narrow row can never be TALLER than a wide one. It was
+   `var(--space-5) var(--space-4)`, which was shorter than the old wide row and
+   would have been 6px taller than this one. */
 @media (max-width: 1100px) {
   .modal.session-sheet {
     --sm-name-max: 135px;
   }
 
   .session-sheet .sm-grid tbody td {
-    padding: var(--space-5) var(--space-4);
+    padding: var(--space-3) var(--space-4);
   }
 }

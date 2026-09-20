@@ -36,6 +36,18 @@
  *  `?? 0` in copy.ts, no name handed to a lifecycle call, and nothing imported
  *  from diagnostics.
  *
+ *  READ, THE STYLESHEETS (Phase 298, mechanism 18). The same half gained a CSS
+ *  reader, because the sheet's type and spacing are the one part of it no
+ *  driven rule can see: no ratio line-height, every `font-size` paired with a
+ *  `line-height`, `--text-2xs` nowhere but a chip and the footer, every
+ *  `padding`/`margin`/`gap` a `--space-*` step or a `--sm-*` geometry property
+ *  of the sheet, `--track-caps` on every uppercase rule, and — read from the
+ *  TSX — every `size=` on a `Codicon` or an `AgentIcon` one of sm, md, lg, 16
+ *  or 24. Phase 293 shipped a 10px step under five runs of prose, a ratio line
+ *  height that landed one pixel off `--lh-2xs`, twenty unpaired sizes and a
+ *  `size={19}` that appears nowhere else in the codebase; each of those is one
+ *  declaration a later round can write again.
+ *
  * WHAT IT FAILS ON. Every failure is printed as `[p293 <rule>]` with the clause
  * of the spec that owns it, which is what `npm run ablation:p293` reads to
  * prove each rule can go red on its own.
@@ -72,7 +84,16 @@ const TEXT_RULES = [
   ['T13', '§2.7', 'the domain imports nothing from diagnostics'],
   ['T14', '§2.10, the fix round', 'the second click of a double click presses nothing: the sheet root swallows a click whose detail is above 1 on a control, in the capture phase'],
   ['T15', '§5.3, the fix round', 'under the sheet the split arrows and an agent hotkey reach nothing behind it, and the doors that draw a layer a person uses today close the sheet FIRST'],
-  ['T16', '§2.11, §12, the reverify', 'a Past row\'s small line names the FOLDER the session ran in, as today, and never the project\'s label: two projects can be named alike']
+  ['T16', '§2.11, §12, the reverify', 'a Past row\'s small line names the FOLDER the session ran in, as today, and never the project\'s label: two projects can be named alike'],
+  // Phase 298, mechanism 18. Five over the domain's stylesheets and one over
+  // its TSX. Each one is a divergence the phase measured and closed, so each is
+  // a line a later round can write again with every other gate green.
+  ['T17', '§2.1, Phase 298', 'no RATIO line-height in the domain: a line box is a --lh-* length, never a multiple of the size'],
+  ['T18', '§2.1, Phase 298', 'every rule that sets a font-size sets a line-height in the same block'],
+  ['T19', '§2.1, Phase 298', '--text-2xs nowhere but a chip and the footer: its own token says "Never body text"'],
+  ['T20', '§2.1, Phase 298', 'every padding, margin and gap is a --space-* step, a --sm-* geometry property of the sheet, 0 or auto'],
+  ['T21', '§2.1, Phase 298', 'every uppercase rule also sets letter-spacing: var(--track-caps)'],
+  ['T22', '§2.2, Phase 298', 'every size= passed to Codicon or AgentIcon in the domain is one of sm, md, lg, 16 or 24']
 ];
 
 if (process.argv.includes('--list')) {
@@ -604,6 +625,251 @@ function textRules() {
 }
 
 // ---------------------------------------------------------------------------
+// The stylesheets, and the icon scale (Phase 298, mechanism 18)
+// ---------------------------------------------------------------------------
+
+/** Every `.css` file of the domain. A tree without the directory holds none. */
+function stylesUnder(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.css'))
+    .map((name) => join(dir, name))
+    .sort();
+}
+
+/**
+ * Every innermost `selector { body }` of a stylesheet, comments removed first so
+ * a sentence ABOUT a value is not a value, with the line its selector starts on.
+ *
+ * An `@media` wrapper is not a rule and carries no declaration of its own, so
+ * the walk answers the rules INSIDE it and the wrapper's own text belongs to no
+ * selector. The one question that is about a media block rather than about a
+ * declaration — mechanism 14's, that the narrow row is never taller than the
+ * wide one — is a unit case in p293-css-tokens.test.ts, over the text.
+ */
+function cssRulesOf(path) {
+  // A comment is blanked CHARACTER BY CHARACTER and its newlines are kept, so
+  // every file:line below is the line a person opens the file at. Replacing a
+  // multi-line comment with one space moves every line after it.
+  const code = readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+  const rules = [];
+  for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const raw = m[1] ?? '';
+    const lead = raw.length - raw.replace(/^\s+/, '').length;
+    const line = code.slice(0, (m.index ?? 0) + lead).split('\n').length;
+    const declarations = (m[2] ?? '')
+      .split(';')
+      .map((one) => one.trim())
+      .filter((one) => one.includes(':'))
+      .map((one) => {
+        const at = one.indexOf(':');
+        return { property: one.slice(0, at).trim(), value: one.slice(at + 1).trim() };
+      });
+    rules.push({ file: rel(path), selector: raw.trim().replace(/\s+/g, ' '), line, declarations });
+  }
+  return rules;
+}
+
+/**
+ * The `--sm-*` custom properties the sheet declares on its OWN selector. T20
+ * admits those in a spacing value and nothing else that is not a `--space-*`
+ * step, because the sheet's geometry deliberately lives in one block
+ * (session-manager.css's header says so) and `--sm-state-pad` is a padding.
+ */
+function sheetVariables(rules) {
+  const out = new Set();
+  for (const r of rules) {
+    if (!/(^|[\s,])\.modal\.session-sheet($|[\s,:])/.test(r.selector)) continue;
+    for (const d of r.declarations) if (/^--sm-/.test(d.property)) out.add(d.property);
+  }
+  return out;
+}
+
+const SPACING_PROPERTY =
+  /^(padding|margin)(-(top|right|bottom|left|inline|block)(-(start|end))?)?$|^(row-|column-)?gap$/;
+
+/** T19's two homes: a chip primitive and the footer. `.sm-count` is a chip too. */
+const TWO_XS_ALLOWED = /\.sm-foot\b|chip|\.sm-count\b/;
+
+/**
+ * T20's one named exception. `.sr-only` is the app's visually-hidden clip idiom
+ * and its `-1px` is a clip and not spacing. It is named by SELECTOR, PROPERTY
+ * AND VALUE rather than by selector alone, so a real padding written on the same
+ * rule is still a finding; and an exception that matches nothing is itself a
+ * failure, because a list that rots into a blanket pass is worse than no list.
+ */
+const SPACING_EXCEPTIONS = [
+  {
+    selector: '.session-sheet .sr-only',
+    property: 'margin',
+    value: '-1px',
+    why: 'the visually-hidden clip idiom, not spacing'
+  }
+];
+
+/**
+ * T21's one named exception. `::first-letter` raises ONE letter, and tracking a
+ * single letter only adds a space after it.
+ */
+const UPPERCASE_EXCEPTIONS = [
+  { match: /::first-letter/, why: 'one raised letter takes no tracking' }
+];
+
+function styleRules() {
+  const files = stylesUnder(DOMAIN);
+  if (files.length < 2) {
+    fail('T17', `the domain holds ${String(files.length)} stylesheet(s); this half of the gate has lost its subject`);
+    return;
+  }
+  const rules = files.flatMap((path) => cssRulesOf(path));
+  checked('T17', files.length);
+  if (rules.length < 60) {
+    fail('T17', `the two stylesheets parsed to ${String(rules.length)} rules; a reader that finds fewer than sixty has lost them`);
+  }
+  const sheetVars = sheetVariables(rules);
+  if (sheetVars.size === 0) {
+    fail('T20', 'no --sm-* property is declared on .modal.session-sheet, so T20 cannot tell the sheet\'s own geometry from a literal');
+  }
+  const smVar = new RegExp(`var\\((?:${[...sheetVars].join('|')})\\)`, 'g');
+  const spacingHits = SPACING_EXCEPTIONS.map(() => 0);
+  const upperHits = UPPERCASE_EXCEPTIONS.map(() => 0);
+
+  for (const r of rules) {
+    const at = `${r.file}:${String(r.line)} ${r.selector}`;
+    const heights = r.declarations.filter((d) => d.property === 'line-height');
+
+    // T17. `line-height: 1.5` on a 10px step drew 15px, the only ratio line
+    // height in any row in either tree, one pixel off --lh-2xs.
+    for (const d of heights) {
+      checked('T17');
+      if (!/^var\(--lh-[a-z0-9-]+\)$/.test(d.value) && d.value !== 'normal') {
+        fail('T17', `${at} sets line-height: ${d.value}. A ratio multiplies whatever the size turns out to be; every step in tokens.css:226-237 has a --lh-* length beside it`);
+      }
+    }
+
+    // T18. `body { line-height: var(--lh-base) }` (globals.css:55-61) is a
+    // LENGTH, so it inherits as a computed 20px: a rule that sets only a
+    // font-size draws a 20px line box whatever its size. That is why the
+    // pairing matters, and why the app pairs 63 percent of its own.
+    // The `font` SHORTHAND always carries a line-height of its own, so it can
+    // never be the unpaired case and is not asked about.
+    for (const d of r.declarations.filter((one) => one.property === 'font-size')) {
+      checked('T18');
+      if (heights.length === 0) {
+        fail('T18', `${at} sets font-size: ${d.value} and no line-height, so it draws body's inherited 20px line box`);
+      }
+    }
+
+    // T19. tokens.css:219-225 on --text-2xs: "Never body text". Phase 293 drew
+    // five runs of prose in it.
+    for (const d of r.declarations) {
+      if (!d.value.includes('var(--text-2xs)')) continue;
+      checked('T19');
+      if (!TWO_XS_ALLOWED.test(r.selector)) {
+        fail('T19', `${at} draws --text-2xs (${d.property}: ${d.value}). The step is for a chip and the footer; its own token forbids body text`);
+      }
+    }
+
+    // T20.
+    for (const d of r.declarations) {
+      if (!SPACING_PROPERTY.test(d.property)) continue;
+      const ex = SPACING_EXCEPTIONS.findIndex(
+        (one) => one.selector === r.selector && one.property === d.property && one.value === d.value
+      );
+      if (ex !== -1) {
+        spacingHits[ex] += 1;
+        continue;
+      }
+      checked('T20');
+      const left = d.value
+        .replace(/var\(--space-\d+\)/g, ' ')
+        .replace(smVar, ' ')
+        .replace(/\bcalc\b/g, ' ')
+        .replace(/[()+*\/-]/g, ' ')
+        .replace(/\bauto\b/g, ' ')
+        .replace(/\b0\b/g, ' ')
+        .trim();
+      if (left !== '') {
+        fail('T20', `${at} sets ${d.property}: ${d.value}; ${JSON.stringify(left)} is neither a --space-* step, a --sm-* property of the sheet, 0 nor auto`);
+      }
+    }
+
+    // T21. The heading idiom is unanimous across the app's 26 uppercase rules.
+    if (r.declarations.some((d) => d.property === 'text-transform' && d.value === 'uppercase')) {
+      const ex = UPPERCASE_EXCEPTIONS.findIndex((one) => one.match.test(r.selector));
+      if (ex !== -1) {
+        upperHits[ex] += 1;
+      } else {
+        checked('T21');
+        if (!r.declarations.some((d) => d.property === 'letter-spacing' && d.value === 'var(--track-caps)')) {
+          fail('T21', `${at} raises its text to uppercase and does not set letter-spacing: var(--track-caps)`);
+        }
+      }
+    }
+  }
+
+  SPACING_EXCEPTIONS.forEach((one, i) => {
+    checked('T20');
+    if (spacingHits[i] === 0) {
+      fail('T20', `the named exception ${one.selector} { ${one.property}: ${one.value} } (${one.why}) matches nothing any more; take it off the list rather than leave a blanket pass behind it`);
+    }
+  });
+  UPPERCASE_EXCEPTIONS.forEach((one, i) => {
+    checked('T21');
+    if (upperHits[i] === 0) {
+      fail('T21', `the named exception ${String(one.match)} (${one.why}) matches no uppercase rule any more; take it off the list`);
+    }
+  });
+}
+
+/**
+ * T22. Read from the TSX, because the size is a call site and not a stylesheet.
+ * `<Codicon>`'s scale is 12/14/16 as sm/md/lg, and 24 is the one larger size the
+ * app draws (the activity bar). Phase 293 shipped `size={19}` on an AgentIcon —
+ * the only 19 in the codebase — and `size={28}`, larger than anything the app
+ * draws. An element that passes NO size takes its component's own default and is
+ * the shape this rule prefers, so absence is not asked about.
+ */
+function iconRules() {
+  const ICONS = new Set(['Codicon', 'AgentIcon']);
+  const WORDS = new Set(['sm', 'md', 'lg']);
+  const NUMBERS = new Set([16, 24]);
+  let sites = 0;
+  for (const path of domainFiles) {
+    if (!path.endsWith('.tsx')) continue;
+    const sf = astOf(path);
+    for (const n of nodesOf(path)) {
+      if (!ts.isJsxOpeningElement(n) && !ts.isJsxSelfClosingElement(n)) continue;
+      const tag = n.tagName.getText(sf);
+      if (!ICONS.has(tag)) continue;
+      sites += 1;
+      for (const a of n.attributes.properties) {
+        if (!ts.isJsxAttribute(a) || a.name.getText(sf) !== 'size') continue;
+        checked('T22');
+        const init = a.initializer;
+        let ok = false;
+        if (init !== undefined && ts.isStringLiteral(init)) {
+          ok = WORDS.has(init.text);
+        } else if (
+          init !== undefined &&
+          ts.isJsxExpression(init) &&
+          init.expression !== undefined &&
+          ts.isNumericLiteral(init.expression)
+        ) {
+          ok = NUMBERS.has(Number(init.expression.text));
+        }
+        if (!ok) {
+          const drawn = init === undefined ? '(no value)' : init.getText(sf);
+          fail('T22', `${where(path, a)} passes size=${drawn} to <${tag}>. The set is sm, md, lg, 16 and 24; a 19 or a 28 is a size nothing else in the app draws`);
+        }
+      }
+    }
+  }
+  checked('T22', sites);
+  if (sites === 0) fail('T22', 'no Codicon and no AgentIcon is drawn in the domain, so this rule reads nothing');
+}
+
+// ---------------------------------------------------------------------------
 // The driven half
 // ---------------------------------------------------------------------------
 
@@ -638,6 +904,16 @@ try {
   textRules();
 } catch (err) {
   fail('T1', `the source rules could not read the domain: ${err instanceof Error ? err.message : String(err)}`);
+}
+try {
+  styleRules();
+} catch (err) {
+  fail('T17', `the style rules could not read the domain's stylesheets: ${err instanceof Error ? err.message : String(err)}`);
+}
+try {
+  iconRules();
+} catch (err) {
+  fail('T22', `the icon rule could not read the domain's components: ${err instanceof Error ? err.message : String(err)}`);
 }
 const driven = drivenRules();
 const all = [
