@@ -157,6 +157,13 @@ export interface SessionSheetState {
     | 'idle'
     | 'ended'
     | 'unreachable';
+  /**
+   * Phase 303. The lifecycle question, asked BEFORE the state detail: is the
+   * session alive or over? Active is what a row's gates call `live` or
+   * `unknown`, Ended is what they call `ended`, and the State select above
+   * refines within it. A Managed control, like `stateFilter`.
+   */
+  lifecycle: 'all' | 'active' | 'ended';
   sort: {
     key: 'name' | 'state' | 'created' | 'messages' | 'last-message';
     dir: 1 | -1;
@@ -179,7 +186,13 @@ export interface SessionSheetState {
 export type SessionSheetFilterPatch = Partial<
   Pick<
     SessionSheetState,
-    'search' | 'project' | 'tabFilter' | 'stateFilter' | 'sort' | 'listError'
+    | 'search'
+    | 'project'
+    | 'tabFilter'
+    | 'stateFilter'
+    | 'lifecycle'
+    | 'sort'
+    | 'listError'
   >
 >;
 
@@ -201,13 +214,13 @@ export interface SessionManagerSlice {
   closeSessionSheet(): void;
   /**
    * Change filters, the sort or the read-failure line. A CHANGE to `search`,
-   * `project`, `tabFilter` or `stateFilter` clears the selection.
+   * `project`, `tabFilter`, `stateFilter` or `lifecycle` clears the selection.
    */
   patchSessionSheet(patch: SessionSheetFilterPatch): void;
   /**
-   * REFUSED (false) while a batch runs. Otherwise it resets the state filter,
-   * clears the selection, closes an expansion that is not busy and any batch
-   * that is not running.
+   * REFUSED (false) while a batch runs. Otherwise it resets the state filter
+   * and the lifecycle control, clears the selection, closes an expansion that
+   * is not busy and any batch that is not running.
    */
   setSessionSheetTab(tab: SessionSheetTab): boolean;
   /** Check or uncheck rows BY ID. Refused while a batch runs, and off Managed. */
@@ -294,6 +307,7 @@ function freshSheet(tab: SessionSheetTab): SessionSheetState {
     project: 'all',
     tabFilter: 'all',
     stateFilter: 'all',
+    lifecycle: 'all',
     sort: null,
     checked: {},
     inline: null,
@@ -461,7 +475,7 @@ export const createSessionManagerSlice: StateCreator<
     patchSessionSheet(patch) {
       const sheet = get().sessionSheet;
       if (sheet === null) return;
-      // The six fields are copied by NAME. The type already refuses `inline`,
+      // The seven fields are copied by NAME. The type already refuses `inline`,
       // `batch` and `checked`; this is the same refusal for a caller that got
       // past the type with a cast.
       let next: SessionSheetState = sheet;
@@ -483,6 +497,10 @@ export const createSessionManagerSlice: StateCreator<
         patch.stateFilter !== sheet.stateFilter
       ) {
         next = { ...next, stateFilter: patch.stateFilter };
+        filtersMoved = true;
+      }
+      if (patch.lifecycle !== undefined && patch.lifecycle !== sheet.lifecycle) {
+        next = { ...next, lifecycle: patch.lifecycle };
         filtersMoved = true;
       }
       if (patch.sort !== undefined) {
@@ -517,7 +535,11 @@ export const createSessionManagerSlice: StateCreator<
       commit(sheet, {
         ...sheet,
         tab,
+        // Both are Managed's alone. Every Past row is `discarded`, which no
+        // state option but All keeps and neither lifecycle segment admits, so
+        // a value left set would draw an empty Past list.
         stateFilter: 'all',
+        lifecycle: 'all',
         checked: {},
         // A busy panel is about to be answered by its own continuation.
         inline: sheet.inline?.busy === true ? sheet.inline : null,

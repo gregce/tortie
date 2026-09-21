@@ -48,6 +48,14 @@
  *  `size={19}` that appears nowhere else in the codebase; each of those is one
  *  declaration a later round can write again.
  *
+ *  READ, THE PARTITION (Phase 303, mechanism 1). The lifecycle control before
+ *  the State dropdown reads `row.gates` and names no status: `rowPasses`
+ *  reaches gates.live, gates.unknown and gates.ended and holds no status
+ *  literal, and the only array of two or more statuses in the domain is
+ *  STATE_FILTER_KEEPS. "Live" is spelled in main's removeRefusal, in
+ *  sessionActionGates and in login-switch.ts already, and a fourth spelling
+ *  written to fix a problem caused by having three is what T23 refuses.
+ *
  * WHAT IT FAILS ON. Every failure is printed as `[p293 <rule>]` with the clause
  * of the spec that owns it, which is what `npm run ablation:p293` reads to
  * prove each rule can go red on its own.
@@ -93,7 +101,11 @@ const TEXT_RULES = [
   ['T19', '§2.1, Phase 298', '--text-2xs nowhere but a chip and the footer: its own token says "Never body text"'],
   ['T20', '§2.1, Phase 298', 'every padding, margin and gap is a --space-* step, a --sm-* geometry property of the sheet, 0 or auto'],
   ['T21', '§2.1, Phase 298', 'every uppercase rule also sets letter-spacing: var(--track-caps)'],
-  ['T22', '§2.2, Phase 298', 'every size= passed to Codicon or AgentIcon in the domain is one of sm, md, lg, 16 or 24']
+  ['T22', '§2.2, Phase 298', 'every size= passed to Codicon or AgentIcon in the domain is one of sm, md, lg, 16 or 24'],
+  // Phase 303, mechanism 1. "Live" is already spelled three times in the tree
+  // (lifecycle-gate.ts, resume.ts, login-switch.ts); the lifecycle control
+  // reads the partition the row carries as `row.gates` and adds no fourth.
+  ['T23', '§2.4, Phase 303', 'the domain names no second live-status set: rowPasses reads row.gates and no status literal, and the only array holding two or more statuses is STATE_FILTER_KEEPS']
 ];
 
 if (process.argv.includes('--list')) {
@@ -870,6 +882,114 @@ function iconRules() {
 }
 
 // ---------------------------------------------------------------------------
+// The partition (Phase 303, mechanism 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * The status alphabet, read from `SESSION_STATUSES` in src/shared/types.ts as
+ * the strings of its array literal, so this gate holds no list of its own that
+ * could drift from the one the type is derived from.
+ */
+function sessionStatuses() {
+  const TYPES = join(ROOT, 'src', 'shared', 'types.ts');
+  const decl = nodesOf(TYPES).find(
+    (n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'SESSION_STATUSES'
+  );
+  if (decl === undefined) return new Set();
+  const out = new Set();
+  const visit = (n) => {
+    if (ts.isStringLiteral(n)) out.add(n.text);
+    ts.forEachChild(n, visit);
+  };
+  visit(decl);
+  return out;
+}
+
+/**
+ * T23. Two clauses over the domain, read with the parser as T4, T10 and T12
+ * are. The lifecycle control is one clause in `rowPasses` reading the four
+ * booleans `sessionActionGates` already computed for the row, so the filter
+ * cannot disagree with main's `removeRefusal` unless the gates do, and the
+ * partition test beside the filter holds those two equal. A status literal in
+ * `rowPasses`, or a second array of statuses anywhere in the domain, would be
+ * the fourth spelling of "live" the phase refused.
+ *
+ *  (i)  `rowPasses` in view.ts reaches `gates.live`, `gates.unknown` and
+ *       `gates.ended`, and holds no string literal that is a status.
+ *  (ii) every array literal, and every `new Set([...])`, holding two or more
+ *       status strings in any domain file sits inside the variable
+ *       declaration named `STATE_FILTER_KEEPS`.
+ */
+function partitionRules() {
+  const VIEW = join(DOMAIN, 'view.ts');
+  const statuses = sessionStatuses();
+  if (statuses.size < 7) {
+    fail('T23', `SESSION_STATUSES read ${String(statuses.size)} statuses out of src/shared/types.ts; the alphabet has seven and a gate that lost it reads nothing`);
+    return;
+  }
+  const sf = astOf(VIEW);
+  const rowPasses = nodesOf(VIEW).find(
+    (n) => ts.isFunctionDeclaration(n) && n.name !== undefined && n.name.text === 'rowPasses'
+  );
+  checked('T23');
+  if (rowPasses === undefined) {
+    fail('T23', `${rel(VIEW)} declares no function rowPasses, so the filter's one clause is not where the rule reads it`);
+  } else {
+    const inside = [];
+    const visit = (n) => {
+      inside.push(n);
+      ts.forEachChild(n, visit);
+    };
+    visit(rowPasses);
+    // (i) The three readings, each a property access whose object ends in
+    // `gates`: `row.gates.live` and a destructured `gates.live` both answer.
+    const reads = new Set(
+      inside
+        .filter((n) => ts.isPropertyAccessExpression(n) && /(^|\.)gates$/.test(n.expression.getText(sf)))
+        .map((n) => n.name.text)
+    );
+    for (const want of ['live', 'unknown', 'ended']) {
+      checked('T23');
+      if (!reads.has(want)) {
+        fail('T23', `${where(VIEW, rowPasses)} rowPasses never reads gates.${want}; the lifecycle clause reads the partition the row carries and nothing else`);
+      }
+    }
+    for (const n of inside) {
+      if (!ts.isStringLiteral(n) && !ts.isNoSubstitutionTemplateLiteral(n)) continue;
+      checked('T23');
+      if (statuses.has(n.text)) {
+        fail('T23', `${where(VIEW, n)} rowPasses names the status ${JSON.stringify(n.text)}; a status list here is the fourth spelling of "live" mechanism 1 refuses`);
+      }
+    }
+  }
+  // (ii) No second table. An array of two or more statuses, or a Set built
+  // from one, belongs to STATE_FILTER_KEEPS and nowhere else in the domain.
+  let arrays = 0;
+  for (const path of domainFiles) {
+    const file = astOf(path);
+    for (const n of nodesOf(path)) {
+      if (!ts.isArrayLiteralExpression(n)) continue;
+      const found = n.elements.filter((e) => ts.isStringLiteral(e) && statuses.has(e.text));
+      if (found.length < 2) continue;
+      arrays += 1;
+      checked('T23');
+      let owner = null;
+      for (let p = n.parent; p !== undefined; p = p.parent) {
+        if (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) {
+          owner = p.name.text;
+          break;
+        }
+      }
+      if (owner !== 'STATE_FILTER_KEEPS') {
+        fail('T23', `${where(path, n)} holds ${String(found.length)} statuses ${n.getText(file).slice(0, 80)} under ${owner === null ? 'no declaration' : owner}; the one table of statuses in the domain is STATE_FILTER_KEEPS`);
+      }
+    }
+  }
+  checked('T23');
+  if (arrays === 0) fail('T23', 'no array of two or more statuses was read anywhere in the domain, so STATE_FILTER_KEEPS itself has moved or this clause reads nothing');
+}
+
+// ---------------------------------------------------------------------------
 // The driven half
 // ---------------------------------------------------------------------------
 
@@ -914,6 +1034,11 @@ try {
   iconRules();
 } catch (err) {
   fail('T22', `the icon rule could not read the domain's components: ${err instanceof Error ? err.message : String(err)}`);
+}
+try {
+  partitionRules();
+} catch (err) {
+  fail('T23', `the partition rule could not read the domain: ${err instanceof Error ? err.message : String(err)}`);
 }
 const driven = drivenRules();
 const all = [

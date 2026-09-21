@@ -945,7 +945,8 @@ function managedView(s: AppState): ManageGroup[] {
       search: sheet.search,
       project: sheet.project,
       tabFilter: sheet.tabFilter,
-      stateFilter: sheet.stateFilter
+      stateFilter: sheet.stateFilter,
+      lifecycle: sheet.lifecycle
     },
     sheet.sort
   );

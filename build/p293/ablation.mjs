@@ -7,10 +7,12 @@
  * asserts every rule the sheet enforces: the batch loop's five rules, the
  * freeze at the press, the run id a stop is bound to, who a batch may end, the
  * one gates predicate, the rule of the press, the parity rule, the grouping,
- * the view, the cells, the source rules, and — since Phase 298 — the domain's
- * TYPE AND SPACING rules (T17 to T22) and the two cell readings that phase's
- * rough edges 2 and 6 settled. This script breaks ONE CLAUSE AT A TIME in the
- * shipping source and proves it reddens THE RULE THAT OWNS IT.
+ * the view, the cells, the source rules, since Phase 298 the domain's TYPE AND
+ * SPACING rules (T17 to T22) and the two cell readings that phase's rough
+ * edges 2 and 6 settled, and since Phase 303 the lifecycle control's one
+ * clause (T23), which reads `row.gates` and names no status. This script
+ * breaks ONE CLAUSE AT A TIME in the shipping source and proves it reddens
+ * THE RULE THAT OWNS IT.
  *
  * An ablation that leaves the gate green is a hole in the gate. An ablation
  * that reddens only rules OTHER than its own is a finding about the gate rather
@@ -47,11 +49,11 @@
  * ## It starts nothing
  *
  * No Electron, no tmux, no ssh, no agent, no token and no network. The gate
- * spawns one plain node per run, its own TypeScript probe. About 85 s for the
- * whole list (69 entries since Phase 298, measured at 84.4 s), one gate run per
- * entry plus the base and the restore; it runs once per phase beside the gate it
- * attacks, and is not in the commit battery. `P293_ONLY` is how a builder under
- * a time budget runs a part of it.
+ * spawns one plain node per run, its own TypeScript probe. About 90 s for the
+ * whole list (71 entries since Phase 303; 69 since Phase 298, measured at
+ * 84.4 s), one gate run per entry plus the base and the restore; it runs once
+ * per phase beside the gate it attacks, and is not in the commit battery.
+ * `P293_ONLY` is how a builder under a time budget runs a part of it.
  *
  * ## The delta rule
  *
@@ -762,6 +764,30 @@ const ABLATIONS = [
     file: COPY,
     from: '  if (nothingSaidYet(counts)) return null;\n',
     to: ''
+  },
+  // -------------------------------------------------------------------------
+  // Phase 303, mechanism 1: the lifecycle control reads row.gates and no
+  // status. "Live" is spelled three times in the tree already, and each of
+  // these writes the fourth spelling back in one of the two shapes it could
+  // take. Each must redden T23 and no other rule.
+  // -------------------------------------------------------------------------
+  {
+    n: 'L1',
+    rule: 'T23',
+    name: 'the Active clause rewritten as a status list instead of the gates',
+    why: 'the filter would then be a fourth spelling of "live" beside main\'s removeRefusal, sessionActionGates and login-switch.ts, one more place for the four to drift apart, and the partition test that holds the gates equal to main would no longer be about the filter at all.',
+    file: VIEW,
+    from: "  if (filters.lifecycle === 'active' && !(row.gates.live || row.gates.unknown)) return false;",
+    to: "  if (filters.lifecycle === 'active' && row.status !== 'running' && row.status !== 'idle' && row.status !== 'needs_input' && row.status !== 'unknown') return false;"
+  },
+  {
+    n: 'L2',
+    rule: 'T23',
+    name: 'a second live-status table declared in the domain',
+    why: 'STATE_FILTER_KEEPS is the one table of statuses the domain holds, and it draws seven options a person chose by name; a second array is a partition nobody drives, which is exactly how `unknown` came to sit beside Running and Ended as a third thing in the first place.',
+    file: VIEW,
+    from: 'export function stateFilterKeeps(',
+    to: "const LIVE_AGAIN: readonly SessionStatus[] = ['running', 'idle', 'needs_input'];\nexport function stateFilterKeeps("
   }
 ];
 

@@ -16,12 +16,28 @@
  * `window.__p293` (src/renderer/app/p293-session-manager-drive.ts) does only
  * what a probe cannot do from outside: the menu door through `runMenuAction`
  * (a native menu bar item cannot be clicked from a probe), the ellipsis's
- * native menu as labels with a captured item run late, one held needs_input
- * (a shell never asks), and the set up (a folder opened, a shell created, a
- * tab closed). A native `<select>`'s popup cannot be driven either, so a
- * filter is chosen by setting the select's value and dispatching its `change`,
- * which is the event React's handler reads. Every lifecycle press is a real
- * click on the sheet.
+ * native menu as labels with a captured item run late, a held status (a shell
+ * never asks, main writes `unknown` only when the whole list fails to read,
+ * and a scratch-HOME shell never reads `running` — see the arm 16 paragraph
+ * below — so arm 16 holds running, needs_input, unknown and restorable over
+ * four shells at once), the prune's attack (arm 16: a filter and a checked set
+ * in ONE store write, because no click can move a filter over a selection),
+ * and the set up (a folder opened, a shell created, a tab closed). A native
+ * `<select>`'s popup cannot be driven either, so a filter is chosen by setting
+ * the select's value and dispatching its `change`, which is the event React's
+ * handler reads. Every lifecycle press is a real click on the sheet.
+ *
+ * NO SHELL IS MADE TO RUN A COMMAND, and the Phase 303 fix round is why. The
+ * build round typed `sleep 600` into one pane through `tmux send-keys` so the
+ * fixture would hold a real `running` row, and the verifier proved it could
+ * not: `-t =<name>` is no pane target on the vendored tmux 3.7b ("can't find
+ * pane"), and with the target fixed a scratch-HOME zsh shows `keypad_flag` 0
+ * at its prompt AND under `sleep`, while the shell oracle
+ * (src/main/activity/state-machine.ts, `nativeVerdict`) answers nothing for a
+ * shell pane until it has shown DECKPAM. So no command typed into a fresh
+ * shell in this HOME can make its row read running, and the arm ran its 21
+ * pairs over five statuses while printing "0 disagreeing". `running` is now
+ * PAINTED like the other three, and the fixture is re-read at every pair.
  *
  * ## The arms (P293_ARMS, a comma separated subset; all by default)
  *
@@ -85,6 +101,26 @@
  *   15  the machine that comes back (§8.2's first attack): NOT DRIVEN here and
  *       said so. The spec gives it to the verifier unless the sshd restart is
  *       stable in the harness, and this run does not claim it is
+ *   16  PHASE 303, THE LIFECYCLE CONTROL: `All | Active | Ended` before the
+ *       State dropdown, driven through real clicks over a fixture of its own
+ *       holding every Managed status at once — a shell at its prompt, one
+ *       ended out of band, and four PAINTED by the drive (running,
+ *       needs_input, unknown, restorable), the arm says which, and the
+ *       fixture is held to all six AT EVERY PAIR READING and not only when it
+ *       was stood up (the fix round: a pair asked over a missing status is
+ *       asked of nothing). Each segment's aria-checked; the drawn ids against
+ *       the partition the arm computes itself from `data-status`; the
+ *       UNREACHABLE row under Active
+ *       and not under Ended, its word still `unreachable` and its verb still a
+ *       disabled End; the seven State options under every segment; the batch
+ *       invariant attacked through the one road that can reach it (the
+ *       control is not drawn while anything is checked, so the drive writes
+ *       the filter and a checked set in ONE store write and the prune must
+ *       answer); every one of the 3 x 7 pairs against the intersection the arm
+ *       computes; the pair that intersects to nothing drawing the empty state
+ *       whose one button restores the whole list; and the Past tab drawing no
+ *       control and resetting the value. It runs after arm 10 and before 13.
+ *       Skipped with a note at the parent, which has no control
  *   R   the scratch machine: one live session on it, its matrix row (the
  *       group is `<machine>:<path>`, the menu matches the policy), and Go to
  *       session on it. STATED, from the matrix verifier's P3: creating a
@@ -123,7 +159,7 @@
  *
  *   GMUX_TMUX_SOCKET   the scratch socket; build/harness-socket.mjs sets it
  *   GMUX_HARNESS_DIR   the scratch directory; the same wrapper sets it
- *   P293_ARMS          a subset of 1..15,R. All by default
+ *   P293_ARMS          a subset of 1..16,R,L,O,J,D. All by default
  *   P293_OUT_DIR       where the readings go. Default out/p293
  *   P293_HIT_PARENT    a PARENT run's readings.json. Arm 11's hit-area floors are
  *                      RAISED to whatever that run measured for the same role key,
@@ -144,6 +180,18 @@
  *                      other. Mandatory for this phase, because the operator
  *                      reported the rows himself and CLAUDE.md makes the
  *                      parent-commit measurement mandatory whatever the tier.
+ *                      THE PARENT RUN'S EXIT CODE IS NOT A VERDICT FOR A LATER
+ *                      PHASE (the Phase 303 fix round). `GEOM.parent` and the
+ *                      parent's state table are Phase 293's f6c11f57 BY VALUE,
+ *                      so a parent checkout that already carries Phase 298
+ *                      (Phase 303's is /private/tmp/wt-p299) is graded there
+ *                      against the wrong column and arm 11 reports Phase 298's
+ *                      own rows as findings — 41 of them, none about the later
+ *                      phase. What that run is FOR is its readings.json: the
+ *                      hit-area floors a HEAD run reads through
+ *                      P293_HIT_PARENT and `readings.p303.byState` for the
+ *                      side-by-side. Read the parent's findings by arm and
+ *                      count the ones that are not arm 11's column.
  *
  * ## Usage, from the worktree root
  *
@@ -162,9 +210,9 @@
  * build/scratch-machine.mjs, every pid recorded as it starts, and stopped in
  * this file's own `finally` by `machine.stop()` and the recorded pids alone.
  * Every ssh goes through build/ssh-run.mjs. Every other process is a
- * synchronous git, or arm 11's one synchronous `tsx` (below), that has exited
- * before its call returns. Exit 0 with no finding, 1 with findings, 2 on a
- * refusal.
+ * synchronous git or arm 11's one synchronous `tsx` (below), each of which has
+ * exited before its call returns; this file runs no tmux of its own. Exit 0
+ * with no finding, 1 with findings, 2 on a refusal.
  *
  * NO PHOTOGRAPH. `npm run shot` may never run in this repository, so every
  * claim arm 11 makes is a rectangle or a computed style read out of the running
@@ -220,7 +268,52 @@ const J = (v) => JSON.stringify(v);
 const TOOLBAR_H = 47;
 const TITLE_H = 52;
 const TOL = 0.5;
-export const ALL_ARMS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', 'R', 'L', 'O', 'J', 'D'];
+export const ALL_ARMS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', 'R', 'L', 'O', 'J', 'D'];
+
+// ---------------------------------------------------------------------------
+// PHASE 303. The lifecycle partition and the State table, BY VALUE from the
+// Phase 303 entry's own table and from SPEC §2.4, so the arm computes every
+// drawn set itself and a filter that agreed with itself could not pass here.
+// They live in this file and NOT in the domain: build/p293/conformance-manager.mjs's
+// T23 refuses a second status table under src/renderer/session-manager, and
+// the arm is the one place a hand-written expectation belongs.
+//
+// Active is what main's `removeRefusal` REFUSES to remove — running, idle,
+// needs_input and unknown, the four a live tmux binding can hold — and Ended
+// is what it passes less discarded, being the two Restore acts on. `unknown`
+// is Active because Restore never acts on it, so Ended, "allowing you to
+// restore" in the operator's words, would promise a verb the row does not
+// offer. `discarded` is in neither: it is the Past tab's alone.
+// ---------------------------------------------------------------------------
+export const LIFECYCLE_SEGMENTS = ['all', 'active', 'ended'];
+export const LIFECYCLE_ADMITS = {
+  all: ['running', 'idle', 'needs_input', 'unknown', 'exited', 'restorable'],
+  active: ['running', 'idle', 'needs_input', 'unknown'],
+  ended: ['exited', 'restorable']
+};
+/** SPEC §2.4's table, the State dropdown's seven options in their drawn order. */
+export const STATE_OPTION_VALUES = ['all', 'running', 'working', 'needs-input', 'idle', 'ended', 'unreachable'];
+export const STATE_KEEPS = {
+  all: ['running', 'idle', 'needs_input', 'unknown', 'exited', 'restorable'],
+  running: ['running', 'needs_input', 'idle'],
+  working: ['running'],
+  'needs-input': ['needs_input'],
+  idle: ['idle'],
+  ended: ['exited', 'restorable'],
+  unreachable: ['unknown']
+};
+/** copy.ts's `NO_MATCH_HEADING`, by value, drawn when the two controls intersect to nothing. */
+export const NO_MATCH_HEADING = 'No matching sessions';
+/**
+ * The segment x State pairs the two tables make DISJOINT, computed from the
+ * tables and not written down: over a fixture holding every Managed status
+ * these are exactly the pairs that draw the empty state, and no other. Six
+ * (active x ended, and ended x each of running, working, needs-input, idle,
+ * unreachable). Arm 16 holds its empty-pair count to this length.
+ */
+export const DISJOINT_PAIRS = LIFECYCLE_SEGMENTS.flatMap((segment) =>
+  STATE_OPTION_VALUES.filter((v) => !LIFECYCLE_ADMITS[segment].some((status) => STATE_KEEPS[v].includes(status))).map((v) => [segment, v])
+);
 
 // ---------------------------------------------------------------------------
 // PHASE 298. The two columns arm 11 grades against, BY VALUE from the Phase 298
@@ -457,6 +550,39 @@ export const HIT_EXCEPTIONS = {
     parentWidth: 102.3,
     parentHeight: 51,
     why: 'the Managed tab is 1.1px narrower because its count chip became the app\'s own 16x16 .chip-sm primitive, replacing an ad-hoc 19x17 whose 19, 5 and 1 sit on no grid; the Past tab got WIDER by the same change, the height does not move, and 101 x 51 clears WCAG 2.2 AA 2.5.8\'s 24 x 24 on both dimensions by a wide margin'
+  },
+  // THE FOURTH, PHASE 303'S FIX ROUND, AND IT IS THE SCENARIO THAT READ WORSE
+  // THAN TODAY AND WAS REMOVED RATHER THAN REPAIRED, under the operator's
+  // standing rule. The docs follow-up queues it for his ruling; nothing here
+  // decides that the width is right, only that it is SAID and graded.
+  //
+  // The search field is `.filter-field.sm-search`, `flex: 1 1 auto` with
+  // `min-width: 180px` (session-manager.css:384-387) in a `flex-wrap: nowrap`
+  // toolbar: it is the toolbar's SLACK, the one element that takes whatever the
+  // fixed-width controls leave. The parent read it at 694 x 28 in the 1440px
+  // window (sheet 1180, inner 1140 less three selects at 170 + 136 + 114 and
+  // three 8px gaps). Phase 303 puts the lifecycle control, ruling 1, in that
+  // toolbar, and the control's box is 138.93 (segments 30.16 + 51.02 + 51.75,
+  // two 1px gaps, a 1px inset and a 1px border each side) plus one more 8px
+  // gap: 694 - 138.93 - 8 = 547.07, and the arm read 547.08. Nothing else in
+  // the toolbar moved, all three selects read 170, 136 and 114 at both bases,
+  // and the height is 28 at both.
+  //
+  // So it CANNOT be kept at 694 with the control the operator ruled for in the
+  // same bar, which is what makes it an exception rather than an oversight —
+  // and it is not a hit-area promise in the sense the other three are: at the
+  // app's 960px minimum window (src/main/index.ts:357; sheet 912, inner 872,
+  // less 170 + 136 + 114 + 138.93 and four 8px gaps) the field still keeps
+  // about 280px over its 180 floor, and 547 x 28 clears WCAG 2.2 AA 2.5.8's
+  // 24 x 24 by a wide margin.
+  // Graded like any other floor, so a later round that narrows it FURTHER (a
+  // fourth control, a wider segment label) still goes red at this window.
+  'input[type=text]#sm-search.input': {
+    width: 547,
+    height: 28,
+    parentWidth: 694,
+    parentHeight: 28,
+    why: 'the search field is the filters toolbar\'s slack (flex: 1 1 auto, min-width 180px) and yields exactly the Phase 303 lifecycle control\'s 138.93px box plus one 8px gap: 694 - 138.93 - 8 = 547.07 at the 1440px window, read 547.08; every select beside it and the height are unchanged, it keeps about 280px at the 960px minimum window, and 547 x 28 clears WCAG 2.2 AA 2.5.8\'s 24 x 24 by a wide margin. REMOVED from the no-regression clause rather than repaired and queued for the operator\'s ruling'
   }
 };
 
@@ -994,13 +1120,26 @@ export function clipFindings(read) {
 export function clipNotes(read) {
   const out = [];
   const said = new Set();
+  const skipped = new Set();
   for (const at of read.widths ?? []) {
     const notDrawn = at.ellipsisNotDrawn ?? [];
-    if (notDrawn.length === 0) continue;
-    const key = J([...notDrawn].sort());
-    if (said.has(key)) continue;
-    said.add(key);
-    out.push(`11b NOT EXERCISED: ${notDrawn.join(' and ')} was not in the DOM while the clipping attack ran, so its ellipsis and its hover title were not asked about. The sheet draws one tab's list at a time (SessionManagerSheet.tsx:419-431) and 11b runs on the tab 11a left. This is not a missing truncation.`);
+    if (notDrawn.length > 0) {
+      const key = J([...notDrawn].sort());
+      if (!said.has(key)) {
+        said.add(key);
+        out.push(`11b NOT EXERCISED: ${notDrawn.join(' and ')} was not in the DOM while the clipping attack ran, so its ellipsis and its hover title were not asked about. The sheet draws one tab's list at a time (SessionManagerSheet.tsx:419-431) and 11b runs on the tab 11a left. This is not a missing truncation.`);
+      }
+    }
+    // PHASE 303. A pure-text element the attack read at rest and did not type
+    // into, by name, once per distinct set.
+    const notInjected = at.notInjected ?? [];
+    if (notInjected.length > 0) {
+      const key = J([...notInjected].sort());
+      if (!skipped.has(key)) {
+        skipped.add(key);
+        out.push(`11b NOT INJECTED: ${notInjected.join(' and ')} were read at rest and not typed into: they are one-word constants no folder, name or honesty word ever reaches, and a sixty-character token in a nowrap segment overflows the toolbar as a fact about the fixture. A label clipped as shipped is still a finding.`);
+      }
+    }
   }
   return out;
 }
@@ -1655,6 +1794,115 @@ export function matrixFindings(row) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 303. Arm 16's graders. Pure, exported, proved both ways under
+// --self-test, like every grader above them.
+// ---------------------------------------------------------------------------
+
+/**
+ * The ids a segment and a State option together leave, computed HERE from
+ * each row's `data-status` and the two tables above, never read back from the
+ * app. `truth` is every Managed row as the store holds it.
+ */
+export function lifecycleWant(segment, stateFilter, truth) {
+  const admits = new Set(LIFECYCLE_ADMITS[segment] ?? []);
+  const keeps = new Set(STATE_KEEPS[stateFilter] ?? []);
+  return (truth ?? []).filter((row) => admits.has(row.status) && keeps.has(row.status)).map((row) => row.id);
+}
+
+/**
+ * Arm 16. The control as read off the DOM: three radios in the order all,
+ * active, ended; exactly one `aria-checked="true"` and it is `want`; the `.on`
+ * class on that one and no other; a hover on each, because the face explains
+ * itself with one word and a short hover and nothing else.
+ */
+export function segmentFindings(label, read, want) {
+  const out = [];
+  if (read === null || read === undefined || read.present !== true) return [`${label}: no [data-sm="lifecycle"] is drawn`];
+  if (read.role !== 'radiogroup') out.push(`${label}: the control carries role ${J(read.role)}, want radiogroup`);
+  if (typeof read.label !== 'string' || read.label.trim() === '') out.push(`${label}: the control carries no aria-label`);
+  const values = (read.radios ?? []).map((one) => one.value);
+  if (J(values) !== J(LIFECYCLE_SEGMENTS)) out.push(`${label}: the radios read ${J(values)}, want ${J(LIFECYCLE_SEGMENTS)} in that order`);
+  const checked = (read.radios ?? []).filter((one) => one.checked === 'true').map((one) => one.value);
+  if (J(checked) !== J([want])) out.push(`${label}: aria-checked="true" is on ${J(checked)}, want exactly ${J([want])}`);
+  const on = (read.radios ?? []).filter((one) => one.on === true).map((one) => one.value);
+  if (J(on) !== J([want])) out.push(`${label}: the .on class is on ${J(on)}, want exactly ${J([want])}`);
+  for (const one of read.radios ?? []) {
+    if (one.role !== 'radio') out.push(`${label}: the ${String(one.value)} segment carries role ${J(one.role)}, want radio`);
+    if (typeof one.title !== 'string' || one.title.trim() === '') out.push(`${label}: the ${String(one.value)} segment has no hover`);
+    if (typeof one.text !== 'string' || one.text.trim() === '' || one.text.trim().split(/\s+/).length !== 1) {
+      out.push(`${label}: the ${String(one.value)} segment reads ${J(one.text)}, want one word`);
+    }
+  }
+  return out;
+}
+
+/** Arm 16. The drawn ids against the intersection the arm computes itself. */
+export function drawnFindings(label, segment, stateFilter, drawn, truth) {
+  const want = [...lifecycleWant(segment, stateFilter, truth)].sort();
+  const got = [...(drawn ?? [])].sort();
+  if (J(got) === J(want)) return [];
+  const by = (ids) => ids.map((id) => `${id}:${String((truth ?? []).find((row) => row.id === id)?.status ?? '?')}`);
+  return [`${label}: ${segment} with State ${stateFilter} draws ${J(by(got))}, want ${J(by(want))}`];
+}
+
+/**
+ * Arm 16, THE FIX ROUND. THE FIXTURE IS HELD TO EVERY MANAGED STATUS AT THE
+ * MOMENT EACH READING IS TAKEN, not only when it was stood up. The build round
+ * checked the six once, at fixture time, when two fresh shells still read the
+ * transient `running`; by the time the 21 pairs ran both read idle, the three
+ * `working` pairs were computed over an empty set, and the arm printed "0
+ * disagreeing" about a status it had never seen. A pair asked over a missing
+ * status is asked of nothing, so it is a finding and not a note. `taken` is one
+ * `{ at, truth }` per reading, `truth` being the store's own list in the same
+ * turn as the rows; the finding names every reading and the status it lacked.
+ */
+export function fixtureFindings(label, taken) {
+  const incomplete = [];
+  for (const one of taken ?? []) {
+    const have = new Set((one?.truth ?? []).map((row) => row.status));
+    const missing = LIFECYCLE_ADMITS.all.filter((status) => !have.has(status));
+    if (missing.length > 0) incomplete.push(`${String(one?.at ?? '?')} (no ${missing.join(', ')} row)`);
+  }
+  if (incomplete.length === 0) return [];
+  return [`${label}: ${String(incomplete.length)} of ${String((taken ?? []).length)} reading(s) were taken over a fixture missing a Managed status, so every pair over that status was asked of nothing and "0 disagreeing" says nothing about it — ${incomplete.join('; ')}`];
+}
+
+/** Arm 16. The State dropdown's seven options, unchanged under every segment. */
+export function stateOptionFindings(label, values) {
+  if (J(values ?? null) === J(STATE_OPTION_VALUES)) return [];
+  return [`${label}: #sm-filter-state offers ${J(values ?? null)}, want ${J(STATE_OPTION_VALUES)}`];
+}
+
+/** Arm 16. The invariant `checked ⊆ visibleIds`, read off the store after a filter moved over a selection. */
+export function pruneFindings(label, checked, drawn) {
+  const seen = new Set(drawn ?? []);
+  const hidden = (checked ?? []).filter((id) => !seen.has(id));
+  if (hidden.length === 0) return [];
+  return [`${label}: ${J(hidden)} stay checked and are not drawn, so a batch could name a row nobody can see`];
+}
+
+/**
+ * Arm 16. The case the phase exists for: a row main cannot see this moment is
+ * ACTIVE. Under Active it is drawn with its word still `unreachable` and its
+ * verb still a disabled End; under Ended it is not drawn at all.
+ */
+export function unreachableFindings(label, underActive, underEnded) {
+  const out = [];
+  if (underActive === null || underActive === undefined) {
+    out.push(`${label}: the unreachable row is not drawn under Active`);
+  } else {
+    if (underActive.status !== 'unknown') out.push(`${label}: the row drawn under Active reads data-status ${J(underActive.status)}, want unknown`);
+    if (underActive.stateLabel !== 'unreachable') out.push(`${label}: the unreachable row's word reads ${J(underActive.stateLabel)}, want unreachable (ruling 2: the row keeps its one detailed word)`);
+    const p = underActive.primary;
+    if (p === null || p === undefined || p.verb !== 'end' || p.disabled !== true) {
+      out.push(`${label}: the unreachable row's visible button is ${J(p ?? null)}, want End disabled`);
+    }
+  }
+  if (underEnded !== null && underEnded !== undefined) out.push(`${label}: the unreachable row is drawn under Ended, which promises a restore it does not offer`);
+  return out;
+}
+
 /** The session manager sources the drawn sheet is built from. */
 export const SHEET_SOURCES = [
   'src/renderer/session-manager',
@@ -1935,7 +2183,8 @@ function selfTest() {
     tabManaged: 'button#sm-tab-managed.sm-tab',
     end: 'button.btn.btn-secondary.btn-sm.sm-end[data-manage-primary][data-verb]',
     more: 'button.sm-icon-btn[data-manage-more]',
-    title: 'button.sm-icon-btn'
+    title: 'button.sm-icon-btn',
+    search: 'input[type=text]#sm-search.input'
   };
   const oneTarget = (key, width, height) => ({ key, what: key, width, height, disabled: false, cellHeight: null, rowHeight: null });
   const headHits = (over = {}, drop = null, extra = []) =>
@@ -1959,6 +2208,10 @@ function selfTest() {
         // parent's 102.3 because the count chip became the app's 16x16 primitive,
         // and the height does not move.
         oneTarget(KEY.tabManaged, 101.2, 51),
+        // The FOURTH admitted exception's own reading (Phase 303's fix round):
+        // the toolbar's slack, 694 less the lifecycle control's 138.93 box and
+        // one 8px gap, at the 1440px window.
+        oneTarget(KEY.search, 547.08, 28),
         ...extra
       ]
         .filter((one) => one.key !== drop)
@@ -1983,6 +2236,30 @@ function selfTest() {
     composited: true,
     why: null,
     exemptBecause: null,
+    ...over
+  });
+  // PHASE 303. One row per Managed status, and the control as the DOM reader
+  // answers it, so every arm 16 grader is proved on the shape the arm reads.
+  const six = [
+    { id: 'r', status: 'running' },
+    { id: 'i', status: 'idle' },
+    { id: 'n', status: 'needs_input' },
+    { id: 'u', status: 'unknown' },
+    { id: 'x', status: 'exited' },
+    { id: 's', status: 'restorable' }
+  ];
+  const control = (on, over = {}) => ({
+    present: true,
+    role: 'radiogroup',
+    label: 'Filter by active or ended',
+    radios: LIFECYCLE_SEGMENTS.map((value) => ({
+      value,
+      role: 'radio',
+      checked: value === on ? 'true' : 'false',
+      on: value === on,
+      title: `about ${value}`,
+      text: value.charAt(0).toUpperCase() + value.slice(1)
+    })),
     ...over
   });
   const fixtures = [
@@ -2024,15 +2301,26 @@ function selfTest() {
     ['11 the SELECT-ALL is held to the admitted 32x28 and not to the parent\'s 32x32', () => hitFindings('head', headHits()), []],
     ['11 a select-all shrunk BELOW the admitted exception is still caught, so the exception cannot be widened', () => count(hitFindings('head', headHits({ [KEY.selectAll]: { height: 24 } }))), 1],
     ['11 the exception carries its arithmetic and clears the WCAG floor on both dimensions', () => [HIT_EXCEPTIONS[KEY.selectAll].width * HIT_EXCEPTIONS[KEY.selectAll].height, HIT_EXCEPTIONS[KEY.selectAll].parentWidth * HIT_EXCEPTIONS[KEY.selectAll].parentHeight, HIT_EXCEPTIONS[KEY.selectAll].width >= WCAG_MIN && HIT_EXCEPTIONS[KEY.selectAll].height >= WCAG_MIN], [896, 1024, true]],
-    // TWO admitted exceptions since the operator's 2026-09-20 ruling: the column
-    // heading's select-all and the row's name button. Both are SAID in the notes,
-    // and this count is what stops a third being added in silence.
-    ['11 the exception is SAID in the notes rather than tolerated in silence', () => hitNotes("head", headHits()).filter((l) => l.includes("ADMITTED EXCEPTION APPLIED")).length, 3],
+    // FOUR admitted exceptions: the column heading's select-all and the row's
+    // name button (the operator's 2026-09-20 ruling), the Managed tab (the same
+    // ruling, found by the reverify), and the search field (Phase 303's fix
+    // round, the scenario that read worse than today and was REMOVED, queued
+    // for his ruling). Every one is SAID in the notes, and this count is what
+    // stops a fifth being added in silence.
+    ['11 the exception is SAID in the notes rather than tolerated in silence', () => hitNotes("head", headHits()).filter((l) => l.includes("ADMITTED EXCEPTION APPLIED")).length, 4],
+    // PHASE 303 FIX ROUND. The search field's clause is REMOVED and not
+    // repaired: it is held to the admitted 547 and not to the parent's 694,
+    // a further narrowing is still red, and the exception carries the
+    // arithmetic that ties the loss to the control's box plus one gap.
+    ['11 the SEARCH FIELD is held to the admitted 547x28 and not to the parent\'s 694x28', () => hitFindings('head', headHits(), parentTable([{ key: KEY.search, width: 694, height: 28 }])), []],
+    ['11 a search field narrowed BELOW the admitted 547 is still caught, so the removed clause cannot widen', () => count(hitFindings('head', headHits({ [KEY.search]: { width: 540 } }))), 1],
+    ['11 a search field SHORTER than the parent\'s 28 is still caught: only the width was removed', () => count(hitFindings('head', headHits({ [KEY.search]: { height: 27 } }))), 1],
+    ['11 the search exception is narrower than the parent, equal in height, and clears WCAG on both dimensions', () => [HIT_EXCEPTIONS[KEY.search].width < HIT_EXCEPTIONS[KEY.search].parentWidth, HIT_EXCEPTIONS[KEY.search].height === HIT_EXCEPTIONS[KEY.search].parentHeight, HIT_EXCEPTIONS[KEY.search].width >= WCAG_MIN && HIT_EXCEPTIONS[KEY.search].height >= WCAG_MIN, HIT_EXCEPTIONS[KEY.search].why.includes('138.93')], [true, true, true, true]],
     ['11 the PRIMARY\'s floor is 24 and not the build round\'s 28, which the row never drew on either commit', () => [HIT_PARENT[KEY.end].height, count(hitFindings('head', headHits({ [KEY.end]: { height: 24 } })))], [24, 0]],
     ['11 a 23px primary is still caught, so the 24 is a floor and not a shrug', () => count(hitFindings('head', headHits({ [KEY.end]: { height: 23 } }))), 1],
     ['11 a pinned key the DOM never answered is caught, which is the defect this table was rewritten to end', () => count(hitFindings('head', headHits({}, KEY.more))), 1],
     ['11 nothing enumerated at all is caught', () => count(hitFindings('head', [])), 1],
-    ['11 a control the table has never seen is measured, not a finding, and NAMED in the notes', () => [count(hitFindings('head', headHits({}, null, [oneTarget('input[type=text]#sm-search.input', 200, 28)]))), hitNotes('head', headHits({}, null, [oneTarget('input[type=text]#sm-search.input', 200, 28)])).filter((l) => l.includes('NO PARENT READING')).length], [0, 1]],
+    ['11 a control the table has never seen is measured, not a finding, and NAMED in the notes', () => [count(hitFindings('head', headHits({}, null, [oneTarget('textarea#sm-invented.input', 200, 28)]))), hitNotes('head', headHits({}, null, [oneTarget('textarea#sm-invented.input', 200, 28)])).filter((l) => l.includes('NO PARENT READING')).length], [0, 1]],
     ['11 a NEW control under the WCAG floor with no parent reading is a note and never a finding', () => [count(wcagFindings(headHits({}, null, [oneTarget('button.invented', 20, 20)]))), hitNotes('head', headHits({}, null, [oneTarget('button.invented', 20, 20)])).filter((l) => l.includes('NO PARENT READING')).length], [0, 1]],
     ['11 the WCAG roll-up is said once and names both sides', () => hitNotes('head', headHits()).filter((l) => l.includes('WCAG 2.2 AA 2.5.8 on the head base')).length, 1],
     ['11 the smallest copy of a role is what is graded', () => collapseTargets([oneTarget(KEY.more, 28, 28), oneTarget(KEY.more, 28, 20)]).map((o) => [o.width, o.height, o.count]), [[28, 20, 2]]],
@@ -2072,6 +2360,11 @@ function selfTest() {
     ['11 all three drawn and all three ellipsising passes', () => clipFindings({ widths: CLIP_WIDTHS.map((w) => ({ ...w, clipped: [], ellipsisKinds: ['a', 'b', 'c'], ellipsisReachable: ELLIPSIS_ALLOWED.map((one) => one.what), ellipsisNotDrawn: [], ellipsisWithoutTitle: [] })) }), []],
     ['11 the clause that was not asked is said ONCE, not once per width', () => count(clipNotes({ widths: CLIP_WIDTHS.map((w) => ({ ...w, ellipsisNotDrawn: ['the Past row\'s folder line (the Past tab)'] })) })), 1],
     ['11 nothing undrawn says nothing', () => clipNotes({ widths: CLIP_WIDTHS.map((w) => ({ ...w, ellipsisNotDrawn: [] })) }), []],
+    // PHASE 303. The lifecycle control's labels are read at rest and not typed
+    // into, and the reading says so ONCE rather than once per width.
+    ['11b a label not injected is said once, not once per width', () => count(clipNotes({ widths: CLIP_WIDTHS.map((w) => ({ ...w, ellipsisNotDrawn: [], notInjected: ['the lifecycle control\'s labels'] })) })), 1],
+    ['11b an older reading with no notInjected field says nothing extra', () => count(clipNotes({ widths: CLIP_WIDTHS.map((w) => ({ ...w, ellipsisNotDrawn: [] })) })), 0],
+    ['11b a segment CLIPPED AT REST is still a finding, whatever was not injected', () => count(clipFindings({ widths: CLIP_WIDTHS.map((w) => ({ ...w, clipped: [{ what: 'button.sm-lifecycle-opt in .sm-lifecycle', by: 'div.modal.session-sheet', text: 'Active' }], ellipsisKinds: ['a', 'b', 'c'], ellipsisReachable: ELLIPSIS_ALLOWED.map((one) => one.what), ellipsisNotDrawn: [], notInjected: ['the lifecycle control\'s labels'], ellipsisWithoutTitle: [] })) })), 3],
     ['11 contrast at the floor passes', () => contrastFindings([{ what: 'a name', base: 'dark', state: 'rest', fg: 'a', bg: 'b', ratio: 4.5, exemptBecause: null }]), []],
     ['11 contrast under the floor is caught', () => count(contrastFindings([{ what: 'a small line', base: 'light', state: 'hover', fg: 'a', bg: 'b', ratio: 4.15, exemptBecause: null }])), 1],
     ['11 a NAMED disabled label is exempt', () => contrastFindings([{ what: 'Restore, disabled', base: 'dark', state: 'rest', fg: 'a', bg: 'b', ratio: 2.1, exemptBecause: 'the button is disabled and its reason is its title' }]), []],
@@ -2197,6 +2490,47 @@ function selfTest() {
     ['10 an unknown row with End enabled is caught', () => count(matrixFindings(mrow({ status: 'unknown', stateWant: 'idle', eligibility: 'unreachable' }))), 1],
     ['10 an ended row whose button says End is caught', () => count(matrixFindings(mrow({ status: 'exited', eligibility: 'ended' }))), 1],
     ['10 a Past row with a checkbox is caught', () => count(matrixFindings(mrow({ tab: 'past', status: 'discarded', primary: { verb: 'restore', disabled: false, title: null, text: 'Restore' } }))), 1],
+    // PHASE 303. Arm 16's graders, both ways, over the six Managed statuses.
+    ['16 the partition is total over the six Managed statuses and the two segments are disjoint', () => [[...LIFECYCLE_ADMITS.active, ...LIFECYCLE_ADMITS.ended].sort(), LIFECYCLE_ADMITS.active.filter((s) => LIFECYCLE_ADMITS.ended.includes(s))], [[...LIFECYCLE_ADMITS.all].sort(), []]],
+    ['16 Active is the four and unknown is among them; Ended is the two', () => [LIFECYCLE_ADMITS.active.length, LIFECYCLE_ADMITS.active.includes('unknown'), LIFECYCLE_ADMITS.ended], [4, true, ['exited', 'restorable']]],
+    ['16 Active with State all is the four rows', () => lifecycleWant('active', 'all', six), ['r', 'i', 'n', 'u']],
+    ['16 Ended with State all is the two', () => lifecycleWant('ended', 'all', six), ['x', 's']],
+    ['16 All with State all is the six', () => lifecycleWant('all', 'all', six).length, 6],
+    ['16 Ended with Working intersects to nothing', () => lifecycleWant('ended', 'working', six), []],
+    ['16 Active with Unreachable is the unknown row alone', () => lifecycleWant('active', 'unreachable', six), ['u']],
+    ['16 Active with Running is the live three, unknown left out by the State refinement', () => lifecycleWant('active', 'running', six), ['r', 'i', 'n']],
+    ['16 a clean control at rest passes', () => segmentFindings('16', control('all'), 'all'), []],
+    ['16 a clean control on Active passes', () => segmentFindings('16', control('active'), 'active'), []],
+    ['16 no control drawn is caught', () => count(segmentFindings('16', { present: false }, 'all')), 1],
+    ['16 two segments checked at once is caught twice, once per reading', () => count(segmentFindings('16', control('all', { radios: control('all').radios.map((r) => ({ ...r, checked: 'true', on: true })) }), 'all')), 2],
+    ['16 the wrong segment checked is caught', () => count(segmentFindings('16', control('active'), 'ended')), 2],
+    ['16 a segment with no hover is caught', () => count(segmentFindings('16', control('all', { radios: control('all').radios.map((r) => (r.value === 'ended' ? { ...r, title: '' } : r)) }), 'all')), 1],
+    ['16 a two-word label is caught', () => count(segmentFindings('16', control('all', { radios: control('all').radios.map((r) => (r.value === 'active' ? { ...r, text: 'Still alive' } : r)) }), 'all')), 1],
+    ['16 a fourth segment is caught', () => count(segmentFindings('16', control('all', { radios: [...control('all').radios, { value: 'saved', checked: 'false', on: false, role: 'radio', title: 'x', text: 'Saved' }] }), 'all')), 1],
+    ['16 the drawn set that matches the arm\'s own passes', () => drawnFindings('16', 'active', 'all', ['u', 'n', 'i', 'r'], six), []],
+    ['16 an unknown row drawn under Ended is caught', () => count(drawnFindings('16', 'ended', 'all', ['x', 's', 'u'], six)), 1],
+    ['16 an unknown row missing under Active is caught', () => count(drawnFindings('16', 'active', 'all', ['r', 'i', 'n'], six)), 1],
+    ['16 the seven State options in order pass', () => stateOptionFindings('16', [...STATE_OPTION_VALUES]), []],
+    ['16 a State option dropped is caught, so the refinement keeps every option', () => count(stateOptionFindings('16', STATE_OPTION_VALUES.filter((v) => v !== 'unreachable'))), 1],
+    ['16 a checked set inside the drawn set passes', () => pruneFindings('16', ['x'], ['x', 's']), []],
+    ['16 a checked id nobody can see is caught', () => count(pruneFindings('16', ['x', 'r'], ['x', 's'])), 1],
+    ['16 the unreachable row under Active with its word and its disabled End passes', () => unreachableFindings('16', { id: 'u', status: 'unknown', stateLabel: 'unreachable', primary: { verb: 'end', disabled: true, title: 'x', text: 'End session…' } }, null), []],
+    ['16 the unreachable row missing under Active is caught', () => count(unreachableFindings('16', null, null)), 1],
+    ['16 the unreachable row drawn under Ended is caught', () => count(unreachableFindings('16', { id: 'u', status: 'unknown', stateLabel: 'unreachable', primary: { verb: 'end', disabled: true, title: 'x', text: 'End session…' } }, { id: 'u' })), 1],
+    ['16 a second word on the row is caught (ruling 2)', () => count(unreachableFindings('16', { id: 'u', status: 'unknown', stateLabel: 'unreachable · active', primary: { verb: 'end', disabled: true, title: 'x', text: 'End session…' } }, null)), 1],
+    ['16 an unreachable row whose End is enabled is caught', () => count(unreachableFindings('16', { id: 'u', status: 'unknown', stateLabel: 'unreachable', primary: { verb: 'end', disabled: false, title: null, text: 'End session…' } }, null)), 1],
+    // PHASE 303 FIX ROUND. The fixture held to all six AT EVERY READING, and
+    // the empty pairs held to the tables. The build round's arm checked once,
+    // at fixture time, and then read 21 pairs over five statuses.
+    ['16 every reading over a complete fixture passes', () => fixtureFindings('16', [{ at: 'all x all', truth: six }, { at: 'ended x working', truth: six }]), []],
+    ['16 a reading with no running row is caught and NAMED, which is the build round\'s exact shape', () => { const out = fixtureFindings('16', [{ at: 'all x all', truth: six }, { at: 'all x working', truth: six.filter((row) => row.status !== 'running') }]); return [out.length, out[0]?.includes('all x working (no running row)') === true, out[0]?.includes('1 of 2') === true]; }, [1, true, true]],
+    ['16 a fixture complete at fixture time and incomplete at a pair is still caught, so the check is per reading', () => count(fixtureFindings('16', [{ at: 'fixture', truth: six }, ...['a', 'b', 'c'].map((at) => ({ at, truth: six.filter((row) => row.status !== 'running') }))])), 1],
+    ['16 two statuses missing at one reading are both named', () => fixtureFindings('16', [{ at: 'p', truth: six.filter((row) => row.status !== 'unknown' && row.status !== 'restorable') }])[0]?.includes('(no unknown, restorable row)') === true, true],
+    ['16 no reading at all passes nothing through: the caller supplies the list', () => fixtureFindings('16', []), []],
+    ['16 the disjoint pairs are six, computed from the tables: active x ended and ended x every live option', () => DISJOINT_PAIRS.map(([a, b]) => `${a} x ${b}`), ['active x ended', 'ended x running', 'ended x working', 'ended x needs-input', 'ended x idle', 'ended x unreachable']],
+    ['16 over the six-row fixture exactly the disjoint pairs are empty', () => LIFECYCLE_SEGMENTS.flatMap((segment) => STATE_OPTION_VALUES.filter((v) => lifecycleWant(segment, v, six).length === 0).map((v) => [segment, v])), DISJOINT_PAIRS],
+    ['16 over a fixture with no running row TWO MORE pairs are empty, which is what the build round read as 8', () => LIFECYCLE_SEGMENTS.flatMap((segment) => STATE_OPTION_VALUES.filter((v) => lifecycleWant(segment, v, six.filter((row) => row.status !== 'running')).length === 0)).length, DISJOINT_PAIRS.length + 2],
+    ['arms: 16 is an arm', () => ALL_ARMS.includes('16'), true],
     ['arms: empty means all', () => chooseArms('').arms.length, ALL_ARMS.length],
     ['arms: a subset keeps the file\'s order', () => chooseArms('r, 3, 1'), { arms: ['1', '3', 'R'], bad: [] }],
     ['arms: an unknown name is named', () => chooseArms('1,z'), { arms: ['1'], bad: ['Z'] }],
@@ -2295,8 +2629,9 @@ const configDir = join(profile, 'gmux', 'config');
 // `dense` is Phase 298's own: arm 11c stands twenty one rows up in it, so the
 // rows-per-sheet reading is bounded by the sheet's geometry and never by how
 // many sessions the fixture happens to hold. It is created like the others and
-// nothing else touches it.
-const P = { alpha: join(root, 'alpha'), beta: join(root, 'beta'), gamma: join(root, 'gamma'), delta: join(root, 'delta'), far: join(root, 'far'), dbl: join(root, 'dbl'), dense: join(root, 'dense') };
+// nothing else touches it. `life` is Phase 303's: arm 16 stands six shells up
+// in it, one per Managed status, so no other arm's fixture is painted over.
+const P = { alpha: join(root, 'alpha'), beta: join(root, 'beta'), gamma: join(root, 'gamma'), delta: join(root, 'delta'), far: join(root, 'far'), dbl: join(root, 'dbl'), dense: join(root, 'dense'), life: join(root, 'life') };
 for (const d of [home, profile, ...Object.values(P)]) {
   rmSync(d, { recursive: true, force: true });
   mkdirSync(d, { recursive: true });
@@ -2436,6 +2771,39 @@ async function until(cdp, pred, timeoutMs = 10_000) {
 const rowIn = (s, id) => s.rows.find((r) => r.id === id);
 const checkedIds = (s) => s.rows.filter((r) => r.checked).map((r) => r.id);
 const LIVE = new Set(['running', 'idle', 'needs_input']);
+
+// ---------------------------------------------------------------------------
+// PHASE 303. Arm 16's two readers and its one typist.
+// ---------------------------------------------------------------------------
+
+/**
+ * The control and the State dropdown, read off the DOM in one turn. The
+ * shape `segmentFindings` and `stateOptionFindings` grade. No template
+ * literal inside, because this string is one.
+ */
+const LIFECYCLE_READ = `(() => {
+  const sheet = document.querySelector('.modal.session-sheet');
+  const c = sheet === null ? null : sheet.querySelector('[data-sm="lifecycle"]');
+  const radios = c === null ? [] : Array.prototype.slice.call(c.querySelectorAll('button')).map((b) => ({
+    value: b.getAttribute('data-manage-lifecycle'),
+    role: b.getAttribute('role'),
+    checked: b.getAttribute('aria-checked'),
+    on: b.classList.contains('on'),
+    title: b.getAttribute('title'),
+    text: (b.textContent || '').trim()
+  }));
+  const select = sheet === null ? null : sheet.querySelector('#sm-filter-state');
+  return {
+    present: c !== null,
+    role: c === null ? null : c.getAttribute('role'),
+    label: c === null ? null : c.getAttribute('aria-label'),
+    radios: radios,
+    stateOptions: select === null ? null : Array.prototype.slice.call(select.options).map((o) => o.value),
+    stateValue: select === null ? null : select.value,
+    clearFilters: sheet !== null && sheet.querySelector('[data-sm="clear-filters"]') !== null
+  };
+})()`;
+const readLifecycle = (cdp) => cdpEval(cdp, LIFECYCLE_READ, 10_000);
 
 // ---------------------------------------------------------------------------
 // PHASE 298. Arm 11's readers, installed on `window.__p298` ONCE.
@@ -2726,7 +3094,11 @@ const P298_READERS = String.raw`
       if (s === null) return null;
       const NATIVE = ['button', 'input', 'select', 'textarea'];
       const ROLES = ['button', 'tab', 'checkbox', 'radio', 'switch', 'menuitem', 'menuitemcheckbox', 'menuitemradio', 'option', 'link', 'slider', 'spinbutton', 'searchbox', 'textbox', 'combobox'];
-      const STATE_CLASSES = ['checked', 'sm-row-open', 'open', 'active', 'selected', 'busy', 'is-open', 'past-restore'];
+      /* 'on' is Phase 303's: the chosen segment of the lifecycle control
+         carries it, as .set-segment.on does, and a chosen segment and a
+         resting one are not two roles. No backtick in this comment: the
+         whole reader is one String.raw literal. */
+      const STATE_CLASSES = ['checked', 'sm-row-open', 'open', 'active', 'selected', 'busy', 'is-open', 'past-restore', 'on'];
       const noIds = (text) => String(text).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<id>');
       const isTarget = (el) => {
         const tag = el.tagName.toLowerCase();
@@ -3194,6 +3566,18 @@ const P298_READERS = String.raw`
         if (kinds.indexOf(k) < 0) kinds.push(k);
         if (!titleHolding(el) && withoutTitle.indexOf(k) < 0) withoutTitle.push(k);
       }
+      /* PHASE 303. NOT INJECTED: the lifecycle control's three labels. They
+         are one-word constants in copy.ts, pinned byte for byte by
+         p293-copy.test.ts, and no folder, name or honesty word ever reaches
+         them; a sixty-character token typed into a nowrap segment overflows a
+         toolbar that has 348px of slack at 1180 and less at the breakpoint,
+         which is a fact about the fixture and not about a word a person can
+         read. The RESTING reading below still asks them, so a label clipped as
+         shipped is still a finding, and the reading says what it skipped so
+         clipNotes can say it once. Named by selector, so a fourth exception
+         cannot arrive without a line here. */
+      const NOT_INJECTED = [{ selector: '[data-sm="lifecycle"] button', what: 'the lifecycle control\'s labels' }];
+      const notInjected = [];
       const clipped = [];
       let injected = 0;
       for (const el of els) {
@@ -3201,6 +3585,11 @@ const P298_READERS = String.raw`
         const resting = clipperOf(el);
         if (resting !== null) clipped.push({ what: kindOf(el), by: resting, text: ownText(el).trim().slice(0, 60) });
         if (!pureText(el)) continue;
+        const skip = NOT_INJECTED.filter((one) => el.matches(one.selector)).map((one) => one.what);
+        if (skip.length > 0) {
+          for (const w of skip) if (notInjected.indexOf(w) < 0) notInjected.push(w);
+          continue;
+        }
         const was = el.textContent;
         for (const text of strings) {
           el.textContent = text;
@@ -3217,6 +3606,7 @@ const P298_READERS = String.raw`
         ellipsisReachable: reachable,
         ellipsisNotDrawn: notDrawn,
         ellipsisWithoutTitle: withoutTitle,
+        notInjected: notInjected,
         clipped: clipped,
         texts: els.length,
         injected: injected,
@@ -3423,7 +3813,7 @@ function contrastRatiosOrThrow(pairs) {
 // ---------------------------------------------------------------------------
 const findings = Object.fromEntries([...ALL_ARMS, 'RUN'].map((a) => [a, []]));
 const readings = { socket, arms: chosen, base: BASE, appRoot, notes: [], matrix: [], main: {} };
-if (BASE === 'parent') say(`the PARENT reading: the Electron runs ${appRoot}, and arm 11 grades against GEOM.parent`);
+if (BASE === 'parent') say(`the PARENT reading: the Electron runs ${appRoot}, and arm 11 grades against GEOM.parent, which is Phase 293's f6c11f57 BY VALUE. A parent checkout later than that (Phase 303's is Phase 298's build) is graded against the wrong column here, so THIS RUN'S EXIT CODE IS NOT A VERDICT for a later phase: its readings.json is what the HEAD run reads through P293_HIT_PARENT and compares under readings.p303.byState. Count the findings that are not arm 11's column`);
 const note = (l) => {
   readings.notes.push(l);
   say(`note: ${l}`);
@@ -3911,6 +4301,283 @@ async function drive(cdp) {
         if (on(arm)) findings[arm].push(...matrixFindings(row));
       }
       say(`10: ${String(readings.matrix.length)} Managed row(s) graded: ${readings.matrix.map((r) => `${r.status}${r.machineId ? '@' + r.machineId : ''}`).join(', ')}`);
+    }
+
+    // ------------------------------------------------------------------ 16
+    //
+    // PHASE 303. THE LIFECYCLE CONTROL, `All | Active | Ended`, before the
+    // State dropdown. Every claim below is read off the running sheet, and
+    // every expected set is computed HERE from `data-status` and the tables at
+    // the top of this file, never read back from the app.
+    //
+    // THE FIXTURE HOLDS EVERY MANAGED STATUS AT ONCE, in a project of its own
+    // so nothing another arm stood up is painted over: l2 sits at its prompt
+    // (idle); l4 is ended out of band through main's own channel (exited); and
+    // FOUR ARE PAINTED by the drive, because no shell ever asks (l3,
+    // needs_input), main writes `unknown` only when the whole list fails to
+    // read (l5), `restorable` needs a server gone with its material kept (l6),
+    // and — the fix round — a scratch-HOME shell never reads `running` (l1):
+    // the shell oracle trusts a shell pane only once it has shown DECKPAM and
+    // this HOME's zsh never does, so the build round's `sleep 600` typed into
+    // the pane could not move the row even after its tmux target was fixed.
+    // The arm says which four, here and in its readings, and it holds the
+    // fixture to all six AT EVERY READING through `fixtureFindings`, because
+    // the build round checked once, at fixture time, while two fresh shells
+    // still read the transient `running`, and then ran its pairs over five.
+    //
+    // AT THE PARENT there is no control, so steps 1, 2, 4, 6, 7 and 8 are
+    // skipped with a note and the State dropdown's seven options (step 5) are
+    // still read, which is the half of the no-regression table this arm owns.
+    if (on('16')) {
+      stage = '16';
+      const L = ['l1', 'l2', 'l3', 'l4', 'l5', 'l6'];
+      const PAINTED = { l1: 'running', l3: 'needs_input', l5: 'unknown', l6: 'restorable' };
+      try {
+        s = await state(cdp);
+        if (!s.sheet) s = await d(cdp, "open('managed')");
+        if (s.tab !== 'sm-tab-managed') {
+          await click(cdp, '#sm-tab-managed');
+          await until(cdp, (x) => x.tab === 'sm-tab-managed', 5000);
+        }
+        await choose(cdp, '#sm-filter-project', 'all');
+        await choose(cdp, '#sm-filter-tab', 'all');
+        await choose(cdp, '#sm-filter-state', 'all');
+
+        // The fixture.
+        await d(cdp, `addProject(${J(P.life)})`);
+        for (const k of L) ids[k] = await d(cdp, `createSession(${J({ path: P.life, name: `p303-${k}` })})`);
+        if (L.some((k) => typeof ids[k] !== 'string')) throw new Error(`arm 16's sessions were not all created: ${J(L.map((k) => [k, ids[k]]))}`);
+        const up = await until(cdp, (x) => L.every((k) => x.store.sessions.some((one) => one.id === ids[k] && LIVE.has(one.status))), 20_000);
+        if (!up.ok) f('16', `the six shells did not all read live: ${J(up.s.store.sessions.filter((one) => L.some((k) => ids[k] === one.id)))}`);
+        // THE PARENT'S DRIVE holds needs_input alone, so at the parent l1, l5
+        // and l6 are not painted: its fixture is the shared one, idle shells
+        // with one held and one ended, and the table says so rather than
+        // reading a paint that could not happen as a defect.
+        const canPaint = BASE === 'head';
+        // l4: ended by main, as another window would end it.
+        if (!(await d(cdp, `killOutOfBand(${J(ids.l4)})`))) f('16', 'l4 could not be ended out of band');
+        const gone = await until(cdp, (x) => ['exited', 'restorable'].includes(x.store.sessions.find((one) => one.id === ids.l4)?.status ?? ''), 15_000);
+        if (!gone.ok) f('16', `l4 did not read ended after the kill: ${J(gone.s.store.sessions.find((one) => one.id === ids.l4) ?? null)}`);
+        // The painted rows, each over a live shell main pushed. needs_input is
+        // the one paint both drives know; running, unknown and restorable are
+        // HEAD's. `running` over l1 is a live status painted over a LIVE row,
+        // which is the only thing the drive's guard admits: it never paints
+        // over a row main says has stopped.
+        for (const [k, status] of Object.entries(PAINTED)) {
+          if (!canPaint && status !== 'needs_input') {
+            note(`16: ${k} is not painted ${status} on the ${BASE} base; that drive holds needs_input alone`);
+            continue;
+          }
+          if (!(await d(cdp, `hold(${J(ids[k])}, ${J(status)})`))) f('16', `the ${status} hold on ${k} did not take`);
+        }
+        s = await state(cdp);
+        // The truth a drawn set is held to is the STORE's own list, read in the
+        // same turn as the rows, so a status that moves between two readings
+        // moves both sides of the comparison together.
+        const truthOf = (x) => x.store.sessions.map((one) => ({ id: one.id, status: one.status }));
+        // A drawn id by its fixture NAME, so two runs whose ids differ can be
+        // read side by side.
+        const nameOf = (x, id) => Object.keys(ids).find((k) => ids[k] === id) ?? x.store.sessions.find((one) => one.id === id)?.name ?? id;
+        const heldIn = (x) => [...new Set(truthOf(x).map((row) => row.status))].sort();
+        const have = new Set(heldIn(s));
+        const missing = LIFECYCLE_ADMITS.all.filter((status) => !have.has(status));
+        if (missing.length > 0) {
+          if (canPaint) findings['16'].push(...fixtureFindings('16 at fixture time', [{ at: 'fixture', truth: truthOf(s) }]));
+          else note(`16: the parent fixture holds no ${J(missing)} row, by the paragraph above`);
+        }
+        // EVERY READING the arm takes goes in here with the store's list of that
+        // turn, and `fixtureFindings` is asked of the whole list at the end of
+        // step 7: a pair asked over a missing status is a finding, not a note.
+        const taken = [];
+        readings.p303 = {
+          base: BASE,
+          fixture: L.map((k) => ({ key: k, id: ids[k], status: s.store.sessions.find((one) => one.id === ids[k])?.status ?? null, painted: canPaint || PAINTED[k] === 'needs_input' ? (PAINTED[k] ?? null) : null })),
+          statusesHeld: [...have].sort()
+        };
+        say(`16: fixture ${readings.p303.fixture.map((one) => `${one.key}=${String(one.status)}${one.painted === null ? '' : ' (painted)'}`).join(' ')}; painted by the drive: ${readings.p303.fixture.filter((one) => one.painted !== null).map((one) => `${one.key}:${one.painted}`).join(', ') || 'nothing'}`);
+
+        const drawnManaged = (x) => x.rows.filter((r) => r.tab === 'managed').map((r) => r.id);
+        const settled = async (segment, stateValue) => {
+          const r = await until(cdp, (x) => x.store.sheetLifecycle === segment, 5000);
+          if (!r.ok) f('16', `the store never read lifecycle ${segment}: it reads ${J(r.s.store.sheetLifecycle)}`);
+          await sleep(200);
+          const x = await state(cdp);
+          const read = await readLifecycle(cdp);
+          if (stateValue !== null && read.stateValue !== stateValue) f('16', `#sm-filter-state reads ${J(read.stateValue)}, want ${stateValue}`);
+          return { x, read };
+        };
+        const segment = async (value) => {
+          const c = await click(cdp, `[data-manage-lifecycle="${value}"]`);
+          if (!c.ok) f('16', `the ${value} segment: ${c.why}`);
+          return c.ok;
+        };
+
+        if (BASE !== 'head') {
+          note('16: the parent has no lifecycle control, so steps 1, 2, 4, 6, 7 and 8 are not asked there; step 5 (the seven State options) and the drawn set under every State option are read for the no-regression table');
+          const rest = await readLifecycle(cdp);
+          if (rest.present) f('16', 'the parent draws a [data-sm="lifecycle"], so this is not the parent');
+          findings['16'].push(...stateOptionFindings('16 at the parent', rest.stateOptions));
+          readings.p303.byState = {};
+          for (const v of STATE_OPTION_VALUES) {
+            await choose(cdp, '#sm-filter-state', v);
+            await sleep(250);
+            const x = await state(cdp);
+            readings.p303.byState[v] = drawnManaged(x).map((id) => `${nameOf(x, id)}:${String(truthOf(x).find((row) => row.id === id)?.status ?? '?')}`).sort();
+            findings['16'].push(...drawnFindings('16 at the parent', 'all', v, drawnManaged(x), truthOf(x)));
+          }
+          await choose(cdp, '#sm-filter-state', 'all');
+        } else {
+          // 1. The control at rest.
+          const rest = await readLifecycle(cdp);
+          findings['16'].push(...segmentFindings('16 at rest', rest, 'all'));
+          findings['16'].push(...stateOptionFindings('16 at rest', rest.stateOptions));
+
+          // 2, 3, 4, 5. Each segment through a real click: aria-checked and
+          // .on read back, the drawn ids against the arm's own partition, the
+          // unreachable row, and the State dropdown's seven options.
+          const under = {};
+          for (const value of ['active', 'ended', 'all']) {
+            if (!(await segment(value))) continue;
+            const { x, read } = await settled(value, 'all');
+            under[value] = x;
+            taken.push({ at: `${value} (step 3)`, truth: truthOf(x) });
+            findings['16'].push(...segmentFindings(`16 on ${value}`, read, value));
+            findings['16'].push(...drawnFindings('16', value, 'all', drawnManaged(x), truthOf(x)));
+            findings['16'].push(...stateOptionFindings(`16 on ${value}`, read.stateOptions));
+            say(`16: ${value} draws ${String(drawnManaged(x).length)} of ${String(truthOf(x).length)} rows: ${J(x.rows.filter((r) => r.tab === 'managed').map((r) => r.status))}`);
+          }
+          if (under.all !== undefined && J(drawnManaged(under.all).sort()) !== J(truthOf(under.all).map((row) => row.id).sort())) {
+            f('16', `under All ${String(drawnManaged(under.all).length)} rows are drawn and the store holds ${String(truthOf(under.all).length)}; All must narrow nothing`);
+          }
+          findings['16'].push(...unreachableFindings('16', under.active === undefined ? null : (rowIn(under.active, ids.l5) ?? null), under.ended === undefined ? null : (rowIn(under.ended, ids.l5) ?? null)));
+          readings.p303.unreachable = { underActive: under.active === undefined ? null : (rowIn(under.active, ids.l5) ?? null), underEnded: under.ended === undefined ? null : (rowIn(under.ended, ids.l5) ?? null) };
+
+          // 6. THE BATCH INVARIANT, ATTACKED. Every visible row checked through
+          // its own checkbox, then the filter moved OVER the selection. No click
+          // can do that: the toolbar draws its filters only while nothing is
+          // checked, which is asserted first. So the drive writes the control
+          // and the checked set in ONE store write, the shape the conformance
+          // probe's B8 drives, and the prune in use-sheet-refresh.ts must leave
+          // `checked` inside what is drawn. That prune reads selectSheetView's
+          // memo, and a control left out of the memo's key is exactly what this
+          // step reads as a checked row nobody can see.
+          const all = under.all ?? (await state(cdp));
+          const everyId = drawnManaged(all);
+          for (const id of everyId) await click(cdp, `[data-manage-check="${id}"]`, 60);
+          const selected = await until(cdp, (x) => checkedIds(x).length === everyId.length, 5000);
+          if (!selected.ok) f('16', `checked ${String(checkedIds(selected.s).length)} of ${String(everyId.length)} rows through their checkboxes`);
+          if (selected.s.toolbar.mode !== 'selection') f('16', `with every row checked the toolbar reads mode ${J(selected.s.toolbar.mode)}, want selection`);
+          const hidden = await readLifecycle(cdp);
+          if (hidden.present) f('16', 'the lifecycle control is drawn in selection mode, so a person could move it over a selection; the filters are absent there by design');
+          readings.p303.prune = [];
+          for (const value of ['ended', 'active']) {
+            await d(cdp, `attackPrune(${J(value)}, ${J(everyId)})`);
+            const after = await until(cdp, (x) => x.store.sheetLifecycle === value, 5000);
+            const drawn = drawnManaged(after.s);
+            findings['16'].push(...pruneFindings(`16 ${value} written over ${String(everyId.length)} checked rows`, after.s.store.sheetChecked, drawn));
+            findings['16'].push(...pruneFindings(`16 ${value} written over ${String(everyId.length)} checked rows (the DOM)`, checkedIds(after.s), drawn));
+            findings['16'].push(...drawnFindings('16 after the write', value, 'all', drawn, truthOf(after.s)));
+            readings.p303.prune.push({ value, written: everyId.length, checkedAfter: after.s.store.sheetChecked, drawn });
+            say(`16: ${value} written over ${String(everyId.length)} checked rows; the store keeps ${String(after.s.store.sheetChecked.length)} checked and draws ${String(drawn.length)}`);
+          }
+          if (checkedIds(await state(cdp)).length > 0) {
+            const cleared = await click(cdp, '[aria-label="Clear selection"]');
+            if (!cleared.ok) f('16', `Clear selection: ${cleared.why}`);
+          }
+          const filtersBack = await until(cdp, (x) => checkedIds(x).length === 0 && x.toolbar.mode === 'filters', 5000);
+          if (!filtersBack.ok) f('16', `after Clear selection the toolbar reads ${J(filtersBack.s.toolbar.mode)} with ${String(checkedIds(filtersBack.s).length)} checked`);
+          await segment('all');
+          await settled('all', 'all');
+
+          // 7. EVERY REACHABLE PAIR of the two controls, 3 x 7, each against the
+          // intersection the arm computes itself. A pair that intersects to
+          // nothing draws the shipped empty state and its one button, which
+          // restores the whole list: asked of ended x working, the entry's own
+          // example, with the segment and the select both read back on all.
+          readings.p303.pairs = [];
+          let emptyPairs = 0;
+          for (const value of LIFECYCLE_SEGMENTS) {
+            for (const v of STATE_OPTION_VALUES) {
+              if (!(await choose(cdp, '#sm-filter-state', v))) f('16', `#sm-filter-state would not take ${v}`);
+              await segment(value);
+              const { x, read } = await settled(value, v);
+              const drawn = drawnManaged(x);
+              const want = lifecycleWant(value, v, truthOf(x));
+              taken.push({ at: `${value} x ${v}`, truth: truthOf(x) });
+              findings['16'].push(...drawnFindings('16', value, v, drawn, truthOf(x)));
+              readings.p303.pairs.push({
+                segment: value,
+                state: v,
+                drawn: [...drawn].sort(),
+                want: [...want].sort(),
+                drawnByName: drawn.map((id) => `${nameOf(x, id)}:${String(truthOf(x).find((row) => row.id === id)?.status ?? '?')}`).sort(),
+                // What the fixture held IN THIS TURN, so a reading over five
+                // statuses says so beside its "want".
+                held: heldIn(x)
+              });
+              if (want.length === 0) {
+                emptyPairs += 1;
+                if (!read.clearFilters) f('16', `${value} x ${v} draws nothing and no [data-sm="clear-filters"] button`);
+                if (typeof x.empty !== 'string' || !x.empty.includes(NO_MATCH_HEADING)) f('16', `${value} x ${v} draws nothing and the state block reads ${J(x.empty)}, want ${J(NO_MATCH_HEADING)}`);
+              }
+              if (value === 'ended' && v === 'working') {
+                const c = await click(cdp, '[data-sm="clear-filters"]');
+                if (!c.ok) f('16', `Clear filters on ended x working: ${c.why}`);
+                const back = await until(cdp, (x2) => x2.store.sheetLifecycle === 'all' && drawnManaged(x2).length === truthOf(x2).length, 5000);
+                const readBack = await readLifecycle(cdp);
+                findings['16'].push(...segmentFindings('16 after Clear filters', readBack, 'all'));
+                if (readBack.stateValue !== 'all') f('16', `after Clear filters #sm-filter-state reads ${J(readBack.stateValue)}, want all`);
+                if (!back.ok) f('16', `after Clear filters ${String(drawnManaged(back.s).length)} of ${String(truthOf(back.s).length)} rows are drawn`);
+                say(`16: ended x working drew ${J(x.empty)}; Clear filters put ${String(drawnManaged(back.s).length)} rows back with the control on ${J(readBack.radios.find((r) => r.checked === 'true')?.value ?? null)} and State on ${J(readBack.stateValue)}`);
+              }
+            }
+          }
+          // THE FIX ROUND'S CLAUSE. Every reading above, held to all six
+          // Managed statuses in the turn it was taken. Over a complete fixture
+          // the empty pairs are exactly the ones the two TABLES make disjoint
+          // (`DISJOINT_PAIRS`, six), and that is asserted too, because eight
+          // empty pairs is what five statuses read as while the build round's
+          // arm printed "0 disagreeing".
+          findings['16'].push(...fixtureFindings('16 while the pairs were read', taken));
+          if (canPaint && emptyPairs !== DISJOINT_PAIRS.length) f('16', `${String(emptyPairs)} of ${String(readings.p303.pairs.length)} pairs intersected to nothing; over a fixture holding every Managed status exactly ${String(DISJOINT_PAIRS.length)} do, being ${DISJOINT_PAIRS.map(([a, b]) => `${a} x ${b}`).join(', ')}`);
+          readings.p303.heldWhilePairsRead = [...new Set(taken.flatMap((one) => one.truth.map((row) => row.status)))].sort();
+          readings.p303.readingsMissingAStatus = taken.filter((one) => LIFECYCLE_ADMITS.all.some((status) => !one.truth.some((row) => row.status === status))).map((one) => one.at);
+          say(`16: ${String(readings.p303.pairs.length)} pairs read over a fixture holding ${J(readings.p303.heldWhilePairsRead)} (${String(readings.p303.readingsMissingAStatus.length)} reading(s) missing a status), ${String(emptyPairs)} of them empty by the arm's own arithmetic, ${String(readings.p303.pairs.filter((one) => J(one.drawn) !== J(one.want)).length)} disagreeing`);
+          // The seven State options under All, keyed as the parent run keys
+          // them, so the two readings.json files are compared side by side.
+          readings.p303.byState = Object.fromEntries(readings.p303.pairs.filter((one) => one.segment === 'all').map((one) => [one.state, one.drawnByName]));
+          await choose(cdp, '#sm-filter-state', 'all');
+
+          // 8. The Past tab draws no control, and a value chosen on Managed is
+          // reset by the tab change, so it cannot reach the Past list.
+          await segment('ended');
+          await settled('ended', 'all');
+          await click(cdp, '#sm-tab-past');
+          const past = await until(cdp, (x) => x.tab === 'sm-tab-past', 5000);
+          const onPast = await readLifecycle(cdp);
+          if (onPast.present) f('16', 'the Past tab draws a lifecycle control');
+          if (past.s.store.sheetLifecycle !== 'all') f('16', `on the Past tab the store reads lifecycle ${J(past.s.store.sheetLifecycle)}, want all (the tab change resets it)`);
+          await click(cdp, '#sm-tab-managed');
+          const backOnManaged = await until(cdp, (x) => x.tab === 'sm-tab-managed' && x.rows.some((r) => r.tab === 'managed'), 5000);
+          const onManaged = await readLifecycle(cdp);
+          findings['16'].push(...segmentFindings('16 back on Managed', onManaged, 'all'));
+          if (backOnManaged.s.store.sheetLifecycle !== 'all') f('16', `back on Managed the store reads lifecycle ${J(backOnManaged.s.store.sheetLifecycle)}, want all`);
+          say(`16: Past draws the control ${String(onPast.present)}, store ${J(past.s.store.sheetLifecycle)}; back on Managed the control reads ${J(onManaged.radios.find((r) => r.checked === 'true')?.value ?? null)}`);
+        }
+      } finally {
+        // The four paints released by id, so b2's hold from the set up is
+        // left as arm 10 read it, and main's own list put back, so the arm
+        // leaves what it found. A window that is gone is not a second error
+        // over the first.
+        try {
+          for (const k of Object.keys(PAINTED)) {
+            if (typeof ids[k] === 'string') await d(cdp, `release(${J(ids[k])})`);
+          }
+          await choose(cdp, '#sm-filter-state', 'all');
+        } catch {
+          /* the window may be gone; withElectron ends the tree anyway */
+        }
+      }
     }
 
     // ------------------------------------------------------------------ 13

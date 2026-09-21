@@ -811,7 +811,7 @@ try {
   // §2.4, §2.5, §2.10: THE VIEW
   // =========================================================================
 
-  const ALL = { search: '', project: 'all', tabFilter: 'all', stateFilter: 'all' };
+  const ALL = { search: '', project: 'all', tabFilter: 'all', stateFilter: 'all', lifecycle: 'all' };
 
   await rule('V1', '§2.5', 'a null sorts LAST in both directions, and sorting is inside each group', (c) => {
     const p = projection([
@@ -848,6 +848,52 @@ try {
     }
     const p = projection(STATUSES.filter((s) => s !== 'discarded').map((status, i) => sess(`s${String(i)}`, { status })));
     c.eq(visibleIds(visibleGroups(p.managed, { ...ALL, stateFilter: 'running' }, null)).length, 3, 'the rows Running leaves');
+  });
+
+  await rule('V6', '§2.4, Phase 303', 'the lifecycle control: Active is the four statuses main refuses to remove, unknown among them, Ended is the two Restore acts on, the two controls AND, and a moved control reaches the view the prune reads', async (c) => {
+    // Built by hand from the Phase 303 entry's partition table and never from
+    // the code: Active is removeRefusal's refusal set, which is LIVE plus the
+    // unknown row Tortie cannot see this moment, and Ended is its pass set
+    // less discarded. The six Managed statuses in one projection, in the
+    // alphabet's own order, so drawn order is the alphabet's too.
+    const ACTIVE = new Set<SessionStatus>([...LIVE, 'unknown']);
+    const managed = STATUSES.filter((s) => s !== 'discarded');
+    const sessions = managed.map((status) => sess(`l-${status}`, { status }));
+    const p = projection(sessions);
+    const under = (filters: Record<string, unknown>): string[] => visibleIds(visibleGroups(p.managed, { ...ALL, ...filters }, null));
+    c.eq(under({ lifecycle: 'active' }), managed.filter((s) => ACTIVE.has(s)).map((s) => `l-${s}`), 'Active draws the four, the unreachable row among them');
+    c.eq(under({ lifecycle: 'ended' }), managed.filter((s) => ENDED.has(s)).map((s) => `l-${s}`), 'Ended draws the two');
+    c.eq(under({ lifecycle: 'all' }), managed.map((s) => `l-${s}`), 'All draws the six');
+    // The two controls AND, as the four already do: a pair that intersects to
+    // nothing draws nothing, and is left to the sheet's own empty state.
+    c.eq(under({ lifecycle: 'ended', stateFilter: 'working' }), [], 'Ended with Working is empty');
+    c.eq(under({ lifecycle: 'active', stateFilter: 'unreachable' }), ['l-unknown'], 'Active with Unreachable is the unknown row alone');
+    c.eq(under({ lifecycle: 'ended', stateFilter: 'ended' }), managed.filter((s) => ENDED.has(s)).map((s) => `l-${s}`), 'Ended with Ended is the two again');
+    c.eq(under({ lifecycle: 'active', stateFilter: 'ended' }), [], 'Active with Ended is empty');
+    // THE MEMO KEY, the entry's one correctness clause: the prune reads
+    // `selectSheetView`'s visibleIds off a memo, so a control left out of its
+    // key leaves the view stale and a batch names a row nobody can see. Driven
+    // through the REAL store: read the view under All, move the control alone
+    // through the store's own verb, read again. Nothing else in the key moves.
+    world(sessions);
+    const before = selectSheetView(useApp.getState());
+    c.eq(before?.visibleIds, managed.map((s) => `l-${s}`), 'the view under All, which fills the memo');
+    useApp.getState().patchSessionSheet({ lifecycle: 'active' });
+    const after = selectSheetView(useApp.getState());
+    c.eq(after?.visibleIds, managed.filter((s) => ACTIVE.has(s)).map((s) => `l-${s}`), 'the view after the control alone moved: a stale memo answers the six here');
+    useApp.getState().patchSessionSheet({ lifecycle: 'ended' });
+    c.eq(selectSheetView(useApp.getState())?.visibleIds, managed.filter((s) => ENDED.has(s)).map((s) => `l-${s}`), 'and again under Ended');
+    // The Past tab: the control is a Managed one, reset on the tab change and
+    // coerced to All off Managed, so a Past list of discarded rows is never
+    // emptied by it.
+    const gone = sess('gone', { status: 'discarded', removedAt: 5 } as Partial<Session>);
+    world([], { past: [gone] });
+    useApp.getState().patchSessionSheet({ lifecycle: 'ended' });
+    c.ok(useApp.getState().setSessionSheetTab('past') === true, 'the sheet moved to Past');
+    c.eq(sheet().lifecycle, 'all', 'the tab change reset the control');
+    c.eq(selectSheetView(useApp.getState())?.visibleIds, ['gone'], 'the Past list is drawn whole');
+    useApp.setState({ sessionSheet: { ...sheet(), lifecycle: 'active' } });
+    c.eq(selectSheetView(useApp.getState())?.visibleIds, ['gone'], 'a value written past the reset is coerced to All off Managed');
   });
 
   // =========================================================================

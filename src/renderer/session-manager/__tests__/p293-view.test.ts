@@ -3,8 +3,11 @@
  * ids select-all and the batch may act on.
  *
  * What these tests hold:
- *  - the four controls combine with AND;
+ *  - the five controls combine with AND;
  *  - `Running` is THREE statuses, and `Working` is one of them;
+ *  - the lifecycle control (Phase 303) reads `row.gates` and nothing else:
+ *    Active is `live || unknown`, Ended is `ended`, and it ANDs with the state
+ *    select rather than narrowing it, so a contradictory pair draws nothing;
  *  - sorting reorders rows INSIDE each group and never reorders groups, and a
  *    NULL SORTS LAST IN BOTH DIRECTIONS. The study sorts null as -1, which puts
  *    every shell first on an ascending Messages sort; that bug is not copied. A
@@ -17,12 +20,15 @@
  *    checked CLEARS. An indeterminate click that selected everything would
  *    widen a batch a person had narrowed by hand.
  *
- * The rows are hand built, so the file needs neither the store nor the gates.
+ * The rows are hand built, so the file needs no store. Each row's `gates` are
+ * the SHIPPING `sessionActionGates` over its status (Phase 303), because the
+ * lifecycle control reads them and a stub would test the stub.
  */
 
 import { describe, expect, it } from 'vitest';
 import type { OverviewSessionActivity } from '@shared/overview';
-import type { Session, SessionStatus } from '@shared/types';
+import type { Session, SessionMachine, SessionStatus } from '@shared/types';
+import { sessionActionGates } from '../../state/resume';
 import type { ManageGroup, ManageRow } from '../projection';
 import {
   DEFAULT_FILTERS,
@@ -53,6 +59,24 @@ function activity(
   };
 }
 
+/** A remote row's machine: the gates read `remote` off its presence. */
+const FAR: SessionMachine = {
+  id: 'studio',
+  label: 'Studio',
+  color: 'green',
+  answering: true,
+  canRestore: false,
+  restoreReason: null
+};
+
+/** What the gates need beside the row. Nothing here decides the partition. */
+const GATE_ENV = {
+  canRestore: true,
+  canDiscard: true,
+  shellPathReady: true,
+  handback: undefined
+};
+
 function row(
   id: string,
   status: SessionStatus,
@@ -71,7 +95,8 @@ function row(
     name: patch.name ?? id,
     agent: patch.agent ?? 'claude',
     status,
-    createdAt: patch.createdAt ?? 1000
+    createdAt: patch.createdAt ?? 1000,
+    ...(patch.remote === true ? { machine: FAR } : {})
   } as Session;
   return {
     id,
@@ -82,7 +107,7 @@ function row(
     groupKey: '',
     target: null,
     tabOpen: false,
-    gates: { remote: patch.remote === true } as ManageRow['gates'],
+    gates: sessionActionGates(session, status, GATE_ENV),
     primary: { verb: 'end', enabled: true, title: null },
     activity: patch.activity ?? null,
     restoring: false,
@@ -128,7 +153,7 @@ const GROUPS: ManageGroup[] = [
 const idsOf = (groups: ManageGroup[]): string[][] =>
   groups.map((g) => g.rows.map((r) => r.id));
 
-describe('the four filters combine with AND (Phase 293, SPEC 2.4)', () => {
+describe('the five filters combine with AND (Phase 293, SPEC 2.4; Phase 303)', () => {
   it('no filter keeps every row, in main’s order', () => {
     expect(idsOf(visibleGroups(GROUPS, DEFAULT_FILTERS, null))).toEqual([
       ['a', 'b', 'c'],
@@ -160,7 +185,20 @@ describe('the four filters combine with AND (Phase 293, SPEC 2.4)', () => {
     ).toEqual([['d', 'e', 'f']]);
   });
 
-  it('all four at once keep only the rows every one of them keeps', () => {
+  it('the lifecycle control reads the row’s gates: Active is live or unknown, Ended is ended', () => {
+    expect(
+      idsOf(visibleGroups(GROUPS, filters({ lifecycle: 'active' }), null))
+    ).toEqual([['a', 'c'], ['d', 'e']]);
+    expect(
+      idsOf(visibleGroups(GROUPS, filters({ lifecycle: 'ended' }), null))
+    ).toEqual([['b'], ['f']]);
+    // Every Managed row is in exactly one of the two.
+    const active = visibleIds(visibleGroups(GROUPS, filters({ lifecycle: 'active' }), null));
+    const ended = visibleIds(visibleGroups(GROUPS, filters({ lifecycle: 'ended' }), null));
+    expect([...active, ...ended].sort()).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('all five at once keep only the rows every one of them keeps', () => {
     expect(
       idsOf(
         visibleGroups(
@@ -169,13 +207,14 @@ describe('the four filters combine with AND (Phase 293, SPEC 2.4)', () => {
             search: 'fix',
             project: '/w/closed',
             tabFilter: 'closed',
-            stateFilter: 'running'
+            stateFilter: 'running',
+            lifecycle: 'active'
           },
           null
         )
       )
     ).toEqual([['d']]);
-    // One of the four disagrees, and nothing is left.
+    // One of the five disagrees, and nothing is left.
     expect(
       visibleGroups(
         GROUPS,
@@ -183,7 +222,21 @@ describe('the four filters combine with AND (Phase 293, SPEC 2.4)', () => {
           search: 'fix',
           project: '/w/closed',
           tabFilter: 'open',
-          stateFilter: 'running'
+          stateFilter: 'running',
+          lifecycle: 'active'
+        },
+        null
+      )
+    ).toEqual([]);
+    expect(
+      visibleGroups(
+        GROUPS,
+        {
+          search: 'fix',
+          project: '/w/closed',
+          tabFilter: 'closed',
+          stateFilter: 'running',
+          lifecycle: 'ended'
         },
         null
       )
@@ -231,6 +284,55 @@ describe('the state filter’s table (Phase 293, SPEC 2.4)', () => {
   it('visibleIds under Running is exactly the live rows, in drawn order', () => {
     const out = visibleGroups(GROUPS, filters({ stateFilter: 'running' }), null);
     expect(visibleIds(out)).toEqual(['a', 'c', 'd']);
+  });
+});
+
+describe('the lifecycle control’s table (Phase 303)', () => {
+  const under = (patch: Partial<ManageFilters>): string[] =>
+    visibleIds(visibleGroups(GROUPS, filters(patch), null));
+
+  it('Active is the four statuses End refuses to remove, Unreachable among them', () => {
+    // `e` is `unknown`: alive as far as Tortie knows, and Restore never acts
+    // on it, so it is Active and never Ended.
+    expect(under({ lifecycle: 'active' })).toEqual(['a', 'c', 'd', 'e']);
+  });
+
+  it('Ended is the two statuses Restore acts on', () => {
+    expect(under({ lifecycle: 'ended' })).toEqual(['b', 'f']);
+  });
+
+  it('All is every row, byte for byte what no control draws', () => {
+    expect(under({ lifecycle: 'all' })).toEqual(under({}));
+  });
+
+  it('visibleIds under Active is in drawn order', () => {
+    const out = visibleGroups(GROUPS, filters({ lifecycle: 'active' }), null);
+    expect(out.map((g) => g.key)).toEqual(['/w/open', '/w/closed']);
+    expect(idsOf(out)).toEqual([['a', 'c'], ['d', 'e']]);
+  });
+
+  it('the two controls AND, and no option is narrowed or coerced', () => {
+    // Every state option still keeps what it keeps under All.
+    for (const state of ['running', 'working', 'needs-input', 'idle', 'ended', 'unreachable'] as const) {
+      expect(under({ lifecycle: 'all', stateFilter: state }), state).toEqual(
+        under({ stateFilter: state })
+      );
+    }
+    // Agreeing pairs are the intersection.
+    expect(under({ lifecycle: 'active', stateFilter: 'running' })).toEqual(['a', 'c', 'd']);
+    expect(under({ lifecycle: 'active', stateFilter: 'unreachable' })).toEqual(['e']);
+    expect(under({ lifecycle: 'ended', stateFilter: 'ended' })).toEqual(['b', 'f']);
+    // Contradictory pairs draw nothing, and are left to the empty state
+    // rather than engineered away: a narrowing rule would be a second table.
+    expect(under({ lifecycle: 'ended', stateFilter: 'running' })).toEqual([]);
+    expect(under({ lifecycle: 'ended', stateFilter: 'working' })).toEqual([]);
+    expect(under({ lifecycle: 'ended', stateFilter: 'unreachable' })).toEqual([]);
+    expect(under({ lifecycle: 'active', stateFilter: 'ended' })).toEqual([]);
+  });
+
+  it('a group with no Ended row is left out', () => {
+    const only = [group('/w/live', true, [row('x', 'running'), row('y', 'idle')])];
+    expect(visibleGroups(only, filters({ lifecycle: 'ended' }), null)).toEqual([]);
   });
 });
 

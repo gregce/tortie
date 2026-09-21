@@ -230,7 +230,10 @@ on `*` app-wide, which is the reason to write the durations as tokens in the fir
 | `Ended` | `exited`, `restorable` |
 | `Unreachable` | `unknown` |
 
-- All selects are 28px high (`--field-h`), `--text-xs`. The four controls combine with AND.
+- All selects are 28px high (`--field-h`), `--text-sm` since Phase 298. The five controls combine
+  with AND: since Phase 303 the lifecycle control `All | Active | Ended` sits BEFORE the State
+  select on Managed and reads the row's own gates — Active is `row.gates.live || row.gates.unknown`,
+  Ended is `row.gates.ended`, no status named — and State refines inside it; its DOM is in §2.14.
 - Search is a trimmed, lowercased substring match over the row's `searchText`, which is
   `name`, `agentShortLabel(agent)`, the group label, `displayPath(path, machineId)`, the group's
   path AS MAIN STORED IT, the session's own folder when it differs, and the machine label joined by
@@ -673,6 +676,9 @@ heading says its copy is final and a state that is not in it is not a state.
 
 `.modal-scrim.session-sheet-scrim` › `.modal.session-sheet[role="dialog"][aria-modal="true"]
 [aria-label="Session manager"]`. `[data-sm="toolbar"][data-mode="filters|selection"]`.
+`div.sm-lifecycle[role="radiogroup"][aria-label][data-sm="lifecycle"]` (Phase 303), Managed tab only
+and filters mode only, between `#sm-search` and `#sm-filter-project`, holding three
+`button[role="radio"][aria-checked][data-manage-lifecycle="all|active|ended"]`, the chosen one `.on`.
 `[data-sm="end-selected"]`. `[data-sm="clear-filters"]`. `table.sm-grid`.
 `tr.sm-group[data-manage-group="<groupKey>"][data-tab-open="yes|no"]`.
 `tr.sm-row[data-manage-row="<id>"][data-status="<SessionStatus>"]`.

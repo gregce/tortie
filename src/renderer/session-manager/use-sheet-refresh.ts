@@ -151,6 +151,9 @@ export function selectSheetView(s: AppState): SheetView | null {
   const sheet = s.sessionSheet;
   if (sheet === null) return null;
   const projection = selectManageProjection(s);
+  // EVERY filter the view reads is in this key. One left out is a stale view:
+  // the prune below reads `visibleIds` off the memo, and a control that moved
+  // without moving the key leaves a row checked that nobody can see.
   const key = [
     projection,
     sheet.tab,
@@ -158,6 +161,7 @@ export function selectSheetView(s: AppState): SheetView | null {
     sheet.project,
     sheet.tabFilter,
     sheet.stateFilter,
+    sheet.lifecycle,
     sheet.sort
   ] as const;
   const memo = viewMemo;
@@ -165,13 +169,15 @@ export function selectSheetView(s: AppState): SheetView | null {
     return memo.value;
   }
   const all = sheet.tab === 'managed' ? projection.managed : projection.past;
-  // The state filter is a Managed control. The Past tab has no state select,
-  // and every past row is `discarded`, which no option but All keeps.
+  // The state filter and the lifecycle control are Managed controls. The Past
+  // tab draws neither, and every past row is `discarded`, which no state
+  // option but All keeps and neither lifecycle segment admits.
   const filters = {
     search: sheet.search,
     project: sheet.project,
     tabFilter: sheet.tabFilter,
-    stateFilter: sheet.tab === 'managed' ? sheet.stateFilter : ('all' as const)
+    stateFilter: sheet.tab === 'managed' ? sheet.stateFilter : ('all' as const),
+    lifecycle: sheet.tab === 'managed' ? sheet.lifecycle : ('all' as const)
   };
   const groups = visibleGroups(
     all,

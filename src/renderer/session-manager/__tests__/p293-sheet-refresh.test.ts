@@ -15,8 +15,11 @@
  *  - a change to the session list refetches the removed list 250 ms later,
  *    once however many changes land inside the window;
  *  - THE PRUNE: a push that hides a checked row unchecks it on that change,
- *    whether the push is a status (the Running filter) or a tab opening (the
- *    Tab closed filter), and a sort keeps the selection;
+ *    whether the push is a status (the Running filter, and Phase 303's Active
+ *    segment) or a tab opening (the Tab closed filter), and a sort keeps the
+ *    selection. The lifecycle control is in `selectSheetView`'s memo key,
+ *    proved by a filter change with NO projection change behind it: a stale
+ *    view would leave a hidden row checked;
  *  - a project filter whose group is gone resets to All and clears the
  *    selection;
  *  - Details on a Past row asks for that one row;
@@ -278,6 +281,54 @@ describe('the prune: checked stays a subset of what a person can see (Phase 293,
       session('a2', '/w/alpha', 'idle')
     ]);
     expect(s().sessionSheet?.checked).toEqual({ a2: true });
+  });
+
+  it('a push that ends a checked row unchecks it on that change (the Active segment, Phase 303)', () => {
+    startWith([
+      session('a1', '/w/alpha', 'running'),
+      session('a2', '/w/alpha', 'idle')
+    ]);
+    s().patchSessionSheet({ lifecycle: 'active' });
+    s().setSessionSheetChecked(['a1', 'a2'], true);
+    expect(Object.keys(s().sessionSheet?.checked ?? {})).toEqual(['a1', 'a2']);
+    setSessions([
+      session('a1', '/w/alpha', 'exited'),
+      session('a2', '/w/alpha', 'idle')
+    ]);
+    expect(s().sessionSheet?.checked).toEqual({ a2: true });
+  });
+
+  it('the lifecycle control is in the view’s memo key: a segment change alone prunes (Phase 303)', () => {
+    // NO projection change anywhere in this test, so the only thing that can
+    // move `selectSheetView` off its memo is the control itself. A key
+    // without `lifecycle` answers the view built under All, and the prune
+    // reads a visible set that still holds the ended row.
+    startWith([
+      session('a1', '/w/alpha', 'running'),
+      session('a2', '/w/alpha', 'exited')
+    ]);
+    s().setSessionSheetChecked(['a1', 'a2'], true);
+    expect(s().sessionSheet?.checked).toEqual({ a1: true, a2: true });
+    // A batch that is RUNNING is the one case where a filter change does not
+    // clear the selection itself (rule 3), so what unchecks `a2` here is the
+    // prune over the view, and nothing else.
+    expect(
+      s().openSessionSheetBatch({
+        named: [
+          { id: 'a1', where: 'alpha' },
+          { id: 'a2', where: 'alpha' }
+        ],
+        skippedAtOpen: { ended: 0, unreachable: 0 }
+      })
+    ).toBe(true);
+    expect(s().beginSessionSheetBatchRun(['a1', 'a2'])).not.toBeNull();
+    expect(s().sessionSheet?.batch?.phase).toBe('running');
+    s().patchSessionSheet({ lifecycle: 'active' });
+    expect(s().sessionSheet?.lifecycle).toBe('active');
+    expect(s().sessionSheet?.checked).toEqual({ a1: true });
+    // And the other way: Ended alone hides the live row.
+    s().patchSessionSheet({ lifecycle: 'ended' });
+    expect(s().sessionSheet?.checked).toEqual({});
   });
 
   it('a project tab opening under the Tab closed filter unchecks its rows', () => {

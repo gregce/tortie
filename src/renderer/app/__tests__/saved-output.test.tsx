@@ -223,6 +223,7 @@ describe('the panel', () => {
           project: 'all',
           tabFilter: 'all',
           stateFilter: 'all',
+          lifecycle: 'all',
           sort: null,
           checked: {},
           inline: { id: 'sess-1', kind: 'output' },

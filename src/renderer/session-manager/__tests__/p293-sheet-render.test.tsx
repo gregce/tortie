@@ -38,6 +38,14 @@
  * `not.toContain('<small')` in the same pass: once every `<small>` carries a
  * class they would have passed vacuously, and one of them is the only thing
  * guarding the slot rough edge 5 fills.
+ *
+ * PHASE 303 adds the lifecycle control, `All | Active | Ended`, between the
+ * search field and the project select on Managed only: its radiogroup and
+ * three radios with exactly one `aria-checked`, its absence on Past and in
+ * selection mode, the rows each segment draws over a fixture holding an
+ * `unknown` row — Active keeps it, Ended does not, and its word and its
+ * disabled End do not move — and that a change to the field alone moves
+ * `selectSheetView`, which is the memo-key clause the batch prune depends on.
  */
 
 import { readFileSync } from 'node:fs';
@@ -90,7 +98,9 @@ vi.mock('../../state/store', async (importOriginal) => {
 
 const { useApp } = await import('../../state/store');
 const { SessionManagerSheet } = await import('../SessionManagerSheet');
-const { selectManageProjection } = await import('../use-sheet-refresh');
+const { selectManageProjection, selectSheetView } = await import(
+  '../use-sheet-refresh'
+);
 
 const STUDIO: SessionMachine = {
   id: 'studio',
@@ -160,6 +170,7 @@ function open(
       search: '',
       project: 'all',
       tabFilter: 'all',
+      lifecycle: 'all',
       stateFilter: 'all',
       sort: null,
       checked: {},
@@ -178,6 +189,13 @@ const render = (): string => renderToStaticMarkup(<SessionManagerSheet />);
 function tagsWith(html: string, attr: string): string[] {
   return [...html.matchAll(new RegExp(`<[a-z]+[^>]*${attr}[^>]*>`, 'g'))].map(
     (m) => m[0]
+  );
+}
+
+/** The Managed rows drawn, by id, in drawn order. */
+function drawnRows(html: string): string[] {
+  return [...html.matchAll(/<tr class="sm-row[^"]*" data-manage-row="([^"]*)"/g)].map(
+    (m) => m[1] ?? ''
   );
 }
 
@@ -239,6 +257,58 @@ describe('the DOM contract (Phase 293, SPEC 2.14)', () => {
     expect(html).toContain('<span class="sr-only">Actions</span>');
     expect(html).toContain('codicon-arrow-down');
   });
+
+  it('the lifecycle control: a radiogroup of three radios between the search and the project select, Managed only (Phase 303)', () => {
+    open('managed');
+    const html = render();
+    const groups = tagsWith(html, 'data-sm="lifecycle"');
+    expect(groups).toEqual([
+      '<div class="sm-lifecycle" role="radiogroup" aria-label="Filter by active or ended" data-sm="lifecycle">'
+    ]);
+    // Three radios in the ruled order, each with its one-word label and a
+    // hover, and `all` the one checked on a fresh sheet.
+    const radios = tagsWith(html, 'data-manage-lifecycle=');
+    expect(radios).toEqual([
+      '<button type="button" role="radio" aria-checked="true" title="Every session, alive or over" class="sm-lifecycle-opt on" data-manage-lifecycle="all">',
+      '<button type="button" role="radio" aria-checked="false" title="Alive, or unreachable right now. One that just ended can read Active for a moment." class="sm-lifecycle-opt" data-manage-lifecycle="active">',
+      '<button type="button" role="radio" aria-checked="false" title="Over, and can be restored" class="sm-lifecycle-opt" data-manage-lifecycle="ended">'
+    ]);
+    expect(html).toContain('data-manage-lifecycle="all">All</button>');
+    expect(html).toContain('data-manage-lifecycle="active">Active</button>');
+    expect(html).toContain('data-manage-lifecycle="ended">Ended</button>');
+    // Between the search field and the project select, before the State
+    // dropdown — ruling 1. The field's `id` is set by a ref at runtime, so
+    // the static markup is anchored on its class.
+    const search = html.indexOf('class="filter-field sm-search"');
+    const control = html.indexOf('data-sm="lifecycle"');
+    const project = html.indexOf('id="sm-filter-project"');
+    const state = html.indexOf('id="sm-filter-state"');
+    expect(search).toBeGreaterThan(-1);
+    expect(control).toBeGreaterThan(search);
+    expect(project).toBeGreaterThan(control);
+    expect(state).toBeGreaterThan(project);
+    // Absent on Past, as the State select is.
+    open('past');
+    const past = render();
+    expect(past).not.toContain('data-sm="lifecycle"');
+    expect(past).not.toContain('data-manage-lifecycle');
+  });
+
+  it('exactly one segment is checked, and it is the one the store holds (Phase 303)', () => {
+    for (const lifecycle of ['all', 'active', 'ended'] as const) {
+      open('managed', { lifecycle });
+      const radios = tagsWith(render(), 'data-manage-lifecycle=');
+      expect(radios.length).toBe(3);
+      const checked = radios.filter((one) => one.includes('aria-checked="true"'));
+      expect(checked.length).toBe(1);
+      expect(checked[0]).toContain(`data-manage-lifecycle="${lifecycle}"`);
+      expect(checked[0]).toContain('class="sm-lifecycle-opt on"');
+      for (const one of radios.filter((r) => r !== checked[0])) {
+        expect(one).toContain('aria-checked="false"');
+        expect(one).not.toContain(' on"');
+      }
+    }
+  });
 });
 
 describe('the toolbar is ONE 47px element in both modes (Phase 293, SPEC 2.2)', () => {
@@ -249,6 +319,7 @@ describe('the toolbar is ONE 47px element in both modes (Phase 293, SPEC 2.2)', 
     expect(bars).toEqual([
       '<div class="sm-toolbar" data-sm="toolbar" data-mode="filters">'
     ]);
+    expect(html).toContain('data-sm="lifecycle"');
     expect(html).toContain('id="sm-filter-project"');
     expect(html).toContain('id="sm-filter-tab"');
     expect(html).toContain('id="sm-filter-state"');
@@ -262,6 +333,9 @@ describe('the toolbar is ONE 47px element in both modes (Phase 293, SPEC 2.2)', 
     expect(bars).toEqual([
       '<div class="sm-toolbar" data-sm="toolbar" data-mode="selection">'
     ]);
+    // The selection replaces every filter control, the lifecycle one included.
+    expect(html).not.toContain('data-sm="lifecycle"');
+    expect(html).not.toContain('id="sm-filter-state"');
     expect(html).toContain('<strong class="sm-selected">2 selected</strong>');
     expect(html).toContain('1 running · 1 ended or unreachable');
     expect(html).toMatch(/data-sm="end-selected"[^>]*>/);
@@ -291,6 +365,37 @@ describe('the toolbar is ONE 47px element in both modes (Phase 293, SPEC 2.2)', 
     );
     const selectionBlock = selection.slice(0, selection.indexOf('}'));
     expect(selectionBlock).not.toMatch(/height|padding|border|margin/);
+  });
+
+  it('the lifecycle control is a fixed 28px flex item with no margin and no literal width, so it cannot move the bar (Phase 303)', () => {
+    const css = readFileSync(
+      resolve(import.meta.dirname, '../session-manager.css'),
+      'utf8'
+    );
+    const from = css.indexOf('.session-sheet .sm-lifecycle {');
+    expect(from).toBeGreaterThan(-1);
+    const block = css.slice(from, css.indexOf('}', from));
+    expect(block).toMatch(/flex:\s*0 0 auto;/);
+    expect(block).toMatch(/height:\s*var\(--field-h\);/);
+    expect(block).toMatch(/box-sizing:\s*border-box;/);
+    expect(block).not.toMatch(/margin/);
+    expect(block).not.toMatch(/\bwidth:/);
+    expect(block).not.toMatch(/(width|height):\s*\d/);
+    // The 1px inset is the sheet's own geometry, stated once on the sheet and
+    // read by name, never a literal in the rule.
+    expect(css).toMatch(/--sm-segment-inset:\s*1px;/);
+    expect(block).toMatch(/padding:\s*var\(--sm-segment-inset\);/);
+    expect(block).toMatch(/gap:\s*var\(--sm-segment-inset\);/);
+    // A segment declares no height of its own: it stretches to what the box
+    // leaves it, and reads the select's own type step.
+    const opt = css.indexOf('.session-sheet .sm-lifecycle-opt {');
+    expect(opt).toBeGreaterThan(-1);
+    const optBlock = css.slice(opt, css.indexOf('}', opt));
+    // `line-height` is the segment's type step and is wanted; a `height` of
+    // its own is not.
+    expect(optBlock).not.toMatch(/^\s*height:|margin|\bwidth:/m);
+    expect(optBlock).toMatch(/font-size:\s*var\(--text-sm\);/);
+    expect(optBlock).toMatch(/line-height:\s*var\(--lh-sm\);/);
   });
 });
 
@@ -424,6 +529,146 @@ describe('the counts, the tabs and the checkboxes (Phase 293, SPEC 2.3 and 2.10)
     expect(html).not.toContain('data-manage-primary=""');
     expect(html).not.toContain('data-manage-more=""');
     expect(html).toContain('data-manage-check="ok"');
+  });
+});
+
+describe('what each lifecycle segment draws (Phase 303)', () => {
+  // The four shipped rows plus the case the phase exists for: a session main
+  // could not see. Six statuses Managed draws, less `restorable`, which the
+  // view test's own fixture covers over the shipping gates.
+  const WITH_UNKNOWN: Session[] = [
+    ...SESSIONS,
+    session('u1', '/Users/me/src/beta', 'unknown')
+  ];
+
+  it('All draws every row; Active the live three and the unreachable one; Ended the exited one', () => {
+    open('managed', { lifecycle: 'all' }, { sessions: WITH_UNKNOWN });
+    expect(drawnRows(render()).sort()).toEqual(['a1', 'a2', 'b1', 'r1', 'u1']);
+    open('managed', { lifecycle: 'active' }, { sessions: WITH_UNKNOWN });
+    expect(drawnRows(render()).sort()).toEqual(['a1', 'b1', 'r1', 'u1']);
+    open('managed', { lifecycle: 'ended' }, { sessions: WITH_UNKNOWN });
+    expect(drawnRows(render())).toEqual(['a2']);
+  });
+
+  it('the unreachable row is Active and never Ended, and its word and its disabled End do not move (ruling 2)', () => {
+    open('managed', { lifecycle: 'active' }, { sessions: WITH_UNKNOWN });
+    const html = render();
+    const at = html.indexOf('data-manage-row="u1"');
+    expect(at).toBeGreaterThan(-1);
+    const row = html.slice(at, html.indexOf('</tr>', at));
+    // One detailed word, the shipped one, on the shipped dot: no second word
+    // and no group header for the lifecycle.
+    expect(row).toContain(
+      '<span class="sm-state-label" data-dot="ended">unreachable</span>'
+    );
+    expect(row).not.toMatch(/>Active</);
+    // Every group row is a PROJECT group: alpha, beta and the Studio folder.
+    // No header for a lifecycle sits over the rows.
+    const groupRows = html.match(/<tr class="sm-group"[^>]*>/g) ?? [];
+    expect(groupRows.length).toBe(3);
+    for (const one of groupRows) expect(one).toContain('data-manage-group="');
+    expect(html).not.toMatch(/<t[hd][^>]*>(Active|Ended)<\/t[hd]>/);
+    // The verb an unreachable row already had: a disabled End, never Restore.
+    const primary = tagsWith(row, 'data-manage-primary="u1"')[0] ?? '';
+    expect(primary).toContain('data-verb="end"');
+    expect(primary).toContain('disabled=""');
+    expect(primary).toContain(
+      'title="Tortie cannot see whether this session is running, so it cannot end it."'
+    );
+    open('managed', { lifecycle: 'ended' }, { sessions: WITH_UNKNOWN });
+    expect(render()).not.toContain('data-manage-row="u1"');
+  });
+
+  it('the State dropdown keeps its seven options under every segment (mechanism 4)', () => {
+    for (const lifecycle of ['all', 'active', 'ended'] as const) {
+      open('managed', { lifecycle });
+      const html = render();
+      const at = html.indexOf('id="sm-filter-state"');
+      const options = [
+        ...html.slice(at, html.indexOf('</select>', at)).matchAll(/<option value="([^"]*)"/g)
+      ].map((m) => m[1]);
+      expect(options).toEqual([
+        'all',
+        'running',
+        'working',
+        'needs-input',
+        'idle',
+        'ended',
+        'unreachable'
+      ]);
+    }
+  });
+
+  it('the two controls AND, and a pair that meets nothing draws the shipped empty state with Clear filters (mechanism 4)', () => {
+    open('managed', { lifecycle: 'active', stateFilter: 'needs-input' });
+    expect(drawnRows(render())).toEqual(['b1']);
+    open('managed', { lifecycle: 'ended', stateFilter: 'ended' });
+    expect(drawnRows(render())).toEqual(['a2']);
+    open('managed', { lifecycle: 'ended', stateFilter: 'working' });
+    const html = render();
+    expect(drawnRows(html)).toEqual([]);
+    expect(html).toContain('<h2 class="sm-state-heading">No matching sessions</h2>');
+    expect(html).toContain('data-sm="clear-filters"');
+    // The tab count is the whole tab; the footer is what the pair leaves.
+    expect(html).toMatch(/id="sm-tab-managed"[^>]*>.*?<span class="chip-sm sm-count">4<\/span>/);
+  });
+
+  it('the footer and the select-all count what the segment leaves', () => {
+    open('managed', { lifecycle: 'active' });
+    const html = render();
+    expect(html).toContain('<span>3 managed sessions</span>');
+    expect(tagsWith(html, 'id="sm-select-all"')[0]).toContain(
+      'aria-label="Select all 3 visible sessions"'
+    );
+    open('managed', { lifecycle: 'ended' });
+    expect(render()).toContain('<span>1 managed session</span>');
+  });
+
+  it('a change to the field ALONE moves selectSheetView, so the batch prune never reads a stale visible set (the memo-key clause)', () => {
+    open('managed', { lifecycle: 'all' });
+    const all = selectSheetView(useApp.getState());
+    expect(all?.visibleIds.sort()).toEqual(['a1', 'a2', 'b1', 'r1']);
+    // The same store, one field patched through the store's own verb.
+    useApp.getState().patchSessionSheet({ lifecycle: 'ended' });
+    const ended = selectSheetView(useApp.getState());
+    expect(ended).not.toBe(all);
+    expect(ended?.visibleIds).toEqual(['a2']);
+    // And back: the memo answers the full set again, not the narrowed one.
+    useApp.getState().patchSessionSheet({ lifecycle: 'all' });
+    expect(selectSheetView(useApp.getState())?.visibleIds.sort()).toEqual([
+      'a1',
+      'a2',
+      'b1',
+      'r1'
+    ]);
+  });
+
+  it('Clear filters resets the segment with the other four (mechanism 3)', () => {
+    // The sheet's `clearFilters` is a closure over the store; drive the same
+    // patch it sends and read the field back, then the empty state's button
+    // is the door to it.
+    open('managed', { lifecycle: 'ended', stateFilter: 'working' });
+    expect(render()).toContain('data-sm="clear-filters"');
+    const text = readFileSync(
+      resolve(import.meta.dirname, '../SessionManagerSheet.tsx'),
+      'utf8'
+    );
+    const at = text.indexOf('const clearFilters = ');
+    expect(at).toBeGreaterThan(-1);
+    const body = text.slice(at, text.indexOf('};', at));
+    expect(body).toMatch(/lifecycle:\s*'all'/);
+    expect(body).toMatch(/stateFilter:\s*'all'/);
+  });
+
+  it('the Past tab is never narrowed by a segment left set, whatever the store holds', () => {
+    // Belt and braces with the slice's reset on the tab change: the view
+    // coerces the field off Managed, so even a stale value draws every row.
+    open('past', { lifecycle: 'ended' });
+    const html = render();
+    expect(html).not.toContain('data-sm="lifecycle"');
+    expect(html).toContain('data-manage-row="p1"');
+    expect(html).toContain('data-manage-row="p2"');
+    expect(html).toContain('<span>2 sessions across 2 projects</span>');
   });
 });
 

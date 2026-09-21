@@ -89,6 +89,30 @@ describe('the sentences of SPEC section 2, byte for byte (Phase 293)', () => {
     ]);
   });
 
+  it('the lifecycle control: three one-word labels and a short hover each (Phase 303)', () => {
+    expect(copy.FILTER_LIFECYCLE_LABEL).toBe('Filter by active or ended');
+    expect(copy.LIFECYCLE_OPTIONS).toEqual([
+      { value: 'all', label: 'All', hover: 'Every session, alive or over' },
+      {
+        value: 'active',
+        label: 'Active',
+        hover:
+          'Alive, or unreachable right now. One that just ended can read Active for a moment.'
+      },
+      { value: 'ended', label: 'Ended', hover: 'Over, and can be restored' }
+    ]);
+    // Just enough words: one word on the face, and the explanation behind
+    // the hover. The Active hover carries the monitor's lag in one clause and
+    // says nothing else.
+    for (const one of copy.LIFECYCLE_OPTIONS) {
+      expect(one.label).toMatch(/^[A-Z][a-z]+$/);
+      expect(one.hover.length).toBeLessThan(100);
+    }
+    // The seven state options are untouched beside it: no option is removed
+    // and no value is coerced (mechanism 4).
+    expect(copy.STATE_FILTER_OPTIONS.length).toBe(7);
+  });
+
   it('a project option names the machine, then the closed tab', () => {
     expect(copy.projectOptionLabel('gmux', null, true)).toBe('gmux');
     expect(copy.projectOptionLabel('gmux', null, false)).toBe(

@@ -542,6 +542,7 @@ describe('the Past tab is ONE list in main’s removal order (the operator’s r
         project: 'all',
         tabFilter: 'all',
         stateFilter: 'all',
+        lifecycle: 'all',
         sort: null,
         checked: {},
         inline: null,

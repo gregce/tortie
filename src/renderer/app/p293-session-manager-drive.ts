@@ -20,16 +20,37 @@
  *     closure built when it was drawn, so running a kept item late is exactly
  *     how a stale pick is driven. `policyItemsFor(id)` is the policy's own
  *     menu for the same session from the same store, for the matrix.
- *  3. ONE HELD STATUS. A shell never asks for input (the shell oracle answers
+ *  3. A HELD STATUS. A shell never asks for input (the shell oracle answers
  *     idle or working and never needs_input), so `hold(id)` keeps ONE real
  *     session's row reading needs_input, re-applied after each of main's
- *     pushes, exactly as the Phase 93 drive does.
+ *     pushes, exactly as the Phase 93 drive does. Since Phase 303 the second
+ *     argument names the status painted, one of needs_input, unknown,
+ *     restorable or (the fix round) running, and several rows may be held at
+ *     once, because that phase's arm needs every Managed status on screen
+ *     together: main writes `unknown` only when the whole session list fails
+ *     to read, and a shell in the probe's scratch HOME never reads `running`
+ *     at all, because the shell oracle (src/main/activity/state-machine.ts)
+ *     trusts a shell pane only once it has shown DECKPAM and that zsh never
+ *     does — the verifier typed `sleep 600` into the pane and read
+ *     `keypad_flag` 0 under it. The guard is unchanged: a hold paints only
+ *     over a running or idle row main pushed.
  *  4. SET UP. A folder opened as a tab, a shell session created in it, and a
  *     tab closed, through the store's and the bridge's own verbs.
  *  5. ANY MENU ROW (the fix round). `menu(action)` calls `runMenuAction` with
  *     one of the three actions the fix round's arms press, for the same
  *     reason as the door: a probe cannot click a native menu bar item. The
  *     list is closed, so the drive cannot be asked to run anything else.
+ *  6. THE PRUNE'S ATTACK (Phase 303). `attackPrune(lifecycle, ids)` writes the
+ *     lifecycle control AND a set of checked ids into the sheet in ONE store
+ *     write, past `patchSessionSheet`'s own clear, the shape the conformance
+ *     probe's B8 drives through `setSheet`. No click can do this: the toolbar
+ *     draws its filters only while nothing is checked, so a person cannot move
+ *     a filter over a selection, and the prune in ./use-sheet-refresh.ts is
+ *     what stands between such a write and a batch over a row nobody can see.
+ *     That prune reads `selectSheetView`'s memo, and a filter left out of the
+ *     memo's key leaves it reading a stale view, which is the one correctness
+ *     clause the Phase 303 entry names. The write is the attack; the reading
+ *     is the probe's.
  *
  * Nothing here ends, removes, restores or restarts a session: every lifecycle
  * press in the probe is a real click on the sheet. The one exception is named
@@ -97,7 +118,13 @@ export interface P293State {
   foot: string | null;
   focus: { inSheet: boolean; desc: string; terminal: boolean };
   store: {
-    sessions: { id: string; name: string; status: string; projectPath: string; machineId: string | null }[];
+    sessions: {
+      id: string;
+      name: string;
+      status: string;
+      projectPath: string;
+      machineId: string | null;
+    }[];
     past: string[];
     projects: { id: string; path: string; machineId: string | null }[];
     activeProjectId: string | null;
@@ -108,6 +135,13 @@ export interface P293State {
     /** The layers the fix round's arms open around the sheet. */
     overview: boolean;
     attention: boolean;
+    /**
+     * Phase 303. The sheet's OWN filter value and checked ids, read off the
+     * store rather than the DOM, for the arm that attacks the prune: the DOM
+     * says what is drawn, the store says what a batch would be named from.
+     */
+    sheetLifecycle: string | null;
+    sheetChecked: string[];
   };
 }
 
@@ -138,6 +172,23 @@ declare global {
 /** The menu rows the fix round's arms press, and no other (the drive's item 5). */
 export const P293_MENU_ROWS = ['show-overview', 'attention', 'end-session'] as const;
 
+/**
+ * The statuses a hold may paint (item 3), and no other. `needs_input` is what
+ * Phase 293 held; `unknown` and `restorable` are Phase 303's, because main
+ * writes the first only when the whole session list fails to read and the
+ * second only for a session whose server is gone with its material kept, and
+ * an arm about the lifecycle control needs both rows on screen beside live
+ * ones. `running` is Phase 303's fix round: a shell in the probe's scratch
+ * HOME cannot be made to read it (item 3 says why), and the arm's pairs over
+ * the `working` option were being asked of nothing. It is safe for the reason
+ * the guard in `applyHolds` gives: a hold paints only over a running or idle
+ * row main pushed, so `running` is only ever painted over a row that IS live,
+ * and never over one main says has stopped, which is the row a batch could
+ * otherwise be made to name.
+ */
+export const P293_HELD_STATUSES = ['needs_input', 'unknown', 'restorable', 'running'] as const;
+export type P293HeldStatus = (typeof P293_HELD_STATUSES)[number];
+
 export interface P293Drive {
   open(tab: 'managed' | 'past'): Promise<P293State>;
   menu(action: (typeof P293_MENU_ROWS)[number]): Promise<P293State>;
@@ -145,8 +196,12 @@ export interface P293Drive {
   addProject(path: string): Promise<string | null>;
   createSession(spec: { path: string; name: string; machineId?: string }): Promise<string | null>;
   closeTab(path: string, machineId?: string | null): Promise<boolean>;
-  hold(sessionId: string): Promise<boolean>;
-  release(): Promise<boolean>;
+  /** Paint `status` (needs_input by default) over one live row until released. */
+  hold(sessionId: string, status?: P293HeldStatus): Promise<boolean>;
+  /** Release one hold by id, or every hold, and put main's own list back. */
+  release(sessionId?: string): Promise<boolean>;
+  /** Item 6. The lifecycle control and a checked set written in ONE store write. */
+  attackPrune(lifecycle: 'all' | 'active' | 'ended', ids: readonly string[]): Promise<boolean>;
   menuItemsFor(sessionId: string): Promise<P293Item[]>;
   policyItemsFor(sessionId: string): Promise<P293Item[]>;
   runMenuItem(sessionId: string, label: string): Promise<boolean>;
@@ -289,7 +344,9 @@ function readState(): P293State {
       confirm: app.confirm?.title ?? null,
       toasts: app.toasts.map((t) => ({ kind: t.kind, text: t.text })),
       overview: app.overview !== null,
-      attention: app.attentionOpen
+      attention: app.attentionOpen,
+      sheetLifecycle: app.sessionSheet?.lifecycle ?? null,
+      sheetChecked: Object.keys(app.sessionSheet?.checked ?? {})
     }
   };
 }
@@ -309,8 +366,34 @@ function sessionById(id: string): { session: Session; tab: 'managed' | 'past' } 
 
 /** The items each ellipsis was last drawn with, kept so a late pick runs THEM. */
 const kept = new Map<string, (MenuItemSpec | 'sep')[]>();
-/** The one subscription {@link P293Drive.hold} owns. */
-let held: (() => void) | null = null;
+/** The status each held row is painted with, re-applied on every push (item 3). */
+const held = new Map<string, P293HeldStatus>();
+/** The one subscription every hold shares; null while nothing is held. */
+let holdSubscription: (() => void) | null = null;
+
+/**
+ * Paint every held status over the list main last pushed. Only over a LIVE
+ * status main pushed: a session that has ended reads ended, whatever its hold
+ * was asked, because a hold that painted an ended row live again would put a
+ * session back under Running that main says has stopped, and the batch arms
+ * would read a lie. A row already painted is left alone, so the write this
+ * makes does not fire it again — said as its own clause since `running` joined
+ * the list, because a row painted running still passes the live guard and
+ * without it this subscription would re-fire on its own write.
+ */
+function applyHolds(): void {
+  if (held.size === 0) return;
+  const app = useApp.getState();
+  let painted = false;
+  const sessions = app.sessions.map((x) => {
+    const status = held.get(x.id);
+    if (status === undefined || x.status === status) return x;
+    if (x.status !== 'running' && x.status !== 'idle') return x;
+    painted = true;
+    return { ...x, status };
+  });
+  if (painted) useApp.setState({ sessions });
+}
 
 export function registerP293SessionManagerDrive(): void {
   const drive: P293Drive = {
@@ -368,30 +451,40 @@ export function registerP293SessionManagerDrive(): void {
       return !useApp.getState().projects.some((p) => p.id === project.id);
     },
 
-    async hold(sessionId) {
-      held?.();
-      const apply = (): void => {
-        const app = useApp.getState();
-        const row = app.sessions.find((x) => x.id === sessionId);
-        // Only over a LIVE status main pushed. A session that has ended reads
-        // ended, whatever this hold was asked: a hold that painted an ended
-        // row live again would put a session back under Running that main
-        // says has stopped, and the batch arms would read a lie.
-        if (row === undefined || (row.status !== 'running' && row.status !== 'idle')) return;
-        useApp.setState({
-          sessions: app.sessions.map((x) => (x.id === sessionId ? { ...x, status: 'needs_input' as const } : x))
-        });
-      };
-      apply();
-      held = useApp.subscribe(apply);
+    async hold(sessionId, status = 'needs_input') {
+      // The list is closed: a status off it is refused rather than painted.
+      if (!(P293_HELD_STATUSES as readonly string[]).includes(status)) return false;
+      held.set(sessionId, status);
+      applyHolds();
+      if (holdSubscription === null) holdSubscription = useApp.subscribe(applyHolds);
       await wait(150);
-      return useApp.getState().sessions.some((x) => x.id === sessionId && x.status === 'needs_input');
+      return useApp.getState().sessions.some((x) => x.id === sessionId && x.status === status);
     },
 
-    async release() {
-      held?.();
-      held = null;
+    async release(sessionId) {
+      if (sessionId === undefined) held.clear();
+      else held.delete(sessionId);
+      if (held.size === 0) {
+        holdSubscription?.();
+        holdSubscription = null;
+      }
+      // Main's own list back, so a released row reads what main says of it
+      // now rather than the paint until main's next push happens to arrive.
+      await useApp.getState().refreshSessions();
       await wait(100);
+      return true;
+    },
+
+    async attackPrune(lifecycle, ids) {
+      const sheet = useApp.getState().sessionSheet;
+      if (sheet === null) return false;
+      const checked: Record<string, true> = {};
+      for (const id of ids) if (id.length > 0) checked[id] = true;
+      // ONE write, past patchSessionSheet's own clear: the shape the
+      // conformance probe's B8 drives through `setSheet`. The refresh engine
+      // runs its pass on this write, and its prune is what is under test.
+      useApp.setState({ sessionSheet: { ...sheet, lifecycle, checked } });
+      await wait(250);
       return true;
     },
 

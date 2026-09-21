@@ -548,8 +548,11 @@ export const CHECKS = [
   // names it. That sshd is why this is `remote` and not `electron`. Its drive
   // window.__p293 (src/renderer/app/p293-session-manager-drive.ts) supplies only
   // what a probe cannot do for real: the menu door through runMenuAction, the
-  // native row menu's items as labels, a captured item run late, and one held
-  // needs_input. P293_ARMS picks the arms so a run fits a budget. Env names
+  // native row menu's items as labels, a captured item run late, a held status
+  // painted over a live row (needs_input, and since Phase 303 unknown,
+  // restorable and running too, several at once), and Phase 303's prune
+  // attack, a filter and a checked set in one store write. P293_ARMS picks
+  // the arms so a run fits a budget. Env names
   // are P293_*, never GMUX_*, so the contract's env list does not move. It
   // spawns no agent and spends no token.
   remote('probe:p293'),

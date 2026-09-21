@@ -181,6 +181,7 @@ describe('openSessionSheet(tab)', () => {
       project: 'all',
       tabFilter: 'all',
       stateFilter: 'all',
+      lifecycle: 'all',
       sort: null,
       checked: {},
       inline: null,
@@ -242,12 +243,14 @@ describe('patchSessionSheet(patch)', () => {
     useApp.getState().setSessionSheetChecked(['a', 'b'], true);
   });
 
-  it('a change to search, project, tab filter or state filter clears the selection', () => {
+  it('a change to search, project, tab filter, state filter or lifecycle clears the selection', () => {
     const moves = [
       { search: 'auth' },
       { project: '/repo' },
       { tabFilter: 'closed' as const },
-      { stateFilter: 'running' as const }
+      { stateFilter: 'running' as const },
+      // Phase 303. The fifth control, copied by name like the four.
+      { lifecycle: 'active' as const }
     ];
     for (const patch of moves) {
       useApp.getState().setSessionSheetChecked(['a', 'b'], true);
@@ -301,13 +304,14 @@ describe('setSessionSheetTab(tab)', () => {
     expect(Object.keys(sheet().checked)).toEqual(['a', 'b']);
   });
 
-  it('closes a confirmation, resets the state filter, clears the selection, keeps the rest', () => {
+  it('closes a confirmation, resets the state filter and the lifecycle, clears the selection, keeps the rest', () => {
     const s = useApp.getState();
     s.openSessionSheet('managed');
     // The filters first: a filter that moves clears the selection, and the
     // confirmation is armed over the selection afterwards.
     s.patchSessionSheet({
       stateFilter: 'running',
+      lifecycle: 'active',
       search: 'auth',
       sort: { key: 'name', dir: 1 }
     });
@@ -322,8 +326,10 @@ describe('setSessionSheetTab(tab)', () => {
     // An armed confirmation never stands on a tab a person has left.
     expect(sheet().batch).toBeNull();
     expect(sheet().checked).toEqual({});
-    // The state filter is Managed's alone.
+    // The state filter and the lifecycle control are Managed's alone. Every
+    // Past row is `discarded`, which neither would keep.
     expect(sheet().stateFilter).toBe('all');
+    expect(sheet().lifecycle).toBe('all');
     expect(sheet().search).toBe('auth');
     expect(sheet().sort).toEqual({ key: 'name', dir: 1 });
   });

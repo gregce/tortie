@@ -53,9 +53,11 @@ import {
   EMPTY_MANAGED,
   EMPTY_PAST,
   END_SELECTED,
+  FILTER_LIFECYCLE_LABEL,
   FILTER_PROJECT_LABEL,
   FILTER_STATE_LABEL,
   FILTER_TAB_LABEL,
+  LIFECYCLE_OPTIONS,
   LOADING,
   managedFooter,
   NO_MATCH_BODY,
@@ -372,6 +374,7 @@ export function SessionManagerSheet(): React.JSX.Element | null {
       search: '',
       project: 'all',
       tabFilter: 'all',
+      lifecycle: 'all',
       stateFilter: 'all'
     });
     s.clearSessionSheetChecked();
@@ -595,6 +598,46 @@ export function SessionManagerSheet(): React.JSX.Element | null {
                     if (node !== null) node.id = 'sm-search';
                   }}
                 />
+                {/* Phase 303. Alive or over, answered before the State
+                    dropdown refines it. Managed only, as the State select is:
+                    every Past row is `discarded`, which neither segment
+                    keeps, and the store resets the field on the tab change.
+                    The markup is `.set-segments`'s (AppearanceSection.tsx):
+                    three ordinary tab stops, no roving tabindex, because the
+                    two segmented controls that ship have none. Active is
+                    `row.gates.live || row.gates.unknown` and Ended is
+                    `row.gates.ended`, read in ./view.ts's `rowPasses`; no
+                    status is named here. */}
+                {managed ? (
+                  <div
+                    className="sm-lifecycle"
+                    role="radiogroup"
+                    aria-label={FILTER_LIFECYCLE_LABEL}
+                    data-sm="lifecycle"
+                  >
+                    {LIFECYCLE_OPTIONS.map((option) => {
+                      const on = option.value === sheet.lifecycle;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          title={option.hover}
+                          className={on ? 'sm-lifecycle-opt on' : 'sm-lifecycle-opt'}
+                          data-manage-lifecycle={option.value}
+                          onClick={() =>
+                            useApp
+                              .getState()
+                              .patchSessionSheet({ lifecycle: option.value })
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 <select
                   id="sm-filter-project"
                   className="sm-select sm-select-project"

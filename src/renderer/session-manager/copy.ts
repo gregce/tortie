@@ -59,6 +59,31 @@ export const FILTER_PROJECT_LABEL = 'Filter by project';
 export const ALL_PROJECTS = 'All projects';
 export const FILTER_TAB_LABEL = 'Filter by open or closed project';
 export const FILTER_STATE_LABEL = 'Filter by session state';
+export const FILTER_LIFECYCLE_LABEL = 'Filter by active or ended';
+
+/**
+ * The lifecycle control's three segments, before the State dropdown (Phase
+ * 303). Active and Ended are the partition every row already carries as
+ * `row.gates`, so which statuses each keeps is ./view.ts's one clause and not
+ * a table here — a label is not a rule. `Unreachable` rows are Active, because
+ * Restore never acts on one and Ended means it can. The Active hover carries
+ * the one limit a person can hit: a death is noticed by the monitor's tick, so
+ * a row can read Active for a moment after its process is gone.
+ */
+export const LIFECYCLE_OPTIONS: readonly {
+  value: SessionSheetState['lifecycle'];
+  label: string;
+  hover: string;
+}[] = [
+  { value: 'all', label: 'All', hover: 'Every session, alive or over' },
+  {
+    value: 'active',
+    label: 'Active',
+    hover:
+      'Alive, or unreachable right now. One that just ended can read Active for a moment.'
+  },
+  { value: 'ended', label: 'Ended', hover: 'Over, and can be restored' }
+];
 
 export const TAB_FILTER_OPTIONS: readonly {
   value: SessionSheetState['tabFilter'];

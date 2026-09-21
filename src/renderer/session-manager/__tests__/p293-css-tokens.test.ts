@@ -324,6 +324,22 @@ describe('spacing, tracking and the icon scale (Phase 298, mechanism 18)', () =>
     expect(SHEET_VARS.size).toBeGreaterThan(0);
   });
 
+  it('the lifecycle control’s 1px inset is the sheet’s own geometry, admitted by name and not by exception (Phase 303)', () => {
+    // `.set-segments` writes `padding: 1px; gap: 1px`. `--space-1` is 2px, so
+    // the sheet states the inset once on its own selector — the path T20 admits
+    // — rather than growing the exception list.
+    expect(SHEET_VARS.has('--sm-segment-inset')).toBe(true);
+    expect(SPACING_EXCEPTIONS.some((one) => /lifecycle/.test(one.selector))).toBe(false);
+    const box = RULES.find((rule) => rule.selector === '.session-sheet .sm-lifecycle');
+    expect(box).toBeDefined();
+    for (const property of ['padding', 'gap']) {
+      expect(
+        box?.declarations.find((d) => d.property === property)?.value,
+        property
+      ).toBe('var(--sm-segment-inset)');
+    }
+  });
+
   it('takes every padding, margin and gap from a --space-* step or the sheet’s own geometry', () => {
     const bad: string[] = [];
     const hits = SPACING_EXCEPTIONS.map(() => 0);

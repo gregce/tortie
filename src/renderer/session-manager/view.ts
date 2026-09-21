@@ -50,10 +50,10 @@ import {
 } from './copy';
 import type { ManageGroup, ManageRow } from './projection';
 
-/** The four controls of the toolbar, as the store holds them. */
+/** The five controls of the toolbar, as the store holds them. */
 export type ManageFilters = Pick<
   SessionSheetState,
-  'search' | 'project' | 'tabFilter' | 'stateFilter'
+  'search' | 'project' | 'tabFilter' | 'stateFilter' | 'lifecycle'
 >;
 
 export type ManageSort = SessionSheetState['sort'];
@@ -63,7 +63,8 @@ export const DEFAULT_FILTERS: ManageFilters = {
   search: '',
   project: 'all',
   tabFilter: 'all',
-  stateFilter: 'all'
+  stateFilter: 'all',
+  lifecycle: 'all'
 };
 
 /**
@@ -91,7 +92,17 @@ export function stateFilterKeeps(
   return STATE_FILTER_KEEPS[filter].includes(status);
 }
 
-/** Whether one row passes all four controls. They combine with AND. */
+/**
+ * Whether one row passes all five controls. They combine with AND.
+ *
+ * The lifecycle control (Phase 303) reads the partition the row ALREADY
+ * carries in `row.gates`, and names no status of its own: Active is what the
+ * gates call `live` or `unknown`, Ended is what they call `ended`. "Live" is
+ * already spelled in main's `removeRefusal` and in `sessionActionGates`, and
+ * a third spelling here would be one more place for the two to drift from.
+ * `unknown` is Active because Restore never acts on it, so Ended, the segment
+ * for what can be restored, would promise a verb the row does not offer.
+ */
 function rowPasses(
   row: ManageRow,
   group: ManageGroup,
@@ -102,6 +113,8 @@ function rowPasses(
   if (filters.tabFilter === 'open' && !group.tabOpen) return false;
   if (filters.tabFilter === 'closed' && group.tabOpen) return false;
   if (!stateFilterKeeps(filters.stateFilter, row.status)) return false;
+  if (filters.lifecycle === 'active' && !(row.gates.live || row.gates.unknown)) return false;
+  if (filters.lifecycle === 'ended' && !row.gates.ended) return false;
   if (needle !== '' && !row.searchText.toLowerCase().includes(needle)) {
     return false;
   }

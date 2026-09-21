@@ -801,6 +801,37 @@ describe('THE FREEZE: batch End names an upper bound and never widens it', () =>
     expect(actions.batchTargetsNow()).toEqual(['a']);
   });
 
+  // Phase 303. The lifecycle control is the fifth filter, and the batch's own
+  // picture (`managedView`) applies it like the four: the picture a batch
+  // names from is the one the person is looking at, never a wider one.
+  it('a checked id the lifecycle control hides is never named', () => {
+    world([sess('a'), sess('x', { status: 'exited' })]);
+    useApp.getState().patchSessionSheet({ lifecycle: 'ended' });
+    // Planted straight into the selection, as above: `a` is live, so the
+    // Ended segment hides it, and the prune is not trusted to have run.
+    const open = sheet()!;
+    useApp.setState({ sessionSheet: { ...open, checked: { a: true, x: true } } });
+    actions.startBatch();
+    // `x` is drawn under Ended and is checked, and it is not eligible: it is
+    // counted, not named. `a` is never asked at all.
+    expect(sheet()?.batch?.named).toEqual([]);
+    expect(sheet()?.batch?.skippedAtOpen).toEqual({ ended: 1, unreachable: 0 });
+  });
+
+  it('a checked id the lifecycle control hides at the PRESS is not a target', async () => {
+    world([sess('a'), sess('u', { status: 'unknown' })]);
+    check('a', 'u');
+    actions.startBatch();
+    expect(sheet()?.batch?.named.map((t) => t.id)).toEqual(['a']);
+    const open = sheet()!;
+    // The segment moved to Ended without its prune. `a` is live and hidden.
+    useApp.setState({ sessionSheet: { ...open, lifecycle: 'ended' } });
+    expect(actions.batchTargetsNow()).toEqual([]);
+    // And back under Active, the same named row is a target again.
+    useApp.setState({ sessionSheet: { ...sheet()!, lifecycle: 'active' } });
+    expect(actions.batchTargetsNow()).toEqual(['a']);
+  });
+
   it('a second press starts nothing', async () => {
     world([sess('a'), sess('b')]);
     check('a', 'b');

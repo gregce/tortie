@@ -47,6 +47,12 @@
   --sm-gutter: 48px;
   --sm-title-h: 52px;
   --sm-toolbar-h: 47px;
+  /* The hairline of space inside the lifecycle control's box, around and
+     between its segments: `.set-segments`'s own 1px (settings.css:393-431),
+     stated here because `--space-1` is 2px and a spacing literal in a rule is
+     what T20 refuses (Phase 303). Geometry, not a token: tokens.css is not
+     edited. */
+  --sm-segment-inset: 1px;
   /* THE ROW, and every row in this sheet is this one number.
      ------------------------------------------------------------------------
      A row's height is its TALLEST CHILD plus its own padding. Padding does not
@@ -415,6 +421,70 @@
 
 .session-sheet .sm-select-state {
   width: 114px;
+}
+
+/* PHASE 303 — THE LIFECYCLE CONTROL, `All | Active | Ended`, between the
+   search field and the selects. Shaped on `.set-segments` (settings.css:
+   393-431) the way `.ed-mode` (editor.css:365) already was: the select's own
+   height, hairline and radius, the chosen segment filled `--accent` and
+   lettered `--on-accent` so the choice reads on either base without a second
+   colour. Tortie has no shared segmented control and neither precedent is
+   exported, so the shape is copied and not imported; a shared component with
+   a roving tabindex is its own entry.
+
+   IT CANNOT MOVE THE 47PX TOOLBAR. `flex: 0 0 auto` at `height: var(--field-h)`
+   is the box the three selects beside it already are, inside a bar whose
+   height is stated twice. Content-sized: no literal width and no margin, so
+   the gap it sits in is the toolbar's own. */
+.session-sheet .sm-lifecycle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  height: var(--field-h);
+  padding: var(--sm-segment-inset);
+  gap: var(--sm-segment-inset);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+}
+
+/* NO DECLARED HEIGHT. A segment stretches to what the box leaves it — 28 less
+   the hairline and the inset on each side is 24 — and a button centres its
+   own text, so `.set-segment`'s literal 20px height and 20px line box are not
+   copied. `--text-sm` on `--lh-sm` is the step `.sm-select` reads, so the two
+   controls beside each other read at one size. The reset in globals.css:103
+   already gives a button `--font-ui`, no border and no padding; only what the
+   segment adds is stated. */
+.session-sheet .sm-lifecycle-opt {
+  padding: 0 var(--space-4);
+  border-radius: var(--r-xs);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.session-sheet .sm-lifecycle-opt:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+/* After `:hover` on purpose: the chosen segment keeps its fill under the
+   pointer, as `.set-segment.on` does by the same ordering. */
+.session-sheet .sm-lifecycle-opt.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* The ring alone, as `.set-segment:focus-visible` draws it: a segment has no
+   border of its own to colour, unlike the select beside it. */
+.session-sheet .sm-lifecycle-opt:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .session-sheet .sm-selected {
