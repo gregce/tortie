@@ -6,6 +6,13 @@ its repository at a named commit or from its vendor's page on the day, Tortie wa
 tree, and his Mac was read only far enough to learn which Tailscale it carries. Anything not readable
 that way is marked unmeasured in §8 with the reason.
 
+§3.1 was added later the same day, after he asked what Superset's iPhone app does. It was read from
+his own checkout at `/Users/gdc/superset`, head `3dd63ff113c3a547aae9688104e58251c66d8ac0`
+("fix(desktop): prevent tab close clicks from starting a drag (#7714)"), with nothing run, nothing
+installed, no sign-in and no network call to their service. Every correction it forces on the
+sections above is marked in place with the section that forced it, so a later round can see what was
+corrected rather than find it silently rewritten.
+
 This answers the operator's question of 2026-09-21, in his words: "how can i have a phone app (mac)
 that allows me understand and manage the sessions that are running on my machine? like, I want it to
 be built into tortie and be something I can use to check the sessions that are running in tortie
@@ -61,6 +68,21 @@ output. And no reply to a prompt in v1: a Claude row carries the Remote Control 
 and the structured reply is v2, queued only after one fact is measured (§8, first item) and he
 answers §11's second question.
 
+**Re-examined against Superset and unchanged (§3.1).** Superset for iPhone is this product already
+shipped — an App Store app (id6788926383) that remotely drives Claude Code, Codex and other terminal
+agents on a connected Mac — and the sweep in §3 missed it. It does not displace the recommendation,
+for three reasons each read in its source rather than its README. It owns every process it shows:
+`SessionMeta { shell; argv; cwd?; env?; cols; rows }` is the only creation verb in its PTY protocol
+(`packages/pty-daemon/src/protocol/messages.ts:11-18`), there is one production `daemon.open(` call
+site (`packages/host-service/src/terminal/terminal.ts:3084`), no message adopts a foreign pid, and
+every one of the seven `tmux` strings under `packages/host-service/src` and `packages/pty-daemon/src`
+is a comment admiring tmux's behaviour — so it can never see a session in `-L gmux`. It has no push
+at all, which is the hardest requirement in this document and the one nobody in the field has solved
+(§6). And its main screen is a terminal, in its own words: "The workspace IS the terminal"
+(`WorkspaceScreen.tsx:107`). Two things change and neither is the shape: the way it learns an agent
+is blocked is better than §4's for three agents and transplants into `-L gmux` unchanged, and the way
+it registers that hook is refused, which is §11's new seventh question.
+
 ## 2. Can a phone reach the sessions with no relay Tortie runs
 
 Yes, for the sessions on the Mac that runs Tortie. The method is Tailscale, which is already on his
@@ -92,7 +114,7 @@ the public internet anyway.
 | Tailscale Funnel (public HTTPS) | Nothing but the app | Not available on his variant (table above) | Works anywhere | Dead | TLS ends on the Mac; "Funnel traffic ... does not include identity headers" (https://tailscale.com/kb/1312/serve) | A variant swap | A Tortie door on the public internet behind one secret; not a candidate |
 | Home Wi-Fi only, Bonjour, a pinned self-signed certificate | The Tortie app; one local-network prompt (Apple TN3179) | Tortie generates a key pair once; the app pins the hash, confirmed on the Mac the way `src/main/machines/confirm.ts` confirms a machine | Unreachable: a LAN is "a broadcast-capable network interface ... not cellular (WWAN) or VPN" (TN3179) | Dead | Encrypted, on the LAN only | Nothing | None; it is the honest answer to 4.2.3(i) and a widening of the charter's bind that is his to rule |
 | An ssh tunnel from Blink (source GPL-3.0, `COPYING` at `a90b4423`), Termius or SSHHIP | An SSH app and a key | Remote Login on; Tailscale SSH server is not available on his variant ("Can be a Tailscale SSH server: no \| no \| yes") | Works wherever ssh works | Dead | SSH-encrypted | The tunnel dies when the app leaves the foreground: Termius "stop[s] background activity almost immediately, usually within 20 to 30 seconds" (docs.termius.com FAQ); Blink's answer is location tracking | It is one of "those products" by construction; no push, nothing while the phone is in a pocket |
-| A self-hosted relay the person runs (Happy Server, Happier, VibeTunnel's own) | Their app | Their daemon, which owns or wraps the agent | As row 1 | Dead if the relay is on the laptop | Session content encrypted to the relay; every push but VibeTunnel's and handmux's goes through a cloud the person does not run (§6) | Their relay and their daemon, kept alive by hand | Refusal 4 on arrival for Happy, Happier and CC Pocket; the phone is their app, which is the refusal he named |
+| A self-hosted relay the person runs (Happy Server, Happier, VibeTunnel's own) | Their app | Their daemon, which owns or wraps the agent | As row 1 | Dead if the relay is on the laptop | Encrypted TO the relay and readable AT it — **corrected by §3.1**: a relay that proxies is a relay that reads unless an application-layer cipher exists, and in the best-engineered shipped example there is none. Superset's relay rebuilds every tRPC request inside the Cloudflare Worker as `body: Uint8Array` (`apps/relay/src/http-exchange.ts:11-16`), its "splices bytes verbatim — no envelopes, no base64, no per-frame parsing" header (`packages/shared/src/tunnel-protocol.ts:1-4`) describes not parsing rather than cannot read, and a grep of the phone-to-Mac path for X25519, nacl, libsodium, tweetnacl or noise finds nothing. Every push but VibeTunnel's and handmux's goes through a cloud the person does not run (§6) | Their relay and their daemon, kept alive by hand | Refusal 4 on arrival for Happy, Happier and CC Pocket; the phone is their app, which is the refusal he named |
 
 The Mac Pro through his Mac. The laptop's Tortie can list a Mac Pro row as `running`, `idle`, `not
 running` or `unreachable` and can End or Remove it, but `needs input`, the Catch Me Up line and a push
@@ -118,7 +140,7 @@ at `3014ad82`); DERP relays open source in the same repository; the iOS app's GU
 the coordination server closed ("where the operating system is closed, the daemon is open source and
 the GUI is closed source"; "Tailscale's own hosted coordination server remains proprietary").
 
-## 3. The sixteen and the ones the catalog missed
+## 3. The seventeen and the ones the catalog missed
 
 Ranked on his four columns in his order, for what each teaches and whether Tortie could speak to it as
 a host. Licences are read from LICENSE files, never badges. Commits: Happy `f3ee9216`, Happier
@@ -126,24 +148,31 @@ a host. Licences are read from LICENSE files, never badges. Commits: Happy `f3ee
 `4ec9e0e`, Termix `dc8287c`, ttyd `2922cb8`, tmate `985ab61`, code-server `8a7bf87`,
 openvscode-server `2bfb814`, handmux `4746364`, all shallow clones read 2026-09-21.
 
+**Seventeen, not sixteen, corrected by §3.1.** Superset was added later the same day from the
+operator's own checkout at head `3dd63ff11` and enters at rank 5, which moves Shunt to 6 and
+everything below it down one. §8 records how a sweep of five investigators and three adversaries
+missed an App Store product that does exactly this, because that is a finding about the method and
+not only about the phone.
+
 | Rank | Product | Licence | Zen | Simple | Aesthetic | Assembled | Refusal |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Claude Code Remote Control | Proprietary; Claude Code itself is the host | Pushes exactly on a permission or a question, holds the prompt open, skips push while you type at the desk — but its list marks online, not waiting, so it answers "now answer it" and never "what needs me now across everything" at a glance | Nothing to install but the Claude app; `/rc` in a pane Tortie already owns; Pro/Max/Team only; `remoteControlAtStartup` lives in `~/.claude/settings.json`, not in the `--settings` file Tortie writes | Anthropic's | Entirely: a launch flag, a QR the pane already prints, a link on the row | The transcript is stored on Anthropic servers; one agent only; research 48's word is about Tortie's cloud, not the vendor's |
 | 2 | Happier | MIT (root LICENCE, `apps/ui/LICENSE`) | An Inbox of what is waiting and a PermissionRequest hook held open 7 days (experimental by its own matrix); the ready push carries the reply preview by default | No: an account, a relay, a 458k-line daemon, a 775k-line client, alpha | "Warm and Fluid Companion" — not Tortie's | Only by running their code; the protocol docs and the hook-answer shape teach | Refusal 4: take-over respawns a second Claude on the same conversation; push through Expo's cloud |
 | 3 | Happy | MIT (root, `packages/happy-app/LICENSE`) | Push on permission, question and done is right; in local mode the phone gets no permission card and the switch kills the TUI; its Inbox is a friends feed | App + `npm i -g happy` + QR + an account | Expo default | The wire schemas and encryption docs are reusable; using them makes the phone the Happy app | Refusal 4: must own the process; push title and body go to `exp.host` in the clear |
 | 4 | CC Pocket | MIT (root; bridge) | Approval and AskUserQuestion cards are the right two things to rise | `npx` bridge on `0.0.0.0:8765` with no key by default, QR, Tailscale for away | Flutter Material | It IS the agent process (Agent SDK), so it can never see a Tortie session | Refusal 4 on arrival; push through the author's Firebase function with the question or 120 characters of result, against its own SECURITY.md |
-| 5 | Shunt | Proprietary freeware ("The source code is not provided", Terms); publisher Limelyte | On paper the closest model — and a dashboard of every pane, which the Zen refuses | One binary, one QR — that by default self-updates, writes Claude hook, MCP and skills entries on start, and connects outbound to Limelyte's gateway | Flutter app; not Tortie's | No source, so nothing can be assembled; cannot see `-L gmux` (no socket setting exists) | A closed self-updating binary that rewrites the agent's configuration is the opposite of "a person confirms the bytes" |
-| 6 | VibeTunnel | MIT (root LICENSE covers web, mac, ios) | No — it can say a bell rang or a command ended, never that an agent asked | Yes on a tailnet; binds `0.0.0.0` by default | A terminal in a browser | Its VAPID manager (keys generated and stored 0600 on the Mac) and its `tailscale serve` recipe are the one relay-free push shape worth copying | Attaches by name on the DEFAULT socket with bare `tmux`; the thing he refused |
-| 7 | handmux (missed by the catalog) | AGPL-3.0-only (`server/package.json:6`) | An inbox of waiting panes and approvals in a PWA — already more than a terminal | Node 22 server, QR with token; iOS push only as a home-screen PWA | Its own | AGPL rules out vendoring; reads panes over `-C` control mode and `capture-pane`, the way Tortie already does | Default socket only; resizes the desktop to the phone by design; installs its own Claude hooks beside Tortie's |
-| 8 | ttyd | MIT | 0 — no session, no status word, no push | One binary, one command, one URL; one port per session; a certificate for a secure context | Renders the agent's own TUI and nothing else | C + xterm.js, unchanged since 2016 | `ttyd -W tmux -L gmux attach -t '$id'` works as argv and is a terminal; `-a` is a `;` command injection, never enabled |
-| 9 | SSHHIP | Proprietary, App Store, $29.99 lifetime after a free month | No — a terminal with no push by design | An SSH host and a saved tmux session name; Mosh first | Theirs | Nothing to assemble | None on the boundary; one of "those products" by construction |
-| 10 | Upterm | Apache-2.0; the relay's forwarder is a vendored MIT extract of cmoog/sshproxy | 0 | An SSH app, a key, and a relay that on his tailnet adds nothing sshd does not | The SSH app's | Yes | The relay terminates and re-opens SSH (`server/sshstock.go:203`, `sshforward.go:507-515`): every session is decrypted at the relay |
-| 11 | sshx | MIT | 0 | `curl \| sh` and a wrapper script (`--shell` is argv[0] only); the relay "cannot be self-hosted" | A pan-and-zoom canvas | Yes | Content encrypted end to end, relay at sshx.io only; a terminal |
-| 12 | code-server / VS Code Remote Tunnels / OpenVSCode Server | MIT / proprietary ("cannot build ... on top of") / MIT, Linux binaries only | 0 | Password plus an iOS certificate profile plus a domain name, seven documented keyboard defects on iPad; tunnels need a Microsoft or GitHub sign-in; OpenVSCode in Docker cannot see `-L gmux` | VS Code's | Yes / cannot be / yes | An IDE in Safari around an integrated terminal; mobile Safari support is a 2019 open issue (microsoft/vscode #85254) |
-| 13 | Termix | Apache-2.0 | 0 — notifications are metric alerts | A Docker server holding the Mac's SSH credential, a separate app, daily telemetry on by default | White-label fleet chrome | Yes | On every attach it writes five global tmux options including `mouse on` (`src/backend/hosts/tmux/helper.ts:121-131`) against `resources/gmux-tmux.conf`; default socket only |
-| 14 | tmate | tmux's per-file ISC/BSD; tmate-ssh-server MIT | 0 (webhook on join/leave only) | `tmate.io` and `ssh.tmate.io` returned no A record from two resolvers on 2026-09-21; self-host needs `SYS_ADMIN` | The SSH app's | Yes | A different tmux server: it cannot attach to `-L gmux` at all, only nest a client in a pane; pane bytes reach the relay in the clear |
-| 15 | Omnara | Apache-2.0 at HEAD; the remote product is gone from the tree | n/a | n/a | n/a | n/a | The vendor's own blog (2026-03-02) marks the remote coding product historical; not a candidate |
-| 16 | The rest of the sweep: Orca, MobileCLI, Moshi, CloudCLI, clauder, tap-to-tmux, CloudeCode, 247-claude-code-remote; the vendors Codex in ChatGPT and Cursor for iOS | Orca MIT (Expo app, Orca-run relay); MobileCLI daemon MIT, app proprietary; Moshi proprietary; CloudCLI AGPL; clauder, tap-to-tmux, CloudeCode, 247 MIT; the vendors proprietary | Orca and MobileCLI carry a "waiting on input" state; Moshi an approval inbox; tap-to-tmux is Claude hooks → ntfy → Blink; the vendors carry approvals in their own apps | Each wraps or launches its own agents or needs its own relay; none attaches to an existing `-L gmux` session | Theirs | Orca's "desktop hosts a mobile RPC server" is the closest architectural twin; nothing is vendorable | Refusal 4 for all but tap-to-tmux; every push path but tap-to-tmux's self-hosted ntfy runs through a cloud |
+| 5 | Superset for iPhone (missed by the sweep and by the catalog; §3.1) | Elastic-2.0 (root `LICENSE.md`, `package.json:21`) — source-available, not OSI; `packages/sdk` alone is Apache-2.0 | The best glance surface in the whole set and the worst reach. Its Live Activity puts up to four rows on the Lock Screen ranked `permission > failed > review > working`, and the comment says why it refuses its own desktop's order: "a finished session waiting to be read wants you more than a busy one that does not" (`modules/live-activity/src/index.ts:35-48`). It has no push at all, so it never reaches a pocketed phone; the app around the card is a workspace dashboard, a terminal, a diff viewer and a PR merger | No: an account, an organization, Pro at $20 per user/month or $15 billed yearly (`pricing/constants.ts:109-129`), the desktop app running, the Mac kept awake, iOS 26 or later, and a Cloudflare relay in the path of every byte | Expo and React Native with 4,787 lines of Swift where it counts (the composer, the Live Activity, the widget); polished, and not Tortie's | Yes, and better than most: VS Code's `fuzzyScorer` and `terminalLinkParsing` vendored with MIT headers, Orca's hand-off shape credited | Refusal 4, measured: `SessionMeta{shell, argv, …}` is the only creation verb (`pty-daemon/src/protocol/messages.ts:11-18`), one production `daemon.open(` call site, no adopt-a-foreign-pid message, and every `tmux` string under `host-service/src` and `pty-daemon/src` is a comment. Plus refusal 1's spirit (`expo-updates` from `u.expo.dev` on every foreground) and refusal 8 (hook entries written into sixteen agents' global user configs at every desktop boot) |
+| 6 | Shunt | Proprietary freeware ("The source code is not provided", Terms); publisher Limelyte | On paper the closest model — and a dashboard of every pane, which the Zen refuses | One binary, one QR — that by default self-updates, writes Claude hook, MCP and skills entries on start, and connects outbound to Limelyte's gateway | Flutter app; not Tortie's | No source, so nothing can be assembled; cannot see `-L gmux` (no socket setting exists) | A closed self-updating binary that rewrites the agent's configuration is the opposite of "a person confirms the bytes" |
+| 7 | VibeTunnel | MIT (root LICENSE covers web, mac, ios) | No — it can say a bell rang or a command ended, never that an agent asked | Yes on a tailnet; binds `0.0.0.0` by default | A terminal in a browser | Its VAPID manager (keys generated and stored 0600 on the Mac) and its `tailscale serve` recipe are the one relay-free push shape worth copying | Attaches by name on the DEFAULT socket with bare `tmux`; the thing he refused |
+| 8 | handmux (missed by the catalog) | AGPL-3.0-only (`server/package.json:6`) | An inbox of waiting panes and approvals in a PWA — already more than a terminal | Node 22 server, QR with token; iOS push only as a home-screen PWA | Its own | AGPL rules out vendoring; reads panes over `-C` control mode and `capture-pane`, the way Tortie already does | Default socket only; resizes the desktop to the phone by design; installs its own Claude hooks beside Tortie's |
+| 9 | ttyd | MIT | 0 — no session, no status word, no push | One binary, one command, one URL; one port per session; a certificate for a secure context | Renders the agent's own TUI and nothing else | C + xterm.js, unchanged since 2016 | `ttyd -W tmux -L gmux attach -t '$id'` works as argv and is a terminal; `-a` is a `;` command injection, never enabled |
+| 10 | SSHHIP | Proprietary, App Store, $29.99 lifetime after a free month | No — a terminal with no push by design | An SSH host and a saved tmux session name; Mosh first | Theirs | Nothing to assemble | None on the boundary; one of "those products" by construction |
+| 11 | Upterm | Apache-2.0; the relay's forwarder is a vendored MIT extract of cmoog/sshproxy | 0 | An SSH app, a key, and a relay that on his tailnet adds nothing sshd does not | The SSH app's | Yes | The relay terminates and re-opens SSH (`server/sshstock.go:203`, `sshforward.go:507-515`): every session is decrypted at the relay |
+| 12 | sshx | MIT | 0 | `curl \| sh` and a wrapper script (`--shell` is argv[0] only); the relay "cannot be self-hosted" | A pan-and-zoom canvas | Yes | Content encrypted end to end, relay at sshx.io only; a terminal |
+| 13 | code-server / VS Code Remote Tunnels / OpenVSCode Server | MIT / proprietary ("cannot build ... on top of") / MIT, Linux binaries only | 0 | Password plus an iOS certificate profile plus a domain name, seven documented keyboard defects on iPad; tunnels need a Microsoft or GitHub sign-in; OpenVSCode in Docker cannot see `-L gmux` | VS Code's | Yes / cannot be / yes | An IDE in Safari around an integrated terminal; mobile Safari support is a 2019 open issue (microsoft/vscode #85254) |
+| 14 | Termix | Apache-2.0 | 0 — notifications are metric alerts | A Docker server holding the Mac's SSH credential, a separate app, daily telemetry on by default | White-label fleet chrome | Yes | On every attach it writes five global tmux options including `mouse on` (`src/backend/hosts/tmux/helper.ts:121-131`) against `resources/gmux-tmux.conf`; default socket only |
+| 15 | tmate | tmux's per-file ISC/BSD; tmate-ssh-server MIT | 0 (webhook on join/leave only) | `tmate.io` and `ssh.tmate.io` returned no A record from two resolvers on 2026-09-21; self-host needs `SYS_ADMIN` | The SSH app's | Yes | A different tmux server: it cannot attach to `-L gmux` at all, only nest a client in a pane; pane bytes reach the relay in the clear |
+| 16 | Omnara | Apache-2.0 at HEAD; the remote product is gone from the tree | n/a | n/a | n/a | n/a | The vendor's own blog (2026-03-02) marks the remote coding product historical; not a candidate |
+| 17 | The rest of the sweep: Orca, MobileCLI, Moshi, CloudCLI, clauder, tap-to-tmux, CloudeCode, 247-claude-code-remote; the vendors Codex in ChatGPT and Cursor for iOS | Orca MIT (Expo app, Orca-run relay); MobileCLI daemon MIT, app proprietary; Moshi proprietary; CloudCLI AGPL; clauder, tap-to-tmux, CloudeCode, 247 MIT; the vendors proprietary | Orca and MobileCLI carry a "waiting on input" state; Moshi an approval inbox; tap-to-tmux is Claude hooks → ntfy → Blink; the vendors carry approvals in their own apps | Each wraps or launches its own agents or needs its own relay; none attaches to an existing `-L gmux` session | Theirs | Orca's "desktop hosts a mobile RPC server" is the closest architectural twin; nothing is vendorable | Refusal 4 for all but tap-to-tmux; every push path but tap-to-tmux's self-hosted ntfy runs through a cloud |
 
 Claude Code Remote Control is first because it is the thing the phone app must beat, and the honest
 comparator for tonight. From https://code.claude.com/docs/en/remote-control (read 2026-09-21): an
@@ -182,6 +211,10 @@ CC Pocket is the store precedent for a Flutter app of this shape and for LAN-fir
 id6759188790; "Tailscale is the recommended setup" for away). It is the agent process itself
 (`@anthropic-ai/claude-agent-sdk`, `packages/bridge/src/sdk-process.ts:167-171`; zero occurrences of
 `tmux` under the bridge or the app), so there is nothing to attach to.
+
+Superset has its own section, §3.1, rather than a paragraph here, because it is not a relay product
+to be learned from: it is this document's product, shipped on the App Store, and it deserves to be
+measured against §1 rather than ranked beside ttyd.
 
 Shunt reads well and can bear out none of it. Its site bundle (v1.23.70, 2026-09-16) says "One
 Flutter app covers iPhone, iPad, Android, and macOS" and "TestFlight (the Mac app shares the iPhone
@@ -254,9 +287,254 @@ here (`/Users/gdc/tortiedotsh/src/data/comparison-catalog.ts` line numbers):
   `--spawn worktree` and `--capacity`; `remoteControlAtStartup` and `disableRemoteControl`; sessions
   resumable about four hours after the server stops; the list's dot means online; Zero-Data-Retention
   orgs cannot enable it.
+- **Superset for iPhone is absent from the remote-companions category entirely and is the largest
+  omission in the catalog.** App Store id6788926383, bundle `sh.superset.mobile`, store version 1.1.1
+  (`apps/mobile/store.config.js:40`), public source at github.com/superset-sh/superset under
+  Elastic-2.0, read here at head `3dd63ff11`. The fields, all read from that tree: source
+  source-available (not OSI); native iOS yes, on the store, Expo and React Native with four local
+  Swift modules; existing-session attach **not available** — it spawns its own PTYs through
+  `packages/pty-daemon` and there is no tmux anywhere in it; approvals **not available** as a
+  structured verb, because `PermissionRequest` is a read-only state and the reply path is typing into
+  the TUI; terminal input **built-in**, a real xterm.js over a resumable byte stream; notifications
+  **not available** — no push of any kind, only a foreground-fed Live Activity; hosting boundary a
+  mandatory vendor relay (Cloudflare Worker plus Durable Object) with no LAN, tailnet or direct path;
+  transport security TLS terminated at the relay with **no application-layer end-to-end encryption**
+  and the JWT carried in the WebSocket URL query string; pricing Pro at $20 per user/month, $15
+  billed yearly. §3.1 carries the file:line for each.
 - Candidates the catalog does not carry: handmux, MobileCLI (App Store id6757689455), Orca
   (id6766130217), Moshi (id6757859949), CloudCLI/claudecodeui, clauder, tap-to-tmux, CloudeCode,
-  247-claude-code-remote, plus the vendors Codex in ChatGPT and Cursor for iOS.
+  247-claude-code-remote, Superset for iPhone (id6788926383, the entry above), plus the vendors Codex
+  in ChatGPT and Cursor for iOS.
+
+## 3.1 Superset, the one that already ships this
+
+Superset does not change what Tortie should build. It is the strongest evidence yet that §1 is right,
+it forces corrections in every section from §2 to §11 and each one is marked in place, and three of
+its ideas are worth taking. Everything below is read from the operator's own checkout at
+`/Users/gdc/superset`, head `3dd63ff113c3a547aae9688104e58251c66d8ac0`, on 2026-09-21. Nothing was
+run, nothing was installed, nothing was signed into and no network call was made to their service, so
+no claim here is about run-time behaviour.
+
+**What it is.** A shipped iPhone client for remotely driving terminal agents on a Mac, on the App
+Store as id6788926383, built by a funded team and sold. Its own README: "Remotely control Claude
+Code, Codex, and other terminal agents running on your connected computer. Pick up the same
+workspaces and terminal sessions, send follow-up prompts, review diffs, and merge PRs from your
+iPhone", and "Requires **Superset Pro**, **iOS 26 or later**, and a connected computer with **Remote
+Access enabled**" (`README.md:56,58`). Pro is $20 per user/month, or $15 billed yearly at "$180 per
+user, billed yearly" (`apps/marketing/src/app/[lang]/pricing/constants.ts:109-129`). The repository
+is a monorepo of `apps/{mobile,relay,realtime,desktop,api,gate,marketing,docs}` and
+`packages/{host-service,host-client,pty-daemon,panes,shared,sdk,agent-setup,…}`. It is the product
+this document describes, and §3's sweep missed it.
+
+**What it is built with, and it loads code over the air.** React Native and Expo with a custom dev
+client, not Swift: `expo` 57.0.15, `react-native` 0.86.2, `expo-router`, TypeScript
+(`apps/mobile/package.json`), with 4,787 lines of Swift across 32 files in four local native modules
+(composer, live-activity, attachments-sheet, alert-prompt) and one widget extension target — counted
+with `find apps/mobile -name '*.swift' | xargs wc -l`. It ships new JavaScript to installed builds
+after App Review, on all three axes: the dependency is `expo-updates` 57.0.21
+(`apps/mobile/package.json:112`), the configuration is `runtimeVersion: { policy: "fingerprint" }`
+with per-profile channels (`apps/mobile/app.config.ts:37`), and the update URL is
+`https://u.expo.dev/fa9332a8-896a-4d2a-be5b-d82469b46e5d` (`app.config.ts:39`). It is not passive:
+the app checks on **every foreground**, throttled to 15 minutes, downloads silently, and a declined
+restart still applies on the next launch — with its own comment saying why, "expo-updates only checks
+on cold launch, and phones rarely cold-launch"
+(`screens/RootLayout/hooks/useOtaUpdates/useOtaUpdates.ts:6,8-11,14-16,26-38`). It is gated rather
+than absent: `MOBILE_SIGNED_UPDATES=1` is mandatory or the build is refused (`app.config.ts:15,20-22`)
+and signed builds pin `codeSigningCertificate: "./certs/certificate.pem"` (`:41`), which is the
+public verification half and exposes no secret. §5 refused this route's over-the-air channel in
+writing before Superset was known; Superset is that route with the refused thing in it, running every
+fifteen minutes.
+
+**How the phone reaches the Mac: a mandatory third-party relay, with no LAN, tailnet or direct
+path.** One function is the whole decision, and it has no third branch — `hostServiceUrl` returns a
+cloud sandbox's brokered URL, else `${getRelayUrl()}/hosts/${buildHostRoutingKey(orgId, machineId)}`
+(`apps/mobile/lib/host-service/client.ts:37-44`). The app's `app.config.ts` declares no
+`NSLocalNetworkUsageDescription` at all (zero occurrences), so it could not dial a Mac on the same
+Wi-Fi even if the code existed: two Macs on one desk reach each other through Cloudflare. The Mac
+opens no inbound port and binds loopback only —
+`{ fetch: app.fetch, port: env.HOST_SERVICE_PORT, hostname: "127.0.0.1" }`
+(`apps/desktop/src/main/host-service/index.ts:126`); reach is an outbound dial-back tunnel the Mac
+initiates to a Cloudflare Worker and a Durable Object. That one property is the only thing Superset's
+transport and §5's door have in common. **The relay reads plaintext.** Its protocol header says the relay
+"splices bytes verbatim — no envelopes, no base64, no per-frame parsing"
+(`packages/shared/src/tunnel-protocol.ts:1-4`), but not parsing is not cannot read, and the tRPC path
+is not spliced at all: `apps/relay/src/http-exchange.ts:11-16` reconstructs the request inside the
+Worker with `body: Uint8Array`. A grep of the phone-to-Mac path across `packages/shared/src`,
+`packages/workspace-client/src` and `apps/relay/src` for X25519, nacl, libsodium, tweetnacl or noise
+finds no application-layer cipher. The JWT rides in the URL query string on every WebSocket
+(`apps/relay/src/index.ts:46`), which §10 forbids outright as "no bearer on the wire". And the relay
+is the sole authorization boundary: the tunnel client **overwrites** the caller's credential with the
+host's own pre-shared key on both paths — `localUrl.searchParams.set("token",
+this.options.hostServiceSecret)` for WebSockets and `Authorization: Bearer
+${this.options.hostServiceSecret}` for HTTP (`packages/host-service/src/tunnel/tunnel-client.ts:217,355`)
+— so anything the relay lets through, the Mac executes as the machine's owner, with every protected
+procedure in the host's tRPC surface reachable, `terminal.writeInput`, `filesystem.*` and `settings.*`
+among them (the exact procedure count was not re-derived here and is unmeasured). That is §7's items
+10 to 12 running in production, and it is the reason §5's signed door stays exactly as written.
+
+**Does it own the agent process? It owns it, decisively, and this ends the "should we just use it"
+question.** The PTY wire protocol has exactly one creation verb and it carries a command line rather
+than a pid: `SessionMeta { shell; argv; cwd?; env?; cols; rows }`, sent in the `open` message
+(`packages/pty-daemon/src/protocol/messages.ts:11-18,59`). The full client-to-daemon verb set is
+`hello`, `open`, `input`, `resize`, `close`, `list`, `subscribe`, `unsubscribe` and
+`prepare-upgrade`; **no message adopts a foreign pid or a foreign tty**. Production has one
+`daemon.open(` call site (`packages/host-service/src/terminal/terminal.ts:3084`). The two things
+their code calls "adopt" are re-adopting a session already in their own daemon's list after a
+host-service restart, and inheriting a PTY master file descriptor over stdio during a binary upgrade
+— both are "our daemon already had it". And there is no tmux: a grep of
+`packages/host-service/src` and `packages/pty-daemon/src` returns seven hits across four files
+(`sandbox-self-seed.ts:209`, `shell-ready-evidence.ts:7`, `terminal.ts:657,663,1564,2018`, and one
+test comment), every one of them a comment citing tmux's behaviour as a model to imitate. Zero
+invocations. Superset cannot see a session running in `-L gmux`, no configuration would make it able
+to, and it joins Happy, Happier and CC Pocket in refusal 4's group at the top of it.
+
+**Its screens.** Sign in (an account is required; Apple, GitHub, Google or email, with no local-only
+or pair-only mode), connect a device (three instructions performed *on the computer*, ending in
+"Settings → Remote Access → 'Allow remote access to this device via relay'"), a paywall, then Home —
+a dashboard of workspaces grouped under project headers, each row carrying branch, diff stats and a
+stack of session avatars. **There is no inbox and no "waiting on you" filter**: the only sorts are
+"Last updated" and "Date created", so a blocked session does not rise to the top of the in-app list;
+it gets a pulsing yellow dot on its row. Tapping a workspace opens the main screen, which is a
+terminal, in its own doc comment: "The workspace IS the terminal"
+(`apps/mobile/screens/(authenticated)/workspace/[id]/WorkspaceScreen/WorkspaceScreen.tsx:107`) —
+xterm.js in a WebView over a resumable byte stream, follow-up prompts typed into the TUI, and a
+quick-key strip of raw escape bytes — `esc` sends the single byte 0x1b, `tab` sends 0x09,
+`⇧tab` sends 0x1b 0x5b 0x5a, the four arrows send 0x1b 0x5b and A, B, C or D, and `^C`
+sends 0x03 (`components/TerminalComposer/constants.ts:34-46`). A permission prompt is answered
+by pressing a down-arrow and a return on a phone; there is no structured approve or deny path
+anywhere. Around it: files changed, commits, pull requests with line comments and merge, org pages,
+settings, search and a new-session wizard. §4 rank 1's refusal list — "No terminal, no keystrokes, no
+free text, no screen bytes, no image drop" — is item for item the inventory of what its main screen
+is.
+
+**How it learns an agent is waiting, which is the one genuinely takeable thing here.** One shell
+script, sixteen agents, and a lifecycle hook. `~/.superset/hooks/notify.sh` is 315 lines of bash in
+its template (`wc -l packages/agent-setup/templates/notify-hook.template.sh`), registered in each
+agent's own **global user config** — `~/.claude/settings.json` as a direct merge,
+`~/.codex/hooks.json`, a JS plugin for OpenCode, TOML and extension files for the rest
+(`packages/agent-setup/src/agent-wrappers-claude-codex-opencode.ts:50,126`) — across amp, claude,
+codex, droid, opencode, omp, pi, cursor-agent, gemini, mastracode, kimi, grok, copilot, vibe, devin
+and muse (`packages/agent-setup/src/agent-setup-targets.ts:16-33`). The host folds every vendor's
+schema into one vocabulary: `PermissionRequest` takes Claude's `PermissionRequest`, `Notification`
+and `PreToolUse` **and** Codex's `exec_approval_request`, `apply_patch_approval_request` and
+`request_user_input` (`packages/host-service/src/events/map-event-type.ts:66-77`), and the renderer
+derives `working | permission | failed | review` from it. **The part that matters for Tortie is the
+gate.** The hook does not ask who owns the PTY; it asks the launching terminal's environment:
+
+```
+[ -n "$SUPERSET_TERMINAL_ID" ] || [ -n "$SUPERSET_TAB_ID" ] || exit 0
+```
+
+with the comment "Agent hook configs are global, so this can fire in sessions launched outside
+Superset terminals… the agent-supplied payload alone must never dispatch"
+(`packages/agent-setup/templates/notify-hook.template.sh:14-18`). Process environment is orthogonal
+to process ownership, which is why this idea transplants into the private tmux server unchanged:
+Tortie already stamps `GMUX_SESSION_ID` and `GMUX_MANAGED` into pane env, so `[ -n
+"$GMUX_SESSION_ID" ] || exit 0` would give Tortie a structured blocked signal from every agent in its
+registry, inside `-L gmux`, with no change to the tmux layer and no `detectDialog` screen read. It
+costs something they chose: they run `PostToolUse` with matcher `*` on both Claude and Codex, so a
+`curl` fires on every tool call of every turn. And it must not be adopted in their form, because they
+get their coverage by writing into sixteen agents' global user configs at every desktop boot, which
+is exactly what dropped Shunt from second to fifth in §3 and is the opposite of CLAUDE.md's "A human
+confirms the bytes, out of band of any agent turn". That is §11's new seventh question, and the phase
+must not assume the answer.
+
+**Its licence, in plain words.** Elastic License 2.0, "Copyright 2025-2026 Superset, Inc."
+(`LICENSE.md`; root `package.json:21` declares `Elastic-2.0`). Source-available, not OSI open source
+— it fails OSD 6. It **grants** a non-exclusive, royalty-free, worldwide, non-sublicensable,
+non-transferable licence to "use, copy, distribute, make available, and prepare derivative works"
+(`LICENSE.md:9`), which is broader than most people assume, since derivative works and redistribution
+are both permitted. It **forbids** providing the software to third parties as a hosted or managed
+service exposing a substantial set of its features (`:13`), moving, changing, disabling or
+circumventing licence-key functionality (`:15`), and altering or obscuring licensing or copyright
+notices (`:17`). It **requires** that anyone who gets a copy of **any part** of the software also gets
+these terms (`:25`), and that modified copies carry prominent notices stating you modified it
+(`:27`). The licence-key limitation is inert as written: a grep for `licenseKey`, `license_key` and
+`LICENSE_KEY` across `apps/` and `packages/` returns zero hits, because entitlement is a server-side
+subscription check rather than a key in the shipped bytes. **The operational conclusion is: never
+vendor a line.** A desktop app is not a hosted service, so the first limitation never bites — but
+Tortie is Apache-2.0, and one Elastic-2.0 file inside it would make Tortie no longer wholly
+Apache-2.0, force a NOTICE carve-out naming that file, and pass the managed-service and notice
+obligations down to everyone who redistributes Tortie. For a protocol type file that is a terrible
+trade. Copying an *approach* is unencumbered, because copyright does not cover architectures,
+protocol shapes or ranking rules, and Superset's own vendored headers show the norm to hold to: VS
+Code's `fuzzyScorer` and `terminalLinkParsing` and Orca's hand-off shape are all carried with MIT
+headers naming the source. Take the designs, take no bytes, and put the question to him before any
+line is lifted. This is a careful reading of 58 lines by a non-lawyer and not legal advice.
+
+**Its size, and what it says about "three screens".** `apps/mobile` is 41,866 lines of non-test
+TypeScript and TSX plus 4,787 lines of Swift, about 46,650 lines of app code, with **120 runtime
+dependencies** and 18 development ones (`find … | xargs wc -l` over the tree, excluding `*.test.*`,
+`*.spec.*` and `*.stories.*`; dependency counts read from `apps/mobile/package.json`). That buys a
+terminal, a git client, a PR reviewer with line comments and merge, an org docs reader, an image
+composer with dictation, 17 locales and a cloud-sandbox provisioner — almost none of which §4 and §5
+scope. The number that actually answers the question is smaller: their entire "what needs me now"
+surface, end to end, is **757 lines** — `useAgentLiveActivity.ts` 234, `modules/live-activity/src/index.ts`
+66, `LiveActivityModule.swift` 133, both copies of `AgentActivityAttributes.swift` 61 each, and
+`AgentActivityWidget.swift` 202, summed by `wc -l` over those six files. So §5 rank 1's three screens
+in Swift is of the right order rather than naive. The caution the number supplies is the other half:
+their app needed 120 runtime dependencies to be a product rather than a demo, and Swift with no React
+Native layer avoids that whole class of cost.
+
+**Where it sits on his four columns.** Zen: the best glance surface in the set and the worst reach.
+Its Live Activity is the only shipped, ranked "what needs me now" card among the seventeen — better
+than Shunt's dashboard of every pane and better than Remote Control's online-dot list — and it never
+reaches a pocketed phone, which is why it cannot rank above CC Pocket's approval cards. Simple: no,
+by a distance — an account, an organization, a subscription, a desktop app running, a Mac kept awake,
+iOS 26 and a relay in the path of every byte. Aesthetic: polished, and not Tortie's. Assembled: yes,
+and better than most. It ranks 5.
+
+**Where it beats the plan, said plainly.** It ships and Tortie's is a plan; that is worth saying
+before any refusal. Its blocked-state detection is better than §4's for three of four agents, by hook
+across sixteen agents with no screen reading anywhere, and the question travels with it — their hook
+lifts a `preview` from the agent's own message and the host caps it with
+`.transform((value) => value.slice(0, 4000))`
+(`packages/host-service/src/trpc/router/notifications/notifications.ts:41`), the same 4,000 §4 already
+cites for `answerText`, where §7.1 says Tortie throws the question away twice. Its
+glance-surface ordering is better reasoned than Tortie's own and the reasoning is written down
+(`modules/live-activity/src/index.ts:35-48`): `permission 4, failed 3, review 2, working 1`, putting
+a done-and-unread session **above** a working one, where §4's screen 1 and ⌘J rank only the blocked.
+And it has real, dated App Review experience Tortie will hit (§8).
+
+**Where it is refused.** Refusal 4, measured above, and it is structural rather than a gap it could
+close. Refusal 1's spirit, broken by construction every fifteen minutes. Refusal 8 and the Shunt
+precedent, by writing hooks into sixteen agents' global user configs at every desktop boot. The
+relay, the account and the bill, all mandatory. No end-to-end encryption and a bearer in the URL. The
+relay as the sole authorization boundary. And PATH-shimming the agent binaries — `~/.superset/bin` is
+prepended to PATH holding a wrapper per agent that exports `SUPERSET_AGENT_ID` before exec
+(`packages/agent-setup/src/agent-wrappers-common.ts:121,236-248`) — which is
+the exact inverse of Phase 12.7 F3, where Tortie launches agents by bare name so an absolute argv[0]
+does not make every durable gmux agent the one process `pkill -f "$(command -v claude)"` matches.
+
+**What to take, in order.** First, the env-gated hook, by a distance, as a design to re-implement and
+not code to copy: 315 lines of bash that greps JSON with first-match-only `grep -oE` is below Tortie's
+bar and fragile by their own admission, and Tortie would write it in main against a real parser, with
+registration riding in the `--settings` file Tortie already writes rather than in anyone's global
+config. Second, four defences they learned the hard way, each a named rule in the phase brief: the
+harness-disagreement drop, because cursor-agent replays `~/.claude/settings.json` so Claude's config
+fires inside a Cursor session and Claude's Bash tool running `codex exec` fires Codex's config under a
+Claude terminal, which two environment variables settle; the subagent split, where an event carrying
+`agent_id` must not drive terminal-level status or the session-id binding, the same hazard
+`conformance:derived` exists for; endpoint re-resolution at call time from a manifest rather than
+frozen environment, because a live process's environment cannot change after a host restart on a new
+port, which is Tortie's identical problem at `hooks.ts:230-236`; and "Never default to 'Stop' on parse
+failure — silent drop is safer than a false completion notification". Third, the glance ordering
+above, worth twenty lines to test. Fourth, `terminal.send`'s bracketed-paste framing as a measured
+precedent for §4's v2 reply — a typed-text verb that is not a keyboard, framing multi-line input
+server-side so a TUI takes it as a paste rather than a burst of Enters — noting that their
+`PermissionRequest` is a read-only state with no answer channel at all, so §4's v2 is a **better**
+design than the one that ships and nothing in their tree refutes it. Fifth, the Live Activity as a
+costed hedge (§6). Sixth, the App Review runbook (§8). Seventh, their merge discipline — preserve
+user entries, strip own stale entries by marker, preserve foreign junk verbatim because "a malformed
+entry must not abort the merge", return null rather than writing when the existing file will not
+parse, and signature-gate every delete — but only if he ever rules that Tortie may write a global
+agent hook at all.
+
+**And the negative gift, which is a real one.** Their own `HOOKS_INVESTIGATION.md:14` states that
+global agent-config registration means "every session of that agent on the machine — Superset-launched
+or not — invokes the hook". It is the cleanest published statement, by a competitor about their own
+product, of why Tortie's design of writing a `--settings` file rather than the user's global config is
+correct.
 
 ## 4. What a Tortie phone surface is that a relay is not
 
@@ -278,6 +556,21 @@ conditions. The question must come from the `PermissionRequest` hook body (`tool
 (`src/main/activity/screen.ts:62`) for codex, gemini and qwen — never the last screen line, which
 for every committed Claude fixture is the hint row (§7). And a Mac Pro row says `running`, `idle`,
 `not running` or `unreachable` and never `needs input` until Tortie runs there.
+
+**Added by §3.1: the second condition has a better answer than a screen read for three of the four
+agents.** An env-gated lifecycle hook is how a shipped product gets a structured blocked signal from
+sixteen agents with no screen reading anywhere, and it works because it gates on the launching
+terminal's environment rather than on who owns the PTY — which is why it transplants into `-L gmux`
+unchanged, since Tortie already stamps `GMUX_SESSION_ID` into pane env. It also carries the question
+itself, as a `preview` lifted from the agent's own message and capped at the same 4,000 characters
+§4 already cites. Four defences ride with it and each is a named rule in the phase brief: the
+harness-disagreement drop on two environment variables, the subagent split so an `agent_id` event
+never drives terminal-level status, endpoint re-resolution at call time from a manifest rather than a
+frozen environment, and never defaulting to a completion on a parse failure. Its cost is chosen
+deliberately: Superset runs `PostToolUse` with matcher `*`, which fires a `curl` on every tool call of
+every turn. And it must **not** be registered their way, in every agent's global user config at every
+boot — registration rides in the `--settings` file Tortie already writes, or it needs his ruling
+first, which is §11's seventh question.
 
 The push that carries the status word (the lock screen). `needs input · <name> · <agent> · <project>
 · <machine>`, sent from the Mac's own process through Apple only when a row joins the blocked list;
@@ -320,7 +613,13 @@ digit and Enter with the screen read before and after (`src/main/machines/remote
 press at a time; an AskUserQuestion answered through `PreToolUse`'s `updatedInput`. Free text into a
 pane stays refused (`remote-arm.ts` rule 1). Not built until one fact is measured — whether Claude's
 terminal dialog and a pending http hook coexist — and until he rules whether a paired phone may press
-the buttons the agent drew.
+the buttons the agent drew. **Supported by §3.1 in two ways.** A shipped product's `terminal.send` is
+a typed-text verb rather than a keyboard, framing multi-line input server-side as a bracketed paste so
+a TUI takes it as a paste and not a burst of Enters — measured precedent for a reply that is not
+keystrokes. And the inverse finding strengthens the design rather than weakening it: Superset's
+`PermissionRequest` is a read-only state with no answer channel at all, and its reply path is typing
+into the PTY, so holding the hook open and answering with `decision.behavior` is a better design than
+the one that ships, and nothing in their tree refutes it.
 
 The honest inverse. A phone that only tells him is less than Remote Control gives him tonight for any
 Claude Code session: `/rc` in the pane he already has shows the prompt with its options, holds it
@@ -346,7 +645,7 @@ new code on every route.
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Swift + SwiftUI, written by Tortie, Apple's frameworks and nothing else in the bundle | Tortie's own Swift | Nothing; no run-time code path exists to refuse | A second language and Xcode gates beside the vitest ones; a codegen step for the ~40 token values, the copy strings and the contract types | None of the eight, even refusal 6 read literally; refusal 7 does not arise | The full native notification kit with no bridge, native lists and sheets for "neutral, dense, and native", the lowest review risk of the four, and the one route the refusals accept without a ruling |
 | 2 | Capacitor / WKWebView around a NEW Tortie React page with Tortie's tokens, bundled in the app and never fetched from the Mac | WebKit running Tortie's own bundle; Capacitor's Swift bridge (MIT, `ionic-team/capacitor` `5e0f6787`); a Swift extension anyway for Live Activities or a decrypting notification | Nothing if the bundle ships in the app | `tokens.css` untouched and the same language and test runner; the page must ship in the bundle (guidelines 2.5.2, 4.2); Appflow and Capgo Live Updates refused in writing; a served CSP whose `connect-src` names the paired door only | None if the bundle ships in the app; a shell that loads its page from the Mac is downloaded code every open and inherits the PWA's port-squatter problem | The most reuse of any route and the same page IS the home-screen fallback byte for byte — second because guideline 4.2 ("repackaged website") is a real reviewer's question with no precedent in this set, and because "dense and native" is argued in a web view rather than given |
-| 3 | React Native / Expo, JavaScript compiled to Hermes bytecode at build time | Hermes, React Native and Expo modules (MIT) running Tortie's TypeScript | Nothing, unless expo-updates is added | Expo's cloud build optional (15 free iOS builds a month, https://expo.dev/pricing; a local Xcode build needs none); expo-updates, EAS Update and CodePush refused in writing; tokens re-typed as styles | Refusal 1 does not bind by its letter and the spirit is kept by "no OTA channel"; refusal 6 read literally forbids it | Happy on the store (id6748571505, `"expo": "~55.0.8"`) proves the reviewer accepts the shape; shares Tortie's language; the most third-party code in the bundle for three screens |
+| 3 | React Native / Expo, JavaScript compiled to Hermes bytecode at build time | Hermes, React Native and Expo modules (MIT) running Tortie's TypeScript | Nothing, unless expo-updates is added — **and §3.1 supplies the worked example, which is that the conditional is the route's default rather than a theoretical add-on**: Superset is this route with `expo-updates` in it, pulling from `https://u.expo.dev/…` (`app.config.ts:37,39`) on every foreground at a 15-minute throttle, downloading silently, with a declined restart still applying next launch (`useOtaUpdates.ts:6,8-11,14-16,26-38`) | Expo's cloud build optional (15 free iOS builds a month, https://expo.dev/pricing; a local Xcode build needs none); expo-updates, EAS Update and CodePush refused in writing; tokens re-typed as styles | Refusal 1 does not bind by its letter and the spirit is kept by "no OTA channel"; refusal 6 read literally forbids it | Happy on the store (id6748571505, `"expo": "~55.0.8"`) proves the reviewer accepts the shape, and §3.1's Superset (id6788926383, `expo` 57.0.15) is a second and stronger store precedent for it — and the same product is the proof that the over-the-air hazard arrives with the route by default rather than being added on purpose; shares Tortie's language; the most third-party code in the bundle for three screens |
 | 4 | Flutter, Dart compiled to machine code, Impeller drawing its own controls | The Flutter engine (BSD-3-Clause) | Nothing, unless Shorebird is added | A Dart toolchain joins the tree; tokens re-typed in a second language; Shorebird refused in writing | Refusal 6 read literally forbids it; not native by construction ("Flutter has its own implementations of each UI control") | CC Pocket on the store proves acceptance; nothing of Tortie's transfers and nothing is drawn natively — last of the app routes with no Zen gain to offset it |
 | 5 | Home-screen web app served by Tortie on the tailnet — the fallback only, by his ruling | Safari's engine; the page comes from the Mac every open; `tailscale serve` supplies the certificate | Everything, from the Mac | No account, no review, no yearly fee ("You don't need to join the Apple Developer Program to send web push notifications", Apple's web push page); Safari revokes push permission if a push is not shown; no Bonjour browse; HTTPS certificates must be enabled on the tailnet | Brushes none of the eight — and on the boundary it is the least safe: a same-uid port squatter owns the origin and its storage, it cannot pin a certificate, and a write cannot sit behind Face ID | The only route whose push is Tortie's process to Apple with no key, no account and an encrypted payload; the fallback for the boundary's reason as well as his |
 
@@ -359,6 +658,16 @@ the per-row verb gates all arrive from main, and the build step emits the token 
 §1.1 and §1.3, `#131417` canvas, `#F5B84A` attention, the eight neutrals and the five state hues), the
 copy strings and the contract types from `src/shared/` so a word changed on the desktop changes on
 the phone in the same commit.
+
+What three screens costs, measured against the one product that built them (§3.1). Superset's entire
+"what needs me now" surface — the hook that feeds it, the module, both Swift attribute files, the
+module's Swift and the widget — is 757 lines, summed by `wc -l` over those six files. The app around
+it is about 46,650 lines of non-test code and 120 runtime dependencies, and it buys a terminal, a git
+client, a PR reviewer, a docs reader, an org admin surface and a cloud-sandbox provisioner, every one
+of which §4 and §5 refuse by name. So three screens in Swift is of the right order rather than naive,
+and the caution the number supplies is the other half of it: a funded team needed 120 runtime
+dependencies to make that route a product rather than a demo, and Swift with no React Native layer
+avoids that whole class of cost.
 
 What it loads at run time: nothing. That is the one sentence refusal 1's spirit binds the app with.
 Refusal 1's letter names main, the renderers, the preload, a worker and a `utilityProcess`
@@ -452,7 +761,17 @@ https://ntfy.sh` for instant iOS delivery — only the message id and a topic ha
 is a cloud in the path and a second app on the phone, and without it "delivery can take hours"
 (ntfy `docs/config.md` at `10cb6506`). "A relay the person runs" is a cloud component the moment it
 pushes. Only VibeTunnel and handmux push with no vendor between the Mac and Apple, and both are
-terminals.
+terminals. **And Superset, the closest thing to this product that ships, pushes not at all
+(§3.1)** — verified three ways: `expo-notifications` sits in `apps/mobile/package.json:104` and is
+configured at `app.config.ts:124` with `enableBackgroundRemoteNotifications: false`, and is imported
+by no file in the app (zero occurrences of `from "expo-notifications"` across `apps/mobile`); its
+Live Activity is requested with `pushType: nil`
+(`apps/mobile/modules/live-activity/ios/LiveActivityModule.swift:114`); and no server-side sender
+exists anywhere, with no `expo-server-sdk`, `node-apn` or `firebase-admin` in any `package.json` under
+`apps/` or `packages/`. A competitor with a global relay, a Durable Object and a live presence
+authority still chose a foreground-only Live Activity over push. That is the strongest supporting fact
+this section has, and it means the hardest requirement in this document is the one nobody in the field
+has solved.
 
 Failure modes, from Apple's own words: best effort ("APNs may reorder notifications ... may also get
 throttled, saved in storage, and in some cases, not delivered"), one stored notification per bundle id
@@ -470,6 +789,23 @@ named cost: one extraction lets anyone push to any device token they obtain, one
 every install. For the operator alone the key never ships, because he is Ita Vero. iOS web push from
 a home-screen web app is the only push with no key, no account, no yearly fee and an encrypted
 payload, which is why the web app stays the fallback and never a second install beside the app.
+
+**One surface the recommendation could add, from §3.1, and it is a hedge rather than a route.** An
+ActivityKit Live Activity needs no APNs provider key, no $99 for push, no provider certificate and no
+ruling from him about whose key ships — the exact blockers this section and §11's sixth question put
+to him — and it puts up to four ranked rows on the Lock Screen and the Dynamic Island that iOS keeps
+there after the app backgrounds (`MAX_ROWS = 4`,
+`apps/mobile/screens/(authenticated)/(home)/home/hooks/useAgentLiveActivity/useAgentLiveActivity.ts:16,131`).
+Superset's is the shipped proof it works and the shipped proof of its limit: a Live Activity can only
+be started from the foreground, and theirs carries `staleAfterSeconds: 120` with the stale detail "Not
+updating" (`:139,144`) because, in their own comment, "Updates only arrive while the app is in the
+foreground, so the card has to admit when it has stopped hearing anything rather than leave a stale
+'Working' on the Lock Screen". So it is a leave-your-desk surface and not a
+wake-you-up one, which is fatal on its own. ActivityKit does support `pushType: .token`, which
+Superset does not use (zero occurrences of `pushToStart` in their Swift), and a Tortie Live Activity
+driven by APNs from the Mac would be strictly better than anything Superset ships and would reuse the
+key this section already scopes — which brings the key question straight back. It is an addition and
+never a replacement for the alert, and it is gated on §8's new measurement.
 
 ## 7. What was refuted
 
@@ -543,9 +879,37 @@ re-derives it.
 23. Remote Control's list marks online, not waiting ("a computer icon with a green status dot when
     online", vendor page line 152); it answers one push at a time, for one agent, on a subscription.
 24. Installing Happy tonight shows none of his Tortie sessions; the one product that shows one is
-    Remote Control, and only a Claude Code one.
+    Remote Control, and only a Claude Code one. **Amended by §3.1:** Superset is the second product
+    that shows none of them, for the same structural reason, and it is the better example because it
+    is the best-resourced one — a $20-a-month App Store app with a global relay that still cannot see
+    a single session in `-L gmux`.
 25. Only End survives as a pocket verb from the gate set, and a read-only v1 is not the surface he
     asked for ("control them"); v1 carries End, the reply is v2.
+
+Added by §3.1, after Superset was read:
+
+26. Superset's existence does not refute refusal 4. `SessionMeta { shell; argv; cwd?; env?; cols;
+    rows }` is the only creation verb in its PTY protocol
+    (`packages/pty-daemon/src/protocol/messages.ts:11-18`), there is one production `daemon.open(`
+    call site (`packages/host-service/src/terminal/terminal.ts:3084`), no message adopts a foreign pid
+    or a foreign tty, and all seven `tmux` strings under `packages/host-service/src` and
+    `packages/pty-daemon/src` are comments with zero invocations. A product that owns what it opens
+    can never see `-L gmux`, whatever it is configured to do.
+27. "A relay that splices bytes verbatim cannot read them" is refuted. Not parsing is not cannot read,
+    and the tRPC path is not spliced at all: `apps/relay/src/http-exchange.ts:11-16` reconstructs the
+    request inside the Cloudflare Worker's memory as `body: Uint8Array`, and no application-layer
+    cipher exists anywhere on the phone-to-Mac path. §2's row 6 is corrected accordingly.
+28. "A shipped competitor with a relay must have solved push" is refuted, and it is the most important
+    finding of the day. Superset has no push of any kind, verified three ways (§6).
+29. §1's use of guideline 4.2.7 as the reason a mirrored terminal is refused is weakened but not
+    overturned. Superset's own App Review notes argue **2.5.2** ("No user or project code is
+    downloaded or executed on the device. The terminal tab renders output streamed from the user's own
+    session and sends keystrokes to it") and **4.3**, and never name 4.2.7
+    (`apps/mobile/store.config.js:28-29`); they took a 4.3(a) rejection instead (§8). What is measured
+    is only that their submission does not treat 4.2.7 as governing; 4.2.7's own text was not read and
+    the live binary was not fetched, so the conclusion "4.2.7 is refuted as an absolute" is **not**
+    adopted. The product refusal is unaffected, because he refused a terminal on a phone for his own
+    reasons, but 4.2.7 should stop carrying the argument on its own.
 
 Refutations the judge did not adopt, so the reasoning is on record: Bark's way as Tortie's way (the
 key stays on the operator's Mac; the everyone-else question goes to him, §11); "reads and push in
@@ -558,6 +922,61 @@ the phone, and loopback reachability is then a denial-of-service surface only).
 
 ## 8. What was not measured and why
 
+**First, what was missed, which is a finding about the method and not about the phone.** Five
+investigators and three adversaries swept sixteen products and did not find Superset for iPhone — an
+App Store app (id6788926383) that does exactly what this document describes, with its source public on
+GitHub and a checkout of it sitting on the operator's own disk. `grep -ni superset` over the document
+as first committed returns zero hits. What §3 records reading is a list of repositories cloned at named
+commits plus each vendor's own page, and the products on that list came from the catalog tortie.sh
+already keeps — so the sweep enumerated from a catalog and inherited the catalog's blind spot, which
+§3's own hand-off list shows is real, because it ends by naming ten products the catalog does not
+carry and two vendors besides. What would have found Superset is the one search nobody ran: the
+App Store's own category listing for "Claude Code" or "coding agent". That this returns a crowd is
+not speculation — it is the crowd Apple's reviewer matched Superset against, "the pile of 'remote
+control for Claude Code / Codex' apps in the category" (`apps/mobile/RELEASE.md:166-167`). The lesson
+for the next sweep is one
+line: when the question is "what already ships", read the store's category and not only the catalog.
+The other half of it is that the missed product was the funded one, so the omission was not at the
+margin.
+
+**Second, the App Review experience this document has none of, now measured from somebody else's
+submission.** Superset's first 1.0 submission (build 13, August 2026) was rejected under "Guideline
+4.3(a), 'Spam' (similar binary, metadata, or concept)", and their own account says why: "the reviewer
+pattern-matched us against the pile of 'remote control for Claude Code / Codex' apps in the category;
+it says nothing about the build's quality and it is not resolved by resubmitting the same metadata"
+(`apps/mobile/RELEASE.md:163-168`). Their remedy is four steps and a Tortie submission should adopt it
+wholesale (`:170-184`): reply in the submission's message thread about **identity and not features**,
+naming the product, the official client, the public source repository and a bundle id on your own
+domain, with a screen recording that shows the desktop and the phone driving the same session; fix the
+product page, because "Generic metadata is what the reviewer matched on"; ask for a call in the same
+thread, because "4.3(a) is a judgment call, and the person who calls can clear it on the spot once they
+see the desktop app"; and resubmit only after the first two are done. Whether the runbook actually
+cleared their rejection is unmeasured — the live listing was not fetched.
+
+- **Whether ActivityKit's `pushType: .token` — push-to-start and push-update, iOS 17.2 and later —
+  requires an APNs provider key.** This is the one measurement a phase must take before treating §6's
+  Live Activity as a way past the key ruling. Superset does not use it (zero occurrences of
+  `pushToStart` in their Swift), so "no key needed" is measured only for the foreground-start path; if
+  push-to-start needs a key, §6's ruling returns with it and the hedge is only a leave-your-desk
+  surface.
+- **Whether the operator's own `~/.claude/settings.json` and `~/.codex/hooks.json` carry Superset hook
+  entries today.** His home is off limits, so the state of his machine was not read. The mechanism is
+  verified — the Superset desktop registers its lifecycle hooks in each agent's global user config at
+  every startup (`packages/agent-setup/src/agent-wrappers-claude-codex-opencode.ts:50,126`,
+  `HOOKS_INVESTIGATION.md:14`) — and their own document records that Claude's entry is environment-
+  guarded while several others are not. So if the Superset desktop has ever run on his Mac, a
+  Tortie-launched codex session may be invoking `~/.superset/hooks/notify.sh` right now. One read of
+  those two files is worth doing before the next agent-status phase blames a fixture. Whether the
+  unguarded registrations their own document names are still unguarded at `3dd63ff11` was also not
+  measured: the document was read, the current registration sites it names were not.
+- **Whether the live App Store binary matches the Superset tree read here.** Nothing was run, fetched
+  or signed into, by instruction. Store version 1.1.1 is read from `apps/mobile/store.config.js:40`,
+  which is what the repository intends to push; `apps/mobile/package.json` still says 1.0.0.
+- **Whether Cloudflare in practice retains any of the bytes its Worker splices.** What is measured is
+  what Superset's code hands the platform, not the platform's retention. Not knowable from that tree.
+- **Superset's licence reading in §3.1 is a careful reading of 58 lines by a non-lawyer**, not legal
+  advice. The operational conclusion — do not vendor, copy approaches freely — is safe under any
+  reading, which is why it is the recommendation rather than the analysis.
 - Whether Claude Code still draws its terminal permission dialog while an http `PermissionRequest`
   hook is pending, and which side wins if both answer. Decides whether the structured reply is a
   Tortie surface or a second dialog fighting the first. Needs a running agent; nothing here ran one.
@@ -620,15 +1039,27 @@ row, and the question main already receives is thrown away twice. Fifth, "simple
 charter's sentence: the Tailscale app and an SSO login, the Tortie app and one pairing, $99 a year to
 Ita Vero, organisation enrolment, a privacy page and a demo mode for review, the Tailscale app on the
 phone to do anything away from home, nothing while the lid is closed, and push for the operator alone
-until he rules on the key.
+until he rules on the key. **§3.1 gives that fifth point its best evidence.** Superset is what
+"build the obvious phone app" costs when you do not refuse: about 46,650 lines in the phone app alone,
+120 runtime dependencies, a Cloudflare relay with Durable Objects, KV placement records, presence
+sweeps, stale-host alarms and colo-migration generations, a mandatory account and organization, $20
+per user/month, an over-the-air update channel — and still no push. Every one of those costs is a
+refusal this document already made, and the funded team that did not make them still did not get the
+thing the Zen asks for.
 
 Two of the charter's client shapes are recommended against outright. A client for an OSS relay's
 protocol with Tortie as host (Happy's or Happier's) makes the phone their app, which is the refusal he
-named; their protocol docs are what teach, and their hosts must own the process. ntfy with no client
-puts ntfy.sh in the path and a second app on the phone, and carries no verb. And the home-screen web
-app is the fallback for the boundary's reason as well as his: on a Serve origin a same-uid port
-squatter owns the origin and its storage, the page cannot pin a certificate, and a write cannot sit
-behind Face ID.
+named; their protocol docs are what teach, and their hosts must own the process. **Extended by §3.1 to
+the shipped case, which is the one somebody will propose:** "Tortie as a Superset host" means a
+Superset account, a subscription, his machine registered in their database, and every byte of every
+session crossing their Cloudflare Worker, because the relay authorises every dial through their API's
+`checkAccess` and refuses any caller whose host is not registered to an organization on their account.
+It is the same refusal as Happy's and Happier's with a bill attached, and it would also hand the
+authorization boundary to somebody else's Worker (§7, item 27 and the credential overwrite in §3.1).
+ntfy with no client puts ntfy.sh in the path and a second app on the phone, and carries no verb. And
+the home-screen web app is the fallback for the boundary's reason as well as his: on a Serve origin
+a same-uid port squatter owns the origin and its storage, the page cannot pin a certificate, and a
+write cannot sit behind Face ID.
 
 ## 10. The phase this would queue
 
@@ -649,6 +1080,11 @@ gate's: no code arrives in the phone app at run time; the door hands data and ne
 credential; no cookie; a source address equal to the bind address refused before any header; no
 token, body or conversation line in any log; the route table closed; the APNs key never in the app
 and never on another Mac; no Restore, Remove or Restart from the pocket; no free text into a pane.
+Added by §3.1, and carried only if the hook gift is taken: **no write to any agent's global user
+configuration** — hook registration rides in the `--settings` file Tortie already writes, and nothing
+the phase adds touches `~/.claude/settings.json`, `~/.codex/hooks.json` or any equivalent. Superset's
+own `HOOKS_INVESTIGATION.md:14` is the citation for why, and §11's seventh question must be answered
+before the rule can be relaxed.
 
 Files it touches, read from this tree. New: `src/main/pocket/{bind,tls,pairing,server,routes,verbs,ipc}.ts`;
 `src/main/push/apns.ts` beside the credentials domain; `src/shared/ipc/pocket.ts` behind
@@ -680,7 +1116,7 @@ is refused with a stale key, and is refused a status write. A fix round, then an
 
 ## 11. The ruling it needs from him
 
-Six questions, in his words, and the document ends with them.
+Seven questions, in his words, and the document ends with them. The seventh was added by §3.1.
 
 1. "Should my phone be able to end a session, or only tell me one is waiting?" End in v1 behind Face
    ID is the recommendation; Restore and Remove stay out because one relaunches an agent with its
@@ -701,4 +1137,18 @@ Six questions, in his words, and the document ends with them.
    can be told a Mac Pro session needs me?" Today it cannot be told, and the second answer overturns a
    sentence the code calls the one status rule Tortie does not break.
 6. "For people who are not me, does the push key ship inside the app the way Bark does, or do they
-   get no push?" The key stays on his Mac in v1 and nobody else has push until he answers.
+   get no push?" The key stays on his Mac in v1 and nobody else has push until he answers. **Narrowed
+   by §3.1:** a Lock Screen Live Activity is a partial answer that needs no key at all for the
+   leave-your-desk case, so the ruling he owes governs the wake-you-up alert for certain, and whether
+   it governs the card too is decided by §8's new measurement of `pushType: .token`.
+7. "May Tortie register a lifecycle hook in an agent's own global configuration, or only in the
+   `--settings` file it already writes?" Added by §3.1, because the one genuinely takeable idea in
+   Superset depends on the answer and the phase must not assume it. An env-gated hook would give the
+   phone a structured blocked signal from every agent in Tortie's registry inside `-L gmux`, replacing
+   the screen read for codex, gemini and qwen — but Superset gets its coverage by writing into sixteen
+   agents' global user configs at every desktop boot, which is what dropped Shunt from second to fifth
+   in §3 and is the opposite of refusal 8's "A human confirms the bytes, out of band of any agent
+   turn". Their own document says why it is a hazard: "every session of that agent on the machine —
+   Superset-launched or not — invokes the hook" (`HOOKS_INVESTIGATION.md:14`). The recommendation is
+   the `--settings` file alone; a yes to the global config would also need their merge discipline
+   (§3.1) and §10's new refusal lifted deliberately.
