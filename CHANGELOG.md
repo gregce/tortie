@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
-- The Manage Sessions sheet now says whether a session is alive or over without opening anything: All, Active and Ended sit before the State dropdown, and State refines inside the one you pick, so every option it had is still there. A session Tortie cannot reach counts as Active, since it cannot be restored, and one whose process has just ended can read Active for a moment.
+- The Manage Sessions sheet now says whether a session is alive or over without opening anything: All, Active and Ended sit before the State dropdown, and State refines inside the one you pick, so every option it had is still there. A session Tortie cannot reach counts as Active, since it cannot be restored, and one whose process has just ended can read Active for a moment ([`7240406b`](https://github.com/gregce/tortie/commit/7240406b))
 
 ### Fixed
 
