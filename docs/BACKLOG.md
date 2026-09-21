@@ -32982,6 +32982,82 @@ never the recommendation.
 - **No release.**
 
 
+## Phase 310 — the scanner copies a line it is about to reject (Phase 300's attribution verifier, 2026-09-21)
+
+**Subject.** `perf(overview): the reader does not copy a line it will not keep`
+
+**First body line.** `Phase 310: a first read of a large record, without the copy`
+
+**Semver.** Patch. The sheet's FIRST open over a very large record gets faster and nothing a person sees
+changes: no count moves, no word moves, no channel or field is added. Today the 960 MiB record holds the
+window about 1.7 s on that open; the measured direction below read 1122 ms with no main-thread block.
+
+**Tier 3.** It rewrites the read path every count and every Catch Me Up page comes from, so a moved count
+is the failure and it is invisible until a number is wrong. The evidence is the per-provider matrix
+`conformance:overview` already pins byte for byte, the parent measurement (mandatory: Phase 300 measured
+the opposite change and it read slower on the engine main runs), and two independent methods, one an
+attack: a re-derived count with the verifier's own reader, and the verifier measuring under Electron's own
+Node with a forced collection after each read, because a pile not yet swept and memory retained are two
+different findings and the first verify of Phase 300 could not tell them apart.
+
+**Charter.** Phase 300's Tier 3 verify, 2026-09-21, and its CORRECTION 5. The phase's first build split
+codex's keep rule so the counts read could skip the path index; on node 22 that read was 2.6 times faster
+and on Electron 43's Node 24 / V8 15 it was 15 to 47 percent SLOWER, because `reader/lines.ts` copies every
+head-admitted line into a fresh Buffer (`Buffer.from(seg)`), scans it, and drops it with no heap allocation
+to trigger a scavenge, so the copies pile up as external memory to the size of the file and the next ask
+pays the sweep. The verify's `nocopy` arm let the scanner hold the chunk view for a line that fits inside
+one chunk instead of copying it: **960 MiB first read 1122 ms, no block**, against 1692 to 1834 today. That
+arm was an ablation, not a build; it is what this phase builds, with the one case it does not cover named.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- The copy is at `src/main/overview/reader/lines.ts:240` in the tree at `7b64efa5`; the per-line scan runs
+  `indexOf` over the copied line. A line that spans two chunks still needs a copy, and the operator's
+  largest single line measured 18.5 MB (Phase 300's entry), so the copy path stays for that case and the
+  phase is a fast path beside it, not a replacement.
+- Phase 300's REFUSED alternative, so it is not rebuilt here by accident: a `paths` flag on the counts read
+  with a watermark stamp bought about a quarter off the cold read (960 MiB 1304 to 1336 ms against 1782 to
+  1834) and cost a full re-read on every Catch Me Up and every automatic fold while the sheet watched a
+  talking session, about 1.7 s per 30-second cycle on the largest record against under a millisecond today.
+  The operator dropped it at 02:38 on 2026-09-21. Two findings for anyone who tries it again: stamp only a
+  byte-0 counts read, never a tail, because a codex tail read reaches no `session_meta`; or extract paths
+  on the tail pass, which is small. Neither is this phase.
+- The deciding instrument runs under the engine main runs: `build/p300/split.mjs` spawns Electron with
+  `ELECTRON_RUN_AS_NODE=1` and prints `process.versions.v8`; a timing taken under plain node is not
+  evidence here.
+
+### The mechanism
+
+1. In `lines.ts`, when a head-admitted line lies wholly inside the current chunk, the scan reads the chunk
+   view at the line's offsets and copies nothing; when it crosses a chunk boundary, the existing copy path
+   runs unchanged. The admitted bytes, the parse and every count are byte for byte what they are today.
+2. `probe:p300` is the app run, at the parent and at HEAD, interleaved on a quiet machine, and its page arm
+   must read within noise of the parent, because Phase 300 measured a read-path change that made the page
+   slower while the counts were identical.
+3. `conformance:overview` unchanged and byte-identical tables at both builds.
+
+### The proof, run rather than read
+
+- The reverifier's reader-alone harness under Electron's engine (`scratchpad/p300rv-reader.mts`'s shape:
+  three reads of one record in one process, a forced collection after each, external memory reported
+  settled and after the collection), 960 MiB and 200 MiB, interleaved parent and HEAD, three each: HEAD's
+  first read under the parent's, the third read not above the first, and external memory after collection
+  at the parent's 4.7 MB.
+- `probe:p300` at both builds: first-huge, page-first, page-after-sheet, pass-161 worst gap under 20 ms,
+  every count identical.
+- His no-regression table: every reading of the probe, today and HEAD, and a scenario worse is REMOVED.
+
+### What is NOT in this phase
+
+- **No change to what is admitted, parsed or counted**, and no change to the keep map. A count that moves
+  is a defect here whatever direction it moves.
+- **Not the paths flag**, refused above with its numbers.
+- **Not a worker.** Phase 300's judge found the mechanism is main's collection cadence, which is what a
+  worker slot would take off the main thread; that is the operator's call and a separate entry.
+- **Not the folder comparison** Phase 299 handed to 300, still unbuilt.
+- **No release.**
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -33820,3 +33896,7 @@ cycle rather than only the evening it was written.
 - 2026-09-21, **PHASE 309 CLARIFIED AND STARTED.** Minutes after it was queued he said what the deliverable is, verbatim: "I expect you should be able to install something, this would be a tortie app for your phone" — "err ios app". The entry's question 4 now ranks the ways to build a Tortie iOS app (Swift, React Native, a WebView shell around Tortie's own React, Flutter, a PWA as fallback only) rather than a PWA against a native app as peers, with distribution and the yearly cost in the table and the question of whether refusal 1 binds a separate iOS app argued both ways. Started alongside 300, 303 and 304, since it launches no Electron and installs nothing.
 
 - 2026-09-20, **PHASE 300 STARTED, what a first read costs the person waiting — AND ITS VERIFY TOOK TWO OF ITS THREE MECHANISMS OUT, SO WHAT LANDS IS THE CACHE ALONE.** Phase 293's counts verifier's C4 and C5, both queued as stated limits when 293 landed at `f6c11f57`. The build did what the entry recommended: C5 as a cache of the ANSWER and never of the listing (the fallback's negative answer alone, keyed by home, provider and id, 30 s, 512 keys, handed in on `ResolveEnv` and never module-level, never covering the direct stat where a first turn lands), and C4 as a reading question — codex's `item_completed` prefilter rule split into ask/answer rules, the unrestricted one moved into `codex.paths.prefilter`, the counts read asking `paths: false`, and the watermark stamped so a page read refused a counts read's mark. **The Tier 3 verify (three lenses and a judge, 2026-09-21) attributed the three mechanisms one at a time on the engine main runs, Electron 43's Node 24 / V8 15, and the build's deciding instrument had run under node 22, where the reduced read is 2x faster and in the app it is 15 to 47 percent SLOWER**: a synthesised 960 MiB record's first counts read 1692–1834 ms today against 2103–2513 with the split, four of four quiet pairs, plus a 112–629 ms block on the next ask and a page read 31 to 55 percent slower, because the reduced read copied every admitted line into a fresh Buffer and dropped it with no JS-heap allocation, so V8 15 never scavenged and the copies piled up as external memory. The split came out under his rule. The flag alone bought about a quarter off a cold open and cost a FULL re-read of the record on every Catch Me Up and every automatic fold while the sheet watched a talking session (about 1.7 s a cycle on 960 MiB against under a millisecond today), and **the operator ruled at 02:38 on 2026-09-21: drop it, land the cache alone.** The cache owns the 170x — a repeat pass over 161 never-prompted claude rows 1.9 s → 11 ms in the app, a repeat ask 9 ms → under 1 — and regresses nothing. The fix round rebased onto `dc226df6`, put `keep-map.json`, `containers.ts`, `lines.ts`, `watermark.ts` and `index.ts` back to the parent's bytes, deleted the flag's test file and every case asserting the split or the stamp, cut `conformance:overview`'s rule 9 and `ablation:p300` to the cache's five clauses, fixed the probe's pinger (every worst ping had been graded one label late: `worstPing(N) = wall(N−1) − 20 ms`), gave it two page arms and a parent pin taken by the parent's own script, ran `split.mjs` under Electron's own node and demoted it, and rewrote every number the phase would have committed. `HELPER_USER_FLOOR` 145 → 146 stands. **Still not true**: a very large record holds the window on the sheet's first open exactly as today, about 1.7 s on the largest; the real first-read win is the scanner not copying a line it is about to reject, 1122 ms on 960 MiB with no block, queued as a build; the folder comparison Phase 299 handed over is still unbuilt.
+
+- 2026-09-21, **PHASE 300 LANDED WITH THE CACHE ALONE, `7b64efa5`, unreleased.** Manage Sessions no longer stats all 2,776 of his Claude Code project directories on every ask about a session with no record yet: the answer is remembered per row for the 30-second window, so the second pass over 161 such rows takes 11 to 13 ms where the first took 1.8 s, and one row's repeat ask 0.2 ms where it took 8 to 10, measured live against `b6f04ab0` interleaved on a quiet machine by a reverifier independent of the fixer. **Two of the three mechanisms built did not land, which is his rule working twice in one phase.** The codex keep-rule split that skipped the path index was 2.6 times faster under node 22 and 15 to 47 percent SLOWER under Electron's own engine, made the Catch Me Up page read 31 to 55 percent slower and left a 112 to 629 ms block on the next ask, because the reader copies every admitted line and V8 15 never scavenges the pile; removed, and the reader files are byte for byte the parent's. The paths flag with its watermark stamp was a trade, a quarter off the cold read against a full re-read per Catch Me Up and per automatic fold while the sheet watched a talking session; put to him with the numbers, and he dropped it at 02:38. **The instrument was wrong**: the probe's pinger graded every reading on the previous reading's stall, so the 'warm' regression the first verify reported was a mislabel and the real warm pass is not worse; fixed, with a page arm added. The first open of a 960 MiB record holds the window about 1.7 s at both builds, and neither 'half a second' nor 'a second' was ever true in the app. The one thing this build does later than today: a record landing under a different project directory than the session's cwd encodes is found when the window passes, not at once. Phase 310 queued below for the real first-read win. Gates: typecheck, build, smoke:t1, conformance:overview, the contract, gate:electron at floor 146, gate:background, the hermetic check, ablation:p300 five of five red; npm test 16,152 passing with the two native FSEvents files failing at the parent too under load 20 (308).
+
+- 2026-09-21, **PHASE 310 QUEUED, the scanner copies a line it is about to reject.** Phase 300's attribution verifier measured the direction that IS a first-read win: hold the chunk view for a line that fits inside one chunk instead of copying it, 960 MiB first read 1122 ms with no block against 1692 to 1834 today. A line spanning two chunks (his largest is 18.5 MB) keeps the copy path. Tier 3, no count may move, measured under Electron's own engine with a forced collection after each read, interleaved against the parent.
