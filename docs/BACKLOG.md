@@ -32113,6 +32113,697 @@ At **today's build**, `origin/main` `50bd2561`, it failed worse and on two profi
 - **No shared segmented-control component,** and no roving tabindex added to this one or to the two that already ship.
 - **No release.**
 
+## Phase 304 — "are we overcomplicating this keychain thing"; "i basically just want it to always work"; "and for it to not be overcomplicated" (operator, 2026-09-20)
+
+**Subject.** `fix(credentials): Tortie's own vault is a sealed file, not a keychain item`
+
+**First body line.** `Phase 304: a sign in of any size is kept`
+
+**Semver.** Minor. He can keep a codex sign in at all, which has never once worked here: his
+`~/.codex/auth.json` is 4,193 bytes and every observe of it has been refused since Phase 204. After this
+phase a credential of any size round trips in Tortie's own store, both providers, and a codex account he
+leaves can be offered back. Unchanged on purpose: how the VENDOR's store is written (`-i`, hex, `-U`, `-a`
+first, Phase 281's rule), what the vendor reads, the one write's stage-check-commit shape, the sweep, the
+record file, and every sentence said for a refusal that survives.
+
+**Tier 3**, by CLAUDE.md's fourth question outright, because it holds the person's credentials; and by the
+first, because the migration is the only copy of a sign in changing hands. Three independent methods, one an
+attack: **real data**, a 4,193 byte and a 1 MB payload compared by sha256 and never by content; **attack**,
+the app killed at each migration step with a copy asserted after every kill, plus a link planted at the new
+staged name; and **the parent commit measured**, mandatory because he reported this.
+
+**Charter.** His words on 2026-09-20: "are we overcomplicating this keychain thing", then "i basically just
+want it to always work", then "and for it to not be overcomplicated". He approved the phase. It binds Phase
+287, landing first, whose spec section 10 item 3 queues "a file vault for a credential too large for one
+line" as the only fix that makes his real codex account keepable and whose section 7 refuses it as outside
+its scope. **A mechanism that adds more than it deletes is the wrong mechanism**, and item 6 is the count.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **Both escapes from the `security` CLI are closed.** `security -i` with the payload as `-X` hex, the
+  shipping path: the line arrives whole at 4,096 bytes and is cut above it (Phase 287,
+  `build/p287/SPEC.md` §1, four runs). Hex costs two bytes per byte, so the ceiling is about 2,000 bytes of
+  credential; re-measured today on scratch keychains, a 1,000 byte credential makes a 2,170 byte line that
+  round trips byte exact and a 2,000 byte credential makes a 4,170 byte line that is CUT. And
+  `add-generic-password -w` reading its password from STDIN, never tried before: it prompts TWICE,
+  truncates at **128 bytes**, and a payload containing a NEWLINE stores **zero** bytes. Strictly worse.
+  **Recorded closed so no later round re-tries it.**
+- **The failure is worse than truncation.** The cut loses the END of the line, where the target keychain is
+  named, so the write lands in the DEFAULT keychain instead. `security.ts:245-250` says so, and it was
+  reproduced by accident today on his own login keychain, which took ten junk items.
+- **Tortie's own vault is not the vendor's mailbox, and nothing but Tortie reads it.** Censused over `src/`
+  and `build/`: every reader and writer of `Tortie-credentials-*` is `vault.ts` (:110 prefix, :133 name,
+  :156 the macOS arm, :162 the capped write), `migrate.ts:69` (sole composer of the pre-Phase-208 unscoped
+  name), `index.ts:266` (the choice of arm), and outside `src/` five `build/` probes and the two gates. The
+  one mention elsewhere, `src/main/usage/__tests__/p281-vendor-address.test.ts:258`, asserts the name is NOT
+  a vendor name. No vendor constrains the format, so the 4,096 byte line is self-inflicted.
+- **The evidence that this is his bug.** On his machine now, **four `Tortie-credentials-claude*` items and
+  ZERO `Tortie-credentials-codex*` items.** `stat` only, no read: `~/.codex/auth.json` is 4,193 bytes, mode
+  `-rw-------`; `~/.claude/.credentials.json` does not exist, because Claude lives in the keychain. That
+  payload's vault stage line is 107 + 2 × 4,193 = **8,493 bytes** against a 4,000 byte cap. The arithmetic
+  behind every refusal (`build/p287/SPEC.md` §3, payload P refused when overhead + 2P > 4,000): vault stage
+  login slot 107 (P > 1,946), vault stage default slot 98 (P > 1,951), vendor login stage 89 + account
+  bytes, vendor default stage 80 + account.
+- **Tortie already owns the unlimited mechanism.** `settings/store.ts:60` imports `safeStorage` and :753,
+  :791-794, :806 and :827 seal the danger settings with it; his keychain already holds a `Tortie Safe
+  Storage` key bound to Tortie. A keychain-protected master key with the ciphertext in a file is the
+  standard Electron posture and the one Tortie already trusts for its own sealed state.
+- **Codex ends fully fixed and Claude does not, structurally.** `stores.ts:326` and `:365` make every codex
+  vendor store a FILE on every platform, so both halves of a codex credential's journey become uncapped.
+  Claude's vendor store is a keychain item on macOS (`stores.ts:335`, `:373`), written the vendor's way, so a
+  Claude credential above about 1,954 bytes still cannot be put back. **The brief said the only surviving
+  refusal is Claude Code's own vendor item "whose credential fits today". The first half is right; the
+  second is unproven and probably false** — Phase 287 finding 6 measured that growth path, a login whose
+  sessions add `mcpOAuth` entries, at 2,158 bytes. His real Claude credential cannot be measured without
+  reading his keychain, so no number is claimed for it.
+
+### Phase 287 lands WITH this phase, and that is the operator's ruling of 2026-09-20
+
+Phase 287, "a credential too long for one `security` line", is BUILT, its battery is green, and its app run
+passed 31 of 31 readings at the parent and at HEAD. **It was pulled from 0.109.0 on his instruction and it
+lands in this phase's commit or immediately beside it**, because its verify and then its reverify both found
+the same thing: its three sentences cannot all be true while there are TWO stores that can refuse. On the
+arm the reverifier built and nobody else had, Tortie's own vault KEEPS a 1,940 byte sign in — `kept: true`,
+`restores: true`, `tooLarge: false`, the row drawing no label and promising "Puts this account back." — and
+the click then refuses with `This sign in is too large for Tortie to keep in the keychain`. Tortie kept it;
+what could not take the line was the VENDOR's item. So the sentence blamed the wrong store and the row's own
+promise contradicted the refusal on one screen.
+
+**This phase removes the case rather than rewording the sentence.** After it, Tortie's own vault cannot
+refuse for size at all, so the only store left that can is the vendor's, and one sentence can name it
+truthfully and once. Concretely, `LOGIN_TOO_LARGE_SENTENCE` becomes a sentence about the AGENT's copy, and
+the row-label family Phase 287 added dies whole: `LOGIN_TOO_LARGE`, `LOGIN_TOO_LARGE_SIGNED_IN`,
+`loginDrawsTooLarge`, `LoginRow.tooLarge` and its plumbing, because every `tooLarge` fact originates in the
+VAULT write's refusal and nowhere else. What SURVIVES is the refusal path itself and its toast, because the
+vendor's item still has a ceiling — about 1,954 bytes, and Phase 287's own finding 6 measured a claude login
+accumulating `mcpOAuth` entries at 2,158, already over it. **A later round must not read "287 deleted most
+of its own copy" out of this: it deletes the label family and keeps the sentence, and the reason is that the
+two stores remain two stores even after the vault stops refusing.** Phase 287's worktree, its measurements
+and its reverify findings are all preserved; what it needs from this phase is only the world in which its
+copy is true.
+
+### The mechanism
+
+1. **Tortie's own vault becomes ONE backend on every platform, a sealed file.** `vault.ts:24-27` already
+   states the seam ("A keychain item on macOS ... and a file with mode 0600 everywhere else. Both are
+   reached through `VaultBackend`") and `vault.ts:178` is `fileVault`; `index.ts:266` picks the keychain arm
+   on `darwin`, and `electron-builder.yml` packages `--mac` only, so the file arm ships to nobody today.
+   `sealedVault(dir, seal)` replaces both: `fileVault`'s body with the payload passing through `seal.wrap`
+   into `writeNoFollowSync` and `seal.open` out of `readTextNoFollowSync`. The path, the 0600 file, the 0700
+   directory, the `.writing` staged name and the rename are `fileVault`'s unchanged, so `nofollow.ts`'s
+   guard covers the new write and becomes load bearing on the shipping platform for the first time. The
+   platform branch goes, and so do `vaultServiceFor`, `vaultScopeDigest`, `VAULT_ACCOUNT` and
+   `VAULT_SERVICE_PREFIX` as write-side names — and with them the whole Phase 208 scoping problem, because a
+   file under `<userData>/gmux/logins/kept/` is scoped by where it sits.
+2. **The seal is a seam, `index.ts` stays the only file that names Electron, and an unavailable seal keeps
+   nothing.** `seal.wrap` is `safeStorage.encryptString(...).toString('base64')` and `seal.open` its
+   inverse, guarded exactly as `settings/store.ts:792` guards them,
+   `app.isReady() && safeStorage.isEncryptionAvailable()`. Everything below `index.ts` takes the seam as an
+   argument, which is what lets the gate run the shipping write under plain node. When no seal can be made
+   `wrap` answers null, `put` throws, and `safeSwap` answers the sentence it already has for a refused
+   stage, "Nothing could be written, so nothing changed." The observe logs `refused` as it already does and
+   the next observe keeps it once the seal is available. **No new copy, field or surface**, and never a
+   credential in the clear. The named cost: a platform with no OS keyring keeps nothing where today it
+   writes a 0600 plaintext file, and nobody ships there.
+3. **The keychain becomes READ ONLY for Tortie's own vault, and that is the migration.** `sealedVault`
+   takes a third argument, `legacy`, whose type has `get` and `del` and NO `put`, so no vault path can reach
+   `keychainWrite` at all. On a `get` that misses it asks `legacy` for the scoped name, and for the unscoped
+   one only where Phase 208's own-profile proof holds; on a hit it writes the sealed file through its own
+   staged path, READS IT BACK, and only then deletes the legacy item. `migrate.ts` is not rewritten: its
+   boot pass keeps working because `vaultPut` now writes a file, and it stays the sole composer of the
+   unscoped name.
+4. **Where a crash would lose a copy, for the option chosen: nowhere.** Write the sealed file, read it back
+   equal, delete the legacy item — so the only window holds TWO copies and the safe direction is the
+   duplicate. A kill before the read-back leaves the keychain item and an unreferenced sealed file the next
+   `get` overwrites; a kill between the read-back and the delete leaves both, and the next `get` reads the
+   file and never asks `legacy` again, so the item is swept on a later launch. The rejected option is Phase
+   208's, read then write then delete eagerly on boot, which has a real window between the delete and the
+   next successful write and buys nothing.
+5. **What this deletes, counted** from `git diff --numstat` in `/private/tmp/wt-p287` and from reading each
+   hunk. The `build/` figures are whole clauses and are the softest.
+
+   | Surface | 287 added | 304 deletes | Survives, for what |
+   | --- | --- | --- | --- |
+   | `src/shared/login-copy.ts` | 122 | ~73: `LOGIN_TOO_LARGE`, `LOGIN_TOO_LARGE_SIGNED_IN`, `loginDrawsTooLarge`, the label in `loginAccountDetail`, the switch-line suppression, the `loginSignInDoneLine` tail | `LOGIN_TOO_LARGE_SENTENCE`, `LOGIN_TOO_LARGE_RUNNING`, for the vendor write |
+   | `src/shared/logins.ts` | 34 | ~24: `LoginRow.tooLarge`, `defaultLoginRow`'s parameter | `LoginRefusalWhy` |
+   | `credentials/keep.ts` | 189 | ~146: `KeptFacts.tooLarge`, `Capture.why`, `Promotion.why`, the refused capture's arm, `factsFromSlot`'s field, `firstWhy`, `activateLogin`'s `own.why` skip and `!wrote` arm, `liftStore`'s two capture arms and its promotion arm | `ActivateResult.why`, the `done.why` passthrough |
+   | `logins/store.ts`, `ipc.ts`, `p202-logins-drive.ts` | 76 | ~26: every `tooLarge` field and fallback | all of `why` |
+   | `src/renderer/state/*` | 146 | 0 | the toast path: L5 still refuses and still stands |
+   | tests `p287-too-large*` | 1,109 | ~450: the copy test whole, half the credentials test | `p287-too-large-say.test.ts` |
+   | `build/` gates and probes | ~1,545 | ~500: rule 21 clause (g)'s observe, L2, L3 and L6 arms, clause (g2) whole, ablations 6, 7, 8, 10, 11 and 12 of 12, rule 19's `tooLarge` clauses and two of its three ablations | (a) to (f), ablations 1 to 5 and 9, for the vendor arm |
+
+   **About 1,220 lines deleted against about 540 added** (item 1 about 120, the seam and legacy arm about
+   100, the gate rule and ablation about 180, `probe:p304` about 140); in `src/` alone with tests excluded,
+   roughly 270 against 180. A net deletion on every count. One warning: `tooLarge` is an unrelated
+   identifier in the fs, editor, baselines and machines domains (`src/shared/fs-ops.ts`,
+   `src/renderer/editor/tab-io.ts` and seven more). **Delete by reading the login domain, never by grepping.**
+6. **The gates.** `conformance:credentials` rule 17, "THE VAULT IS SCOPED TO ITS PROFILE", is rewritten for
+   a file backend: the digest, the empty-scope throw and the invisible-to-another-profile clause give way to
+   the file's own location, and its migration half becomes the legacy read-through with the read-back before
+   the delete. Rule 21's cap clauses (a) to (f) narrow to the vendor arm and stay. Rules 14 and 15 keep
+   their text and gain real reach, because the vault's staged file now exists on macOS. **The new rule, 22,
+   is what this phase promises**: Tortie's own vault has no size limit and a credential of any size round
+   trips byte exact. It drives the shipping `vaultPut` and `vaultGet` over an injected seal at 4,193 bytes,
+   64 KB and 1 MB, compares by sha256, asserts the file's bytes are NOT the payload, and asserts no
+   `security` argv is composed on any vault path. Two ablations: the seal dropped so the file equals the
+   payload, and a size cap reintroduced in the vault. `conformance:logins` rule 19 keeps its `why` clauses
+   and loses its `tooLarge` ones.
+7. **The documents that go wrong in the same commit.** CLAUDE.md's path-triggered table: the
+   `conformance:credentials` row keeps "opens no keychain", which stays true, and gains the file backend and
+   the read-once legacy arm; the `conformance:logins` row must stop implying a size can reach a row.
+   `build/probe-p208-vault.mjs` and `build/probe-p204-accounts.mjs` both plant and grade
+   `Tortie-credentials-*` items and are rewritten here, because the app writes no such item afterwards and
+   the assertion becomes the stronger one, that none appears and none moves.
+
+### The proof, run rather than read
+
+- **The size test is the phase.** Rule 22 above, plus `probe:p304`: one Electron, one scratch profile, one
+  scratch HOME, the REAL `safeStorage`, keeping a 4,193 byte payload and a 1 MB payload through the shipping
+  `vaultPut` and reading each back through `vaultGet`, compared by sha256 of the payload against sha256 of
+  the answer and never by content. Profile and children end in a `finally`, through `build/electron-run.mjs`.
+- **The migration driven with a crash injected at each step**, over a scratch keychain made with
+  `security create-keychain` and never in the search list, one legacy item planted per step: killed before
+  the sealed write, between the write and the read-back, and between the read-back and the delete. After
+  every kill a copy exists, proved by reading one of the two places; after the next launch exactly one does,
+  byte equal by sha256. Plus the hostile fixture, a link planted at `<slot>.cred.writing` pointed at a
+  stand-in for `~/.codex/auth.json`, which must refuse the write.
+- **The parent measurement, mandatory.** At the parent, reading nothing of his: zero
+  `Tortie-credentials-codex*` items, and an observe of a 4,193 byte codex store refused with facts as if
+  never kept. At HEAD the same observe keeps it, and a switch away and back returns the same bytes.
+- **His no-regression rule, as a table** of scenario, today, HEAD, every row driven rather than argued:
+  observe a claude store unchanged; observe one that changed; observe one whose ACCOUNT changed so a login
+  is minted; choose a login with no session; choose one with a default session live; choose the default; add
+  a login; remove a login and check all four of its stores; an interrupted write stopped after each of the
+  three steps; two overlapping observes; a store caught mid change; a locked keychain; and the Phase 208
+  legacy item in both spellings. **No row may be worse at HEAD**, and a row that regresses drops from the phase.
+- **NO TOKEN BYTE in any output**, which rule 9 already asserts and which now also covers the sealed file's
+  bytes. **A photograph is forbidden**: nothing on screen moves except a label that goes away.
+
+### What is NOT in this phase
+
+- **No change to how the VENDOR's item is written**: `-i`, hex, `-U`, `-a` first, the account from
+  `claudeStoreAddress`, and the byte cap in front of it. `securityLineFits`, `SECURITY_LINE_MAX_BYTES`,
+  `tooLong` and `CredentialTooLarge` stay as Phase 287 left them.
+- **No change to what the vendor reads**, and no write of `~/.claude/.credentials.json`. Phase 287's
+  candidate (c), the vendor's own plaintext file store which Claude Code reads (research 126 §2.3), is the
+  only thing that would lift the remaining Claude limit, and it needs his ruling in his own words because it
+  puts a credential in a file the vendor chose rather than one Tortie owns. **Queue it; do not build it here.**
+- **Nothing about the `-w` escape**, closed and recorded above; re-trying it is re-deriving a measurement.
+- **NOT the argv, which is how orca does it, and the refusal is Tortie's oldest one in this domain.** A
+  parallel study of `/Users/gdc/orca` on 2026-09-20 read its credential write at
+  `src/main/claude-accounts/keychain.ts:212-221`, spawned by `execFile('security', args, …)` at `:295-298`:
+  the payload is an argv ELEMENT, so there is no shell and no line, and the ceiling is `ARG_MAX` at 1,048,576
+  bytes — 250 times his codex file. That escape is real and it is REFUSED here for the reason
+  `security.ts`'s own header gives: an argv is readable by every process on the machine, through `ps -ww`,
+  for as long as the call lives. **orca can afford it and Tortie cannot, and the difference is measurable
+  rather than a matter of taste**: orca does not run a fleet of agent processes under one user account and
+  Tortie does, several deliberately launchable with their safeguards off. Two further findings from that
+  study belong here so no round re-derives them. **orca never met this problem at all**: it gives each codex
+  account its own `CODEX_HOME` and switches an environment variable
+  (`runtime-home-service-managed-home.ts:145-150` says in its own words that there is "no shared-home
+  hot-swap or token read-back to reconcile"), so nothing of codex's ever enters a keychain there — a real
+  design choice that sidesteps the size question rather than answering it. And **Claude Code itself switches
+  to the argv form at 4,032 bytes** (`security.ts:109-112`, bundle 2.1.274), so the vendor already does on
+  this machine what Tortie refuses; that is a reason not to feel bad about the vendor's exposure and not a
+  reason to add Tortie's own.
+- **NOT a backend chosen by SIZE, keeping the keychain for whatever fits.** That is what the orca study
+  recommended and it is refused, because it is smaller only in the diff and larger in the product: two
+  backends live forever, every read has to ask both, and a credential that GROWS past the cap crosses the
+  boundary mid-life, which is a migration that happens at an unpredictable moment instead of once. The
+  operator asked twice on 2026-09-20 for this not to be overcomplicated, and one backend with a
+  read-through-on-miss migration is the simpler resting state. The cost of choosing it is named rather than
+  hidden: four real `Tortie-credentials-claude` items on his machine must move, where the size rule would
+  have left them alone, which is why the migration never leaves zero copies and is read back before the
+  legacy item is deleted.
+- **No new closed alphabet**, no change to `LOGIN_PROVIDERS`, `StoreWhere` or any other fixed set, and no
+  new dependency or native code, which is CLAUDE.md refusal 6 — `safeStorage` is Electron's own.
+- **No change to the record file, the sweep, `swap.ts`'s three steps, the locks, the watcher or the meter.**
+- **No fix for the other default-lift loss.** A capture refused for any reason OTHER than size still lets
+  the default lift write over an unkept sign in, exactly as Phase 287 left it in its section 7. Stated, not fixed.
+- **No release.**
+
+## Phase 305 — a Restart can hard-delete the record of a session the person removed (found by Phase 302's census, 2026-09-20)
+
+**Subject.** `fix(restart): a restart never deletes a row the person removed`
+
+**First body line.** `Phase 305: a restart never deletes a row the person removed`
+
+**Semver.** Patch. What stops happening is that a session the person removed can lose its Past Sessions entry outright, and with it the only record of that conversation Tortie still holds — after which the conversation cannot be restored from Tortie at all. Nothing a person does deliberately changes: a Restart on an ended row still creates the replacement and still hard-deletes that ended row, a Restart on a saved row still comes back with the conversation armed, a Restore from Past still clears the removal date, and the 90 day prune still collects an old tombstone on schedule.
+
+**Tier 3.** By CLAUDE.md's first question, in its strongest form: this loses the person's work, and the thing lost is a manifest row, which is the source of truth for restore. It is also a hard delete with no undo — the row's `agentSessionId` and `resumeArgv` are what a Restore from Past reads, and nothing else on disk holds them once the row is gone.
+
+**Two independent methods, one of them an attack.** First, **re-derive independently**: the verifier builds its own list, from the tree and not from this entry, of every path that can reach `core.discardSession` and of every surface that can offer or run a Restart, and answers for itself whether a `discarded` row can be handed to `restartSession`. The claim this entry makes is that it cannot be, from the UI, and a verifier that finds a surface that does has found the thing this entry says does not exist. Second, the **attack**: the adversary tries to get a delete past the new guard rather than to confirm it — a Remove landing during the create's await, during the kill's await, from a second window, from the session manager sheet while the rail's menu holds the restart, a row deleted entirely between the two reads, a `restorable` row instead of an `exited` one, and the harness sweeps that must still collect tombstoned scratch rows. An attack that cannot move the guard says so; an attack that breaks a smoke sweep has found the cost of the clause.
+
+**Charter.** Phase 302's own census, 2026-09-19, in the section "What is NOT in this phase": "**No repair of `src/main/restart/restart.ts:188`**, whose `const live = rec.status !== 'exited' && rec.status !== 'restorable'` reads a `discarded` row as live, calls `host.killSession` into the refusal it now gets, swallows it, and then hard-deletes the tombstone at `:203` — that is real, it was found by this census, and it is queued as its own entry in full house shape rather than absorbed here, because it is a delete rather than a status write and its fix touches the restart contract." Phase 302 also banked what the person loses, and this entry does not re-derive it: the Remove had already run `releaseSessionResources` and `releaseConversationClaims`, so the snapshot generations and the hook settings file were gone before Restart was pressed. What the delete takes is the ROW.
+
+**What the charter claimed, and what the tree says. This is a correction and the phase must not overclaim.** Two things, and the second is the reason the phase is still worth Tier 3.
+
+*The charter's own mechanism is not reachable from any surface.* `sessionActionGates` sets `offersRestart: ended && !remote` (`src/renderer/state/resume.ts:946`), and `ended` is `exited` or `restorable` and nothing else. A `discarded` row takes its own arm: `sessionMenuItems` returns identity rows and a path copy for it and no verb at all (`src/renderer/app/session-actions.tsx:948`). Every caller that runs a restart re-reads its row first and asks that field — `restartUnpanelled` at `src/renderer/session-manager/actions.ts:397`, `restartConfirmed` at `:874`, `restartSessionNow` at `src/renderer/state/sessions-slice.ts:1435` — and the two lists they read from cannot hold a removed row anyway, because `listSessions` skips `discarded` at `src/main/sessions/core.ts:2612` and the Past tab is a separate array. The loud `restartSession` (`sessions-slice.ts:1335`) looks its session up in `get().sessions`, so it cannot find one either. **So `:188` treating `discarded` as live, and the kill's refusal being swallowed at `:196`, are a hole in main rather than a defect a person meets.** Said plainly: nothing in the shipping UI reaches them.
+
+*The delete at `:204` is reachable, by a different mechanism, and it needs no other defect first.* `rec` is read ONCE, at `src/main/restart/restart.ts:121`, and never again. Both the liveness test at `:188` and the delete at `:204` run off that snapshot, across two awaits — `host.createSession(input)` at `:182` and `host.killSession(sessionId)` at `:191`. A create spawns tmux, so the first await is hundreds of milliseconds wide. A Remove that lands inside it is ACCEPTED, because `removeRefusal` passes `exited` and `restorable` (`src/main/sessions/lifecycle-gate.ts:107-116`), so the tombstone is written and the resources released. Restart then reads its stale snapshot, sees `exited`, computes `live` as false, attempts no kill, and hard-deletes the row the person has just removed. The renderer does not close this either: `removeSession` (`sessions-slice.ts:1356-1373`) asks no gate at all, it raises the confirm and calls `discardCore`, and the loud restart sets no busy flag, so one window and two menus are enough. **The charter's path and the reachable path end at the same line, and the reachable one never touches `:188`.**
+
+**What was measured before this entry was written, so no round re-derives it.**
+
+- `restart.ts` is 222 lines and holds exactly one manifest read, at `:121`. The four step order is stated in its header and the delete is the fourth step, at `:204`, with `host.broadcastSessions()` at `:205`.
+- `RestartHost` (`restart.ts:82-92`) already exposes `manifest.getSession`, so a second read needs no new host method and no new import. The module is deliberately free of the session core and of Electron, and a second `getSession` keeps it that way.
+- `core.discardSession` is at `src/main/sessions/core.ts:2941`, and its own doc comment at `:2932-2939` names its callers: "restart's old-row cleanup … and smoke and conformance cleanups, **which must remove tombstones too**". That is not decoration. `sweepLeftovers` (`src/main/conformance/scratch.ts:145-155`) and `cleanupT3Leftovers` (`src/main/harness/durability.ts:164-172`) both walk `core.listSessionRecords()` (`core.ts:2693`, which returns tombstones), filter by NAME PREFIX and not by status, and discard what they find. A blanket refusal inside `discardSession` leaves tombstoned scratch rows uncollectable for 90 days.
+- The 90 day prune does not go through `core.discardSession` at all. `pruneDiscardedSessions` (`src/main/manifest/sessions-repository.ts:866-877`) selects `status = 'discarded' AND removed_at < ?` against `DISCARDED_RETENTION_MS` at `:46` and calls `deleteSession` (`:619`) directly. So a refusal placed in `core.discardSession` would never have protected the prune, and cannot break it.
+- `toSession` copies `removedAt` onto the projection for ANY status (`src/main/manifest/codecs.ts:916`), so a managed-list row carrying a removal date is a shape the renderer can already be handed. That is the shape Phase 302's N1 produces, and it is the second way a person can reach this delete.
+- No gate's path list names `src/main/restart/`. The directory's only executable coverage is `src/main/restart/__tests__/restart.test.ts`, 33 cases against a hand-built fake host, inside `npm test`. Its nearest case, "is not stopped when it had already exited" at `:140`, drives `:188` for `exited` and for nothing else, and no case in the file writes anything to the row between the create and the discard.
+- CLAUDE.md's `conformance:manager` row (line 280) ALREADY names `src/main/sessions/lifecycle-gate.ts`, so a pure predicate placed there fires an existing trigger. `ablation:p293` (`build/p293/ablation.mjs`, 917 lines, 70 rules) runs that gate inside an APFS clone through `runGate()` at `:788` and restores every edited file by sha256, so a new clause gets its attack for the cost of one entry.
+
+**The mechanism.**
+
+1. **One fresh read, immediately before step 3.** `restart.ts` reads the row a second time through `host.manifest.getSession(sessionId)` after the create returns and before anything else. The step 1 read keeps its job, which is to recover the launch flags, the capture choice and the login for the create. Every decision after the create is taken from the fresh row. That single change is what closes both paths, because the charter's path and the reachable path are both a stale status.
+2. **A pure predicate in `src/main/sessions/lifecycle-gate.ts`, beside `removeRefusal`.** `restartKeepsRow(record)` answers true when the row carries a `removedAt`, and it is the only place the invariant is written down: a row carrying `removed_at` belongs to the person, and only a Restore from Past (`setRestoreResult`'s `clearRemovedAt`) or the 90 day prune may change that. The gate module imports one type and one shared leaf and can run nothing, which is why the rule goes there and not into `restart.ts`, where it would be a fourth spelling of a status set.
+3. **Liveness is computed from the fresh status, and `discarded` is not live.** The expression at `:188` names the three terminal words rather than two. `unknown` stays live, as it is today, because an unknown row may still have a pane.
+4. **Step 4 is skipped when the fresh row is a tombstone, and the replacement is kept.** A Restart on a removed row is a meaningful ask — the person wants a fresh session in that folder — so the create stands. What it must never do is delete the row. `RestartOutcome` gains `keptRemovedRow: boolean` and the restart log says in one sentence that the replacement exists and the removed session is still in Past Sessions.
+5. **A kill that was attempted and FAILED does not proceed to the delete.** The swallow at `:196` is right about the create (the replacement exists and is what the person asked for) and wrong about the delete: a pane that survived the kill and then loses its row is exactly the orphan the step 3 comment says must not exist, and reconcile can never adopt it back. The row stays, the warning stays, and the outcome says the old row was kept. This arm is unreachable from the UI today, and the phase says so rather than dressing it as a defect met.
+6. **A row that has vanished between the two reads is not an error.** `getSession` answering `undefined` at the second read means another writer already deleted it; nothing is deleted, nothing throws, and the outcome reports it.
+7. **Two clauses, one invariant, and the phase says why.** Phase 302 puts its clause in `updateSession`, where it refuses a status PATCH over a tombstone. This one refuses a DELETE, at the caller, on a fresh read. Different verb, different layer, different failure, and folding them would put a delete decision inside a merge that knows nothing about restarts. What is shared is the sentence in item 2, cited by both.
+8. **`conformance:manager`'s read half gains the rules, `ablation:p293` gains one entry per clause, and CLAUDE.md's row for that gate gains `src/main/restart/restart.ts` in the same commit.** No new gate script, so no new row in the table.
+
+**The proof, run rather than read.**
+
+1. **The interleaving grid over the fake host, red at today's build and green after.** `restart.test.ts`'s host gains settable delays on `createSession` and `killSession` and a hook that mutates the row mid-flight. The grid: the Remove landing at 0, 1, 5, 25 and 100 ms into the create and into the kill; starting statuses `exited`, `restorable`, `running` and `unknown`; the row tombstoned, the row deleted outright, and the row left alone as the control. Every cell prints the interval, the starting status, whether a kill was attempted, whether the row survived, and its `(status, removedAt)` afterwards. The expected table is derived by hand from this entry before the run and committed beside it.
+2. **`probe:p305`, one Electron, the real app.** A scratch profile, a scratch `HOME` and its own tmux socket, ended in `withElectron`'s `finally`. One real local shell session per trial: End it, press Restart through the shipping bridge, and fire Remove through the shipping bridge inside the create's await; read the row back through `sessions:list` and `sessions:listRemoved`, then read the manifest directly after the run. It runs at HEAD and at `0375c8a9`, which is 0.109.0's tip, because a window open at one and shut at the other names what shut it.
+3. **The ablation, one entry per clause.** The second read removed; the second read present but the delete decided from `rec`; `restartKeepsRow` inverted; the kept-row arm deleted; the failed-kill arm deleted. Each must make its OWN rule newly red in `conformance:manager`, by `ablation:p293`'s delta rule. A clause whose rule stays green has asserted nothing.
+4. **The harness sweeps still collect tombstones.** `npm run smoke:t1` and the conformance sweep are run and reported, because item 2's predicate is deliberately NOT placed in `core.discardSession` and this is the reading that proves the placement was the reason and not an accident. A sweep that leaves a `zz-conf-` tombstone behind is the clause in the wrong module.
+5. **Real data, read-only, on a copy, and the honest limit.** `SELECT count(*), min(removed_at), max(removed_at) FROM sessions WHERE removed_at IS NOT NULL` over a COPY of `<userData>/gmux/manifest.db`, never the live file and never opened for writing. This is the population at risk and nothing more: a hard delete leaves no trace, so **no query can say whether this has already happened to him**, and the phase states that rather than implying the count is a clean bill.
+6. **The no-regression side-by-side the operator's rule requires**, at `0375c8a9` and at HEAD, same session, same order, readings compared:
+
+| Scenario | Today (0.109.0) | HEAD | |
+| --- | --- | --- | --- |
+| Restart on an ended row | replacement created, old row hard-deleted, no Past entry | same, byte for byte | must not move |
+| Restart on a saved (`restorable`) row | replacement created with the launch flags and the login, conversation armed | same | must not move |
+| Restart while a Remove lands in the create's await | old row hard-deleted, Past entry gone forever | replacement created, Past entry kept, one log line | the fix |
+| Restore from Past | removal date cleared, conversation back, lands in the session | same | must not move |
+| 90 day prune | old tombstone collected through `deleteSession` | same | must not move |
+| Smoke and conformance sweeps | tombstoned scratch rows collected | same | must not move |
+
+Any row but the third reading differently is the part of the fix that is REMOVED and queued as its own entry.
+
+**What is NOT in this phase.** No reaper, no timer, no idle limit and nothing on project close: Tortie never automatically ends, suspends or kills a session, and this phase adds no exception. **No change to `removeRefusal`'s pass set**, in either direction — it is what closes Phase 302's local pair today and moving it would make both phases' grids unable to say which change did what. **No change to `endRefusal`**, and Phase 293's declined "`endRefusal` should also refuse `restorable`" stays declined for the reason it was declined. **No refusal inside `core.discardSession` and none inside `manifest.deleteSession`**, for the two measured reasons above: the harness sweeps must remove tombstones, and the prune does not pass through either place. **No change to what a Restart does to an ordinary ended row.** The hard delete stays, and the reason is written at `core.ts:2932-2939`: a tombstoned leftover would carry its live replacement's name. Sparing a row that already carries a removal date restores the person's own gesture; sparing every ended row would invent a behaviour nobody asked for. **No new surface, no new button, no new copy on any row**, so no native menu changes. **Nothing in `src/main/machines/`**: a remote row is refused at `restart.ts:138` before any of this runs, and that refusal is untouched. **No repair of `asStatus`** (`src/main/manifest/codecs.ts:615`) and no repair of the two mis-placed status writers Phase 302 owns; a read-side default and a write-side delete in one phase would leave both grids unable to attribute a reading. No schema change, no migration, no `CHECK` constraint. No change to the two list filters at `core.ts:2612` and `:2706`. Nothing in the shared IPC contract, the manifest schema, a `gmux.*` key or a `GMUX_*` name changes, so `docs/audits/contract-baseline.txt` is not regenerated. `probe:p305` reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises in the same commit and the commit body names the file. `conformance:hue`, `probe:p167` and the agent-resume roundtrip stay out, and no soak is run in place of the deterministic grid.
+
+## Phase 306 — a remote project tab you closed comes back by itself (Phase 293's per-row matrix verifier, case P2, 2026-09-19)
+
+**Subject.** `fix(machines): a closed remote tab stays closed`
+
+**First body line.** `Phase 306: the re-home asks whether a tab was closed`
+
+**Semver.** Patch. Closing a remote project's tab keeps it closed while its sessions keep running, and
+the session manager lists those sessions under the folder's own name with the tab shut. Nothing about
+the sessions moves, and Tortie still never ends a session by itself.
+
+**Tier 3.** It changes what main writes to the manifest on a machine poll tick, and it is per-machine,
+so the evidence is a matrix over real loopback machines rather than one run. The failure mode in the
+OTHER direction is the reason for the tier: a gate one clause too wide stops Phase 90.3 ever opening a
+tab for a folder on a machine, which puts a live remote session under a tab whose Explorer, Source
+Control and search show a folder on a different computer — finding 15 of research 54, the defect 90.3
+exists to prevent. Two independent methods, one an attack. **Re-derive independently**: the verifier
+builds the reachable-state table for (remote project row present or absent) x (tab-closed stamp present
+or absent) from the three writers and the one reader in source, by its own reading, and names which
+cells this phase makes unreachable — never from the fix's own tests. **Attack**: bring the tab back
+anyway by every route a person and a poll have, then try to make it never come back for a folder that
+never had one. The parent measurement rides along because it is the only honest proof.
+
+**Charter.** Phase 293's Tier 3 per-row matrix verifier, matrix case P2, recorded as a stated limit when
+293 landed at `f6c11f57`. `build/p293/SPEC.md:2181` states it: "main's remote re-home re-adds a remote
+project a person closed, so a refresh that re-reads `projects.list()`, the sheet's included, brings the
+tab back (the matrix verifier's P2)", and `:2308` routes it out of 293's charter as "none worse than
+today". The running log's landing line names it as "the sheet's Refresh re-opens a remote project tab
+you closed". Phase 299 takes C1 to C3, Phase 300 takes C4 and C5, Phase 302 takes the lost tombstone.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The re-add is main's, not the sheet's.** `rehomeRemoteSessions` (`src/main/machines/remote-rehome.ts:120`)
+  collects one folder per live remote session, then at `:166` asks
+  `store.getRemoteProject(folder.machineId, folder.path) !== undefined` — "does this tab exist" — and
+  upserts at `:170` when it does not. It never asks whether the row is absent because a person closed
+  it. It runs from `core.ts:1091`, inside the `onRemoteSessionsChanged` subscription at `:1086`, which
+  fires from `announce()` at the end of every completed machine pass (`remote-sessions.ts:2643`). The
+  row is back within one poll of the close, with no refresh anywhere.
+- **Main knows a person closed it, durably, and has since Phase 93.** `removeProject` (`core.ts:3312`)
+  calls `markProjectTabClosed` (`:3345`) BEFORE `deleteProject` (`:3365`), stamping `project_tombstone`
+  on every non-discarded session in that folder in one durable transaction
+  (`manifest/sessions-repository.ts:801`), matched on folder AND machine. `clearProjectTabClosed`
+  (`:841`) is the only thing that takes it off, and the remote add calls it (`core.ts:3301`). The
+  re-home upserts directly and never calls that clear, so it leaves the manifest with the tab row
+  present and every session in it still saying the person closed the tab. **The brief's guess is wrong:
+  the fact IS recorded, and the fix is to read it rather than to record it.**
+- **The stamp carries its own folder and machine**, `path` plus an optional `machineId`
+  (`core.ts:3350`), so a gate can ask about the folder it is upserting rather than about the row it
+  happens to hold. That matters because the re-home also MOVES rows (`:152`), after which a stamp
+  written for the old folder is still on a record that now names the new one.
+- **The renderer already draws the closed-tab case, for remote too.** `core.ts:2645` stamps
+  `closedProject` on a remote managed row from `rec.projectTombstone` (the Phase 93 fix round), and the
+  sheet's projection reads it at `projection.ts:337` for the group label, falling back to the folder's
+  basename. **Nothing on the sheet has to change for it to show what this phase stops re-opening.**
+- **Which reader shows the re-add, and why it looked like Refresh.** `reconcileRemoteTabs`
+  (`sessions-slice.ts:565`, called at `:1028` on every broadcast) is what normally re-reads
+  `projects.list()` for a remote folder with no tab, and its `tabsAskedFor` set (`:562`) is module scope
+  and never cleared, so after the first time it never re-reads and the re-added row stays unseen.
+  `refreshSessionSheet` (`session-manager-slice.ts:774`) is a NEW unconditional reader, which is why 293
+  surfaced this. **It has three doors, not one**: the toolbar Refresh (`SessionManagerSheet.tsx:517`),
+  Try again on a failed read (`:384`), and a restore landing on Managed (`session-manager/actions.ts:694`)
+  — so "only Refresh" does not hold.
+- **The re-added row has a NEW id.** `upsertRemoteProject` (`manifest/projects-repository.ts:92`) passes
+  `randomUUID()` and keeps the original id only on a `(machine_id, path)` conflict; the row was deleted,
+  so there is none. The tab comes back at the END of the strip, because `gmux.tabOrder` remembers ids,
+  and its `activeSessionByProject` entry is gone.
+- **Local has no such path**, verified rather than inherited. The only project-row writers are
+  `core.ts:3231`, `core.ts:3294`, `create-local.ts:267`, the re-home, `manifest/reconstruct.ts:986` and
+  the harness's `fold-seed.ts:98`. The first two are the person's own adds, the fifth a manifest
+  rebuild, the sixth a probe. Nothing derives a LOCAL row from a live session.
+- **The visible second symptom.** With the row back, `group.tabOpen` is true, so the sheet's own
+  `Closed tab` filter (`view.ts:102`) no longer finds the session whose tab the person closed.
+
+### The mechanism
+
+1. **One reader, with the same WHERE clause as the two writers.** Add
+   `projectTabClosedFor(target: { path: string; machineId?: string }): boolean` to
+   `manifest/sessions-repository.ts` beside `markProjectTabClosed` and `clearProjectTabClosed`, exposed
+   through `manifest/store.ts`. It reads non-discarded rows on that machine carrying a stamp and
+   compares the STAMP'S OWN `path` and `machineId` with the target, so a moved row cannot make it answer
+   about a folder the stamp never named. The `COALESCE(NULLIF(machine_id, ''), 'local')` match is copied
+   from `markProjectTabClosed`, so "this folder on this machine" has one spelling and not a fourth.
+2. **The re-home asks it.** `remote-rehome.ts:166` gains a second clause: skip the upsert when the row is
+   absent AND `projectTabClosedFor` answers true. Count it as `tabsHeldClosed` on `RehomeResult` and log
+   it only when the number moves, per Phase 70's rule about lines that say the same thing every pass.
+3. **The manifest-correction half is untouched.** `remoteProjectPathFor` (`:77`) and the `updateSession`
+   at `:152` keep running for every row, because which folder a session belongs to is what the sheet
+   groups by and what `core.ts:408` reads. Only the tab upsert is gated.
+4. **The one legitimate re-add clears the stamp.** `create-local.ts:267` upserts the folder after a
+   create on that machine, and the person named that folder, so it calls the same clear
+   `addRemoteProjectAdmitted` calls (`core.ts:3301`) in the same call. After this phase, "row present and
+   stamp present" is unreachable by any path a build can take.
+5. **The way back stays the person's.** Go to session reaches `openTargetProject`
+   (`projects-slice.ts:270`) then `addRemoteProject`, which clears the stamp and re-reads the list, so one
+   press brings the tab back with its label and its sessions. No new door, no new sentence.
+6. **The module's own docs move with it.** `remote-rehome.ts`'s "What it does not do" block says it does
+   not re-open a tab a person closed, because that header is what a later round reads first.
+
+### The proof, run rather than read
+
+- **The reachable-state table, re-derived by the verifier** from the three writers and the one reader in
+  source: four cells, which are reachable at the parent, which this phase makes unreachable, and which
+  writer reaches each one.
+- **A per-row matrix over real loopback machines**, the shape 293's matrix verifier used: for each of
+  open tab, closed tab, folder that never had a tab, folder whose row is being MOVED in the same pass,
+  and a machine that stops answering mid-pass — whether the row is upserted, whether the stamp survives,
+  the sheet's group label, its `tabOpen`, and whether `Closed tab` finds the row.
+- **The attack.** Bring the tab back by every route: the three `refreshSessionSheet` doors, a create on
+  that machine in that folder, a rename, a kill, a machine waking, a reopened window, a relaunch. Then
+  the other way: a folder that never had a tab still gets one on the first completed pass, and ten
+  sessions in one folder are still one upsert (`p903-a-rehome.test.ts:178`).
+- **`probe:p293` gains one arm** — open a remote project, close its tab, let a poll complete, press
+  Refresh, read the tab strip's rectangles and the sheet's group row. No new script, so
+  `HELPER_USER_FLOOR` does not move. **No photograph is proof here**: every reading is a count, a
+  rectangle or a byte.
+- Gates: the battery, `conformance:remoteclose`, `conformance:manager`, `ablation:p293`, and a unit
+  ablation of each new clause in `p903-a-rehome.test.ts` that must go red on the clause that owns it.
+- **The no-regression side-by-side.** A part that regresses is REMOVED from this phase and queued.
+
+  | Scenario | Today (`0375c8a9`) | HEAD |
+  | --- | --- | --- |
+  | Open a remote project | tab opens, sessions under it | unchanged |
+  | Close its tab | tab goes, sessions keep running, stamp written | unchanged |
+  | Press Refresh in the sheet | tab reappears, new id, end of the strip | tab stays closed |
+  | The sheet lists that session | listed, but the group reads tab-open | listed, group reads tab-closed under the folder's own label |
+  | End it from the sheet | ends, row stays as Ended | unchanged |
+  | A LOCAL project's tab closed, then Refresh | stays closed | unchanged |
+  | A machine folder that never had a tab | tab opens on the first pass | unchanged |
+
+### What is NOT in this phase
+
+- **No reaper, no TTL, no idle limit, nothing on project close.** Tortie never ends, suspends or kills a
+  session by itself (the operator's ruling, 2026-09-20). A closed tab is a tab, not a verb.
+- **No change to what a session IS**, and no new surface, sentence or menu row. No status moves, no
+  `project_path` rule changes, and nothing is sent to any machine by any line this phase adds.
+- **`reconcileRemoteTabs`'s `tabsAskedFor` is not touched.** It is a per-run memo that happens to hide
+  today's defect; clearing it on close would be a second place deciding whether a tab may open, and the
+  decision belongs in main.
+- **No re-add is repaired retroactively.** A manifest already holding a re-added remote row keeps it;
+  closing that tab once more now sticks, and no durable write is made over anybody's manifest at open.
+- **A feed row with no manifest row keeps today's behaviour** (`p903-a-rehome.test.ts:195`): there is no
+  record to carry a stamp, so its folder still gets a tab. That is every remote session created by 0.34
+  or 0.35, and it is a stated limit rather than an item.
+- **The orphaned stamp on a MOVED row is recorded, not fixed.** After a move the stamp names the old
+  folder while the record names the new one, so reopening the NEW folder clears a stamp the old one
+  wrote. The gate is immune by reading the stamp's own fields; making the stamp follow the move is a
+  separate entry if anybody meets it.
+- No release, and it lands after Phase 303 and rebases onto it.
+
+## Phase 307 — two gate clauses whose sentence is wider than their test: a regex read as a process, and a menu row read for its order but never for which menu it is in (Phase 293's battery and Phase 296's re-derivation verifier, 2026-09-20)
+
+**Subject.** `test(gates): a call is discovered by what it is, and a row by the menu it sits in`
+
+**First body line.** `Phase 307: two clauses that assert less than they say`
+
+**Semver.** None. Nothing a person sees, drives or reads moves. No menu row, mark, order, sentence or surface changes, and no release follows. What does not move: `src/main/menu.ts`, whose sha256 is `71e73039133eff897ef4752dc671dc39ec4ae1d2aa6153a1f90bc4b42c5397b0` before and after, carrying Phase 296's central refusal forward.
+
+**Tier 2.** The change is invisible to a person, which CLAUDE.md sends to Tier 2, where the gates ARE the evidence and the verifier re-derives rather than photographs. There is no app run to spend, because nothing on screen moves. It is not Tier 1, because the defect in both halves is a clause that cannot fail, so a green gate after the fix proves nothing on its own. **The independent method is an ATTACK**, and a second one is a RE-DERIVATION: the verifier writes the shapes the builder did not — a member-form spawn, a spread start, a regex reached through a parameter, three menu rows moved whole into another submenu — and separately counts the candidate population and the spawner set by its own reading, against the numbers below.
+
+**Charter.** Two findings from two different verifiers on 2026-09-20, filed as one phase because they are one mechanism: a check whose sentence is wider than its test.
+
+- **`gate:background`'s false positive.** Found by Phase 293's battery. A regex literal's own `.exec` is read as `child_process.exec`, the gate goes red naming a child that does not exist, and it blocked a build. `build/p293/probe-p293.mjs` was routed around it rather than the gate being weakened, deliberately: that gate exists because on 2026-09-02 six orphaned shell loops reparented to launchd and ran for two hours and three minutes at about 550 percent of the operator's CPU until he noticed his fans. The probe reads colour with `raw.match(/^rgba?\(([^)]*)\)$/i)` at `:1097` and `:2522` today, which is the route around.
+- **The handback gate reads ORDER but never MEMBERSHIP.** Found by Phase 296's own re-derivation verifier, which wrote a TypeScript-AST reader of its own. Its finding is already recorded rather than absorbed, in `78514ab7`'s commit body: "this gate reads whole-file line ORDER and never submenu MEMBERSHIP, so all three rows moved together into the Project submenu still pass — that is pre-existing, Phase 141's reader was the same, and it is queued as its own entry." This is that entry.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Every number below was read by importing the gates' own exported functions from a scratch script and running them over this tree. No file under `/Users/gdc/gmux` was written, no Electron started and nothing spawned.
+
+- **`gate:background` is GREEN today and the false positive is latent, not live.** `node build/assert-background-teardown.mjs` prints "443 files under build/ were read, 2 start a process they do not wait for and every one of them ends it inside a finally block. 19 of 19 fixtures behaved."
+- **The brief's mechanism is one step short, and the step matters.** A regex `.exec` alone does NOT redden the gate. `build/assert-background-teardown.mjs:126` holds `const NODE_SPAWNS = ['spawn', 'execFile', 'exec', 'fork'];`, and `:342` builds `new RegExp(`\\b(${[...spawners].join('|')})\\s*\\(`, 'g')`, so `\b` matches between the `.` and `exec` and the site becomes a candidate. It is only REPORTED when `withValues` (`:189`) expands the argument text with every value the argument's NAME is assigned and the result matches `NEVER_STOPS` or `DETACHED`. So the red needs a NAME COLLISION. Measured: `const raw = 'sleep 900';` beside `/^rgba?\(([^)]*)\)$/i.exec(raw)` yields one finding, `why: 'a runner that does not stop by itself'`, `binding: null` — and `binding: null` means no `finally` anywhere can ever clear it, so the only ways out are renaming a variable or routing around the gate. A builder told only "exclude `.exec`" would fix the wrong thing.
+- **The candidate population, and it is large.** Under build/, 471 call sites match a discovered spawner name with a `.` immediately before, across 161 files. Zero of them match `NEVER_STOPS` or `DETACHED` today, which is why the gate is green; p293's probe was the first to collide. Bucketed by what the receiver actually is: 265 a regex literal ending in `/`, 32 a regex literal's flag run after the `/`, 128 a name the same file assigns a regex literal or a `new RegExp`, and 46 a residue that is mostly `...spread(` sites, where the `.` is a spread operator and not a member access at all.
+- **The false positive also PROMOTES pure text helpers into spawners, which is the bigger half.** `spawnersIn` (`:155`) adds any named function whose body reaches one of the four names. Across build/, 269 functions in 143 files are read as process spawners, and 252 of them — 94 percent — only because their body holds a method call named `exec`, `spawn` or `fork`. In the gate's own file the promoted set is `bindingOf`, `aliasesOf` and `longLivedStarts`. None of the three starts anything.
+- **A DECLARATION is read as a call site.** The same regex matches `function other(cmd)`. Measured: a file holding `const cmd = 'while :; do :; done';` and `function other(cmd) { return spawn('/bin/sh', ['-c', cmd]); }` produces TWO findings on the same line, one of them the header. Under build/ there are 232 sites where a discovered spawner name is being declared rather than called.
+- **Would the gate flag itself? Not today, and the reason is luck.** `build/assert-background-teardown.mjs:230` is `const m = form.exec(before);`, and it reports nothing because `before` expands to `code.slice(cut + 1, at)`, which carries no loop term. Plant ONE colliding assignment beside `STARTERS` — `let before = 'while :; do :; done';` — and the gate reports FOUR findings in its own source, at `:230` (`form.exec(before)`), `:247` (the `export function aliasesOf(...)` header), `:314` (`const names = aliasesOf(code, binding);`) and `:350` (`const binding = bindingOf(code, m.index);`). Only the first is a `.exec` at all.
+- **The working sibling already has half the fix, and shares the other half of the defect.** `build/assert-known-hosts-scoped.mjs:476` is `if (/\bfunction\s*\*?\s*$/.test(code.slice(Math.max(0, m.index - 24), m.index))) continue;` with the comment "`function sh(file, args)` is where a wrapper is DEFINED, not a call to it." The background gate has no such guard. But the known-hosts gate keeps the member form on purpose, so it has the regex hole too: measured, `const prog = 'ssh'; const m = /x/.exec(prog);` is reported as rule 1, "exec(prog, ...) starts ssh itself". `build/assert-electron-teardown.mjs` does not discover calls this way and is not affected.
+- **The helper already exists.** `closeOf` at `build/scan-source.mjs:216` matches `(`, `[` and `{` with quotes tracked. `build/handback-conformance-probe.mts:345` defines `closingParen`, a third matcher for the same job, and the probe already imports `./source-prose.mjs`, so importing `closeOf` is the same shape.
+- **The handback gate's two menu clauses, read.** `menuNeedle` (`handback-conformance-probe.mts:333`) searches the whole blanked file and returns 0-indexed LINES. `placedAfterEndSession` (`conformance-handback.mjs:389`) is `allMenuRowsLocated && endSessionCount === 1 && menu.endSessionAt < menu.rowAt && menu.rowAt < menu.hotkeysAt`. Nothing anywhere asks which array a row is in. The printed table's label at `:777` reads "rows in the Session menu" while its value is `menu.rowCount`, a whole-file count of `'resume-conversation'`.
+- **In this tree the membership test is easy and unambiguous.** `label: 'Session'` appears exactly once, at `src/main/menu.ts:848`, with its `submenu: [` on `:849`. The three rows are at `:866` (`item('End Session…', 'end-session', undefined, 'close')`), `:883` (the resume row) and `:924` (`...agentHotkeyItems()`). `label: 'Project'` is `:955`, `label: 'View'` is `:969`, and Catch Me Up is `:1085`, inside View — which is why moving the three rows into the Project submenu kept `src/shared/__tests__/overview-contract.test.ts:182`'s sibling pin satisfied.
+- **"Immediately after" can be honoured rather than softened.** Between `:866` and `:883` there is nothing but prose, which `stripProse` blanks, so on the text the gate reads the two rows are adjacent `item(` calls with no separator between them. The sentence at `conformance-handback.mjs:458` is therefore TRUE of this tree, and the right repair is to strengthen the test to match it, not to weaken the words.
+- **`itemCallAround`'s parameter is an offset, and its guard is a line.** `itemCallAround(at)` at `:401` does `menuCode.lastIndexOf('item(', at)`, a character offset. Its one caller at `:436` passes `resumeRow.at === -1 ? -1 : menuCode.indexOf(`'${ACTION}'`)` — the GUARD is a 0-indexed line and the ARGUMENT is an offset. Today's answer is correct; the mixed units are a plausible wrong answer waiting for a later round.
+
+### The mechanism
+
+1. **One receiver test, in `build/scan-source.mjs` beside `closeOf` and `callArguments`, exported and read by both gates.** Given the code and the index of a matched call name, it answers what precedes it: a member access on a REGEX receiver, a member access on anything else, a spread, a declaration, or a plain call. A regex receiver is one of the three shapes measured above — a literal ending in `/`, a literal's flag run after the `/`, or a name the same file assigns a regex literal or a `new RegExp`. Nothing else is inferred, and the answer for a receiver that is none of those is "anything else", which stays a candidate.
+2. **`build/assert-background-teardown.mjs` drops two kinds of site and nothing more.** A member call on a regex receiver, and a declaration header, using the sibling's spelling at `assert-known-hosts-scoped.mjs:476` rather than a second one. A member call on any other receiver stays a candidate, so `cp.spawn(…)` is still read. A spread stays a call, so `...startLoaders()` is still read.
+3. **`spawnersIn` asks the same question.** This is the item that removes 252 of the 269 promotions. A function whose only reach is `re.exec(x)` is not a spawner.
+4. **`build/assert-known-hosts-scoped.mjs` calls the same test for its regex arm**, keeping its member form, its six passes and its `SEED_WRAPPERS`. Its `/x/.exec(prog)` finding goes away and its printed line does not move.
+5. **The new shapes go into `build/background-fixtures.mjs` in the same commit**, which CLAUDE.md's second ride-along obligation requires: the regex `.exec` with a colliding name; the same with the regex in a named constant; the declaration header beside a real call; a member-form `cp.spawn('/bin/sh', ['-c', LOOP], { detached: true })` that must still be found; a spread of a starter that must still be found; and a regex reached through a parameter, which is the residue and must still be REPORTED, because the gate fails closed there.
+6. **The handback gate gains a membership clause.** The probe finds `label: 'Session'`, requires it exactly once the way `rowCount` already requires of the resume id, takes the `submenu: [` that follows and its span from `closeOf`, and publishes that line range. `conformance-handback.mjs` then requires all three rows inside it, with its own sentence naming the menu each row was found in instead. The order clause stays beside it unchanged.
+7. **The order clause is strengthened to its own sentence.** The resume row must be the NEXT `item(` call after End Session in the blanked text. The sentence at `:458` is unchanged, because it was already the honest one.
+8. **`closingParen` is deleted and `closeOf` imported.** One matcher, not three.
+9. **`itemCallAround(at)` becomes `itemCallAround(offset)`**, and the caller's guard is written on the same quantity it passes. No answer moves; the byte-comparison in the proof is what shows it.
+10. **`ablation:p307`**, at `build/p307/ablation.mjs`, declared in `package.json` and classified `pure` in `build/verification-checks.mjs` in the same commit, as `gate:checks` requires. It edits sibling copies, restores every file by sha256 in a `finally`, and every arm goes red on the clause that owns it: the receiver test removed, each half of it removed separately, the declaration guard removed, the membership clause removed, the adjacency clause removed. Its controls are the shapes that must stay green.
+
+### The proof, run rather than read
+
+- **The parent measurement.** `gate:background`'s printed line at HEAD is byte identical to the parent's: 443 files, 2 starts, every one ended in a `finally`. `assert-known-hosts-scoped`'s line is byte identical too: 471 files, 19 reaching `build/ssh-run.mjs`, 36 fixtures with 32 that must fail. `conformance:handback` exits 0 with PASS at both, with two lines added to its table.
+- **`npm run ablation:p307`.** Every arm red on its own clause, every control green, every file's sha256 equal to its original afterwards.
+- **The counts re-derived by the verifier, not read from this entry.** 471 dot-preceded candidate sites before and 46 after; 269 promoted functions before and 17 after; 232 declaration sites before and 0 after. A verifier that only re-runs the gate has not verified.
+- **No regression, side by side, as the operator's standing rule requires.**
+
+  | Scenario | Today | HEAD |
+  | --- | --- | --- |
+  | `gate:background` over build/ as it stands | 443 files, 2 starts, 0 findings, 19/19 fixtures | the same line, byte for byte |
+  | The 2026-09-02 six-loop shape | 1 finding | 1 finding |
+  | A detached child, a sleeper program, a loop in a named constant, a child nobody binds | reported | reported |
+  | `/^rgba?\(…\)$/i.exec(raw)` beside `const raw = 'sleep 900'` | 1 finding, `binding: null`, unfixable | 0 findings |
+  | `cp.spawn('/bin/sh', ['-c', LOOP], { detached: true })` | 1 finding | 1 finding |
+  | `...startLoaders()` whose callee starts a loop | reported | reported |
+  | A regex reached through a parameter, argument holding a loop | reported | reported, and the fixture says so |
+  | `/x/.exec(prog)` beside `const prog = 'ssh'` | rule 1 finding | 0 findings |
+  | `assert-known-hosts-scoped` over build/ | 471 files, PASS | the same line, byte for byte |
+  | `conformance:handback` on this tree | exit 0, PASS | exit 0, PASS |
+  | The three rows moved whole into the Project submenu | exit 0, "rows in the Session menu 1" | exit 1, naming the menu each row was found in |
+  | Two unrelated rows and a separator between End Session and the resume row | exit 0 | exit 1 on the adjacency clause |
+  | `itemCallAround`'s answer over this tree | the resume row's whole `item(` call | the same string |
+
+  A part that regresses is REMOVED from this phase and queued as its own entry.
+- **Gates.** typecheck; build, which runs `gate:background`, `gate:knownhosts`, `gate:electron`, `gate:checks` and `gate:contract`; test, for `overview-contract.test.ts` and `keymap-single-source.test.ts`; smoke:t1; conformance:handback; ablation:p296, which must stay green over the shared matcher; ablation:p307.
+
+### What is NOT in this phase
+
+- **`src/main/menu.ts` IS NOT EDITED.** Phase 296's central refusal carries forward, and its sha256 is pinned in the commit body before and after. No row, mark, order, accelerator or menu moves, and the phase brief's menus line reads "no change".
+- **The receiver test is never "reject every member call".** That would make `cp.spawn(…)` invisible, which is a gate made permissive, and a permissive gate is worse than one that cries wolf. Only a REGEX receiver is dropped, and a receiver that cannot be shown to be a regex stays a candidate.
+- **No fixture is loosened and none is deleted.** All 19 must still behave, including the six-loop shape, the sleeper program, the burner held in a name, the detached options object held in a name, the unrelated inner `finally`, and one loop ended with a second below it.
+- **No AST parser.** These gates read text on purpose and the sibling readers agree with them at three commits. Whether `build/` should gain a parse is its own entry.
+- **`NEVER_STOPS` and `DETACHED` are unchanged.** The four terms and the reason a fifth was removed stand. This phase narrows WHICH SITES are asked, never WHAT is asked of them.
+- **`conformance:handback` does not join `npm run build`, `npm test` or CI.** Phase 296 left that to the operator and this phase does not decide it either. It stays findable by the paths 296 added to CLAUDE.md, and this phase adds `build/scan-source.mjs` to `gate:background`'s and `gate:knownhosts`'s rows there.
+- **No sweep of the other gates that discover a call by name.** Two were measured and named above; whether any third reader in `build/` has the same hole was not measured and finding out is its own entry.
+- **No release, and no session lifecycle is touched.** Nothing here ends, suspends or kills a session.
+
+## Phase 308 — a check goes red for the machine's reasons: the native watcher lane under a busy Spotlight (measured during the 0.109.0 release battery, 2026-09-20)
+
+**Subject.** `test(watcher): the native lane fails for the code, never for a dropped batch`
+
+**First body line.** `Phase 308: the native lane fails for the code, never for the machine`
+
+**Semver.** None. It changes two test files under `src/main/**/__tests__/` and, if the judgement below
+is accepted, one already-queued entry. No shipping byte moves and
+`src/main/watcher/repo-watcher.ts` is not touched.
+
+**Tier 2.** It is invisible to a person, so the gates are the evidence and the verifier re-derives
+rather than photographs. It cannot lose his work — the tests write only inside their own `mkdtemp`.
+**The two independent methods.** (1) **Re-derive**: the verifier writes its own churn harness against
+the shipping `RepoWatcher`, reads `observation.drops` itself, and confirms or refutes the drop
+mechanism below without reading the fixed test. (2) **Attack**: it tries to make the fixed negative
+assertion pass over a watcher that has genuinely gone blind, which is the regression it exists for.
+
+**Charter.** The release battery for 0.109.0, 2026-09-20. `src/main/watcher/__tests__/repo-watcher.native.test.ts`
+failed **five of six full `npm test` runs across both builds** — three at Phase 298's HEAD and two of
+three at its parent `be0c22aa` — and **a different test case failed each time**:
+`stays sighted when an ignored root is named !archive`, then
+`ignores churn inside an ignored directory and still sees a tracked edit`, then
+`attaches the dotgit watcher after a late git init`. It passed **three for three in isolation** at
+HEAD. Throughout, `fseventsd` held about 1,116 MB and `mds_stores` about 1,575 MB reindexing.
+`src/main/config/__tests__/store-watch.native.test.ts` failed one earlier run and also passed alone.
+A different case each time, at both builds, green alone, is evidence about the machine.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The positive waits are already conditions, not clocks**, so the obvious diagnosis — a fixed timeout
+  under a loaded daemon — is only half of it, and the other half is the one that matters.
+  `repo-watcher.native.test.ts:30-40`'s
+  `waitFor` polls a predicate every 50 ms against a deadline, and every "did it fire" assertion goes
+  through it (`:74`, `:87`, `:127`, `:132` on the 5,000 ms default at `:28`; `:143`, `:186`, `:234` on
+  an explicit 8,000). `store-watch.native.test.ts:76-78` is the same shape at 10,000 ms inside a
+  20,000 ms `it`. A deadline there is a give-up bound and never the assertion.
+- **The negative assertions are the clocks, and there are four.** `:90-96` (700 then 1,500 ms),
+  `:174-182` (2,000 ms), `:238-244` (700 then 2,000 ms) and the dispose check at `:100-104` (1,200 ms)
+  each read a baseline, act, sleep a fixed time and assert `fires` did not move. Four more fixed sleeps
+  — `:69`, `:122`, `:171`, `:229` — stand in for "FSEvents has settled".
+- **A DROPPED BATCH FIRES `onChange` BY DESIGN, with no path involved at all.** This is the whole
+  finding. `repo-watcher.ts:376-395` (`noteDrop`) calls `scheduleFlush()`, and `:405-421` calls
+  `this.onChange(this.repoPath)` at the end of the 300 ms window (`DEFAULT_DEBOUNCE_MS` at `:105`,
+  non-resetting, header `:16-19`). `:347-350` says it outright: "the flush is UNCONDITIONAL on a drop
+  rather than filtered by `isRelevantDotGitPath`, because a dropped batch tells us nothing about which
+  paths were in it." Phase 151 made that true deliberately and its table at `:52-62` is why. **So
+  `expect(fires).toBe(quiet)` asserts something production explicitly does not promise**, and a loaded
+  `fseventsd` is exactly when a drop arrives.
+- **Measured tonight over the shipping class, three runs.** At the committed churn of 400 files:
+  `drops=0, moved=0`, twice. At 4,000: `drops=1, moved=1, rescansCompleted=1`, with the log line
+  "Events were dropped by the FSEvents client. File system must be re-scanned." One fire also arrived
+  inside the 800 ms settle in the first run (`quiet=1`). The drop, not the wait, is what reddens these
+  two cases, and the discriminator is already public: `repo-watcher.ts:210`,
+  `readonly observation = { drops: 0, rescansScheduled: 0, rescansCompleted: 0 }`, which neither
+  native test reads.
+- **The runner budget was already raised once, and its reasoning forbids copying it here.**
+  `vitest.config.ts:47-68` raised `testTimeout` to 15,000 ms and says why that lost nothing: "a timeout
+  is a ceiling and never a wait." A `sleep` inside a negative assertion IS a wait, so the argument does
+  not transfer. The lane is separable already: `vitest.config.ts:35-45`, `package.json:231`.
+
+### THE JUDGEMENT ON PHASE 285, AND IT IS THE DECISION THIS ENTRY OWES
+
+The second finding of the night — `probe:p293` failing with "1 session WENT from -L gmux during this
+launch: hotdog", where `hotdog` had been **removed by the operator in the sheet** — is **not a new
+phase. It is Phase 285, and Phase 285 already predicted it in writing.** The reading comes from
+`censusFinding` (`build/electron-run.mjs:568-590`), which compares `#{session_name}` alone
+(`liveSessionNames`, `:539-550`); `probe:p293` reaches it because `harness-socket.mjs --fresh
+gmux-p293` (`package.json:91`) gives it a scratch socket and `probe-p293.mjs:3458` passes it on, which
+is the `tmuxSocket !== null` condition at `:938`, and the finding is thrown after teardown at
+`:1088-1097`. Phase 285's mechanism item 3 says:
+
+> **A session that went stays fatal** … The cost is known and smaller: his CLOSING a session mid-run
+> still reddens a probe. Flipping that to a note when the launch's own socket announcement was
+> correct is his call, and the entry does not make it for him.
+
+Tonight is him making that call. **Fold it into Phase 285 in place**, under CLAUDE.md's own exception
+for an entry written earlier but never queued, and do not create a near-duplicate. What the edit adds,
+and it is three clauses rather than a new mechanism:
+
+1. **The flip is conditional on the announcement having SPOKEN, not merely on there being no
+   finding.** `announcementFinding` (`build/electron-run.mjs:505-525`) returns `null` for two
+   different worlds, and its own header says so at `:494-499`: "nothing announced → null … THAT IS A
+   STATED LIMIT". So 285's clause must read *at least one `[gmux-socket]` line was captured and every
+   one of them equalled the scratch socket this launch asked for*. A silent launch keeps the fatal.
+2. **Rule 5f must widen, or the flip opens a hole 285 did not price.** `assert-electron-teardown.mjs:1121-1134`
+   and `:1383-1410` scan `build/${HELPER}` — `electron-run.mjs` alone. Nothing stops a probe SCRIPT
+   from aiming `kill-session` at `-L gmux` itself, and an agreeing announcement says nothing about the
+   script. The flip is safe only when 5f's scanner runs over every script under `build/` that reaches
+   the helper, in the same commit.
+3. **The guard reads NOTHING NEW, and this is the answer to "what may it read".** The manifest does
+   answer tonight's question — `markSessionRemoved` (`sessions-repository.ts:636-650`) writes
+   `status = 'discarded'` and `removed_at` in one durable statement, `schema.ts:256` says `removed_at`
+   is "Written only by the tombstone write in `markSessionRemoved`", its only callers are the Remove
+   verb at `core.ts:2995` and `:3025`, and a kill writes `exited` — which is why a `removed_at` of
+   19:35:57 is the Remove verb's own signature and could not be a kill. **That answer belongs to a
+   human doing forensics afterwards, not to the guard.** The guard must not open his live
+   `manifest.db`: it is his private session list, it is a WAL database his running app owns, and a
+   read-only connection cannot recover a hot journal, so a busy app would turn the verdict into a coin
+   flip. `liveSessionNames` (`:539-550`) stays the only reader and `list-sessions` the only verb.
+
+### The mechanism, which is finding 1 only
+
+1. **Every negative assertion gains a precondition on `observation.drops`.** In
+   `repo-watcher.native.test.ts`, each of `:96`, `:104`, `:182` and `:244` reads `rw.observation.drops`
+   beside its baseline. The assertion becomes: `fires` did not move, OR `drops` moved and the window is
+   re-taken. A move with **no** drop stays a hard failure, which is the regression these cases exist for.
+2. **A dropped window is re-taken, at most three times, and then it FAILS** — a fresh baseline and a
+   fresh churn burst each time. Three windows all carrying a drop is a machine saying it cannot answer,
+   and the message says exactly that and prints `observation.drops`. Never a skip, per the file's own
+   header rule at `:8-11`.
+3. **The settle sleeps become a barrier.** `:69`, `:122`, `:171` and `:229` are replaced by: write one
+   sentinel file in a WATCHED path, `waitFor` the fire it must produce, then read the baseline. The
+   stream orders that fire after the setup writes, so the baseline starts where the stream has caught
+   up, and on a quiet machine it is faster than the sleep it replaces.
+4. **`store-watch.native.test.ts` keeps its condition and its 10,000 ms bound at `:76`** and gains the
+   one thing it lacks: on timeout it prints `agentOverlayDiskReads()`, so a repeat reads as a delivery
+   problem or a wiring problem rather than as neither.
+5. **The rule goes in both headers, as text**: a native lane asserts what the production contract
+   promises, the contract promises an `onChange` for a drop, and a `sleep` may never carry a negative
+   assertion.
+
+### The proof, run rather than read
+
+- **The ablation, which is what separates a real fix from a longer timeout.** Plant a drop
+  deliberately — 4,000 churn files inside the ignored directory, measured tonight to produce one — and
+  run both versions over the same fixture. The committed test must go RED and the fixed test must stay
+  GREEN. Then the attack: blind the watcher for real (restore the `<name>/**` glob that Phase 151's
+  `!archive` case exists for) and the fixed test must go RED anyway. A fix that only survives the
+  first arm is a timeout in disguise.
+- **Repetition under measured load, and the number is stated so it is not negotiable afterwards.**
+  **Ten consecutive `npm run test:native` runs, all green**, with `fseventsd` at or above 1 GB and
+  `mds_stores` reindexing, the load read with `ps -Ao pid,rss,comm` before and after each run and all
+  ten readings recorded. Tonight's rate was 5 of 6 red. Ten consecutive greens bound a surviving
+  per-run failure rate below one in a thousand if it were still one in two. The same ten runs at
+  `0375c8a9` under the same load are the before column.
+- **No-regression side-by-side**, the operator's standing rule:
+
+  | Scenario | Today (`0375c8a9`) | HEAD |
+  | --- | --- | --- |
+  | `npm run test:native`, quiet machine | green, 4 cases | green, 4 cases, no case removed |
+  | `npm run test:native`, `fseventsd` at or above 1 GB | red in 5 of 6 | green in 10 of 10 |
+  | A drop planted (4,000 churn) | red | green, and the note names the drop |
+  | The watcher genuinely blinded | red | red |
+  | Wall time of the file, quiet machine | recorded | not slower; the barrier replaces 2.8 s of sleeps |
+
+  Any row that comes out worse at HEAD is removed from the phase and queued on its own.
+- **Gates**: `npm run typecheck`, `npm run build` (which carries `gate:checks`, and two `*.test.ts`
+  files move, so that gate is the path-triggered one), and `npm test` whole once, for the lane
+  interaction that started this.
+
+### What is NOT in this phase
+
+- **`src/main/watcher/repo-watcher.ts` is not touched.** The drop-fires-`onChange` rule is Phase 151's
+  measured design and is correct; the tests are what disagree with it.
+- **No timeout is raised as the fix.** `vitest.config.ts` does not move, and no `it` budget grows. A
+  longer sleep buys a longer window to be flaky in.
+- **No skip, no `it.skip`, no retry attribute, no environment gate.** The file's header says a broken
+  binding is a failure and never a silent skip, and rule 2's bounded re-take is not a retry of the
+  test: it re-takes one measurement window and still fails on three drops.
+- **Finding 2 is not written here.** It is an in-place edit to Phase 285, which already names it. This
+  entry must not land as a second copy of that mechanism.
+- **Nothing weakens a teardown guard.** Not the census, not the socket refusal, not the announcement,
+  not a `finally` block anywhere. The 285 edit changes what the WENT arm concludes and never whether
+  the census runs, and it widens rule 5f rather than narrowing it.
+- **No reaper and no TTL.** Nothing here ends, suspends or kills a session on a timer, on idle or on
+  project close, and the `hotdog` finding is not a reason to.
+- **No sweep of the other native files** beyond the two measured, and no release note.
+
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -32934,3 +33625,13 @@ cycle rather than only the evening it was written.
 - 2026-09-20, **PHASE 296 LANDED, the handback gate finds End Session by its action rather than by its arguments, `78514ab7`. No semver and no release follows: nothing a person sees, drives or reads moves.** `conformance:handback` had been red on main since 25 August, 1,156 commits, and it was the READER that broke rather than the menu. Phase 141 wrote the gate on 24 August and found the End Session row with a needle that included the row's closing parenthesis; Phase 156, the next day, gave every menu row a fourth argument for its mark, so the parenthesis no longer followed the id and no line matched. For 25 days the gate said "the Session menu no longer holds End Session, the resume row and the per agent hotkeys together" while all three rows were present and in order. Nobody noticed because the gate is in no battery, in no CI job, and had no row in CLAUDE.md's path-triggered table — which it now has. **`src/main/menu.ts` IS NOT TOUCHED and that is the phase's central refusal**: its sha256 is `71e73039133eff897ef4752dc671dc39ec4ae1d2aa6153a1f90bc4b42c5397b0` before and after, proved in the commit body and again by the integrator and both verifiers. **WHY IT IS NOT A ONE LINE REPAIR, and this is the measurement that earns the phase:** shortening the needle to the id alone makes the gate pass, AND IT STILL PASSES WITH THE END SESSION ROW DELETED, because the comment at `menu.ts:876` mentions `'end-session'` and sits between where the row was and the resume row, so the needle finds the COMMENT. A repair that only dropped the parenthesis would have built a clause that CANNOT FAIL, which is worse than a broken one because it looks fine. So the reader blanks every comment to spaces with its newlines kept, keeping every printed line number the file's own, and the stripper is LIFTED into one module that this gate and `assert-menu-accelerators` both import rather than written a third time. Also moved: End Session is found by its action id and must appear exactly once in code with both lines named when it does not; the accelerator clause reads the whole `item(` call by matching parentheses, so a reflowed row with `accel(` on its own line is seen; each needle that misses is named with what it searched for; the printed table asks the verdict's own question, so it can no longer read `placed after End Session yes` beside a FAIL; and `pastSessionsAt` is deleted, a field nothing read which had answered -1 since 25 August, this same defect with nobody watching. NO REGRESSION: under the new reader over `ac56d370`, the last commit where the gate was green, it finds the three rows at 528, 542 and 545, so every answer the gate gave while it worked is unmoved, and `assert-menu-accelerators` — inside `npm run build` and now sharing the lifted stripper — prints its pre-lift line byte for byte at 7 files and 36 accelerator sites. **THE VERIFY APPROVED WITH NO FIX ROUND, on two lenses, and both did something the builders did not.** The attack lens wrote menu shapes nobody had written: an id inside a block comment, a string holding `//`, a regex holding `/*`, a row inside a conditional spread, an object-literal row, an unparseable file. The re-derivation lens wrote its own reader over the TypeScript AST, which needs no comment stripper at all, and agreed on every answer at three commits. Their findings are recorded rather than absorbed, and each is its own entry: **this gate reads whole-file line ORDER and never submenu MEMBERSHIP**, so all three rows moved together into the Project submenu still pass — pre-existing, Phase 141's reader was the same; the accelerator clause can still read `accelerated NO` over an object-literal row reflowed across lines, which is NARROWER than the parent's hole but not closed; the order clause says "immediately after" while checking only "after"; and `itemCallAround` takes a character OFFSET where every other `at` in the section is a LINE, which is a plausible-wrong-answer waiting for a later round. The verifier also corrected a sentence in this phase's own comment that called the no-`item(` shape "a shape no round has written": true of the resume row, false of the file, which draws object-literal rows with an inline `accelerator: accel(…)` at `menu.ts:593`, `:652` and `:737`. Gates: typecheck at 1,335 files and 0 violations, build, `npm test`, smoke:t1, `conformance:handback` PASS, `ablation:p296` at 11 arms with 7 red and 4 green, `assert-menu-accelerators`, `assert-menu-glyphs`, and the contract byte for byte, all 0. STILL NOT TRUE: this gate does not run in `npm run build`, `npm test` or CI, and whether the `pure` gates outside every battery should run somewhere is HIS ruling; and no sweep of the other gates outside the battery was done, so whether any of them is red today is unknown and is its own entry.
 
 - 2026-09-20, **PHASE 298 LANDED, the session manager's rows on the app's own scale, `4f08e8f0`, unreleased.** A 900px sheet now holds **17 managed rows where it held 9** and 19 past ones where it held 11, measured in the running app: the Managed row goes 74 to 41 box and pitch, the Past row 64 to 40, the column heading 44 to 28, the group header 44.5 to 28.5, the footer 45 to 29, and the loading skeleton 62/70 to 40/40, which also stops it resettling the list by 30px a row when the real rows land. The narrow row under the 1100px breakpoint goes 66 to 41, a machine-removed Past row 82 to 68, every icon in the sheet is now one of {12, 14, 16, 24} where it drew a 19 and a 28 that appear nowhere else in the app, a truncated session name carries its whole value on hover where today it carries none, and the toolbar's 47px in both modes and the 52px title bar are unmoved as arm 11's control. **THE PICK, 40 = `28 + 2 × var(--space-3)`, is forced rather than chosen** and the arithmetic is in the CSS because a later round would otherwise undo it: a row's height is its tallest child plus its padding, the rows carry a 28px button, so 32px rows would have RENDERED at 40 and 28px rows cannot hold the button at all. **THE INTEGRATOR CAUGHT THE ONE DEFECT THAT WOULD HAVE FAILED THE PHASE** — the Session cell was still two stacked lines so every row rendered 48, because a table row's `height` is a MINIMUM and cannot pull a cell back down, and one builder found it by reading a file that was not its own. **THE FIRST FIX ROUND FOUND ROOT CAUSES OVER A CHROMIUM LAYOUT FIXTURE built on the shipping stylesheets and driven with no Electron**: the heading's 32 was NOT the line-height, which already computed 11/16, but the select-all's 32px target holding the row, since a table row is as tall as its tallest CELL and cells are then stretched; and the Past row's 41 was **the entry's own reasoning with the sign backwards**, because `box-sizing: border-box` holding the hairline inside the declared height is what pushed the row over when the 28px ellipsis could not shrink, so the hairline is now painted out of flow. **THEN THE VERIFY AND THE REVERIFY EACH FOUND THE SAME SHAPE ONE LEVEL UP, AND THAT IS THIS PHASE'S LESSON.** The verify found three interactive targets shorter than today AND that the refusal meant to catch them could not fail, because `hits()` read `[data-manage-check]`, an attribute only the body row's checkbox carries — the name button, the only door to Details since the `tr` carries no click handler, had shipped at 20 tall and is now 28, the whole of its cell, and a column's sort button went 16 to 28, LARGER than today's 20, neither costing a row. The reverify then found that **the app run's PASS was obtained with eight of thirteen targets carrying no parent floor at all**, which the arm had printed in its own notes, and run with a parent's readings fed back through `P293_HIT_PARENT` the same promise read FAIL where it had read PASS: the Managed tab at 101.2px against 102.3, because mechanism 6 did what the entry asked and replaced an ad-hoc 19×17 count chip with the app's own 16×16 primitive, while the Past tab got WIDER by the same change. **HIS RULING, 2026-09-20: the refusal is AMENDED because it was unsatisfiable as written** — a control whose size comes from the row cannot keep its absolute pixels in a phase whose deliverable is a row 33px shorter. It now reads: never below WCAG 2.2 AA 2.5.8's 24×24, and never smaller than today EXCEPT where the row's own height or a shared primitive bounds it, each case named with its arithmetic. Three are named, all graded like any other floor and all asked of the 24×24 clause independently, and he refused the alternatives in front of the numbers: holding the name button at 37 forces the row to 49 and costs three of the seventeen rows, making the whole row clickable is a behaviour change, and a min-width on the tabs or keeping a chip size that exists nowhere else in Tortie were both declined. The reverifier proved the refusal can now fail by breaking the shipping build five ways — a normal target shrunk, each exception taken below its admitted number, a target taken under 24×24, and a role key stopped from matching — all five red with the stylesheet restored by sha256 in a `finally`; and it built its own reader from real Tab keys over 30 stops, each rect read three ways, agreeing with the arm to 0.01px on 12 of 13 roles at both bases. Rough edge 1 is closed and DRIVEN for the first time: with one, two and three toasts up the stack's intersection with the last row's End button is 0px² and the point at that button's centre resolves to the button, the cap and the `+n more` and the ×s all hold, and with the sheet closed the stack is still fixed 16px from the right and bottom at `--z-toast`. Gates: typecheck, build, smoke:t1, `conformance:manager` at 56 rules and 2,240 checks (was 49 and 2,036), `ablation:p293` at 69 ablations, the probe's self-test at 187 fixtures (was 77), `gate:electron` with HELPER_USER_FLOOR 145 unmoved, `gate:background`, and the contract byte for byte, all 0; `conformance:hue` is legitimately out because `tokens.css` is untouched. **`npm test` IS NOT GREEN AND THE ENTRY SAYS SO RATHER THAN CLAIMING IT**: `src/main/watcher/__tests__/repo-watcher.native.test.ts` failed five of six full-suite runs across BOTH builds with a different case each time while passing three for three in isolation, with `fseventsd` at 1,116 MB and `mds_stores` at 1,575 MB reindexing throughout — a pre-existing flaky native FSEvents suite, queued as its own entry, and no claim here rests on it. THREE THINGS QUEUED SEPARATELY rather than absorbed: that flaky suite; `gate:background`'s false positive, where a regex literal's own `.exec` is read as `child_process.exec` because the gate matches a call by NAME, routed around rather than weakened because that gate exists after six orphaned processes ran two hours at 550 percent of his CPU; and `probe:p293`'s socket guard stopping a run whenever any session leaves `-L gmux`, which an End or a Remove in the sheet does, so the probe cannot run while a person is using the app and cannot yet tell the operator's own press from its own reach. STILL NOT TRUE: the ten-second tick is a prop on every row so it re-renders all of them however the sort is memoized; the 52px title bar and 47px toolbar do not move although the phase's formula answers 44 for both, because they are his own geometry from the design study; only two of the three ellipsis kinds are exercised by the fixture, identically at both builds; and arm 11 still reads text against a translucent wash without compositing on one path, which is why its 1.11:1 readings were never real.
+
+- 2026-09-20, **0.109.0 SHIPPED, `0375c8a9`, tag `v0.109.0`, published 00:04 UTC.** It carries Phase 293 the session manager (Added), 298 its rows at the app's own density (Changed), and 292 scrollback holding its place and 297 a keystroke staying in its tab (Fixed); 296 landed with no semver and no item. **PHASE 287 WAS PULLED FROM IT on his instruction** and lands with Phase 304 below. The bundle was verified off the MOUNTED DMG rather than off `release/`: version 0.109.0, `com.itavero.tortie`, all four helper `CFBundleName`s, the nested specstory at 43,376,928 bytes with `codesign --verify --strict` 0, `gmux-tmux.conf` byte-identical to `resources/` at `9921668c…`, the unpacked ripgrep running at 15.0.0, the grammars and `web-tree-sitter.wasm`, the bundled tmux at 3.7b, `codesign --verify --strict --deep` 0 and `spctl --assess` 0 so Apple accepts the notarization, 475 MB. Gates for the release: typecheck, build, smoke:t1, **smoke:t3**, **conformance:resume:capture**, conformance:manager, ablation:p293 and the contract, all 0. **TWO ADMISSIONS. The tag went on BEFORE the candidate run, which §3.7's own prohibition forbids** — "a tag that names a build nobody ran is a promise with no evidence behind it" — and the candidate run and the capture soak were NOT run before publishing, at his election, because the soak spends his tokens on six real agent sessions and uses his own sign-ins; he took the candidate himself. So the one layer §3.7 says CI can never simulate, Apple accepting the entitlement on the nested specstory binary end to end, is unproven for this release and that is written here rather than implied. And `npm test` is not green: `src/main/watcher/__tests__/repo-watcher.native.test.ts` failed five of six full runs across BOTH builds with a different case each time while passing three for three in isolation, with `fseventsd` at 1,116 MB and `mds_stores` at 1,575 MB reindexing — queued as Phase 308. `package-lock.json` has also been stale at 0.106.0 for three releases and was deliberately not touched inside a release commit.
+
+- 2026-09-20, **PHASE 304 QUEUED, Tortie's own vault is a sealed file rather than a keychain item, AND PHASE 287 LANDS WITH IT (his ruling).** His words across the afternoon: "are we overcomplicating this keychain thing", "i basically just want it to always work", "and for it to not be overcomplicated". **The measurement that settles it: the 4,096 byte limit is the `security` CLI's own `-i` line buffer and not the keychain.** Apple documents no data limit at all. Tortie's cap is `SECURITY_LINE_MAX_BYTES = 4_000` compared against the COMPOSED line, and because the payload is hex at two characters per byte the practical ceiling is about 1,955 bytes of credential; his `~/.codex/auth.json` is 4,193 bytes, of which 3,749 is two OAuth JWTs, so hexed it is an 8,475 character line, 2.1 times over. **It has never once worked: his keychain holds four `Tortie-credentials-claude` items and ZERO codex ones.** The failure is also worse than truncation, measured on scratch keychains today: when the line is cut, what is lost is the END of it, which is where the target keychain is named, so the write silently lands in the DEFAULT keychain. Two escapes are CLOSED and recorded so no round re-tries them: `-w` reading its password from stdin truncates at **128 bytes** (`getpass(3)`'s `_PASSWORD_LEN`) and stores ZERO when the payload holds a newline; and the argv form, which is how `/Users/gdc/orca` does it at `src/main/claude-accounts/keychain.ts:212-221` through `execFile`, has no line limit at all (ARG_MAX 1,048,576) but puts the credential where every process running as the person can read it with `ps -ww` — refused, and the reason is measurable rather than aesthetic: orca does not run a fleet of agent processes under one account and Tortie does. Also recorded: **orca never met this problem**, because it gives each codex account its own `CODEX_HOME` and switches an environment variable, saying in its own words there is "no shared-home hot-swap or token read-back to reconcile"; and **Claude Code itself switches to the argv form at 4,032 bytes**, so the vendor already does on his machine what Tortie refuses. **THE STRUCTURAL FACT is that Tortie's own vault is not the vendor's mailbox**: `vault.ts:24-27` already states two backends behind one seam, a keychain item on macOS and a mode-0600 file everywhere else, and `vault.ts:162` puts the macOS arm through `keychainWrite`; codex's vendor store is a FILE, so only Claude Code's own credential must live where `security` can write it. So the vault becomes a `safeStorage`-sealed file on every platform, which is the mechanism `settings/store.ts:791-827` already uses and whose master key is already in his keychain. Migration is read-through-on-miss with a `legacy` seam that structurally has no `put`, so **the crash window holds two copies and never zero**. A backend chosen by SIZE is refused as well, and the reason is stated: two backends live forever, every read asks both, and a credential that grows crosses the boundary at an unpredictable moment. **WHAT 287 GAINS FROM THIS: its sentence becomes true.** Its verify and reverify both found that no single sentence can serve two stores — on the arm nobody had built, Tortie's vault KEEPS a 1,940 byte sign in (`kept: true, restores: true, tooLarge: false`, the row promising "Puts this account back.") and the click still refuses with "too large for Tortie to keep in the keychain", because what could not take the line was the VENDOR's item. After 304 the vault cannot refuse for size at all, so the only store left that can is the vendor's and the sentence names it once. The row-label family dies whole (`LOGIN_TOO_LARGE`, `LOGIN_TOO_LARGE_SIGNED_IN`, `loginDrawsTooLarge`, `LoginRow.tooLarge`) because every `tooLarge` fact originates in the vault's refusal; the refusal sentence and its toast SURVIVE, because the vendor's ceiling is about 1,954 bytes and 287's own finding 6 measured a claude login with accumulated `mcpOAuth` entries at 2,158, already over. Net about 1,220 lines deleted against 540 added. Tier 3 by the credentials question outright.
+
+- 2026-09-20, **PHASE 305 QUEUED, a Restart can hard-delete a removed session's record, AND THE DRAFTER REFUTED THE FINDING IT WAS QUEUED FROM.** Phase 302's census named `restart.ts:188` reading a `discarded` row as live and hard-deleting the tombstone. Read properly: **that path is not reachable from any surface.** `sessionActionGates` sets `offersRestart: ended && !remote` where `ended` is `exited`/`restorable` only (`resume.ts:946`); a `discarded` row takes a menu arm with no verb at all (`session-actions.tsx:948`); and every restart caller re-reads through `freshRow` or `freshSession` against lists a tombstone is not in. So `:188`'s liveness test and the swallowed kill refusal at `:196` are a hole in main rather than a defect a person meets, and the entry says so instead of overclaiming. **But the delete IS reachable, by a person, with no other defect needed, and for a different reason: a STALE READ.** `restart.ts` reads its row once at `:121` and both the liveness test and the delete at `:204` — not `:203` — run off that snapshot across two awaits, `host.createSession` at `:182` and `host.killSession` at `:191`. A Remove landing inside the create's await is ACCEPTED, because `removeRefusal` passes `exited` and `restorable`, writes the tombstone, and `:204` then hard-deletes it; the renderer closes nothing, since `removeSession` asks no gate and the loud restart sets no busy flag. What the person loses is the RECORD and not the bytes — the Past row for the rest of its 90 days and with it the `agentSessionId` and `resumeArgv` that are the only thing a Restore from Past reads — so after the delete that conversation cannot be restored from Tortie at all. The fix is a SECOND FRESH READ rather than an edit to `:188`'s expression. Three placements are refused with reasons: the guard cannot go inside `discardSession`, because its own doc comment at `core.ts:2932-2939` names the harness sweeps as callers that must remove tombstones, and both `sweepLeftovers` and `cleanupT3Leftovers` walk `listSessionRecords()` filtering by NAME prefix and not by status; and the 90-day prune never passes through it at all, since `pruneDiscardedSessions` calls `deleteSession` directly. The guard is a pure predicate beside `removeRefusal` in `lifecycle-gate.ts`, which CLAUDE.md's `conformance:manager` row already names and `ablation:p293` already attacks, so it gets an existing trigger for the cost of one entry. **A LIMIT THE ENTRY STATES RATHER THAN HIDES: no query can tell whether this has already happened to him, because a hard delete leaves no trace** — the real-data arm reports the tombstone population and says so. Tier 3 by the first question.
+
+- 2026-09-20, **PHASE 306 QUEUED, a remote project tab you closed comes back, AND IT IS NOT THE SHEET'S REFRESH.** Phase 293's matrix verifier logged it as "the sheet's Refresh re-opens a remote project tab you closed" and its SPEC was already more precise at `build/p293/SPEC.md:2181`. The chain, read out: `rehomeRemoteSessions` (`src/main/machines/remote-rehome.ts:166`) asks only whether the remote project exists and upserts it at `:170`, from `core.ts:1091` inside the `onRemoteSessionsChanged` subscription, which fires at the end of **every completed machine pass**. So the manifest row is back within one poll of the close, with no Refresh anywhere, and any reader of `projects.list()` then draws the tab. **THE BRIEF'S CRUX GUESS WAS WRONG AND THE CORRECTION IS THE ENTRY'S VALUE: main has recorded that a person closed a tab since Phase 93.** `core.ts:3312`'s `removeProject` calls `markProjectTabClosed` BEFORE `deleteProject`, stamping `project_tombstone` on every non-discarded session in that folder in one durable transaction. The re-home calls `upsertRemoteProject` directly and never reaches the clear at `core.ts:3301`, which leaves an inconsistent durable state — the tab row present while every session in it still says the person closed the tab. **So the fix is to READ the stamp, not to record it**, and nothing in the renderer changes: `core.ts:2645` already stamps `closedProject` from `rec.projectTombstone` and `projection.ts:337` already reads it, which is how the sheet draws a closed project's sessions for LOCAL rows today. Two more corrections: it is not Refresh-specific, because `refreshSessionSheet` has three doors and **a successful Restore landing on the Managed tab re-opens the tab too**; and what accidentally holds the line the rest of the time is `reconcileRemoteTabs`' module-scope `tabsAskedFor` set, never cleared, which stops the ordinary broadcast-time re-read after the first sighting. Two things in neither the brief nor 293's note: the re-added row gets a NEW `randomUUID()`, so the tab returns at the END of the strip and loses its `activeSessionByProject` entry; and `finishCloseProject` re-reads `projects.list()` immediately after `projects.remove`, so a poll landing inside that window means the tab never appears to close at all.
+
+- 2026-09-20, **PHASES 307 AND 308 QUEUED, the checks that assert less than they claim and the checks that go red for the machine.** 307 takes two clauses whose sentence is wider than their test. `gate:background`'s `NODE_SPAWNS` holds `exec` and matches a call by NAME, so a regex literal's own `.exec` is read as `child_process.exec` and the gate goes RED naming a child that does not exist — it blocked a build tonight in `build/p293/probe-p293.mjs`, the probe was routed around it rather than the gate weakened, because that gate exists after six orphaned shell loops reparented to launchd on 2026-09-02 and ran two hours at about 550 percent of his CPU. And the handback gate Phase 296 landed tonight checks that End Session, the resume row and the hotkeys appear in that ORDER in the whole file and never that they are in the Session menu at all: 296's own verifier moved all three into the PROJECT submenu, in order, and the gate exited 0 printing "rows in the Session menu 1" and "placed after End Session yes". Pre-existing, since Phase 141's reader was whole-file order too, and 296's commit body already names it. Two nits ride along: the order clause says "immediately after" while checking only "after", and `itemCallAround(at)` takes a character OFFSET where every other `at` in the section is a line. Semver None, Tier 2, and the independent method is an ATTACK because the whole subject is a clause that cannot fail, so every fix owes an ablation that reddens it; **`src/main/menu.ts` is not edited and 296's sha256 `71e73039…` carries forward**. 308 takes the checks that go red for the machine's reasons: `repo-watcher.native.test.ts` failing five of six full runs across both builds with a different case each time while passing in isolation, under `fseventsd` at 1,116 MB and `mds_stores` at 1,575 MB; and `probe:p293`'s socket guard stopping a run whenever any session leaves `-L gmux`, which tonight was **the operator's own Remove** — the manifest records `hotdog` as `discarded` with `removed_at` 19:35:57, and `discarded` plus a removal date is the Remove verb's signature, which a kill could not produce. The guard was right to stop and wrong about why: it cannot tell a session the probe could have reached from one the person removed. Neither may be fixed by weakening a teardown guard or by giving a flaky test longer to be flaky in, and the entry says what distinguishes a real fix from raising a timeout. It also rules on whether these belong in Phase 285, already queued as "a probe goes red because he used his own machine", rather than becoming a near-duplicate.
