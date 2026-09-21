@@ -789,6 +789,95 @@ The door on Tortie's side, on the hook server's precedent (`src/main/activity/ho
 | A lost phone | Settings → Phone lists phones; Remove drops it from the keychain set at once and the others stand; until Remove, an unlocked phone can press End on every row, and the pairing sheet says so | |
 | Shutdown | Joins accepted requests, bounded, keys cleared last, in the ordered disposer | `hooks.ts:255-316`, `src/main/capabilities.ts` |
 
+## 5.1 What is new, what already exists, and what a person installs
+
+Asked on 2026-09-21 what Tortie needs on each side, and whether Tailscale would be vendored "like
+specstory". **It would, and it needs no new entitlement, and a person installs nothing.** The diagram is
+the answer; the two tables under it are the same answer by side; the paragraph after them is the
+vendoring.
+
+```
++----------------- YOUR IPHONE -----------------+        +------------------ YOUR MAC -------------------+
+|                                               |        |                                              |
+|  NEW  Tortie app, three screens in Swift      |        |  NEW  The door          src/main/pocket/     |
+|         list . session . composer             |        |         binds the Mac's own tailnet address  |
+|                                               |        |         its own certificate, key sealed      |
+|  NEW  Tailnet node, embedded                  |<------>|         pairing, revoke, closed route table  |
+|         libtailscale, userspace, BSD-3        | Wire-  |         every write through the same gate    |
+|         no VPN profile, no second app         | Guard, |                                              |
+|                                               | direct |  NEW  Tailnet key minter                     |
+|  NEW  QR scanner, keys in the phone Keychain  |        |         one API credential, sealed            |
+|  NEW  Push registration                       |        |         mints an ephemeral key into the QR   |
+|  NEW  Colours, words and types generated      |        |  NEW  Push sender, APNs from this process    |
+|         from src/shared                       |        |  NEW  Settings > Phone: pair, see, revoke    |
+|                                               |        |  NEW  The agent lifecycle hook, env-gated    |
++-----------------------------------------------+        |                                              |
+                    ^                                    |  ---------------- ALREADY THERE ----------    |
+                    |   Apple's push service             |  OK  sessions in tmux, the manifest          |
+                    +------------------------------------|  OK  status words  activity/state-machine.ts |
+                        your Mac -> Apple -> your phone   |  OK  who is blocked, in order tray/attention |
+                                                          |  OK  hook server + token activity/hooks.ts  |
+                                                          |  OK  "is it done?"  overview/line.ts        |
+                                                          |  OK  verb gates  sessions/lifecycle-gate.ts |
+                                                          |  OK  one paste into a session  ipc/arch.ts  |
+                                                          |  OK  confirm on the Mac machines/confirm.ts |
+                                                          |  OK  sealing  config/seal.ts, credentials/  |
+                                                          +----------------------------------------------+
+```
+
+**On the phone, all of it is new**, because nothing exists there today.
+
+| Piece | Why it is there |
+| --- | --- |
+| The app, three screens, Swift and SwiftUI | §5 rank 1 |
+| The embedded tailnet node | His ruling in §2: one download. Userspace, so no VPN profile and no second app |
+| QR scanner, pairing keys in the phone's Keychain | Pairing, §4 |
+| Push registration and handling | §6 |
+| Colours, copy and contract types generated from `src/shared/` | So a word changed on the desktop changes on the phone in the same commit |
+
+**On the Mac, five new things and everything else reused.**
+
+| New | What it does | What it reuses |
+| --- | --- | --- |
+| The door, `src/main/pocket/` | Answers list, one session, send text, and the verbs; binds the tailnet address, never `0.0.0.0` | `machines/confirm.ts`'s confirmation shape, `config/seal.ts` for its TLS key |
+| The tailnet key minter | Holds one Tailscale API credential, sealed, and mints an ephemeral pre-approved key into the QR — this is what "scan and you are in" costs (§2) | the credentials domain and `conformance:credentials` |
+| The push sender | The buzz, from this Mac's own process to Apple | the credentials domain for the provider key |
+| Settings then Phone | Pair, see what is paired, revoke; and the switch that consents to the hook write (§10) | the settings surfaces as they are |
+| The agent lifecycle hook | The agent says it is blocked and hands over its question, every agent, no screen read | `activity/hooks.ts`'s server and per-session token; `state-machine.ts`'s words |
+
+Reused unchanged: the sessions and the manifest, the status words, the blocked-first order that already
+drives ⌘J and the menu-bar sentinel, the Catch Me Up line, the verb gates, the one-paste delivery, the
+confirm-on-the-Mac pattern, and the sealing Phase 304 hardened. **Two repairs ride along**, both found by
+this document: the question Tortie already receives and drops (§7), and the `needs_input` arm of the line
+(§7).
+
+**Tailscale on the Mac is vendored, exactly like specstory and tmux, and it costs no entitlement.** This
+was the operator's question and the answer is in `build/entitlements.mac.plist`'s own words: the file
+deliberately omits `com.apple.security.cs.disable-library-validation` and says why — "The native modules
+(node-pty, better-sqlite3), the unpacked ripgrep and the bundled specstory are all signed with the same
+team identity, so library validation is satisfied. If a future dependency forces that entitlement on, that
+is a paragraph in the phase brief, not a quiet addition here." So CLAUDE.md's refusal 6, whose stated
+reason IS that entitlement, is **satisfied rather than waived**: a vendored tailnet node re-signed with Ita
+Vero's identity needs nothing new. The shape follows the three precedents rather than inventing a fourth —
+`electron-builder.yml:40-49` describes it: nested binaries are signed inside-out by
+`build/sign-nested-binaries.cjs` at `afterPack` with stable reverse-DNS identifiers (`<appId>.specstory`,
+`<appId>.rg`, `<appId>.tmux`), and the `signIgnore` list under `mac:` must stay in step with
+`NESTED_BINARIES` in that script. A fourth entry, `<appId>.tailscale`, joins both lists in the same commit,
+with its own entitlements plist only if it needs one (specstory's holds exactly one key). **A separate
+signed executable Tortie spawns is preferred over linking the library into main**, for the reason the
+existing three are executables: a crash in the node is not a crash in Tortie, and nothing of Go's runtime
+enters the Electron process.
+
+**What a person installs: nothing.** `electron-builder.yml:50-52` already says it of tmux — "A fresh Mac
+needs nothing installed first" — and that stays true. The one thing that is not free is an ACCOUNT, and it
+is named rather than hidden: two devices find each other through a coordination server, so both nodes must
+be on one tailnet, which means one Tailscale account, free forever on the Personal plan with unlimited
+devices (https://tailscale.com/pricing, read 2026-09-21). Tortie signing in once on the Mac, in a sheet, is
+the whole setup; the phone then needs nothing, because the Mac mints its key. **For the operator it is
+zero**, because his Mac is already on `tail2ddfe1.ts.net`. Tortie running its own coordination server
+instead would be the cloud component research 48 refuses, and manual WireGuard keys would not survive a
+router, so the free account is the floor.
+
 ## 6. Push
 
 For the recommended app: APNs from Tortie main on his Mac, token-based, `apns-priority: 10`, with Ita
