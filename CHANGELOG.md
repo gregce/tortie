@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- The number of messages a session shows, on the Manage Sessions sheet and in Catch Me Up, is now that session's own: about 8 percent of Codex replies were missing from it, and a slash command typed with no arguments was not counted as your message and let the reply to it stand in for the previous reply. The first time you open the sheet after this release each Claude Code and Codex session is read again from the beginning, which takes a moment on a long one; a session Tortie has matched to a conversation from another folder can still show that conversation's numbers, and that is next
+- The number of messages a session shows, on the Manage Sessions sheet and in Catch Me Up, is now that session's own: about 8 percent of Codex replies were missing from it, and a slash command typed with no arguments was not counted as your message and let the reply to it stand in for the previous reply. The first time you open the sheet after this release each Claude Code and Codex session is read again from the beginning, which takes a moment on a long one; a session Tortie has matched to a conversation from another folder can still show that conversation's numbers, and that is next ([`b6f04ab0`](https://github.com/gregce/tortie/commit/b6f04ab0))
 
 ## 0.109.0 (2026-09-20)
 
