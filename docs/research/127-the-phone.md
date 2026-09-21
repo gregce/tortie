@@ -97,7 +97,43 @@ iOS app pushes when a re-auth is due (https://tailscale.com/kb/1028/key-expiry).
 by the MagicDNS name `<mac>.tail2ddfe1.ts.net`, so no App Transport Security exception is needed;
 connecting by address would need a compile-time `100.64.0.0/10` entry, because "In iOS 17, iPadOS 17,
 and macOS 14, ATS no longer allows connections to IP addresses by default" (Apple's
-`NSAllowsLocalNetworking` page). Research 48 §7's "no cloud component" does not bind Tailscale, a
+`NSAllowsLocalNetworking` page). **HIS RULING, 2026-09-21, and it moves this section's recommendation from row 1 to row 2.** Asked
+whether the phone should reach the Mac through the Tailscale app or through a tailnet node embedded in
+the Tortie app, he chose embedded, in his words: *"i would want to embed tailscale because it should be
+-- download Tortie phone app and it works"*. So the recommended reach is **row 2**: one app on the
+phone, no VPN profile, no second install, no Tailscale login screen. The mechanism is what makes it
+possible rather than a preference — `libtailscale` is "a C library that embeds Tailscale into a
+process", letting a program "compile Tailscale into your program and get an IP address on a tailnet,
+**entirely from userspace**", BSD-3-Clause, with a Swift binding in the repository
+(github.com/tailscale/libtailscale, read 2026-09-21); `tsnet` beneath it "uses a userspace TCP/IP
+networking stack" and takes "an auth key as part of your `tsnet.Server` initialization"
+(https://tailscale.com/kb/1244/tsnet). Userspace is the whole point: the node is the app's own and not
+the system's, so nothing routes for other apps and no VPN tunnel is created. **Three costs and one
+unmeasured thing ride with the choice, and they are named rather than assumed.** (1) A Go runtime and a
+third party's networking stack live inside a Tortie-branded bundle, which is refusal 6 read literally;
+his ruling on the agent hook — "previous restrictions can be mutable in the case we can make an
+absolutely seamless product experience" — is the same ruling applied here, and BSD-3-Clause means the
+code may actually be embedded, unlike Superset's own licence. (2) **Embedding removes the second APP,
+not the tailnet identity.** The phone still has to join the tailnet, and "download and it works" needs
+the join to be silent: a pre-authorized auth key, which Tailscale supports ("Pre-authentication keys
+(called auth keys) let you register new nodes without needing to sign in using a web browser", with a
+Pre-approved option, reusable or one-off, and an Ephemeral option that removes the device when it goes
+offline), **expires in at most 90 days** — "between 1 and 90 inclusive" — and generating one needs a
+tailnet admin or an OAuth client against Tailscale's API
+(https://tailscale.com/kb/1085/auth-keys). So either Tortie holds an OAuth client credential and mints
+an ephemeral, pre-approved key into the pairing QR for each phone — which puts one more credential in
+the domain `conformance:credentials` already guards — or the person pastes a key once, which is not
+"download and it works". **The first is the design; the credential is the cost.** (3) The pairing QR
+therefore carries three things, not two: the Mac's certificate fingerprint, the pairing keys, and the
+tailnet auth key.
+
+**UNMEASURED, and a phase must settle it before the app is built**: whether an embedded userspace
+tailnet node needs any Apple entitlement on iOS. The mechanism says no system tunnel is created, and
+neither Tailscale page names iOS, so the entitlement position and App Review's view of it are read from
+nothing yet. If it turns out an entitlement is needed, row 1 is the fallback and the door does not
+change either way.
+
+Research 48 §7's "no cloud component" does not bind Tailscale, a
 network he owns that research 28 already names as the boring answer, nor Apple's push service.
 
 `tailscale serve` is NOT the door for the app, for four reasons the boundary attack found in
@@ -111,8 +147,8 @@ the public internet anyway.
 
 | Reach method | The phone installs | The Mac does | Hotel wifi | Laptop lid closed | Where the bytes go | Cost to keep working | Refusal it brushes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Tailscale app on the phone, Tortie's own door on the Mac's tailnet address (recommended) | Tailscale (VPN profile, SSO login) and the Tortie app | Tailscale is already there; Tortie binds its door on the `100.x` address read from `os.networkInterfaces()` | Works once the captive portal is done; with UDP blocked, traffic relays through DERP over 443 in research 28's 150–400 ms band, which a list does not feel and a terminal does (https://tailscale.com/kb/1082/firewall-ports) | Dead: nothing on the laptop answers and no push is sent; the Mac Pro's sessions keep running with nobody watching | WireGuard end to end; relayed through DERP only when direct fails, and "it's impossible for a DERP server to decrypt your traffic" (https://tailscale.com/kb/1232/derp-servers) | Nothing yearly to Tailscale; a re-auth every 180 days or the expiry switched off; two app updates a year each side | None of the eight; guideline 4.2.3(i) if the app needs the Tailscale app to do anything, which is §11's third question |
-| Same, with the tailnet node inside the Tortie app (TailscaleKit, libtailscale, BSD-3-Clause, github.com/tailscale/libtailscale `59d4bb82`) | Only the Tortie app; a Tailscale login inside it | As above | As above | As above | As above | As above, plus a Go runtime Tortie must keep updating inside the app | Refusal 6 read literally; a third party's node key and SSO login inside a Tortie-branded app; entitlement and review category unmeasured |
+| Tailscale app on the phone, Tortie's own door on the Mac's tailnet address (**the fallback since his ruling; recommended before it**) | Tailscale (VPN profile, SSO login) and the Tortie app | Tailscale is already there; Tortie binds its door on the `100.x` address read from `os.networkInterfaces()` | Works once the captive portal is done; with UDP blocked, traffic relays through DERP over 443 in research 28's 150–400 ms band, which a list does not feel and a terminal does (https://tailscale.com/kb/1082/firewall-ports) | Dead: nothing on the laptop answers and no push is sent; the Mac Pro's sessions keep running with nobody watching | WireGuard end to end; relayed through DERP only when direct fails, and "it's impossible for a DERP server to decrypt your traffic" (https://tailscale.com/kb/1232/derp-servers) | Nothing yearly to Tailscale; a re-auth every 180 days or the expiry switched off; two app updates a year each side | None of the eight; guideline 4.2.3(i) if the app needs the Tailscale app to do anything, which is §11's third question |
+| **RECOMMENDED BY HIS RULING: the tailnet node inside the Tortie app** (TailscaleKit, libtailscale, BSD-3-Clause, github.com/tailscale/libtailscale `59d4bb82`) | Only the Tortie app; a Tailscale login inside it | As above | As above | As above | As above | As above, plus a Go runtime Tortie must keep updating inside the app | Refusal 6 read literally; a third party's node key and SSO login inside a Tortie-branded app; entitlement and review category unmeasured |
 | Tailscale Funnel (public HTTPS) | Nothing but the app | Not available on his variant (table above) | Works anywhere | Dead | TLS ends on the Mac; "Funnel traffic ... does not include identity headers" (https://tailscale.com/kb/1312/serve) | A variant swap | A Tortie door on the public internet behind one secret; not a candidate |
 | Home Wi-Fi only, Bonjour, a pinned self-signed certificate | The Tortie app; one local-network prompt (Apple TN3179) | Tortie generates a key pair once; the app pins the hash, confirmed on the Mac the way `src/main/machines/confirm.ts` confirms a machine | Unreachable: a LAN is "a broadcast-capable network interface ... not cellular (WWAN) or VPN" (TN3179) | Dead | Encrypted, on the LAN only | Nothing | None; it is the honest answer to 4.2.3(i) and a widening of the charter's bind that is his to rule |
 | An ssh tunnel from Blink (source GPL-3.0, `COPYING` at `a90b4423`), Termius or SSHHIP | An SSH app and a key | Remote Login on; Tailscale SSH server is not available on his variant ("Can be a Tailscale SSH server: no \| no \| yes") | Works wherever ssh works | Dead | SSH-encrypted | The tunnel dies when the app leaves the foreground: Termius "stop[s] background activity almost immediately, usually within 20 to 30 seconds" (docs.termius.com FAQ); Blink's answer is location tracking | It is one of "those products" by construction; no push, nothing while the phone is in a pocket |
@@ -129,7 +165,9 @@ he rules that the remote feed may read claude's registry over ssh, which the har
 an agent's store (`src/main/machines/remote-harvest.ts:8-12`). Whether Tortie runs on the Mac Pro is
 unmeasured, because his machines file is off limits.
 
-What it costs a person: the Tailscale app and an SSO login, the Tortie app, one pairing confirmed on
+What it costs a person, **corrected by his ruling above**: the Tortie app and one pairing confirmed on
+the Mac, and nothing else — the Tailscale app and its SSO login are what embedding removes. Before the
+ruling it read: the Tailscale app and an SSO login, the Tortie app, one pairing confirmed on
 the Mac; nothing yearly to Tailscale; a re-auth every 180 days or the expiry switched off; and the
 Tailscale app is needed to do anything away from home, which is guideline 4.2.3(i)'s shape ("Your app
 should work on its own without requiring installation of another app to function",
@@ -706,7 +744,7 @@ is the Wi-Fi question in §11; 4.2.7 — does not bite a surface that mirrors no
 the moment a later round streams the terminal. 2.5.2 ("may not download, install, or execute code")
 and PLA 3.3.1(B) bite only an over-the-air channel, which Swift has none of.
 
-What the person installs, confirms and remembers: the Tortie app; the Tailscale app for away from
+What the person installs, confirms and remembers, **corrected by his ruling in §2 (embed the tailnet node)**: the Tortie app and nothing else. Before that ruling: the Tortie app; the Tailscale app for away from
 home; one pairing, confirmed on the Mac.
 
 How it pairs. Settings → Phone → Pair a phone opens a window of a few minutes, the shape of the
@@ -936,6 +974,17 @@ what stands between an agent and End" (narrowed: with signed requests it is a ke
 the phone, and loopback reachability is then a denial-of-service surface only).
 
 ## 8. What was not measured and why
+
+**Added 2026-09-21 by his ruling to embed the tailnet node (§2).** Two things a phase settles before the
+app is built. **Whether an embedded userspace tailnet node needs an Apple entitlement on iOS**, and what
+App Review makes of one: `libtailscale` says it gets an address "entirely from userspace" and `tsnet`
+"uses a userspace TCP/IP networking stack", so no system tunnel is created and no VPN profile exists to
+install, but neither page names iOS and nothing here was run. If an entitlement is required, §2's row 1
+is the fallback and the door does not change. **And whether Tortie minting the tailnet auth key is
+acceptable to him**: a pre-approved key expires in at most 90 days, so a silent join needs Tortie to hold
+an OAuth client credential against Tailscale's API and mint an ephemeral key per phone. That is one more
+credential in the domain `conformance:credentials` guards, and the alternative — the person pasting a key
+— is not the experience he asked for.
 
 **First, what was missed, which is a finding about the method and not about the phone.** Five
 investigators and three adversaries swept sixteen products and did not find Superset for iPhone — an
@@ -1181,6 +1230,11 @@ Seven questions, in his words, and the document ends with them. The seventh was 
 5. "Is Tortie going onto the Mac Pro, or may the laptop read claude's registry over ssh so the phone
    can be told a Mac Pro session needs me?" Today it cannot be told, and the second answer overturns a
    sentence the code calls the one status rule Tortie does not break.
+**ANSWERED 2026-09-21, the transport:** the question this list carried as "tailnet only or home Wi-Fi" is
+now narrower, because he ruled the tailnet node is EMBEDDED in the app (§2) — "download Tortie phone app
+and it works". Home Wi-Fi is no longer needed to avoid a second install, so question 3 below is a
+reach question alone rather than a simplicity one.
+
 6. "For people who are not me, does the push key ship inside the app the way Bark does, or do they
    get no push?" The key stays on his Mac in v1 and nobody else has push until he answers. **Narrowed
    by §3.1:** a Lock Screen Live Activity is a partial answer that needs no key at all for the
