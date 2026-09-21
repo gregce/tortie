@@ -58,7 +58,10 @@ function bagAt(
 
 /**
  * The most a payload may be, so a hand edited store cannot make Tortie hold a
- * megabyte in a keychain item. Both vendors write a few kilobytes.
+ * megabyte in its own store. Both vendors write a few kilobytes. This is a
+ * bound on what an OBSERVE admits and not a limit of the store: since Phase
+ * 304 Tortie's own vault is a sealed file that keeps a payload of any size,
+ * and `probe:p304` drives it at a megabyte around this reader on purpose.
  */
 export const CREDENTIAL_MAX_BYTES = 256 * 1024;
 

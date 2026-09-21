@@ -36,6 +36,23 @@
 /** The two providers a login can belong to. Both are the person's own sign in. */
 export type LoginProviderId = 'claude' | 'codex';
 
+/**
+ * Why a login change was refused, when the reason has a name of its own
+ * (Phase 287).
+ *
+ * A NAME AND NEVER A MEASUREMENT. It is here so a surface can say the one
+ * sentence that fits this refusal instead of the ordinary failed-stage one, and
+ * so the answer a click gets can be told apart from every other refusal. No
+ * length, no digest and no byte of a credential travels with it.
+ *
+ * IT NAMES ONE STORE SINCE PHASE 304: the agent's own keychain entry, which
+ * Tortie writes through one `security` line and which is the only store left
+ * that can refuse a sign in for its size. Tortie's own copy is a sealed file
+ * with no ceiling, so nothing about a ROW carries a size any more, and the
+ * reason reaches a person only on the click that met the refusal.
+ */
+export type LoginRefusalWhy = 'too-large';
+
 export const LOGIN_PROVIDERS: readonly LoginProviderId[] = ['claude', 'codex'];
 
 /**

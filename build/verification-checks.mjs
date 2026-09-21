@@ -884,13 +884,17 @@ export const CHECKS = [
   // probe makes with `security create-keychain` under the harness directory,
   // never adds to the search list and deletes in a finally. It plants a
   // credential in the scratch default store, lets the boot observe run, and
-  // reads the planted bytes back out of the scoped slot in the scratch
-  // keychain under this profile's digest, while an unscoped item planted
-  // beside it is left untouched and the boot line says the migration was
-  // refused. It then drives the shipping migration over the real security on
-  // the same file, six arms, and inventories his own keychain by attributes
-  // before and after with NO -g and NO -w against it. `node
-  // build/probe-p208-vault.mjs --self-test` proves the graders on fifteen
+  // reads it back out of Tortie's own store, which since Phase 304 is a
+  // `safeStorage`-sealed FILE under the profile: the file exists, is 0600, is
+  // not the plant by sha256 and holds no window of it, and the scratch
+  // keychain holds NO `Tortie-credentials-*` item at all afterwards, because
+  // the app writes no such item any more (until Phase 304 the same reading was
+  // a scoped item under this profile's digest). The boot line says the
+  // migration was refused. It then drives the shipping migration over the
+  // real security on the same file, the Phase 208 arms over the sealed vault
+  // plus the Phase 304 duplicate sweep, and inventories his own keychain by
+  // attributes before and after with NO -g and NO -w against it. `node
+  // build/probe-p208-vault.mjs --self-test` proves the graders on its
   // fixtures and launches nothing.
   electron('probe:p208'),
   // PHASE 211. One launch on a scratch profile and a scratch keychain: a codex
@@ -899,13 +903,69 @@ export const CHECKS = [
   // default session runs and the default store is read back holding it (the
   // default lift), and a fresh sign in written from OUTSIDE redraws the menu
   // with no hover and no visit (the watcher). It writes only scratch codex
-  // files, opens no keychain of his, spawns no agent and spends no token, and
-  // inventories his keychain by attributes before and after with NO -g and NO
-  // -w. The lock is proved by the conformance gate's claudeLock arm, not by an
-  // app-run log, because the credentials domain may write no log line.
-  // `node build/probe-p211-switch.mjs --self-test` proves the graders on
-  // fourteen fixtures and launches nothing.
+  // files, opens no keychain of his, spawns no agent and spends no token. The
+  // lock is proved by the conformance gate's claudeLock arm, not by an app-run
+  // log, because the credentials domain may write no log line.
+  //
+  // PHASE 287 ADDED THE TOO-LARGE ARM to the same launch, steps 6 to 11: a
+  // 4,193 byte codex credential, the size `stat` read of his own store, is
+  // written into the default store and into two login stores from outside, and
+  // the arm reads what a switch does when one `security` line cannot carry it.
+  // Choosing a kept login while a default session runs must leave the default
+  // store holding its own bytes (at the parent it is written over and the
+  // person's sign in is gone), must say so once with Restart now and must not
+  // also say it switched; a login whose store holds a DIFFERENT over-cap
+  // account is refused with the sentence; a login whose store grew past the cap
+  // under the SAME account is answered rather than refused for ever, with both
+  // stores untouched; and the scratch keychain holds no item whose payload is
+  // any of the three. Every `tooLarge` and `problem` reading is GRADED rather
+  // than waited on, because the parent's drive carries neither field, and each
+  // step waits instead on a promotion both builds make.
+  //
+  // Phase 287 also made a SCRATCH `HOME` the default for every `security` call
+  // and for the app: `default-keychain` under it must answer "could not be
+  // found" before anything is created and again at the end, `list-keychains`
+  // reads that HOME's list, the `dump-keychain` inventory of the search list is
+  // not run at all because it names no keychain, his two credential files are
+  // compared by `lstat` rather than opened, and the app gets
+  // `--use-mock-keychain`. `P211_REAL_HOME=1` restores Phase 211's behaviour
+  // for its own reruns, and `P211_PARENT_CHECKOUT` points the same run at a
+  // built parent worktree.
+  //
+  // PHASE 304 RE-SPECIFIED THE TOO-LARGE ARM for a vault that keeps
+  // everything: Tortie's own store is a sealed file with no ceiling, so the
+  // 4,193 byte credential is KEPT rather than refused, the account it belongs
+  // to gets a row that can be chosen, and choosing it puts the bytes back
+  // exactly; the scratch keychain holds no `Tortie-credentials-*` item at all,
+  // and the only refusal left is the vendor's own keychain entry, which no
+  // codex arm meets because a codex store is a file. `node
+  // build/probe-p211-switch.mjs --self-test` proves the graders and launches
+  // nothing.
   electron('probe:p211'),
+  // PHASE 304. Tortie's own vault is a sealed file, and a sign in of any size
+  // is kept. FOUR launches on one scratch profile over one scratch keychain
+  // and a scratch HOME, ONE AT A TIME and never beside another: three logins
+  // whose credentials are planted as the scoped keychain items an older build
+  // kept are read through by the boot observe, and the app is ended with
+  // SIGKILL at a named step of each read-through through the harness seam
+  // `src/main/harness/vault-drive.ts` (before the sealed file is written,
+  // before it is read back, before the item is deleted), with a copy proved
+  // to exist from outside after every kill; the fourth launch keeps a 4,193
+  // byte and a 1 MB payload through the shipping `vaultPut` and `vaultGet`
+  // over the REAL `safeStorage` under Chromium's mock keychain, compared by
+  // sha256 and never by content, with the sealed files 0600, not the payload,
+  // holding no window of it and beginning `v10`; reads a 4,193 byte codex
+  // store as kept at boot and puts it back byte exact once the store is
+  // emptied and the login chosen; and proves a link planted at each of the
+  // slot's two staged names sent nothing to the stand in it pointed at. The
+  // one `security` call aimed at his search list is an attributes-only count
+  // of `Tortie Safe Storage` by exit code, before and after, which must not
+  // move. `P304_PARENT_CHECKOUT` points the same four launches at a built
+  // parent worktree, where the seam is absent and the size arm is graded
+  // unreadable, the items are read in place and never move, and the 4,193
+  // byte store is refused. `node build/probe-p304.mjs --self-test` proves the
+  // graders on 38 fixtures and launches nothing.
+  electron('probe:p304'),
   // PHASE 203. Two launches on ONE scratch profile over SIX fixture logins,
   // one per shape a login row can take, being the default and an added login
   // each signed in with an address, signed in without one, and not signed in

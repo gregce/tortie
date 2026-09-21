@@ -33,7 +33,13 @@ import type { CaptureChoice } from '@shared/ipc';
 import type { ToastKind } from './notices-slice';
 import type { LoginProviderId } from '@shared/logins';
 import { DEFAULT_LOGIN_NAME, sameLoginName } from '@shared/logins';
-import { LOGIN_RESTART_NOW, loginSwitchTiming } from '@shared/login-copy';
+import {
+  LOGIN_RESTART_NOW,
+  LOGIN_TOO_LARGE_RUNNING,
+  LOGIN_TOO_LARGE_SENTENCE,
+  loginSwitchTiming
+} from '@shared/login-copy';
+import type { LoginTooLargeOutcome } from './logins';
 
 /** A session that is still there to be restarted: not ended, not saved away. */
 const LIVE_STATUSES = new Set<Session['status']>(['running', 'idle', 'needs_input']);
@@ -86,6 +92,26 @@ export function switchedLine(chosen: string, isMac = IS_MAC): string {
 }
 
 /**
+ * The one `Restart now`, built once and offered by both sentences below.
+ *
+ * It restarts each session under the CHOSEN login, which is the Phase 202 model
+ * kept: a session leaves its login only by being started again.
+ */
+function restartAction(
+  host: SwitchNoticeHost,
+  reached: readonly Session[]
+): { label: string; run: () => void } {
+  return {
+    label: LOGIN_RESTART_NOW,
+    run: () => {
+      for (const s of reached) {
+        void host.restartSession(s.id, { underChosenLogin: true });
+      }
+    }
+  };
+}
+
+/**
  * Say the switch landed, and offer to restart the sessions it reached under
  * the chosen login. Nothing is said when no session was reached.
  */
@@ -98,13 +124,43 @@ export function offerRestartNow(
   if (reached.length === 0) return;
   host.toast('success', switchedLine(chosen), {
     sticky: true,
-    action: {
-      label: LOGIN_RESTART_NOW,
-      run: () => {
-        for (const s of reached) {
-          void host.restartSession(s.id, { underChosenLogin: true });
-        }
-      }
-    }
+    action: restartAction(host, reached)
+  });
+}
+
+/**
+ * Say that a switch met a sign in the agent's own keychain entry cannot take,
+ * in the one sentence that is true of what happened (Phase 287; since Phase
+ * 304 that entry is the ONLY store that can refuse for size, because Tortie's
+ * own copy is a sealed file).
+ *
+ * EXACTLY ONE TOAST, AND NEVER THE SWITCHED ONE BESIDE IT. The caller is the
+ * logins store, which posts this INSTEAD of {@link offerRestartNow} whenever the
+ * answer carried the named reason, because a person who clicked once is owed one
+ * account of what that click did.
+ *
+ * `'refused'` moved nothing, so nothing is offered: there is no session to
+ * restart into an entry that was not written. `'chosen'` DID switch, so the
+ * control is the same one a switch always gets — restarting under the chosen
+ * login works, because that login's own entry already holds its account — and
+ * the sentence says the outcome before it says what was left undone. The
+ * sentence is still posted when no session was reached, unlike the switched
+ * one, because the refusal itself is news whether or not anything was running.
+ */
+export function sayLoginTooLarge(
+  host: SwitchNoticeHost,
+  provider: LoginProviderId,
+  chosen: string,
+  outcome: LoginTooLargeOutcome
+): void {
+  if (outcome === 'refused') {
+    // STICKY BY THE SLICE'S OWN DEFAULT, which every error toast gets.
+    host.toast('error', LOGIN_TOO_LARGE_SENTENCE);
+    return;
+  }
+  const reached = sessionsReachedBySwitch(host.sessions, provider, chosen);
+  host.toast('error', LOGIN_TOO_LARGE_RUNNING, {
+    sticky: true,
+    ...(reached.length === 0 ? {} : { action: restartAction(host, reached) })
   });
 }

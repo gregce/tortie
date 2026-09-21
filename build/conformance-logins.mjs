@@ -153,6 +153,27 @@
  *      Phase 281 vendor verifier asked for this pin so the disagreement is
  *      executable and cannot widen in silence; the fix is `loginPaneEnv`
  *      setting the variable beside `CLAUDE_CONFIG_DIR` (SPEC §8), not built.
+ *  19. THE CHOICE CARRIES ITS REASON, AND NO ROW CARRIES A SIZE (Phase 287,
+ *      narrowed by Phase 304). A credential one `security -i` line cannot
+ *      carry is refused before any spawn, and until Phase 287 nothing a person
+ *      read said so. Phase 287 gave the ROW a field for it too, because
+ *      Tortie's own keychain vault could refuse a keep; since Phase 304 that
+ *      vault is a sealed file with no ceiling, so the only store that can
+ *      refuse for size is the agent's own keychain entry, that refusal happens
+ *      at a click and nowhere else, and the row field, its drawing rule and
+ *      its label are gone with the case. Read from the `logins:choose`
+ *      handler's own span by matching braces: the refusal return and the
+ *      answered return each carry the reason from `put.why`, the answered one
+ *      on BOTH arms of its ternary, because the arm with no activation
+ *      sentence is exactly the switch that stood without writing anything and
+ *      is the one this reason exists for. Scanned: the sentence's bytes appear
+ *      in one non-test file under `src/`, being the words file, `swap.ts`
+ *      names the constant and `keep.ts` no longer does, because every
+ *      refusal that says it now begins in the vendor write `swap.ts` runs.
+ *      Driven through the shipping `listLoginsAsking` over an ask that answers
+ *      a size field anyway: no row carries one, the words file exports neither
+ *      a drawing rule nor a label for one and names no such field in its
+ *      code, and the two sentences that survive are read by value.
  *
  * AND IT REPAIRED THE ABLATIONS, which had proved nothing since Phase 200. The
  * copies went to the system temporary directory, where the usage copy's import
@@ -200,6 +221,8 @@ const ACCOUNTS_FILE = join(USAGE, 'login-accounts.ts');
 const CREDENTIALS_FILE = join(USAGE, 'credentials.ts');
 /** Phase 281. The credential domain, which rule 14 reads beside the usage one. */
 const CREDENTIALS_DOMAIN = join(repoRoot, 'src/main/credentials');
+/** Phase 287. The words file every login surface draws from, which rule 19 reads. */
+const SHARED = join(repoRoot, 'src/shared');
 
 const failures = [];
 const notes = [];
@@ -1016,7 +1039,7 @@ for (const f of sourceFindings(USAGE)) failures.push(f.sentence);
 // The probe, over the tree and over ablated copies of it.
 // ---------------------------------------------------------------------------
 
-function runProbe(loginsDir, accountsDir = null) {
+function runProbe(loginsDir, accountsDir = null, copyDir = null) {
   const probe = spawnSync(
     process.execPath,
     [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/logins-conformance-probe.mts'],
@@ -1027,7 +1050,10 @@ function runProbe(loginsDir, accountsDir = null) {
       env: {
         ...process.env,
         ...(loginsDir === null ? {} : { P202_LOGINS_DIR: loginsDir }),
-        ...(accountsDir === null ? {} : { P203_ACCOUNTS_DIR: accountsDir })
+        ...(accountsDir === null ? {} : { P203_ACCOUNTS_DIR: accountsDir }),
+        // PHASE 287. The words file is staged beside the logins copy, so rule
+        // 19's copy clauses are ablated over a sibling copy like everything else.
+        ...(copyDir === null ? {} : { P287_COPY_DIR: copyDir })
       }
     }
   );
@@ -1057,7 +1083,8 @@ const VERDICT_PARTS = [
   'file',
   'presence',
   'account',
-  'vendor'
+  'vendor',
+  'tooLarge'
 ];
 
 /**
@@ -1092,7 +1119,9 @@ function verdict(d) {
     JSON.stringify(d.account),
     // Phase 281. Section 9 uses fixed synthetic directories, so every reading
     // in it is the same on every run.
-    JSON.stringify(d.vendor ?? null)
+    JSON.stringify(d.vendor ?? null),
+    // Phase 287. Every reading in it is a boolean or a fixed string.
+    JSON.stringify(d.tooLarge ?? null)
   ];
 }
 
@@ -1364,6 +1393,247 @@ if ('error' in live) {
       `the one vendor name asked under ${String(live.vendor.accounts.vendor)} by presence, the meter and the shipping keychainReader; branch B missing under both accounts; exit 44 null and 36, 1 and a failed start thrown; a decomposed directory named ${live.vendor.nfc.scoped}`
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Rule 19 (Phase 287, narrowed by Phase 304), the driven half. NO ROW
+  // CARRIES A SIZE. Phase 287 put a `tooLarge` field on the row because
+  // Tortie's own keychain vault could refuse a keep and the row was the only
+  // place a person could be told; since Phase 304 that vault is a sealed file
+  // with no ceiling, the only store that can refuse for size is the agent's
+  // own keychain entry, and it refuses at a CLICK, where the choose handler's
+  // `why` and the two sentences below are what a person reads. A row that
+  // carried a size again would be a row promising something about a store it
+  // never tried to write, which is the sentence Phase 287's verify and
+  // reverify both found blaming the wrong store.
+  // -------------------------------------------------------------------------
+  const tl = live.tooLarge;
+  check(
+    tl !== undefined && tl !== null && tl.absent !== true,
+    `${TAG} RULE 19 CANNOT RUN: the probe gave no Phase 287 readings`
+  );
+  if (tl !== undefined && tl !== null && tl.absent !== true) {
+    check(
+      tl.rowsRead === 2 && tl.rowCarriesSize === false,
+      `${TAG} A ROW CARRIES A SIZE: over an ask that answered tooLarge, ${String(tl.rowsRead)} rows were read and ${tl.rowCarriesSize ? 'one carries the field' : 'none carries it'}; since Phase 304 no store a row describes can refuse for size, so a row that says so is describing a store it never tried to write`
+    );
+    check(
+      tl.drawsRule === 'undefined' && tl.label === 'undefined' && tl.signedInTail === 'undefined',
+      `${TAG} the words file still exports the Phase 287 row-label family (${JSON.stringify({ loginDrawsTooLarge: tl.drawsRule, LOGIN_TOO_LARGE: tl.label, LOGIN_TOO_LARGE_SIGNED_IN: tl.signedInTail })}), which Phase 304 removed with the case: every fact that fed it began in the vault write's refusal`
+    );
+    check(
+      tl.copyNamesTooLarge === false,
+      `${TAG} the words file names a tooLarge field in its code, so some surface is still being handed a size that no store a row describes can refuse for`
+    );
+    check(
+      typeof tl.words.refused === 'string' &&
+        tl.words.refused.length > 0 &&
+        typeof tl.words.running === 'string' &&
+        tl.words.running.length > 0 &&
+        tl.words.refused !== tl.words.running,
+      `${TAG} the two surviving sentences are not two non-empty distinct strings: ${JSON.stringify(tl.words)}`
+    );
+    // THE p181 RULE, asked here too: no standalone "it" a person has to
+    // resolve, in either sentence. `p181-usage-copy.test.ts` is the test that
+    // owns this rule over the whole words file; this is the gate's own reading
+    // of the two sentences this rule is about.
+    for (const [name, sentence] of Object.entries(tl.words)) {
+      check(
+        !/\bit\b/.test(sentence),
+        `${TAG} the ${name} sentence carries a standalone "it": ${JSON.stringify(sentence)}`
+      );
+    }
+    notes.push(
+      `no row carries a size over an ask that answers one, the row-label family is gone from the words file, and the 2 surviving sentences are read by value`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 19 (Phase 287), the scanned half and the handler's own span.
+//
+// The sentence is in ONE file, and the two files in the credentials domain that
+// say it name the constant rather than the words. A second copy of a sentence is
+// how two surfaces come to say different things about the same login, which is
+// the defect this whole words file was written for.
+//
+// The choose handler is read by matching braces, the way rule 12 reads it, so a
+// `why` somewhere else in `ipc.ts` is not a `why` in this handler. The answered
+// return is asked on BOTH arms of its ternary: the arm with no activation
+// sentence is exactly the switch that STOOD without writing anything, which is
+// the one this reason exists for, and today's line returned it untouched.
+// ---------------------------------------------------------------------------
+
+/** Every `.ts` and `.tsx` file under `dir`, tests aside. */
+function everySourceUnder(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === '__tests__' || entry.name.startsWith('.')) continue;
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...everySourceUnder(path));
+    else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) out.push(path);
+  }
+  return out;
+}
+
+/** The text of the block whose `{` is at `open`, braces matched. */
+function blockTextAt(text, open) {
+  const close = closeOf(text, open);
+  return close < 0 ? '' : text.slice(open, close + 1);
+}
+
+/**
+ * Does `logins:choose` carry the named reason out on both of its answers?
+ *
+ * An arm that is a bare name is followed to the `const` that bound it, because
+ * the shipping handler binds the answer once and then decorates it, and a reading
+ * that only looked at the return expression would call that a drop.
+ */
+function chooseWhyReading(text) {
+  const span = handlerSpanOf(text, 'logins:choose');
+  if (span === null) {
+    return { span: false, namesPutWhy: false, refusal: false, answered: false };
+  }
+  const namesPutWhy = /\bput\.why\b/.test(span);
+  let refusal = false;
+  const at = span.indexOf('if (!put.ok) {');
+  if (at >= 0) {
+    const block = blockTextAt(span, span.indexOf('{', at));
+    refusal = /\breason:\s*put\.reason\b/.test(block) && /\bwhy\b/.test(block);
+  }
+  /**
+   * A NAME AND A SPREAD ARE FOLLOWED, and that is not leniency. The shipping
+   * handler binds its answer once and then decorates it for the arm that carries
+   * an activation sentence, so a reading that looked only at the return
+   * expression would call `{ ...told, reason: activation }` a drop. Three hops
+   * is far more than any shape here needs and stops a self reference looping.
+   */
+  const carries = (arm, depth = 0) => {
+    const text = arm.trim();
+    if (/\bwhy\b/.test(text)) return true;
+    if (depth > 3) return false;
+    const names = [];
+    const bare = /^([A-Za-z_$][\w$]*)$/.exec(text)?.[1];
+    if (bare !== undefined) names.push(bare);
+    for (const m of text.matchAll(/\.\.\.\s*([A-Za-z_$][\w$]*)/g)) names.push(m[1]);
+    return names.some((name) => {
+      const bound = new RegExp(`\\b(?:const|let)\\s+${name}\\s*=`).exec(span);
+      if (bound === null) return false;
+      return ternaryArms(statementAt(span, bound.index + bound[0].length)).some(
+        (next) => carries(next, depth + 1)
+      );
+    });
+  };
+  const last = span.lastIndexOf('return ');
+  const answered =
+    last < 0
+      ? false
+      : ternaryArms(statementAt(span, last + 'return '.length)).every(carries);
+  return { span: true, namesPutWhy, refusal, answered };
+}
+
+{
+  const CHOOSE_WHY_FIXTURES = [
+    {
+      name: 'the shipping shape, bound once and decorated',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  let why = null;\n  const put = await activateLogin(d, p, n);\n  if (!put.ok) {\n    return { ok: false, reason: put.reason, ...(put.why === undefined ? {} : { why: put.why }), snapshot: await wholeList() };\n  }\n  why = put.why ?? null;\n  const told = why === null ? result : { ...result, why };\n  return activation === null || !result.ok ? told : { ...told, reason: activation };\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      want: { span: true, namesPutWhy: true, refusal: true, answered: true }
+    },
+    {
+      name: 'the reason dropped from the refusal',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  let why = null;\n  const put = await activateLogin(d, p, n);\n  if (!put.ok) {\n    return { ok: false, reason: put.reason, snapshot: await wholeList() };\n  }\n  why = put.why ?? null;\n  const told = why === null ? result : { ...result, why };\n  return activation === null || !result.ok ? told : { ...told, reason: activation };\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      want: { span: true, namesPutWhy: true, refusal: false, answered: true }
+    },
+    {
+      name: 'the arm with no activation sentence left untouched',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  let why = null;\n  const put = await activateLogin(d, p, n);\n  if (!put.ok) {\n    return { ok: false, reason: put.reason, ...(put.why === undefined ? {} : { why: put.why }), snapshot: await wholeList() };\n  }\n  why = put.why ?? null;\n  return activation === null || !result.ok ? result : { ...result, reason: activation, why };\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      want: { span: true, namesPutWhy: true, refusal: true, answered: false }
+    },
+    {
+      name: 'a reason invented here rather than read from the activation',
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  const why = 'too-large';\n  const put = await activateLogin(d, p, n);\n  if (!put.ok) {\n    return { ok: false, reason: put.reason, why, snapshot: await wholeList() };\n  }\n  return { ...result, why };\n});\nhandle(ipc, 'logins:remove', () => 1);\n",
+      want: { span: true, namesPutWhy: false, refusal: true, answered: true }
+    },
+    {
+      name: "a `why` in ANOTHER handler is not a `why` in this one",
+      text:
+        "handle(ipc, 'logins:choose', async (e, p, n) => {\n  const put = await activateLogin(d, p, n);\n  if (!put.ok) {\n    return { ok: false, reason: put.reason, snapshot: await wholeList() };\n  }\n  return result;\n});\nhandle(ipc, 'logins:remove', async () => {\n  const put = await forget();\n  if (!put.ok) {\n    return { ok: false, reason: put.reason, why: put.why };\n  }\n  return { ...result, why: put.why };\n});\n",
+      want: { span: true, namesPutWhy: false, refusal: false, answered: false }
+    },
+    {
+      name: 'no such handler at all',
+      text: "handle(ipc, 'logins:remove', () => 1);\n",
+      want: { span: false, namesPutWhy: false, refusal: false, answered: false }
+    }
+  ];
+  let behaved = 0;
+  for (const f of CHOOSE_WHY_FIXTURES) {
+    const got = chooseWhyReading(f.text);
+    if (JSON.stringify(got) === JSON.stringify(f.want)) behaved += 1;
+    else
+      failures.push(
+        `${TAG} the choose-reason scanner misread the fixture "${f.name}": ${JSON.stringify(got)} (want ${JSON.stringify(f.want)})`
+      );
+  }
+  notes.push(
+    `${String(behaved)} of ${String(CHOOSE_WHY_FIXTURES.length)} choose-reason fixtures behaved`
+  );
+}
+
+const liveChooseWhy = chooseWhyReading(readFileSync(join(DOMAIN, 'ipc.ts'), 'utf8'));
+check(
+  liveChooseWhy.span && liveChooseWhy.namesPutWhy,
+  `${TAG} the logins:choose handler does not read the reason from the activation's own answer, so whatever it carries is something this handler decided`
+);
+check(
+  liveChooseWhy.refusal,
+  `${TAG} THE REFUSED SWITCH CARRIES NO NAMED REASON: logins:choose's refusal answers the sentence alone, so the surface that draws it cannot tell this refusal from any other and says nothing a person can act on`
+);
+check(
+  liveChooseWhy.answered,
+  `${TAG} THE SWITCH THAT STOOD CARRIES NO NAMED REASON on one of its two arms, and the arm with no activation sentence is exactly the one the reason exists for: a switch that was recorded while the running session was deliberately not moved`
+);
+{
+  const sentence =
+    /export const LOGIN_TOO_LARGE_SENTENCE\s*=\s*\n?\s*'([^']*)'/.exec(
+      readFileSync(join(SHARED, 'login-copy.ts'), 'utf8')
+    )?.[1] ?? null;
+  check(
+    sentence !== null,
+    `${TAG} src/shared/login-copy.ts declares no LOGIN_TOO_LARGE_SENTENCE, so rule 19 has no sentence to hold anything to`
+  );
+  if (sentence !== null) {
+    const saying = everySourceUnder(join(repoRoot, 'src'))
+      .filter((file) => readFileSync(file, 'utf8').includes(sentence))
+      .map((file) => file.slice(repoRoot.length + 1))
+      .sort();
+    check(
+      JSON.stringify(saying) === JSON.stringify(['src/shared/login-copy.ts']),
+      `${TAG} the words of the too-large sentence appear in ${saying.join(', ')} rather than in the words file alone, and a second copy of a sentence is how two surfaces come to say different things about one login`
+    );
+    // PHASE 304. ONE WRITER NAMES THE CONSTANT, being the one write in
+    // `swap.ts` that the vendor's keychain item is written through. `keep.ts`
+    // named it too while Tortie's own vault could refuse; now every refusal
+    // that says the sentence begins in `safeSwap`'s catch, and a second
+    // composer in `keep.ts` would be a refusal blaming a store that cannot
+    // refuse for size any more.
+    check(
+      readFileSync(join(CREDENTIALS_DOMAIN, 'swap.ts'), 'utf8').includes(
+        'LOGIN_TOO_LARGE_SENTENCE'
+      ),
+      `${TAG} src/main/credentials/swap.ts does not name LOGIN_TOO_LARGE_SENTENCE, so either it says the words itself or the refusal it composes is not the one a surface draws`
+    );
+    check(
+      !readFileSync(join(CREDENTIALS_DOMAIN, 'keep.ts'), 'utf8').includes(
+        'LOGIN_TOO_LARGE_SENTENCE'
+      ),
+      `${TAG} src/main/credentials/keep.ts names LOGIN_TOO_LARGE_SENTENCE, so a refusal for size is composed somewhere other than the one write, for a store that since Phase 304 cannot refuse for size`
+    );
+    notes.push('the too-large sentence is in the words file alone and named by the one writer');
+  }
 }
 
 // The ablations. Each one must change the verdict.
@@ -1482,6 +1752,11 @@ const ABLATIONS = [
     ]
   },
   {
+    // PHASE 287 RE-ANCHORED IT, and PHASE 304 RE-ANCHORED IT BACK to the
+    // parent's text, because the `tooLarge: false` Phase 287 added to this
+    // literal is gone with the row field. What it proves did not change
+    // either time, and an unmatched `from` is a gate failure rather than a
+    // red ablation. A folder that is gone is still never asked about.
     name: 'a login whose folder is gone asked about anyway',
     dir: 'logins',
     edits: [
@@ -1493,6 +1768,43 @@ const ABLATIONS = [
           '          ? await asked(provider, dir, row.id)\n' +
           '          : { present: false, email: null, kept: false, restores: false };',
         to: '      const facts = await asked(provider, dir, row.id);'
+      }
+    ]
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 287, rule 19, as PHASE 304 left it: the choice that carries no
+  // reason. The two ablations beside it, the default row not told and the
+  // finished sign in no longer saying, are gone with the row field they
+  // ablated, because every fact that fed that field began in the vault
+  // write's refusal and the vault cannot refuse for size any more.
+  // -------------------------------------------------------------------------
+  {
+    name: 'the refused choice carries no named reason',
+    dir: 'logins',
+    edits: [
+      {
+        file: 'ipc.ts',
+        from: '          ...(put.why === undefined ? {} : { why: put.why }),\n',
+        to: ''
+      }
+    ]
+  },
+  {
+    // PHASE 304. A size put back on the row, which is the shape Phase 287
+    // shipped and its own reverify found blaming the wrong store: the words
+    // file exporting the drawing rule again moves rule 19's reading.
+    name: 'a size put back on the row, so a surface can blame a store that cannot refuse',
+    dir: 'logins',
+    edits: [
+      {
+        file: 'login-copy.ts',
+        from: 'export const LOGIN_TOO_LARGE_SENTENCE =',
+        to:
+          "export const LOGIN_TOO_LARGE = 'Too large for Tortie to keep';\n" +
+          'export function loginDrawsTooLarge(row: { tooLarge?: boolean; kept: boolean; isDefault: boolean }): boolean {\n' +
+          '  return row.tooLarge === true && row.kept && !row.isDefault;\n' +
+          '}\n' +
+          'export const LOGIN_TOO_LARGE_SENTENCE ='
       }
     ]
   },
@@ -1783,6 +2095,14 @@ const ABLATION_PREFIX = `.p202-ablation-${process.pid.toString(36)}-`;
 const mainDir = join(repoRoot, 'src/main');
 const LOGINS_COPIED = ['dirs.ts', 'store.ts', 'paths.ts', 'session.ts', 'index.ts', 'ipc.ts'];
 const USAGE_COPIED = ['login-accounts.ts', 'credentials.ts'];
+/**
+ * PHASE 287. The words file, staged INTO the logins copy rather than into a
+ * third directory: it imports nothing at runtime, its one import being a type,
+ * so it resolves wherever it is put, and a dot-named sibling of `logins/` is
+ * outside TypeScript's include globs and the test runner's the same way the
+ * copies already are.
+ */
+const SHARED_COPIED = ['login-copy.ts'];
 
 function sweepAblations() {
   for (const name of readdirSync(mainDir)) {
@@ -1800,6 +2120,7 @@ function stageCopies(tag) {
   mkdirSync(usageDir, { recursive: true });
   for (const f of LOGINS_COPIED) cpSync(join(DOMAIN, f), join(loginsDir, f));
   for (const f of USAGE_COPIED) cpSync(join(USAGE, f), join(usageDir, f));
+  for (const f of SHARED_COPIED) cpSync(join(SHARED, f), join(loginsDir, f));
   return { loginsDir, usageDir };
 }
 
@@ -1808,6 +2129,7 @@ function shippingDigest() {
   const hash = createHash('sha256');
   for (const f of LOGINS_COPIED) hash.update(readFileSync(join(DOMAIN, f)));
   for (const f of USAGE_COPIED) hash.update(readFileSync(join(USAGE, f)));
+  for (const f of SHARED_COPIED) hash.update(readFileSync(join(SHARED, f)));
   return hash.digest('hex');
 }
 
@@ -1817,13 +2139,14 @@ function phase281FindingsOver(usageDir, probe) {
 }
 
 const digestBefore = shippingDigest();
+const liveChooseWhyReading = JSON.stringify(liveChooseWhy);
 const details = [];
 try {
   const liveVerdict = JSON.stringify(verdict(live));
   // THE CONTROL. An unedited copy must read what the tree reads, or every
   // ablation below would be red for a reason that is not its clause.
   const control = stageCopies('control');
-  const pristine = runProbe(control.loginsDir, control.usageDir);
+  const pristine = runProbe(control.loginsDir, control.usageDir, control.loginsDir);
   let honest = true;
   if ('error' in pristine) {
     honest = false;
@@ -1866,7 +2189,7 @@ try {
       writeFileSync(target, before.replace(edit.from, edit.to));
     }
     if (!applied) continue;
-    const ablated = runProbe(loginsDir, usageDir);
+    const ablated = runProbe(loginsDir, usageDir, loginsDir);
     if ('error' in ablated) {
       // A PROBE THAT CANNOT RUN IS NOT AN ABLATION THAT WENT RED, which is
       // exactly how this gate proved nothing from Phase 200 to Phase 281.
@@ -1892,6 +2215,16 @@ try {
     const got = verdict(ablated);
     const was = verdict(live);
     const moved = VERDICT_PARTS.filter((_, at) => got[at] !== was[at]);
+    // RULE 19's HANDLER HALF IS READ FROM SOURCE (Phase 287), because this probe
+    // imports no `ipc.ts`: no world it builds can see a reason the registrar
+    // drops on its way out of the one channel that writes a credential.
+    if (
+      JSON.stringify(
+        chooseWhyReading(readFileSync(join(loginsDir, 'ipc.ts'), 'utf8'))
+      ) !== liveChooseWhyReading
+    ) {
+      moved.push('chooseReason');
+    }
     if (moved.length > 0) {
       red += 1;
       // A CLAUSE OWNS A READING, and naming the one that moved is what lets a

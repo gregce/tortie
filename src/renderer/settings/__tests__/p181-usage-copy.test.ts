@@ -80,7 +80,18 @@ for (const [name, path] of FILES) {
       }
     });
 
-    it('never names a token, a key or a keychain on a face', () => {
+    // PHASE 287 renamed this case to what it actually asserts. It was called
+    // "never names a token, a key or a keychain on a face" while its body
+    // forbade only `token` and `bearer`, and this phase is what made the gap
+    // load bearing: `LOGIN_TOO_LARGE_SENTENCE` and `LOGIN_TOO_LARGE_RUNNING`
+    // (three sentences until Phase 304 took the third with the row label) are
+    // the first sentences in Tortie to say "keychain" out loud. Widening the
+    // body to match the old name would redden two sentences that are TRUE and
+    // that a person needs, because the agent's keychain entry is the one store
+    // that can refuse a sign in for its size and naming the place is how the
+    // sentence explains itself. The bar that matters is the one below: no
+    // token and no bearer, ever, on any face.
+    it('never names a token or a bearer on a face', () => {
       for (const text of literals) {
         const lower = text.toLowerCase();
         expect(lower, `"${text}" says token`).not.toContain('token');

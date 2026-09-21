@@ -60,6 +60,13 @@ export interface P202MeterRow {
 export interface P202Reading {
   logins: P202LoginRow[];
   problems: string[];
+  /**
+   * Phase 287: the store's own `problem`, being the last refusal main answered
+   * as one written sentence, or null. It is what the Add login dialog draws,
+   * so a probe can tell a refusal that said something from a switch that stood
+   * and left nothing waiting there.
+   */
+  problem: string | null;
   meter: P202MeterRow[];
   /** True while the hover card is in the document. */
   cardOpen: boolean;
@@ -160,6 +167,7 @@ function readNow(): P202Reading {
       email: l.email
     })),
     problems: [...useLogins.getState().snapshot.problems],
+    problem: useLogins.getState().problem,
     meter: useUsage.getState().snapshot.providers.map((p) => ({
       provider: p.provider,
       state: p.state,

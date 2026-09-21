@@ -631,7 +631,22 @@ changes a reading on the operator's machine, where no `CLAUDE_*` variable is set
   `defaultSecurityRunner(keychainFile)` a payload of about 1,985 bytes or more would have lost its
   scratch file off the end of the line (where such a write lands under a real `HOME` was deliberately
   not measured). Phase 281.1 refuses such a line before the spawn (`SECURITY_LINE_MAX`,
-  4,000, in `security.ts`: `keychainWrite` answers false and the runner answers exit 1). The long-line
+  4,000, in `security.ts`: `keychainWrite` answers false and the runner answers exit 1).
+
+  **CORRECTION (7), PHASE 287, and it moves three of the numbers above.** The buffer counts BYTES and not
+  characters, so "past about 4,096 **characters**" is wrong wherever it appears here: a 4,098 byte line of
+  4,088 characters hangs while a 4,096 byte line of 4,096 characters writes, and the one component of
+  Tortie's line that can carry non-ASCII is the harness keychain path — a scratch path of 100 accented
+  letters passed the `.length` cap and the shipping runner sent 4,100 bytes. The cap is therefore
+  `SECURITY_LINE_MAX_BYTES` comparing `Buffer.byteLength`, and the name `SECURITY_LINE_MAX` above no
+  longer exists. Calling 4,097 intact is also an error: Phase 287's verifier measured it three
+  independent ways and 4,097 writes but the closing quote has ALREADY been split off, so the orphan
+  prints usage. And "4,098 hangs" is true only of the shape with a trailing keychain path; in the SHIPPED
+  shape, which names no keychain, 4,098 and above exits 1 and leaves a CORRUPT ITEM in the keychain, once
+  with a payload whose first byte read back `0x07` and once silently one byte short. **That corrupt item
+  is the worst outcome of the four and it is the one the byte cap actually prevents.** Where such a write
+  lands under a real `HOME` is no longer unmeasured either: it lands in the DEFAULT keychain, because the
+  keychain path is what falls off the end. The long-line
   form is **Phase 287** in docs/BACKLOG.md ("the `-i` line above the `security` buffer"), queued by Phase
   281.1: this bullet and the `79c6c8fe` commit body said "queued as its own entry" when no entry existed.
 

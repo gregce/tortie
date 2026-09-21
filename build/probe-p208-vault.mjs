@@ -7,20 +7,29 @@
  *
  * ## What it reads, in one app run
  *
- *  1. THE ATTACK THE PHASE EXISTS FOR. A scratch profile whose default claude
- *     store holds a PLANTED credential is launched, the boot observe runs, and
- *     the planted credential is read back out of the scoped slot in the scratch
- *     keychain, byte for byte, under a name that carries a digest of THIS
- *     profile's logins root. At the parent that write went to the item the
- *     person's real app reads; here it cannot name it.
- *  2. THE SCRATCH PROFILE MIGRATES NOTHING. An unscoped `Tortie-credentials-
- *     claude.default` is planted in the scratch keychain first, and it is
- *     still there, unchanged, after the run, while the boot line says the
- *     migration was refused.
+ *  1. THE ATTACK THE PHASE EXISTS FOR, as Phase 304 left it. A scratch profile
+ *     whose default claude store holds a PLANTED credential is launched, the
+ *     boot observe runs, and the planted credential is kept in TORTIE'S OWN
+ *     STORE, which since Phase 304 is a `safeStorage`-sealed FILE under the
+ *     profile, `<profile>/gmux/logins/kept/claude.default.cred`: a regular
+ *     file, mode 0600, whose sha256 is not the plant's and which holds no 64
+ *     byte window of it. The scratch keychain holds NO `Tortie-credentials-*`
+ *     item at all after the run, because the app writes no such item any
+ *     more, and the vendor item planted for the store is exactly what it was.
+ *     Until Phase 304 the same reading was a scoped keychain item under this
+ *     profile's digest; at Phase 208's parent that write went to the item the
+ *     person's real app reads, and here it can name nothing of his.
+ *  2. THE SCRATCH PROFILE MIGRATES NOTHING. The boot line says the migration
+ *     was refused, as every harness profile is; the unscoped plant Phase 208
+ *     kept beside it is gone, because with no `Tortie-credentials-*` item
+ *     written by the app the stronger reading is that none appears at all.
  *  3. THE MIGRATION MATRIX over the REAL `security` on the same scratch file,
- *     driven under node by build/probe-p208-migrate.mts: present, absent, both
- *     with the record naming either side, a staged leftover, and a profile that
- *     is not the person's own.
+ *     driven under node by build/probe-p208-migrate.mts over the SEALED vault
+ *     and the real legacy arm: present, absent, both with the record naming
+ *     either side, a staged leftover, a profile that is not the person's own,
+ *     and Phase 304's two, the read-through of a scoped item and the boot pass
+ *     sweeping a scoped duplicate beside a sealed file; every arm writes no
+ *     `Tortie-credentials-*` item.
  *  4. THE COLD START COST off the `logins.boot` line the app prints, being the
  *     wall time and the number of `security` runs the boot observe made.
  *  5. HIS OWN KEYCHAIN BY ATTRIBUTES. Every item whose service begins with
@@ -32,12 +41,24 @@
  *     the vendor's own hourly refresh and his running app both write those,
  *     and the probe says so when it does. The scoped names this run composed
  *     must be absent from his keychain both before and after.
+ *  6. HIS TWO CREDENTIAL FILES BY `lstat` ALONE, `~/.codex/auth.json` and
+ *     `~/.claude/.credentials.json`: size, modification time and inode at
+ *     both ends, or absent at both ends. Until the Phase 304 fix round this
+ *     reading was a sha256 of each file, which opened and read a credential of
+ *     his to grade it; a digest is not a token byte, but the rule every
+ *     verifier runs under is that `stat` is the most a probe may do to a
+ *     credential file of his, so the reading is the one build/probe-p304.mjs
+ *     makes.
  *
  * ## Nothing of the person is read, written or spent
  *
  *  - `-g` and `-w` are NEVER passed against his keychain. `-w` is passed only
  *    with the scratch keychain path appended, to read back sentinels this file
- *    wrote.
+ *    wrote. No credential file of his is opened: reading 6 is `lstat`.
+ *  - `--use-mock-keychain` is passed (Phase 304), so the real `safeStorage`
+ *    seals Tortie's own store over Chromium's deterministic in-process key and
+ *    never reaches his `Tortie Safe Storage` item; the harness seal refuses to
+ *    seal without it.
  *  - The scratch keychain is made with `security create-keychain` under the
  *    harness directory, never added to the search list, which is checked
  *    before and after, and deleted in a `finally` with `delete-keychain`.
@@ -65,11 +86,13 @@
  * Exit 0 when every reading agrees, 1 when one does not, 2 when it refuses.
  */
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
+  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync
@@ -94,53 +117,63 @@ const fail = (line) => {
 // ---------------------------------------------------------------------------
 
 /**
- * Reading 1 and 2. The scoped slot in the scratch keychain holds the planted
- * bytes under the digest of this profile, the unscoped plant is untouched, the
- * boot line refused the migration, and nothing scoped reached his keychain.
+ * Reading 1 and 2 (Phase 304). The planted credential is kept in the sealed
+ * file under the profile, which is a regular 0600 file that is not the plant
+ * and holds no window of it; the scratch keychain holds no `Tortie-credentials-*`
+ * item at all; the vendor plant is what it was; the boot line refused the
+ * migration; and nothing this run composed reached his keychain.
  */
 export function gradeScoped(r) {
   const why = [];
-  if (r.scopedHolds !== true) why.push('the scoped slot does not hold the planted credential');
-  if (r.scopedName !== r.expectedName) {
-    why.push(`the item is named ${String(r.scopedName)} rather than ${String(r.expectedName)}`);
-  }
-  if (r.unscopedStill !== true) why.push('the unscoped plant in the scratch keychain was changed or removed');
+  if (r.filePresent !== true) why.push('no sealed file for the default claude slot');
+  if (r.fileIsRegular !== true) why.push('the sealed file is not a regular file');
+  if (r.fileMode !== 0o600) why.push(`the sealed file is mode ${r.fileMode === null ? 'unreadable' : r.fileMode.toString(8)} rather than 600`);
+  if (r.fileIsPlant !== false) why.push('THE SEALED FILE IS THE PLANT IN THE CLEAR');
+  if (r.fileHoldsWindow !== false) why.push('THE SEALED FILE HOLDS A WINDOW OF THE PLANT');
+  if (r.tortieItems !== 0) why.push(`${String(r.tortieItems)} Tortie-credentials item(s) in the scratch keychain, where the app writes none`);
+  if (r.vendorStill !== true) why.push('the vendor plant in the scratch keychain was changed or removed');
   if (r.migrationRefused !== true) why.push('the boot line did not say the migration was refused');
-  if (r.scopedInHisKeychain !== false) why.push('a scoped name this run composed exists in his keychain');
-  if (r.stagedLeft !== false) why.push('a staged item was left in the scratch keychain');
+  if (r.scopedInHisKeychain !== false) why.push('a name this run composed exists in his keychain');
+  if (r.stagedLeft !== false) why.push('a staged file was left beside the slot');
   if (r.listedDefaultPresent !== true) why.push('the login list did not read the planted store as present');
   return why.length === 0
-    ? { ok: true, why: 'the planted credential landed in the scratch keychain under this profile digest and nowhere else' }
+    ? { ok: true, why: 'the planted credential is kept in a sealed 0600 file under this profile, no Tortie item exists in the scratch keychain, and nothing reached his' }
     : { ok: false, why: why.join('; ') };
 }
 
-/** Reading 3. Every arm of the matrix over the real security behaved. */
+/** Reading 3. Every arm of the matrix over the real security behaved, and none wrote a Tortie item. */
 export function gradeMigration(m) {
   const why = [];
   const a = (name) => m[name] ?? {};
-  if (!(a('present').result?.moved === 1 && a('present').result?.deleted === 1 && a('present').scopedHolds && a('present').unscopedGone && a('present').stagedGone)) {
-    why.push('present: not moved, deleted and read back exact');
+  if (!(a('present').result?.moved === 1 && a('present').result?.deleted === 1 && a('present').fileHolds && a('present').unscopedGone && a('present').stagedGone && a('present').tortieItemsLeft === 0)) {
+    why.push('present: not moved into the sealed file, deleted and left with no item');
   }
-  if (!(a('absent').result?.moved === 0 && a('absent').result?.deleted === 0 && a('absent').scopedAbsent && a('absent').unscopedAbsent)) {
+  if (!(a('absent').result?.moved === 0 && a('absent').result?.deleted === 0 && a('absent').filesWritten === 0 && a('absent').unscopedAbsent && a('absent').tortieItemsLeft === 0)) {
     why.push('absent: something was written or deleted');
   }
-  if (!(a('bothRecordNamesOld').result?.moved === 1 && a('bothRecordNamesOld').scopedHoldsRecorded && a('bothRecordNamesOld').unscopedGone)) {
-    why.push('both with the record naming the old item: the scoped one was not rewritten');
+  if (!(a('bothRecordNamesOld').result?.moved === 1 && a('bothRecordNamesOld').fileHoldsRecorded && a('bothRecordNamesOld').unscopedGone && a('bothRecordNamesOld').tortieItemsLeft === 0)) {
+    why.push('both with the record naming the old item: the sealed file was not rewritten');
   }
-  if (!(a('bothRecordNamesScoped').result?.moved === 0 && a('bothRecordNamesScoped').result?.deleted === 1 && a('bothRecordNamesScoped').scopedKept && a('bothRecordNamesScoped').unscopedGone)) {
-    why.push('both with the record naming the scoped item: the scoped one did not win');
+  if (!(a('bothRecordNamesScoped').result?.moved === 0 && a('bothRecordNamesScoped').result?.deleted === 1 && a('bothRecordNamesScoped').fileKept && a('bothRecordNamesScoped').unscopedGone && a('bothRecordNamesScoped').tortieItemsLeft === 0)) {
+    why.push('both with the record naming the sealed file: the file did not win');
   }
-  if (!(a('stagedLeftover').result?.deleted === 1 && a('stagedLeftover').residueGone && a('stagedLeftover').nothingMovedIn)) {
+  if (!(a('stagedLeftover').result?.deleted === 1 && a('stagedLeftover').residueGone && a('stagedLeftover').nothingMovedIn && a('stagedLeftover').tortieItemsLeft === 0)) {
     why.push('staged leftover: not deleted without being moved');
   }
-  if (!(a('notOwnProfile').result?.refused === true && a('notOwnProfile').unscopedStill && a('notOwnProfile').scopedAbsent)) {
+  if (!(a('notOwnProfile').result?.refused === true && a('notOwnProfile').unscopedStill && a('notOwnProfile').filesWritten === 0)) {
     why.push('not the person own profile: the unscoped item was touched');
+  }
+  if (!(a('readThrough').answered && a('readThrough').fileHolds && a('readThrough').itemGone && a('readThrough').secondAnswered && a('readThrough').tortieItemsLeft === 0)) {
+    why.push('read-through: the scoped item was not answered, sealed, read back and deleted');
+  }
+  if (!(a('duplicateSwept').result?.deleted === 1 && a('duplicateSwept').itemGone && a('duplicateSwept').fileHolds && a('duplicateSwept').tortieItemsLeft === 0)) {
+    why.push('duplicate sweep: the scoped twin beside a sealed file was not deleted with the file intact');
   }
   if (!(m.ownProfile?.own === true && m.ownProfile?.scratch === false && m.ownProfile?.probes === false)) {
     why.push('isOwnProfile misread a shape');
   }
   return why.length === 0
-    ? { ok: true, why: 'six arms over the real security on the scratch keychain behaved' }
+    ? { ok: true, why: 'eight arms over the real security on the scratch keychain behaved, and none wrote a Tortie item' }
     : { ok: false, why: why.join('; ') };
 }
 
@@ -174,37 +207,67 @@ export function gradeInventory(before, after) {
   };
 }
 
+/**
+ * Reading 6. One of his credential files by what it IS, unchanged: the same
+ * size, modification time and inode at both ends, or absent at both ends.
+ * Compared field by field, so a reading is never a digest of any byte of his.
+ */
+export function gradeFileIdentity(before, after) {
+  if (before === 'absent' || after === 'absent') {
+    return before === after
+      ? { ok: true, why: 'absent at both ends' }
+      : { ok: false, why: `${before === 'absent' ? 'APPEARED' : 'DISAPPEARED'} during the run` };
+  }
+  const moved = ['size', 'mtimeMs', 'ino'].filter((k) => before[k] !== after[k]);
+  return moved.length === 0
+    ? { ok: true, why: 'size, mtime and inode unchanged' }
+    : { ok: false, why: `MOVED: ${moved.join(', ')}` };
+}
+
 if (process.argv.includes('--self-test')) {
   const good = {
-    scopedHolds: true, scopedName: 'a', expectedName: 'a', unscopedStill: true,
-    migrationRefused: true, scopedInHisKeychain: false, stagedLeft: false, listedDefaultPresent: true
+    filePresent: true, fileIsRegular: true, fileMode: 0o600, fileIsPlant: false, fileHoldsWindow: false,
+    tortieItems: 0, vendorStill: true, migrationRefused: true, scopedInHisKeychain: false,
+    stagedLeft: false, listedDefaultPresent: true
   };
   const goodMatrix = {
-    present: { result: { moved: 1, deleted: 1 }, scopedHolds: true, unscopedGone: true, stagedGone: true },
-    absent: { result: { moved: 0, deleted: 0 }, scopedAbsent: true, unscopedAbsent: true },
-    bothRecordNamesOld: { result: { moved: 1 }, scopedHoldsRecorded: true, unscopedGone: true },
-    bothRecordNamesScoped: { result: { moved: 0, deleted: 1 }, scopedKept: true, unscopedGone: true },
-    stagedLeftover: { result: { deleted: 1 }, residueGone: true, nothingMovedIn: true },
-    notOwnProfile: { result: { refused: true }, unscopedStill: true, scopedAbsent: true },
+    present: { result: { moved: 1, deleted: 1 }, fileHolds: true, unscopedGone: true, stagedGone: true, tortieItemsLeft: 0 },
+    absent: { result: { moved: 0, deleted: 0 }, filesWritten: 0, unscopedAbsent: true, tortieItemsLeft: 0 },
+    bothRecordNamesOld: { result: { moved: 1 }, fileHoldsRecorded: true, unscopedGone: true, tortieItemsLeft: 0 },
+    bothRecordNamesScoped: { result: { moved: 0, deleted: 1 }, fileKept: true, unscopedGone: true, tortieItemsLeft: 0 },
+    stagedLeftover: { result: { deleted: 1 }, residueGone: true, nothingMovedIn: true, tortieItemsLeft: 0 },
+    notOwnProfile: { result: { refused: true }, unscopedStill: true, filesWritten: 0 },
+    readThrough: { answered: true, fileHolds: true, itemGone: true, secondAnswered: true, tortieItemsLeft: 0 },
+    duplicateSwept: { result: { deleted: 1 }, itemGone: true, fileHolds: true, tortieItemsLeft: 0 },
     ownProfile: { own: true, scratch: false, probes: false }
   };
   const inv = (mdat, cdat = 'c', acct = 'x') => ({ acct, cdat, mdat });
   const cases = [
-    ['a scoped write that landed', () => gradeScoped(good).ok, true],
-    ['the planted bytes missing', () => gradeScoped({ ...good, scopedHolds: false }).ok, false],
-    ['the wrong name', () => gradeScoped({ ...good, scopedName: 'b' }).ok, false],
-    ['the unscoped plant touched', () => gradeScoped({ ...good, unscopedStill: false }).ok, false],
+    ['a sealed file that landed', () => gradeScoped(good).ok, true],
+    ['no sealed file', () => gradeScoped({ ...good, filePresent: false, fileIsRegular: false, fileMode: null }).ok, false],
+    ['the file at 0644', () => gradeScoped({ ...good, fileMode: 0o644 }).ok, false],
+    ['the file in the clear', () => gradeScoped({ ...good, fileIsPlant: true, fileHoldsWindow: true }).ok, false],
+    ['a Tortie item in the scratch keychain', () => gradeScoped({ ...good, tortieItems: 1 }).ok, false],
+    ['the vendor plant touched', () => gradeScoped({ ...good, vendorStill: false }).ok, false],
     ['the migration not refused', () => gradeScoped({ ...good, migrationRefused: false }).ok, false],
-    ['a scoped name in his keychain', () => gradeScoped({ ...good, scopedInHisKeychain: true }).ok, false],
-    ['a staged item left', () => gradeScoped({ ...good, stagedLeft: true }).ok, false],
+    ['a name in his keychain', () => gradeScoped({ ...good, scopedInHisKeychain: true }).ok, false],
+    ['a staged file left', () => gradeScoped({ ...good, stagedLeft: true }).ok, false],
     ['the whole matrix', () => gradeMigration(goodMatrix).ok, true],
     ['the present arm not deleting', () => gradeMigration({ ...goodMatrix, present: { ...goodMatrix.present, unscopedGone: false } }).ok, false],
+    ['the present arm writing an item', () => gradeMigration({ ...goodMatrix, present: { ...goodMatrix.present, tortieItemsLeft: 1 } }).ok, false],
     ['the refused arm touching the item', () => gradeMigration({ ...goodMatrix, notOwnProfile: { ...goodMatrix.notOwnProfile, unscopedStill: false } }).ok, false],
+    ['the read-through deleting before the file', () => gradeMigration({ ...goodMatrix, readThrough: { ...goodMatrix.readThrough, fileHolds: false } }).ok, false],
+    ['the duplicate left beside the file', () => gradeMigration({ ...goodMatrix, duplicateSwept: { ...goodMatrix.duplicateSwept, itemGone: false, tortieItemsLeft: 1 } }).ok, false],
     ['an identical inventory', () => gradeInventory({ 'Tortie-credentials-claude.default': inv('m') }, { 'Tortie-credentials-claude.default': inv('m') }).ok, true],
     ['a Tortie item whose modification date moved', () => gradeInventory({ 'Tortie-credentials-claude.default': inv('m1') }, { 'Tortie-credentials-claude.default': inv('m2') }).ok, false],
     ['a vendor item whose modification date moved, which is allowed and noted', () => { const g = gradeInventory({ 'Claude Code-credentials': inv('m1') }, { 'Claude Code-credentials': inv('m2') }); return g.ok && g.notes.length === 1; }, true],
     ['an item that appeared', () => gradeInventory({}, { 'Tortie-credentials-claude.default-deadbeef': inv('m') }).ok, false],
-    ['a creation date that moved', () => gradeInventory({ a: inv('m', 'c1') }, { a: inv('m', 'c2') }).ok, false]
+    ['a creation date that moved', () => gradeInventory({ a: inv('m', 'c1') }, { a: inv('m', 'c2') }).ok, false],
+    ['his file unchanged by lstat', () => gradeFileIdentity({ size: 4193, mtimeMs: 1, ino: 2 }, { size: 4193, mtimeMs: 1, ino: 2 }).ok, true],
+    ['his file absent at both ends', () => gradeFileIdentity('absent', 'absent').ok, true],
+    ['his file rewritten in place, same size', () => gradeFileIdentity({ size: 4193, mtimeMs: 1, ino: 2 }, { size: 4193, mtimeMs: 3, ino: 2 }).ok, false],
+    ['his file replaced by rename', () => gradeFileIdentity({ size: 4193, mtimeMs: 1, ino: 2 }, { size: 4193, mtimeMs: 1, ino: 9 }).ok, false],
+    ['his file appeared', () => gradeFileIdentity('absent', { size: 1, mtimeMs: 1, ino: 2 }).ok, false]
   ];
   let bad = 0;
   for (const [name, run, want] of cases) {
@@ -279,29 +342,36 @@ function inventory() {
   return items;
 }
 
-function hashFile(path) {
-  if (!existsSync(path)) return 'absent';
+/**
+ * His two credential files by what they ARE, never by what they hold: `lstat`
+ * alone, the way build/probe-p304.mjs reads them, so no byte of either is
+ * read to hash. Size, modification time and inode together move on any
+ * rewrite, which is the reading; a digest would say the same and would need
+ * the file open to say it.
+ */
+function statOf(path) {
   try {
-    return execFileSync('/usr/bin/shasum', ['-a', '256', path], { encoding: 'utf8', timeout: 15_000 }).trim().split(/\s+/)[0] ?? 'unreadable';
+    const st = lstatSync(path);
+    return { size: st.size, mtimeMs: st.mtimeMs, ino: st.ino };
   } catch {
-    return 'unreadable';
+    return 'absent';
   }
 }
 
 const home = process.env['HOME'] ?? '';
-const fileHashes = () => ({
-  '~/.codex/auth.json': hashFile(join(home, '.codex', 'auth.json')),
-  '~/.claude/.credentials.json': hashFile(join(home, '.claude', '.credentials.json'))
+const fileIdentities = () => ({
+  '~/.codex/auth.json': statOf(join(home, '.codex', 'auth.json')),
+  '~/.claude/.credentials.json': statOf(join(home, '.claude', '.credentials.json'))
 });
 
 const searchList = () => security(['list-keychains']).stdout;
 
 const inventoryBefore = inventory();
-const filesBefore = fileHashes();
+const filesBefore = fileIdentities();
 const searchBefore = searchList();
 say(`his keychain before: ${String(Object.keys(inventoryBefore).length)} items in the two families, by attributes`);
 for (const [svce, a] of Object.entries(inventoryBefore)) say(`  ${svce}  acct=${a.acct} cdat=${a.cdat} mdat=${a.mdat}`);
-for (const [name, hash] of Object.entries(filesBefore)) say(`credential before: ${name} ${hash}`);
+for (const [name, reading] of Object.entries(filesBefore)) say(`credential before, by lstat: ${name} ${JSON.stringify(reading)}`);
 
 // ---------------------------------------------------------------------------
 // The scratch world, all of it under the harness directory.
@@ -321,14 +391,17 @@ keychainFile = join(root, 'scratch.keychain-db');
 const keychainPassword = randomBytes(12).toString('hex');
 
 const digest8 = (text) => createHash('sha256').update(text).digest('hex').slice(0, 8);
+const sha256 = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
 /** The logins root the app will compute for THIS profile, and its digest. */
 const loginsRoot = join(profile, 'gmux', 'logins');
 const profileDigest = digest8(loginsRoot);
+/** The name a tree before Phase 304 would have written, which must now appear nowhere. */
 const SCOPED_DEFAULT = `Tortie-credentials-claude.default-${profileDigest}`;
-const UNSCOPED_DEFAULT = 'Tortie-credentials-claude.default';
+/** Where Tortie's own store keeps the default claude slot since Phase 304. */
+const SEALED_DEFAULT = join(loginsRoot, 'kept', 'claude.default.cred');
+const SEALED_STAGED = join(loginsRoot, 'kept', 'claude.default.pending.cred');
 const VENDOR_SCOPED = `Claude Code-credentials-${digest8(defaultClaude)}`;
 const PLANTED = JSON.stringify({ claudeAiOauth: { accessToken: 'P208-PLANTED-IN-THE-SCRATCH-DEFAULT-STORE', subscriptionType: 'max' } });
-const UNSCOPED_PLANT = JSON.stringify({ claudeAiOauth: { accessToken: 'P208-UNSCOPED-PLANT-NEVER-MIGRATED-BY-A-SCRATCH-PROFILE' } });
 
 const hex = (text) => Buffer.from(text, 'utf8').toString('hex');
 function plantInScratch(service, account, payload) {
@@ -339,8 +412,21 @@ const readScratch = (service) => {
   const { code, stdout } = security(['find-generic-password', '-s', service, '-w', keychainFile]);
   return code === 0 ? stdout.replace(/\n$/, '') : null;
 };
-const hasScratch = (service) => security(['find-generic-password', '-s', service, keychainFile]).code === 0;
 const hasHis = (service) => security(['find-generic-password', '-s', service]).code === 0;
+const modeOf = (path) => {
+  try {
+    return lstatSync(path).mode & 0o777;
+  } catch {
+    return null;
+  }
+};
+const isRegular = (path) => {
+  try {
+    return lstatSync(path).isFile();
+  } catch {
+    return false;
+  }
+};
 
 const report = {
   at: new Date().toISOString(),
@@ -386,13 +472,14 @@ try {
   if (searchList().includes(keychainFile)) throw new Error('the scratch keychain is in the search list, which this probe never does');
   say(`scratch keychain made under the harness directory, not in the search list`);
 
-  // THE PLANTS. The vendor scoped item for the scratch default store, holding
-  // the planted credential, and the unscoped Tortie item, which the scratch
-  // profile must leave exactly as it is.
+  // THE PLANT. The vendor scoped item for the scratch default store, holding
+  // the planted credential. Phase 208 planted an unscoped Tortie item beside
+  // it to prove a scratch profile left it alone; since Phase 304 the app
+  // writes no `Tortie-credentials-*` item at all, so the stronger reading is
+  // that none appears, and the plant would only have weakened it.
   plantInScratch(VENDOR_SCOPED, 'gdc', PLANTED);
-  plantInScratch(UNSCOPED_DEFAULT, 'tortie', UNSCOPED_PLANT);
   writeFileSync(join(defaultClaude, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'probe@example.com', accountUuid: 'p208-uuid' } }), { mode: 0o600 });
-  say(`planted ${VENDOR_SCOPED} and ${UNSCOPED_DEFAULT} in the scratch keychain`);
+  say(`planted ${VENDOR_SCOPED} in the scratch keychain`);
 
   const launchEnv = {
     ...process.env,
@@ -409,7 +496,15 @@ try {
       label: 'p208 vault',
       userDataDir: profile,
       cwd: repoRoot,
-      args: ['--remote-debugging-port=0', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'],
+      args: [
+        '--remote-debugging-port=0',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-background-timer-throttling',
+        // PHASE 304. Tortie's own store seals through `safeStorage`, and the
+        // harness seal refuses to seal without Chromium's mock keychain.
+        '--use-mock-keychain'
+      ],
       env: launchEnv,
       graceMs: 15_000,
       ceilingMs: 300_000,
@@ -441,26 +536,32 @@ try {
     }
   );
 
-  // READING 1 AND 2, off the scratch keychain after the app has gone.
-  const scopedHolds = readScratch(SCOPED_DEFAULT) === PLANTED;
-  const scopedName = hasScratch(SCOPED_DEFAULT) ? SCOPED_DEFAULT : null;
+  // READING 1 AND 2, off the sealed file and the scratch keychain after the
+  // app has gone. The file is read for its digest and for the absence of any
+  // window of the plant; no byte of it is printed.
   const { stdout: dump } = security(['dump-keychain', keychainFile]);
   const scratchServices = [...dump.matchAll(/"svce"<blob>="([^"\n]*)"/g)].map((m) => m[1]).sort();
+  const sealedText = existsSync(SEALED_DEFAULT) ? readFileSync(SEALED_DEFAULT, 'utf8') : null;
+  const windows = [0, Math.floor(PLANTED.length / 2) - 32, PLANTED.length - 64].map((at) => PLANTED.slice(Math.max(0, at), Math.max(0, at) + 64));
   report.scoped = {
-    expectedName: SCOPED_DEFAULT,
-    scopedName,
-    scopedHolds,
-    unscopedStill: readScratch(UNSCOPED_DEFAULT) === UNSCOPED_PLANT,
+    sealedFile: SEALED_DEFAULT.slice(profile.length),
+    filePresent: sealedText !== null,
+    fileIsRegular: isRegular(SEALED_DEFAULT),
+    fileMode: modeOf(SEALED_DEFAULT),
+    fileIsPlant: sealedText !== null && sha256(sealedText) === sha256(PLANTED),
+    fileHoldsWindow: sealedText !== null && windows.some((w) => sealedText.includes(w)),
+    tortieItems: scratchServices.filter((s) => s.startsWith('Tortie-credentials-')).length,
+    neverWrittenName: SCOPED_DEFAULT,
     vendorStill: readScratch(VENDOR_SCOPED) === PLANTED,
     migrationRefused: report.boot?.migration?.refused === true,
     scopedInHisKeychain: hasHis(SCOPED_DEFAULT) || hasHis(VENDOR_SCOPED),
-    stagedLeft: scratchServices.some((s) => s.includes('pending')),
+    stagedLeft: existsSync(SEALED_STAGED) || scratchServices.some((s) => s.includes('pending')),
     listedDefaultPresent: listed !== null && listed.some((l) => l.name === 'Default' && l.present === true),
     scratchServices
   };
   const v1 = gradeScoped(report.scoped);
-  if (v1.ok) pass(`scoped vault: ${v1.why}`); else fail(`scoped vault: ${v1.why}`);
-  say(`the scratch keychain now holds ${scratchServices.join(', ')}`);
+  if (v1.ok) pass(`sealed vault: ${v1.why}`); else fail(`sealed vault: ${v1.why}`);
+  say(`the scratch keychain now holds ${scratchServices.join(', ')}; the sealed file is ${sealedText === null ? 'absent' : `${String(sealedText.length)} bytes`}`);
 
   // READING 4. The cost.
   if (report.boot !== null && typeof report.boot.ms === 'number') {
@@ -495,16 +596,17 @@ try {
 // ---------------------------------------------------------------------------
 
 const inventoryAfter = inventory();
-const filesAfter = fileHashes();
+const filesAfter = fileIdentities();
 report.inventoryAfter = inventoryAfter;
 report.filesAfter = filesAfter;
 const v5 = gradeInventory(inventoryBefore, inventoryAfter);
 if (v5.ok) pass(`his keychain by attributes: ${v5.why}`); else fail(`his keychain by attributes: ${v5.why}`);
 for (const note of v5.notes) say(note);
 for (const [svce, a] of Object.entries(inventoryAfter)) say(`  after ${svce}  acct=${a.acct} cdat=${a.cdat} mdat=${a.mdat}`);
-for (const [name, hash] of Object.entries(filesAfter)) {
-  if (filesBefore[name] === hash) pass(`credential unmoved: ${name} ${hash}`);
-  else fail(`credential MOVED: ${name} was ${filesBefore[name]}, is now ${hash}`);
+for (const [name, reading] of Object.entries(filesAfter)) {
+  const v = gradeFileIdentity(filesBefore[name], reading);
+  if (v.ok) pass(`credential unmoved, by lstat: ${name} ${JSON.stringify(reading)}`);
+  else fail(`credential MOVED, by lstat: ${name} was ${JSON.stringify(filesBefore[name])}, is now ${JSON.stringify(reading)}`);
 }
 if (searchList() === searchBefore && !searchBefore.includes(keychainFile)) pass('the keychain search list is what it was, and never held the scratch file');
 else fail('the keychain search list changed');

@@ -39,8 +39,31 @@
  * step and nothing else.
  */
 
+import { LOGIN_TOO_LARGE_SENTENCE } from '@shared/login-copy';
+import type { LoginRefusalWhy } from '@shared/logins';
+
+/**
+ * A target refused a payload too large for its store (Phase 287). No length, no
+ * byte of it.
+ *
+ * IT LIVES HERE RATHER THAN BESIDE THE KEYCHAIN because it belongs to the
+ * contract of the one write: `./security.ts` raises it, both backends' `put`
+ * pass it straight through, and both catches below are the only places in the
+ * domain that read it. A `false` could not carry it, because `false` is already
+ * every other refusal a write can make and this one has a sentence of its own.
+ */
+export class CredentialTooLarge extends Error {
+  readonly why = 'too-large' as const;
+  constructor() {
+    super('a credential too large for one security line');
+    this.name = 'CredentialTooLarge';
+  }
+}
+
 /** What a write answered. */
-export type SwapResult = { ok: true } | { ok: false; reason: string };
+export type SwapResult =
+  | { ok: true }
+  | { ok: false; reason: string; why?: LoginRefusalWhy };
 
 /**
  * One place a credential can be written, with a place beside it to stage in.
@@ -83,7 +106,23 @@ export async function safeSwap(
   try {
     try {
       await target.stage(payload);
-    } catch {
+    } catch (err) {
+      // PHASE 287. A PAYLOAD ONE `security` LINE CANNOT CARRY IS ITS OWN
+      // REASON. Nothing was staged and the store holds what it held; what is
+      // different is that a person can be told why, and that the lift above can
+      // decide whether anything needed writing at all.
+      //
+      // IT DOES NOT SAY "NOTHING WAS SPAWNED", which an earlier draft of this
+      // comment did and which Phase 287's verifier measured false at both
+      // builds: `safeSwap`'s own `finally` calls `target.discard()` whatever the
+      // stage did, so a refused too-large stage spawns exactly one
+      // `security delete-generic-password` for the pending name and moves
+      // `securityCallCount()` by one. That is unchanged from the parent, so it is
+      // no regression — but this is the one domain that holds a person's sign in
+      // and a comment that undercounts its own children misleads the next reader.
+      if (err instanceof CredentialTooLarge) {
+        return { ok: false, reason: LOGIN_TOO_LARGE_SENTENCE, why: 'too-large' };
+      }
       return { ok: false, reason: 'Nothing could be written, so nothing changed.' };
     }
     if (stopAfter === 'stage') {
@@ -106,7 +145,14 @@ export async function safeSwap(
     }
     try {
       await target.commit(payload);
-    } catch {
+    } catch (err) {
+      // The commit line is shorter than the staged one, whose name carries the
+      // `.pending` suffix, so this arm is unreachable by construction today.
+      // It is written anyway: the two catches must not disagree about what this
+      // refusal is, and a later backend could name its places the other way.
+      if (err instanceof CredentialTooLarge) {
+        return { ok: false, reason: LOGIN_TOO_LARGE_SENTENCE, why: 'too-large' };
+      }
       return { ok: false, reason: 'The change could not be finished, so nothing changed.' };
     }
     if (stopAfter === 'commit') {

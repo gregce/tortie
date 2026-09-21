@@ -4,9 +4,11 @@
  *
  * EVERYTHING BELOW THIS FILE TAKES ITS WORLD AS AN ARGUMENT, which is what
  * lets `npm run conformance:credentials` run the SHIPPING modules under plain
- * node over an injected keychain, an injected file system and an injected
- * clock. This file is the only one in the domain that names Electron, the
- * process environment or the person's home directory.
+ * node over an injected keychain, an injected file system, an injected seal
+ * and an injected clock. This file is the only one in the domain that names
+ * Electron, the process environment or the person's home directory, and since
+ * Phase 304 that includes `safeStorage`: the seal Tortie's own store writes
+ * through is built here and handed down, so `./vault.ts` never imports it.
  *
  * THE LIVE SESSIONS SEAM IS INSTALLED FROM THE BOOT rather than imported here,
  * because the sessions domain already reaches this one through the launch
@@ -14,7 +16,7 @@
  * installs it beside the other registrars.
  */
 
-import { app } from 'electron';
+import { app, safeStorage } from 'electron';
 import { rm } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import { join } from 'node:path';
@@ -27,7 +29,13 @@ import type { StoreDeps } from './stores';
 import { sweepableSlots, type KeepDeps, type LiveSession } from './keep';
 import { credentialsAreOpen, trackCredentialWork } from './lifecycle';
 import { migrateUnscopedVault, ownProfileVerdict, type MigrateResult } from './migrate';
-import { fileVault, keychainVault, type VaultBackend } from './vault';
+import {
+  legacyKeychainVault,
+  NO_LEGACY,
+  sealedVault,
+  type VaultBackend,
+  type VaultSeal
+} from './vault';
 
 export {
   activateLogin,
@@ -89,8 +97,9 @@ export {
 } from './stores';
 export { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
 export {
-  fileVault,
-  keychainVault,
+  legacyKeychainVault,
+  NO_LEGACY,
+  sealedVault,
   slotFor,
   stagedSlotFor,
   vaultDiscardStaged,
@@ -99,12 +108,104 @@ export {
   vaultScopeDigest,
   vaultServiceFor,
   VAULT_SERVICE_PREFIX,
-  type VaultBackend
+  type LegacyVault,
+  type VaultBackend,
+  type VaultSeal
 } from './vault';
 
-/** True when a claude credential lives in the keychain on this machine. */
+/**
+ * True when a claude credential lives in the keychain on this machine.
+ *
+ * Since Phase 304 it decides two things and neither is which backend Tortie's
+ * own store gets, because there is one: whether the vendor's claude store is a
+ * keychain item, and whether a keychain exists to read a legacy item of
+ * Tortie's own from.
+ */
 function keychainIsTheStore(): boolean {
   return process.platform === 'darwin';
+}
+
+/**
+ * Is `safeStorage` usable right now? False before `app` is ready.
+ *
+ * `../settings/store.ts`'s `sealAvailable`, byte for byte, because the danger
+ * settings and Tortie's own credential store are sealed by the same key and
+ * must agree about when it can be asked.
+ */
+function sealAvailable(): boolean {
+  try {
+    return app.isReady() && safeStorage.isEncryptionAvailable();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The seal Tortie's own store writes through in the app (Phase 304): Electron's
+ * `safeStorage`, whose key the operating system keeps and binds to Tortie.
+ *
+ * `wrap` is `encryptString` as base64 and `open` its inverse, each guarded the
+ * way `../settings/store.ts:792` guards them, and each answering null rather
+ * than throwing, because `./vault.ts` reads null as "no seal right now" and a
+ * throw as nothing at all. Neither names a byte and neither logs.
+ */
+function electronSeal(): VaultSeal {
+  return {
+    wrap: (text) => {
+      if (!sealAvailable()) return null;
+      try {
+        return safeStorage.encryptString(text).toString('base64');
+      } catch {
+        return null;
+      }
+    },
+    open: (blob) => {
+      if (!sealAvailable()) return null;
+      try {
+        return safeStorage.decryptString(Buffer.from(blob, 'base64'));
+      } catch {
+        return null;
+      }
+    }
+  };
+}
+
+/**
+ * The seal a HARNESS launch gets (Phase 304): the real `safeStorage` ONLY
+ * under Chromium's mock keychain, and a seal that keeps nothing otherwise.
+ *
+ * The real seal reads the `Tortie Safe Storage` key from the person's login
+ * keychain, and a probe under a scratch `HOME` with no keychain there makes
+ * macOS pop "A keychain cannot be found to store ..." and WAIT, which is the
+ * 2026-08-16 incident `../index.ts` records beside the switch. So a harness
+ * launch seals only when `--use-mock-keychain` is in force, which every
+ * isolated launch appends and every probe that keeps a credential passes: a
+ * deterministic in-process key, the real OSCrypt path, and no reach into his
+ * keychain. Without the switch the vault keeps nothing, which is the named
+ * cost, rather than a 0600 plaintext file, which is what the old file arm
+ * wrote. Asked on every call rather than once, so the answer is the switch as
+ * it stands and not as it stood when the seams were built.
+ *
+ * EXPORTED FOR ONE CALLER, `../harness/vault-drive.ts`, which re-composes the
+ * installed harness vault around it so `probe:p304` can kill the process at
+ * each step of the read-through. It can never be the seal a real profile
+ * uses: {@link keepDeps} hands a person's own launch {@link defaultVault},
+ * which seals through {@link electronSeal} and never through this, and a
+ * launch that reaches this function without the mock switch keeps nothing.
+ */
+export function harnessSeal(): VaultSeal {
+  const mocked = (): boolean => {
+    try {
+      return app.commandLine.hasSwitch('use-mock-keychain');
+    } catch {
+      return false;
+    }
+  };
+  const real = electronSeal();
+  return {
+    wrap: (text) => (mocked() ? real.wrap(text) : null),
+    open: (blob) => (mocked() ? real.open(blob) : null)
+  };
 }
 
 /**
@@ -166,14 +267,15 @@ function defaultStoreDeps(
  * probe, which did not and hit his keychain.
  *
  * So a harness launch that installed nothing gets this: Tortie's own store is
- * a FILE under the profile, the `security` seam refuses every call, the
- * vendor's claude store is read as a file, and `home` is the logins root so a
- * default location composed with no `CLAUDE_CONFIG_DIR` or `CODEX_HOME` set
- * lands inside the profile rather than under the person's home. Nothing here
- * can reach a credential of theirs, and everything a probe plants in a
- * directory it made is read through the real reader. `../harness/
- * usage-fixture.ts` installs this same shape with the person's home, which is
- * what its own probes were measured over.
+ * the sealed file under the profile with NO legacy keychain to read from, the
+ * `security` seam refuses every call, the vendor's claude store is read as a
+ * file, and `home` is the logins root so a default location composed with no
+ * `CLAUDE_CONFIG_DIR` or `CODEX_HOME` set lands inside the profile rather
+ * than under the person's home. Nothing here can reach a credential of
+ * theirs, and everything a probe plants in a directory it made is read
+ * through the real reader. `../harness/usage-fixture.ts` installs this same
+ * shape with the person's home, which is what its own probes were measured
+ * over.
  *
  * THIS SHAPE COVERS THE CREDENTIALS DOMAIN ALONE. Two other readers of the
  * person's keychain exist in the same launch and are stated here so a later
@@ -186,12 +288,14 @@ function defaultStoreDeps(
  * (`harnessLoginAccountDeps`). Chromium's `safeStorage` reaches the Safe
  * Storage item with no `security` process when a danger value is sealed or a
  * non-empty seal opened, and `use-mock-keychain` is appended only under
- * `isIsolatedLaunch`, which does not count `GMUX_PROBES`.
+ * `isIsolatedLaunch`, which does not count `GMUX_PROBES`. SINCE PHASE 304 THE
+ * VAULT IS A THIRD SUCH READER, which is why both harness shapes seal through
+ * {@link harnessSeal} and keep nothing unless that switch is in force.
  */
 export function harnessFileKeepDeps(root: string, home: string): KeepDeps {
   return {
     root,
-    vault: fileVault(join(root, 'kept')),
+    vault: sealedVault(join(root, 'kept'), harnessSeal(), NO_LEGACY),
     stores: {
       ...defaultStoreDeps(
         { run: async () => ({ code: 1, stdout: '' }) },
@@ -218,12 +322,15 @@ export function harnessFileKeepDeps(root: string, home: string): KeepDeps {
 /**
  * The seams a harness launch gets over ONE scratch keychain file (Phase 208).
  *
- * The REAL keychain vault and the REAL keychain stores, so the whole macOS
- * path runs, over a `security` that acts on the named file and nothing else.
- * The file is the probe's own, made with `security create-keychain` under the
- * harness directory and deleted by the probe in a `finally`, and it is never in
- * the search list, so no name this launch composes can reach an item of the
- * person's. The same `home` rule as the file shape, for the same reason.
+ * The REAL keychain stores, and since Phase 304 the REAL legacy arm of
+ * Tortie's own store, so the whole macOS path runs, over a `security` that
+ * acts on the named file and nothing else: a probe plants a
+ * `Tortie-credentials-*` item in its scratch keychain and watches the
+ * read-through move it into the sealed file. The file is the probe's own,
+ * made with `security create-keychain` under the harness directory and
+ * deleted by the probe in a `finally`, and it is never in the search list, so
+ * no name this launch composes can reach an item of the person's. The same
+ * `home` rule as the file shape, for the same reason.
  */
 export function harnessKeychainKeepDeps(
   root: string,
@@ -235,7 +342,7 @@ export function harnessKeychainKeepDeps(
     runner,
     deps: {
       root,
-      vault: keychainVault(runner, root),
+      vault: sealedVault(join(root, 'kept'), harnessSeal(), legacyKeychainVault(runner, root)),
       stores: {
         ...defaultStoreDeps(runner, true, home),
         // THE USER NAME HERE IS ONLY THE VENDOR RULE'S SECOND CHOICE (Phase
@@ -254,19 +361,21 @@ export function harnessKeychainKeepDeps(
 }
 
 /**
- * Tortie's own store, being a keychain item per entry on macOS and a file with
- * mode 0600 in a directory with mode 0700 everywhere else.
+ * Tortie's own store: ONE backend on every platform since Phase 304, a file
+ * per entry sealed through `safeStorage`, mode 0600, in a directory with mode
+ * 0700 under this profile's logins root.
  *
- * THE ROOT IS HANDED THROUGH ON BOTH BRANCHES (Phase 208). Until this phase the
- * keychain branch dropped it, so every profile on the machine shared one set of
- * items; the file branch was always scoped by where it sits. The keychain names
- * now carry a digest of this same root, so the two backends are scoped by the
- * same thing.
+ * THE KEYCHAIN IS READ ONLY, and only on macOS, where a tree before Phase 304
+ * kept the items. `legacyKeychainVault` composes the scoped name Phase 208
+ * gave them from this same root, so a profile can read through only the items
+ * it wrote; the file is scoped by where it sits.
  */
 function defaultVault(root: string): VaultBackend {
-  return keychainIsTheStore()
-    ? keychainVault(defaultSecurityRunner(), root)
-    : fileVault(join(root, 'kept'));
+  return sealedVault(
+    join(root, 'kept'),
+    electronSeal(),
+    keychainIsTheStore() ? legacyKeychainVault(defaultSecurityRunner(), root) : NO_LEGACY
+  );
 }
 
 let liveSessionsProbe: (() => Promise<LiveSession[]>) | null = null;
@@ -291,8 +400,8 @@ let installed: KeepDeps | null = null;
 
 /**
  * Harness and test seam. `../harness/usage-fixture.ts` hands in a store rooted
- * in the probe's own scratch directory and a vault that is a file rather than
- * the keychain, so a probe's app never opens the person's keychain and never
+ * in the probe's own scratch directory and a vault with no legacy keychain to
+ * read from, so a probe's app never opens the person's keychain and never
  * writes an item of theirs.
  */
 export function setKeepDeps(next: KeepDeps | null): void {
@@ -333,11 +442,20 @@ let migration: Promise<MigrateResult> | null = null;
  * no observe, activation or removal can read a scoped slot before the item a
  * tree before this phase wrote under the unscoped name has been moved under
  * it. The migration runs ONCE per process, every later caller shares the same
- * promise, and it is asked at all only on macOS, only when no harness seam is
- * installed, and only when {@link isOwnProfile} says this is the person's own
- * profile. Every scratch profile, every probe and every harness run gets the
- * seams back at once with the migration refused before it composed a name, and
- * the refusal carries WHICH of those it was, so the boot line says so.
+ * promise, and it is asked at all only on macOS and only when
+ * {@link isOwnProfile} says this is the person's own profile. Every scratch
+ * profile, every probe and every harness run gets the seams back at once with
+ * the migration refused before it composed a name, and the refusal carries
+ * WHICH of those it was, so the boot line says so. Until Phase 304 a harness
+ * launch on the file shape was refused as `not-keychain` before the proof was
+ * asked; now that one backend ships, `not-keychain` names a platform with no
+ * keychain and a harness launch on macOS is refused as `harness` like any other.
+ *
+ * SINCE PHASE 304 THE PASS ALSO SWEEPS THE SCOPED DUPLICATE the read-through
+ * in `./vault.ts` leaves when a kill or a refused delete falls between its
+ * read-back and its delete, which is why it is handed the legacy arm beside
+ * the vault. The unscoped move it was written for still runs, and its `vaultPut`
+ * now writes the sealed file.
  *
  * THE PROOF OF THE PROFILE IS COMPOSED HERE and nowhere else, out of the three
  * paths Electron answers and the process environment. The migration itself
@@ -352,12 +470,16 @@ export function readyKeepDeps(): Promise<KeepDeps> {
   if (migration === null && !credentialsAreOpen()) return Promise.resolve(deps);
   if (migration === null) {
     migration = trackCredentialWork(
-      keychainIsTheStore() && deps.vault.kind === 'keychain'
+      keychainIsTheStore()
         ? migrateUnscopedVault({
             // THE SAME `security` THE STORES USE, so a harness seam that points
             // the stores at a scratch keychain points the migration there too.
             runner: deps.stores.runner,
             vault: deps.vault,
+            // PHASE 304. The scoped items too, read through the same program,
+            // so the pass can sweep a duplicate the read-through left beside
+            // a sealed file. It never writes one: the type has no `put`.
+            legacy: legacyKeychainVault(deps.stores.runner, deps.root),
             root: deps.root,
             slots: LOGIN_PROVIDERS.flatMap((provider) =>
               sweepableSlots(deps.root, provider)

@@ -19,32 +19,53 @@
  * offered back: by the time Tortie notices the change, the store itself holds
  * the NEW account and the old bytes exist nowhere else on the machine.
  *
- * ## THE BACKENDS ARE ONE SEAM
+ * ## ONE BACKEND, A SEALED FILE, AND THE KEYCHAIN READ ONCE (Phase 304)
  *
- * A keychain item on macOS, named `Tortie-credentials-<slot>-<scope>`, and a
- * file with mode 0600 everywhere else. Both are reached through
- * {@link VaultBackend}, so `npm run conformance:credentials` runs the SHIPPING
- * write over an injected backend and can make every step fail on purpose.
+ * Until Phase 304 this store was a keychain item on macOS and a file with mode
+ * 0600 everywhere else, and the keychain arm had a ceiling nobody chose: the
+ * payload travelled to `security` as hex on one line, the line is cut above
+ * 4,096 bytes, so about 1,946 bytes of credential was the most Tortie could
+ * keep. His `~/.codex/auth.json` is 4,193 bytes and every observe of it had
+ * been refused since Phase 204. Nothing but Tortie reads this store, so the
+ * ceiling was self-inflicted; his ruling of 2026-09-20 was "i basically just
+ * want it to always work" and "for it to not be overcomplicated".
  *
- * ## THE NAME CARRIES ITS PROFILE (Phase 208)
+ * So there is ONE backend on every platform, {@link sealedVault}: one file per
+ * slot, `<slot>.cred`, mode 0600, in a directory with mode 0700 that Tortie
+ * made, holding the payload SEALED through a {@link VaultSeal} the caller
+ * hands in. In the app that seal is Electron's `safeStorage`, whose key the
+ * operating system keeps and binds to Tortie, the same seal `../settings/
+ * store.ts` already trusts for the danger settings; `npm run
+ * conformance:credentials` hands in one of its own, which is what lets it run
+ * the SHIPPING write under plain node and make every step fail on purpose.
+ * Never a credential in the clear on disk: a seal that cannot be made keeps
+ * NOTHING, and says so through the one write's own sentence.
+ *
+ * THE KEYCHAIN IS READ ONLY, AND THAT IS THE MIGRATION. Items a tree before
+ * Phase 304 kept still exist on his machine, under the profile-scoped names
+ * Phase 208 gave them. {@link LegacyVault} is the type of what this file may
+ * still do to them, being `get` and `del` and NEVER `put`, so no path through
+ * this store can compose a `security` write line at all. A `get` that misses the
+ * file asks the legacy item; on a hit it writes the sealed file, READS IT
+ * BACK, and only then deletes the item. Every window holds two copies and
+ * never zero, and the safe direction is the duplicate, which the boot pass in
+ * `./migrate.ts` sweeps on a later launch.
+ *
+ * ## THE NAME CARRIES ITS PROFILE (Phase 208), and since Phase 304 it is only a name to READ
  *
  * Until Phase 208 the keychain name was `Tortie-credentials-<slot>` and nothing
- * in it said WHICH profile wrote it, while the vendor half has carried a digest
- * of its directory since Phase 203. So every Tortie process on one machine,
+ * in it said WHICH profile wrote it, so every Tortie process on one machine,
  * being the person's own app, every scratch profile probe under `build/` and
- * every harness run, addressed the SAME items, and the default slot is one
- * every profile has. Measured by the Phase 206 fix round: a probe on a scratch
- * profile with `CLAUDE_CONFIG_DIR` pointed at a directory it made fell back to
- * the person's own unscoped vendor item, and its observe wrote what it read
- * into `Tortie-credentials-claude.default`, the item his real app reads, twice
- * inside probe runs. A probe that planted a credential in a scratch DEFAULT
- * store would have put that planted credential in front of him as a kept
- * account. {@link vaultServiceFor} now takes the vault's scope, being the
- * logins root of the profile it is running in, and appends the first eight hex
- * of its sha256 exactly the way `../usage/credentials.ts` scopes the vendor
- * half. No admitted slot holds a hyphen after its provider dot, and no scope
- * digest is empty, so no scoped name can equal an unscoped one. Nothing in
- * this file can compose the unscoped name at all.
+ * every harness run, addressed the SAME items; measured by the Phase 206 fix
+ * round, a probe's observe wrote what it read into the item his real app reads.
+ * {@link vaultServiceFor} takes the vault's scope, being the logins root of the
+ * profile it is running in, and appends the first eight hex of its sha256
+ * exactly the way `../usage/credentials.ts` scopes the vendor half. No admitted
+ * slot holds a hyphen after its provider dot, and no scope digest is empty, so
+ * no scoped name can equal an unscoped one, and nothing in this file can
+ * compose the unscoped name at all. A file under `<userData>/gmux/logins/kept/`
+ * is scoped by where it sits, so the composer now names only the item the
+ * legacy arm reads and deletes, never one it writes.
  *
  * ## THE WRITE IS NOT HERE
  *
@@ -53,18 +74,13 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { LoginProviderId } from '@shared/logins';
 import { LOGIN_PROVIDERS } from '@shared/logins';
 import { LOGIN_ID_RE } from '../logins/dirs';
-import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
-import {
-  keychainDelete,
-  keychainRead,
-  keychainWrite,
-  type SecurityRunner
-} from './security';
+import { readTextNoFollowSync, renameNoFollowSync, writeNoFollowSync } from './nofollow';
+import { keychainDelete, keychainRead, type SecurityRunner } from './security';
 import { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
 
 /** The slot the vendor's own location's rolling copy lives in. */
@@ -98,13 +114,51 @@ export function stagedSlotFor(slot: string): string {
   return `${slot}.pending`;
 }
 
-/** The store behind the slots. Two ship; the gate injects a third. */
+/**
+ * The store behind the slots. One ships, {@link sealedVault}; the gate and the
+ * tests inject others.
+ */
 export interface VaultBackend {
-  readonly kind: 'keychain' | 'file';
   get(slot: string): Promise<string | null>;
   put(slot: string, payload: string): Promise<void>;
   del(slot: string): Promise<void>;
 }
+
+/**
+ * The seal Tortie's own store writes through (Phase 304).
+ *
+ * `wrap` answers the sealed form of a text, or null when no seal can be made
+ * right now, which is the one answer that keeps nothing. `open` answers the
+ * text a sealed blob holds, or null for a blob this seal did not write, one
+ * sealed under another key, or garbage. Neither may throw, name a byte or
+ * write a log line; `../credentials/index.ts` builds the real one over
+ * Electron's `safeStorage` and is the only file that names Electron.
+ */
+export interface VaultSeal {
+  wrap(text: string): string | null;
+  open(blob: string): string | null;
+}
+
+/**
+ * Where a credential a tree before Phase 304 kept can still be READ from,
+ * and deleted once it has been moved (Phase 304).
+ *
+ * THE TYPE IS THE PROOF: it has `get` and `del` and no `put`, so nothing that
+ * reaches a keychain through this store can write one, and the one keychain
+ * write left in the domain is the vendor's own item in `./stores.ts`. `del`
+ * says whether the item went, because a delete `security` refused leaves a
+ * duplicate on the machine that the boot pass must count.
+ */
+export interface LegacyVault {
+  get(slot: string): Promise<string | null>;
+  del(slot: string): Promise<boolean>;
+}
+
+/** No keychain to read from, which is every platform but macOS and every harness launch without one. */
+export const NO_LEGACY: LegacyVault = {
+  get: async () => null,
+  del: async () => false
+};
 
 /** What every keychain name Tortie's own store composes begins with. */
 export const VAULT_SERVICE_PREFIX = 'Tortie-credentials-';
@@ -128,7 +182,8 @@ export function vaultScopeDigest(scope: string): string {
  *
  * The scope is REQUIRED and an empty one is refused, because a name with no
  * digest is exactly the unscoped name, and the whole point of this function is
- * that no caller can compose that by leaving something out.
+ * that no caller can compose that by leaving something out. Since Phase 304 it
+ * names only what {@link legacyKeychainVault} reads and deletes.
  */
 export function vaultServiceFor(slot: string, scope: string): string {
   if (typeof scope !== 'string' || scope === '') {
@@ -137,69 +192,132 @@ export function vaultServiceFor(slot: string, scope: string): string {
   return `${VAULT_SERVICE_PREFIX}${slot}-${vaultScopeDigest(scope)}`;
 }
 
-/** The account attribute Tortie's own items carry. */
-export const VAULT_ACCOUNT = 'tortie';
-
 /**
- * The macOS backend: one keychain item per slot, in the login keychain, named
- * for the profile that owns it.
+ * The keychain items a tree before Phase 304 kept, as a place to read from
+ * and delete and nothing else (Phase 304).
  *
- * It never passes `-A`, so the item's access control list is the ordinary one
- * and the payload never reaches an argv. Both measurements are in
- * ./security.ts.
- *
- * BOTH ARGUMENTS ARE REQUIRED (Phase 208). The runner used to default to the
- * real `security` and the scope did not exist, which is how `index.ts` came to
- * hold the profile root and throw it away. A caller that has no scope has no
- * business in the keychain.
+ * BOTH ARGUMENTS ARE REQUIRED (Phase 208). A caller that has no scope has no
+ * business in the keychain. The account is not passed, as it never was for
+ * Tortie's own names: `./security.ts` refuses a vendor name without one, and
+ * these names are not the vendor's.
  */
-export function keychainVault(runner: SecurityRunner, scope: string): VaultBackend {
+export function legacyKeychainVault(runner: SecurityRunner, scope: string): LegacyVault {
   const serviceFor = (slot: string): string => vaultServiceFor(slot, scope);
   return {
-    kind: 'keychain',
     get: (slot) => keychainRead(runner, serviceFor(slot), null),
-    put: async (slot, payload) => {
-      const ok = await keychainWrite(runner, serviceFor(slot), VAULT_ACCOUNT, payload);
-      if (!ok) throw new Error('the keychain refused an entry');
-    },
-    del: async (slot) => {
-      // The answer is discarded on purpose: this seam is `Promise<void>` and
-      // its callers already re-read. The migration is the one place that
-      // counts a delete, and it asks `keychainDelete` directly.
-      await keychainDelete(runner, serviceFor(slot), null);
-    }
+    del: (slot) => keychainDelete(runner, serviceFor(slot), null)
   };
 }
 
 /**
- * The everywhere else backend: one file per slot, mode 0600, in a directory
- * with mode 0700 that Tortie made.
+ * The one backend (Phase 304): one sealed file per slot, mode 0600, in a
+ * directory with mode 0700 that Tortie made, and the keychain read through
+ * once on a miss.
+ *
+ * ## THE FILE
+ *
+ * `<dir>/<slot>.cred` holds what `seal.wrap` answered and never the payload.
+ * The write stages at `<slot>.cred.writing` through `writeNoFollowSync` and
+ * renames through `renameNoFollowSync`, for the reason `./nofollow.ts`
+ * carries: a link planted at the staged name would otherwise send the sealed
+ * bytes wherever it points. Those two calls are the same ones the file arm
+ * made before this phase; what is new is that they now run on the shipping
+ * platform, so the guard is load bearing on macOS for the first time. The
+ * read is `readTextNoFollowSync` for the same reason, so a link planted at a
+ * slot's name reads as a file that is not there.
+ *
+ * A SEAL THAT CANNOT BE MADE KEEPS NOTHING. `put` throws, names no byte and no
+ * length, and `./swap.ts`'s stage catch turns that into the sentence it
+ * already has, "Nothing could be written, so nothing changed." The observe
+ * logs `refused` as it does for any refused keep, and the next observe keeps
+ * the credential once the seal is available. The cost is named: a platform
+ * with no OS keystore keeps nothing where the old file arm wrote a 0600
+ * plaintext file, and nobody ships there.
+ *
+ * ## THE READ-THROUGH, and the order that never leaves zero copies
+ *
+ * A file that opens is a HIT, and a hit asks the keychain nothing. A file
+ * that is absent or will not open (the seal unavailable, a foreign key,
+ * garbage) is a miss, and a miss asks `legacy` for the slot. On a legacy hit:
+ * write the sealed file through the same staged path, READ IT BACK through
+ * the same seal, and only if it reads back equal delete the item. A kill or a
+ * refusal at any step leaves the item, or the item and the file, and the next
+ * `get` either reads through again or reads the file and leaves the duplicate
+ * for `./migrate.ts`'s boot pass to sweep. The answer is the legacy bytes on
+ * every arm of the read-through, so a caller is never told "nothing" about a
+ * credential that exists.
+ *
+ * ## THE DELETE
+ *
+ * `del` of a slot removes the file and then asks `legacy` to delete the item,
+ * so a login removed after this phase still clears the copy an older build
+ * kept. `del` of a STAGED name, `<slot>.pending`, touches the file alone:
+ * `./swap.ts` discards the staged place in a `finally` after every write, and
+ * that discard must spawn nothing.
  */
-export function fileVault(dir: string): VaultBackend {
+export function sealedVault(dir: string, seal: VaultSeal, legacy: LegacyVault): VaultBackend {
   const pathOf = (slot: string): string => join(dir, `${slot}.cred`);
+
+  /** The file, opened through the seal, or null for absent, empty or unopenable. */
+  const readSealed = (slot: string): string | null => {
+    const text = readTextNoFollowSync(pathOf(slot));
+    if (text === null || text === '') return null;
+    const opened = seal.open(text);
+    return opened === '' ? null : opened;
+  };
+
+  const put = async (slot: string, payload: string): Promise<void> => {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const sealed = seal.wrap(payload);
+    if (sealed === null) throw new Error('no seal could be made for this entry');
+    const path = pathOf(slot);
+    const writing = `${path}.writing`;
+    // Not `writeFileSync`, for the reason `./nofollow.ts` carries.
+    writeNoFollowSync(writing, sealed);
+    renameNoFollowSync(writing, path);
+  };
+
   return {
-    kind: 'file',
     get: async (slot) => {
+      const opened = readSealed(slot);
+      if (opened !== null) return opened;
+      let held: string | null;
       try {
-        const text = readFileSync(pathOf(slot), 'utf8');
-        return text === '' ? null : text;
+        held = await legacy.get(slot);
       } catch {
-        return null;
+        held = null;
       }
+      if (held === null) return null;
+      // THE MIGRATION, in the one order that never leaves zero copies: the
+      // file written, the file read back through the seal, and only then the
+      // item deleted. The answer is `held` whatever happens below.
+      try {
+        await put(slot, held);
+      } catch {
+        // No seal right now. Both copies stay: the item, and nothing new.
+        return held;
+      }
+      if (readSealed(slot) !== held) return held;
+      try {
+        await legacy.del(slot);
+      } catch {
+        // The item stays beside the file, and the boot pass sweeps it later.
+      }
+      return held;
     },
-    put: async (slot, payload) => {
-      mkdirSync(dir, { recursive: true, mode: 0o700 });
-      const path = pathOf(slot);
-      const writing = `${path}.writing`;
-      // Not `writeFileSync`, for the reason `./nofollow.ts` carries.
-      writeNoFollowSync(writing, payload);
-      renameNoFollowSync(writing, path);
-    },
+    put,
     del: async (slot) => {
       try {
         rmSync(pathOf(slot), { force: true });
       } catch {
         // A slot that will not go is not a failure of the caller's operation.
+      }
+      if (slot.endsWith('.pending')) return;
+      try {
+        await legacy.del(slot);
+      } catch {
+        // An item that will not go leaves a copy in the keychain and nothing
+        // else, and the next launch's boot pass counts it.
       }
     }
   };
@@ -249,23 +367,25 @@ export async function vaultGet(
  * A crash runs no `finally`, so a kill between a stage and its discard leaves
  * a WHOLE credential at `<slot>.pending`. `./swap.ts` discards in a `finally`
  * and a later successful write to the same slot discards it too, but a slot
- * that is never written again keeps it, and on macOS that is a second keychain
- * item holding a credential. The Phase 204 reverify recorded this as not
- * blocking, because it sits inside a 0600 directory beside credentials Tortie
- * already holds; it should still not survive a crash, which is what
+ * that is never written again keeps it. The Phase 204 reverify recorded this
+ * as not blocking, because it sits inside a 0600 directory beside credentials
+ * Tortie already holds; it should still not survive a crash, which is what
  * `../credentials/keep.ts`'s once per run sweep now uses this for.
  *
  * ## IT READS BEFORE IT DELETES, and that is not an optimisation
  *
  * The sweep runs in EVERY profile, being the person's own and every scratch
- * profile a probe or a harness run makes, and on macOS this backend's store is
- * the person's login keychain rather than anything inside the profile. So a
- * delete asked for here is a delete asked of a store the profile does not own.
- * Asking for one with no evidence there is anything to remove is a reach into
- * the person's keychain namespace on every launch of every probe in this tree,
- * which is what the Phase 206 verifier measured. A `get` that answers null
- * ends the call, and the delete is only ever asked for a staged place this
- * backend has just said is there.
+ * profile a probe or a harness run makes. Until Phase 304 this backend's store
+ * on macOS was the person's login keychain rather than anything inside the
+ * profile, so a delete asked for here with no evidence there was anything to
+ * remove was a reach into the person's keychain namespace on every launch of
+ * every probe in this tree, which is what the Phase 206 verifier measured. A
+ * `get` that answers null ends the call, and the delete is only ever asked
+ * for a staged place this backend has just said is there. Since Phase 304 the
+ * staged delete touches a file inside the profile and spawns nothing at all;
+ * the `get` on a miss may still ask the keychain once for a staged item a
+ * tree before Phase 304 left, and if one is there it is moved into the staged
+ * file and removed with it, so the leftover is gone either way.
  */
 export async function vaultDiscardStaged(
   backend: VaultBackend,

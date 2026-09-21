@@ -41,7 +41,6 @@ function fakeVault(): VaultBackend & {
   const failPut = new Set<string>();
   const corrupt = new Set<string>();
   return {
-    kind: 'file',
     slots,
     failPut,
     corrupt,

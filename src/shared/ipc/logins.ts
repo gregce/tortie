@@ -33,7 +33,7 @@
  * MAIN: src/main/logins/ipc.ts, the one `logins:*` registrar.
  */
 
-import type { LoginProviderId, LoginsSnapshot } from '../logins';
+import type { LoginProviderId, LoginRefusalWhy, LoginsSnapshot } from '../logins';
 
 /**
  * Main → renderers: a login set changed WITHOUT the renderer asking (Phase 211).
@@ -59,6 +59,20 @@ export interface LoginActionResult {
   ok: boolean;
   /** Present when `ok` is false. A sentence a person can read. */
   reason?: string;
+  /**
+   * The named reason, when this change met one (Phase 287).
+   *
+   * It is on BOTH arms deliberately. A switch can meet the agent's own ceiling
+   * and still stand: the login is chosen and its own keychain entry holds its
+   * account, while the running session was left alone because the entry that
+   * session reads could not take the sign in. `ok` says whether the choice
+   * happened and this says what was met on the way, so a renderer can say the
+   * one sentence that is true of that outcome instead of the switched one.
+   * Since Phase 304 the only store that can refuse for size is the agent's,
+   * because Tortie's own copy is a sealed file, so no ROW carries this: it is
+   * the answer to one click and nothing else.
+   */
+  why?: LoginRefusalWhy;
   /** Every login after the change, or before it when nothing changed. */
   snapshot: LoginsSnapshot;
 }

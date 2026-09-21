@@ -33,7 +33,6 @@ function countingVault(): VaultBackend & {
   const deletes: string[] = [];
   const reads: string[] = [];
   return {
-    kind: 'file',
     slots,
     deletes,
     reads,

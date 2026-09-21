@@ -48,7 +48,7 @@
  * that survives. `liftStore` carries the order.
  */
 
-import type { LoginProviderId } from '@shared/logins';
+import type { LoginProviderId, LoginRefusalWhy } from '@shared/logins';
 import {
   DEFAULT_LOGIN_NAME,
   loginNameFromEmail,
@@ -297,8 +297,9 @@ async function sweepStaged(d: KeepDeps, provider: LoginProviderId): Promise<void
   // store Tortie owns, so a crash between a slot's stage and its discard
   // left the whole credential at `<slot>.pending` and only a later
   // SUCCESSFUL write to that same slot ever removed it. A slot nobody writes
-  // again kept it, which on macOS is a second keychain item holding a
-  // credential. The DEFAULT slot is swept as well, because it is Tortie's
+  // again kept it, which was a second keychain item holding a credential
+  // until Phase 304 and is a `<slot>.pending.cred` file under the profile
+  // since. The DEFAULT slot is swept as well, because it is Tortie's
   // own rolling copy and it has a staged place like every other slot; the
   // vendor half below still refuses the person's own location by name.
   //
@@ -909,10 +910,19 @@ export async function keptFactsFor(
   return factsFromSlot(d, provider, id, digest);
 }
 
-/** What an activation answered. */
+/**
+ * What an activation answered.
+ *
+ * `why` names the refusal when it has a name of its own (Phase 287), on the
+ * refusal AND on a switch that stood with one half refused, because a surface
+ * says a different sentence for it either way. Since Phase 304 the only store
+ * in this domain that can refuse for its size is the vendor's own keychain
+ * item, so every `why` here comes out of that one write, through
+ * {@link liftStore}'s `done.why`.
+ */
 export type ActivateResult =
-  | { ok: true; wrote: boolean; says: string }
-  | { ok: false; reason: string };
+  | { ok: true; wrote: boolean; says: string; why?: LoginRefusalWhy }
+  | { ok: false; reason: string; why?: LoginRefusalWhy };
 
 /**
  * Is this the DEFAULT login, being the vendor's own location? (Phase 211)
@@ -1057,6 +1067,15 @@ export async function activateLogin(
   let says: string | null = null;
   let firstProblem: string | null = null;
   /**
+   * The name of the first problem's reason, when it has one (Phase 287). Set in
+   * exactly one place, from the default lift's refusal, and since Phase 304 that
+   * refusal can be named only by the vendor's own keychain item, the one store
+   * left with a ceiling. It decides whether the switch that stood says the
+   * sentence for a sign in the agent cannot hold, and whether a default lift
+   * refused for that reason may un-choose the login.
+   */
+  let firstWhy: LoginRefusalWhy | null = null;
+  /**
    * The store a lift is INSIDE right now, or null between them (Phase 220).
    *
    * It is what lets an unclassified throw say whether a write may have been
@@ -1080,7 +1099,13 @@ export async function activateLogin(
       stopAfter
     );
     inside = null;
-    if (!own.ok) return { ok: false, reason: own.reason };
+    if (!own.ok) {
+      return {
+        ok: false,
+        reason: own.reason,
+        ...(own.why === undefined ? {} : { why: own.why })
+      };
+    }
     if (own.wrote) wrote = true;
     else says = own.says ?? null;
 
@@ -1109,6 +1134,7 @@ export async function activateLogin(
         if (lifted.wrote) wrote = true;
       } else if (firstProblem === null) {
         firstProblem = lifted.reason;
+        firstWhy = lifted.why ?? null;
       }
     }
   } catch {
@@ -1122,9 +1148,31 @@ export async function activateLogin(
   }
 
   if (!wrote) {
-    return firstProblem === null
-      ? { ok: true, wrote: false, says: says ?? 'That account is already in place.' }
-      : { ok: false, reason: firstProblem };
+    if (firstProblem === null) {
+      return { ok: true, wrote: false, says: says ?? 'That account is already in place.' };
+    }
+    if (firstWhy === 'too-large') {
+      // PHASE 287. A DEFAULT LIFT REFUSED AS TOO LARGE NEVER UN-CHOOSES THE
+      // LOGIN. The login's own store already holds its account, so nothing was
+      // written there and every new session under this login works, which is
+      // the ordinary re-choose. The running default session was not moved
+      // because the AGENT'S OWN keychain item cannot take this sign in: since
+      // Phase 304 that vendor item is the one store in this domain with a
+      // ceiling, and `firstWhy` is its write's reason travelling out of
+      // {@link liftStore}. The old `ok: false` here would have made a click
+      // that works today stop working: at `a4f44588` that same click records
+      // the choice, while destroying the default sign in. The choice stands,
+      // the toast says the running session keeps its sign in, and `Restart
+      // now` on it is still the way to move that session. Every other default
+      // lift refusal keeps the refusal below.
+      return {
+        ok: true,
+        wrote: false,
+        says: says ?? 'That account is already in place.',
+        why: 'too-large'
+      };
+    }
+    return { ok: false, reason: firstProblem };
   }
   if (firstProblem !== null) {
     // THE LOGIN'S OWN STORE WAS WRITTEN AND THE DEFAULT ONE WAS NOT. The
@@ -1133,7 +1181,8 @@ export async function activateLogin(
     return {
       ok: true,
       wrote: true,
-      says: `${row.name} is signed in again, but the running session was not reached. ${firstProblem}`
+      says: `${row.name} is signed in again, but the running session was not reached. ${firstProblem}`,
+      ...(firstWhy === null ? {} : { why: firstWhy })
     };
   }
   return { ok: true, wrote: true, says: `${row.name} is signed in again.` };
@@ -1217,7 +1266,7 @@ interface LiftedStore {
 
 type LiftResult =
   | { ok: true; wrote: boolean; says?: string }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; why?: LoginRefusalWhy };
 
 /**
  * Put the chosen account into ONE store, under the vendor's locks, keeping
@@ -1316,13 +1365,13 @@ async function liftStore(
           // Only a store still holding the bytes this slot moved past is
           // written, below, with the fresher ones.
           updateKeptFile(d.root, changed);
+          const same = chosen !== undefined && sameAccountProven(chosen, live);
           if (captured.took === 'refused') {
             return {
               ok: false,
               reason: 'Tortie could not keep the sign in that is there, so nothing was written over it.'
             };
           }
-          const same = chosen !== undefined && sameAccountProven(chosen, live);
           return same
             ? { ok: true, wrote: false }
             : {
@@ -1360,7 +1409,18 @@ async function liftStore(
           : { ok: false, reason: 'Tortie refused to write that sign in location.' };
       }
       const done = await safeSwap(target, payload, stopAfter);
-      if (!done.ok) return { ok: false, reason: done.reason };
+      // PHASE 287. The one write's own reason travels out. Since Phase 304 this
+      // is the ONLY place in the domain a `why` can come from: the target is
+      // the vendor's own store, and for Claude on macOS that is a keychain
+      // item written on one `security` line with a ceiling of its own, while
+      // Tortie's own vault is a sealed file that keeps a payload of any size.
+      if (!done.ok) {
+        return {
+          ok: false,
+          reason: done.reason,
+          ...(done.why === undefined ? {} : { why: done.why })
+        };
+      }
       // THE SLOT MIRRORS THE STORE, bytes and record together, so the next
       // observe finds it unchanged. For the default store this is the rolling
       // copy moving on to the chosen account.

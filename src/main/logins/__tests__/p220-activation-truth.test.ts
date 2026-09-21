@@ -19,11 +19,14 @@
  * the new name. Both are green here and red with either repair removed.
  *
  * NOTHING HERE OPENS A KEYCHAIN, READS A HOME OR SPAWNS ANYTHING. The stores
- * are real files inside one temporary directory per test, the vault is a file
- * vault beside them, the `security` seam refuses every call, and the store
- * environment is an EMPTY map on purpose: `process.env` would let a
- * `CLAUDE_CONFIG_DIR` or a `CODEX_HOME` set on the machine running this suite
- * compose a default store path outside the scratch root.
+ * are real files inside one temporary directory per test, the vault is the
+ * shipping sealed vault beside them over the test seal and no legacy keychain
+ * (Phase 304; it was the file vault until then, and the sealed vault is the
+ * same file with its payload behind `seal.wrap`), the `security` seam refuses
+ * every call, and the store environment is an EMPTY map on purpose:
+ * `process.env` would let a `CLAUDE_CONFIG_DIR` or a `CODEX_HOME` set on the
+ * machine running this suite compose a default store path outside the scratch
+ * root.
  */
 
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, existsSync, writeFileSync } from 'node:fs';
@@ -63,7 +66,8 @@ import { DEFAULT_LOGIN_NAME } from '../../../shared/logins';
 import type { KeepDeps, LiveSession } from '../../credentials';
 
 const { registerLoginsIpc } = await import('../ipc');
-const { setKeepDeps, fileVault } = await import('../../credentials');
+const { setKeepDeps, sealedVault, NO_LEGACY } = await import('../../credentials');
+const { testSeal } = await import('../../credentials/__tests__/test-seal');
 const keep = await import('../../credentials/keep');
 const { readLoginsFile } = await import('../store');
 const { loginDirIn } = await import('../dirs');
@@ -127,7 +131,7 @@ function readIfThere(path: string): string | null {
 function deps(): KeepDeps {
   return {
     root,
-    vault: fileVault(join(root, 'kept')),
+    vault: sealedVault(join(root, 'kept'), testSeal(), NO_LEGACY),
     stores: {
       runner: { run: async () => ({ code: 1, stdout: '' }) },
       readText: async (path) => readIfThere(path),

@@ -58,6 +58,75 @@ export const LOGIN_NOT_SIGNED_IN = 'Not signed in yet';
 export const LOGIN_KEPT = 'Kept by Tortie';
 
 /**
+ * The switch that did NOT happen, because the agent's own keychain entry could
+ * not take the sign in (Phase 287, rewritten by Phase 304).
+ *
+ * ## ONE STORE CAN REFUSE FOR SIZE, AND THIS NAMES IT
+ *
+ * Tortie writes a keychain entry through one `security -i` line, and that line
+ * carries about 4,096 bytes; the hex doubles the sign in, so an entry can take
+ * a sign in of about 1,950 bytes and no more. Since Phase 304 Tortie's OWN copy
+ * of a sign in is a sealed file with no such ceiling, so the only entry that
+ * can refuse is the one the agent reads, being `Claude Code-credentials` or its
+ * per-login twin, and this sentence is said for exactly one click: a kept login
+ * chosen while the entry for it cannot take the sign in Tortie kept. The click
+ * is refused, nothing is put back, and the row goes on promising that a choose
+ * puts the account back, which is why the consequence clause negates that
+ * promise in its own words.
+ *
+ * ## THE THREE REFUSED DRAFTS, recorded so none comes back
+ *
+ * "too large for Tortie to keep in the keychain" is Phase 287's sentence, and
+ * its verifier and then its reverifier found it blaming the wrong store: on the
+ * arm they built Tortie HAD kept the sign in (`kept: true`, "Puts this account
+ * back." on the row) and what refused the line was the agent's entry. "too
+ * large for the agent to hold in the keychain" was the next draft, and it is
+ * false too: the agent's own writer switches to an argv form above 4,032 bytes
+ * (bundle 2.1.274, read in the Phase 287 entry), so the agent holds sign ins of
+ * this size every day, and on the switch that stood the agent's per-login entry
+ * holds this very one. The ceiling is Tortie's writer, and the sentence says
+ * so. "so nothing was written over the sign in that is there" was Phase 287's
+ * consequence clause, true where the store held an older copy and naming
+ * nothing on the common arm, a "Kept by Tortie" row whose own store is EMPTY,
+ * which is the row a person clicks to get an account back.
+ *
+ * It holds no apostrophe, because both conformance gates read these bytes out
+ * of this file with `'([^']*)'`, and it names neither vendor, because a codex
+ * sign in is a file and never meets this refusal while a claude one on macOS
+ * does. `p181-usage-copy.test.ts` forbids a standalone "it" in every sentence
+ * in this file, so each clause names its subject.
+ */
+export const LOGIN_TOO_LARGE_SENTENCE =
+  'This sign in is too large for Tortie to write into the keychain entry the agent reads, so nothing was put back.';
+
+/**
+ * The switch that STOOD, while the running session was left where it was
+ * (Phase 287, rewritten by Phase 304).
+ *
+ * THE OUTCOME COMES FIRST, and that is the whole shape of it. The choice is
+ * recorded and the login's own entry already holds its account, so new
+ * sessions under it get the sign in; the one thing that did not happen is the
+ * running default session following the switch, because the entry that session
+ * reads cannot take a sign in this large from Tortie's writer. Phase 287's first
+ * build said the refusal alone here, which read as a refusal of the login the
+ * person had just picked, beside a switched toast saying the opposite.
+ *
+ * "This sign in" AND NOT "A sign in", which Phase 287 said because its vault
+ * could refuse too and the too-large one was then not always the chosen one.
+ * Since Phase 304 this sentence is said in ONE shape, and there the sign in
+ * that is too large IS the one the person chose. `Restart now` goes on this
+ * toast, because a session restarted under the chosen login reads that login's
+ * own entry, which holds the sign in.
+ *
+ * "keeps its current sign in" AND NOT "was left as it is":
+ * `p181-usage-copy.test.ts` forbids a standalone "it" here, and the replacement
+ * says the same thing more usefully, because what the person wants to know is
+ * which sign in that session is running under.
+ */
+export const LOGIN_TOO_LARGE_RUNNING =
+  'Switched for new sessions. This sign in is too large for Tortie to write into the keychain entry the running session reads, so that session keeps its current sign in.';
+
+/**
  * What choosing a login will do, in one short line each (Phase 204).
  *
  * They are said BEFORE the switch rather than after it, which is the whole

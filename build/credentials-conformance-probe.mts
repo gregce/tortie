@@ -12,6 +12,14 @@
  *
  * `P204_MODULES` points the domain somewhere else, which is how the gate runs
  * this same probe over an ABLATED copy and watches it go red.
+ *
+ * SINCE PHASE 304 TORTIE'S OWN STORE IS A SEALED FILE, and the seal is an
+ * argument, so every arm that drives it hands in {@link injectedSeal}: base64
+ * behind a marker, no cipher, and enough to tell a file that went through
+ * `wrap` from one holding the payload as written. The keychain is read ONCE
+ * for a legacy item on a miss, through the same measured `security` model,
+ * and never written by any vault path; rule 17 drives that read-through and
+ * rule 22 the size the sealed file has no limit on.
  */
 
 import {
@@ -22,15 +30,16 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { addLogin, readLoginsFile } from '../src/main/logins/store';
+import { addLogin, chooseLogin, readLoginsFile } from '../src/main/logins/store';
 import { loginDirIn, loginsFileIn } from '../src/main/logins/dirs';
 import { securityPrintsRaw } from '../src/main/credentials/security-print';
 import {
@@ -63,6 +72,14 @@ const kept = (await import(
 const nofollow = (await import(
   pathToFileURL(resolve(MODULES, 'nofollow.ts')).href
 )) as typeof import('../src/main/credentials/nofollow');
+/**
+ * PHASE 287. The module that owns the cap, imported from the same place every
+ * other module here is, so the `lineCap` arm drives the ABLATED copy's cap and
+ * not the tree's.
+ */
+const security = (await import(
+  pathToFileURL(resolve(MODULES, 'security.ts')).href
+)) as typeof import('../src/main/credentials/security');
 /**
  * THE ONE MODULE THAT MAY BE MISSING, and why it is loaded differently
  * (Phase 219).
@@ -397,7 +414,6 @@ function makeVault(): import('../src/main/credentials/vault').VaultBackend & {
   const slots = new Map<string, string>();
   const refuse = new Set<string>();
   return {
-    kind: 'file',
     slots,
     refuse,
     get: async (slot) => slots.get(slot) ?? null,
@@ -409,6 +425,64 @@ function makeVault(): import('../src/main/credentials/vault').VaultBackend & {
       slots.delete(slot);
     }
   };
+}
+
+/**
+ * PHASE 304. The seal every sealed-vault arm here hands the SHIPPING
+ * `sealedVault`, standing in for Electron's `safeStorage`, which no plain node
+ * process has. It is base64 behind a marker and it is NOT a cipher: what it is
+ * for is telling a file that went through `seal.wrap` from one that holds the
+ * payload as written, which is rule 22's clause (b) and the ablation "the
+ * seal dropped". A blob it did not make opens as null, the way a file sealed
+ * under somebody else's key does under the real one. The marker carries a
+ * counter so two wraps of the same text are two DIFFERENT blobs, which is
+ * what lets the read-back arm of rule 17 refuse exactly one of them.
+ */
+const SEAL_MARK = 'p304:';
+function injectedSeal(): import('../src/main/credentials/vault').VaultSeal & {
+  wraps: number;
+  opens: number;
+} {
+  const seal = {
+    wraps: 0,
+    opens: 0,
+    wrap: (text: string): string | null => {
+      seal.wraps += 1;
+      return `${SEAL_MARK}${String(seal.wraps)}:${Buffer.from(text, 'utf8').toString('base64')}`;
+    },
+    open: (blob: string): string | null => {
+      seal.opens += 1;
+      const found = /^p304:\d+:([A-Za-z0-9+/=]*)$/.exec(blob);
+      return found === null ? null : Buffer.from(found[1] ?? '', 'base64').toString('utf8');
+    }
+  };
+  return seal;
+}
+
+/** The legacy arm over the measured `security`, as `index.ts` composes it. */
+function legacyOver(
+  runner: import('../src/main/credentials/security').SecurityRunner,
+  root: string
+): import('../src/main/credentials/vault').LegacyVault {
+  return vault.legacyKeychainVault(runner, root);
+}
+
+/** The sealed vault for one logins root, at the place `index.ts` puts it. */
+function sealedFor(
+  root: string,
+  seal: import('../src/main/credentials/vault').VaultSeal,
+  legacy: import('../src/main/credentials/vault').LegacyVault
+): import('../src/main/credentials/vault').VaultBackend {
+  return vault.sealedVault(join(root, 'kept'), seal, legacy);
+}
+
+/** The sealed file for one slot under one root: its text, or null. */
+function sealedFileOf(root: string, slot: string): string | null {
+  try {
+    return readFileSync(join(root, 'kept', `${slot}.cred`), 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -2167,8 +2241,10 @@ try {
         ? { ok: false as const, reason: 'no target' }
         : await swap.safeSwap(target, codexCredential('bob', '2'));
 
-    // 2. TORTIE'S OWN FILE VAULT, whose staged place is `<slot>.pending.cred`
-    //    and whose write stages once more at `.writing` beside it.
+    // 2. TORTIE'S OWN SEALED VAULT, whose staged place is `<slot>.pending.cred`
+    //    and whose write stages once more at `.writing` beside it. Since Phase
+    //    304 this is the ONE backend, so the guard this plants a link against
+    //    is load bearing on macOS and not only everywhere else.
     const vaultDir = join(root, 'kept');
     mkdirSync(vaultDir, { recursive: true, mode: 0o700 });
     const slot = vault.slotFor('codex', '0123456789abcdef');
@@ -2177,7 +2253,7 @@ try {
       vaultVictim,
       join(vaultDir, `${vault.stagedSlotFor(slot)}.cred.writing`)
     );
-    const backend = vault.fileVault(vaultDir);
+    const backend = vault.sealedVault(vaultDir, injectedSeal(), vault.NO_LEGACY);
     const kastPut = await vault.vaultPut(backend, slot, codexCredential('carol', '3'));
 
     // 3. THE RECORD FILE, whose temporary name is composed from this pid.
@@ -2937,12 +3013,17 @@ try {
   }
 
   // -------------------------------------------------------------------------
-  // 17. THE VAULT IS SCOPED TO ITS PROFILE (Phase 208). A scratch root and the
-  //     person's root compose DIFFERENT names, no name composed from any root
-  //     equals the unscoped one, the digest is re-derived here by a sha256 of
-  //     this file's own, the keychain backend lands only on the scoped name,
-  //     and the migration reads or deletes the unscoped name only in the
-  //     person's own profile.
+  // 17. THE VAULT IS ONE SEALED FILE, AND THE KEYCHAIN IS READ ONCE (Phase
+  //     208, rewritten by Phase 304). A scratch root and the person's root
+  //     compose DIFFERENT legacy names, no name composed from any root equals
+  //     the unscoped one, the digest is re-derived here by a sha256 of this
+  //     file's own, the read-through asks exactly the scoped name and lands
+  //     the answer in a sealed FILE, a profile is blind to another's item, and
+  //     the migration reads or deletes the unscoped name only in the person's
+  //     own profile. THE READ-THROUGH is driven step by step: a miss with a
+  //     scoped item planted, the delete refused, the seal unavailable during
+  //     the read-through, the read-back disagreeing, and the boot pass sweeping
+  //     a duplicate the read-through left beside a sealed file.
   // -------------------------------------------------------------------------
   if (migrate === null) {
     // The domain has no migration at all. Say so as a reading rather than by
@@ -2982,23 +3063,92 @@ try {
     // THE ONLY COMPOSER OF THE UNSCOPED NAME agrees with this file's spelling.
     const composerAgrees = migrate.unscopedVaultServiceFor('claude.default') === unscopedOf('claude.default');
 
-    // The backend, over the measured security, lands on the scoped name only.
+    // THE READ-THROUGH, over the measured security (Phase 304). One scoped item
+    // is planted under the scratch root's name and a sealed vault for that
+    // root is asked for the slot: the only names on any argv must be exactly
+    // that scoped name, no `-i` line may be composed, the answer must be the
+    // item's bytes, and the sealed file must now hold them behind the seal.
+    // Then a vault for the PERSON'S root over the same keychain asks for the
+    // same slot, and must answer nothing and write nothing.
     const w = makeWorld();
     const security = fakeSecurity(w);
-    const scoped = vault.keychainVault(security.runner, scratchRoot);
-    try {
-      await scoped.put('claude.default', claudeCredential('scoped', '1'));
-    } catch {
-      // A backend that refuses is read below as a name that never landed.
-    }
-    const backendNames = [...security.items.keys()];
+    const scratchSeal = injectedSeal();
+    const scratchDir = freshRoot();
+    const scopedName = vault.vaultServiceFor('claude.default', scratchRoot);
+    security.items.set(scopedName, { account: 'tortie', payload: claudeCredential('scoped', '1') });
+    const scoped = sealedFor(scratchDir, scratchSeal, legacyOver(security.runner, scratchRoot));
+    const readThroughAnswer = await scoped.get('claude.default');
+    const namesAsked = w.argvs.map((argv) => argv[argv.indexOf('-s') + 1] ?? '');
     const backendNamesScoped =
-      backendNames.length === 1 &&
-      backendNames[0] === vault.vaultServiceFor('claude.default', scratchRoot);
+      namesAsked.length > 0 &&
+      namesAsked.every((n) => n === scopedName) &&
+      w.stdins.length === 0 &&
+      readThroughAnswer === claudeCredential('scoped', '1') &&
+      scratchSeal.open(sealedFileOf(scratchDir, 'claude.default') ?? '') ===
+        claudeCredential('scoped', '1');
+    const ownDir = freshRoot();
     const crossProfileHidden =
-      (await vault.keychainVault(security.runner, ownRoot).get('claude.default')) === null;
+      (await sealedFor(ownDir, injectedSeal(), legacyOver(security.runner, ownRoot)).get(
+        'claude.default'
+      )) === null && sealedFileOf(ownDir, 'claude.default') === null;
 
-    // The migration, both ways, over the measured security.
+    /**
+     * ONE READ-THROUGH, step by step, with one thing made to fail (Phase 304).
+     * The answer is graded against `held` on every arm, because a caller is
+     * never told "nothing" about a credential that exists; what differs is
+     * which copies are left and which calls were made.
+     */
+    const readThrough = async (fault: 'none' | 'refuseDelete' | 'wrapNull' | 'openWrong') => {
+      const root = freshRoot();
+      const world = makeWorld();
+      const sec = fakeSecurity(world);
+      const name = vault.vaultServiceFor('claude.default', root);
+      const held = claudeCredential('legacy', '1');
+      sec.items.set(name, { account: 'tortie', payload: held });
+      const runner: import('../src/main/credentials/security').SecurityRunner = {
+        run: async (argv, stdin) => {
+          if (fault === 'refuseDelete' && argv[0] === 'delete-generic-password') {
+            // Recorded as asked, refused as `security` refuses: the item stays.
+            world.argvs.push([...argv]);
+            return { code: 1, stdout: '' };
+          }
+          return sec.runner.run(argv, stdin);
+        }
+      };
+      const base = injectedSeal();
+      const seal: import('../src/main/credentials/vault').VaultSeal = {
+        wrap: (text) => (fault === 'wrapNull' ? null : base.wrap(text)),
+        open: (blob) => (fault === 'openWrong' ? claudeCredential('other', '9') : base.open(blob))
+      };
+      const backend = sealedFor(root, seal, legacyOver(runner, root));
+      const shape = (argv: readonly string[]): string =>
+        `${(argv[0] ?? '').replace('-generic-password', '')} ${argv.slice(1).join(' ')}`.replace(name, '<scoped>');
+      const first = await backend.get('claude.default');
+      const firstArgvs = world.argvs.map(shape);
+      const fileAfterFirst = sealedFileOf(root, 'claude.default');
+      const itemAfterFirst = sec.items.has(name);
+      const second = await backend.get('claude.default');
+      const secondArgvs = world.argvs.slice(firstArgvs.length).map(shape);
+      return {
+        answered: first === held,
+        argvs: firstArgvs,
+        lines: world.stdins.length,
+        filePresent: fileAfterFirst !== null,
+        fileOpens: fileAfterFirst !== null && base.open(fileAfterFirst) === held,
+        fileIsNotThePayload: fileAfterFirst !== held,
+        itemPresent: itemAfterFirst,
+        secondAnswered: second === held,
+        secondArgvs
+      };
+    };
+    const rtMiss = await readThrough('none');
+    const rtRefusedDelete = await readThrough('refuseDelete');
+    const rtWrapNull = await readThrough('wrapNull');
+    const rtOpenWrong = await readThrough('openWrong');
+
+    // The migration, both ways, over the measured security and the sealed
+    // vault (Phase 304): `vaultPut` now writes the sealed file, and `legacy`
+    // is the same program's scoped items, read and never written.
     const arm = async (
       plant: (items: KeychainItems, root: string) => void,
       ownProfile: boolean,
@@ -3009,33 +3159,26 @@ try {
       const world = makeWorld();
       const sec = fakeSecurity(world);
       plant(sec.items, root);
-      // A KEYCHAIN WHOSE SCOPED ITEM VANISHES right after the write confirmed
-      // it, for the arm that proves the old item is deleted only once the new
-      // one is read back by the migration itself. The shipping write already
-      // confirms its own commit, so the one read that can still disagree is
-      // the migration's, and this is the keychain that makes it disagree.
-      const scopedService = vault.vaultServiceFor('claude.default', root);
-      let scopedReadsLeft = -1;
-      const runner: import('../src/main/credentials/security').SecurityRunner = {
-        run: async (argv, stdin) => {
-          if (vanishAfterConfirm) {
-            if (argv[0] === '-i' && (stdin ?? '').includes(`-s "${scopedService}"`)) {
-              scopedReadsLeft = 1;
-            }
-            if (
-              argv[0] === 'find-generic-password' &&
-              argv.includes(scopedService) &&
-              scopedReadsLeft === 0
-            ) {
-              return { code: 1, stdout: '' };
-            }
-            if (argv[0] === 'find-generic-password' && argv.includes(scopedService) && scopedReadsLeft > 0) {
-              scopedReadsLeft -= 1;
+      const runner = sec.runner;
+      // A SEAL WHOSE SECOND OPENING OF ANY BLOB ANSWERS NOTHING, for the arm
+      // that proves the old item is deleted only once the new copy is read
+      // back by the migration itself. The shipping write already opens every
+      // blob it writes once, to confirm its own commit, so the one read that
+      // can still disagree is the migration's own, and this is the seal that
+      // makes it disagree. Until Phase 304 this was a keychain whose scoped
+      // ITEM vanished after the write confirmed it.
+      const base = injectedSeal();
+      const opened = new Set<string>();
+      const seal: import('../src/main/credentials/vault').VaultSeal = vanishAfterConfirm
+        ? {
+            wrap: (text) => base.wrap(text),
+            open: (blob) => {
+              if (opened.has(blob)) return null;
+              opened.add(blob);
+              return base.open(blob);
             }
           }
-          return sec.runner.run(argv, stdin);
-        }
-      };
+        : base;
       if (record !== null) {
         kept.writeKeptFile(root, {
           v: 1,
@@ -3053,7 +3196,8 @@ try {
       }
       const result = await migrate.migrateUnscopedVault({
         runner,
-        vault: vault.keychainVault(runner, root),
+        vault: sealedFor(root, seal, legacyOver(runner, root)),
+        legacy: legacyOver(runner, root),
         root,
         slots: ['claude.default', vault.slotFor('claude', 'b'.repeat(16))],
         ownProfile: ownProfile ? 'own' : 'elsewhere'
@@ -3061,10 +3205,17 @@ try {
       const named = world.argvs
         .map((argv) => argv[argv.indexOf('-s') + 1] ?? '')
         .concat(world.stdins.map((line) => /-s "([^"]*)"/.exec(line)?.[1] ?? ''));
+      // The sealed file, opened through the arm's own base seal, so a vanishing
+      // seal's refusals do not colour what the file really holds.
+      const fileText = sealedFileOf(root, 'claude.default');
       return {
         result,
         items: [...sec.items.entries()].map(([k, v]) => [k, v.payload]),
         namedUnscoped: named.some((n) => n === unscopedOf('claude.default') || n === unscopedOf(vault.slotFor('claude', 'b'.repeat(16)))),
+        // PHASE 304. Not one `-i` line on any migration arm: the sealed file is
+        // where the move lands, and the keychain is only ever read and deleted.
+        lines: world.stdins.length,
+        fileHolds: fileText === null ? null : base.open(fileText),
         root
       };
     };
@@ -3114,7 +3265,8 @@ try {
       };
       const result = await migrate.migrateUnscopedVault({
         runner,
-        vault: vault.keychainVault(runner, root),
+        vault: sealedFor(root, injectedSeal(), legacyOver(runner, root)),
+        legacy: legacyOver(runner, root),
         root,
         slots: ['claude.default'],
         ownProfile: 'own' as const
@@ -3134,6 +3286,64 @@ try {
       null,
       true
     );
+    // PHASE 304 (e). THE BOOT PASS SWEEPS A DUPLICATE. A sealed file that
+    // answers, with the SCOPED item still beside it, is the one shape the
+    // read-through cannot reach, because a hit asks the keychain nothing. The
+    // pass must delete the item, count it, and leave the file holding what it
+    // held. Its sibling is the older-build rule applied to this pair: when the
+    // record names the ITEM's bytes and not the file's, the file is rewritten
+    // from the item first and the item then deleted. And the fourth shape,
+    // from the fix round: the bytes DIFFER and the record names NEITHER, so
+    // nothing proves which copy this profile can reach and the pass must
+    // leave both, counted as kept, deleting nothing.
+    const sweep = async (twin: string, recorded: string | null) => {
+      const root = freshRoot();
+      const world = makeWorld();
+      const sec = fakeSecurity(world);
+      const seal = injectedSeal();
+      const backend = sealedFor(root, seal, legacyOver(sec.runner, root));
+      const sealedBytes = claudeCredential('sealed', '5');
+      await backend.put('claude.default', sealedBytes);
+      sec.items.set(vault.vaultServiceFor('claude.default', root), {
+        account: 'tortie',
+        payload: twin
+      });
+      if (recorded !== null) {
+        kept.writeKeptFile(root, {
+          v: 1,
+          slots: {
+            'claude.default': {
+              email: null,
+              subject: null,
+              digest: payload.credentialDigest(recorded),
+              account: null,
+              from: null,
+              at: 1
+            }
+          }
+        });
+      }
+      const result = await migrate.migrateUnscopedVault({
+        runner: sec.runner,
+        vault: backend,
+        legacy: legacyOver(sec.runner, root),
+        root,
+        slots: ['claude.default'],
+        ownProfile: 'own' as const
+      });
+      const fileText = sealedFileOf(root, 'claude.default');
+      const fileHolds = fileText === null ? null : seal.open(fileText);
+      return {
+        result,
+        itemGone: !sec.items.has(vault.vaultServiceFor('claude.default', root)),
+        fileHoldsSealed: fileHolds === sealedBytes,
+        fileHoldsTwin: fileHolds === twin,
+        lines: world.stdins.length
+      };
+    };
+    const sweepDuplicate = await sweep(claudeCredential('sealed', '5'), null);
+    const sweepRecordedTwin = await sweep(claudeCredential('older-build', '6'), claudeCredential('older-build', '6'));
+    const sweepUnprovenTwin = await sweep(claudeCredential('unproven', '7'), null);
     const holds = (a: { items: string[][]; root: string }, name: string): string | null =>
       a.items.find(([k]) => k === name)?.[1] ?? null;
     out['scope'] = {
@@ -3229,26 +3439,56 @@ try {
           env: { GMUX_SMOKE: 'basic' }
         })
       },
+      // PHASE 304. THE READ-THROUGH, step by step. (a) a miss with the scoped
+      // item planted: the file written and read back, the item deleted, the
+      // answer byte equal, and exactly one find and one delete on the argvs;
+      // (b) the delete refused: answered, item AND file present, and the
+      // second `get` a HIT that sends nothing; (c) no seal during the
+      // read-through: answered from the item, no file, no delete; (d) the
+      // read-back disagreeing: no delete. No arm composes an `-i` line.
+      readThrough: {
+        miss: rtMiss,
+        refusedDelete: rtRefusedDelete,
+        wrapNull: rtWrapNull,
+        openWrong: rtOpenWrong
+      },
+      // PHASE 304 (e). The boot pass over a sealed file with its scoped twin.
+      sweep: {
+        duplicate: sweepDuplicate,
+        recordedTwin: sweepRecordedTwin,
+        unprovenTwin: sweepUnprovenTwin
+      },
       migration: {
+        // PHASE 304. The unscoped move lands in the SEALED FILE, not in a
+        // scoped item, and not one `-i` line is composed on the way.
         presentMoved:
           present.result.moved === 1 &&
           present.result.deleted === 1 &&
-          holds(present, vault.vaultServiceFor('claude.default', present.root)) === old &&
+          present.fileHolds === old &&
           holds(present, unscopedOf('claude.default')) === null &&
-          present.items.length === 1,
+          present.items.length === 0 &&
+          present.lines === 0,
         absentUntouched:
-          absent.result.moved === 0 && absent.result.deleted === 0 && absent.items.length === 0,
+          absent.result.moved === 0 &&
+          absent.result.deleted === 0 &&
+          absent.items.length === 0 &&
+          absent.fileHolds === null,
         refusedNamesNothing:
           refused.result.refused === true &&
           !refused.namedUnscoped &&
           holds(refused, unscopedOf('claude.default')) === old &&
-          refused.items.length === 1,
+          refused.items.length === 1 &&
+          refused.fileHolds === null,
         recordedOldRewritten:
           recordedOld.result.moved === 1 &&
-          holds(recordedOld, vault.vaultServiceFor('claude.default', recordedOld.root)) === old &&
+          recordedOld.fileHolds === old &&
+          holds(recordedOld, vault.vaultServiceFor('claude.default', recordedOld.root)) === null &&
           holds(recordedOld, unscopedOf('claude.default')) === null,
         stagedResidueDeleted:
-          staged.result.deleted === 1 && staged.result.moved === 0 && staged.items.length === 0,
+          staged.result.deleted === 1 &&
+          staged.result.moved === 0 &&
+          staged.items.length === 0 &&
+          staged.fileHolds === null,
         presentNamedUnscoped: present.namedUnscoped,
         badReadbackKept:
           badReadback.result.kept === 1 &&
@@ -3289,6 +3529,463 @@ try {
       slotOk: vault.isSlotName(vault.slotFor('claude', 'a'.repeat(16))),
       slotEscape: vault.isSlotName('claude.../../etc'),
       slotOther: vault.isSlotName('other.default')
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 13. A LINE `security` WOULD CUT IS REFUSED BY ITS BYTES, AND THE PERSON IS
+  //     TOLD (Phase 287).
+  //
+  //     MEASURED on 2026-09-17, twice, and again by this phase's attacker on
+  //     its own scratch keychain (build/p287/SPEC.md §1): `security -i` reads
+  //     at most 4,095 BYTES of command per read, so the longest line that
+  //     arrives whole is 4,096 bytes with its newline; at 4,097 the last byte
+  //     before the newline is split off and read as a second command, and at
+  //     4,098 and above the trailing keychain path loses its own last byte,
+  //     nothing is written, and the program does not exit with stdin closed
+  //     until it is killed. THE COUNT IS IN BYTES: a 4,106 byte line of
+  //     exactly 4,096 characters hung while the 4,096 byte line of 4,096
+  //     characters wrote, so a cap compared in UTF-16 units passes a line that
+  //     overruns, which is what a non-ASCII harness keychain path is.
+  //
+  //     NOTHING IS SPAWNED HERE. The one call that reaches a program at all
+  //     names `/nonexistent/p287-security`, which is the whole point: an
+  //     over-cap line must be refused before the spawn, and the only way to
+  //     see the spawn HAPPEN is a program that is not there answering a spawn
+  //     error. Every reading is taken with admission still OPEN, because the
+  //     runner refuses a closed domain first (Phase 220), which is why this arm
+  //     sits above arm 12 rather than below it.
+  //
+  //     NARROWED TO THE VENDOR ARM BY PHASE 304. Tortie's own store is a sealed
+  //     file with no ceiling, so the vault's own refusal, the observe that told
+  //     the row, and the L2, L3 and L6 shapes, every one of which began in the
+  //     VAULT write's refusal, are gone with the case. What is left is the one
+  //     store that can still refuse for size, the vendor's own keychain item:
+  //     L5, a login whose vendor stage cannot take a payload the vault keeps,
+  //     and L5b, the default lift meeting the same ceiling while the login's
+  //     own store already holds the account, which is the switch that stands.
+  // -------------------------------------------------------------------------
+  {
+    const capBytes = (security as { SECURITY_LINE_MAX_BYTES?: number })
+      .SECURITY_LINE_MAX_BYTES;
+    const fits = (security as { securityLineFits?: (line: string) => boolean })
+      .securityLineFits;
+    const TooLarge = (swap as { CredentialTooLarge?: new () => Error })
+      .CredentialTooLarge;
+    if (capBytes === undefined || fits === undefined) {
+      // A DOMAIN FROM BEFORE THIS PHASE, read the way `migrate.ts`'s absence is
+      // read: one reading the gate can name, rather than a stack that takes
+      // every other rule down with it.
+      out['lineCap'] = { absent: true };
+    } else {
+      const CAP = capBytes;
+      /** The one write's line, composed exactly as `keychainWrite` composes it. */
+      const lineFor = (service: string, account: string, payload: string): string =>
+        `add-generic-password -U -a "${account}" -s "${service}" -X "${Buffer.from(payload, 'utf8').toString('hex')}"\n`;
+      /**
+       * The payload SIZE that puts a line of this shape `over` payload bytes
+       * past the biggest one that fits. Every payload byte costs two hex
+       * characters, so `over: 0` is the largest that fits and `over: 1` is two
+       * bytes more than that.
+       */
+      const sizedFor = (service: string, account: string, over: number): number =>
+        Math.floor((CAP - Buffer.byteLength(lineFor(service, account, ''), 'utf8')) / 2) +
+        over;
+      const filler = (bytes: number): string => 'x'.repeat(bytes > 0 ? bytes : 0);
+      /**
+       * A claude credential of EXACTLY this many bytes, naming `who`, padded in
+       * a field of its own. That is the real shape of the credential that grows
+       * past the cap: a Claude sign in carrying many `mcpOAuth` entries saved by
+       * the sessions running under it.
+       */
+      const bigClaude = (who: string, nonce: string, bytes: number): string => {
+        const oauth = { accessToken: `${TOKEN}-${who}-${nonce}`, subscriptionType: 'max' };
+        const empty = JSON.stringify({ claudeAiOauth: oauth, mcpOAuth: '' });
+        return JSON.stringify({
+          claudeAiOauth: oauth,
+          mcpOAuth: filler(bytes - Buffer.byteLength(empty, 'utf8'))
+        });
+      };
+      /**
+       * One world whose VENDOR STORES ARE THE KEYCHAIN, which is what macOS is,
+       * and whose vault is the sealed file over the same `security` as its
+       * legacy arm (Phase 304), exactly as `index.ts` composes it.
+       */
+      const keychainWorld = (
+        live: import('../src/main/credentials/keep').LiveSession[] = [],
+        storeOver: Record<string, unknown> = {}
+      ) => {
+        const root = freshRoot();
+        const w = makeWorld();
+        const sec = fakeSecurity(w);
+        const base = makeDeps(root, w, live);
+        return {
+          root,
+          w,
+          sec,
+          d: {
+            ...base,
+            vault: sealedFor(root, injectedSeal(), legacyOver(sec.runner, root)),
+            stores: {
+              ...base.stores,
+              runner: sec.runner,
+              keychainForClaude: true,
+              ...storeOver
+            }
+          }
+        };
+      };
+      /**
+       * One `-i` line reduced to its SHAPE, because a service name carries a
+       * digest of a temporary directory and a login id minted on this run, and
+       * neither is the same twice. The payload never appears, only how many
+       * bytes of it went, which is what makes "the same lines as today" a
+       * reading rather than an assurance.
+       */
+      const shapeOf = (line: string): string => {
+        const found =
+          /^add-generic-password -U -a "([^"]*)" -s "([^"]*)" -X "([0-9a-f]*)"\n?$/.exec(
+            line
+          );
+        if (found === null) return 'NOT THE ONE WRITE SHAPE';
+        const account = found[1] ?? '';
+        const service = (found[2] ?? '')
+          .replace(/(claude|codex)\.[0-9a-f]{16}/g, '$1.<id>')
+          .replace(/[0-9a-f]{8}/g, '<digest>');
+        return `add -a ${account} -s ${service} -X <${String(
+          (found[3] ?? '').length / 2
+        )} bytes>`;
+      };
+      /** A kept login whose own store is EMPTY, which is what a switch writes into. */
+      const withKeptLogin = async (
+        ww: ReturnType<typeof keychainWorld>,
+        name: string,
+        who: string,
+        bytes: number | null,
+        vendorAccount: string
+      ): Promise<{ id: string; dir: string; scoped: string; slot: string }> => {
+        addLogin(ww.root, 'claude', name);
+        const row = readLoginsFile(ww.root).file.logins.find((l) => l.name === name);
+        const id = row?.id ?? '';
+        const dir = loginDirIn(ww.root, 'claude', id);
+        const scoped = claudeScopedService(dir);
+        const slot = vault.slotFor('claude', id);
+        const cred =
+          bytes === null ? claudeCredential(who, '1') : bigClaude(who, '1', bytes);
+        ww.sec.items.set(scoped, { account: vendorAccount, payload: cred });
+        ww.w.files.set(join(dir, '.claude.json'), claudeAccountFile(who));
+        await keep.observeProvider(ww.d, 'claude');
+        return { id, dir, scoped, slot };
+      };
+
+      // ---- (d) The cap is a count of BYTES, asked of the one comparison. ----
+      const accented = 'é'.repeat(Math.floor(CAP / 2));
+
+      // ---- (e) keychainWrite over a recording runner. -----------------------
+      const SERVICE = 'p287-cap';
+      const ACCOUNT = 'tortie';
+      const sent: string[] = [];
+      const recorder: import('../src/main/credentials/security').SecurityRunner = {
+        run: async (argv, stdin) => {
+          sent.push(stdin ?? argv.join(' '));
+          return { code: 0, stdout: '' };
+        }
+      };
+      const exactPayload = filler(sizedFor(SERVICE, ACCOUNT, 0));
+      const atCapAnswer = await security.keychainWrite(
+        recorder,
+        SERVICE,
+        ACCOUNT,
+        exactPayload
+      );
+      const sentLine = sent[0] ?? '';
+      const callsAfterExact = sent.length;
+      let overAnswer: boolean | null = null;
+      let overThrew: string | null = null;
+      let overIsClass = false;
+      let overNamesPayload = false;
+      try {
+        overAnswer = await security.keychainWrite(
+          recorder,
+          SERVICE,
+          ACCOUNT,
+          filler(sizedFor(SERVICE, ACCOUNT, 1))
+        );
+      } catch (err) {
+        const e = err as Error;
+        overThrew = e?.name ?? 'unknown';
+        overIsClass = TooLarge !== undefined && err instanceof TooLarge;
+        // NO PAYLOAD AND NO LENGTH IN THE REFUSAL, asked of the message itself.
+        overNamesPayload = /x{8}|\b\d{3,}\b/.test(`${e?.name ?? ''} ${e?.message ?? ''}`);
+      }
+
+      // ---- (f) defaultSecurityRunner, over a MULTI-BYTE keychain path. ------
+      // `isPlainKeychainPath` caps UTF-16 units and not bytes, so a path of
+      // accented letters is a path the domain will name whose suffix alone can
+      // take a line that passes a `.length` cap past the measured buffer. This
+      // is finding 5, and at the parent the program IS spawned with 4,100 bytes.
+      const accentedPath = `/tmp/p287-${'é'.repeat(100)}/k.keychain-db`;
+      const suffixed = (bare: string): string =>
+        `${bare.replace(/\n$/, '')} "${accentedPath}"\n`;
+      const headText = 'add-generic-password ';
+      const unitsCapLine = `${headText}${filler(
+        CAP - accentedPath.length - 3 - headText.length - 1
+      )}\n`;
+      const underCapLine = `${headText}${filler(
+        CAP - Buffer.byteLength(accentedPath, 'utf8') - 3 - headText.length - 1
+      )}\n`;
+      const runner = security.defaultSecurityRunner(
+        accentedPath,
+        '/nonexistent/p287-security'
+      );
+      const callsBefore = security.securityCallCount();
+      const refusedRun = await runner.run(['-i'], unitsCapLine);
+      const callsAfterRefused = security.securityCallCount();
+      const spawnedRun = await runner.run(['-i'], underCapLine);
+      const callsAfterSpawned = security.securityCallCount();
+
+      // ---- (g) L5. THE VENDOR STAGE THAT DOES NOT FIT THOUGH THE VAULT DID. --
+      // The vendor's staged name carries the account, so a long vendor account
+      // makes the vendor's line the one that does not fit, and a payload the
+      // sealed vault keeps without a ceiling (Phase 304) cannot be written back
+      // into the store it came from. 1,940 bytes is under the ceiling for a
+      // short account and over it for a 60 character one, so the ACCOUNT is
+      // what decides, and the reading below says which line was refused.
+      const longAccount = `p287-account-${'a'.repeat(47)}`;
+      const L5_BYTES = 1_940;
+      const l5World = keychainWorld([], { userName: longAccount });
+      l5World.sec.items.set(CLAUDE_KEYCHAIN_SERVICE, {
+        account: longAccount,
+        payload: claudeCredential('alice', '1')
+      });
+      l5World.w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+      await keep.observeProvider(l5World.d, 'claude');
+      const l5Login = await withKeptLogin(l5World, 'long', 'bob', L5_BYTES, longAccount);
+      const l5Cred = bigClaude('bob', '1', L5_BYTES);
+      const l5Vendor = `${stores.claudeWriteService(l5Login.dir)}.tortie-pending`;
+      const l5Held = await vault.vaultGet(l5World.d.vault, l5Login.slot);
+      l5World.sec.items.delete(l5Login.scoped, longAccount);
+      const l5LinesBefore = l5World.w.stdins.length;
+      const l5Put = await keep.activateLogin(l5World.d, 'claude', 'long');
+      const l5HeldAfter = await vault.vaultGet(l5World.d.vault, l5Login.slot);
+
+      // ---- (g′) L5b. THE DEFAULT LIFT MEETS THE VENDOR'S CEILING WHILE THE
+      // LOGIN'S OWN STORE ALREADY HOLDS THE ACCOUNT, which is the one switch
+      // that stands with a named reason (Phase 287, kept by Phase 304 because
+      // its reason begins in the VENDOR write and nowhere else). With a default
+      // session live the lift is tried and refused before any spawn: the
+      // answer is ok with nothing written and `why` carried, the default item
+      // holds its own bytes, the outgoing default account was promoted into a
+      // login of its own BEFORE the refusal, and the choice is recorded. With
+      // no default session nothing is tried, so nothing failed and no `why`.
+      const l5b = async (sessionLive: boolean): Promise<Record<string, unknown>> => {
+        const ww = keychainWorld(
+          sessionLive ? [{ provider: 'claude' as LoginProviderId, login: null }] : [],
+          { userName: longAccount }
+        );
+        const small = claudeCredential('alice', '1');
+        ww.sec.items.set(CLAUDE_KEYCHAIN_SERVICE, { account: longAccount, payload: small });
+        ww.w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+        await keep.observeProvider(ww.d, 'claude');
+        const login = await withKeptLogin(ww, 'long', 'bob', L5_BYTES, longAccount);
+        const linesBefore = ww.w.stdins.length;
+        const put = await keep.activateLogin(ww.d, 'claude', 'long');
+        if (put.ok) chooseLogin(ww.root, 'claude', 'long');
+        const rows = readLoginsFile(ww.root).file;
+        return {
+          ok: put.ok,
+          wrote: put.ok ? put.wrote : null,
+          why: (put as { why?: string }).why ?? null,
+          reason: put.ok ? null : put.reason,
+          ownStoreHoldsItsBytes:
+            ww.sec.items.get(login.scoped, longAccount)?.payload === bigClaude('bob', '1', L5_BYTES),
+          defaultHoldsItsBytes:
+            ww.sec.items.get(CLAUDE_KEYCHAIN_SERVICE, longAccount)?.payload === small,
+          outgoingPromoted: rows.logins.some((l) => l.name === 'alice.example'),
+          chosen: rows.chosen['claude'] ?? null,
+          lines: ww.w.stdins.length - linesBefore
+        };
+      };
+      const l5bRunning = await l5b(true);
+      const l5bIdle = await l5b(false);
+
+      // ---- (h) NO REGRESSION: an under-cap switch sends today's lines. -----
+      const plainWorld = keychainWorld();
+      plainWorld.sec.items.set(CLAUDE_KEYCHAIN_SERVICE, {
+        account: GATE_ACCOUNT,
+        payload: claudeCredential('alice', '1')
+      });
+      plainWorld.w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+      await keep.observeProvider(plainWorld.d, 'claude');
+      const plainLogin = await withKeptLogin(
+        plainWorld,
+        'plain',
+        'bob',
+        null,
+        GATE_ACCOUNT
+      );
+      plainWorld.sec.items.delete(plainLogin.scoped, GATE_ACCOUNT);
+      const plainAt = plainWorld.w.stdins.length;
+      const plainPut = await keep.activateLogin(plainWorld.d, 'claude', 'plain');
+
+      out['lineCap'] = {
+        absent: false,
+        cap: CAP,
+        // (d) The same string is CAP bytes and half that many UTF-16 units, so
+        // a cap compared in units would admit twice as many bytes as measured.
+        unitsAtCap: accented.length,
+        fitsAtCap: fits(accented),
+        fitsOverCap: fits(`${accented}x`),
+        // (e)
+        write: {
+          atCapAnswer,
+          calls: callsAfterExact,
+          sentBytes: Buffer.byteLength(sentLine, 'utf8'),
+          sentExact: sentLine === lineFor(SERVICE, ACCOUNT, exactPayload),
+          overAnswer,
+          overThrew,
+          overIsClass,
+          overNamesPayload,
+          callsAfterOver: sent.length
+        },
+        // (f)
+        runner: {
+          pathUnits: accentedPath.length,
+          pathBytes: Buffer.byteLength(accentedPath, 'utf8'),
+          overUnits: suffixed(unitsCapLine).length,
+          overBytes: Buffer.byteLength(suffixed(unitsCapLine), 'utf8'),
+          refusedCode: refusedRun.code,
+          refusedTooLong:
+            (refusedRun as { tooLong?: true }).tooLong ?? null,
+          refusedCounted: callsAfterRefused - callsBefore,
+          underBytes: Buffer.byteLength(suffixed(underCapLine), 'utf8'),
+          spawnedCode: spawnedRun.code,
+          spawnedTooLong: (spawnedRun as { tooLong?: true }).tooLong ?? null,
+          spawnedCounted: callsAfterSpawned - callsAfterRefused
+        },
+        // (g) L5. The vendor stage that does not fit: the sealed vault holds
+        // the payload before and after, the vendor's staged line is over the
+        // cap, the answer is the refusal with its name, and NOT ONE `-i` line
+        // was composed for it.
+        l5: {
+          vaultKeptIt: l5Held === l5Cred,
+          sealedIntact: l5HeldAfter === l5Cred,
+          vendorLineBytes: Buffer.byteLength(lineFor(l5Vendor, longAccount, l5Cred), 'utf8'),
+          ok: l5Put.ok,
+          reason: l5Put.ok ? null : l5Put.reason,
+          why: (l5Put as { why?: string }).why ?? null,
+          lines: l5World.w.stdins.length - l5LinesBefore,
+          itemAdded: l5World.sec.items.has(l5Login.scoped, longAccount)
+        },
+        // (g′) L5b, and its control with no default session.
+        l5bRunning,
+        l5bIdle,
+        // (h)
+        plain: {
+          ok: plainPut.ok,
+          wrote: plainPut.ok ? plainPut.wrote : null,
+          lines: plainWorld.w.stdins.slice(plainAt).map(shapeOf)
+        }
+      };
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 14. TORTIE'S OWN VAULT HAS NO SIZE LIMIT (Phase 304, rule 22). The
+  //     shipping `vaultPut` and `vaultGet` over the shipping `sealedVault`, an
+  //     injected seal and the measured `security` as the legacy arm, at the
+  //     size of his own `~/.codex/auth.json` (4,193 bytes, `stat` only), at
+  //     64 KB and at 1 MB: the answer's sha256 equals the payload's, the file
+  //     on disk is NOT the payload and holds no 64 byte window of it, its mode
+  //     is 0600 in a 0700 directory, the runner saw no argv on any put or on
+  //     any hit, and a seal that cannot be made keeps nothing and says so in
+  //     the one write's own sentence. Every comparison here is by digest and
+  //     by length; no payload byte leaves this arm.
+  // -------------------------------------------------------------------------
+  if (typeof (vault as { sealedVault?: unknown }).sealedVault !== 'function') {
+    // A DOMAIN FROM BEFORE PHASE 304, read as one reading the gate can name.
+    out['sealed'] = { absent: true };
+  } else {
+    const root = freshRoot();
+    const w = makeWorld();
+    const sec = fakeSecurity(w);
+    const seal = injectedSeal();
+    const backend = sealedFor(root, seal, legacyOver(sec.runner, root));
+    const digestOf = (text: string): string =>
+      createHash('sha256').update(text, 'utf8').digest('hex');
+    /** Random hex of exactly `bytes` bytes, so the size asked for is the size written. */
+    const randomHex = (bytes: number): string =>
+      randomBytes(Math.ceil(bytes / 2)).toString('hex').slice(0, bytes);
+    const SIZES = [4_193, 65_536, 1_048_576];
+    const trips: Record<string, unknown>[] = [];
+    for (const [i, bytes] of SIZES.entries()) {
+      const slot = vault.slotFor('codex', `${String(i).padStart(3, '0')}${'d'.repeat(13)}`);
+      const text = randomHex(bytes);
+      const argvsBefore = w.argvs.length;
+      const put = await vault.vaultPut(backend, slot, text);
+      const argvsAfterPut = w.argvs.length;
+      const back = await vault.vaultGet(backend, slot);
+      const argvsAfterGet = w.argvs.length;
+      const file = sealedFileOf(root, slot);
+      let mode: number | null = null;
+      try {
+        mode = statSync(join(root, 'kept', `${slot}.cred`)).mode & 0o777;
+      } catch {
+        mode = null;
+      }
+      // NO 64 BYTE WINDOW of the payload in the file, asked at the start, the
+      // middle and the end, so a seal that only prefixes something is caught.
+      const windows = [0, Math.floor(bytes / 2) - 32, bytes - 64].map((at) =>
+        text.slice(at, at + 64)
+      );
+      trips.push({
+        bytes,
+        putOk: put.ok,
+        answerBytes: back === null ? null : Buffer.byteLength(back, 'utf8'),
+        digestEqual: back !== null && digestOf(back) === digestOf(text),
+        filePresent: file !== null,
+        fileIsNotThePayload: file !== null && digestOf(file) !== digestOf(text),
+        fileHoldsNoWindow: file !== null && windows.every((window) => !file.includes(window)),
+        fileMode: mode,
+        argvsOnPut: argvsAfterPut - argvsBefore,
+        argvsOnGet: argvsAfterGet - argvsAfterPut,
+        linesSent: w.stdins.length
+      });
+    }
+    let dirMode: number | null = null;
+    try {
+      dirMode = statSync(join(root, 'kept')).mode & 0o777;
+    } catch {
+      dirMode = null;
+    }
+    // (e) NO SEAL, NOTHING KEPT: the one write's own sentence, no file at the
+    // slot and none at the staged place, and nothing sent anywhere.
+    const noSeal: import('../src/main/credentials/vault').VaultSeal = {
+      wrap: () => null,
+      open: () => null
+    };
+    const noSealRoot = freshRoot();
+    const noSealWorld = makeWorld();
+    const noSealSec = fakeSecurity(noSealWorld);
+    const noSealSlot = vault.slotFor('codex', 'e'.repeat(16));
+    const refused = await vault.vaultPut(
+      sealedFor(noSealRoot, noSeal, legacyOver(noSealSec.runner, noSealRoot)),
+      noSealSlot,
+      randomHex(4_193)
+    );
+    out['sealed'] = {
+      absent: false,
+      trips,
+      dirMode,
+      noSeal: {
+        ok: refused.ok,
+        reason: refused.ok ? null : refused.reason,
+        why: (refused as { why?: string }).why ?? null,
+        filePresent: sealedFileOf(noSealRoot, noSealSlot) !== null,
+        stagedPresent: sealedFileOf(noSealRoot, vault.stagedSlotFor(noSealSlot)) !== null,
+        argvs: noSealWorld.argvs.length,
+        lines: noSealWorld.stdins.length
+      }
     };
   }
 

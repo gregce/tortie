@@ -70,7 +70,11 @@
  */
 
 import type { IpcMain } from 'electron';
-import type { LoginProviderId, LoginsSnapshot } from '@shared/logins';
+import type {
+  LoginProviderId,
+  LoginRefusalWhy,
+  LoginsSnapshot
+} from '@shared/logins';
 import { LOGIN_PROVIDERS } from '@shared/logins';
 import type { LoginActionResult } from '@shared/ipc';
 import { handle } from '../typed-ipc';
@@ -419,6 +423,13 @@ export function registerLoginsIpc(ipc: IpcMain): void {
       };
     }
     let activation: string | null = null;
+    // PHASE 287. THE NAMED REASON A SWITCH MET, when it met one. It is carried
+    // on both arms because a switch can meet the agent's own ceiling and still
+    // stand, and the sentence a person then reads is a different one from the
+    // switched sentence. It is a name and never a length. Since Phase 304 the
+    // one store that can refuse for size is the agent's keychain entry, so the
+    // reason exists here, on the click, and on no row.
+    let why: LoginRefusalWhy | null = null;
     try {
       const put = await trackCredentialWork(
         activateLogin(await readyKeepDeps(), id, name)
@@ -426,9 +437,15 @@ export function registerLoginsIpc(ipc: IpcMain): void {
       if (!put.ok) {
         forgetObservation();
         log.info('logins.activate', { provider: id, ok: false });
-        return { ok: false, reason: put.reason, snapshot: await wholeList() };
+        return {
+          ok: false,
+          reason: put.reason,
+          ...(put.why === undefined ? {} : { why: put.why }),
+          snapshot: await wholeList()
+        };
       }
       activation = put.wrote ? put.says : null;
+      why = put.why ?? null;
       log.info('logins.activate', { provider: id, ok: true, wrote: put.wrote });
     } catch {
       // PHASE 220. AN UNCLASSIFIED THROW IS NOT AN ORDINARY SUCCESSFUL CHOICE.
@@ -459,9 +476,14 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     const change = chooseLogin(loginsRoot(), id, name);
     log.info('logins.choose', { provider: id, ok: change.ok });
     const result = await answer(change);
+    // PHASE 287. `why` goes on BEFORE the sentence, so it rides the arm where
+    // `activation` is null too. That arm is the switch that stood without
+    // writing anything, which is exactly the one this reason exists for, and
+    // today's line answered it untouched.
+    const told = why === null ? result : { ...result, why };
     return activation === null || !result.ok
-      ? result
-      : { ...result, reason: activation };
+      ? told
+      : { ...told, reason: activation };
   });
 
   handle(ipc, 'logins:remove', async (_e, provider, name): Promise<LoginActionResult> => {

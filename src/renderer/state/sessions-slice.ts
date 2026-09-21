@@ -42,8 +42,8 @@ import { REMOTE_SESSION_LINES_DEFAULT } from '@shared/ipc';
 // lives or dies changes; one sentence is posted when the sign in session ends.
 import { loginProviderForAgent } from '@shared/logins';
 import { settleSignIns, watchSignIn } from './sign-in-watch';
-import { setLoginSwitchedListener } from './logins';
-import { offerRestartNow } from './login-switch';
+import { setLoginSwitchedListener, setLoginTooLargeListener } from './logins';
+import { offerRestartNow, sayLoginTooLarge } from './login-switch';
 // Pure over Session fields; resume.ts imports only types, state/agents and
 // (Phase 293) src/shared/workspace-target, and neither of those imports this
 // store, so no cycle closes here.
@@ -605,6 +605,13 @@ export const createSessionsSlice: StateCreator<
   // sessions, toast and restart. Installed here rather than imported from the
   // logins store, which cannot import this one back.
   setLoginSwitchedListener((provider, chosen) => offerRestartNow(get(), provider, chosen));
+
+  // PHASE 287. And the other sentence a switch can end with, when the agent's
+  // own keychain entry cannot take the sign in. It is installed beside the
+  // switched one and the store posts exactly one of the two.
+  setLoginTooLargeListener((provider, chosen, outcome) =>
+    sayLoginTooLarge(get(), provider, chosen, outcome)
+  );
 
   const activityExtras = gmux ?? null;
 

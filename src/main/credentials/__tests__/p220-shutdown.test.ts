@@ -97,13 +97,15 @@ const {
   credentialChildCount,
   credentialWorkCount,
   credentialsAreOpen,
-  fileVault,
   joinCredentialShutdown,
+  NO_LEGACY,
   resetCredentialLifecycle,
+  sealedVault,
   securityCallCount,
   setKeepDeps,
   vaultGet
 } = await import('../index');
+const { testSeal } = await import('./test-seal');
 const { defaultSecurityRunner } = await import('../security');
 const keep = await import('../keep');
 const locks = await import('../locks');
@@ -187,7 +189,7 @@ function readIfThere(path: string): string | null {
 function deps(): KeepDeps {
   return {
     root,
-    vault: fileVault(join(root, 'kept')),
+    vault: sealedVault(join(root, 'kept'), testSeal(), NO_LEGACY),
     stores: {
       runner: { run: async () => ({ code: 1, stdout: '' }) },
       readText: async (path) => {

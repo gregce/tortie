@@ -280,6 +280,17 @@ function fileTarget(d: StoreDeps, path: string): SwapTarget {
  * EVERY STEP CARRIES THE ONE ACCOUNT, the staged place included (Phase 281).
  * A read, a staged read or a discard by service alone would reach the first
  * item of that name, whoever's it is.
+ *
+ * THE STAGED NAME IS THE LONGEST LINE THIS TARGET SENDS (Phase 287), because
+ * `.tortie-pending` is on it. So the stage is the step that refuses when a
+ * credential is too large for one `security` line, and it refuses by
+ * rejecting `CredentialTooLarge` out of `keychainWrite` rather than by the
+ * false this `put` turns into a throw. `./swap.ts` reads that reason and
+ * answers the one sentence a person is told; nothing here catches it or names
+ * a length. SINCE PHASE 304 THIS IS THE ONLY STORE IN THE DOMAIN THAT CAN
+ * REFUSE FOR SIZE: Tortie's own vault is a sealed file that keeps a payload of
+ * any size, so a sign in the vault holds can still be one this item cannot
+ * take, and the sentence names the agent's own copy for that reason.
  */
 function keychainTarget(
   d: StoreDeps,
@@ -355,8 +366,25 @@ export async function storeTarget(
  * The account written is the CHOSEN login's, and the store is the vendor's own
  * location, being the keychain item the vendor itself reads for the default
  * login, `Claude Code-credentials` or its config-dir-scoped name, and codex's
- * own `auth.json`. The observe that runs before any activate has already kept
- * and promoted whatever account was there, so nothing is lost by writing it.
+ * own `auth.json`.
+ *
+ * ## WHAT MAKES IT SAFE TO WRITE, AND THE SENTENCE THAT WAS FALSE
+ *
+ * This comment used to end "the observe that runs before any activate has
+ * already kept and promoted whatever account was there, so nothing is lost by
+ * writing it". PHASE 287 MEASURED THAT FALSE exactly when the keep was REFUSED:
+ * with a 2,179 byte default Claude credential, whose vault stage line was then
+ * 4,456 bytes, the observe refused the keep, the lift wrote the chosen account
+ * over it, and the person's own sign in was gone from the machine while the
+ * answer read "work is signed in again." So the guard is not the observe: it
+ * is `./keep.ts`'s `liftStore`, which keeps and promotes what this store holds
+ * again INSIDE the vendor's locks. PHASE 304 REMOVED THE CASE rather than the
+ * arm that refused it: Tortie's own vault is a sealed file with no ceiling, so
+ * a keep is no longer refused for its size and the rolling copy holds the sign
+ * in before a byte moves. A keep refused for any OTHER reason still lets the
+ * lift write, exactly as before Phase 287; that loss is stated in both phases'
+ * entries and fixed in neither. This function is still only reached from that
+ * one call site.
  */
 export async function defaultStoreTarget(
   d: StoreDeps,

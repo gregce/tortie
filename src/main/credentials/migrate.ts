@@ -16,6 +16,20 @@
  * worse than one they can. It costs a handful of `security` calls on the
  * first launch after the phase lands and nothing on any launch after.
  *
+ * ## SINCE PHASE 304 THE SCOPED PLACE IS A SEALED FILE, and the pass sweeps too
+ *
+ * Tortie's own store is one backend on every platform, a `safeStorage`-sealed
+ * file under the profile, and the keychain is READ ONLY for it: `./vault.ts`
+ * reads a scoped item through on a miss, writes the file, reads it back and
+ * only then deletes the item. Nothing here is rewritten for that: `vaultPut`
+ * now writes the sealed file, so the unscoped move lands there, and the rule
+ * below about the record deciding between two copies is the same rule. What
+ * this pass gains is the one shape the read-through cannot reach, a scoped
+ * item left BESIDE a sealed file by a kill or a refused delete between the
+ * read-back and the delete, because a `get` that hits asks the keychain
+ * nothing. It costs one `find-generic-password` per kept slot per launch, on
+ * the person's own profile alone, and the counts on the boot line carry it.
+ *
  * ## ONLY THE PERSON'S OWN PROFILE MAY READ OR DELETE THE OLD NAME
  *
  * The old name is not scoped, so every profile on the machine could reach it,
@@ -38,7 +52,10 @@
  * stale, so the scoped one is rewritten from the old. That is the shape an
  * older build leaves when it runs again in the same profile after a newer one.
  * Either way the old item is deleted once the scoped one is proved, by reading
- * it back, to hold what the record can reach.
+ * it back, to hold what the record can reach. For the Phase 304 pair, a sealed
+ * file beside a scoped item, the same rule has a fourth shape: the bytes
+ * differ and the record names NEITHER, and then nothing is deleted, because
+ * the safe direction is always the duplicate and never zero copies.
  *
  * ## WHAT NEVER HAPPENS HERE
  *
@@ -51,7 +68,7 @@ import { realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { isHarnessLaunch } from '../harness/launch-gate';
 import { credentialDigest } from './payload';
-import { readKeptFile } from './kept';
+import { readKeptFile, type KeptRecord } from './kept';
 import { keychainDelete, keychainRead, type SecurityRunner } from './security';
 import {
   isSlotName,
@@ -59,6 +76,7 @@ import {
   VAULT_SERVICE_PREFIX,
   vaultGet,
   vaultPut,
+  type LegacyVault,
   type VaultBackend
 } from './vault';
 
@@ -147,6 +165,14 @@ export function isOwnProfile(shape: ProfileShape): boolean {
 export interface MigrateDeps {
   runner: SecurityRunner;
   vault: VaultBackend;
+  /**
+   * The SCOPED items a tree before Phase 304 kept, as the read-only arm
+   * `./vault.ts` reads them through (Phase 304). The pass asks it about a
+   * slot whose sealed file already answers, because that is the one shape the
+   * read-through cannot reach: a hit asks the keychain nothing, so a duplicate
+   * a kill or a refused delete left beside the file would stay for ever.
+   */
+  legacy: LegacyVault;
   /** The logins root, which the record file sits in. */
   root: string;
   /** The slots worth asking about, being every slot this profile could name. */
@@ -224,8 +250,44 @@ export async function migrateUnscopedVault(d: MigrateDeps): Promise<MigrateResul
       if (await keychainDelete(d.runner, staged, null)) out.deleted += 1;
       else out.failed += 1;
     }
-    const legacy = unscopedVaultServiceFor(slot);
-    const held = await safeRead(d.runner, legacy);
+    // PHASE 304. A SCOPED ITEM BESIDE A SEALED FILE IS A DUPLICATE the
+    // read-through left when a kill or a refused delete fell between its
+    // read-back and its delete. A miss on the file below migrates on its own,
+    // so only a slot whose file answers is asked about here. Four shapes:
+    // the same bytes on both sides, so the item is a duplicate and goes; the
+    // record naming the FILE's bytes, so the file is this profile's own and
+    // the item goes; the older build rule further down applied to this pair,
+    // being the record naming the ITEM's bytes and not the file's, because an
+    // older build wrote the item after this profile had a file, so the file is
+    // rewritten from the item first and `vaultPut` has read it back before it
+    // answers ok; and the bytes differing with the record naming NEITHER,
+    // which is the fourth shape below.
+    const sealed = await vaultGet(d.vault, slot);
+    if (sealed !== null) {
+      const twin = await safeLegacy(d.legacy, slot);
+      if (twin !== null) {
+        const record = file.slots[slot];
+        let proved = true;
+        if (twin !== sealed && recordNames(record, twin) && !recordNames(record, sealed)) {
+          proved = (await vaultPut(d.vault, slot, twin)).ok;
+          if (proved) out.moved += 1;
+        } else if (twin !== sealed && !recordNames(record, sealed)) {
+          // THE FOURTH SHAPE (Phase 304's fix round). The bytes differ and the
+          // record names NEITHER copy, because kept.json is gone, unreadable
+          // or its row was dropped. Nothing proves which copy this profile
+          // can reach, so neither is destroyed: both stay, counted as kept,
+          // and the next launch asks again. Before this guard `proved` stayed
+          // true here and the item was deleted, which left its bytes nowhere,
+          // the one arm in the phase that destroyed an unproven copy.
+          proved = false;
+        }
+        if (!proved) out.kept += 1;
+        else if (await d.legacy.del(slot)) out.deleted += 1;
+        else out.failed += 1;
+      }
+    }
+    const old = unscopedVaultServiceFor(slot);
+    const held = await safeRead(d.runner, old);
     if (held === null) continue;
     const scoped = await vaultGet(d.vault, slot);
     let rewrite = scoped === null;
@@ -257,7 +319,7 @@ export async function migrateUnscopedVault(d: MigrateDeps): Promise<MigrateResul
       out.kept += 1;
       continue;
     }
-    if (await keychainDelete(d.runner, legacy, null)) out.deleted += 1;
+    if (await keychainDelete(d.runner, old, null)) out.deleted += 1;
     else out.failed += 1;
   }
   return out;
@@ -269,4 +331,18 @@ async function safeRead(runner: SecurityRunner, service: string): Promise<string
   } catch {
     return null;
   }
+}
+
+/** The legacy arm's answer, with a throw read as nothing there (Phase 304). */
+async function safeLegacy(legacy: LegacyVault, slot: string): Promise<string | null> {
+  try {
+    return await legacy.get(slot);
+  } catch {
+    return null;
+  }
+}
+
+/** Does the record name these bytes as the ones this profile recorded? */
+function recordNames(record: KeptRecord | undefined, payload: string): boolean {
+  return record !== undefined && record.digest === credentialDigest(payload);
 }

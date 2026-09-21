@@ -19,7 +19,11 @@
  */
 
 import { create } from 'zustand';
-import type { LoginProviderId, LoginsSnapshot } from '@shared/logins';
+import type {
+  LoginProviderId,
+  LoginRefusalWhy,
+  LoginsSnapshot
+} from '@shared/logins';
 import { DEFAULT_LOGIN_NAME, LOGIN_PROVIDERS, defaultLoginRow, sameLoginName } from '@shared/logins';
 import { gmuxBridge } from '../bridge';
 
@@ -39,6 +43,49 @@ export function setLoginSwitchedListener(
   listener: ((provider: LoginProviderId, chosen: string) => void) | null
 ): void {
   onSwitched = listener;
+}
+
+/**
+ * Which of the two things a too-large switch did (Phase 287).
+ *
+ * `'refused'` is a switch that did not happen: the agent's keychain entry for
+ * the chosen login cannot take the sign in Tortie kept, so nothing was put
+ * back. `'chosen'` is a switch that STOOD, with the running default session
+ * deliberately left where it was, because the entry that session reads cannot
+ * take the sign in either. Since Phase 304 Tortie's own copy is a sealed file
+ * that refuses nothing for size, so the one store either outcome is about is
+ * the agent's.
+ */
+export type LoginTooLargeOutcome = 'refused' | 'chosen';
+
+/**
+ * Who is told that a switch met the too-large refusal (Phase 287).
+ *
+ * IT IS A SECOND LISTENER RATHER THAN A FLAG ON THE FIRST, because the two say
+ * different sentences and only one of them may be said for one click. The
+ * sessions slice installs `./login-switch`'s `sayLoginTooLarge` here, beside
+ * `offerRestartNow`, for the same reason that one is installed rather than
+ * imported: this module is reached from the app store and an import back would
+ * close a runtime cycle.
+ */
+let onTooLarge:
+  | ((
+      provider: LoginProviderId,
+      chosen: string,
+      outcome: LoginTooLargeOutcome
+    ) => void)
+  | null = null;
+
+export function setLoginTooLargeListener(
+  listener:
+    | ((
+        provider: LoginProviderId,
+        chosen: string,
+        outcome: LoginTooLargeOutcome
+      ) => void)
+    | null
+): void {
+  onTooLarge = listener;
 }
 
 /** Every install starts here: one default login per provider, chosen. */
@@ -114,7 +161,18 @@ export const useLogins = create<LoginsStoreState>((set) => ({
         : useLogins
             .getState()
             .snapshot.logins.find((l) => l.provider === provider && sameLoginName(l.name, name));
-    const ok = await act((api) => api.choose(provider, name));
+    const { ok, why } = await act((api) => api.choose(provider, name));
+    // PHASE 287. ONE SWITCH SAYS ONE THING. A choose that met the too-large
+    // refusal has its own sentence for each of its two outcomes, and the
+    // switched sentence is not either of them: a refused switch moved nothing,
+    // and a switch that stood left the running session alone on purpose. Saying
+    // both would be two toasts that disagree about the same click.
+    // The reason is named rather than merely present, so a reason added later
+    // gets its own arm instead of inheriting this sentence.
+    if (why === 'too-large' && name !== null) {
+      if (onTooLarge !== null) onTooLarge(provider, name, ok ? 'chosen' : 'refused');
+      return ok;
+    }
     // A CREDENTIAL MOVED, so the sessions it reached are offered a restart.
     // Choosing the default moves nothing, and so does a row that restores
     // nothing, and a line about nothing is what the operator refused.
@@ -125,11 +183,11 @@ export const useLogins = create<LoginsStoreState>((set) => ({
   },
 
   async add(provider, name): Promise<boolean> {
-    return act((api) => api.add(provider, name));
+    return (await act((api) => api.add(provider, name))).ok;
   },
 
   async remove(provider, name): Promise<boolean> {
-    return act((api) => api.remove(provider, name));
+    return (await act((api) => api.remove(provider, name))).ok;
   }
 }));
 
@@ -139,20 +197,27 @@ export const useLogins = create<LoginsStoreState>((set) => ({
  * Main answers every change with the whole list, so there is no second read
  * and no window in which a surface draws a stale set. A refusal carries the
  * sentence main wrote and leaves the list exactly as it was.
+ *
+ * PHASE 287. IT HANDS BACK THE NAMED REASON BESIDE THE ANSWER, and `problem` is
+ * left exactly as it was: `result.ok` decides it, whatever `why` says. A switch
+ * that STOOD is not a refusal, and leaving its sentence in `problem` would park
+ * it under the Add login dialog's name field, which that dialog does not clear
+ * when it opens.
  */
 function act(
   run: (api: NonNullable<ReturnType<typeof gmuxBridge>>['logins']) => Promise<{
     ok: boolean;
     reason?: string;
+    why?: LoginRefusalWhy;
     snapshot: LoginsSnapshot;
   }>
-): Promise<boolean> {
+): Promise<{ ok: boolean; why?: LoginRefusalWhy }> {
   const api = gmuxBridge()?.logins;
   if (api === undefined) {
     useLogins.setState({ available: false });
-    return Promise.resolve(false);
+    return Promise.resolve({ ok: false });
   }
-  if (useLogins.getState().busy) return Promise.resolve(false);
+  if (useLogins.getState().busy) return Promise.resolve({ ok: false });
   // A CHANGE DROPS THE READ IN FLIGHT. Main answers a change with the whole
   // list, and a read issued before the change landing after it would put the
   // world as it was back on the screen.
@@ -164,9 +229,11 @@ function act(
         snapshot: result.snapshot,
         problem: result.ok ? null : (result.reason ?? null)
       });
-      return result.ok;
+      return result.why === undefined
+        ? { ok: result.ok }
+        : { ok: result.ok, why: result.why };
     })
-    .catch(() => false)
+    .catch(() => ({ ok: false }))
     .finally(() => useLogins.setState({ busy: false }));
 }
 

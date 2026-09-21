@@ -256,12 +256,20 @@ const HELPER = 'electron-run.mjs';
  * 2026-09-20 with `node build/assert-electron-teardown.mjs --list`, which
  * derives the population and never reads this constant.
  *
+ * PHASE 304 RAISED IT FROM 146 TO 147, for build/probe-p304.mjs
+ * (`probe:p304`), the sealed vault's app run: four Electrons one at a time,
+ * three of them killed on purpose at a named step of the keychain
+ * read-through and the fourth keeping a 4,193 byte and a 1 MB payload through
+ * the shipping vault over the real `safeStorage`, every one ended by the
+ * helper's `finally` whether it was killed or not. Phase 300 was built beside
+ * it and landed first at 146, so this phase is the one that lands at 147.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 146;
+const HELPER_USER_FLOOR = 147;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

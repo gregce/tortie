@@ -41,6 +41,8 @@ import { dispatchHarness } from './harness';
 import { installUsageFixture } from './harness/usage-fixture';
 // Phase 208: the scratch keychain seam, for a harness launch and nothing else.
 import { installHarnessKeychain } from './harness/keychain-harness';
+// Phase 304: the vault drive seam, under the same refusals, for probe:p304.
+import { installVaultDrive } from './harness/vault-drive';
 import { installMachineSeam } from './harness/machine-seam';
 // Phase 208: the one observe at boot, after the manifest is open.
 import { observeLoginsAtBoot, startLoginsWatch } from './logins/ipc';
@@ -479,6 +481,11 @@ app.whenReady().then(async () => {
   // plus one: the keychain file must sit inside the harness directory too. In
   // every ordinary launch it does nothing at all.
   installHarnessKeychain();
+  // PHASE 304. And the VAULT DRIVE seam, under the same refusals, after the
+  // keychain seam so it wraps whichever vault that installed: probe:p304 keeps
+  // a payload through the shipping vault and kills the process at each step
+  // of the legacy read-through. In every ordinary launch it does nothing at all.
+  installVaultDrive();
   // PHASE 231. And the LIVENESS seam, under the same three refusals: a
   // harness launch on a harness profile takes the two machine facts and a
   // wake from a file, so a verifier can make the link and the feed disagree

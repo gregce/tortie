@@ -55,6 +55,13 @@ import type { AgentLaunchSpec } from '../src/main/manifest';
 
 const MODULES = process.env['P202_LOGINS_DIR'] ?? 'src/main/logins';
 const ACCOUNTS = process.env['P203_ACCOUNTS_DIR'] ?? 'src/main/usage';
+/**
+ * PHASE 287. Where `login-copy.ts` is read from, so rule 19's words can be
+ * ablated over a sibling copy the way the two domains above already are. It
+ * imports nothing at runtime (its one import is a type), so a copy of it
+ * resolves wherever the gate stages it.
+ */
+const COPY = process.env['P287_COPY_DIR'] ?? 'src/shared';
 
 const dirs = (await import(
   pathToFileURL(resolve(MODULES, 'dirs.ts')).href
@@ -68,6 +75,9 @@ const accounts = (await import(
 const credentials = (await import(
   pathToFileURL(resolve(ACCOUNTS, 'credentials.ts')).href
 )) as typeof import('../src/main/usage/credentials');
+const copy = (await import(
+  pathToFileURL(resolve(COPY, 'login-copy.ts')).href
+)) as typeof import('../src/shared/login-copy');
 
 /** A value only this probe ever writes. If it appears anywhere, say where. */
 const TOKEN = 'P202-SENTINEL-TOKEN-8f3c1a';
@@ -83,6 +93,8 @@ const VENDOR_ACCOUNT = 'p281-vendor';
 const STRAY_ACCOUNT = 'p281-stray';
 
 const root = mkdtempSync(join(tmpdir(), 'p202-gate-'));
+/** PHASE 287's own scratch roots, removed in the same `finally` as `root`. */
+const capRoots: string[] = [];
 const out: Record<string, unknown> = {};
 
 try {
@@ -1022,6 +1034,61 @@ try {
   };
 
   // -------------------------------------------------------------------------
+  // 19. THE CHOICE CARRIES ITS REASON, AND NO ROW CARRIES A SIZE (Phase 287,
+  //     narrowed by Phase 304).
+  //
+  //     Phase 287 drove a `tooLarge` field through the shipping
+  //     `listLoginsAsking` here and read four words out of the words file.
+  //     Since Phase 304 Tortie's own store is a sealed file with no ceiling,
+  //     so the ONLY store that can refuse for size is the agent's own keychain
+  //     entry, that refusal happens at a click and nowhere else, and no row has
+  //     anything to carry: the field, its drawing rule and its label are gone
+  //     with the case. What is read here is that the two sentences that
+  //     survive are the words file's own, by value, so a word changed anywhere
+  //     is one reading, and that the row shape carries no such field, which is
+  //     asked of the shipping `listLoginsAsking` over an ask that answers one.
+  // -------------------------------------------------------------------------
+  {
+    const capRoot = mkdtempSync(join(tmpdir(), 'p287-gate-'));
+    capRoots.push(capRoot);
+    store.addLogin(capRoot, 'claude', 'Grown');
+    // AN ASK THAT ANSWERS A SIZE FIELD ANYWAY, as a reader from before Phase
+    // 304 would. The snapshot must not carry it: the shipping list composes
+    // its rows from the four facts it knows and nothing an ask smuggles in.
+    const capAsk = async (
+      _provider: 'claude' | 'codex',
+      dir: string | null
+    ): Promise<{ present: boolean; email: string | null; kept: boolean; restores: boolean }> =>
+      ({
+        present: true,
+        email: dir === null ? 'own@example.com' : 'grown@example.com',
+        kept: dir !== null,
+        restores: dir !== null,
+        tooLarge: true
+      }) as { present: boolean; email: string | null; kept: boolean; restores: boolean };
+    const rows = (await store.listLoginsAsking(capRoot, capAsk)).logins.filter(
+      (row) => row.provider === 'claude'
+    );
+    const copyText = readFileSync(resolve(COPY, 'login-copy.ts'), 'utf8');
+    out['tooLarge'] = {
+      rowsRead: rows.length,
+      // No row carries a size, whatever the ask answered.
+      rowCarriesSize: rows.some((row) => 'tooLarge' in row),
+      // The words file exports no drawing rule and no label for one.
+      drawsRule: typeof (copy as { loginDrawsTooLarge?: unknown }).loginDrawsTooLarge,
+      label: typeof (copy as { LOGIN_TOO_LARGE?: unknown }).LOGIN_TOO_LARGE,
+      signedInTail: typeof (copy as { LOGIN_TOO_LARGE_SIGNED_IN?: unknown }).LOGIN_TOO_LARGE_SIGNED_IN,
+      // The two sentences that survive, by value.
+      words: {
+        refused: copy.LOGIN_TOO_LARGE_SENTENCE,
+        running: copy.LOGIN_TOO_LARGE_RUNNING
+      },
+      // And the words file names no size field in its code.
+      copyNamesTooLarge: /\btooLarge\b/.test(copyText.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1'))
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // 7. The store file itself holds no path and no token.
   // -------------------------------------------------------------------------
   const fileText = (await import('node:fs')).readFileSync(dirs.loginsFileIn(root), 'utf8');
@@ -1032,6 +1099,7 @@ try {
   };
 } finally {
   rmSync(root, { recursive: true, force: true });
+  for (const dir of capRoots) rmSync(dir, { recursive: true, force: true });
 }
 
 process.stdout.write(`${JSON.stringify(out)}\n`);

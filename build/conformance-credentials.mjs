@@ -96,21 +96,35 @@
  *      The cost of keeping on doubt is bounded in the same arm: ten refreshes
  *      of such a store leave ONE login rather than nine, and ten refreshes of
  *      a store that does name itself leave none.
- *  17. THE VAULT IS SCOPED TO ITS PROFILE (Phase 208). A scratch root and the
- *      person's root compose DIFFERENT keychain names for the same slot, no
- *      name composed from any root can equal the unscoped one a tree before
- *      that phase wrote, the digest is re-derived here by a sha256 of this
- *      gate's own, an empty scope throws rather than composing the unscoped
- *      name, the keychain backend lands on the scoped name and nothing else,
- *      and a slot one profile wrote is invisible to another. THE MIGRATION is
- *      driven both ways over the measured security: present is moved and
- *      deleted byte for byte, absent touches nothing, both present with the
- *      record naming the old bytes rewrites the scoped copy, a staged leftover
+ *  17. THE VAULT IS ONE SEALED FILE, AND THE KEYCHAIN IS READ ONCE (Phase
+ *      208, rewritten by Phase 304). A scratch root and the person's root
+ *      compose DIFFERENT legacy keychain names for the same slot, no name
+ *      composed from any root can equal the unscoped one a tree before Phase
+ *      208 wrote, the digest is re-derived here by a sha256 of this gate's
+ *      own, an empty scope throws rather than composing the unscoped name,
+ *      the read-through asks exactly the scoped name and nothing else and
+ *      composes no `-i` line, and a slot one profile kept is invisible to
+ *      another. THE READ-THROUGH is driven step by step over the measured
+ *      security: a miss with a scoped item planted writes the sealed file,
+ *      reads it back, and only then deletes the item, with exactly one find
+ *      and one delete on the argvs; a delete the program refuses leaves the
+ *      item AND the file and the next read is a hit that sends nothing; a seal
+ *      that cannot be made during the read-through answers the item's bytes,
+ *      writes no file and deletes nothing; a read-back that disagrees deletes
+ *      nothing; and the boot pass sweeps the scoped duplicate a kill or a
+ *      refused delete leaves beside a sealed file, rewriting the file first
+ *      when the record names the item's bytes, and leaving BOTH in place,
+ *      counted as kept, when the bytes differ and the record names neither
+ *      (the fix round's clause). THE MIGRATION of the unscoped
+ *      name is driven both ways over the same security and the sealed vault:
+ *      present is moved into the sealed file and deleted byte for byte with no
+ *      `-i` line composed, absent touches nothing, both present with the
+ *      record naming the old bytes rewrites the sealed copy, a staged leftover
  *      under the old name is deleted without being moved, and a profile that
- *      is not the person's own composes NO unscoped name at all. The scan half:
- *      the unscoped composer is defined in exactly one file, migrate.ts, and
- *      the one call of the migration outside that file, in index.ts, carries
- *      the profile proof composed by ownProfileVerdict.
+ *      is not the person's own composes NO unscoped name at all. The scan
+ *      half: the unscoped composer is defined in exactly one file, migrate.ts,
+ *      and the one call of the migration outside that file, in index.ts,
+ *      carries the profile proof composed by ownProfileVerdict.
  *  18. THE SESSION EVIDENCE IS THREE ANSWERS, NOT TWO, AND AN UNCLASSIFIED
  *      THROW IS NOT A SUCCESSFUL SWITCH (Phase 220). Phase 211 asked which
  *      sessions are running as `.catch(() => [])`, so an answer that could not
@@ -170,6 +184,51 @@
  *      no scoped item, and defaultStoreTarget, commit under the vendor rule's
  *      account over its three shapes, being `USER`, the user name and the
  *      fallback, with the stray beside them byte identical.
+ *  21. A LINE `security` WOULD CUT IS REFUSED BY ITS BYTES, AND THE PERSON IS
+ *      TOLD (Phase 287). `security -i` reads at most 4,095 bytes of command per
+ *      read, so 4,096 bytes with the newline is the longest line that arrives
+ *      whole; past it the trailing keychain path loses its own end, nothing is
+ *      written, and the program does not exit with stdin closed until it is
+ *      killed. THE COUNT IS IN BYTES, measured twice and again by this phase's
+ *      attacker: a 4,106 byte line of exactly 4,096 characters hung while a
+ *      4,096 byte line of 4,096 characters wrote, so Phase 281.1's cap compared
+ *      in UTF-16 units still SENT 4,100 bytes over a non-ASCII harness keychain
+ *      path. (a) to (c) are scanned, over the tree and over every ablated copy:
+ *      one declaration of `SECURITY_LINE_MAX_BYTES` at or under the measured
+ *      buffer less its stated margin, no `SECURITY_LINE_MAX` left anywhere, one
+ *      comparison and it names `Buffer.byteLength`, three files in the tree
+ *      naming the program with the `-i` token in one of them, and the refusal
+ *      ahead of the count and ahead of the spawn. (d) to (h) are driven: the cap
+ *      over a string whose bytes are twice its units, the one write's line byte
+ *      for byte at the cap and rejected two bytes over with its runner never
+ *      called, the runner refusing the suffixed line without counting it, and
+ *      then the paths a person meets it on. NARROWED TO THE VENDOR ARM BY
+ *      PHASE 304: Tortie's own store is a sealed file with no ceiling (rule
+ *      22), so the vault's own refusal, the observe that told the row, and the
+ *      switch shapes that began in the VAULT write's refusal are gone with the
+ *      case. What is left is the one store that can still refuse for size,
+ *      the vendor's own keychain item: (g) a login whose vendor stage cannot
+ *      take a payload the vault keeps is refused with the fixed sentence and
+ *      the named reason, no `-i` line composed and the sealed copy intact;
+ *      (g′) the default lift meeting that same ceiling while the login's own
+ *      store already holds the account answers ok with nothing written and
+ *      the reason carried, the default item byte identical, the outgoing
+ *      account promoted and the choice recorded, and with no default session
+ *      the same click carries no reason because nothing failed. Nothing under
+ *      the cap moves, which is the last clause.
+ *  22. TORTIE'S OWN VAULT HAS NO SIZE LIMIT (Phase 304). The shipping
+ *      `vaultPut` and `vaultGet` over the shipping `sealedVault`, an injected
+ *      seal and the measured security as the legacy arm, at 4,193 bytes (what
+ *      `stat` read of the operator's own `~/.codex/auth.json`, refused by every
+ *      observe since Phase 204), at 64 KB and at 1 MB: the answer's sha256
+ *      equals the payload's, the file on disk is NOT the payload and holds no
+ *      64 byte window of it, its mode is 0600 in a 0700 directory, the runner
+ *      saw no argv on any put or on any hit, and a seal that cannot be made
+ *      keeps nothing, says the one write's own sentence and leaves no file at
+ *      the slot or its staged place. Scanned, over the tree and over every
+ *      ablated copy: `vault.ts` names neither `keychainWrite` nor the `-i`
+ *      token, and `keychainWrite` has exactly ONE caller outside `security.ts`
+ *      in the domain, the vendor's own item in `stores.ts`.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -677,9 +736,12 @@ notes.push(
 // again, or a parameter every caller in the same file fills that way. And
 // `claudeStoreAddress` itself must take the account from `claudeKeychainAccount`
 // over the seam's environment. Tortie's own vault names live in `vault.ts` and
-// `migrate.ts` and pass `null`, or `VAULT_ACCOUNT` to the write, and are counted
-// apart. A file other than `security.ts` naming a `security` verb as a string
-// is running the program itself around the refusal, and is a finding too.
+// `migrate.ts`, pass `null`, and since Phase 304 are only ever READ and
+// deleted: a `keychainWrite` from either file is a finding on its own, because
+// Tortie's own store is a sealed file and the keychain is read once for a
+// legacy item (rule 22). They are counted apart. A file other than
+// `security.ts` naming a `security` verb as a string is running the program
+// itself around the refusal, and is a finding too.
 //
 // IT IS TEXT AND NOT A TYPE CHECKER. It reads top level function declarations
 // whose closing brace sits at the start of a line, which is every function the
@@ -816,8 +878,14 @@ function vendorKeychainSitesIn(name, text) {
     const where = `${name}:${fn?.name ?? '(top level)'}:${verb}`;
     if (OWN_NAME_FILES.has(name)) {
       own.push(where);
-      const expected = verb === 'keychainWrite' ? 'VAULT_ACCOUNT' : 'null';
-      if (account !== expected) bad.push(`${where} passes \`${account}\` where Tortie's own names pass ${expected}`);
+      // PHASE 304. Tortie's own store writes NO keychain item: the vault is a
+      // sealed file and the keychain is read once for a legacy item, so a
+      // write from either own-name file is the parent's shape coming back.
+      if (verb === 'keychainWrite') {
+        bad.push(`${where} WRITES A KEYCHAIN ITEM from Tortie's own store, which since Phase 304 is a sealed file the keychain is only ever read for`);
+        continue;
+      }
+      if (account !== 'null') bad.push(`${where} passes \`${account}\` where Tortie's own names pass null`);
       continue;
     }
     sites.push(where);
@@ -860,6 +928,96 @@ function vendorKeychainSites(dir) {
     bypass: bypass.sort(),
     own,
     addressRule: addressDefined === 1 && addressRule
+  };
+}
+
+/**
+ * RULE 21 (a) to (c) over one copy of the domain, as one comparable reading.
+ *
+ * It is read from the source rather than driven because two of the three
+ * clauses are about ORDER — the refusal ahead of the call count and ahead of the
+ * spawn — and no world this gate builds can tell a line counted before it was
+ * refused from one counted after. The reading is taken over every ablated copy
+ * as well, the way `vendorKeychainSites` is, so an ablation of the comparison
+ * moves it even where the probe cannot see the difference.
+ */
+function lineCapSites(dir) {
+  let capValue = null;
+  const declaredIn = [];
+  const oldName = [];
+  for (const name of readdirSync(dir).filter((n) => n.endsWith('.ts')).sort()) {
+    const code = stripComments(readFileSync(join(dir, name), 'utf8'));
+    const declared = /export const SECURITY_LINE_MAX_BYTES\s*=\s*([0-9_]+)/.exec(code);
+    if (declared !== null) {
+      declaredIn.push(name);
+      capValue = Number((declared[1] ?? '').replace(/_/g, ''));
+    }
+    // THE OLD NAME IS GONE WITH NO ALIAS, so a `.length` comparison against it
+    // cannot survive anywhere. `SECURITY_LINE_MAX_BYTES` is not it.
+    if (/\bSECURITY_LINE_MAX\b(?!_BYTES)/.test(code)) oldName.push(name);
+  }
+  if (!existsSync(join(dir, 'security.ts'))) {
+    // A DOMAIN WITH NO security.ts, read as a reading rather than as a stack,
+    // for the reason rule 17 records: a gate that dies is not a gate that fails.
+    return { declaredIn, capValue, oldName, absent: true };
+  }
+  const code = stripComments(readFileSync(join(dir, 'security.ts'), 'utf8'));
+  const fitsBody = functionBodyOf(code, 'securityLineFits') ?? '';
+  const writeBody = functionBodyOf(code, 'keychainWrite') ?? '';
+  const runnerBody = functionBodyOf(code, 'defaultSecurityRunner') ?? '';
+  const asks = (body) => body.indexOf('securityLineFits(');
+  const writeAsks = asks(writeBody);
+  const writeSends = writeBody.indexOf("runner.run(['-i']");
+  const runnerAsks = asks(runnerBody);
+  return {
+    declaredIn,
+    capValue,
+    oldName,
+    // (b) ONE COMPARISON, AND IT COUNTS BYTES.
+    fitsNamesBytes: /Buffer\.byteLength\s*\(/.test(fitsBody),
+    fitsNamesTheCap: /\bSECURITY_LINE_MAX_BYTES\b/.test(fitsBody),
+    fitsNamesLength: /\.length\b/.test(fitsBody),
+    // Counted INSIDE security.ts alone: the phase's own tests name it too, and a
+    // count over `src/` would be red the moment they exist.
+    capMentions: (code.match(/\bSECURITY_LINE_MAX_BYTES\b/g) ?? []).length,
+    // (c) The refusal is ahead of the one `-i` send and ahead of the count.
+    iTokens: (code.match(/'-i'/g) ?? []).length,
+    writeSends: (writeBody.match(/runner\.run\(\['-i'\]/g) ?? []).length,
+    writeAsksFirst: writeAsks >= 0 && writeSends >= 0 && writeAsks < writeSends,
+    runnerAsksBeforeCount:
+      runnerAsks >= 0 &&
+      runnerBody.indexOf('calls += 1') > runnerAsks &&
+      runnerBody.indexOf('runGuarded(') > runnerAsks
+  };
+}
+
+/**
+ * RULE 22's scanned half over one copy of the domain, as one comparable
+ * reading (Phase 304).
+ *
+ * Tortie's own store is a sealed file and the keychain is only ever READ for
+ * it, so `vault.ts` may name neither `keychainWrite` nor the `-i` token, and
+ * `keychainWrite` may have exactly one caller outside its own file in the
+ * domain, being the vendor's own item in `stores.ts`. A second caller is a
+ * second way to compose a line `security -i` would cut, which is the ceiling
+ * this phase removed from Tortie's own store. Read over every ablated copy as
+ * well, the way `lineCapSites` is, so a write put back into the vault moves
+ * this reading even where the probe's world cannot see the difference.
+ */
+function sealedSites(dir) {
+  if (!existsSync(join(dir, 'vault.ts'))) return { absent: true };
+  const vaultCode = stripComments(readFileSync(join(dir, 'vault.ts'), 'utf8'));
+  const writers = [];
+  for (const name of readdirSync(dir).filter((n) => n.endsWith('.ts')).sort()) {
+    if (name === 'security.ts') continue;
+    const code = stripComments(readFileSync(join(dir, name), 'utf8'));
+    const calls = (code.match(/\bkeychainWrite\s*\(/g) ?? []).length;
+    if (calls > 0) writers.push(`${name}:${String(calls)}`);
+  }
+  return {
+    vaultNamesWrite: /\bkeychainWrite\b/.test(vaultCode),
+    vaultNamesI: /'-i'/.test(vaultCode),
+    writers
   };
 }
 
@@ -928,11 +1086,20 @@ const SITE_FIXTURES = [
     bypass: 1
   },
   {
-    name: "Tortie's own vault name, which passes null",
+    name: "Tortie's own legacy name, read and deleted with null",
     file: 'vault.ts',
-    text: 'export function keychainVault(runner, scope) {\n  return { get: (slot) => keychainRead(runner, serviceFor(slot), null) };\n}\n',
+    text: 'export function legacyKeychainVault(runner, scope) {\n  return { get: (slot) => keychainRead(runner, serviceFor(slot), null), del: (slot) => keychainDelete(runner, serviceFor(slot), null) };\n}\n',
     sites: 0,
     bad: 0,
+    bypass: 0
+  },
+  {
+    // PHASE 304. The parent's keychain backend, which WROTE Tortie's own item.
+    name: "Tortie's own store writing a keychain item, which Phase 304 removed",
+    file: 'vault.ts',
+    text: "export function keychainVault(runner, scope) {\n  return { put: async (slot, payload) => { await keychainWrite(runner, serviceFor(slot), 'tortie', payload); } };\n}\n",
+    sites: 0,
+    bad: 1,
     bypass: 0
   },
   {
@@ -974,6 +1141,132 @@ check(
 notes.push(
   `${String(liveSites.sites.length)} vendor keychain call sites each passing the vendor rule's account, ${String(liveSites.own)} of Tortie's own, ${String(siteFixturesBehaved)} of ${String(SITE_FIXTURES.length)} call site fixtures behaved`
 );
+
+// ---------------------------------------------------------------------------
+// RULE 21 (Phase 287), the scanned half. THE MEASURED BUFFER IS 4,096 BYTES,
+// newline included (build/p287/SPEC.md §1, four runs on a scratch keychain under
+// a scratch `HOME` where no default keychain resolves, and the attacker's own
+// three line shapes agreed with them exactly). The cap is that number less a
+// stated margin, and it is compared in BYTES because the buffer counts bytes.
+// ---------------------------------------------------------------------------
+
+/** Every `.ts` file under `dir`, tests aside, because a test names what it pins. */
+function sourceFilesBelow(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === '__tests__' || entry.name === 'node_modules') continue;
+      out.push(...sourceFilesBelow(full));
+    } else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+const liveLineCap = lineCapSites(DOMAIN);
+// (a) ONE DECLARATION, AT OR UNDER THE MEASURED BUFFER LESS ITS MARGIN.
+const MEASURED_SECURITY_BUFFER_BYTES = 4_096;
+const STATED_MARGIN_BYTES = 96;
+check(
+  liveLineCap.declaredIn.length === 1 && liveLineCap.declaredIn[0] === 'security.ts',
+  `${TAG} SECURITY_LINE_MAX_BYTES is declared in ${liveLineCap.declaredIn.join(', ') || 'no file'} rather than in security.ts alone, so there is more than one cap or none`
+);
+check(
+  liveLineCap.capValue !== null &&
+    liveLineCap.capValue <= MEASURED_SECURITY_BUFFER_BYTES - STATED_MARGIN_BYTES,
+  `${TAG} THE CAP IS ${String(liveLineCap.capValue)} BYTES, past the measured buffer of ${String(MEASURED_SECURITY_BUFFER_BYTES)} less its stated margin of ${String(STATED_MARGIN_BYTES)}: a line that long is cut by security -i, loses the keychain path off its end and hangs (build/p287/SPEC.md §1)`
+);
+check(
+  liveLineCap.oldName.length === 0,
+  `${TAG} ${liveLineCap.oldName.join(', ')} still names SECURITY_LINE_MAX, the cap Phase 281.1 compared in UTF-16 units, which a non-ASCII keychain path walks past`
+);
+{
+  const survivors = sourceFilesBelow(join(repoRoot, 'src'))
+    .filter((file) => /\bSECURITY_LINE_MAX\b(?!_BYTES)/.test(stripComments(readFileSync(file, 'utf8'))))
+    .map((file) => file.slice(repoRoot.length + 1));
+  check(
+    survivors.length === 0,
+    `${TAG} ${survivors.join(', ')} compares against SECURITY_LINE_MAX, which this phase removed with no alias precisely so a comparison in UTF-16 units cannot survive`
+  );
+}
+// (b) ONE COMPARISON, AND IT COUNTS BYTES.
+check(
+  liveLineCap.fitsNamesBytes && liveLineCap.fitsNamesTheCap && !liveLineCap.fitsNamesLength,
+  `${TAG} securityLineFits does not compare Buffer.byteLength against SECURITY_LINE_MAX_BYTES, or it reads a .length: the buffer counts BYTES, and a 4,106 byte line of exactly 4,096 characters was measured hanging`
+);
+check(
+  liveLineCap.capMentions === 2,
+  `${TAG} SECURITY_LINE_MAX_BYTES appears ${String(liveLineCap.capMentions)} times in security.ts's code rather than twice, being its declaration and the one comparison, so some other site compares against it`
+);
+// (c) THE PROGRAM IS NAMED IN THREE FILES, AND THE `-i` TOKEN IN ONE.
+{
+  const naming = sourceFilesBelow(join(repoRoot, 'src/main'))
+    .filter((file) => {
+      const code = stripComments(readFileSync(file, 'utf8'));
+      return code.includes('/usr/bin/security') || /\bSECURITY_BIN\b/.test(code);
+    })
+    .map((file) => file.slice(repoRoot.length + 1))
+    .sort();
+  const EXPECTED_SECURITY_FILES = [
+    'src/main/credentials/security.ts',
+    'src/main/usage/credentials.ts',
+    'src/main/usage/login-accounts.ts'
+  ];
+  check(
+    JSON.stringify(naming) === JSON.stringify(EXPECTED_SECURITY_FILES),
+    `${TAG} ${naming.join(', ')} name the security program rather than the three this gate pins, so a fourth way to reach it exists and rule 21's refusal does not cover it`
+  );
+  const sendsI = naming.filter((name) =>
+    /'-i'/.test(stripComments(readFileSync(join(repoRoot, name), 'utf8')))
+  );
+  check(
+    sendsI.length === 1 && sendsI[0] === 'src/main/credentials/security.ts',
+    `${TAG} the -i token appears in ${sendsI.join(', ') || 'no file'} rather than in security.ts alone, so a line reaches security -i somewhere the cap is not asked`
+  );
+}
+check(
+  liveLineCap.iTokens === 3 && liveLineCap.writeSends === 1 && liveLineCap.writeAsksFirst,
+  `${TAG} keychainWrite sends ${String(liveLineCap.writeSends)} -i line(s) and ${liveLineCap.writeAsksFirst ? 'asks' : 'DOES NOT ASK'} securityLineFits before it (security.ts holds ${String(liveLineCap.iTokens)} -i tokens)`
+);
+check(
+  liveLineCap.runnerAsksBeforeCount,
+  `${TAG} defaultSecurityRunner does not ask securityLineFits BEFORE it counts the call and before runGuarded, so a line it refuses is counted as a call security never ran, or worse is spawned`
+);
+notes.push(
+  `the security line cap is ${String(liveLineCap.capValue)} bytes, declared once, compared once in bytes, with the program named in 3 files and -i in 1`
+);
+
+// ---------------------------------------------------------------------------
+// RULE 22 (Phase 304), the scanned half. TORTIE'S OWN STORE WRITES NO KEYCHAIN
+// ITEM. The ceiling Phase 287 measured belongs to `security -i`, and Tortie's
+// own store had it only because its macOS backend was a keychain item; a
+// sealed file has none. So the vault must not be able to compose the line at
+// all, and the one write that still can is the vendor's own item.
+// ---------------------------------------------------------------------------
+
+const liveSealed = sealedSites(DOMAIN);
+check(
+  liveSealed.absent !== true,
+  `${TAG} RULE 22 CANNOT RUN: the domain has no vault.ts`
+);
+if (liveSealed.absent !== true) {
+  check(
+    !liveSealed.vaultNamesWrite,
+    `${TAG} vault.ts names keychainWrite, so Tortie's own store can compose a security -i line again and inherits the 4,096 byte ceiling this phase removed from it`
+  );
+  check(
+    !liveSealed.vaultNamesI,
+    `${TAG} vault.ts names the -i token, so a line reaches security -i from Tortie's own store`
+  );
+  check(
+    JSON.stringify(liveSealed.writers) === JSON.stringify(['stores.ts:1']),
+    `${TAG} keychainWrite is called from ${liveSealed.writers.join(', ') || 'no file'} rather than once from stores.ts alone, so a second way to compose a line security would cut exists in the domain`
+  );
+  notes.push("Tortie's own store names no keychain write and keychainWrite has 1 caller outside security.ts");
+}
 
 // ---------------------------------------------------------------------------
 // The probe, over the tree and over the ablated copies of it.
@@ -1047,7 +1340,9 @@ const VERDICT_PARTS = [
   'lifecycle',
   'vendorAddress',
   'vendorRefusal',
-  'vendorCommit'
+  'vendorCommit',
+  'lineCap',
+  'sealed'
 ];
 
 function verdict(d) {
@@ -1091,7 +1386,9 @@ function verdict(d) {
     JSON.stringify(d.lifecycle),
     JSON.stringify(d.vendorAddress),
     JSON.stringify(d.vendorRefusal),
-    JSON.stringify(d.vendorCommit)
+    JSON.stringify(d.vendorCommit),
+    JSON.stringify(d.lineCap),
+    JSON.stringify(d.sealed)
   ];
 }
 
@@ -1642,6 +1939,114 @@ if ('error' in live) {
   check(live.scope.composerAgrees, `${TAG} the unscoped composer in migrate.ts does not spell the old name`);
   check(live.scope.backendNamesScoped, `${TAG} the keychain backend wrote somewhere other than the scoped name`);
   check(live.scope.crossProfileHidden, `${TAG} a slot one profile wrote is visible to another`);
+  // THE READ-THROUGH, step by step (Phase 304). A miss with a scoped item
+  // planted is the migration: exactly one find and one delete, no `-i` line,
+  // the sealed file written and opening to the item's bytes, the item gone,
+  // and the next read a hit that sends nothing. Then one thing made to fail
+  // at a time, and on every arm the answer is the item's bytes, because a
+  // caller is never told "nothing" about a credential that exists.
+  const rt = live.scope.readThrough;
+  check(
+    rt !== undefined && rt !== null,
+    `${TAG} RULE 17 CANNOT DRIVE THE READ-THROUGH: the probe gave no readThrough readings`
+  );
+  if (rt !== undefined && rt !== null) {
+    const FIND_THEN_DELETE = JSON.stringify(['find -s <scoped> -w', 'delete -s <scoped>']);
+    const FIND_ONLY = JSON.stringify(['find -s <scoped> -w']);
+    check(
+      rt.miss.answered === true &&
+        JSON.stringify(rt.miss.argvs) === FIND_THEN_DELETE &&
+        rt.miss.lines === 0 &&
+        rt.miss.filePresent === true &&
+        rt.miss.fileOpens === true &&
+        rt.miss.fileIsNotThePayload === true &&
+        rt.miss.itemPresent === false,
+      `${TAG} A MISS WITH A SCOPED ITEM PLANTED DID NOT MOVE IT IN THE SAFE ORDER: ${JSON.stringify(rt.miss)}; the file must be written sealed, read back, and only then the item deleted, over exactly one find and one delete and no -i line`
+    );
+    check(
+      rt.miss.secondAnswered === true && rt.miss.secondArgvs.length === 0,
+      `${TAG} the read after the read-through sent ${JSON.stringify(rt.miss.secondArgvs)}: a hit on the sealed file must ask the keychain nothing`
+    );
+    check(
+      rt.refusedDelete.answered === true &&
+        JSON.stringify(rt.refusedDelete.argvs) === FIND_THEN_DELETE &&
+        rt.refusedDelete.filePresent === true &&
+        rt.refusedDelete.fileOpens === true &&
+        rt.refusedDelete.itemPresent === true &&
+        rt.refusedDelete.secondAnswered === true &&
+        rt.refusedDelete.secondArgvs.length === 0,
+      `${TAG} A DELETE SECURITY REFUSED LEFT THE WRONG COPIES: ${JSON.stringify(rt.refusedDelete)}; the item AND the file must both stay, and the next read must be a hit that sends nothing`
+    );
+    check(
+      rt.wrapNull.answered === true &&
+        JSON.stringify(rt.wrapNull.argvs) === FIND_ONLY &&
+        rt.wrapNull.filePresent === false &&
+        rt.wrapNull.itemPresent === true &&
+        rt.wrapNull.secondAnswered === true &&
+        JSON.stringify(rt.wrapNull.secondArgvs) === FIND_ONLY,
+      `${TAG} A SEAL THAT COULD NOT BE MADE DURING THE READ-THROUGH left ${JSON.stringify(rt.wrapNull)}: the answer must be the item's bytes, no file may be written, nothing may be deleted, and the next read must ask the item again`
+    );
+    check(
+      rt.openWrong.answered === true &&
+        JSON.stringify(rt.openWrong.argvs) === FIND_ONLY &&
+        rt.openWrong.filePresent === true &&
+        rt.openWrong.itemPresent === true,
+      `${TAG} A READ-BACK THAT DISAGREED STILL DELETED THE ITEM: ${JSON.stringify(rt.openWrong)}; the item must stay until the sealed file has been read back equal`
+    );
+  }
+  // THE SWEEP (Phase 304). A scoped item beside a sealed file is the one shape
+  // the read-through cannot reach, because a hit asks the keychain nothing:
+  // the boot pass must delete it and count it, leaving the file as it was; and
+  // when the record names the ITEM's bytes and not the file's, an older build
+  // wrote the item after this profile had a file, so the file is rewritten
+  // from the item first, counted as moved, and the item then deleted. And the
+  // fourth shape (the fix round): the bytes differ and the record names
+  // NEITHER, so nothing proves which copy this profile can reach, and the
+  // pass leaves both, counted as kept, because the phase's charter is never
+  // zero copies and this was the one arm that destroyed an unproven one.
+  const sw = live.scope.sweep;
+  check(
+    sw !== undefined && sw !== null,
+    `${TAG} RULE 17 CANNOT DRIVE THE SWEEP: the probe gave no sweep readings`
+  );
+  if (sw !== undefined && sw !== null) {
+    check(
+      sw.duplicate.result.refused === false &&
+        sw.duplicate.result.moved === 0 &&
+        sw.duplicate.result.deleted === 1 &&
+        sw.duplicate.result.kept === 0 &&
+        sw.duplicate.result.failed === 0 &&
+        sw.duplicate.itemGone === true &&
+        sw.duplicate.fileHoldsSealed === true &&
+        sw.duplicate.lines === 0,
+      `${TAG} THE BOOT PASS DID NOT SWEEP THE SCOPED DUPLICATE BESIDE A SEALED FILE: ${JSON.stringify(sw.duplicate)}; it must delete the item, count one delete, rewrite nothing and compose no -i line`
+    );
+    check(
+      sw.recordedTwin.result.refused === false &&
+        sw.recordedTwin.result.moved === 1 &&
+        sw.recordedTwin.result.deleted === 1 &&
+        sw.recordedTwin.result.kept === 0 &&
+        sw.recordedTwin.result.failed === 0 &&
+        sw.recordedTwin.itemGone === true &&
+        sw.recordedTwin.fileHoldsTwin === true &&
+        sw.recordedTwin.fileHoldsSealed === false &&
+        sw.recordedTwin.lines === 0,
+      `${TAG} THE OLDER BUILD'S ITEM THE RECORD NAMES WAS NOT REWRITTEN INTO THE FILE BEFORE THE DELETE: ${JSON.stringify(sw.recordedTwin)}; the file must hold the item's bytes, counted as one move and one delete`
+    );
+    check(
+      sw.unprovenTwin !== undefined &&
+        sw.unprovenTwin.result.refused === false &&
+        sw.unprovenTwin.result.moved === 0 &&
+        sw.unprovenTwin.result.deleted === 0 &&
+        sw.unprovenTwin.result.kept === 1 &&
+        sw.unprovenTwin.result.failed === 0 &&
+        sw.unprovenTwin.itemGone === false &&
+        sw.unprovenTwin.fileHoldsSealed === true &&
+        sw.unprovenTwin.fileHoldsTwin === false &&
+        sw.unprovenTwin.lines === 0,
+      `${TAG} A SCOPED ITEM WHOSE BYTES THE RECORD DOES NOT NAME, BESIDE A FILE IT DOES NOT NAME EITHER, WAS NOT LEFT IN PLACE: ${JSON.stringify(sw.unprovenTwin)}; nothing proves which copy this profile can reach, so the pass must delete nothing, rewrite nothing, and count the slot as kept`
+    );
+  }
   check(
     live.scope.ownProfile.own && !live.scope.ownProfile.scratch && !live.scope.ownProfile.probes && !live.scope.ownProfile.smoke,
     `${TAG} isOwnProfile misread a shape: ${JSON.stringify(live.scope.ownProfile)}`
@@ -1797,6 +2202,204 @@ if ('error' in live) {
     }
     notes.push(
       `${String(va.vendorCalls)} vendor keychain calls over strays placed first, every one under the vendor account, ${String(vr.asked)} asks with no account and ${String(vr.refusedReached)} reaching security, ${String(Object.keys(vc).length)} account rule shapes committing where Claude Code reads`
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Rule 21 (Phase 287), the driven half. A LINE `security` WOULD CUT IS
+  // REFUSED BY ITS BYTES, AND THE PERSON IS TOLD.
+  //
+  // The sentence is read out of `src/shared/login-copy.ts` rather than written
+  // here, because that file is the one place the words live and
+  // `conformance:logins` is the gate that keeps them there. So this gate checks
+  // the whole chain, from the refusal in the write to the words a surface draws,
+  // and a sentence changed in one place and not the other is caught by one of
+  // the two gates rather than by neither.
+  // -------------------------------------------------------------------------
+  const tooLargeSentence =
+    /export const LOGIN_TOO_LARGE_SENTENCE\s*=\s*\n?\s*'([^']*)'/.exec(
+      readFileSync(join(repoRoot, 'src/shared/login-copy.ts'), 'utf8')
+    )?.[1] ?? null;
+  check(
+    tooLargeSentence !== null,
+    `${TAG} RULE 21 CANNOT READ ITS SENTENCE: src/shared/login-copy.ts declares no LOGIN_TOO_LARGE_SENTENCE`
+  );
+  const lc = live.lineCap;
+  check(
+    lc !== undefined && lc.absent !== true,
+    `${TAG} RULE 21 CANNOT RUN: the domain gave no Phase 287 readings, so it carries no cap in bytes and no named reason`
+  );
+  if (lc !== undefined && lc.absent !== true && tooLargeSentence !== null) {
+    const says = (value) => value === tooLargeSentence;
+    // (d) THE CAP IS A COUNT OF BYTES, asked of the one comparison over a string
+    // whose bytes are twice its UTF-16 units.
+    check(
+      lc.unitsAtCap * 2 === lc.cap && lc.fitsAtCap === true && lc.fitsOverCap === false,
+      `${TAG} securityLineFits answered ${String(lc.fitsAtCap)} for a line of exactly the cap in bytes and ${String(lc.fitsOverCap)} for one byte more, over ${String(lc.unitsAtCap)} UTF-16 units against a cap of ${String(lc.cap)} bytes`
+    );
+    // (e) THE ONE WRITE. Its line is byte for byte today's at the cap, and two
+    // bytes over it rejects with the named reason and never calls its runner.
+    check(
+      lc.write.atCapAnswer === true &&
+        lc.write.calls === 1 &&
+        lc.write.sentBytes === lc.cap &&
+        lc.write.sentExact === true,
+      `${TAG} A CREDENTIAL UNDER THE CAP IS NO LONGER WRITTEN AS IT IS TODAY: a line of exactly ${String(lc.cap)} bytes answered ${String(lc.write.atCapAnswer)} after ${String(lc.write.calls)} call(s) and ${lc.write.sentExact ? 'matched' : 'DID NOT MATCH'} add-generic-password -U -a … -s … -X <hex> byte for byte`
+    );
+    check(
+      lc.write.overAnswer === null &&
+        lc.write.overThrew === 'CredentialTooLarge' &&
+        lc.write.overIsClass === true &&
+        lc.write.callsAfterOver === 1,
+      `${TAG} keychainWrite two bytes over the cap answered ${JSON.stringify(lc.write.overAnswer)} and threw ${String(lc.write.overThrew)} (the class itself: ${String(lc.write.overIsClass)}) after ${String(lc.write.callsAfterOver)} runner call(s); it must reject CredentialTooLarge with its runner never called, so no fake and no real security ever sees a line this long`
+    );
+    check(
+      lc.write.overNamesPayload === false,
+      `${TAG} THE REFUSAL NAMES THE PAYLOAD OR ITS LENGTH, which is exactly what this domain never puts in an error`
+    );
+    // (f) THE RUNNER, over a keychain path of multi-byte letters. This is
+    // finding 5: `isPlainKeychainPath` caps UTF-16 units, so the suffix alone
+    // takes a line that passes a `.length` cap past the measured buffer, and at
+    // the parent the program was SPAWNED with 4,100 bytes.
+    check(
+      lc.runner.overUnits === lc.cap && lc.runner.overBytes > lc.cap,
+      `${TAG} the runner arm's line is ${String(lc.runner.overUnits)} UTF-16 units and ${String(lc.runner.overBytes)} bytes against a cap of ${String(lc.cap)}, so it is not the shape that walks past a cap compared in units and it proves nothing`
+    );
+    check(
+      lc.runner.refusedCode === 1 &&
+        lc.runner.refusedTooLong === true &&
+        lc.runner.refusedCounted === 0,
+      `${TAG} A SUFFIXED LINE OVER THE MEASURED BUFFER WAS NOT REFUSED BY ITS BYTES: exit ${String(lc.runner.refusedCode)}, tooLong ${String(lc.runner.refusedTooLong)}, and securityCallCount moved by ${String(lc.runner.refusedCounted)} for a call nothing ran`
+    );
+    check(
+      lc.runner.underBytes <= lc.cap &&
+        lc.runner.spawnedCode === 1 &&
+        lc.runner.spawnedTooLong === null &&
+        lc.runner.spawnedCounted === 1,
+      `${TAG} a line of ${String(lc.runner.underBytes)} bytes, under the cap, answered tooLong ${String(lc.runner.spawnedTooLong)} and moved the count by ${String(lc.runner.spawnedCounted)}: a line that fits must reach the spawn exactly as today, or this arm cannot tell a refusal from a run`
+    );
+    // (g) L5. THE VENDOR STAGE THAT DOES NOT FIT THOUGH THE VAULT DID. Since
+    // Phase 304 this is the ONE refusal for size left in the domain: Tortie's
+    // own vault is a sealed file and keeps the payload, so what cannot take
+    // the line is the vendor's own item, reached whenever the vendor's account
+    // is long enough to carry the staged line over the cap.
+    check(
+      lc.l5.vaultKeptIt === true &&
+        lc.l5.sealedIntact === true &&
+        lc.l5.vendorLineBytes > lc.cap,
+      `${TAG} the L5 arm's payload is not the shape it needs: the vendor line is ${String(lc.l5.vendorLineBytes)} bytes against a cap of ${String(lc.cap)}, with the sealed vault ${lc.l5.vaultKeptIt ? 'holding' : 'NOT HOLDING'} it before and ${lc.l5.sealedIntact ? 'holding' : 'NOT HOLDING'} it after`
+    );
+    check(
+      lc.l5.ok === false && says(lc.l5.reason) && lc.l5.why === 'too-large',
+      `${TAG} the vendor stage that does not fit answered ${JSON.stringify({ ok: lc.l5.ok, why: lc.l5.why })} rather than the fixed sentence and the named reason`
+    );
+    check(
+      lc.l5.lines === 0 && lc.l5.itemAdded === false,
+      `${TAG} a refused vendor stage sent ${String(lc.l5.lines)} command line(s) and ${lc.l5.itemAdded ? 'ADDED' : 'did not add'} the login's item: the refusal is by bytes ahead of any spawn, so no -i line may be composed and nothing may land`
+    );
+    // (g') L5b. THE DEFAULT LIFT MEETS THE VENDOR'S CEILING WHILE THE LOGIN'S
+    // OWN STORE ALREADY HOLDS THE ACCOUNT. The one switch that STANDS with a
+    // named reason, and since Phase 304 the only path on which the running
+    // toast is said: the choice is recorded, nothing is written, the default
+    // item holds its own bytes, the outgoing default account was promoted into
+    // a login of its own before the refusal, and the reason travels out so the
+    // renderer says the sentence for the running session rather than the
+    // switched one. Its control with NO default session carries no reason,
+    // because nothing was tried and nothing failed.
+    check(
+      lc.l5bRunning.ok === true &&
+        lc.l5bRunning.wrote === false &&
+        lc.l5bRunning.why === 'too-large' &&
+        lc.l5bRunning.defaultHoldsItsBytes === true &&
+        lc.l5bRunning.ownStoreHoldsItsBytes === true &&
+        lc.l5bRunning.outgoingPromoted === true &&
+        lc.l5bRunning.chosen === 'long' &&
+        lc.l5bRunning.lines === 0,
+      `${TAG} THE DEFAULT LIFT MEETING THE VENDOR'S CEILING answered ${JSON.stringify(lc.l5bRunning)} with a default session live: the choice must stand with nothing written and the reason carried, both items byte identical, the outgoing account promoted and no -i line composed, because answering a refusal there would stop a click that works today from working`
+    );
+    check(
+      lc.l5bIdle.ok === true &&
+        lc.l5bIdle.wrote === false &&
+        lc.l5bIdle.why === null &&
+        lc.l5bIdle.defaultHoldsItsBytes === true &&
+        lc.l5bIdle.ownStoreHoldsItsBytes === true &&
+        lc.l5bIdle.outgoingPromoted === false &&
+        lc.l5bIdle.chosen === 'long' &&
+        lc.l5bIdle.lines === 0,
+      `${TAG} the same click with NO default session running answered ${JSON.stringify(lc.l5bIdle)}: it must answer ok with nothing written, the choice recorded and NO reason, because nothing was tried and nothing failed`
+    );
+    // (h) NO REGRESSION. An under-cap switch sends today's lines, and the
+    // existing `keychain` arm's readings are compared by the ablation loop
+    // whatever this arm says.
+    check(
+      lc.plain.ok === true &&
+        lc.plain.wrote === true &&
+        JSON.stringify(lc.plain.lines) ===
+          JSON.stringify([
+            'add -a gate -s Claude Code-credentials-<digest>.tortie-pending -X <93 bytes>',
+            'add -a gate -s Claude Code-credentials-<digest> -X <93 bytes>'
+          ]),
+      `${TAG} AN UNDER-CAP SWITCH NO LONGER SENDS THE LINES IT SENDS TODAY: it sent ${JSON.stringify(lc.plain.lines)} and answered ${JSON.stringify({ ok: lc.plain.ok, wrote: lc.plain.wrote })}`
+    );
+    notes.push(
+      `the cap refuses by bytes at ${String(lc.cap)} (${String(lc.runner.overBytes)} bytes of ${String(lc.runner.overUnits)} units refused, 0 counted, 0 spawned), the vendor arm alone says the one sentence and the switch that stood carries its reason`
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Rule 22 (Phase 304), the driven half. TORTIE'S OWN VAULT HAS NO SIZE
+  // LIMIT. The shipping `vaultPut` and `vaultGet` over the shipping
+  // `sealedVault`, at the size of his own `~/.codex/auth.json`, at 64 KB and
+  // at 1 MB. Every comparison is by digest and by length; the probe never
+  // prints a payload byte and this gate never reads one.
+  // -------------------------------------------------------------------------
+  const sd = live.sealed;
+  check(
+    sd !== undefined && sd !== null && sd.absent !== true,
+    `${TAG} RULE 22 CANNOT RUN: the domain has no sealedVault, so Tortie's own store still has whatever ceiling its backend has`
+  );
+  if (sd !== undefined && sd !== null && sd.absent !== true) {
+    check(
+      JSON.stringify(sd.trips.map((t) => t.bytes)) === JSON.stringify([4193, 65536, 1048576]),
+      `${TAG} the size arm drove ${JSON.stringify(sd.trips.map((t) => t.bytes))} rather than 4,193, 65,536 and 1,048,576 bytes, so it does not reach the size of his own codex store or a megabyte`
+    );
+    for (const t of sd.trips) {
+      check(
+        t.putOk === true && t.answerBytes === t.bytes && t.digestEqual === true,
+        `${TAG} A PAYLOAD OF ${String(t.bytes)} BYTES DID NOT ROUND TRIP THROUGH TORTIE'S OWN STORE: put ${String(t.putOk)}, ${String(t.answerBytes)} bytes back, digest ${t.digestEqual ? 'equal' : 'DIFFERENT'}`
+      );
+      check(
+        t.filePresent === true && t.fileIsNotThePayload === true && t.fileHoldsNoWindow === true,
+        `${TAG} THE FILE ON DISK IS THE PAYLOAD, OR HOLDS A WINDOW OF IT, at ${String(t.bytes)} bytes: present ${String(t.filePresent)}, not the payload ${String(t.fileIsNotThePayload)}, no 64 byte window ${String(t.fileHoldsNoWindow)}; a credential is never on disk in the clear`
+      );
+      check(
+        t.fileMode === 0o600,
+        `${TAG} the sealed file at ${String(t.bytes)} bytes has mode ${t.fileMode === null ? 'none' : t.fileMode.toString(8)} rather than 0600`
+      );
+      check(
+        t.argvsOnPut === 0 && t.argvsOnGet === 0 && t.linesSent === 0,
+        `${TAG} A PUT OR A HIT ON TORTIE'S OWN STORE REACHED security: ${String(t.argvsOnPut)} argv(s) on the put, ${String(t.argvsOnGet)} on the get, ${String(t.linesSent)} -i line(s), at ${String(t.bytes)} bytes; the sealed file must spawn nothing`
+      );
+    }
+    check(
+      sd.dirMode === 0o700,
+      `${TAG} the vault directory has mode ${sd.dirMode === null ? 'none' : sd.dirMode.toString(8)} rather than 0700`
+    );
+    check(
+      sd.noSeal.ok === false &&
+        sd.noSeal.reason === 'Nothing could be written, so nothing changed.' &&
+        sd.noSeal.why === null,
+      `${TAG} A SEAL THAT COULD NOT BE MADE did not refuse in the one write's own sentence: ${JSON.stringify({ ok: sd.noSeal.ok, reason: sd.noSeal.reason, why: sd.noSeal.why })}`
+    );
+    check(
+      sd.noSeal.filePresent === false &&
+        sd.noSeal.stagedPresent === false &&
+        sd.noSeal.argvs === 0 &&
+        sd.noSeal.lines === 0,
+      `${TAG} A SEAL THAT COULD NOT BE MADE STILL LEFT SOMETHING: file ${String(sd.noSeal.filePresent)}, staged ${String(sd.noSeal.stagedPresent)}, ${String(sd.noSeal.argvs)} argv(s), ${String(sd.noSeal.lines)} line(s); nothing may be kept in the clear and nothing may be spawned`
+    );
+    notes.push(
+      `Tortie's own store round trips ${sd.trips.map((t) => String(t.bytes)).join(', ')} bytes by sha256 with the file never the payload, 0600 in 0700, no security argv on any put or hit, and no seal keeps nothing`
     );
   }
 
@@ -2014,6 +2617,129 @@ check(
 // ---------------------------------------------------------------------------
 
 const ABLATIONS = [
+  // -------------------------------------------------------------------------
+  // PHASE 287, rule 21, AS PHASE 304 LEFT IT. Phase 287 wrote twelve clauses
+  // with one ablation each; five of them (the default lift over an unkept
+  // sign in, the row told, the own store's too-large arm, the grown login's
+  // split, and the skip of the lift) ablated arms of keep.ts whose every fact
+  // began in the VAULT write's refusal, and Phase 304 deleted those arms with
+  // the case, so the ablations went with them. What stays is the vendor arm:
+  // the cap in bytes, the runner's and the write's refusal ahead of the spawn,
+  // the one write's named reason, the cap's value, and the default lift that
+  // never un-chooses a login it could not reach, which is the one keep.ts arm
+  // whose reason begins in the vendor write and which (g′) now drives.
+  // -------------------------------------------------------------------------
+  {
+    name: 'the cap compared in UTF-16 units',
+    edits: [
+      {
+        file: 'security.ts',
+        from: "  return Buffer.byteLength(line, 'utf8') <= SECURITY_LINE_MAX_BYTES;",
+        to: '  return line.length <= SECURITY_LINE_MAX_BYTES;'
+      }
+    ]
+  },
+  {
+    name: 'the runner sends an -i line over the cap',
+    edits: [
+      {
+        file: 'security.ts',
+        from:
+          "      if (argv[0] === '-i' && input !== undefined && !securityLineFits(input)) {\n" +
+          "        return { code: 1, stdout: '', tooLong: true };\n" +
+          '      }',
+        to: ''
+      }
+    ]
+  },
+  {
+    name: 'keychainWrite sends a line over the cap',
+    edits: [
+      {
+        file: 'security.ts',
+        from: '  if (!securityLineFits(command)) throw new CredentialTooLarge();\n',
+        to: ''
+      }
+    ]
+  },
+  {
+    name: 'the refusal flattened into false, so the reason has no name',
+    edits: [
+      {
+        file: 'security.ts',
+        from: '  if (!securityLineFits(command)) throw new CredentialTooLarge();',
+        to: '  if (!securityLineFits(command)) return false;'
+      }
+    ]
+  },
+  {
+    name: 'the one write forgets the reason',
+    edits: [
+      {
+        file: 'swap.ts',
+        from:
+          '      if (err instanceof CredentialTooLarge) {\n' +
+          "        return { ok: false, reason: LOGIN_TOO_LARGE_SENTENCE, why: 'too-large' };\n" +
+          '      }\n' +
+          "      return { ok: false, reason: 'Nothing could be written, so nothing changed.' };",
+        to: "      return { ok: false, reason: 'Nothing could be written, so nothing changed.' };"
+      }
+    ]
+  },
+  {
+    name: 'the cap raised past the measured buffer',
+    edits: [
+      {
+        file: 'security.ts',
+        from: 'export const SECURITY_LINE_MAX_BYTES = 4_000;',
+        to: 'export const SECURITY_LINE_MAX_BYTES = 4_200;'
+      }
+    ]
+  },
+  {
+    // The one keep.ts arm Phase 304 keeps, because its reason begins in the
+    // VENDOR write: the default lift refused by the agent's own keychain entry
+    // while the login's own store already holds the account. Rule 21 (g′)
+    // drives it; without this arm the click answers the parent's `ok: false`
+    // and the choice is not recorded.
+    name: 'a too-large default lift un-chooses the login',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: "    if (firstWhy === 'too-large') {",
+        to: "    if (false && firstWhy === 'too-large') {"
+      }
+    ]
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 304, rule 22. Two ablations of the sealed vault, one per clause the
+  // rule is made of: the seal dropped, so the file IS the payload, and a size
+  // cap put back into Tortie's own store, so the 4,193 byte round trip is
+  // refused the way every observe of his own codex store was refused from
+  // Phase 204 to Phase 303.
+  // -------------------------------------------------------------------------
+  {
+    name: 'the seal dropped, so the sealed file holds the payload in the clear',
+    edits: [
+      {
+        file: 'vault.ts',
+        from: '    writeNoFollowSync(writing, sealed);',
+        to: '    writeNoFollowSync(writing, payload);'
+      }
+    ]
+  },
+  {
+    name: "a size cap put back into Tortie's own store",
+    edits: [
+      {
+        file: 'vault.ts',
+        from: '    const sealed = seal.wrap(payload);',
+        to:
+          "    if (Buffer.byteLength(payload, 'utf8') > 4_000) throw new Error('too large');\n" +
+          '    const sealed = seal.wrap(payload);'
+      }
+    ]
+  },
   {
     name: 'the person own location allowed as a write target',
     edits: [
@@ -2243,16 +2969,22 @@ const ABLATIONS = [
     ]
   },
   {
+    // PHASE 287 RE-ANCHORED IT, and the point of the ablation did not move: no
+    // payload reaches a command line. Its `from` named the `.length` comparison
+    // Phase 281.1 wrote, which this phase replaced with `securityLineFits`, and
+    // an unmatched `from` is a gate failure rather than a red ablation. The `to`
+    // keeps `answer` bound, so the two lines below the edit still read something
+    // that exists and the copy fails the rule rather than failing to run.
     name: 'the payload put on a command line the way orca does it',
     edits: [
       {
         file: 'security.ts',
         from:
           '  const command = `add-generic-password -U -a "${account}" -s "${service}" -X "${hex}"\\n`;\n' +
-          '  if (command.length > SECURITY_LINE_MAX) return false;\n' +
-          "  const { code } = await runner.run(['-i'], command);",
+          '  if (!securityLineFits(command)) throw new CredentialTooLarge();\n' +
+          "  const answer = await runner.run(['-i'], command);",
         to:
-          "  const { code } = await runner.run([\n" +
+          "  const answer = await runner.run([\n" +
           "    'add-generic-password',\n" +
           "    '-U',\n" +
           "    '-a',\n" +
@@ -2685,6 +3417,20 @@ const ABLATIONS = [
     ]
   },
   {
+    // PHASE 304, THE FIX ROUND. The fourth shape's guard removed, which is the
+    // sweep as the build round shipped it: a scoped item whose bytes differ
+    // from the sealed file's, with the record naming neither, was deleted, so
+    // its bytes were left nowhere. Rule 17e's unprovenTwin clause owns it.
+    name: 'the sweep deleting a scoped item the record does not name beside a file it does not name either',
+    edits: [
+      {
+        file: 'migrate.ts',
+        from: '        } else if (twin !== sealed && !recordNames(record, sealed)) {',
+        to: '        } else if (false) {'
+      }
+    ]
+  },
+  {
     // PHASE 220, item 1. The permissive catch restored, which is the shape that
     // shipped: an answer that could not be had becomes an empty list, the
     // default lift is skipped in silence, and the sentence the person reads is
@@ -2929,6 +3675,7 @@ function sweepAblations() {
 try {
   const liveVerdict = JSON.stringify(verdict(live));
   const liveSitesReading = JSON.stringify(liveSites);
+  const liveLineCapReading = JSON.stringify(liveLineCap);
   let red = 0;
   for (const [i, ablation] of ABLATIONS.entries()) {
     const dir = join(mainDir, `${ABLATION_PREFIX}${String(i)}`);
@@ -2988,6 +3735,12 @@ try {
     // rule's moves this reading even where no world the probe builds can tell.
     if (JSON.stringify(vendorKeychainSites(dir)) !== liveSitesReading) {
       moved.push('vendorSites');
+    }
+    // RULE 21 (a) TO (c) ARE READ FROM SOURCE TOO (Phase 287), for the same
+    // reason: the order of the refusal against the call count and against the
+    // spawn is not something a world this gate builds can see.
+    if (JSON.stringify(lineCapSites(dir)) !== liveLineCapReading) {
+      moved.push('lineCapSource');
     }
     if (moved.length > 0) {
       red += 1;

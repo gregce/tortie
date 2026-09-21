@@ -8,8 +8,9 @@
  * carrying the address the vendor's own file named, the DIGEST of the
  * credential in that slot, the keychain account attribute the item was found
  * under, and when it was taken. The credential itself is in the store
- * `./vault.ts` owns, which on macOS is the keychain, and it is never in this
- * file, in the logins file, in the manifest or on the wire.
+ * `./vault.ts` owns, which since Phase 304 is a sealed file under
+ * `<root>/kept/` on every platform (until then a keychain item on macOS), and
+ * it is never in this file, in the logins file, in the manifest or on the wire.
  *
  * ## WHY THE DIGEST IS HERE AT ALL
  *

@@ -57,7 +57,7 @@ import {
   type StoreDeps
 } from '../stores';
 import { safeSwap } from '../swap';
-import { keychainVault, VAULT_ACCOUNT, vaultServiceFor } from '../vault';
+import { legacyKeychainVault, vaultServiceFor } from '../vault';
 import { defaultKeychainFingerprint } from '../watch';
 
 const VENDOR = 'p281-vendor';
@@ -505,7 +505,7 @@ describe("Phase 281: Tortie's own names keep the command lines they always had",
     const name = 'Tortie-credentials-claude.default';
     expect(isClaudeVendorService(name)).toBe(false);
     const runner = firstMatchSecurity([
-      { service: name, account: VAULT_ACCOUNT, payload: credential('vault'), mdat: '20260916000000Z' }
+      { service: name, account: 'tortie', payload: credential('vault'), mdat: '20260916000000Z' }
     ]);
     await keychainRead(runner, name, null);
     await keychainAccount(runner, name, null);
@@ -521,22 +521,28 @@ describe("Phase 281: Tortie's own names keep the command lines they always had",
     ]);
   });
 
-  it('the keychain vault sends what it sent before this phase', async () => {
+  it("the legacy arm of Tortie's own store sends the service-only argvs and never -i (Phase 304)", async () => {
+    // Until Phase 304 this case pinned the vault's `-i` line. Tortie's own
+    // store is a sealed file now and the keychain is READ ONLY for it: the
+    // legacy arm reads and deletes the scoped name with the same two argvs the
+    // parent sent for them, and there is no `put` on its type to send a third.
     const scope = '/p281-profile/gmux/logins';
     const slot = 'claude.default';
     const service = vaultServiceFor(slot, scope);
-    const runner = firstMatchSecurity([]);
-    const vault = keychainVault(runner, scope);
     const payload = credential('vault');
-    const hex = Buffer.from(payload, 'utf8').toString('hex');
-    await vault.put(slot, payload);
-    expect(await vault.get(slot)).toBe(payload);
-    await vault.del(slot);
-    expect(runner.sent).toEqual([
-      { argv: ['-i'], stdin: `add-generic-password -U -a "${VAULT_ACCOUNT}" -s "${service}" -X "${hex}"\n` },
-      { argv: ['find-generic-password', '-s', service, '-w'] },
-      { argv: ['delete-generic-password', '-s', service] }
+    const runner = firstMatchSecurity([
+      { service, account: 'tortie', payload, mdat: '20260916000000Z' }
     ]);
+    const legacy = legacyKeychainVault(runner, scope);
+    expect(await legacy.get(slot)).toBe(payload);
+    expect(await legacy.del(slot)).toBe(true);
+    expect(await legacy.get(slot)).toBeNull();
+    expect(runner.sent).toEqual([
+      { argv: ['find-generic-password', '-s', service, '-w'] },
+      { argv: ['delete-generic-password', '-s', service] },
+      { argv: ['find-generic-password', '-s', service, '-w'] }
+    ]);
+    expect('put' in legacy).toBe(false);
   });
 });
 

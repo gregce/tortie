@@ -65,40 +65,76 @@ import { runGuarded } from '../proc/guarded';
 import { isClaudeVendorService } from '../usage/credentials';
 import { credentialsAreOpen, ownCredentialChild } from './lifecycle';
 import { decodeKeychainPayload } from './security-print';
+import { CredentialTooLarge } from './swap';
 
 /** How long any one `security` call may take. */
 export const SECURITY_TIMEOUT_MS = 10_000;
 
 /**
- * The longest `-i` line this domain will hand `security`, trailing newline and
- * any keychain suffix included (Phase 281.1).
+ * The longest `-i` line this domain will hand `security`, in BYTES, trailing
+ * newline and any keychain suffix included (Phase 287, replacing the Phase
+ * 281.1 cap that compared UTF-16 units).
  *
- * MEASURED on 2026-09-17 under a scratch `HOME` where no default keychain
- * resolves, twice (the Phase 281.1 measure verifier and its fix round): an
- * `add-generic-password` line of 3,923 and of 3,995 characters writes and
- * reads back exactly; a line of 4,123 and of 4,195 characters writes NOTHING
- * to the keychain named at its end and `security -i` does not exit with stdin
- * closed until it is killed (65 s and 10 s). The Phase 281.1 reverify then
- * found the edge by binary search: a 4,097 BYTE line, newline included,
- * writes and reads back, a 4,098 byte line hangs and writes nothing, and the
- * buffer counts BYTES (a 4,030 character line of 4,090 bytes wrote, a 4,050
- * character line of 4,110 bytes hung). This cap compares `.length`, which is
- * UTF-16 units, and every component of Tortie's own line is ASCII except the
- * harness keychain path, so a non-ASCII scratch path could pass the cap and
- * still overrun the buffer; Phase 287 owns that arm. So past the buffer the
- * line is cut and the trailing keychain path is lost. Claude Code's own
- * writer switches to the argv form at 4,032 (bundle 2.1.274, its `Z`), which
- * is the same buffer read from the other side. Tortie writes only over `-i`,
- * so until Phase 287 (docs/BACKLOG.md, "the `-i` line above the `security`
- * buffer") decides the long-line form, a line this long is REFUSED before
- * anything is spawned: {@link keychainWrite} answers false for it, and
- * {@link defaultSecurityRunner} answers exit 1 for one whose suffix takes it
- * over. A harness run can therefore never lose the scratch keychain path off
- * the end of a line and aim a write at the default keychain, and a real run
- * never spends its ten second deadline on the hang. A credential of the shape
- * either vendor writes today is well under a quarter of this.
+ * MEASURED four times on 2026-09-17, and again independently by this phase's
+ * attacker with three line shapes of its own, on macOS 15.7.9 (24G830) against
+ * `/usr/bin/security` from `Security-61439.140.12.706.1`. Every run was under a
+ * scratch `HOME` where `security default-keychain` answers "could not be found",
+ * on a scratch keychain named by the LAST token of the line. Apple's
+ * `SecurityTool` source is not on that machine, so the edges below are measured
+ * and not read; `build/p287/SPEC.md` §1 has every run.
+ *
+ *  - `security -i` reads at most 4,095 BYTES of command per read, so the longest
+ *    line that arrives whole is 4,096 bytes with its newline. At 4,096 an
+ *    `add-generic-password` line writes and reads back byte for byte.
+ *  - at 4,097 bytes the last byte before the newline is split off and read as a
+ *    second command. With the closing quote there, `security` prints its usage;
+ *    with a space there, nothing is printed. The first half still writes,
+ *    because the tokenizer accepts an unterminated trailing quote.
+ *  - at 4,098 bytes and above the keychain path loses its own last byte, names a
+ *    keychain that does not exist, NOTHING is written to the one that was meant
+ *    (`find-generic-password` answers 44), and the process does not exit with
+ *    stdin at end of file until it is killed.
+ *  - THE BUFFER COUNTS BYTES. A 4,098 byte line of 4,088 characters hangs while
+ *    a 4,096 byte line of 4,096 characters writes. The Phase 281.1 cap compared
+ *    `.length`, and the one component of Tortie's line that can carry non-ASCII
+ *    is the harness keychain path: measured at `a4f44588`, a scratch path of 100
+ *    accented letters passed that cap and the shipping runner sent 4,100 bytes.
+ *
+ * ## WHY 4,000, AND THE THREE REASONS IT DOES NOT MOVE UP
+ *
+ * It is the measured 4,096 less a stated margin of 96 bytes. Every line Tortie
+ * composes is ASCII — a service and an account pass
+ * {@link isPlainSecurityName}'s `[A-Za-z0-9 ._@+-]` and the payload is hex — so
+ * for every shipping line the byte count equals `.length`, and no line that
+ * passed the old cap is refused by this one. Claude Code's own writer switches
+ * to the argv form at 4,032 (bundle 2.1.274, its `Z`, offset 170,935,555), 64
+ * below the buffer, which is the same buffer read from the other side. And the
+ * buffer belongs to one OS build, which an update can move.
+ *
+ * ## NOTHING OVER IT REACHES A SPAWN, ON ANY PATH
+ *
+ * {@link keychainWrite} rejects with `CredentialTooLarge` before it calls its
+ * runner, and {@link defaultSecurityRunner} answers `tooLong` for a line its own
+ * keychain suffix takes over, before it even counts the call. So a harness run
+ * can never lose the scratch keychain path off the end of a line and aim a write
+ * at the default keychain, and a real run never spends its ten second deadline
+ * on the hang. Phase 287 keeps that refusal and makes it SAY so: see
+ * `../../shared/login-copy.ts`'s `LOGIN_TOO_LARGE_SENTENCE`.
  */
-export const SECURITY_LINE_MAX = 4_000;
+export const SECURITY_LINE_MAX_BYTES = 4_000;
+
+/**
+ * Does this whole `-i` line fit the measured buffer? (Phase 287)
+ *
+ * THE ONE COMPARISON AGAINST THE CAP IN THE TREE, and it counts BYTES. It is a
+ * function rather than an inline test at each site so that a second site cannot
+ * come to compare UTF-16 units again, which is the defect
+ * {@link SECURITY_LINE_MAX_BYTES} records. It is handed the WHOLE line, trailing
+ * newline and any keychain suffix included.
+ */
+export function securityLineFits(line: string): boolean {
+  return Buffer.byteLength(line, 'utf8') <= SECURITY_LINE_MAX_BYTES;
+}
 
 /** The program, named once. Nothing composes this from a setting. */
 export const SECURITY_BIN = '/usr/bin/security';
@@ -108,12 +144,17 @@ export const SECURITY_BIN = '/usr/bin/security';
  *
  * `stdin` is how the write is made: the whole command line goes over the pipe,
  * so the payload reaches no argv.
+ *
+ * `tooLong` is how a runner says it refused an `-i` line as too long for the
+ * measured buffer rather than running one that failed (Phase 287). It is
+ * OPTIONAL, so every fake runner in the tree still satisfies this seam, and
+ * {@link keychainWrite} is the one reader of it.
  */
 export interface SecurityRunner {
   run(
     argv: readonly string[],
     stdin?: string
-  ): Promise<{ code: number; stdout: string }>;
+  ): Promise<{ code: number; stdout: string; tooLong?: true }>;
 }
 
 let calls = 0;
@@ -182,7 +223,10 @@ export function defaultSecurityRunner(
       // answers, which every caller in this domain already treats as "no item"
       // or as a refusal, so nothing has to learn a new failure.
       if (!credentialsAreOpen()) return { code: 1, stdout: '' };
-      calls += 1;
+      // PHASE 287. THE LINE IS COMPOSED BEFORE THE CALL IS COUNTED, because a
+      // line refused below runs nothing and must not move
+      // {@link securityCallCount}. Phase 281.1 counted first and refused after,
+      // so a harness runner's refusal showed up in the boot line as a call.
       const line = [...argv];
       let input = stdin;
       if (file !== null) {
@@ -197,13 +241,17 @@ export function defaultSecurityRunner(
           line.push(file);
         }
       }
-      // A LINE `security` WOULD CUT IS NEVER SENT (Phase 281.1). The suffix
-      // above is what {@link keychainWrite}'s own check cannot see, and a cut
-      // line loses exactly that suffix, which is the keychain the write was
-      // meant for. {@link SECURITY_LINE_MAX} has the measurement.
-      if (argv[0] === '-i' && input !== undefined && input.length > SECURITY_LINE_MAX) {
-        return { code: 1, stdout: '' };
+      // A LINE `security` WOULD CUT IS NEVER SENT (Phase 281.1, by BYTES since
+      // Phase 287). The suffix above is what {@link keychainWrite}'s own check
+      // cannot see, and a cut line loses exactly that suffix, which is the
+      // keychain the write was meant for. `tooLong` is what tells this refusal
+      // apart from `security`'s own exit 1, so the one write can name the reason
+      // instead of reporting an ordinary failure.
+      // {@link SECURITY_LINE_MAX_BYTES} has the measurement.
+      if (argv[0] === '-i' && input !== undefined && !securityLineFits(input)) {
+        return { code: 1, stdout: '', tooLong: true };
       }
+      calls += 1;
       // PHASE 220. THROUGH `../proc/guarded` RATHER THAN A BARE `execFile`.
       // This was the one child in the product that nothing could reach: not
       // `reapGuardedChildren()` at quit, and not this domain's own disposer,
@@ -376,11 +424,26 @@ export async function keychainHasItem(
  * THE PAYLOAD GOES OVER STDIN AS HEX and reaches no argv. `-U` is what makes
  * this an update rather than a second item beside the first.
  *
- * A LINE LONGER THAN {@link SECURITY_LINE_MAX} IS REFUSED before the runner
- * sees it (Phase 281.1): `security -i` cuts such a line and hangs, measured,
- * and the cut end is where a harness keychain path goes. The refusal is
- * false, the same answer every other refused write gives, and the runner is
- * not called, so no fake and no real `security` sees a line this long.
+ * A LINE THAT DOES NOT FIT {@link SECURITY_LINE_MAX_BYTES} IS REFUSED before the
+ * runner sees it (Phase 281.1, by BYTES since Phase 287): `security -i` cuts
+ * such a line and hangs, measured, and the cut end is where a harness keychain
+ * path goes.
+ *
+ * IT IS THE ONE REFUSAL HERE THAT REJECTS INSTEAD OF ANSWERING FALSE
+ * (Phase 287). Every other one — a name {@link isPlainSecurityName} refuses, an
+ * empty payload, a non-zero exit — still answers false, because false is all a
+ * caller can do anything with. This one has a sentence of its own that a person
+ * reads, and `false` cannot carry which refusal it was: the one caller already
+ * throws on false (`./stores.ts`'s `keychainTarget`, the vendor's own item), so
+ * the rejection travels the same road, and `./swap.ts`'s two catches are the
+ * only things that read it. The runner's own `tooLong` becomes the same
+ * rejection, because the keychain suffix it appends is the part of the line
+ * this function cannot see.
+ *
+ * SINCE PHASE 304 THIS IS THE ONLY WRITE TO ANY KEYCHAIN IN THE DOMAIN. Tortie's
+ * own store is a sealed file (`./vault.ts`), and its legacy arm reads and
+ * deletes the items an older tree kept and cannot reach this function at all,
+ * by type. So the ceiling above is the vendor's item's alone.
  */
 export async function keychainWrite(
   runner: SecurityRunner,
@@ -393,9 +456,10 @@ export async function keychainWrite(
   if (payload === '') return false;
   const hex = Buffer.from(payload, 'utf8').toString('hex');
   const command = `add-generic-password -U -a "${account}" -s "${service}" -X "${hex}"\n`;
-  if (command.length > SECURITY_LINE_MAX) return false;
-  const { code } = await runner.run(['-i'], command);
-  return code === 0;
+  if (!securityLineFits(command)) throw new CredentialTooLarge();
+  const answer = await runner.run(['-i'], command);
+  if (answer.tooLong === true) throw new CredentialTooLarge();
+  return answer.code === 0;
 }
 
 /**

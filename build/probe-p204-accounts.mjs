@@ -31,9 +31,18 @@
  *    makes the store Tortie keeps accounts in a FILE under this probe's own
  *    profile and refuses every `security` call, so every credential in this run
  *    is a synthetic file this probe wrote into a directory this probe made.
+ *    Since Phase 304 that file is the ONE store Tortie has on every platform,
+ *    sealed through `safeStorage`, so the run also reads that both default
+ *    slots are sealed 0600 files holding no sentinel in the clear, and asks
+ *    his keychain by attributes that the names THIS profile would compose,
+ *    scoped and unscoped, are absent at both ends.
  *  - NO VENDOR BINARY RUNS, no session is created and no request is made.
- *  - HIS OWN THREE CREDENTIALS ARE HASHED before and after and the two sets are
- *    printed. Nothing else is ever done with them.
+ *  - HIS OWN THREE CREDENTIALS ARE FINGERPRINTED before and after and the two
+ *    sets are printed: the keychain item by its attributes with the dates
+ *    dropped, and each file by `lstat` alone, being size, modification time
+ *    and inode. No file of his is opened; until the Phase 304 fix round the
+ *    two files were read to hash them, and the reading is now the one
+ *    build/probe-p304.mjs makes. Nothing else is ever done with them.
  *  - The Electron goes through build/electron-run.mjs and is ended in its
  *    `finally`. The tmux socket is this probe's own, p204.
  *
@@ -49,11 +58,13 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -157,12 +168,23 @@ if (process.argv.includes('--self-test')) {
 }
 
 // ---------------------------------------------------------------------------
-// HIS OWN CREDENTIALS. Hashed, and nothing else, at both ends of the run.
+// HIS OWN CREDENTIALS. Fingerprinted by attributes, or by `lstat`, and nothing
+// else, at both ends of the run.
 // ---------------------------------------------------------------------------
 
-function hashOf(path) {
+/**
+ * A file of his by what it IS, never by what it holds: `lstat` alone, the
+ * reading build/probe-p304.mjs makes. Until the Phase 304 fix round this was
+ * a sha256 of the file's bytes, which opened a credential of his to grade it;
+ * the rule every verifier runs under is that `stat` is the most a probe may
+ * do to one, so size, modification time and inode are the reading, compared
+ * as a triple. `JSON.stringify` keeps the three keys in the order they are
+ * written here, so the string compare below is a field compare.
+ */
+function identityOf(path) {
   try {
-    return createHash('sha256').update(readFileSync(path)).digest('hex');
+    const st = lstatSync(path);
+    return { size: st.size, mtimeMs: st.mtimeMs, ino: st.ino };
   } catch {
     return 'absent';
   }
@@ -192,38 +214,54 @@ function keychainFingerprint(service) {
   }
 }
 
-/** Every keychain item whose service begins with Tortie's own prefix. */
+/**
+ * The keychain names this run's own profile would have composed for its two
+ * default slots, had it written any (Phase 304).
+ *
+ * Until Phase 304 this asked the two UNSCOPED names, which no build since
+ * Phase 208 has composed, so the reading could not have moved. The names a
+ * Phase 208 to 303 build wrote are `Tortie-credentials-<slot>-<first eight hex
+ * of the sha256 of the logins root>`, and the logins root is a path this file
+ * chose, so the exact names are known before the app runs. Since Phase 304 the
+ * app writes NO such item at all: Tortie's own store is a sealed file under
+ * the profile, so these names must be absent before and after, and the sealed
+ * files must exist after. That is the stronger assertion, and it is asked of
+ * his search list by ATTRIBUTES ONLY, never `-g` or `-w`.
+ */
 function tortieItemsNamed() {
-  // ATTRIBUTES ONLY, and only to prove this run created none of his. A miss is
-  // the expected answer.
-  return keychainFingerprint('Tortie-credentials-claude.default') === 'absent' &&
+  const scope = createHash('sha256').update(join(profile, 'gmux', 'logins')).digest('hex').slice(0, 8);
+  return keychainFingerprint(`Tortie-credentials-claude.default-${scope}`) === 'absent' &&
+    keychainFingerprint(`Tortie-credentials-codex.default-${scope}`) === 'absent' &&
+    keychainFingerprint('Tortie-credentials-claude.default') === 'absent' &&
     keychainFingerprint('Tortie-credentials-codex.default') === 'absent'
     ? 'none'
     : 'SOME EXIST';
 }
 
 /**
- * His own credentials, hashed and nothing else.
+ * His own credentials, by attributes or by `lstat`, and nothing else.
  *
  * THE FIRST THREE ARE THE ONES THAT MUST NOT MOVE. The claude credential is a
  * KEYCHAIN ITEM on this machine, so what is hashed is the item's identity with
- * its two dates removed; the codex credential is a file; and the third is the
- * proof that this run created no Tortie owned item in his keychain, which the
- * harness fixture makes impossible and this asserts anyway.
+ * its two dates removed; the codex credential is a file, read by `lstat` as a
+ * size, modification time and inode triple and never opened; and the third is
+ * the proof that this run created no Tortie owned item in his keychain, which
+ * the harness fixture makes impossible and this asserts anyway.
  *
  * `claudeJson` IS INFORMATIONAL AND IS NOT COMPARED. `~/.claude.json` is the
  * vendor's own configuration and session state rather than a credential, and
  * the vendor rewrites it continuously while he works: it moved during this
  * probe's own first run, in the tenth of a second between the two readings of
  * a run that had already refused to start. Comparing it would report his own
- * agent's ordinary writing as a finding of this phase.
+ * agent's ordinary writing as a finding of this phase. It is read by `lstat`
+ * too, so nothing of his is opened here at all.
  */
 function credentialHashes() {
   return {
     claudeKeychainAttributes: keychainFingerprint('Claude Code-credentials'),
-    codexAuthFile: hashOf(join(homedir(), '.codex', 'auth.json')),
+    codexAuthFile: identityOf(join(homedir(), '.codex', 'auth.json')),
     tortieOwnItemsInHisKeychain: tortieItemsNamed(),
-    claudeJsonInformational: hashOf(join(homedir(), '.claude.json'))
+    claudeJsonInformational: identityOf(join(homedir(), '.claude.json'))
   };
 }
 
@@ -233,11 +271,10 @@ function credentialsThatMustNotMove(all) {
   return rest;
 }
 
-const hashesBefore = credentialHashes();
-say(`his credentials before: ${JSON.stringify(hashesBefore)}`);
-
 // ---------------------------------------------------------------------------
-// The scratch world. Every path below is one this file made.
+// The scratch world. Every path below is one this file made. The profile is
+// named BEFORE the first reading of his credentials, because that reading
+// asks about the keychain names this profile would compose (Phase 304).
 // ---------------------------------------------------------------------------
 
 const outDir = process.env['P204_OUT_DIR'] ?? join(repoRoot, 'out', 'p204');
@@ -245,6 +282,9 @@ mkdirSync(outDir, { recursive: true });
 
 const harnessDir = mkdtempSync(join(tmpdir(), 'p204-'));
 const profile = join(harnessDir, 'profile');
+
+const hashesBefore = credentialHashes();
+say(`his credentials before: ${JSON.stringify(hashesBefore)}`);
 const defaultClaude = join(harnessDir, 'default-claude');
 const defaultCodex = join(harnessDir, 'default-codex');
 const fixturePath = join(harnessDir, 'usage-fixture.json');
@@ -643,6 +683,26 @@ try {
       'the login Tortie made holds the credential that was in the default store',
       gradeSameBytes(file, beforeChange.codexText)
     );
+    // PHASE 304. TORTIE'S OWN STORE IS A SEALED FILE UNDER THE PROFILE, so the
+    // rolling copies of both default stores exist there as regular 0600 files
+    // that are not the credential in the clear, and no keychain item of
+    // Tortie's exists anywhere (the credential reading at both ends asks).
+    for (const provider of ['codex', 'claude']) {
+      const sealed = join(loginsRoot, 'kept', `${provider}.default.cred`);
+      let text = null;
+      let mode = null;
+      try {
+        text = readFileSync(sealed, 'utf8');
+        mode = statSync(sealed).mode & 0o777;
+      } catch {
+        text = null;
+      }
+      const clear = provider === 'codex' ? codexCredentialText(SENTINEL.codexTwo, ADDRESS.codexTwo) : claudeCredentialText(SENTINEL.claudeTwo);
+      record(report.bytes, `the ${provider} default slot is a sealed 0600 file that is not the credential in the clear`, {
+        ok: text !== null && mode === 0o600 && text !== clear && !Object.values(SENTINEL).some((w) => text.includes(w)),
+        why: text === null ? 'no sealed file' : `${String(text.length)} bytes, mode ${mode === null ? 'unreadable' : mode.toString(8)}, no sentinel in it`
+      });
+    }
     // AND THE PERSON'S OWN DEFAULT STORE STILL HOLDS WHAT THE VENDOR PUT THERE.
     record(report.bytes, 'the default store was never written by Tortie', {
       ok:
@@ -711,8 +771,8 @@ try {
   say(`his credentials after: ${JSON.stringify(report.credentials.after)}`);
   if (!same) fail('HIS OWN CREDENTIALS MOVED DURING THIS RUN');
   if (
-    report.credentials.before.claudeJsonInformational !==
-    report.credentials.after.claudeJsonInformational
+    JSON.stringify(report.credentials.before.claudeJsonInformational) !==
+    JSON.stringify(report.credentials.after.claudeJsonInformational)
   ) {
     say(
       'note: ~/.claude.json moved during the run. It is the vendor own configuration and session state rather than a credential, and the vendor rewrites it while he works.'
