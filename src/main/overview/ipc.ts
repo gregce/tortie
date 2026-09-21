@@ -51,6 +51,7 @@ import {
   type OverviewServiceDeps
 } from './service';
 import { archOptions, foldOptions } from './fold';
+import { createResolveCache } from './reader/resolve-cache';
 import { buildTimeline, timelineTurns } from './timeline';
 import { openOverviewStore, type OverviewStore } from './store';
 
@@ -98,10 +99,18 @@ export function registerOverviewIpc(
   foldChosen: () => boolean = () => false,
   archSuspended: () => string | null = () => null
 ): void {
+  // Phase 300, finding C5. ONE cache for this process, built here and handed
+  // down, because the resolver is pure and holds nothing between calls. It is
+  // an empty Map: it opens no file, stats nothing and starts nothing, so a
+  // person who never presses the chord still pays nothing for it. What it may
+  // remember — claude's fallback answering `no-file`, and only that — is in
+  // ./reader/resolve-cache.ts.
+  const resolveCache = createResolveCache();
   const deps: OverviewServiceDeps = {
     manifest: getManifest,
     store: overviewStore,
-    foldChosen
+    foldChosen,
+    resolveCache
   };
   handle(ipc, 'overview:project', (_event, input) =>
     projectOverview(deps, input)

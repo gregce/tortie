@@ -97,6 +97,8 @@ interface NormalRead {
   size: number;
   work: string;
   bytesRead: number;
+  /** PHASE 300. What crossed into JSON. The stage split reads it per row. */
+  bytesParsed: number;
   prefilter: string;
   turnMode: string;
   joinSessionId: string | null;
@@ -168,6 +170,7 @@ function referenceReader(): { read: ReadFn; map: any } {
       size: r.acct ? Number(r.acct.size ?? 0) : 0,
       work: String(r.work ?? 'full'),
       bytesRead: r.acct ? Number(r.acct.bytesRead ?? 0) : 0,
+      bytesParsed: r.acct ? Number(r.acct.bytesParsed ?? 0) : 0,
       prefilter: '-',
       turnMode: '-',
       joinSessionId: r.join ? (r.join.sessionId ?? null) : null,
@@ -226,6 +229,7 @@ async function productReader(): Promise<{ read: ReadFn; map: any; mod: any; stor
       size: r.acct ? Number(r.acct.size ?? 0) : 0,
       work: String(r.work ?? 'full'),
       bytesRead: r.acct ? Number(r.acct.bytesRead ?? 0) : 0,
+      bytesParsed: r.acct ? Number(r.acct.bytesParsed ?? 0) : 0,
       prefilter: r.acct ? String(r.acct.prefilter ?? '-') : '-',
       turnMode: r.acct ? String(r.acct.turnMode ?? '-') : '-',
       joinSessionId: r.join ? (r.join.sessionId ?? null) : null,
@@ -241,6 +245,202 @@ async function productReader(): Promise<{ read: ReadFn; map: any; mod: any; stor
   return { read, map: mod.KEEP_MAP, mod , stores };
 }
 
+/**
+ * PHASE 300. One record's read, split into stages and timed, with no Electron
+ * APP — but, when `build/p300/split.mjs` runs it, under Electron's own node.
+ *
+ * ## What it answers and why it exists
+ *
+ * Phase 293's counts verifier measured up to 797 ms of main held by ONE row's
+ * first read of a 196 MB codex record. Phase 300's first build split that time
+ * into stages with this function, decided that the parse was the cost, built a
+ * reduced read on that reading, and was wrong on the engine that matters: the
+ * stages had been taken under node 22 / V8 12.4, main runs Electron 43's
+ * Node 24 / V8 15, and the two answered the reduced read in opposite directions
+ * (build/p300/SPEC.md §7.2). So this function is kept as an INSTRUMENT for
+ * whoever takes the first read next, it stamps its output with the engine that
+ * took it, and it decides nothing. It re-derives each stage with the SHIPPING
+ * primitives — `scanFile`, `compileHead`, `decideHead`, `decideWhole`,
+ * `detectWideHead` from `src/main/overview/reader/lines.ts`, and the provider's
+ * own compiled map — so a reading here is about the code that ships and not
+ * about a copy of its reasoning.
+ *
+ * ## The stages
+ *
+ *   scan     the chunk loop with NO prefilter and a no-op callback: the cost
+ *            of walking the bytes and splitting lines, and nothing else
+ *   decide   head + whole-line decide over the shipping rule set, with the
+ *            admitted lines and bytes; it includes its own scan, because there
+ *            is no way to hand `scanFile` a line without walking to it
+ *   parse    `JSON.parse` of the lines `decide` admitted
+ *   read     the whole shipping `readSessionLog`, behind
+ *            `perf_hooks.monitorEventLoopDelay`
+ *
+ * `fold` is then the RESIDUAL, `read - (scan + (decide - scan) + parse)`, and
+ * it is reported as a residual attributed to `reader/fold.ts` and
+ * `reader/expr.ts` by name rather than as a measured stage, because those two
+ * are called from inside the same loop the scan is and cannot be timed apart
+ * from it without editing them. Naming it a residual is the honest reading.
+ *
+ * ## The second instrument, which shares no clock with the ping
+ *
+ * `perf_hooks.monitorEventLoopDelay` is armed around the whole read. The probe
+ * in the running app measures main's unavailability from OUTSIDE main with a
+ * 20 ms ping; this measures it from inside, with a different clock and a
+ * different mechanism, and the two must agree within one frame
+ * (build/p300/SPEC.md §6.3). It is armed HERE, in a conformance run that ships
+ * no process, and never inside a shipped process and behind no flag.
+ */
+async function timeStages(file: string, provider: string, repo: string): Promise<any> {
+  const linesMod: any = await import(
+    pathToFileURL(join(root, 'src', 'main', 'overview', 'reader', 'lines.ts')).href
+  );
+  const mapMod: any = await import(
+    pathToFileURL(join(root, 'src', 'main', 'overview', 'reader', 'map.ts')).href
+  );
+  const readerMod: any = await import(
+    pathToFileURL(join(root, 'src', 'main', 'overview', 'reader', 'index.ts')).href
+  );
+  const perf: any = await import('node:perf_hooks');
+
+  const cfg = mapMod.providerMap(provider);
+  if (cfg === null || cfg === undefined) {
+    return { error: `no provider ${provider} in the keep map` };
+  }
+  const size = statSync(file).size;
+  const ms = (t0: bigint): number => Number(process.hrtime.bigint() - t0) / 1e6;
+
+  // Stage 1: the bytes, with nothing decided. `chunkSize` is left at the
+  // shipping default, which lines.ts sets to 1 MiB.
+  const t1 = process.hrtime.bigint();
+  let scanLines = 0;
+  linesMod.scanFile(file, null, () => {
+    scanLines += 1;
+  });
+  const scanMs = ms(t1);
+
+  // Stage 2 and 3: the decide over the SHIPPING rule set, which is the shared
+  // rules plus the provider's paths-only rule when it has one — exactly what
+  // `containers.ts` compiles for every read — and the parse of what it admitted.
+  const pathsRule = cfg.paths?.prefilter ?? null;
+  const extra = pathsRule === null ? [] : [pathsRule];
+  const wide = cfg.prefilter ? linesMod.detectWideHead(file, cfg.prefilter, extra) : false;
+  const compiled = cfg.prefilter
+    ? linesMod.compileHead(cfg.prefilter, extra, wide ? linesMod.WIDE_HEAD_BYTES : undefined)
+    : null;
+  const admitted: Buffer[] = [];
+  let admittedBytes = 0;
+  const t2 = process.hrtime.bigint();
+  linesMod.scanFile(file, null, (line: Buffer) => {
+    if (compiled === null) {
+      admitted.push(line);
+      admittedBytes += line.length;
+      return;
+    }
+    const head = line.subarray(0, compiled.headBytes);
+    const cands = linesMod.decideHead(compiled, head);
+    if (cands.length === 0) return;
+    if (!cands.some((rule: any) => linesMod.decideWhole(rule, line))) return;
+    admitted.push(line);
+    admittedBytes += line.length;
+  });
+  const decideMs = ms(t2);
+  const t3 = process.hrtime.bigint();
+  let parsedLines = 0;
+  for (const line of admitted) {
+    try {
+      JSON.parse(line.toString('utf8'));
+      parsedLines += 1;
+    } catch {
+      /* a line the reader would also drop */
+    }
+  }
+  const parseMs = ms(t3);
+  const decide = {
+    prefilter: wide ? 'wide' : compiled === null ? 'off' : 'head',
+    admittedLines: admitted.length,
+    admittedBytes,
+    parsedLines,
+    decideMs: Number(decideMs.toFixed(2)),
+    parseMs: Number(parseMs.toFixed(2))
+  };
+
+  // Stage 4: the whole shipping read behind its own loop-delay histogram.
+  //
+  // IT IS ASYNC AND IT TICKS THE LOOP ON BOTH SIDES OF THE READ, and the first
+  // draft did not, which measured nothing. `monitorEventLoopDelay` samples on a
+  // timer at `resolution` ms and records the LATENESS of each firing, so a
+  // histogram enabled and disabled around a purely synchronous call sees no
+  // firing at all: measured on 2026-09-20 over a 5.7 MiB record, `max` came
+  // back 0 and `mean` came back null while the read itself took 100 ms. The
+  // awaits below give the loop a few samples before the read and at least one
+  // after it, and the one after is the sample that carries the block.
+  const h = perf.monitorEventLoopDelay({ resolution: 1 });
+  h.enable();
+  await new Promise((r) => setTimeout(r, 8));
+  const t4 = process.hrtime.bigint();
+  let err: string | null = null;
+  let turns = 0;
+  let acct: any = null;
+  try {
+    const r = readerMod.readSessionLog({
+      provider,
+      file,
+      sessionId: null,
+      cwd: repo,
+      projectPath: repo,
+      watermark: null
+    });
+    turns = r.turns.length;
+    acct = r.acct ?? null;
+  } catch (e) {
+    err = String((e as Error).message);
+  }
+  const wall = ms(t4);
+  // The tick that carries the block. Without it the histogram holds only the
+  // samples taken BEFORE the read.
+  await new Promise((r) => setTimeout(r, 8));
+  h.disable();
+  const read = {
+    wallMs: Number(wall.toFixed(2)),
+    turns,
+    error: err,
+    bytesRead: acct === null ? null : Number(acct.bytesRead ?? 0),
+    bytesParsed: acct === null ? null : Number(acct.bytesParsed ?? 0),
+    linesParsed: acct === null ? null : Number(acct.linesParsed ?? 0),
+    prefilter: acct === null ? null : String(acct.prefilter ?? '-'),
+    // monitorEventLoopDelay reports nanoseconds.
+    loopDelayMaxMs: Number((h.max / 1e6).toFixed(2)),
+    loopDelayMeanMs: Number.isFinite(h.mean) ? Number((h.mean / 1e6).toFixed(2)) : null,
+    loopDelaySamples: h.count ?? null
+  };
+
+  const foldResidualMs = Number((read.wallMs - (decide.decideMs + decide.parseMs)).toFixed(2));
+
+  return {
+    file,
+    provider,
+    size,
+    sizeMiB: Number((size / (1024 * 1024)).toFixed(1)),
+    // THE ENGINE THAT TOOK THESE NUMBERS, stamped on every stage line, because
+    // the first build's split was taken under node 22 and main runs Electron's
+    // Node 24 / V8 15, and the two do not answer the same read the same way.
+    engine: {
+      node: process.versions.node,
+      v8: process.versions.v8,
+      electron: process.versions.electron ?? null,
+      execPath: process.execPath
+    },
+    scanLines,
+    scanMs: Number(scanMs.toFixed(2)),
+    decide,
+    pathsOnlyRule: pathsRule === null ? null : { head: pathsRule.head, class: pathsRule.class ?? null },
+    read,
+    foldResidualMs,
+    foldResidualAttributedTo: ['src/main/overview/reader/fold.ts', 'src/main/overview/reader/expr.ts']
+  };
+}
+
 function emptyRead(error: string): NormalRead {
   return {
     ok: false,
@@ -250,6 +450,7 @@ function emptyRead(error: string): NormalRead {
     size: 0,
     work: 'failed',
     bytesRead: 0,
+    bytesParsed: 0,
     prefilter: '-',
     turnMode: '-',
     joinSessionId: null,
@@ -1339,9 +1540,22 @@ async function main(): Promise<void> {
 
     // The one real-file mode, for the verifier. Reads one log read only,
     // prints its path index, writes nothing, and does nothing else.
+    //
+    // PHASE 300 gave it a second job: `--stages` times each stage of that one
+    // read SEPARATELY, so a first read's cost can be split into the scan, the
+    // decide, the parse and the fold, with no Electron APP anywhere and under
+    // whichever engine runs this file. `build/p300/split.mjs` is what runs it,
+    // under Electron's own node. The stage half is OPTIONAL and off by default,
+    // so every existing `--real` run prints what it printed before, plus the
+    // prefilter mode and the byte counts the read reported.
     const realSpec = process.env['OVERVIEW_REAL'];
     if (realSpec !== undefined && realSpec !== '') {
-      const spec = JSON.parse(realSpec) as { file: string; provider: string; repo: string };
+      const spec = JSON.parse(realSpec) as {
+        file: string;
+        provider: string;
+        repo: string;
+        stages?: boolean;
+      };
       const r = read({
         provider: spec.provider,
         file: spec.file,
@@ -1350,10 +1564,25 @@ async function main(): Promise<void> {
         projectPath: spec.repo,
         watermark: null
       });
+      const stages =
+        spec.stages === true && mode === 'product'
+          ? await timeStages(spec.file, spec.provider, spec.repo)
+          : null;
       process.stdout.write(
         JSON.stringify({
           mode,
-          real: { file: spec.file, provider: spec.provider, turns: r.turns.length, paths: r.paths, error: r.error }
+          real: {
+            file: spec.file,
+            provider: spec.provider,
+            turns: r.turns.length,
+            paths: r.paths,
+            error: r.error,
+            prefilter: r.prefilter,
+            bytesRead: r.bytesRead,
+            bytesParsed: r.bytesParsed,
+            size: r.size
+          },
+          stages
         })
       );
       return;

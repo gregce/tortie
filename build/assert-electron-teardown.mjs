@@ -242,12 +242,26 @@ const HELPER = 'electron-run.mjs';
  * events. It was built beside Phase 292 and landed second, so it raised the
  * floor once more at its rebase.
  *
+ * PHASE 300 RAISED IT FROM 145 TO 146, for build/p300/probe-p300.mjs
+ * (`probe:p300`), the app run for what a first read costs the person waiting:
+ * one Electron on a scratch profile and a scratch HOME, over codex records it
+ * SYNTHESISES from the committed fixture rather than reading any of the
+ * operator's, measuring main's unavailability from OUTSIDE main with a 20 ms
+ * ping on an existing channel. Its three siblings under build/p300/ —
+ * generate-codex-records.mjs, split.mjs and ablation.mjs — launch no Electron
+ * APP and are correctly absent from the population: since the fix round
+ * split.mjs runs the electron dist's binary AS A NODE under
+ * ELECTRON_RUN_AS_NODE=1, with no window, no profile and no tmux, which is a
+ * child it waits for and not a launch this gate owns. Measured at 146 names on
+ * 2026-09-20 with `node build/assert-electron-teardown.mjs --list`, which
+ * derives the population and never reads this constant.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 145;
+const HELPER_USER_FLOOR = 146;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

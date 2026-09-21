@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterAll, describe, expect, it } from 'vitest';
 import { resolveSessionLog } from '../reader';
+import { createResolveCache, type ResolveCache } from '../reader/resolve-cache';
 import { FIXTURES, scratchDir } from './reader-helpers';
 
 const home = scratchDir('resolve-home');
@@ -24,7 +25,7 @@ function resolveFor(
   agent: string,
   agentSessionId: string | null,
   cwd: string,
-  extra?: { storePathHint?: string; createdAt?: number }
+  extra?: { storePathHint?: string; createdAt?: number; cache?: ResolveCache }
 ): ReturnType<typeof resolveSessionLog> {
   return resolveSessionLog(
     {
@@ -34,7 +35,7 @@ function resolveFor(
       createdAt: extra?.createdAt ?? Date.now(),
       storePathHint: extra?.storePathHint ?? null
     },
-    { home, env: {} }
+    { home, env: {}, cache: extra?.cache }
   );
 }
 
@@ -224,5 +225,43 @@ describe('resolveSessionLog', () => {
     expect(resolveFor('copilotide', 'x', '/x').state).toBe('unsupported');
     expect(resolveFor('shell', null, '/x').state).toBe('unsupported');
     expect(resolveFor('some-configured-agent', 'x', '/x').state).toBe('unsupported');
+  });
+
+  // -------------------------------------------------------------------------
+  // Phase 300, finding C5. A cache handed in changes no answer. The rule it
+  // obeys — and every way a remembered answer must not be believed — is
+  // driven in p300-resolve-cache.test.ts over its own scratch homes.
+  // -------------------------------------------------------------------------
+
+  it('a cache handed in changes none of claude’s three answers', () => {
+    const cache = createResolveCache();
+    const direct = resolveFor(
+      'claude',
+      '11111111-2222-4333-8444-555555555555',
+      '/Users/dev/demo-app',
+      { cache }
+    );
+    expect(direct.state).toBe('resolved');
+    expect((direct as { file: string }).file).toBe(
+      join(home, '.claude/projects/-Users-dev-demo-app/11111111-2222-4333-8444-555555555555.jsonl')
+    );
+    const viaFallback = resolveFor(
+      'claude',
+      'aaaaaaaa-2222-4333-8444-555555555555',
+      '/Users/dev/demo-app',
+      { cache }
+    );
+    expect(viaFallback.state).toBe('resolved');
+    expect((viaFallback as { file: string }).file).toBe(
+      join(
+        home,
+        '.claude/projects/-Users-dev-someplace-else/aaaaaaaa-2222-4333-8444-555555555555.jsonl'
+      )
+    );
+    expect(resolveFor('claude', 'bbbbbbbb-0000-4333-8444-555555555555', '/nowhere', { cache }).state)
+      .toBe('no-file');
+    // Two of the three answers resolved, and a resolved answer is never
+    // remembered, so exactly one key is held.
+    expect(cache.size).toBe(1);
   });
 });

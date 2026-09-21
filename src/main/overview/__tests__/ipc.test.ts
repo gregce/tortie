@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 import type { ManifestStore } from '../../manifest';
+import type { ResolveCache } from '../reader/resolve-cache';
 import type { OverviewServiceDeps } from '../service';
 
 const seams = vi.hoisted(() => ({
@@ -63,6 +64,15 @@ const manifestGetter = (): Promise<ManifestStore> =>
 function lastDeps(): OverviewServiceDeps {
   const call = seams.projectOverview.mock.calls.at(-1);
   return call?.[0] as OverviewServiceDeps;
+}
+
+/**
+ * Phase 300. The resolve cache off the deps object, read through the one field
+ * this file cares about rather than through the whole service type, because
+ * the field's declaration belongs to ./service.ts and the wiring belongs here.
+ */
+function resolveCacheOf(deps: unknown): ResolveCache | undefined {
+  return (deps as { resolveCache?: ResolveCache }).resolveCache;
 }
 
 beforeEach(() => {
@@ -180,6 +190,36 @@ describe('registerOverviewIpc', () => {
     await handlers.get('overview:project')?.(EVENT, { projectPath: '/p' });
     expect(seams.sessionActivity.mock.calls[0]?.[0]).toBe(lastDeps());
     expect(seams.openOverviewStore).not.toHaveBeenCalled();
+  });
+
+  // Phase 300, finding C5. ONE cache per process, handed down. The resolver is
+  // pure and holds nothing between calls, so this wiring is the whole of where
+  // the memory of an answer lives. It costs no file and no stat at
+  // registration: an empty Map opens nothing.
+  it('hands one resolve cache to every channel, and it starts empty', async () => {
+    const { ipc, handlers } = fakeIpc();
+    registerOverviewIpc(ipc, manifestGetter);
+    await handlers.get('overview:activity')?.(EVENT, { sessionIds: ['S1'] });
+    await handlers.get('overview:project')?.(EVENT, { projectPath: '/p' });
+    const cache = resolveCacheOf(lastDeps());
+    expect(cache).toBeDefined();
+    expect(cache?.size).toBe(0);
+    expect(resolveCacheOf(seams.sessionActivity.mock.calls[0]?.[0])).toBe(cache);
+    expect(seams.openOverviewStore).not.toHaveBeenCalled();
+  });
+
+  it('builds its own cache per registration, so no answer is remembered at module scope', async () => {
+    const first = fakeIpc();
+    registerOverviewIpc(first.ipc, manifestGetter);
+    await first.handlers.get('overview:project')?.(EVENT, { projectPath: '/p' });
+    const one = resolveCacheOf(lastDeps());
+    const second = fakeIpc();
+    registerOverviewIpc(second.ipc, manifestGetter);
+    await second.handlers.get('overview:project')?.(EVENT, { projectPath: '/p' });
+    const two = resolveCacheOf(lastDeps());
+    expect(one).toBeDefined();
+    expect(two).toBeDefined();
+    expect(two).not.toBe(one);
   });
 
   it('opens the store once, under the protected gmux directory, for both channels', async () => {

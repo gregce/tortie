@@ -11,6 +11,13 @@
  * A row with no agentSessionId is `no-file`. A path that does not exist is
  * `no-file`. `no-file` is not an error. It is the state of a claude session
  * before its first turn.
+ *
+ * Phase 300 gave the caller one place to remember one of those answers, being
+ * claude's fallback loop falling off its end, because that loop stats 2,776
+ * directories on the operator's machine and a never-prompted row paid it on
+ * every ask. The cache is handed in on `ResolveEnv` and nothing here holds
+ * state between calls. ./resolve-cache.ts says what may and may not be
+ * remembered, and why the direct stat never is.
  */
 
 import { createHash } from 'node:crypto';
@@ -30,6 +37,7 @@ import {
 // spelled differently from the disk keyed on a store directory the agent never
 // wrote to, and the session resolved to `no-file` with no error anywhere.
 import { canonicalPathSync } from '../../fs/folder-identity';
+import type { ResolveCache } from './resolve-cache';
 
 export type OverviewProvider = AgentRegistryId;
 
@@ -45,6 +53,14 @@ export interface ResolveInput {
 export interface ResolveEnv {
   home: string;
   env: NodeJS.ProcessEnv;
+  /**
+   * Phase 300, finding C5. The caller's memory of ONE answer: claude's
+   * fallback loop falling off its end. It is handed in rather than held here,
+   * so this function stays pure and a test hands it a fresh one. Absent is
+   * today's behaviour — every scan run in full, every time. See
+   * ./resolve-cache.ts for what may and may not be remembered.
+   */
+  cache?: ResolveCache;
 }
 
 export type LogLocation =
@@ -134,11 +150,21 @@ export function resolveSessionLog(input: ResolveInput, env?: Partial<ResolveEnv>
     case 'claude': {
       const projects = join(home, '.claude', 'projects');
       const direct = join(projects, dashEncodeClaudeCwd(realCwd), `${id}.jsonl`);
+      // THE DIRECT STAT IS NEVER CACHED (Phase 300). It is one `statSync`, and
+      // it is where a session's first turn lands, so a row that has just been
+      // prompted is found here on the very next ask with no wait at all.
       if (isFile(direct)) return { state: 'resolved', provider, file: direct, sessionId: null };
+      // Below the direct path is the loop that costs 19.5 ms of main on the
+      // operator's 2,776 project directories, paid on every ask by every row
+      // that has no record yet. Only its NEGATIVE answer is remembered, and
+      // only for claude. ./resolve-cache.ts holds the reasons and the bound.
+      const cacheKey = { home, provider, id };
+      if (env?.cache?.get(cacheKey) === 'no-file') return { state: 'no-file', provider };
       for (const dir of listDir(projects)) {
         const p = join(projects, dir, `${id}.jsonl`);
         if (isFile(p)) return { state: 'resolved', provider, file: p, sessionId: null };
       }
+      env?.cache?.set(cacheKey);
       return { state: 'no-file', provider };
     }
     case 'codex': {

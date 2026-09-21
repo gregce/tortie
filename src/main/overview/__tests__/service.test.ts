@@ -900,3 +900,34 @@ describe('the written line reaches ONE payload and no other', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 300, finding C5. The two seam lines this file owns for the cache.
+// ---------------------------------------------------------------------------
+
+describe('Phase 300, the resolve cache reaches the resolver', () => {
+  it('the cache on the deps is handed to resolveSessionLog, and absent stays absent', async () => {
+    const store = new FakeStore();
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns: [turn(0)], watermark: byteWatermark(1) })
+    );
+    const base = makeDeps([row({ id: 'A' })], store);
+
+    await projectOverview(base, { projectPath: PROJECT });
+    // Absent is today's behaviour: every fallback scan run in full, every time.
+    expect(seams.resolveSessionLog.mock.calls[0]?.[1]).toEqual({
+      home: undefined,
+      cache: undefined
+    });
+
+    seams.resolveSessionLog.mockClear();
+    const cache = { get: () => null, set: () => {}, size: 0 };
+    await projectOverview({ ...base, home: '/scratch-home', resolveCache: cache }, {
+      projectPath: PROJECT
+    });
+    expect(seams.resolveSessionLog.mock.calls[0]?.[1]).toEqual({
+      home: '/scratch-home',
+      cache
+    });
+  });
+});

@@ -37,6 +37,7 @@ import {
   resolveSessionLog
 } from './reader';
 import type { ReadResult } from './reader';
+import type { ResolveCache } from './reader/resolve-cache';
 import type { OverviewStore, StoredSession, StoredTurn } from './store';
 import { MAX_TURN_LIMIT, toTurnView } from './turn-view';
 
@@ -68,6 +69,14 @@ export interface OverviewServiceDeps {
   store(): OverviewStore;
   /** Passed through to resolveSessionLog. Defaults to the process's own home. */
   home?: string;
+  /**
+   * Phase 300, finding C5. The resolver's memory of ONE answer, built once per
+   * process by the registrar and handed straight through to
+   * `resolveSessionLog`. ABSENT IS TODAY'S BEHAVIOUR — every fallback scan run
+   * in full, every time — so a caller that does not pass it is unchanged.
+   * What it may remember is in ./reader/resolve-cache.ts.
+   */
+  resolveCache?: ResolveCache;
   /**
    * Has a person picked an agent to write the project line (Phase 138)?
    *
@@ -238,7 +247,7 @@ function readOneRow(
       createdAt: row.createdAt,
       storePathHint: row.resumeProvenance?.storePath ?? null
     },
-    { home: deps.home }
+    { home: deps.home, cache: deps.resolveCache }
   );
 
   if (location.state === 'no-file') {

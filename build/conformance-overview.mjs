@@ -76,7 +76,18 @@
  *
  * ONE MORE MODE for the verifier: `--real <file> --provider <p> --repo <dir>`
  * reads one real log read only, prints its path index beside the repo's own
- * `git log --name-only`, and writes nothing.
+ * `git log --name-only`, and writes nothing. It also prints the `prefilter`
+ * mode that read took, so a probe can pin that a record reads `head` and never
+ * `wide`. PHASE 300 added `--stages` to it: that one read is timed stage by
+ * stage — the byte scan, the head-and-whole decide over the shipping rule set,
+ * the parse of what it admitted, and the whole read behind
+ * `perf_hooks.monitorEventLoopDelay` — and the numbers come out as one JSON
+ * line under `[overview-stages]`, stamped with the engine that took them.
+ * `build/p300/split.mjs` is what runs it, and it is a MEASUREMENT and not a
+ * gate: the phase's first build decided its read on this split taken under
+ * node 22, and Electron's own engine answered the same read in the opposite
+ * direction, which is why the stage line now carries `process.versions` and
+ * why split.mjs runs it under Electron's node by default.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -118,7 +129,17 @@ if (realFile !== null) {
     process.stderr.write('FAIL: --real needs --provider <p> and --repo <path>.\n');
     process.exit(1);
   }
-  env.OVERVIEW_REAL = JSON.stringify({ file: realFile, provider, repo });
+  // PHASE 300. `--stages` asks the probe to time each stage of that one read
+  // and to arm `perf_hooks.monitorEventLoopDelay` around the whole of it. It is
+  // off by default, so every `--real` run that existed before this phase prints
+  // what it printed before plus the prefilter mode. `build/p300/split.mjs` is
+  // what passes it.
+  env.OVERVIEW_REAL = JSON.stringify({
+    file: realFile,
+    provider,
+    repo,
+    stages: args.includes('--stages')
+  });
 }
 
 const probe = spawnSync(
@@ -147,8 +168,22 @@ try {
 if (realFile !== null) {
   const r = data.real;
   process.stdout.write(`\none real file, read only: ${r.file}\n`);
-  process.stdout.write(`provider ${r.provider}, ${String(r.turns)} turns\n`);
+  // PHASE 300. The prefilter mode is printed on the provider line in a fixed
+  // shape, `, prefilter <mode>`, because build/p300/probe-p300.mjs reads it to
+  // pin that a synthesised record reads `head` and never `wide`; a checkout
+  // whose probe does not answer it prints no such clause and the pin says so.
+  process.stdout.write(
+    `provider ${r.provider}, ${String(r.turns)} turns` +
+      (r.prefilter !== undefined && r.prefilter !== null ? `, prefilter ${String(r.prefilter)}` : '') +
+      '\n'
+  );
   if (r.error) process.stdout.write(`the read failed: ${r.error}\n`);
+  if (data.stages) {
+    // PHASE 300. One JSON object on its own line under a marker, so
+    // build/p300/split.mjs reads the stage split rather than re-deriving it
+    // from a printed table.
+    process.stdout.write(`\n[overview-stages] ${JSON.stringify(data.stages)}\n`);
+  }
   process.stdout.write('\npath index from the log:\n');
   for (const p of r.paths ?? []) process.stdout.write(`  ${p}\n`);
   const log = spawnSync('git', ['-C', argOf('--repo'), 'log', '--name-only', '--format=%ct'], {

@@ -91,11 +91,35 @@ read from the tree at `ac011d9d`.
   good folder classes, none refused) but the comparison ran AFTER the read and threw away a full
   synchronous read on every ask for ever, and the cheap repair (a stored watermark) makes the next
   read a tail read that never reaches a codex record's folder, which reinstates the defect. So this
-  limit STILL STANDS at 299's build, and C4 and C5 below are still true and still queued.
-- **One row's first read can hold main for as long as that record takes**: up to about 0.8 s for
-  a 196 MB codex record, measured with the page cache warm. The refresh yields between rows, not
-  inside one. Catch Me Up's own read yields nowhere, so this is no worse than today (C4). A claude
-  row with no record yet costs a scan of `~/.claude/projects` on every ask, about 23 ms (C5).
+  limit STILL STANDS at 299's build, and C4 and C5 below are still true and still queued. **Phase 300
+  did not build C2 either**: it landed the cache alone (below), so the folder comparison is still
+  carried as a note and a counts read from byte 0 still answers the same folder as today.
+- **One row's first read can hold main for as long as that record takes, AND PHASE 300 LEFT THAT
+  EXACTLY WHERE IT WAS**: up to about 0.8 s for a 196 MB codex record, measured with the page cache
+  warm, and about 1.7 s for a record the size of the largest on the operator's Mac, measured in the
+  app on 2026-09-21 over a synthesised 960 MiB record (1692 to 1834 ms across four quiet runs). The
+  refresh yields between rows, not inside one. Catch Me Up's own read yields nowhere, so this is no
+  worse than today (C4). Phase 300 built two things for C4 and landed neither, and this limit says
+  so because a SPEC that stated the win would be a SPEC a later round builds back: a reduced counts
+  read that skipped the path index measured FASTER under node 22 and 15 to 47 percent SLOWER under
+  the engine main actually runs (that same 960 MiB record 1692 to 1834 ms today against 2103 to
+  2513 ms with it, four of four pairs), and it was removed under the operator's rule; and the flag
+  that skipped the index, which alone bought about a quarter off the sheet's first read of a large
+  codex record, cost a full re-read of that record on every Catch Me Up and every automatic fold
+  while the sheet was open on a session still talking — about 1.7 s a cycle on 960 MiB against under
+  a millisecond today — and the operator dropped it on 2026-09-21. The measured direction for the
+  queue is the scanner not copying a line it is about to reject: 1122 ms on the 960 MiB record with
+  no main-thread block, and a line spanning chunks (his largest is 18.5 MB) still needs the copy
+  path. Whether a row may ever say something honest about a number it has not finished counting —
+  the tail-first read — is the operator's ruling and no phase has taken it. **C5 is closed for the
+  repeat ask and unchanged for the first.** A claude row with no record still costs one scan of
+  `~/.claude/projects`, about 19.5 ms over 2,776 directories, the FIRST time it is asked in a
+  window; the fallback's negative answer is now remembered per home, provider and id for 30 s,
+  bounded at 512 keys, handed in on `ResolveEnv` and never module-level, so the second and every
+  later ask inside the window costs one `statSync` of the direct path: a repeat pass over 161 such
+  rows fell from about 1.9 s to about 11 ms in the app, and a repeat ask of one such row from about
+  9 ms to under 1. The first pass over N never-asked rows still pays N scans, because those are N
+  distinct ids and nothing is shared within one pass.
 - **At 300 sessions a sort, a filter change or a search keystroke takes two to four frames**, not
   one: measured 12 to 26 ms of work and 15 to 72 ms to paint, with three other probes running (the
   press verifier's P5). The grid is not windowed. That is the stated budget.
@@ -2195,12 +2219,21 @@ is no parent surface to compare.
   read, discarding a full synchronous read on every ask for ever; a stored watermark makes the next
   read a tail read that never reaches a codex record's folder, which reinstates the defect; and a
   record's folder is a property of the PASS, not the record, so a tail after a resume can answer a
-  different folder from byte 0. 300 owns the read path and takes the comparison with it); ~~an argument-less slash command is
+  different folder from byte 0. 300 owns the read path and takes the comparison with it — **and 300
+  landed without it**, so it is still a note and still open); ~~an argument-less slash command is
   not counted as the person's message~~ (C3: **FIXED in Phase 299** — the rule moved out of
   `reader/expr.ts` into the keep map as `bareCommand`, claude's version went to 2, `dropCommands`
   still wins, and `claude-bare-command.jsonl` is the fixture that can fail); one large record's
-  first read holds main (C4: a worker, or slices); a claude row with no record scans
-  `~/.claude/projects` on every ask (C5: cache the absent answer per id and folder).
+  first read holds main (C4: **STILL OPEN after Phase 300, and not by a worker or slices.** 300 built
+  a counts read that skipped the path index, found it 15 to 47 percent SLOWER on Electron's own
+  engine although faster under node 22, and took it out; the flag that skipped the index alone
+  bought a quarter off the first read and cost a full re-read on every Catch Me Up and automatic
+  fold while the sheet watched a talking session, and the operator dropped it on 2026-09-21. The
+  measured direction is the scanner not copying a line it is about to reject, 1122 ms on 960 MiB
+  with no block, queued as a build); ~~a claude row with no record scans `~/.claude/projects` on
+  every ask~~ (C5: **FIXED in Phase 300 for the repeat ask** — the fallback's negative answer is
+  remembered per home, provider and id for 30 s, bounded at 512 keys, handed in on `ResolveEnv`,
+  never the direct stat and never another provider; the first ask in a window still scans).
 - **The wording of `No messages yet` for a record that holds agent text but no kept ask** (C3), and
   `0+` beside it for a gemini record with no kept ask (C6), are copy the operator rules on.
 
