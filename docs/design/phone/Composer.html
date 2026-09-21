@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Typing one message</title>
+<style>
+html,body{background:#0E0F13}
+body { margin: 0; }
+.t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.card { background: #191B20; border: 1px solid #25282E; border-radius: 10px; padding: 16px; }
+.key { background: #202329; border-radius: 5px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #C9CACD; }
+a { color: #4d9de8; }
+</style>
+</head>
+<body>
+<div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="height: 44px; flex-shrink: 0;"></div>
+
+  <div style="height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;">
+    <a href="Session.html" style="display: flex; align-items: center; gap: 4px; font-size: 17px; color: #4d9de8; text-decoration: none;">
+      <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2 3 9l6 7"></path></svg>Sessions
+    </a>
+    <div style="font-size: 17px; font-weight: 600;">fix-login</div>
+    <span style="width: 18px;"></span>
+  </div>
+
+  <div class="card" style="margin: 0 16px;">
+    <div class="num" style="font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB; margin-bottom: 6px;">You</div>
+    <div style="font-size: 17px; line-height: 22px; color: #C9CACD; opacity: 0.6;">yes, edit the tests too — keep the assertions but read the parsed cookie</div>
+    <div style="font-size: 13px; color: #838996; margin-top: 6px;">Sending…</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="border-top: 1px solid #25282E; padding: 8px 16px 8px 16px; background: #0E0F13; flex-shrink: 0;">
+    <div style="display: flex; align-items: flex-end; gap: 6px;">
+      <label for="msg2" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Message this session</label>
+      <textarea id="msg2" rows="2" style="flex-grow: 1; box-sizing: border-box; background: #191B20; border: 1px solid #353943; border-radius: 4px; padding: 6px 8px; font: inherit; font-size: 17px; line-height: 22px; color: #C9CACD; resize: none;">and run the suite when you are done</textarea>
+      <button type="button" aria-label="Send" style="width: 32px; height: 32px; border-radius: 50%; border: 0; background: #4d9de8; color: #0d1117; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 13V3.5M3.5 8 8 3.5 12.5 8"></path></svg>
+      </button>
+    </div>
+    <div style="font-size: 13px; color: #838996; margin-top: 6px;">Goes to this session as one message.</div>
+  </div>
+
+  <div style="background: #202329; padding: 8px 4px 20px 4px; flex-shrink: 0;">
+    <div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; padding: 0 3px;">
+      <div class="key">q</div><div class="key">w</div><div class="key">e</div><div class="key">r</div><div class="key">t</div><div class="key">y</div><div class="key">u</div><div class="key">i</div><div class="key">o</div><div class="key">p</div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 5px; padding: 5px 20px 0 20px;">
+      <div class="key">a</div><div class="key">s</div><div class="key">d</div><div class="key">f</div><div class="key">g</div><div class="key">h</div><div class="key">j</div><div class="key">k</div><div class="key">l</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.4fr repeat(7, minmax(0, 1fr)) 1.4fr; gap: 5px; padding: 5px 3px 0 3px;">
+      <div class="key" style="background: #252931;">⇧</div><div class="key">z</div><div class="key">x</div><div class="key">c</div><div class="key">v</div><div class="key">b</div><div class="key">n</div><div class="key">m</div><div class="key" style="background: #252931;">⌫</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 4fr 1.6fr; gap: 5px; padding: 5px 3px 0 3px;">
+      <div class="key" style="background: #252931;">123</div><div class="key">space</div><div class="key" style="background: #252931; font-size: 15px;">return</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

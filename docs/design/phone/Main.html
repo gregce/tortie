@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sessions — what needs me now</title>
+<style>
+html,body{background:#0E0F13}
+body { margin: 0; }
+.t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-attention { background: #f5b84a; animation: pulse 1.6s cubic-bezier(0.2, 0, 0, 1) infinite; }
+.dot-working { background: #4d9de8; }
+.dot-idle { background: #8b93a1; }
+.dot-ended { background: transparent; box-shadow: inset 0 0 0 2px #8b93a1; }
+.dot-failed { background: transparent; box-shadow: inset 0 0 0 2px #e5655e; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .dot-attention { animation: none; } }
+.row { display: flex; flex-direction: column; gap: 2px; padding: 6px 16px; border-bottom: 1px solid #25282E; text-decoration: none; }
+.hdr { height: 28px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #25282E; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB; }
+a { color: #4d9de8; }
+</style>
+</head>
+<body>
+<div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="height: 44px; flex-shrink: 0;"></div>
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 0 16px 8px 16px; flex-shrink: 0;">
+    <div style="font-size: 28px; line-height: 34px; font-weight: 600; color: #C9CACD;">Sessions</div>
+    <div style="display: flex; align-items: center; gap: 16px; padding-bottom: 4px;">
+      <button type="button" aria-label="Settings" style="background: none; border: 0; padding: 0; color: #9CA1AB; display: flex; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.4"></circle><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"></path></svg>
+      </button>
+      <button type="button" style="background: none; border: 0; padding: 0; font: inherit; font-size: 17px; color: #4d9de8; cursor: pointer;">Select</button>
+    </div>
+  </div>
+
+  <div class="hdr">Needs your input (3)</div>
+
+  <a class="row" href="Session.html">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-attention"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; font-weight: 500; color: #C9CACD; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">fix-login</span>
+      <span class="num" style="font-size: 13px; color: #838996;">2m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">webapp · Edit src/auth/session.ts?</div>
+  </a>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-attention"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; font-weight: 500; color: #C9CACD; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">codex-migrate</span>
+      <span class="num" style="font-size: 13px; color: #838996;">9m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">api · Apply patch to 4 files?</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-attention"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M2.5 13 8 3l5.5 10z"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; font-weight: 500; color: #C9CACD; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grok-docs</span>
+      <span class="num" style="font-size: 13px; color: #838996;">14m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">docs-site · Run rm -rf build?</div>
+  </div>
+
+  <div class="hdr" style="margin-top: 20px;">Everything else (9)</div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-working"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">refactor-parser</span>
+      <span class="num" style="font-size: 13px; color: #838996;">1m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working · webapp</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-working"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">mac-pro-build</span>
+      <span style="font-size: 11px; line-height: 16px; color: #56c2c0; border: 1px solid #56c2c0; border-radius: 4px; padding: 0 4px; flex-shrink: 0;">Mac&nbsp;Pro</span>
+      <span class="num" style="font-size: 13px; color: #838996;">3m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working · monorepo</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-idle"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">review-pr</span>
+      <span class="num" style="font-size: 13px; color: #838996;">12m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Idle · api</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-failed"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">nightly-tests</span>
+      <span class="num" style="font-size: 13px; color: #838996;">1h</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Failed (exit 1) · webapp</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-idle"></span>
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#838996" stroke-width="1.4" style="flex-shrink: 0;"><path d="M8 4v4l3 2"></path><circle cx="8" cy="8" r="6"></circle></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">old-spike</span>
+      <span class="num" style="font-size: 13px; color: #838996;">3d</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Saved · webapp</div>
+  </div>
+
+  <div class="row" style="border-bottom: 0;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-ended"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">remote-idle</span>
+      <span style="font-size: 11px; line-height: 16px; color: #56c2c0; border: 1px solid #56c2c0; border-radius: 4px; padding: 0 4px; flex-shrink: 0;">Mac&nbsp;Pro</span>
+      <span class="num" style="font-size: 13px; color: #838996;">2h</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Unreachable · monorepo</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+  <div class="num" style="font-size: 13px; color: #838996; text-align: right; padding: 16px;">read 4:32 PM</div>
+</div>
+</body>
+</html>

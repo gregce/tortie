@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tortie for iPhone</title>
+<style>
+  :root { --ground:#0b0c0f; --panel:#14161b; --line:#25282E; --ink:#C9CACD; --dim:#9CA1AB; --faint:#838996; --amber:#f5b84a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif; }
+  header { padding:56px 32px 8px; max-width:1100px; }
+  h1 { margin:0; font-size:40px; line-height:46px; font-weight:600; letter-spacing:-0.01em; text-wrap:balance; }
+  .sub { margin-top:14px; font-size:17px; line-height:26px; color:var(--dim); max-width:70ch; }
+  .sub b { color:var(--ink); font-weight:500; }
+  .rail { display:flex; gap:56px; overflow-x:auto; padding:40px 32px 64px; align-items:flex-start;
+    scroll-snap-type:x proximity; }
+  figure { margin:0; flex:0 0 auto; width:390px; scroll-snap-align:center; }
+  figcaption { display:flex; flex-direction:column; gap:6px; margin-bottom:18px; min-height:96px; }
+  .n { font-size:13px; letter-spacing:0.08em; text-transform:uppercase; color:var(--amber); }
+  .d { font-size:15px; line-height:21px; color:var(--faint); }
+  .phone { width:390px; height:844px; border-radius:44px; border:1px solid var(--line);
+    background:#0E0F13; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,0.55); }
+  iframe { width:390px; height:844px; border:0; display:block; }
+  footer { padding:0 32px 72px; max-width:80ch; font-size:15px; line-height:23px; color:var(--faint); }
+  footer code { font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--dim); }
+  @media (max-width:700px) { header { padding:32px 20px 4px; } h1 { font-size:30px; line-height:36px; }
+    .rail { gap:32px; padding:28px 20px 48px; } footer { padding:0 20px 48px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tortie for iPhone</h1>
+  <p class="sub">A remote control for the Tortie client on your Mac — <b>not a terminal</b>. Seven screens.
+  Every word on them is a string Tortie already says, taken from the module that owns it; five phrases are new
+  and marked as such in the spec. Colour is spent on state and nothing else: the amber dot is the loudest
+  object on every screen and the only thing that pulses.</p>
+</header>
+<main class="rail">
+    <figure>
+      <figcaption><span class="n">1 · What needs me now</span><span class="d">⌘J in your pocket. Blocked sessions first, newest first. Tap the first row to walk the flow.</span></figcaption>
+      <div class="phone"><iframe src="Main.html" title="1 · What needs me now" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">2 · Is it done</span><span class="d">The plain-English answer, the counts, the agent's last reply, and the composer docked at the bottom.</span></figcaption>
+      <div class="phone"><iframe src="Session.html" title="2 · Is it done" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">3a · One message in</span><span class="d">Typing goes in as ONE message. Return makes a newline; Send is a press, deliberately.</span></figcaption>
+      <div class="phone"><iframe src="Composer.html" title="3a · One message in" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">3b · Waiting on a choice</span><span class="d">The choices are drawn UNPRESSABLE on purpose — making them live needs your ruling.</span></figcaption>
+      <div class="phone"><iframe src="Choice.html" title="3b · Waiting on a choice" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">4 · End, behind Face ID</span><span class="d">The only write verb in v1. No Restore, no Remove, no Restart from a pocket.</span></figcaption>
+      <div class="phone"><iframe src="End.html" title="4 · End, behind Face ID" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">5 · Scan and you are in</span><span class="d">One download. The QR carries where the Mac is, the tailnet key and the certificate fingerprint.</span></figcaption>
+      <div class="phone"><iframe src="Pairing.html" title="5 · Scan and you are in" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">6 · The buzz</span><span class="d">The last line only appears when the question can be decrypted on the phone. Never filler.</span></figcaption>
+      <div class="phone"><iframe src="Lock.html" title="6 · The buzz" loading="eager"></iframe></div>
+    </figure>
+</main>
+<footer>
+  Scroll sideways for all seven. Tap the first row of screen 1 to walk list → session → composer; screen 3b's
+  hand-off goes back to the session. Grounds are Tortie's own surround <code>#0E0F13</code> with cards at
+  <code>#191B20</code> — never the work's <code>#131417</code>, because the phone is the frame around the
+  Mac's work rather than the work itself.
+</footer>
+</body>
+</html>
