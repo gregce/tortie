@@ -28,6 +28,7 @@ import type { ReadResult } from '../reader';
 import { openOverviewStore, type OverviewStore, type StoredActivity } from '../store';
 import { LIST_ACTIVITY_SQL } from '../store/store';
 import {
+  CLAUDE_BARE_CASE,
   JSONL_CASES,
   buildCursorStore,
   readFixture,
@@ -50,8 +51,10 @@ interface Truth {
 
 const TRUTH: Record<string, Truth> = {
   claude: { turns: 3, user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
-  // One codex turn holds two queued asks, so the user count is 4 over 3 turns.
-  codex: { turns: 3, user: 4, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  // One codex turn holds two queued asks, so the user count is 5 over 4 turns.
+  // The fourth turn is Phase 299's: its reply exists only as an `AgentMessage`
+  // part spelled `Text`, on a `task_complete` carrying no `last_agent_message`.
+  codex: { turns: 4, user: 5, agent: 4, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
   grok: { turns: 3, user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
   // The last turn has no answer, so the last author is the person.
   antigravity: { turns: 3, user: 3, agent: 2, coverage: 'complete', reason: null, by: 'you', clock: 'message' },
@@ -144,6 +147,10 @@ beforeAll(() => {
     watermark: null
   });
   write('S-cursor', 'cursor', cursorRead);
+  // Phase 299, C3. A claude record holding bare slash commands, beside the
+  // provider rows rather than inside the truth table, because it is a second
+  // record for a provider the table already covers.
+  write('S-claude-bare', 'claude', readFixture(CLAUDE_BARE_CASE));
   quiet('S-shell', 'shell', 'shell');
   quiet('S-nofile', 'claude', 'no-file');
   quiet('S-droid', 'droid', 'no-store');
@@ -196,11 +203,29 @@ describe('listActivity over what the product reader kept', () => {
     }
   );
 
-  it('codex: SUM(queued) is 4 over 3 turns, and COUNT(*) would have said 3', () => {
+  it('codex: SUM(queued) is 5 over 4 turns, and COUNT(*) would have said 4', () => {
     const row = one('S-codex');
-    expect(row.turns).toBe(3);
-    expect(row.userMessages).toBe(4);
-    expect(store.countTurns('S-codex')).toBe(3);
+    expect(row.turns).toBe(4);
+    expect(row.userMessages).toBe(5);
+    expect(store.countTurns('S-codex')).toBe(4);
+  });
+
+  // Phase 299, C3. Measured at c1de8e0f with the engine's unconditional clause
+  // restored: this same record stores 3 turns, 3 user and 3 agent, because the
+  // two bare commands were emptied and their replies folded into the turn
+  // before them.
+  it('claude, a bare slash command: 5 turns, 5 user and 5 agent through the store', () => {
+    const row = one('S-claude-bare');
+    expect(row.provider).toBe('claude');
+    expect(row.readState).toBe('ok');
+    expect(row.turns).toBe(5);
+    expect(row.userMessages).toBe(5);
+    expect(row.agentReplies).toBe(5);
+    const out = toActivity(facts('S-claude-bare', 'claude'), row);
+    expect(out.coverage).toBe('complete');
+    expect(out.reason).toBeNull();
+    expect(out.userMessages).toBe(5);
+    expect(out.agentMessages).toBe(5);
   });
 
   it('deepseek: the clock is the record’s own updated time, to the millisecond Date.parse reads', () => {

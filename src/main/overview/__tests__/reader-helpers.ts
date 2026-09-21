@@ -60,6 +60,25 @@ export const JSONL_CASES: Record<string, FixtureCase> = {
   deepseek: { provider: 'deepseek', file: 'deepseek-session.json', cwd: '/Users/example/demo-project' }
 };
 
+/**
+ * Phase 299, C3. A claude record whose asks include a slash command typed with
+ * NO arguments. It is deliberately NOT a member of JSONL_CASES: that table's
+ * keys are provider names, and store-activity.test.ts asserts the truth table
+ * covers exactly those keys, so a second claude entry would have to store a
+ * provider no keep map has. The counts this file reads are pinned in
+ * reader-defects.test.ts and in store-activity.test.ts by name instead.
+ *
+ * claude-session.jsonl holds no bare command at all — `:14` is `/effort` WITH
+ * arguments and on `dropCommands`, `:16` and `:18` are `/loop` with arguments —
+ * so `conformance:overview`'s claude row was invariant under C3 in exactly the
+ * way its codex row was invariant under C1. This is the fixture that ends that.
+ */
+export const CLAUDE_BARE_CASE: FixtureCase = {
+  provider: 'claude',
+  file: 'claude-bare-command.jsonl',
+  cwd: '/Users/dev/demo-app'
+};
+
 export function readFixture(
   c: FixtureCase,
   opts?: { file?: string; watermark?: Watermark | null }

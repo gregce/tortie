@@ -10,7 +10,7 @@
   ],
   "providers": {
     "claude": {
-      "version": 1,
+      "version": 2,
       "status": "mapped",
       "container": "jsonl",
       "store": "~/.claude/projects/<dashEncode(realpath(cwd))>/<agentSessionId>.jsonl",
@@ -82,6 +82,7 @@
             "op": "commandEcho",
             "nameTag": "command-name",
             "argsTag": "command-args",
+            "bareCommand": "keep",
             "dropCommands": [
               "/model",
               "/effort",
@@ -349,7 +350,7 @@
       }
     },
     "codex": {
-      "version": 1,
+      "version": 2,
       "status": "mapped",
       "container": "jsonl",
       "store": "~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ISO>-<agentSessionId>.jsonl",
@@ -590,9 +591,19 @@
             {
               "parts": "payload.item.content",
               "partWhen": {
-                "eq": [
-                  "type",
-                  "text"
+                "or": [
+                  {
+                    "eq": [
+                      "type",
+                      "Text"
+                    ]
+                  },
+                  {
+                    "eq": [
+                      "type",
+                      "text"
+                    ]
+                  }
                 ]
               },
               "take": "text",

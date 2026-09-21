@@ -80,12 +80,18 @@ read from the tree at `ac011d9d`.
 - **A row Tortie cannot reach offers reads only**, exactly as it does on every other surface.
 - **A batch never ends a session on a machine Tortie has no row for in this run.** Such a row draws
   its RECORDED status, and ending it sends nothing anywhere (R11).
-- **The counts are only as right as the reader and the manifest's binding** (the aggregate
-  verifier's C1 to C3, all inherited from the Phase 137 reader or from harvest and none worse than
-  today, queued in §9): a codex reply written only as an `AgentMessage` whose part type is `Text`
+- ~~**The counts are only as right as the reader and the manifest's binding**~~ (the aggregate
+  verifier's C1 to C3): a codex reply written only as an `AgentMessage` whose part type is `Text`
   is not read (C1); a codex row bound by the weak harvest keys can draw another folder's
   conversation (C2); a slash command with no arguments is not counted as the person's message, so
-  a session driven only by one can read `No messages yet` (C3).
+  a session driven only by one can read `No messages yet` (C3). **C1 and C3 were FIXED in Phase 299**:
+  the codex answer slot accepts both spellings and codex's map version went to 2; the bare-command
+  rule moved out of the engine into the keep map and claude's version went to 2. **C2 WAS BUILT AND
+  THEN REMOVED from Phase 299 before it landed, and it is Phase 300's**: its refusal was sound (28
+  good folder classes, none refused) but the comparison ran AFTER the read and threw away a full
+  synchronous read on every ask for ever, and the cheap repair (a stored watermark) makes the next
+  read a tail read that never reaches a codex record's folder, which reinstates the defect. So this
+  limit STILL STANDS at 299's build, and C4 and C5 below are still true and still queued.
 - **One row's first read can hold main for as long as that record takes**: up to about 0.8 s for
   a 196 MB codex record, measured with the page cache warm. The refresh yields between rows, not
   inside one. Catch Me Up's own read yields nowhere, so this is no worse than today (C4). A claude
@@ -2178,14 +2184,23 @@ is no parent surface to compare.
   the baseline moved.
 - **From the verification (the fix round), each outside this phase's charter and none worse than
   today:** main's remote re-home re-adds a remote project a person closed, so a refresh that re-reads
-  `projects.list()`, the sheet's included, brings the tab back (the matrix verifier's P2); the codex
+  `projects.list()`, the sheet's included, brings the tab back (the matrix verifier's P2); ~~the codex
   keep map's `AgentMessage` branch asks for part type `text` and every real record since 0.149
-  writes `Text`, so those replies are never read, in Catch Me Up too (C1: accept both, bump the codex
-  map version, add a 0.154 fixture to `conformance:overview`); weakly bound codex rows can draw
-  another folder's conversation (C2: answer `wrong-conversation` when the record's cwd is another
-  folder by identity); an argument-less slash command is not counted as the person's message (C3);
-  one large record's first read holds main (C4: a worker, or slices); a claude row with no record
-  scans `~/.claude/projects` on every ask (C5: cache the absent answer per id and folder).
+  writes `Text`, so those replies are never read, in Catch Me Up too~~ (C1: **FIXED in Phase 299** —
+  the slot accepts both spellings with `or`, codex's map version went to 2 so every stored codex
+  read retires, and the committed codex fixture gained a `Text` part on a turn closing with no
+  `last_agent_message`, which moved `conformance:overview`'s codex row from 3 answers to 4);
+  weakly bound codex rows can draw another folder's conversation (C2: **STILL OPEN — built in Phase
+  299 and removed before it landed, now Phase 300's.** The comparison was sound but ran AFTER the
+  read, discarding a full synchronous read on every ask for ever; a stored watermark makes the next
+  read a tail read that never reaches a codex record's folder, which reinstates the defect; and a
+  record's folder is a property of the PASS, not the record, so a tail after a resume can answer a
+  different folder from byte 0. 300 owns the read path and takes the comparison with it); ~~an argument-less slash command is
+  not counted as the person's message~~ (C3: **FIXED in Phase 299** — the rule moved out of
+  `reader/expr.ts` into the keep map as `bareCommand`, claude's version went to 2, `dropCommands`
+  still wins, and `claude-bare-command.jsonl` is the fixture that can fail); one large record's
+  first read holds main (C4: a worker, or slices); a claude row with no record scans
+  `~/.claude/projects` on every ask (C5: cache the absent answer per id and folder).
 - **The wording of `No messages yet` for a record that holds agent text but no kept ask** (C3), and
   `0+` beside it for a gemini record with no kept ask (C6), are copy the operator rules on.
 

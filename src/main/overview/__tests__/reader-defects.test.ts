@@ -3,12 +3,17 @@
  * fixture derived at run time. Defect 6 is proved in reader-cursor.test.ts
  * and defect 7 in reader-watermark.test.ts. Nothing here reads outside the
  * repository and nothing here is committed to the fixture corpus.
+ *
+ * Phase 299 adds the hostile fixture set for C1 and C3 at the foot of the
+ * file. Those cases are derived here in the same way, from the committed codex
+ * fixture and from claude-bare-command.jsonl.
  */
 
 import * as fs from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  CLAUDE_BARE_CASE,
   fixtureLines,
   JSONL_CASES,
   keptText,
@@ -255,6 +260,268 @@ describe('defect 5, the codex unwrap is gated on the presence of the marker', ()
       expect(r.turns[r.turns.length - 1]!.ask.queued).toBe(
         base.turns[base.turns.length - 1]!.ask.queued
       );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 299. The hostile fixture set for C1 and C3.
+//
+// Every expected value below is DERIVED and the reason is given beside it. The
+// point of the set is that a rule which cannot fail has asserted nothing: C1
+// existed for 162 phases with a green gate because the committed codex fixture
+// spelled the part lowercase AND every one of its `task_complete` records
+// carried text, so the pinned answer count could not move however broken the
+// branch was.
+//
+// The parent reading of each committed fixture, measured at c1de8e0f with the
+// map's own rules restored in memory:
+//
+//   codex base fixture       parent 4 turns 3 answers   HEAD 4 turns 4 answers
+//   claude-bare-command      parent 3 turns 3 answers   HEAD 5 turns 5 answers
+//   the bare command alone   parent 0 turns             HEAD 1 turn  1 answer
+// ---------------------------------------------------------------------------
+
+/** One codex turn: opener, ask, an AgentMessage part, a close. */
+function codexTurn(opts: {
+  turnId: string;
+  ts: string;
+  ask: string;
+  partType: string | null;
+  partText: string;
+  lastAgentMessage: string;
+}): string[] {
+  const out = [
+    JSON.stringify({
+      timestamp: opts.ts,
+      type: 'event_msg',
+      payload: { type: 'task_started', turn_id: opts.turnId, started_at: 1787150000 }
+    }),
+    JSON.stringify({
+      timestamp: opts.ts,
+      type: 'event_msg',
+      payload: { type: 'user_message', message: opts.ask }
+    })
+  ];
+  if (opts.partType !== null) {
+    out.push(
+      JSON.stringify({
+        timestamp: opts.ts,
+        type: 'event_msg',
+        payload: {
+          type: 'item_completed',
+          turn_id: opts.turnId,
+          item: {
+            type: 'AgentMessage',
+            id: 'hostile_' + opts.turnId,
+            content: [{ type: opts.partType, text: opts.partText }]
+          }
+        }
+      })
+    );
+  }
+  out.push(
+    JSON.stringify({
+      timestamp: opts.ts,
+      type: 'event_msg',
+      payload: {
+        type: 'task_complete',
+        turn_id: opts.turnId,
+        last_agent_message: opts.lastAgentMessage
+      }
+    })
+  );
+  return out;
+}
+
+/** The base codex fixture with one hostile turn appended, read by the product. */
+function codexWithTurn(dir: string, name: string, lines: string[]) {
+  const file = join(dir, name + '.jsonl');
+  fs.writeFileSync(file, fixtureLines(CODEX_FILE).concat(lines).join('\n') + '\n');
+  const r = readFixture(JSONL_CASES['codex']!, { file });
+  return { r, last: r.turns[r.turns.length - 1]! };
+}
+
+describe('Phase 299 C1, the codex answer part is accepted by SPELLING and nothing else', () => {
+  const cases: Array<{ type: string; counted: boolean; why: string }> = [
+    // Row 2. The committed fixture's own spelling, which the `or`'s second arm
+    // keeps. Breaking that arm must redden this.
+    { type: 'text', counted: true, why: 'the spelling the committed fixture uses' },
+    // Row 1's spelling on a turn of its own. 94,841 of 94,841 real parts.
+    { type: 'Text', counted: true, why: 'the spelling every real record uses' },
+    // Rows 3 and 4. `eq` is `===` and two spellings were MEASURED. A third is a
+    // guess, and a prefix or case-insensitive match would accept both of these.
+    { type: 'TEXT', counted: false, why: 'never measured, and a case fold would accept it' },
+    { type: 'Texts', counted: false, why: 'never measured, and a prefix match would accept it' }
+  ];
+
+  it.each(cases)('a part spelled $type is counted: $counted ($why)', ({ type, counted }) => {
+    const dir = scratchDir('p299-c1-' + type);
+    try {
+      const { r, last } = codexWithTurn(
+        dir,
+        'part-' + type,
+        codexTurn({
+          turnId: '0000f001-0000-7000-8000-000000000001',
+          ts: '2026-08-19T15:00:00.000Z',
+          ask: 'Is the hostile part counted?',
+          partType: type,
+          partText: 'HOSTILE PART TEXT',
+          lastAgentMessage: ''
+        })
+      );
+      // The turn exists either way: it holds a human ask.
+      expect(r.turns.length).toBe(5);
+      expect(last.ask.text).toContain('Is the hostile part counted?');
+      if (counted) {
+        expect(last.answer).not.toBeNull();
+        expect(last.answer!.text).toBe('HOSTILE PART TEXT');
+      } else {
+        expect(last.answer).toBeNull();
+        expect(keptText(r)).not.toContain('HOSTILE PART TEXT');
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Row 5. `pick` is `close-answer-else-last-answer`, so the closing record
+  // still wins where it has text. A turn carries ONE answer, never two, which
+  // is why the count cannot double when both are present.
+  it('the closing record still wins over a Text part, and the reply is counted ONCE', () => {
+    const dir = scratchDir('p299-c1-both');
+    try {
+      const { r, last } = codexWithTurn(
+        dir,
+        'both',
+        codexTurn({
+          turnId: '0000f002-0000-7000-8000-000000000002',
+          ts: '2026-08-19T15:01:00.000Z',
+          ask: 'Which of the two answers is drawn?',
+          partType: 'Text',
+          partText: 'THE PART TEXT',
+          lastAgentMessage: 'THE CLOSING TEXT'
+        })
+      );
+      expect(r.turns.length).toBe(5);
+      expect(last.answer!.text).toBe('THE CLOSING TEXT');
+      expect(r.turns.filter((t) => t.answer).length).toBe(5);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Row 6. MEASURED, and the entry does not give this reading: fold.ts requires
+  // the closing text to be non-blank AFTER a trim before it becomes the turn's
+  // closing answer, so a whitespace-only `last_agent_message` is absent and the
+  // part wins. A whitespace answer must never beat a real one.
+  it('a whitespace-only last_agent_message is absent, so the Text part wins', () => {
+    const dir = scratchDir('p299-c1-ws');
+    try {
+      const { last } = codexWithTurn(
+        dir,
+        'whitespace',
+        codexTurn({
+          turnId: '0000f003-0000-7000-8000-000000000003',
+          ts: '2026-08-19T15:02:00.000Z',
+          ask: 'Does whitespace count as an answer?',
+          partType: 'Text',
+          partText: 'THE PART TEXT',
+          lastAgentMessage: '   \n\t '
+        })
+      );
+      expect(last.answer!.text).toBe('THE PART TEXT');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Row 7. Real: the entry's two corpus counts disagree by exactly one line
+  // because a reply quoted a `task_complete` record, which is why 2,890 and
+  // 31,916 sum to 34,806 over 34,805 records. A record is classified by its
+  // `payload.type` and never by its text.
+  it('a reply whose own text quotes a task_complete line is counted once, as a reply', () => {
+    const dir = scratchDir('p299-c1-quote');
+    try {
+      const quoted = '{"type":"event_msg","payload":{"type":"task_complete","last_agent_message":"done"}}';
+      const { r, last } = codexWithTurn(
+        dir,
+        'quote',
+        codexTurn({
+          turnId: '0000f004-0000-7000-8000-000000000004',
+          ts: '2026-08-19T15:03:00.000Z',
+          ask: 'What does the closing record look like?',
+          partType: 'Text',
+          partText: 'It looks like this:\n' + quoted,
+          lastAgentMessage: ''
+        })
+      );
+      expect(r.turns.length).toBe(5);
+      expect(last.answer!.text).toContain('task_complete');
+      expect(r.turns.filter((t) => t.answer).length).toBe(5);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('Phase 299 C3, a slash command typed with no arguments is the person’s message', () => {
+  // Rows 14 to 17, over the committed fixture. At c1de8e0f this reads 3 turns
+  // and 3 answers, and turn 0 draws the reply to a message nobody can see.
+  const r = readFixture(CLAUDE_BARE_CASE);
+
+  it('reads 5 turns and 5 answers', () => {
+    expect(r.turns.length).toBe(5);
+    expect(r.turns.filter((t) => t.answer).length).toBe(5);
+  });
+
+  it('row 14: a bare command between two real turns opens its OWN turn', () => {
+    expect(r.turns[1]!.ask.text).toBe('/as-built-architecture');
+    expect(r.turns[1]!.answer!.text).toContain('Drawing the as-built map');
+  });
+
+  it('row 14: the previous turn keeps its own reply, not the bare command’s', () => {
+    // This is the whole of C3's second shape. At the parent turn 0's drawn
+    // answer is 'Drawing the as-built map now', the reply to an invisible ask.
+    expect(r.turns[0]!.ask.text).toContain('why the packaging gate takes so long');
+    expect(r.turns[0]!.answer!.text).toContain('builds the bundle twice');
+    expect(r.turns[0]!.answer!.text).not.toContain('as-built map');
+  });
+
+  it('row 15: a bare command that IS on dropCommands is still dropped', () => {
+    // 444 of the 650 real empty-argument records name one of the nine, and the
+    // `||` checks the list FIRST. This is the behaviour that must not move.
+    expect(keptText(r)).not.toContain('/model');
+    expect(r.turns.map((t) => t.ask.text)).not.toContain('/model');
+  });
+
+  it('row 16: the rule is about the TAG, so a name that is not a command is kept', () => {
+    expect(r.turns[3]!.ask.text).toBe('hello');
+    expect(r.turns[3]!.answer!.text).toContain('a command called hello');
+  });
+
+  it('row 17: the two controls with arguments are unchanged', () => {
+    // `/effort ultracode` is on dropCommands and stays dropped; `/loop …` is
+    // not and stays kept, with its arguments.
+    expect(keptText(r)).not.toContain('ultracode');
+    expect(r.turns[4]!.ask.text).toBe('/loop keep the packaging gate green');
+  });
+
+  // Row 13. At c1de8e0f the ask is emptied, `this.cur` is still null when the
+  // reply arrives, and the reply is discarded outright: the record reads ZERO
+  // turns, which is the verifier's `— / No messages yet`.
+  it('row 13: a bare command as the session’s ONLY message reads 1 ask and 1 reply', () => {
+    const dir = scratchDir('p299-c3-only');
+    try {
+      const lines = fixtureLines('claude-bare-command.jsonl');
+      const file = join(dir, 'only.jsonl');
+      fs.writeFileSync(file, [lines[2], lines[3]].join('\n') + '\n');
+      const only = readFixture(CLAUDE_BARE_CASE, { file });
+      expect(only.turns.length).toBe(1);
+      expect(only.turns[0]!.ask.text).toBe('/as-built-architecture');
+      expect(only.turns[0]!.answer!.text).toContain('Drawing the as-built map');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

@@ -4,6 +4,12 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## Unreleased
+
+### Fixed
+
+- The number of messages a session shows, on the Manage Sessions sheet and in Catch Me Up, is now that session's own: about 8 percent of Codex replies were missing from it, and a slash command typed with no arguments was not counted as your message and let the reply to it stand in for the previous reply. The first time you open the sheet after this release each Claude Code and Codex session is read again from the beginning, which takes a moment on a long one; a session Tortie has matched to a conversation from another folder can still show that conversation's numbers, and that is next
+
 ## 0.109.0 (2026-09-20)
 
 This release is about managing every session from one place. Session > Manage Sessions… opens a sheet over every session Tortie is running, across every project and machine, and it is built at the same density as the rest of the app. Alongside it, scrolling back in a session stays where you put it, and typing in one file can no longer overwrite another.

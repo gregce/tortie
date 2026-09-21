@@ -65,6 +65,13 @@ export interface TransformOp {
   nameTag?: string;
   argsTag?: string;
   dropCommands?: string[];
+  /**
+   * Phase 299, C3. `'keep'` counts a command typed with no arguments as the
+   * person's message, under its own name. `'drop'`, the default, is the
+   * behaviour before this phase, so every provider that omits the field is
+   * unchanged. `dropCommands` is checked FIRST either way.
+   */
+  bareCommand?: 'drop' | 'keep';
 }
 
 /** One drop rule. The reason is part of the data so a count can name it. */

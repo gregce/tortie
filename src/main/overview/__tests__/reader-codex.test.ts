@@ -1,8 +1,18 @@
 /**
  * codex through the product reader, against the committed fixture. The
- * matrix row is 3 turns, 3 answers. The fixture holds a goal loop turn with
- * no human ask, two wrapped asks, a response_item turn_aborted, and an 18 KB
- * compacted record whose replacement history must never surface.
+ * matrix row is 4 turns, 4 answers. The fixture holds a goal loop turn with
+ * no human ask, two wrapped asks, a response_item turn_aborted, an 18 KB
+ * compacted record whose replacement history must never surface, and — since
+ * Phase 299 — a turn whose reply exists ONLY as an `AgentMessage` part spelled
+ * `Text` on a `task_complete` that carries `last_agent_message: ""`.
+ *
+ * That last turn is why the row moved from 3 to 3 answers up to 4 and 4. Every
+ * one of the 94,841 real `AgentMessage` parts measured on this Mac spells the
+ * part `Text`, and 2,890 of 34,805 `task_complete` records carry no
+ * `last_agent_message`, so that pair is the shape 8.3 percent of real turns
+ * have and the one shape the fixture did not hold. Before Phase 299 the map
+ * asked for `text` alone and every `task_complete` in this fixture carried
+ * text, so `answers: 3` could not move however broken the branch was.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -21,10 +31,31 @@ const BANNED = [
 describe('reader, codex', () => {
   const r = readFixture(JSONL_CASES['codex']!);
 
-  it('fills the matrix row, 3 turns and 3 answers', () => {
-    expect(r.turns.length).toBe(3);
-    expect(r.turns.filter((t) => t.answer).length).toBe(3);
+  it('fills the matrix row, 4 turns and 4 answers', () => {
+    expect(r.turns.length).toBe(4);
+    expect(r.turns.filter((t) => t.answer).length).toBe(4);
     expect(r.acct.turnMode).toBe('markers');
+  });
+
+  // Phase 299, C1. Measured at c1de8e0f with the map's own rule restored: this
+  // same fixture reads 4 turns and 3 ANSWERS, and the third turn's reply is
+  // gone. The part is spelled `Text` and the turn's `task_complete` carries an
+  // empty `last_agent_message`, so the rescue has nothing and the part is the
+  // only place the reply exists.
+  it('counts a reply that exists only as an AgentMessage part spelled Text', () => {
+    const t = r.turns[2]!;
+    expect(t.ask.text).toContain('regression test of its own');
+    expect(t.answer).not.toBeNull();
+    expect(t.answer!.text).toContain('covers the empty case');
+  });
+
+  it('reads that reply from the PART, because the closing record has no text', () => {
+    const t = r.turns[2]!;
+    // `close-answer-else-last-answer` prefers the closing record. It cannot win
+    // here, and fold.ts requires the closing text to be non-blank, so the part
+    // is what is drawn.
+    expect(t.answer!.at).toBe('2026-08-19T14:22:10.800Z');
+    expect(t.durationMs).toBe(11000);
   });
 
   it('leaks no banned trap string', () => {

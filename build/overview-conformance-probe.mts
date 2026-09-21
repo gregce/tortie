@@ -34,6 +34,16 @@
  * then drives the shipping orchestration end to end over a scratch home that
  * holds one claude record. The checker holds the answers against numbers
  * written by hand from the phase's spec, never read back from the code.
+ *
+ * PHASE 299 added two claude cases and asked the map for its versions.
+ * `claude-bare` reads claude-bare-command.jsonl, whose asks include slash
+ * commands typed with NO arguments, and `claude-bare-only` is that one bare
+ * command alone. claude-session.jsonl holds no bare command at all, so the
+ * claude row was invariant under C3 exactly as the codex row was invariant
+ * under C1 before a `Text` part on a turn closing with no `last_agent_message`
+ * was appended to the codex fixture. Every map version this file stores is now
+ * asked of `providerVersion` and recorded in `mapVersionsAsked`, because a stub
+ * that hard-codes the version becomes a silent lie the moment a version moves.
  */
 
 import { createHash } from 'node:crypto';
@@ -354,6 +364,75 @@ function buildClaudeTraps(out: string): void {
 }
 
 /**
+ * Phase 299, C1. The codex fixture plus ONE turn whose reply exists only as an
+ * `AgentMessage` part of the given type, on a `task_complete` carrying an empty
+ * `last_agent_message`. The empty close is the whole point: it is what stops the
+ * `answerFrom` rescue supplying the reply, so the part is the only place the
+ * reply can come from and the spelling is the only thing that decides.
+ *
+ * MEASURED, and it is why this builder exists: ablating the LOWERCASE arm of the
+ * map's `or` moves no pinned number on the committed fixture, because that
+ * fixture's one lowercase part sits on a turn whose close carries text and the
+ * rescue wins there. Without these two derived cases the lowercase arm would be
+ * exactly as unfalsifiable as the whole branch was before this phase.
+ */
+function buildCodexPartType(src: string, out: string, partType: string): void {
+  const turnId = '0000f0' + partType.toLowerCase().slice(0, 2) + '-0000-7000-8000-000000000001';
+  const at = '2026-08-19T15:30:00.000Z';
+  const lines = readFileSync(src, 'utf8')
+    .split('\n')
+    .filter((l) => l.trim() !== '');
+  lines.push(
+    JSON.stringify({ timestamp: at, type: 'event_msg', payload: { type: 'task_started', turn_id: turnId } }),
+    JSON.stringify({
+      timestamp: at,
+      type: 'event_msg',
+      payload: { type: 'user_message', message: 'Is a part spelled ' + partType + ' counted?' }
+    }),
+    JSON.stringify({
+      timestamp: at,
+      type: 'event_msg',
+      payload: {
+        type: 'item_completed',
+        turn_id: turnId,
+        item: {
+          type: 'AgentMessage',
+          id: 'part_' + partType,
+          content: [{ type: partType, text: 'THE PART SPELLED ' + partType }]
+        }
+      }
+    }),
+    JSON.stringify({
+      timestamp: at,
+      type: 'event_msg',
+      payload: { type: 'task_complete', turn_id: turnId, last_agent_message: '' }
+    })
+  );
+  writeFileSync(out, lines.join('\n') + '\n', 'utf8');
+}
+
+/**
+ * Phase 299, C3, row 13. The bare command and its reply ALONE, which is the
+ * shape the verifier's example row read as `— / No messages yet`. The two
+ * records are lifted by index out of the committed fixture rather than written
+ * again here, so the shape can never drift from the one the fixture pins.
+ */
+function buildClaudeBareOnly(src: string, out: string): void {
+  const lines = readFileSync(src, 'utf8')
+    .split('\n')
+    .filter((l) => l.trim() !== '');
+  const ask = lines[2];
+  const reply = lines[3];
+  if (ask === undefined || reply === undefined) {
+    throw new Error('claude-bare-command.jsonl is shorter than the four records row 13 needs');
+  }
+  if (!ask.includes('/as-built-architecture') || !ask.includes('<command-args></command-args>')) {
+    throw new Error('claude-bare-command.jsonl record 3 is no longer the bare command');
+  }
+  writeFileSync(out, ask + '\n' + reply + '\n', 'utf8');
+}
+
+/**
  * Defect 3. codex cli 0.139.0 writes payload first. The pad inside the
  * payload models the long content that sits ahead of the deciding strings.
  */
@@ -490,6 +569,8 @@ interface BaseCase {
 }
 
 const CODEX_FILE = 'codex-rollout-2026-08-19T10-05-03-0000aaaa-1111-7000-8000-222233334444.jsonl';
+/** Phase 299, C3. The claude record holding bare slash commands. */
+const CLAUDE_BARE_FILE = 'claude-bare-command.jsonl';
 
 const BASE: BaseCase[] = [
   { provider: 'claude', file: 'claude-session.jsonl', cwd: '/Users/dev/demo-app' },
@@ -829,7 +910,16 @@ async function runRedactionCheck(read: ReadFn, scratch: string): Promise<any> {
       branch: null,
       honest: null
     });
-    store.replaceTurnsFrom('sec-1', 0, raw.turns, raw.watermark, 1, Date.now());
+    // Phase 299. Asked of the map, not assumed, for the same reason as the
+    // activity stub: this write claims to be the write a real claude read makes.
+    store.replaceTurnsFrom(
+      'sec-1',
+      0,
+      raw.turns,
+      raw.watermark,
+      readerMod.providerVersion('claude'),
+      Date.now()
+    );
   } finally {
     store.close();
   }
@@ -1008,8 +1098,27 @@ async function runActivityCheck(
   const now = Date.UTC(2026, 8, 18, 12, 0, 0);
   const dbPath = join(scratch, 'overview-activity.db');
   const store = storeMod.openOverviewStore(dbPath);
-  const out: any = { ran: true, rows: [], orchestration: [], asked: [], answered: [], refusal: null, plan: [] };
+  const out: any = {
+    ran: true,
+    rows: [],
+    orchestration: [],
+    asked: [],
+    answered: [],
+    refusal: null,
+    plan: [],
+    // Phase 299. Every map version this stub actually asked for, per provider,
+    // so the checker can hold it against the map's own. The aggregate carries
+    // exactly eleven columns and no version, so this is the only place the
+    // answer can be compared.
+    mapVersionsAsked: {} as Record<string, number>
+  };
   try {
+    /** The map's own version for this provider, recorded as it is asked. */
+    const ask = (provider: string): number => {
+      const v: number = mod.providerVersion(provider);
+      out.mapVersionsAsked[provider] = v;
+      return v;
+    };
     // ---- Layer 1 --------------------------------------------------------
     const session = (id: string, agent: string, readState: string, r: any) => ({
       sessionId: id,
@@ -1018,7 +1127,14 @@ async function runActivityCheck(
       agentSessionId: agent === 'shell' ? null : 'fixture',
       logPath: r === null ? null : '/scratch/log',
       watermark: r === null ? null : r.watermark,
-      mapVersionAtLastRead: r === null ? null : 1,
+      // Phase 299. ASKED of the map, never assumed. A stub that hard-codes the
+      // version is a line that turns into a silent lie the moment a provider's
+      // version moves, and the whole point of a bump is that the version is
+      // read: `service.ts` reuses a stored watermark only while the stored
+      // version still equals the map's. A row with no read (`r === null`)
+      // stores no version, so an agent the map has no entry for — shell, droid
+      // — never reaches `providerVersion`, which throws on one.
+      mapVersionAtLastRead: r === null ? null : ask(agent),
       lastReadAt: r === null ? null : now,
       readState,
       readDetail: null,
@@ -1031,7 +1147,14 @@ async function runActivityCheck(
     // turns from the first index the read returned.
     const writeRead = (id: string, provider: string, r: any) => {
       store.upsertSession(session(id, provider, 'ok', r));
-      store.replaceTurnsFrom(id, r.turns[0]?.index ?? 0, r.turns, r.watermark, 1, now);
+      store.replaceTurnsFrom(
+        id,
+        r.turns[0]?.index ?? 0,
+        r.turns,
+        r.watermark,
+        ask(provider),
+        now
+      );
     };
     const asked: Array<{ label: string; id: string; agent: string }> = [];
     for (const provider of ACTIVITY_PROVIDERS) {
@@ -1292,7 +1415,62 @@ async function main(): Promise<void> {
       watermark: null
     });
 
+    // Phase 299, C3. A second claude record, this one holding slash commands
+    // typed with NO arguments. claude-session.jsonl holds none — its `/effort`
+    // and its two `/loop` records all carry arguments — so the claude row was
+    // invariant under C3 in exactly the way the codex row was invariant under
+    // C1. It is read here rather than as a BASE case because BASE is keyed by
+    // provider and claude already owns that key.
+    out.cases['claude-bare'] = read({
+      provider: 'claude',
+      file: join(FIXTURES, CLAUDE_BARE_FILE),
+      sessionId: null,
+      cwd: '/Users/dev/demo-app',
+      projectPath: '/Users/dev/demo-app',
+      watermark: null
+    });
+
+    // The same bare command as the session's ONLY message. At c1de8e0f the ask
+    // is emptied, the reply has no open turn to join, and the record reads ZERO
+    // turns, which is the verifier's `— / No messages yet`.
+    const bareOnly = join(SCRATCH, 'claude-bare-only.jsonl');
+    buildClaudeBareOnly(join(FIXTURES, CLAUDE_BARE_FILE), bareOnly);
+    out.cases['claude-bare-only'] = read({
+      provider: 'claude',
+      file: bareOnly,
+      sessionId: null,
+      cwd: '/Users/dev/demo-app',
+      projectPath: '/Users/dev/demo-app',
+      watermark: null
+    });
+
     const codexSrc = join(FIXTURES, CODEX_FILE);
+
+    // Phase 299, C1. One derived case per SPELLING, each on a turn whose close
+    // carries no text, so the part is the only place the reply can come from.
+    // `text` must be counted and `TEXT` must not, in BOTH modes: `eq` is `===`,
+    // two spellings were measured on the real store and a third is a guess.
+    // The scratch file names are `lower` and `upper` and never the part type
+    // itself: `codex-part-text.jsonl` and `codex-part-TEXT.jsonl` are ONE file
+    // on the operator's case-folding boot disk, and the second build would
+    // quietly overwrite the first. Phase 274's rule is about comparisons; this
+    // is the same fact about file names.
+    for (const [slug, partType] of [
+      ['lower', 'text'],
+      ['upper', 'TEXT']
+    ]) {
+      const f = join(SCRATCH, `codex-part-${slug}.jsonl`);
+      buildCodexPartType(codexSrc, f, partType);
+      out.cases[`codex-part-${partType}`] = read({
+        provider: 'codex',
+        file: f,
+        sessionId: null,
+        cwd: '/Users/example/rookery',
+        projectPath: '/Users/example/rookery',
+        watermark: null
+      });
+    }
+
     const reordered = join(SCRATCH, 'codex-reordered.jsonl');
     buildCodexReordered(codexSrc, reordered);
     out.cases['codex-reordered'] = read({

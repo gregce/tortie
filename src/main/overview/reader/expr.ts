@@ -205,8 +205,38 @@ export function transform(ops: TransformOp[] | undefined, text: string): string 
         const name = tagged(t, op.nameTag ?? '');
         if (name === null) break;
         const args = tagged(t, op.argsTag ?? '') ?? '';
+        // Phase 299, C3. A command typed with no arguments is still the
+        // person's own message. WHETHER it is dropped is the vendor's rule and
+        // lives in the keep map, because 215 of the 650 empty-argument records
+        // on this Mac name a command the map means to KEEP. `dropCommands`
+        // keeps its job unchanged: it is checked first and still wins.
+        //
+        // `!== 'keep'` AND NOT `=== 'drop'`, which is the same thing for every
+        // value the type allows and is not the same thing for a typo. Nothing
+        // validates this file at runtime — `map.ts` casts the JSON straight to
+        // `KeepMap` — so the value IS the guard, and the two directions a
+        // misspelling can fail are not equal: failing to `keep` loses the fix
+        // for one provider, which is today's reading, and failing to the new
+        // behaviour turns a counting rule on for a provider that never asked
+        // for it. The phase refuses a third spelling of a part type for the
+        // same reason, and a value is not a safer place to guess than a key.
+        //
+        // THE NAME IS MATCHED EXACTLY, and `trim` is the only normalisation.
+        // `/MODEL` is not `/model`, because the vendor does not think it is:
+        // claude's own lookup compares the typed name to a command's name, its
+        // `/name` form and its aliases with `===` and folds no case, so
+        // `/MODEL` answers `Unknown command: /MODEL. Did you mean /model?` and
+        // runs nothing. A `<command-name>` wrapper therefore only ever names a
+        // command that RESOLVED, and the only thing named `MODEL` that can
+        // resolve is a command somebody wrote — a file under `commands/`, a
+        // plugin, an MCP prompt — whose expansion is the person's own message.
+        // Folding case here would silence that message, and it would also drop
+        // `/MODEL rewrite the release script`, which every build before this
+        // phase counted, because `dropCommands` has always been exact.
+        // `__tests__/p299-bare-command.test.ts` pins both spellings both ways.
+        const dropBare = (op.bareCommand ?? 'drop') !== 'keep';
         t =
-          (op.dropCommands ?? []).includes(name.trim()) || args.trim() === ''
+          (op.dropCommands ?? []).includes(name.trim()) || (dropBare && args.trim() === '')
             ? ''
             : (name.trim() + ' ' + args.trim()).trim();
         break;

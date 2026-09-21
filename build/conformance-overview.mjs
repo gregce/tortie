@@ -39,6 +39,22 @@
  *     under a kill mid write, the path index misses the fixture's tool call
  *     paths, or a file under src/main/overview or src/renderer/overview
  *     writes a session status.
+ *  8a. In either mode (Phase 299): a codex `AgentMessage` part spelled `text` is
+ *     not counted as the turn's reply on a turn that closes with no
+ *     `last_agent_message`, or one spelled `TEXT` is. Every one of the 94,841
+ *     real parts measured on this Mac spells it `Text`, two spellings are
+ *     accepted and a third is a guess.
+ *  8b. In either mode (Phase 299): a slash command typed with NO arguments is
+ *     not counted as the person's message, or the turn before it draws the
+ *     reply to it. claude-session.jsonl holds no bare command at all and the
+ *     codex fixture spelled its `AgentMessage` part lowercase on turns that all
+ *     closed with text, so the claude and codex rows were BOTH invariant under
+ *     the defect they were meant to catch. claude-bare-command.jsonl and the
+ *     `Text` part appended to the codex fixture are what ended that. The
+ *     reference reader carries the parent's rule verbatim, so reference mode
+ *     asserts the OLD reading and is where the red-before is banked.
+ *  8c. In product mode (Phase 299): a map version reached the store without
+ *     being asked of the map. The probe's own stub used to hard-code 1.
  *  8. In product mode (Phase 293): the session manager's counts disagree with
  *     the per-provider truth table of build/p293/SPEC.md section 3.4, which
  *     ACTIVITY_EXPECT below copies by hand. Two layers are held. The store
@@ -152,6 +168,13 @@ if (realFile !== null) {
 // ---------------------------------------------------------------------------
 // What yesterday looked like. Counts from research 63 verify.js. Ratios
 // measured over these fixtures with the reference reader on 2026-08-23.
+//
+// Phase 299 moved the CODEX row, and only that row, because the codex fixture
+// gained a record. `docs/research/assets/63-keep-map/verify.js:13` still says
+// 3 turns and 3 answers for codex: that file is research 63's own record of
+// what the REFERENCE reader measured in August, it is run by no gate and no
+// package script, and it is deliberately left as the reading of that day.
+// `refAnswers` below is where this gate holds the reference reader instead.
 // ---------------------------------------------------------------------------
 
 const EXPECT = [
@@ -169,10 +192,21 @@ const EXPECT = [
     ]
   },
   {
+    // Phase 299, C1. The fixture gained a turn whose reply exists ONLY as an
+    // `AgentMessage` part spelled `Text`, closing on a `task_complete` that
+    // carries `last_agent_message: ""`. That is the shape of 94,841 of 94,841
+    // real parts and of 2,890 of 34,805 real closing records, and it was the
+    // one shape the corpus did not hold: the fixture spelled the part `text`
+    // and every one of its closing records carried text, so `answers: 3` could
+    // not move however broken the branch was. MEASURED at c1de8e0f with the
+    // map's own rule restored: the same file reads 4 turns and 3 ANSWERS, which
+    // is what `refAnswers` below holds the reference reader to.
     p: 'codex',
-    turns: 3,
-    answers: 3,
-    ratio: 0.078,
+    turns: 4,
+    answers: 4,
+    ratio: 0.0829,
+    refAnswers: 3,
+    refRatio: 0.0745,
     banned: [
       '<environment_context>',
       'AGENTS.md instructions',
@@ -216,6 +250,20 @@ const EXPECT = [
 const RATIO_TOLERANCE = 0.05;
 
 // ---------------------------------------------------------------------------
+// Phase 299. `refAnswers` and `refRatio` are the numbers the RESEARCH 63
+// reference reader gives, and they exist for exactly one row. The reference map
+// still asks for the codex answer part spelled `text` alone, which is the rule
+// this repository carried until Phase 299, so the reference reader IS that
+// rule's reading of the appended record: 4 turns and 3 answers. Holding it here
+// keeps `--reference` a working control AND banks the red-before permanently:
+// a round that broke the `Text` arm would read 3 answers in product mode too,
+// and the two modes would stop disagreeing.
+// ---------------------------------------------------------------------------
+const expectTurns = (e) => (referenceMode && e.refTurns !== undefined ? e.refTurns : e.turns);
+const expectAnswers = (e) => (referenceMode && e.refAnswers !== undefined ? e.refAnswers : e.answers);
+const expectRatio = (e) => (referenceMode && e.refRatio !== undefined ? e.refRatio : e.ratio);
+
+// ---------------------------------------------------------------------------
 // Phase 293. The session manager's counts, beside EXPECT. Written BY HAND from
 // the per-provider truth table in build/p293/SPEC.md section 3.4, never read
 // back from the code, so a change to the aggregate or to the truth table that
@@ -227,7 +275,10 @@ const RATIO_TOLERANCE = 0.05;
 
 const ACTIVITY_EXPECT = [
   { row: 'claude', user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
-  { row: 'codex', user: 4, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
+  // Phase 299. One codex turn holds two queued asks, and the fourth turn is the
+  // one whose reply exists only as a `Text` part, so SUM(queued) is 5 over 4
+  // turns and the closing replies on record are 4.
+  { row: 'codex', user: 5, agent: 4, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
   { row: 'grok', user: 3, agent: 3, coverage: 'complete', reason: null, by: 'agent', clock: 'message' },
   // The last turn holds no answer, so the last author is the person.
   { row: 'antigravity', user: 3, agent: 2, coverage: 'complete', reason: null, by: 'you', clock: 'message' },
@@ -285,8 +336,14 @@ for (const e of EXPECT) {
     continue;
   }
   const answers = answersOf(c).length;
-  if (c.turns.length !== e.turns) fail(`${e.p}: ${String(c.turns.length)} turns, yesterday ${String(e.turns)}.`);
-  if (answers !== e.answers) fail(`${e.p}: ${String(answers)} answers, yesterday ${String(e.answers)}.`);
+  const wantTurns = expectTurns(e);
+  const wantAnswers = expectAnswers(e);
+  if (c.turns.length !== wantTurns) {
+    fail(`${e.p}: ${String(c.turns.length)} turns, yesterday ${String(wantTurns)}.`);
+  }
+  if (answers !== wantAnswers) {
+    fail(`${e.p}: ${String(answers)} answers, yesterday ${String(wantAnswers)}.`);
+  }
   const all = textsOf(c);
   for (const b of e.banned) {
     if (all.includes(b)) fail(`${e.p}: the trap string ${JSON.stringify(b)} leaked into a kept ask or answer.`);
@@ -296,9 +353,10 @@ for (const e of EXPECT) {
     fail(`${e.p}: the join slot lost its session id (got ${JSON.stringify(c.joinSessionId)}).`);
   }
   const ratio = c.size > 0 ? c.keptBytes / c.size : 0;
-  if (ratio === 0 && e.ratio > 0) fail(`${e.p}: the keep ratio fell to zero. The page would be empty.`);
-  else if (Math.abs(ratio - e.ratio) > RATIO_TOLERANCE) {
-    fail(`${e.p}: the keep ratio moved to ${ratio.toFixed(4)}, banked ${e.ratio.toFixed(4)}.`);
+  const wantRatio = expectRatio(e);
+  if (ratio === 0 && wantRatio > 0) fail(`${e.p}: the keep ratio fell to zero. The page would be empty.`);
+  else if (Math.abs(ratio - wantRatio) > RATIO_TOLERANCE) {
+    fail(`${e.p}: the keep ratio moved to ${ratio.toFixed(4)}, banked ${wantRatio.toFixed(4)}.`);
   }
   const second = cases[`second-${e.p}`];
   if (!second) fail(`${e.p}: no second read ran, so the cache key is unproved.`);
@@ -321,7 +379,7 @@ for (const e of EXPECT) {
     slots,
     c.prefilter,
     c.turnMode,
-    `${ratio.toFixed(4)} / ${e.ratio.toFixed(4)}`,
+    `${ratio.toFixed(4)} / ${wantRatio.toFixed(4)}`,
     c.droppedTotal === null ? '-' : String(c.droppedTotal)
   ]);
 }
@@ -349,6 +407,144 @@ else {
   if (!trapAsks.includes('Can you check whether the release script')) {
     fail('claude-traps: the genuine first ask went missing. A trap rule is dropping real asks.');
   }
+}
+
+// ---------------------------------------------------------------------------
+// 3b. Phase 299, C3. The bare slash command, in both modes.
+//
+// claude-session.jsonl holds no bare command at all — its `/effort` and its two
+// `/loop` records all carry arguments — so the claude row was invariant under
+// C3 exactly as the codex row was invariant under C1. These two cases are the
+// fixture that can fail.
+//
+// The reference reader carries the PARENT's rule verbatim: lib/expr.js:102
+// empties any argument-less command unconditionally. So reference mode is where
+// the red-before reading is banked, and it is asserted rather than tolerated:
+//
+//   claude-bare        product 5 turns, 5 answers   reference 3 turns, 3 answers
+//   claude-bare-only   product 1 turn,  1 answer    reference 0 turns
+//
+// and in reference mode the FIRST turn draws the reply to the bare command,
+// which is C3's second shape: the previous turn's drawn reply is the reply to a
+// message nobody can see.
+// ---------------------------------------------------------------------------
+
+// Phase 299, C1. One case per spelling, each on a turn whose `task_complete`
+// carries no text, so the `answerFrom` rescue cannot supply the reply and the
+// part's spelling is the only thing that decides. Both readings hold in BOTH
+// modes: the reference map asks for `text` alone, which is why `text` is counted
+// there too, and neither map has ever accepted `TEXT`.
+//
+// MEASURED, and it is why these two cases exist: ablating the LOWERCASE arm of
+// the map's `or` moves no pinned number on the committed codex fixture, because
+// that fixture's one lowercase part sits on a turn whose close carries text and
+// `close-answer-else-last-answer` takes the close. Without these, the lowercase
+// arm would be exactly as unfalsifiable as the whole branch was before Phase 299.
+for (const [partType, counted] of [
+  ['text', true],
+  ['TEXT', false]
+]) {
+  const c = cases[`codex-part-${partType}`];
+  if (!c || !c.ok) {
+    fail(`codex-part-${partType}: the derived fixture did not read (${c ? c.error : 'no case'}).`);
+    continue;
+  }
+  const last = c.turns[c.turns.length - 1];
+  if (!last || !last.askText.includes(`Is a part spelled ${partType} counted?`)) {
+    fail(`codex-part-${partType}: the appended turn is not the last one, so the reading below is about the wrong turn.`);
+    continue;
+  }
+  const has = last.answerText !== null;
+  if (has !== counted) {
+    fail(
+      counted
+        ? `codex-part-${partType}: a part spelled ${partType} was NOT counted as the turn's reply, and it is the spelling the committed fixture uses.`
+        : `codex-part-${partType}: a part spelled ${partType} WAS counted. Only the two spellings measured on the real store are accepted, and \`eq\` is \`===\`.`
+    );
+  }
+  if (counted && has && last.answerText !== `THE PART SPELLED ${partType}`) {
+    fail(`codex-part-${partType}: the reply came back as ${JSON.stringify(last.answerText)}.`);
+  }
+}
+
+const bare = cases['claude-bare'];
+const bareOnly = cases['claude-bare-only'];
+const bareRows = [];
+if (!bare || !bare.ok) fail(`claude-bare: the fixture did not read (${bare ? bare.error : 'no case'}).`);
+else if (!bareOnly || !bareOnly.ok) {
+  fail(`claude-bare-only: the derived fixture did not read (${bareOnly ? bareOnly.error : 'no case'}).`);
+} else {
+  const wantTurns = referenceMode ? 3 : 5;
+  const wantAnswers = referenceMode ? 3 : 5;
+  const answers = answersOf(bare).length;
+  const asks = asksOf(bare);
+  if (bare.turns.length !== wantTurns) {
+    fail(`claude-bare: ${String(bare.turns.length)} turns, this mode must read ${String(wantTurns)}.`);
+  }
+  if (answers !== wantAnswers) {
+    fail(`claude-bare: ${String(answers)} answers, this mode must read ${String(wantAnswers)}.`);
+  }
+  // The bare command is the person's message, under its own name.
+  const hasBare = asks.includes('/as-built-architecture');
+  if (hasBare === referenceMode) {
+    fail(
+      referenceMode
+        ? 'claude-bare: the reference reader counted the bare command, so it no longer carries the defect.'
+        : 'claude-bare: the bare command /as-built-architecture is not counted as the person’s message.'
+    );
+  }
+  // C3's second shape. The first turn must draw ITS OWN reply.
+  const firstAnswer = bare.turns[0]?.answerText ?? '';
+  const stolen = firstAnswer.includes('as-built map');
+  if (stolen !== referenceMode) {
+    fail(
+      referenceMode
+        ? 'claude-bare: the reference reader left the first turn its own reply, so it no longer folds.'
+        : 'claude-bare: the first turn draws the reply to the bare command instead of its own.'
+    );
+  }
+  // The controls, in BOTH modes. `dropCommands` is checked first and still
+  // wins, which is 444 of the 650 real empty-argument records; a command WITH
+  // arguments is unchanged either way.
+  if (asks.includes('/model')) {
+    fail('claude-bare: a bare command on dropCommands was counted. The nine names must still be dropped.');
+  }
+  if (textsOf(bare).includes('ultracode')) {
+    fail('claude-bare: /effort with arguments is on dropCommands and must still be dropped.');
+  }
+  if (!asks.includes('/loop keep the packaging gate green')) {
+    fail('claude-bare: /loop with arguments must still be kept, with its arguments.');
+  }
+  // Row 16. The rule is about the TAG, never about whether the name looks like
+  // a command, so a bare name that is not a slash command at all is kept too.
+  if (asks.includes('hello') === referenceMode) {
+    fail(
+      referenceMode
+        ? 'claude-bare: the reference reader counted the bare non-command name.'
+        : 'claude-bare: a bare <command-name> that is not a slash command must be counted under that name.'
+    );
+  }
+  // Row 13. The bare command as the session's ONLY message. At the parent the
+  // reply has no open turn to join and is discarded outright, which is the
+  // verifier's `— / No messages yet`.
+  const wantOnly = referenceMode ? 0 : 1;
+  if (bareOnly.turns.length !== wantOnly) {
+    fail(
+      `claude-bare-only: ${String(bareOnly.turns.length)} turns, this mode must read ${String(wantOnly)}.`
+    );
+  }
+  bareRows.push([
+    'claude-bare',
+    `${String(bare.turns.length)} turns, ${String(answers)} answers`,
+    hasBare ? 'bare command counted' : 'bare command emptied',
+    stolen ? 'turn 1 draws the bare reply' : 'turn 1 keeps its own reply'
+  ]);
+  bareRows.push([
+    'claude-bare-only',
+    `${String(bareOnly.turns.length)} turns, ${String(answersOf(bareOnly).length)} answers`,
+    bareOnly.turns.length > 0 ? 'the only message counted' : 'the only message discarded',
+    '-'
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -551,6 +747,35 @@ if (!referenceMode) {
   for (const [p, v] of Object.entries(data.map.providerVersions ?? {})) {
     if (typeof v !== 'number' || v < 1) fail(`the loaded map's ${p} entry carries no version.`);
   }
+  // PHASE 299. THE TWO BUMPS, PINNED AS VALUES, and the twelve that must not
+  // move pinned beside them.
+  //
+  // The loop above accepts any number at or above 1, and the `mapVersionsAsked`
+  // check in section 5 holds the stub against whatever the map says, so it is
+  // self-consistent with a version that slid back. Neither notices a lost bump,
+  // and a lost bump is invisible in every count on this page: the fixtures are
+  // read from byte 0 with no stored watermark, so C1 and C3 read correctly on
+  // them whatever the version says. What the bump buys is the only thing a
+  // version buys — a session ALREADY READ has its stored watermark retired at
+  // `service.ts`, so the fix reaches the conversations on this Mac rather than
+  // only the ones read after it. That is a durability claim and it needs a pin
+  // of its own.
+  //
+  // The twelve are pinned in the same rule because the entry's refusal is that
+  // no other provider is re-read: a version raised here costs every session of
+  // that provider a full re-read it has no reason to pay.
+  const WANT_VERSION = { claude: 2, codex: 2 };
+  for (const [p, v] of Object.entries(data.map.providerVersions ?? {})) {
+    const want = WANT_VERSION[p] ?? 1;
+    if (v !== want) {
+      fail(
+        `map version: ${p} carries ${String(v)} and Phase 299 pins it at ${String(want)}. ` +
+          (want === 2
+            ? 'claude and codex were bumped so every stored read of them retires and the fix reaches records already read.'
+            : 'no other provider changed, and a bump costs every session of it a full re-read for nothing.')
+      );
+    }
+  }
   if (!data.map.mapHash) fail('keepMapHash() returned nothing, so the store cannot bind reads to map bytes.');
 
   // The status scan. Nothing on this surface may set a session's status.
@@ -705,6 +930,35 @@ if (!referenceMode) {
     for (const line of plan) {
       if (/\bSCAN (turn|l|s|session)\b/.test(line)) fail(`activity plan: "${line}". The aggregate must never scan the store.`);
     }
+    // Phase 299. Every map version the stub stored was ASKED of the map, never
+    // assumed. A stub that hard-codes 1 becomes a silent lie the moment a
+    // provider's version moves, and the whole point of a bump is that
+    // `service.ts` reuses a stored watermark only while the stored version
+    // still equals the map's.
+    const asked = act.mapVersionsAsked ?? null;
+    if (asked === null || Object.keys(asked).length === 0) {
+      fail('activity: the probe recorded no map version, so the stored version is unproved.');
+    } else {
+      for (const [p, v] of Object.entries(asked)) {
+        const own = (data.map.providerVersions ?? {})[p];
+        if (v !== own) {
+          fail(`activity: the stub stored map version ${JSON.stringify(v)} for ${p} and the map carries ${JSON.stringify(own)}.`);
+        }
+      }
+      // A provider whose row reached the store without its version being asked
+      // for would slip through the loop above. Only a row whose label IS a
+      // provider the map knows AND whose read state is `ok` is held to this: a
+      // row decided without a read stores no version at all, which is why
+      // droid, shell and no-file are not in the set, and the zero-turn row's
+      // label is not a provider.
+      for (const want of ACTIVITY_EXPECT) {
+        if (!(want.row in (data.map.providerVersions ?? {}))) continue;
+        if ((byLabel(act.rows, want.row)?.storedState ?? null) !== 'ok') continue;
+        if (!(want.row in asked)) {
+          fail(`activity: "${want.row}" reached the store and its map version was never asked of the map.`);
+        }
+      }
+    }
   }
 } else {
   skips.push('activity: product mode only');
@@ -727,6 +981,15 @@ for (const r of rows) {
   process.stdout.write(
     pad(r[0], 12) + pad(r[1], 21) + pad(r[2], 42) + pad(r[3], 10) + pad(r[4], 11) + pad(r[5], 17) + r[6] + '\n'
   );
+}
+
+if (bareRows.length > 0) {
+  process.stdout.write('\nthe bare slash command (Phase 299, C3)\n');
+  process.stdout.write(pad('case', 20) + pad('result', 25) + pad('the ask', 30) + 'the turn before it\n');
+  process.stdout.write('-'.repeat(120) + '\n');
+  for (const r of bareRows) {
+    process.stdout.write(pad(r[0], 20) + pad(r[1], 25) + pad(r[2], 30) + r[3] + '\n');
+  }
 }
 
 process.stdout.write('\ndefect checks\n');
