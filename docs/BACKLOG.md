@@ -32805,6 +32805,158 @@ and it is three clauses rather than a new mechanism:
 - **No sweep of the other native files** beyond the two measured, and no release note.
 
 
+## Phase 309 — "how can i have a phone app that allows me to understand and manage the sessions that are running on my machine?" (operator, 2026-09-21) RESEARCH ONLY
+
+**Subject.** `docs(research): a phone that answers what needs me now`
+
+**First body line.** `Phase 309: the sessions on my machines, from my pocket`
+
+**Semver.** None. This phase ships `docs/research/127-the-phone.md` and touches no shipping byte. Whatever it
+recommends is queued as its own phase with its own tier, and nothing is built until he reads the ranking and
+chooses.
+
+**Research lane, and the attack comes before the document.** Investigate → Attack → Judge → Write ONE document
+→ Commit. Phase 280 wrote its document first and had to rewrite it; this phase does not. The adversaries
+include one whose only lens is the boundary, because a phone that can steer a session is the first surface
+Tortie would ever offer to a network, and CLAUDE.md's eight refusals plus research 48's standing refusal
+("no cloud component") are what it has to survive.
+
+**Charter.** The operator, 2026-09-21, verbatim: *"how can i have a phone app (mac) that allows me understand
+and manage the sessions that are running on my machine? like, I want it to be built into tortie and be
+something I can use to check the sessions that are running in tortie (whether they be local or on another
+mac) but control them. there are many remote relay products we've already looked at and some are obviously
+open source... (look in /users/gdc/tortiedotsh, specifically in the compare pages). Write this as a ranked,
+fits with the zen of tortie, is simple, has our aesthetic and would work exceptionally well wihtout
+reinventing the wheel -- but i want it to be something that isn't not just like using one of those existing
+products..."* Four things he asked for, and each is a column of the ranking: it fits the Zen, it is simple,
+it has Tortie's aesthetic, and it assembles rather than reinvents — and one thing he refused, being a
+rebadged relay. The Zen's own sentence is the product: **"What needs me now?"** — in his pocket.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **Sixteen products already sit on tortie.sh's compare page for this category**, `/compare/remote/`,
+  "Clients that observe or steer a session owned by another machine or product", read from
+  `/Users/gdc/tortiedotsh/src/data/comparison-catalog.ts` under `// 8. Remote companions and relays`:
+  Happy (`slopus/happy`), Happier (`happier-dev/happier`), VibeTunnel (`amantus-ai/vibetunnel`), Omnara,
+  Shunt, Claude Code Remote Control, code-server (`coder/code-server`), OpenVSCode Server, VS Code Remote
+  Development, sshx (`ekzhang/sshx`), Upterm (`owenthereal/upterm`), Termix (`Termix-SSH/Termix`), ttyd
+  (`tsl0922/ttyd`), SSHHIP, CC Pocket (`K9i-0/ccpocket`), tmate (`tmate-io/tmate`). Twelve are recorded as
+  open source, three proprietary, one unknown. **The catalog records claims and not licences**: the licence
+  of each, and whether its client, its host agent and its relay are separately licensed, is read from the
+  repositories by this phase and not assumed. The eighteen rows the page compares them on
+  (`remote-client-reach` … `remote-session-durability`, `comparison-catalog.ts:370-389`) are the vocabulary
+  this document ranks in, so the site and the research say the same words.
+- **Research 48 §7 recorded "Reach my sessions from a phone" as a want that dies on a refusal**: "No cloud
+  component. Research 28 and 33 already settled this, being do not build remote session infrastructure."
+  **That refusal is not re-opened by this entry and it is not what he asked for.** He asked for a client that
+  reaches HIS machines over a network HE owns; his Mac Pro is `gregs-mac-pro.tail2ddfe1.ts.net`, which is a
+  Tailscale name, so the network already exists. The first question below is whether a phone can reach the
+  sessions with no relay Tortie runs and no account Tortie holds, and if the answer is no, the document says
+  so and stops at the refusal rather than around it.
+- **Tortie already knows everything a phone would show, and no relay product does.** Every session has an
+  identity (`@gmux-id`), a project, a machine, a status the activity monitor derives from the agent's own
+  behaviour (`needs_input` is never set by the person's typing), a conversation the overview reads for
+  Catch Me Up, and the session manager's verbs (End, Remove, Restore, the batch) behind
+  `sessionActionGates` and `lifecycle-gate.ts`. A relay product sees a terminal; Tortie sees a session. That
+  difference is the whole reason a phone surface can be something other than "a terminal in a browser", and
+  the ranking must weigh every candidate on whether it carries THAT or only bytes.
+- **Main already binds one loopback HTTP server**, the hook channel (`src/main/activity/hooks.ts`, Phase 13,
+  research 18 §3), with a per-session 128-bit token in the settings file it writes; nothing else in main
+  listens. Machines are reached over ssh with a human-confirmed hash (`src/main/machines/confirm.ts`,
+  `conformance:machines`), and that is the precedent for pairing: a person confirms the bytes out of band,
+  and the agreement is bound to a hash of the fields that decide what runs.
+- **The refusals the candidates have to pass.** Refusal 1: no third-party JavaScript, TypeScript, Wasm or
+  native code executes in any Tortie process, so no relay's host agent runs inside Tortie; a host agent is
+  either Tortie's own code, a vendored MIT extract Tortie owns, or a separate executable the person has
+  personally confirmed. Refusal 4 and 5: nothing may replace the tmux layer or set a session's status. And
+  the "assemble, never reimplement" rule cuts the other way: a phone client written from scratch when a
+  maintained one exists needs the same justification as any parity work.
+
+### What the research must answer, in this order
+
+1. **Without a relay Tortie runs, can a phone reach a session on his Mac, and on his Mac Pro through his
+   Mac?** Tailscale is the obvious answer and it must be measured, not assumed: what the Tailscale iOS app
+   costs a person to set up, whether `tailscale serve` (or `tsnet`) gives a phone HTTPS to a port Tortie binds
+   without any certificate work, what it does when the laptop lid is closed, and what the person on
+   hotel wifi sees (research 28 §measured 150–400 ms with jitter; a phone surface that is not a terminal
+   may not care). The alternatives get the same measurement: a LAN-only server, an ssh tunnel from a
+   terminal app, and a self-hosted relay the person runs (Happy Server, Happier, VibeTunnel's own).
+2. **The candidates, each read from its repository and ranked on his four columns.** For every one of the
+   sixteen and any the investigators find that the catalog missed: licence per component; what its host
+   agent is (a process, a wrapper around the agent, a tmux attach); whether it can attach to an EXISTING
+   tmux session by name rather than launching its own (Tortie's sessions live in `-L gmux`, and a product
+   that must own the process is refusal 4 on arrival); what the phone actually shows; what a
+   "needs input" looks like on it; whether it pushes; how it pairs; and where his words go. Then the
+   ranking: fits the Zen (one glance answers "what needs me now"; quiet by default; only a question,
+   decision or failure rises), simple (what a person installs, confirms and remembers), Tortie's aesthetic
+   (DESIGN.md and docs/DESIGN-SPEC.md, the tokens, just enough words), and assembled rather than reinvented.
+3. **What "not just one of those products" means, made concrete.** The document must name the three things
+   a Tortie phone surface does that a terminal relay cannot, from what Tortie already holds: the session
+   list with its status words and the machine each runs on; the one-line "where it is" a Catch Me Up
+   digest already writes; and the verbs the session manager already gates. And it must name what it does
+   NOT do that every relay does — a full terminal on a phone is the thing he is not asking for, and the
+   research says whether "reply to a question" is possible without one (the agent's own prompt, a yes/no
+   to a permission, a short message typed into the pane) and what each costs.
+4. **The shape of the client, ranked, with its cost named.** At least these, and the investigators add what
+   they find: (a) a PWA Tortie itself serves on the tailnet, Tortie's own React and tokens, added to the home
+   screen, with iOS web push (Safari 16.4 and later) for "needs input"; (b) a native app the operator's own
+   company ships through TestFlight or the store, talking to the same door; (c) a client for an OSS relay's
+   protocol (Happy's or Happier's) with Tortie as the host agent; (d) the vendor's own teleport (Claude Code
+   Remote Control) surfaced from Tortie rather than rebuilt, which covers one agent only; (e) notifications
+   alone through an OSS push service (ntfy, self-hosted) with no client at all. For each: what runs where,
+   what the person installs, how it pairs, what it costs to keep working after Tortie updates, and which
+   refusal it brushes.
+5. **The door on Tortie's side.** If any candidate needs Tortie to answer a network, the research designs
+   that door on the hook server's precedent and the machines' confirm hash: bound to the tailnet interface
+   or loopback only, never `0.0.0.0`; a pairing a human confirms on the Mac; a token per phone; every verb
+   the phone can press being one the session manager already gates by id; and nothing the phone sends able
+   to set a status, launch a process on a configuration change, or read a credential. **The adversary whose
+   lens is the boundary attacks this door first**: an agent on the machine that can reach loopback, a
+   second person on the tailnet, a lost phone.
+6. **Push.** "Only a question, decision or failure should rise above the surface." What can deliver a push
+   to his phone with no Tortie-run relay: iOS web push goes through Apple's push service from Tortie's own
+   process, which is the same vendor service every app uses and not a cloud component of Tortie's; an ntfy
+   server he runs; a native app's APNs. Measure the latency and the failure modes of each, and say which
+   one carries the status words rather than "your terminal printed something".
+7. **What he asked for that the research recommends against, if anything, said plainly.** If a phone
+   surface cannot be made without a relay, or if the honest ranking puts "surface the vendor's teleport"
+   above building anything, the document says so with the numbers rather than agreeing with the charter.
+
+### Proof, attacked before written
+
+- **Investigators read repositories and documentation; nobody installs anything.** INSTALL NOTHING is the
+  standing rule: no relay server started, no phone app installed, no tailnet setting changed, no `brew`.
+  A candidate's behaviour is read from its source and its documentation, quoted with the file and the
+  commit, and anything not readable that way is marked UNMEASURED with the reason.
+- **Three adversaries, each refuting rather than confirming**: one attacks the ranking (a candidate placed
+  above another on a claim the source does not support); one attacks the boundary (every path from a phone
+  into a Tortie process, and every refusal it touches); one attacks the "not just a relay" claim (whether
+  the three differentiators in question 3 are things a person would use, or things that read well).
+- **A judge** rules on what survives, and the document is written once, from the survivors, in the shape of
+  research 85: the answer first, then the table, then the measurements, then what was not measured.
+- **The document ends with a recommendation and the phase it would queue**, sized, with its tier and the
+  refusals it must carry — and with the ruling it needs from him written as a question in his words.
+
+### What is NOT in this phase
+
+- **No build.** One document. The client, the door, the push and the pairing are all a later phase's, after
+  he chooses.
+- **No cloud component and no account.** Nothing here proposes a relay Tortie runs or a service a person
+  signs into with Tortie; research 48's refusal stands as written. A relay the PERSON runs on their own
+  machine is inside the question; a relay Tortie operates is not.
+- **No third-party code in a Tortie process** (refusal 1), and no proposal that begins "we will expose an
+  interface so a relay can…" (refusal 2). A candidate that needs either is ranked with that named as the
+  reason it cannot be first.
+- **No terminal on a phone as the goal.** If the ranking finds that a terminal is the only thing that works,
+  it says so, but "a terminal in a browser" is the thing he said he does not want and the document does not
+  quietly recommend it under another name.
+- **Nothing reads his sessions, his manifest, his keychain or his credential files**, and nothing touches
+  the `-L gmux` socket. Reading tortie.sh's data files and the public repositories is the whole input.
+- **No change to the compare page.** If the research corrects a claim the catalog makes, that is a finding
+  handed to tortiedotsh, not an edit made here.
+- **No release.**
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -33637,3 +33789,5 @@ cycle rather than only the evening it was written.
 - 2026-09-20, **PHASES 307 AND 308 QUEUED, the checks that assert less than they claim and the checks that go red for the machine.** 307 takes two clauses whose sentence is wider than their test. `gate:background`'s `NODE_SPAWNS` holds `exec` and matches a call by NAME, so a regex literal's own `.exec` is read as `child_process.exec` and the gate goes RED naming a child that does not exist — it blocked a build tonight in `build/p293/probe-p293.mjs`, the probe was routed around it rather than the gate weakened, because that gate exists after six orphaned shell loops reparented to launchd on 2026-09-02 and ran two hours at about 550 percent of his CPU. And the handback gate Phase 296 landed tonight checks that End Session, the resume row and the hotkeys appear in that ORDER in the whole file and never that they are in the Session menu at all: 296's own verifier moved all three into the PROJECT submenu, in order, and the gate exited 0 printing "rows in the Session menu 1" and "placed after End Session yes". Pre-existing, since Phase 141's reader was whole-file order too, and 296's commit body already names it. Two nits ride along: the order clause says "immediately after" while checking only "after", and `itemCallAround(at)` takes a character OFFSET where every other `at` in the section is a line. Semver None, Tier 2, and the independent method is an ATTACK because the whole subject is a clause that cannot fail, so every fix owes an ablation that reddens it; **`src/main/menu.ts` is not edited and 296's sha256 `71e73039…` carries forward**. 308 takes the checks that go red for the machine's reasons: `repo-watcher.native.test.ts` failing five of six full runs across both builds with a different case each time while passing in isolation, under `fseventsd` at 1,116 MB and `mds_stores` at 1,575 MB; and `probe:p293`'s socket guard stopping a run whenever any session leaves `-L gmux`, which tonight was **the operator's own Remove** — the manifest records `hotdog` as `discarded` with `removed_at` 19:35:57, and `discarded` plus a removal date is the Remove verb's signature, which a kill could not produce. The guard was right to stop and wrong about why: it cannot tell a session the probe could have reached from one the person removed. Neither may be fixed by weakening a teardown guard or by giving a flaky test longer to be flaky in, and the entry says what distinguishes a real fix from raising a timeout. It also rules on whether these belong in Phase 285, already queued as "a probe goes red because he used his own machine", rather than becoming a near-duplicate.
 
 - 2026-09-20, **PHASE 299 LANDED WITH TWO OF ITS THREE FIXES, `b6f04ab0`, unreleased — AND THE THIRD WAS BUILT, VERIFIED SOUND, AND REMOVED BEFORE LANDING, WHICH IS HIS RULE WORKING.** What ships: about 8.3 percent of codex turns had lost their reply, because the answer slot asked for a part spelled `"text"` and the store spells it `Text`; it accepts both now, and codex's keep map goes to version 2 so every stored codex session is read again. And an argument-less slash command was emptied by the engine, 215 of 650 records across 28 kept names, so a bare command as a first message discarded the reply and one mid-session folded the reply into the previous turn; the rule moves out of the engine into the map, and claude's map goes to version 2. **Why no gate caught the first one**: the committed fixture spelled the part lowercase AND every one of its `task_complete` records carried text, so the pinned count was invariant under the defect — the fixture now carries a turn whose reply exists only as a `Text` part, and ablating either arm reddens `conformance:overview`. **The codex version bump was asserted by nothing** until the integrator pinned it: reverting it left the whole suite green because the gate accepted any number at or above 1 and fixtures read from byte 0, so its only payload, a stored session's watermark being retired, had no pin; both bumps now redden the gate when reverted and the reverify drove the retirement itself. **THE FOLDER COMPARISON — five of 110 rows drawing another folder's conversation — was built, and its refusal was SOUND**: three Tier 3 lenses drove 28 good folder classes at it (symlink either way and two deep, `/tmp` against `/private/tmp`, the `/System/Volumes/Data` firmlink proved from identity rather than ENOENT, NFC against NFD on both volume kinds, case on a folding volume, a dangling symlink, a symlink loop, EACCES behind mode-000, deleted folders, an unexpanded `~`, a trailing space) and it refused none, and the sixth row that is right was still counted. **It was removed because it was unaffordable, which the operator's standing rule answers**: it ran AFTER `readSessionLog`, so a refused row discarded a full synchronous read of the whole record on every ask for ever — measured by the verify and again by the reverify with its own harness over a 20 MB record, four asks handing the reader a watermark of null/null/null/null at about 227/214/198/199 ms and storing 0 turns, where the same row without it reads null/reused/reused/reused at 225/0.2/0.1/0.2. The sheet re-asks every running id every 30 seconds, and a record naming its OWN folder reused at both builds, so the cost only ever landed on the rows the comparison was trying to help. **It could not be repaired in the one fix round, measured rather than argued**: stamping the watermark makes the next read a tail read, a codex tail read reaches no `session_meta`, so the folder comes back null, the comparison is skipped, and the row is rewritten `ok` drawing the other folder's counts again — the cheap repair reinstates the defect. **And it surfaced a fact nobody knew: a record's folder is a property of the PASS, not of the record.** One codex file answers one folder from byte 0 and another as a tail after a resume, so a stored watermark could make a cell alternate between a count and `— / Not recorded` every 30 seconds. It goes to Phase 300, which owns that read path, with these numbers. **The removal took two steps and the second was mine to own**: the fix round restored four files byte-exact to the parent, finding the fourth by grepping the symbols rather than trusting its list, and kept the integrator's routing of `wrong-conversation` to the no-count row on my instruction because it cost no read; the reverify found that with the comparison gone, that routing could only reach antigravity's pre-existing resolver refusal, and for a relocated antigravity session holding real turns it turned `6+ / Partial history` into `— / Not recorded`, hiding counts that are this session's own. Six files are now byte-identical to `c1de8e0f`. **The case ruling came from the vendor's own binary**: `/MODEL` with no arguments was dropped at the parent by the blanket bare-command clause folding case by accident and is counted here; claude 2.1.277's command lookup at byte offset 177835138 is three `===` comparisons and an `includes` with no `toLowerCase`, so `/MODEL` never resolves to `/model`, a missed name emits no command wrapper, and a wrapper naming `/MODEL` means a command literally named `MODEL` resolved — a prompt expansion, which is the person's message. `dropCommands` has always been exact, so the parent already counted `/MODEL rewrite the release script` and gave two answers to one question; the case is pinned both ways. The spec agent found twelve wrong line citations in the entry before a line was built, three of which would have sent a builder to the wrong code. Gates: typecheck, build, smoke:t1, `conformance:overview` (codex 4 turns 4 answers, claude-bare 5 and 5), the contract byte for byte, `gate:electron`, `gate:background`, the hermetic checks, and `conformance:samefolder` in 9.8 s, all 0; the overview domain at 42 files and 687 tests. **`npm test` reads 16,133 passing with 5 failures in two native FSEvents watcher files that fail under a full run at BOTH builds and failed even alone when the 1-minute load reached 75 with `fseventsd` at 1.8 GB; on the same machine at load 8.5 both pass alone six for six.** Phase 308 owns them. STILL NOT TRUE: five of 110 rows can still draw another folder's conversation, now 300's; and whether a session whose only message is an argument-less command should read `No messages yet` or count it is HIS call — the parent draws `0 / 0 you · 0 agent`, this build draws `2 / 1 you · 1 agent`.
+
+- 2026-09-21, **PHASE 309 QUEUED, a research phase: the sessions on my machines, from my pocket.** He asked, in his words, for "a phone app that allows me [to] understand and manage the sessions that are running on my machine", local or on another Mac, built into Tortie, ranked against the relay products tortie.sh already compares (sixteen on `/compare/remote/`, twelve open source), on four columns he named — fits the Zen, simple, Tortie's aesthetic, assembled rather than reinvented — and one refusal he named, that it not be "just like using one of those existing products". Research 48 §7 had recorded "reach my sessions from a phone" as dying on the no-cloud-component refusal; the entry keeps that refusal as written and asks the narrower question, whether a phone can reach HIS machines over the tailnet he already runs with no relay Tortie operates. The differentiator the ranking must weigh is that Tortie sees a session and a relay sees a terminal: the status words, the machine, the Catch Me Up line and the manager's gated verbs are what a phone would show. Research lane, attacked before written, one document `docs/research/127-the-phone.md`, INSTALL NOTHING, no build until he reads the ranking. Runs after 300, 303 and 304, which are in flight tonight.
