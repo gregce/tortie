@@ -29837,7 +29837,7 @@ change to what anything DOES". This is that entry.
 - No release.
 
 
-## Phase 287 — the `-i` line above the `security` buffer (found by Phase 281's vendor verifier, queued by Phase 281.1, 2026-09-17)
+## Phase 287 — the `-i` line above the `security` buffer (found by Phase 281's vendor verifier, queued by Phase 281.1, 2026-09-17) ✅ LANDED INSIDE PHASE 304'S COMMIT `09c2ff56`, 2026-09-21, unreleased
 
 **Subject.** `fix(credentials): a credential too long for one security line`
 
@@ -32129,7 +32129,7 @@ At **today's build**, `origin/main` `50bd2561`, it failed worse and on two profi
 - **No shared segmented-control component,** and no roving tabindex added to this one or to the two that already ship.
 - **No release.**
 
-## Phase 304 — "are we overcomplicating this keychain thing"; "i basically just want it to always work"; "and for it to not be overcomplicated" (operator, 2026-09-20)
+## Phase 304 — "are we overcomplicating this keychain thing"; "i basically just want it to always work"; "and for it to not be overcomplicated" (operator, 2026-09-20) ✅ LANDED `09c2ff56`, 2026-09-21, unreleased
 
 **Subject.** `fix(credentials): Tortie's own vault is a sealed file, not a keychain item`
 
@@ -32250,9 +32250,12 @@ copy is true.
    unscoped name.
 4. **Where a crash would lose a copy, for the option chosen: nowhere.** Write the sealed file, read it back
    equal, delete the legacy item — so the only window holds TWO copies and the safe direction is the
-   duplicate. A kill before the read-back leaves the keychain item and an unreferenced sealed file the next
-   `get` overwrites; a kill between the read-back and the delete leaves both, and the next `get` reads the
-   file and never asks `legacy` again, so the item is swept on a later launch. The rejected option is Phase
+   duplicate. **CORRECTED BY THE VERIFY, 2026-09-21**: a kill before the read-back fires AFTER the rename,
+   so it leaves a COMPLETE sealed file at its final name; the next `get` hits that file and never asks
+   `legacy` at all, and the legacy item is simply a duplicate. A kill between the read-back and the delete
+   leaves the same shape. Either way the duplicate is swept only by the own-profile boot pass, which a
+   harness profile never runs, and only when its bytes are PROVED equal to the file's or named by the
+   record — the fix round closed the one arm that deleted an item whose bytes nothing had proved. The rejected option is Phase
    208's, read then write then delete eagerly on boot, which has a real window between the delete and the
    next successful write and buys nothing.
 5. **What this deletes, counted** from `git diff --numstat` in `/private/tmp/wt-p287` and from reading each
@@ -32268,7 +32271,10 @@ copy is true.
    | tests `p287-too-large*` | 1,109 | ~450: the copy test whole, half the credentials test | `p287-too-large-say.test.ts` |
    | `build/` gates and probes | ~1,545 | ~500: rule 21 clause (g)'s observe, L2, L3 and L6 arms, clause (g2) whole, ablations 6, 7, 8, 10, 11 and 12 of 12, rule 19's `tooLarge` clauses and two of its three ablations | (a) to (f), ablations 1 to 5 and 9, for the vendor arm |
 
-   **About 1,220 lines deleted against about 540 added** (item 1 about 120, the seam and legacy arm about
+   **WITHDRAWN BY THE BUILD, 2026-09-21: the phase is a net ADDITION, +4,817 and −720 over `dc226df6` across
+   42 tracked files and 8 new ones. What it deletes is the label family; what it adds is the sealed vault,
+   four rewritten probes, rule 22 and its ablations, and the tests. A later round must not read a net
+   deletion out of this table.** The estimate was **about 1,220 lines deleted against about 540 added** (item 1 about 120, the seam and legacy arm about
    100, the gate rule and ablation about 180, `probe:p304` about 140); in `src/` alone with tests excluded,
    roughly 270 against 180. A net deletion on every count. One warning: `tooLarge` is an unrelated
    identifier in the fs, editor, baselines and machines domains (`src/shared/fs-ops.ts`,
@@ -32351,6 +32357,12 @@ copy is true.
   hidden: four real `Tortie-credentials-claude` items on his machine must move, where the size rule would
   have left them alone, which is why the migration never leaves zero copies and is read back before the
   legacy item is deleted.
+- **The seal's cost on macOS, named because a person can hit it.** Every kept sign in is sealed with the
+  `Tortie Safe Storage` key in his own keychain, so removing or regenerating that one item makes every kept
+  sign in read as never kept until he signs into each again. The danger settings already carry that exposure;
+  today's `Tortie-credentials-*` items do not, and this is the one row worse in the no-regression table and
+  the price of the backend he chose. A platform with no OS keyring keeps nothing, where before it wrote a
+  0600 plaintext file; nobody ships there.
 - **No new closed alphabet**, no change to `LOGIN_PROVIDERS`, `StoreWhere` or any other fixed set, and no
   new dependency or native code, which is CLAUDE.md refusal 6 — `safeStorage` is Electron's own.
 - **No change to the record file, the sweep, `swap.ts`'s three steps, the locks, the watcher or the meter.**
@@ -33904,3 +33916,7 @@ cycle rather than only the evening it was written.
 - 2026-09-21, **PHASE 303 LANDED, Active or Ended with State as the refinement, `7240406b`, unreleased.** All | Active | Ended sits before the State dropdown on the Manage Sessions sheet, State refines inside the chosen segment with every option it had, the row keeps its one detailed word, and an unreachable session counts as Active because Restore never acts on it — both his rulings of 2026-09-20. **The entry missed a second place the filters are applied and a builder caught it before a verifier did**: the batch applies the filters itself in `actions.ts` rather than reading `selectSheetView`, so without the field in that literal a batch End could have named a row the Ended segment hides; the field is there, two actions tests hold it, and `conformance:manager` now reads BOTH `visibleGroups` call sites with the TypeScript parser. One fix round: the probe's new arm had no Running row on screen while it drove the pairs (it now paints one and fails on an absent status; the reverifier's own reader holds 21 of 21 pairs), and **the search field is the one reading worse than today**, 694 to 547 px at 1440 wide because the new control takes the toolbar's one flexible width, about 281 px at the smallest window against its 180 floor — removed from the no-regression clause and held as the fourth admitted hit-area exception, graded so a further narrowing goes red. Toolbar 47 and title 52 at both builds with the control present; twelve other hit areas equal by role key. Gates green with npm test's two native FSEvents files failing at the parent too under load 55 (308). STILL HIS: 'Over, and can be restored' over-promises for an exited session with nothing saved; and the 8 arm 11 findings the probe reads at both bases (arm 9 leaves its done panel open; 11b's ellipsis kinds) predate this phase and need an entry.
 
 - 2026-09-21, **PHASE 309 DELIVERED, the phone, `42e7b259`, docs/research/127-the-phone.md, nothing queued from it until he rules.** Five investigators read the sixteen relay products from their repositories, Apple's and Tailscale's pages and this tree; three adversaries attacked the ranking, the boundary and the not-a-relay claim before a word was written; a judge upheld fifteen refutations. **The answer: build the Tortie iOS app in Swift and SwiftUI, three screens fed by a door in Tortie main over the tailnet he already runs, push from the Mac's own process through Apple, no relay Tortie operates and no account Tortie holds.** Screen 1 is ⌘J in the pocket, the sessions blocked on him first with the agent's question; screen 2 is the Catch Me Up line and the last answer; screen 3 is End behind Face ID. No terminal, no free text, no Restore or Remove from the pocket (Restore relaunches an agent with its safeguards off; Remove deletes saved output). **Three things it found wrong in the tree**: the excerpt a row carries is the prompt's hint line, not the agent's question (the question reaches main twice and is dropped twice); the Catch Me Up line reads 'The agent's answer is not in the record' for a session that needs input; and a Tailscale identity header stops no local agent, so the door terminates its own TLS and signs every request. Shunt is Flutter on TestFlight, not SwiftUI on the store, handed to tortiedotsh. §10 sizes the phase; §11 ends with six questions in his words, the first being whether the phone may end a session or only tell him one is waiting.
+
+- 2026-09-21, **PHASE 287 LANDED INSIDE PHASE 304'S COMMIT, `09c2ff56`, unreleased, on his instruction of 2026-09-20.** Choosing one of his other sign ins could report success and destroy the sign in he was using: the lift that puts the default sign in back wrote a truncated `security -i` line, `security` answered as though it had worked, and the credential that was there was gone — measured by `probe:p211` at `be0c22aa` with a 4,193 byte codex store planted as the default. The cap is counted in BYTES now, at one definition and two call sites, refused before any spawn, and SAID rather than swallowed. **It was pulled from 0.109.0 because its verify and its reverify both found the same thing: its sentence blamed the wrong store.** Tortie's own vault KEPT a 1,940 byte sign in while the click refused with "too large for Tortie to keep in the keychain"; what could not take the line was the vendor's item. 304 removed the case rather than rewording the sentence, so the row-label family died whole and two sentences survive that blame the writer and never the keeper, 111 and 166 bytes, pinned alike in the probe and the test. `probe:p211` reads 39 of 39 at the parent and 43 of 43 here.
+
+- 2026-09-21, **PHASE 304 LANDED, Tortie's own vault is a sealed file, `09c2ff56`, unreleased, and a codex sign in is keepable for the first time.** His `~/.codex/auth.json` is 4,193 bytes and the vault's one `security -i` line ceilings at about 1,950, so keeping a codex account here had never once worked. Tortie's own copies now live in a 0600 file in a 0700 directory, sealed with the `safeStorage` key it already uses for the danger settings, written through the staged name and rename the file arm always used; no vault path can compose a `security` argv at all. The keychain is READ ONLY for Tortie's copies: a miss reads the legacy item, writes the sealed file, reads it back equal, and only then deletes the item, so no step leaves zero copies. His four `Tortie-credentials-claude` items move over on their own. The vendor's item is written exactly as 287 left it. **Three lenses, a judge, one fix round and an independent reverify; the keychain census held in every one** (Safe Storage 1 → 1, his items 4 → 4, attributes only, his `auth.json` unchanged by `lstat`, no token byte anywhere). 4,193 bytes, 64 KB, 1 MB and 3 MB round trip byte equal by sha256 through the real `safeStorage`, including payloads holding NUL, CR LF and multibyte UTF-8. The migration was attacked from OUTSIDE the process, SIGKILL by pid before the write, before the read-back and before the delete over the real `security` on a scratch keychain, with a copy present after every kill. **The fix round's one real defect**: the duplicate sweep deleted a keychain item when the file and the item held different bytes and the record named neither — the only path that could leave no good copy; it deletes only what it has proved now, driven over seven shapes. The phase's own probe was red because its grader was wrong and the vault was right, and two rewritten probes still hashed his real credential file and now `lstat` only. Gates: 76 of 76 credential ablations red, 27 of 27 login ablations, the contract with one line moved, `gate:electron` at floor 147. STILL NOT TRUE: a Claude sign in larger than Tortie can write into the agent's entry in one line, about 1,954 bytes, still cannot be put back, and the vendor's own plaintext file store that would lift it is HIS ruling; and removing the `Tortie Safe Storage` key makes every kept sign in read as never kept, which is the price of the seal he chose.
