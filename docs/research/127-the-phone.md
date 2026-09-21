@@ -6,7 +6,9 @@ its repository at a named commit or from its vendor's page on the day, Tortie wa
 tree, and his Mac was read only far enough to learn which Tailscale it carries. Anything not readable
 that way is marked unmeasured in §8 with the reason.
 
-§3.1 was added later the same day, after he asked what Superset's iPhone app does. It was read from
+§3.1 was added later the same day, after he asked what Superset's iPhone app does, and one of §11's
+questions was answered the same evening: Tortie may write a lifecycle hook into an agent's own global
+configuration, under §10's six conditions. It was read from
 his own checkout at `/Users/gdc/superset`, head `3dd63ff113c3a547aae9688104e58251c66d8ac0`
 ("fix(desktop): prevent tab close clicks from starting a drag (#7714)"), with nothing run, nothing
 installed, no sign-in and no network call to their service. Every correction it forces on the
@@ -433,11 +435,24 @@ Tortie already stamps `GMUX_SESSION_ID` and `GMUX_MANAGED` into pane env, so `[ 
 "$GMUX_SESSION_ID" ] || exit 0` would give Tortie a structured blocked signal from every agent in its
 registry, inside `-L gmux`, with no change to the tmux layer and no `detectDialog` screen read. It
 costs something they chose: they run `PostToolUse` with matcher `*` on both Claude and Codex, so a
-`curl` fires on every tool call of every turn. And it must not be adopted in their form, because they
-get their coverage by writing into sixteen agents' global user configs at every desktop boot, which
-is exactly what dropped Shunt from second to fifth in §3 and is the opposite of CLAUDE.md's "A human
-confirms the bytes, out of band of any agent turn". That is §11's new seventh question, and the phase
-must not assume the answer.
+`curl` fires on every tool call of every turn, and Tortie takes only the lifecycle events that answer
+"is a human needed" rather than that matcher.
+
+**HIS RULING, 2026-09-21, and it is the reason this is a gift rather than a curiosity.** The question
+this paragraph raised — may Tortie write into the agent's own global config, as they do, or only into
+the `--settings` file it already writes — was put to him as §11's seventh question and he answered it
+the same day, verbatim: *"Yes we could, previous restrictions can be mutable in the case we can make
+an absolutely seamless product experience"*. So the global write is ADMITTED, and the admission is
+conditional on the experience being seamless rather than on the mechanism being clever. What that
+buys is the whole point: an agent Tortie launched in `-L gmux` announces that it is blocked, through
+the vendor's own event, with the question in it, for every agent in the registry — no screen read for
+codex, gemini and qwen, and nothing for a person to install or configure. **The six conditions the
+admission carries are in §10**, and the first of them is the one that makes it safe at all: the env
+gate. A global hook fires in every session of that agent on the machine, including in a terminal
+Tortie never opened; `[ -n "$GMUX_SESSION_ID" ] || exit 0` makes that case exit before it reads a
+byte of the payload, so Tortie learns nothing about, and does nothing to, a session that is not its
+own. Superset's gate is the prior art and their own `HOOKS_INVESTIGATION.md:14` is the warning it
+answers.
 
 **Its licence, in plain words.** Elastic License 2.0, "Copyright 2025-2026 Superset, Inc."
 (`LICENSE.md`; root `package.json:21` declares `Elastic-2.0`). Source-available, not OSI open source
@@ -1080,11 +1095,41 @@ gate's: no code arrives in the phone app at run time; the door hands data and ne
 credential; no cookie; a source address equal to the bind address refused before any header; no
 token, body or conversation line in any log; the route table closed; the APNs key never in the app
 and never on another Mac; no Restore, Remove or Restart from the pocket; no free text into a pane.
-Added by §3.1, and carried only if the hook gift is taken: **no write to any agent's global user
-configuration** — hook registration rides in the `--settings` file Tortie already writes, and nothing
-the phase adds touches `~/.claude/settings.json`, `~/.codex/hooks.json` or any equivalent. Superset's
-own `HOOKS_INVESTIGATION.md:14` is the citation for why, and §11's seventh question must be answered
-before the rule can be relaxed.
+Added by §3.1 and **REPLACED THE SAME DAY BY HIS RULING** (§3.1, §11.7): a write into an agent's own
+global user configuration is ADMITTED, so the phase may register the lifecycle hook in
+`~/.claude/settings.json`, `~/.codex/hooks.json` and their equivalents rather than only in the
+`--settings` file Tortie already writes. His condition is the test the phase is held to — *"previous
+restrictions can be mutable in the case we can make an absolutely seamless product experience"* — and
+it is a condition on the EXPERIENCE, so six rules ride with it and a phase that cannot keep all six
+does not get the write:
+
+1. **The env gate, and it is the one that makes the rest possible.** The hook's first line is
+   `[ -n "$GMUX_SESSION_ID" ] || exit 0`. A global hook fires in every session of that agent on the
+   machine, including in terminals Tortie never opened; the gate makes that case exit before it reads
+   the payload, so Tortie neither learns anything about nor acts on a session that is not its own.
+   Tortie already stamps that variable into pane env, so nothing in the tmux layer moves.
+2. **A human turns it on, out of band of any agent turn**, which is refusal 8's own sentence kept
+   rather than waived: one visible switch in Settings, off until pressed, naming every file Tortie
+   will write and showing what it wrote; turning it off removes every entry Tortie added; so does
+   uninstalling.
+3. **Merge discipline, taken from Superset because theirs is right** (§3.1): the person's own entries
+   are preserved; only Tortie's own entries are stripped, by marker, including entries for events
+   Tortie no longer manages; foreign entries are preserved verbatim, because a malformed entry must
+   not abort a merge; a file that will not parse is NEVER written — the write returns null and says
+   so; and every delete is signature-gated, so no path is unlinked unless its content carries
+   Tortie's marker.
+4. **The hook's bytes are Tortie's own and nothing in them is configurable.** It is a shipped script,
+   not a template a setting fills in, and no agent-supplied payload can decide what it runs — the
+   payload is read AFTER the gate and only to name a status and a question.
+5. **Only the events that answer "is a human needed."** Not `PostToolUse` with matcher `*`, which is
+   what makes Superset fire on every tool call of every turn.
+6. **The harness-disagreement drop and the subagent split** (§3.1's four defences), because two
+   agents' global configs can fire inside one another's sessions — cursor-agent replays Claude's
+   settings, and Claude's Bash tool running `codex exec` fires Codex's config — and a subagent's
+   event must never set a session's status.
+
+CLAUDE.md gains one line in the same commit as the phase, recording the admission and its six
+conditions, so a later round reads the ruling rather than the refusal it replaced.
 
 Files it touches, read from this tree. New: `src/main/pocket/{bind,tls,pairing,server,routes,verbs,ipc}.ts`;
 `src/main/push/apns.ts` beside the credentials domain; `src/shared/ipc/pocket.ts` behind
@@ -1141,14 +1186,14 @@ Seven questions, in his words, and the document ends with them. The seventh was 
    by §3.1:** a Lock Screen Live Activity is a partial answer that needs no key at all for the
    leave-your-desk case, so the ruling he owes governs the wake-you-up alert for certain, and whether
    it governs the card too is decided by §8's new measurement of `pushType: .token`.
-7. "May Tortie register a lifecycle hook in an agent's own global configuration, or only in the
-   `--settings` file it already writes?" Added by §3.1, because the one genuinely takeable idea in
-   Superset depends on the answer and the phase must not assume it. An env-gated hook would give the
-   phone a structured blocked signal from every agent in Tortie's registry inside `-L gmux`, replacing
-   the screen read for codex, gemini and qwen — but Superset gets its coverage by writing into sixteen
-   agents' global user configs at every desktop boot, which is what dropped Shunt from second to fifth
-   in §3 and is the opposite of refusal 8's "A human confirms the bytes, out of band of any agent
-   turn". Their own document says why it is a hazard: "every session of that agent on the machine —
-   Superset-launched or not — invokes the hook" (`HOOKS_INVESTIGATION.md:14`). The recommendation is
-   the `--settings` file alone; a yes to the global config would also need their merge discipline
-   (§3.1) and §10's new refusal lifted deliberately.
+7. **ANSWERED THE SAME DAY, and it is the only one of the seven that is settled.** "May Tortie
+   register a lifecycle hook in an agent's own global configuration, or only in the `--settings` file
+   it already writes?" His answer, verbatim: *"Yes we could, previous restrictions can be mutable in
+   the case we can make an absolutely seamless product experience"*. The write is admitted and the
+   admission is earned by the experience, not by the mechanism: §10's six conditions are what
+   "seamless" is held to mean here, and the first of them, the env gate, is what keeps a machine-wide
+   hook from ever telling Tortie about a session it did not start. What the answer buys is the screen
+   read for codex, gemini and qwen deleted, the agent's own question carried instead of the prompt's
+   hint line, and nothing for a person to install or configure. The recommendation that stood before
+   the answer — the `--settings` file alone — is withdrawn, and the six conditions are its
+   replacement. Six questions remain open.
