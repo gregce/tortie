@@ -631,6 +631,18 @@ to the Mac's door, and the default `*` → `*:*` rule narrowed so the grant mean
 `policy_file`. 316 ships **Settings → Phone showing him the recommended policy as text to paste**, with a
 sentence saying what is true until he pastes it. The phase does not block on it.
 
+**AND THE RESIDUAL THE GRANT DOES NOT CLOSE, added 2026-09-22 by Phase 313's builder C, because it belongs
+beside the grant's own sentence rather than three sections away.** A grant bounds PACKETS, not KNOWLEDGE. A
+node's network map lists, in Tailscale's own words on its device-visibility page, "All devices that can
+connect to your device, even if you aren't permitted to connect to them" — so a paired phone still learns
+the NAMES of every device on his tailnet whatever a one-way rule says, and it learns them on a thing he can
+leave in a taxi. The grant is still worth pasting: it is the difference between a lost phone that can open
+any port on his Mac Pro and one that can open a single port on the Mac and be refused there for want of a
+pairing key. But the sentence on the Settings surface must not promise more than the grant delivers, and
+**this residual is the one thing the confinement ruling does not fix.** Closing it at all would mean
+`--shields-up`, a second tailnet, or not putting the phone on this tailnet — each its own decision and none
+of them this phase's.
+
 **A measurement 316 takes in its first hour.** The door's TLS against ATS (§2, §7). Until it is taken, item
 4's Info.plist rules cannot be written, and the phase chooses in the open between a narrowly scoped
 `NSExceptionDomains` entry for the tailnet domain only and no `URLSession` on the door path.
