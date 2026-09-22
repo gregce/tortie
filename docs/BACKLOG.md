@@ -33543,6 +33543,381 @@ exercised over a real network on real hardware, which §8 records as three thing
 
 **THE SUCCESSOR, NAMED AND NOT QUEUED.** *Phase 318, the reply door* — the structured answer to a numbered choice, and one typed message delivered through tmux's own `send-keys -l`. It is named here so nobody folds it into End, and it is **mentioned rather than queued**: it gets its own full entry in this shape when both of its preconditions exist. **It is gated on two things and neither is in hand.** First, ruling 2 (research 127 §11.2, "may it ever type a line into a session?") — the operator has settled typing as a PRODUCT decision, and §11.2's own text still reads that free text is the remote arm's rule 1 and stays refused, so the charter sentence has to move in writing. Second, **a door that does not exist**: `term.sendInput` needs an attached renderer (`src/main/attach/attach-host.ts:283`), and the remote arm's `sendArmedResumeText` refuses every character below 0x20 (`src/main/machines/exec-plane.ts:713`) so no Enter can ever be sent through it, with rule 1 excluding "a person's free text" by name (`src/main/machines/remote-arm.ts:13-18`). The shape is `send-keys -l`, which `src/main/harness/p64-paste-matrix.ts:32-38` documents as writing literal bytes at the pane with no stripping and which works with no window open, framed as one paste rather than a burst of Enters. It needs a cap, a control-character policy, a bracketed-paste decision, a one-press-at-a-time gate, and the guard that holds the text box while the row sits at a numbered choice and shows the choices instead. **A ruling admits typing as a product; it does not create the mechanism.** That is a Tier 3 phase of its own and it is about the size of Phase 304.
 
+## Phase 320 — "Expect it to scroll just like a local session does" — issue 31, scrolling a remote session (Jake Levirne, 2026-09-21)
+
+**Subject.** Two commits, each its own full build lane.
+- Phase 320: `fix(terminal): the wheel reaches a program on another machine that asked for it`
+- Phase 320.1: `feat(machines): a session on another machine scrolls like one on this Mac`
+
+**First body line.**
+- `Phase 320: the wheel on another machine, and no keystroke lost to a scroll`
+- `Phase 320.1: the local scroll over each machine's own control connection`
+
+**Semver.**
+- **320 is a Patch.** A trackpad or mouse wheel over Claude Code, or any other full-screen program, in a session on
+  another machine scrolls it the way it does on this Mac. Today nothing moves. On this Mac, typing while a scroll
+  is still moving no longer loses characters, and Read Last Lines stops saying a session kept nothing more when the
+  program only ever drew one screen.
+- **320.1 is a Minor.** Every other session on a machine scrolls too, being a shell, a classic Claude or codex: the
+  same wheel, scrollbar, drag, held place, resize and trip to another session and back as Phase 292 built locally,
+  on machines running tmux 3.6a, 3.7b or 3.7c.
+- **Unchanged on purpose in both:** the exec plane, its verb ledger, Phase 89's typing door, the control dialect
+  gate, and every local scroll behaviour except the one P2 names below.
+
+**Tier 3, by four of the table's questions.**
+- **It can lose his words.** Both slices change where a keystroke goes while a pane is scrolled, and the attack
+  measured the unguarded design losing up to 38 of 55 characters.
+- **320.1 composes commands that run on another computer** over a carriage that has had no gate.
+- **It claims to work across machines and tmux versions**, so the evidence is a per-row matrix over both tmux builds
+  this Mac has, with 3.7c named as unmeasured.
+- **It was reported from outside**, so the parent measurement is mandatory.
+
+The budget is two independent methods, one of them an attack, plus a fix round if any verdict is needs_work and an
+independent reverify of that fix. Each slice runs the whole lane on its own. **Splitting the phase into two commits
+removes no step from either.**
+
+**Charter.**
+- **Issue 31**, filed 2026-09-21 by Jake Levirne (`jakelevirne`) with a recording. His words: "Expect it to scroll
+  just like a local session does. Instead, nothing scrolls. … Still can't see more than a screen full of history
+  even if you click '1,000 lines' or '10,000 lines'. Even if you could see more, this dialog is not a good way to
+  interact with history."
+- **The operator's standing rule**: a remote session feels identical to a local one, and no explanatory text sits on
+  a remote surface just because it is remote.
+- **`docs/research/130-remote-scrollback.md`**, which binds this phase:
+  - §2, the defect behind Read last lines;
+  - §3, the wheel path on this Mac and on a machine;
+  - §4, research 57's reasons ruled one by one;
+  - §6, what the attack killed, including preconditions P1 to P5;
+  - §7, the two slices;
+  - §8, what was not measured;
+  - §10, his two questions.
+- **Research 57 §3.1 and §12** (`docs/research/57-remote-parity.md`) and its investigator 5
+  (`57-i5-scrollback-on-another-machine.md`). They refused a real remote scrollbar. Research 130 narrows that
+  refusal: it holds for the exec plane, and it is answered for the control connection by giving that connection a
+  gate.
+- **Phase 95**, whose swallow at `src/renderer/terminal/scroll/surface.ts:281` stays true for every program that did
+  not ask for the mouse.
+- **Phase 292**, whose local mechanism 320.1 reuses unchanged, and whose `probe:p292` arms are the ruler.
+
+**Phase 320.1 is not built until the operator answers research 130 §10 question 1.** Phase 320 needs no change to
+any refusal and does not wait.
+
+**Credit.** The item names the reporter the way CLAUDE.md's release-notes section requires. There is no pull
+request, so the link is the issue. See the CHANGELOG items below.
+
+### What was measured before this entry was written, so no round re-derives it
+
+All of it is in research 130. None of it touched his machines, his `-L gmux` server or his default tmux server, and
+no Electron was started. The far-side strings were composed by Tortie's own functions through the pinned tsx. They
+ran with the ssh hop replaced by a local shell, against scratch servers booted the way `ensureRemoteServer` boots
+one, on tmux 3.6a and 3.7b.
+
+**The capture command is right. The far pane holds one screen.**
+
+Lines Tortie's exact `capture-pane -p -e -J -t '$N' -S -<n>` returned at the panel's four depths (0, 1,000, 10,000
+and 25,000). Both builds gave the same numbers, and `history-limit` read back 25,000:
+
+| The pane | Lines returned |
+| --- | --- |
+| A shell that printed 5,000 lines | 24, 1,024, 5,001, 5,001 |
+| A fullscreen stand-in on the alternate screen, with 5,000 lines in its own memory | 24 at every depth |
+| A shell that printed 5,000 lines, then sent `CSI 3J` | 24 at every depth |
+| 300 lines, then the alternate screen, then Claude's own clear (`CSI 2J CSI 3J CSI H`) | 24, with no earlier line kept |
+
+- **Why the far pane holds one screen.** Claude Code's fullscreen renderer draws on the alternate screen. Its clear
+  includes `CSI 3J`, and tmux treats that as clear-history (`src/main/restore/command.ts:83-85`). This was read from
+  the 2.1.280 bundle, not run.
+- **Why a remote Claude can differ from his own.** Which renderer a machine's Claude gets depends on that machine's
+  settings, environment and server-side gates. His own `~/.claude/settings.json` says `tui: 'default'`. Tortie sets
+  none of the switches.
+- **The reporter's far machine is Linux.** One frame of his video shows paths under `/home/…` and a systemd unit.
+  Its tmux version and his Claude settings were not observed.
+- **The panel then says two things it should not.** `READ_LINES_ALL_THERE` ("That is everything this session has
+  kept.", `src/renderer/machines/read-lines.ts:122`) is false under a fullscreen agent. The button's tooltip,
+  `READ_LAST_LINES_HERE_TITLE` (`read-lines.ts:38-40`, drawn at `src/renderer/app/session-actions.tsx:368` for
+  remote sessions only), is remote-only explanatory text.
+
+**The wheel dies in the renderer.**
+
+- Main answers `NO_PANE_HERE` for every remote session, because `scrollTarget` reads only this Mac's `liveIds`
+  (`src/main/sessions/core.ts:2506-2508`).
+- The surface then latches `noPane` (`surface.ts:563-570`), and `handleWheel` returns false at `surface.ts:281`.
+- That false cancels both of xterm 6.0.0's wheel paths (`CoreBrowserTerminal.ts:642`, `:810`).
+
+**The route to a fullscreen program already exists.** The judge fed the remote attach argv
+(`src/main/attach/attach-plan.ts:175-186`) into a real xterm `Terminal`:
+
+- xterm's own `term.modes.mouseTrackingMode` read `none` before fullscreen, `any` or `vt200` during it, and `none`
+  after it.
+- Three wheel-ups from xterm's own `CoreMouseService.triggerMouseEvent` went out as `ESC[<64;20;10M` and moved the
+  far program's view from 4,972 to 4,963. The result was the same on both builds and with either of Claude's mouse
+  sets.
+- Once the program had left fullscreen, xterm sent nothing.
+- So Phase 95's reason for swallowing, that `ESC O A` would reach classic Claude, holds only for mode `none`.
+- **Copy mode cannot scroll a fullscreen pane even on this Mac**: `scroll_position` 0 over history 0.
+
+**The local mechanism runs unchanged over the machine's control connection.** This was the unmodified `scroll.ts`
+and `TmuxControlClient`, with a relay adding D ms each way.
+
+| Measured | RTT 0 | 6 ms | 50 ms | 120 ms |
+| --- | --- | --- | --- | --- |
+| One read | 0.1 ms | 7.6 ms | 54.5 ms | 124.7 ms |
+| Time to paint one notch, shipped serial calls | 1.9 ms | 17.4 ms | 111.3 ms | 251.9 ms |
+| Time to paint one notch, the same calls pipelined | 2.5 ms | 8.8 ms | 57.5 ms | 128.9 ms |
+
+- The hold, the resize, a new attach and the deep drag all behaved as on this Mac, on both builds.
+- Every argv the shipped code emitted, 2,224 on 3.7b and 1,144 on 3.6a, matched one of six shapes.
+
+**Two things on this carriage run a program on the far machine, so the door must refuse them.** Both ran on both
+builds:
+- a caller-supplied `display-message` format containing `#(…)`;
+- `send-keys -X copy-pipe-and-cancel`.
+
+**None of the five `-X` scroll shapes types.** With no mode active each answers "not in a mode", and 0 bytes reached
+a raw-mode reader.
+
+**The attack.**
+- **The design as first proposed eats typing.** Characters were lost after a notch: 3 to 4 of 11 at RTT 50, and 2 to
+  4 at 120.
+- **It already eats typing on this Mac.** During trackpad momentum, 4 of 55 characters were lost at RTT 0
+  (adversary 2), and 9 of 55 in the judge's control.
+- **A carriage drop while the pane is parked wedges typing** until the pane is remounted (`surface.ts:384-393`).
+- **The first command after every connect gets `refresh-client`'s empty answer**
+  (`src/main/tmux/control-client.ts:312`, `:447`). This happened in 10 of 10 trials, including the local shape, and
+  in 2 of 5 local trials later answers stayed shifted by one.
+- **A drag arrived 19.0 s late at RTT 50.**
+- **One failed `goto-line` on any server pushes this Mac onto the slow path.** The latch is module-level
+  (`src/main/tmux/scroll.ts:232`).
+
+**With preconditions P1 to P5 in a copy of the shipped surface, the judge measured 0 characters lost** in every arm,
+at RTT 0 to 120 on 3.7b and at RTT 0, 50 and 120 on 3.6a. The drag settled 18, 289 and 708 ms after the pointer
+stopped, at RTT 6, 50 and 120.
+
+**The control connection opens only on tmux 3.6a, 3.7b and 3.7c.** It takes no acceptance by design (`decideRemoteControlGate`,
+`src/main/tmux/version.ts:261-280`).
+
+### The mechanism
+
+#### Phase 320, built now. No tmux verb, no refusal touched.
+
+1. **The wheel.** In `handleWheel` (`src/renderer/terminal/scroll/surface.ts:276-281`), when `noPane` is set, return
+   `this.term.modes.mouseTrackingMode !== 'none'` instead of `false`. The comment above it is rewritten to say both
+   halves:
+   - a program that asked for the mouse gets the wheel as xterm's own mouse report, on the attach, like a
+     keystroke;
+   - a program that did not ask keeps Phase 95's swallow, because xterm's alternate-scroll branch would send it
+     `ESC O A`.
+
+   `src/renderer/terminal/scroll/__tests__/p95-scroll-stops.test.ts:256-271` is restated for mode `none`, and new
+   cases pin `any`, `vt200`, `drag` and `x10` to true. Nothing under `src/renderer` reads `mouseTrackingMode` today,
+   so this is its one reader.
+2. **The two sentences.**
+   - `READ_LAST_LINES_HERE_TITLE` and `READ_LINES_ALL_THERE` are deleted from `src/renderer/machines/read-lines.ts`.
+   - `showsAllThere` and its paragraph go from `src/renderer/app/RemoteLinesModal.tsx:134-139` and `:282-284`.
+   - The button at `session-actions.tsx:362-372` loses its `title`.
+   - `src/renderer/app/__tests__/p100-remote-lines.test.tsx` and `p95-strip-note.test.tsx` are rewritten to assert
+     that neither string exists anywhere under `src`, the way p100 already pins the strings Phase 95 deleted.
+   - The count line (`RemoteLinesModal.tsx:277`) already says what came back, and it stays.
+3. **P5, the empty answer.** `TmuxControlClient.start()` pushes a placeholder pending entry beside
+   `refresh-client -f no-output` (`src/main/tmux/control-client.ts:312`). `closeBlock` (`:447`) then hands
+   `refresh-client`'s block to that entry and never to a caller. A unit test sends one command the instant
+   `connected` fires, and it must receive its own answer.
+4. **P2, a keystroke ends the wheel gesture.** Wheel travel that has not yet been sent is dropped, and wheel events
+   are swallowed until the wheel has been quiet for a window. The judge used 150 ms, and the spec step measures its
+   own on a real trackpad (`sendInput` and `handleWheel`, `surface.ts`).
+   - **The one change a person can notice on this Mac:** a momentum tail still running when they type is dropped
+     rather than applied.
+   - Today that tail keeps re-entering copy mode and eats their keys.
+5. **P3, a held keystroke never wedges.** A held keystroke is flushed only after an answer says the pane is live. A
+   rejected `api.live` retries the cancel with backoff and never leaves `inputQueue` stranded behind
+   `alreadyDraining` (`surface.ts:384-393`).
+   - Nothing is ever flushed into a pane that last answered in copy mode.
+   - A surface disposed with keys held drops them. It must never deliver them into the next mount.
+6. **No menu changes.** The terminal context menu's `Read Last Lines…` (`src/renderer/terminal/terminal-menu.ts:240`)
+   and the native Session menu are untouched.
+
+#### Phase 320.1, held for the operator's word. The carriage door.
+
+1. **One closed runner.** `src/main/machines/control-plane.ts` keeps `sendCommand` and its private `clients` map as
+   they are, and exports exactly one new function, the scroll runner for a machine, which checks every argv before
+   it writes. The table lives in a new pure module under `src/main/machines/`, with each shape's repeat reasoning
+   beside it. Every shape targets `$N` only, and every argument is an integer. The six shapes:
+   - `display-message -p -t $N -F <STATE_FORMAT>`, with the compiled constant imported from `scroll.ts` and never a
+     string from a caller;
+   - `copy-mode -e -t $N`;
+   - `send-keys -t $N -X -N <1..2000> scroll-up|scroll-down`;
+   - `send-keys -t $N -X goto-line <int>`;
+   - `send-keys -t $N -X top-line`;
+   - `send-keys -t $N -X cancel`.
+
+   Everything else is refused before a byte is written: `-l`, a key name, `-H`, `-K`, `-M`, `copy-pipe*`, `;`, a
+   `%` or name target, and a non-integer.
+2. **The target.** `scrollTarget` in `src/main/sessions/core.ts:2506-2508` resolves a remote session to that runner
+   and its `$N`. The `$N` is read from a LIVE row on the carriage's CURRENT connection, never from a gone row
+   (`remoteSessionRow`, `src/main/machines/remote-sessions.ts:1068`, returns both), because tmux ids restart and the
+   far socket is `gmux` for every Tortie on that machine.
+   - The spec step rules on whether each read also carries the session's identity option (research 130 §8).
+   - A carriage that is down answers a transient error, which the surface already retries (`enqueue`,
+     `surface.ts:439-452`). It never answers `NO_PANE_HERE`, whose latch would end scrolling for the mount.
+   - `NO_PANE_HERE` is kept for a machine with no carriage this run, and that machine keeps Phase 320's pass-through.
+3. **P1, hold keystrokes behind an unanswered scroll.** A keystroke is held while any scroll that may park the pane
+   is unanswered (`surface.ts`).
+4. **P4, pipelining and coalescing.**
+   - **Pipelining**, in `scroll.ts`: each sequence writes its commands back to back and awaits the last. This is
+     only valid on an ORDERED runner. The local runner falls back to `execTmux`, one process per command
+     (`core.ts:2489`), and must stay serial there, so a runner states which it is.
+   - **Coalescing**, in `surface.ts`: relative scrolls are coalesced with one in flight.
+   - **Latest-wins**: a drag's `scrollTo` (`surface.ts:342-347`, called per pointermove from
+     `TerminalScrollbar.tsx:127`, `:135`) keeps only the newest position.
+5. **The `goto-line` latch is per server** (`seekSupport`, `scroll.ts:232`), keyed by the runner that probed it.
+6. **The drag-select copy.** `src/renderer/terminal/capture/history-copy.ts` reaches the machine through
+   `capture-pane` and `display-message`, which are already ledger reads, and never through this Mac's server.
+7. **The band button goes.** `ReadLastLinesButton` and `showsReadLastLines` (`session-actions.tsx:329-372`) are
+   deleted, with their two call sites, one in each band above the terminal (`src/renderer/app/SessionStrip.tsx`,
+   `src/renderer/app/TerminalRegion.tsx`). The terminal menu keeps `Read Last Lines…` exactly where this Mac's
+   capture items sit, so **no menu changes**.
+8. **The refusal is amended in the same commit, by edits that point to research 130.**
+   - Research 57 §3.1's two rows and §12's row.
+   - `docs/BACKLOG.md` lines 7868, 7878, 7894, 8669, 9015, 9580 and 10267, each edited in place to point to
+     research 130 §4.
+   - Condition 54b's sentence (`build/conformance-machines.mjs:4562-4572`). Its test still holds, because
+     `remote-lines.ts` still names neither verb.
+   - The paragraph at `read-lines.ts:19-25`.
+   - `TerminalScrollState.hasPane`'s comment (`src/shared/ipc/terminal.ts:324-338`).
+9. **The gate.** `build/conformance-machines.mjs` gains numbered conditions for:
+   - the single export;
+   - the six shapes, and nothing else accepted;
+   - the pinned format;
+   - the live-row target;
+   - `sendCommand` and `clients` still private;
+   - exactly one production call site.
+
+   Condition 66 (`:1547-1565`) grows from three files to four BY NAME, the new table module, so opening a route
+   still means editing a named list. `ablation:p320` breaks each clause in the shipping source and restores every
+   file by sha256 in a `finally`, the way `ablation:p274` and `ablation:p293` do, and each ablation must go red on the
+   condition that owns it.
+
+### The proof, run rather than read
+
+**`probe:p320`: one Electron, the remote arms beside the local ones.**
+- **The setup.**
+  - It launches through `build/electron-run.mjs`.
+  - It runs through `build/harness-socket.mjs --fresh gmux-p320` and `build/with-scratch-machine.mjs`, the shape
+    `probe:p95` already uses.
+  - It gives the app one local session and remote sessions on the loopback scratch machine.
+- **The stand-ins.** Real wheel events and real keys are sent over DevTools, and the screen is the ruler, the way
+  `probe:p292`'s header describes. The two stand-ins are adopted from research 130's harnesses into `build/p320/`:
+  - a fullscreen program that asks for `1049` and `1000/1002/1003/1006`, holds 5,000 lines in its own memory and
+    logs every report it receives;
+  - a raw-mode recorder that logs every byte typed.
+- **The parent measurement.** It is measured on the parent with a `P320_CHECKOUT` knob, the way `P292_CHECKOUT`
+  works: two invocations and never two Electrons at once.
+- **Registration.** `HELPER_USER_FLOOR` rises from 148 (`build/assert-electron-teardown.mjs:282`) in the same
+  commit. The probe is registered as `remote('probe:p320')` in `build/verification-checks.mjs` beside
+  `remote('probe:p95')`. Any shape that walks past `gate:background` or `gate:knownhosts` goes into that gate's
+  fixtures file in the same commit.
+
+**Phase 320's arms.** Parent is `55dab8b1`, or main's tip on the day.
+
+| Arm | What it drives | Red at the parent | Green at HEAD |
+| --- | --- | --- | --- |
+| R1, the reporter's case | 20 wheel notches over a REMOTE fullscreen stand-in | its view does not move | it moves toward older lines, and xterm's mode reads `any` |
+| R2, Phase 95 kept | 20 wheel notches over a REMOTE plain shell | — | nothing typed and no error on both builds; `probe:p95`'s step 6 stays green |
+| R3, the stated gap | a REMOTE alternate-screen program that did not ask for the mouse | — | its wheel is still swallowed and nothing is typed, on both builds, and the report names it as research 130 §3.3's gap |
+| R4, momentum on this Mac | a LOCAL recorder: a 50-event flick with "fix the bug" typed from 250 ms, 5 runs | characters lost (4 of 55 and 9 of 55 measured) | 0 of 55 |
+| R5, the panel | Read Last Lines opened on the fullscreen pane | the false sentence is drawn | only the count line is drawn |
+
+**Phase 320.1's arms.** This is the per-row matrix, the remote arm beside `probe:p292`'s local arms.
+- **`probe:p292`'s arms a to g on a remote session, over the loopback machine, beside the same arms on a local
+  session in the same run:**
+  - a, the hold;
+  - b, the thumb against the honest formula;
+  - c, the held drag;
+  - d, two resizes;
+  - e, back to live;
+  - f, another session and back;
+  - g, soft-wrapped lines across a width change.
+
+  Each is graded exactly as `probe:p292` grades it.
+- **The grades, with the far tmux run as 3.6a and as 3.7b.** At the parent every remote arm is red, because nothing
+  scrolls. At HEAD every remote arm is green, and every local arm stays green on both builds.
+- **3.7c is named as unmeasured** unless a copy is on the machine.
+- **The typing arms over injected delay.**
+  - The arms are S1 (notch then type, δ from 0 to 800 ms), S2 (momentum while typing), S3 (parked then type), S4
+    (the carriage dropped while parked) and S5 (the drag).
+  - They run in a node rig adopted from the judge's (`build/p320/typing-rig.mts`). The rig drives the SHIPPING
+    `ScrollSurface`, `scroll.ts`, `TmuxControlClient` and the new runner over a relay adding 0, 3, 25 and 60 ms each
+    way, on both builds.
+  - The app run covers loopback latency only, and the report says so.
+  - Graded: 0 characters lost in every arm, every held key delivered in order after a drop, and the pane live
+    afterwards. The shipped surface runs as the control in the same session.
+- **The attack, run against the shipping runner.**
+  - A hostile argv of every refused kind is refused before a byte is written. This includes `copy-pipe-and-cancel`
+    with a `touch` of a scratch file and a `display-message` format holding `#(touch …)`, and the scratch file must
+    not exist afterwards.
+  - The far server is restarted under a parked pane so that `$N` is reused, and the new session's pane never enters
+    copy mode.
+  - A machine whose version stub reads an unmeasured tmux keeps `NO_PANE_HERE` and Phase 320's pass-through.
+  - One command is sent the instant a reconnect completes, and it gets its own answer.
+- **The re-derivation, the second independent method.** A verifier writes its own shape checker from research 130
+  §4's table and runs it over every argv the runner wrote during the whole probe and the rig, recorded at the relay
+  and not by the runner. It must agree with the runner's own verdicts line for line.
+
+**Gates.**
+- **Both slices:** `npm run typecheck && npm run build && npm run smoke:t1`; the integrator's full battery;
+  `probe:controldeadline` (`control-client.ts` is touched); `probe:p292` and `probe:p95` green. `gate:contract` is
+  expected unmoved; if it moves, the baseline is regenerated and the commit body names the lines.
+- **320.1 adds** `conformance:machines` with its new conditions, and `ablation:p320`.
+
+**The one proof that cannot be a stand-in** runs once, by the integrator and not in the battery: a real Claude Code
+in fullscreen, in a session on the loopback machine, scrolled by a real trackpad, with a photograph. No turn is
+needed, because the mouse modes are asked for at start.
+
+### CHANGELOG items
+
+Written under `## Unreleased`. The follow-up docs commit adds each commit link.
+
+**Phase 320, under Fixed:**
+- `- The trackpad and mouse wheel now scroll Claude Code and other full-screen programs in a session on another machine, the way they do on your Mac; a plain shell or an agent that prints ordinary lines on another machine still does not scroll back. Contributed by [Jake Levirne](https://github.com/jakelevirne) in [#31](https://github.com/gregce/tortie/issues/31)`
+- `- Typing while a scroll is still moving no longer loses characters, and Read Last Lines no longer says a session kept nothing more when the program in it only ever drew one screen`
+
+**Phase 320.1, under Added:**
+- `- A session on another machine now scrolls back like one on your Mac, with the scrollbar, dragging, and your place held while the agent keeps writing, on machines running tmux 3.6a, 3.7b or 3.7c; on any other tmux only full-screen programs scroll. Contributed by [Jake Levirne](https://github.com/jakelevirne) in [#31](https://github.com/gregce/tortie/issues/31)`
+
+The Contributors row on tortie.sh is drawn from the `Contributed by … in [#N](…)` shape. This item links an issue
+rather than a pull request, so the integrator checks the site's reader accepts an `/issues/` URL before the
+release. That reader was not checked for this entry.
+
+### What is NOT in this phase
+
+**The refusals that stand.**
+- **No exec-plane scroll.** No `copy-mode` row on `REMOTE_VERB_LEDGER`, no second guarded `send-keys` door, and no
+  change to Phase 89's door, `ARMED_RESUME_GUARD` or its single call site. Research 57's reasons 1 and 2 stand
+  (research 130 §4).
+- **No open `send-keys -X` family, and no caller-supplied format**, anywhere on any carriage.
+- **No control connection on an unmeasured tmux.** `decideRemoteControlGate` and `TESTED_REMOTE_TMUX_VERSIONS` are
+  untouched. Measuring Linux distributions' tmux is research 130 §10 question 2, and it is not queued.
+
+**The designs that were rejected.**
+- **No far `mouse on`**, which would take clicks and drags away from xterm (`resources/gmux-tmux.conf:51-58`).
+- **No in-band scroll keys bound at boot.** They leak into the agent on 3.6a.
+- **No capture into xterm's own scrollback.** It is a second scroll model, and it cannot reach a fullscreen agent.
+- **Tortie does not choose an agent's renderer.** No `NO_FLICKER`, `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` or `tui`
+  setting is injected into any session. It would make a remote Claude differ from the same Claude on this Mac, and
+  the pass-through makes it unnecessary.
+
+**Limits and defects that belong elsewhere.**
+- **No fix for a fullscreen agent's transcript being absent from tmux.** Capture, saved output and Read last lines
+  hold one screen of it on this Mac and on a machine alike. That is a property of the agent, stated in research 130
+  §2.6.
+- **Read last lines is otherwise unchanged:** the same depths and the same `-J` argv (research 57 §3.3).
+- **The create that can start a far server with tmux's defaults is not in this phase**
+  (`src/main/machines/remote-sessions.ts:1590`, research 130 §9). It is its own correctness entry.
+- **Claude's own "add set -g mouse on to ~/.tmux.conf" hint is not in this phase.** It is unobserved (research 130
+  §9) and gets its own entry if it is ever seen.
+- **No change to how the scrollbar looks, and no new setting.**
+
+**No release.**
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -34426,3 +34801,5 @@ cycle rather than only the evening it was written.
 - 2026-09-22, **PHASE 314's REVERIFY ANSWERED needs_work A SECOND TIME, AND IT WENT TO HIM.** The push itself is proven — 25 requests re-derived byte for byte, every ES256 signature verified, every attack held (the wake, twenty at once, a 410, a stalled or trickling Apple, the Mac's clock two hours behind), and no scenario worse for a person who never pairs a phone. What failed was `probe:p314`, red in 2 of 2 runs: its FAKE agent printed a dialog in one burst after long silence, and Tortie's screen monitor misses that shape about 1 time in 5 (171 of 800 simulated timings), so the probe graded a monitor miss as a push failure. **His ruling: "should we just use a real agent? … so we can fix this correctly."** So a new round rewrites the app run over REAL agents (a first-run trust question costs no turn and no sign-in; one real Claude Code permission prompt covers the hook path), needs two green runs and an independent reverify; and the gap itself becomes **Phase 319**, researched first on the seven screen-watched agents installed here (Gemini, Cursor, Qwen, Pi, OMP, Grok, OpenCode) by recording each once and replaying the real bytes against the shipping monitor, with Claude Code and Codex as controls. Both started.
 
 - 2026-09-22, **PHASE 320 RESEARCH STARTED, issue 31, "No scrolling in a remote session"** (Jake Levirne, 2026-09-21): in a session on a machine the trackpad scrolls nothing, and "Read last lines" shows one screen even at 1,000 or 10,000 lines. Asked for by the operator, beside 314, 316 and 319. Research lane in `/private/tmp/wt-p320`: two investigators (the defect behind Read last lines, and the wheel path local against remote; the designs that would make a remote session scroll exactly like a local one), two adversaries (one defends research 57 §3's refusal of a real remote scrollbar as hard as it can), a judge who rules on that refusal, then ONE `docs/research/130-remote-scrollback.md` and the entry. Reproduced hermetically against a scratch tmux server with the ssh hop replaced, because nothing here may ssh to his machines; no agent turns.
+
+- 2026-09-22, **PHASE 320 RESEARCH DELIVERED, `docs/research/130-remote-scrollback.md`, and the entry queued above this log.** The capture command behind Read last lines is CORRECT — driven with Tortie's own composed strings against scratch tmux 3.6a and 3.7b, 1,000 lines answered 1,024. Two defects are in the renderer and the copy: the wheel on a remote session is thrown away at `surface.ts:281` because main has no pane on this Mac to answer for, and the reporter's far Claude almost certainly runs Claude Code's full-screen renderer (its default on a FRESH install), which keeps the transcript in its own memory and clears tmux's history, so Read last lines truly holds one screen and then says, falsely, "That is everything this session has kept." Two shipped defects behind it affect this Mac today: the control client hands `refresh-client`'s empty answer to the next command after every reconnect, and typing during wheel momentum loses characters locally (4 and 9 of 55). **Two slices.** 320, a patch that touches no refusal: the wheel goes to a far program that asked for the mouse, the false sentence and the remote-only tooltip go, and three typing fixes that also fix local. 320.1: the unchanged local scroll over each machine's existing control connection through ONE closed door (six fixed command shapes, whole numbers only, a pinned read format), which NARROWS research 57 §3's refusal of a real remote scrollbar — reason 1 and 2 kept for the exec plane (`-X copy-pipe-and-cancel` was measured running a program on the far machine), reason 3 answered by giving the control connection its first gate, reason 4's latency withdrawn. **320.1 waits for his word; 320 does not.**
