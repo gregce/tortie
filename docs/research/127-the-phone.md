@@ -700,7 +700,7 @@ new code on every route.
 | 2 | Capacitor / WKWebView around a NEW Tortie React page with Tortie's tokens, bundled in the app and never fetched from the Mac | WebKit running Tortie's own bundle; Capacitor's Swift bridge (MIT, `ionic-team/capacitor` `5e0f6787`); a Swift extension anyway for Live Activities or a decrypting notification | Nothing if the bundle ships in the app | `tokens.css` untouched and the same language and test runner; the page must ship in the bundle (guidelines 2.5.2, 4.2); Appflow and Capgo Live Updates refused in writing; a served CSP whose `connect-src` names the paired door only | None if the bundle ships in the app; a shell that loads its page from the Mac is downloaded code every open and inherits the PWA's port-squatter problem | The most reuse of any route and the same page IS the home-screen fallback byte for byte — second because guideline 4.2 ("repackaged website") is a real reviewer's question with no precedent in this set, and because "dense and native" is argued in a web view rather than given |
 | 3 | React Native / Expo, JavaScript compiled to Hermes bytecode at build time | Hermes, React Native and Expo modules (MIT) running Tortie's TypeScript | Nothing, unless expo-updates is added — **and §3.1 supplies the worked example, which is that the conditional is the route's default rather than a theoretical add-on**: Superset is this route with `expo-updates` in it, pulling from `https://u.expo.dev/…` (`app.config.ts:37,39`) on every foreground at a 15-minute throttle, downloading silently, with a declined restart still applying next launch (`useOtaUpdates.ts:6,8-11,14-16,26-38`) | Expo's cloud build optional (15 free iOS builds a month, https://expo.dev/pricing; a local Xcode build needs none); expo-updates, EAS Update and CodePush refused in writing; tokens re-typed as styles | Refusal 1 does not bind by its letter and the spirit is kept by "no OTA channel"; refusal 6 read literally forbids it | Happy on the store (id6748571505, `"expo": "~55.0.8"`) proves the reviewer accepts the shape, and §3.1's Superset (id6788926383, `expo` 57.0.15) is a second and stronger store precedent for it — and the same product is the proof that the over-the-air hazard arrives with the route by default rather than being added on purpose; shares Tortie's language; the most third-party code in the bundle for three screens |
 | 4 | Flutter, Dart compiled to machine code, Impeller drawing its own controls | The Flutter engine (BSD-3-Clause) | Nothing, unless Shorebird is added | A Dart toolchain joins the tree; tokens re-typed in a second language; Shorebird refused in writing | Refusal 6 read literally forbids it; not native by construction ("Flutter has its own implementations of each UI control") | CC Pocket on the store proves acceptance; nothing of Tortie's transfers and nothing is drawn natively — last of the app routes with no Zen gain to offset it |
-| 5 | Home-screen web app served by Tortie on the tailnet — the fallback only, by his ruling | Safari's engine; the page comes from the Mac every open; `tailscale serve` supplies the certificate | Everything, from the Mac | No account, no review, no yearly fee ("You don't need to join the Apple Developer Program to send web push notifications", Apple's web push page); Safari revokes push permission if a push is not shown; no Bonjour browse; HTTPS certificates must be enabled on the tailnet | Brushes none of the eight — and on the boundary it is the least safe: a same-uid port squatter owns the origin and its storage, it cannot pin a certificate, and a write cannot sit behind Face ID | The only route whose push is Tortie's process to Apple with no key, no account and an encrypted payload; the fallback for the boundary's reason as well as his |
+| 5 | Home-screen web app served by Tortie on the tailnet — the fallback only, by his ruling | Safari's engine; the page comes from the Mac every open; **CORRECTED 2026-09-22**: `tailscale serve` does NOT supply the certificate — Phase 313's entry refuses Serve outright (a same-uid port squatter owns whatever the phone trusts under a shared origin, research 127 §7 items 10 to 12), so the door terminates its own TLS with a key sealed under `safeStorage` and the phone pins the fingerprint from the pairing QR | Everything, from the Mac | No account, no review, no yearly fee ("You don't need to join the Apple Developer Program to send web push notifications", Apple's web push page); Safari revokes push permission if a push is not shown; no Bonjour browse; HTTPS certificates must be enabled on the tailnet | Brushes none of the eight — and on the boundary it is the least safe: a same-uid port squatter owns the origin and its storage, it cannot pin a certificate, and a write cannot sit behind Face ID | The only route whose push is Tortie's process to Apple with no key, no account and an encrypted payload; the fallback for the boundary's reason as well as his |
 
 The recommended way in detail.
 
@@ -805,12 +805,12 @@ vendoring.
 |  NEW  Tailnet node, embedded                  |<------>|         pairing, revoke, closed route table  |
 |         libtailscale, userspace, BSD-3        | Wire-  |         every write through the same gate    |
 |         no VPN profile, no second app         | Guard, |                                              |
-|                                               | direct |  NEW  Tailnet key minter                     |
-|  NEW  QR scanner, keys in the phone Keychain  |        |         one API credential, sealed            |
-|  NEW  Push registration                       |        |         mints an ephemeral key into the QR   |
-|  NEW  Colours, words and types generated      |        |  NEW  Push sender, APNs from this process    |
-|         from src/shared                       |        |  NEW  Settings > Phone: pair, see, revoke    |
-|                                               |        |  NEW  The agent lifecycle hook, env-gated    |
+|                                               | direct |                                              |
+|  NEW  QR scanner, keys in the phone Keychain  |        |  NEW  Push sender, APNs from this process     |
+|  NEW  Push registration                       |        |  NEW  Settings > Phone: pair, see, revoke     |
+|  NEW  Colours, words and types generated      |        |  NEW  The agent lifecycle hook, env-gated     |
+|         from src/shared                       |        |                                              |
+|                                               |        |  (no key minter: struck, research 128 §3)     |
 +-----------------------------------------------+        |                                              |
                     ^                                    |  ---------------- ALREADY THERE ----------    |
                     |   Apple's push service             |  OK  sessions in tmux, the manifest          |
@@ -835,12 +835,14 @@ vendoring.
 | Push registration and handling | §6 |
 | Colours, copy and contract types generated from `src/shared/` | So a word changed on the desktop changes on the phone in the same commit |
 
-**On the Mac, five new things and everything else reused.**
+**On the Mac, four new things and everything else reused. CORRECTED 2026-09-22 by research 128 §3**, which
+ruled that Tortie holds no Tailscale API credential: the key-minter row below is STRUCK and kept only so a
+later round can see it was ruled out rather than forgotten.
 
 | New | What it does | What it reuses |
 | --- | --- | --- |
 | The door, `src/main/pocket/` | Answers list, one session, send text, and the verbs; binds the tailnet address, never `0.0.0.0` | `machines/confirm.ts`'s confirmation shape, `config/seal.ts` for its TLS key |
-| The tailnet key minter | Holds one Tailscale API credential, sealed, and mints an ephemeral pre-approved key into the QR — this is what "scan and you are in" costs (§2) | the credentials domain and `conformance:credentials` |
+| ~~The tailnet key minter~~ **STRUCK, research 128 §3** | Ruled out on 2026-09-22: the OAuth client secret functions as a reusable pre-approved auth key with no documented expiry, so the artefact on the Mac that runs every agent would be a standing key-minter for his whole tailnet rather than a 90-day key. He pastes a key into the Mac's pairing sheet instead, once per phone install, and the phone still only scans | nothing — the row is gone |
 | The push sender | The buzz, from this Mac's own process to Apple | the credentials domain for the provider key |
 | Settings then Phone | Pair, see what is paired, revoke; and the switch that consents to the hook write (§10) | the settings surfaces as they are |
 | The agent lifecycle hook | The agent says it is blocked and hands over its question, every agent, no screen read | `activity/hooks.ts`'s server and per-session token; `state-machine.ts`'s words |
