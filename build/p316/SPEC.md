@@ -705,6 +705,19 @@ Release build has no transport yet (it arrives in S3), and says "not paired". No
 
 The door client (`URLSession` plus one key) is not his decision. §3.2 measured it, and the build takes it.
 
+
+### His answers, 2026-09-22
+
+| # | His answer | What the build does |
+| --- | --- | --- |
+| 1 | "Yes it should be able to open anything." | The app lists every session; `others` is built in 316.1 |
+| 2 | Keep the message box off | No box, no send control, no strings for it until Phase 318 |
+| 3 | Build the conversation screen, judge it on the phone | Drawn in the Session screen's style from the desktop's turn block; he judges it at 316.4 |
+| 4 | (the default, and Phase 314 is already building the Mac's half) | The token rides inside the pairing message |
+| 5 | Yes, add `Pair a Phone…` | The menu row lands in 316.1 beside `Settings…` |
+| — | **His iPhone runs iOS 18.1 to 18.x** | Above the tailnet library's 18.1 floor. **The ATS exception was measured on iOS 26.3 only (§3.2), so 316.2's floor arm on the iOS 18.3 runtime is MANDATORY, not optional**, and a failure there changes the door client before 316.4 |
+| 6 to 9 | Not asked; the defaults stand | Bundle id `com.itavero.tortie.phone`; the export-compliance key left out and answered by him in App Store Connect; privacy reasons C617.1 and 35F9.1 declared; the Mac-side node deferred |
+
 ---
 
 ## 7. What is NOT in 316
