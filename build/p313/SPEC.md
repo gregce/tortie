@@ -363,3 +363,10 @@ it is red at this tree and would be green under the old clause (the mutated `bin
 that owns it, every clone file restored and proved by sha256.** The 2,508 of the fix round and the
 2,521 read immediately before the removal were taken at different points in the same day and the 13
 checks between them were not attributed; neither is the count that stands.
+
+### His answers to the two questions left open (2026-09-22)
+
+- **The phone may open any session.** His words: "Yes it should be able to open anything." `/v1/session` and
+  `/v1/turns` answering any id is the ruling. Phase 316 owes the read that lets the app find every session.
+- **The door does not refuse a `/32` with no tailnet IPv6.** His words: "NO IT SHOULD NOT REFUSE." The ULA
+  orders candidates and never admits them, so the door works for a person with IPv6 disabled.
