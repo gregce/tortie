@@ -251,6 +251,21 @@ const DIRECTORY_WALLS = [
       'argv-guard.ts, which composes five fixed argv and no others.'
   },
   {
+    dir: 'main/pocket/',
+    forbidden: ['main/credentials/', 'main/logins/'],
+    why:
+      'the tailnet door is the first surface Tortie offers to anything outside ' +
+      'this Mac, and every route in it is a read. A door that cannot NAME the ' +
+      'two domains that hold a person’s credentials cannot be made to read one ' +
+      'by a later round, whatever a handler is asked to compose. Phase 313 ' +
+      'mechanism 4 is the wall and CLAUDE.md refusal 5 is beside it: the same ' +
+      'narrowness is what keeps the phone from setting a status, because ' +
+      'PocketFacts in src/main/pocket/routes.ts is hand written and every ' +
+      'member of it is a read. Anything the door legitimately needs from those ' +
+      'domains would arrive INJECTED through that type, so a direct import is ' +
+      'always the wrong answer rather than a convenience.'
+  },
+  {
     dir: 'renderer/state/',
     forbidden: ['renderer/app/', 'renderer/editor/'],
     why:

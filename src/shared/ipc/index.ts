@@ -164,6 +164,10 @@ import type {
   GmuxOverviewExtras,
   OverviewInvokeChannelMap
 } from './overview';
+// `GmuxPocketExtras` is deliberately NOT imported here — see the note under
+// `InstalledGmuxApi` below. It is exported to the tree by the `export *` further
+// down, which is how src/preload/pocket.ts still types the object it builds.
+import type { PocketEventPayloadMap, PocketInvokeChannelMap } from './pocket';
 import type {
   ArchEventPayloadMap,
   ArchInvokeChannelMap,
@@ -224,6 +228,8 @@ export * from './git';
 export * from './log';
 export * from './machines';
 export * from './overview';
+// Phase 313. The tailnet door's own answers, and Settings then Phone.
+export * from './pocket';
 export * from './projects';
 export * from './search';
 export * from './sessions';
@@ -314,7 +320,10 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   // Phase 202. The set of vendor logins, and which one is chosen.
   LoginsInvokeChannelMap &
   // Phase 243. The durable baseline: read one at open, record a moved one.
-  BaselinesInvokeChannelMap;
+  BaselinesInvokeChannelMap &
+  // Phase 313. Settings then Phone: pair, see what is paired, revoke. None of
+  // these is a route on the tailnet door, whose own table is read only.
+  PocketInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -354,7 +363,10 @@ export type AllEventPayloadMap = EventPayloadMap &
   UsageEventPayloadMap &
   // Phase 211. A login set changed without the renderer asking, so every login
   // surface redraws. It carries no payload.
-  LoginsEventPayloadMap;
+  LoginsEventPayloadMap &
+  // Phase 313. The door's whole status, pushed when anything about it moves —
+  // a phone allowed, a phone removed, a bind that refused.
+  PocketEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -481,3 +493,24 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxLoginsExtras &
   // Phase 243. The `baselines` member: load one, store one. Nothing else.
   GmuxBaselinesExtras;
+
+/**
+ * PHASE 313, AND WHY `GmuxPocketExtras` IS NOT IN THE INTERSECTION ABOVE.
+ *
+ * It is declared in ./pocket.ts and `src/preload/pocket.ts` builds the object
+ * it describes, and neither is installed on `window.gmux` yet, because the
+ * eight `pocket:*` channels have no registered handler: main's registrar,
+ * `src/main/pocket/ipc.ts`'s `registerPocketIpc`, is called from nowhere. This
+ * intersection is what the preload's `api` const is annotated with, so naming
+ * `GmuxPocketExtras` here is what MAKES the member compulsory — and a
+ * compulsory member over eight channels that reject at run time is a bridge
+ * advertising a surface that throws. It was installed that way for one round
+ * and the round was stopped for it.
+ *
+ * So the two lines move together, in the commit that registers the channels:
+ * the intersection member and the object in src/preload/index.ts. Adding one
+ * without the other is a compile error naming the file that is behind, in
+ * whichever direction it happens, which is the whole point of the annotation.
+ * `GmuxProjectExtras.rename` is the standing precedent for a member declared
+ * and deliberately not installed.
+ */

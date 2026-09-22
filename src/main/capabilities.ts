@@ -108,6 +108,10 @@ import {
   registerProjectCloneIpc,
   registerProjectCreateIpc
 } from './projects';
+// PHASE 313: the door on the tailnet. Two lines in the ordered disposer below
+// and nothing at boot — the door opens only when a person has switched it on
+// and a pairing has been confirmed, which is the pocket registrar's to arm.
+import { beginPocketShutdown, joinPocketDoor } from './pocket/bind';
 import { disposeQuickOpenIpc, registerQuickOpenIpc } from './quickopen';
 import { registerRecentsIpc } from './recents';
 import { registerRestartIpc } from './restart';
@@ -444,6 +448,13 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // is refused rather than begun. The bounded join is awaited below, after the
   // credentials join. It cannot throw and calling it twice is calling it once.
   beginBaselineShutdown();
+  // PHASE 313. Close the door's admission on the same synchronous line, before
+  // any await. From here no socket from the tailnet is admitted and no
+  // accepted request may reach a route, which is what makes the bounded join
+  // below a thing that ends rather than a race against work still arriving.
+  // It opens nothing, ends nothing and cannot throw; calling it twice is
+  // calling it once.
+  beginPocketShutdown();
   // PHASE 211. Stop the credential watcher first: it holds fs.watch handles and
   // a slow interval, and both must be released whatever the rest of teardown
   // does. It is synchronous and cannot throw.
@@ -503,6 +514,30 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
         tracked: baselines.tracked,
         joined: baselines.joined,
         waitedMs: baselines.waitedMs
+      }
+    );
+  }
+  // PHASE 313. Then close the door itself and join what it had accepted,
+  // bounded. Its POSITION is the whole of its correctness: it is ABOVE
+  // `shutdownGmuxCore()` and far above `disposeOverviewIpc()` in the race
+  // below, because every route the door answers reads session truth through
+  // the core and a session's turns through the overview store, and a request
+  // still running when either of those closes is a read against an owner that
+  // has gone. The listener is closed, idle sockets are cut, accepted requests
+  // are joined and anything still holding a socket after the bound is
+  // destroyed, so a phone that stopped talking mid request cannot hold a quit
+  // open. A quit with the door switched off walks a null and resolves in this
+  // same tick. The one line it logs carries counts and a boolean only: never
+  // an address, never a fingerprint, never a byte of what was being answered.
+  const pocket = await joinPocketDoor();
+  if (pocket.accepted > 0) {
+    getLog('quit').info(
+      `settled door work: ${pocket.accepted} request(s), ` +
+        `${pocket.joined ? 'joined' : 'NOT joined'} after ${pocket.waitedMs} ms`,
+      {
+        accepted: pocket.accepted,
+        joined: pocket.joined,
+        waitedMs: pocket.waitedMs
       }
     );
   }

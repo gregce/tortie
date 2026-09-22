@@ -39,6 +39,14 @@ import { git } from './git';
 import { log } from './log';
 import { machines } from './machines';
 import { overview } from './overview';
+// PHASE 313 IS NOT INSTALLED HERE, ON PURPOSE. `./pocket.ts` is written and
+// typed, and the eight `pocket:*` channels are in the shared contract — but the
+// registrar that serves them, `src/main/pocket/ipc.ts`'s `registerPocketIpc`,
+// is called from nowhere yet. A member on `window.gmux` whose every invoke
+// rejects with "No handler registered" is a bridge advertising a surface that
+// throws, which is strictly worse than not having it, so the member is left out
+// until main registers the channels. `build/conformance-pocket.mjs` rule B1
+// holds the two halves together in both directions.
 // Phase 181. The subscription usage meter's two reads.
 import { usage } from './usage';
 // Phase 202. Which vendor sign in a new session runs under. Names, never paths.

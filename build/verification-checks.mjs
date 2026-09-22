@@ -409,6 +409,39 @@ export const CHECKS = [
   // each must go red. It spawns nothing, writes nothing and reads only the mock
   // and the modules the ledger names.
   pure('conformance:phonecopy'),
+  // PHASE 313, the door. Two checks, and they are two because they are two
+  // different METHODS against the same domain and neither is the other's
+  // proof.
+  //
+  // `conformance:pocket` READS the source with the TypeScript parser: one
+  // `listen`, the address from the allowlist function alone, the string
+  // 0.0.0.0 nowhere, the route table closed and every row a read, no write
+  // verb and no credential import, no Authorization and no cookie, nothing
+  // secret in a path, /pair dead outside its window, Referrer-Policy from one
+  // place, the disposer owning the listener, and nothing secret reachable from
+  // a log call. It binds nothing and opens nothing.
+  //
+  // `conformance:pocket:hostile` DRIVES a live door on 127.0.0.1 on a port it
+  // found for itself, with a throwaway self-signed identity under a mkdtemp,
+  // all of it ended in a `finally`. It is the phase's attack, and its honest
+  // arms are in the same table as its refusals so a door that is merely OFF
+  // fails it.
+  //
+  // THERE WAS A THIRD, `conformance:pocket:page`, and it is gone with the thing
+  // it judged. `src/main/pocket/page/` was built and could not be reached under
+  // this phase's own mechanism 5 — no script, no cookie, no bearer, no URL
+  // token — and the operator ruled "lets skip the web app" on 2026-09-22. The
+  // page's three rules came out of `conformance:pocket` and five arms out of
+  // `ablation:p313` in the same change. The seven screens the page implemented
+  // are still at `docs/design/phone/` and are Phase 316's to build in Swift.
+  //
+  // Neither of the two starts an Electron, a tmux server, an ssh or an agent,
+  // spends a token, or reads anything under the person's home. NEITHER BINDS A
+  // REAL INTERFACE: `host` and `port` are deps of the server and every check
+  // passes 127.0.0.1 and 0, which is what build/p313/SPEC.md §4 exists to make
+  // true rather than promised.
+  pure('conformance:pocket'),
+  pure('conformance:pocket:hostile'),
   // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
   // Electron on a scratch profile with a scratch HOME and the socket
   // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that
@@ -1454,6 +1487,17 @@ export const CHECKS = [
   // `finally` and on a signal. About 50 s. No Electron, no tmux, no ssh, no
   // agent, no token.
   pure('ablation:p293'),
+  // PHASE 313's attack on the three checks above. A GREEN GATE IS ONLY EVIDENCE
+  // IF IT CAN GO RED: this one breaks ONE CLAUSE AT A TIME in the shipping
+  // source of src/main/pocket/ and proves each break reddens THE RULE THAT OWNS
+  // IT, as a DELTA against the base. It never writes into the working tree —
+  // seven builders work in one worktree during a phase — so it clones src/ and
+  // build/ with `cp -Rc` under /private/tmp, symlinks node_modules, restores
+  // every edited clone file and proves it by sha256, and removes the clone in a
+  // `finally` and on a signal. No Electron, no tmux, no ssh, no agent, no
+  // token, and no listener but the one the hostile client opens on loopback and
+  // closes in its own `finally`.
+  pure('ablation:p313'),
   // PHASE 296's attack on `conformance:handback`'s menu section, and the reason
   // that phase is worth doing: the section had been RED SINCE 25 AUGUST because a
   // needle stopped matching a row nobody moved, and nothing could tell that from
