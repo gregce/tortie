@@ -57,6 +57,7 @@ import {
   ensureClaudeHookSettings,
   GmuxHookServer,
   hooksEnabled,
+  questionFromHookBody,
   readPreferredHookPort,
   readProcSnapshot,
   SessionActivityMonitor,
@@ -943,8 +944,21 @@ export class GmuxCore {
       }
     });
     this.hookServer = new GmuxHookServer({
-      onEvent: (sessionId, state) => {
-        this.activity.noteHookEvent(sessionId, state);
+      onEvent: (sessionId, state, _event, body) => {
+        // PHASE 311. The question the agent is asking, composed HERE because
+        // this is the one place the hook body arrives, and only for the event
+        // that means the agent is waiting: `PermissionRequest` is the single
+        // event mapping to `needs_input`, and composing on the others would
+        // parse a body on every tool call of every turn for a word no row
+        // draws. The composed words reach the renderer on the activity channel
+        // that already carries screen text and nowhere else — never a log.
+        this.activity.noteHookEvent(
+          sessionId,
+          state,
+          state === 'needs_input' && body !== undefined
+            ? questionFromHookBody(body)
+            : null
+        );
       },
       // PHASE 182. The usage tap: one form encoded post from this session's
       // managed status line, carrying the `rate_limits` block claude already

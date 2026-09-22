@@ -19,6 +19,18 @@
  * can clear. Both verbs are the ones every other session surface already uses,
  * so nothing about ending a session is written twice.
  *
+ * PHASE 311 changed one thing about a row, being which line it draws beside the
+ * session's name.
+ *
+ * The row drew the excerpt, which is the last inked line of the session's
+ * screen. For every committed Claude dialog that line is the hint row — `Esc to
+ * cancel · Tab to amend` — while the question the agent actually asked sits
+ * five lines above it. Main now composes the question from the hook body it
+ * already receives, and the row draws THAT when there is one, falling back to
+ * the excerpt for every session main has no question for. The span is the same
+ * span and the stylesheet does not move; `data-question` says which of the two
+ * is on screen so a probe can read it.
+ *
  * THE CHORD IS NOT SPELLED HERE. It is the keymap row `session.endFromAttention`
  * in src/shared/keymap.ts, and this file reads its glyphs back with
  * `keyDisplay`. That row is what puts the chord in the ⌘/ overlay, in Settings
@@ -90,13 +102,31 @@ export function attentionPathText(session: Session): string {
  *
  * The path is NOT elided here. The drawn path can lose its middle to the
  * panel's width, and this sentence is where the whole of it stays readable.
+ *
+ * PHASE 311's FIX ROUND put the question here for the same reason. The verifier
+ * measured the drawn span at the shipped width: the panel is a fixed 560px, the
+ * row spends it on the name and the whole untruncated folder path, and the line
+ * beside them gets about 152px — roughly twenty characters of a question that
+ * may be two hundred. The span tail-truncates with an ellipsis, which is the
+ * right shape for a row and the wrong place to read a sentence, so the WHOLE of
+ * it is reachable here, on hover and to a screen reader, exactly as the whole
+ * path already is. The separator is Tortie's own ` · ` and no new word is
+ * introduced.
+ *
+ * The other repair — letting the path elide so the question could have its
+ * space — was NOT taken: `attentionPathText` elides the path's MIDDLE on
+ * purpose, because "the tail is the folder's own name and it is the half that
+ * tells two rows apart", and a CSS ellipsis would take that tail from every row
+ * drawn today, question or no question.
  */
-export function attentionRowLabel(session: Session): string {
+export function attentionRowLabel(session: Session, question = ''): string {
   const where = displayPath(session.projectPath, session.machine?.id);
   const machine = session.machine;
-  return machine === undefined
-    ? `${session.name} in ${where}`
-    : `${session.name} in ${where} on ${machine.label}`;
+  const base =
+    machine === undefined
+      ? `${session.name} in ${where}`
+      : `${session.name} in ${where} on ${machine.label}`;
+  return question === '' ? base : `${base} · ${question}`;
 }
 
 /**
@@ -111,12 +141,21 @@ export function attentionRowLabel(session: Session): string {
 export function AttentionRowBody({
   session,
   excerpt,
+  question = '',
   age
 }: {
   session: Session;
   excerpt: string;
+  /**
+   * PHASE 311. What the agent is asking, when main has composed one for this
+   * session. The empty string means there is none, which is every session of
+   * every agent that hands Tortie no hook body, and the row then draws the
+   * excerpt exactly as it did before this phase.
+   */
+  question?: string;
   age: string;
 }): React.JSX.Element {
+  const line = question === '' ? excerpt : question;
   return (
     <>
       <span className="dot dot-attention" />
@@ -126,7 +165,12 @@ export function AttentionRowBody({
         <span className="attention-machine">{session.machine.label}</span>
       )}
       <span className="attention-path">{attentionPathText(session)}</span>
-      <span className="attention-excerpt">{excerpt}</span>
+      <span
+        className="attention-excerpt"
+        data-question={question === '' ? undefined : true}
+      >
+        {line}
+      </span>
       <span className="attention-age num">{age}</span>
     </>
   );
@@ -138,6 +182,7 @@ export function AttentionOverlay(): React.JSX.Element | null {
   const sessions = useApp((s) => s.sessions);
   const attentionSince = useApp((s) => s.attentionSince);
   const excerpts = useApp((s) => s.excerpts);
+  const questions = useApp((s) => s.questions);
   const setMenu = useApp((s) => s.setMenu);
   // PHASE 93. Ending a session from a row is confirm gated, and the panel stays
   // open behind that confirm so the person can see which row they are acting
@@ -259,8 +304,14 @@ export function AttentionOverlay(): React.JSX.Element | null {
                   type="button"
                   role="option"
                   aria-selected={i === selected}
-                  aria-label={attentionRowLabel(session)}
-                  title={attentionRowLabel(session)}
+                  aria-label={attentionRowLabel(
+                    session,
+                    questions[session.id] ?? ''
+                  )}
+                  title={attentionRowLabel(
+                    session,
+                    questions[session.id] ?? ''
+                  )}
                   className={`attention-row${i === selected ? ' selected' : ''}`}
                   autoFocus={i === 0}
                   onMouseEnter={() => setSelected(i)}
@@ -281,6 +332,7 @@ export function AttentionOverlay(): React.JSX.Element | null {
                   <AttentionRowBody
                     session={session}
                     excerpt={excerpts[session.id] ?? ''}
+                    question={questions[session.id] ?? ''}
                     age={formatAge(
                       attentionSince[session.id] ?? session.createdAt,
                       now

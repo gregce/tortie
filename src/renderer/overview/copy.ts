@@ -58,6 +58,18 @@ export const OUTCOME_STILL_WORKING = 'The agent is still working';
 export const OUTCOME_STOPPED = 'Stopped before the agent answered';
 export const OUTCOME_NO_ANSWER = 'The agent’s answer is not in the record';
 
+/**
+ * Phase 311. A session that is waiting on the person.
+ *
+ * `OUTCOME_NO_ANSWER` above was drawn for this row until this phase, because
+ * the still working arm asks for `running` and a waiting session is not
+ * running. "The agent's answer is not in the record" is false of a session
+ * whose agent is standing at a question, and this is the one row the phone
+ * exists for. What is being asked is drawn under the line, from the activity
+ * channel, and never composed into this sentence.
+ */
+export const OUTCOME_WAITING = 'The agent is waiting for you.';
+
 /** A session with nothing asked yet. The clock comes from ./clock.ts. */
 export function outcomeNothingAsked(clock: string): string {
   return `started ${clock}, nothing asked yet`;

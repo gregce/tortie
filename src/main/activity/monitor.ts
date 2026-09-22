@@ -121,6 +121,24 @@ export interface SessionActivityUpdate {
   sessionId: string;
   /** Last non-empty screen line — the ⌘J excerpt. */
   excerpt?: string;
+  /**
+   * PHASE 311. What the agent is asking, in its own words, composed from the
+   * hook body by ./question.ts. It is what a blocked row draws INSTEAD of the
+   * excerpt, which for every committed Claude dialog is the hint row.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. `SessionStatus` gains no
+   * member for it and the status dot is not drawn from it.
+   *
+   * Absent means this update carries no news about the question, exactly as an
+   * absent `excerpt` does, and the renderer keeps what it already had. An
+   * EMPTY STRING is the explicit clear, sent on the tick a session stops being
+   * blocked, so the renderer never has to read a clear out of an absence —
+   * the same treatment Phase 141 gave `{ state: 'none' }`. The clear is also
+   * what a session is told the first time it is seen after being FORGOTTEN
+   * while a question was on a row, which is how a restored session never draws
+   * the previous life's question; see `questionOnWire`.
+   */
+  question?: string;
   /** Epoch ms of the last output tmux saw. */
   lastActivityAt?: number;
 }
@@ -303,6 +321,25 @@ export class SessionActivityMonitor {
    * costs one read once.
    */
   private readonly rejectedChild = new Map<string, number>();
+  /**
+   * PHASE 311, and the fix round's one correctness change. What the WINDOW is
+   * holding for each session, so a tick repeats neither a question nor a clear.
+   *
+   * IT IS DELIBERATELY NOT IN `SessionState`. A state is deleted whenever a
+   * session is forgotten, which is ordinary — End, a dead pane, a release, or a
+   * session simply leaving `deps.sessions()` — and a "last sent" field inside it
+   * would go with it. Main and the renderer would then agree there was nothing
+   * to say while the row still drew the previous life's question, and the row
+   * would keep drawing it, because the renderer prefers a question it holds over
+   * the true screen line. Claude's own workspace-trust dialog fires no hook, so
+   * the first blocked row after a restore is exactly the row that would be
+   * wrong. This map outlives a state the way a ROW outlives it.
+   *
+   * An entry exists only while something is on the wire, so what survives a
+   * forget is one short string per session that was blocked when it was
+   * forgotten, cleared on that session's next tick whenever it comes back.
+   */
+  private readonly questionOnWire = new Map<string, string>();
   /** When the last witness-only fleet table was taken (Phase 141). */
   private witnessTableAt = 0;
 
@@ -332,6 +369,8 @@ export class SessionActivityMonitor {
     this.states.clear();
     this.lastPane.clear();
     this.rejectedChild.clear();
+    // PHASE 311. The window this map remembers is going too.
+    this.questionOnWire.clear();
   }
 
   /**
@@ -373,6 +412,10 @@ export class SessionActivityMonitor {
     kept.leftCommand = before.leftCommand;
     kept.witnessPid = before.witnessPid;
     kept.witnessPpid = before.witnessPpid;
+    // PHASE 311 carries nothing about the question here, and that is the point:
+    // `questionOnWire` is not in the state, so EVERY forget — this one and the
+    // three that keep nothing — leaves the window's memory intact and the next
+    // tick of this session says the question is over. See that field.
     this.states.set(sessionId, kept);
   }
 
@@ -393,13 +436,35 @@ export class SessionActivityMonitor {
    * A hook fired for this session (claude's UserPromptSubmit / Stop / …).
    * Tier 0, so it commits immediately in both directions; the pid file
    * re-confirms within a second and silently corrects any disagreement.
+   *
+   * PHASE 311. `question` is what the body said the agent is asking, already
+   * composed, redacted and clipped by ./question.ts — this method never parses
+   * anything and never logs anything. It is kept only when the commit above
+   * actually left this session blocked, so a verdict the state machine
+   * declined can never leave a sentence claiming the agent is waiting. The
+   * word itself rides the next tick's activity update, beside the excerpt it
+   * replaces on the row, which is the one place either is put on the wire.
    */
-  noteHookEvent(sessionId: string, state: ActivityState, reason?: string): void {
-    this.commit(sessionId, this.ensureState(sessionId), {
+  noteHookEvent(
+    sessionId: string,
+    state: ActivityState,
+    question?: string | null,
+    reason?: string
+  ): void {
+    const st = this.ensureState(sessionId);
+    this.commit(sessionId, st, {
       state,
       tier: 'native',
       ...(reason !== undefined ? { reason } : {})
     });
+    if (
+      question !== undefined &&
+      question !== null &&
+      question.length > 0 &&
+      st.state === 'needs_input'
+    ) {
+      st.question = question;
+    }
   }
 
   /**
@@ -917,7 +982,7 @@ export class SessionActivityMonitor {
     return live;
   }
 
-  /** The ⌘J excerpt and the "last output" age, when either moved. */
+  /** The ⌘J excerpt, the question and the "last output" age, when any moved. */
   private uiUpdate(
     e: LiveSession,
     capture: string | undefined
@@ -931,6 +996,26 @@ export class SessionActivityMonitor {
         update.excerpt = excerpt;
         dirty = true;
       }
+    }
+    // PHASE 311. THE QUESTION BELONGS TO THE WAIT IT WAS ASKED IN, and this is
+    // the line that makes that structural rather than dependent on a second
+    // hook arriving: a session Tortie no longer holds as blocked has no
+    // question, whatever ended the wait — a hook, the person typing into the
+    // pane, or the dialog leaving the screen. The clear travels as an explicit
+    // empty string, never as an absence.
+    //
+    // The comparison is against what the WINDOW holds rather than against a
+    // field of the state, so a session forgotten mid-question — End, a dead
+    // pane, a release, or leaving the list — is told the question is over the
+    // first time it is seen again, even though its state by then is brand new
+    // and knows nothing. See `questionOnWire`.
+    if (e.st.state !== 'needs_input') e.st.question = '';
+    const onWire = this.questionOnWire.get(e.session.id) ?? '';
+    if (e.st.question !== onWire) {
+      if (e.st.question === '') this.questionOnWire.delete(e.session.id);
+      else this.questionOnWire.set(e.session.id, e.st.question);
+      update.question = e.st.question;
+      dirty = true;
     }
     if (
       e.pane.activityAt > 0 &&

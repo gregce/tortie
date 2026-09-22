@@ -133,7 +133,18 @@ export function isSubagentPayload(body: string): boolean {
 const MAX_BODY_BYTES = 64 * 1024;
 
 export interface HookServerEvents {
-  onEvent(sessionId: string, state: ActivityState, event: string): void;
+  /**
+   * PHASE 311 added the fourth parameter, and it is handed over RAW and
+   * unparsed for the same reason `onTap` below is: what the body MEANS is an
+   * ingest question, answered in ./question.ts, and this file's stated
+   * responsibility is "the writing, the switch and the refusal".
+   *
+   * It is '' when there is nothing to read, which includes an OVER-CAP body:
+   * an oversized body is dropped WHOLE rather than truncated, so a prefix of
+   * one can never be composed into a question. Optional, so a wiring that
+   * wants only the state passes nothing.
+   */
+  onEvent(sessionId: string, state: ActivityState, event: string, body?: string): void;
   /** SessionEnd — drop any tier-0 state held for this session. */
   onSessionEnd(sessionId: string): void;
   /**
@@ -438,7 +449,11 @@ export class GmuxHookServer {
     const state = stateForHookEvent(event);
     if (state === undefined) return;
     if (!over && isSubagentPayload(body)) return;
-    this.events.onEvent(sessionId, state, event);
+    // PHASE 311. The body goes with the event, and `over` decides whether
+    // there is one: an oversized body is dropped WHOLE, exactly as the tap's
+    // is above, so what the read stopped in the middle of is never handed on
+    // as if it were a payload.
+    this.events.onEvent(sessionId, state, event, over ? '' : body);
   }
 }
 

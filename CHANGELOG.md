@@ -4,6 +4,12 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## Unreleased
+
+### Changed
+
+- A Claude Code session that is waiting on you now says what it is being asked — the tool and the one thing it is about to touch — on Sessions That Need Input and in Catch Me Up, instead of the last line of its screen, which was almost always the hint about which key cancels; Catch Me Up also stops saying such a session's answer is not in the record when it is only waiting. Sessions from the other agents still show their last line, and a row shortens a long question to fit one line — hover it to read the whole of it
+
 ## 0.110.0 (2026-09-21)
 
 This release is about the sign ins Tortie keeps for you and the sheet that lists your sessions. A Codex account you sign out of can be offered back for the first time, choosing one of your other sign ins can no longer destroy the one you were using, and the Manage Sessions sheet says whether a session is alive or over without opening anything and stops searching every project folder each time you open it. The first time you open the sheet after this release, each session is read again from the beginning, which takes a moment on a long one.

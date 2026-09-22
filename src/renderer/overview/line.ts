@@ -22,6 +22,7 @@ import {
   OUTCOME_SHELL,
   OUTCOME_STILL_WORKING,
   OUTCOME_STOPPED,
+  OUTCOME_WAITING,
   OUTCOME_WRONG_CONVERSATION,
   outcomeNothingAsked,
   outcomeUnreadable
@@ -125,6 +126,19 @@ export function buildProjectLine(
   }
   if (latest.interrupted) {
     return { ask, outcome: OUTCOME_STOPPED };
+  }
+  // PHASE 311. The still working arm above asks for `running`, so a session
+  // that is waiting on the person fell through to OUTCOME_NO_ANSWER, which
+  // says the agent's answer is not in the record. That is false of a session
+  // whose agent is standing at a question: the answer is not in the record
+  // because the agent has not been allowed to write one yet.
+  //
+  // The arm is LAST, immediately before the fallback, so it moves exactly the
+  // rows that read wrong and nothing else. A row whose newest turn closed with
+  // an answer still says what it said, and an interrupted turn still says it
+  // was stopped, because both of those are true of the record.
+  if (status === 'needs_input') {
+    return { ask, outcome: OUTCOME_WAITING };
   }
   return { ask, outcome: OUTCOME_NO_ANSWER };
 }

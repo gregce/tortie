@@ -79,6 +79,11 @@ export function OverviewLayer(): React.JSX.Element | null {
   const overview = useApp((s) => s.overview);
   const sessions = useApp((s) => s.sessions);
   const projects = useApp((s) => s.projects);
+  // Phase 311. What each waiting agent is asking, from the activity channel.
+  // Read here rather than in ProjectLines for the same reason the statuses are:
+  // this layer is the one place that binds the store, and the views below it
+  // take what they draw.
+  const questions = useApp((s) => s.questions);
   const now = useNow(30_000);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const open = overview !== null;
@@ -212,6 +217,7 @@ export function OverviewLayer(): React.JSX.Element | null {
           <ProjectLines
             project={data}
             statuses={statuses}
+            questions={questions}
             selected={overview.selected}
             onSelect={(i) => {
               useApp.getState().setOverviewSelected(i);

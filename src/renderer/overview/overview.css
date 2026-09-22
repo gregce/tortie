@@ -305,6 +305,16 @@
   color: var(--text-muted);
 }
 
+/* Phase 311. What a waiting agent is asking, under the line. Quieter than the
+   sentence above it and on one line: a question is prose that often carries a
+   path, and a row that grows to three lines stops being a row. */
+.overview-line-question {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ---------------------------------------------------------------------------
    The footer
 --------------------------------------------------------------------------- */

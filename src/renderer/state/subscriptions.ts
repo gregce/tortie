@@ -813,6 +813,11 @@ export function startAppSubscriptions(store: AppStore): () => void {
       setState((s) => {
         const excerpts = { ...s.excerpts };
         const lastActivity = { ...s.lastActivity };
+        // PHASE 311. The fourth fact on this channel, and it rides here for
+        // the same reason the third one does: it must never become a status.
+        // Main composes it from the hook body it already parses, redacts it
+        // and clips it, and this reads it exactly as it reads the excerpt.
+        const questions = { ...s.questions };
         // PHASE 141. The third fact on this channel, and it rides here for one
         // reason: this is main's channel for per session facts that are NOT the
         // status, so a fact that must never become a status has no other honest
@@ -820,6 +825,14 @@ export function startAppSubscriptions(store: AppStore): () => void {
         const handbacks = { ...s.handbacks };
         for (const u of updates) {
           if (u.excerpt !== undefined) excerpts[u.sessionId] = u.excerpt;
+          // PHASE 311. An empty string is main saying the question it had for
+          // this session is no longer the question, so the record goes rather
+          // than holding a stale one. Undefined is an ordinary tick that says
+          // nothing about it and leaves what is there alone.
+          if (u.question !== undefined) {
+            if (u.question === '') delete questions[u.sessionId];
+            else questions[u.sessionId] = u.question;
+          }
           if (u.lastActivityAt !== undefined) {
             lastActivity[u.sessionId] = u.lastActivityAt;
           }
@@ -833,7 +846,7 @@ export function startAppSubscriptions(store: AppStore): () => void {
           if (handback === null) delete handbacks[u.sessionId];
           else if (handback !== undefined) handbacks[u.sessionId] = handback;
         }
-        return { excerpts, lastActivity, handbacks };
+        return { excerpts, questions, lastActivity, handbacks };
       });
     })
   );

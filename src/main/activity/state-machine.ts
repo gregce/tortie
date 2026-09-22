@@ -85,6 +85,26 @@ export interface SessionState {
   sawKeypad: boolean;
   lastWorkingAt: number;
   excerpt: string;
+  /**
+   * PHASE 311. What the agent is asking, in its own words, while this session
+   * is blocked on a person — composed in ./question.ts from the hook body and
+   * '' when nothing was delivered or the wait is over.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. Nothing here reads it and no
+   * rule in this file may: it is a drawn word, and the state is decided by the
+   * tiers alone. It sits beside `excerpt` because it is the same kind of fact,
+   * being process-local, never written down, and lost on a restart with no
+   * consequence.
+   *
+   * WHAT IS ON THE WIRE IS NOT KEPT HERE, and the fix round is why. A state is
+   * DELETED whenever a session is forgotten — End, a dead pane, a release, or
+   * simply leaving the list — so a "last sent" field beside this one is lost
+   * exactly when it is needed, and the next life would inherit a row still
+   * drawing the previous life's question with nothing left to say otherwise.
+   * ./monitor.ts holds that memory in a map keyed by session id instead, which
+   * outlives the state the way the ROW outlives it.
+   */
+  question: string;
   lastActivityWrittenAt: number;
   /** Epoch ms until which this pane's repaint is reflow, not work (12.11). */
   reflowUntil: number;
@@ -167,6 +187,7 @@ export function freshState(now: number): SessionState {
     sawKeypad: false,
     lastWorkingAt: now,
     excerpt: '',
+    question: '',
     lastActivityWrittenAt: 0,
     reflowUntil: 0,
     witnessPid: null,

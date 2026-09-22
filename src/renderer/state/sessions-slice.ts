@@ -105,6 +105,26 @@ export interface SessionsSlice {
   attentionSince: Record<string, number>;
   /** Last non-empty terminal line per session (⌘J excerpt). */
   excerpts: Record<string, string>;
+  /**
+   * PHASE 311. What the agent in a session is asking, keyed by session id.
+   *
+   * Main composes it from the hook body it already receives, redacts it and
+   * clips it before it is sent, and a row draws it INSTEAD of the excerpt when
+   * there is one. The excerpt is the last inked line of the screen, which for
+   * every committed Claude dialog is the hint row, so the question is the
+   * better of the two whenever main has one.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. It arrives on the activity
+   * channel beside the excerpt and the last output time, which is the channel
+   * for per session facts that are not the status, and no code path leads from
+   * this record to `statusVisual`, to the dot or to `SessionStatus`.
+   *
+   * An id is absent when main has said nothing about that session's question,
+   * which is every session of the other fourteen agents and every Claude
+   * session that is not sitting at a dialog. Absent draws the excerpt, which
+   * is what every row drew before this phase.
+   */
+  questions: Record<string, string>;
   /** Last observed output activity per session (epoch ms). */
   lastActivity: Record<string, number>;
   /**
@@ -977,6 +997,7 @@ export const createSessionsSlice: StateCreator<
 
     attentionSince: {},
     excerpts: {},
+    questions: {},
     lastActivity: {},
     endedSeenAt: {},
     handbacks: {},

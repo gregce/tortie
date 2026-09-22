@@ -197,6 +197,24 @@ export interface SessionActivityInfo {
    * dropped, so the renderer never has to read a clear out of an absence.
    */
   handback?: SessionHandbackInfo;
+  /**
+   * PHASE 311. What the agent in this session is asking, in the agent's own
+   * words, composed in main from the `PermissionRequest` hook body Tortie
+   * already receives and already parses.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. `SessionStatus` gains no
+   * member for it and the status dot is not drawn from it. It rides here for
+   * the same reason `handback` does: this is main's channel for per session
+   * facts that are NOT the status, so a fact that must never become a status
+   * has no other honest road into the window.
+   *
+   * Absent means this update carries no news about the question, exactly as an
+   * absent `excerpt` does, and the renderer keeps what it already had. It is
+   * redacted and clipped in main before it is sent, and it reaches no log —
+   * hook payloads carry the person's own prompt text, which is why
+   * src/main/activity/hooks.ts states that rule at the top of the file.
+   */
+  question?: string;
 }
 
 /** New event channel appended by the activity stream. */

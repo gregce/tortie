@@ -55,6 +55,14 @@ import './story.css';
 export interface ProjectLinesProps {
   project: OverviewProject;
   statuses: Record<string, SessionStatus>;
+  /**
+   * Phase 311. What the agent in each session is asking, keyed by session id,
+   * from the activity channel. It is drawn UNDER the line of a waiting row and
+   * nowhere else, and a row main has no question for draws exactly what it drew
+   * before this phase. It is the agent's own words, so it is quoted text for
+   * the integer rule the same way a session's name is.
+   */
+  questions?: Record<string, string>;
   selected: number;
   onSelect(i: number): void;
   onActivate(sessionId: string): void;
@@ -62,7 +70,15 @@ export interface ProjectLinesProps {
 }
 
 export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
-  const { project, statuses, selected, onSelect, onActivate, now } = props;
+  const {
+    project,
+    statuses,
+    questions = {},
+    selected,
+    onSelect,
+    onActivate,
+    now
+  } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Phase 147. The story's own store, module scope and separate from the
@@ -173,6 +189,28 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
                 >
                   {line.outcome}
                 </span>
+                {/* Phase 311. What is being asked, under the line, on a row
+                    that is waiting on the person and only there. The sentence
+                    above says the row is waiting; this says what for, in the
+                    agent's own words, which main redacted and clipped before it
+                    sent them. Quoted text, because it is somebody's words
+                    rather than anything this page composed, which is what
+                    accounts for its digits under the integer rule. */}
+                {status === 'needs_input' &&
+                (questions[session.sessionId] ?? '') !== '' ? (
+                  // The fix round added the `title`. This line is about 1,109px
+                  // at the shipped width, which draws roughly 155 of the 200
+                  // characters main will send, and the tail is then the only
+                  // place the rest of the sentence exists — the same repair the
+                  // ⌘J row's own label got, for the same measured reason.
+                  <div
+                    className="overview-line-question"
+                    data-quoted
+                    title={questions[session.sessionId]}
+                  >
+                    {questions[session.sessionId]}
+                  </div>
+                ) : null}
                 {/* Phase 138.1. The clock beside a sentence a MODEL wrote, and
                     nothing at all beside a line Tortie built. `summary` and
                     `summaryWrittenAt` are filled by one function in main, so

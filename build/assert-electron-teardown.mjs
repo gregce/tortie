@@ -264,12 +264,22 @@ const HELPER = 'electron-run.mjs';
  * helper's `finally` whether it was killed or not. Phase 300 was built beside
  * it and landed first at 146, so this phase is the one that lands at 147.
  *
+ * PHASE 311 RAISED IT FROM 147 TO 148, for build/p311/probe-p311.mjs
+ * (`probe:p311`), the app run for what a blocked row SAYS: one Electron on a
+ * scratch profile and a scratch HOME, a nine line /bin/sh `claude` printing the
+ * committed dialog fixtures so no vendor process runs and no token is spent, and
+ * a real `PermissionRequest` POSTed to the app's own loopback route with the
+ * token read out of the settings file the app itself wrote. It names its own
+ * socket rather than taking one from a wrapper, so the helper's `finally` ends
+ * the tmux server and the app together. It was written in the phase's FIX ROUND,
+ * because the phase had named its one app run and nobody had written it.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 147;
+const HELPER_USER_FLOOR = 148;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

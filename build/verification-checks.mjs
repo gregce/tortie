@@ -397,6 +397,32 @@ export const CHECKS = [
   // over fourteen ablated copies of the pure module, one clause each.
   pure('conformance:derived'),
   pure('conformance:handback'),
+  // PHASE 311. The phone mock may not invent a word Tortie does not say.
+  // build/p311/copy-drift.mjs extracts every user-visible string the screens in
+  // docs/design/phone/ draw, splits each at Tortie's own ` · ` separator, and
+  // judges every segment against a declared ledger: owned by a named module and
+  // compared to it byte for byte, or data with its reason, or owed by a named
+  // later phase and printed on every run. A segment no rule covers fails by
+  // name. Its --self-test arm re-judges in-memory mutations of the mock — a
+  // curly quote straightened, a letter dropped, a status word swapped, an
+  // undeclared sentence added, an agent name the registry does not carry — and
+  // each must go red. It spawns nothing, writes nothing and reads only the mock
+  // and the modules the ledger names.
+  pure('conformance:phonecopy'),
+  // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
+  // Electron on a scratch profile with a scratch HOME and the socket
+  // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that
+  // HOME's PATH is a nine line /bin/sh script printing the COMMITTED dialog
+  // fixtures, so the screen half is the tree's own bytes, NO VENDOR PROCESS RUNS
+  // AND NO TOKEN IS SPENT; the hook half is real, POSTed to the app's own
+  // loopback route with the 128-bit token read out of the settings file the app
+  // itself wrote. Ten arms: today's row live, the row after the hook, the
+  // rectangle (one line, tail-truncated, and the whole question in the row's own
+  // label), the Catch Me Up line and the question under it, the 200 cap, the
+  // redaction on the drawn row, the clear when a SECOND committed dialog arrives
+  // with no hook, a control shell row byte for byte, and app.log afterwards with
+  // no byte of any body in it. P311_CHECKOUT points it at a parent build.
+  electron('probe:p311'),
   adapter(
     'conformance:specstory:entitlement',
     'macOS codesign and the vendored specstory binary; it signs scratch copies and runs them'

@@ -30,6 +30,17 @@ export {
   type HookServerEvents
 } from './hooks';
 
+/**
+ * PHASE 311. The question a `PermissionRequest` body is asking. The session
+ * core composes it at the ONE place the hook body arrives and hands the words
+ * to the monitor; nothing else in main reads a hook body.
+ *
+ * `QUESTION_MAX` is NOT re-exported. It is one constant with one call site, in
+ * the leaf that applies it, and a domain API made out of it would invite a
+ * second clip somewhere else.
+ */
+export { questionFromHookBody } from './question';
+
 export {
   isTurnBoundary,
   offersResume,
