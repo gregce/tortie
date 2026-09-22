@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Changed
 
-- A Claude Code session that is waiting on you now says what it is being asked — the tool and the one thing it is about to touch — on Sessions That Need Input and in Catch Me Up, instead of the last line of its screen, which was almost always the hint about which key cancels; Catch Me Up also stops saying such a session's answer is not in the record when it is only waiting. Sessions from the other agents still show their last line, and a row shortens a long question to fit one line — hover it to read the whole of it
+- A Claude Code session that is waiting on you now says what it is being asked — the tool and the one thing it is about to touch — on Sessions That Need Input and in Catch Me Up, instead of the last line of its screen, which was almost always the hint about which key cancels; Catch Me Up also stops saying such a session's answer is not in the record when it is only waiting. Sessions from the other agents still show their last line, and a row shortens a long question to fit one line — hover it to read the whole of it ([`a6aec811`](https://github.com/gregce/tortie/commit/a6aec811)), ([`d27acd8e`](https://github.com/gregce/tortie/commit/d27acd8e))
 
 ## 0.110.0 (2026-09-21)
 
