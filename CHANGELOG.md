@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
-- Catch Me Up now shows the choices themselves under a session that is waiting on one, in the agent's own words and with the agent's own numbers, and the question the agent asked appears above them and in the ⌘J list of sessions waiting on you, so you can see what is being asked without opening the session. They are there to read rather than to press, so you still answer in the session, and an agent that draws its menu without numbering the options, or numbers it in a way Tortie does not already recognise, shows nothing new
+- Catch Me Up now shows the choices themselves under a session that is waiting on one, in the agent's own words and with the agent's own numbers, and the question the agent asked appears above them and in the ⌘J list of sessions waiting on you, so you can see what is being asked without opening the session. They are there to read rather than to press, so you still answer in the session, and an agent that draws its menu without numbering the options, or numbers it in a way Tortie does not already recognise, shows nothing new ([`e4746fdd`](https://github.com/gregce/tortie/commit/e4746fdd))
 
 ### Changed
 
