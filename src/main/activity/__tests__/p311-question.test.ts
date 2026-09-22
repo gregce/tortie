@@ -17,6 +17,19 @@
  *     cleared the moment the session stops being blocked — here by the state
  *     machine's own release, so the clear is proved without a second hook.
  *
+ * SECTION 3 WAS REWRITTEN WHEN PHASES 311 AND 312 LANDED TOGETHER, and the
+ * rewrite is the one real interaction the two have. It asserted that a Claude
+ * session sitting at the committed dialog fixture put NO question on the wire
+ * until a hook fired, which was true of a tree where the screen's own `QUEST` row
+ * was matched and thrown away. Phase 312 picks that row up for every agent, so
+ * the same fixture now answers `Do you want to make this edit to note.txt?` off
+ * the screen — which is the line this phase's own first paragraph says a person
+ * wants and the hint row it says they get instead. The arms below therefore prove
+ * MORE than they did: the PRECEDENCE live in the monitor (a hook's answer
+ * replacing the screen's on the wire for the same gate), that a hook with no body
+ * blanks nothing, that a gate whose question cannot be placed is still a miss and
+ * not a lie, and every clear the old arms proved.
+ *
  * It binds one ephemeral loopback port and closes it, writes no file outside a
  * temporary directory it removes, starts no agent, reads nothing under
  * anybody's home and spends no token.
@@ -243,7 +256,11 @@ describe('THE HOSTILE FIXTURE — the eight shapes', () => {
       '{"tool_name":"Bash"}',
       body({ tool_name: 'Bash', tool_input: { command: 'x'.repeat(70_000) } }),
       body({ tool_name: 'a'.repeat(5_000) }),
-      body({ tool_name: 'Bash', tool_input: { command: '\u0000\u0007' } })
+      // The third character is a C1 byte, written as an ESCAPE. It arrived as a
+      // RAW U+009F in the commit that landed this file, which reads as an ASCII
+      // line carrying two escapes and is not one — the point of the shape is the
+      // C1 block, so the source says so. The composed string is identical.
+      body({ tool_name: 'Bash', tool_input: { command: '\u0000\u0007\u009f' } })
     ];
     for (const shape of shapes) {
       let answer: string | null = null;
@@ -371,6 +388,12 @@ class Harness {
   now = 1_800_000_000_000;
   /** What `capture-pane` answers this tick. */
   capture = fixture('claude-permission-prompt.txt');
+  /**
+   * `#{pane_in_mode}` — the person has scrolled back in this pane. The monitor
+   * captures no pane in copy mode, so a blocked session in this state gets NO
+   * reading of its screen for as long as the person is reading it.
+   */
+  inMode = false;
   readonly statuses: Array<[string, SessionStatus]> = [];
   readonly updates: SessionActivityUpdate[] = [];
   readonly monitor: SessionActivityMonitor;
@@ -395,7 +418,7 @@ class Harness {
           String(Math.floor(this.now / 1000) - 60),
           '0',
           '0',
-          '0',
+          this.inMode ? '1' : '0',
           '0',
           '25000',
           'zsh',
@@ -442,26 +465,35 @@ describe('the monitor stamps the question and clears it', () => {
   });
 
   it('puts it on the wire once, beside the excerpt, then clears it once', async () => {
-    // TWO TICKS OF THE COMMITTED DIALOG FIXTURE, which is the whole phase in
-    // one assertion: the detector blocks the session, and the only line the
-    // channel carries is the LAST INKED LINE of that screen, being the hint
-    // row. The question the agent asked is line 18 of the same fixture and
-    // nothing draws it today.
+    // TWO TICKS OF THE COMMITTED DIALOG FIXTURE, which is the whole of both
+    // phases in three assertions. The detector blocks the session; the excerpt
+    // is still the LAST INKED LINE of that screen, being the hint row, because
+    // nothing in either phase changed what the excerpt is; and the question is
+    // line 18 of the same fixture, which Phase 312 picks up off the screen for
+    // every agent and which Phase 311's first paragraph is about.
     await h.tick();
     await h.tick();
     expect(h.statuses.at(-1)).toEqual(['s1', 'needs_input']);
     expect(h.updates.map((u) => u.excerpt).filter((x) => x !== undefined)).toEqual([
       'Esc to cancel · Tab to amend'
     ]);
-    expect(h.questions()).toEqual([]);
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
 
     h.monitor.noteHookEvent('s1', 'needs_input', 'Edit /p/note.txt');
 
-    // The tick after the hook carries the question on that same channel, and
-    // the excerpt it replaces is left exactly as it was.
+    // THE PRECEDENCE, LIVE. The screen has not changed and still reads its own
+    // question, and the hook's answer REPLACES it on the wire, because a hook
+    // body is what the agent asked and a screen row is this repository's guess
+    // at which drawn row was the question. The excerpt it replaces on the row is
+    // left exactly as it was.
     h.updates.length = 0;
     await h.tick();
     expect(h.questions()).toEqual(['Edit /p/note.txt']);
+    expect(h.questions()).not.toContain(
+      'Do you want to make this edit to note.txt?'
+    );
     expect(h.updates.every((u) => u.excerpt === undefined)).toBe(true);
 
     // It is said once. Two more ticks of the same wait repeat neither it nor a
@@ -488,6 +520,91 @@ describe('the monitor stamps the question and clears it', () => {
     expect(h.questions()).toEqual([]);
   });
 
+  /**
+   * A second readable gate, so a session can move from one gate to another
+   * WITHOUT leaving `needs_input` and without a second hook. Claude's theme
+   * picker and its trust gate both do this in the running app: they fire no
+   * `PermissionRequest` at all, so Phase 311's own clear — which runs when the
+   * WAIT ends — never runs, and the hook's sentence about the gate the person
+   * just answered would go on being drawn over the gate now in front of them.
+   */
+  const SECOND_GATE = [
+    '⏺ Running the suite',
+    '',
+    '────────────────────────────────────────────',
+    ' Do you want to run the whole suite?',
+    ' ❯ 1. Yes',
+    '   2. No',
+    '',
+    ' Esc to cancel',
+    ''
+  ].join('\n');
+
+  it('drops the hook’s sentence when the screen draws a DIFFERENT gate', async () => {
+    await h.tick();
+    await h.tick();
+    h.monitor.noteHookEvent('s1', 'needs_input', 'Edit /p/note.txt');
+    h.updates.length = 0;
+    await h.tick();
+    expect(h.questions()).toEqual(['Edit /p/note.txt']);
+
+    // The person answers, and claude draws a second gate with no hook behind it.
+    // The session never leaves needs_input, so nothing about the WAIT ending can
+    // help here: the only signal is the screen's own choice moving from one real
+    // gate to a different real one.
+    h.capture = SECOND_GATE;
+    h.updates.length = 0;
+    await h.tick();
+    expect(h.statuses.at(-1)).toEqual(['s1', 'needs_input']);
+    expect(h.questions()).not.toContain('Edit /p/note.txt');
+    expect(h.questions()).toEqual(['Do you want to run the whole suite?']);
+  });
+
+  it('holds the screen’s question through ticks that capture nothing', async () => {
+    // WHY THE SCREEN'S READING IS HELD RATHER THAN RECOMPUTED. A blocked session
+    // is not captured on every tick: `MAX_CAPTURES_PER_TICK` is 6, and a pane the
+    // person has scrolled back in is not captured at all. A composer that read the
+    // screen only when a capture arrived would blank the question on every one of
+    // those ticks and send it again on the next, so a person reading their own
+    // scrollback would watch the row flicker at 1 Hz.
+    await h.tick();
+    await h.tick();
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
+
+    h.inMode = true;
+    h.updates.length = 0;
+    await h.tick();
+    await h.tick();
+    await h.tick();
+    expect(h.statuses.at(-1)).toEqual(['s1', 'needs_input']);
+    // Not blanked, and not repeated either: the channel says nothing, because
+    // nothing about the question moved.
+    expect(h.questions()).toEqual([]);
+    expect(h.updates.every((u) => !Object.hasOwn(u, 'question'))).toBe(true);
+  });
+
+  it('keeps the hook’s sentence while the screen holds the SAME gate', async () => {
+    // The control for the arm above, and the reason its condition is a move
+    // between two REAL choices. A hook arrives BEFORE claude's frontend paints
+    // the dialog, so the first reading of a gate is the hook's own gate showing
+    // up — dropping the sentence there would throw away the agent's own words
+    // every single time, in favour of a reading of the screen they describe.
+    h.capture = 'a quiet screen\n';
+    await h.tick();
+    h.monitor.noteHookEvent('s1', 'needs_input', 'Edit /p/note.txt');
+    await h.tick();
+    expect(h.questions()).toEqual(['Edit /p/note.txt']);
+
+    h.capture = fixture('claude-permission-prompt.txt');
+    h.updates.length = 0;
+    await h.tick();
+    await h.tick();
+    expect(h.statuses.at(-1)).toEqual(['s1', 'needs_input']);
+    expect(h.questions()).toEqual([]);
+  });
+
   it('keeps no question for an event that does not mean the agent is waiting', async () => {
     h.capture = 'a quiet screen\n';
     await h.tick();
@@ -497,14 +614,38 @@ describe('the monitor stamps the question and clears it', () => {
     expect(h.questions()).toEqual([]);
   });
 
-  it('ignores a null or empty question and draws nothing', async () => {
+  it('a hook with no question of its own adds nothing and BLANKS nothing', async () => {
+    // What a null or an empty hook question means, and it is not the same as a
+    // clear: an over-cap `PermissionRequest` body arrives as '' (the server drops
+    // it whole rather than truncating), and a tool whose input says nothing
+    // telling composes null. Either way the hook has nothing to say, and the row
+    // must keep whatever the screen can still read — `composeQuestion`'s own
+    // rule, asked here of the monitor rather than of the function.
     await h.tick();
     h.monitor.noteHookEvent('s1', 'needs_input', null);
     await h.tick();
-    expect(h.questions()).toEqual([]);
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
+    h.updates.length = 0;
     h.monitor.noteHookEvent('s1', 'needs_input', '');
     await h.tick();
     expect(h.questions()).toEqual([]);
+
+    // And the hook contributes nothing OF ITS OWN: on a screen the reading
+    // answers nothing about, a null hook leaves the channel silent rather than
+    // putting a blank or a sentence of Tortie's on it.
+    const quiet = new Harness();
+    try {
+      quiet.capture = 'a quiet screen\n';
+      await quiet.tick();
+      quiet.monitor.noteHookEvent('s1', 'needs_input', null);
+      await quiet.tick();
+      expect(quiet.questions()).toEqual([]);
+      expect(quiet.updates.every((u) => !Object.hasOwn(u, 'question'))).toBe(true);
+    } finally {
+      quiet.cleanup();
+    }
   });
 
   it('clears it after a forget that keeps the handback', async () => {
@@ -513,7 +654,13 @@ describe('the monitor stamps the question and clears it', () => {
     // or it would keep a question nothing is waiting on.
     await h.tick();
     await h.tick();
+    // The screen's own reading goes first, because the fixture is a gate this
+    // repository can read; the hook's answer then replaces it.
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
     h.monitor.noteHookEvent('s1', 'needs_input', 'Edit /p/note.txt');
+    h.updates.length = 0;
     await h.tick();
     expect(h.questions()).toEqual(['Edit /p/note.txt']);
 
@@ -541,7 +688,11 @@ describe('the monitor stamps the question and clears it', () => {
   it('clears it after a forget that keeps NOTHING', async () => {
     await h.tick();
     await h.tick();
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
     h.monitor.noteHookEvent('s1', 'needs_input', 'Bash rm -rf build');
+    h.updates.length = 0;
     await h.tick();
     expect(h.questions()).toEqual(['Bash rm -rf build']);
 
@@ -551,7 +702,18 @@ describe('the monitor stamps the question and clears it', () => {
     await h.tick();
     expect(h.questions()).toEqual(['']);
 
-    // And once only, because the window's memory is now empty too.
+    // And the clear is said ONCE. What the next tick says is the GATE'S OWN
+    // question — the dialog never left this fixture's screen, so the new life
+    // reaches needs_input on it and is genuinely blocked on it — and never a
+    // second clear and never the sentence the previous life was asking.
+    h.updates.length = 0;
+    await h.tick();
+    expect(h.questions()).not.toContain('');
+    expect(h.questions()).not.toContain('Bash rm -rf build');
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
+    // Said once here too: the window holds it now, so the tick after says nothing.
     h.updates.length = 0;
     await h.tick();
     expect(h.questions()).toEqual([]);
@@ -561,10 +723,18 @@ describe('the monitor stamps the question and clears it', () => {
     // The whole regression in one arm. The session is blocked with a question,
     // it leaves Tortie's list, it comes back under the same id, and it reaches
     // needs_input from a DIFFERENT committed dialog — one that hands Tortie no
-    // hook body at all.
+    // hook body at all AND whose question `QUEST` cannot place, because the words
+    // are `Is this a project you created or one you trust?` six inked rows above
+    // the options. So neither source has an answer and the row falls back to the
+    // gate's own last inked line. That is the MISS `screen.ts` prefers to a lie,
+    // and it is what makes this arm still worth its name after Phase 312.
     await h.tick();
     await h.tick();
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
     h.monitor.noteHookEvent('s1', 'needs_input', 'Bash rm -rf build');
+    h.updates.length = 0;
     await h.tick();
     expect(h.questions()).toEqual(['Bash rm -rf build']);
 
@@ -593,20 +763,79 @@ describe('the monitor stamps the question and clears it', () => {
     ).toEqual(['Enter to confirm · Esc to cancel']);
   });
 
+  it('draws the SCREEN’S question on a session restored at a gate it can read', async () => {
+    // THE OTHER HALF OF THE ARM ABOVE, and it is the reconciliation's own claim.
+    // The same restore, at a gate whose question this repository CAN place: the
+    // previous life's hook answer is cleared and the screen's reading takes its
+    // place, so the row asks what the gate asks instead of drawing
+    // `Esc to cancel · Tab to amend`. A build that filtered the screen's reading
+    // out for Claude would answer the empty string here and draw the hint row.
+    await h.tick();
+    await h.tick();
+    h.monitor.noteHookEvent('s1', 'needs_input', 'Bash rm -rf build');
+    await h.tick();
+    expect(h.questions().at(-1)).toBe('Bash rm -rf build');
+
+    h.sessions.length = 0;
+    await h.tick();
+
+    h.sessions.push({
+      id: 's1',
+      tmuxId: '$1',
+      agent: 'claude',
+      cwd: '/Users/example/work'
+    });
+    h.updates.length = 0;
+    await h.tick();
+    await h.tick();
+
+    expect(h.statuses.at(-1)).toEqual(['s1', 'needs_input']);
+    // The previous life's answer is gone and the gate's own question is what the
+    // wire ends on, whether that took one message or two.
+    expect(h.questions()).not.toContain('Bash rm -rf build');
+    expect(h.questions().at(-1)).toBe(
+      'Do you want to make this edit to note.txt?'
+    );
+  });
+
   it('says nothing about the question on an ordinary tick, first tick included', async () => {
     // The control the fix must not break, and it is why the memory was hoisted
     // out of the state rather than seeded with a sentinel inside it: a sentinel
     // makes the FIRST tick of every session carry an explicit clear, and this
     // channel's promise is that it carries news.
-    await h.tick();
-    await h.tick();
-    await h.tick();
-    expect(h.updates.every((u) => !Object.hasOwn(u, 'question'))).toBe(true);
-    // A session that never blocks says nothing about it either.
+    //
+    // THE ORDINARY SESSION IS THE ONE THAT NEVER BLOCKS, which is what this arm
+    // drives now. It used to drive the DIALOG fixture for three ticks and assert
+    // silence, which was only true while the screen's own question row was matched
+    // and thrown away: a blocked session at a gate this repository can read is
+    // news, and saying nothing about it is the defect both phases exist to fix.
     h.capture = 'a quiet screen\n';
+    await h.tick();
+    await h.tick();
+    await h.tick();
+    expect(h.statuses.at(-1)).not.toEqual(['s1', 'needs_input']);
+    expect(h.updates.every((u) => !Object.hasOwn(u, 'question'))).toBe(true);
     h.updates.length = 0;
     await h.tick();
     await h.tick();
+    expect(h.updates.every((u) => !Object.hasOwn(u, 'question'))).toBe(true);
+  });
+
+  it('says the screen’s question ONCE, and then carries news and not a heartbeat', async () => {
+    // The same promise asked of the screen's half, which is the half no arm
+    // covered before the two phases landed together: the reading is taken on
+    // every capture and put on the wire only when it MOVES, so a gate a person
+    // leaves up for a minute costs one message rather than sixty.
+    await h.tick();
+    await h.tick();
+    expect(h.questions()).toEqual([
+      'Do you want to make this edit to note.txt?'
+    ]);
+    h.updates.length = 0;
+    await h.tick();
+    await h.tick();
+    await h.tick();
+    expect(h.questions()).toEqual([]);
     expect(h.updates.every((u) => !Object.hasOwn(u, 'question'))).toBe(true);
   });
 

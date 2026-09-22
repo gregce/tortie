@@ -83,6 +83,13 @@ export function OverviewLayer(): React.JSX.Element | null {
   // Read here rather than in ProjectLines for the same reason the statuses are:
   // this layer is the one place that binds the store, and the views below it
   // take what they draw.
+  // PHASE 312. The option rows main read off the agents' screens, and the one
+  // question main composed for each. Read here and handed down to ALL THREE
+  // levels, because this layer is where the rows' facts are gathered and the
+  // views below draw only what they are given — and because the level a person
+  // lands on is decided by where their keyboard is, so a level that is handed
+  // nothing is a level where a blocked session says nothing.
+  const choices = useApp((s) => s.choices);
   const questions = useApp((s) => s.questions);
   const now = useNow(30_000);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -198,6 +205,8 @@ export function OverviewLayer(): React.JSX.Element | null {
           <SessionConversation
             session={one}
             status={statuses[one.sessionId] ?? 'idle'}
+            choice={choices[one.sessionId]}
+            question={questions[one.sessionId]}
             selected={overview.selected}
             onSelect={(i) => {
               useApp.getState().setOverviewSelected(i);
@@ -211,12 +220,15 @@ export function OverviewLayer(): React.JSX.Element | null {
           <SessionColumns
             sessions={columnsOf(overview)}
             statuses={statuses}
+            choices={choices}
+            questions={questions}
             now={now}
           />
         ) : (
           <ProjectLines
             project={data}
             statuses={statuses}
+            choices={choices}
             questions={questions}
             selected={overview.selected}
             onSelect={(i) => {

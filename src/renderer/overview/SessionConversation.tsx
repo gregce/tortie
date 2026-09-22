@@ -15,7 +15,11 @@
 
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import type { OverviewSessionView } from '@shared/overview';
+import type { SessionChoiceInfo } from '@shared/ipc/sessions';
 import type { SessionStatus } from '@shared/types';
+// PHASE 312. The one block every Catch Me Up level draws for a session sitting
+// at a numbered choice.
+import { ChoiceBlock } from './ChoiceBlock';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
 import { AgentIcon } from '../icons';
@@ -32,6 +36,19 @@ export interface SessionConversationProps {
   onSelect(i: number): void;
   onActivate(): void;
   now: number;
+  /**
+   * PHASE 312. What main last said about this session's numbered choice and what
+   * the agent is asking, or nothing.
+   *
+   * THIS IS THE LEVEL A PERSON ACTUALLY REACHES FROM A BLOCKED SESSION. The
+   * chord's level is decided by where the keyboard is (`level.ts`), so pressing
+   * it while sitting in the session that is asking opens THIS view — and the
+   * first build of Phase 312 drew the choices on the project rows alone, which is
+   * the one level that gesture never lands on. Both props are optional, so a
+   * caller with nothing to say draws exactly what it drew before.
+   */
+  choice?: SessionChoiceInfo;
+  question?: string;
 }
 
 /** True when the header owes the reader a word about the missing clocks. */
@@ -122,6 +139,10 @@ export function SessionConversation(
           <span data-age>{sub[1]}</span>
           {noClocks(session) ? ` · ${NO_CLOCK_NOTE}` : ''}
         </div>
+        {/* PHASE 312. Under the state line and above the conversation, because
+            the choice is what this session is waiting on RIGHT NOW and the turns
+            below it are what has already happened. */}
+        <ChoiceBlock choice={props.choice} question={props.question} />
       </div>
       <div className="overview-session-body">
         <div className="overview-scroll" ref={scrollRef}>

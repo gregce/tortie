@@ -105,6 +105,24 @@ export interface SessionState {
    * outlives the state the way the ROW outlives it.
    */
   question: string;
+  /**
+   * PHASE 312, and the field the Phase 311 reconciliation added. The SCREEN's
+   * half of the same question: the row `detectDialogRows` matched above the
+   * options on the last capture this session was blocked on, redacted and
+   * capped there, and '' when the screen drew none or the wait is over.
+   *
+   * IT IS HELD RATHER THAN RECOMPUTED, for the same reason `excerpt` above it
+   * is. A blocked session is not captured on every tick — `MAX_CAPTURES_PER_TICK`
+   * is 6 and a pane in copy mode is not captured at all — so a tick with no
+   * capture carries no news about the screen, and a composer that read the
+   * screen only when a capture arrived would blank the question on those ticks
+   * and send it again on the next one, flapping at 1 Hz.
+   *
+   * IT IS NOT THE ANSWER. `./monitor.ts`'s `uiUpdate` composes the one answer
+   * out of this and `question` above through `composeQuestion`, which is the
+   * single place the precedence lives, and nothing in this file reads either.
+   */
+  screenQuestion: string;
   lastActivityWrittenAt: number;
   /** Epoch ms until which this pane's repaint is reflow, not work (12.11). */
   reflowUntil: number;
@@ -188,6 +206,7 @@ export function freshState(now: number): SessionState {
     lastWorkingAt: now,
     excerpt: '',
     question: '',
+    screenQuestion: '',
     lastActivityWrittenAt: 0,
     reflowUntil: 0,
     witnessPid: null,

@@ -24,7 +24,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionStatus } from '@shared/types';
-import { SessionActivityMonitor, type ActivitySession } from '../monitor';
+import {
+  SessionActivityMonitor,
+  type ActivitySession,
+  type SessionActivityUpdate
+} from '../monitor';
 import { parseProcTable, type ProcSnapshot, type WitnessReading } from '../process';
 
 const fixture = (name: string): string =>
@@ -57,6 +61,12 @@ class Harness {
   sessions: ActivitySession[] = [];
   captures = new Map<string, string>();
   readonly statuses: Array<[string, SessionStatus]> = [];
+  /**
+   * Every `activity:changed` update main handed the broadcast, in order, and
+   * grouped by the call it arrived on — Phase 312 asks how many messages a
+   * tick sent as well as what they said.
+   */
+  readonly activity: SessionActivityUpdate[][] = [];
   readonly dead: Array<[string, number | undefined, string | undefined]> = [];
   readonly monitor: SessionActivityMonitor;
   /** Tier-2 table; hermetic — these tests never shell out to the real `ps`. */
@@ -122,7 +132,7 @@ class Harness {
       },
       claudeSessionsDir: this.claudeDir,
       onStatus: (id, status) => this.statuses.push([id, status]),
-      onActivity: () => undefined,
+      onActivity: (updates) => this.activity.push(updates),
       onDead: (id, code, signal) => this.dead.push([id, code, signal]),
       now: () => this.now
     });
@@ -266,20 +276,25 @@ describe('A6 — a plain shell', () => {
   });
 });
 
+/**
+ * A session on the floor: `droid` carries no native channel in the registry,
+ * so it exercises exactly the path a CLI gmux has never seen would take — and
+ * it is the path Phase 312's rows reach fourteen of the fifteen rows through.
+ */
+function fallbackSession(): void {
+  h.sessions = [{ id: 'f', tmuxId: '$3', agent: 'droid', cwd: '/Users/gdc/w' }];
+  h.panes = [
+    {
+      tmuxId: '$3',
+      paneId: '%3',
+      panePid: 300,
+      activity: Math.floor(h.now / 1000)
+    }
+  ];
+}
+
 describe('A4/A7 — the floor: an agent with no oracle', () => {
-  beforeEach(() => {
-    // `droid` carries no native channel in the registry, so this exercises
-    // exactly the path a CLI gmux has never seen would take.
-    h.sessions = [{ id: 'f', tmuxId: '$3', agent: 'droid', cwd: '/Users/gdc/w' }];
-    h.panes = [
-      {
-        tmuxId: '$3',
-        paneId: '%3',
-        panePid: 300,
-        activity: Math.floor(h.now / 1000)
-      }
-    ];
-  });
+  beforeEach(fallbackSession);
 
   it('promotes on output in one tick and demotes only after three quiet ones', async () => {
     await h.tick();
@@ -343,6 +358,217 @@ describe('A4/A7 — the floor: an agent with no oracle', () => {
 
     h.monitor.noteUserInput('f');
     expect(h.last('f')).toBe('running');
+  });
+});
+
+/**
+ * PHASE 312 — the choices ON THE BROADCAST.
+ *
+ * The rows themselves are pinned over real captures in `p312-choices.test.ts`.
+ * What is asked here is the monitor's half: WHEN a choice is put on
+ * `activity:changed`, when it is not, that an unchanged one is not re-sent at
+ * 1 Hz, and that a session which stops needing input is cleared even though
+ * nothing captured its pane again.
+ *
+ * Not one of these cases moves a status. Every status assertion below is the
+ * one the case above it already made at the parent commit.
+ */
+describe('Phase 312 — the choice on activity:changed', () => {
+  beforeEach(fallbackSession);
+
+  /** Updates that say something about the choice, flattened across messages. */
+  const choiceUpdates = (): SessionActivityUpdate[] =>
+    h.activity.flat().filter((u) => u.choice !== undefined);
+
+  const blocked = async (): Promise<void> => {
+    await h.tick(); // working (fresh output)
+    h.captures.set('%3', fixture('claude-permission-prompt.txt'));
+    await h.tick(4); // first dialog sighting — the verdict is not confirmed yet
+    expect(h.last('f')).not.toBe('needs_input');
+    expect(choiceUpdates()).toEqual([]);
+    await h.tick(); // second sighting → needs_input
+    expect(h.last('f')).toBe('needs_input');
+  };
+
+  it('sends the rows the agent drew, once the row says it needs input', async () => {
+    await blocked();
+    const sent = choiceUpdates();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.sessionId).toBe('f');
+    expect(sent[0]?.choice).toEqual({
+      atChoice: true,
+      options: [
+        { marker: '1', text: 'Yes' },
+        {
+          marker: '2',
+          text: 'Yes, allow all edits during this session (shift+tab)'
+        },
+        { marker: '3', text: 'No' }
+      ]
+    });
+    expect(sent[0]?.question).toBe(
+      'Do you want to make this edit to note.txt?'
+    );
+  });
+
+  it('says nothing about a choice while the screen still reads working', async () => {
+    // The dialog is on the screen for a tick before the verdict confirms it.
+    // Options under a working dot would be one surface contradicting another.
+    await h.tick();
+    h.captures.set('%3', fixture('claude-permission-prompt.txt'));
+    await h.tick(4);
+    expect(h.last('f')).not.toBe('needs_input');
+    expect(choiceUpdates()).toEqual([]);
+  });
+
+  it('does not re-send an unchanged choice on every tick', async () => {
+    await blocked();
+    h.activity.length = 0;
+    await h.tick();
+    await h.tick();
+    expect(choiceUpdates()).toEqual([]);
+  });
+
+  it('sends the new rows when the agent draws a different choice', async () => {
+    await blocked();
+    h.activity.length = 0;
+    h.captures.set('%3', fixture('claude-workspace-trust.txt'));
+    await h.tick();
+    const sent = choiceUpdates();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.choice).toEqual({
+      atChoice: true,
+      options: [
+        { marker: '1', text: 'Yes, I trust this folder' },
+        { marker: '2', text: 'No, exit' }
+      ]
+    });
+    // That gate asks its question in words `QUEST` does not match, so main
+    // sends no question of its own rather than inventing one — AND IT SAYS SO,
+    // with the explicit empty string, because the session was already drawing
+    // the previous gate's question and this is a different gate. An absent field
+    // here is the channel's "no news", and the row would go on asking
+    // `Do you want to make this edit to note.txt?` over a folder-trust gate.
+    expect(sent[0]?.question).toBe('');
+  });
+
+  it('clears the choice ONCE when the dialog leaves the screen', async () => {
+    await blocked();
+    h.activity.length = 0;
+    h.captures.set('%3', fixture('claude-post-answer.txt'));
+    await h.tick(); // still needs_input; the screen has already answered
+    expect(choiceUpdates().map((u) => u.choice)).toEqual([
+      { atChoice: false }
+    ]);
+    h.activity.length = 0;
+    // …and the release to working a tick later does not clear it a second time.
+    await h.tick();
+    expect(h.last('f')).toBe('running');
+    expect(choiceUpdates()).toEqual([]);
+  });
+
+  it('clears the choice when the PERSON answers it (Phase 9.2)', async () => {
+    await blocked();
+    h.activity.length = 0;
+    // The pane is not captured again for this: a session that has stopped
+    // needing input may not be captured for minutes, so a clear that waited
+    // for a capture would leave a surface drawing an answered choice.
+    h.monitor.noteUserInput('f');
+    expect(h.last('f')).toBe('running');
+    await h.tick();
+    expect(choiceUpdates().map((u) => u.choice)).toEqual([
+      { atChoice: false }
+    ]);
+  });
+
+  it('sends one message per session per tick, clear and excerpt together', async () => {
+    await blocked();
+    h.activity.length = 0;
+    h.monitor.noteUserInput('f');
+    h.captures.set('%3', 'a screen with nothing on it but this line');
+    await h.tick();
+    const messages = h.activity.map((m) => m.filter((u) => u.sessionId === 'f'));
+    expect(messages.flat()).toHaveLength(1);
+    // The question's clear rides the SAME message, because the wait is what it
+    // belonged to and the person has just ended the wait. Three facts about one
+    // session on one tick, and the renderer applies them together or not at all.
+    expect(messages.flat()[0]).toEqual({
+      sessionId: 'f',
+      excerpt: 'a screen with nothing on it but this line',
+      question: '',
+      choice: { atChoice: false }
+    });
+  });
+
+  it('never mentions a choice for a session that was never at one', async () => {
+    h.captures.set('%3', 'frame one');
+    await h.tick();
+    for (let i = 0; i < 6; i++) {
+      h.captures.set('%3', `frame ${i}`);
+      await h.tick(3);
+    }
+    expect(h.last('f')).toBe('running');
+    expect(choiceUpdates()).toEqual([]);
+  });
+
+  it('says NOTHING about a needs_input session that was never at a choice', async () => {
+    // THE FIX ROUND'S OWN ARM. The mark starts absent, and absent is not
+    // `NO_CHOICE_MARK`, so this session used to get one `{ atChoice: false }`
+    // about a choice it never had — a message that did not exist at the parent
+    // commit, for a renderer to delete a key that was never there.
+    await h.tick();
+    h.monitor.noteHookEvent('f', 'needs_input');
+    expect(h.last('f')).toBe('needs_input');
+    h.activity.length = 0;
+    h.captures.set('%3', 'a screen with no dialog on it');
+    await h.tick();
+    await h.tick();
+    expect(choiceUpdates()).toEqual([]);
+  });
+
+  it('re-sends the choice after the person answers and the gate is redrawn', async () => {
+    // The Phase 9.2 round trip, and it is what the drain's guard is for: the
+    // person's keystroke clears the choice inside one tick while the dialog is
+    // still on the screen, and the row only draws it again once the verdict has
+    // confirmed the gate is still up.
+    await blocked();
+    h.activity.length = 0;
+    h.monitor.noteUserInput('f');
+    await h.tick();
+    expect(choiceUpdates().map((u) => u.choice)).toEqual([
+      { atChoice: false }
+    ]);
+    h.activity.length = 0;
+    await h.tick();
+    expect(h.last('f')).toBe('needs_input');
+    expect(choiceUpdates()).toHaveLength(1);
+    expect(choiceUpdates()[0]?.choice).toMatchObject({ atChoice: true });
+  });
+
+  it('sends the CHOICE, not the clear, when both are true in one tick', async () => {
+    // The reachable shape: a hook moves the session out of needs_input, which
+    // queues a clear, and another moves it back in before the tick runs. The
+    // screen still holds the gate, so the tick must say what is on the screen —
+    // `choiceUpdate`'s own removal from the clear queue is the one thing that
+    // arranges it, and the clears are drained after the verdicts.
+    await blocked();
+    h.activity.length = 0;
+    h.monitor.noteHookEvent('f', 'working');
+    h.monitor.noteHookEvent('f', 'needs_input');
+    await h.tick();
+    const sent = choiceUpdates();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.choice).toMatchObject({ atChoice: true });
+  });
+
+  it('forgets a session whole, so a dead one sends no clear', async () => {
+    await blocked();
+    h.activity.length = 0;
+    h.monitor.forget('f');
+    h.sessions = [];
+    h.panes = [];
+    await h.tick();
+    expect(choiceUpdates()).toEqual([]);
   });
 });
 

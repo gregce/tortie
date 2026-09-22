@@ -31,7 +31,16 @@
 
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { OverviewProject } from '@shared/overview';
+import type { SessionChoiceInfo } from '@shared/ipc/sessions';
 import type { SessionStatus } from '@shared/types';
+// PHASE 312. The one block every Catch Me Up level draws for a session sitting
+// at a numbered choice.
+import { ChoiceBlock } from './ChoiceBlock';
+// PHASES 311 AND 312, RECONCILED. The ONE spelling of "is this session at a
+// numbered choice", asked here so this row and the block below it never draw the
+// same sentence twice. It is the helper's own invitation — "the same condition,
+// asked as a question instead of as a list" — and not a second copy of it.
+import { atNumberedChoice } from '../choice';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
 import { AgentIcon } from '../icons';
@@ -67,18 +76,23 @@ export interface ProjectLinesProps {
   onSelect(i: number): void;
   onActivate(sessionId: string): void;
   now: number;
+  /**
+   * PHASE 312. The option rows the agent drew, for the sessions at a numbered
+   * choice, keyed by session id.
+   *
+   * A PROP rather than a store read, which is the rule this view already
+   * follows for the statuses beside it: everything this view draws arrives as a
+   * prop, so the markup a test reads in node is the markup a person sees. It is
+   * optional so a caller that has nothing to say draws exactly what it drew
+   * before this phase.
+   */
+  choices?: Record<string, SessionChoiceInfo>;
 }
 
 export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
-  const {
-    project,
-    statuses,
-    questions = {},
-    selected,
-    onSelect,
-    onActivate,
-    now
-  } = props;
+  const { project, statuses, selected, onSelect, onActivate, now } = props;
+  const choices = props.choices ?? {};
+  const questions = props.questions ?? {};
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Phase 147. The story's own store, module scope and separate from the
@@ -196,8 +210,17 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
                     sent them. Quoted text, because it is somebody's words
                     rather than anything this page composed, which is what
                     accounts for its digits under the integer rule. */}
+                {/* PHASES 311 AND 312, RECONCILED. The block below draws the
+                    same sentence as the SUBJECT of the rows it carries, and a
+                    row that drew both said one thing twice — the one visible
+                    collision the two phases had. The question is drawn ONCE:
+                    here when there are no rows under it (a hook fires for tool
+                    calls that draw no numbered choice at all, which is every
+                    reason this cell exists), and by the block when there are,
+                    where it belongs above the options it is the subject of. */}
                 {status === 'needs_input' &&
-                (questions[session.sessionId] ?? '') !== '' ? (
+                (questions[session.sessionId] ?? '') !== '' &&
+                !atNumberedChoice(choices[session.sessionId]) ? (
                   // The fix round added the `title`. This line is about 1,109px
                   // at the shipped width, which draws roughly 155 of the 200
                   // characters main will send, and the tail is then the only
@@ -226,6 +249,15 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
                     </span>
                   </span>
                 ) : null}
+                {/* PHASE 312. The choices the agent drew, and the question they
+                    answer. ONE BLOCK, drawn the same way at all three Catch Me
+                    Up levels — its refusals, and why they are in a component of
+                    their own rather than in three copies of this JSX, are in
+                    ChoiceBlock.tsx. */}
+                <ChoiceBlock
+                  choice={choices[session.sessionId]}
+                  question={questions[session.sessionId]}
+                />
               </div>
               {/* Phase 147. The story's press target, a real button so the
                   keyboard reaches it. It is its own cell at the far right of

@@ -18,7 +18,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { OverviewSessionView } from '@shared/overview';
+import type { SessionChoiceInfo } from '@shared/ipc/sessions';
 import type { SessionStatus } from '@shared/types';
+// PHASE 312. The one block every Catch Me Up level draws for a session sitting
+// at a numbered choice.
+import { ChoiceBlock } from './ChoiceBlock';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
 import { honestLineFor, honestLineHasClock } from './line';
@@ -28,6 +32,16 @@ export interface SessionColumnsProps {
   sessions: OverviewSessionView[];
   statuses: Record<string, SessionStatus>;
   now: number;
+  /**
+   * PHASE 312. The numbered choices and the questions, keyed by session id.
+   *
+   * A split is the level where a person compares two sessions, so a column that
+   * is waiting on a numbered choice has to say which rows it is waiting on — one
+   * of them may be the reason they opened the split. Optional, so a caller with
+   * nothing to say draws exactly what it drew before.
+   */
+  choices?: Record<string, SessionChoiceInfo>;
+  questions?: Record<string, string>;
 }
 
 /** The structural shape of the press the layer hands over. */
@@ -62,6 +76,8 @@ function Column(props: {
   focused: boolean;
   bodyRef: (el: HTMLDivElement | null) => void;
   onOwnScroll: () => void;
+  choice: SessionChoiceInfo | undefined;
+  question: string | undefined;
 }): React.JSX.Element {
   const { session, status, now, focused, bodyRef, onOwnScroll } = props;
   return (
@@ -78,6 +94,9 @@ function Column(props: {
           {formatAge(session.lastTouchedAt ?? session.startedAt, now)}
         </span>
       </div>
+      {/* PHASE 312. Above the column's own scroller, so it is not scrolled away
+          from the state line it belongs to. */}
+      <ChoiceBlock choice={props.choice} question={props.question} />
       <div
         className="overview-column-body"
         ref={bodyRef}
@@ -194,6 +213,8 @@ export function SessionColumns(props: SessionColumnsProps): React.JSX.Element {
           session={session}
           status={statuses[session.sessionId] ?? 'idle'}
           now={now}
+          choice={(props.choices ?? {})[session.sessionId]}
+          question={(props.questions ?? {})[session.sessionId]}
           focused={i === focused}
           bodyRef={(el) => {
             bodies.current[i] = el;

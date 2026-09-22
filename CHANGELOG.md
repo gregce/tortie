@@ -6,6 +6,10 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## Unreleased
 
+### Added
+
+- Catch Me Up now shows the choices themselves under a session that is waiting on one, in the agent's own words and with the agent's own numbers, and the question the agent asked appears above them and in the ⌘J list of sessions waiting on you, so you can see what is being asked without opening the session. They are there to read rather than to press, so you still answer in the session, and an agent that draws its menu without numbering the options, or numbers it in a way Tortie does not already recognise, shows nothing new
+
 ### Changed
 
 - A Claude Code session that is waiting on you now says what it is being asked — the tool and the one thing it is about to touch — on Sessions That Need Input and in Catch Me Up, instead of the last line of its screen, which was almost always the hint about which key cancels; Catch Me Up also stops saying such a session's answer is not in the record when it is only waiting. Sessions from the other agents still show their last line, and a row shortens a long question to fit one line — hover it to read the whole of it ([`a6aec811`](https://github.com/gregce/tortie/commit/a6aec811)), ([`d27acd8e`](https://github.com/gregce/tortie/commit/d27acd8e))

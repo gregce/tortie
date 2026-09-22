@@ -1,0 +1,42 @@
+Do you trust this workspace?
+Workspace: /private/tmp/p312h/p312-muse-0vIoXc/work
+
+Trusting allows project-local skills, rules, hooks, and plugin config to load before the model runs.
+Only trust this workspace when you trust its contents.
+
+
+
+
+> 1  Trust and continue
+  2  Quit
+
+Use Up/Down or 1/2, then Enter. Esc quits.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

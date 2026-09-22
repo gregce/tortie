@@ -206,6 +206,17 @@ const LEDGER = [
     draws: 'Sessions',
     why: "the phone's nav title is the session manager sheet's own title"
   }),
+  // PHASE 312 LANDED THIS ONE. It was written here as OWED by Phase 312 while the
+  // two phases were built in parallel, and the gate's own instruction — "move the
+  // rule to the owned table and name the module" — is what this is. The words are
+  // the mock's own, which is why the phone and the desktop have one spelling.
+  owned({
+    is: 'Answer this in the session.',
+    module: 'src/renderer/choice.ts',
+    needle: "CHOICE_NOT_PRESSABLE = 'Answer this in the session.'",
+    draws: 'Answer this in the session.',
+    why: 'why the numbered choices are drawn unpressable until the operator rules'
+  }),
   owned({
     is: 'Needs your input (3)',
     module: 'src/renderer/app/AttentionOverlay.tsx',
@@ -506,11 +517,6 @@ const LEDGER = [
     is: 'Sending…',
     phase: 'Phase 316',
     why: "the composer's in-flight word"
-  }),
-  owed({
-    is: 'Answer this in the session.',
-    phase: 'Phase 312',
-    why: 'why the numbered choices are drawn unpressable until the operator rules'
   }),
   owed({
     is: 'Open in Terminal',

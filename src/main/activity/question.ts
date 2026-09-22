@@ -185,3 +185,70 @@ export function questionFromHookBody(body: string): string | null {
   const last = cut.charCodeAt(QUESTION_MAX - 1);
   return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
 }
+
+/**
+ * PHASE 312, mechanism 6 — ONE FIELD, TWO SOURCES, ONE PRECEDENCE, SPELLED HERE.
+ *
+ * `SessionActivityInfo.question` (`src/shared/ipc/sessions.ts`) can be filled
+ * from two places and they are not equally good:
+ *
+ *   - the agent's OWN words, which for a Claude session arrive in the
+ *     `PermissionRequest` hook body (Phase 311);
+ *   - a READING of what the agent's terminal frontend drew, which is the row
+ *     `QUEST` matched in `screen.ts`'s dialog window, and which is the only
+ *     source there is for every registry row with no hook.
+ *
+ * THE HOOK'S WINS. A hook body is the question; a screen row is this
+ * repository's guess at which drawn row was the question, taken from a 24-row
+ * window with a six-phrase regex, and it can be the wrong row. Where both
+ * exist the reading is discarded whole rather than merged, because half of one
+ * sentence and half of another is a sentence nobody asked.
+ *
+ * IT IS A FUNCTION RATHER THAN AN `??` AT THE CALL SITE, and that is the point
+ * of mechanism 6: the moment a second surface — the ⌘J row, Catch Me Up, the
+ * phone — composes the answer for itself, one of them composes it the other
+ * way, and the two draw sites disagree about what the person is being asked.
+ * Main answers once and every surface reads that answer.
+ *
+ * BOTH ARGUMENTS ARE WIRED, and the round that wired them is the one that landed
+ * the two phases together. The hook's answer is `SessionState.question`, stamped
+ * by `noteHookEvent` from `questionFromHookBody` above; the screen's is
+ * `SessionState.screenQuestion`, stamped by `choiceUpdate` from the row
+ * `detectDialogRows` matched. `uiUpdate` calls this once per session per tick and
+ * that call is the ONLY writer of the channel's `question` field — while the two
+ * phases were built in parallel this was called with a null hook argument, and
+ * each half separately wrote the field, so the later writer won by position and
+ * the screen's half was never tracked on the wire. If a later round finds one of
+ * these arms unused again, it has found a wiring that came undone.
+ *
+ * FOR A CLAUDE SESSION THAT FIRES NO HOOK THE SCREEN'S READING IS THE ANSWER,
+ * and that is a decision rather than a fallthrough. Claude's own trust gate and
+ * its theme picker fire no `PermissionRequest` at all, and the defect Phase 311
+ * opens with — a blocked row drawing `Esc to cancel · Tab to amend` while the
+ * question sits five rows above it — is exactly those rows. The reading is a
+ * guess about WHICH row was the question and never a sentence of Tortie's, so the
+ * worst case is the miss `screen.ts` already prefers to a lie. This is a
+ * PRECEDENCE and not a per-agent filter: no agent is excluded from either source,
+ * which is why this function takes two strings and knows no agent id.
+ *
+ * PURE. It reads no state, starts nothing, logs nothing, and holds nothing: the
+ * strings it is handed are the agent's words about the person's work and this
+ * module is a choice between two of them.
+ */
+
+/**
+ * The one question for a session, out of the hook's answer and the screen's.
+ *
+ * `null` from both is `null`: absent means the update carries no news about the
+ * question, which the channel's own field says in the same words. An empty
+ * string is treated as no answer rather than as an answer, because a hook that
+ * fires with no body must not blank the row the screen can still read.
+ */
+export function composeQuestion(
+  fromHook: string | null | undefined,
+  fromScreen: string | null | undefined
+): string | null {
+  if (typeof fromHook === 'string' && fromHook !== '') return fromHook;
+  if (typeof fromScreen === 'string' && fromScreen !== '') return fromScreen;
+  return null;
+}

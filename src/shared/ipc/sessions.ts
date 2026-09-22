@@ -198,24 +198,113 @@ export interface SessionActivityInfo {
    */
   handback?: SessionHandbackInfo;
   /**
-   * PHASE 311. What the agent in this session is asking, in the agent's own
-   * words, composed in main from the `PermissionRequest` hook body Tortie
-   * already receives and already parses.
+   * Phase 312. Whether this session is sitting at a numbered choice the agent
+   * drew on its screen, and — when it is — the question row and the option
+   * rows it drew. See {@link SessionChoiceInfo}.
+   *
+   * It is what decides whether a surface offers BUTTONS or a text box, which
+   * is the signal the operator's ruling of 2026-09-21 needs and which Tortie
+   * had for no agent: the detector answered `true` and threw the rows away in
+   * the same expression.
    *
    * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. `SessionStatus` gains no
-   * member for it and the status dot is not drawn from it. It rides here for
-   * the same reason `handback` does: this is main's channel for per session
-   * facts that are NOT the status, so a fact that must never become a status
-   * has no other honest road into the window.
+   * member for it and the status dot is not drawn from it.
+   *
+   * Absent means this update carries no news about the choice, exactly as an
+   * absent `excerpt` does, and the renderer keeps what it already had. Main
+   * sends an explicit `{ atChoice: false }` on the tick a session stops being
+   * at a choice, so the renderer never has to read a clear out of an absence.
+   */
+  choice?: SessionChoiceInfo;
+  /**
+   * PHASE 311 AND PHASE 312. What the agent is asking, for the row that is
+   * waiting on it. ONE DECLARATION, because the two phases landed together.
+   *
+   * ONE FIELD, TWO SOURCES, AND THE PRECEDENCE IS MAIN'S. For a Claude session
+   * both answers can exist — the `PermissionRequest` hook body (Phase 311) and
+   * the QUEST row the screen detector matched — and the hook's wins, because it
+   * is the agent's own words rather than a reading of what its terminal
+   * frontend drew. Main composes the one answer, so no surface chooses and two
+   * draw sites cannot disagree. Where the screen is the only source, which is
+   * every agent with no hook, main fills this same field from the detector.
+   *
+   * The screen's question is filled ONLY when the verdict says the session is
+   * at a choice. That is the one state the measured detector vouched for, and
+   * it is what stops a stray "do you want" in an agent's prose becoming the
+   * row's question.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. `SessionStatus` gains no
+   * member for it and the status dot is not drawn from it — Phase 141's own
+   * sentence for `handback` below, in the same words, for the same reason.
    *
    * Absent means this update carries no news about the question, exactly as an
-   * absent `excerpt` does, and the renderer keeps what it already had. It is
-   * redacted and clipped in main before it is sent, and it reaches no log —
-   * hook payloads carry the person's own prompt text, which is why
+   * absent `excerpt` does, and the renderer keeps what it already had. An EMPTY
+   * STRING is the explicit clear, sent on the tick the WAIT ends — whatever
+   * ended it, a hook, the person typing into the pane, or the dialog leaving the
+   * screen — so no surface has to read a clear out of an absence. It is also
+   * what a session is told the first time it is seen after being FORGOTTEN while
+   * a question was on a row, which is how a restored session never draws the
+   * previous life's question.
+   *
+   * It is redacted and clipped in main before it is sent, and it reaches no
+   * log — a hook payload carries the person's own prompt text, which is why
    * src/main/activity/hooks.ts states that rule at the top of the file.
    */
   question?: string;
 }
+
+/**
+ * Phase 312. One option row the agent drew, split into the marker a person
+ * would press and the text beside it.
+ *
+ * THE MARKER IS THE AGENT'S OWN, never this array's index. An agent that
+ * numbers its choices 1, 2, 4 — or that renumbers them after a scroll, or that
+ * repainted half a list — would be misreported by an index-derived numeral, and
+ * the numeral is the one part of the row a person acts on.
+ *
+ * IT IS SPLIT HERE BECAUSE MAIN'S DETECTOR ALREADY HOLDS BOTH HALVES. The
+ * collector's own regex captures the marker and the text in two groups and,
+ * before this phase, discarded both. Handing over the joined row would make the
+ * desktop face a second reader of that grammar and the phone a third — which is
+ * the waste this phase exists to end.
+ */
+export interface SessionChoiceOption {
+  /** The marker the agent drew, e.g. `1`, `2`, `10`. Digits only. */
+  marker: string;
+  /**
+   * The rest of the row, verbatim after the marker and its separator. The
+   * cursor glyph (`❯`) is not part of it: it says which option the cursor sits
+   * on rather than what the option is.
+   */
+  text: string;
+}
+
+/**
+ * Phase 312. What the screen said about a numbered choice.
+ *
+ * A UNION, so "at a choice with no options" cannot be built by accident: the
+ * rows exist exactly when `atChoice` is true, and the clear is one field.
+ *
+ * `atChoice` MEANS "at a choice AND the row says so". Main claims it only when
+ * the status it stamps in the same tick is `needs_input` — because the state
+ * machine turns a dialog into `needs_input` only after its confirm ticks, so a
+ * screen can hold a gate for a tick or two while the row still reads working,
+ * and options under a working dot would be one surface contradicting the dot
+ * beside it. The gate is spelled once, there, and nothing downstream repeats it.
+ *
+ * WHAT MAIN PUTS HERE IS ALREADY REDACTED AND ALREADY CAPPED. Every string
+ * passes `redactText` and one of the caps in `src/main/activity/screen.ts`, each
+ * at one definition with one call site, before it reaches this channel. A
+ * surface must not cap them again: a second cap would be a second place the
+ * truth about what a person sees lives.
+ *
+ * These are the AGENT's words about the person's work, on the channel that
+ * already carries the ⌘J excerpt, and nothing on either side of it may log
+ * them.
+ */
+export type SessionChoiceInfo =
+  | { atChoice: true; options: SessionChoiceOption[] }
+  | { atChoice: false };
 
 /** New event channel appended by the activity stream. */
 export interface ActivityEventPayloadMap {

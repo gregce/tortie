@@ -32,6 +32,7 @@
  * The timer and the IPC broadcast stay in src/main/ipc.ts.
  */
 
+import type { SessionChoiceInfo } from '@shared/ipc/sessions';
 import type { SessionStatus } from '@shared/types';
 import {
   activityProfileFor,
@@ -43,6 +44,9 @@ import {
   type ClaudeSessionEntry
 } from './claude-registry';
 import { claudeVerdict } from './oracles';
+// PHASE 312 mechanism 6. The one composer for the question field, so the hook's
+// answer and the screen's reading are never chosen between twice.
+import { composeQuestion } from './question';
 import { readPaneFacts, type PaneFacts } from './panes';
 import type { ScrollbackSample } from '../scrollback/watch';
 import {
@@ -54,7 +58,12 @@ import {
   type ProcSnapshot,
   type WitnessReading
 } from './process';
-import { excerptFromCapture } from './screen';
+import {
+  detectDialogRows,
+  excerptFromCapture,
+  hashScreen,
+  normalizeCapture
+} from './screen';
 import {
   binaryCandidatesFor,
   commandNamesAgent,
@@ -141,6 +150,16 @@ export interface SessionActivityUpdate {
   question?: string;
   /** Epoch ms of the last output tmux saw. */
   lastActivityAt?: number;
+  /**
+   * PHASE 312. The numbered choice the agent drew, if it drew one. Absent
+   * means this update says nothing about it; `{ atChoice: false }` is main
+   * saying there is none, so no surface reads a clear out of an absence.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. The verdict that produces
+   * `needs_input` did not change in this phase, and nothing reads this field
+   * on the way to one.
+   */
+  choice?: SessionChoiceInfo;
 }
 
 export interface ActivityMonitorDeps {
@@ -342,6 +361,21 @@ export class SessionActivityMonitor {
   private readonly questionOnWire = new Map<string, string>();
   /** When the last witness-only fleet table was taken (Phase 141). */
   private witnessTableAt = 0;
+  /**
+   * PHASE 312: a HASH of the choice last sent for this session, so an
+   * unchanged choice is not re-sent at 1 Hz. A hash rather than the rows
+   * because the rows are the person's data and a comparison is all this
+   * needs — nothing here has to be able to read them back.
+   */
+  private readonly choiceMark = new Map<string, string>();
+  /**
+   * PHASE 312: sessions whose choice has to be cleared because their STATE
+   * moved, not because a capture said so. A session that stops needing input
+   * may not be captured again for a long time (`wantCapture` takes the
+   * ambiguous and the blocked), so a clear that waited for a capture could
+   * wait forever and a surface would go on drawing an answered choice.
+   */
+  private readonly choiceClears = new Set<string>();
 
   constructor(private readonly deps: ActivityMonitorDeps) {
     this.now = deps.now ?? ((): number => Date.now());
@@ -402,6 +436,10 @@ export class SessionActivityMonitor {
     this.states.delete(sessionId);
     this.lastPane.delete(sessionId);
     this.rejectedChild.delete(sessionId);
+    // PHASE 312. A session nobody is watching any more has no choice to draw
+    // and no clear to send: the surface drops the whole row.
+    this.choiceMark.delete(sessionId);
+    this.choiceClears.delete(sessionId);
     if (!keepHandback || before === undefined) return;
     if (before.handback === 'none' && before.witnessPid === null) return;
     const kept = freshState(this.now());
@@ -582,7 +620,10 @@ export class SessionActivityMonitor {
     );
     if (this.disposed) return;
 
-    const updates: SessionActivityUpdate[] = [];
+    // PHASE 312. One update per session per tick, keyed so a choice cleared by
+    // a state change and an excerpt written by a capture travel together
+    // rather than as two messages about the same session.
+    const updates = new Map<string, SessionActivityUpdate>();
     for (const e of live) {
       const capture = captures.get(e.pane.paneId);
       const ctx = {
@@ -595,9 +636,31 @@ export class SessionActivityMonitor {
         inferredVerdict(e.pane, e.profile, e.st, ctx);
       if (verdict !== null) this.commit(e.session.id, e.st, verdict);
       const update = this.uiUpdate(e, capture);
-      if (update !== null) updates.push(update);
+      if (update === null) continue;
+      const pending = updates.get(e.session.id);
+      updates.set(
+        e.session.id,
+        pending === undefined ? update : { ...pending, ...update }
+      );
     }
-    if (updates.length > 0) this.deps.onActivity(updates);
+    // PHASE 312. The clears are drained AFTER the verdicts, because a clear is
+    // DECIDED by a verdict: `commit` queues one the moment a session stops
+    // needing input, and draining before the loop shipped this tick's clear on
+    // the NEXT tick, leaving an answered choice drawn for a second.
+    //
+    // A session whose screen is answering RIGHT NOW is not cleared, and the one
+    // thing that arranges it is `choiceUpdate`'s own `choiceClears.delete` —
+    // there is no second guard here on purpose, because two guards for one rule
+    // are two places it can be removed with nothing going red.
+    for (const sessionId of this.choiceClears) {
+      const pending = updates.get(sessionId);
+      updates.set(sessionId, {
+        ...(pending ?? { sessionId }),
+        choice: { atChoice: false }
+      });
+    }
+    this.choiceClears.clear();
+    if (updates.size > 0) this.deps.onActivity([...updates.values()]);
 
     // Phase 141, the witness. It runs after the verdicts on purpose: it
     // reads nothing a verdict reads, it writes nothing a verdict writes, and
@@ -982,7 +1045,7 @@ export class SessionActivityMonitor {
     return live;
   }
 
-  /** The ⌘J excerpt, the question and the "last output" age, when any moved. */
+  /** The ⌘J excerpt, the question, the "last output" age and the choice, when any moved. */
   private uiUpdate(
     e: LiveSession,
     capture: string | undefined
@@ -996,25 +1059,45 @@ export class SessionActivityMonitor {
         update.excerpt = excerpt;
         dirty = true;
       }
+      const choice = this.choiceUpdate(e, capture);
+      if (choice !== null) {
+        update.choice = choice;
+        dirty = true;
+      }
     }
-    // PHASE 311. THE QUESTION BELONGS TO THE WAIT IT WAS ASKED IN, and this is
-    // the line that makes that structural rather than dependent on a second
-    // hook arriving: a session Tortie no longer holds as blocked has no
-    // question, whatever ended the wait — a hook, the person typing into the
-    // pane, or the dialog leaving the screen. The clear travels as an explicit
-    // empty string, never as an absence.
+    // PHASES 311 AND 312, RECONCILED — THE ONE PLACE THE QUESTION IS DECIDED.
+    //
+    // Two producers can fill this field on one tick: the hook's own words
+    // (`st.question`, stamped by `noteHookEvent`, Claude only) and the screen's
+    // reading (`st.screenQuestion`, stamped by `choiceUpdate` above, every
+    // agent). Both used to write `update.question`, the second one silently
+    // winning by running later, and only the hook's half was tracked on the
+    // wire — so a screen question was sent and never cleared. ONE composer, ONE
+    // assignment, ONE memory of what the window holds.
+    //
+    // THE QUESTION BELONGS TO THE WAIT IT WAS ASKED IN, and this is the line
+    // that makes that structural rather than dependent on a second hook
+    // arriving: a session Tortie no longer holds as blocked has no question,
+    // whatever ended the wait — a hook, the person typing into the pane, or the
+    // dialog leaving the screen. BOTH halves go, because a wait that is over is
+    // over for the screen too. The clear travels as an explicit empty string,
+    // never as an absence.
     //
     // The comparison is against what the WINDOW holds rather than against a
     // field of the state, so a session forgotten mid-question — End, a dead
     // pane, a release, or leaving the list — is told the question is over the
     // first time it is seen again, even though its state by then is brand new
     // and knows nothing. See `questionOnWire`.
-    if (e.st.state !== 'needs_input') e.st.question = '';
+    if (e.st.state !== 'needs_input') {
+      e.st.question = '';
+      e.st.screenQuestion = '';
+    }
+    const asked = composeQuestion(e.st.question, e.st.screenQuestion) ?? '';
     const onWire = this.questionOnWire.get(e.session.id) ?? '';
-    if (e.st.question !== onWire) {
-      if (e.st.question === '') this.questionOnWire.delete(e.session.id);
-      else this.questionOnWire.set(e.session.id, e.st.question);
-      update.question = e.st.question;
+    if (asked !== onWire) {
+      if (asked === '') this.questionOnWire.delete(e.session.id);
+      else this.questionOnWire.set(e.session.id, asked);
+      update.question = asked;
       dirty = true;
     }
     if (
@@ -1028,6 +1111,100 @@ export class SessionActivityMonitor {
     return dirty ? update : null;
   }
 
+  /**
+   * PHASE 312. What the screen is asking, for a session that is blocked on it.
+   *
+   * Null means "no news", which is every ordinary tick: the answer is only
+   * sent when it has MOVED, exactly as the excerpt beside it is. The comparison
+   * is a hash, so nothing here keeps the rows.
+   *
+   * It is asked only of a session reported as needing input. That is the one
+   * state a drawn choice belongs to, and it keeps a dialog that has been on the
+   * screen for a single tick — one the verdict has not confirmed yet — from
+   * putting buttons beside the word `working` for a second.
+   *
+   * A SESSION THAT WAS NEVER AT A CHOICE IS TOLD SO ZERO TIMES, not once. The
+   * mark starts absent, and absent is not `NO_CHOICE_MARK`, so the first
+   * needs_input tick of every ordinary session used to put one
+   * `{ atChoice: false }` on the channel about a choice it never had — truthful,
+   * bounded to one message, and a message that did not exist before this phase,
+   * for a renderer to delete a key that was never there. It is the same question
+   * `noteChoiceGone` two methods below already asks before it queues a clear,
+   * and the two answer it the same way now.
+   *
+   * IT ANSWERS ABOUT THE CHOICE AND NEVER ABOUT THE QUESTION, since Phase 311
+   * landed. It stamps the screen's reading onto the state and `uiUpdate` composes
+   * the one answer out of that and the hook's, because two writers of one field
+   * on one tick is a race whichever order they run in.
+   */
+  private choiceUpdate(
+    e: LiveSession,
+    capture: string
+  ): SessionChoiceInfo | null {
+    const sessionId = e.session.id;
+    if (e.st.state !== 'needs_input') return null;
+    // The SAME normalized view of the screen the verdict was computed from,
+    // for the reason state-machine.ts gives where it normalizes: the two
+    // screen signals must never disagree about what "the screen" is.
+    const rows = detectDialogRows(normalizeCapture(capture));
+    // A choice with no options is not one the channel can express: the union
+    // in `sessions.ts` carries the rows exactly when `atChoice` is true, and
+    // the renderer's reader answers "no news" to a claim it cannot read, which
+    // would leave an answered choice drawn. The verdict needs two option rows
+    // to be true at all, so this is a floor rather than a filter.
+    const atChoice = rows.atChoice && rows.options.length > 0;
+    const choice = (atChoice
+      ? { atChoice: true, options: rows.options }
+      : { atChoice: false }) as SessionChoiceInfo;
+    const mark = choiceMarkOf(choice, rows.question ?? '');
+    const had = this.choiceMark.get(sessionId);
+    // THE HOOK'S ANSWER BELONGS TO THE GATE IT NAMED. A `PermissionRequest`
+    // body names one tool call, and a session that answers one gate and is
+    // shown another WITHOUT a second hook — claude's theme picker and its trust
+    // gate both fire none — never leaves `needs_input`, so Phase 311's own
+    // clear never runs and its sentence would win over the truer reading of the
+    // gate now on the screen. A move from one REAL choice to a different one is
+    // the one signal that says so. `had === undefined` and `NO_CHOICE_MARK` are
+    // deliberately not it: the hook arrives BEFORE claude's frontend draws the
+    // dialog, so the first reading of a gate is the hook's own gate appearing.
+    if (
+      mark !== had &&
+      mark !== NO_CHOICE_MARK &&
+      had !== undefined &&
+      had !== NO_CHOICE_MARK
+    ) {
+      e.st.question = '';
+    }
+    // THE SCREEN'S HALF, stamped on EVERY reading rather than only when the
+    // choice moved, because `uiUpdate` composes from it on every tick and a
+    // value written only on news would be blank between two ticks of one gate.
+    e.st.screenQuestion = atChoice ? (rows.question ?? '') : '';
+    if (had === mark) return null;
+    this.choiceMark.set(sessionId, mark);
+    // A state change earlier in this same tick may have queued a clear for a
+    // session whose screen is answering right now. The screen wins.
+    this.choiceClears.delete(sessionId);
+    // Nothing to tell about a choice this session has never had.
+    if (had === undefined && mark === NO_CHOICE_MARK) return null;
+    return choice;
+  }
+
+  /**
+   * PHASE 312. A session that has stopped needing input is not sitting at a
+   * choice, whatever the last capture said, so the clear is decided here — at
+   * the one funnel every status change passes through, which covers the poll,
+   * claude's hook and the person's own keystroke (Phase 9.2) alike.
+   *
+   * Nothing is queued when no live choice was ever sent, so an ordinary
+   * session's transitions put nothing on the channel.
+   */
+  private noteChoiceGone(sessionId: string): void {
+    const mark = this.choiceMark.get(sessionId);
+    if (mark === undefined || mark === NO_CHOICE_MARK) return;
+    this.choiceMark.set(sessionId, NO_CHOICE_MARK);
+    this.choiceClears.add(sessionId);
+  }
+
   private commit(
     sessionId: string,
     st: SessionState,
@@ -1038,6 +1215,7 @@ export class SessionActivityMonitor {
     const from = st.state;
     const next = commitVerdict(st, verdict, now);
     if (next === null) return;
+    if (next !== 'needs_input') this.noteChoiceGone(sessionId);
     this.deps.onStatus(sessionId, toSessionStatus(next), now);
     if (isTurnBoundary(from, next)) this.deps.onTurnBoundary?.(sessionId, now);
   }
@@ -1084,6 +1262,22 @@ export class SessionActivityMonitor {
     );
     return out;
   }
+}
+
+/**
+ * PHASE 312. The mark for "this session has no choice", which is never sent
+ * twice and is what `noteChoiceGone` asks about before it queues a clear.
+ */
+const NO_CHOICE_MARK = '-';
+
+/**
+ * PHASE 312. A hash of the choice, for the one question the monitor asks about
+ * it: has it moved since the last tick? `hashScreen` is the detector's own
+ * hash, reused rather than a second one, and the rows themselves are not kept.
+ */
+function choiceMarkOf(choice: SessionChoiceInfo, question: string): string {
+  if (!choice.atChoice) return NO_CHOICE_MARK;
+  return hashScreen(JSON.stringify([question, choice.options]));
 }
 
 /** One claude registry entry, as the conversation question needs it. */

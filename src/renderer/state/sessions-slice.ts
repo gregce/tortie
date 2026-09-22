@@ -35,6 +35,8 @@ import type {
   MachineSessionLinesResult,
   SavedSessionOutput
 } from '@shared/ipc';
+// PHASE 312. The option rows the agent drew, for the sessions at a choice.
+import type { SessionChoiceInfo } from '@shared/ipc/sessions';
 // PHASE 100. The depth the panel opens on. It is a value rather than a type, so
 // the panel and the store cannot disagree about what "the default" is.
 import { REMOTE_SESSION_LINES_DEFAULT } from '@shared/ipc';
@@ -160,6 +162,23 @@ export interface SessionsSlice {
    * what keeps Phase 23 refusal 5 structural rather than promised.
    */
   handbacks: Record<string, SessionHandback>;
+
+  /**
+   * PHASE 312. The option rows the agent drew, for the sessions sitting at a
+   * numbered choice, keyed by session id.
+   *
+   * A record exists for a session only while main says the choice holds for it.
+   * Main clears it by sending `{ atChoice: false }`, and this store deletes the
+   * key rather than holding a third state, so "there is no record" and "this
+   * session is not at a choice" are the same fact and cannot disagree — the
+   * same rule the handback above states, for the same reason.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. It arrives on the activity
+   * channel beside the excerpt and the handback, no code path leads from this
+   * record to `statusVisual`, to the dot or to `SessionStatus`, and no surface
+   * reads it except through `choiceOptionsFor` in `src/renderer/choice.ts`.
+   */
+  choices: Record<string, SessionChoiceInfo>;
 
   /**
    * PHASE 141. Put the command that continues this session's conversation on
@@ -1001,6 +1020,7 @@ export const createSessionsSlice: StateCreator<
     lastActivity: {},
     endedSeenAt: {},
     handbacks: {},
+    choices: {},
 
     setActiveSession(sessionId) {
       const { activeProjectId } = get();

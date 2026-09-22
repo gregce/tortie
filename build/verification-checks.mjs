@@ -423,6 +423,21 @@ export const CHECKS = [
   // with no hook, a control shell row byte for byte, and app.log afterwards with
   // no byte of any body in it. P311_CHECKOUT points it at a parent build.
   electron('probe:p311'),
+  // PHASE 312. The choices the agent drew. build/conformance-choices.mjs reads
+  // this repository's own source and asserts twenty clauses over it: the
+  // verdict's own loop pinned byte for byte with OPT1, OPT2, HINT and QUEST, the
+  // five measured literals and the 24-row window, one spelling of the predicate
+  // with one production call site, every carried string redacted BEFORE it is
+  // clipped, the three caps and the ink bound each with one definition and one
+  // call site and none of them in the renderer, no new SessionStatus member, the
+  // channel's fields optional with an option's halves required, ONE composer for
+  // the question, ONE draw site used by all three Catch Me Up levels and holding
+  // no control, and the four clauses the fix round added from defects a verifier
+  // drove. It SPAWNS NOTHING — not even the pinned tsx — starts no Electron and
+  // no tmux, and reads nothing under the person's home; the behaviour itself is
+  // driven over thirteen committed captures in six vitest files. About
+  // 1 s. `ablation:p312` is the attack beside it.
+  pure('conformance:choices'),
   adapter(
     'conformance:specstory:entitlement',
     'macOS codesign and the vendored specstory binary; it signs scratch copies and runs them'
@@ -1470,6 +1485,19 @@ export const CHECKS = [
   // that attacked the reduced counts read went with it in the fix round. About
   // 4 s. No Electron, no tmux, no ssh, no agent, no token.
   pure('ablation:p300'),
+  // PHASE 312's attack on its own rules, sixteen arms, one clause each, every one
+  // red on the check that owns it. Nine break the SHIPPING source where
+  // `conformance:choices` reads it and seven where the p312 vitest files drive it,
+  // and the FIRST is the arm the entry names: the verdict made to read the
+  // generalised collector, which must go red on the sentence that owns the
+  // detector's measured floor. Like ablation:p300 it reads every original once
+  // before it writes anything, restores all four files in a `finally`, on a throw
+  // and on a signal, and proves the restore by sha256 after every single arm. One
+  // needle carries the comment above it on purpose, because `forget` deletes from
+  // the same set four hundred lines higher with the same indentation and an
+  // ablation that edits the wrong occurrence reads green. About 25 s. No Electron,
+  // no tmux, no ssh, no agent, no token.
+  pure('ablation:p312'),
   // PHASE 261 item 1. The harness socket refusal, DRIVEN. ONE Electron at a
   // time, never two, on a scratch profile with a scratch HOME under its own
   // GMUX_HARNESS_DIR and the socket gmux-p261-<pid>. Five arms: the real app

@@ -156,6 +156,33 @@ describe('the row names the session it cannot reach', () => {
     expect(html).not.toContain('~/gmux');
   });
 
+  it('draws the QUESTION in that cell when main composed one (Phase 312)', () => {
+    // The row has one cell for what the session is saying, and where both a
+    // question and an excerpt exist the question is the better one: a blocked
+    // session's last screen line is usually the hint row drawn UNDER it.
+    const markup = renderToStaticMarkup(
+      <AttentionRowBody
+        session={session()}
+        excerpt="Enter to confirm · Esc to cancel"
+        question="Do you want to make this edit to note.txt?"
+        age="4m"
+      />
+    );
+    expect(markup).toContain('Do you want to make this edit to note.txt?');
+    expect(markup).not.toContain('Esc to cancel');
+  });
+
+  it('draws the excerpt when main composed no question', () => {
+    const markup = renderToStaticMarkup(
+      <AttentionRowBody
+        session={session()}
+        excerpt="the last line of the screen"
+        age="4m"
+      />
+    );
+    expect(markup).toContain('the last line of the screen');
+  });
+
   it('still draws the row when the session carries no excerpt', () => {
     const html = renderToStaticMarkup(
       <AttentionRowBody session={session()} excerpt="" age="now" />

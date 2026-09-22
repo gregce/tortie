@@ -316,6 +316,64 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Phase 312. The choices the agent drew, under the sentence that says it is
+   waiting.
+
+   THEY ARE DRAWN AND NEVER PRESSED, and this block is written so it does not
+   look pressable: no hover state, no cursor change, no focus ring, no border
+   that reads as a control's edge. The phone mock draws a card per option
+   because a phone's rows ARE the controls in the phase that comes after this
+   one; the desktop row is a reading, so it is set as a list.
+
+   The marker sits in its own cell with a fixed width, so two-digit and
+   one-digit markers line their text up. It is tabular so 1 and 11 take the
+   same advance, and it is the agent's own numeral rather than a generated one.
+--------------------------------------------------------------------------- */
+
+.overview-line-choices {
+  margin-top: 6px;
+}
+
+/* The agent's own question, above the note. It is the sentence the rows answer,
+   so it is set as the block's own lead rather than as another muted line. */
+.overview-line-choices-question {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.overview-line-choices-note {
+  color: var(--text-muted);
+}
+
+.overview-line-options {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.overview-line-option {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.overview-line-option-mark {
+  flex: 0 0 auto;
+  min-width: 2ch;
+  text-align: right;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.overview-line-option-text {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------------------
    The footer
 --------------------------------------------------------------------------- */
 

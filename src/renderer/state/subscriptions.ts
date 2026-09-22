@@ -46,6 +46,9 @@ import { pullPendingShellOpen } from './shell-open';
 import type { HandbackState, SessionHandback } from './resume';
 import { useApp } from './store';
 import { gmuxBridge } from '../bridge';
+// PHASE 312. One reader for the choice field and one for the composed question,
+// beside `readHandback` below and checked for the same reason.
+import { readChoice, readQuestion } from '../choice';
 
 type AppStore = StoreApi<AppState>;
 
@@ -815,27 +818,41 @@ export function startAppSubscriptions(store: AppStore): () => void {
         const lastActivity = { ...s.lastActivity };
         // PHASE 311. The fourth fact on this channel, and it rides here for
         // the same reason the third one does: it must never become a status.
-        // Main composes it from the hook body it already parses, redacts it
-        // and clips it, and this reads it exactly as it reads the excerpt.
+        // Main composes it from the hook body it already parses and from the
+        // screen's own reading (Phase 312), redacts it and clips it, and this
+        // reads it exactly as it reads the excerpt.
         const questions = { ...s.questions };
         // PHASE 141. The third fact on this channel, and it rides here for one
         // reason: this is main's channel for per session facts that are NOT the
         // status, so a fact that must never become a status has no other honest
         // road into the window. It touches no dot and no `SessionStatus`.
         const handbacks = { ...s.handbacks };
+        // PHASE 312. The fourth fact on this channel, and it rides here for the
+        // same reason the handback above does: it must never become a status,
+        // and this is main's channel for per session facts that are not one.
+        const choices = { ...s.choices };
         for (const u of updates) {
           if (u.excerpt !== undefined) excerpts[u.sessionId] = u.excerpt;
-          // PHASE 311. An empty string is main saying the question it had for
-          // this session is no longer the question, so the record goes rather
-          // than holding a stale one. Undefined is an ordinary tick that says
-          // nothing about it and leaves what is there alone.
-          if (u.question !== undefined) {
-            if (u.question === '') delete questions[u.sessionId];
-            else questions[u.sessionId] = u.question;
-          }
           if (u.lastActivityAt !== undefined) {
             lastActivity[u.sessionId] = u.lastActivityAt;
           }
+          // PHASE 312. The same three answers, read by the same rule — see
+          // `readChoice`, which is where the checking lives.
+          const choice = readChoice(u);
+          if (choice === null) delete choices[u.sessionId];
+          else if (choice !== undefined) choices[u.sessionId] = choice;
+          // PHASES 311 AND 312, RECONCILED. ONE reader, ONE record, and the
+          // question's life is the WAIT's rather than the choice's. This loop
+          // held two rules about one field — an unchecked read of the update's
+          // own field for the hook's half and a delete keyed on the CHOICE
+          // clearing for the screen's — and which won depended on the order
+          // happened to sit in. Main composes the one answer out of both sources
+          // and sends its own clear as an empty string; `readQuestion` reads it,
+          // and a choice going away says nothing about the question, because a
+          // hook fires for tool calls that draw no numbered choice at all.
+          const question = readQuestion(u);
+          if (question === null) delete questions[u.sessionId];
+          else if (question !== undefined) questions[u.sessionId] = question;
           const handback = readHandback(u);
           // Three answers, and they are deliberately different. `undefined` is
           // an update that says nothing about the handback and leaves the
@@ -846,7 +863,7 @@ export function startAppSubscriptions(store: AppStore): () => void {
           if (handback === null) delete handbacks[u.sessionId];
           else if (handback !== undefined) handbacks[u.sessionId] = handback;
         }
-        return { excerpts, questions, lastActivity, handbacks };
+        return { excerpts, questions, lastActivity, handbacks, choices };
       });
     })
   );

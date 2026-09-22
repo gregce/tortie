@@ -281,8 +281,19 @@ describe('the field is not a status and never becomes one', () => {
     // becomes a status by accident.
     const writes = subs.match(/questions\[u\.sessionId\] = /g) ?? [];
     expect(writes.length).toBe(1);
-    expect(subs).toContain('u.question !== undefined');
-    // An empty string clears rather than storing a blank question.
-    expect(subs).toContain('delete questions[u.sessionId]');
+    // ONE DELETE TOO, and it is the clear and nothing else. This pinned the raw
+    // `u.question !== undefined` read until Phases 311 and 312 landed together,
+    // when the store held BOTH a raw read of the field and a delete keyed on the
+    // CHOICE going away, and which of the three lines won depended on the order
+    // they sat in. The field is read through `readQuestion` alone now — its
+    // `null` answer IS main's empty-string clear, checked structurally on the far
+    // side of a process boundary — so the literal moves with it.
+    expect(subs).toContain('const question = readQuestion(u);');
+    expect(subs).not.toContain('u.question');
+    // An empty string clears rather than storing a blank question, and the clear
+    // is main's alone: nothing else in this loop may empty the record.
+    const deletes = subs.match(/delete questions\[u\.sessionId\]/g) ?? [];
+    expect(deletes.length).toBe(1);
+    expect(subs).toContain('if (question === null) delete questions[u.sessionId];');
   });
 });

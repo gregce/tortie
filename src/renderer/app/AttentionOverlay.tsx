@@ -147,10 +147,19 @@ export function AttentionRowBody({
   session: Session;
   excerpt: string;
   /**
-   * PHASE 311. What the agent is asking, when main has composed one for this
-   * session. The empty string means there is none, which is every session of
-   * every agent that hands Tortie no hook body, and the row then draws the
-   * excerpt exactly as it did before this phase.
+   * PHASE 312. What the agent is asking, as main composed it out of the hook's
+   * own words and the screen's reading (`src/main/activity/question.ts`), or
+   * nothing.
+   *
+   * IT IS DRAWN IN THE EXCERPT'S OWN CELL, not beside it, and that is a trade
+   * rather than an oversight. The row has exactly one cell for what the session
+   * is saying; the panel is 560px wide and a seventh cell would take width from
+   * the folder and the name, which Phase 93 put there because a session with no
+   * tab is the one a person most needs named. The two strings come off the SAME
+   * channel, redacted and capped the same way, and where both exist the question
+   * is the better one: a blocked session's last screen line is usually the hint
+   * row drawn UNDER the question. Absent, the cell draws what it has always
+   * drawn.
    */
   question?: string;
   age: string;
@@ -182,6 +191,7 @@ export function AttentionOverlay(): React.JSX.Element | null {
   const sessions = useApp((s) => s.sessions);
   const attentionSince = useApp((s) => s.attentionSince);
   const excerpts = useApp((s) => s.excerpts);
+  // PHASE 312. The one composed question per session, for the cell below.
   const questions = useApp((s) => s.questions);
   const setMenu = useApp((s) => s.setMenu);
   // PHASE 93. Ending a session from a row is confirm gated, and the panel stays
