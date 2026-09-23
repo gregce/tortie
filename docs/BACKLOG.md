@@ -34552,6 +34552,1044 @@ All paths and line numbers were read from the tree at `5ddbee19` (origin/main) o
 - **No status, no copy, no surface and no menu.**
 - **No release.**
 
+## Phase 324 — "add to allow list but dont add a weird label" — tmux 3.6 and 3.6b on both version lists (research 131, his ruling of 2026-09-23)
+
+**Subject.** `feat(machines): machines on tmux 3.6 and 3.6b get the live connection`
+
+**First body line.** `Phase 324: tmux 3.6 and 3.6b on both version lists`
+
+**Semver.** Minor, because it is a `feat`. Today a machine whose tmux server reports `3.6` or `3.6b` is refused by both
+version gates. Ubuntu 26.04 LTS ships the first and Debian 13's trixie-backports the second (research 131 §2.1, §2.2).
+The person gets the "Tortie has not measured the program this machine runs" sentence and the acceptance sheet. After
+accepting, Prepare finishes and the machine runs on the timer feed with no live connection. After this phase both strings
+are measured rows on both planes. Prepare finishes with no acceptance sheet, and the machine gets the live connection: its
+list is read when the machine says something changed, its saved output is copied every 120 s, and a lost machine is
+noticed in 0.1 s or about 19 s (research 131 §4.1, as corrected by its judge; `docs/research/52-control-mode-dialect.md`
+§0). Phase 320.1 reaches these machines once it lands.
+
+Unchanged on purpose:
+- both gates compare the whole string byte for byte;
+- the control gate takes no acceptance;
+- no server older than 3.6 is admitted;
+- the 3.6a row is byte-identical;
+- no other copy is changed apart from the version list itself where it is drawn.
+
+The native menus do not change. One CHANGELOG item goes under `## Unreleased`. There is no release, because phases 311
+onward stay unreleased until the phone works end to end.
+
+**Tier 3, by the judge (research 131 §4.3 item 2, §11 item 1) and by three of CLAUDE.md's questions.**
+- **It claims to work across machines.** Two more tmux versions on the far side, so the evidence is a per-row matrix.
+- **It can lose the person's work.** It lets Prepare boot a far server and start sessions on two more versions. It also
+  opens a live connection to a family of servers that a wrong client can end outright (research 131 §3.5).
+- **It starts a process.** Every admitted machine gets a far control child over ssh.
+
+**Independent methods, named before the work starts.**
+1. **Re-derive.** The verifier writes its own harness. It is not `probe:p324` and not research 131's `drive.mts`. It re-derives every
+   matrix cell. It also reads the version constant out of the two distribution `.deb` packages as bytes, which proves the
+   strings the rows add are the strings those packages print.
+2. **Attack.** The pair arms, a rolled-back program against every 3.6-family server across every verb shape Tortie sends,
+   the precheck removed live on a scratch server, and hostile version strings against the shipping gates. Details are
+   below.
+3. **Run over real data.** Ubuntu's and Debian's own patched builds are made from their own source packages, not
+   only upstream tarballs.
+4. **Measure the parent commit.** Every gate outcome and every live arm runs at the parent and at HEAD.
+
+Plus a fix round if any verdict is needs_work, and an independent reverify of that fix.
+
+**The one drawn change is Tier 1.** The Add Machine sheet's measured-versions line is copy: it is
+`MEASURED_VERSIONS.join(', ')`, and a test holds it equal to main's list. It is verified at its own tier (rule 4 of "the
+four rules that stop the waste") and does not raise the phase.
+
+**Charter.**
+- **His ruling on research 131**, recorded in the running log on 2026-09-23, in his four answers:
+  1. "add to allow list but dont add a weird label". `3.6` and `3.6b` join both lists. The rows carry plain subjects
+     like the rows already there. The honest account lives in research 131 and in this commit's body, not in a
+     label: built on this Mac with each distribution's patches, no Linux binary run, and the shared 3.6-family
+     defects.
+  2. "Not now" for Ubuntu 24.04, Debian 12 and Debian 13 as released. It is recorded as a known limit.
+  3. "Only say so" for an in-place-upgraded server. Nothing is ever ended, and the ruling binds whenever a pair read is
+     built.
+  4. "No" to posting on issue 31.
+- **`docs/research/131-tmux-on-linux.md`** (committed in `61774cbf`), each part named:
+  - §4.3 is the judge's policy: exact gates, measured rows only, `3.6` and `3.6b` now, the older versions after a boot
+    and pair phase, and 3.8 only when final.
+  - §7 is the per-version verdicts. Its proposed subject wording for `3.6` and `3.6b` is **superseded by ruling 1**.
+    Its line that "the note names the two 3.6-family defects" and that the 3.6a note "gains the same" is superseded
+    too.
+  - §11 item 1 is this build, sized and tiered.
+  - §9 item 11: the rows may not cite a probe that reads his server.
+  - §3.5: the precheck is load-bearing.
+- **The house rules the rows sit under, and do not argue with.** `version.ts:261-269` (the control gate "TAKES NO
+  ACCEPTANCE, AND IT NEVER WILL") and `:314-316` ("THERE IS NO VERSION ARITHMETIC HERE AND THERE MUST NEVER BE") both
+  stand. This phase widens by measured rows only, which is the one widening both comments allow. The `subject` field is
+  Phase 83's rule that a row names which copy was read (`version.ts:144-149`). A plain subject that names the tarball,
+  its sha256 and the builder satisfies it, as the 3.7c row's does.
+- **Issue 31** (Jake Levirne, 2026-09-21), for context only. Phase 320.1 reaches only machines whose live connection
+  opens. Whether his machine is one of these two rows is unknown (research 131 §5), and nobody asks.
+- **CLAUDE.md's tmux safety rules.** Only scratch sockets are used, `-L gmux` and the default server are never touched,
+  and Tortie never restarts, signals or upgrades a running server.
+
+**Depends on.** Nothing queued. It is independent of Phase 320.1 and can land before or after it. If 320.1 lands first,
+the probe's scroll arm drives 320.1's shipping door; otherwise it drives `scroll.ts`'s functions the way research 131
+did. It does not overlap Phase 323, which touches `core.ts` and `src/main/proc/`. Phase 327 also appends a
+`conformance:machines` condition and also names 100, so whichever of the two lands second takes the next free number.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Every path and line number was read from the tree at `e371324b` (origin/main) on 2026-09-23. Research 131's own line
+numbers are at `18bc1b61`. Since then `b28d0eb4` moved `control-client.ts`, which is why `start()` reads `:282-344`
+here. The research's scratch evidence is at
+`/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p322/` (580 MB by `du -sh`),
+and a reboot wipes it. The numbers below marked "run 2" were read from its `A/results/summary-run2.txt`.
+
+**The two strings, and what prints them** (research 131 §2.1, §2.2, read as data on 2026-09-23):
+- Ubuntu 26.04 LTS's package `3.6a-2ubuntu0.1` prints **`3.6`**. Its source is upstream tag 3.6, relabelled by Debian's
+  `debian/watch` mangle. Two methods on two architectures agree.
+- Debian 13's trixie-backports package `3.6b-1~bpo13+1` prints **`3.6b`**.
+- Both gates refuse both strings today.
+
+**What the gates are, and where they are asked.**
+- **The measured table.** `TESTED_REMOTE_TMUX_VERSIONS` (`src/main/tmux/version.ts:171-237`) has three rows:
+  - 3.6a, subject "the copy of tmux already on this Mac" (`:176`), which is Homebrew's; `/opt/homebrew/bin/tmux` links to
+    `Cellar/tmux/3.6a` on 2026-09-23;
+  - 3.7b, the vendored copy (`:192-194`);
+  - 3.7c, whose subject names the upstream tarball URL, its sha256 and `node build/build-tmux-version.mjs 3.7c`
+    (`:208-218`).
+
+  Every row is `measured: { exec: true, control: true }`. The table's header claims every row was measured by
+  `build/probe-execplane.mjs` over a scratch sshd (`:157-161`).
+- **The exec gate** is `decideRemoteVersionGate` (`version.ts:318-331`). Its one product caller is Prepare
+  (`src/main/machines/prepare.ts:387-414`), which three doors reach:
+  - Settings' Prepare;
+  - the launch sign-in;
+  - the sign-in retry (research 131 §4.1).
+
+  Prepare's list of what it has measured is built at `prepare.ts:260-262`.
+- **The control gate** is `decideRemoteControlGate` (`version.ts:271-282`). It is asked in two places:
+  - `openControlPlane` (`src/main/machines/control-plane.ts:565-589`), which reads the version itself and leaves an
+    unmeasured machine `polling` with "runs a version Tortie has not measured" (`:581`);
+  - the transport's precheck (`:477-483`), through `assertControlDialectMeasured` (`:503-516`), before every spawn and
+    every reconnect.
+- **Measured beats accepted** (`version.ts:307-309`, rule 2). A machine a person has already accepted at `3.6` or `3.6b`
+  answers `measured` after this phase. Its stored acceptance stays, and its confirm hash does not move
+  (`conformance:machines` conditions 41 to 43), so nobody is asked to confirm again.
+- **A pre-existing arm this phase makes likelier to meet**, read and not driven:
+  - Prepare's mismatch arm (`prepare.ts:360-385`) is asked BEFORE the gate, and refuses whenever the stored acceptance
+    differs from the reported version, even when the reported version is measured.
+  - So a machine accepted at `3.6` today that later reports `3.7b` is stopped by its old acceptance.
+  - That is true today for every accepted machine. This phase does not change it, and it is named as its own entry
+    below.
+
+**What the drawn list is.**
+- The renderer's copy is `MEASURED_VERSIONS` (`src/renderer/settings/machines-copy.ts:639`), today
+  `['3.6a', '3.7b', '3.7c']`.
+- It is drawn on the Add Machine sheet as `MEASURED_VERSIONS.join(', ')` (`src/renderer/settings/AddMachine.tsx:514-517`).
+- `machines-copy.test.ts:474-485` holds it equal to main's exec list, in order.
+- The refusal sentences name the list through `joinVersionList` (`version.ts:339-344`), at `prepare.ts:369` and `:397`
+  and at `control-plane.ts:514` and `:585`.
+
+**What pins the list today, and must move with it.**
+- `version.test.ts:645`, `:655` and `:759` each pin `['3.6a', '3.7b', '3.7c']`. The test titled at `:648` still says
+  "the two versions", though it holds three.
+- `conformance:machines` condition 17 (`build/conformance-machines.mjs:1136-1180`) fails when:
+  - a row lacks a date of at least 8 characters;
+  - its note is under 20 characters;
+  - its subject is under 10 characters;
+  - it claims control without exec.
+- `build/machines-conformance-probe.mts:738-748` feeds condition 17. Lines `:465-467` read `TESTED_REMOTE_TMUX_VERSIONS[0]`
+  for condition 44's measured-beats-accepted arm, which holds for any measured row, so inserting `3.6` first leaves it
+  green.
+- **`build/probe-execplane.mjs:668-686` parses the array AS TEXT** with `/^\s*version: '([^']+)',$/gm`, so each new row's
+  `version: '<v>',` must stand on its own line.
+- `machines-store.test.ts:163` and `errors.test.ts:229-232` and `:336-342` pass their own lists and need no change.
+- `gate:contract` does not move. `docs/audits/contract-baseline.txt` names no tmux version (`grep`, 2026-09-23).
+
+**What research 131 drove, and what it found on these two strings.**
+- **The builds.** Research 131 built upstream 3.6 and 3.6b, Ubuntu 26.04's patched 3.6 and Debian's patched 3.6b on this
+  Mac, and drove each twice with Tortie's own composed strings, `/bin/sh -c` standing in for the ssh hop (§3.3).
+- **Run 2's readings**, per build:
+
+  | Build | Boot | Greeting | List bytes |
+  | --- | --- | --- | --- |
+  | Upstream 3.6 | 12 of 12 rows, none refused | 12.7 ms | 528 |
+  | Ubuntu's patched 3.6 | 12 of 12 rows, none refused | 14.4 ms | 564 |
+  | Upstream 3.6b | 12 of 12 rows, none refused | 18.6 ms | 530 |
+  | Debian's patched 3.6b | 12 of 12 rows, none refused | 15.7 ms | 556 |
+
+  - The greeting is measured against the 10,000 ms deadline (`control-client.ts:108`).
+  - On every build `REMOTE_LIST_FORMAT` answered 10 fields, and the list over the live connection was byte-equal to the
+    list over exec at the byte counts above.
+  - `%exit` arrived on `kill-server`.
+  - Parked, `#{copy_position_limit}` read empty, which `scroll.ts:119-121` already expects of any tmux before 3.7.
+  - No recorded field differed between the two passes (§3.3).
+- **The tarballs.** Upstream `tmux-3.6.tar.gz` is sha256 `136db80cfbfba617a103401f52874e7c64927986b65b1b700350b6058ad69607`.
+  `tmux-3.6b.tar.gz` is `390759d25fdba016887ec982b808927e637070fd7d03a8021f8ef3102b9ae3c7`.
+  - Both are byte-equal to Fedora dist-git's `sources`, at `5b3b85bc` and `dd06b240`.
+  - Both are content-equal, 196 of 196 files, to the Ubuntu and Debian orig tarballs (§3.2).
+  - The copies in scratch hash to exactly those values (`shasum`, 2026-09-23).
+- **The scratch binaries, recorded so a verifier can tell them apart** (`shasum -a 256`, 2026-09-23):
+
+  | Build | Path under `A/builds/` | sha256 |
+  | --- | --- | --- |
+  | Upstream 3.6 | `u3.6` | `83f167cfc023dc84deff4962716893b56a6a7fd94c0390052a8423dab5d51ac6` |
+  | Upstream 3.6b | `u3.6b` | `83c5c7fa86f4df7edffd49404327caf4393d96948b50b19b6d229b2cf6649c11` |
+  | Ubuntu 26.04's patched 3.6 | `ubuntu-3.6a-2ubuntu0.1` | `806b284e27329f710958ab364ee714d210d8044d6ed1d2338668dab6c5b4119f` |
+  | Debian's patched 3.6b | `debian-3.6b-1bpo13` | `c4496706f909224c05c5343601db169b44f7e4c3f02175f682995ed742daae30` |
+- **The pairs** (§3.4).
+  - **Every measured pair with a server at 3.6 or 3.6b works:** 3.6 under a 3.7b program, and 3.6b under a 3.7c program.
+  - **Every pair that crosses 3.6 hangs:** a 3.5a server under a 3.6b program, a 3.4 server under 3.6, and a 3.5a server
+    under 3.6. In each of them the server reports `3.5a` or `3.4`, which neither gate admits, before or after this phase.
+  - Admitting `3.6` and `3.6b` therefore admits no measured hang.
+- **The family's defects, shared with the admitted 3.6a** (§3.5).
+  - **The handshake crash.** A live-connection client killed with SIGKILL in its first 3 ms or so ends the whole
+    server. That was 3 of 734 trials on 3.6a in the judge's arm. The adversary's sweep also ended Debian's 3.6b once,
+    after 303 trials, and 3.7c survived 400 of 400. Hangups, terminations and closed pipes ended it 0 times in 4,000.
+    Tortie never sends SIGKILL to a far control child.
+  - **The issue 5049 exit wedge.** It appears under a slow reader.
+  - The judge ruled that neither separates 3.6 or 3.6b from the admitted 3.6a.
+- **The thing that makes admitting a 3.6-family server safe is the precheck, and nothing records it.**
+  - A tmux program older than 3.6 running `-C` against any 3.6-family server ends that server every time, Homebrew's 3.6a
+    included (§3.5).
+  - The transport's precheck runs `display-message -p '#{version}'` through the SAME program first:
+    - it goes through `execOn` over `remoteContextFor(machineId)` (`control-plane.ts:477-483`);
+    - both `execOn` and the plan compose through `tmuxCommand` (`src/main/machines/context.ts:267`,
+      `exec-plane.ts:615`, `control-plane.ts:486`).
+  - That read fails with "server exited unexpectedly", leaves the server alive, and throws before anything spawns.
+  - The header of `control-plane.ts` names three jobs for the precheck (`:46-56`), and this is not one of them.
+- **What already pins the order, and why it is not enough.**
+  - `control-client.test.ts:150-189` pins precheck-before-plan with a FAKE transport.
+  - `control-plane.test.ts:176-180` pins that the remote precheck sends exactly `display-message`.
+  - No gate reads the SHIPPING source for either, and no ablation proves either can fail.
+  - Every reconnect re-enters through `start()` (`control-client.ts:566-575`), whose first await is the precheck
+    (`:287`), before `plan()` (`:288`) and `spawn(` (`:289`).
+- **The probes that measured the existing rows read his server**, so this phase can cite neither of them:
+  - `build/probe-control-dialect.mjs`, through `readOperatorServer` at `:126` (research 131 §9 item 11);
+  - `build/probe-execplane.mjs`, whose rule 3 reads it before and after (`:24-27`, `:124`).
+- **The builder already exists.**
+  - `build/build-tmux-version.mjs` (six rules, `:14-42`) builds a key of `build/tmux-probe-versions.json` into
+    `build/vendor/tmux-probe/<version>/`, checks each tarball's sha256, and never writes to the shipped `build/vendor/tmux/`.
+  - The pin holds one row today, 3.7c.
+  - The builder applies no distribution patches.
+  - `build/vendor/tmux-probe/` does not exist in the operator's checkout (`ls`, 2026-09-23).
+- **The check registry.** `HELPER_USER_FLOOR` is 153 (`build/assert-electron-teardown.mjs:326`). The check kinds
+  `pure`, `electron`, `tmux` and `remote` are declared in `build/verification-checks.mjs:232-268`.
+
+### The mechanism
+
+**Step 0, the spec step, decides one thing before any builder starts.** Can the SHIPPING `execOn` and
+`remoteControlTransport` be driven unchanged under the pinned tsx?
+- The method is a machine context whose `sshBin` is a scratch `/bin/sh` stand-in that runs only its last argument through
+  `/bin/sh -c`, which is what sshd does with it (research 130's substitution).
+- The question is whether `control-plane.ts`'s and `exec-plane.ts`'s import graphs load without Electron under tsx. The
+  spec step measures it and records the answer.
+- If they do, the probe drives the shipping precheck, plan and client with no copy.
+- If they do not, the probe copies research 131's transport shape (`A/harness/drive.mts`) and says so in its header.
+- Either way, every far string is `tmuxCommand`'s own.
+
+1. **`src/main/tmux/version.ts`, the two rows.** They are inserted in version order, so the list and every sentence that
+   names it read `3.6, 3.6a, 3.6b, 3.7b and 3.7c`:
+   - `3.6` goes before the 3.6a row (`:172`);
+   - `3.6b` goes after it (`:187`).
+
+   Each row has these fields:
+   - `measured: { exec: true, control: true }`;
+   - `measuredAt` is the date `probe:p324` ran green at HEAD;
+   - `version: '<v>',` alone on its line, for `probe-execplane.mjs`'s text parse.
+
+   **The subject is plain, in the first sentence of the 3.7c row's shape and nothing more:** "the upstream tarball at
+   https://github.com/tmux/tmux/releases/download/3.6/tmux-3.6.tar.gz, sha256 136db80cfbfba617a103401f52874e7c64927986b65b1b700350b6058ad69607, built by "node
+   build/build-tmux-version.mjs 3.6" on this Mac with --enable-utf8proc and --disable-jemalloc". The 3.6b row is the
+   same with its own URL and sha256. The builder downloads that URL and checks the sha256, so a wrong URL fails loudly.
+
+   **The note is in the 3.7c note's register.** It says what `npm run probe:p324` measured, with the numbers the probe
+   read: the four exec shapes, 12 of 12 options, the list's ten fields, the eight live-connection steps, and the list
+   byte-compared. It says how the scratch server was reached: "a scratch server on this same Mac, reached through
+   /bin/sh in place of the sign in program".
+
+   **Neither field names a distribution, "no Linux binary run", or either 3.6-family defect.** The 3.6a row does not
+   change by one byte. The table's header gains one plain sentence naming `probe:p324` as what measured the `3.6` and
+   `3.6b` rows, over `/bin/sh` in place of the sign in program. Two of the header's claims would otherwise become
+   false: that every row was measured by `build/probe-execplane.mjs` over a scratch sshd (`:157-161`), and that every
+   row was "reached over a scratch sign in program on 127.0.0.1" (`:163-165`). The sentence must not spell the name
+   `TESTED_REMOTE_TMUX_VERSIONS`, because `probe-execplane.mjs` starts its text parse at the first occurrence of that
+   name (`:668`, `:674`). Nothing else in the header moves.
+2. **`build/tmux-probe-versions.json`** gains three rows: `3.6`, `3.6b`, and `3.5a`. The `3.5a` row is for the probe's
+   pair and rolled-back arms only, and its `why` says it is on neither list.
+   - Each row carries the upstream URL, the sha256 from research 131 §3.2 (3.5a's is
+     `16216bd0877170dfcc64157085ba9013610b12b082548c7c9542cc0103198951`), and `configureArgs: ["--disable-jemalloc"]`,
+     as research 131 §3.1 built them.
+   - Each also carries a `secondSource`: Fedora dist-git's `sources` at `5b3b85bc` for 3.6 and at `dd06b240` for 3.6b,
+     and both Debian `.dsc` files for 3.5a (research 131 §3.2). The builder ignores that key.
+   - Each `why` is one plain sentence.
+3. **`src/renderer/settings/machines-copy.ts:639`.** `MEASURED_VERSIONS` becomes `['3.6', '3.6a', '3.6b', '3.7b', '3.7c']`,
+   which `machines-copy.test.ts:474-485` already holds against main. No distribution name goes beside any version on any
+   surface.
+4. **`src/main/machines/control-plane.ts:46-56`, the precheck's header**, gains a fourth job in one plain paragraph: the
+   read runs through the same program the control child will run, and on a server from the 3.6 family a program older
+   than 3.6 fails this read and leaves the server alive, where that program's `-C` would end it (research 131 §3.5). No
+   code in the file changes. Touching the file triggers `probe:controldeadline`.
+5. **`conformance:machines` condition 100**, the next free number at `e371324b`. The file's conditions run 1 to 59 and 63
+   to 99, and 60 to 62 were never used. It reads the SHIPPING source by matching braces.
+   - **100a.** In `TmuxControlClient.start()` (`src/main/tmux/control-client.ts:282-344`):
+     - the first statement inside the `try` is `await this.transport.precheck()`;
+     - it comes before `this.transport.plan()` and before the class's only `spawn(`, with no `return` between them;
+     - `scheduleReconnect` (`:566-575`) reaches a spawn only through `this.start()`.
+   - **100b.** In `remoteControlTransport` (`control-plane.ts:474-493`):
+     - `precheck` sends exactly `['display-message', '-p', '#{version}']` through `execOn` over `remoteContextFor(machineId)`;
+     - it passes the answer to `assertControlDialectMeasured` before returning;
+     - no `try` swallows either;
+     - `plan` composes from the same `remoteContextFor(machineId)`, so the read and the child run one program.
+   - **100c.** `CONTROL_ATTACH_ARGS` reaches `tmuxCommand` at exactly one site under `src/main/machines/`, and that site
+     is `remoteControlTransport`'s `plan`.
+   - **100d.** `3.6` and `3.6b` are rows with both planes measured. Any row whose subject names
+     `build/build-tmux-version.mjs` names a sha256 equal to that version's sha256 in `build/tmux-probe-versions.json`,
+     which covers 3.6, 3.6b and 3.7c today. This makes the gate and the measurement one fact.
+   - **100e.** No row's `subject` or `note` names Ubuntu, Debian, Fedora, Arch or Linux. This is ruling 1, written as
+     text, so a later round that wants a label has to argue with it.
+
+   The header's condition list and the closing PASS sentence say so. CLAUDE.md's `conformance:machines` row gains two
+   triggers, because the condition now reads them: `TESTED_REMOTE_TMUX_VERSIONS` in `src/main/tmux/version.ts`, and
+   `start()` in `src/main/tmux/control-client.ts`.
+6. **`build/p324/ablation.mjs`** (`ablation:p324`) edits the SHIPPING source one clause at a time. Each edit must turn the
+   named rule red:
+   - moving `await this.transport.precheck()` below `spawn(` (100a);
+   - deleting it (100a);
+   - replacing the precheck's argv with `['-V']` (100b);
+   - sending it through `execRemoteShell` (100b);
+   - dropping `assertControlDialectMeasured` (100b);
+   - wrapping the precheck in a swallowing `try` (100b);
+   - adding a second `tmuxCommand(…, CONTROL_ATTACH_ARGS)` site (100c);
+   - flipping `3.6b`'s `control` to false (100d);
+   - changing one digit of the 3.6 subject's sha256 (100d);
+   - putting "Ubuntu 26.04" into the 3.6 note (100e).
+
+   An unedited control must stay green. Every file is restored and compared by sha256 in a `finally`, in the shape of
+   `ablation:p274`.
+7. **`build/p324/probe-p324.mjs`** (`probe:p324`). This is the measurement the two notes cite, and it reads no server of
+   his. It is research 131's `A/harness/drive.mts` and `adv/harness/pairs.mts`, moved into the tree and cut to what the
+   rows claim, driven through the pinned tsx (`tsxCli()`).
+
+   **The targets.**
+   - The two new strings, from `build/vendor/tmux-probe/{3.6,3.6b}/`.
+   - The three controls: Homebrew's `/opt/homebrew/Cellar/tmux/3.6a/bin/tmux`, which is the 3.6a row's own subject, run
+     read-only; the vendored `build/vendor/tmux/bin/tmux` 3.7b; and the pinned 3.7c.
+   - `P324_EXTRA=<id>=<path>,…` adds further builds to every arm, which is how a verifier passes the distribution builds.
+   - It refuses with exit 2 and one sentence when a build it needs is absent. It never builds or downloads.
+
+   **The carriage.**
+   - Every far string is `tmuxCommand(ctx, args)`'s own, run as `/bin/sh -c` with a scratch `HOME`, `SHELL=/bin/sh` and a
+     fixed `PATH` (step 0).
+   - Sockets are `p324-<target>-<pid>`, refused through `refuseRealSockets` (`build/scratch-machine.mjs:69`) before
+     anything starts.
+   - Every composed string is asserted to carry `-L p324-`, and every argv is appended to the run's argv log.
+
+   **The arms, per target.**
+   - **P**: both version reads and both gates, computed by the checkout under test; `remoteBootArgs()`
+     (`src/main/machines/remote-server.ts:71-73`); the `PATH` capture; each `SERVER_OPTIONS` row
+     (`src/main/tmux/server-options.ts:64`) set and read back.
+   - **E**: the four exec shapes, and `REMOTE_LIST_FORMAT` (`src/main/machines/remote-sessions.ts:381`) round-tripped
+     through `parseRemoteListLine`.
+   - **C**: the shipping `TmuxControlClient` over `CONTROL_ATTACH_ARGS`. It records:
+     - the greeting against `CONTROL_GREETING_DEADLINE_MS`;
+     - `refresh-client -f no-output` answered, with 0 `%output` on the shipping client while a raw control client beside
+       it sees at least 1, so the check can fail;
+     - the create, rename and kill notifications;
+     - the list over control, byte-compared with the list over exec;
+     - `%exit` on `kill-server`.
+   - **S**: Phase 320.1's six shapes, with `STATE_FORMAT`'s eight fields each a number or empty. Phase 322's entry says
+     a version whose shape fails is added "without the scroll, or not at all" (`docs/BACKLOG.md:34467-34469`). A row
+     has no field that withholds the scroll, so a failure here stops the phase and goes to him.
+   - **A**: the remote attach argv from `attachPlan` (`src/main/attach/attach-plan.ts:173-186`), with `ssh -t` replaced by
+     a node-pty the probe owns, an 8 s draw deadline and a 4 s detach deadline.
+
+   **The pair arms.**
+   - `3.6` under a 3.7b program, and `3.6b` under 3.7c: these must greet and draw.
+   - A `3.5a` server under `3.6` and `3.6b` programs: the gates must refuse, and nothing may spawn.
+   - **The rolled-back program**: `3.6` and `3.6b` servers under a 3.5a program. With the shipping precheck, the precheck
+     throws, the server's pid is unchanged and 0 children spawn. With `P324_ABLATE_PRECHECK=1`, the same arm runs with no
+     precheck and the server must END. That is what proves 100a and 100b guard something real.
+     - The ablated arm runs once per probe run.
+     - Each ended server makes macOS write one `tmux-*.ips` crash report to `~/Library/Logs/DiagnosticReports`, as
+       research 131 §10 recorded 19 doing. The probe prints the count and deletes none.
+
+   **The parent run.** `P324_PARENT_CHECKOUT` points the imports at a parent build, one run after the other. The gate
+   columns must differ only in the two new strings, and every other cell must be identical.
+
+   **The `finally`.** It ends the control client, the raw control child, the attach pty, and each server, by the pid that
+   server reported, SIGTERM then SIGKILL. It prints the count of `tmux` processes left on any `-L p324-` socket, which
+   must be 0.
+
+   **What it does not start.** No Electron, so `HELPER_USER_FLOOR` does not move (153 at `e371324b`). No ssh.
+8. **Registration.**
+   - `package.json` gains `probe:p324` and `ablation:p324`.
+   - `build/verification-checks.mjs` classifies them. `ablation:p324` is `pure`. `probe:p324` is `tmux('probe:p324')`.
+     That helper takes no `needs` argument and always answers the fixed `NEEDS.tmux` sentence (`:250-255`), which names
+     only the vendored tmux. So the probe builds that `node build/build-tmux-version.mjs <v>` makes beforehand are named
+     in the probe's own header and in its exit-2 refusal, unless the builder widens the helper in the same commit and
+     says so.
+   - CLAUDE.md's probe table gains `probe:p324`, triggered by `TESTED_REMOTE_TMUX_VERSIONS`,
+     `build/tmux-probe-versions.json`, the remote precheck, and `start()`, with its cost as measured.
+9. **Tests.**
+   - `version.test.ts:645`, `:655` and `:759` move to the five-version list.
+   - The test titled at `:648` names `probe:p324` for the two new rows.
+   - `control-plane.test.ts` gains two cases: with the fake exec answering `tmux 3.6\n` and then `tmux 3.6b\n`,
+     `openControlPlane` returns true and the precheck passes. Both fail at the parent, which is part of the parent
+     measurement.
+   - `gate:checks` runs, because `package.json`'s check scripts change.
+10. **CHANGELOG, under `## Unreleased`, `### Added`**, one item in his style. The follow-up docs commit adds the commit
+    link. It credits no reporter, because this fixes nothing issue 31 reported and whether that machine is one of these
+    rows is unknown. For example:
+
+    "Tortie now works with a machine whose tmux is 3.6 or 3.6b, which is what Ubuntu 26.04 LTS and Debian 13's backports
+    install, without asking you to accept its version, and keeps a live connection to it instead of asking it for its
+    list on a timer; Ubuntu 22.04 and 24.04 and Debian 12 and 13 as released still cannot hold a session"
+11. **The commit body carries the honest account ruling 1 put there.**
+    - The account itself: built on this Mac, with Ubuntu's two patches and Debian's one applied, and no Linux binary run.
+    - What `probe:p324` and the verifier measured, with the numbers.
+    - The two 3.6-family defects, shared with the admitted 3.6a.
+    - The precheck pin, and why it is load-bearing.
+
+    It writes "issue 31" in words, never `#31` and never a closing keyword, so GitHub draws nothing on the issue.
+
+### The proof, run rather than read
+
+- **Gates.**
+  - The minimum: `npm run typecheck && npm run build && npm run smoke:t1`.
+  - The integrator's full battery: test, smoke, smoke:t3 and package.
+  - The path-triggered and phase gates: `conformance:machines`, `ablation:p324` (every arm red on its own rule, and the
+    control green), `probe:controldeadline` (because `control-plane.ts` is touched), `gate:background` (the probe starts
+    servers, control children and a pty), and `gate:checks`.
+  - `gate:electron` at the parent's floor, unchanged by this phase (153 at `e371324b`).
+  - `gate:contract` must not move.
+- **The per-row matrix, at the parent and at HEAD**, from `probe:p324` with the verifier's `P324_EXTRA`.
+  - **Rows:**
+    - upstream 3.6;
+    - Ubuntu 26.04's patched 3.6;
+    - upstream 3.6b;
+    - Debian's patched 3.6b;
+    - the three controls.
+  - **Columns:**
+    - what `-V` and `#{version}` print;
+    - the exec gate and the control gate;
+    - Prepare's outcome: an acceptance sheet at the parent, none at HEAD;
+    - the boot's 12 rows;
+    - the exec shapes and the ten-field list;
+    - each live-connection check;
+    - the six shapes and eight fields;
+    - the attach;
+    - the upgrade pair;
+    - the rolled-back program.
+  - Every cell reads measured, refused, empty, hung (with the deadline that ended it), or not run (with the reason).
+  - At HEAD every cell on the four new-string rows must equal the 3.6a control's, except `#{version}` and the gate columns.
+  - At the parent, only the gate and Prepare columns differ from HEAD.
+- **Run over real data, the distributions' own builds.**
+  - **The source.** The verifier builds Ubuntu 26.04's `3.6a-2ubuntu0.1` (from `tmux_3.6a.orig.tar.gz` with its two
+    patches) and Debian's `3.6b-1~bpo13+1` (one patch) from each distribution's own `.dsc` and `.debian.tar.xz`.
+  - **The patches.** They are applied with `patch -p1 -F0 -N`, and any offset, fuzz or `.rej` fails the build
+    (research 131 §3.1's second method).
+  - **Research 131's builds.** Where they still exist in scratch, their sha256 is recorded beside the verifier's rebuild.
+- **Re-derivation, with the verifier's own harness.**
+  - **The strings.** The verifier reads the version constant out of the Ubuntu `tmux_3.6a-2ubuntu0.1` `.deb`, on amd64 and
+    arm64, and out of the Debian `tmux_3.6b-1~bpo13+1` amd64 `.deb`, as bytes. It downloads them into scratch and never
+    installs or executes them. They must read `3.6` and `3.6b`, byte-equal to the new rows' `version` fields.
+  - **The live connection.** It drives it with its own raw control-stream reader rather than `probe:p324`'s. It compares
+    every cell, and any disagreement is a finding.
+- **The attack, at the parent and at HEAD.**
+  - **(a) The upgrade that crosses 3.6.** A `3.5a` server under a `3.6` program and a `3.6b` program, and a `3.4` server
+    under `3.6` (the routes research 131 §3.4 names). The version read answers the old string, both gates refuse, and
+    nothing spawns, at HEAD exactly as at the parent.
+  - **(b) The rolled-back program, across every verb shape Tortie sends to a far server.** A 3.5a program against `3.6`,
+    `3.6b` AND the admitted 3.6a:
+    - the precheck `display-message`;
+    - `list-sessions -F` with `REMOTE_LIST_FORMAT`;
+    - `show-options`;
+    - `capture-pane`;
+    - the remote attach argv;
+    - `-C` with the precheck removed.
+
+    Each cell records whether the server survived. Research 131 ran only the precheck and `-C`.
+    - **It blocks:** a cell where `3.6` or `3.6b` ends and 3.6a survives.
+    - **It is a finding for its own entry:** a cell where all three end, because that is today's exposure through 3.6a
+      and this phase does not change it.
+  - **(c) Hostile strings against the shipping gates at HEAD.** `3.6 `, `3.6\r`, `3.6c`, `3.60`, `3.6-rc`, `next-3.6` and
+    `3.6A` each answer `unmeasured` on both gates. `tmux 3.6\n` parses to `3.6` through `parseTmuxVersion`
+    (`version.ts:366-373`).
+  - **(d) The pin can fail.** `ablation:p324` is red on every arm, and the live ablated arm in (b) ends its server.
+- **His world, listed only.**
+  - Every argv each harness ran is recorded. The number naming `-L gmux`, `-L default`, or no `-L` at all apart from a
+    `-V` read, is 0.
+  - `build/probe-control-dialect.mjs` and `build/probe-execplane.mjs` are not run.
+  - At the end, one count of `tmux` processes on any `-L p324-` socket, or on the verifier's own prefix, is 0.
+  - No Electron is started, so there is none to count.
+  - The count of new crash reports is stated.
+- **What cannot be proven here, stated rather than hidden.** These remain research 131 §8's gaps, and the commit body says
+  so:
+  - no Linux kernel, libc, `poll` backend, jemalloc, utempter or systemd cgroup move was run;
+  - no real ssh hop, ControlMaster or network was used;
+  - no Fedora, Arch or Homebrew-on-Linux binary was built or opened;
+  - whether a real ssh channel drop can kill a far control client inside its first 3 ms is unmeasured.
+
+### What is NOT in this phase
+
+- **No weird label.** No `subject`, `note`, comment in the table's rows, surface or version list names a distribution,
+  says "no Linux binary run", or names a 3.6-family defect. The account lives in research 131 and the commit body (ruling
+  1). The 3.6a row is byte-identical, and research 131 §7's and §11's proposed subject and note wording is not used.
+- **No 3.2a, 3.3a, 3.4 or 3.5a on either list** (ruling 2, "Not now", for Ubuntu 24.04 and Debian 12 and 13; 3.2a,
+  Ubuntu 22.04, stays refused by research 131 §7's verdict unless he says otherwise). Ubuntu 22.04 and 24.04 and
+  Debian 12 and 13 as released stay unable to hold a session, as a known limit. These all belong to the later boot and pair phase, research
+  131 §11 item 2:
+  - no per-row Prepare fallbacks, and no `history-limit` written first;
+  - no `copy-mode -e -H`;
+  - no fix for 3.4's `\$`;
+  - no fix for 3.2a's padded `capture-pane -J`.
+
+  The `3.5a` row in the probe pin admits nothing.
+- **No pair read.** The machine's program `-V` is not read beside its server for admission. The judge ruled it is not for
+  servers at 3.6 or newer, where it would only regress the rolling upgrade that works today (research 131 §4.3 item 4).
+- **No server is ended, restarted or signalled, and nothing even says so yet** (ruling 3, "Only say so"). The Debian 13
+  stuck state (§3.4, §9 item 5) stays its own entry, with the pair read's sentence.
+- **No 3.8-rc**, and no 3.8 until it is final and measured with a 3.7c server under a 3.8 program. **No 3.7 or 3.7a.**
+- **Nothing is posted on issue 31** (ruling 4). Nobody asks the reporter for `tmux -V` or `/etc/os-release`. The commit
+  body writes "issue 31" in words. The CHANGELOG item credits no reporter.
+- **No change to either gate's logic.**
+  - `decideRemoteVersionGate`, `decideRemoteControlGate`, `parseTmuxVersion`, `assertControlDialectMeasured` and
+    `openControlPlane` do not change by a byte of code.
+  - The control gate gets no acceptance.
+  - No version arithmetic, no platform read, and no capability probe. Research 131 §4.2 rejected each.
+  - `version.ts:261-269` and `:314-316` stand.
+- **No change to the local gate.** `TESTED_TMUX_PAIRS`, `BUNDLED_TMUX_VERSION` and `build/tmux-release.json` do not
+  change, and the shipped tmux stays 3.7b.
+- **No edit to `build/probe-control-dialect.mjs` or `build/probe-execplane.mjs`.** That they read his server is research
+  131 §9 item 11's own entry.
+- **No fix for research 131 §9's other findings**, each its own entry:
+  - a boot refusal read as "could not reach", with a JSON detail;
+  - a version-refused machine drawn as quiet;
+  - the acceptance sheet's two false promises;
+  - a git build offered an acceptance it cannot take;
+  - a reconnect's cost on a server that restarted onto an unmeasured version;
+  - the `control_stop` crash and the 5049 wedge in tmux itself;
+  - a reconnect that can start a fresh far server;
+  - `scroll.ts`'s `goto-line` latch.
+- **No change to Prepare's mismatch arm** (`prepare.ts:360-385`). A machine accepted at one version is refused when it
+  reports another, measured or not. That is true today, and it becomes likelier for anyone who accepted `3.6` before this
+  phase and later upgrades. It gets its own entry.
+- **No Phase 320.1 work.** This phase adds no scroll shape, no door and no copy for scrolling.
+- **No real machine, no ssh, no container and no virtual machine.** No Linux binary is executed. Distribution packages
+  are opened as archives in scratch only, and nothing is installed.
+- **No menu, no new surface, and no copy change** beyond the version list where it is already drawn.
+- **No release.**
+
+## Phase 325 — "never by the user's own input to that session" — Tortie reads his own words as the agent's question (CLAUDE.md's UI rule, research 129 §9 item 6, left owed its own entry by his ruling on Phase 319, 2026-09-23)
+
+**Subject.** `fix(activity): words typed into a session are never its question`
+
+**First body line.** `Phase 325: what he types or pastes never reads as the agent asking`
+
+**Semver.** Patch. Today, text he types or pastes into a session turns that session amber when the text has the shape of a numbered question: a row starting `1.`, a row starting `2.`, and a row holding a hint such as `esc to cancel` or a question such as `do you want`, anywhere in the last 24 inked rows (`src/main/activity/screen.ts:73-81`). It turns amber a few seconds after he stops, once the pane has been quiet for `QUIET_MS` (2,000 ms, `src/main/activity/state-machine.ts:50`) and two captures in a row have read the shape (`DIALOG_CONFIRM_TICKS`, `:54`). The tray counts it, ⌘J lists it, the session's choice rows and the phone door's blocked list carry his own words as the agent's question and options, and, when the phone's push is switched on, Phase 314 sends one. It happens in every session whose status is read off the screen: the nine screen-tier agents, deepseek and muse, every agent this build has never heard of, Claude Code while its registry file is missing, Codex while its title says nothing, and a shell whose keypad flag has never been seen (the list and its lines are below). After this phase, text that reached a session through Tortie's own input path (his keys, a paste, a file drop, an Architecture delivery) never turns it amber, and a question the agent draws still does. **Unchanged on purpose:** the numbered verdict and its 24-row window; Phase 321's two shapes and their foreground gate; the release of a raised question by his key; what his typing does to `running` and `idle`; every constant and both cadences; and Claude Code's and Codex's own oracles, which speak first. No copy, no surface and no menu changes, so the native menus are untouched. One CHANGELOG item under `## Unreleased`, and no release until the phone works end to end.
+
+**Tier 3, because three of CLAUDE.md's tier questions answer yes, and it changes status semantics.** It claims to work across every agent whose status is read off the screen, so **the evidence is a per-row matrix over real recordings and real agents, at the parent and at HEAD**. It reads his words at the one place they enter a session, and today's fault already shows his words in ⌘J, and through the door to a paired phone, as the agent's question. It breaks a rule he wrote, and his ruling on Phase 319 left it owed its own entry (running log, 2026-09-23, `docs/BACKLOG.md:35452`), so the parent measurement is mandatory whatever the tier. And it changes status semantics, which CLAUDE.md's UI rule and Phase 23 refusal 5 pin. The standing rules bind it both ways: a missed question is as bad as a false amber, and nothing may read worse than today. The one place this phase can lose a question is the instant his words and an agent's real question reach the screen together; that row is measured per delay and goes to him (below). **Independent methods, named before the work starts:** (1) **run over real data**: the banked recordings replayed in the verifier's own harness, with each recording's own key events handed to the new seam at their recorded times, plus one live confirmation on the installed agents that may be launched; (2) **attack**: the first arms are an answering key followed at once by the agent's next question, his words finishing rows the agent already drew, words typed ahead while the agent works, and every byte he sends that is not text (focus, colour, device and mouse reports, empty bracketed-paste markers); (3) **re-derive**: the verifier derives the fewest characters that can satisfy the verdict from the four regexes itself, and labels which screens hold his words from its own byte and key timeline, never from the rule; (4) **measure the parent commit**: every row at the parent and at HEAD in the same run. Plus a fix round if any verdict is needs_work, and an independent reverify of that fix.
+
+**Charter.** CLAUDE.md's UI rule, verbatim: "Status semantics: \"needs input\" may only be triggered by session behavior, never by the user's own input to that session" (`CLAUDE.md:391`). `docs/research/129-the-question-after-silence.md`: §5 item 12 (`:331-336`, the keystroke belt and why it could never fire), §6.2 (`:434-436`, his own words typed and pasted, today against J), §7 (`:475-476`, how often he pastes dialog-shaped text is unmeasured), §9 item 6 (`:515-516`, "His own words read as a question, by paste, by typing or by an echoed prompt"), and §10 ruling 1 (`:523-526`). Research 18 §5.4 (`docs/research/18-agent-activity.md:698-728`), where the verdict was measured at 57 of 57 recall and 0 of 386 false positives and where the Phase 9.2 rule was said to be "preserved by construction" (`:724-726`). Phase 9.2 Bug B (`docs/BACKLOG.md:247-251`), which first wrote the rule with both halves. Phase 12.11's rule that what Tortie does to a session may never raise its state (`state-machine.ts:59-70`), and its resize grace, the twin this phase copies. Phase 141's resume in place, which types into a pane through `typeIntoPane` (`src/main/sessions/resume-in-place.ts:1209-1216`), and its `leftCommand` reading of `#{pane_current_command}` (`state-machine.ts:160-176`). Phases 205 and 292, which made the pane's own reports travel beside his keys without counting as typing (`src/renderer/terminal/keys/pane-report.ts:1-29`). Phase 312's choice rows and its no-rows-kept hash (`choiceMarkOf`, `src/main/activity/monitor.ts:1314`). Phase 314's push, which rides `needs_input`. Phase 316.1's door, which serves the question and the choice to his phone. Phase 319's PARKED note and its "What is NOT" line on his own words (`docs/BACKLOG.md:33990`). Phase 321's entry, its attack on his own words (`:34075`), its "What is NOT" line (`:34095`), its spec (`build/p321/SPEC.md`) and its app run (`build/p321/probe-p321.mjs`). Phase 23 refusal 5. The operator's rule that a phase lands only when a side-by-side against today shows no scenario worse. `conformance:phonecopy`'s rule that no line of his payload reaches any log.
+
+**Depends on.** Nothing queued. Phase 321 has landed (`a1ab7d09`), so its shapes, its foreground gate, the redacted corpus under `build/fixtures/questions/`, its corpus pins (`build/p321/corpus.mjs`) and its stand-in (`build/p321/stand-in.mjs`) are in the tree. Phase 319 is parked and uncommitted (`/private/tmp/wt-p319`): nothing here assumes its peek, and the ceiling of six blocked sessions stands. Every path and line number below was read from the tree at `e371324b` (origin/main) on 2026-09-23.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The fault, measured three times, once in the app.**
+  - Research 129 §6.2 (`:434-436`), the shipping monitor at `5a72c1e7`, 200 runs each: his own dialog-shaped words typed key by key turned amber 200 of 200; pasted in one burst, 200 of 200 at the 1 s cadence and 145 of 200 at the 2 s cadence. Phase 319's parked fix J read 200 of 200 on the paste at 2 s, the one worse row he accepted with "Yes, land it"; the log line recording that ruling says the cause, reading his own words as a question, "is owed its own entry" (`docs/BACKLOG.md:35452`). Staying in Tortie is amber every time on both builds (the same line).
+  - Phase 321's app run, `probe:p321` at HEAD (`build/p321/SPEC.md:1387-1389`): the last 24 inked rows of 7 recorded question screens (`probe-p321.mjs:452-460`) were typed into the input rows of 6 stand-in sessions (cursor, qwen, opencode, antigravity, claude and grok), 42 typings. The parent's own numbered verdict read a question in 6 of them, every one antigravity's run-permission rows (`SPEC.md:885-888`), and 5 of those 6 sessions turned amber in the app; grok's did not, because its detached helper holds it `working`. The other 36 typings raised nothing, and 321's shapes raised nothing in 31,631 compositions of his words (running log, `docs/BACKLOG.md:35474` and `:35478`; commit `a1ab7d09`).
+  - Phase 321's fix round removed cursor's, opencode's and antigravity's shapes whole, first among its reasons that his paste of cursor's own rows into the input row cursor draws on the LAST row after a skipped permission turned it amber, measured live on cursor-agent 2026.09.18 (`SPEC.md:1027`). So an input row can sit at the very bottom of the screen with nothing below it, and a "nothing inked below the hint" clause of the kind 321's kept shapes carry would not, on its own, refuse his words there.
+- **321's arm never went through the path his keys take.** It typed with `tmux send-keys -l` (`probe-p321.mjs:281-287`, called at `:1017`) and then called `window.gmux.noteTerminalInput` through the DevTools protocol (`:1020-1022`). A fix placed where his keys enter main cannot be exercised that way.
+- **Why the rule is broken.** Research 18 §5.4 measured the verdict over claude, codex, qwen and gemini idle and working screens and concluded that "it requires a rendered dialog — so the Phase 9.2 self-inflicted-input rule is preserved by construction (an answered dialog disappears from the screen)" (`18-agent-activity.md:724-726`); `screen.ts:70-71` repeats it. That holds for a dialog he answers. It says nothing about his own words forming one, and none of the 386 negative screens held any.
+- **Phase 9.2's rule had two halves, and Phase 13 kept one.** Phase 9.2 Bug B (`docs/BACKLOG.md:247-251`): a double click raised needs input; the fix called `noteUserInput` from the term input path AND ignored a bell "within ~2000ms after user input to that session". Phase 13 moved status to main and kept only the release: `activity:noteInput` (`src/main/ipc.ts:183-189`, whose comment says it "Replaces the renderer detector's noteUserInput") calls `noteUserInput` (`monitor.ts:510-522`), which returns at once unless the session already reads needs input and then moves it to working. The renderer sends it only while its own row already reads needs input (`src/renderer/state/sessions-slice.ts:1832-1843`, the check at `:1841`), so that nothing crosses the bridge per keystroke. Nothing tells the monitor that his words ARE on the screen, and nothing refuses a dialog because of them.
+- **Every byte the renderer sends a local session enters main at one line.** `src/main/attach/attach-host.ts:277-288`: the `term:input:<id>` listener writes to the attach client's pty at `:285`, the only `pty.write` in the file, and keeps nothing. `termInputChannel` has one sender (`src/preload/terminal.ts:34`) and this one listener. What arrives there: typing and mouse from `src/renderer/terminal/TerminalPane.tsx:437-450` through `ScrollSurface.sendInput` (`src/renderer/terminal/scroll/surface.ts:408-433`); the pane's own focus, colour and device reports through `sendReport` (`surface.ts:454-456`, chosen at `TerminalPane.tsx:439-441`), on the SAME channel, which is why reports and keys arrive mixed; a file drop through `src/renderer/terminal/drop/insert.ts` (its fallback `sendDirect`, `:59-65`); and an Architecture delivery through the same insert path (`src/renderer/arch/deliver.ts:45-58`). The host already has a tap that passes a LENGTH and never the bytes: `onData` (`attach-host.ts:150-155`, wired at `src/main/sessions/core.ts:935-940`). A local attach client exists only for a session visible in a Tortie window (`attach-host.ts:2`), so text can reach a session this way only while he is looking at it.
+- **The keystrokes Tortie sends itself go another way.** One function types into a pane from main, `typeIntoPane` (`src/main/restore/restore.ts:305-314`, `tmux send-keys -l`), never through the attach host. Its callers: the snapshot replay (`:1104`, with Enter), the drift notice (`:1161`, with Enter), the armed resume (`:1172`, no Enter), and Phase 141's resume in place (`resume-in-place.ts:1209-1216`, no Enter). Phase 12.11's rule covers these, but only its resize half is built: `noteGeometryChange` (`monitor.ts:533-537`, called from `core.ts:3188`) stamps `reflowUntil`, and `inferredVerdict` discounts output and re-baselines the screen memory while it lasts (`state-machine.ts:342`, `:348`, `:359`) and leaves the dialog detector live (`:337-341`). Whether a restored session whose replayed snapshot ends on a numbered question turns amber is unmeasured.
+- **Which sessions read the screen verdict.** `inferredVerdict` runs when `nativeVerdict` returns null (`monitor.ts:640-644`; `state-machine.ts:273-305`): the screen-tier rows cursor (`src/main/agents/registry.ts:665`), gemini (`:836`), droid (`:897`), antigravity (`:1110`), qwen (`:1273`), pi (`:1359`), omp (`:1441`), grok (`:1574`) and opencode (`:1687`); deepseek (`:1009`) and muse (`:1187`), process tier with `animatesWhenIdle`; every agent this build has never heard of (`DEFAULT_ACTIVITY`, `:2071-2075`); Claude Code while its registry holds no entry for the pane (`state-machine.ts:290-302`); Codex while its title matches none of its three readings (`src/main/activity/oracles.ts:63-73`); and a shell whose keypad flag has never been seen (`state-machine.ts:282-287`). A session on another machine never reads needs input (`src/main/machines/remote-sessions.ts:1032`).
+- **What masks it today.** grok's detached MCP servers hold it `working` on every tick through `hasToolChild` (`src/main/activity/process.ts:135`; research 129 §3.5), which is why grok's was the one session of six not amber in 321's run. antigravity 1.2.7's repaint every 2.0 s resets the dialog count at the 1 s cadence (`build/p321/SPEC.md:52-60`) and not always at 2 s, which is the cadence 321's app run used, where antigravity's session was amber.
+- **Where his words go once they are read as a question.** The screen's question row and options (`detectDialogRows`, `screen.ts:291-310`, asked in `choiceUpdate`, `monitor.ts:1176-1223`) become the session's choice rows and ⌘J's question. The door serves the same question and choice to his phone (`activityOf`, `src/main/pocket/facts.ts:67-70`). The push itself carries no question (`src/main/push/alert.ts:4-9`).
+- **The belt that could not fire.** Research 129 §5 item 12 (`:331-336`) dropped a keystroke belt because the renderer tells main about typing only while the session already reads needs input, and because the phone's door has no route that types (every row at `src/main/pocket/routes.ts:139-142` reads `reads: true`). The attach host's listener sees every keystroke whatever the status, so that reason does not bind a belt placed there. Nobody has built or measured one there.
+- **The fewest characters that make a question, read from the regexes for this entry.** Each row is tested against each regex on its own (`screen.ts:296-300`), and `OPT1` and `OPT2` are anchored at the row's start (`:74-75`), so the verdict needs at least two rows. `OPT1`'s `\S` may be the first letter of the hint, so the shortest text that satisfies the verdict alone is `1. to cancel` and `2. x`: 16 characters and one line break. The shortest row of his own that can FINISH one beside rows the agent already drew is 4 characters (`2. x`). The answering keys the record holds are single keys: `y` (research 129 §2.2), `a` (cursor's trust gate, `probe-p321.mjs:978`), a digit (Phase 312's numbered choice), Enter, an arrow and Esc.
+- **What nobody has measured.** How soon after his answering key a real agent draws its next question; how soon an agent's input row echoes his key (key to `#{window_activity}`, which is whole seconds, `src/main/activity/panes.ts:100` and `:145`); and whether any real agent draws a question while he is typing ahead into its input row. The first two are in the banked recordings: their key events (`a/rec/events.jsonl`) and byte timelines, pinned by sha256 at `build/p321/SPEC.md` §2.1 and `build/p321/corpus.mjs`. That corpus is still in `/private/tmp` (research 129's scratchpad `p319/`, named at `SPEC.md:996-997`), which does not survive a reboot. It was there on 2026-09-23.
+- **A free signal.** `#{pane_current_command}` is on every tick's one `list-panes` line (`panes.ts:106`, `:151`, `PaneFacts.currentCommand`). Phase 141's return trigger reads it (`state-machine.ts:160-176`), and 321's foreground gate reads it before any `ps` (`SPEC.md:1194-1200`). It changes when a new program takes the terminal, as when his Enter launches an agent from a shell.
+
+### The mechanism
+
+**The phase opens with a spec step, because no research has designed this fix.** Research 129 found it and ruled it its own entry, 319 and 321 each named it out of scope, and the only mechanism ever sketched, the belt, was dropped for a reason that the attach host's listener removes but that nobody has measured there. The spec step is investigators, an adversary and a judge, then ONE `build/p325/SPEC.md`, before any builder starts. It measures the three unmeasured gaps above from the banked recordings, designs the rule, and has the adversary attack it with missed questions before a line of it is built. **Its first question goes to him, with a default:** *when his typed words and an agent's real question reach the screen inside the same window, which may Tortie get wrong?* **Default: the question is taken for his words and stays grey until the agent draws again.** The reason is a fact about the tree: his text reaches a session only through an attach client, which exists only while that session is visible in a Tortie window (`attach-host.ts:2`), so at that instant he is typing into it with the question in front of him. The proof measures the window per delay, so the ruling is made on a number.
+
+1. **The corpus first.** If `build/p321/corpus.mjs`'s 37 pins still match, the main session copies the corpus outside `/private/tmp` and outside the repository before anything else, and every script reads it from `P321_CORPUS` only. It is not committed. If it is lost, the replay arms run over the committed redacted windows (`build/fixtures/questions/`) and the live confirmation alone, and the proof says so. No agent is re-recorded for this phase.
+2. **`src/main/attach/input-facts.ts` (new, pure): what reached the pane, as a number.** `inputFacts(data)` counts the characters that are neither control characters nor inside an escape sequence (CSI, OSC up to BEL or ST, SS3, DCS, and the three raw bytes after `ESC [ M` in an X10 mouse report), and whether a carriage return arrived outside a bracketed paste, which is how an agent's input row is submitted. The bracketed-paste markers are CSI, so a paste counts its content. A focus report, a colour report, a device answer, a mouse report, an arrow and Esc all count 0. It returns numbers only, holds nothing and names no log call. The spec step adds any other count it shows it needs, and never a string.
+3. **`src/main/attach/attach-host.ts`: one tap beside `onData`.** `AttachHostOptions` (`:126-156`) gains `onInput?: (sessionId: string, facts: InputFacts) => void`, called once in the listener (`:279-287`) after the write, for a local client only (`client.kind`, `:223`), because a remote row never reads needs input. The bytes are written and dropped exactly as today.
+4. **`src/main/sessions/core.ts`: wired to the monitor** where `onData` is wired (`:935-940`), as `this.activity.noteOwnText(sessionId, facts)`, the twin of `noteGeometryChange` (`:3188`).
+5. **`src/main/activity/monitor.ts`: `noteOwnText`**, beside `noteUserInput` (`:510-522`) and `noteGeometryChange` (`:524-537`). It adds to the session's open burst and stamps its time. It commits nothing, captures nothing, reads no `ps`, and never raises or releases a state. `noteUserInput` and the renderer's gate at `sessions-slice.ts:1841` do not move, so his key releases a raised question exactly as today. For a session with no state yet, the spec step decides whether the burst is held or dropped, as `noteGeometryChange` drops (`:533-535`).
+6. **`src/main/activity/state-machine.ts`: the attribution, beside the dialog line.** `SessionState` (`:76-188`, zeroed in `freshState`, `:208-233`) gains the open burst, a mark (a hash, never a row) and the command it was taken under. In `inferredVerdict` (`:327-420`), `dialog` (`:371`) passes through the rule below before it reaches the count (`:393-400`). The numbered verdict (`:366`), the shapes (`:367-370`), strong evidence (`:376-385`), the release (`releaseNeedsInput`, `:427`) and every constant do not move. The rule can only withhold a count: it never makes a session `working`, never adds a screen change or a turn boundary, and never raises a state. **The rule the spec step starts from, which it may replace only with one it has measured better, and never with one that holds his bytes:**
+   - **His burst** is the text that has reached the pane from him since it last rested. It closes on a carriage return outside a paste (he submitted it); when the pane writes in a later second than his last key's echo could land (the agent is writing on its own); or at the first capture taken after the pane has been quiet for `QUIET_MS`.
+   - **A dialog is his** when it is first read on a capture taken while his burst is open, the burst holds at least `OWN_TEXT_MIN` characters, the process holding the terminal (`pane.currentCommand`) is the one that held it when the burst opened, and the capture before the burst opened did not read a dialog. Its matched rows are then remembered as his by `hashScreen` (`screen.ts:48`), the way `choiceMarkOf` keeps a choice without keeping its rows (`monitor.ts:1314`), and a later capture whose matched rows hash the same is his too.
+   - **The mark is dropped** when a capture reads no dialog, when `pane.currentCommand` changes, when the agent leaves or returns (`noteAgentLeft`, `state-machine.ts:1124`; `noteReturn`, `:1175`), and when the state is forgotten.
+   - **Why each clause.** First sighting inside the burst, rather than the agent's silence, keeps words typed ahead while the agent works his when it finishes. The hash keeps them his after the pane goes quiet or a footer repaints, while a question the agent draws later has rows of its own and counts as today. `OWN_TEXT_MIN` sits above every answering key the record holds (1 character) and at or below the fewest characters that can finish a dialog (4), so the next question after his `1` or `y` counts as today; the spec step fixes it from the regexes and the banked key events. The command clause and the submit clause mean that the gate an agent draws after his Enter launched it, or after he submitted a prompt, is never his. The clause about the capture before the burst keeps a question the agent had already drawn from becoming his when he types a letter it ignores.
+   - **The constraint on the hash.** `detectDialogRows` has two production callers. One is `detectDialog` (`screen.ts:106-108`), which the verdict calls at `state-machine.ts:366` and which hands the verdict `.atChoice` alone and drops the rows. The other is `choiceUpdate` (`monitor.ts:1185`, whose single call `conformance:choices` pins at `build/conformance-choices.mjs:977`), and `choiceUpdate` returns at once unless the session already reads needs input (`:1181`), so the mark cannot be taken there before the raise. The verdict line itself is pinned byte for byte by `conformance:choices` clause 21 (`:1396`). The spec step either names a second reader of the matched rows and amends the gate in the same commit, or hashes something the verdict already holds, and says which, measured.
+7. **Tortie's own keystrokes, only if the parent measurement earns it.** The spec step measures at the parent whether a restored session whose replayed snapshot ends on a numbered question turns amber, and whether text typed by Phase 141's resume in place does. If either does, `typeIntoPane`'s callers (`restore.ts:1104`, `:1161`, `:1172`; `resume-in-place.ts:1215`), which hold the session id, open the same burst with the count of what they typed, under Phase 12.11's rule. If neither does, they stay as they are and the proof says so.
+8. **Tests.** `src/main/attach/__tests__/input-facts.test.ts`: every report kind counts 0 (focus in and out, colour, device, SGR and X10 mouse, arrows, Esc, bracketed-paste markers with nothing between), a paste counts its content, a carriage return inside a paste is not a submit, and wide and combining characters count as characters. `src/main/activity/__tests__/p325-own-words.test.ts` drives the shipping class with a virtual clock: his words typed and pasted over every committed idle window whose bottom rows are an input row (`build/fixtures/questions/*.jsonl`) never reach needs input at 1 s or 2 s; one row per clause; each answering key followed by the next question at 30, 150 and 400 ms (the delays research 129 §6.2 drove Phase 312's choice at) and at 1,000 ms reaches needs input exactly as at the parent; a new program's gate after his Enter reaches it too. **Every existing row in `signals.test.ts`, `p312-choices.test.ts`, the `p321-*` files, `monitor.test.ts`, `reflow.test.ts`, `turn-boundary.test.ts` and the Phase 141 tests stays green unchanged.** A row that has to change is a finding for the verifier, not an edit. `gate:checks` runs because test files are added.
+9. **Gates, in the same commit.** `build/conformance-ownwords.mjs`, as `conformance:ownwords` (spawns nothing): `attach-host.ts` holds exactly one `pty.write`, inside the `term:input` listener, and calls the tap there once; the tap's type names numbers only and `input-facts.ts` returns no string; no file under `src/main/activity/` imports `input-facts.ts` or receives the listener's `data`; neither file names a log call; the rule sits in `inferredVerdict` before the count; and the renderer's gate at `sessions-slice.ts:1841` is unchanged. Each clause is asked again over an in-memory copy with its rule broken, and each must read red. `conformance:phonecopy`'s log rule, which already covers `src/main/activity/**`, gains `src/main/attach/input-facts.ts`. CLAUDE.md's path-triggered table gains the row, and `conformance:choices`'s row gains one sentence if the mark adds a reader of the matched rows. `build/p325/ablation.mjs`, as `ablation:p325`, removes each clause from the SHIPPING source one at a time, the row that owns it goes red, every file is restored and compared by sha256 in a `finally`, and an unedited control stays green. `ablation:p312` and `ablation:p321` stay green unchanged.
+10. **`build/p325/probe-p325.mjs`, as `probe:p325`**, the app run below. It reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises by one from whatever the parent reads (153 at `e371324b`, `build/assert-electron-teardown.mjs:326`), because Phases 326, 327 and 328 each add a probe too. It is classified in `build/verification-checks.mjs`, and CLAUDE.md's probe table gains one line naming `input-facts.ts`, the tap and the attribution as its triggers.
+
+### The proof, run rather than read
+
+- **Gates.** `npm run typecheck && npm run build && npm run smoke:t1`, then the integrator's full battery (test, smoke, smoke:t3, package). Plus the path-triggered gates for the files touched: `conformance:choices` and `conformance:handback` (`state-machine.ts`, `monitor.ts`), `conformance:phonecopy` (`src/main/activity/**`), `conformance:push` (the push rides needs input) and `conformance:ownwords`. `conformance:choices` runs whatever the phase touches, because its clause 9 scans all of `src/main` (running log, `docs/BACKLOG.md:35478`). Also `ablation:p312`, `ablation:p321` and `ablation:p325`, `gate:checks`, and `gate:electron` and `gate:background` for the probe and its stand-ins. `gate:contract` must not move: the tap is inside main, and no IPC channel, storage key, env name or schema changes.
+- **The fault, parent against HEAD, through the path his keys take.** The verifier's own harness drives the shipping monitor and the attach host's tap, parent and HEAD side by side, over scratch panes on its own tmux socket. His text is written to the pane AND handed to the tap as the app hands it; a harness that only runs `send-keys`, as 321's arm did, tests nothing here. The compositions are the 7 screens `probe-p321.mjs:452-460` types, the numbered fixtures under `src/main/activity/__tests__/fixtures/`, and research 129's dialog-shaped words. Each is typed key by key and pasted in one burst, over a committed idle window of every row in the list above and over a plain bash prompt, at 1 s and 2 s over at least 10 tick phases, with him staying and with him leaving within a second. Required: the parent reproduces research 129's 200 and 145 of 200 and 321's 6 of 42; HEAD raises needs input on none, per row, every rate with its denominator; grok and antigravity are reported as the masks they are, at both builds.
+- **The floor, over real recordings.** The verifier's own replay of every banked recording, the sha256 pins checked before the first replay, with each recording's own key events handed to the tap at their recorded times. Required: every question the parent raises, HEAD raises no later than the parent's median plus one tick, per question and per cadence, including qwen's two confirmations and Claude Code 2.1.280's gate (321's 180 of 180 cells, `docs/BACKLOG.md:35478`), gemini's gate and codex's update prompt; 0 needs input ticks at HEAD that the parent did not read; turn boundaries and `running` transitions equal at both builds, or each difference attributed. Tabulated per question and per tick, not summed.
+- **The rows this rule could make worse, measured and never hidden.** (a) **An answering key, then the next question**: a digit, `y`, `a`, Enter, an arrow and Esc, with the next question drawn 30, 150 and 400 ms later (research 129 §6.2's delays for Phase 312's choice) and 1,000 ms later, over every agent shape; HEAD must equal the parent. (b) **A new program's first gate after his Enter**: Phase 141's resume in place and the restore's armed resume (typed by `typeIntoPane`, Enter by him), and a command he types in a shell; HEAD must equal the parent. (c) **The same instant**: he types from `OWN_TEXT_MIN` to 200 characters into an agent's input row and the same program draws a real question 0.1, 0.5, 1, 2, 3 and 5 s after his last key, with the pane silent and with it writing. Every cell the parent raises and HEAD does not is reported with its delay; if any exists, the row goes to him with the default above, and the phase does not land until he rules. (d) **The real gaps**: the time from an answering key to the next question, and from a key to its echo, over the banked key events, computed by the spec step and re-derived by the verifier, so (c)'s delays are read against something real. (e) **A question the parent missed after silence, then his typing into that session**: whatever the parent reads, HEAD must read the same.
+- **The echoed prompt.** His dialog-shaped words submitted, the agent echoing them into its transcript and answering in a few rows so they stay inside the 24-row window, parent and HEAD, per agent shape. Reported. If HEAD still raises it, it is a stated limit and its own entry, and never hidden.
+- **The attack.** Every byte shape that is not text, sent through the real listener into a blocked and an unblocked session: focus leaving and returning while a real question is drawn (HEAD must still raise it, because leaving Tortie is exactly when it matters), colour and device reports, SGR and X10 mouse reports, bracketed-paste markers with nothing between, an IME composition, a paste split across two `term:input` messages, and text queued while scrolled back (`surface.ts:423-432`) and sent on the return. Text into a session on another machine (inert at both builds). Text from outside Tortie, being another tmux client on the scratch socket and a script's `tmux send-keys`: Tortie cannot see it, so HEAD must equal the parent, and the report says so. His words finishing rows the agent drew (the agent's numbered prose with his `esc to cancel` or `do you want` typed below it). His words typed ahead while the agent works, then the agent finishing and the pane going quiet. His words left in the input row while the agent then draws a real question (must raise). His words in a seventh session while six are blocked, then a slot freed (must not raise).
+- **Cost.** The counter's cost per `term:input` message over a fast paste and over key repeat, in microseconds (the parent has none). The tick is unchanged: with every session settled and nothing written, exactly one `list-panes`, no `ps` and no capture (research 18's A9), and captures and `ps` per tick equal at both builds on a 30-session load in Phase 319's rig shape.
+- **His words are never kept.** Re-derived rather than read: the verifier plants a log call on the listener's `data`, on the counter's input and on a string handed into `src/main/activity/`, and each must turn `conformance:ownwords` or `conformance:phonecopy` red, beside a control log call carrying a fixed word that stays green.
+- **One live confirmation on the installed agents**, because an echo's shape and timing belong to each release. It runs on a scratch tmux socket (`-L p325-*`, never `-L gmux`), in scratch folders deleted afterwards, with parent and HEAD monitors watching the same panes and the harness handing the tap each text it types. The agents: Claude Code as `probe:p314` runs it (`build/p314/SPEC.md` R6 and R8: inherited session variables removed, `DISABLE_AUTOUPDATER=1`, `TMUX` unset); cursor-agent with `--disable-auto-update`, a closed loopback `AGENT_CLI_UPDATE_CHECK_URL`, and its install hashed before and after (`build/p321/SPEC.md` §1.2 item 6); and opencode, pi and codex, each install hashed before and after the same way, and any that changed named in the report. **Never gemini, qwen, agy or grok**, whose launches install updates (running log, `docs/BACKLOG.md:35468`). Words are typed and pasted into each input row and never submitted, so no turn is spent. Per agent it records the numbered verdict's reading, the echo delay from key to stamp, and the amber at each build.
+- **`probe:p325`, the app run, in `probe:p321`'s shape.** One Electron through `build/electron-run.mjs`, with a scratch profile, a scratch `HOME` and its own tmux socket, the stand-ins resolved under their bare names or the run reads UNREADABLE and exits 2, and no Tortie window focused, so the poll runs at 2 s. **His words are typed through the renderer's own path**, through the pane's xterm over the DevTools protocol (a paste, and keys through `onData`), and never with `tmux send-keys`, so they cross `term:input` and the attach host as his do. Arms, each at a built parent and at HEAD: (a) 321's 7 compositions into cursor, qwen, opencode, antigravity, claude, grok and pi rows and a bash shell row: the parent reproduces 321's reading, and HEAD shows no amber, no ⌘J row, no door row and no push; (b) a real question after an answering key: amber and one push at both; (c) Phase 141's resume in place into a shell, Enter pressed through the renderer, then the stand-in's gate: amber at both; (d) the same instant, at the delays the spec step chose; (e) the window losing focus while a real question is drawn: amber at both. Every stand-in is ended by pid in a `finally`, the socket file is unlinked, and Electrons are counted once, at the end.
+- **What cannot be proven here, stated rather than hidden.** How often he types or pastes dialog-shaped text in real use (research 129 §7). How often, in real use, an agent draws a question while he is typing ahead. The next release of each agent's echo. gemini, qwen, agy and grok live, and droid (not installed). More than one IME composition. Text from outside Tortie, which Tortie cannot see.
+
+### What is NOT in this phase
+
+- **No change to the numbered verdict.** `BORDER`, `OPT1`, `OPT2`, `HINT`, `QUEST` and the 24-row window (`screen.ts:73-81`) do not move, `detectDialog` stays `detectDialogRows(...).atChoice` with its one production call site, and Phase 312's parent-verdict floor stays green unchanged. It is the measured floor for every agent with no shape, and cursor's input row at the very bottom of its screen (`build/p321/SPEC.md:1027`) shows that the tightening 321's shapes carry would not refuse his words there.
+- **No change to Phase 321's shapes or its foreground gate**, and no shape for any new agent.
+- **No change to the release.** `noteUserInput`, `activity:noteInput` and the renderer's gate at `sessions-slice.ts:1841` stay as they are.
+- **No change to what his typing does to `running` and `idle`.** The echo of his keys still counts as output (`state-machine.ts:347-348`), as it does today. This phase is about needs input only.
+- **No copy of his words anywhere.** No ring, no hash of what he typed, no buffer in the activity domain, and no log line. The monitor receives counts. The only hash is of the screen's matched rows, which the screen already shows and which Phase 312 already hashes for its choice.
+- **No renderer change, no new IPC channel and no preload change.** The seam is main's listener, which already receives every byte.
+- **No fix for screens the agent itself draws that the verdict misreads**: Phase 319's class (a working screen shaped like a dialog over a waiting child), pi's widened answer, gemini's answered gate read for three captures (`build/p321/SPEC.md` §1.2 item 3), and Tortie widening a settled answer (research 129 §9 item 7). Each is its own entry.
+- **Nothing for text typed by anything but Tortie**: another tmux client, a script's `send-keys`, or an agent typing into another session. Tortie cannot see it, and the attack proves HEAD reads it exactly as the parent does.
+- **The echoed prompt is fixed only if the rule reaches it.** Otherwise it is a stated limit and its own entry.
+- **Tortie's own typed text changes only if the parent measurement shows it raising amber** (mechanism item 7).
+- **No phone write route.** Phase 318's message box, when it comes, writes through the same listener or hands the same count, and `conformance:ownwords` makes a second writer visible.
+- **No cursor column and no sub-second stamp.** Research 129 §4 priced a cursor column at 0.4 ms of client CPU per `list-panes` and rejected it for another purpose; it is unmeasured for this one.
+- **No constant moved.** `QUIET_MS`, `DIALOG_CONFIRM_TICKS`, `DIALOG_CLEAR_TICKS`, `AMBIGUOUS_WINDOW_MS`, `REFLOW_GRACE_MS`, `MAX_CAPTURES_PER_TICK` and both cadences stay.
+- **No change to Phase 319's parked build or to the ceiling of six.**
+- **Nothing for remote sessions**, which never read needs input (`remote-sessions.ts:1032`).
+- **Nothing for Claude Code's permission prompts or Codex's**, whose oracles speak first. The rule reaches them only while their oracles are silent, which is when the screen verdict reaches them today.
+- **No live gemini, qwen, agy or grok, no droid, no turn spent, and no read or delete of any agent's conversation store.**
+- **No committed raw recording.** Only the scripts, the tests, the gate and the source are committed.
+- **No status, no status word, no copy, no surface and no menu.**
+- **No release.** One CHANGELOG item under `## Unreleased`, and the follow-up docs commit that writes the running-log line adds its commit link.
+
+## Phase 326 — a far session created alone can have its first attach land while it is listed as a session Tortie did not create, and its screen never draws (Phase 320's reverify, 2026-09-23)
+
+**Subject.** `fix(machines): the first session in a remote tab draws its screen`
+
+**First body line.** `Phase 326: an attach to a session on another machine waits for its create and never asks this Mac`
+
+**Semver.** Patch. Today, when he starts the first session in a tab whose folder is on another machine, that session can open on "This session no longer exists" and stay blank, even though it is running over there and the session list says so. Typing into it does nothing. Clicking another session in the same tab and back draws it, but a session alone in its tab has nothing else to click. On the loopback scratch machine, the first attach was refused in 16 of the 35 app runs that Phase 320's verification made against it. In the runs where the session was still alone when the probe looked at it, 8 of the 9 refusals left the screen blank for the whole 30 seconds the probe waited. After this phase, the first session in a remote tab draws the moment its create has finished, however the far side's lists and the create's stamps interleave, and a session on another machine is never looked for on this Mac's server. Unchanged on purpose: the durable row is still written before the create line (Phase 72); the create's command line and its four stamps are unchanged; Phase 117's rescue for a create whose answer really was lost is unchanged; the remote attach is unchanged once a completed list has named the session; every session on this Mac is unchanged; the renderer is unchanged. There are no surface or menu changes, so the native menus are untouched. At most one new refusal sentence is added, for a machine that has not answered within the wait. One CHANGELOG item goes under `## Unreleased`. No release: phases 311 onward stay unreleased until the phone works end to end.
+
+**Tier 3, because three of the table's questions answer yes.** It changes session lifecycle, being create and attach, and the defect makes a person's new session unreachable. It changes when Phase 117's rescue may bind a session on another machine, and a wrong answer there adopts a session Tortie did not create or leaves one it did create unbound. It also spawns a process, the attach client, after a wait that did not exist before, and a client spawned for a pane that has already gone is a leak. **Independent methods, named before the work starts:** (1) **measure the parent commit**, every arm, on both far tmux versions, one build after the other; (2) **attack**, with a hostile far tmux wrapper that widens the stamp window, holds it past the wait's bound, plants a stranger under the create's own name, and fails the create, plus a pane that is switched away during the wait and a quit during the wait; (3) **re-derive**, where the verifier builds its own table from the far side's own command log and never from Tortie's log, predicts from that table alone which parent creates refuse, and counts attach clients with its own far `list-clients`. Plus a fix round if any verdict is needs_work, and an independent reverify of that fix.
+
+**Charter.** Phase 320's commit `b28d0eb4`, whose body names this defect under "Found and not this phase's": 3 of 8 runs at the parent and 2 of 8 at that commit, in unchanged code in `remote-sessions.ts`. `docs/research/51-remote-machines.md` §4.1, which says the `@gmux-id` option stamp "remains a second command" after the create (`:193`), and §4.4, which says `snapshotAt` is taken before the exec "or the round trip flips just-created sessions" (`:322`). That research knew a just-created session sits in a window. Phase 72 (the durable row written before the create line). Phase 117 (`### Phase 117` at `docs/BACKLOG.md:6753`, the three-answer confirmation and the pane-environment rescue this phase must not weaken). Phase 187 (a list older than a Remove may not reinstate it, which is the one stale-list guard the pass has today). Phase 67 (`unknown` holds a pane's input and keeps it mounted). CLAUDE.md's identity rules: a live session is addressed by `$-id` or `@gmux-id` and never by a bare name, and a session carrying neither stamp is not ours and is never adopted, shown or killed. The local attach's own direct read by identity (`src/main/sessions/core.ts:3137-3150`) is the working sibling. Its remote twin is one list of that machine, which is the read this phase adds. His rule that a phase lands only when a side-by-side against today shows no scenario worse also applies.
+
+**Depends on.** Nothing queued. Phase 320.1, which he approved on 2026-09-23 (running log, `docs/BACKLOG.md:35444`) and which has not started, plans to make `scrollTarget` in `src/main/sessions/core.ts` (`:2529-2531`, today `liveIds` alone) read `remoteSessionRow`, and changes no line this phase changes. Phase 323 changes `killSessionAdmitted` in the same file, and its `conformance:endtree` reads that method by matching braces. The methods do not overlap, and the second to land rebases.
+
+### What was measured before this entry was written, so no round re-derives it
+
+All paths and line numbers were read from the tree at `e371324b` (origin/main) on 2026-09-23. `src/main/machines/remote-sessions.ts` has not changed since `b34122fa` (2026-09-16). Since `b28d0eb4`, the only change to `src/main/sessions/core.ts` is Phase 316.1's `activityNow` map, and nothing on the attach path changed.
+
+- **The rate, from the logs Phase 320's rounds left behind.** The app logs of its verifier, reverifier and removal reverifier are in the session scratchpad (`p320v`, `p320rv`, `p320rm`), which does not survive a reboot, so the counts are copied here. Of 42 app logs, 35 reached the loopback machine, and every one of those created `p320-fs` as the first session in a freshly opened far tab. **16 of the 35 refused the first attach**: 7 of 16 at the parent build and 9 of 19 at the build under test. The far side ran tmux 3.6a (Homebrew) or 3.7b (vendored), and both refused. In the **24 runs that looked at `p320-fs` while it was still alone** (the R1-only batch and the vt200 and x10 arms), 9 refused and **8 of those 9 never drew within 30 s** (`a prompt did not happen within 30 s`). That is 3 of 11 at the parent and 5 of 13 at the build under test. In the **7 full runs that created two more sessions before the probe selected `p320-fs`**, 5 refused and **0 stalled**, because selecting it again mounted a fresh terminal. 4 more runs of the first verifier have no stall reading kept beside them. `probe:p95`, which creates its far session alone in the same way, refused 0 times in its 2 runs in the removal round, an outcome the rates above give about one time in three (0.54 squared is 0.29, and 0.625 squared is 0.39).
+- **Every refusal asked this Mac, not the machine.** All 16 carry the same payload, `{"code":"SESSION_NOT_FOUND","message":"This session is no longer running.","detail":"p320-fs"}`. That sentence exists in one place in the tree, `src/main/sessions/core.ts:3147-3149`, inside the branch for a session **on this Mac**. The remote branch's own refusal is a different sentence, "This session is not running right now." (`:3113-3117`). So in 16 of 16, `remoteSessionRow` (`src/main/machines/remote-sessions.ts:1068-1076`) found the session in neither feed map. The attach then read the manifest row (`:3129`), found no local `$-id` (`:3137`), listed **this Mac's own tmux server** for the far uuid (`:3142`) and threw (`:3144-3150`).
+- **Every refusal followed a pass that counted the new session as not Tortie's.** In all 16 logs, a line `p320far holds 2 session(s) Tortie did not create` (or more) comes before the refusal. 20 logs carry such a line, so being counted is necessary and not sufficient. All 16 also carry the rescue's sentence, `held 1 session(s) Tortie created and could not account for, and they are back on the list with their names`, and 4 others carry it with no refusal. No log among the 35 has a line saying a create lost its answer, could not be confirmed, or failed a stamp. **The rescue fired 20 times on creates that were never lost.**
+- **The mechanism, read from the code and consistent with every line above.**
+  1. `remoteCreate` (`remote-sessions.ts:1499`) lists the machine first (`:1524`), records the id as issued (`:1607-1615`) and writes the durable row with status `running` (`:1643-1667`, `src/main/machines/remote-record.ts:364`).
+  2. It sends `new-session` (`:1671-1682`). The session now exists over there. Its pane environment carries `GMUX_SESSION_ID`, but it has no `@gmux-id` option yet.
+  3. The far control connection reports the new session (`src/main/machines/control-plane.ts:613-614`), and the sink starts a list at once (`remote-sessions.ts:2960-2962`). Nothing orders that list against the create.
+  4. The create writes its four stamps, one ssh round trip each (`:1762-1775`). Only the first is the identity. The id leaves the issued set only after all four (`:1777`).
+  5. A list that runs over there before the first stamp lands reads the session with an empty `@gmux-id`. It counts it as not Tortie's (`:2510-2518`, and the log line at `:2637-2641`), leaves it out of both feed maps, and hands it to the rescue.
+  6. That pass announces (`:2643`), and core's listener schedules a broadcast on the next tick (`src/main/sessions/core.ts:1123-1137`, `:1204-1211`). The broadcast carries the session anyway, because `listSessions` is built from the manifest (`:2627`, `:2648`, `:2666`) and the durable row exists. `projectRemoteRecord` (`remote-sessions.ts:1190-1215`) finds no feed row, and `remoteRecordStatus` answers `unknown` while the id is still issued (`:1254`).
+  7. In a tab with no session selected, `activeSession()` falls back to the last session in the tab (`src/renderer/state/sessions-slice.ts:1856-1866`). So the new session is put on screen before its create has returned. The pane mounts, because `unknown` is not `restorable` (`src/renderer/terminal/TerminalPane.tsx:223-227`), and it asks main to attach (`:586`).
+  8. The attach takes the local branch described above.
+  9. The pane draws the SESSION_NOT_FOUND overlay: the title "This session no longer exists" and **no Try again button** (`TerminalPane.tsx:144-148`). The attach effect re-runs only when the session id, the `restorable` flag or the retry epoch changes (`:635`), and the epoch moves only through that button (`:218-221`). The create then finishes and its own list binds the session (`remote-sessions.ts:1781-1789`). The status moves from `unknown` to `running`, which changes none of those three, so the screen stays blank. The drive's later `setActiveSession` with the same id (`sessions-slice.ts:1291`) does not remount the pane either.
+  10. In parallel, the rescue (`remote-sessions.ts:2806-2833`, `src/main/machines/pane-env-rescue.ts:291-340`) reads the pane environment, finds the id still issued and rewrites all four stamps while the create is writing them. It then logs the "could not account for" sentence (`remote-sessions.ts:2825`). If its read answers after the create has cleared the id, it records the create's own `$-id` as not ours for the life of that server (`pane-env-rescue.ts:317-326`). That path is read from the code and was not observed, because a match is silent.
+- **The one recovery at the parent, not measured.** Run `r1-parent-8` refused and then drew. The reading predicts a broadcast landing between the id leaving the issued set (`:1777`) and the create's own list (`:1781`). That broadcast reads `restorable` through the absent arm (`:1256-1259`), flips the pane's `restorable` flag and so remounts it. The probe records the status sequence the renderer saw for every create, which settles it.
+- **The count of sessions "Tortie did not create" includes Tortie's own.** Before any create, every run logs `holds 1 session(s) Tortie did not create`. The scratch machine starts no session (`build/with-scratch-machine.mjs`, `build/scratch-machine.mjs`). The control connection creates `gmux-control` over there (`control-plane.ts:17`, the name at `src/main/tmux/control-client.ts:89`), and the remote pass never filters it. This is read from the code. The probe confirms it by listing the far server.
+- **A list older than the newest list can overwrite it.** `onePass` replaces `state.rows` and `state.snapshotAt` unconditionally (`remote-sessions.ts:2614`, `:2617`). Two lists can be in flight at once, because each is its own ssh process (`src/main/machines/exec-plane.ts:584-643`) and three callers start them. Phase 187's guard (`:2553-2562`) covers only a Remove. This is read from the code and not measured, and it is not the cause here: an overwrite moves a row to `gone`, and the attach's remote branch accepts a `gone` row.
+- **Where else core decides remote-ness from the feed maps alone.** There are four more call sites in `core.ts`: the attach client's exit (`:1533`), rename (`:2790`), End (`:2884`) and resume in place (`:3459`). Restore and Remove already ask the record as well. Restore reads the manifest row inline and asks whether its `machineId` is another machine (`:1633-1636`). Remove goes through `remoteRecordOf` and `isRemoteRecord` (`:3027-3029`; `src/main/machines/remote-record.ts:214`, `:235`).
+- **The local create has the same order and a much shorter window.** It inserts the row (`src/main/sessions/create-local.ts:611`), creates the session (`:662`), sets `liveIds` on the answer (`:682`), stamps it (`:731`) and broadcasts (`:803`). Its attach finds a session by `liveIds` or by the stamp (`core.ts:3137-3143`). This is not measured. The probe runs a local control arm of the same shape.
+- **What waiting costs.** A remote list is bounded by `REMOTE_POLL_TIMEOUT_MS` = 10,000 (`remote-sessions.ts:424`). A stamp is bounded by the exec's default 10,000 ms (`exec-plane.ts:618`). A quit waits at most `MUTATION_JOIN_DEADLINE_MS` = 10,000 for admitted work (`src/main/sessions/mutation-ledger.ts:25`), and an attach is admitted work (`core.ts:3095-3099`). `AttachHost.attach` kills any client for the same id first (`src/main/attach/attach-host.ts:219-221`). `detach` does nothing when no client exists yet (`:420-423`). So a detach that arrives while an attach is waiting would leave the waited attach free to spawn a client for a pane that has gone. The local branch's own direct read (`core.ts:3142`) has the same gap today, only milliseconds wide.
+- **Not measured.** How long the window lasts, either on loopback or over a real link, was not measured. Each of the four stamps is one round trip, so the window is predicted to be wider over a tailnet than on loopback. This phase does not measure that on his machines.
+
+### The mechanism
+
+**Step 0, before any builder starts: the rate, at the parent.** `probe:p326` (below) runs arms A and B at the parent. They need only the shipping create and attach, so they run unchanged there. The table they produce goes into `build/p326/SPEC.md`. For each far tmux version it records: the parent's refusals and stalls with their denominators; the window's length, from `new-session` to `set-option @gmux-id`, read from the far log; the create's settle time, from the IPC call to its return, whose slowest value sets the wait's bound below; the renderer's status sequence per create; and the local control arm's count. **If arms A and B both read 0 refusals at the parent on both far versions, the mechanism above is wrong. The phase stops and goes back to diagnosis before anything is built.**
+
+1. **`src/main/machines/remote-sessions.ts`, the in-flight create.** A module map, keyed by session id, holds one entry per create running in this process. The entry is registered at the same instant as `noteIssuedRemoteId` (`:1607`), before the durable row can reach any list. It carries the machine, a promise that settles when the create ends, and the `$-id` once `new-session` answers (`:1683`) or the confirmation read binds it (`:1736`). The rest of `remoteCreate` is wrapped in a `try`, and its `finally` removes the entry and settles the promise. So every exit settles it: the return, `dropRemoteRow` then throw, the kept-`unknown` throw, and a throw from any stamp or from `startMachineFeed`. One new export answers `settled`, `none` or `timeout` for an id, within a deadline the caller passes. It is re-exported wherever `remoteSessionRow` is. An id that was issued in an **earlier** run (`seedUnconfirmedCreates`, `:2743`) never has an entry, because nothing is running for it to wait on.
+2. **`onePass`, the in-flight `$-id` is being bound, not foreign (`:2510-2518`).** A listed row with no `@gmux-id`, whose `$-id` is the answered `$-id` of an in-flight create on the same machine, is left out of `foreign` and is not handed to the rescue. It is still not added to `seen`, so it is never shown and never adopted, and it is decided by `$-id` alone and never by name. Like the foreign memo, it is keyed by the machine's connection generation (`foreignMemo` and `memoFor`, `pane-env-rescue.ts:218-228`). Every other row with no `@gmux-id` is handled exactly as today. When the create ends, the entry goes. If the stamp never landed, the id is still issued and the next pass rescues it exactly as Phase 117 does. **The residual, stated rather than closed:** a list that runs over there after `new-session` executes, and before its answer reaches this Mac, still counts the session, because the `$-id` is not known yet. The far log measures how often that happens.
+3. **`src/main/sessions/core.ts`, `attachSessionAdmitted` (`:3101-3160`).** When `remoteSessionRow` is null (`:3111`), it asks the record, through `remoteRecordOf` and `isRemoteRecord`, the two helpers Remove uses (`:3027-3028`). **A record that names another machine never reaches the local branch (`:3129-3150`)**, which asks this Mac's server about a session on another computer. Instead it does these things in order:
+   - (a) If a create for this id is in flight in this process, it waits for it to settle, bounded by `REMOTE_ATTACH_BIND_WAIT_MS`. The spec step sets that constant from Step 0's slowest settle time, and it is never more than `MUTATION_JOIN_DEADLINE_MS`. A shutdown that begins during the wait ends it at once.
+   - (b) If the feed still holds no row, it runs one `pollRemoteMachine(machineId)`. This is the remote twin of the local branch's direct read at `:3142`, and `REMOTE_POLL_TIMEOUT_MS` bounds it.
+   - (c) It reads again. If it finds a row, it takes the existing remote branch (`:3112-3126`) unchanged.
+   - (d) If it finds no row and a list issued after the attach was asked completed without the session, and no create for it is in flight, it answers `SESSION_NOT_FOUND` with the remote branch's own sentence, "This session is not running right now."
+   - (e) In every other case it answers `TMUX_UNREACHABLE`, which the pane already draws with **Try again** (`TerminalPane.tsx:149-155`), with one sentence saying Tortie has not heard from that machine about this session yet. That sentence is the only possible new copy. It goes in `src/main/machines/remote-copy.ts` beside `TARGET_UNBOUND` (`:203`) and `CREATE_ANSWER_LOST` (`:818`), in his style, with no tmux words, and it is pinned wherever the build pins refusal sentences.
+
+   **The waited attach spawns nothing for a pane that has gone.** It takes a per-session attach ticket before any wait. `detachSession` (`:3166`) and any newer attach for the same id invalidate that ticket. After the wait, a stale ticket or a destroyed `sender` means the attach spawns nothing and resolves quietly. A record on this Mac takes the local branch exactly as today.
+4. **The renderer is unchanged.** The pane already mounts for `unknown`, already refuses input while `unknown` (`TerminalPane.tsx:101-103`), and its attach promise now simply resolves later. `activeSession()`'s fallback, the overlay table and the retry epoch are not touched.
+5. **Tests.** `src/main/machines/__tests__/p326-inflight-create.test.ts` drives the map and the pass over planted lists, one case per rule:
+   - every exit of `remoteCreate` settles and removes the entry;
+   - a seeded id from an earlier run has no entry;
+   - an unstamped row whose `$-id` matches an in-flight create is neither counted nor rescued;
+   - the same `$-id` under a different generation is counted;
+   - an unstamped row with any other `$-id`, including one whose name equals the create's name, is counted and rescued exactly as today;
+   - a create whose stamp failed is rescued by the next pass.
+
+   `src/main/sessions/__tests__/p326-attach-far-unbound.test.ts` follows the shape of `remote-lifecycle.test.ts` (it mocks `../../machines/remote-sessions` and drives the prototype):
+   - a far record never calls `tmux.listSessions`;
+   - an in-flight create is awaited, then attached by the `$-id` the feed reports;
+   - a create that fails ends in the honest refusal;
+   - a machine that does not answer gets `TMUX_UNREACHABLE`;
+   - a detach, or a newer attach, during the wait spawns nothing;
+   - shutdown ends the wait;
+   - a local record behaves byte for byte as before.
+
+   `gate:checks` runs, because test files are added.
+6. **`conformance:farattach`, new, about 1 s, spawns nothing.** Reading function bodies by matching braces, it checks these rules:
+   - `attachSessionAdmitted` reaches `tmux.listSessions(` only after a test that the record names this Mac;
+   - the waited path takes its ticket before its first `await` and checks it before `attachHost.attach`;
+   - `remoteCreate`'s entry is registered before `writeRemoteRow(` and removed in a `finally`;
+   - `onePass` skips an in-flight `$-id` by `$-id` only, names no `tmuxName` in that clause, and never adds a row with an empty `gmuxId` to `seen`;
+   - the number of `core.ts` call sites that decide remote-ness from the feed maps alone is pinned at **4** (`:1533`, `:2790`, `:2884`, `:3459`), so it can shrink and cannot grow.
+
+   `build/p326/ablation.mjs` (`ablation:p326`) removes each clause from the SHIPPING source, one at a time, checks that the rule that owns it goes red, and restores every file by sha256 in a `finally`. An unedited control must stay green.
+7. **`probe:p326`**, in `probe:p320`'s shape (`package.json:97`): `node build/harness-socket.mjs --fresh gmux-p326 'export GMUX_CONFIG_ROOT="$GMUX_HARNESS_DIR"; node build/with-scratch-machine.mjs -- node build/p326/probe-p326.mjs'`. It drives the renderer's own create and select through the existing drive (`src/renderer/terminal/p95-scroll-drive.ts:201`, `:246-266`). It points the loopback machine's tmux, which the probe writes into `machines.json` as `probe-p320.mjs:553` does, at **`build/p326/far-tmux.sh`**. That wrapper appends `<epoch ms> <pid> <argv>` to a log in the run's scratch folder, reads its delays from a file whose path the probe bakes into it (an environment variable does not cross ssh), and then `exec`s the real tmux. It reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises from 153 (`build/assert-electron-teardown.mjs:326`) by one in the same commit, or from whatever value a phase that lands first leaves. It is classified in `build/verification-checks.mjs`. CLAUDE.md's gate table gains a `conformance:farattach` row, triggered by `src/main/machines/remote-sessions.ts`, `attachSessionAdmitted` in `src/main/sessions/core.ts` and `src/main/machines/pane-env-rescue.ts`. Its probe table gains `probe:p326` with the same triggers.
+8. **CHANGELOG, under `## Unreleased`**, one item in his style, for example: "Starting the first session in a tab on another machine now always shows its screen; before, it could open on "This session no longer exists" and stay blank while it was running." The follow-up docs commit adds the commit link.
+
+### The proof, run rather than read
+
+- **Gates.** `npm run typecheck && npm run build && npm run smoke:t1`, then the integrator's full battery (test, smoke, smoke:t3, package). Then:
+  - `conformance:farattach` and `ablation:p326`;
+  - `conformance:machines` and `conformance:remoteclose`, because `src/main/machines/**` and `remote-sessions.ts` change;
+  - `gate:electron` at the raised floor, `gate:checks` and `gate:background`;
+  - `gate:contract`, which must not move, because no channel, code, key, environment name or schema changes;
+  - once each, because the pass and the rescue's gate change: `smoke:p117` (a create whose answer is lost is still rescued), `smoke:remote`, `smoke:matrix` and `smoke:partition`;
+  - once each, because the phase changes how a session attaches: **`probe:p167`** and **`probe:p95`**.
+- **Where it was found.** Run `probe:p320` with `P320_ARMS=R1` eight times at HEAD. Phase 320's removal round read 2 of 8 stalls at its HEAD and 3 of 8 at its parent. The target is 0 of 8 stalls and 0 refusals in the app logs.
+- **`probe:p326`: one Electron per build, parent then HEAD, never both at once.** It runs on a scratch profile, a scratch HOME and its own socket. The far side is the loopback scratch machine on tmux 3.6a (Homebrew) and 3.7b (`build/vendor/tmux/bin/tmux`). Each row is recorded per far version and per build.
+  - **A. The natural rate.** At least 40 creates per build across the two far versions. Each is a shell session created alone in a freshly opened far folder. The spec step may instead End and Remove between creates in one tab, if 40 tabs cost more than the reading is worth, and it says which it chose. For each create the probe records the far log's order of `new-session`, the lists and `set-option @gmux-id`; whether a pass counted the session as not Tortie's; whether the attach refused, with its code, sentence and detail; the status sequence the renderer saw; and whether the screen drew within the same 30 s `probe:p320` waited. The parent's count is written down, whatever it is. **At HEAD: 0 refusals and 0 stalls.** 0 of 40 bounds the rate below about 7.5 percent at 95 percent confidence (the rule of three), so arm B, not arm A, is what proves the window is closed.
+  - **B. The widened window.** The wrapper sleeps 1,500 ms before `set-option @gmux-id`, so every list the new session provokes lands inside the window. At the parent every alone create is predicted to refuse, and the count is written down. **At HEAD, every one draws** within the create's settle time plus one list.
+  - **C. Past the bound.** The wrapper sleeps longer than `REMOTE_ATTACH_BIND_WAIT_MS` and shorter than the stamp's own 10,000 ms. At HEAD the pane shows the retryable sentence with Try again, never "no longer exists". Try again after the stamp lands draws the screen.
+  - **D. Relaunch.** This is predicted from the reading and not measured. A far session is selected alone in its tab, Tortie quits, and it relaunches with the wrapper delaying the first `list-sessions` by 3 s. At the parent the attach is predicted to take the local branch. At HEAD it draws once the first list lands. This arm is the one second launch per build, run in sequence.
+  - **E. The attack.**
+    - (a) **A stranger under the create's name.** The wrapper sees `new-session … -s <name>`, creates an unstamped session of that name itself, then execs, so the create fails as a duplicate. At HEAD the waiting attach ends in the honest refusal within the bound. The durable row is dropped as Phase 72 drops it. The far log shows no `set-option`, no `show-environment` and no `attach-session` naming the stranger's `$-id` from Tortie.
+    - (b) **Switch away during the wait.** Select another session while arm B's attach is waiting. The verifier's own far `list-clients -F '#{client_session}'` then reads no client for the first session, and the attach host holds none for it.
+    - (c) **Quit during the wait.** The quit completes within 10,000 ms and leaves no client.
+    - (d) **Two creates back to back** in one empty tab, the second started while the first is in flight. Both draw.
+    - (e) **A lost create answer**, as `smoke:p117` makes one. The attach answers the retryable sentence, and the row is bound by the next pass exactly as at the parent.
+  - **F. The pass.** At HEAD, the number of passes that counted an in-flight create's own `$-id` after its answer arrived must be 0. The rescue's "could not account for" sentence must appear 0 times for a create that did not lose its answer. The count of passes that ran before the answer arrived, which is the residual, is reported. Passes applied out of issue order are counted and reported only.
+  - **G. The local control arm.** 40 local sessions are each created alone in a fresh local tab. Refusals are counted at both builds. Any refusal is reported and gets its own entry.
+  - **The verifier's own re-derivation.** From the far log alone, it marks each parent create with two facts: whether a list ran between its `new-session` and its `@gmux-id` stamp, and whether it was alone. It predicts the refusals from those marks and compares the prediction with the refusals the parent logged. **A refusal outside a window that held a list refutes the mechanism written here, and it is a finding.** A predicted refusal that did not happen is counted, as the 4-of-20 "necessary, not sufficient" line above expects.
+  - **His world, listed only.** His `-L gmux` sessions are counted before and after and are never typed into. `-L default` is never touched. `harness-socket.mjs` and `refuseRealSockets` refuse both names. No run reaches any machine of his: the far side is this Mac, on its own `TMUX_TMPDIR`. The probe's `finally` ends the loopback server, the Electron it started through `withElectron`, and every process it recorded. Electrons are counted once, at the end.
+- **What cannot be proven here, stated rather than hidden.** The window's width over a real link is not measured, and no row runs on his machines. The residual in mechanism item 2 is measured, not closed. The bound in item 3 is a number chosen from loopback settle times, so a machine slower than it gets Try again rather than a blank screen. That is the promise, and it is not a guarantee that the screen draws by itself.
+
+### What is NOT in this phase
+
+- **No change to when the durable row is written or listed.** Phase 72 writes it before the create line so that a create whose answer is lost is still on record. That order stays, and the row still appears as `unknown` while the create runs.
+- **No single-command stamp.** Sending `set-option @gmux-id` in the same tmux command list as `new-session` might close the window at its source. Whether tmux runs a chained list without another client's `list-sessions` landing in between is not measured, and the change would alter the create argv that Phases 72, 117 and 270 pinned. That would need its own research entry.
+- **No renderer change.** The overlay table, the missing Try again on SESSION_NOT_FOUND, the attach effect's dependencies and `activeSession()`'s fallback to the last session all stay as they are. After this phase, SESSION_NOT_FOUND is said about a far session only when a fresh list proved the session absent.
+- **No change to the four other feed-only tests** (the exit handler, rename, End, resume in place). The gate pins them at 4, so the count can only shrink. Each one that matters gets its own entry. End belongs to Phase 323's file, and Phase 323 does not reach remote sessions either.
+- **No fix for a list older than the newest one overwriting it** (`:2614`, `:2617`). Arm F counts it. A count above 0 gets its own entry.
+- **Tortie's own `gmux-control` session is not filtered** out of the far "not created" count.
+- **No change to Phase 117's rescue** for a create whose answer really was lost, to the foreign memo, or to `seedUnconfirmedCreates`.
+- **No change to the local create or the local attach.** Arm G is a control.
+- **Nothing runs on his machines and nothing touches `-L gmux`.**
+- **No status, no surface and no menu.**
+- **No release.**
+
+## Phase 327 — a machine whose tmux reports a git build (`next-3.8`) is offered an acceptance the app then refuses (research 131 §9 item 4, 2026-09-23)
+
+**Subject.** `fix(machines): offer an acceptance only for a version Tortie can accept`
+
+**First body line.** `Phase 327: the version sheet is offered only when the acceptance door will take it`
+
+**Semver.** Patch. Today, when he presses Prepare on a machine whose tmux was built from its latest source, which is what Homebrew's `--HEAD` and any build from a git checkout produce, Tortie says it has not measured that version. It then adds "You can accept this version yourself", draws a sheet naming `next-3.9` and shows the button **Accept this version and prepare it**. Pressing the button answers "Tortie did not accept that value for <machine>, because it is not a version Tortie can read. A version looks like 3.7c." That is about the version Tortie read and named one line above. Nothing is written, and the same button stays there to be pressed again, with the same answer. A machine where he accepted a different version earlier gets the same dead end, and its first sentence also tells him to "Accept the version it runs now". After this phase, both of those rows draw the refusal and stop there: no offer sentence, no sheet and no button. The refusal they get already exists, and it tells him to move that machine to a version Tortie has measured. **Unchanged on purpose:** every version the door takes is still offered, with the same words and the same hash; what the door takes does not change; the control gate still takes no acceptance; the version parser, both version lists, the schema's load rule and every copy string are untouched. A machine running a git build still cannot be used, exactly as today. No new copy and no new surface. No menu item reaches this sheet, so the native menus are untouched. One CHANGELOG item goes under `## Unreleased`. No release: phases 311 onward stay unreleased until the phone works end to end.
+
+**Tier 2. Every Tier 3 question answers no, and the change is visible.**
+- **Can it lose or corrupt his work?** No. The edit is confined to Prepare's two refusal arms (`src/main/machines/prepare.ts:365-414`). They run after the version read and before `ensureRemoteServer` (`:418`), which is the first thing that starts anything. The one path this phase redirects is a mismatch whose new version the door cannot hold. That path falls through to a gate that can only answer `unmeasured` for such a version, for two reasons. First, a stored acceptance always passes the door's pattern, because the schema drops any row whose value does not (`src/main/machines/schema.ts:207-215`). Second, every measured row passes that pattern too, which condition 100 below pins. So no new path reaches anything that starts. The load path in `schema.ts` gets a comment fix and no code change.
+- **Does it claim to work across every machine?** No. The claim is that one string decides both the offer and the door, over every string the parser can return. Its matrix is a table of strings, which costs no machine, and that table is in the gate.
+- **Did he report it?** No. Research 131's investigator B found it by feeding strings to the shipping parser and pattern (`scratchpad/p322/B/gate-probe.json`).
+- **Does it spawn a process, hold his credentials or send his words anywhere?** No. It spawns nothing new. The agreement write (`src/main/machines/ipc.ts:747-751`) is untouched, and after this phase fewer places can reach it.
+- **Is it invisible?** No, because a sheet and a button stop being drawn.
+
+That makes it a rendered surface with no new state, so it is Tier 2: the gates, one app run (`probe:p327`) driving every arm in one session per build, and one independent method. Two are named, because both are cheap. **(1) Re-derive:** the verifier writes its own list of strings the parser can return and asks, of each one, whether the shipping `prepareMachine` offers a sheet and whether the shipping `machines:acceptVersion` handler takes it. The two answers must agree on every string. The verifier does not read the builder's table or condition 100's table. **(2) Measure the parent commit:** the same probe runs against the parent build, which must show the dead end, and against HEAD, which must not. A fix round follows any verdict of needs_work, then an independent reverify of that fix.
+
+**Charter.** Research 131 (`docs/research/131-tmux-on-linux.md`) is the source for five parts of this phase:
+- §9 item 4 (`:856-859`) names this defect and both of its ends.
+- §4.3's chosen policy (`:660-684`) says each gate compares the whole version string the SERVER reports, byte for byte, against measured rows only, and the control gate takes no acceptance. This phase keeps that policy whole.
+- §4.2 rejects an acceptance on the control gate (`:598-603`).
+- §7 gives the verdict for `next-3.8` (`:804`): "No row is possible; the acceptance dead end is its own entry".
+- §11 item 3 (`:934-936`) queues each of §9's defects as its own entry.
+
+Two earlier phases wrote the code in question:
+- **Phase 83** (`069ef77c`, 2026-08-18) wrote the acceptance, its door's order (`src/main/machines/ipc.ts:706-720`), and the pattern whose comment says it "is the shape `parseTmuxVersion` already accepts" (`src/shared/machines.ts:100`). That sentence is not true, and it is where this defect comes from.
+- **Phase 41** (`2c225e46`, 2026-08-15) wrote the parser and pinned `tmux next-3.8` as reading `next-3.8` (`src/main/tmux/__tests__/version.test.ts:70`). The parser was built to read git builds three days before the door was built to refuse them.
+
+Four of his rules bind the phase:
+- CLAUDE.md refusal 8 and the rule that an invalid row is dropped whole. These are why the door is not widened here.
+- The rule "just enough words". It is why no sentence is added.
+- His rule that a phase lands only when a side-by-side against today shows no scenario worse.
+- His rulings on research 131 (the running log, 2026-09-23). None of them bears on this item. Ruling (1), the `3.6` and `3.6b` rows, is its own Tier 3 build.
+
+**Depends on.** Nothing queued. It can run beside the `3.6`/`3.6b` build, which edits `TESTED_REMOTE_TMUX_VERSIONS` and the control-plane precheck pin, and beside §9 item 3's copy entry, which edits `MACHINE_VERSION_ACCEPT_OFFER` in `src/main/machines/errors.ts`. This phase changes no code in `src/main/tmux/version.ts` or `errors.ts`. Both of those phases may also append a condition to `build/conformance-machines.mjs`, so this phase's condition takes the next free number when it lands. That number is 100 at `e371324b`.
+
+### What was measured before this entry was written, so no round re-derives it
+
+All paths and line numbers below were read from the tree at `e371324b` (origin/main) on 2026-09-23.
+
+**Where the offer and the refusal disagree, end to end.**
+- **The read.** `readRemoteTmuxVersion` (`prepare.ts:174-246`) first asks the server `display-message -p '#{version}'` over the verb door (`:178-182`). A git-built server answers the bare string `next-3.9`. The parser's bare arm, `/^[0-9][A-Za-z0-9.+-]*$/` (`src/main/tmux/version.ts:372`), requires a leading digit, so it returns null and the read falls through. The second read is the program's own `-V`, over the login-shell door (`prepare.ts:197-203`). It answers `tmux next-3.9`, and the parser's prefix arm, `/^tmux\s+(\S+)/i` (`version.ts:369-370`), returns any token after `tmux `. So the version is `next-3.9`. **For a git build, the exec gate therefore reads the PROGRAM's version even while a server is running.** That is narrower than research 131 §4.1's sentence that `-V` "is read only when no server answers" (`:552-553`): here the server answers, but in a shape the parser refuses.
+- **The offer, in the plain refusal arm.** `decideRemoteVersionGate` answers `unmeasured` (`version.ts:318-331`). `sheetFor` (`prepare.ts:341-358`) returns a sheet for any `reported !== null` (`:344`), with no other check. The arm then draws that sheet (`:393`, `:411`) and appends the offer sentence, because `acceptOffered` is `sheet !== null` (`:398`), which leads to `composeUnmeasuredDetail` (`src/main/machines/errors.ts:515-517`).
+- **The offer, in the mismatch arm.** When an acceptance exists and differs from what the machine reports (`prepare.ts:365`), the detail is hard-coded as `MACHINE_VERSION_ACCEPT_MISMATCH` followed by `MACHINE_VERSION_ACCEPT_OFFER` (`:381`), with `sheetFor(version)` beside it (`:382`). The mismatch sentence (`errors.ts:340-343`, pinned as `machine.version-accept-mismatch` at `build/assert-bundle-refusals.mjs:677-690`) says "Accept the version it runs now", which is false for a git build.
+- **The renderer draws whatever main sends.** `AcceptVersionSheet` returns null only when there is no sheet (`src/renderer/settings/MachineRow.tsx:209-215`), and the button calls `acceptVersion` (`:714-723`). The store sends `result.version` and the sheet's hash (`src/renderer/settings/machines-store.ts:917-934`). On a refusal it keeps `prepared[id]` (`:942-944`), and `refresh` does not clear it, so the sheet and the button are still there after the refusal.
+- **The door.** `machines:acceptVersion` tests `new RegExp(MACHINE_VERSION_PATTERN)` (`ipc.ts:726`) before it composes or writes anything, and refuses with the sentence quoted above (`:727-732`). The pattern is `^[0-9][A-Za-z0-9.+-]{0,31}$` (`src/shared/machines.ts:106`). The schema builds the same expression from the same constant (`schema.ts:75`) and drops a whole row whose stored value fails it (`:207-215`).
+- **So there are three definitions of "a version", and they disagree.** The prefix arm takes any run of non-space characters, of any length. The bare arm takes a leading digit followed by any number of the allowed characters. The door takes a leading digit and at most 32 characters. The offer uses the first two, and the door uses the third. Two comments claim that the first two and the third are the same: `src/shared/machines.ts:100` and `schema.ts:203-205`.
+
+**Re-derived here from those two regexes, copied into a plain `node -e` and not run through the shipping modules.** This worktree has no `node_modules`.
+
+| Where it comes from | Answer | Parsed | Door takes it |
+| --- | --- | --- | --- |
+| `-V` | `tmux next-3.8` | `next-3.8` | no |
+| `-V` | `tmux next-3.9` | `next-3.9` | no |
+| `#{version}` | `next-3.9` | null, so the read falls through to `-V` | — |
+| `-V` | `tmux 3.8-rc` | `3.8-rc` | yes |
+| `-V` | `tmux 3.7c` | `3.7c` | yes |
+| `#{version}` | `3.6` | `3.6` | yes |
+| `-V` | `tmux ` + a 32-character version starting with a digit | the same 32 characters | yes |
+| `-V` or `#{version}` | a 33-character version starting with a digit | the same 33 characters | **no** |
+
+So the disagreement has two kinds. The first is a `-V` token that does not start with a digit, or that holds a character outside the set; git builds are the known case. The second is any version of 33 characters or more that starts with a digit. No build anyone has read prints the second kind.
+
+**The shipping functions, driven by research 131.** Investigator B's pure run at 2026-09-23 06:54Z (`scratchpad/p322/B/gate-probe.json`, key `pure`) fed 13 strings through the shipping `parseTmuxVersion`, `decideRemoteVersionGate`, `decideRemoteControlGate` and `MACHINE_VERSION_PATTERN`. Twelve of them can be stored, and every one of those starts with a digit and has at most 6 characters. For `next-3.8` it recorded:
+- `fromDisplay` null and `fromDashV` `next-3.8`;
+- the exec gate `unmeasured` with no acceptance, and **`accepted` if an acceptance were stored**;
+- `acceptanceWritable` false;
+- the control gate `unreadable`.
+
+So the gate itself would carry a git build. Only the door stops it, and it stops it after the offer has been made. This file is in scratch and does not survive a reboot.
+
+**What a git build prints, read from upstream on 2026-09-23 at about 23:08Z.** No git build was built or run here.
+- `raw.githubusercontent.com/tmux/tmux/master/configure.ac` line 3 reads `AC_INIT([tmux], next-3.9)`.
+- `api.github.com/repos/tmux/tmux/commits?path=configure.ac` shows two "Bump version." commits. `89a59d4d` (authored 2026-07-03T10:50:12Z) changed `next-3.7` to `next-3.8`. `9b3268a2` (2026-09-09T12:28:07Z, the day 3.8-rc was published) changed `next-3.8` to `next-3.9`.
+
+**So research 131's `next-3.8` is what every git build printed for 68 days, and a `--HEAD` built today prints `next-3.9`.** The door refuses both in the same way. The string names a development line, not a build: every commit in those 68 days printed the same string.
+
+**Homebrew, read by research 131's investigator A** from `formulae.brew.sh/api/formula/tmux.json` at 2026-09-23 07:35Z (`scratchpad/p322/A/logs/brew-tmux.json`).
+- Its `head` builds `https://github.com/tmux/tmux.git` at branch `master`, with autoconf and automake as build dependencies.
+- Installs of `tmux --HEAD` over each period, as a share of all tmux installs:
+
+  | Period | `--HEAD` installs | All tmux installs | Share |
+  | --- | --- | --- | --- |
+  | 30 days | 103 | 26,445 | 0.39% |
+  | 90 days | 749 | 168,980 | 0.44% |
+  | 365 days | 2,289 | 578,246 | 0.40% |
+
+These are install events on macOS and Linux together, from people who have not turned off Homebrew's analytics. They are not machines and not Tortie users, and a build from a git clone made by hand is not counted. A far machine can be a Mac, and Phase 83's own subject was `mac-pro`.
+
+**The history.**
+- `2c225e46` (Phase 41, 2026-08-15) wrote the parser, and its test already expected `next-3.8` (`version.test.ts:67-71`).
+- `069ef77c` (Phase 83, 2026-08-18) wrote the pattern, the door, `sheetFor` and the offer in one commit. So every build since 2026-08-18, 36 days, has offered this dead end.
+- Four later commits touched `prepare.ts` or `src/shared/machines.ts` (`git log 069ef77c..HEAD`). By `git blame`, one of them, `1bff0451` (Phase 101), added `writeHonesty` to the sheet `sheetFor` returns (`prepare.ts:352-356`). None of them changed when a sheet is offered, the pattern (`src/shared/machines.ts:97-106`) or the door (`ipc.ts:721-733`).
+
+**Why no harness ever caught it.** Every stub that stands in for an unmeasured program prints a version starting with a digit:
+- `tmux 0.0-made-up` (`build/scratch-machine.mjs:405-414`);
+- `tmux 0.0-p69-made-up` (`build/probe-execplane.mjs:768-772` and `build/probe-machines.mjs:1245`);
+- `tmux 0.0-p131-made-up` (`build/probe-p131-row.mjs:623-628`, whose arm E at `:898-962` asserts exactly one accept button).
+
+Condition 44's probe uses `9.9z` (`build/machines-conformance-probe.mts:447-473`). The unit tests check the door against `3.7c; rm -rf /` only (`src/main/machines/__tests__/ipc.test.ts:1349-1359`). They check the offer only by text, as "offers a sheet only for a machine that named a version" (`src/main/machines/__tests__/prepare.test.ts:195-202`), which is the rule that is too wide.
+
+**Where the control plane stands.** `openControlPlane` reads `display-message` only (`src/main/machines/control-plane.ts:565-577`), so a git build is `unreadable` there. It then logs "reports no version at all" (`:583`) about a machine that reported one. The transport's precheck asks the same question (`:477-483`). This phase changes none of that. A git build never gets past Prepare, so it never reaches the control plane.
+
+**The numbers this phase moves.** `HELPER_USER_FLOOR` is 153 (`build/assert-electron-teardown.mjs:326`). The last condition in `build/conformance-machines.mjs` is 99 (`:9987`). Condition 44's text is at `:190-192` and `:2622-2657`, and condition 45's at `:193-196`. `probe:p131` is classified `remote(...)` in `build/verification-checks.mjs:773`.
+
+### The mechanism
+
+**Step 0, the spec.** Re-read every line number above at the phase's base, because the `3.6`/`3.6b` build may land first. Write the stub's contract and the probe's arms into `build/p327/SPEC.md`. Choose the probe's machine carriage. `build/with-scratch-machine.mjs` and `build/scratch-machine.mjs` are preferred, in `probe:p320`'s shape (`package.json:97`). The alternative is a third copy of `probe:p131`'s carriage, and a copy of 10 lines or more is the duplicated block the growth guardrail forbids.
+
+1. **`src/shared/machines.ts`, one function beside the pattern.** Add `machineVersionAcceptable(version: string): boolean` immediately after `MACHINE_VERSION_PATTERN` (`:106`). It is the whole-string test of that pattern and nothing else. The pattern constant does not change. The comment at `:97-105` is corrected to say that the pattern is **narrower** than what `parseTmuxVersion` returns: that function's `-V` arm returns any token, such as `next-3.9`. It also says that the offer and the door both ask this one function. This is an edit to `src/shared/*`, but it adds a function and changes only a comment; nothing is removed.
+2. **`src/main/machines/confirm.ts`, the one composer of an acceptance sheet.** Add `acceptSheetFor(machineId, fields, reported: string | null): MachineConfirmSheet | null` beside `describeMachine` (`:416`). It returns null when `reported` is null or when `machineVersionAcceptable(reported)` is false. Otherwise it returns exactly the four fields `prepare.ts:345-357` composes today, so the hash on every sheet still offered is byte for byte the hash it is today. It lives here, not in `prepare.ts`, because `build/machines-conformance-probe.mts` already loads this module under tsx (`:70`), whereas `prepare.ts` imports Electron's `app` (`:48`) and the exec plane (`:65`). This module is not strictly pure, because it imports `../log`, so the spec step confirms the probe still loads it once the new function is added.
+3. **`src/main/machines/prepare.ts`.**
+   - `sheetFor` (`:341-358`) becomes a call to `acceptSheetFor`.
+   - The mismatch arm's condition (`:365`) gains `&& machineVersionAcceptable(version)`. A version the door cannot hold then falls through to the gate. The gate answers `unmeasured`, because a stored acceptance always passes the door and every measured row passes it (item 6b pins this). The unmeasured arm then draws the refusal with no offer, because `acceptOffered` is already `sheet !== null` (`:398`).
+   - As a result, no path draws `MACHINE_VERSION_ACCEPT_OFFER` without a sheet, and no path draws a sheet the door refuses. The mismatch arm still runs before the gate, which `prepare.test.ts:173-181` pins, for every version the door can hold.
+   - One log line, and no person-facing sentence, is added where an offer is withheld: "`<id>` reports tmux `<v>`, which an acceptance cannot hold, so no acceptance was offered".
+4. **`src/main/machines/ipc.ts:726`.** `new RegExp(MACHINE_VERSION_PATTERN).test(input.version)` becomes `machineVersionAcceptable(input.version)`. The refusal sentence (`:727-732`) is kept. After this phase, only a call that no sheet produced can reach it.
+5. **The comments only.** `src/main/machines/schema.ts:199-206`'s claim to be "closed to the shape `parseTmuxVersion` reads" is corrected. **Its code is not touched:** `VERSION_RE` (`:75`) is built from the same constant, and item 6b pins that. So the load path that decides whether a row is dropped whole does not move. `src/shared/ipc/machines/rows.ts:349-356` gains "and the machine named a version an acceptance can hold". That is a comment, so `gate:contract` must not move.
+6. **`conformance:machines`, condition 100, "the offer and the door ask one question".** The facts come from `build/machines-conformance-probe.mts`, and the check is in `build/conformance-machines.mjs`, with a line in the header's appended-conditions note (`:210-218`). It is red when any of these holds:
+   - (a) **The driven table disagrees.** For every row, `acceptSheetFor(…, parsed) !== null` must equal `machineVersionAcceptable(parsed)`. The strings are:
+     - research 131's 13, plus `3.6`;
+     - `next-3.7`, `next-3.8` and `next-3.9`, each in both the `-V` and the `#{version}` shape;
+     - a 32-character and a 33-character version starting with a digit;
+     - condition 45's hostile values.
+
+     The table must hold at least one row with no offer (`next-3.9`) and one with an offer (`3.8-rc`), so the rule cannot pass on an empty or one-sided table.
+   - (b) **The version lists or the schema drift.** Every `TESTED_REMOTE_TMUX_VERSIONS` row must pass `machineVersionAcceptable`. This is what keeps the fall-through in item 3 away from anything that starts. `schema.ts`'s `VERSION_RE` must still be built from `MACHINE_VERSION_PATTERN`.
+   - (c) **The code routes around the function.** This is read by matching braces:
+     - `acceptSheetFor` must call `machineVersionAcceptable(` before `describeMachine(`;
+     - the `machines:acceptVersion` handler must call it before `describeMachine(` and `setMachineAcceptedVersion(`;
+     - `prepare.ts`'s mismatch condition must name it;
+     - `prepare.ts` must not compose a sheet itself, meaning no `describeMachine(` with `acceptedTmuxVersion:` in it;
+     - the only `new RegExp(MACHINE_VERSION_PATTERN)` outside `src/shared/machines.ts` must be `schema.ts:75`.
+
+   **Two ablations, run by the builder and again by the verifier and never committed.** Remove the check from `acceptSheetFor`, and (a) goes red on the `next-3.9` rows. Remove the clause from the mismatch condition, and (c) goes red. Each file is restored and compared by sha256 in a `finally`. Two clauses do not earn an `ablation:p327` script.
+7. **Tests.**
+   - `src/main/machines/__tests__/confirm.test.ts`: `acceptSheetFor` returns null for `next-3.8`, `next-3.9`, a 33-character version and null; it returns a sheet for `3.8-rc`, `3.6` and a 32-character version; and that sheet's hash equals `describeMachine`'s over the same fields.
+   - `prepare.test.ts`:
+     - the text test at `:195-202` is replaced by one pinning the `acceptSheetFor(` call;
+     - a new test pins the mismatch clause;
+     - a new `readRemoteTmuxVersion` case covers `display-message` answering the bare `next-3.9` and `-V` answering `tmux next-3.9`, which reads `next-3.9`. That pins today's behaviour, which this entry relies on.
+   - `ipc.test.ts`'s `machines:acceptVersion` block (`:1306`): `next-3.9` is refused and nothing is written.
+8. **`probe:p327`, the app run (below).** Also, in the same commit:
+   - it reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises by one from whatever the parent reads (153 at `e371324b`), because Phases 325, 326 and 328 each add a probe too;
+   - it is classified `remote('probe:p327')` in `build/verification-checks.mjs`;
+   - CLAUDE.md's probe table gains its row;
+   - CLAUDE.md's `conformance:machines` row gains `src/shared/machines.ts` as a trigger, because condition 100 now reads it.
+9. **CHANGELOG, under `## Unreleased`,** one item in his style, for example: "Preparing a machine whose tmux was built from its latest source no longer offers an Accept button that then refuses; that machine still needs a released tmux before Tortie will use it." The follow-up docs commit adds the commit link.
+
+### The proof, run rather than read
+
+- **Gates.** First `npm run typecheck && npm run build && npm run smoke:t1`, then the integrator's full battery: test, smoke, smoke:t3 and package. Then these checks:
+  - `conformance:machines` with condition 100, and conditions 41 to 45 unchanged and green.
+  - `gate:electron` at the raised floor, `gate:background` and `gate:knownhosts`. All three already run inside `npm run build`.
+  - `gate:checks`, if a test file is added rather than extended.
+  - `gate:contract`, which must not move.
+  - `probe:execplane` once, because it is the recorded proof that a refused version starts nothing (`prepare.ts:23-25`), and this phase edits the arm in front of that proof.
+- **`probe:p327`, one Electron per build, in `probe:p131`'s shape.** Settings, then Machines. A machine is added and confirmed by pressing the controls a person presses, against a scratch sshd on 127.0.0.1. The profile is a scratch `--user-data-dir` with its own tmux socket. The parent build runs through `P327_PARENT_CHECKOUT`, one build after the other and never both at once.
+
+  **The stub's contract.** The stub is the machine's `remoteTmuxPath`, and it reads its version from a file in the run's own directory.
+  - It answers `-V` with `tmux <version>`.
+  - It answers `display-message -p '#{version}'` with the bare version and exit 0, which is how research 131 modelled a git-built server (`B/gate-probe.mts:73`).
+  - It answers every other verb with a fixed line on stderr and exit 1, so no Prepare in the run can start anything.
+  - It appends every argv it receives to a log.
+
+  **The arms.**
+  - **A. A git build with no acceptance.** The stub reports `next-3.9`.
+    - Parent: class `version-unmeasured`; 1 `[data-machines-action="accept-version"]`; the detail ends with the offer. Pressing the button draws the "not a version Tortie can read" refusal; the scratch `machines.json` has no `acceptedTmuxVersion`; the button is still drawn; and a second press is refused again.
+    - HEAD: the same class; 0 buttons; no `[data-machines-accept]`; and the detail is byte for byte `composeOutcomeCopy('version-unmeasured', {…, acceptOffered: false})`.
+    - The row is photographed at both builds.
+  - **B. A git build after an acceptance.** First the page's own button accepts `0.0-p327-made-up`. The Prepare that follows fails at the boot, on purpose, and the acceptance stays written. Then the stub's file is changed to `next-3.9` and Prepare is pressed.
+    - Parent: the detail is the mismatch sentence plus the offer, with 1 button.
+    - HEAD: the plain refusal, 0 buttons, and the row's own line "Accepts this version of the program, which Tortie has not measured: 0.0-p327-made-up" and its Withdraw button still drawn.
+  - **C. The control rows.** `0.0-p327-made-up` with no acceptance, and `3.8-rc`, each give 1 button at both builds. For each one the detail and the sheet's lines and hash are byte identical between parent and HEAD. This is the "no scenario worse" row.
+  - **D. What reached the machine.** In the stub's argv log for the final Prepare of arms A and B, the only argv at HEAD are the two version reads, the same as at the parent.
+
+  The probe's `finally` ends its sshd and its scratch tmux server by the pids it recorded. It never reads or counts anything on his `-L gmux` server. Electrons are counted once, at the end.
+- **Re-derivation, by the verifier and in scratch.** The verifier drives the shipping `prepareMachine` with the exec plane mocked, the way `prepare.test.ts:52-60` mocks it. It drives the shipping `machines:acceptVersion` handler through `ipc.test.ts`'s `call(...)` shape. Its strings are its own, generated from the parser's two arms: prefix tokens that start with a letter, a digit or punctuation; bare strings of 31, 32, 33 and 64 characters; a `-V` line ending in `\r`; `TMUX 3.7c` in capitals; and the real strings from research 131 §2.5. Any string that is offered and then refused is a finding, and so is any string the door takes that is not offered.
+- **What cannot be proven here, stated rather than hidden.**
+  - No git build of tmux is built or run. That needs automake, which this Mac does not have (research 131 §3.1, the exact failures, item 2), and installing it is refused. What a git build prints is read from upstream's `configure.ac`, and the stub models a git server's two answers.
+  - No Linux machine is reached.
+  - The Homebrew counts are install events and not machines.
+  - The one-sided cases of the first kind, a token that starts with a digit but holds a character outside the set, are covered by the tables and not by any build seen in the wild.
+
+### What is NOT in this phase
+
+- **No widening of `MACHINE_VERSION_PATTERN` or the door.** A git build stays unusable. The reasons were measured above:
+  - the string names a development line, not a build, because every commit from 2026-07-03 to 2026-09-09 printed `next-3.8`;
+  - so an acceptance would carry across every rebuild, which is exactly what `machine.version-accept-mismatch` exists to stop (`build/assert-bundle-refusals.mjs:681-684`);
+  - for this shape the exec gate reads the program, not the server;
+  - an older Tortie that met such a stored value would drop the whole row (`schema.ts:207-215`).
+
+  If he wants git builds to be usable, that is its own entry and his ruling.
+- **No acceptance on the control gate** (research 131 §4.2 and §4.3; `version.ts:261-269`). **No row** for `next-3.x`, `3.8-rc` or `3.8` (research 131 §7).
+- **No change to `parseTmuxVersion`.** The local gate reads with it (`version.ts:385-399`, `:471-485`), and `version.test.ts:70` pins its `-V` arm.
+- **No copy change.** `MACHINE_VERSION_ACCEPT_OFFER`, `MACHINE_VERSION_ACCEPT_MISMATCH` and `MACHINE_VERSION_ACCEPTED_HONESTY` are untouched. Their false promises are research 131 §9 item 3, which is its own entry. `ACCEPTED_VERSION_NONE` (`src/renderer/settings/machines-copy.ts:237-238`) is drawn above the sheet even on a machine that has accepted another version. That is also untouched.
+- **Not the mirror-image defect, found while reading and not driven.** The mismatch arm runs before the gate. So a machine with a stale acceptance, for example `3.7`, which Fedora shipped for a day or two (research 131 §2.3), whose server now reports a MEASURED version such as `3.7c`, is refused as "not measured" and offered an acceptance it does not need. The gate itself would answer `measured` (`version.ts:325`). `prepare.test.ts:173-181` pins the order, with the reason "the gate answers `unmeasured` for that case", which is not true for a measured version. Fixing it would let Prepare start a server where today it refuses, so it is its own entry with its own tier. This phase keeps it unreachable from its own change through condition 100 (b).
+- **Not research 131 §9 items 1, 2, 5 or 6**, nor `control-plane.ts:583`'s "no version at all" log line.
+- **Not the `3.6` and `3.6b` rows.** That is his ruling (1) on research 131, which is its own Tier 3 build.
+- **No renderer code.** `MachineRow.tsx` already draws nothing when main sends no sheet.
+- **No menu change, no new sentence, no surface.**
+- **No release.**
+
+## Phase 328 — antigravity reads "running" at rest — the limit Phase 321 named and left to its own entry (research 129 §9 item 4; `build/p321/SPEC.md` §1.3 item 2, 2026-09-23)
+
+**Subject.** `fix(activity): antigravity reads idle at its prompt`
+
+**First body line.** `Phase 328: antigravity stops reading running at rest, and no needs-input reading moves`
+
+**Semver.** Patch. Today an Antigravity CLI (`agy`) session reads `running` for as long as it is open while a Tortie window has focus, whatever it is doing. Its tab, its project's tab (the roll-up at `src/renderer/app/status.ts:259-272` shows `working` if any session is running) and the phone all say it is working while it waits at its prompt, and Tortie never sees one of its turns end. With no Tortie window focused, it flips between `running` and `idle` as two clocks drift (in research 129's live run, `idle` for 78 s from +307 s after launch, then `running` again), and each flip to idle is counted as a finished turn that never happened. After this phase it reads `idle` at its prompt and `running` while it draws, thinks or runs a tool, and one finished turn is one turn boundary. **Unchanged on purpose:** every `needs_input` reading, for antigravity and for every other agent, tick for tick; which sessions are captured and read by `ps`, and when; the numbered verdict and Phase 321's two shapes; every constant and both cadences; the status set; the choice channel; every other registry row, the shell floor and every agent this build has never heard of. Antigravity's own questions still do not turn amber, and at HEAD they read `idle` where today they read `running` (his ruling below). No copy, no surface and no menu changes, so the native menus are untouched. One CHANGELOG item goes under `## Unreleased`. No release: phases 311 onward stay unreleased until the phone works end to end.
+
+**Tier 3, because three of the table's questions answer yes.** It changes status semantics for a registry row and claims the change holds across that agent's real screens, so the evidence is a per-tick matrix over the real recording, at the parent and at HEAD. It also claims that no other agent's reading moves, which is a claim across every row, so every banked recording of every agent is replayed. And it moves the turn boundary, which arms the fold (`src/main/sessions/core.ts:1045-1050`, `src/main/overview/fold/scheduler.ts:251-260`), which spawns a model with his conversation when folding is chosen, so it answers the spawn question too. The standing rules bind it both ways: **a false amber is as bad as a missed one**, and **"needs input" may only be raised by session behaviour, never by his own typing** (CLAUDE.md UI rules). The own-words fault that Phase 325 is queued to fix (research 129 §9 item 6) is exactly what Phase 321 refused `animatesWhenIdle: true` for widening, and this phase may not widen it by a single cell. **Independent methods, named before the work starts:** (1) **run over real data**, with a replay harness the verifier writes itself (not this entry's model, not research 129's `replay.mts`, not the builder's), over every banked recording of every agent; (2) **attack**, whose first arms are his own words typed and pasted into antigravity's recorded resting screen under its recorded writes, including a paste in one write outside the probe window at 2 s, and a silent tool whose CPU is pushed under the bar; (3) **re-derive independently**: the verifier computes, from the stamp timeline and the process table alone, the reason behind every parent `working` tick, and checks that HEAD differs from the parent only where that reason was output alone; (4) **measure the parent commit**, every row at the parent and at HEAD in the same run. Plus a fix round if any verdict is needs_work, and an independent reverify of that fix. **agy is never launched**, live or in a probe (below).
+
+**Charter.** `docs/research/129-the-question-after-silence.md` §2.2 (antigravity 1.2.7 writes every 2.0 s at idle, 169 chunks over 340 s), §2.3 (it keeps writing while it asks), §3.5 (the registry row's "Idle byte-silence VERIFIED" is not true of 1.2.7, and the writes mask its numbered questions), §5 item 8 and §6 ("its defect is its registry row and the masking… its own entry"), §8 (the corpus, what it discloses, and that launching agents installs things) and §9 item 4 (this entry). Phase 321's committed spec: `build/p321/SPEC.md` §1.2 item 1 (why `animatesWhenIdle: true` was refused: output would stop resetting the dialog count, so the numbered verdict would start reading his dialog-shaped words in antigravity's input box, and the session would be probed on ticks it is not probed today), §1.2 item 6 (agy rewrote itself 7 s after research 129 launched it, 1.2.7 to 1.2.8; no later run launches it), §1.3 item 2 (this limit, "Its own entry"), §2.1 (the corpus pins) and §12.9 (the antigravity shape and its `writesWhileAsking` exemption, removed for false ambers), all committed in `a1ab7d09`. Research 18 at `docs/research/18-agent-activity.md:25` and `:896` (August's measurement that agy emits zero bytes at an idle prompt, which is where `animatesWhenIdle: false` came from), §4.2 at `:504-557` (the CPU rule and the tool-child rule) §6.5 at `:816-827` (the probe window) and acceptance test A9 (`:856`, and as unit-asserted at `:980`). Phase 12.11's rule that what Tortie does to a session never raises its state (`src/main/activity/state-machine.ts:59-70`). Phase 9.2's rule that his own input never raises `needs_input` (`src/main/activity/monitor.ts:510-522`). Phase 23 refusal 5 and the overlay's refusal of `activity` whole (`src/shared/agent-overlay.ts:645-647`). The operator's rule that a phase lands only when a side-by-side against today shows no scenario worse, cost included.
+
+**Depends on.** Nothing queued. It does not wait for Phase 325: the invariant below holds the dialog count and every `needs_input` tick to whatever its own parent computes, so whichever of the two lands first, the other's side-by-side is not moved by this one. Every line number below is read at `e371324b`.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Everything below was counted for this entry over research 129's recording `a/rec` (investigator A's live run of 2026-09-22), read only, from the scratch corpus that `build/p321/SPEC.md` §2.1 pins. Times are seconds after antigravity's launch (`a/rec/launches.jsonl`). Nothing was written but this entry.
+
+- **What the live monitors read.** `a/rec/status.jsonl`: the 1 s monitor read antigravity `running` from +1.08 s to the end of the recording at +594.86 s, with no other transition. The 2 s monitor read `running` at +6.12, `idle` at +307.20 and `running` again at +385.20, to the end. The recording holds one completed turn: the trust gate answered at +40.07, the prompt submitted at +65.38, its first question answered at +88.55 and its second at +241.99 (key times from `a/rec/events.jsonl`; no prompt text is quoted here or anywhere).
+- **The "repaint" draws nothing.** From +270 s to the last write at +594.54 s agy wrote 162 times, 1.999 to 2.019 s apart (median 2.015 s), and every write is the same 15 bytes, `ESC [ ? 2004 h ESC [ > 4 ; 2 m`: bracketed paste turned on and the keyboard's modify-other-keys mode set. No character is drawn. Of all 824 writes in the run, 293 are that sequence. It is also every write before the prompt from +45 to +63 s (9 of 9) and 30 of the 34 writes while its second question waited. tmux's activity stamp moved in steps of 2 s (159 times) or 3 s (2 times) at rest (`a/rec/panes.jsonl`). Research 129 and Phase 321 called it a repaint every 2.0 s; the measured period is 2.015 s, which is why the 2 s monitor's reading drifts in and out of step with it.
+- **The screen does not move at rest, and it does not move during a silent tool either.** 588 antigravity captures, 32 distinct screens after `normalizeCapture` (`src/main/activity/screen.ts:41`). From +270 s: 325 captures, 0 differ from the one before. While its tool ran with nothing drawn (+110 to +178.3 s): 69 captures, 0 differ. While its second question waited: 61 captures, 0 differ. While it thought: 6 of 7 differ (a spinner).
+- **CPU.** At rest, 0 of 318 one-second intervals reached 5% (1.36 CPU-seconds over 325 s); Phase 321's checker counted 1 of 322 with its own pairing, never two in a row either way. During the silent part of the tool, 64 of 64 intervals reached 5%: minimum 6.1%, tenth percentile 7.0%, median 8.5%, maximum 11.0%. So the margin over the bar (`CPU_BUSY_PERCENT = 5`, `src/main/activity/process.ts:37`, two ticks in a row, `:39`) is 1.1 points at its thinnest. While its second question waited, 0 of 55 (0.22 CPU-seconds). Counted from `a/rec/ps.jsonl`, whose samples are 500 ms apart.
+- **agy runs its tool on a terminal of its own, and the tool-child rule cannot see it.** agy is the pane's own program (its pid is the pane pid, `Ss+`). Its tool, `sleep`, appeared in 179 of the 184 half-second samples of the tool stretch (first +89.16 s, last +178.28 s) as `Ss+`: a session leader in the foreground group of its own terminal. `hasToolChild` (`src/main/activity/process.ts:131-141`) counts a session leader only WITHOUT `+`, so it never counts antigravity's tools. At rest, 0 of 648 samples had any process under agy; before the prompt 0 of 51, while it thought 0 of 14, while either question waited 0 of 32 and 0 of 123, after the answer 0 of 56. At launch 3 of 60 samples had one: a second `agy` as `Ss` and `Rs` (which `hasToolChild` does count; research 129 found agy rewrote itself 7 s after this launch) and a `node` as `S+`.
+- **So what holds antigravity `running` today is its output clock alone at rest, and its output clock plus CPU during a silent tool.** Output newer than `QUIET_MS` (2,000 ms, `state-machine.ts:50`) is strong evidence (`:347-348`, `:376-384`), and a 2.015 s write lands inside that window on every 1 s tick and on a phase-dependent share of 2 s ticks.
+- **A model of this entry's rule, run over the recording on a virtual clock.** For this entry only, piped to the pinned tsx on stdin, nothing saved: the SHIPPING `inferredVerdict`, `commitVerdict` and `worthProbing` for the parent, and a plain re-implementation of the rule below for HEAD, fed with the recorded tmux stamps, the recorded process table and the recorder's nearest capture at or before each tick, at 1 s and 2 s over 10 tick phases each. The re-implementation run in parent mode equals the shipping class state for state in 10 of 10 phases at both cadences, which is the check that the model is the shipping rule plus one change. It is a model; the proof is the builder's code and the verifier's harness.
+
+  | Reading, per tick phase | Parent, 1 s | Model of HEAD, 1 s | Parent, 2 s | Model of HEAD, 2 s |
+  | --- | --- | --- | --- | --- |
+  | Rest (+270 s to the end) | `running` on 324–325 of 324–325 ticks, every phase | `idle` on every tick, every phase | `running` on 76 to 156 of 162–163 ticks, depending on phase | `idle` on every tick, every phase |
+  | The silent tool (+88.55 to +180.53 s) | `running` 92 of 92 | `running` 91–92 of 92 (the one `idle` tick, in 5 of 10 phases, is the stretch's first, straight after its first question was answered, still carrying the question's `idle`) | `running` 45–46 of 46 | `running` 45–46 of 46 |
+  | Its trust gate, first question, second question | `running` throughout | `idle` on 27–28 of the 39–40 ticks from launch to the trust answer, 6–9 of 16–17 and 51–54 of 61–62 | as the 1 s parent, except the questions caught below | the same `idle` share, except the questions caught below |
+  | `needs_input` | never | never, tick for tick equal | the first question in 4 of 10 phases (5–6 ticks), the second in 2 of 10 (13 and 28 ticks) | tick for tick equal to the parent, 10 of 10 phases |
+  | Dialog count, captures and `ps` per tick | captured and read on 593–594 of 593–594 ticks | equal to the parent, tick for tick, 10 of 10 | 237 to 297 per phase | equal to the parent, tick for tick, 10 of 10 |
+  | Turn boundaries | 0 in the whole run | 5 per phase: +16 (the launch draw settles under the trust gate), +47–48 (the draw after the trust answer settles before the prompt), +80–83 (its first question), +188–192 (its second question), +251 (the turn's end) | 11 at rest across the 10 phases, 0 to 3 per phase, anywhere from +307 to +566 s; the real turn's end fired in 3 of 10 phases | 5 per phase at the same moments; the turn's end at +257–259 in 10 of 10 |
+
+- **The installed agy is not the recorded one, and it moved again today.** `~/.local/bin/agy` was replaced on 2026-09-23 at 17:16:53 (184,515,040 bytes), with the previous binary kept beside it as `agy.1790198211587545000.old`, dated 2026-09-22 18:23, which is the 1.2.8 that research 129's run installed. What launched it at 17:16 is not known to this entry; the main session should tell the operator. Read statically, without running it: its embedded changelog's newest heading is `## 1.2.8`, and it still contains the strings `[?2004h` and `[>4;2m`. Its version and its rest behaviour cannot be read without running it, which this phase never does. The recording is 1.2.7 (its banner). The rule below names neither the 2.0 s period nor the bytes, so a version that writes a different invisible sequence at another rate reads the same, and a version that draws at rest (a clock, say) reads `running`, exactly as the parent does.
+- **The corpus is still in `/private/tmp`.** Phase 321's §2.1 said the main session would move it first, and §12's limits say it never moved. Six of its pinned files were re-hashed for this entry (`antigravity.bytes.jsonl`, `captures.jsonl`, `ps.jsonl`, `status.jsonl`, `panes.jsonl`, `events.jsonl` under `a/rec`), and all six equal their pins. A reboot loses the replay's input, and research 129's live run is the only antigravity recording there is: one run, one turn, one tool.
+- **Where the rule lives and what pins it today.** `inferredVerdict` (`src/main/activity/state-machine.ts:327-419`): `quiet` at `:347`, `outputEvidence = !reflowing && !profile.animatesWhenIdle && !quiet` at `:348`, the strong-evidence block that resets the dialog count and returns `working` at `:376-384`, the numbered verdict line at `:366` (pinned byte for byte by `conformance:choices` clause 21, `build/conformance-choices.mjs:1396`), the dialog arm at `:393-400`, the screen-hash arm at `:405-408`, the idle count at `:414-418`. `worthProbing` (`:245-255`) keeps a session probed for `AMBIGUOUS_WINDOW_MS` (60,000, `:58`) after `lastWorkingAt` (`:89`), which `commitVerdict` sets on every `working` verdict (`:801`). The monitor builds its probe set from it (`monitor.ts:594-601`), reads one `ps` if anyone is in it (`:605`) and captures that set plus every blocked session (`:614-618`). Antigravity's row is `src/main/agents/registry.ts:1034`, its activity at `:1110` (`{ tier: 'screen', animatesWhenIdle: false, verified: 'partial' }`) under Phase 321's comment at `:1091-1109`. The `animatesWhenIdle` doc at `:329-334` still says "every other agent measured emits ZERO bytes at an idle prompt". Two tests hold antigravity to today's reading and will go red by design: `src/main/activity/__tests__/p321-masking.test.ts:670-735` holds every row without `dialogs` (antigravity among them, `:681-694`) to the parent tick for tick, with his numbered words under a repaint as one input (`:720-724`); `p321-shapes.test.ts:603-611` allows no `activity` key beyond the parent's and `dialogs`. `HELPER_USER_FLOOR` is 153 (`build/assert-electron-teardown.mjs:326`).
+
+### The mechanism
+
+**The rule in one sentence: for antigravity, output keeps every job it has today except one, which is making the session read `working`.** Today antigravity's output clock does four things on a tick: it resets the dialog count, it drives the release of a blocked session, it keeps the session probed, and it reads as `working`. The first three are what keep its numbered verdict and its capture schedule exactly as they are, and so what keeps his own words in its input box from turning amber any more often than they do today. Only the fourth is wrong. This is not `animatesWhenIdle: true`, which removes all four.
+
+1. **The corpus first.** The main session moves research 129's corpus out of `/private/tmp` and out of the repository and points `P321_CORPUS` at it; `verifyCorpus` (`build/p321/corpus.mjs:140`) checks every pin before the first replay. Then `build/p328/timeline.mjs --make` writes `build/fixtures/questions/a-antigravity-timeline.json`, antigravity's recording as NUMBERS ONLY, through the corpus loaders that already exist (`loadBytes`, `loadProcessSamples`, `loadCaptures`, `keyTimes`, `:228-312`): each tmux stamp and when it was seen, each process sample's time, the subtree's CPU-seconds and the STAT letters of each process under agy, each capture's time and which of the 32 distinct screens it was (as an id in the committed `a-antigravity.jsonl`), and the five key times. No text, no command line, no path, no prompt. `--check` (no corpus) refuses a string anywhere but the screen ids and the STAT letters, and refuses a screen id `a-antigravity.jsonl` does not hold. With it committed, every test below runs without the corpus and survives a reboot.
+2. **`src/main/agents/registry.ts`: two compiled fields, on antigravity's row alone.** `AgentActivityProfile` (`:324-361`) gains `writesWithoutDrawing?: true` and `terminalTools?: true` (names the builder may improve; neither may reuse `animatesWhenIdle`), each with a comment naming what was measured, on which version and when. Antigravity's `activity` (`:1110`) gains both; `animatesWhenIdle` stays `false` and `verified` stays `'partial'`. The comment at `:1091-1109` is rewritten to say what the writes are (two terminal modes, no drawing), and the `animatesWhenIdle` doc at `:329-334` stops saying every other agent is byte-silent at idle. `SHELL_ACTIVITY` (`:2064`) and `DEFAULT_ACTIVITY` (`:2071`) carry neither, so the shell, the floor and every unknown agent read exactly as today. The overlay already refuses `activity` whole (`agent-overlay.ts:645-647`), so neither field can come from configuration.
+3. **`src/main/activity/state-machine.ts`: clause A, output without the verdict.** `SessionState` (`:76`) gains `lastOutputAt` beside `lastWorkingAt` (`:89`), zero in `freshState` (`:208-233`). For a profile with `writesWithoutDrawing`, on a tick where the parent's own predicate says output counts (`!reflowing && !quiet`, `:347-348`):
+   - the output is not strong evidence, so it neither returns `working` nor sets `quietTicks` to 0 (`:376-384`);
+   - but it still sets `dialogTicks` to 0 and the dialog arm (`:393-400`) is skipped on that tick, exactly as the strong-evidence block skips it today;
+   - a blocked session is still released through `releaseNeedsInput` (`:427-438`), exactly as `:378-382` does today;
+   - and, unless the session is blocked, it stamps `lastOutputAt`, which `worthProbing` (`:245-255`) reads beside `lastWorkingAt`, so the session is probed on exactly the ticks the parent probes it.
+   The tick then falls through to the screen-hash arm (`:405-408`): a changed screen reads `working`, as for every agent, and an unchanged one counts toward idle (`:414-418`). The numbered verdict line at `:366` does not move (`conformance:choices` clause 21), and `detectDialog` keeps its one call site. `monitor.ts` does not change: its probe set, its `ps` and its captures come through `worthProbing` as they do today.
+4. **`src/main/activity/process.ts` and the state machine: clause B, a tool on its own terminal is work.** A sibling of `hasToolChild` (`:131-141`), reading the same snapshot with the same `descendants` (`:109`) and no new `ps`, answers whether any process under the pane's program is a session leader, with or without `+`. For a profile with `terminalTools` it is WEAK evidence, read beside `screenChanged` at `:405` and never above the dialog arm, so it can make a tick `working` but can never reset the dialog count or change a `needs_input` reading. It exists because clause A takes away the output clock that, together with CPU, held antigravity's 68 silent seconds of tool `running`, and the CPU alone clears the bar by 1.1 points. It can only add `running`: at rest in the recording it would never fire (0 of 648 samples), and if a later agy keeps a terminal child alive at rest, antigravity reads `running` at rest, which is today's reading and never a worse one.
+5. **The invariant the tests, the gates and the verifier all hold.** On every tick, for antigravity: the dialog count, the clear count, every `needs_input` decision, the probe decision, the capture and the `ps` read equal the parent's. HEAD reads `idle` only on a tick where the parent's current `working` stretch was held by output alone. HEAD reads `running` where the parent reads `idle` only while a session leader is alive under agy (clause B). For every other row, the shell and the floor, every reading equals the parent's.
+6. **Tests.** `src/main/activity/__tests__/p328-writes-without-drawing.test.ts` drives the shipping class on a virtual clock against a literal copy of the parent's rule. It does not write a second copy: `p321-masking.test.ts` already holds one (`pInferredVerdict` and every helper it calls, `:73-296`, a copy of the rule at `ecb6997a`, which is antigravity's rule at `e371324b` too, because Phase 321 changed nothing for a row with no shape), and with it `restingWindow` (`:314`) and `typedInto` (`:340`). They move into one shared module under `__tests__/`, and no row of `p321-masking.test.ts` changes what it asserts by the move. Over the committed timeline at 1 s and 2 s across 10 phases, the rest reads `idle`, the invariant holds tick for tick, and the turn boundaries are the five named above; his numbered words typed and pasted into the resting screen under the recorded writes read `needs_input` on exactly the parent's ticks; the tool stretch with agy's CPU set to zero still reads `running` through clause B, and reads `idle` with clause B taken away; a terminal child left alive at rest reads `running`; every other registry row, the shell and the floor equal the parent. **Deliberate amendments, each named in the commit body:** `p321-masking.test.ts:674-676`'s filter also excludes a row carrying either new field, so `antigravity` leaves the list at `:681-694` and the new file holds antigravity to the invariant rather than the tick-for-tick rule, over the same inputs. The input "his numbered words under a repaint" (`:720-724`) STAYS in `p321-masking.test.ts`, because `everyRun` runs every input under the loop's own profile (`:508-518`, `:728-731`), so it holds all twelve remaining names to the parent tick for tick and moving it would drop that input for all twelve. `p321-shapes.test.ts:603-611`'s allowed set gains the two field names, and a row asserts that only antigravity carries them. `:599-600` stays true. Every other existing row in `signals.test.ts`, `p312-choices.test.ts`, `monitor.test.ts`, `reflow.test.ts`, `turn-boundary.test.ts`, `p321-shapes.test.ts`, `p321-masking.test.ts` and `p321-foreground.test.ts` stays green unchanged; a row that has to change beyond the two named is a finding for the verifier, not an edit. `gate:checks` runs because a test file is added.
+7. **Gates, amended in the same commit.** `conformance:agents` adds both names to the list the overlay may never name (`build/conformance-agents.mjs:1883`, section 10 at `:1864-1882`) and to its driven refusals (a new agent carrying them, antigravity patched with them, `:2038-2049`), and asserts neither is on `SHELL_ACTIVITY` or `DEFAULT_ACTIVITY` (as `:2164` does for `dialogs` and `:2165` for `residentHelpers`). `build/p328/ablation.mjs`, as `ablation:p328`, breaks the SHIPPING source one clause at a time, and the row that owns each must go red: output counted as work again for the row; the masked tick no longer resetting the dialog count (his words row); the dialog arm run on a masked tick (the same row); `lastOutputAt` taken out of `worthProbing` (the probe-equality row); clause B removed (the zero-CPU tool row); clause B moved above the dialog arm (a `needs_input` row with a terminal tool alive); the fields taken off antigravity's row (the rest row); a field put on `DEFAULT_ACTIVITY` (the unknown-agent row). An unedited control must stay green, and every file is restored and compared by sha256 in a `finally`. `ablation:p312` and `ablation:p321` stay green unchanged.
+8. **`build/p328/probe-p328.mjs`, `probe:p328`**, the app run below. It reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises by one from whatever the parent reads (153 at `e371324b`). It reuses `build/p321/stand-in.mjs`, which gains one op writing the recorded 15 bytes every 2.0 s (its `repaint` op, `:36-38`, redraws the screen byte for byte, which is not what agy does) and one op starting a `sleep` on a terminal of its own under `/usr/bin/script`, so it is `Ss+` as agy's tool was, ended by pid in the stand-in's `finally` and again in the probe's. It is classified in `build/verification-checks.mjs`, and CLAUDE.md's probe table gains one line naming the two fields, `inferredVerdict`'s output clause and `worthProbing` as its triggers.
+9. **CHANGELOG.** One item under `## Unreleased`, `### Fixed`, in the house style: an Antigravity session no longer shows as running while it waits at its prompt; its questions still do not turn amber and now read as idle. The follow-up docs commit adds the commit link.
+
+**His ruling, with the default the phase proceeds on.** **Antigravity's questions that Tortie cannot read go from `running` to `idle`** (the table above: its trust gate, idle on 27–28 of the 39–40 ticks before it was answered at 1 s, and its two numbered permissions, idle on 6–9 of 16–17 and 51–54 of 61–62), and each one is now a turn boundary. Neither build turns them amber at 1 s, and at 2 s both catch the same ones on the same ticks. **Default: accept.** It is what cursor's and opencode's questions already read today, `idle` is the word that says it is his turn, and making them amber is the shape Phase 321 removed for false ambers, which is not this phase.
+
+### The proof, run rather than read
+
+- **Gates.** `npm run typecheck && npm run build && npm run smoke:t1`, then the integrator's full battery (test, smoke, smoke:t3, package). The path-triggered gates for the files touched: `conformance:agents`, `conformance:installs` and `conformance:resume:capture` (`registry.ts`); `conformance:handback` and `conformance:choices` (`state-machine.ts`; clause 9 scans all of `src/main`, the lesson Phase 321's running-log line records); `conformance:phonecopy` (`src/main/activity/**`); `conformance:push`. Also `ablation:p312`, `ablation:p321`, `ablation:p328`, `gate:checks`, and `gate:electron` and `gate:background` for the probe and the stand-in. `gate:contract` must not move: no channel, schema, key or env name changes.
+- **The replay matrix over every banked recording, parent against HEAD, with the verifier's own harness.** Every recording in the corpus, every agent, into scratch panes on its own tmux socket (`-L p328-*`, never `-L gmux`), each agent's recorded process table remapped onto its replay pane, read through the BUILT monitor at 1 s and 2 s over at least 10 tick phases. **Required:** every agent but antigravity equals the parent transition for transition, in every cell; antigravity reads `idle` on every rest tick at HEAD at both cadences; every `needs_input` tick, every capture and every `ps` read equal the parent's, cell by cell, antigravity included; every tick the parent reads `working` for a reason other than output (CPU, a tool child, a changed screen, a release) reads `working` at HEAD; **0 false ambers added for any agent.** Every turn boundary that HEAD fires and the parent does not, or the reverse, is listed and attributed, and the phase lands only if each HEAD boundary is one of the five named moments and none falls at rest. Every rate carries its denominator.
+- **The reasons, re-derived.** Before reading the builder's work, the verifier derives from the stamp timeline and the process table alone, by a method of its own, why the parent read each antigravity tick `working`, and checks that HEAD differs from the parent on exactly the ticks where that reason was output alone. Every disagreement is read and ruled in the report.
+- **The attack, at the parent and at HEAD.**
+  - **His own words.** Dialog-shaped text typed key by key and pasted in one burst into antigravity's recorded resting screen, under its recorded writes, at 1 s and 2 s over 10 phases, and at 2 s with the paste arriving more than 60 s after the session last worked (research 129 §3.1's one-write class, the class Phase 319 was parked for). Required: HEAD's `needs_input` ticks equal the parent's in every cell. Not "no amber": the parent's existing ambers at 2 s are the fault Phase 325 owns, and this phase must neither add nor remove one.
+  - **The silent tool pushed under the bar.** The recorded tool stretch with agy's CPU scaled to 4%, 1% and 0%: `running` throughout at HEAD through clause B, and `idle` with clause B ablated, which is what proves the clause carries weight. A tool started detached (`Ss`) reads `running` at both, as today for every agent.
+  - **A terminal child left alive at rest.** Reads `running` at HEAD, which is the parent's reading.
+  - **Tortie's own hand.** A resize of a resting antigravity session (Phase 12.11's reflow), entering and leaving copy mode, and a Tortie restart under a resting agy: no amber at either build, and HEAD settles to `idle` where the parent reads `running`.
+  - **A turn that starts outside the probe window at 2 s.** HEAD reads `running` no later than one tick after the parent does.
+  - **A version that draws at rest.** A synthetic clock drawn every second at rest reads `running` at both builds. This is a stated limit, not a claim.
+- **`probe:p328`, the app run, in `probe:p321`'s shape.** One Electron through `build/electron-run.mjs`, with a scratch profile, a scratch `HOME` and its own tmux socket, and the 2 s cadence driven and measured the way `probe:p321` does it (its header, `build/p321/probe-p321.mjs:26-31`). The session is the real `antigravity` registry row launched by its bare name `agy`. **Before any arm the probe asks the scratch login shell `command -v agy`, with the environment the app is given, and reads UNREADABLE and exits 2 if it resolves anywhere but the stand-in**, because agy is installed on this Mac and rewrites itself when it runs. After launch it requires the stand-in's own hello and ends the session at once if the pane holds anything else. Folding is left unchosen, so every boundary is counted and skipped `no-choice` and nothing spawns; the builder reads how `src/main/harness/fold-seed.ts:155` reaches `core.fold.counts()` before choosing how to read the count, and adds no channel. Arms, each at the parent build and at HEAD, one invocation after the other and never at once: (a) at rest under the 15-byte writes: `running` in main's status, the door's rows and the project tab's roll-up at the parent, `idle` in all three at HEAD; (b) a turn the stand-in draws, then a silent `Ss+` tool, then its answer: `running` throughout at both builds, then `idle` and one boundary at HEAD; (c) his numbered words typed into the input row under the writes: the same `needs_input` reading at both builds, tick for tick at the measured cadence; (d) a numbered question under the writes: the same at both; (e) a pi row and a shell row as controls: identical at both. Electrons are counted once, at the end.
+- **What cannot be proven here, stated rather than hidden.** How the installed agy behaves at rest or during a tool, because it is never launched: the recording is 1.2.7 and the installed binary moved twice since. A turn in which agy thinks with a frozen screen, no CPU and no terminal tool, because its one recorded turn drew a spinner while it thought (6 of 7 captures changed). Any agy tool but `sleep`, and a question asked while a terminal tool is alive (0 samples). A second run of anything: the corpus holds one antigravity recording.
+
+### What is NOT in this phase
+
+- **No `animatesWhenIdle: true` for antigravity**, for the reasons `build/p321/SPEC.md` §1.2 item 1 measured, and no field that removes what output does to the dialog count or to the probe set.
+- **No change to any `needs_input` reading.** The numbered verdict, its line at `state-machine.ts:366`, Phase 321's two shapes and their foreground gate, the dialog count, the release and the choice channel are as the parent has them, for every agent, antigravity included.
+- **No antigravity question turned amber.** Its trust gate and its numbered permissions read what the parent's dialog logic reads. Making them amber is the shape Phase 321 removed for false ambers, and it is its own entry with its own negative corpus.
+- **No fix for his own words read as a question.** That is Phase 325's (research 129 §9 item 6). This phase holds antigravity's share of that fault exactly where the parent has it, and the attack proves it.
+- **No reading of bytes.** No `pipe-pane`, no control-client output stream (research 129 §4 rejected a control client per session), no list of escape sequences and no period constant. The rule names neither the 2.0 s nor the 15 bytes.
+- **No other agent.** deepseek and muse keep `animatesWhenIdle: true` (`registry.ts:1009`, `:1187`); grok stays exactly as Phase 321 left it; cursor, opencode, qwen, pi, omp, gemini, droid, codex, claude, the shell and the floor read exactly as today. Widening either field to another row, or to the floor, is its own entry with its own recording.
+- **No list of process names**, and no change to `hasToolChild` for any agent. Clause B asks STAT letters on antigravity's row alone.
+- **No constant moved.** `QUIET_MS`, `IDLE_CONFIRM_TICKS`, `DIALOG_CONFIRM_TICKS`, `DIALOG_CLEAR_TICKS`, `AMBIGUOUS_WINDOW_MS`, `REFLOW_GRACE_MS`, `CPU_BUSY_PERCENT`, `CPU_BUSY_TICKS`, `SCREEN_MEMORY_TICKS`, `MAX_CAPTURES_PER_TICK` and both cadences stay.
+- **No change to the fold**, its settle time (`FOLD_SETTLE_MS`, 4 s, `scheduler.ts:64`), its interval (`FOLD_MIN_INTERVAL_MS`, 60 s, `:67`) or its skips. With folding chosen, antigravity's turns are folded as every other agent's already are, and a boundary with nothing new is skipped `no-new-turns` without a spawn. No test or probe in this phase chooses folding or spawns a model.
+- **No launch of agy**, live or in a probe, no `agy --version`, and no read or delete of any agent's conversation store. No live gemini, qwen, grok or droid either.
+- **No configuration route.** Both fields are compiled data under `activity`, which the overlay refuses whole (CLAUDE.md refusal 5).
+- **No committed raw recording.** Only the numeric timeline, the tests, the scripts and the source enter the tree.
+- **Nothing for remote sessions** (`remoteRowStatus` never produces `needs_input`, `src/main/machines/remote-sessions.ts:1032`) and **nothing for scroll-back** (research 129 §9 item 5).
+- **No status, no status word, no copy, no surface and no menu.**
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -35478,3 +36516,5 @@ cycle rather than only the evening it was written.
 - 2026-09-23, **PHASE 321 LANDED, the questions real agents draw, `a1ab7d09`, unreleased, with a CHANGELOG item.** Qwen Code's permission questions and Claude Code's folder-trust gate now turn amber — 180 of 180 replay cells, live, and in the app with one push each — read only while the agent itself holds the pane's terminal, named by a program token; false ambers over every recording fell from 1 to 0 and his own typed words raised 0 in 31,631. Cursor, OpenCode and Antigravity shapes were removed for their false ambers, grok is as today, and the one accepted worse row is the capture displacement under the ceiling of six (a question one tick later; idle and running moments moved). It went back to him three times and landed on his "Tiny fix, then land". **A repair main needed rides in it**: `conformance:choices` clause 9 had been red on main since 316.1 (`8c7f0b2f`), because its writer pattern matched the first `=` of a `===` in 316.1's activity map, which only reads the question; 316.1's battery never ran that gate. `HELPER_USER_FLOOR` 152. **The lesson for the path-triggered table:** a gate that scans ALL of `src/main` for a pattern (clause 9 does) is triggered by any main-side file, so a phase touching `src/main/sessions/` must run it.
 
 - 2026-09-23, **PHASE 316.2 LANDED, the iPhone app in the Simulator — the first Swift inside a Tortie product — `d19a906a`, unreleased, no CHANGELOG item until 316.4.** `ios/` holds the list ("Needs your input" then "Everything else"), one session, the whole conversation paged to its first turn, and pairing that counts as done only after the first signed read; one network user with the door's key pinned and every read signed; one ATS exception; the ask never rendered; words and colours the Mac's own. Held by `conformance:ios` (rules a to k, as text, inside `npm run build`, no Xcode needed), `gate:simulator`, a sixth check type `xcode harness`, `probe:p316` 30 of 30, and `test:ios` green on iOS 26.3 AND 18.3, his version. The last round was his: "ok fix with 2 line change" — a count of `Int.max` from the door had trapped Swift's checked arithmetic and ended the app, and now every door number is bounded and every sum checked, proved on both runtimes with Int.max, Int.min, -1, 2^53, a float and a string in every field. The Mac's own code did not move. `HELPER_USER_FLOOR` 153. **Next: 316.3, the tailnet node inside the app.**
+
+- 2026-09-23, **PHASES 324 TO 328 QUEUED** above this log, each drafted from the tree at `e371324b` and re-read citation by citation by an independent checker who corrected them in place. **324**, tmux `3.6` and `3.6b` on both version lists, with plain subjects on his ruling and a pin that the control precheck runs before every spawn; **325**, Tortie reads his own words as the agent's question, breaking CLAUDE.md's UI rule — it carries one ruling for him (when his words and a real question arrive together, which wins) and does not land until he gives it; **326**, a far session created alone whose first attach lands while it reads as not Tortie's, so its screen never draws; **327**, a git-build tmux (`next-3.8`) offered an acceptance the app then refuses; **328**, antigravity reads running at rest. Beside them: 316.3 is building, and 320.1 and 323 wait for the test slot the phone is using.
