@@ -146,7 +146,15 @@ function makePhone(label: string, address: string, doorExchangePublic: string): 
     )
   ).toString('hex');
   return {
-    fields: { id: phoneIdOf(signingKey), label, signingKey, exchangeKey, address },
+    fields: {
+      id: phoneIdOf(signingKey),
+      label,
+      signingKey,
+      exchangeKey,
+      address,
+      pushToken: '',
+      pushEnvironment: ''
+    },
     signPrivate: signing.privateKey,
     binding
   };
@@ -378,7 +386,8 @@ try {
       port,
       bindAtLaunch: false,
       routes: POCKET_ROUTES.map((r) => r.id),
-      phones
+      phones,
+      pushAlerts: false
     }),
     savePhones: (next) => {
       phones = [...next];
@@ -443,12 +452,22 @@ try {
   const secret = Buffer.from(String(qr['ps']), 'base64url');
   const doorExchangePublic = String(qr['dx']);
 
-  /** Seal a presentation the way a phone does, under the QR's one-shot secret. */
-  const present = (label: string, signingKey: string, exchangeKey: string, withSecret = secret): Buffer => {
+  /**
+   * Seal a presentation the way a phone does, under the QR's one-shot secret.
+   * `push` is the Phase 314 half, `apt` and `ape`, spelled here from the wire
+   * format and never through the door's own sealing helper.
+   */
+  const present = (
+    label: string,
+    signingKey: string,
+    exchangeKey: string,
+    withSecret = secret,
+    push: Record<string, unknown> = {}
+  ): Buffer => {
     const key = Buffer.from(hkdfSync('sha256', withSecret, Buffer.alloc(0), 'tortie-pocket-pair-v1', 32));
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv);
-    const plain = Buffer.from(JSON.stringify({ label, ek: signingKey, xk: exchangeKey }), 'utf8');
+    const plain = Buffer.from(JSON.stringify({ label, ek: signingKey, xk: exchangeKey, ...push }), 'utf8');
     const ct = Buffer.concat([cipher.update(plain), cipher.final()]);
     return Buffer.from(
       JSON.stringify({ iv: b64u(iv), ct: b64u(ct), tag: b64u(cipher.getAuthTag()) }),
@@ -688,6 +707,78 @@ try {
     ),
     "the hook server's own check: a request addressed to somebody else is not this door's."
   );
+
+  // 17. THE DEVICE TOKEN'S ONE DOOR IN (Phase 314).
+  //
+  // The token an alert is addressed to rides inside the sealed presentation,
+  // because the route table is closed and gains no route for it. So the one
+  // place a hostile token can arrive is `POST /pair`, and a presentation whose
+  // `apt` or `ape` is not exactly the shape is refused WHOLE, with the same one
+  // word as every other refusal and nothing put in front of the person. An
+  // honest one is answered `pending`, and what the person would allow names the
+  // token by the first eight of its digest, computed HERE by this client's own
+  // sha256 rather than read back from the door.
+  {
+    const window17 = JSON.parse(pairing.open().payload) as Record<string, unknown>;
+    const secret17 = Buffer.from(String(window17['ps']), 'base64url');
+    const alerted = makePhone('a phone that asks for alerts', '127.0.0.1', doorExchangePublic);
+    const stateOf = (answer: Answer): string =>
+      (JSON.parse(answer.body || '{}') as { state?: string }).state ?? `none-${verdict(answer)}`;
+    const presentPush = (push: Record<string, unknown>): Promise<Answer> =>
+      ask(
+        'POST',
+        '/pair',
+        { 'content-type': 'application/json' },
+        present(alerted.fields.label, alerted.fields.signingKey, alerted.fields.exchangeKey, secret17, push)
+      );
+    record(
+      '17a',
+      'a presentation whose device token is not hex',
+      'refused',
+      stateOf(await presentPush({ apt: 'not-a-device-token-'.repeat(4), ape: 'development' })),
+      'the token decides where his words go at Apple, so a token that is not the shape is not a token, and the presentation carrying it is refused whole.'
+    );
+    record(
+      '17b',
+      'a presentation that names an environment and no token',
+      'refused',
+      stateOf(await presentPush({ ape: 'production' })),
+      'the two travel together or not at all: an environment with no token addresses nothing.'
+    );
+    record(
+      '17c',
+      'and neither refusal put a phone in front of the person',
+      'waiting',
+      pairing.view().state,
+      'a refused presentation must leave the sheet exactly as it was, or a hostile body could redraw what the person is asked to allow.'
+    );
+    const honestToken = createHash('sha256').update('p314-hostile-honest-token').digest('hex');
+    record(
+      '17d',
+      'an honest token and environment, spelled in capitals',
+      'pending',
+      stateOf(await presentPush({ apt: honestToken.toUpperCase(), ape: 'development' })),
+      'a phone that asks for alerts is paired like any other; presenting still allows nothing.'
+    );
+    const deviceLine =
+      `Alerts for "${alerted.fields.label}" go through Apple (development), device ` +
+      createHash('sha256').update(honestToken, 'utf8').digest('hex').slice(0, 8);
+    record(
+      '17e',
+      'what the person is asked to allow names that device, by a digest computed here',
+      'named',
+      pairing.view().lines.includes(deviceLine) ? 'named' : 'not-named',
+      'the token is HASHED into what the person confirms, so the sheet must name it, and name the lowercase token the door folded it to.'
+    );
+    record(
+      '17f',
+      'and the sheet never carries the token itself',
+      'absent',
+      JSON.stringify(pairing.view()).toLowerCase().includes(honestToken) ? 'present' : 'absent',
+      'the token is an address at Apple and stays in main; the sheet draws eight hex of its digest and nothing more.'
+    );
+    pairing.cancel();
+  }
 
   // 14. The shutdown is a resource owner.
   const report = await door.stop();

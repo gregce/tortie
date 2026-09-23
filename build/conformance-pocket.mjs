@@ -70,6 +70,8 @@ const RULES = [
   ['G1', 'entry, proof; hooks.ts:368-385', 'no token, no body, no header value and no line of conversation is reachable from any log call'],
   ['T1', 'the operator, 2026-09-22', 'nothing in this repository binds a real interface: every test and every gate drives the door on loopback'],
   ['H1', 'his ruling, 2026-09-22 (“lets skip the web app”)', 'this domain composes NO HTML document and names no text/html content type: the page was built, could not be reached under mechanism 5’s own refusals, and was removed on his ruling, so a later round that wants one asks him rather than rebuilding it under a green gate'],
+  ['N1', 'Phase 314, build/p314/SPEC.md §1.1 row 3', 'NO PUSH ROUTE EXISTS: no route id, path or contract id names push, apns, notify, device, token or alert, and the table’s membership is still Phase 313’s, byte for byte'],
+  ['N2', 'Phase 314, build/p314/SPEC.md §6.2', 'THE DEVICE TOKEN HAS ONE DOOR IN AND NONE OUT: the presentation parser takes apt as bounded hex and ape as one of two words or refuses, no renderer-facing type carries a field named like a token, and PocketPushDestination lives in main alone'],
 ];
 
 if (process.argv.includes('--list')) {
@@ -868,7 +870,14 @@ const FORBIDDEN = [
   ['../credentials/', 'the credential wall, written the way a sibling import is'],
   ['../logins/', 'the credential wall, written the way a sibling import is'],
   ['@shared/logins', 'the credential wall: the login vocabulary is not this door\u2019s'],
-  ['safeStorage', 'a credential read; the seal is reached through config/seal.ts alone']
+  ['safeStorage', 'a credential read; the seal is reached through config/seal.ts alone'],
+  // PHASE 314. The door speaks to a phone and nothing else, and cannot name the
+  // sender that speaks to Apple. The push reads the door's CONFIRMED fields
+  // through a narrow host method; the door never reaches the other way.
+  ['main/push/', 'the push sender: the door speaks to a phone and nothing else'],
+  ['../push/', 'the push sender, written the way a sibling import is'],
+  ['node:http2', 'the client Apple is reached with; this door opens no connection outward'],
+  ['push.apple.com', 'Apple\u2019s host, which only the sender in main/push/ may spell']
 ];
 
 function forbiddenRules() {
@@ -1214,8 +1223,11 @@ function serverRules() {
   // this rule failed `pairing.ts`'s honest sentence about the OS keystore on
   // the letters `key` inside the word. And the words are matched at WORD
   // BOUNDARIES for the same reason: `keyId` names a key and is not one.
+  // PHASE 314 widened it by six: a device token, the provider key's PEM, the
+  // JWT signed with it and the bearer it travels as, and the pairing
+  // presentation's own key for the token, `apt`.
   const LOGGABLE_POISON =
-    /\b(?:tokens?|secrets?|keys?|signatures?|nonces?|body|payload|question|answer|prompt|transcript|contents|authorization)\b/i;
+    /\b(?:tokens?|secrets?|keys?|signatures?|nonces?|body|payload|question|answer|prompt|transcript|contents|authorization|jwt|bearer|pem|apt|pushToken|deviceToken)\b/i;
   for (const file of domainFiles) {
     for (const call of callsOf(file)) {
       const name = calleeName(call);
@@ -1369,6 +1381,219 @@ function noHtmlRule() {
 }
 
 // ---------------------------------------------------------------------------
+// N — the push (Phase 314): no route for it, and one door in for the token
+// ---------------------------------------------------------------------------
+
+/**
+ * The words a route may not carry. A route that names any of them is the push
+ * reaching the door, and Phase 314 refuses that outright: the device token
+ * arrives inside the sealed pairing presentation, and nothing about the push is
+ * a thing a phone can ASK for.
+ */
+const PUSH_ROUTE_WORDS = /push|apns|notify|device|token|alert/i;
+
+/**
+ * The membership pin Phase 313 landed, spelled a second time on purpose. R4
+ * holds the table to `ROUTE_PIN`, which `--write-route-pin` rewrites; this
+ * holds it to Phase 313's own value, which nothing rewrites. So a route added
+ * for the push has to move BOTH, in the same commit, and says so twice.
+ */
+const PHASE_313_ROUTE_PIN = 'ad9ce8210eeed186d5c2458c3d3e06176171004e9b4fc75a36da5d793f94d080';
+
+/** Every string element of the `POCKET_ROUTE_IDS` array literal in a file, or null. */
+function contractRouteIds(file) {
+  for (const node of nodesOf(file)) {
+    if (!ts.isVariableDeclaration(node)) continue;
+    if (!ts.isIdentifier(node.name) || node.name.text !== 'POCKET_ROUTE_IDS') continue;
+    let init = node.initializer ?? null;
+    while (init !== null && (ts.isAsExpression(init) || ts.isSatisfiesExpression?.(init))) init = init.expression;
+    if (init === null || !ts.isArrayLiteralExpression(init)) return null;
+    return init.elements.filter((e) => ts.isStringLiteral(e)).map((e) => ({ node: e, text: e.text }));
+  }
+  return null;
+}
+
+function noPushRouteRule() {
+  const routes = moduleNamed('routes', 'N1', "Phase 313's");
+  if (routes !== null) {
+    // Every id and every path of the table.
+    for (const node of nodesOf(routes)) {
+      if (!ts.isVariableDeclaration(node)) continue;
+      if (!ts.isIdentifier(node.name) || node.name.text !== 'POCKET_ROUTES') continue;
+      for (const lit of nodesOf(routes).filter(
+        (n) =>
+          ts.isStringLiteral(n) &&
+          n.getStart() >= node.getStart() &&
+          n.getEnd() <= node.getEnd() &&
+          ts.isPropertyAssignment(n.parent) &&
+          ts.isIdentifier(n.parent.name) &&
+          (n.parent.name.text === 'id' || n.parent.name.text === 'path')
+      )) {
+        checked('N1');
+        if (PUSH_ROUTE_WORDS.test(lit.text)) {
+          fail(
+            'N1',
+            `${where(routes, lit)}: the route ${lit.parent.name.text} ${JSON.stringify(lit.text)} names the push. ` +
+              'The token rides inside the sealed pairing presentation and nothing about the push is a route a phone can ask for.'
+          );
+        }
+      }
+    }
+    const lines = routeLines(routes);
+    checked('N1');
+    if (lines === null) {
+      fail('N1', `${rel(routes)}: POCKET_ROUTES could not be read as literal rows, so nothing says no push route was added`);
+    } else {
+      const got = createHash('sha256').update(lines.join('\n')).digest('hex');
+      if (got !== PHASE_313_ROUTE_PIN) {
+        fail(
+          'N1',
+          `${rel(routes)}: the table's membership is no longer Phase 313's (${got.slice(0, 12)} against ${PHASE_313_ROUTE_PIN.slice(0, 12)}). ` +
+            'Phase 314 adds no route, no write route and no token-refresh route; a later route is its own entry with its own tier.'
+        );
+      }
+    }
+    checked('N1');
+    if (ROUTE_PIN !== PHASE_313_ROUTE_PIN) {
+      fail('N1', `R4's pin is ${ROUTE_PIN.slice(0, 12)}, not Phase 313's ${PHASE_313_ROUTE_PIN.slice(0, 12)}, so the route table was re-pinned after Phase 313.`);
+    }
+  }
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  checked('N1');
+  if (!existsSync(contract)) {
+    fail('N1', 'src/shared/ipc/pocket.ts does not exist, so the contract’s route ids cannot be read');
+    return;
+  }
+  const ids = contractRouteIds(contract);
+  if (ids === null) {
+    fail('N1', `${rel(contract)} declares no POCKET_ROUTE_IDS array literal`);
+    return;
+  }
+  for (const { node, text } of ids) {
+    checked('N1');
+    if (PUSH_ROUTE_WORDS.test(text)) {
+      fail('N1', `${where(contract, node)}: the contract names a route ${JSON.stringify(text)}, which names the push.`);
+    }
+  }
+}
+
+/** The types a renderer is handed, and nothing on them may be named like a token. */
+const RENDERER_FACING = [
+  'PocketStatus',
+  'PocketPhoneView',
+  'PocketPairingView',
+  'PocketBlockedRow',
+  'PocketSessionDetail',
+  'PocketAllowResult'
+];
+const TOKEN_LIKE = /token|jwt|bearer|secret|^apt$|^ape$|^p8$|pem$/i;
+
+function tokenDoorRule() {
+  const pairing = moduleNamed('pairing', 'N2', "Phase 313's");
+  if (pairing !== null) {
+    // (a) The presentation parser READS apt and ape, and hands them to a check
+    // that is bounded hex and two words, and refuses the whole body when it
+    // answers null.
+    let opener = null;
+    for (const node of nodesOf(pairing)) {
+      if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'openPresentation') {
+        opener = node;
+      }
+    }
+    checked('N2');
+    if (opener === null || opener.body === undefined) {
+      fail('N2', `${rel(pairing)} declares no openPresentation method, so nothing reads what a phone presented`);
+    } else {
+      // COMMENTS BLANKED, so a sentence about the call is not the call.
+      const text = codeTextOf(pairing).slice(opener.body.getStart(astOf(pairing)), opener.body.getEnd());
+      checked('N2');
+      if (!/presentedPush\s*\(\s*inner\s*\)/.test(text) || !/if\s*\(\s*push\s*===\s*null\s*\)\s*return null;/.test(text)) {
+        fail(
+          'N2',
+          `${where(pairing, opener)}: openPresentation does not hand the inner body to presentedPush and refuse the WHOLE presentation on its null. ` +
+            'A token that is not the shape must be refused with the one word every other refusal answers, never kept beside a good label.'
+        );
+      }
+    }
+    const fnText = (name) => {
+      for (const node of nodesOf(pairing)) {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === name && node.body !== undefined) {
+          return codeTextOf(pairing).slice(node.getStart(astOf(pairing)), node.getEnd());
+        }
+      }
+      return null;
+    };
+    const presented = fnText('presentedPush');
+    const shape = fnText('pushFieldsOf');
+    checked('N2', 2);
+    if (presented === null || !/'apt'/.test(presented) || !/'ape'/.test(presented)) {
+      fail('N2', `${rel(pairing)}: presentedPush does not read the presentation's 'apt' and 'ape' keys`);
+    }
+    const regexText = codeTextOf(pairing);
+    const bounded = /const PUSH_TOKEN_RE = \/\^\[0-9a-fA-F\]\{32,256\}\$\/;/.test(regexText);
+    checked('N2');
+    if (!bounded) {
+      fail('N2', `${rel(pairing)}: PUSH_TOKEN_RE is not /^[0-9a-fA-F]{32,256}$/, so a device token is not held to bounded hex`);
+    }
+    checked('N2');
+    if (
+      shape === null ||
+      !/PUSH_TOKEN_RE\.test\(token\)/.test(shape) ||
+      !/environment !== 'development' && environment !== 'production'\) return null;/.test(shape)
+    ) {
+      fail(
+        'N2',
+        `${rel(pairing)}: pushFieldsOf does not test the token against PUSH_TOKEN_RE and refuse any environment but 'development' and 'production'.`
+      );
+    }
+    // (c) The destination, which carries the token, is declared here.
+    checked('N2');
+    const declares = nodesOf(pairing).some(
+      (n) => ts.isInterfaceDeclaration(n) && n.name.text === 'PocketPushDestination'
+    );
+    if (!declares) {
+      fail('N2', `${rel(pairing)} declares no PocketPushDestination, so the one type that carries the token lives somewhere this gate does not read`);
+    }
+  }
+  // (b) and (c): the shared contract.
+  const shared = join(ROOT, 'src', 'shared');
+  const sharedFiles = sourcesUnder(shared);
+  for (const file of sharedFiles) {
+    checked('N2');
+    if (/\bPocketPushDestination\b/.test(codeTextOf(file))) {
+      fail('N2', `${rel(file)} names PocketPushDestination. The type carries the token and lives in src/main/pocket/pairing.ts alone.`);
+    }
+  }
+  const contract = join(shared, 'ipc', 'pocket.ts');
+  if (!existsSync(contract)) {
+    fail('N2', 'src/shared/ipc/pocket.ts does not exist, so the renderer-facing types cannot be read');
+    return;
+  }
+  const found = new Set();
+  for (const node of nodesOf(contract)) {
+    if (!ts.isInterfaceDeclaration(node) || !RENDERER_FACING.includes(node.name.text)) continue;
+    found.add(node.name.text);
+    for (const member of node.members) {
+      checked('N2');
+      const name = member.name !== undefined && (ts.isIdentifier(member.name) || ts.isStringLiteral(member.name))
+        ? member.name.text
+        : null;
+      if (name !== null && TOKEN_LIKE.test(name)) {
+        fail(
+          'N2',
+          `${where(contract, member)}: ${node.name.text}.${name} is named like a token. ` +
+            'The device token decides where his words go and never reaches the renderer; the sheet reads `alerts` and nothing more.'
+        );
+      }
+    }
+  }
+  for (const name of RENDERER_FACING) {
+    checked('N2');
+    if (!found.has(name)) fail('N2', `${rel(contract)} declares no interface ${name}, so this rule read nothing for it`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -1384,7 +1609,9 @@ const PHASES = [
   ['the file modes', fileModeRule, 'W1'],
   ['the bridge', bridgeRule, 'B1'],
   ['no html', noHtmlRule, 'H1'],
-  ['the loopback rule', loopbackRule, 'T1']
+  ['the loopback rule', loopbackRule, 'T1'],
+  ['no push route', noPushRouteRule, 'N1'],
+  ['the token’s one door', tokenDoorRule, 'N2']
 ];
 
 for (const [name, run, onError] of PHASES) {

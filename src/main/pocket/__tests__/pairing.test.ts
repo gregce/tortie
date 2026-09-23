@@ -87,7 +87,10 @@ const {
   pocketConfirmStatus,
   pocketExecutionHash,
   pocketStorePath,
+  pushTokenDigest,
   readPocketStore,
+  sealPresentationAsPhone,
+  phoneView,
   writePocketStore
 } = await import('../pairing');
 const { confirmPath } = await import('../../config/confirm-record');
@@ -124,7 +127,11 @@ function makePhone(label = 'A phone'): FakePhone {
 }
 
 /** The wire format, spelled by the test and never imported from the module. */
-function sealPresentation(secretB64u: string, phone: FakePhone): Buffer {
+function sealPresentation(
+  secretB64u: string,
+  phone: FakePhone,
+  extra: Record<string, unknown> = {}
+): Buffer {
   const key = Buffer.from(
     hkdfSync(
       'sha256',
@@ -139,7 +146,8 @@ function sealPresentation(secretB64u: string, phone: FakePhone): Buffer {
   const plain = JSON.stringify({
     label: phone.label,
     ek: phone.signPublic,
-    xk: phone.exchangePublic
+    xk: phone.exchangePublic,
+    ...extra
   });
   const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
   return Buffer.from(
@@ -169,7 +177,9 @@ function phoneSignature(
     label: phone.label,
     signingKey: phone.signPublic,
     exchangeKey: phone.exchangePublic,
-    address: '100.64.0.9'
+    address: '100.64.0.9',
+    pushToken: '',
+    pushEnvironment: ''
   });
   const text = [
     'tortie-pocket-req-v1',
@@ -189,7 +199,9 @@ function phoneFields(phone: FakePhone, address = '100.64.0.9'): PocketPhoneField
     label: phone.label,
     signingKey: phone.signPublic,
     exchangeKey: phone.exchangePublic,
-    address
+    address,
+    pushToken: '',
+    pushEnvironment: ''
   };
 }
 
@@ -198,7 +210,8 @@ const BASE: PocketExecutionFields = {
   port: 8823,
   bindAtLaunch: false,
   routes: POCKET_ROUTE_IDS,
-  phones: []
+  phones: [],
+  pushAlerts: false
 };
 
 function consentFor(fields: PocketExecutionFields): {
@@ -419,7 +432,9 @@ describe('the sealed store', () => {
         phones: [],
         port: 8823,
         bindAtLaunch: false,
-        enabled: true
+        enabled: true,
+        pushAlerts: false,
+        deadPushTokens: []
       })
     ).toBe(true);
     const read = readPocketStore();
@@ -455,7 +470,9 @@ describe('the sealed store', () => {
       phones: [good, { id: 'x', label: 'Bad' } as unknown as PocketPhoneFields],
       port: 8823,
       bindAtLaunch: false,
-      enabled: false
+      enabled: false,
+      pushAlerts: false,
+      deadPushTokens: []
     });
     const read = readPocketStore();
     expect(read.store?.phones.map((p) => p.label)).toEqual(['Good']);
@@ -467,7 +484,9 @@ describe('the sealed store', () => {
       phones: [],
       port: 8823,
       bindAtLaunch: false,
-      enabled: false
+      enabled: false,
+      pushAlerts: false,
+      deadPushTokens: []
     });
     keystore = false;
     const read = readPocketStore();
@@ -887,5 +906,259 @@ describe('the empty door', () => {
     expect(describePocketDoor(EMPTY_POCKET_FIELDS).lines).toContain(
       'Allows no phone yet'
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 314: the switch, the device token, and the one door it comes in by
+// ---------------------------------------------------------------------------
+
+/** A device token, as a phone presents one: 32 bytes of hex. */
+function token(seed = 'a'): string {
+  return createHash('sha256').update(`p314-token-${seed}`).digest('hex');
+}
+
+function tokened(
+  phone: FakePhone,
+  pushToken = token(),
+  pushEnvironment: '' | 'development' | 'production' = 'development'
+): PocketPhoneFields {
+  return { ...phoneFields(phone), pushToken, pushEnvironment };
+}
+
+describe('the push fields are execution bearing', () => {
+  it('names the v2 algorithm, because the canonical text changed shape', () => {
+    expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v2');
+    expect(canonicalPocketText(BASE)).toContain('"pushAlerts"');
+  });
+
+  it('moves the hash when the switch moves', () => {
+    expect(pocketExecutionHash({ ...BASE, pushAlerts: true })).not.toBe(
+      pocketExecutionHash(BASE)
+    );
+  });
+
+  it('moves the hash when a phone’s token or its environment moves', () => {
+    const phone = makePhone();
+    const one = pocketExecutionHash({ ...BASE, phones: [tokened(phone)] });
+    expect(pocketExecutionHash({ ...BASE, phones: [phoneFields(phone)] })).not.toBe(one);
+    expect(
+      pocketExecutionHash({ ...BASE, phones: [tokened(phone, token('b'))] })
+    ).not.toBe(one);
+    expect(
+      pocketExecutionHash({ ...BASE, phones: [tokened(phone, token(), 'production')] })
+    ).not.toBe(one);
+  });
+
+  it('asks again when the switch is turned on after a confirm', () => {
+    confirmPocketDoor(BASE, consentFor(BASE));
+    expect(pocketConfirmStatus({ ...BASE, pushAlerts: true }).state).toBe('changed');
+  });
+
+  it('draws the switch and each token as lines the person reads', () => {
+    const phone = makePhone('Greg iPhone');
+    const t = token();
+    const off = describePocketDoor({ ...BASE, phones: [tokened(phone, t)] }).lines;
+    expect(off).toContain('Tells your phone nothing through Apple');
+    expect(off).toContain(
+      `Alerts for "Greg iPhone" go through Apple (development), device ${createHash('sha256')
+        .update(t, 'utf8')
+        .digest('hex')
+        .slice(0, 8)}`
+    );
+    const on = describePocketDoor({ ...BASE, pushAlerts: true }).lines;
+    expect(on).toContain(
+      'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps'
+    );
+    // A phone with no token draws no alerts line at all.
+    const none = describePocketDoor({ ...BASE, phones: [phoneFields(phone)] }).lines;
+    expect(none.some((l) => l.startsWith('Alerts for'))).toBe(false);
+  });
+
+  it('never draws the token itself, only its digest’s first eight', () => {
+    const t = token();
+    const lines = describePocketDoor({ ...BASE, phones: [tokened(makePhone(), t)] }).lines;
+    expect(lines.join('\n').includes(t)).toBe(false);
+  });
+});
+
+describe('the device token arrives inside the sealed presentation, and nowhere else', () => {
+  let door: PocketIdentity;
+  let fields: PocketExecutionFields;
+
+  function makePairing(): InstanceType<typeof PocketPairing> {
+    return new PocketPairing({
+      identity: () => door,
+      fieldsNow: () => fields,
+      savePhones: () => true,
+      certificateFingerprint: () => 'ab:cd',
+      now: () => 1_000_000
+    });
+  }
+
+  beforeEach(() => {
+    door = newIdentity().identity;
+    fields = BASE;
+  });
+
+  function presentWith(extra: Record<string, unknown>): {
+    answer: string;
+    pending: PocketPhoneFields | undefined;
+  } {
+    const pairing = makePairing();
+    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const phone = makePhone('Greg iPhone');
+    const answer = pairing.present(sealPresentation(secret, phone, extra), '100.64.0.9');
+    return {
+      answer,
+      pending: pairing.fieldsWithPending().phones.find((p) => p.label === 'Greg iPhone')
+    };
+  }
+
+  it('carries an honest token and environment into the fields the person confirms', () => {
+    const t = token();
+    const { answer, pending } = presentWith({ apt: t, ape: 'production' });
+    expect(answer).toBe('pending');
+    expect(pending?.pushToken).toBe(t);
+    expect(pending?.pushEnvironment).toBe('production');
+  });
+
+  it('folds an uppercase token to lowercase, so one token has one digest', () => {
+    const t = token();
+    const { answer, pending } = presentWith({ apt: t.toUpperCase(), ape: 'development' });
+    expect(answer).toBe('pending');
+    expect(pending?.pushToken).toBe(t);
+  });
+
+  it('pairs a phone that asks for no alerts, with empty push fields', () => {
+    const { answer, pending } = presentWith({});
+    expect(answer).toBe('pending');
+    expect(pending?.pushToken).toBe('');
+    expect(pending?.pushEnvironment).toBe('');
+  });
+
+  const refused: [string, Record<string, unknown>][] = [
+    ['a token that is not hex', { apt: 'z'.repeat(64), ape: 'development' }],
+    ['a token of 31 characters', { apt: 'a'.repeat(31), ape: 'development' }],
+    ['a token of 257 characters', { apt: 'a'.repeat(257), ape: 'development' }],
+    ['a token that is a number', { apt: 1234, ape: 'development' }],
+    ['a token with no environment', { apt: 'a'.repeat(64) }],
+    ['an environment with no token', { ape: 'development' }],
+    ['an environment that is not one of the two words', { apt: 'a'.repeat(64), ape: 'sandbox' }],
+    ['an empty token beside an environment', { apt: '', ape: 'production' }]
+  ];
+  for (const [name, extra] of refused) {
+    it(`refuses the WHOLE presentation for ${name}`, () => {
+      const { answer, pending } = presentWith(extra);
+      expect(answer).toBe('refused');
+      expect(pending).toBeUndefined();
+    });
+  }
+
+  it('the helper the harness pairs through seals what the door opens', () => {
+    const pairing = makePairing();
+    const offer = pairing.open();
+    const phone = makePhone('Harness phone');
+    const t = token('h');
+    const body = sealPresentationAsPhone(offer.payload, {
+      label: phone.label,
+      signingKey: phone.signPublic,
+      exchangeKey: phone.exchangePublic,
+      pushToken: t,
+      pushEnvironment: 'development'
+    });
+    expect(pairing.present(body, '100.64.0.9')).toBe('pending');
+    const pending = pairing.fieldsWithPending().phones[0];
+    expect(pending?.pushToken).toBe(t);
+    expect(pending?.pushEnvironment).toBe('development');
+  });
+});
+
+describe('the store keeps the switch and the dead tokens', () => {
+  it('round trips both, and a row from before Phase 314 reads as no token', () => {
+    const minted = newIdentity();
+    const d1 = pushTokenDigest(token('dead-1'));
+    writePocketStore({
+      identity: minted.sealed,
+      phones: [phoneFields(makePhone('Old'))],
+      port: 8823,
+      bindAtLaunch: false,
+      enabled: false,
+      pushAlerts: true,
+      deadPushTokens: [d1]
+    });
+    const read = readPocketStore();
+    expect(read.store?.pushAlerts).toBe(true);
+    expect(read.store?.deadPushTokens).toEqual([d1]);
+    expect(read.store?.phones[0]?.pushToken).toBe('');
+    expect(read.store?.phones[0]?.pushEnvironment).toBe('');
+  });
+
+  it('reads a row with NO push keys at all as a phone that gave no token', () => {
+    const minted = newIdentity();
+    const bare = { ...phoneFields(makePhone('Bare')) } as Record<string, unknown>;
+    delete bare['pushToken'];
+    delete bare['pushEnvironment'];
+    writePocketStore({
+      identity: minted.sealed,
+      phones: [bare as unknown as PocketPhoneFields],
+      port: 8823,
+      bindAtLaunch: false,
+      enabled: false,
+      pushAlerts: false,
+      deadPushTokens: []
+    });
+    const phone = readPocketStore().store?.phones[0];
+    expect(phone?.label).toBe('Bare');
+    expect(phone?.pushToken).toBe('');
+  });
+
+  it('drops a row whose push fields are present and wrong, WHOLE', () => {
+    const minted = newIdentity();
+    const good = tokened(makePhone('Good'));
+    const bad: PocketPhoneFields[] = [
+      { ...tokened(makePhone('Upper')), pushToken: token().toUpperCase() },
+      { ...tokened(makePhone('NoEnv')), pushEnvironment: '' },
+      { ...phoneFields(makePhone('EnvOnly')), pushEnvironment: 'production' },
+      { ...tokened(makePhone('Short')), pushToken: 'abcd' }
+    ];
+    writePocketStore({
+      identity: minted.sealed,
+      phones: [good, ...bad],
+      port: 8823,
+      bindAtLaunch: false,
+      enabled: false,
+      pushAlerts: false,
+      deadPushTokens: []
+    });
+    expect(readPocketStore().store?.phones.map((p) => p.label)).toEqual(['Good']);
+  });
+
+  it('keeps only digests in the dead list, and only the newest 64', () => {
+    const minted = newIdentity();
+    const digests = Array.from({ length: 70 }, (_, i) => pushTokenDigest(token(String(i))));
+    writePocketStore({
+      identity: minted.sealed,
+      phones: [],
+      port: 8823,
+      bindAtLaunch: false,
+      enabled: false,
+      pushAlerts: false,
+      deadPushTokens: [...digests, 'not-a-digest', token('raw').toUpperCase()]
+    });
+    const dead = readPocketStore().store?.deadPushTokens ?? [];
+    expect(dead).toHaveLength(64);
+    expect(dead).toEqual(digests.slice(-64));
+  });
+});
+
+describe('the sheet sees whether a phone can be told, never its token', () => {
+  it('says none, on or stopped', () => {
+    const phone = makePhone();
+    const t = token();
+    expect(phoneView(phoneFields(phone), 1).alerts).toBe('none');
+    expect(phoneView(tokened(phone, t), 1).alerts).toBe('on');
+    expect(phoneView(tokened(phone, t), 1, new Set([pushTokenDigest(t)])).alerts).toBe('stopped');
+    expect(JSON.stringify(phoneView(tokened(phone, t), 1)).includes(t)).toBe(false);
   });
 });

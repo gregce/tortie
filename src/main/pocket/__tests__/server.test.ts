@@ -108,6 +108,7 @@ const FACTS: PocketFacts = {
   agentLabel: () => 'Claude Code',
   machineLabel: () => null,
   emptyLine: 'Nothing needs you',
+  wakes: () => [],
   catchUp: async () => ({ ask: 'wire it', outcome: 'Done, and git agrees' }),
   lastTurn: async () => ({ answerText: 'wired', turnCount: 2 }),
   turns: async () => ({ turns: [], more: false }),
@@ -198,7 +199,8 @@ async function withDoor(fn: (door: Door, call: Caller) => Promise<void>): Promis
     port: 0,
     bindAtLaunch: false,
     routes: POCKET_ROUTE_IDS,
-    phones
+    phones,
+    pushAlerts: false
   };
   const pairing = new PocketPairing({
     identity: () => identity,
@@ -329,7 +331,9 @@ function signed(
     label: phone.label,
     signingKey: phone.signPublic,
     exchangeKey: phone.exchangePublic,
-    address: '127.0.0.1'
+    address: '127.0.0.1',
+    pushToken: '',
+    pushEnvironment: ''
   });
   const text = [
     'tortie-pocket-req-v1',

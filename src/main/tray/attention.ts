@@ -62,3 +62,63 @@ export function attentionRows(
     }))
     .sort((a, b) => b.since - a.since);
 }
+
+// ---------------------------------------------------------------------------
+// The wake, and the one age function (Phase 314)
+// ---------------------------------------------------------------------------
+
+/**
+ * One sleep this process lived through: when the Mac said it was suspending
+ * (null when the suspend was never heard, which a resume without one is), and
+ * when it said it had resumed. Wall-clock epoch ms, the clock
+ * {@link blockedSince} stamps with.
+ */
+export interface WakeWindow {
+  readonly suspendedAt: number | null;
+  readonly resumedAt: number;
+}
+
+/**
+ * How long after a resume a newly seen wait still counts as "seen when the Mac
+ * woke". A chosen number, stated as chosen: the poll runs every 2 s with no
+ * window focused, a dialog needs two captures to be confirmed, and agents that
+ * were frozen by the sleep reach their dialogs seconds after it, so fifteen is
+ * about four times the confirm span (`build/p314/SPEC.md` §3.2).
+ */
+export const WAKE_WINDOW_MS = 15_000;
+
+/**
+ * THE ONE AGE FUNCTION. Every surface that draws how long a session has been
+ * waiting reads this answer, and nothing else in `src/` compares a stamp with
+ * a resume time.
+ *
+ * Why it exists: the 1 Hz poll does not run while the Mac sleeps, so a wait
+ * that began during the sleep, or in the first seconds after it as frozen
+ * agents resumed, is first SEEN on the wake tick and stamped then. Its age is
+ * therefore the age since the wake, not since it began, and a surface that drew
+ * "3 s ago" for it would be lying. `seenAtWake` says so, and the surface draws
+ * that instead of an age. A wait stamped before the sleep keeps its true stamp
+ * across it, because a sleep does not restart the process, and reads false.
+ *
+ * Pure. `since` is the stamp itself; it is here so a later rule that moves the
+ * number moves it in one place.
+ */
+export function blockedAge(
+  stamp: number,
+  wakes: readonly WakeWindow[]
+): { readonly since: number; readonly seenAtWake: boolean } {
+  const seenAtWake = wakes.some(
+    (w) => stamp >= w.resumedAt && stamp <= w.resumedAt + WAKE_WINDOW_MS
+  );
+  return { since: stamp, seenAtWake };
+}
+
+/**
+ * The header over the blocked rows, spelled once for main: the menu-bar
+ * sentinel's header, and the push alert's count title (`Needs your input (N)`,
+ * the same words ⌘J's header draws in the renderer).
+ */
+export const NEEDS_YOUR_INPUT = 'Needs your input';
+
+/** What the sentinel and the door say when nothing is blocked, spelled once for main. */
+export const NOTHING_NEEDS_YOU = 'Nothing needs you';

@@ -86,6 +86,8 @@ const PAIRING = 'src/main/pocket/pairing.ts';
 const TLS = 'src/main/pocket/tls.ts';
 const PRELOAD = 'src/preload/index.ts';
 const HOSTILE = 'build/p313/hostile-client.mts';
+const IPC = 'src/main/pocket/ipc.ts';
+const SHARED = 'src/shared/ipc/pocket.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -187,8 +189,10 @@ const ABLATIONS = [
     name: 'the domain imports the credentials domain',
     why: "research 127 §5's door table promises an import wall row forbidding main/credentials/ and main/logins/: a door that can read a credential is a door that can hand one out.",
     file: ROUTES,
-    from: "import { attentionRows } from '../tray/attention';",
-    to: "import { attentionRows } from '../tray/attention';\nimport type { VaultSeal } from '../credentials/vault';"
+    // RE-AIMED BY PHASE 314, whose `seenAtWake` added `blockedAge` and
+    // `WakeWindow` to this one import line. The clause is the same.
+    from: "import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';",
+    to: "import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';\nimport type { VaultSeal } from '../credentials/vault';"
   },
   // -------------------------------------------------------------------------
   // Admission. Mechanism 5, and the adversary's first blocker.
@@ -404,6 +408,42 @@ const ABLATIONS = [
     from: "  res.setHeader('Content-Type', 'application/json; charset=utf-8');",
     to: "  res.setHeader('Content-Type', 'text/html; charset=utf-8');",
     needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 314. The push reaches the phone through Apple and never through this
+  // door, and the device token has one way in, the sealed presentation, and no
+  // way out to the renderer. Three clauses, three arms.
+  // -------------------------------------------------------------------------
+  {
+    n: 'N1',
+    rule: 'N1',
+    alsoRed: ['R4'],
+    name: 'a push route added to the table',
+    why: 'build/p314/SPEC.md §1.1 row 3: the device token rides inside the sealed pairing presentation, so no route is added, no path moves and R4’s pin does not move. A route that names the push is the door growing a way to be told where to send his words, and a token-refresh route is a write route with its own entry and its own tier.',
+    file: ROUTES,
+    from: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true }",
+    to: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },\n  { id: 'push', method: 'GET', path: '/v1/push', reads: true, windowOnly: false, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'N2',
+    rule: 'N2',
+    name: 'a device token put on the view the renderer is handed',
+    why: 'the token is an address at Apple and decides where a person’s session names go, so it stays in main: the sheet reads `alerts` and nothing more, and PocketPushDestination lives in pairing.ts alone. A token on PocketPhoneView is a token in every broadcast of the door’s status.',
+    file: SHARED,
+    from: "  alerts: 'none' | 'on' | 'stopped';",
+    to: "  alerts: 'none' | 'on' | 'stopped';\n  pushToken: string;",
+    needs: ['gate']
+  },
+  {
+    n: 'R3c',
+    rule: 'R3',
+    name: 'the door imports the push engine',
+    why: 'the door speaks to a phone and nothing else. The push reads the door’s confirmed fields through a narrow host method and the door never reaches the other way, so a door that can name the sender is a door one edit away from sending.',
+    file: IPC,
+    from: "import { createPocketHandler } from './server';",
+    to: "import { createPocketHandler } from './server';\nimport '../push/engine';",
+    needs: ['gate']
   }
 ];
 
@@ -557,7 +597,10 @@ try {
     ran += 1;
     const out = runChecks(checksFor(entry));
     const newlyRed = out.red.filter((r) => !baseRed.has(r));
-    const own = newlyRed.includes(entry.rule);
+    // `alsoRed` names rules the SAME clause owns a second half of (Phase 314's
+    // push route is both a new word in the table and a moved membership pin), and
+    // every one of them must go newly red too, or the arm proves only one half.
+    const own = [entry.rule, ...(entry.alsoRed ?? [])].every((r) => newlyRed.includes(r));
     table.push([entry.n, entry.rule, out.code === 0 ? 'GREEN' : own ? 'red' : 'RED ELSEWHERE', newlyRed.join(',')]);
     say(`${entry.n.padEnd(4)} ${entry.rule.padEnd(4)} ${entry.name}: exit ${String(out.code)}, newly red ${newlyRed.join(', ') || 'nothing'}`);
     if (out.code === 0) {
@@ -567,7 +610,7 @@ try {
     } else if (!own) {
       const lines = out.text.split('\n').filter((l) => l.includes('[p313 ')).slice(0, 3).map((l) => l.trim().slice(0, 220));
       problems.push(
-        `${entry.n} "${entry.name}": something went red but ${entry.rule} did not (red instead: ` +
+        `${entry.n} "${entry.name}": something went red but ${[entry.rule, ...(entry.alsoRed ?? [])].join(' and ')} did not all (red instead: ` +
           `${newlyRed.join(', ') || 'nothing numbered'}). ${lines.join(' // ')}`
       );
     }

@@ -68,7 +68,7 @@ import {
   type PocketTurn,
   type PocketTurnsAnswer
 } from '@shared/ipc/pocket';
-import { attentionRows } from '../tray/attention';
+import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';
 // THE CEILING, IMPORTED RATHER THAN RE-SPELLED. `../overview/turn-view.ts` owns
 // the number and this door holds itself to it; a second literal here would be a
 // second answer to the same question, and the one that drifted would be the one
@@ -166,6 +166,13 @@ export interface PocketFacts {
    * the SAME map, so the phone's order and the menu bar's order are one order.
    */
   blockedSince(): ReadonlyMap<string, number>;
+  /**
+   * The sleeps this process has lived through, oldest first (Phase 314). The
+   * door never compares a stamp with a resume itself: it hands both to
+   * `../tray/attention.ts`'s `blockedAge`, which is the one age function, and
+   * the push alert reads the answer off the same row.
+   */
+  wakes(): readonly WakeWindow[];
   /** The question and the option rows Phases 311 and 312 put on the feed. */
   activity(sessionId: string): {
     question?: string;
@@ -249,7 +256,9 @@ function rowOf(
     // that is over rather than a question that is empty. Both read as null.
     question: typeof question === 'string' && question.length > 0 ? question : null,
     choices: optionsOf(activity?.choice),
-    blockedSince
+    blockedSince,
+    // THE ONE AGE FUNCTION'S ANSWER, never a comparison of this module's own.
+    seenAtWake: blockedAge(blockedSince, facts.wakes()).seenAtWake
   };
 }
 

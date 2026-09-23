@@ -27,6 +27,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -35,7 +36,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -113,6 +114,17 @@ const lifecycle = existsSync(resolve(MODULES, 'lifecycle.ts'))
   ? ((await import(
       pathToFileURL(resolve(MODULES, 'lifecycle.ts')).href
     )) as typeof import('../src/main/credentials/lifecycle'))
+  : null;
+
+/**
+ * PHASE 314's module, loaded the defensive way `migrate.ts` is: a copy of the
+ * domain from before Phase 314 does not carry it, and rule 23 then answers
+ * `absent` in its own words rather than the probe dying on an import.
+ */
+const apnsKey = existsSync(resolve(MODULES, 'apns-key.ts'))
+  ? ((await import(
+      pathToFileURL(resolve(MODULES, 'apns-key.ts')).href
+    )) as typeof import('../src/main/credentials/apns-key'))
   : null;
 
 /** A value only this probe ever writes. If it appears anywhere, say where. */
@@ -3986,6 +3998,189 @@ try {
         argvs: noSealWorld.argvs.length,
         lines: noSealWorld.stdins.length
       }
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 15. THE APPLE PUSH PROVIDER KEY (Phase 314, rule 23). The SHIPPING
+  //     `apnsKeyStore` over the shipping `sealedVault` with no legacy arm and an
+  //     injected seal, and a P-256 key GENERATED HERE with `node:crypto`, worth
+  //     nothing after the run. (a) it round trips by sha256, the file is 0600
+  //     in a 0700 directory and is NOT the record, holds no `-----BEGIN` and no
+  //     64 character window of the key's base64 body, and `security` is asked
+  //     nothing across keep, read and forget; (b) a seal that cannot be made
+  //     keeps nothing and says the one write's sentence, a seal that cannot
+  //     open reads null, and a plaintext key planted at the slot reads null;
+  //     (c) an invalid record is refused whole with its field named; and rule
+  //     9's half, no window of the key in ANY file any arm of this probe has
+  //     left behind so far. Every reading is a boolean or a count: no key byte,
+  //     digest or length leaves this arm, because the key is new every run.
+  // -------------------------------------------------------------------------
+  if (apnsKey === null) {
+    out['apns'] = { absent: true };
+  } else {
+    const p8Of = (curve: 'prime256v1' | 'secp384r1'): string =>
+      generateKeyPairSync('ec', { namedCurve: curve }).privateKey.export({
+        format: 'pem',
+        type: 'pkcs8'
+      }) as string;
+    const digestOf = (text: string): string =>
+      createHash('sha256').update(text, 'utf8').digest('hex');
+    const p8 = p8Of('prime256v1');
+    const key = {
+      keyId: 'P314KEY001',
+      teamId: 'P314TEAM01',
+      topic: 'software.itavero.tortie.phone',
+      p8
+    };
+    const record = JSON.stringify({ v: 1, ...key });
+    /** The key's base64 body, with its armour and line ends gone. */
+    const body = p8
+      .split('\n')
+      .filter((l) => l.length > 0 && !l.startsWith('-----'))
+      .join('');
+    const windows = [0, Math.floor(body.length / 2) - 32, body.length - 64].map((at) =>
+      body.slice(at, at + 64)
+    );
+    const slotName = `${apnsKey.APNS_KEY_SLOT}.cred`;
+    const stagedName = `${apnsKey.APNS_KEY_SLOT}.pending.cred`;
+    const textOf = (path: string): string | null => {
+      try {
+        return readFileSync(path, 'utf8');
+      } catch {
+        return null;
+      }
+    };
+    const modeOf = (path: string): number | null => {
+      try {
+        return statSync(path).mode & 0o777;
+      } catch {
+        return null;
+      }
+    };
+
+    // (a) the round trip.
+    const root = freshRoot();
+    const dir = join(root, 'push');
+    const seal = injectedSeal();
+    const store = apnsKey.apnsKeyStore(dir, seal);
+    const callsBefore = security.securityCallCount();
+    const kept = await store.keep(key);
+    const back = await store.read();
+    const file = textOf(join(dir, slotName));
+    const fileMode = modeOf(join(dir, slotName));
+    const dirMode = modeOf(dir);
+    const stagedLeft = existsSync(join(dir, stagedName));
+    await store.forget();
+    const forgotten = !existsSync(join(dir, slotName)) && (await store.read()) === null;
+    const callsAfter = security.securityCallCount();
+
+    // (b) the seal is the whole of the protection.
+    const noSealDir = join(freshRoot(), 'push');
+    const noSealAnswer = await apnsKey
+      .apnsKeyStore(noSealDir, { wrap: () => null, open: () => null })
+      .keep(key);
+    const unopenDir = join(freshRoot(), 'push');
+    await apnsKey.apnsKeyStore(unopenDir, injectedSeal()).keep(key);
+    const unopenRead = await apnsKey
+      .apnsKeyStore(unopenDir, { wrap: () => null, open: () => null })
+      .read();
+    const plantDir = join(freshRoot(), 'push');
+    mkdirSync(plantDir, { recursive: true, mode: 0o700 });
+    writeFileSync(join(plantDir, slotName), record, { mode: 0o600 });
+    const plantedRead = await apnsKey.apnsKeyStore(plantDir, injectedSeal()).read();
+
+    // (c) refused whole, the field named, and nothing written.
+    const invalid: [string, Record<string, string>, string][] = [
+      ['a P-384 key', { p8: p8Of('secp384r1') }, 'p8'],
+      [
+        'an Ed25519 key',
+        {
+          p8: generateKeyPairSync('ed25519').privateKey.export({
+            format: 'pem',
+            type: 'pkcs8'
+          }) as string
+        },
+        'p8'
+      ],
+      ['a lowercase key id', { keyId: 'p314key001' }, 'keyId'],
+      ['a nine character key id', { keyId: 'P314KEY01' }, 'keyId'],
+      ['a team id with a hyphen', { teamId: 'P314-TEAM1' }, 'teamId'],
+      ['a topic with no dot', { topic: 'tortie' }, 'topic']
+    ];
+    const refusals: Record<string, unknown>[] = [];
+    for (const [name, over, field] of invalid) {
+      const refusedDir = join(freshRoot(), 'push');
+      const answer = await apnsKey.apnsKeyStore(refusedDir, injectedSeal()).keep({ ...key, ...over });
+      refusals.push({
+        name,
+        refused: answer.ok === false,
+        fieldNamed: answer.ok === false && answer.field === field,
+        nothingWritten: !existsSync(join(refusedDir, slotName)) && !existsSync(join(refusedDir, stagedName))
+      });
+    }
+
+    // Rule 9's half: no window of the key in any file ANY arm has left behind.
+    const leftBehind: string[] = [];
+    const walk = (d: string): void => {
+      let names: string[] = [];
+      try {
+        names = readdirSync(d);
+      } catch {
+        return;
+      }
+      for (const name of names) {
+        const path = join(d, name);
+        // A LINK IS NOT FOLLOWED. Other arms plant links on purpose, and a
+        // scan that read through one could read outside the scratch roots.
+        let kind: 'dir' | 'file' | 'other' = 'other';
+        try {
+          const st = lstatSync(path);
+          kind = st.isDirectory() ? 'dir' : st.isFile() ? 'file' : 'other';
+        } catch {
+          continue;
+        }
+        if (kind === 'dir') walk(path);
+        else if (kind === 'file') leftBehind.push(path);
+      }
+    };
+    for (const r of roots) walk(r);
+    // The planted file IS the key in the clear, on purpose: it is the attacker's
+    // file and the arm's own fixture, not something Tortie wrote. Every other
+    // file must hold no window of it.
+    const plantedPath = join(plantDir, slotName);
+    const keyInAFile = leftBehind
+      .filter((path) => path !== plantedPath)
+      .some((path) => {
+        const text = textOf(path);
+        return text !== null && windows.some((w) => text.includes(w));
+      });
+
+    out['apns'] = {
+      absent: false,
+      keptOk: kept.ok === true,
+      digestEqual: back !== null && digestOf(JSON.stringify(back)) === digestOf(JSON.stringify(key)),
+      filePresent: file !== null,
+      fileIsNotTheRecord: file !== null && digestOf(file) !== digestOf(record),
+      fileHasNoArmour: file !== null && !file.includes('-----BEGIN'),
+      fileHoldsNoWindow: file !== null && windows.every((w) => !file.includes(w)),
+      fileMode,
+      dirMode,
+      stagedLeft,
+      forgotten,
+      securityCalls: callsAfter - callsBefore,
+      noSeal: {
+        ok: noSealAnswer.ok,
+        reason: noSealAnswer.ok ? null : noSealAnswer.reason,
+        field: noSealAnswer.ok ? null : noSealAnswer.field,
+        filePresent: existsSync(join(noSealDir, slotName)),
+        stagedPresent: existsSync(join(noSealDir, stagedName))
+      },
+      unopenReadsNull: unopenRead === null,
+      plantedReadsNull: plantedRead === null,
+      refusals,
+      filesScanned: leftBehind.length > 0,
+      keyInAFile
     };
   }
 

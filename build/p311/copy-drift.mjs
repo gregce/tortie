@@ -232,6 +232,17 @@ const LEDGER = [
     sentenceCase: true,
     why: 'statusVisual’s word for a blocked session, capitalised because it starts a line on the phone'
   }),
+  // PHASE 314 LANDED THIS ONE. It was owed by Phase 314 as the push's own first
+  // line, and the push now composes it: a session's name, one space, and main's
+  // status word. The needle is the single title's template literal exactly,
+  // backticks included, so this rule fails the day the composition changes.
+  owned({
+    when: /^[a-z0-9-]+ needs input$/,
+    module: 'src/main/push/alert.ts',
+    needle: '`${row.name} ${row.statusLabel}`',
+    draws: ' needs input',
+    why: "the push's single alert title (build/p314/SPEC.md §2.3): the session's own name and statusVisual's word, which is the only word a blocked row can have"
+  }),
   owned({
     is: 'Working',
     module: STATUS,
@@ -555,14 +566,9 @@ const LEDGER = [
   }),
   owed({ is: 'No Restart.', phase: 'Phase 317', why: 'the third refusal' }),
   owed({
-    when: /^[a-z0-9-]+ needs input$/,
-    phase: 'Phase 314',
-    why: "the push's own first line, which composes a session's name with statusVisual's word. The word is owned above; the composition is the push's and no module writes it yet"
-  }),
-  owed({
     is: 'The last line is only there when the question can be decrypted on this phone. Without it the card stops after the project and the agent — never filler.',
-    phase: 'Phase 314',
-    why: "the mock's own note about the push, drawn on the lock screen sheet rather than in a caption"
+    phase: 'the Notification Service Extension’s later entry',
+    why: "the mock's own note about the push, drawn on the lock screen sheet rather than in a caption. Phase 314 REFUSED the question line — a native alert is JSON Apple reads — so the decrypting extension that would add it is later Swift and its own entry, and this note is owed there rather than to 314"
   }),
   owed({
     is: 'Pair with your Mac',
@@ -610,7 +616,7 @@ const OWED_ABSENCE_FLOOR = 16;
  * floor is what keeps this gate a comparison rather than a census. A deliberate
  * removal lowers it in the same commit and names the rule.
  */
-const OWNED_RULE_FLOOR = 25;
+const OWNED_RULE_FLOOR = 26;
 
 // ---------------------------------------------------------------------------
 // Judgement

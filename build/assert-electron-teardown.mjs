@@ -274,12 +274,22 @@ const HELPER = 'electron-run.mjs';
  * the tmux server and the app together. It was written in the phase's FIX ROUND,
  * because the phase had named its one app run and nobody had written it.
  *
+ * PHASE 314 RAISED IT FROM 148 TO 149, for build/probe-p314.mjs
+ * (`probe:p314`), the push driven inside the real app: one Electron on a
+ * scratch profile under a harness directory, a scratch HOME, the socket
+ * gmux-p314-<pid>, a looped /bin/sh `claude` printing the committed dialog
+ * fixture so no vendor process runs, a scratch P-256 key generated in the probe
+ * and deleted in its `finally`, and the APNs stand-in as two loopback listeners
+ * IN THE PROBE'S OWN PROCESS, closed in the same `finally`. The phase entry
+ * said the floor rose from 147 at :272; it was 148 at :282, which the Phase 313
+ * entry had already recorded.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 148;
+const HELPER_USER_FLOOR = 149;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

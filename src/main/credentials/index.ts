@@ -29,6 +29,7 @@ import type { StoreDeps } from './stores';
 import { sweepableSlots, type KeepDeps, type LiveSession } from './keep';
 import { credentialsAreOpen, trackCredentialWork } from './lifecycle';
 import { migrateUnscopedVault, ownProfileVerdict, type MigrateResult } from './migrate';
+import { apnsKeyStore, type ApnsKeyStore } from './apns-key';
 import {
   legacyKeychainVault,
   NO_LEGACY,
@@ -96,6 +97,7 @@ export {
   type StoreDeps
 } from './stores';
 export { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
+export { apnsKeyStore, APNS_KEY_SLOT, type ApnsProviderKey, type ApnsKeyStore } from './apns-key';
 export {
   legacyKeychainVault,
   NO_LEGACY,
@@ -516,4 +518,32 @@ export function readyKeepDeps(): Promise<KeepDeps> {
 /** What the migration did, once it has run. For a log line, never a name. */
 export function vaultMigrationResult(): Promise<MigrateResult> | null {
   return migration;
+}
+
+/**
+ * Where the Apple push provider key is kept (Phase 314):
+ * `<userData>/gmux/push/`, beside the other stores this profile owns and
+ * never under the logins root, because it is not a login and no login's
+ * sweep or removal may reach it.
+ *
+ * The inner `gmux/` directory is one of the identifiers live data is bound to
+ * (CLAUDE.md, Phase 16.5). It stays `gmux` and is not "finished off".
+ */
+export function apnsKeyDir(): string {
+  return join(app.getPath('userData'), 'gmux', 'push');
+}
+
+/**
+ * The provider key's store as this launch should have it (Phase 314): sealed
+ * through `safeStorage` in a person's own launch, and through
+ * {@link harnessSeal} under any harness launch, so a probe keeps its scratch
+ * key only under the mock keychain and never reaches the person's Safe Storage
+ * item. Built fresh on every call, because it holds nothing but a directory
+ * and a seal, and the seal is asked at the moment it is used.
+ */
+export function apnsKeyStoreForApp(): ApnsKeyStore {
+  return apnsKeyStore(
+    apnsKeyDir(),
+    isHarnessLaunch(process.env) ? harnessSeal() : electronSeal()
+  );
 }

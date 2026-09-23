@@ -10,7 +10,15 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Project, Session, SessionStatus } from '@shared/types';
-import { attentionRows, blockedSince } from '../attention';
+import {
+  NEEDS_YOUR_INPUT,
+  NOTHING_NEEDS_YOU,
+  WAKE_WINDOW_MS,
+  attentionRows,
+  blockedAge,
+  blockedSince,
+  type WakeWindow
+} from '../attention';
 
 function session(
   id: string,
@@ -96,5 +104,75 @@ describe('attentionRows', () => {
 
   it('says nothing at all when nothing is blocked', () => {
     expect(attentionRows([sessions[1]!], projects, new Map())).toEqual([]);
+  });
+});
+
+/**
+ * THE ONE AGE FUNCTION (Phase 314).
+ *
+ * The poll does not run while the Mac sleeps, so a wait first seen on the wake
+ * tick is stamped then, and its age is the wake's rather than its own. Every
+ * surface that draws an age reads `blockedAge`, so these pin both edges of the
+ * window, the stamp from before a sleep, and a second sleep. Each `it` below
+ * goes red if the comparison it names is moved: `>=` to `>` fails the first
+ * edge, `<=` to `<` fails the second, and a window that ignored `resumedAt`
+ * fails the stamp from before the sleep.
+ */
+describe('blockedAge', () => {
+  const EIGHT_HOURS = 8 * 60 * 60_000;
+  const suspendedAt = 1_700_000_000_000;
+  const resumedAt = suspendedAt + EIGHT_HOURS;
+  const wake: WakeWindow = { suspendedAt, resumedAt };
+
+  it('is fifteen seconds, chosen and stated', () => {
+    expect(WAKE_WINDOW_MS).toBe(15_000);
+  });
+
+  it('reads a stamp at the resume, and at exactly resume + 15,000 ms, as seen at the wake', () => {
+    expect(blockedAge(resumedAt, [wake]).seenAtWake).toBe(true);
+    expect(blockedAge(resumedAt + 4_000, [wake]).seenAtWake).toBe(true);
+    expect(blockedAge(resumedAt + WAKE_WINDOW_MS, [wake]).seenAtWake).toBe(true);
+  });
+
+  it('reads a stamp at resume + 15,001 ms as an ordinary wait', () => {
+    expect(blockedAge(resumedAt + WAKE_WINDOW_MS + 1, [wake]).seenAtWake).toBe(false);
+  });
+
+  it('keeps the true age of a wait stamped before the sleep', () => {
+    // Stamped two seconds before the suspend: the process did not restart, so
+    // the stamp is true and it is NOT one the wake gathered.
+    expect(blockedAge(suspendedAt - 2_000, [wake])).toEqual({
+      since: suspendedAt - 2_000,
+      seenAtWake: false
+    });
+    // And one millisecond before the resume, which is still before it.
+    expect(blockedAge(resumedAt - 1, [wake]).seenAtWake).toBe(false);
+  });
+
+  it('answers the stamp itself as `since`, never a wake time', () => {
+    expect(blockedAge(resumedAt + 7, [wake]).since).toBe(resumedAt + 7);
+  });
+
+  it('reads nothing as seen at a wake when there has been no wake', () => {
+    expect(blockedAge(resumedAt, []).seenAtWake).toBe(false);
+  });
+
+  it('asks every remembered wake, not only the last', () => {
+    const first: WakeWindow = { suspendedAt: 1_000, resumedAt: 100_000 };
+    const second: WakeWindow = { suspendedAt: 200_000, resumedAt: 900_000 };
+    expect(blockedAge(100_000 + 3_000, [first, second]).seenAtWake).toBe(true);
+    expect(blockedAge(900_000 + 3_000, [first, second]).seenAtWake).toBe(true);
+    expect(blockedAge(500_000, [first, second]).seenAtWake).toBe(false);
+  });
+
+  it('takes a resume whose suspend was never heard', () => {
+    expect(blockedAge(5_000, [{ suspendedAt: null, resumedAt: 5_000 }]).seenAtWake).toBe(true);
+  });
+});
+
+describe('the words main says about the blocked set', () => {
+  it('are spelled once, in the sentinel’s own words', () => {
+    expect(NEEDS_YOUR_INPUT).toBe('Needs your input');
+    expect(NOTHING_NEEDS_YOU).toBe('Nothing needs you');
   });
 });

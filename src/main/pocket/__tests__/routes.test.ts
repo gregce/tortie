@@ -84,6 +84,7 @@ function facts(over: Partial<PocketFacts> = {}): PocketFacts {
     sessions: () => SESSIONS,
     projects: () => PROJECTS,
     blockedSince: () => BLOCKED_SINCE,
+    wakes: () => [],
     activity: (id) =>
       id === 'a'
         ? {
@@ -408,5 +409,52 @@ describe('the turns', () => {
     expect(answer?.turns).toHaveLength(1);
     expect(answer?.turns[0]?.askText).toBe('wire the door');
     expect(answer?.more).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Phase 314. The door answers `seenAtWake` from the ONE age function, so the
+ * push alert, which reads the same row, cannot disagree with it. The fixture's
+ * stamps are 1,000 to 4,000; a wake resumed at 2,500 gathers `c` (3,000) and
+ * `d` (4,000) and not `a` or `b`, which were stamped before it.
+ */
+describe('seen at the wake', () => {
+  it('is false on every row when there has been no wake', () => {
+    const rows = createPocketRoutes(facts()).blocked().rows;
+    expect(rows.every((r) => r.seenAtWake === false)).toBe(true);
+  });
+
+  it('marks exactly the rows first seen inside the window after a resume', () => {
+    const rows = createPocketRoutes(
+      facts({ wakes: () => [{ suspendedAt: 100, resumedAt: 2_500 }] })
+    ).blocked().rows;
+    expect(Object.fromEntries(rows.map((r) => [r.sessionId, r.seenAtWake]))).toEqual({
+      d: true,
+      c: true,
+      b: false,
+      a: false
+    });
+    // `blockedSince` is untouched: the row still carries the stamp itself.
+    expect(rows.find((r) => r.sessionId === 'd')?.blockedSince).toBe(4_000);
+  });
+
+  it('stops at the window’s edge, fifteen seconds after the resume', () => {
+    const rows = createPocketRoutes(
+      facts({ wakes: () => [{ suspendedAt: null, resumedAt: 4_000 - 15_001 }] })
+    ).blocked().rows;
+    expect(rows.find((r) => r.sessionId === 'd')?.seenAtWake).toBe(false);
+    const edge = createPocketRoutes(
+      facts({ wakes: () => [{ suspendedAt: null, resumedAt: 4_000 - 15_000 }] })
+    ).blocked().rows;
+    expect(edge.find((r) => r.sessionId === 'd')?.seenAtWake).toBe(true);
+  });
+
+  it('carries it on one session too', async () => {
+    const answer = await createPocketRoutes(
+      facts({ wakes: () => [{ suspendedAt: 100, resumedAt: 900 }] })
+    ).session('a');
+    expect(answer?.session.seenAtWake).toBe(true);
   });
 });

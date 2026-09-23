@@ -12,6 +12,14 @@
  * table or the set of allowed phones, and the hash changes, so Tortie asks
  * again and the door refuses to bind until it is answered.
  *
+ * PHASE 314 ADDED THREE HASHED FACTS, all about where a person's words go
+ * rather than what the door answers: the push switch, and each phone's Apple
+ * device token and the environment it was minted in. The token arrives only
+ * inside the sealed pairing presentation, as `apt` and `ape`, because the
+ * route table is closed and gains no route for it. What is NOT hashed is the
+ * list of tokens Apple said are dead, because dropping a destination only
+ * narrows where his words go and needs no human.
+ *
  * ## The order, and the order is the whole of the safety
  *
  * THE MAC ASKS THE PERSON LAST. The Mac draws a QR and a short fingerprint; the
@@ -89,6 +97,7 @@
  */
 
 import {
+  createCipheriv,
   createDecipheriv,
   createHash,
   createPrivateKey,
@@ -153,6 +162,22 @@ export interface PocketPhoneFields {
   readonly exchangeKey: string;
   /** The tailnet address it presented from, and the only one it may ask from. */
   readonly address: string;
+  /**
+   * The phone's Apple device token, lowercase hex of 32 to 256 characters, or
+   * `''` when it gave none (Phase 314). HASHED, because it decides WHERE a
+   * person's session names go: a token is an address at Apple, and moving it
+   * moves where his words are sent, which is `../machines/confirm.ts`'s rule
+   * read literally. It arrives ONLY inside the sealed pairing presentation,
+   * because the route table is closed and gains no route for it.
+   */
+  readonly pushToken: string;
+  /**
+   * The APNs environment the token was minted in, which is the phone build's
+   * `aps-environment` entitlement (research 128 §5), or `''` with no token.
+   * Hashed with the token: a token sent to the other environment is refused by
+   * Apple, and the host is chosen from this field per destination.
+   */
+  readonly pushEnvironment: '' | 'development' | 'production';
 }
 
 /**
@@ -177,6 +202,13 @@ export interface PocketExecutionFields {
   readonly routes: readonly PocketRouteId[];
   /** Every phone allowed to ask. */
   readonly phones: readonly PocketPhoneFields[];
+  /**
+   * Whether Tortie tells the allowed phones, through Apple, when a session
+   * starts waiting on the person (Phase 314). Hashed, so turning it on moves
+   * the hash and the door and the push both refuse until a person confirms
+   * again: it sends his session and project names to a vendor.
+   */
+  readonly pushAlerts: boolean;
 }
 
 /**
@@ -206,11 +238,26 @@ const NORMALIZE: Normalizers = {
   phones: (v) =>
     [...v]
       .sort((a, b) => (a.id < b.id ? -1 : 1))
-      .map((p) => [p.id, p.label, p.signingKey, p.exchangeKey, p.address])
+      .map((p) => [
+        p.id,
+        p.label,
+        p.signingKey,
+        p.exchangeKey,
+        p.address,
+        p.pushToken,
+        p.pushEnvironment
+      ]),
+  pushAlerts: (v) => v
 };
 
-/** Names the algorithm, so a record written by an older build fails loudly. */
-export const POCKET_EXECUTION_HASH_ALGORITHM = 'sha256-pocket-exec-v1';
+/**
+ * Names the algorithm, so a record written by an older build fails loudly.
+ *
+ * `v2` since Phase 314, because the canonical text changed shape: the switch
+ * and each phone's token and environment joined it. A record written under v1
+ * reads as `changed`, which asks again, and that is the safe direction.
+ */
+export const POCKET_EXECUTION_HASH_ALGORITHM = 'sha256-pocket-exec-v2';
 
 /**
  * The prefix on the record key AND on the hash input id, for the reason
@@ -227,7 +274,8 @@ export const EMPTY_POCKET_FIELDS: PocketExecutionFields = {
   port: 0,
   bindAtLaunch: false,
   routes: POCKET_ROUTE_IDS,
-  phones: []
+  phones: [],
+  pushAlerts: false
 };
 
 /** The text that is hashed. Exported so a test can read what was covered. */
@@ -296,6 +344,11 @@ export function describePocketDoor(
       : 'Answers only after you turn it on'
   );
   lines.push(`Answers these and nothing else: ${[...fields.routes].sort().join(', ')}`);
+  lines.push(
+    fields.pushAlerts
+      ? 'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps'
+      : 'Tells your phone nothing through Apple'
+  );
   for (const phone of [...fields.phones].sort((a, b) => (a.id < b.id ? -1 : 1))) {
     lines.push(
       `Allows the phone "${phone.label}" at ${phone.address}, key ${pairFingerprint(
@@ -303,6 +356,13 @@ export function describePocketDoor(
         phone.exchangeKey
       )}`
     );
+    if (phone.pushToken.length > 0) {
+      lines.push(
+        `Alerts for "${phone.label}" go through Apple (${phone.pushEnvironment}), device ${pushTokenDigest(
+          phone.pushToken
+        ).slice(0, 8)}`
+      );
+    }
   }
   if (fields.phones.length === 0) lines.push('Allows no phone yet');
   return {
@@ -507,6 +567,63 @@ export interface PocketStore {
   readonly port: number;
   readonly bindAtLaunch: boolean;
   readonly enabled: boolean;
+  /** The push switch (Phase 314). A hashed field; see {@link PocketExecutionFields}. */
+  readonly pushAlerts: boolean;
+  /**
+   * The sha256 of every device token Apple said is no longer good, oldest first
+   * and at most {@link POCKET_DEAD_TOKEN_MEMORY} (Phase 314).
+   *
+   * NOT HASHED, on purpose: it can only NARROW where a person's words go, and
+   * a subtraction needs no human. Hashing it would switch the door off on
+   * every 410. The digest and never the token, so the list itself names no
+   * address at Apple.
+   */
+  readonly deadPushTokens: readonly string[];
+}
+
+/** How many dropped device tokens are remembered. Oldest go first. */
+export const POCKET_DEAD_TOKEN_MEMORY = 64;
+
+/**
+ * Is this a token's digest: sha256, 64 lowercase hex?
+ *
+ * Written as a length and a character class rather than as one fixed-width hex
+ * pattern, because that pattern is exactly the hook server's token-in-a-path
+ * matcher, which `conformance:pocket` A2 refuses anywhere in this domain. A
+ * digest in a sealed file is not a secret in a URL, and the rule is not
+ * loosened to say so.
+ */
+export function isPushTokenDigest(value: unknown): value is string {
+  return typeof value === 'string' && value.length === 64 && /^[0-9a-f]+$/.test(value);
+}
+
+/** The dead list as the store may hold it: digests only, newest 64 kept. */
+function deadTokensOf(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isPushTokenDigest).slice(-POCKET_DEAD_TOKEN_MEMORY);
+}
+
+/**
+ * The digest a device token is known by everywhere it is not being sent to:
+ * the dead list, the sheet's `device` line and the push engine's drop. sha256
+ * of the lowercase hex, lowercase hex.
+ */
+export function pushTokenDigest(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex');
+}
+
+/**
+ * One place a push goes (Phase 314). MAIN ONLY: it carries the token, which is
+ * never logged and never in any answer to the renderer, so this type lives here
+ * and nowhere under `src/shared/`.
+ */
+export interface PocketPushDestination {
+  readonly phoneId: string;
+  /** Never logged, never in any answer to the renderer. */
+  readonly token: string;
+  readonly environment: 'development' | 'production';
+  /** sha256(token) hex; the only form stored in `deadPushTokens`. */
+  readonly tokenDigest: string;
 }
 
 /**
@@ -559,10 +676,12 @@ export function readPocketStore(): {
     return {
       store: {
         identity: parsed.identity,
-        phones: Array.isArray(parsed.phones) ? parsed.phones.filter(isPhoneFields) : [],
+        phones: Array.isArray(parsed.phones) ? phoneRowsOf(parsed.phones) : [],
         port: typeof parsed.port === 'number' ? parsed.port : 0,
         bindAtLaunch: parsed.bindAtLaunch === true,
-        enabled: parsed.enabled === true
+        enabled: parsed.enabled === true,
+        pushAlerts: parsed.pushAlerts === true,
+        deadPushTokens: deadTokensOf((parsed as { deadPushTokens?: unknown }).deadPushTokens)
       },
       sealKnown: true
     };
@@ -574,11 +693,16 @@ export function readPocketStore(): {
 /**
  * An invalid phone row is dropped WHOLE, never partially merged and never a
  * crash. CLAUDE.md's second mechanical rule for any overlay type.
+ *
+ * A row written before Phase 314 has no push fields and reads as a phone that
+ * gave no token, `''` and `''`. A row whose push fields are PRESENT and wrong
+ * is dropped whole like any other bad row: a token that is not the shape the
+ * pairing accepts was not written by the pairing.
  */
-function isPhoneFields(row: unknown): row is PocketPhoneFields {
-  if (row === null || typeof row !== 'object') return false;
+function phoneRowOf(row: unknown): PocketPhoneFields | null {
+  if (row === null || typeof row !== 'object') return null;
   const p = row as Record<string, unknown>;
-  return (
+  const whole =
     typeof p['id'] === 'string' &&
     p['id'].length > 0 &&
     typeof p['label'] === 'string' &&
@@ -587,8 +711,84 @@ function isPhoneFields(row: unknown): row is PocketPhoneFields {
     typeof p['exchangeKey'] === 'string' &&
     p['exchangeKey'].length > 0 &&
     typeof p['address'] === 'string' &&
-    p['address'].length > 0
-  );
+    p['address'].length > 0;
+  if (!whole) return null;
+  const hasToken = p['pushToken'] !== undefined;
+  const hasEnvironment = p['pushEnvironment'] !== undefined;
+  let push: PushFields | null;
+  if (!hasToken && !hasEnvironment) {
+    push = NO_PUSH;
+  } else if (p['pushToken'] === '' && p['pushEnvironment'] === '') {
+    push = NO_PUSH;
+  } else {
+    push = pushFieldsOf(p['pushToken'], p['pushEnvironment'], false);
+  }
+  if (push === null) return null;
+  return {
+    id: p['id'] as string,
+    label: p['label'] as string,
+    signingKey: p['signingKey'] as string,
+    exchangeKey: p['exchangeKey'] as string,
+    address: p['address'] as string,
+    pushToken: push.pushToken,
+    pushEnvironment: push.pushEnvironment
+  };
+}
+
+function phoneRowsOf(rows: readonly unknown[]): PocketPhoneFields[] {
+  const out: PocketPhoneFields[] = [];
+  for (const row of rows) {
+    const phone = phoneRowOf(row);
+    if (phone !== null) out.push(phone);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// The device token, and its one door in
+// ---------------------------------------------------------------------------
+
+/** A phone's push fields, together or not at all. */
+interface PushFields {
+  readonly pushToken: string;
+  readonly pushEnvironment: '' | 'development' | 'production';
+}
+
+const NO_PUSH: PushFields = { pushToken: '', pushEnvironment: '' };
+
+/**
+ * A device token: hex of 32 to 256 characters (research 128 §5; Apple's own
+ * "hexadecimal bytes"). Case is folded to lowercase on the way in, so one token
+ * has one spelling and one digest.
+ */
+const PUSH_TOKEN_RE = /^[0-9a-fA-F]{32,256}$/;
+
+/**
+ * A token and its environment, or null when either is wrong.
+ *
+ * BOTH OR NEITHER. A token with no environment cannot be addressed, because
+ * the host is chosen from the environment, and an environment with no token
+ * addresses nothing. `fold` is true for what a phone presented, which may
+ * spell its hex in either case and is folded to lowercase, and false for a
+ * stored row, which Tortie wrote in lowercase and which is dropped if it is not.
+ */
+function pushFieldsOf(token: unknown, environment: unknown, fold: boolean): PushFields | null {
+  if (typeof token !== 'string' || !PUSH_TOKEN_RE.test(token)) return null;
+  if (!fold && token !== token.toLowerCase()) return null;
+  if (environment !== 'development' && environment !== 'production') return null;
+  return { pushToken: token.toLowerCase(), pushEnvironment: environment };
+}
+
+/**
+ * What a presentation's `apt` and `ape` say, or null when the presentation must
+ * be refused WHOLE (Phase 314). Neither key present is a phone that asks for no
+ * alerts, which is honest and is paired like any other.
+ */
+function presentedPush(inner: Record<string, unknown>): PushFields | null {
+  const hasToken = Object.prototype.hasOwnProperty.call(inner, 'apt');
+  const hasEnvironment = Object.prototype.hasOwnProperty.call(inner, 'ape');
+  if (!hasToken && !hasEnvironment) return NO_PUSH;
+  return pushFieldsOf(inner['apt'], inner['ape'], true);
 }
 
 /**
@@ -696,6 +896,10 @@ export interface PocketPresentation {
   readonly label: string;
   readonly signingKey: string;
   readonly exchangeKey: string;
+  /** `apt`, lowercase hex, or `''` when the phone asked for no alerts (Phase 314). */
+  readonly pushToken: string;
+  /** `ape`, the environment the token was minted in, or `''` with no token. */
+  readonly pushEnvironment: '' | 'development' | 'production';
 }
 
 /** What `POST /pair` answers. One word, and nothing else ever. */
@@ -859,7 +1063,19 @@ export class PocketPairing {
       // with, or a later verify would be deciding on something nobody checked.
       if (!isPublicKeyOfType(signingKey, 'ed25519')) return null;
       if (!isPublicKeyOfType(exchangeKey, 'x25519')) return null;
-      return { label: label.length > 0 ? label : 'A phone', signingKey, exchangeKey };
+      // THE DEVICE TOKEN'S ONE DOOR IN (Phase 314). It rides inside this sealed
+      // body because the route table is closed and gains no route for it. A
+      // token or an environment that is not exactly the shape refuses the
+      // WHOLE presentation with the same one word as every other refusal.
+      const push = presentedPush(inner);
+      if (push === null) return null;
+      return {
+        label: label.length > 0 ? label : 'A phone',
+        signingKey,
+        exchangeKey,
+        pushToken: push.pushToken,
+        pushEnvironment: push.pushEnvironment
+      };
     } catch {
       return null;
     }
@@ -922,7 +1138,9 @@ export class PocketPairing {
       label: w.presented.label,
       signingKey: w.presented.signingKey,
       exchangeKey: w.presented.exchangeKey,
-      address: w.presentedFrom
+      address: w.presentedFrom,
+      pushToken: w.presented.pushToken,
+      pushEnvironment: w.presented.pushEnvironment
     };
     return {
       ...fields,
@@ -1231,14 +1449,66 @@ export function signAsPhone(
   );
 }
 
-/** One allowed phone, as the sheet draws it. Nothing here is a secret. */
-export function phoneView(phone: PocketPhoneFields, addedAt: number): PocketPhoneView {
+/**
+ * Seal a presentation the way a phone does (Phase 314). Exported for the tests
+ * and the harness ONLY, the way {@link signAsPhone} is, and it is what lets
+ * the probe pair a phone through the SHIPPING `present` with no Swift.
+ *
+ * Nothing in the shipping door calls it: main never seals a presentation, it
+ * only opens one. `offerPayload` is the QR's own bytes, whose `ps` is the
+ * one-shot secret the key is derived from.
+ */
+export function sealPresentationAsPhone(
+  offerPayload: string,
+  presentation: {
+    label: string;
+    signingKey: string;
+    exchangeKey: string;
+    pushToken?: string;
+    pushEnvironment?: 'development' | 'production';
+  }
+): Buffer {
+  const offer = JSON.parse(offerPayload) as Record<string, unknown>;
+  const secret = unb64u(String(offer['ps'] ?? ''));
+  const key = Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), PAIRING_INFO, 32));
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const inner = JSON.stringify({
+    label: presentation.label,
+    ek: presentation.signingKey,
+    xk: presentation.exchangeKey,
+    ...(presentation.pushToken !== undefined ? { apt: presentation.pushToken } : {}),
+    ...(presentation.pushEnvironment !== undefined ? { ape: presentation.pushEnvironment } : {})
+  });
+  const ct = Buffer.concat([cipher.update(inner, 'utf8'), cipher.final()]);
+  return Buffer.from(
+    JSON.stringify({ iv: b64u(iv), ct: b64u(ct), tag: b64u(cipher.getAuthTag()) }),
+    'utf8'
+  );
+}
+
+/**
+ * One allowed phone, as the sheet draws it. Nothing here is a secret, and the
+ * device token is NOT here: `alerts` says only whether the phone has one that
+ * is live, dropped, or none at all (Phase 314).
+ */
+export function phoneView(
+  phone: PocketPhoneFields,
+  addedAt: number,
+  deadTokens: ReadonlySet<string> = new Set()
+): PocketPhoneView {
   return {
     id: phone.id,
     label: phone.label,
     fingerprint: pairFingerprint(phone.signingKey, phone.exchangeKey),
     addedAt,
-    address: phone.address
+    address: phone.address,
+    alerts:
+      phone.pushToken.length === 0
+        ? 'none'
+        : deadTokens.has(pushTokenDigest(phone.pushToken))
+          ? 'stopped'
+          : 'on'
   };
 }
 

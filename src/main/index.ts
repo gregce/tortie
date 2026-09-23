@@ -44,6 +44,7 @@ import { installHarnessKeychain } from './harness/keychain-harness';
 // Phase 304: the vault drive seam, under the same refusals, for probe:p304.
 import { installVaultDrive } from './harness/vault-drive';
 import { installMachineSeam } from './harness/machine-seam';
+import { installPushSeam } from './harness/push-seam';
 // Phase 208: the one observe at boot, after the manifest is open.
 import { observeLoginsAtBoot, startLoginsWatch } from './logins/ipc';
 // Phase 276: the login-shell env answer, warmed once instead of once per
@@ -494,6 +495,12 @@ app.whenReady().then(async () => {
   // and only for an ordinary launch. In every ordinary launch it does
   // nothing at all.
   installMachineSeam();
+  // PHASE 314. And the PUSH seam, under the same three refusals plus two: the
+  // mock keychain must be in force, because it seals a key and a store, and
+  // every origin it may aim the push sender at must be 127.0.0.1. probe:p314
+  // pairs a phone through the shipping path and drives the wake through it. In
+  // every ordinary launch it does nothing at all.
+  installPushSeam();
 
   // A harness launch (GMUX_SMOKE / GMUX_SHOT) owns the process from here:
   // every harness ends in app.exit, or, for the quit smoke, the real

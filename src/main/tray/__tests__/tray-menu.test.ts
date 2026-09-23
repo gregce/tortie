@@ -15,7 +15,7 @@
  * row wears which name and which chord.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project, Session } from '@shared/types';
 import { accelerator } from '@shared/keymap';
 
@@ -28,11 +28,33 @@ interface FakeItem {
   click?: () => void;
 }
 
+/**
+ * What the install test drives: the one `Tray` the module builds, the menus it
+ * was handed in order, and the core `getGmuxCore` answers. Hoisted because the
+ * mocks below are.
+ */
+const fake = vi.hoisted(() => ({
+  menus: [] as FakeItem[][],
+  imageEmpty: true,
+  core: {} as Record<string, unknown>
+}));
+
 vi.mock('electron', () => ({
-  app: { name: 'Tortie' },
+  app: { name: 'Tortie', isPackaged: false, getAppPath: () => '/nonexistent' },
   Menu: { buildFromTemplate: (t: FakeItem[]) => t },
-  Tray: class {},
-  nativeImage: { createFromPath: () => ({ isEmpty: () => true }) }
+  Tray: class {
+    setToolTip(): void {}
+    setContextMenu(menu: FakeItem[]): void {
+      fake.menus.push(menu);
+    }
+    isDestroyed(): boolean {
+      return false;
+    }
+    destroy(): void {}
+  },
+  nativeImage: {
+    createFromPath: () => ({ isEmpty: () => fake.imageEmpty, setTemplateImage: () => undefined })
+  }
 }));
 
 vi.mock('../../menu', () => ({
@@ -40,7 +62,7 @@ vi.mock('../../menu', () => ({
   sendMenuAction: () => true
 }));
 
-vi.mock('../../sessions', () => ({ getGmuxCore: () => Promise.resolve({}) }));
+vi.mock('../../sessions', () => ({ getGmuxCore: () => Promise.resolve(fake.core) }));
 
 // The same shape the real `nativeMenuGlyph` answers, so a row carries an icon
 // key exactly when the real one would, and a bare row stays bare.
@@ -49,7 +71,9 @@ vi.mock('../../native-menu-icon', () => ({
   menuIcon: () => null
 }));
 
-const { trayMenuTemplate } = await import('../index');
+const { trayMenuTemplate, installTray, disposeTray } = await import('../index');
+const { resetBlockedFeedForTests } = await import('../blocked-feed');
+const { NEEDS_YOUR_INPUT, NOTHING_NEEDS_YOU } = await import('../attention');
 
 function markOf(rows: FakeItem[], label: string): string | null {
   const row = rows.find((it) => it.label === label);
@@ -128,5 +152,80 @@ describe('the tray menu wears the same marks and names the same keys', () => {
     // no raster for agent art, which is SVG rather than a font glyph.
     expect(withRows[1]?.icon).toBeUndefined();
     expect(withRows[1]?.label).toContain('writer');
+  });
+});
+
+/** A menu with its callbacks dropped, so two menus compare by what they draw. */
+function drawn(menu: readonly unknown[]): unknown {
+  return JSON.parse(JSON.stringify(menu));
+}
+
+describe('the tray draws from the blocked feed exactly as it drew from its own map (Phase 314)', () => {
+  afterEach(() => {
+    disposeTray();
+    resetBlockedFeedForTests();
+    fake.menus.length = 0;
+    fake.imageEmpty = true;
+  });
+
+  it('spells its two headers from attention.ts, with the same words as before', () => {
+    expect(NEEDS_YOUR_INPUT).toBe('Needs your input');
+    expect(NOTHING_NEEDS_YOU).toBe('Nothing needs you');
+  });
+
+  it('rebuilds the menu on every broadcast through the one slot, newest blocked first', async () => {
+    if (process.platform !== 'darwin') return;
+    const sessions: Session[] = [];
+    const hold: { slot: ((s: Session[]) => void) | null } = { slot: null };
+    let assignments = 0;
+    fake.core = {
+      get onSessionsBroadcast() {
+        return hold.slot;
+      },
+      set onSessionsBroadcast(value: ((s: Session[]) => void) | null) {
+        assignments += 1;
+        hold.slot = value;
+      },
+      listSessions: () => sessions,
+      listProjects: () => projects
+    };
+    fake.imageEmpty = false;
+    const now = vi.spyOn(Date, 'now');
+    try {
+      now.mockReturnValue(1_000);
+      installTray({ showWindow: () => undefined });
+      await vi.waitFor(() => expect(assignments).toBe(1));
+      // The empty menu at install, then the feed's first pass.
+      expect(fake.menus).toHaveLength(2);
+      expect(drawn(fake.menus[1] ?? [])).toEqual(drawn(trayMenuTemplate([], projects, new Map())));
+
+      const older: Session = { ...blocked, id: 's-old', name: 'older' };
+      const newer: Session = { ...blocked, id: 's-new', name: 'newer' };
+      now.mockReturnValue(2_000);
+      hold.slot?.([older]);
+      now.mockReturnValue(3_000);
+      hold.slot?.([older, newer]);
+      const last = fake.menus[fake.menus.length - 1] ?? [];
+      expect(drawn(last)).toEqual(
+        drawn(
+          trayMenuTemplate(
+            [older, newer],
+            projects,
+            new Map([
+              ['s-old', 2_000],
+              ['s-new', 3_000]
+            ])
+          )
+        )
+      );
+      expect(last.slice(0, 3).map((row) => row.label)).toEqual([
+        'Needs your input',
+        'newer — tortie',
+        'older — tortie'
+      ]);
+      expect(assignments).toBe(1);
+    } finally {
+      now.mockRestore();
+    }
   });
 });

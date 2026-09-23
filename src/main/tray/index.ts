@@ -16,6 +16,13 @@
  * Data comes from the SAME truth the ⌘J overlay renders: main's per-session
  * status verdict, taken off GmuxCore's full-list broadcast (the one choke
  * point every mutation and every activity flip already funnels through).
+ *
+ * PHASE 314 moved the broadcast slot and the blocked-since stamps out of this
+ * file into `./blocked-feed.ts`, which takes the slot once and fans each
+ * broadcast out, so the push engine can read the same stamps without
+ * unplugging this menu. The menu is drawn from the feed's snapshot exactly as
+ * it was drawn from this file's own map: the same rows, the same order, the
+ * same two header words, now named once in `./attention.ts`.
  */
 
 import { app, Menu, Tray, nativeImage } from 'electron';
@@ -28,7 +35,8 @@ import { requestQuit, sendMenuAction } from '../menu';
 // one closed table and the one keymap. Nothing here is typed as a literal.
 import { accelerator as accel } from '@shared/keymap';
 import { nativeMenuGlyph as glyph } from '../native-menu-icon';
-import { attentionRows, blockedSince } from './attention';
+import { attentionRows, NEEDS_YOUR_INPUT, NOTHING_NEEDS_YOU } from './attention';
+import { installBlockedFeed, onBlockedChange, type BlockedSnapshot } from './blocked-feed';
 import { getLog } from '../log';
 
 /**
@@ -47,8 +55,8 @@ export interface TrayDeps {
 
 let tray: Tray | null = null;
 let deps: TrayDeps | null = null;
-/** sessionId → when it started needing input (see attention.blockedSince). */
-let since = new Map<string, number>();
+/** Unsubscribes this menu from the blocked feed. */
+let offFeed: (() => void) | null = null;
 
 /**
  * resources/menu-bar/TortieTemplate.png for dev vs packaged builds — the same
@@ -79,7 +87,7 @@ function templateImagePath(): string {
 export function trayMenuTemplate(
   sessions: readonly Session[],
   projects: readonly Project[],
-  blocked: Map<string, number>
+  blocked: ReadonlyMap<string, number>
 ): MenuItemConstructorOptions[] {
   const rows = attentionRows(sessions, projects, blocked);
 
@@ -93,9 +101,9 @@ export function trayMenuTemplate(
   // "name — project" already says.
   const attention: MenuItemConstructorOptions[] =
     rows.length === 0
-      ? [{ label: 'Nothing needs you', enabled: false }]
+      ? [{ label: NOTHING_NEEDS_YOU, enabled: false }]
       : [
-          { label: 'Needs your input', enabled: false },
+          { label: NEEDS_YOUR_INPUT, enabled: false },
           ...rows.map(
             (row): MenuItemConstructorOptions => ({
               label: row.label,
@@ -165,16 +173,16 @@ export function trayMenuTemplate(
 
 function buildMenu(
   sessions: readonly Session[],
-  projects: readonly Project[]
+  projects: readonly Project[],
+  since: ReadonlyMap<string, number>
 ): Menu {
   return Menu.buildFromTemplate(trayMenuTemplate(sessions, projects, since));
 }
 
-/** Rebuild the status menu from a fresh session list. */
-function refresh(sessions: readonly Session[], projects: readonly Project[]): void {
+/** Rebuild the status menu from one snapshot of the blocked feed. */
+function refresh(snapshot: BlockedSnapshot): void {
   if (tray === null || tray.isDestroyed()) return;
-  since = blockedSince(since, sessions, Date.now());
-  tray.setContextMenu(buildMenu(sessions, projects));
+  tray.setContextMenu(buildMenu(snapshot.sessions, snapshot.projects, snapshot.since));
 }
 
 /**
@@ -197,16 +205,17 @@ export function installTray(trayDeps: TrayDeps): void {
 
   tray = new Tray(image);
   tray.setToolTip(app.name);
-  tray.setContextMenu(buildMenu([], []));
+  tray.setContextMenu(buildMenu([], [], new Map()));
 
   // Live data as soon as the durable core is up, then on every full-list
-  // broadcast (mutations and activity flips both land here).
+  // broadcast (mutations and activity flips both land here). The feed takes
+  // the core's one broadcast slot and runs one pass at once, which is the
+  // refresh this menu used to run itself.
   void getGmuxCore()
     .then((core) => {
-      core.onSessionsBroadcast = (sessions) => {
-        refresh(sessions, core.listProjects());
-      };
-      refresh(core.listSessions(), core.listProjects());
+      offFeed?.();
+      offFeed = onBlockedChange(refresh);
+      installBlockedFeed(core);
     })
     .catch(() => {
       // Core boot failed (no tmux). The window explains it; the menu stays
@@ -215,8 +224,9 @@ export function installTray(trayDeps: TrayDeps): void {
 }
 
 export function disposeTray(): void {
+  offFeed?.();
+  offFeed = null;
   tray?.destroy();
   tray = null;
   deps = null;
-  since = new Map();
 }

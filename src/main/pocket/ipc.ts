@@ -89,11 +89,15 @@ import {
   openIdentity,
   phoneView,
   pocketConfirmStatus,
+  isPushTokenDigest,
+  pushTokenDigest,
   readPocketStore,
   writePocketStore,
+  POCKET_DEAD_TOKEN_MEMORY,
   type PocketExecutionFields,
   type PocketIdentity,
   type PocketPhoneFields,
+  type PocketPushDestination,
   type PocketStore
 } from './pairing';
 import {
@@ -240,7 +244,9 @@ export class PocketHost {
       phones: store?.phones ?? [],
       port: store?.port ?? POCKET_DEFAULT_PORT,
       bindAtLaunch: store?.bindAtLaunch ?? false,
-      enabled: store?.enabled ?? false
+      enabled: store?.enabled ?? false,
+      pushAlerts: store?.pushAlerts ?? false,
+      deadPushTokens: store?.deadPushTokens ?? []
     };
     if (!writePocketStore(next)) {
       throw gmuxError(
@@ -280,7 +286,8 @@ export class PocketHost {
       port: store?.port ?? POCKET_DEFAULT_PORT,
       bindAtLaunch: store?.bindAtLaunch ?? false,
       routes: pocketRouteIds(),
-      phones: store?.phones ?? EMPTY_POCKET_FIELDS.phones
+      phones: store?.phones ?? EMPTY_POCKET_FIELDS.phones,
+      pushAlerts: store?.pushAlerts ?? EMPTY_POCKET_FIELDS.pushAlerts
     };
   }
 
@@ -312,9 +319,12 @@ export class PocketHost {
         state === 'listening'
           ? null
           : (gate.refusal ?? this.lastRefusal ?? door.sentence),
-      phones: fields.phones.map((p) => phoneView(p, this.addedAt.get(p.id) ?? 0)),
+      phones: fields.phones.map((p) =>
+        phoneView(p, this.addedAt.get(p.id) ?? 0, new Set(store?.deadPushTokens ?? []))
+      ),
       confirmState: gate.state,
-      routes: POCKET_ROUTE_IDS
+      routes: POCKET_ROUTE_IDS,
+      pushAlerts: fields.pushAlerts
     };
   }
 
@@ -455,6 +465,104 @@ export class PocketHost {
     forgetPocketDoor();
     await this.stop();
     return this.status();
+  }
+
+  // -------------------------------------------------------------------------
+  // The push (Phase 314)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Turn the alerts through Apple on or off.
+   *
+   * THE SWITCH IS A HASHED FIELD, so either direction moves the door's hash and
+   * the door asks again, exactly as any other field does under this module's
+   * rule; the confirm that follows is the person's, through
+   * {@link confirmDoor}. Turning it OFF stops the push at once without waiting
+   * for that confirm, because {@link pushDestinations} reads the switch before
+   * anything else.
+   *
+   * In Phase 314 this is reached by the harness seam and the tests alone. The
+   * channel, the sheet and the menu row are Phase 316's.
+   */
+  setPushAlerts(on: boolean): PocketStatus {
+    let store: PocketStore | null;
+    try {
+      // A store to hold the switch, minted the way the pairing mints one. It
+      // opens nothing and sends nothing.
+      this.identityNow();
+      store = this.readStore();
+    } catch {
+      store = null;
+    }
+    if (store === null || store.pushAlerts === on) return this.status();
+    const next: PocketStore = { ...store, pushAlerts: on };
+    if (!writePocketStore(next)) return this.status();
+    this.store = next;
+    this.changed();
+    return this.status();
+  }
+
+  /**
+   * Where an alert may go RIGHT NOW, and it is usually nowhere.
+   *
+   * `[]` unless the switch is on AND the door's current fields are the ones a
+   * person confirmed, so a phone added, removed or re-tokened since the last
+   * confirm stops every push until he confirms again. A phone with no token,
+   * and a token Apple said is dead, are left out. It does not depend on the
+   * door LISTENING: the push reads the confirmed fields, never the socket.
+   *
+   * The answer carries the token and it is main's alone: it is never logged,
+   * never broadcast and never in any answer to the renderer.
+   */
+  pushDestinations(): readonly PocketPushDestination[] {
+    const store = this.readStore();
+    if (store === null || !store.pushAlerts) return [];
+    const fields = this.fields();
+    if (pocketConfirmStatus(fields).state !== 'confirmed') return [];
+    const dead = new Set(store.deadPushTokens);
+    const out: PocketPushDestination[] = [];
+    for (const phone of fields.phones) {
+      if (phone.pushToken.length === 0 || phone.pushEnvironment === '') continue;
+      const tokenDigest = pushTokenDigest(phone.pushToken);
+      if (dead.has(tokenDigest)) continue;
+      out.push({
+        phoneId: phone.id,
+        token: phone.pushToken,
+        environment: phone.pushEnvironment,
+        tokenDigest
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Apple said this token is no longer good. Remember its digest so nothing is
+   * ever sent to it again, across restarts, and change nothing else.
+   *
+   * THE HASH DOES NOT MOVE. The dead list is not a hashed field: dropping a
+   * destination only narrows where a person's words go, which needs no human,
+   * and moving the hash here would switch the door off on every 410. Pairing
+   * the phone again with a NEW token is a new digest and is live; with the SAME
+   * token it stays dead.
+   *
+   * A SEAL THAT CANNOT BE WRITTEN STILL DROPS IT FOR THIS RUN (the fix round).
+   * Every other change here is written before it is believed, because it WIDENS
+   * where his words go and needs the confirm the write carries. This one only
+   * narrows, so the host believes it even when the sealed write failed: the
+   * token stops being answered now, and the next write that succeeds carries
+   * the dead list with it. Only a restart before that write forgets it.
+   */
+  dropPushToken(tokenDigest: string): void {
+    if (!isPushTokenDigest(tokenDigest)) return;
+    const store = this.readStore();
+    if (store === null || store.deadPushTokens.includes(tokenDigest)) return;
+    const next: PocketStore = {
+      ...store,
+      deadPushTokens: [...store.deadPushTokens, tokenDigest].slice(-POCKET_DEAD_TOKEN_MEMORY)
+    };
+    writePocketStore(next);
+    this.store = next;
+    this.changed();
   }
 }
 

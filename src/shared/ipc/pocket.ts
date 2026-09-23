@@ -117,6 +117,16 @@ export interface PocketBlockedRow {
    * on this shape, and the file header says why.
    */
   blockedSince: number;
+  /**
+   * True when {@link blockedSince} fell inside the first seconds after this Mac
+   * woke (Phase 314). The poll does not run while the Mac sleeps, so such a
+   * wait was first SEEN at the wake and its stamp is the wake's, not the
+   * moment it began. A client draws "since your Mac woke" for it instead of an
+   * age, and an age from {@link blockedSince} otherwise. Computed in main by
+   * `blockedAge` in src/main/tray/attention.ts and nowhere else; the push alert
+   * reads it off the same row.
+   */
+  seenAtWake: boolean;
 }
 
 /** The Catch Me Up line, built in main and never written by a model. */
@@ -236,6 +246,17 @@ export interface PocketPhoneView {
   addedAt: number;
   /** The tailnet address it presented from, and the only one it may ask from. */
   address: string;
+  /**
+   * Whether this phone can be told through Apple's push service (Phase 314).
+   * `none` when it presented no device token; `stopped` when Apple said its
+   * token is no longer good and Tortie dropped it, which pairing it again
+   * undoes; `on` when it holds a live token. Whether anything is SENT is
+   * {@link PocketStatus.pushAlerts}, which is a separate, confirmed switch.
+   *
+   * The token itself is never on this shape, or on any shape the renderer
+   * sees: it decides where a person's words go, so it stays in main.
+   */
+  alerts: 'none' | 'on' | 'stopped';
 }
 
 /** Everything Settings then Phone draws, in one read. */
@@ -258,6 +279,12 @@ export interface PocketStatus {
   confirmState: 'confirmed' | 'never' | 'changed' | 'unknown';
   /** The routes this build has, so the sheet can say what it answers. */
   routes: readonly PocketRouteId[];
+  /**
+   * Whether Tortie tells the paired phones through Apple when a session starts
+   * waiting (Phase 314). A CONFIRMED field of the door's hash, off until a
+   * person turns it on and confirms, so turning it on asks again.
+   */
+  pushAlerts: boolean;
 }
 
 /** The QR and the words beside it, handed to the sheet when a window opens. */
@@ -391,6 +418,18 @@ export const POCKET_TAILNET_GRANT_HONESTY =
   'Until you paste this into your own Tailscale admin console, a phone on ' +
   'your tailnet can reach every device on it, not just this door. Tortie ' +
   'never edits your tailnet policy and holds no credential that could.';
+
+/**
+ * How the ages a phone draws can be off, said where they are drawn (Phase 314).
+ *
+ * The poll that stamps a wait does not run while this Mac sleeps or while
+ * Tortie is not running, so a wait that began then is timed from when it was
+ * first seen. A wait seen before a sleep keeps its true age across it, which is
+ * why the sentence names only the waits FIRST SEEN after. Drawn by the phone
+ * app's settings (Phase 316) and by nothing in Phase 314.
+ */
+export const POCKET_AGE_HONESTY =
+  'Waits first seen after your Mac wakes or Tortie restarts are timed from then.';
 
 /**
  * The policy text a person pastes into their own admin console.

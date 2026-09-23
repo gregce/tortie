@@ -252,7 +252,7 @@ const DIRECTORY_WALLS = [
   },
   {
     dir: 'main/pocket/',
-    forbidden: ['main/credentials/', 'main/logins/'],
+    forbidden: ['main/credentials/', 'main/logins/', 'main/push/'],
     why:
       'the tailnet door is the first surface Tortie offers to anything outside ' +
       'this Mac, and every route in it is a read. A door that cannot NAME the ' +
@@ -263,7 +263,22 @@ const DIRECTORY_WALLS = [
       'PocketFacts in src/main/pocket/routes.ts is hand written and every ' +
       'member of it is a read. Anything the door legitimately needs from those ' +
       'domains would arrive INJECTED through that type, so a direct import is ' +
-      'always the wrong answer rather than a convenience.'
+      'always the wrong answer rather than a convenience. Phase 314 adds ' +
+      'main/push/ to the list: the door speaks to a phone and nothing else, ' +
+      'and a door that can name the sender can be made to send.'
+  },
+  {
+    dir: 'main/push/',
+    forbidden: ['main/logins/'],
+    why:
+      'the push sender holds the APNs provider key, with which anything can ' +
+      'alert any phone the app is on, and it sends the person’s words to a ' +
+      'vendor. It reads the credentials and pocket domains by import type ' +
+      'only, and what it needs from them arrives INJECTED through ' +
+      'PushEngineDeps in src/main/push/engine.ts; it names no module of the ' +
+      'logins domain at all, so a later round cannot make it read a login. ' +
+      'The type-only half of the rule is conformance:push rule W1, because ' +
+      'this table is by path (Phase 314, build/p314/SPEC.md §6.4).'
   },
   {
     dir: 'renderer/state/',
@@ -583,7 +598,22 @@ const FIXTURES = [
     'renderer/state/__tests__/p127-fixture.ts',
     "import { focusFleetPrimary } from '../../app/focus-trap';",
     null
-  ]
+  ],
+  // Phase 314, the two walls it adds. The door may not name the sender, the
+  // sender may not name the logins, and the sender's own test is exempt as
+  // every test is.
+  [
+    'main/pocket/p314-fixture.ts',
+    "import { createPushEngine } from '../push/engine';",
+    '../push/engine'
+  ],
+  [
+    'main/push/p314-fixture.ts',
+    "import { loginsRoot } from '../logins/paths';",
+    '../logins/paths'
+  ],
+  ['main/push/p314-fixture.ts', "import type { ApnsProviderKey } from '../credentials/apns-key';", null],
+  ['main/push/__tests__/p314-fixture.ts', "import { loginsRoot } from '../../logins/paths';", null]
 ];
 
 function runFixtures() {

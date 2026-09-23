@@ -41,7 +41,10 @@ import { readCapsules, snapshotsDir } from '../restore/snapshots';
 import { getGmuxCore } from '../sessions';
 import { broadcastEvent } from '../typed-events';
 import { EVT_POWER_RESUME } from '@shared/ipc';
-import { installPowerHandlers, type PowerMonitorLike } from './index';
+// PHASE 314. The drivable monitor lives in its own module now, because the
+// push harness seam drives the same two events and one copy is the rule.
+import { drivableMonitor } from './drivable-monitor';
+import { installPowerHandlers } from './index';
 
 function log(line: string): void {
   console.log(`[gmux-power] ${line}`);
@@ -54,28 +57,6 @@ function emit(kind: string, payload: unknown): void {
 /** Refuse to run against anything the user owns. See ../harness/isolation. */
 function assertIsolated(): HarnessIsolation {
   return assertHarnessIsolation('GMUX_POWER_ROOT');
-}
-
-/** A powerMonitor whose two events this harness fires by hand. */
-function drivableMonitor(): PowerMonitorLike & {
-  fire(event: 'suspend' | 'resume'): void;
-} {
-  const listeners = new Map<string, Set<() => void>>();
-  return {
-    on(event, listener) {
-      const set = listeners.get(event) ?? new Set();
-      set.add(listener);
-      listeners.set(event, set);
-      return this;
-    },
-    removeListener(event, listener) {
-      listeners.get(event)?.delete(listener);
-      return this;
-    },
-    fire(event) {
-      for (const listener of [...(listeners.get(event) ?? [])]) listener();
-    }
-  };
 }
 
 const SESSION_NAME = 'zz-power-probe';

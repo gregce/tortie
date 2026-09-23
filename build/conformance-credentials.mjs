@@ -229,6 +229,27 @@
  *      ablated copy: `vault.ts` names neither `keychainWrite` nor the `-i`
  *      token, and `keychainWrite` has exactly ONE caller outside `security.ts`
  *      in the domain, the vendor's own item in `stores.ts`.
+ *  23. THE APPLE PUSH PROVIDER KEY IS SEALED AND READ BACK ONLY THROUGH THE
+ *      SEAL (Phase 314). The shipping `apnsKeyStore` over an injected seal and
+ *      a P-256 key the probe GENERATES: (a) it round trips by sha256, the one
+ *      file is 0600 in a 0700 directory, is not the record, holds no
+ *      `-----BEGIN` and no 64 character window of the key's base64 body, and
+ *      `securityCallCount()` does not move across keep, read and forget; (b) a
+ *      seal that cannot be made keeps nothing at the slot or its staged place
+ *      and says the one write's sentence, a seal that cannot open reads null,
+ *      and a plaintext key planted at the slot reads null; (c) a key that is
+ *      not P-256, an id that is not ten of `[A-Z0-9]`, and a topic that is not
+ *      a dotted bundle id are each refused whole with the field named. Rule 9
+ *      is widened to it: no window of the key in any file any arm leaves
+ *      behind. Scanned, over the tree and over every ablated copy: `apns-key.ts`
+ *      names no keychain, no `security`, no `legacyKeychainVault`, no
+ *      `defaultSecurityRunner` and no `-i`, builds exactly one
+ *      `sealedVault(dir, seal, NO_LEGACY)`, writes only through
+ *      `safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload)`, reads only
+ *      through `backend.get`, and touches no file itself; and over `src/`, no
+ *      module under the renderer, the preload or `src/shared/` names it, and
+ *      its only non-test importers are `index.ts`, the harness push seam, and
+ *      `src/main/push/` by `import type` alone.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -1269,6 +1290,231 @@ if (liveSealed.absent !== true) {
 }
 
 // ---------------------------------------------------------------------------
+// RULE 23 (Phase 314), the scanned half. THE APPLE PUSH PROVIDER KEY IS KEPT IN
+// ONE SEALED SLOT, THROUGH THE ONE WRITE, AND READ BACK ONLY THROUGH THE SEAL.
+// ---------------------------------------------------------------------------
+
+/**
+ * Rule 23's reading of one `apns-key.ts`, as one comparable value. Read over
+ * the tree and over every ablated copy, the way `lineCapSites` is, so an
+ * ablation of the module moves this reading even where the probe's world could
+ * not tell.
+ */
+function apnsSitesOf(text) {
+  const code = stripComments(text);
+  return {
+    namesKeychain: /keychain/i.test(code),
+    namesSecurity: /security/i.test(code),
+    namesLegacy: /\blegacyKeychainVault\b/.test(code),
+    namesRunner: /\bdefaultSecurityRunner\b/.test(code),
+    namesI: /['"`]-i['"`]/.test(code),
+    sealedBackends: (code.match(/\bsealedVault\(dir, seal, NO_LEGACY\)/g) ?? []).length,
+    anyBackends: (code.match(/\bsealedVault\s*\(/g) ?? []).length,
+    swapWrites: (code.match(/\bsafeSwap\(vaultTarget\(backend, APNS_KEY_SLOT\), payload\)/g) ?? []).length,
+    anySwaps: (code.match(/\bsafeSwap\s*\(/g) ?? []).length,
+    gets: (code.match(/\bawait backend\.get\(APNS_KEY_SLOT\)/g) ?? []).length,
+    fileTouches: (
+      code.match(
+        /\b(?:readFileSync|readFile|readTextNoFollowSync|writeFileSync|writeFile|writeNoFollowSync|renameSync|renameNoFollowSync|appendFileSync|createWriteStream|createReadStream|openSync)\s*\(|node:fs|backend\.put\s*\(|\.commit\s*\(/g
+      ) ?? []
+    ).length
+  };
+}
+
+function apnsSites(dir) {
+  const path = join(dir, 'apns-key.ts');
+  if (!existsSync(path)) return { absent: true };
+  return apnsSitesOf(readFileSync(path, 'utf8'));
+}
+
+/** Is one reading the shape rule 23 asks for? */
+function apnsReadingHolds(r) {
+  return (
+    r.absent !== true &&
+    !r.namesKeychain &&
+    !r.namesSecurity &&
+    !r.namesLegacy &&
+    !r.namesRunner &&
+    !r.namesI &&
+    r.sealedBackends === 1 &&
+    r.anyBackends === 1 &&
+    r.swapWrites === 1 &&
+    r.anySwaps === 1 &&
+    r.gets === 1 &&
+    r.fileTouches === 0
+  );
+}
+
+/**
+ * Every module-specifier a file names and how: `type` for `import type` and
+ * `export type`, `value` for everything else, a bare import and a dynamic one
+ * included, because either loads the module.
+ */
+function specifiersOf(text) {
+  const code = stripComments(text);
+  const out = [];
+  for (const m of code.matchAll(/\b(import|export)\s+(type\s+)?[^;'"]*?\bfrom\s*['"]([^'"]+)['"]/g)) {
+    out.push({ spec: m[3], kind: m[2] === undefined ? 'value' : 'type' });
+  }
+  for (const m of code.matchAll(/\bimport\s*['"]([^'"]+)['"]/g)) out.push({ spec: m[1], kind: 'value' });
+  for (const m of code.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) out.push({ spec: m[1], kind: 'value' });
+  return out;
+}
+
+const APNS_SPEC = /(?:^|\/)apns-key(?:\.[cm]?[jt]s)?$/;
+
+// The scanners, proved on fixtures before they are believed. The first is the
+// shipping shape; every other one is a way the key stops being sealed, or a way
+// a module reaches it that the rule refuses.
+const APNS_SITE_FIXTURES = [
+  {
+    name: 'the shipping shape',
+    text:
+      "import { safeSwap } from './swap';\n" +
+      "import { NO_LEGACY, sealedVault, vaultTarget } from './vault';\n" +
+      'export function apnsKeyStore(dir, seal) {\n' +
+      '  const backend = sealedVault(dir, seal, NO_LEGACY);\n' +
+      '  async function keep(payload) {\n' +
+      '    const written = await safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload);\n' +
+      '  }\n' +
+      '  async function opened() {\n' +
+      '    const text = await backend.get(APNS_KEY_SLOT);\n' +
+      '  }\n' +
+      '}\n',
+    holds: true
+  },
+  {
+    name: 'the seal dropped',
+    text:
+      '  const backend = sealedVault(dir, { wrap: (t) => t, open: (b) => b }, NO_LEGACY);\n' +
+      '    const written = await safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload);\n' +
+      '    const text = await backend.get(APNS_KEY_SLOT);\n',
+    holds: false
+  },
+  {
+    name: 'a legacy keychain arm handed in',
+    text:
+      '  const backend = sealedVault(dir, seal, legacyKeychainVault(defaultSecurityRunner(), dir));\n' +
+      '    const written = await safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload);\n' +
+      '    const text = await backend.get(APNS_KEY_SLOT);\n',
+    holds: false
+  },
+  {
+    name: 'the file read past the seal',
+    text:
+      '  const backend = sealedVault(dir, seal, NO_LEGACY);\n' +
+      '    const written = await safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload);\n' +
+      "    const text = readFileSync(join(dir, 'apns-provider.cred'), 'utf8');\n",
+    holds: false
+  },
+  {
+    name: 'a second write beside the one write',
+    text:
+      '  const backend = sealedVault(dir, seal, NO_LEGACY);\n' +
+      '    const written = await safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload);\n' +
+      '    await backend.put(APNS_KEY_SLOT, payload);\n' +
+      '    const text = await backend.get(APNS_KEY_SLOT);\n',
+    holds: false
+  },
+  {
+    name: 'a sentence about the keychain in a comment only',
+    text:
+      '// the keychain and security are never reached from here\n' +
+      '  const backend = sealedVault(dir, seal, NO_LEGACY);\n' +
+      '    const written = await safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload);\n' +
+      '    const text = await backend.get(APNS_KEY_SLOT);\n',
+    holds: true
+  }
+];
+const SPECIFIER_FIXTURES = [
+  { text: "import type { ApnsProviderKey } from '../credentials/apns-key';", want: 'type' },
+  { text: "export type { ApnsProviderKey } from '../credentials/apns-key';", want: 'type' },
+  { text: "import { apnsKeyStore } from '../credentials/apns-key';", want: 'value' },
+  { text: "import { type ApnsProviderKey, apnsKeyStore } from '../credentials/apns-key.js';", want: 'value' },
+  { text: "import '../credentials/apns-key';", want: 'value' },
+  { text: "const m = await import('../credentials/apns-key');", want: 'value' }
+];
+{
+  let behaved = 0;
+  for (const f of APNS_SITE_FIXTURES) {
+    if (apnsReadingHolds(apnsSitesOf(f.text)) === f.holds) behaved += 1;
+    else failures.push(`${TAG} rule 23's scanner misread its fixture "${f.name}"`);
+  }
+  for (const f of SPECIFIER_FIXTURES) {
+    const found = specifiersOf(f.text).filter((x) => APNS_SPEC.test(x.spec));
+    if (found.length === 1 && found[0].kind === f.want) behaved += 1;
+    else failures.push(`${TAG} rule 23's importer reader misread ${JSON.stringify(f.text)}`);
+  }
+  notes.push(`${String(behaved)} of ${String(APNS_SITE_FIXTURES.length + SPECIFIER_FIXTURES.length)} rule 23 fixtures behaved`);
+}
+
+const liveApns = apnsSites(DOMAIN);
+check(
+  liveApns.absent !== true,
+  `${TAG} RULE 23 CANNOT RUN: the domain has no apns-key.ts, so the Apple push provider key has no sealed store`
+);
+if (liveApns.absent !== true) {
+  check(
+    !liveApns.namesKeychain && !liveApns.namesSecurity && !liveApns.namesLegacy && !liveApns.namesRunner && !liveApns.namesI,
+    `${TAG} apns-key.ts names ${[
+      liveApns.namesKeychain ? 'a keychain' : '',
+      liveApns.namesSecurity ? 'security' : '',
+      liveApns.namesLegacy ? 'legacyKeychainVault' : '',
+      liveApns.namesRunner ? 'defaultSecurityRunner' : '',
+      liveApns.namesI ? 'the -i token' : ''
+    ]
+      .filter(Boolean)
+      .join(', ')} in its code. The provider key is a sealed file and nothing in its store may reach a keychain.`
+  );
+  check(
+    liveApns.sealedBackends === 1 && liveApns.anyBackends === 1,
+    `${TAG} apns-key.ts builds ${String(liveApns.anyBackends)} sealed vault(s), ${String(liveApns.sealedBackends)} of them sealedVault(dir, seal, NO_LEGACY). There is one, over the seal it was handed and no legacy arm.`
+  );
+  check(
+    liveApns.swapWrites === 1 && liveApns.anySwaps === 1,
+    `${TAG} apns-key.ts writes through ${String(liveApns.anySwaps)} safeSwap call(s), ${String(liveApns.swapWrites)} of them safeSwap(vaultTarget(backend, APNS_KEY_SLOT), payload). The key is written by the one write and nothing else.`
+  );
+  check(
+    liveApns.gets === 1 && liveApns.fileTouches === 0,
+    `${TAG} apns-key.ts reads its slot ${String(liveApns.gets)} time(s) through backend.get and touches a file itself ${String(liveApns.fileTouches)} time(s). A key read past the seal answers a plaintext file an agent planted.`
+  );
+}
+{
+  const srcRoot = join(repoRoot, 'src');
+  const sources = sourceFilesBelow(srcRoot).filter((f) => !/\.test\.tsx?$/.test(f));
+  const relOf = (f) => f.slice(repoRoot.length + 1);
+  const ALLOWED_VALUE = new Set(['src/main/credentials/index.ts', 'src/main/harness/push-seam.ts']);
+  let importers = 0;
+  for (const file of sources) {
+    const rel = relOf(file);
+    const text = readFileSync(file, 'utf8');
+    if (/^src\/(?:renderer|preload|shared)\//.test(rel)) {
+      check(
+        !/apns-key|APNS_KEY_SLOT|apnsKeyStore/.test(stripComments(text)),
+        `${TAG} ${rel} names the Apple push key store. Nothing the renderer, the preload or the shared contract can reach may name where the key is kept.`
+      );
+    }
+    for (const { spec, kind } of specifiersOf(text).filter((x) => APNS_SPEC.test(x.spec))) {
+      importers += 1;
+      if (ALLOWED_VALUE.has(rel)) continue;
+      if (rel.startsWith('src/main/push/')) {
+        check(
+          kind === 'type',
+          `${TAG} ${rel} imports ${spec} as a VALUE. The sender names the key's types and is handed the key; it never opens the store itself.`
+        );
+        continue;
+      }
+      failures.push(
+        `${TAG} ${rel} imports ${spec}. Its only importers are src/main/credentials/index.ts, src/main/harness/push-seam.ts and src/main/push/ by import type.`
+      );
+    }
+  }
+  notes.push(
+    `apns-key.ts is one sealed vault with no legacy arm, one write through the one write, one read through the seal and no file of its own; ${String(importers)} importer(s) in src/, none under the renderer, the preload or shared`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // The probe, over the tree and over the ablated copies of it.
 // ---------------------------------------------------------------------------
 
@@ -1342,7 +1588,8 @@ const VERDICT_PARTS = [
   'vendorRefusal',
   'vendorCommit',
   'lineCap',
-  'sealed'
+  'sealed',
+  'apns'
 ];
 
 function verdict(d) {
@@ -1388,7 +1635,8 @@ function verdict(d) {
     JSON.stringify(d.vendorRefusal),
     JSON.stringify(d.vendorCommit),
     JSON.stringify(d.lineCap),
-    JSON.stringify(d.sealed)
+    JSON.stringify(d.sealed),
+    JSON.stringify(d.apns)
   ];
 }
 
@@ -2403,6 +2651,72 @@ if ('error' in live) {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Rule 23 (Phase 314), the driven half. THE APPLE PUSH PROVIDER KEY, over
+  // the SHIPPING `apnsKeyStore` and a P-256 key the probe generated this run.
+  // Every reading is a boolean or a count; no key byte reaches this gate.
+  // -------------------------------------------------------------------------
+  const ap = live.apns;
+  check(
+    ap !== undefined && ap !== null && ap.absent !== true,
+    `${TAG} RULE 23 CANNOT RUN: the probe gave no reading of apns-key.ts, so nothing proves the push provider key is sealed`
+  );
+  if (ap !== undefined && ap !== null && ap.absent !== true) {
+    check(
+      ap.keptOk === true && ap.digestEqual === true,
+      `${TAG} THE PUSH PROVIDER KEY DID NOT ROUND TRIP: kept ${String(ap.keptOk)}, digest ${ap.digestEqual ? 'equal' : 'DIFFERENT'}`
+    );
+    check(
+      ap.filePresent === true && ap.fileIsNotTheRecord === true && ap.fileHasNoArmour === true && ap.fileHoldsNoWindow === true,
+      `${TAG} THE PUSH PROVIDER KEY IS ON DISK IN THE CLEAR: file ${String(ap.filePresent)}, not the record ${String(ap.fileIsNotTheRecord)}, no -----BEGIN ${String(ap.fileHasNoArmour)}, no 64 character window of the key ${String(ap.fileHoldsNoWindow)}`
+    );
+    check(
+      ap.fileMode === 0o600 && ap.dirMode === 0o700,
+      `${TAG} the push key's file has mode ${ap.fileMode === null ? 'none' : ap.fileMode.toString(8)} in a directory of mode ${ap.dirMode === null ? 'none' : ap.dirMode.toString(8)}, rather than 0600 in 0700`
+    );
+    check(
+      ap.stagedLeft === false && ap.forgotten === true,
+      `${TAG} the push key's store left its staged place (${String(ap.stagedLeft)}) or did not forget (${String(ap.forgotten)})`
+    );
+    check(
+      ap.securityCalls === 0,
+      `${TAG} KEEPING, READING OR FORGETTING THE PUSH KEY REACHED security ${String(ap.securityCalls)} time(s). The key is a sealed file and asks no keychain anything.`
+    );
+    check(
+      ap.noSeal.ok === false &&
+        ap.noSeal.reason === 'Nothing could be written, so nothing changed.' &&
+        ap.noSeal.field === null &&
+        ap.noSeal.filePresent === false &&
+        ap.noSeal.stagedPresent === false,
+      `${TAG} A SEAL THAT COULD NOT BE MADE did not keep nothing in the one write's own sentence: ${JSON.stringify(ap.noSeal)}`
+    );
+    check(
+      ap.unopenReadsNull === true,
+      `${TAG} a push key the seal cannot open was answered rather than read as absent`
+    );
+    check(
+      ap.plantedReadsNull === true,
+      `${TAG} A PLAINTEXT KEY PLANTED AT THE SLOT WAS ANSWERED. A file anything running as this user wrote is not a key Tortie kept, and the sender would sign with it.`
+    );
+    check(
+      Array.isArray(ap.refusals) && ap.refusals.length === 6,
+      `${TAG} the invalid-record arm drove ${String(ap.refusals?.length)} records rather than 6`
+    );
+    for (const r of ap.refusals ?? []) {
+      check(
+        r.refused === true && r.fieldNamed === true && r.nothingWritten === true,
+        `${TAG} ${r.name} was not refused whole with its field named and nothing written: refused ${String(r.refused)}, field ${String(r.fieldNamed)}, nothing written ${String(r.nothingWritten)}`
+      );
+    }
+    check(
+      ap.filesScanned === true && ap.keyInAFile === false,
+      `${TAG} RULE 9, WIDENED: a window of the push key was found in a file an arm left behind (scanned ${String(ap.filesScanned)})`
+    );
+    notes.push(
+      'the push provider key round trips by sha256 through one sealed file, 0600 in 0700, never the record, no armour, no window, no security call; no seal keeps nothing, an unopenable or planted file reads null, 6 invalid records refused whole with the field named, and no file any arm left holds a window of the key'
+    );
+  }
+
   // Rule 11's runtime half: the shapes.
   check(live.shapes.claudeOk && live.shapes.codexOk, `${TAG} a vendor credential was refused`);
   check(!live.shapes.truncated, `${TAG} a truncated credential passed the shape test`);
@@ -2725,6 +3039,35 @@ const ABLATIONS = [
         file: 'vault.ts',
         from: '    writeNoFollowSync(writing, sealed);',
         to: '    writeNoFollowSync(writing, payload);'
+      }
+    ]
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 314, rule 23. Two ablations of the push provider key's store, one
+  // per clause: the seal it hands the vault replaced by one that seals
+  // nothing, so the file IS the key; and the read taken past the seal, so a
+  // plaintext key planted at the slot is answered. Each must move rule 23's
+  // own reading, driven or scanned, and not merely something else.
+  // -------------------------------------------------------------------------
+  {
+    name: 'the push key store handed a seal that seals nothing, so the file equals the key',
+    owns: ['apns', 'apnsSource'],
+    edits: [
+      {
+        file: 'apns-key.ts',
+        from: '  const backend = sealedVault(dir, seal, NO_LEGACY);',
+        to: '  const backend = sealedVault(dir, { wrap: (t: string) => t, open: (b: string) => b }, NO_LEGACY);'
+      }
+    ]
+  },
+  {
+    name: 'the push key read past the seal, so a planted plaintext key is sent with',
+    owns: ['apns', 'apnsSource'],
+    edits: [
+      {
+        file: 'apns-key.ts',
+        from: '    const text = await backend.get(APNS_KEY_SLOT);',
+        to: "    const text = (await import('node:fs')).readFileSync(`${dir}/${APNS_KEY_SLOT}.cred`, 'utf8');"
       }
     ]
   },
@@ -3676,6 +4019,7 @@ try {
   const liveVerdict = JSON.stringify(verdict(live));
   const liveSitesReading = JSON.stringify(liveSites);
   const liveLineCapReading = JSON.stringify(liveLineCap);
+  const liveApnsReading = JSON.stringify(liveApns);
   let red = 0;
   for (const [i, ablation] of ABLATIONS.entries()) {
     const dir = join(mainDir, `${ABLATION_PREFIX}${String(i)}`);
@@ -3741,6 +4085,20 @@ try {
     // spawn is not something a world this gate builds can see.
     if (JSON.stringify(lineCapSites(dir)) !== liveLineCapReading) {
       moved.push('lineCapSource');
+    }
+    // RULE 23 IS READ FROM SOURCE TOO (Phase 314), so a key store that stops
+    // being sealed moves this reading even if no world the probe builds shows it.
+    if (JSON.stringify(apnsSites(dir)) !== liveApnsReading) {
+      moved.push('apnsSource');
+    }
+    // AN ABLATION THAT NAMES THE READINGS IT OWNS must move one of THEM, so a
+    // rule 23 arm that happened to move some other reading proves nothing about
+    // rule 23 (Phase 314).
+    if (ablation.owns !== undefined && !ablation.owns.some((o) => moved.includes(o))) {
+      failures.push(
+        `${TAG} the ablation "${ablation.name}" moved ${moved.join(', ') || 'nothing'} but none of ${ablation.owns.join(', ')}, the readings its rule owns`
+      );
+      continue;
     }
     if (moved.length > 0) {
       red += 1;

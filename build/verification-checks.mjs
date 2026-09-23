@@ -442,6 +442,20 @@ export const CHECKS = [
   // true rather than promised.
   pure('conformance:pocket'),
   pure('conformance:pocket:hostile'),
+  // PHASE 314, the push. build/conformance-push.mjs READS src/main/push/, the
+  // wake rule and the seam with the TypeScript parser — Apple's two hosts
+  // spelled once inside apnsOrigin, allowRemote passed nowhere, the composer
+  // reading seven row fields and no others, every word it draws Tortie's,
+  // beginShutdown closing admission first, no secret in a log call, the walls
+  // by import type, one age function, and the seam's one status word held to
+  // statusVisual's — and its driven half, build/p314/push-conformance.mts
+  // through the pinned tsx, drives the SHIPPING sender, composer and engine
+  // with an injected clock against the APNs stand-in on 127.0.0.1, which it
+  // starts and closes in its own `finally`, behind a fence that refuses any
+  // socket to anything but loopback BEFORE it is made. The key is a scratch
+  // P-256 key generated in memory. No Electron, no tmux, no ssh, no agent, no
+  // token, NO NETWORK, and nothing under the person's home.
+  pure('conformance:push'),
   // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
   // Electron on a scratch profile with a scratch HOME and the socket
   // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that
@@ -456,6 +470,24 @@ export const CHECKS = [
   // with no hook, a control shell row byte for byte, and app.log afterwards with
   // no byte of any body in it. P311_CHECKOUT points it at a parent build.
   electron('probe:p311'),
+  // PHASE 314's app run: the push driven inside the real app BY REAL AGENTS
+  // (the operator's ruling of 2026-09-22). ONE Electron on a scratch profile
+  // under a harness directory, a scratch HOME and the socket gmux-p314-<pid>,
+  // with GMUX_HARNESS_PUSH arming src/main/harness/push-seam.ts under its six
+  // refusals (the mock keychain and loopback-only origins among them). The
+  // blocks are a Gemini CLI's first-run trust question under the scratch home
+  // (no account, no turn) and a Claude Code under the person's own sign-in whose
+  // real permission request arrives through its hook, twice, refused each time:
+  // TWO model turns in the whole run. Every arm first reads from MAIN whether
+  // the session really blocked, and one that did not reads UNREADABLE (exit 2),
+  // never a push failure. The APNs key is a scratch P-256 key generated in the
+  // probe and deleted in its `finally`; Apple is the stand-in, two loopback h2c
+  // listeners IN THE PROBE'S OWN PROCESS, closed in the same `finally`; every
+  // agent process it saw is ended by pid if the teardown left it. Twelve arms,
+  // the wake among them. It never runs `npm run build`, refuses with exit 2
+  // when the checkout has no build, and P314_PARENT_CHECKOUT points it at a
+  // parent build.
+  electron('probe:p314'),
   // PHASE 312. The choices the agent drew. build/conformance-choices.mjs reads
   // this repository's own source and asserts twenty clauses over it: the
   // verdict's own loop pinned byte for byte with OPT1, OPT2, HINT and QUEST, the
@@ -1498,6 +1530,21 @@ export const CHECKS = [
   // token, and no listener but the one the hostile client opens on loopback and
   // closes in its own `finally`.
   pure('ablation:p313'),
+  // PHASE 314's attack on conformance:push: thirty-one ablations, AT LEAST ONE
+  // PER RULE (E7 has eight: the drop, a fall asked as a state rather than an
+  // event, and from the fix round the dead connection kept, the request
+  // deadline put back to the stream's idle timer, the dead set, the clock fault
+  // and the dedupe; A1 and E3 have two: the wake lead and the in-flight fall),
+  // each a text edit of a pinned line of build/p314/SPEC.md §9.3 or a
+  // line the built source holds once, and each must make THE RULE THAT OWNS IT
+  // newly red, as a per-rule DELTA against the base. An arm whose `from` text is
+  // absent FAILS by name; it never skips. Like ablation:p313 it never writes
+  // into the working tree: it clones src/ and build/ with `cp -Rc` under
+  // /private/tmp, symlinks node_modules, restores every edited clone file and
+  // proves it by sha256, and removes the clone in a `finally` and on a signal.
+  // No Electron, no tmux, no ssh, no agent, no token, and no listener but the
+  // two loopback ones the gate opens and closes. P314_ONLY runs named arms.
+  pure('ablation:p314'),
   // PHASE 296's attack on `conformance:handback`'s menu section, and the reason
   // that phase is worth doing: the section had been RED SINCE 25 AUGUST because a
   // needle stopped matching a row nobody moved, and nothing could tell that from
