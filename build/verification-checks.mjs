@@ -504,6 +504,32 @@ export const CHECKS = [
   // when the checkout has no build, and P314_PARENT_CHECKOUT points it at a
   // parent build.
   electron('probe:p314'),
+  // PHASE 321's app run, in probe:p314's shape: ONE Electron on a scratch
+  // profile under a harness directory, a scratch HOME and the socket
+  // gmux-p321-<pid>, the push seam under its six refusals, and Apple as the
+  // Phase 314 stand-in on loopback in the probe's own process. The sessions are
+  // the REAL registry rows cursor, qwen, opencode, antigravity, claude, grok
+  // and pi, launched by their bare names, each of which the scratch login shell
+  // must resolve to build/p321/stand-in.mjs (asserted before any arm, exit 2
+  // otherwise): a stand-in run under the bare name (`exec -a`), which draws
+  // only the committed redacted screens, repaints as antigravity does, and
+  // gives grok a detached helper and a mid-turn tool, every one ended by pid in
+  // a `finally`. Main starts with --inspect=0; the probe takes the window's
+  // focus away for real (blur(), then app.hide() if that did not take) and
+  // emits browser-window-blur through the app's own handler, so the poll drops
+  // to 2 s, and the cadence is MEASURED per arm through a GMUX_TMUX_BIN wrapper
+  // around the vendored tmux; an arm whose span did not tick every 2 s reads
+  // UNREADABLE. Six arms: each question (amber, the door's blocked rows, a ⌘J
+  // row and one push), grok after its turn reading as the parent does, his own
+  // words typed into each input row, a pi and a shell control, the ceiling of
+  // six with the trade it makes inside a question's probe window and the miss
+  // past it, and the reverify's hostile shells (a program in a login shell
+  // printing the agent's rows last), never amber at either build. The fix
+  // round removed four of the six shapes, so the questions of cursor, opencode
+  // and antigravity are graded never amber at either build. Its scratch socket
+  // FILE is unlinked in the `finally`. No model turn, no real agent, no
+  // credential. P321_PARENT_CHECKOUT points it at a parent build.
+  electron('probe:p321'),
   // PHASE 312. The choices the agent drew. build/conformance-choices.mjs reads
   // this repository's own source and asserts twenty clauses over it: the
   // verdict's own loop pinned byte for byte with OPT1, OPT2, HINT and QUEST, the
@@ -517,7 +543,17 @@ export const CHECKS = [
   // drove. It SPAWNS NOTHING — not even the pinned tsx — starts no Electron and
   // no tmux, and reads nothing under the person's home; the behaviour itself is
   // driven over thirteen committed captures in six vitest files. About
-  // 1 s. `ablation:p312` is the attack beside it.
+  // 1 s. `ablation:p312` is the attack beside it. PHASE 321 added seven clauses,
+  // read with the TypeScript parser (a module, not a process): DIALOG_SHAPES
+  // keyed by exactly the two DialogShapeId ids its fix round kept, each defined once; one
+  // production call site for detectShapes, in inferredVerdict, over the
+  // verdict's own screen and profile.dialogs with an empty fallback; no shape
+  // on the choice channel; the numbered verdict's own line kept; and a shape
+  // asked only while the session's agent holds the pane's terminal (the
+  // operator's ruling of 2026-09-23), decided by the gate's own program-token
+  // rule and never by Phase 141's witness rule. Each is asked again over in-memory
+  // copies with its rule broken, every one of which must read red. About 1.5 s
+  // now.
   pure('conformance:choices'),
   adapter(
     'conformance:specstory:entitlement',
@@ -1572,6 +1608,18 @@ export const CHECKS = [
   // No Electron, no tmux, no ssh, no agent, no token, and no listener but the
   // two loopback ones the gate opens and closes. P314_ONLY runs named arms.
   pure('ablation:p314'),
+  // PHASE 321's attack on its own behaviour (build/p321/SPEC.md §5.3), one
+  // clause at a time from the SHIPPING source over a `cp -Rc` clone of src/:
+  // each shape's options, focus, hint and tail clauses, the shapes' term in
+  // the dialog verdict, the foreground gate clause by clause (the gate itself,
+  // what the reading found, tmux's name, the table, the monitor's re-read on a
+  // new pid or a new name, which process holds the terminal, the named-process
+  // rule, the read itself, and no read for a row with no shape) and each
+  // row's shapes, each required to redden THE ROW THAT OWNS IT by name, with
+  // every file restored and proved by sha256 in a `finally` and an unedited
+  // control green. ablation:p312 stays green unchanged beside it. No Electron,
+  // no tmux, no ssh, no agent, no token.
+  pure('ablation:p321'),
   // PHASE 296's attack on `conformance:handback`'s menu section, and the reason
   // that phase is worth doing: the section had been RED SINCE 25 AUGUST because a
   // needle stopped matching a row nobody moved, and nothing could tell that from

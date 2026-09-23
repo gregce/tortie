@@ -48,6 +48,10 @@ import type {
   MultilineKeyTable
 } from '@shared/types';
 import { DEFAULT_IMAGE_DROP, DEFAULT_MULTILINE_KEY, LF } from '@shared/agent-defaults';
+// PHASE 321. A TYPE, so no runtime edge: the shapes live beside the numbered
+// verdict in the activity domain, and this row only names which ones an
+// agent's screen is read with.
+import type { DialogShapeId } from '../activity/screen';
 // Phase 266: the ONE spelling of opencode's SQLite session-db path, shared so
 // this row's `storeDb` and the harvest reader/descriptor never drift (spec §2
 // D1). Owned by Builder B in `src/shared/` (append-only); imported, never
@@ -333,6 +337,27 @@ export interface AgentActivityProfile {
   hooks?: 'claude-settings';
   /** Evidence marker (BACKLOG requirement) — see research 18 §2.3. */
   verified: 'verified' | 'partial' | 'unverified';
+  /**
+   * PHASE 321. Named question shapes this agent draws, read beside the
+   * numbered verdict (`DIALOG_SHAPES`, src/main/activity/screen.ts). Compiled,
+   * never configured: the overlay refuses `activity` whole
+   * (src/shared/agent-overlay.ts), `activityProfileFor` reads only this table,
+   * and `DEFAULT_ACTIVITY` and `SHELL_ACTIVITY` name none, so an agent this
+   * build has never heard of gets the numbered verdict alone.
+   *
+   * A shape is asked only while this agent holds the pane's terminal: the
+   * process holding it must be one whose command line names one of this
+   * row's `binaries` (the operator's ruling of 2026-09-23; `foregroundProgram`
+   * and `agentHoldsTerminal` in src/main/activity/state-machine.ts). A shell,
+   * a pager, `tail`, `cat` or `watch` in the session reads no shape.
+   *
+   * A confirmed overlay row that PATCHES a compiled id (new binaries for
+   * `qwen`, say) keeps that id's compiled activity profile, this field
+   * included, for whatever binary it now names. That is a selection from what
+   * the compiled world already contains, which the boundary allows; the
+   * overlay can neither add, remove nor change a shape.
+   */
+  dialogs?: readonly DialogShapeId[];
 }
 
 /**
@@ -544,7 +569,21 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     },
     reconstructionTarget: true,
     // pid-file registry, VERIFIED end-to-end (PROBE A + synthesis run).
-    activity: { tier: 'native', native: 'claude-session-registry', animatesWhenIdle: false, hooks: 'claude-settings', verified: 'verified' },
+    //
+    // PHASE 321: `claude-trust-gate` is 2.1.280's folder trust question, drawn
+    // with no numerals. It is read only while the native oracle is silent,
+    // which is the launch window: measured 2026-09-23 on 2.1.280, no
+    // ~/.claude/sessions/<pid>.json existed for the 10 s the gate was drawn
+    // (build/p321/SPEC.md §4.5). The older numbered gate stays the numbered
+    // verdict's.
+    activity: {
+      tier: 'native',
+      native: 'claude-session-registry',
+      animatesWhenIdle: false,
+      hooks: 'claude-settings',
+      verified: 'verified',
+      dialogs: ['claude-trust-gate']
+    },
     specstory: {
       provider: 'claude',
       exitCodeFidelity: 'exact',
@@ -613,6 +652,16 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     },
     reconstructionTarget: true,
     // Not probed — floor only until someone runs the matrix on it.
+    //
+    // PHASE 321, AND WHY THERE IS NO SHAPE HERE. cursor draws its workspace
+    // trust gate with lettered keys and its run permission with keyed rows,
+    // and the numbered verdict reads neither, so neither turns amber. The
+    // phase built a shape for each and its fix round REMOVED both: after a
+    // skipped permission cursor draws its "tell the agent what to do instead"
+    // input on the LAST row with nothing below it, and his paste of cursor's
+    // own rows there read as a live question (measured live on cursor-agent
+    // 2026.09.18), as did a shell or pager showing them. A false amber is as
+    // bad as a missed one (build/p321/SPEC.md §12.9).
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     specstory: {
       provider: 'cursor',
@@ -1039,7 +1088,25 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'NOT a cross-agent resume target (real state is protobuf-in-SQLite conversations/<id>.db).'
     },
     reconstructionTarget: false,
-    // Idle byte-silence VERIFIED; title is 'Mac', no state channel.
+    // Title is 'Mac', no state channel.
+    //
+    // NOT BYTE-SILENT AT REST ANY MORE (PHASE 321). This comment used to say
+    // "Idle byte-silence VERIFIED", with no version; the row's hand check is
+    // dated 2026-08-10 on 1.1.11. agy 1.2.7 writes every 2.0 s at rest, 169
+    // chunks over 340 s, and while its questions are drawn (research 129
+    // §2.2), and the repaint moves tmux's clock and not the screen. That
+    // repaint is what hides its numbered questions: at a 1 s tick one tick of
+    // every pair sees output and resets the count. It also reads "running" at
+    // rest. Both are limits and their own entry.
+    //
+    // `animatesWhenIdle` STAYS FALSE ON PURPOSE. It would stop the output
+    // counting on every tick, which unmasks the numbered verdict over his own
+    // dialog-shaped words in the input box and keeps the session always
+    // probed (build/p321/SPEC.md §1.2 item 1). Phase 321 built a shape for its
+    // arrow list and an exemption for its repaint while that shape was drawn,
+    // and its fix round REMOVED both: the shape read a shell or pager in the
+    // session showing its rows, and the pickers agy draws with the same
+    // component, as live questions (build/p321/SPEC.md §12.9).
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
     specstory: {
       provider: 'antigravity',
@@ -1197,7 +1264,17 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     },
     reconstructionTarget: true,
     // Title reads 'Qwen - pi' in every state — no channel there.
-    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
+    //
+    // PHASE 321: `qwen-confirmation` was measured on qwen 0.22.0 in its Ask
+    // permissions mode, the only mode that asked; his default Auto mode ran
+    // every command without asking (research 129 §2.2). Its options are
+    // numbered but its footer is not a hint the numbered verdict knows.
+    activity: {
+      tier: 'screen',
+      animatesWhenIdle: false,
+      verified: 'partial',
+      dialogs: ['qwen-confirmation']
+    },
     iconKey: 'qwen',
     defaultHotkeyHint: 'q',
     multilineKey: { sequence: LF, verified: true },
@@ -1600,6 +1677,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // read-only tmux), so this stays at the FLOOR and is marked 'partial'.
     // opencode's TUI is event-driven (opentui/solid) with no idle spinner at a
     // resting prompt, so animatesWhenIdle is false pending a pane measurement.
+    //
+    // PHASE 321: opencode 1.18.31 asks its permission question with one button
+    // row, `Allow once   Allow always   Reject`, and marks the focused button
+    // by colour alone, so the numbered verdict does not read it. The phase's
+    // shape for it was REMOVED in its fix round: with one inked row allowed
+    // below the hint, a shell or pager in the session showing those rows read
+    // as a live question (build/p321/SPEC.md §12.9).
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
     // No opencode.svg is shipped yet, so this falls back to the terminal glyph
     // (acceptable, like antigravity/muse) — do not block on the asset.

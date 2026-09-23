@@ -22,6 +22,13 @@
  * that computed the verdict, so nothing in Tortie could tell whether a blocked
  * session was waiting on a numbered choice or on prose. No extra capture and
  * no new cadence — `detectDialogRows` reads the capture the tick already took.
+ *
+ * PHASE 321 adds a FOURTH, and it sits BESIDE the verdict rather than in it:
+ * the named question shapes (`DIALOG_SHAPES`, `detectShapes`). qwen and
+ * Claude Code 2.1.280 draw questions the numbered verdict cannot read, so the
+ * numbered verdict is no longer the only screen-derived route to
+ * `needs_input`. It is still the only one for every agent whose compiled
+ * registry row names no shape, and it has not moved by a byte.
  */
 
 import type { SessionChoiceOption } from '@shared/ipc/sessions';
@@ -512,6 +519,186 @@ function leadWidth(raw: string): number {
  */
 function clipRow(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 321 — the named question shapes, read beside the verdict
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 321. The questions real agents draw that the numbered verdict cannot
+ * read (build/p321/SPEC.md §3, research 129 §9 items 2 to 4).
+ *
+ * A CLOSED SET, and it is compiled data. Which of these an agent's screen is
+ * read with is the `dialogs` field of that agent's COMPILED registry row
+ * (`src/main/agents/registry.ts`), which the configuration overlay refuses
+ * whole, so no configuration can name a shape, add one or widen one
+ * (CLAUDE.md refusal 5). An agent whose row names none reads exactly as it did
+ * before this phase, and that is every agent but two.
+ *
+ * TWO, NOT SIX. The build read six. Its fix round REMOVED four, whole, because
+ * each one turned amber on a screen that is not a question (build/p321/SPEC.md
+ * §12.9): cursor's trust gate on its own rows pasted into the input cursor
+ * draws on the LAST row after a skipped permission (measured live on
+ * cursor-agent 2026.09.18) and on a shell or pager showing them; cursor's run
+ * permission on the same paste; opencode's permission and antigravity's arrow
+ * list on a shell or pager in the session showing their rows, and
+ * antigravity's on the pickers agy draws with the same component. A false
+ * amber is as bad as a missed question, so those agents' questions are missed
+ * again, exactly as they were before this phase. The two kept here have a tail
+ * of 0: nothing may be drawn below the hint, which refused every one of those
+ * screens.
+ */
+export type DialogShapeId = 'qwen-confirmation' | 'claude-trust-gate';
+
+/**
+ * One agent's question, as the FOUR things a live question has and an
+ * answered, quoted, printed or typed one does not have all of
+ * (build/p321/SPEC.md §3.1). Every shape requires every one of them.
+ *
+ *  1. The agent's own OPTION rows, as that agent draws them.
+ *  2. The live FOCUS mark on one of them.
+ *  3. The live HINT or wait row the agent draws only while the question waits.
+ *  4. The BOTTOM: the question replaces the agent's input box, so at most
+ *     `tail` inked rows sit below the last hint row. Both agents draw an input
+ *     box and a footer below their conversation at rest and while they work,
+ *     so a question answered into history, the agent printing one, his own
+ *     words typed into the input box, and a shell prompt, a pager's status row
+ *     or an editor's status line below a printed copy all have more.
+ *
+ * WHY ALL FOUR, and not the option text alone: an answered question can stay
+ * drawn with its option rows intact (cursor's trust box stays for the rest of
+ * the session), and Phase 319 was parked for widening false ambers to a whole
+ * class of misread screens.
+ *
+ * NO REGEX HERE ANCHORS `$` ON A ROW AN AGENT CAN DRAW A SCROLLBAR BESIDE:
+ * qwen draws a `█` column beside its second question and the border strip
+ * does not remove it. Claude Code's two rows are the only anchored ones,
+ * because it draws none.
+ */
+interface DialogShape {
+  /**
+   * The live key or wait row. The LAST row in the window that matches anchors
+   * the shape, because a question is drawn at the bottom and an older one is
+   * history.
+   */
+  readonly hint: RegExp;
+  /** Inked rows (a border-stripped row with any character) allowed below the hint row. */
+  readonly tail: number;
+  /** The option row carrying the live focus mark, searched from the hint row upward through `span` rows. */
+  readonly focus: RegExp;
+  /** ANOTHER of the agent's own option rows: never the focus row and never the hint row. */
+  readonly option: RegExp;
+  /** Rows above the hint row the focus and the option may sit in. */
+  readonly span: number;
+}
+
+/**
+ * THE TWO SHAPES. Each comment names the recordings it was measured on and the
+ * agent version the recording's own banner reads, because a shape is a fact
+ * about one release of one agent and the next release may draw something
+ * else. The recordings are research 129's (§8), and the committed redacted
+ * windows under `build/fixtures/questions/` are what the tests read.
+ */
+export const DIALOG_SHAPES: Readonly<Record<DialogShapeId, DialogShape>> = {
+  /**
+   * qwen's confirmation, in its Ask permissions mode only; in his default Auto
+   * mode it asked nothing. Recording a/qwen, two questions, qwen 0.22.0 at 160
+   * columns, the second drawn with qwen's scrollbar column `█` beside every
+   * row. `› 1. Yes, allow once` over the other numbered rows, then a braille
+   * spinner and `Waiting for user confirmation...` as the LAST row, in place of
+   * qwen's input box and footer.
+   *
+   * No header: the wait row is qwen's own status for every confirmation it
+   * asks, and only `Allow execution of: '<cmd>'?` was recorded.
+   */
+  'qwen-confirmation': {
+    hint: /^[⠀-⣿] Waiting for user confirmation\.\.\./,
+    tail: 0,
+    focus: /^› \d{1,2}\. \S/,
+    option: /^\d{1,2}\. \S/,
+    span: 12
+  },
+  /**
+   * Claude Code's folder trust gate as 2.1.280 draws it: no numerals
+   * (`hideIndexes`), the focus on `❯ No, exit` over `Yes, I trust this
+   * folder`, and `Enter to confirm · Esc to cancel` as the last row (Phase 314
+   * R3, build/p314/SPEC.md). Recording a/claude. It is read only while Claude's
+   * own registry file is absent, measured at 10 s on 2.1.280 with the gate
+   * drawn, because the native oracle speaks first whenever it can.
+   *
+   * The older numbered gate (`❯ 1. Yes, I trust this folder`) is the numbered
+   * verdict's, and this shape does not read it.
+   */
+  'claude-trust-gate': {
+    hint: /^Enter to confirm · Esc to cancel/,
+    tail: 0,
+    focus: /^❯ (?:Yes, I trust this folder|No, exit)$/,
+    option: /^(?:Yes, I trust this folder|No, exit)$/,
+    span: 4
+  }
+};
+
+/**
+ * PHASE 321. Whether any of the listed shapes is on the screen.
+ *
+ * It takes no agent id and reads no registry: the caller hands it the list its
+ * compiled row names, and an empty list answers false before the capture is
+ * read at all, which is what keeps every agent with no shape at exactly the
+ * parent's cost.
+ *
+ * It reads the SAME window the numbered verdict reads (`dialogWindow`), so a
+ * verdict on a committed 24-row window equals the verdict on the capture it
+ * came from, and it is never an input to that verdict: the state machine ORs
+ * the two, and `detectDialog` has not moved.
+ */
+export function detectShapes(
+  capture: string,
+  shapes: readonly DialogShapeId[]
+): boolean {
+  if (shapes.length === 0) return false;
+  const { rows } = dialogWindow(capture);
+  for (const id of shapes) {
+    if (shapeOn(rows, DIALOG_SHAPES[id])) return true;
+  }
+  return false;
+}
+
+/** One shape over one window's border-stripped rows. */
+function shapeOn(rows: readonly string[], shape: DialogShape): boolean {
+  // 3 — the live hint, the LAST row that carries it.
+  let hintAt = -1;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (shape.hint.test(rows[i] ?? '')) {
+      hintAt = i;
+      break;
+    }
+  }
+  if (hintAt < 0) return false;
+
+  // 4 — the bottom: the question replaced the input box.
+  let inkedBelow = 0;
+  for (let i = hintAt + 1; i < rows.length; i++) {
+    if ((rows[i] ?? '') !== '') inkedBelow++;
+  }
+  if (inkedBelow > shape.tail) return false;
+
+  // 2 — the live focus mark, nearest the hint.
+  const top = Math.max(0, hintAt - shape.span);
+  let focusAt = -1;
+  for (let i = hintAt; i >= top; i--) {
+    if (shape.focus.test(rows[i] ?? '')) {
+      focusAt = i;
+      break;
+    }
+  }
+  if (focusAt < 0) return false;
+
+  // 1 — another of the agent's own option rows, above the hint row.
+  for (let i = top; i < hintAt; i++) {
+    if (i !== focusAt && shape.option.test(rows[i] ?? '')) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------

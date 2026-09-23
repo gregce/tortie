@@ -304,12 +304,20 @@ const HELPER = 'electron-run.mjs';
  * it; build/p316/SPEC.md §4 S1 is where it was specified. Phases 314 and 320
  * each raised the floor while this phase was built, so it lands at 151.
  *
+ * PHASE 321 RAISED IT FROM 151 TO 152, for build/p321/probe-p321.mjs
+ * (`probe:p321`), the questions real agents draw driven inside the real app:
+ * one Electron on a scratch profile and a scratch HOME, its own tmux socket
+ * unlinked in the helper's `finally`, and stand-ins run under the agent's bare
+ * name that print committed, redacted question screens, so no vendor process
+ * runs and no token is spent. Phases 314, 320 and 316.1 each raised the floor
+ * while this phase was built, so it lands at 152.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 151;
+const HELPER_USER_FLOOR = 152;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

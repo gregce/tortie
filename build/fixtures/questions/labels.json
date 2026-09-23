@@ -1,0 +1,6758 @@
+{
+  "phase": 321,
+  "derivation": "By hand, from the capture streams and the key events, never from a detector (build/p321/corpus.mjs, deriveLabels). question: from the first capture carrying the question's live marks to its answering key. answering: from the key while the live marks are still drawn. not-question: every other capture. Times are seconds from each stream's first capture.",
+  "captures": {
+    "total": 7591,
+    "question": 657,
+    "answering": 0,
+    "not-question": 6934
+  },
+  "instances": [
+    {
+      "recording": "a/gemini",
+      "question": "trust gate",
+      "drawn": 10.05,
+      "answered": 39.36,
+      "drawnBytes": 7.54,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 19.27,
+      "capturesUp": 29,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 40.42,
+      "raisable": true
+    },
+    {
+      "recording": "a/cursor",
+      "question": "workspace trust",
+      "drawn": 3.02,
+      "answered": 39.4,
+      "drawnBytes": 2.91,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 2.91,
+      "capturesUp": 31,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 40.38,
+      "raisable": true
+    },
+    {
+      "recording": "a/cursor",
+      "question": "run permission 1",
+      "drawn": 70.42,
+      "answered": 88.81,
+      "drawnBytes": 70.18,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 70.18,
+      "capturesUp": 19,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 89.43,
+      "raisable": true
+    },
+    {
+      "recording": "a/cursor",
+      "question": "run permission 2",
+      "drawn": 181.5,
+      "answered": 242.25,
+      "drawnBytes": 181.05,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 181.05,
+      "capturesUp": 61,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 242.55,
+      "raisable": true
+    },
+    {
+      "recording": "a/qwen",
+      "question": "run permission 1 (Ask mode)",
+      "drawn": 361.65,
+      "answered": 378.93,
+      "drawnBytes": 361.52,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 363.02,
+      "capturesUp": 18,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 379.68,
+      "raisable": true
+    },
+    {
+      "recording": "a/qwen",
+      "question": "run permission 2 (Ask mode)",
+      "drawn": 456.78,
+      "answered": 519.25,
+      "drawnBytes": 456.03,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 457.5,
+      "capturesUp": 63,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 519.86,
+      "raisable": true
+    },
+    {
+      "recording": "a/opencode",
+      "question": "an outside folder",
+      "drawn": 443.79,
+      "answered": 518.28,
+      "drawnBytes": 443.4,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 443.4,
+      "capturesUp": 75,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 518.87,
+      "raisable": true
+    },
+    {
+      "recording": "a/antigravity",
+      "question": "folder trust",
+      "drawn": 7.74,
+      "answered": 39.32,
+      "drawnBytes": 5.15,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 39.26,
+      "capturesUp": 30,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 39.56,
+      "raisable": true
+    },
+    {
+      "recording": "a/antigravity",
+      "question": "run permission 1",
+      "drawn": 72.42,
+      "answered": 87.81,
+      "drawnBytes": 72.09,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 87.47,
+      "capturesUp": 16,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 88.43,
+      "raisable": true
+    },
+    {
+      "recording": "a/antigravity",
+      "question": "run permission 2",
+      "drawn": 180.53,
+      "answered": 241.24,
+      "drawnBytes": 180.34,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 240.12,
+      "capturesUp": 61,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 241.55,
+      "raisable": true
+    },
+    {
+      "recording": "a/claude",
+      "question": "folder trust (2.1.280)",
+      "drawn": 2.52,
+      "answered": 38.4,
+      "drawnBytes": 1.9,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 1.96,
+      "capturesUp": 31,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 39.55,
+      "raisable": true
+    },
+    {
+      "recording": "a/codex",
+      "question": "update prompt",
+      "drawn": 2.58,
+      "answered": 38.84,
+      "drawnBytes": 1.6,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 1.6,
+      "capturesUp": 31,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 39.55,
+      "raisable": true
+    },
+    {
+      "recording": "adv1/cursor",
+      "question": "workspace trust",
+      "drawn": 2.19,
+      "answered": 2.2,
+      "drawnBytes": 1.61,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 1.62,
+      "capturesUp": 1,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 3.42,
+      "raisable": false,
+      "why": "answered 0.59 s after it was drawn, before a second capture could exist"
+    },
+    {
+      "recording": "adv1/cursor",
+      "question": "run permission",
+      "drawn": 27.5,
+      "answered": 27.51,
+      "drawnBytes": 26.81,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 26.81,
+      "capturesUp": 1,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 28.59,
+      "raisable": false,
+      "why": "answered 0.70 s after it was drawn, before a second capture could exist"
+    },
+    {
+      "recording": "b/cursor",
+      "question": "workspace trust",
+      "drawn": 2.52,
+      "answered": 7.91,
+      "drawnBytes": 2.38,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 2.38,
+      "capturesUp": 22,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 8.06,
+      "raisable": true,
+      "why": "up 5.4 s, so raisable at 1 s and at 2 s only on some tick phases; the verifier computes it per cadence"
+    },
+    {
+      "recording": "b/cursor",
+      "question": "run permission",
+      "drawn": 16.6,
+      "answered": 49.49,
+      "drawnBytes": 16.45,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 16.45,
+      "capturesUp": 131,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 49.54,
+      "raisable": true
+    },
+    {
+      "recording": "b/gemini",
+      "question": "trust gate",
+      "drawn": 3.02,
+      "answered": 12.12,
+      "drawnBytes": 2.93,
+      "drawnBytesHow": "the first chunk in the gap carrying the question",
+      "lastWriteBeforeAnswer": 6.49,
+      "capturesUp": 37,
+      "holes": 0,
+      "answering": 0,
+      "firstCaptureWithoutIt": 12.33,
+      "raisable": true
+    }
+  ],
+  "noQuestion": {
+    "a/pi": "pi has no permission prompt (research 129 §2.2)",
+    "a/omp": "omp asked nothing",
+    "a/grok": "grok ran every command without asking in its default mode, including after four Shift+Tabs",
+    "adv1/grok": "grok ran every command without asking",
+    "b/grok": "grok drew its start screen only; its telemetry opt-in banner sits ABOVE a live input box and blocks nothing, so it is not a question",
+    "adv1/qwen": "qwen in its default Auto mode asked nothing",
+    "b/qwen": "qwen in its default Auto mode asked nothing",
+    "adv2/pi-70": "pi's answer at 70 columns, one capture",
+    "adv2/pi-160x40": "pi's answer at 160 columns, one capture; the parent verdict reads it as a question"
+  },
+  "notMeasurable": {
+    "gemini turns": "no gemini request completed (\"API key not valid\" twice), so its working screens are its error screens",
+    "droid": "droid is not installed on this Mac (research 129 §2.2)",
+    "a grok question": "none was recorded; grok asked nothing in its default mode"
+  },
+  "windows": {
+    "a-gemini-0001": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 0
+    },
+    "a-gemini-0002": {
+      "label": "question",
+      "instance": 0,
+      "captures": 8,
+      "first": 10.05
+    },
+    "a-gemini-0003": {
+      "label": "question",
+      "instance": 0,
+      "captures": 21,
+      "first": 19.27
+    },
+    "a-gemini-0004": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 40.42
+    },
+    "a-gemini-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 42.42
+    },
+    "a-gemini-0006": {
+      "label": "not-question",
+      "captures": 4,
+      "first": 43.38
+    },
+    "a-gemini-0007": {
+      "label": "not-question",
+      "captures": 16,
+      "first": 47.37
+    },
+    "a-gemini-0008": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 63.42
+    },
+    "a-gemini-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.41
+    },
+    "a-gemini-0010": {
+      "label": "not-question",
+      "captures": 529,
+      "first": 66.41
+    },
+    "a-cursor-0001": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 0
+    },
+    "a-cursor-0002": {
+      "label": "question",
+      "instance": 1,
+      "captures": 31,
+      "first": 3.02
+    },
+    "a-cursor-0003": {
+      "label": "not-question",
+      "captures": 24,
+      "first": 40.38
+    },
+    "a-cursor-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 64.41
+    },
+    "a-cursor-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.41
+    },
+    "a-cursor-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.41
+    },
+    "a-cursor-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.41
+    },
+    "a-cursor-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.41
+    },
+    "a-cursor-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.43
+    },
+    "a-cursor-0010": {
+      "label": "question",
+      "instance": 2,
+      "captures": 19,
+      "first": 70.42
+    },
+    "a-cursor-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 89.43
+    },
+    "a-cursor-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 90.43
+    },
+    "a-cursor-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 91.43
+    },
+    "a-cursor-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 92.43
+    },
+    "a-cursor-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 93.43
+    },
+    "a-cursor-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 94.43
+    },
+    "a-cursor-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 95.43
+    },
+    "a-cursor-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 96.44
+    },
+    "a-cursor-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 97.43
+    },
+    "a-cursor-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 98.44
+    },
+    "a-cursor-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 99.44
+    },
+    "a-cursor-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 100.44
+    },
+    "a-cursor-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 101.44
+    },
+    "a-cursor-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 102.44
+    },
+    "a-cursor-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 103.44
+    },
+    "a-cursor-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 104.44
+    },
+    "a-cursor-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 105.45
+    },
+    "a-cursor-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 106.45
+    },
+    "a-cursor-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 107.45
+    },
+    "a-cursor-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 108.45
+    },
+    "a-cursor-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 109.45
+    },
+    "a-cursor-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 110.45
+    },
+    "a-cursor-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 111.45
+    },
+    "a-cursor-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 112.45
+    },
+    "a-cursor-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 113.48
+    },
+    "a-cursor-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 114.45
+    },
+    "a-cursor-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 115.45
+    },
+    "a-cursor-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 116.45
+    },
+    "a-cursor-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 117.46
+    },
+    "a-cursor-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 118.45
+    },
+    "a-cursor-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 119.45
+    },
+    "a-cursor-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 120.46
+    },
+    "a-cursor-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 121.46
+    },
+    "a-cursor-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 122.46
+    },
+    "a-cursor-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 123.46
+    },
+    "a-cursor-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 124.46
+    },
+    "a-cursor-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 125.46
+    },
+    "a-cursor-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 126.47
+    },
+    "a-cursor-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 127.47
+    },
+    "a-cursor-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 128.46
+    },
+    "a-cursor-0051": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 129.46
+    },
+    "a-cursor-0052": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 130.46
+    },
+    "a-cursor-0053": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 131.46
+    },
+    "a-cursor-0054": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 132.46
+    },
+    "a-cursor-0055": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 133.47
+    },
+    "a-cursor-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 134.47
+    },
+    "a-cursor-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 135.47
+    },
+    "a-cursor-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 136.47
+    },
+    "a-cursor-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 137.47
+    },
+    "a-cursor-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 138.47
+    },
+    "a-cursor-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 139.47
+    },
+    "a-cursor-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 140.47
+    },
+    "a-cursor-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 141.47
+    },
+    "a-cursor-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 142.47
+    },
+    "a-cursor-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 143.47
+    },
+    "a-cursor-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 144.47
+    },
+    "a-cursor-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 145.47
+    },
+    "a-cursor-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 146.47
+    },
+    "a-cursor-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 147.48
+    },
+    "a-cursor-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 148.47
+    },
+    "a-cursor-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 149.48
+    },
+    "a-cursor-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 150.48
+    },
+    "a-cursor-0073": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 151.48
+    },
+    "a-cursor-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 152.5
+    },
+    "a-cursor-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 153.48
+    },
+    "a-cursor-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 154.48
+    },
+    "a-cursor-0077": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 155.48
+    },
+    "a-cursor-0078": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 156.48
+    },
+    "a-cursor-0079": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 157.48
+    },
+    "a-cursor-0080": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 158.48
+    },
+    "a-cursor-0081": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 159.48
+    },
+    "a-cursor-0082": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 160.49
+    },
+    "a-cursor-0083": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 161.5
+    },
+    "a-cursor-0084": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 162.49
+    },
+    "a-cursor-0085": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 163.49
+    },
+    "a-cursor-0086": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 164.49
+    },
+    "a-cursor-0087": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 165.49
+    },
+    "a-cursor-0088": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 166.49
+    },
+    "a-cursor-0089": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 167.5
+    },
+    "a-cursor-0090": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 168.49
+    },
+    "a-cursor-0091": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 169.49
+    },
+    "a-cursor-0092": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 170.49
+    },
+    "a-cursor-0093": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 171.51
+    },
+    "a-cursor-0094": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 172.49
+    },
+    "a-cursor-0095": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 173.49
+    },
+    "a-cursor-0096": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 174.5
+    },
+    "a-cursor-0097": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 175.5
+    },
+    "a-cursor-0098": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 176.5
+    },
+    "a-cursor-0099": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 177.5
+    },
+    "a-cursor-0100": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 178.5
+    },
+    "a-cursor-0101": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 179.5
+    },
+    "a-cursor-0102": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 180.5
+    },
+    "a-cursor-0103": {
+      "label": "question",
+      "instance": 3,
+      "captures": 61,
+      "first": 181.5
+    },
+    "a-cursor-0104": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 242.55
+    },
+    "a-cursor-0105": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 243.62
+    },
+    "a-cursor-0106": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 244.57
+    },
+    "a-cursor-0107": {
+      "label": "not-question",
+      "captures": 350,
+      "first": 245.57
+    },
+    "a-qwen-0001": {
+      "label": "not-question",
+      "captures": 4,
+      "first": 0
+    },
+    "a-qwen-0002": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 6.39
+    },
+    "a-qwen-0003": {
+      "label": "not-question",
+      "captures": 53,
+      "first": 10.15
+    },
+    "a-qwen-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 64.42
+    },
+    "a-qwen-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.44
+    },
+    "a-qwen-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.41
+    },
+    "a-qwen-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.41
+    },
+    "a-qwen-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.41
+    },
+    "a-qwen-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.43
+    },
+    "a-qwen-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.42
+    },
+    "a-qwen-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.41
+    },
+    "a-qwen-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.42
+    },
+    "a-qwen-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 73.41
+    },
+    "a-qwen-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 74.44
+    },
+    "a-qwen-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 75.42
+    },
+    "a-qwen-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 76.42
+    },
+    "a-qwen-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 77.42
+    },
+    "a-qwen-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 78.42
+    },
+    "a-qwen-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 79.42
+    },
+    "a-qwen-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 80.44
+    },
+    "a-qwen-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 81.42
+    },
+    "a-qwen-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 82.42
+    },
+    "a-qwen-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 83.42
+    },
+    "a-qwen-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 84.42
+    },
+    "a-qwen-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 85.43
+    },
+    "a-qwen-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 86.43
+    },
+    "a-qwen-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 87.42
+    },
+    "a-qwen-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 88.44
+    },
+    "a-qwen-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 89.42
+    },
+    "a-qwen-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 90.43
+    },
+    "a-qwen-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 91.43
+    },
+    "a-qwen-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 92.43
+    },
+    "a-qwen-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 93.43
+    },
+    "a-qwen-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 94.43
+    },
+    "a-qwen-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 95.43
+    },
+    "a-qwen-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 96.43
+    },
+    "a-qwen-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 97.43
+    },
+    "a-qwen-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 98.44
+    },
+    "a-qwen-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 99.43
+    },
+    "a-qwen-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 100.43
+    },
+    "a-qwen-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 101.47
+    },
+    "a-qwen-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 102.44
+    },
+    "a-qwen-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 103.44
+    },
+    "a-qwen-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 104.45
+    },
+    "a-qwen-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 105.45
+    },
+    "a-qwen-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 106.45
+    },
+    "a-qwen-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 107.44
+    },
+    "a-qwen-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 108.44
+    },
+    "a-qwen-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 109.46
+    },
+    "a-qwen-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 110.45
+    },
+    "a-qwen-0051": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 111.44
+    },
+    "a-qwen-0052": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 112.44
+    },
+    "a-qwen-0053": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 113.49
+    },
+    "a-qwen-0054": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 114.45
+    },
+    "a-qwen-0055": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 115.44
+    },
+    "a-qwen-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 116.45
+    },
+    "a-qwen-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 117.45
+    },
+    "a-qwen-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 118.45
+    },
+    "a-qwen-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 119.45
+    },
+    "a-qwen-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 120.45
+    },
+    "a-qwen-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 121.45
+    },
+    "a-qwen-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 122.45
+    },
+    "a-qwen-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 123.46
+    },
+    "a-qwen-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 124.45
+    },
+    "a-qwen-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 125.46
+    },
+    "a-qwen-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 126.48
+    },
+    "a-qwen-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 127.47
+    },
+    "a-qwen-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 128.45
+    },
+    "a-qwen-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 129.46
+    },
+    "a-qwen-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 130.46
+    },
+    "a-qwen-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 131.46
+    },
+    "a-qwen-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 132.46
+    },
+    "a-qwen-0073": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 133.46
+    },
+    "a-qwen-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 134.46
+    },
+    "a-qwen-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 135.46
+    },
+    "a-qwen-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 136.46
+    },
+    "a-qwen-0077": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 137.46
+    },
+    "a-qwen-0078": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 138.47
+    },
+    "a-qwen-0079": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 139.46
+    },
+    "a-qwen-0080": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 140.47
+    },
+    "a-qwen-0081": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 141.46
+    },
+    "a-qwen-0082": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 142.47
+    },
+    "a-qwen-0083": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 143.47
+    },
+    "a-qwen-0084": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 144.47
+    },
+    "a-qwen-0085": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 145.47
+    },
+    "a-qwen-0086": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 146.48
+    },
+    "a-qwen-0087": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 147.48
+    },
+    "a-qwen-0088": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 148.47
+    },
+    "a-qwen-0089": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 149.47
+    },
+    "a-qwen-0090": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 150.48
+    },
+    "a-qwen-0091": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 151.47
+    },
+    "a-qwen-0092": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 152.5
+    },
+    "a-qwen-0093": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 153.47
+    },
+    "a-qwen-0094": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 154.47
+    },
+    "a-qwen-0095": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 155.48
+    },
+    "a-qwen-0096": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 156.48
+    },
+    "a-qwen-0097": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 157.48
+    },
+    "a-qwen-0098": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 158.48
+    },
+    "a-qwen-0099": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 159.48
+    },
+    "a-qwen-0100": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 160.49
+    },
+    "a-qwen-0101": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 161.51
+    },
+    "a-qwen-0102": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 162.49
+    },
+    "a-qwen-0103": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 163.5
+    },
+    "a-qwen-0104": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 164.5
+    },
+    "a-qwen-0105": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 165.49
+    },
+    "a-qwen-0106": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 166.49
+    },
+    "a-qwen-0107": {
+      "label": "not-question",
+      "captures": 159,
+      "first": 167.51
+    },
+    "a-qwen-0108": {
+      "label": "not-question",
+      "captures": 7,
+      "first": 326.63
+    },
+    "a-qwen-0109": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 333.64
+    },
+    "a-qwen-0110": {
+      "label": "not-question",
+      "captures": 20,
+      "first": 338.64
+    },
+    "a-qwen-0111": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 358.66
+    },
+    "a-qwen-0112": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 359.66
+    },
+    "a-qwen-0113": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 360.66
+    },
+    "a-qwen-0114": {
+      "label": "question",
+      "instance": 4,
+      "captures": 2,
+      "first": 361.65
+    },
+    "a-qwen-0115": {
+      "label": "question",
+      "instance": 4,
+      "captures": 16,
+      "first": 363.66
+    },
+    "a-qwen-0116": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 379.68
+    },
+    "a-qwen-0117": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 381.68
+    },
+    "a-qwen-0118": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 382.68
+    },
+    "a-qwen-0119": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 383.68
+    },
+    "a-qwen-0120": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 384.68
+    },
+    "a-qwen-0121": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 385.69
+    },
+    "a-qwen-0122": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 386.69
+    },
+    "a-qwen-0123": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 387.69
+    },
+    "a-qwen-0124": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 388.69
+    },
+    "a-qwen-0125": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 389.69
+    },
+    "a-qwen-0126": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 390.69
+    },
+    "a-qwen-0127": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 391.69
+    },
+    "a-qwen-0128": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 392.69
+    },
+    "a-qwen-0129": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 393.71
+    },
+    "a-qwen-0130": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 394.7
+    },
+    "a-qwen-0131": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 395.7
+    },
+    "a-qwen-0132": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 396.7
+    },
+    "a-qwen-0133": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 397.7
+    },
+    "a-qwen-0134": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 398.7
+    },
+    "a-qwen-0135": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 399.7
+    },
+    "a-qwen-0136": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 400.71
+    },
+    "a-qwen-0137": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 401.71
+    },
+    "a-qwen-0138": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 402.71
+    },
+    "a-qwen-0139": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 403.71
+    },
+    "a-qwen-0140": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 404.71
+    },
+    "a-qwen-0141": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 405.71
+    },
+    "a-qwen-0142": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 406.72
+    },
+    "a-qwen-0143": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 407.71
+    },
+    "a-qwen-0144": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 408.72
+    },
+    "a-qwen-0145": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 409.72
+    },
+    "a-qwen-0146": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 410.72
+    },
+    "a-qwen-0147": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 411.72
+    },
+    "a-qwen-0148": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 412.73
+    },
+    "a-qwen-0149": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 413.73
+    },
+    "a-qwen-0150": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 414.73
+    },
+    "a-qwen-0151": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 415.73
+    },
+    "a-qwen-0152": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 416.73
+    },
+    "a-qwen-0153": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 417.74
+    },
+    "a-qwen-0154": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 418.73
+    },
+    "a-qwen-0155": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 419.74
+    },
+    "a-qwen-0156": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 420.73
+    },
+    "a-qwen-0157": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 421.74
+    },
+    "a-qwen-0158": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 422.78
+    },
+    "a-qwen-0159": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 423.74
+    },
+    "a-qwen-0160": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 424.74
+    },
+    "a-qwen-0161": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 425.74
+    },
+    "a-qwen-0162": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 426.74
+    },
+    "a-qwen-0163": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 427.74
+    },
+    "a-qwen-0164": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 428.74
+    },
+    "a-qwen-0165": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 429.75
+    },
+    "a-qwen-0166": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 430.77
+    },
+    "a-qwen-0167": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 431.75
+    },
+    "a-qwen-0168": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 432.75
+    },
+    "a-qwen-0169": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 433.75
+    },
+    "a-qwen-0170": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 434.76
+    },
+    "a-qwen-0171": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 435.75
+    },
+    "a-qwen-0172": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 436.75
+    },
+    "a-qwen-0173": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 437.76
+    },
+    "a-qwen-0174": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 438.76
+    },
+    "a-qwen-0175": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 439.76
+    },
+    "a-qwen-0176": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 440.76
+    },
+    "a-qwen-0177": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 441.76
+    },
+    "a-qwen-0178": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 442.78
+    },
+    "a-qwen-0179": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 443.77
+    },
+    "a-qwen-0180": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 444.77
+    },
+    "a-qwen-0181": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 445.77
+    },
+    "a-qwen-0182": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 446.77
+    },
+    "a-qwen-0183": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 447.77
+    },
+    "a-qwen-0184": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 448.77
+    },
+    "a-qwen-0185": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 449.78
+    },
+    "a-qwen-0186": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 450.78
+    },
+    "a-qwen-0187": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 451.77
+    },
+    "a-qwen-0188": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 452.78
+    },
+    "a-qwen-0189": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 453.82
+    },
+    "a-qwen-0190": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 454.78
+    },
+    "a-qwen-0191": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 455.78
+    },
+    "a-qwen-0192": {
+      "label": "question",
+      "instance": 5,
+      "captures": 1,
+      "first": 456.78
+    },
+    "a-qwen-0193": {
+      "label": "question",
+      "instance": 5,
+      "captures": 62,
+      "first": 457.78
+    },
+    "a-qwen-0194": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 519.86
+    },
+    "a-qwen-0195": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 520.86
+    },
+    "a-qwen-0196": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 521.86
+    },
+    "a-qwen-0197": {
+      "label": "not-question",
+      "captures": 71,
+      "first": 522.86
+    },
+    "a-qwen-0198": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 593.98
+    },
+    "a-pi-0001": {
+      "label": "not-question",
+      "captures": 4,
+      "first": 0
+    },
+    "a-pi-0002": {
+      "label": "not-question",
+      "captures": 55,
+      "first": 6.13
+    },
+    "a-pi-0003": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 64.41
+    },
+    "a-pi-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.41
+    },
+    "a-pi-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.41
+    },
+    "a-pi-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.41
+    },
+    "a-pi-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.43
+    },
+    "a-pi-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.42
+    },
+    "a-pi-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.41
+    },
+    "a-pi-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.42
+    },
+    "a-pi-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 73.42
+    },
+    "a-pi-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 74.44
+    },
+    "a-pi-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 75.42
+    },
+    "a-pi-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 76.42
+    },
+    "a-pi-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 77.42
+    },
+    "a-pi-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 78.42
+    },
+    "a-pi-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 79.42
+    },
+    "a-pi-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 80.44
+    },
+    "a-pi-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 81.42
+    },
+    "a-pi-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 82.42
+    },
+    "a-pi-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 83.42
+    },
+    "a-pi-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 84.42
+    },
+    "a-pi-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 85.43
+    },
+    "a-pi-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 86.43
+    },
+    "a-pi-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 87.43
+    },
+    "a-pi-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 88.43
+    },
+    "a-pi-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 89.43
+    },
+    "a-pi-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 90.43
+    },
+    "a-pi-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 91.43
+    },
+    "a-pi-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 92.43
+    },
+    "a-pi-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 93.43
+    },
+    "a-pi-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 94.43
+    },
+    "a-pi-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 95.43
+    },
+    "a-pi-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 96.43
+    },
+    "a-pi-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 97.43
+    },
+    "a-pi-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 98.44
+    },
+    "a-pi-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 99.43
+    },
+    "a-pi-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 100.44
+    },
+    "a-pi-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 101.47
+    },
+    "a-pi-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 102.44
+    },
+    "a-pi-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 103.44
+    },
+    "a-pi-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 104.45
+    },
+    "a-pi-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 105.45
+    },
+    "a-pi-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 106.45
+    },
+    "a-pi-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 107.44
+    },
+    "a-pi-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 108.44
+    },
+    "a-pi-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 109.46
+    },
+    "a-pi-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 110.45
+    },
+    "a-pi-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 111.45
+    },
+    "a-pi-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 112.45
+    },
+    "a-pi-0051": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 113.49
+    },
+    "a-pi-0052": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 114.45
+    },
+    "a-pi-0053": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 115.45
+    },
+    "a-pi-0054": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 116.45
+    },
+    "a-pi-0055": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 117.45
+    },
+    "a-pi-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 118.45
+    },
+    "a-pi-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 119.45
+    },
+    "a-pi-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 120.45
+    },
+    "a-pi-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 121.45
+    },
+    "a-pi-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 122.46
+    },
+    "a-pi-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 123.46
+    },
+    "a-pi-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 124.45
+    },
+    "a-pi-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 125.46
+    },
+    "a-pi-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 126.48
+    },
+    "a-pi-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 127.47
+    },
+    "a-pi-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 128.46
+    },
+    "a-pi-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 129.46
+    },
+    "a-pi-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 130.46
+    },
+    "a-pi-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 131.46
+    },
+    "a-pi-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 132.46
+    },
+    "a-pi-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 133.47
+    },
+    "a-pi-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 134.46
+    },
+    "a-pi-0073": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 135.46
+    },
+    "a-pi-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 136.46
+    },
+    "a-pi-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 137.46
+    },
+    "a-pi-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 138.47
+    },
+    "a-pi-0077": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 139.46
+    },
+    "a-pi-0078": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 140.47
+    },
+    "a-pi-0079": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 141.47
+    },
+    "a-pi-0080": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 142.47
+    },
+    "a-pi-0081": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 143.47
+    },
+    "a-pi-0082": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 144.47
+    },
+    "a-pi-0083": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 145.47
+    },
+    "a-pi-0084": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 146.48
+    },
+    "a-pi-0085": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 147.48
+    },
+    "a-pi-0086": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 148.47
+    },
+    "a-pi-0087": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 149.47
+    },
+    "a-pi-0088": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 150.48
+    },
+    "a-pi-0089": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 151.47
+    },
+    "a-pi-0090": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 152.5
+    },
+    "a-pi-0091": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 153.47
+    },
+    "a-pi-0092": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 154.48
+    },
+    "a-pi-0093": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 155.48
+    },
+    "a-pi-0094": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 156.48
+    },
+    "a-pi-0095": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 157.48
+    },
+    "a-pi-0096": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 158.48
+    },
+    "a-pi-0097": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 159.48
+    },
+    "a-pi-0098": {
+      "label": "not-question",
+      "captures": 435,
+      "first": 160.49
+    },
+    "a-omp-0001": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 0
+    },
+    "a-omp-0002": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 5.56
+    },
+    "a-omp-0003": {
+      "label": "not-question",
+      "captures": 53,
+      "first": 9.31
+    },
+    "a-omp-0004": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 63.42
+    },
+    "a-omp-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.42
+    },
+    "a-omp-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.42
+    },
+    "a-omp-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.41
+    },
+    "a-omp-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.44
+    },
+    "a-omp-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.43
+    },
+    "a-omp-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.42
+    },
+    "a-omp-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.44
+    },
+    "a-omp-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.42
+    },
+    "a-omp-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 73.46
+    },
+    "a-omp-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 74.43
+    },
+    "a-omp-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 75.42
+    },
+    "a-omp-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 76.43
+    },
+    "a-omp-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 77.43
+    },
+    "a-omp-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 78.42
+    },
+    "a-omp-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 79.45
+    },
+    "a-omp-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 80.43
+    },
+    "a-omp-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 81.43
+    },
+    "a-omp-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 82.43
+    },
+    "a-omp-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 83.43
+    },
+    "a-omp-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 84.44
+    },
+    "a-omp-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 85.43
+    },
+    "a-omp-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 86.43
+    },
+    "a-omp-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 87.45
+    },
+    "a-omp-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 88.43
+    },
+    "a-omp-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 89.43
+    },
+    "a-omp-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 90.43
+    },
+    "a-omp-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 91.44
+    },
+    "a-omp-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 92.44
+    },
+    "a-omp-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 93.44
+    },
+    "a-omp-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 94.44
+    },
+    "a-omp-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 95.44
+    },
+    "a-omp-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 96.44
+    },
+    "a-omp-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 97.45
+    },
+    "a-omp-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 98.44
+    },
+    "a-omp-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 99.44
+    },
+    "a-omp-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 100.48
+    },
+    "a-omp-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 101.45
+    },
+    "a-omp-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 102.45
+    },
+    "a-omp-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 103.47
+    },
+    "a-omp-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 104.46
+    },
+    "a-omp-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 105.46
+    },
+    "a-omp-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 106.45
+    },
+    "a-omp-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 107.45
+    },
+    "a-omp-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 108.47
+    },
+    "a-omp-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 109.45
+    },
+    "a-omp-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 110.45
+    },
+    "a-omp-0051": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 111.45
+    },
+    "a-omp-0052": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 112.5
+    },
+    "a-omp-0053": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 113.46
+    },
+    "a-omp-0054": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 114.45
+    },
+    "a-omp-0055": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 115.46
+    },
+    "a-omp-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 116.46
+    },
+    "a-omp-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 117.46
+    },
+    "a-omp-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 118.46
+    },
+    "a-omp-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 119.46
+    },
+    "a-omp-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 120.46
+    },
+    "a-omp-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 121.46
+    },
+    "a-omp-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 122.47
+    },
+    "a-omp-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 123.46
+    },
+    "a-omp-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 124.46
+    },
+    "a-omp-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 125.51
+    },
+    "a-omp-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 126.48
+    },
+    "a-omp-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 127.46
+    },
+    "a-omp-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 128.46
+    },
+    "a-omp-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 129.47
+    },
+    "a-omp-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 130.46
+    },
+    "a-omp-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 131.47
+    },
+    "a-omp-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 132.47
+    },
+    "a-omp-0073": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 133.47
+    },
+    "a-omp-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 134.47
+    },
+    "a-omp-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 135.47
+    },
+    "a-omp-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 136.47
+    },
+    "a-omp-0077": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 137.48
+    },
+    "a-omp-0078": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 138.47
+    },
+    "a-omp-0079": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 139.47
+    },
+    "a-omp-0080": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 140.47
+    },
+    "a-omp-0081": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 141.48
+    },
+    "a-omp-0082": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 142.47
+    },
+    "a-omp-0083": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 143.47
+    },
+    "a-omp-0084": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 144.48
+    },
+    "a-omp-0085": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 145.49
+    },
+    "a-omp-0086": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 146.48
+    },
+    "a-omp-0087": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 147.48
+    },
+    "a-omp-0088": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 148.48
+    },
+    "a-omp-0089": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 149.48
+    },
+    "a-omp-0090": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 150.48
+    },
+    "a-omp-0091": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 151.5
+    },
+    "a-omp-0092": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 152.48
+    },
+    "a-omp-0093": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 153.48
+    },
+    "a-omp-0094": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 154.49
+    },
+    "a-omp-0095": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 155.49
+    },
+    "a-omp-0096": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 156.49
+    },
+    "a-omp-0097": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 157.48
+    },
+    "a-omp-0098": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 158.5
+    },
+    "a-omp-0099": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 159.5
+    },
+    "a-omp-0100": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 160.53
+    },
+    "a-omp-0101": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 161.49
+    },
+    "a-omp-0102": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 162.5
+    },
+    "a-omp-0103": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 163.51
+    },
+    "a-omp-0104": {
+      "label": "not-question",
+      "captures": 244,
+      "first": 164.5
+    },
+    "a-omp-0105": {
+      "label": "not-question",
+      "captures": 186,
+      "first": 408.72
+    },
+    "a-grok-0001": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 0
+    },
+    "a-grok-0002": {
+      "label": "not-question",
+      "captures": 54,
+      "first": 6.07
+    },
+    "a-grok-0003": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 63.43
+    },
+    "a-grok-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.42
+    },
+    "a-grok-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.42
+    },
+    "a-grok-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.42
+    },
+    "a-grok-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.44
+    },
+    "a-grok-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.44
+    },
+    "a-grok-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.42
+    },
+    "a-grok-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.45
+    },
+    "a-grok-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.42
+    },
+    "a-grok-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 73.47
+    },
+    "a-grok-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 74.43
+    },
+    "a-grok-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 75.43
+    },
+    "a-grok-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 76.43
+    },
+    "a-grok-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 77.43
+    },
+    "a-grok-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 78.42
+    },
+    "a-grok-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 79.45
+    },
+    "a-grok-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 80.43
+    },
+    "a-grok-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 81.43
+    },
+    "a-grok-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 82.43
+    },
+    "a-grok-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 83.43
+    },
+    "a-grok-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 84.44
+    },
+    "a-grok-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 85.44
+    },
+    "a-grok-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 86.43
+    },
+    "a-grok-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 87.45
+    },
+    "a-grok-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 88.43
+    },
+    "a-grok-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 89.44
+    },
+    "a-grok-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 90.43
+    },
+    "a-grok-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 91.44
+    },
+    "a-grok-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 92.44
+    },
+    "a-grok-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 93.44
+    },
+    "a-grok-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 94.44
+    },
+    "a-grok-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 95.44
+    },
+    "a-grok-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 96.44
+    },
+    "a-grok-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 97.45
+    },
+    "a-grok-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 98.44
+    },
+    "a-grok-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 99.45
+    },
+    "a-grok-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 100.48
+    },
+    "a-grok-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 101.45
+    },
+    "a-grok-0041": {
+      "label": "not-question",
+      "captures": 20,
+      "first": 102.46
+    },
+    "a-grok-0042": {
+      "label": "not-question",
+      "captures": 34,
+      "first": 103.48
+    },
+    "a-grok-0043": {
+      "label": "not-question",
+      "captures": 18,
+      "first": 105.46
+    },
+    "a-grok-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 174.52
+    },
+    "a-grok-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 175.51
+    },
+    "a-grok-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 176.53
+    },
+    "a-grok-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 177.5
+    },
+    "a-grok-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 178.55
+    },
+    "a-grok-0049": {
+      "label": "not-question",
+      "captures": 152,
+      "first": 179.51
+    },
+    "a-grok-0050": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 325.63
+    },
+    "a-grok-0051": {
+      "label": "not-question",
+      "captures": 12,
+      "first": 328.63
+    },
+    "a-grok-0052": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 337.64
+    },
+    "a-grok-0053": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 343.65
+    },
+    "a-grok-0054": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 345.65
+    },
+    "a-grok-0055": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 348.65
+    },
+    "a-grok-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 357.66
+    },
+    "a-grok-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 358.67
+    },
+    "a-grok-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 359.66
+    },
+    "a-grok-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 360.66
+    },
+    "a-grok-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 361.66
+    },
+    "a-grok-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 362.67
+    },
+    "a-grok-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 363.66
+    },
+    "a-grok-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 364.67
+    },
+    "a-grok-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 365.69
+    },
+    "a-grok-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 366.72
+    },
+    "a-grok-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 367.76
+    },
+    "a-grok-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 368.67
+    },
+    "a-grok-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 369.69
+    },
+    "a-grok-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 370.67
+    },
+    "a-grok-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 371.71
+    },
+    "a-grok-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 372.68
+    },
+    "a-grok-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 373.69
+    },
+    "a-grok-0073": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 374.68
+    },
+    "a-grok-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 375.68
+    },
+    "a-grok-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 376.68
+    },
+    "a-grok-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 377.68
+    },
+    "a-grok-0077": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 378.68
+    },
+    "a-grok-0078": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 379.68
+    },
+    "a-grok-0079": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 380.68
+    },
+    "a-grok-0080": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 381.69
+    },
+    "a-grok-0081": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 382.69
+    },
+    "a-grok-0082": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 383.69
+    },
+    "a-grok-0083": {
+      "label": "not-question",
+      "captures": 15,
+      "first": 384.69
+    },
+    "a-grok-0084": {
+      "label": "not-question",
+      "captures": 27,
+      "first": 386.69
+    },
+    "a-grok-0085": {
+      "label": "not-question",
+      "captures": 15,
+      "first": 389.7
+    },
+    "a-grok-0086": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 441.79
+    },
+    "a-grok-0087": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 442.77
+    },
+    "a-grok-0088": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 443.78
+    },
+    "a-grok-0089": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 444.78
+    },
+    "a-grok-0090": {
+      "label": "not-question",
+      "captures": 149,
+      "first": 445.78
+    },
+    "a-opencode-0001": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 0
+    },
+    "a-opencode-0002": {
+      "label": "not-question",
+      "captures": 52,
+      "first": 10.85
+    },
+    "a-opencode-0003": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 63.43
+    },
+    "a-opencode-0004": {
+      "label": "not-question",
+      "captures": 7,
+      "first": 65.42
+    },
+    "a-opencode-0005": {
+      "label": "not-question",
+      "captures": 49,
+      "first": 66.42
+    },
+    "a-opencode-0006": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 69.46
+    },
+    "a-opencode-0007": {
+      "label": "not-question",
+      "captures": 7,
+      "first": 70.42
+    },
+    "a-opencode-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.42
+    },
+    "a-opencode-0009": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 76.43
+    },
+    "a-opencode-0010": {
+      "label": "not-question",
+      "captures": 7,
+      "first": 79.46
+    },
+    "a-opencode-0011": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 81.43
+    },
+    "a-opencode-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 83.43
+    },
+    "a-opencode-0013": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 92.44
+    },
+    "a-opencode-0014": {
+      "label": "not-question",
+      "captures": 6,
+      "first": 94.44
+    },
+    "a-opencode-0015": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 96.44
+    },
+    "a-opencode-0016": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 162.51
+    },
+    "a-opencode-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 164.5
+    },
+    "a-opencode-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 166.52
+    },
+    "a-opencode-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 167.49
+    },
+    "a-opencode-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 168.51
+    },
+    "a-opencode-0021": {
+      "label": "not-question",
+      "captures": 188,
+      "first": 169.5
+    },
+    "a-opencode-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 357.66
+    },
+    "a-opencode-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 358.67
+    },
+    "a-opencode-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 359.66
+    },
+    "a-opencode-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 360.66
+    },
+    "a-opencode-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 361.67
+    },
+    "a-opencode-0027": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 362.67
+    },
+    "a-opencode-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 363.66
+    },
+    "a-opencode-0029": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 364.68
+    },
+    "a-opencode-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 365.69
+    },
+    "a-opencode-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 366.73
+    },
+    "a-opencode-0032": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 368.67
+    },
+    "a-opencode-0033": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 369.7
+    },
+    "a-opencode-0034": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 370.67
+    },
+    "a-opencode-0035": {
+      "label": "not-question",
+      "captures": 6,
+      "first": 371.71
+    },
+    "a-opencode-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 372.68
+    },
+    "a-opencode-0037": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 373.7
+    },
+    "a-opencode-0038": {
+      "label": "not-question",
+      "captures": 4,
+      "first": 374.68
+    },
+    "a-opencode-0039": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 375.68
+    },
+    "a-opencode-0040": {
+      "label": "not-question",
+      "captures": 4,
+      "first": 378.68
+    },
+    "a-opencode-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 379.68
+    },
+    "a-opencode-0042": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 381.69
+    },
+    "a-opencode-0043": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 382.69
+    },
+    "a-opencode-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 386.69
+    },
+    "a-opencode-0045": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 387.69
+    },
+    "a-opencode-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 388.7
+    },
+    "a-opencode-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 389.7
+    },
+    "a-opencode-0048": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 390.7
+    },
+    "a-opencode-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 391.7
+    },
+    "a-opencode-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 395.71
+    },
+    "a-opencode-0051": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 406.72
+    },
+    "a-opencode-0052": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 407.72
+    },
+    "a-opencode-0053": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 409.73
+    },
+    "a-opencode-0054": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 411.73
+    },
+    "a-opencode-0055": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 412.73
+    },
+    "a-opencode-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 414.74
+    },
+    "a-opencode-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 416.75
+    },
+    "a-opencode-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 418.75
+    },
+    "a-opencode-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 421.79
+    },
+    "a-opencode-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 422.75
+    },
+    "a-opencode-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 425.75
+    },
+    "a-opencode-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 427.75
+    },
+    "a-opencode-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 428.75
+    },
+    "a-opencode-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 430.77
+    },
+    "a-opencode-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 434.76
+    },
+    "a-opencode-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 435.76
+    },
+    "a-opencode-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 437.77
+    },
+    "a-opencode-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 438.77
+    },
+    "a-opencode-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 439.77
+    },
+    "a-opencode-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 440.77
+    },
+    "a-opencode-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 441.79
+    },
+    "a-opencode-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 442.77
+    },
+    "a-opencode-0073": {
+      "label": "question",
+      "instance": 6,
+      "captures": 75,
+      "first": 443.79
+    },
+    "a-opencode-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 518.87
+    },
+    "a-opencode-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 519.87
+    },
+    "a-opencode-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 520.87
+    },
+    "a-opencode-0077": {
+      "label": "not-question",
+      "captures": 73,
+      "first": 521.87
+    },
+    "a-antigravity-0001": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 0
+    },
+    "a-antigravity-0002": {
+      "label": "question",
+      "instance": 7,
+      "captures": 30,
+      "first": 7.74
+    },
+    "a-antigravity-0003": {
+      "label": "not-question",
+      "captures": 24,
+      "first": 39.56
+    },
+    "a-antigravity-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 63.43
+    },
+    "a-antigravity-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 64.54
+    },
+    "a-antigravity-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.42
+    },
+    "a-antigravity-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.42
+    },
+    "a-antigravity-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.42
+    },
+    "a-antigravity-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.46
+    },
+    "a-antigravity-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.46
+    },
+    "a-antigravity-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.43
+    },
+    "a-antigravity-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.46
+    },
+    "a-antigravity-0013": {
+      "label": "question",
+      "instance": 8,
+      "captures": 16,
+      "first": 72.42
+    },
+    "a-antigravity-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 88.43
+    },
+    "a-antigravity-0015": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 89.44
+    },
+    "a-antigravity-0016": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 90.43
+    },
+    "a-antigravity-0017": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 91.44
+    },
+    "a-antigravity-0018": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 92.44
+    },
+    "a-antigravity-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 98.44
+    },
+    "a-antigravity-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 99.44
+    },
+    "a-antigravity-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 100.48
+    },
+    "a-antigravity-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 101.45
+    },
+    "a-antigravity-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 102.46
+    },
+    "a-antigravity-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 103.48
+    },
+    "a-antigravity-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 104.47
+    },
+    "a-antigravity-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 105.47
+    },
+    "a-antigravity-0027": {
+      "label": "not-question",
+      "captures": 72,
+      "first": 106.46
+    },
+    "a-antigravity-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 178.63
+    },
+    "a-antigravity-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 179.51
+    },
+    "a-antigravity-0030": {
+      "label": "question",
+      "instance": 9,
+      "captures": 61,
+      "first": 180.53
+    },
+    "a-antigravity-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 241.55
+    },
+    "a-antigravity-0032": {
+      "label": "not-question",
+      "captures": 352,
+      "first": 242.67
+    },
+    "a-claude-0001": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 0
+    },
+    "a-claude-0002": {
+      "label": "question",
+      "instance": 10,
+      "captures": 31,
+      "first": 2.52
+    },
+    "a-claude-0003": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 40.71
+    },
+    "a-claude-0004": {
+      "label": "not-question",
+      "captures": 9,
+      "first": 41.47
+    },
+    "a-claude-0005": {
+      "label": "not-question",
+      "captures": 7,
+      "first": 50.64
+    },
+    "a-claude-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 57.49
+    },
+    "a-claude-0007": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 58.42
+    },
+    "a-claude-0008": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 63.43
+    },
+    "a-claude-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.42
+    },
+    "a-claude-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.42
+    },
+    "a-claude-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.42
+    },
+    "a-claude-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.45
+    },
+    "a-claude-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.46
+    },
+    "a-claude-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.43
+    },
+    "a-claude-0015": {
+      "label": "not-question",
+      "captures": 31,
+      "first": 71.46
+    },
+    "a-claude-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 102.46
+    },
+    "a-claude-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 103.48
+    },
+    "a-claude-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 104.47
+    },
+    "a-claude-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 105.47
+    },
+    "a-claude-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 106.45
+    },
+    "a-claude-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 107.46
+    },
+    "a-claude-0022": {
+      "label": "not-question",
+      "captures": 17,
+      "first": 108.48
+    },
+    "a-claude-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 125.58
+    },
+    "a-claude-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 126.49
+    },
+    "a-claude-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 127.46
+    },
+    "a-claude-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 128.46
+    },
+    "a-claude-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 129.47
+    },
+    "a-claude-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 130.46
+    },
+    "a-claude-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 131.47
+    },
+    "a-claude-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 132.47
+    },
+    "a-claude-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 133.47
+    },
+    "a-claude-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 134.47
+    },
+    "a-claude-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 135.47
+    },
+    "a-claude-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 136.47
+    },
+    "a-claude-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 137.49
+    },
+    "a-claude-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 138.47
+    },
+    "a-claude-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 139.48
+    },
+    "a-claude-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 140.47
+    },
+    "a-claude-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 141.48
+    },
+    "a-claude-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 142.47
+    },
+    "a-claude-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 143.48
+    },
+    "a-claude-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 144.48
+    },
+    "a-claude-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 145.5
+    },
+    "a-claude-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 146.49
+    },
+    "a-claude-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 147.49
+    },
+    "a-claude-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 148.48
+    },
+    "a-claude-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 149.48
+    },
+    "a-claude-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 150.48
+    },
+    "a-claude-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 151.5
+    },
+    "a-claude-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 152.48
+    },
+    "a-claude-0051": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 153.48
+    },
+    "a-claude-0052": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 154.49
+    },
+    "a-claude-0053": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 155.49
+    },
+    "a-claude-0054": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 156.5
+    },
+    "a-claude-0055": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 157.49
+    },
+    "a-claude-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 158.51
+    },
+    "a-claude-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 159.5
+    },
+    "a-claude-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 160.55
+    },
+    "a-claude-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 161.51
+    },
+    "a-claude-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 162.51
+    },
+    "a-claude-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 163.51
+    },
+    "a-claude-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 164.5
+    },
+    "a-claude-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 165.5
+    },
+    "a-claude-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 166.52
+    },
+    "a-claude-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 167.49
+    },
+    "a-claude-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 168.51
+    },
+    "a-claude-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 169.5
+    },
+    "a-claude-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 170.57
+    },
+    "a-claude-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 171.57
+    },
+    "a-claude-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 172.52
+    },
+    "a-claude-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 173.5
+    },
+    "a-claude-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 174.52
+    },
+    "a-claude-0073": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 175.51
+    },
+    "a-claude-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 176.54
+    },
+    "a-claude-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 177.51
+    },
+    "a-claude-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 178.56
+    },
+    "a-claude-0077": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 179.51
+    },
+    "a-claude-0078": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 180.52
+    },
+    "a-claude-0079": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 181.5
+    },
+    "a-claude-0080": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 182.51
+    },
+    "a-claude-0081": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 183.51
+    },
+    "a-claude-0082": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 184.51
+    },
+    "a-claude-0083": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 185.51
+    },
+    "a-claude-0084": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 186.51
+    },
+    "a-claude-0085": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 187.51
+    },
+    "a-claude-0086": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 188.51
+    },
+    "a-claude-0087": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 189.52
+    },
+    "a-claude-0088": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 190.51
+    },
+    "a-claude-0089": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 191.51
+    },
+    "a-claude-0090": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 192.51
+    },
+    "a-claude-0091": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 193.51
+    },
+    "a-claude-0092": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 194.51
+    },
+    "a-claude-0093": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 195.52
+    },
+    "a-claude-0094": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 196.52
+    },
+    "a-claude-0095": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 197.52
+    },
+    "a-claude-0096": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 198.52
+    },
+    "a-claude-0097": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 199.52
+    },
+    "a-claude-0098": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 200.52
+    },
+    "a-claude-0099": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 201.52
+    },
+    "a-claude-0100": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 202.52
+    },
+    "a-claude-0101": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 203.53
+    },
+    "a-claude-0102": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 204.52
+    },
+    "a-claude-0103": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 205.53
+    },
+    "a-claude-0104": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 206.52
+    },
+    "a-claude-0105": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 207.53
+    },
+    "a-claude-0106": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 208.53
+    },
+    "a-claude-0107": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 209.53
+    },
+    "a-claude-0108": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 210.52
+    },
+    "a-claude-0109": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 211.53
+    },
+    "a-claude-0110": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 212.55
+    },
+    "a-claude-0111": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 213.53
+    },
+    "a-claude-0112": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 214.53
+    },
+    "a-claude-0113": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 215.53
+    },
+    "a-claude-0114": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 216.54
+    },
+    "a-claude-0115": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 217.53
+    },
+    "a-claude-0116": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 218.53
+    },
+    "a-claude-0117": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 219.56
+    },
+    "a-claude-0118": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 220.54
+    },
+    "a-claude-0119": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 221.54
+    },
+    "a-claude-0120": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 222.56
+    },
+    "a-claude-0121": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 223.54
+    },
+    "a-claude-0122": {
+      "label": "not-question",
+      "captures": 370,
+      "first": 224.53
+    },
+    "a-codex-0001": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 0
+    },
+    "a-codex-0002": {
+      "label": "question",
+      "instance": 11,
+      "captures": 31,
+      "first": 2.58
+    },
+    "a-codex-0003": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 39.55
+    },
+    "a-codex-0004": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 40.73
+    },
+    "a-codex-0005": {
+      "label": "not-question",
+      "captures": 21,
+      "first": 42.48
+    },
+    "a-codex-0006": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 63.43
+    },
+    "a-codex-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.42
+    },
+    "a-codex-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.42
+    },
+    "a-codex-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.42
+    },
+    "a-codex-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.45
+    },
+    "a-codex-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.46
+    },
+    "a-codex-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.43
+    },
+    "a-codex-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.46
+    },
+    "a-codex-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.42
+    },
+    "a-codex-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 73.52
+    },
+    "a-codex-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 74.43
+    },
+    "a-codex-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 75.43
+    },
+    "a-codex-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 76.43
+    },
+    "a-codex-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 77.43
+    },
+    "a-codex-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 78.43
+    },
+    "a-codex-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 79.46
+    },
+    "a-codex-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 80.43
+    },
+    "a-codex-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 81.43
+    },
+    "a-codex-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 82.43
+    },
+    "a-codex-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 83.43
+    },
+    "a-codex-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 84.44
+    },
+    "a-codex-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 85.43
+    },
+    "a-codex-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 86.43
+    },
+    "a-codex-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 87.46
+    },
+    "a-codex-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 88.43
+    },
+    "a-codex-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 89.44
+    },
+    "a-codex-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 90.43
+    },
+    "a-codex-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 91.44
+    },
+    "a-codex-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 92.44
+    },
+    "a-codex-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 93.44
+    },
+    "a-codex-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 94.44
+    },
+    "a-codex-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 95.44
+    },
+    "a-codex-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 96.44
+    },
+    "a-codex-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 97.46
+    },
+    "a-codex-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 98.44
+    },
+    "a-codex-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 99.44
+    },
+    "a-codex-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 100.48
+    },
+    "a-codex-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 101.45
+    },
+    "a-codex-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 102.46
+    },
+    "a-codex-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 103.48
+    },
+    "a-codex-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 104.47
+    },
+    "a-codex-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 105.47
+    },
+    "a-codex-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 106.45
+    },
+    "a-codex-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 107.46
+    },
+    "a-codex-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 108.49
+    },
+    "a-codex-0051": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 109.46
+    },
+    "a-codex-0052": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 110.45
+    },
+    "a-codex-0053": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 111.45
+    },
+    "a-codex-0054": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 112.55
+    },
+    "a-codex-0055": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 113.46
+    },
+    "a-codex-0056": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 114.45
+    },
+    "a-codex-0057": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 115.46
+    },
+    "a-codex-0058": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 116.47
+    },
+    "a-codex-0059": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 117.46
+    },
+    "a-codex-0060": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 118.46
+    },
+    "a-codex-0061": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 119.46
+    },
+    "a-codex-0062": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 120.46
+    },
+    "a-codex-0063": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 121.46
+    },
+    "a-codex-0064": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 122.49
+    },
+    "a-codex-0065": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 123.46
+    },
+    "a-codex-0066": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 124.46
+    },
+    "a-codex-0067": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 125.6
+    },
+    "a-codex-0068": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 126.49
+    },
+    "a-codex-0069": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 127.46
+    },
+    "a-codex-0070": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 128.46
+    },
+    "a-codex-0071": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 129.47
+    },
+    "a-codex-0072": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 130.46
+    },
+    "a-codex-0073": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 131.47
+    },
+    "a-codex-0074": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 132.47
+    },
+    "a-codex-0075": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 133.47
+    },
+    "a-codex-0076": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 134.46
+    },
+    "a-codex-0077": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 135.47
+    },
+    "a-codex-0078": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 136.47
+    },
+    "a-codex-0079": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 137.49
+    },
+    "a-codex-0080": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 138.47
+    },
+    "a-codex-0081": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 139.47
+    },
+    "a-codex-0082": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 140.47
+    },
+    "a-codex-0083": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 141.48
+    },
+    "a-codex-0084": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 142.47
+    },
+    "a-codex-0085": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 143.48
+    },
+    "a-codex-0086": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 144.48
+    },
+    "a-codex-0087": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 145.5
+    },
+    "a-codex-0088": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 146.49
+    },
+    "a-codex-0089": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 147.48
+    },
+    "a-codex-0090": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 148.47
+    },
+    "a-codex-0091": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 149.48
+    },
+    "a-codex-0092": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 150.48
+    },
+    "a-codex-0093": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 151.5
+    },
+    "a-codex-0094": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 152.48
+    },
+    "a-codex-0095": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 153.49
+    },
+    "a-codex-0096": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 154.49
+    },
+    "a-codex-0097": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 155.49
+    },
+    "a-codex-0098": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 156.5
+    },
+    "a-codex-0099": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 157.49
+    },
+    "a-codex-0100": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 158.5
+    },
+    "a-codex-0101": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 159.5
+    },
+    "a-codex-0102": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 160.55
+    },
+    "a-codex-0103": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 161.51
+    },
+    "a-codex-0104": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 162.51
+    },
+    "a-codex-0105": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 163.52
+    },
+    "a-codex-0106": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 164.51
+    },
+    "a-codex-0107": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 165.5
+    },
+    "a-codex-0108": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 166.53
+    },
+    "a-codex-0109": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 167.49
+    },
+    "a-codex-0110": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 168.51
+    },
+    "a-codex-0111": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 169.51
+    },
+    "a-codex-0112": {
+      "label": "not-question",
+      "captures": 187,
+      "first": 170.58
+    },
+    "a-codex-0113": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 357.67
+    },
+    "a-codex-0114": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 358.67
+    },
+    "a-codex-0115": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 359.66
+    },
+    "a-codex-0116": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 360.66
+    },
+    "a-codex-0117": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 361.67
+    },
+    "a-codex-0118": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 362.67
+    },
+    "a-codex-0119": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 363.66
+    },
+    "a-codex-0120": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 364.67
+    },
+    "a-codex-0121": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 365.69
+    },
+    "a-codex-0122": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 366.76
+    },
+    "a-codex-0123": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 367.77
+    },
+    "a-codex-0124": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 368.67
+    },
+    "a-codex-0125": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 369.7
+    },
+    "a-codex-0126": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 370.67
+    },
+    "a-codex-0127": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 371.71
+    },
+    "a-codex-0128": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 372.67
+    },
+    "a-codex-0129": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 373.71
+    },
+    "a-codex-0130": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 374.67
+    },
+    "a-codex-0131": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 375.67
+    },
+    "a-codex-0132": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 376.67
+    },
+    "a-codex-0133": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 377.68
+    },
+    "a-codex-0134": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 378.68
+    },
+    "a-codex-0135": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 379.68
+    },
+    "a-codex-0136": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 380.68
+    },
+    "a-codex-0137": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 381.69
+    },
+    "a-codex-0138": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 382.68
+    },
+    "a-codex-0139": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 383.69
+    },
+    "a-codex-0140": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 384.69
+    },
+    "a-codex-0141": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 385.69
+    },
+    "a-codex-0142": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 386.69
+    },
+    "a-codex-0143": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 387.69
+    },
+    "a-codex-0144": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 388.7
+    },
+    "a-codex-0145": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 389.69
+    },
+    "a-codex-0146": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 390.7
+    },
+    "a-codex-0147": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 391.7
+    },
+    "a-codex-0148": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 392.72
+    },
+    "a-codex-0149": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 393.7
+    },
+    "a-codex-0150": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 394.7
+    },
+    "a-codex-0151": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 395.7
+    },
+    "a-codex-0152": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 396.7
+    },
+    "a-codex-0153": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 397.71
+    },
+    "a-codex-0154": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 398.7
+    },
+    "a-codex-0155": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 399.71
+    },
+    "a-codex-0156": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 400.71
+    },
+    "a-codex-0157": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 401.72
+    },
+    "a-codex-0158": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 402.71
+    },
+    "a-codex-0159": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 403.71
+    },
+    "a-codex-0160": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 404.71
+    },
+    "a-codex-0161": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 405.72
+    },
+    "a-codex-0162": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 406.72
+    },
+    "a-codex-0163": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 407.72
+    },
+    "a-codex-0164": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 408.72
+    },
+    "a-codex-0165": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 409.73
+    },
+    "a-codex-0166": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 410.73
+    },
+    "a-codex-0167": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 411.73
+    },
+    "a-codex-0168": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 412.73
+    },
+    "a-codex-0169": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 413.73
+    },
+    "a-codex-0170": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 414.73
+    },
+    "a-codex-0171": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 415.73
+    },
+    "a-codex-0172": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 416.74
+    },
+    "a-codex-0173": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 417.74
+    },
+    "a-codex-0174": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 418.75
+    },
+    "a-codex-0175": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 419.75
+    },
+    "a-codex-0176": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 420.74
+    },
+    "a-codex-0177": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 421.79
+    },
+    "a-codex-0178": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 422.74
+    },
+    "a-codex-0179": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 423.74
+    },
+    "a-codex-0180": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 424.74
+    },
+    "a-codex-0181": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 425.75
+    },
+    "a-codex-0182": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 426.75
+    },
+    "a-codex-0183": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 427.75
+    },
+    "a-codex-0184": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 428.75
+    },
+    "a-codex-0185": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 429.77
+    },
+    "a-codex-0186": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 430.76
+    },
+    "a-codex-0187": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 431.75
+    },
+    "a-codex-0188": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 432.76
+    },
+    "a-codex-0189": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 433.77
+    },
+    "a-codex-0190": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 434.76
+    },
+    "a-codex-0191": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 435.76
+    },
+    "a-codex-0192": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 436.76
+    },
+    "a-codex-0193": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 437.77
+    },
+    "a-codex-0194": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 438.76
+    },
+    "a-codex-0195": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 439.76
+    },
+    "a-codex-0196": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 440.77
+    },
+    "a-codex-0197": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 441.79
+    },
+    "a-codex-0198": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 442.77
+    },
+    "a-codex-0199": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 443.79
+    },
+    "a-codex-0200": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 444.77
+    },
+    "a-codex-0201": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 445.77
+    },
+    "a-codex-0202": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 446.78
+    },
+    "a-codex-0203": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 447.78
+    },
+    "a-codex-0204": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 448.78
+    },
+    "a-codex-0205": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 449.79
+    },
+    "a-codex-0206": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 450.78
+    },
+    "a-codex-0207": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 451.78
+    },
+    "a-codex-0208": {
+      "label": "not-question",
+      "captures": 142,
+      "first": 452.84
+    },
+    "adv1-cursor-0001": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 0
+    },
+    "adv1-cursor-0002": {
+      "label": "question",
+      "instance": 12,
+      "captures": 1,
+      "first": 2.19
+    },
+    "adv1-cursor-0003": {
+      "label": "not-question",
+      "captures": 18,
+      "first": 3.42
+    },
+    "adv1-cursor-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 26.42
+    },
+    "adv1-cursor-0005": {
+      "label": "question",
+      "instance": 13,
+      "captures": 1,
+      "first": 27.5
+    },
+    "adv1-cursor-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 28.59
+    },
+    "adv1-cursor-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 29.7
+    },
+    "adv1-cursor-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 30.78
+    },
+    "adv1-cursor-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 31.85
+    },
+    "adv1-cursor-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 32.92
+    },
+    "adv1-cursor-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 34
+    },
+    "adv1-cursor-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 35.07
+    },
+    "adv1-cursor-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 36.14
+    },
+    "adv1-cursor-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 37.23
+    },
+    "adv1-cursor-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 38.3
+    },
+    "adv1-cursor-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 39.38
+    },
+    "adv1-cursor-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 40.47
+    },
+    "adv1-cursor-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 41.61
+    },
+    "adv1-cursor-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 42.69
+    },
+    "adv1-cursor-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 43.76
+    },
+    "adv1-cursor-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 44.83
+    },
+    "adv1-cursor-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 45.91
+    },
+    "adv1-cursor-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 46.99
+    },
+    "adv1-cursor-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 48.06
+    },
+    "adv1-cursor-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 49.13
+    },
+    "adv1-cursor-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 50.21
+    },
+    "adv1-cursor-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 51.28
+    },
+    "adv1-cursor-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 52.36
+    },
+    "adv1-cursor-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 53.45
+    },
+    "adv1-cursor-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 54.53
+    },
+    "adv1-cursor-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 55.6
+    },
+    "adv1-cursor-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 56.69
+    },
+    "adv1-cursor-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 57.76
+    },
+    "adv1-cursor-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 58.83
+    },
+    "adv1-cursor-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 59.91
+    },
+    "adv1-cursor-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 61
+    },
+    "adv1-cursor-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 62.08
+    },
+    "adv1-cursor-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 63.18
+    },
+    "adv1-cursor-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 64.27
+    },
+    "adv1-cursor-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.34
+    },
+    "adv1-cursor-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.42
+    },
+    "adv1-cursor-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.5
+    },
+    "adv1-cursor-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.58
+    },
+    "adv1-cursor-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.65
+    },
+    "adv1-cursor-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.72
+    },
+    "adv1-cursor-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.82
+    },
+    "adv1-cursor-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.91
+    },
+    "adv1-cursor-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 74.01
+    },
+    "adv1-cursor-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 75.08
+    },
+    "adv1-cursor-0050": {
+      "label": "not-question",
+      "captures": 68,
+      "first": 76.16
+    },
+    "adv1-qwen-0001": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 0
+    },
+    "adv1-qwen-0002": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 3.46
+    },
+    "adv1-qwen-0003": {
+      "label": "not-question",
+      "captures": 17,
+      "first": 4.59
+    },
+    "adv1-qwen-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 26.43
+    },
+    "adv1-qwen-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 27.51
+    },
+    "adv1-qwen-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 28.59
+    },
+    "adv1-qwen-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 29.7
+    },
+    "adv1-qwen-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 30.78
+    },
+    "adv1-qwen-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 31.85
+    },
+    "adv1-qwen-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 32.93
+    },
+    "adv1-qwen-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 34
+    },
+    "adv1-qwen-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 35.07
+    },
+    "adv1-qwen-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 36.14
+    },
+    "adv1-qwen-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 37.23
+    },
+    "adv1-qwen-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 38.3
+    },
+    "adv1-qwen-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 39.38
+    },
+    "adv1-qwen-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 40.49
+    },
+    "adv1-qwen-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 41.61
+    },
+    "adv1-qwen-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 42.69
+    },
+    "adv1-qwen-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 43.76
+    },
+    "adv1-qwen-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 44.83
+    },
+    "adv1-qwen-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 45.91
+    },
+    "adv1-qwen-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 46.99
+    },
+    "adv1-qwen-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 48.06
+    },
+    "adv1-qwen-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 49.13
+    },
+    "adv1-qwen-0026": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 50.21
+    },
+    "adv1-qwen-0027": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 51.28
+    },
+    "adv1-qwen-0028": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 52.36
+    },
+    "adv1-qwen-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 53.45
+    },
+    "adv1-qwen-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 54.53
+    },
+    "adv1-qwen-0031": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 55.6
+    },
+    "adv1-qwen-0032": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 56.69
+    },
+    "adv1-qwen-0033": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 57.76
+    },
+    "adv1-qwen-0034": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 58.83
+    },
+    "adv1-qwen-0035": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 59.91
+    },
+    "adv1-qwen-0036": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 61
+    },
+    "adv1-qwen-0037": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 62.08
+    },
+    "adv1-qwen-0038": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 63.19
+    },
+    "adv1-qwen-0039": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 64.27
+    },
+    "adv1-qwen-0040": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 65.35
+    },
+    "adv1-qwen-0041": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 66.43
+    },
+    "adv1-qwen-0042": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 67.5
+    },
+    "adv1-qwen-0043": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 68.58
+    },
+    "adv1-qwen-0044": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 69.65
+    },
+    "adv1-qwen-0045": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 70.73
+    },
+    "adv1-qwen-0046": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 71.83
+    },
+    "adv1-qwen-0047": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 72.91
+    },
+    "adv1-qwen-0048": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 74.01
+    },
+    "adv1-qwen-0049": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 75.08
+    },
+    "adv1-qwen-0050": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 76.16
+    },
+    "adv1-qwen-0051": {
+      "label": "not-question",
+      "captures": 67,
+      "first": 77.29
+    },
+    "adv1-grok-0001": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 0
+    },
+    "adv1-grok-0002": {
+      "label": "not-question",
+      "captures": 19,
+      "first": 2.24
+    },
+    "adv1-grok-0003": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 26.43
+    },
+    "adv1-grok-0004": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 27.51
+    },
+    "adv1-grok-0005": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 28.59
+    },
+    "adv1-grok-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 29.7
+    },
+    "adv1-grok-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 30.78
+    },
+    "adv1-grok-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 31.85
+    },
+    "adv1-grok-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 32.93
+    },
+    "adv1-grok-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 34
+    },
+    "adv1-grok-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 35.07
+    },
+    "adv1-grok-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 36.15
+    },
+    "adv1-grok-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 37.23
+    },
+    "adv1-grok-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 38.31
+    },
+    "adv1-grok-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 39.38
+    },
+    "adv1-grok-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 40.49
+    },
+    "adv1-grok-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 41.61
+    },
+    "adv1-grok-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 42.69
+    },
+    "adv1-grok-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 43.76
+    },
+    "adv1-grok-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 44.83
+    },
+    "adv1-grok-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 45.91
+    },
+    "adv1-grok-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 46.98
+    },
+    "adv1-grok-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 48.05
+    },
+    "adv1-grok-0024": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 49.13
+    },
+    "adv1-grok-0025": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 50.21
+    },
+    "adv1-grok-0026": {
+      "label": "not-question",
+      "captures": 16,
+      "first": 51.28
+    },
+    "adv1-grok-0027": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 55.6
+    },
+    "adv1-grok-0028": {
+      "label": "not-question",
+      "captures": 5,
+      "first": 67.5
+    },
+    "adv1-grok-0029": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 79.46
+    },
+    "adv1-grok-0030": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 80.57
+    },
+    "adv1-grok-0031": {
+      "label": "not-question",
+      "captures": 63,
+      "first": 81.64
+    },
+    "b-cursor-0001": {
+      "label": "not-question",
+      "captures": 10,
+      "first": 0
+    },
+    "b-cursor-0002": {
+      "label": "question",
+      "instance": 14,
+      "captures": 22,
+      "first": 2.52
+    },
+    "b-cursor-0003": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 8.06
+    },
+    "b-cursor-0004": {
+      "label": "not-question",
+      "captures": 16,
+      "first": 8.31
+    },
+    "b-cursor-0005": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 12.33
+    },
+    "b-cursor-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.08
+    },
+    "b-cursor-0007": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.33
+    },
+    "b-cursor-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.58
+    },
+    "b-cursor-0009": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.83
+    },
+    "b-cursor-0010": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 14.09
+    },
+    "b-cursor-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 14.34
+    },
+    "b-cursor-0012": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 14.59
+    },
+    "b-cursor-0013": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 14.84
+    },
+    "b-cursor-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 15.09
+    },
+    "b-cursor-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 15.34
+    },
+    "b-cursor-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 15.6
+    },
+    "b-cursor-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 15.85
+    },
+    "b-cursor-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 16.1
+    },
+    "b-cursor-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 16.35
+    },
+    "b-cursor-0020": {
+      "label": "question",
+      "instance": 15,
+      "captures": 131,
+      "first": 16.6
+    },
+    "b-cursor-0021": {
+      "label": "not-question",
+      "captures": 17,
+      "first": 49.54
+    },
+    "b-gemini-0001": {
+      "label": "not-question",
+      "captures": 12,
+      "first": 0
+    },
+    "b-gemini-0002": {
+      "label": "question",
+      "instance": 16,
+      "captures": 1,
+      "first": 3.02
+    },
+    "b-gemini-0003": {
+      "label": "question",
+      "instance": 16,
+      "captures": 1,
+      "first": 3.27
+    },
+    "b-gemini-0004": {
+      "label": "question",
+      "instance": 16,
+      "captures": 12,
+      "first": 3.52
+    },
+    "b-gemini-0005": {
+      "label": "question",
+      "instance": 16,
+      "captures": 23,
+      "first": 6.54
+    },
+    "b-gemini-0006": {
+      "label": "not-question",
+      "captures": 17,
+      "first": 12.33
+    },
+    "b-gemini-0007": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 16.35
+    },
+    "b-gemini-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 17.11
+    },
+    "b-gemini-0009": {
+      "label": "not-question",
+      "captures": 602,
+      "first": 17.37
+    },
+    "b-gemini-0010": {
+      "label": "not-question",
+      "captures": 16,
+      "first": 172.27
+    },
+    "b-qwen-0001": {
+      "label": "not-question",
+      "captures": 12,
+      "first": 0
+    },
+    "b-qwen-0002": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 3.02
+    },
+    "b-qwen-0003": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 3.27
+    },
+    "b-qwen-0004": {
+      "label": "not-question",
+      "captures": 17,
+      "first": 3.77
+    },
+    "b-qwen-0005": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 8.05
+    },
+    "b-qwen-0006": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 8.55
+    },
+    "b-qwen-0007": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 8.8
+    },
+    "b-qwen-0008": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 9.3
+    },
+    "b-qwen-0009": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 9.55
+    },
+    "b-qwen-0010": {
+      "label": "not-question",
+      "captures": 2,
+      "first": 10.06
+    },
+    "b-qwen-0011": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 10.56
+    },
+    "b-qwen-0012": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 10.81
+    },
+    "b-qwen-0013": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 11.56
+    },
+    "b-qwen-0014": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 12.32
+    },
+    "b-qwen-0015": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 12.57
+    },
+    "b-qwen-0016": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 12.82
+    },
+    "b-qwen-0017": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.07
+    },
+    "b-qwen-0018": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.32
+    },
+    "b-qwen-0019": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.58
+    },
+    "b-qwen-0020": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 13.83
+    },
+    "b-qwen-0021": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 14.08
+    },
+    "b-qwen-0022": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 14.33
+    },
+    "b-qwen-0023": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 14.58
+    },
+    "b-qwen-0024": {
+      "label": "not-question",
+      "captures": 148,
+      "first": 14.84
+    },
+    "b-qwen-0025": {
+      "label": "not-question",
+      "captures": 3,
+      "first": 48.05
+    },
+    "b-grok-0001": {
+      "label": "not-question",
+      "captures": 10,
+      "first": 0
+    },
+    "b-grok-0002": {
+      "label": "not-question",
+      "captures": 181,
+      "first": 2.52
+    },
+    "adv2-pi-0001": {
+      "label": "not-question",
+      "captures": 1,
+      "first": 0
+    }
+  },
+  "fixtures": {
+    "claude-trust-2-1-280.txt": {
+      "agent": "claude",
+      "recording": "a/claude",
+      "question": "folder trust (2.1.280)",
+      "at": 38.32,
+      "label": "question",
+      "verdicts": {
+        "parent": false,
+        "head": true
+      }
+    },
+    "cursor-trust-gate.txt": {
+      "agent": "cursor",
+      "recording": "b/cursor",
+      "question": "workspace trust",
+      "at": 7.81,
+      "label": "question",
+      "verdicts": {
+        "parent": false,
+        "head": false
+      }
+    },
+    "cursor-trust-answered.txt": {
+      "agent": "cursor",
+      "recording": "a/cursor",
+      "question": "workspace trust",
+      "at": 40.38,
+      "label": "not-question",
+      "verdicts": {
+        "parent": false,
+        "head": false
+      }
+    },
+    "cursor-run-permission.txt": {
+      "agent": "cursor",
+      "recording": "a/cursor",
+      "question": "run permission 1",
+      "at": 88.43,
+      "label": "question",
+      "verdicts": {
+        "parent": false,
+        "head": false
+      }
+    },
+    "qwen-run-permission.txt": {
+      "agent": "qwen",
+      "recording": "a/qwen",
+      "question": "run permission 1 (Ask mode)",
+      "at": 378.68,
+      "label": "question",
+      "verdicts": {
+        "parent": false,
+        "head": true
+      }
+    },
+    "qwen-run-permission-scrollbar.txt": {
+      "agent": "qwen",
+      "recording": "a/qwen",
+      "question": "run permission 2 (Ask mode)",
+      "at": 456.78,
+      "label": "question",
+      "verdicts": {
+        "parent": false,
+        "head": true
+      }
+    },
+    "opencode-permission.txt": {
+      "agent": "opencode",
+      "recording": "a/opencode",
+      "question": "an outside folder",
+      "at": 517.86,
+      "label": "question",
+      "verdicts": {
+        "parent": false,
+        "head": false
+      }
+    },
+    "antigravity-trust-gate.txt": {
+      "agent": "antigravity",
+      "recording": "a/antigravity",
+      "question": "folder trust",
+      "at": 38.32,
+      "label": "question",
+      "verdicts": {
+        "parent": false,
+        "head": false
+      }
+    },
+    "antigravity-run-permission.txt": {
+      "agent": "antigravity",
+      "recording": "a/antigravity",
+      "question": "run permission 1",
+      "at": 87.46,
+      "label": "question",
+      "verdicts": {
+        "parent": true,
+        "head": true
+      }
+    }
+  },
+  "pass": {
+    "a/gemini": {
+      "captures": 589,
+      "distinctRaw": 10,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 10
+    },
+    "a/cursor": {
+      "captures": 589,
+      "distinctRaw": 107,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 107
+    },
+    "a/qwen": {
+      "captures": 589,
+      "distinctRaw": 198,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 198
+    },
+    "a/pi": {
+      "captures": 589,
+      "distinctRaw": 98,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 98
+    },
+    "a/omp": {
+      "captures": 588,
+      "distinctRaw": 105,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 105
+    },
+    "a/grok": {
+      "captures": 588,
+      "distinctRaw": 91,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 1,
+      "kept": 90
+    },
+    "a/opencode": {
+      "captures": 588,
+      "distinctRaw": 77,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 77
+    },
+    "a/antigravity": {
+      "captures": 588,
+      "distinctRaw": 32,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 32
+    },
+    "a/claude": {
+      "captures": 588,
+      "distinctRaw": 122,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 122
+    },
+    "a/codex": {
+      "captures": 588,
+      "distinctRaw": 208,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 208
+    },
+    "adv1/cursor": {
+      "captures": 135,
+      "distinctRaw": 50,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 50
+    },
+    "adv1/qwen": {
+      "captures": 135,
+      "distinctRaw": 51,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 51
+    },
+    "adv1/grok": {
+      "captures": 135,
+      "distinctRaw": 31,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 31
+    },
+    "b/cursor": {
+      "captures": 214,
+      "distinctRaw": 21,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 21
+    },
+    "b/gemini": {
+      "captures": 687,
+      "distinctRaw": 10,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 10
+    },
+    "b/qwen": {
+      "captures": 210,
+      "distinctRaw": 25,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 25
+    },
+    "b/grok": {
+      "captures": 191,
+      "distinctRaw": 2,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 2
+    },
+    "adv2/pi-70": {
+      "captures": 1,
+      "distinctRaw": 1,
+      "dropped": 0,
+      "droppedVerdict": 0,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 1
+    },
+    "adv2/pi-160x40": {
+      "captures": 1,
+      "distinctRaw": 1,
+      "dropped": 1,
+      "droppedVerdict": 1,
+      "droppedDisclosure": 0,
+      "collapsed": 0,
+      "kept": 0
+    }
+  }
+}

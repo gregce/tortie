@@ -2,7 +2,7 @@
 /**
  * `npm run conformance:choices`. PHASE 312 — THE CHOICES THE AGENT DREW.
  *
- * About 1 s. It launches no Electron, starts no tmux server, spawns NOTHING —
+ * About 1.5 s. It launches no Electron, starts no tmux server, spawns NOTHING —
  * not even the pinned tsx — makes no request, spends no token and reads nothing
  * under the person's home. It reads this repository's own source and asserts
  * over it.
@@ -59,11 +59,56 @@
  *  15  the question walk gives up rather than reaching into the agent's prose
  *  16  a session never at a choice is told so zero times
  *  17  the composed question is READ, because a field nothing consumes rots
+ *
+ * ## Phase 321: the named shapes beside the verdict
+ *
+ * Since Phase 321 the numbered verdict is no longer the only screen-derived
+ * route to `needs_input`. Screen-watched agents draw questions it cannot read
+ * (build/p321/SPEC.md §1, research 129 §2.2), so two NAMED SHAPES — compiled
+ * registry data, never configuration — are read beside it for qwen and for
+ * Claude Code 2.1.280, the agents whose recordings drew them. The build read
+ * six; its fix round removed cursor's two, opencode's and antigravity's, each
+ * of which turned amber on a screen that is not a question (SPEC §12.9). It is still the only route for every
+ * agent whose compiled row names no shape, and clauses 1 to 17 above stand
+ * byte for byte. The seven clauses below hold the new route to the shape the
+ * verdict has:
+ *
+ *  18  `DIALOG_SHAPES` holds exactly the ids of `DialogShapeId`, each defined
+ *      once, typed so the compiler refuses an id with no shape
+ *  19  `detectShapes` has ONE production call site, in `inferredVerdict`, over
+ *      the verdict's own `screen` and the compiled `profile.dialogs` with an
+ *      empty fallback; the table is read nowhere else and the verdict never
+ *      calls it
+ *  20  `choiceUpdate` names neither `detectShapes` nor `DIALOG_SHAPES`, so no
+ *      shape's rows reach the choice channel
+ *  21  the numbered verdict keeps its line: `screen !== null &&
+ *      detectDialog(screen)`, once
+ *  22  the closed set is the two shapes the corpus measured and the fix round
+ *      kept
+ *  23  a shape is asked ONLY while the session's agent holds the pane's
+ *      terminal (the operator's ruling of 2026-09-23): the call sits behind
+ *      `agentHoldsTerminal` in one `&&` chain, the gate reads the reading's
+ *      `agent`, tmux's name and the table's `foregroundProgram`, and the
+ *      reading is made in ONE place, the monitor, by the gate's own
+ *      program-token rule (`commandRunsAgent` over `binaryCandidatesFor`), for
+ *      a row that lists a shape
+ *  24  the gate never asks Phase 141's witness rule (the operator's ruling of
+ *      2026-09-23, "Tiny fix, then land"): no function the gate's path reaches
+ *      in state-machine.ts, and not the monitor's `readForegrounds`, names
+ *      `commandNamesAgent` or its `isScriptToken`, and the reading reaches
+ *      `commandRunsAgent`
+ *
+ * They are read with the TypeScript parser, which is a module and not a
+ * process, and EACH CARRIES ITS OWN ATTACK: the clause is asked again over
+ * in-memory copies of the tree with its rule broken one way at a time, and
+ * every copy must read red. `npm run ablation:p321` is the attack on the
+ * phase's BEHAVIOUR beside it.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 const TAG = '[conformance:choices]';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -406,12 +451,16 @@ const COMPOSED =
   'composeQuestion(e.st.question, e.st.screenQuestion)';
 const otherComposers = productionFiles('src/main')
   .filter((rel) => rel !== QUESTION && rel !== MONITOR)
-  .filter((rel) => /\bupdate\.question\s*=/.test(code(read(rel))));
+  // `(?!=)`: an ASSIGNMENT, never a comparison. Phase 316.1's activity map
+// (src/main/sessions/activity-now.ts) READS `typeof update.question === 'string'`,
+// and the bare `\s*=` matched the first `=` of that `===` and called a reader
+// a second writer, which kept this clause red on main from 8c7f0b2f.
+.filter((rel) => /\bupdate\.question\s*=(?!=)/.test(code(read(rel))));
 // ONE ASSIGNMENT IN MAIN'S OWN FILE TOO, and the reason is the defect the two
 // phases landing together produced: each phase wrote `update.question` from its own
 // half on the same tick, the later line won by position, and only one half was
 // tracked on the wire — so a screen question was sent and never cleared.
-const monitorWrites = (code(monitor).match(/\bupdate\.question\s*=/g) ?? []).length;
+const monitorWrites = (code(monitor).match(/\bupdate\.question\s*=(?!=)/g) ?? []).length;
 
 clause(
   9,
@@ -577,6 +626,829 @@ clause(
 );
 
 // ---------------------------------------------------------------------------
+// 18 to 22 — PHASE 321, the named shapes beside the verdict
+// ---------------------------------------------------------------------------
+//
+// Phase 321 (build/p321/SPEC.md §3 and §4) reads two named question shapes
+// BESIDE the numbered verdict for the agents whose recordings drew them. The
+// clauses above do not move by a byte; these five hold the new route to
+// needs_input to the one shape the spec gives it, which is the same shape the
+// verdict has: one table, one door, one call site, fed only by a compiled row.
+//
+// THEY READ THE CODE WITH THE TYPESCRIPT PARSER, not with the text needles the
+// clauses above use, because what they ask is structural (which keys an object
+// literal holds, which function a call sits in, what its second argument is)
+// and a shape table is full of regular expression literals whose `{0,4}` and
+// `\(` would derail a hand scanner. The parser is a module, not a process, so
+// this gate still spawns nothing. Comments are trivia to the parser, so a rule
+// is never satisfied, or broken, by prose about it.
+//
+// EVERY CLAUSE CARRIES ITS OWN ATTACK. Each is a function of the source text,
+// asked once over the tree and then over in-memory copies with the rule broken
+// one way at a time, and each of those copies MUST read red. A clause whose
+// function is gutted, or whose call is deleted, turns this gate red on the
+// spot rather than green for 1,156 commits.
+
+const STATE = 'src/main/activity/state-machine.ts';
+const SHAPE_TYPE = 'DialogShapeId';
+const SHAPE_TABLE = 'DIALOG_SHAPES';
+const SHAPE_DOOR = 'detectShapes';
+/** Clause 23's names: the gate, the reading, and the monitor's one read. */
+const GATE = 'agentHoldsTerminal';
+const NOTE_FG = 'noteForeground';
+const TO_READ_FG = 'foregroundToRead';
+const READ_FGS = 'readForegrounds';
+/** The gate's own rule, and Phase 141's witness rule with its private clause. */
+const GATE_RULE = 'commandRunsAgent';
+const WITNESS_RULE = ['commandNamesAgent', 'isScriptToken'];
+const FOREGROUND_NAMES = [GATE, NOTE_FG, TO_READ_FG];
+/**
+ * The two ids build/p321/SPEC.md §3.2 measured that its fix round kept (§12.9),
+ * and the only two. The other four were removed because each turned amber on a
+ * screen that is not a question; putting one back is a measured change with a
+ * phase of its own, and this list is where that shows.
+ */
+const MEASURED_SHAPES = ['claude-trust-gate', 'qwen-confirmation'];
+
+const parse = (rel, text) =>
+  ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+/** Every node under `node`, depth first, the node itself included. */
+function nodesOf(node) {
+  const out = [];
+  const visit = (n) => {
+    out.push(n);
+    ts.forEachChild(n, visit);
+  };
+  visit(node);
+  return out;
+}
+
+/** `x as const`, `x satisfies T`, `(x)` and `Object.freeze(x)`, peeled to `x`. */
+function peel(expr) {
+  let e = expr;
+  for (;;) {
+    if (e === undefined) return e;
+    if (ts.isAsExpression(e) || ts.isParenthesizedExpression(e) || ts.isSatisfiesExpression(e)) {
+      e = e.expression;
+      continue;
+    }
+    if (
+      ts.isCallExpression(e) &&
+      e.expression.getText() === 'Object.freeze' &&
+      e.arguments.length === 1
+    ) {
+      e = e.arguments[0];
+      continue;
+    }
+    return e;
+  }
+}
+
+/** The name of the function, method or arrow a node sits in, or null. */
+function enclosingFunction(node) {
+  for (let p = node.parent; p !== undefined; p = p.parent) {
+    if (ts.isFunctionDeclaration(p) || ts.isMethodDeclaration(p)) return p;
+  }
+  return null;
+}
+
+/** Identifier `name` used as a value: not a declaration's own name, not an import. */
+function valueUses(sf, name) {
+  return nodesOf(sf).filter((n) => {
+    if (!ts.isIdentifier(n) || n.text !== name) return false;
+    const p = n.parent;
+    if (p === undefined) return false;
+    if ((ts.isFunctionDeclaration(p) || ts.isVariableDeclaration(p) || ts.isTypeAliasDeclaration(p)) && p.name === n) {
+      return false;
+    }
+    if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) return false;
+    return true;
+  });
+}
+
+/** Calls whose callee is `name`, bare or as a property (`mod.name(`). */
+function callsOf(sf, name) {
+  return nodesOf(sf).filter(
+    (n) =>
+      ts.isCallExpression(n) &&
+      ((ts.isIdentifier(n.expression) && n.expression.text === name) ||
+        (ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === name))
+  );
+}
+
+/**
+ * The tree these clauses read: the three files by name, and every OTHER
+ * production file under src/ that names one of the new identifiers at all.
+ * The text filter is only a filter; each file it keeps is parsed.
+ */
+function shapeTree() {
+  const others = productionFiles('src')
+    .filter((rel) => rel !== SCREEN && rel !== STATE && rel !== MONITOR)
+    .map((rel) => ({ rel, text: read(rel) }))
+    .filter(
+      (f) =>
+        f.text.includes(SHAPE_TYPE) ||
+        f.text.includes(SHAPE_TABLE) ||
+        f.text.includes(SHAPE_DOOR) ||
+        FOREGROUND_NAMES.some((name) => f.text.includes(name))
+    );
+  return { screen, state: read(STATE), monitor, others };
+}
+
+/** Every production file of a tree as `[rel, text]`, the three named ones first. */
+const filesOf = (tree) => [
+  [SCREEN, tree.screen],
+  [STATE, tree.state],
+  [MONITOR, tree.monitor],
+  ...tree.others.map((f) => [f.rel, f.text])
+];
+
+/** The union and the table as screen.ts declares them, or why they cannot be read. */
+function shapeDecls(screenText) {
+  const sf = parse(SCREEN, screenText);
+  const unions = nodesOf(sf).filter((n) => ts.isTypeAliasDeclaration(n) && n.name.text === SHAPE_TYPE);
+  const tables = nodesOf(sf).filter(
+    (n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === SHAPE_TABLE
+  );
+  return { sf, unions, tables };
+}
+
+/** The union's members, or null when any member is not a string literal. */
+function unionIds(alias) {
+  const members = ts.isUnionTypeNode(alias.type) ? alias.type.types : [alias.type];
+  const ids = [];
+  for (const m of members) {
+    if (!ts.isLiteralTypeNode(m) || !ts.isStringLiteral(m.literal)) return null;
+    ids.push(m.literal.text);
+  }
+  return ids;
+}
+
+/** The table's keys in source order, plus any entry that cannot be read as one key. */
+function tableKeys(decl) {
+  const obj = peel(decl.initializer);
+  if (obj === undefined || !ts.isObjectLiteralExpression(obj)) return null;
+  const keys = [];
+  const unreadable = [];
+  for (const prop of obj.properties) {
+    if (ts.isPropertyAssignment(prop) && (ts.isStringLiteral(prop.name) || ts.isIdentifier(prop.name))) {
+      keys.push({ key: prop.name.text, node: prop });
+    } else if (ts.isShorthandPropertyAssignment(prop)) {
+      keys.push({ key: prop.name.text, node: prop });
+    } else {
+      unreadable.push(prop.getText().slice(0, 40));
+    }
+  }
+  return { obj, keys, unreadable };
+}
+
+/**
+ * 18. `DIALOG_SHAPES` holds exactly the ids of `DialogShapeId`, each defined
+ * once, and both are declared once, in screen.ts, and nowhere else.
+ */
+function tableFindings(tree) {
+  const out = [];
+  const { unions, tables } = shapeDecls(tree.screen);
+  for (const [rel, text] of filesOf(tree).slice(1)) {
+    const sf = parse(rel, text);
+    if (nodesOf(sf).some((n) => ts.isTypeAliasDeclaration(n) && n.name.text === SHAPE_TYPE)) {
+      out.push(`${rel} declares a second ${SHAPE_TYPE}`);
+    }
+    if (nodesOf(sf).some((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === SHAPE_TABLE)) {
+      out.push(`${rel} declares a second ${SHAPE_TABLE}`);
+    }
+  }
+  if (unions.length !== 1) {
+    out.push(`${SCREEN} declares ${SHAPE_TYPE} ${String(unions.length)} times, not once`);
+    return out;
+  }
+  if (tables.length !== 1) {
+    out.push(`${SCREEN} declares ${SHAPE_TABLE} ${String(tables.length)} times, not once`);
+    return out;
+  }
+  const ids = unionIds(unions[0]);
+  if (ids === null || ids.length === 0) {
+    out.push(`${SHAPE_TYPE} is not a union of string literals, so its ids cannot be read`);
+    return out;
+  }
+  const dupIds = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (dupIds.length > 0) out.push(`${SHAPE_TYPE} names ${dupIds.join(', ')} twice`);
+  const typeText = tables[0].type === undefined ? '' : tables[0].type.getText();
+  if (!/\bRecord<\s*DialogShapeId\s*,/.test(typeText)) {
+    out.push(
+      `${SHAPE_TABLE} is typed ${JSON.stringify(typeText || 'nothing')}, not a Record keyed by ${SHAPE_TYPE}, ` +
+        'so the compiler no longer refuses an id with no shape'
+    );
+  }
+  const table = tableKeys(tables[0]);
+  if (table === null) {
+    out.push(`${SHAPE_TABLE}'s value is not an object literal, so its entries cannot be counted`);
+    return out;
+  }
+  if (table.unreadable.length > 0) {
+    out.push(`${SHAPE_TABLE} holds entries that are not one plain key each: ${table.unreadable.join(' | ')}`);
+  }
+  const keys = table.keys.map((k) => k.key);
+  const dupKeys = keys.filter((k, i) => keys.indexOf(k) !== i);
+  if (dupKeys.length > 0) out.push(`${SHAPE_TABLE} defines ${[...new Set(dupKeys)].join(', ')} more than once`);
+  const missing = ids.filter((id) => !keys.includes(id));
+  const extra = keys.filter((k) => !ids.includes(k));
+  if (missing.length > 0) out.push(`${SHAPE_TABLE} has no entry for ${missing.join(', ')}`);
+  if (extra.length > 0) out.push(`${SHAPE_TABLE} holds ${extra.join(', ')}, which ${SHAPE_TYPE} does not name`);
+  return out;
+}
+
+/** 22. The closed set is the two shapes the corpus measured and the fix round kept, and no third. */
+function closedSetFindings(tree) {
+  const { unions } = shapeDecls(tree.screen);
+  const ids = unions.length === 1 ? unionIds(unions[0]) : null;
+  if (ids === null) return [`${SHAPE_TYPE} cannot be read`];
+  const have = [...new Set(ids)].sort();
+  const missing = MEASURED_SHAPES.filter((id) => !have.includes(id));
+  const extra = have.filter((id) => !MEASURED_SHAPES.includes(id));
+  return [
+    ...(missing.length > 0 ? [`the measured ${missing.join(', ')} is gone`] : []),
+    ...(extra.length > 0 ? [`${extra.join(', ')} was never measured by Phase 321`] : [])
+  ];
+}
+
+/**
+ * 19. `detectShapes` has ONE production call site, in `inferredVerdict` in
+ * state-machine.ts; it reads the verdict's own `screen` and the COMPILED
+ * profile's `dialogs` with an empty fallback; the table is read nowhere but
+ * screen.ts; and screen.ts never calls the door itself, so the numbered
+ * verdict cannot come to depend on a shape.
+ */
+function doorFindings(tree) {
+  const out = [];
+  const screenSf = parse(SCREEN, tree.screen);
+  const decls = nodesOf(screenSf).filter(
+    (n) => ts.isFunctionDeclaration(n) && n.name !== undefined && n.name.text === SHAPE_DOOR
+  );
+  if (decls.length !== 1) out.push(`${SCREEN} declares ${SHAPE_DOOR} ${String(decls.length)} times, not once`);
+  const sites = [];
+  for (const [rel, text] of filesOf(tree)) {
+    const sf = parse(rel, text);
+    const calls = callsOf(sf, SHAPE_DOOR);
+    for (const c of calls) sites.push({ rel, sf, call: c });
+    // A value use that is not a call (the door handed on as a callback, or
+    // aliased) is a second route that no count of calls would see.
+    const loose = valueUses(sf, SHAPE_DOOR).filter((n) => !(ts.isCallExpression(n.parent) && n.parent.expression === n) &&
+      !(ts.isPropertyAccessExpression(n.parent) && ts.isCallExpression(n.parent.parent) && n.parent.parent.expression === n.parent));
+    for (const n of loose) out.push(`${rel} names ${SHAPE_DOOR} without calling it (${n.parent.getText().slice(0, 40)})`);
+    if (rel !== SCREEN && valueUses(sf, SHAPE_TABLE).length > 0) {
+      out.push(`${rel} reads ${SHAPE_TABLE}; the table is reached only through ${SHAPE_DOOR}`);
+    }
+  }
+  const inScreen = sites.filter((s) => s.rel === SCREEN);
+  if (inScreen.length > 0) {
+    out.push(`${SCREEN} calls ${SHAPE_DOOR} itself (${String(inScreen.length)} time(s)), so a shape sits inside the verdict`);
+  }
+  const outside = sites.filter((s) => s.rel !== SCREEN);
+  if (outside.length !== 1 || outside[0].rel !== STATE) {
+    out.push(
+      `${SHAPE_DOOR} is called from ${outside.length === 0 ? 'nowhere' : outside.map((s) => s.rel).join(', ')}; ` +
+        `the one production call site is ${STATE}`
+    );
+    return out;
+  }
+  const { sf, call } = outside[0];
+  const fn = enclosingFunction(call);
+  if (fn === null || fn.name === undefined || fn.name.getText() !== 'inferredVerdict') {
+    out.push(`the call sits in ${fn?.name?.getText() ?? 'no named function'}, not in inferredVerdict`);
+  } else {
+    const param = fn.parameters.find((p) => p.name.getText() === 'profile');
+    if (param === undefined || param.type === undefined || param.type.getText() !== 'AgentActivityProfile') {
+      out.push('inferredVerdict has no `profile: AgentActivityProfile` parameter, so the shapes do not come from a compiled row');
+    }
+  }
+  if (call.arguments.length !== 2) {
+    out.push(`the call passes ${String(call.arguments.length)} arguments, not the screen and the row's shapes`);
+    return out;
+  }
+  const [first, second] = call.arguments;
+  if (!ts.isIdentifier(first) || first.text !== 'screen') {
+    out.push(`the call reads ${first.getText()}, not the verdict's own normalized \`screen\``);
+  }
+  const isRowShapes = (e) =>
+    ts.isPropertyAccessExpression(e) && e.expression.getText() === 'profile' && e.name.text === 'dialogs';
+  const isEmptyList = (e) => {
+    const x = peel(e);
+    if (x === undefined) return false;
+    if (ts.isArrayLiteralExpression(x)) return x.elements.length === 0;
+    if (!ts.isIdentifier(x)) return false;
+    const decl = nodesOf(sf).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === x.text);
+    const init = decl === undefined ? undefined : peel(decl.initializer);
+    return init !== undefined && ts.isArrayLiteralExpression(init) && init.elements.length === 0;
+  };
+  const arg = peel(second);
+  const ok =
+    arg !== undefined &&
+    (isRowShapes(arg) ||
+      (ts.isBinaryExpression(arg) &&
+        arg.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken &&
+        isRowShapes(arg.left) &&
+        isEmptyList(arg.right)));
+  if (!ok) {
+    out.push(
+      `its second argument is ${JSON.stringify(second.getText())}, not \`profile.dialogs\` with an EMPTY fallback, ` +
+        'so a shape could reach an agent whose compiled row names none'
+    );
+  }
+  return out;
+}
+
+/** 20. The choice channel asks the numbered collector alone, and never a shape. */
+function channelFindings(tree) {
+  const sf = parse(MONITOR, tree.monitor);
+  const methods = nodesOf(sf).filter((n) => ts.isMethodDeclaration(n) && n.name.getText() === 'choiceUpdate');
+  if (methods.length !== 1 || methods[0].body === undefined) {
+    return [`${MONITOR} holds ${String(methods.length)} choiceUpdate methods with a body, not one`];
+  }
+  const body = methods[0].body;
+  const out = [];
+  for (const name of [SHAPE_DOOR, SHAPE_TABLE]) {
+    if (nodesOf(body).some((n) => ts.isIdentifier(n) && n.text === name)) out.push(`choiceUpdate names ${name}`);
+  }
+  if (nodesOf(body).some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'dialogs')) {
+    out.push('choiceUpdate reads a `dialogs` field');
+  }
+  if (callsOf(body, 'detectDialogRows').length !== 1) {
+    out.push('choiceUpdate no longer asks detectDialogRows exactly once');
+  }
+  return out;
+}
+
+/** 21. The numbered verdict keeps its line: `detectDialog(screen)`, once, over the same `screen`. */
+function verdictLineFindings(tree) {
+  const sf = parse(STATE, tree.state);
+  const calls = callsOf(sf, 'detectDialog');
+  if (calls.length !== 1) return [`${STATE} calls detectDialog ${String(calls.length)} times, not once`];
+  const call = calls[0];
+  const out = [];
+  if (call.arguments.length !== 1 || call.arguments[0].getText() !== 'screen') {
+    out.push(`the verdict reads ${call.arguments.map((a) => a.getText()).join(', ') || 'nothing'}, not \`screen\``);
+  }
+  const and = call.parent;
+  const ok =
+    ts.isBinaryExpression(and) &&
+    and.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+    and.right === call &&
+    and.left.getText().replace(/\s+/g, ' ') === 'screen !== null' &&
+    ts.isVariableDeclaration(and.parent) &&
+    ts.isVariableDeclarationList(and.parent.parent) &&
+    (and.parent.parent.flags & ts.NodeFlags.Const) !== 0;
+  if (!ok) {
+    out.push(`the verdict's line is ${JSON.stringify(call.parent?.parent?.getText() ?? call.getText())}, not \`const … = screen !== null && detectDialog(screen)\``);
+  }
+  const fn = enclosingFunction(call);
+  if (fn === null || fn.name?.getText() !== 'inferredVerdict') out.push('the verdict is no longer computed in inferredVerdict');
+  return out;
+}
+
+/** A function declaration by name in one parsed file, or every one of them. */
+const functionsNamed = (sf, name) =>
+  nodesOf(sf).filter((n) => ts.isFunctionDeclaration(n) && n.name !== undefined && n.name.text === name);
+
+/**
+ * The `&&` chain `node` sits at the right end of: its other operands, and the
+ * node at the chain's top, so a caller can ask what the whole chain is the
+ * value of.
+ */
+function andChainOf(node) {
+  const operands = [];
+  let cur = node;
+  while (
+    cur.parent !== undefined &&
+    ts.isBinaryExpression(cur.parent) &&
+    cur.parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+    cur.parent.right === cur
+  ) {
+    cur = cur.parent;
+    operands.push(cur.left);
+  }
+  const flat = [];
+  const spread = (e) => {
+    if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+      spread(e.left);
+      spread(e.right);
+    } else flat.push(e);
+  };
+  for (const o of operands) spread(o);
+  return { operands: flat, top: cur };
+}
+
+/**
+ * 23. A shape is asked ONLY while the session's agent holds the pane's
+ * terminal (the operator's ruling of 2026-09-23). The one `detectShapes` call
+ * is the last operand of an `&&` chain holding `agentHoldsTerminal(pane, st,
+ * ctx.proc)`; the gate is declared once and reads the reading's `agent`,
+ * tmux's `currentCommand` and the table's `foregroundProgram`; the reading is
+ * made by `noteForeground` through `commandRunsAgent` over
+ * `binaryCandidatesFor`, and it and `foregroundToRead` are called from the
+ * monitor's `readForegrounds` alone, which the tick calls; and
+ * `foregroundToRead` refuses a row whose `dialogs` is empty.
+ */
+function foregroundFindings(tree) {
+  const out = [];
+  const state = parse(STATE, tree.state);
+  const door = callsOf(state, SHAPE_DOOR)[0];
+  if (door === undefined) return [`${STATE} never calls ${SHAPE_DOOR}`];
+  const chain = andChainOf(door);
+  const guard = chain.operands.filter(
+    (e) => ts.isCallExpression(e) && ts.isIdentifier(e.expression) && e.expression.text === GATE
+  );
+  // The whole chain is the value of one const, so nothing ORs around it.
+  const holder = chain.top.parent;
+  if (holder === undefined || !ts.isVariableDeclaration(holder) || holder.initializer !== chain.top ||
+    (holder.parent.flags & ts.NodeFlags.Const) === 0) {
+    out.push(`the && chain holding the ${SHAPE_DOOR} call is not the whole value of a const (it sits in ${JSON.stringify((holder ?? chain.top).getText().slice(0, 60))}), so something can widen it`);
+  }
+  if (!chain.operands.some((e) => e.getText().replace(/\s+/g, ' ') === 'screen !== null')) {
+    out.push(`the ${SHAPE_DOOR} call is not behind \`screen !== null\` in its own chain`);
+  }
+  if (guard.length !== 1) {
+    out.push(`the ${SHAPE_DOOR} call is behind ${String(guard.length)} \`${GATE}(\` operands of its && chain, not one, so a shape is asked whatever holds the terminal`);
+  } else if (guard[0].arguments.map((a) => a.getText()).join(', ') !== 'pane, st, ctx.proc') {
+    out.push(`the gate is asked of (${guard[0].arguments.map((a) => a.getText()).join(', ')}), not (pane, st, ctx.proc)`);
+  }
+  const gates = functionsNamed(state, GATE);
+  if (gates.length !== 1 || gates[0].body === undefined) {
+    out.push(`${STATE} declares ${GATE} ${String(gates.length)} times with a body, not once`);
+  } else {
+    const body = gates[0].body;
+    if (!nodesOf(body).some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'agent')) {
+      out.push(`${GATE} never reads the reading's \`agent\`, so a process that is not the agent passes`);
+    }
+    if (!nodesOf(body).some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'currentCommand')) {
+      out.push(`${GATE} never reads tmux's \`currentCommand\`, so a reading outlives the program it named on a tick with no table`);
+    }
+    if (callsOf(body, 'foregroundProgram').length === 0) {
+      out.push(`${GATE} never asks the table who holds the terminal (\`foregroundProgram\`)`);
+    }
+  }
+  const notes = functionsNamed(state, NOTE_FG);
+  if (notes.length !== 1 || notes[0].body === undefined) {
+    out.push(`${STATE} declares ${NOTE_FG} ${String(notes.length)} times with a body, not once`);
+  } else {
+    const body = notes[0].body;
+    if (callsOf(body, GATE_RULE).length !== 1 || callsOf(body, 'binaryCandidatesFor').length !== 1) {
+      out.push(`${NOTE_FG} does not decide \`agent\` by ${GATE_RULE} over binaryCandidatesFor, the gate's own program-token rule`);
+    }
+  }
+  const toRead = functionsNamed(state, TO_READ_FG);
+  if (toRead.length !== 1 || toRead[0].body === undefined) {
+    out.push(`${STATE} declares ${TO_READ_FG} ${String(toRead.length)} times with a body, not once`);
+  } else if (!nodesOf(toRead[0].body).some((n) => ts.isPropertyAccessExpression(n) && n.expression.getText() === 'profile' && n.name.text === 'dialogs')) {
+    out.push(`${TO_READ_FG} never reads \`profile.dialogs\`, so a row that lists no shape is read for its foreground too`);
+  }
+  for (const name of [NOTE_FG, TO_READ_FG]) {
+    const sites = [];
+    for (const [rel, text] of filesOf(tree)) {
+      for (const c of callsOf(parse(rel, text), name)) {
+        const fn = enclosingFunction(c);
+        sites.push(`${rel}:${fn?.name?.getText() ?? '?'}`);
+      }
+    }
+    if (sites.length !== 1 || sites[0] !== `${MONITOR}:${READ_FGS}`) {
+      out.push(`${name} is called from ${sites.length === 0 ? 'nowhere' : sites.join(', ')}; its one call site is ${MONITOR}'s ${READ_FGS}`);
+    }
+  }
+  const monitorSf = parse(MONITOR, tree.monitor);
+  const reads = nodesOf(monitorSf).filter(
+    (n) =>
+      ts.isCallExpression(n) &&
+      ts.isPropertyAccessExpression(n.expression) &&
+      n.expression.expression.kind === ts.SyntaxKind.ThisKeyword &&
+      n.expression.name.text === READ_FGS
+  );
+  if (reads.length !== 1 || enclosingFunction(reads[0])?.name?.getText() !== 'runTick') {
+    out.push(`${MONITOR} calls this.${READ_FGS} ${String(reads.length)} times${reads.length === 1 ? ` in ${enclosingFunction(reads[0])?.name?.getText() ?? '?'}` : ''}, not once in runTick, so the reading is never made`);
+  }
+  return out;
+}
+
+/**
+ * 24. The gate never asks Phase 141's witness rule (the operator's ruling of
+ * 2026-09-23, "Tiny fix, then land"). `commandNamesAgent` examines every token
+ * of a command line, so a program whose ARGUMENT names the agent passed it
+ * (`tail -f /tmp/qwen-screen`, `watch … capture-pane -t claude`) and turned the
+ * session amber. The gate has its own rule, `commandRunsAgent`, which counts a
+ * PROGRAM token only, and Phase 141's rule is left as it was for the witness.
+ * So: `commandRunsAgent` is declared once; every function the gate's path
+ * reaches through this file's own declarations, from `noteForeground`,
+ * `agentHoldsTerminal` and `foregroundToRead`, names neither
+ * `commandNamesAgent` nor its private `isScriptToken`, as a call or as a
+ * value; that path reaches `commandRunsAgent`; and the monitor's
+ * `readForegrounds` names neither.
+ */
+function programTokenFindings(tree) {
+  const out = [];
+  const state = parse(STATE, tree.state);
+  const declared = new Map();
+  for (const n of state.statements) {
+    if (ts.isFunctionDeclaration(n) && n.name !== undefined && n.body !== undefined) {
+      declared.set(n.name.text, [...(declared.get(n.name.text) ?? []), n]);
+    }
+  }
+  if ((declared.get(GATE_RULE) ?? []).length !== 1) {
+    out.push(`${STATE} declares ${GATE_RULE} ${String((declared.get(GATE_RULE) ?? []).length)} times with a body, not once`);
+  }
+  const reached = new Set();
+  const queue = [NOTE_FG, GATE, TO_READ_FG];
+  while (queue.length > 0) {
+    const name = queue.shift();
+    if (reached.has(name) || !declared.has(name)) continue;
+    reached.add(name);
+    for (const fn of declared.get(name)) {
+      for (const n of nodesOf(fn.body)) {
+        if (ts.isIdentifier(n) && declared.has(n.text) && !reached.has(n.text)) queue.push(n.text);
+      }
+    }
+  }
+  if (!reached.has(GATE_RULE)) {
+    out.push(`the gate's path (${[...reached].join(', ') || 'nothing'}) never reaches ${GATE_RULE}, the gate's own rule`);
+  }
+  for (const name of reached) {
+    for (const fn of declared.get(name)) {
+      for (const w of WITNESS_RULE) {
+        const uses = nodesOf(fn.body).filter((n) => ts.isIdentifier(n) && n.text === w).length;
+        if (uses > 0) out.push(`${name}, on the gate's path, names ${w} (Phase 141's witness rule) ${String(uses)} time${uses === 1 ? '' : 's'}`);
+      }
+    }
+  }
+  const readers = nodesOf(parse(MONITOR, tree.monitor)).filter(
+    (n) => ts.isMethodDeclaration(n) && n.name.getText() === READ_FGS && n.body !== undefined
+  );
+  if (readers.length !== 1) {
+    out.push(`${MONITOR} declares ${READ_FGS} ${String(readers.length)} times with a body, not once`);
+  } else {
+    for (const w of WITNESS_RULE) {
+      if (nodesOf(readers[0].body).some((n) => ts.isIdentifier(n) && n.text === w)) {
+        out.push(`${MONITOR}'s ${READ_FGS} names ${w}, so the witness rule can stand over the gate's reading`);
+      }
+    }
+  }
+  return out;
+}
+
+// ---- the attacks: one in-memory copy of the tree per way to break a rule ----
+
+/** Replace the text of `node` in `text`. */
+const spliceNode = (text, node, to) => text.slice(0, node.getStart()) + to + text.slice(node.getEnd());
+
+/** A copy of the tree with one file's text changed, or null when the change could not be built. */
+function withFile(tree, which, change) {
+  const text = tree[which];
+  const next = text === undefined ? null : change(text);
+  return next === null || next === text ? null : { ...tree, [which]: next };
+}
+const withOther = (tree, rel, text) => ({ ...tree, others: [...tree.others, { rel, text }] });
+
+const firstCall = (rel, text, name) => callsOf(parse(rel, text), name)[0] ?? null;
+const tableOf = (text) => {
+  const { tables } = shapeDecls(text);
+  return tables.length === 1 ? tableKeys(tables[0]) : null;
+};
+const unionOf = (text) => shapeDecls(text).unions[0] ?? null;
+
+const ATTACKS = {
+  18: [
+    ['a table missing its last entry', (t) => withFile(t, 'screen', (s) => {
+      const tb = tableOf(s);
+      if (tb === null || tb.keys.length < 2) return null;
+      const last = tb.keys[tb.keys.length - 1].node;
+      const prev = tb.keys[tb.keys.length - 2].node;
+      return s.slice(0, prev.getEnd()) + s.slice(last.getEnd());
+    })],
+    ['a shape defined twice', (t) => withFile(t, 'screen', (s) => {
+      const tb = tableOf(s);
+      if (tb === null || tb.keys.length === 0) return null;
+      const first = tb.keys[0].node;
+      return s.slice(0, first.getEnd()) + `,\n  ${first.getText()}` + s.slice(first.getEnd());
+    })],
+    ['an id with no shape', (t) => withFile(t, 'screen', (s) => {
+      const u = unionOf(s);
+      return u === null ? null : spliceNode(s, u.type, `${u.type.getText()} | 'self-test-no-shape'`);
+    })],
+    ['the table typed loosely, so the compiler stops counting', (t) => withFile(t, 'screen', (s) => {
+      const { tables } = shapeDecls(s);
+      return tables.length !== 1 || tables[0].type === undefined ? null : spliceNode(s, tables[0].type, 'Record<string, DialogShape>');
+    })],
+    ['a second union in another file', (t) => withOther(t, 'src/main/activity/self-test.ts', `export type ${SHAPE_TYPE} = 'qwen-confirmation';\n`)]
+  ],
+  19: [
+    ['a second call site, in the monitor', (t) => withFile(t, 'monitor', (s) => `${s}\nexport const selfTest = ${SHAPE_DOOR}('', []);\n`)],
+    ['the verdict itself calling the door', (t) => withFile(t, 'screen', (s) => `${s}\nexport const selfTest = ${SHAPE_DOOR}('', []);\n`)],
+    ['a shape named at the call site, for every agent', (t) => withFile(t, 'state', (s) => {
+      const c = firstCall(STATE, s, SHAPE_DOOR);
+      return c === null || c.arguments.length < 2 ? null : spliceNode(s, c.arguments[1], "['qwen-confirmation']");
+    })],
+    ['a fallback that lists a shape', (t) => withFile(t, 'state', (s) => {
+      const c = firstCall(STATE, s, SHAPE_DOOR);
+      if (c === null || c.arguments.length < 2) return null;
+      return spliceNode(s, c.arguments[1], 'profile.dialogs ?? SELF_TEST_EVERY_SHAPE') +
+        "\nconst SELF_TEST_EVERY_SHAPE = ['qwen-confirmation'];\n";
+    })],
+    ['the door reading the raw capture', (t) => withFile(t, 'state', (s) => {
+      const c = firstCall(STATE, s, SHAPE_DOOR);
+      return c === null || c.arguments.length < 1 ? null : spliceNode(s, c.arguments[0], "ctx.capture ?? ''");
+    })],
+    ['the table read outside screen.ts', (t) => withOther(t, 'src/main/activity/self-test.ts', `import { ${SHAPE_TABLE} } from './screen';\nexport const n = Object.keys(${SHAPE_TABLE}).length;\n`)],
+    ['the door handed on as a callback', (t) => withOther(t, 'src/main/activity/self-test.ts', `import { ${SHAPE_DOOR} } from './screen';\nexport const door = ${SHAPE_DOOR};\n`)]
+  ],
+  20: [
+    ['choiceUpdate asking a shape', (t) => withFile(t, 'monitor', (s) => {
+      const m = nodesOf(parse(MONITOR, s)).find((n) => ts.isMethodDeclaration(n) && n.name.getText() === 'choiceUpdate');
+      if (m === undefined || m.body === undefined) return null;
+      const at = m.body.getStart() + 1;
+      return `${s.slice(0, at)}\n    void ${SHAPE_DOOR};${s.slice(at)}`;
+    })],
+    ['choiceUpdate reading the table', (t) => withFile(t, 'monitor', (s) => {
+      const m = nodesOf(parse(MONITOR, s)).find((n) => ts.isMethodDeclaration(n) && n.name.getText() === 'choiceUpdate');
+      if (m === undefined || m.body === undefined) return null;
+      const at = m.body.getStart() + 1;
+      return `${s.slice(0, at)}\n    void ${SHAPE_TABLE};${s.slice(at)}`;
+    })],
+    ['choiceUpdate reading a row’s shapes', (t) => withFile(t, 'monitor', (s) => {
+      const m = nodesOf(parse(MONITOR, s)).find((n) => ts.isMethodDeclaration(n) && n.name.getText() === 'choiceUpdate');
+      if (m === undefined || m.body === undefined) return null;
+      const at = m.body.getStart() + 1;
+      return `${s.slice(0, at)}\n    void e.profile.dialogs;${s.slice(at)}`;
+    })]
+  ],
+  21: [
+    ['the verdict reading the raw capture', (t) => withFile(t, 'state', (s) => {
+      const c = firstCall(STATE, s, 'detectDialog');
+      return c === null ? null : spliceNode(s, c.arguments[0], "ctx.capture ?? ''");
+    })],
+    ['a second verdict call', (t) => withFile(t, 'state', (s) => `${s}\nexport const selfTest = detectDialog('');\n`)],
+    ['the verdict folded into another expression', (t) => withFile(t, 'state', (s) => {
+      const c = firstCall(STATE, s, 'detectDialog');
+      return c === null || c.parent === undefined ? null : spliceNode(s, c.parent, 'screen !== null && (detectDialog(screen) || true)');
+    })]
+  ],
+  22: [
+    ['a third shape, defined and typed', (t) => withFile(t, 'screen', (s) => {
+      const u = unionOf(s);
+      const tb = tableOf(s);
+      if (u === null || tb === null || tb.keys.length === 0) return null;
+      const first = tb.keys[0].node;
+      // The table entry first, then the union: the union sits above the table,
+      // so editing it first would move the table's offsets.
+      const withEntry = s.slice(0, first.getEnd()) +
+        `,\n  'self-test-third': ${ts.isPropertyAssignment(first) ? first.initializer.getText() : first.name.getText()}` +
+        s.slice(first.getEnd());
+      const u2 = unionOf(withEntry);
+      return spliceNode(withEntry, u2.type, `${u2.type.getText()} | 'self-test-third'`);
+    })]
+  ],
+  23: [
+    ['the gate taken off the shape call', (t) => withFile(t, 'state', (s) => {
+      const c = firstCall(STATE, s, GATE);
+      if (c === null || !ts.isBinaryExpression(c.parent)) return null;
+      const and = c.parent;
+      return s.slice(0, and.getStart()) + and.left.getText() + s.slice(and.getEnd());
+    })],
+    ['the gate ORed with the shapes instead of ANDed', (t) => withFile(t, 'state', (s) => {
+      const c = firstCall(STATE, s, GATE);
+      if (c === null || !ts.isBinaryExpression(c.parent)) return null;
+      const op = c.parent.operatorToken;
+      return s.slice(0, op.getStart()) + '||' + s.slice(op.getEnd());
+    })],
+    ['the gate no longer reading what the reading found', (t) => withFile(t, 'state', (s) => {
+      const g = functionsNamed(parse(STATE, s), GATE)[0];
+      return g === undefined || g.body === undefined ? null : spliceNode(s, g.body, '{\n  return st.foreground !== null && pane.currentCommand !== \'\' && foregroundProgram(proc as never, 0) !== -1;\n}');
+    })],
+    ['the reading deciding `agent` without the named-process rule', (t) => withFile(t, 'state', (s) => {
+      const n = functionsNamed(parse(STATE, s), NOTE_FG)[0];
+      return n === undefined || n.body === undefined ? null : spliceNode(s, n.body, '{\n  st.foreground = { pid, name: pane.currentCommand, agent: command !== null && agent !== \'\' };\n}');
+    })],
+    ['a second call site for the reading, outside the monitor', (t) => withOther(t, 'src/main/activity/self-test.ts', `import { ${NOTE_FG} } from './state-machine';\nexport function selfTest(): void { ${NOTE_FG}(null as never, null as never, 1, null, 'qwen'); }\n`)],
+    ['the tick never making the reading', (t) => withFile(t, 'monitor', (s) => s.replace(`this.${READ_FGS}(wantCapture, proc)`, 'Promise.resolve()'))],
+    ['a row with no shape read for its foreground', (t) => withFile(t, 'state', (s) => {
+      const f = functionsNamed(parse(STATE, s), TO_READ_FG)[0];
+      if (f === undefined || f.body === undefined) return null;
+      const hit = nodesOf(f.body).find((n) => ts.isPropertyAccessExpression(n) && n.expression.getText() === 'profile' && n.name.text === 'dialogs');
+      return hit === undefined ? null : spliceNode(s, hit, 'NO_SHAPES');
+    })]
+  ],
+  24: [
+    ['the reading deciding `agent` by Phase 141’s witness rule again (the reverify’s finding)', (t) => withFile(t, 'state', (s) => {
+      const n = functionsNamed(parse(STATE, s), NOTE_FG)[0];
+      const c = n === undefined || n.body === undefined ? undefined : callsOf(n.body, GATE_RULE)[0];
+      return c === undefined ? null : spliceNode(s, c.expression, WITNESS_RULE[0]);
+    })],
+    ['the gate’s rule delegating to the witness rule', (t) => withFile(t, 'state', (s) => {
+      const r = functionsNamed(parse(STATE, s), GATE_RULE)[0];
+      if (r === undefined || r.body === undefined) return null;
+      const at = r.body.getStart() + 1;
+      return `${s.slice(0, at)}\n  if (commandNamesAgent(command, candidates)) return true;${s.slice(at)}`;
+    })],
+    ['a helper of the gate’s rule, declared in the file, asking the witness rule', (t) => withFile(t, 'state', (s) => {
+      const r = functionsNamed(parse(STATE, s), GATE_RULE)[0];
+      if (r === undefined || r.body === undefined) return null;
+      const at = r.body.getStart() + 1;
+      return `${s.slice(0, at)}\n  if (selfTestHelper(command)) return true;${s.slice(at)}` +
+        "\nfunction selfTestHelper(c: string): boolean {\n  return commandNamesAgent(c, ['qwen']);\n}\n";
+    })],
+    ['the witness rule handed to the reading as a value', (t) => withFile(t, 'state', (s) => {
+      const n = functionsNamed(parse(STATE, s), NOTE_FG)[0];
+      if (n === undefined || n.body === undefined) return null;
+      const at = n.body.getStart() + 1;
+      return `${s.slice(0, at)}\n  const rule = commandNamesAgent;\n  void rule;${s.slice(at)}`;
+    })],
+    ['the witness rule’s “an extensionless path is a script” clause asked by the gate’s rule', (t) => withFile(t, 'state', (s) => {
+      const r = functionsNamed(parse(STATE, s), GATE_RULE)[0];
+      if (r === undefined || r.body === undefined) return null;
+      const at = r.body.getStart() + 1;
+      return `${s.slice(0, at)}\n  if (command.split(' ').some(isScriptToken)) return true;${s.slice(at)}`;
+    })],
+    ['the monitor’s read overriding the reading with the witness rule', (t) => withFile(t, 'monitor', (s) => {
+      const m = nodesOf(parse(MONITOR, s)).find((n) => ts.isMethodDeclaration(n) && n.name.getText() === READ_FGS);
+      if (m === undefined || m.body === undefined) return null;
+      const at = m.body.getStart() + 1;
+      return `${s.slice(0, at)}\n    void commandNamesAgent('', []);${s.slice(at)}`;
+    })],
+    ['the reading never reaching the gate’s rule', (t) => withFile(t, 'state', (s) => {
+      const n = functionsNamed(parse(STATE, s), NOTE_FG)[0];
+      const c = n === undefined || n.body === undefined ? undefined : callsOf(n.body, GATE_RULE)[0];
+      return c === undefined ? null : spliceNode(s, c, "agent !== ''");
+    })]
+  ]
+};
+
+const PHASE_321 = [
+  [18, '`DIALOG_SHAPES` holds exactly the ids of `DialogShapeId`, each defined once', tableFindings,
+    'the table and the union must agree key for key, each shape defined once, both declared once in screen.ts and ' +
+      'the table typed as a Record keyed by the union, so the compiler itself refuses an id with no shape. A second ' +
+      'table, or an entry the union does not name, is a question shape nobody measured.'],
+  [19, '`detectShapes` has one production call site, in state-machine.ts, and it names `profile.dialogs`', doorFindings,
+    'the shapes are a SECOND screen-derived route to needs_input and they may have exactly one door: the verdict ' +
+      'function, over the same normalized screen the numbered verdict reads, with the shapes the agent’s COMPILED ' +
+      'row lists and an empty list for every other agent. Another caller, a shape named at the call site, or a ' +
+      'fallback that lists one widens the route to agents whose screens were never measured (SPEC §3.3, §4.2).'],
+  [20, '`choiceUpdate` names neither `detectShapes` nor `DIALOG_SHAPES`', channelFindings,
+    'a shape raises needs_input with { atChoice: false } and puts no rows on the choice channel, because `marker` ' +
+      'is digits only and Claude Code’s trust gate draws no digits at all, so a shape’s rows cannot be expressed ' +
+      'on it without a contract change (SPEC §10). The channel keeps asking detectDialogRows alone.'],
+  [21, 'the verdict line keeps `detectDialog(`: once, over `screen`', verdictLineFindings,
+    'the numbered verdict must keep its one call and its input byte for byte — `screen !== null && ' +
+      'detectDialog(screen)`, in inferredVerdict — so that every agent with no shape reads exactly as it did ' +
+      'before Phase 321, and clause 3 still means one call site rather than one file.'],
+  [22, 'the closed set is the two shapes Phase 321 measured and kept', closedSetFindings,
+    `DialogShapeId must be exactly ${MEASURED_SHAPES.join(', ')}. A third shape is a measured change with a ` +
+      'corpus of its own and a phase of its own, and a missing one is a question that stops turning amber.'],
+  [23, 'a shape is asked only while the session’s agent holds the pane’s terminal', foregroundFindings,
+    'a shape reads only the screen, and the screen does not say who drew it: a shell, a pager, `tail`, `cat` or ' +
+      '`watch` in a qwen or Claude Code session printing that agent’s rows last turned it amber at the fix round’s ' +
+      'HEAD (the operator’s ruling of 2026-09-23). The call must sit behind the gate, the gate must ask what the ' +
+      'reading found, tmux’s name and the table, and the reading must be made once, in the monitor, by the gate’s ' +
+      'own program-token rule, for a row that lists a shape.'],
+  [24, 'the gate never asks Phase 141’s witness rule', programTokenFindings,
+    'the witness rule examines every token, so a program whose ARGUMENT names the agent passed it (`tail -f ' +
+      '/tmp/qwen-screen`, `less ~/logs/claude/screen`, `watch … capture-pane -t claude`) and turned the session ' +
+      'amber with a push (the operator’s ruling of 2026-09-23, "Tiny fix, then land"). The gate asks its own rule, ' +
+      '`commandRunsAgent`, which counts a PROGRAM token only; nothing on its path, and not the monitor’s read, may ' +
+      'name `commandNamesAgent` or its `isScriptToken`, and Phase 141’s rule is left as it was for the witness.']
+];
+
+const tree = shapeTree();
+const askedNew = new Map();
+let attacksRed = 0;
+for (const [n, name, findingsOf, why] of PHASE_321) {
+  askedNew.set(n, (askedNew.get(n) ?? 0) + 1);
+  const found = findingsOf(tree);
+  clause(n, name, found.length === 0, `${why} Found: ${found.join('; ')}.`);
+  for (const [attack, build] of ATTACKS[n] ?? []) {
+    const broken = build(tree);
+    if (broken === null) {
+      problems.push(`${String(n)} self-test "${attack}" could not be built over this tree, so the clause was not shown to fail`);
+      say(`RED   ${String(n)}! self-test "${attack}" could not be built`);
+      continue;
+    }
+    if (findingsOf(broken).length === 0) {
+      problems.push(`${String(n)} self-test "${attack}": the clause read GREEN over a copy with its rule broken, so it has stopped asking`);
+      say(`RED   ${String(n)}! self-test "${attack}" stayed green`);
+      continue;
+    }
+    attacksRed += 1;
+  }
+}
+// A clause whose call is deleted asks nothing and reddens nothing, so its
+// absence is itself the finding; and one with no attack has never been shown
+// to fail.
+for (const [n] of PHASE_321) {
+  if (askedNew.get(n) !== 1) problems.push(`${String(n)} was asked ${String(askedNew.get(n) ?? 0)} times, not once`);
+  if ((ATTACKS[n] ?? []).length === 0) problems.push(`${String(n)} carries no self-test, so it has never been shown to fail`);
+}
+if (PHASE_321.length !== 7 || new Set(PHASE_321.map(([n]) => n)).size !== 7) {
+  problems.push('Phase 321 asks seven clauses, 18 to 24, and this gate no longer does');
+}
+say(`Phase 321: ${String(attacksRed)} self-tests, each a copy of the tree with one rule broken, read red as they must`);
+
+// ---------------------------------------------------------------------------
 
 if (problems.length > 0) {
   for (const p of problems) process.stderr.write(`${TAG} ${p}\n`);
@@ -587,8 +1459,9 @@ if (problems.length > 0) {
 }
 say(
   `PASS: all ${String(asked)} clauses hold over ` +
-    `${relative(repoRoot, join(repoRoot, SCREEN))} and the six files beside it. ` +
-    'The behaviour is driven in six vitest files; ' +
-    '`npm run ablation:p312` is what proves every clause here can go red.'
+    `${relative(repoRoot, join(repoRoot, SCREEN))} and the files beside it. ` +
+    'The behaviour is driven in the p312 and p321 vitest files; ' +
+    '`npm run ablation:p312` is what proves clauses 1 to 17 can go red, and ' +
+    `clauses 18 to 24 proved it of themselves above, ${String(attacksRed)} times.`
 );
 process.exit(0);

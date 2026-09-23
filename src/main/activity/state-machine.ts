@@ -14,6 +14,7 @@ import type { AgentRegistryId } from '@shared/types';
 import {
   AGENT_IDS,
   agentBinaryCandidates,
+  getRegistryEntry,
   type AgentActivityProfile
 } from '../agents/registry';
 import type { ClaudeSessionEntry } from './claude-registry';
@@ -33,9 +34,11 @@ import {
 } from './process';
 import {
   detectDialog,
+  detectShapes,
   hashScreen,
   normalizeCapture,
-  ScreenMemory
+  ScreenMemory,
+  type DialogShapeId
 } from './screen';
 import type { ActivityState, ActivityVerdict } from './types';
 
@@ -171,6 +174,17 @@ export interface SessionState {
    * the first fresh pane reading instead.
    */
   leftCommand: string | null;
+  /**
+   * PHASE 321, the operator's ruling of 2026-09-23 ("One narrow round, then
+   * land"): a question shape is read only while this session's AGENT holds
+   * the pane's terminal. This is what the monitor last read about the process
+   * holding it, for a row that lists a shape, and null for every other row and
+   * until the first read. See `ForegroundReading`.
+   *
+   * IT IS NOT A STATUS. It decides only whether the shapes are asked; the
+   * numbered verdict never reads it.
+   */
+  foreground: ForegroundReading | null;
 }
 
 /**
@@ -213,7 +227,8 @@ export function freshState(now: number): SessionState {
     witnessPpid: null,
     handback: 'none',
     leftAt: 0,
-    leftCommand: ''
+    leftCommand: '',
+    foreground: null
   };
 }
 
@@ -343,7 +358,17 @@ export function inferredVerdict(
   // the reflowed screen the new normal, which is what it is.
   if (reflowing) st.screen.reset();
   const screenChanged = screen !== null && st.screen.note(hashScreen(screen));
-  const dialog = screen !== null && detectDialog(screen);
+  // PHASE 321. Two readings of the same screen, and the first one is the
+  // numbered verdict exactly as it has always been read. The second is the
+  // named shapes this agent's COMPILED row lists, asked only while that agent
+  // holds the pane's terminal, and for every agent that lists none it answers
+  // false without reading anything.
+  const numbered = screen !== null && detectDialog(screen);
+  const shaped =
+    screen !== null &&
+    agentHoldsTerminal(pane, st, ctx.proc) &&
+    detectShapes(screen, profile.dialogs ?? NO_SHAPES);
+  const dialog = numbered || shaped;
 
   // Strong evidence: the pane is producing output right now, burning CPU, or
   // waiting on a tool it setsid'd. An agent doing any of those is not blocked
@@ -409,6 +434,328 @@ function releaseNeedsInput(
   st.clearTicks = 0;
   st.quietTicks = 0;
   return { state: 'working', tier: 'inferred' };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 321: a shape is read only while the agent holds the terminal
+// ---------------------------------------------------------------------------
+
+/** The shapes an agent with no `dialogs` is read with: none. */
+const NO_SHAPES: readonly DialogShapeId[] = [];
+
+/**
+ * PHASE 321, the operator's ruling of 2026-09-23. What the monitor last read
+ * about the process holding a pane's terminal, for a row that lists a shape.
+ *
+ * A SHAPE ASKS ONLY THE SCREEN, AND THE SCREEN DOES NOT SAY WHO DREW IT. The
+ * reverify found that a program in a qwen or Claude Code session's shell that
+ * prints that agent's question rows last and then blocks (`tail -f` of a
+ * screen log, `cat` then `sleep`, `watch` over `capture-pane`) turned the
+ * session amber and sent a push, where the parent read nothing, in a restored
+ * session before its resume, after the agent had exited, and after a
+ * handback. So the shapes are asked only while the process holding the
+ * terminal is this session's agent.
+ *
+ * WHICH PROCESS, from reads the tick already has: the pane's own program while
+ * the process table marks it `+` (the foreground group), otherwise the child
+ * of it that holds the terminal (`foregroundChildOf`), which is where a shell
+ * puts the job it runs. WHETHER IT IS THE AGENT, by the gate's own rule,
+ * `commandRunsAgent` over `binaryCandidatesFor` and `bundledRootsFor`: a
+ * PROGRAM token of its command line is one of the binaries this row's agent
+ * may wear, or its runtime and script share the row's install root, and an
+ * argument never counts (the operator's ruling of 2026-09-23, "Tiny fix, then
+ * land"; Phase 141's witness rule is not asked here). That line
+ * is read by the monitor, `ps -o command=` of one pid, 2.3 ms, and only when
+ * the process holding the terminal or tmux's name for it changed; never on
+ * an ordinary tick, and never for a row that lists no shape.
+ *
+ * `name` is `#{pane_current_command}` on the tick of the read: tmux's own name
+ * for the pane's foreground program, free on every tick. It is how a tick
+ * with no process table knows the reading still stands.
+ */
+export interface ForegroundReading {
+  /** The process that held the pane's terminal when it was read. */
+  pid: number;
+  /** tmux's `#{pane_current_command}` on that tick. */
+  name: string;
+  /** A program token of its command line is one of this row's agent's binaries (`commandRunsAgent`). */
+  agent: boolean;
+}
+
+/**
+ * PHASE 321. The process holding a pane's terminal: the pane's own program
+ * while it holds it, otherwise the child of it that does. Null when the table
+ * does not know the pane's own program, or nothing under it holds the
+ * terminal.
+ */
+export function foregroundProgram(
+  proc: ProcSnapshot,
+  panePid: number
+): number | null {
+  const own = holdsTerminal(proc, panePid);
+  if (own === null) return null;
+  return own ? panePid : foregroundChildOf(proc, panePid);
+}
+
+/**
+ * PHASE 321. The pid whose command line the monitor must read this tick, or
+ * null when nothing needs reading: a row that lists no shape, a tick with no
+ * process table, nothing holding the terminal, or a reading that already
+ * names the same process under the same tmux name.
+ */
+export function foregroundToRead(
+  pane: PaneFacts,
+  profile: AgentActivityProfile,
+  st: SessionState,
+  proc: ProcSnapshot | null
+): number | null {
+  if ((profile.dialogs ?? NO_SHAPES).length === 0 || proc === null) return null;
+  const pid = foregroundProgram(proc, pane.panePid);
+  if (pid === null) return null;
+  const known = st.foreground;
+  if (known !== null && known.pid === pid && known.name === pane.currentCommand) {
+    return null;
+  }
+  return pid;
+}
+
+/**
+ * PHASE 321. Record what the monitor read: `command` is the whole command line
+ * of `pid`, or null when it was gone by the time it was read.
+ */
+export function noteForeground(
+  st: SessionState,
+  pane: PaneFacts,
+  pid: number,
+  command: string | null,
+  agent: string
+): void {
+  st.foreground = {
+    pid,
+    name: pane.currentCommand,
+    agent: command !== null && commandRunsAgent(command, binaryCandidatesFor(agent), bundledRootsFor(agent))
+  };
+}
+
+/** Interpreters whose first script argument is the program they run. */
+const INTERPRETERS = new Set(['node', 'bun', 'deno', 'python', 'python3']);
+/** Shells whose `-c` string's first word is the program they run. */
+const C_SHELLS = new Set(['sh', 'bash', 'zsh']);
+
+/**
+ * PHASE 321, the operator's ruling of 2026-09-23 ("Tiny fix, then land"). Is
+ * this command line the agent? The foreground gate's OWN rule, stricter than
+ * Phase 141's witness rule (`commandNamesAgent`), which it does not call and
+ * which is left exactly as it was.
+ *
+ * WHY NOT THE WITNESS RULE. It examines every token, so it accepted a program
+ * that is not the agent whenever an ARGUMENT named it: `tail -f
+ * /tmp/qwen-screen`, `tail -f ./qwen-2`, `less ~/logs/claude/screen`,
+ * `vim ~/work/qwen-demo/Makefile`, `watch … capture-pane -t claude`, and any
+ * extensionless path under `/private/tmp/claude-501/`, as an argument or as
+ * the program itself (the reverify's finding). For the witness that reach is
+ * its own business. For the gate it is a false amber and a push.
+ *
+ * THE RULE. Only a PROGRAM token counts, and only by its program name, being
+ * its basename with a script suffix taken off, never by a directory:
+ *
+ *  - argv[0];
+ *  - when argv[0] is an interpreter (`node`, `bun`, `deno`, `python`,
+ *    `python3`), its first argument that is not an option, `run` skipped;
+ *  - when argv[0] is `sh`, `bash` or `zsh` given `-c` among its leading
+ *    options, the first word of the command string, and only when that string
+ *    is ONE simple command (below);
+ *  - when argv[0] is `specstory` and argv[1] is `run`, the first word of its
+ *    `-c` string, which is how Tortie wraps an agent for capture.
+ *
+ * A path in any later argument never counts.
+ *
+ * A SHELL'S `-c` IS ONE SIMPLE COMMAND OR NOTHING ("Tiny fix, then land",
+ * item 2). `sh -c 'claude … && sleep 600'` keeps the shell holding the
+ * terminal after the agent exits, and its line still begins with the agent,
+ * so it read as the agent for as long as the `sleep` ran (31 s measured by
+ * the reverify). The one shape Tortie hands a shell is a one-element argv,
+ * `zsh -c qwen`, so a `-c` string counts only when no token of it, or after
+ * it, carries `;`, `&`, `|`, a backtick, a parenthesis (a subshell, `$(…)`)
+ * or a newline as `ps` prints one (`\012`). That is a character test, so
+ * `2>&1` is refused too, which is the side that raises nothing. SpecStory's
+ * `-c` is not a shell's: its own splitter runs the argv, which Tortie's
+ * quoter escapes character by character, so nothing in it is an operator.
+ *
+ * THE INSTALL SHAPES, from the registry's rows for the two agents with a
+ * shape, and what `ps -o command=` reads for each:
+ *
+ *  - Claude Code from its installer, Homebrew's cask or a Linux package, a
+ *    native binary Tortie launches by its bare name:
+ *    `claude --session-id <uuid>`. argv[0].
+ *  - Claude Code or qwen from npm or a Homebrew formula, and Claude Code's
+ *    old `~/.claude/local`, a bin script under `#!/usr/bin/env node`:
+ *    `node <prefix>/bin/qwen …`. The interpreter's script.
+ *  - Claude Code under SpecStory capture: `<abs>/specstory run claude
+ *    --no-version-check --silent -c claude --session-id <uuid>`. The `-c`.
+ *  - A one-element argv, which tmux hands to its shell: `zsh -c qwen`, until
+ *    the shell execs it. The `-c`.
+ *  - qwen from its standalone installer:
+ *    `<R>/node/bin/node <R>/lib/cli-entry.js …`, R being
+ *    `~/.local/lib/qwen-code`. Below.
+ *
+ * THE LAST ONE CARRIES NO PROGRAM NAMED FOR THE AGENT: the launcher ends in
+ * `exec "$ROOT/node/bin/node" "$ROOT/lib/cli-entry.js"` (read from the
+ * installed 0.22.0), and neither basename is `qwen`. So an interpreter given
+ * as an absolute path and its script ALSO name the agent when the deepest
+ * directory the two share is EXACTLY an install root the registry's own
+ * signature names for that row (`bundledRootsFor`): qwen's `realpath-under
+ * ~/.local/lib/qwen-code`, so the shared directory must be `qwen-code`. That
+ * is the one place a directory counts, it is asked of the interpreter and its
+ * script together, never of either alone, and only for a row whose signature
+ * names such a root, so Claude Code never reaches it. A project directory
+ * named for the agent (`…/qwen-demo/rt/bin/node …/qwen-demo/tools/show.js`,
+ * the same under `claude-demo`) is not an install root ("Tiny fix, then
+ * land", item 1).
+ *
+ * ITS LIMITS, stated. A script whose own program name is the agent's binary
+ * passes (`node …/claude.mjs`); the python form (`python3 ~/logs/claude`)
+ * passes or not with the Python build, because Homebrew's framework Python
+ * re-execs itself as `Python`, which is no interpreter this rule names. Two
+ * more are beyond ANY command-line rule: argv[0] spoofed (`exec -a claude tail
+ * -f …`), and a symlink named for the agent that points at another program
+ * (Claude Code's own installer is such a symlink, and the probe's stand-ins
+ * run under `exec -a`); the line `ps` prints is the same in both. A row that
+ * gains a shape and whose process carries its name in no program token
+ * (muse's `muse-bin-<version>`) reads its shapes as never asked, which is the
+ * side that raises nothing.
+ */
+export function commandRunsAgent(
+  command: string,
+  candidates: readonly string[],
+  roots: readonly string[]
+): boolean {
+  const tokens = command.split(/\s+/).filter((t) => t.length > 0);
+  const first = tokens[0];
+  if (first === undefined || candidates.length === 0) return false;
+  const names = (token: string | undefined): boolean =>
+    token !== undefined && candidates.includes(programName(token));
+  const program = programName(first);
+  if (candidates.includes(program)) return true;
+  if (C_SHELLS.has(program)) return names(shellCommandWord(tokens));
+  if (program === 'specstory') {
+    const c = tokens.indexOf('-c', 2);
+    return tokens[1] === 'run' && c > 0 && names(tokens[c + 1]);
+  }
+  if (!INTERPRETERS.has(program)) return false;
+  const script = interpretedScript(tokens);
+  return names(script) || (script !== undefined && bundledRuntime(first, script, roots));
+}
+
+/**
+ * A token that makes a shell's `-c` string more than one simple command: a
+ * list, a pipe or a background (`;`, `&`, `|`), a subshell or a substitution
+ * (a parenthesis, a backtick), or a newline as macOS's `ps` prints one,
+ * `\012` (measured). A carriage return is no separator to a shell.
+ */
+const NOT_ONE_COMMAND = /[;&|`()]|\\012/;
+
+/**
+ * The first word of a shell's `-c` string, when `-c` is among its leading
+ * options and the string is ONE simple command. `ps` loses the quoting, so
+ * the string and any operands after it are one run of tokens, and every one
+ * of them is asked.
+ */
+function shellCommandWord(tokens: readonly string[]): string | undefined {
+  for (let i = 1; i < tokens.length; i += 1) {
+    const token = tokens[i] ?? '';
+    if (!token.startsWith('-') || token === '--') return undefined;
+    if (/^-[A-Za-z]*c[A-Za-z]*$/.test(token)) {
+      const string = tokens.slice(i + 1);
+      return string.some((t) => NOT_ONE_COMMAND.test(t)) ? undefined : string[0];
+    }
+  }
+  return undefined;
+}
+
+/** An interpreter's first argument that is not an option, `run` skipped. */
+function interpretedScript(tokens: readonly string[]): string | undefined {
+  let skippedRun = false;
+  for (let i = 1; i < tokens.length; i += 1) {
+    const token = tokens[i] ?? '';
+    if (token.startsWith('-')) continue;
+    if (token === 'run' && !skippedRun) {
+      skippedRun = true;
+      continue;
+    }
+    return token;
+  }
+  return undefined;
+}
+
+/**
+ * An interpreter and its script, both absolute, whose deepest shared
+ * directory is exactly one of the row's install roots (`bundledRootsFor`):
+ * qwen's standalone install, `<R>/node/bin/node <R>/lib/cli-entry.js`.
+ */
+function bundledRuntime(
+  interpreter: string,
+  script: string,
+  roots: readonly string[]
+): boolean {
+  if (roots.length === 0) return false;
+  if (!interpreter.startsWith('/') || !script.startsWith('/')) return false;
+  const a = interpreter.split('/').slice(0, -1);
+  const b = script.split('/').slice(0, -1);
+  let shared = 0;
+  while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1;
+  const root = shared > 1 ? a[shared - 1] ?? '' : '';
+  return root.length > 0 && roots.includes(root);
+}
+
+/**
+ * PHASE 321 ("Tiny fix, then land", item 1). The install roots an absolute
+ * interpreter and its script may share to be this row's agent, READ FROM THE
+ * REGISTRY rather than typed here: the last directory of each `realpath-under`
+ * signature the row's install carries, kept only when that directory is itself
+ * named for the agent (one of its binaries, or one and a dash), which is what
+ * makes it an install ROOT rather than a directory of versions or binaries.
+ *
+ * Over today's registry that is qwen's `~/.local/lib/qwen-code`, giving
+ * `qwen-code`, and nothing else: Claude Code's `~/.local/share/claude/versions`,
+ * cursor's `~/.local/share/cursor-agent/versions`, codex's
+ * `~/.codex/packages/standalone` and grok's `~/.grok/bin` each end in a
+ * directory named for no agent, so none of them reaches `bundledRuntime`. A
+ * configured agent has no registry row and so no root.
+ */
+export function bundledRootsFor(agent: string): readonly string[] {
+  if (!REGISTRY_IDS.has(agent)) return [];
+  const candidates = binaryCandidatesFor(agent);
+  const roots: string[] = [];
+  for (const signature of getRegistryEntry(agent as AgentRegistryId).install.signature ?? []) {
+    if (signature.kind !== 'realpath-under') continue;
+    const root = signature.dir.split('/').filter((s) => s.length > 0).at(-1) ?? '';
+    if (candidates.some((c) => root === c || root.startsWith(`${c}-`))) roots.push(root);
+  }
+  return roots;
+}
+
+/**
+ * PHASE 321. Whether this session's agent holds the pane's terminal right
+ * now, which is the only time a shape is asked.
+ *
+ * With a process table, the process holding the terminal must be the one the
+ * last reading named as the agent. Without one, which is a blocked session
+ * past its probe window on a tick nothing else needed a table for, the last
+ * reading stands while tmux still gives the pane's foreground program the
+ * name it had then. A program of any other name taking the terminal renames
+ * it at once, and a program that starts prints something, which puts the
+ * session back in its probe window and brings the table back.
+ */
+function agentHoldsTerminal(
+  pane: PaneFacts,
+  st: SessionState,
+  proc: ProcSnapshot | null
+): boolean {
+  const known = st.foreground;
+  if (known === null || !known.agent) return false;
+  if (known.name !== pane.currentCommand) return false;
+  return proc === null || foregroundProgram(proc, pane.panePid) === known.pid;
 }
 
 /**

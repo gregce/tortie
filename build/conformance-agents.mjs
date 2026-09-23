@@ -112,6 +112,26 @@
  *   failure line, and `npm run ablation:p275` breaks one clause at a time in a
  *   CLONE of the tree and proves each row can still go red.
  *
+ * SECTION 10 — the two activity fields no configuration can reach (Phase
+ *   321). Phase 321 gives `AgentActivityProfile` one field that decides a
+ *   session's status: `dialogs` (the named question shapes read beside the
+ *   numbered verdict). Its build had two more: `writesWhileAsking`, which its
+ *   fix round removed with antigravity's shape, and `residentHelpers` (grok's
+ *   helpers not counted as a running tool once it had rested), which the
+ *   operator's ruling of 2026-09-23 removed whole. The rows below still refuse
+ *   both names, so a later round cannot bring either back through the
+ *   overlay. Refusal 5 says no configuration may set a status, so every one is
+ *   COMPILED data. Four rows keep that true:
+ *   the overlay's hand-written types name none of them (and the row type names
+ *   no `activity` at all); `REFUSED_ROW_FIELDS.activity` still stands and the
+ *   loader asks it before it asks anything else; the floor profiles every
+ *   configured or unknown agent is read with list none of them, and
+ *   `activityProfileFor` reads the compiled array alone; and, DRIVEN through
+ *   the shipping `parseAgentOverlay`, a row carrying any of them, new or a
+ *   patch of cursor, claude or grok, is dropped whole with the field
+ *   named. Each row is also asked over in-memory copies of the source with its
+ *   rule broken, and every copy must read red, so a gutted rule cannot pass.
+ *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The confirm
  * record is sealed through `safeStorage`, which needs an Electron process, so
  * this gate never watches a confirmed row start a process or an unconfirmed one
@@ -127,6 +147,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import ts from 'typescript';
 import { tsxCli } from './ts-runner.mjs';
 
 const probe = spawnSync(
@@ -1841,6 +1862,351 @@ if (pb === null) {
 }
 
 // ---------------------------------------------------------------------------
+// Section 10 — the activity fields no configuration can reach (Phase 321)
+// ---------------------------------------------------------------------------
+//
+// build/p321/SPEC.md §4.1: `dialogs` is fixed data built into Tortie, because
+// it decides a session's status and refusal 5 says no configuration may.
+// `writesWhileAsking` (removed by the fix round, SPEC §12.9) and
+// `residentHelpers` (removed by the operator's ruling of 2026-09-23, SPEC
+// §12.10) stay in the list the overlay may never name, so neither can come
+// back as configuration. The overlay already refuses
+// `activity` whole; these rows are what keep that refusal from being quietly
+// narrowed by a later round that "only adds one field".
+//
+// Rows 10.1 to 10.3 read the source with the TypeScript parser (a module, not a
+// process), so comments never satisfy or break them. Row 10.4 is DRIVEN: one
+// short run of the pinned tsx feeds rows to the shipping `parseAgentOverlay` on
+// its stdin and prints what came back. Every row is then asked again over
+// in-memory copies with its rule broken, and each copy must read red.
+
+const P321_FIELDS = ['dialogs', 'writesWhileAsking', 'residentHelpers'];
+const OVERLAY_TYPES = 'src/shared/agent-overlay.ts';
+const OVERLAY_LOADER = 'src/main/config/overlay.ts';
+const REGISTRY_SOURCE = 'src/main/agents/registry.ts';
+
+const tsParse = (rel, text) =>
+  ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function tsNodes(node) {
+  const out = [];
+  const visit = (n) => {
+    out.push(n);
+    ts.forEachChild(n, visit);
+  };
+  visit(node);
+  return out;
+}
+/** `x as const`, `x satisfies T`, `(x)` and `Object.freeze(x)`, peeled to `x`. */
+function tsPeel(expr) {
+  let e = expr;
+  while (e !== undefined) {
+    if (ts.isAsExpression(e) || ts.isParenthesizedExpression(e) || ts.isSatisfiesExpression(e)) e = e.expression;
+    else if (ts.isCallExpression(e) && e.expression.getText() === 'Object.freeze' && e.arguments.length === 1) e = e.arguments[0];
+    else return e;
+  }
+  return e;
+}
+/** The object literal a `const NAME = { … }` holds, or null. */
+function constObject(sf, name) {
+  const decl = tsNodes(sf).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name);
+  const init = decl === undefined ? undefined : tsPeel(decl.initializer);
+  return init !== undefined && ts.isObjectLiteralExpression(init) ? init : null;
+}
+const propName = (p) =>
+  p.name !== undefined && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name)) ? p.name.text : null;
+const insertAt = (text, at, what) => `${text.slice(0, at)}${what}${text.slice(at)}`;
+
+/** 10.1 The overlay's hand-written types name none of the three, and the row type no `activity`. */
+function p321OverlayTypeFindings(text) {
+  const sf = tsParse(OVERLAY_TYPES, text);
+  const out = [];
+  const shapes = tsNodes(sf).filter(
+    (n) => (ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n)) && n.name.text.startsWith('AgentOverlay')
+  );
+  const row = shapes.find((n) => ts.isInterfaceDeclaration(n) && n.name.text === 'AgentOverlayV1');
+  if (row === undefined) return [`${OVERLAY_TYPES} no longer declares the interface AgentOverlayV1, so the row type cannot be read`];
+  for (const decl of shapes) {
+    const members = tsNodes(decl).filter((n) => ts.isPropertySignature(n)).map(propName).filter((x) => x !== null);
+    for (const f of P321_FIELDS) {
+      if (members.includes(f)) out.push(`${decl.name.text} declares \`${f}\``);
+    }
+    if (decl === row && members.includes('activity')) out.push('AgentOverlayV1 declares `activity`');
+  }
+  const schema = constObject(sf, 'AGENT_OVERLAY_JSON_SCHEMA');
+  if (schema !== null) {
+    const keys = tsNodes(schema).filter((n) => ts.isPropertyAssignment(n)).map(propName);
+    for (const f of [...P321_FIELDS, 'activity']) {
+      if (keys.includes(f)) out.push(`AGENT_OVERLAY_JSON_SCHEMA offers \`${f}\``);
+    }
+  }
+  // The internal registry types are never re-exported to the overlay (CLAUDE.md).
+  for (const name of ['AgentActivityProfile', 'DialogShapeId', 'DIALOG_SHAPES']) {
+    if (tsNodes(sf).some((n) => ts.isIdentifier(n) && n.text === name)) out.push(`${OVERLAY_TYPES} names ${name}`);
+  }
+  return out;
+}
+
+/** 10.2 `REFUSED_ROW_FIELDS.activity` stands, ROW_KEYS admits none of it, and validateRow asks the refusal. */
+function p321RefusalFindings(overlayText, loaderText) {
+  const out = [];
+  const refused = constObject(tsParse(OVERLAY_TYPES, overlayText), 'REFUSED_ROW_FIELDS');
+  if (refused === null) return [`${OVERLAY_TYPES} no longer declares REFUSED_ROW_FIELDS as an object literal`];
+  const activity = refused.properties.find((p) => ts.isPropertyAssignment(p) && propName(p) === 'activity');
+  const sentence = activity === undefined ? '' : activity.initializer.getText();
+  if (activity === undefined || !/['"`]/.test(sentence) || sentence.length < 12) {
+    out.push('REFUSED_ROW_FIELDS no longer refuses `activity` with a sentence');
+  }
+  const loader = tsParse(OVERLAY_LOADER, loaderText);
+  const rowKeys = tsNodes(loader).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'ROW_KEYS');
+  const list = rowKeys === undefined ? undefined : tsPeel(rowKeys.initializer);
+  if (list === undefined || !ts.isArrayLiteralExpression(list)) {
+    out.push(`${OVERLAY_LOADER} no longer declares ROW_KEYS as a list, so what a row may carry cannot be read`);
+  } else {
+    const keys = list.elements.filter((e) => ts.isStringLiteral(e)).map((e) => e.text);
+    for (const f of [...P321_FIELDS, 'activity']) {
+      if (keys.includes(f)) out.push(`ROW_KEYS admits \`${f}\``);
+    }
+  }
+  const validate = tsNodes(loader).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === 'validateRow');
+  if (validate === undefined) {
+    out.push(`${OVERLAY_LOADER} no longer declares validateRow`);
+  } else {
+    const refusal = tsNodes(validate).find(
+      (n) =>
+        ts.isCallExpression(n) &&
+        n.expression.getText() === 'refusedKeys' &&
+        n.arguments[1]?.getText() === 'REFUSED_ROW_FIELDS'
+    );
+    if (refusal === undefined) out.push('validateRow no longer asks refusedKeys(…, REFUSED_ROW_FIELDS, …)');
+  }
+  return out;
+}
+
+/**
+ * 10.3 The floor profiles list none of the three, and `activityProfileFor`
+ * reads the compiled array alone, so a configured or unknown agent can never
+ * be handed a shape, a repaint exemption or a helper rule.
+ */
+function p321FloorFindings(registryText) {
+  const sf = tsParse(REGISTRY_SOURCE, registryText);
+  const out = [];
+  for (const name of ['DEFAULT_ACTIVITY', 'SHELL_ACTIVITY']) {
+    const obj = constObject(sf, name);
+    if (obj === null) {
+      out.push(`${REGISTRY_SOURCE} no longer declares ${name} as an object literal`);
+      continue;
+    }
+    for (const p of obj.properties) {
+      if (!ts.isPropertyAssignment(p) && !ts.isShorthandPropertyAssignment(p)) out.push(`${name} spreads or computes a field`);
+      else if (P321_FIELDS.includes(propName(p))) out.push(`${name} lists \`${propName(p)}\``);
+    }
+  }
+  const fn = tsNodes(sf).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === 'activityProfileFor');
+  if (fn === undefined || fn.body === undefined) return [...out, `${REGISTRY_SOURCE} no longer declares activityProfileFor`];
+  // Its own parameters and locals are not reads of anything outside it.
+  const locals = new Set(
+    tsNodes(fn)
+      .filter((n) => (ts.isParameter(n) || ts.isVariableDeclaration(n)) && ts.isIdentifier(n.name))
+      .map((n) => n.name.text)
+  );
+  const reads = new Set(
+    tsNodes(fn.body)
+      .filter((n) => ts.isIdentifier(n))
+      .filter((n) => !(ts.isPropertyAccessExpression(n.parent) && n.parent.name === n))
+      .map((n) => n.text)
+      .filter((t) => !locals.has(t))
+  );
+  const allowed = ['AGENT_REGISTRY', 'SHELL_ACTIVITY', 'DEFAULT_ACTIVITY'];
+  const foreign = [...reads].filter((t) => !allowed.includes(t));
+  if (!reads.has('AGENT_REGISTRY') || foreign.length > 0) {
+    out.push(
+      `activityProfileFor reads ${[...reads].join(', ') || 'nothing'}; it may read the compiled AGENT_REGISTRY and ` +
+        'the two floor profiles and nothing else'
+    );
+  }
+  return out;
+}
+
+/** 10.4 The rows driven through the shipping loader, each with what it must come back as. */
+const P321_NEW_AGENT = {
+  id: 'tortie-conf-p321',
+  displayName: 'Tortie Conformance P321',
+  binaries: ['tortie-conf-p321'],
+  launch: { argv: ['tortie-conf-p321'] }
+};
+const P321_CASES = [
+  { name: 'a new agent carrying activity.dialogs', expect: 'refused', field: 'activity',
+    row: { ...P321_NEW_AGENT, activity: { dialogs: ['qwen-confirmation'] } } },
+  { name: 'a new agent carrying a whole activity profile with every field', expect: 'refused', field: 'activity',
+    row: { ...P321_NEW_AGENT, activity: { tier: 'screen', animatesWhenIdle: false, verified: 'verified', dialogs: ['qwen-confirmation'], writesWhileAsking: true, residentHelpers: true } } },
+  { name: 'cursor patched with activity.dialogs naming a compiled shape', expect: 'refused', field: 'activity',
+    row: { id: 'cursor', activity: { dialogs: ['qwen-confirmation'] } } },
+  { name: 'claude patched with an empty activity.dialogs, turning its shape off', expect: 'refused', field: 'activity',
+    row: { id: 'claude', activity: { dialogs: [] } } },
+  { name: 'grok patched with activity.residentHelpers', expect: 'refused', field: 'activity',
+    row: { id: 'grok', activity: { residentHelpers: true } } },
+  { name: 'gemini given dialogs at the top of its row', expect: 'refused', field: 'dialogs',
+    row: { id: 'gemini', dialogs: ['claude-trust-gate'] } },
+  { name: 'control: the same new agent with no activity', expect: 'accepted', row: { ...P321_NEW_AGENT } },
+  { name: 'control: cursor patched with a display name only', expect: 'accepted', row: { id: 'cursor', displayName: 'Cursor' } }
+];
+
+/** Judge the loader's answers: a refused row gone WHOLE with its field named, a control kept. */
+function p321DrivenFindings(outcomes) {
+  const out = [];
+  if (!Array.isArray(outcomes) || outcomes.length !== P321_CASES.length) {
+    return [`the loader answered ${Array.isArray(outcomes) ? String(outcomes.length) : 'nothing'} of ${String(P321_CASES.length)} cases`];
+  }
+  P321_CASES.forEach((c, i) => {
+    const got = outcomes[i];
+    const kept = Array.isArray(got?.rows) && got.rows.includes(c.row.id);
+    const problems = Array.isArray(got?.problems) ? got.problems : [];
+    if (c.expect === 'accepted') {
+      if (!kept || problems.length > 0) out.push(`${c.name}: the control was not kept, so the refusals above prove nothing`);
+      return;
+    }
+    if (kept) out.push(`${c.name}: the row was KEPT`);
+    const named = problems.filter(
+      (p) => p.index === 0 && p.field === `agents[0].${c.field}` && typeof p.message === 'string' && p.message.length > 0
+    );
+    if (named.length === 0) {
+      out.push(`${c.name}: no problem names agents[0].${c.field} (${problems.map((p) => p.field).join(', ') || 'no problem at all'})`);
+    }
+  });
+  return out;
+}
+
+/** The driven half: the shipping loader, fed on stdin by the pinned tsx, one parse per case. */
+function p321Drive() {
+  const script = [
+    `import { parseAgentOverlay } from './${OVERLAY_LOADER}';`,
+    `const cases = ${JSON.stringify(P321_CASES.map((c) => c.row))};`,
+    'const out = cases.map((row) => {',
+    '  const r = parseAgentOverlay(JSON.stringify({ schema: 2, agents: [row] }));',
+    '  return { rows: r.rows.map((x) => x.id), problems: r.problems.map((p) => ({ index: p.index, field: p.field, message: p.message })) };',
+    '});',
+    'process.stdout.write(JSON.stringify(out));',
+    ''
+  ].join('\n');
+  const run = spawnSync(process.execPath, [tsxCli(), '--tsconfig', 'tsconfig.node.json', '-'], {
+    encoding: 'utf8',
+    cwd: process.cwd(),
+    input: script,
+    timeout: 60_000
+  });
+  if (run.status !== 0) return { outcomes: null, why: `the loader run exited ${String(run.status)}: ${(run.stderr ?? '').slice(0, 300)}` };
+  try {
+    return { outcomes: JSON.parse(run.stdout), why: '' };
+  } catch {
+    return { outcomes: null, why: 'the loader run printed no JSON' };
+  }
+}
+
+const p321Rows = [];
+{
+  const overlayText = sourceOf(OVERLAY_TYPES) ?? '';
+  const loaderText = sourceOf(OVERLAY_LOADER) ?? '';
+  const registryText = sourceOf(REGISTRY_SOURCE) ?? '';
+  const driven = p321Drive();
+  const judgeDriven = (outcomes) => (outcomes === null ? [driven.why] : p321DrivenFindings(outcomes));
+
+  // Every attack is a copy of the input with one rule broken; null means it
+  // could not be built over this tree, which is itself a finding.
+  const inRow = (text, iface, member) => {
+    const decl = tsNodes(tsParse(OVERLAY_TYPES, text)).find((n) => ts.isInterfaceDeclaration(n) && n.name.text === iface);
+    return decl === undefined ? null : insertAt(text, decl.members.pos, `\n  ${member}`);
+  };
+  const inObject = (rel, text, name, entry) => {
+    const obj = constObject(tsParse(rel, text), name);
+    return obj === null ? null : insertAt(text, obj.getStart() + 1, `\n  ${entry}`);
+  };
+  const withoutActivity = (text) => {
+    const obj = constObject(tsParse(OVERLAY_TYPES, text), 'REFUSED_ROW_FIELDS');
+    const p = obj?.properties.find((x) => propName(x) === 'activity');
+    return p === undefined ? null : `${text.slice(0, p.getStart())}${text.slice(p.getEnd() + (text[p.getEnd()] === ',' ? 1 : 0))}`;
+  };
+  const inRowKeys = (text) => {
+    const d = tsNodes(tsParse(OVERLAY_LOADER, text)).find((n) => ts.isVariableDeclaration(n) && n.name.getText() === 'ROW_KEYS');
+    const list = d === undefined ? undefined : tsPeel(d.initializer);
+    return list === undefined || !ts.isArrayLiteralExpression(list) ? null : insertAt(text, list.getStart() + 1, "\n  'activity',");
+  };
+  const lookupWidened = (text) => {
+    const fn = tsNodes(tsParse(REGISTRY_SOURCE, text)).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === 'activityProfileFor');
+    return fn?.body === undefined ? null : insertAt(text, fn.body.getStart() + 1, '\n  const configured = mergedOverlayRow(id)?.activity;\n  if (configured !== undefined) return configured;');
+  };
+  const cases = [
+    {
+      rule: '10.1',
+      name: 'the overlay types name none of dialogs, residentHelpers, writesWhileAsking',
+      findings: () => p321OverlayTypeFindings(overlayText),
+      attacks: [
+        ['AgentOverlayV1 given dialogs', () => inRow(overlayText, 'AgentOverlayV1', 'dialogs?: readonly string[];')],
+        ['AgentOverlayV1 given activity', () => inRow(overlayText, 'AgentOverlayV1', 'activity?: unknown;')],
+        ['the launch block given residentHelpers', () => inRow(overlayText, 'AgentOverlayLaunchV1', 'residentHelpers?: true;')],
+        ['the resume block given writesWhileAsking', () => inRow(overlayText, 'AgentOverlayResumeV1', 'writesWhileAsking?: true;')],
+        ['the registry type re-exported to the overlay', () => `import type { DialogShapeId } from '../main/activity/screen';\nexport type P321SelfTest = DialogShapeId;\n${overlayText}`]
+      ].map(([n, build]) => [n, build, (t) => p321OverlayTypeFindings(t)])
+    },
+    {
+      rule: '10.2',
+      name: 'REFUSED_ROW_FIELDS.activity stands, and validateRow asks it',
+      findings: () => p321RefusalFindings(overlayText, loaderText),
+      attacks: [
+        ['the activity refusal deleted', () => withoutActivity(overlayText), (t) => p321RefusalFindings(t, loaderText)],
+        ['ROW_KEYS admitting activity', () => inRowKeys(loaderText), (t) => p321RefusalFindings(overlayText, t)]
+      ]
+    },
+    {
+      rule: '10.3',
+      name: 'the floor profiles list none, and the lookup reads the compiled rows alone',
+      findings: () => p321FloorFindings(registryText),
+      attacks: [
+        ['DEFAULT_ACTIVITY listing a shape', () => inObject(REGISTRY_SOURCE, registryText, 'DEFAULT_ACTIVITY', "dialogs: ['qwen-confirmation'],"), (t) => p321FloorFindings(t)],
+        ['SHELL_ACTIVITY given the helper rule', () => inObject(REGISTRY_SOURCE, registryText, 'SHELL_ACTIVITY', 'residentHelpers: true,'), (t) => p321FloorFindings(t)],
+        ['the lookup reading a configured row first', () => lookupWidened(registryText), (t) => p321FloorFindings(t)]
+      ]
+    },
+    {
+      rule: '10.4',
+      name: 'the shipping loader drops a row carrying any of them, with the field named',
+      findings: () => judgeDriven(driven.outcomes),
+      attacks: [
+        ['a refused row answered as kept', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 2 ? { rows: ['cursor'], problems: [] } : o))), (o) => p321DrivenFindings(o)],
+        ['a refusal naming the wrong field', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 4 ? { rows: [], problems: [{ index: 0, field: 'agents[0].id', message: 'x' }] } : o))), (o) => p321DrivenFindings(o)],
+        ['a control refused', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 6 ? { rows: [], problems: [{ index: 0, field: 'agents[0].activity', message: 'x' }] } : o))), (o) => p321DrivenFindings(o)]
+      ]
+    }
+  ];
+  for (const c of cases) {
+    const found = c.findings();
+    let red = 0;
+    const notes = [];
+    for (const [attack, build, judge] of c.attacks) {
+      const broken = build();
+      if (broken === null || broken === undefined) {
+        notes.push(`self-test "${attack}" could not be built`);
+        continue;
+      }
+      if (judge(broken).length === 0) {
+        notes.push(`self-test "${attack}" stayed GREEN with the rule broken`);
+        continue;
+      }
+      red += 1;
+    }
+    for (const f of found) fail(`Phase 321 ${c.rule} (${c.name}): ${f}.`);
+    for (const n of notes) fail(`Phase 321 ${c.rule} (${c.name}): ${n}, so the row has stopped asking.`);
+    if (c.attacks.length === 0) fail(`Phase 321 ${c.rule}: the row carries no self-test.`);
+    p321Rows.push({
+      rule: c.rule,
+      name: c.name,
+      ok: found.length === 0 && notes.length === 0,
+      note: `${String(red)} of ${String(c.attacks.length)} self-tests red`
+    });
+  }
+  if (p321Rows.length !== 4) fail('Phase 321 asks four rows, 10.1 to 10.4, and this gate no longer does.');
+}
+
+// ---------------------------------------------------------------------------
 // The table, printed whatever the verdict, because the point is that a person
 // can read it.
 // ---------------------------------------------------------------------------
@@ -1926,6 +2292,16 @@ if (p275Rows.length === 0) {
       'in this section — every name in it is invented in the probe.\n'
   );
 }
+
+process.stdout.write('\nthe activity fields no configuration can reach (Phase 321)\n');
+process.stdout.write('-'.repeat(107) + '\n');
+for (const row of p321Rows) {
+  process.stdout.write(`${pad(row.rule, 6)} ${pad(row.name, 78)} ${pad(tick(row.ok), 4)} ${row.note}\n`);
+}
+process.stdout.write(
+  `\n${String(P321_CASES.length)} rows went through the shipping parseAgentOverlay on the pinned tsx's stdin, ` +
+    'one parse each; no file was written and no agent was started.\n'
+);
 
 if (skipped.length > 0) {
   process.stdout.write(`\nSKIPPED, ${skipped.length}:\n`);

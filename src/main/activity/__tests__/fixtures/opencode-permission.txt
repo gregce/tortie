@@ -1,0 +1,45 @@
+  ┃
+  ┃  (xx xxxxxx)                                                                                                        xxxxxxxxxx xxxxx xxx xxxx xxxxxxxx
+  ┃
+                                                                                                                        xxxxxxx
+  ┃                                                                                                                     13,116 xxxxxx
+  ┃  $ xxxxx x319-xxxx.xxx                                                                                              3% xxxx
+  ┃                                                                                                                     $0.00 xxxxx
+  ┃  (no output)
+  ┃                                                                                                                     xxx
+                                                                                                                        xxxx xxx xxxxxxxx
+     xxxx
+
+     ▣  Build · xxx-5.6 xxx · 1m 44s
+
+  ┃
+  ┃  xxx xxxx: xxx xxxx xxxxx xxxxx xxxxxxx xx xxx xxxxxxxxxx xxx xxxx xxx xx xx xxxxxx (75 xxxxxxx, xxxxxx xxxxxxx)
+  ┃  : xxxxx 75 -- xxxx, xxxxx xx xxxxxxxx, xxx xxxx xxxxx xxxxxxx: xxxxx ../x319-xxxxxxx-xxxxxxxx.xxx -- xx
+  ┃  xxxxxxx xxxx, xxxxx xxxx xxx xxxxxx xxxx xxxx.
+  ┃
+
+  ┃
+  ┃  $ xxxxx 75
+  ┃
+  ┃  (no output)
+  ┃
+
+     + Thought: xxxxxxxxx xxxxxx xxxxxxxxx xxxxxxxxx · 1.9s
+
+     $ xxxxx ../x319-xxxxxxx-xxxxxxxx.xxx
+
+     ▣  Build · xxx-5.6 xxx
+
+  ┃
+  ┃  △ Permission required
+  ┃    ← Access external directory /work/opencode
+  ┃      /work/opencode
+  ┃
+  ┃  Patterns
+  ┃                                                                                                                     /work/opencode
+  ┃  - /work/opencode                                                                                                   /work/opencode
+  ┃                                                                                                                     /work/opencode
+  ┃                                                                                                                     opencode:main
+  ┃   Allow once   Allow always   Reject                               ctrl+f fullscreen  ⇆ select  enter confirm
+  ┃                                                                                                                     • OpenCode 1.18.31
+

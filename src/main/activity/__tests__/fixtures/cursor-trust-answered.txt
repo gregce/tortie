@@ -1,0 +1,45 @@
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │                                                                                                                                                          │
+  │  ⚠ Workspace Trust Required                                                                                                                              │
+  │                                                                                                                                                          │
+  │  Cursor Agent can execute code and access files in this directory.                                                                                       │
+  │                                                                                                                                                          │
+  │  Do you trust the contents of this directory?                                                                                                            │
+  │                                                                                                                                                          │
+  │    /work/cursor                                                                                                                                          │
+  │                                                                                                                                                          │
+  │                                                                                                                                                          │
+  │    [a] Trust this workspace                                                                                                                              │
+  │    [q] Quit                                                                                                                                              │
+  │                                                                                                                                                          │
+  │  ⏳ Trusting workspace...                                                                                                                                │
+  │                                                                                                                                                          │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+
+  Cursor Agent
+  v2026.09.02-c22c1a3
+  Tip: Use /plan to plan execution and reach the right outcome faster.
+
+
+
+
+  → Plan, search, build anything
+
+
+  xxxxxxxx 2.5 xxxx
+  /work/cursor · main
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -69,6 +69,7 @@ import {
   commandNamesAgent,
   commitVerdict,
   dropIsSafeToDeclare,
+  foregroundToRead,
   isTurnBoundary,
   freshState,
   inferredVerdict,
@@ -76,6 +77,7 @@ import {
   nativeVerdict,
   needsReturnBaseline,
   noteAgentLeft,
+  noteForeground,
   noteHandbackResolved,
   noteReturn,
   noteWitness,
@@ -614,10 +616,16 @@ export class SessionActivityMonitor {
         !e.pane.inMode &&
         (ambiguous.has(e.session.id) || e.st.state === 'needs_input')
     );
-    const captures = await this.captureScreens(
-      wantCapture.filter((e) => isMidDialog(e.st)).map((e) => e.pane),
-      wantCapture.filter((e) => !isMidDialog(e.st)).map((e) => e.pane)
-    );
+    // PHASE 321. Beside the captures, and never instead of one: who holds the
+    // terminal of each session whose row lists a question shape, read only
+    // when that changed. See `readForegrounds`.
+    const [captures] = await Promise.all([
+      this.captureScreens(
+        wantCapture.filter((e) => isMidDialog(e.st)).map((e) => e.pane),
+        wantCapture.filter((e) => !isMidDialog(e.st)).map((e) => e.pane)
+      ),
+      this.readForegrounds(wantCapture, proc)
+    ]);
     if (this.disposed) return;
 
     // PHASE 312. One update per session per tick, keyed so a choice cleared by
@@ -676,6 +684,34 @@ export class SessionActivityMonitor {
         lines: e.pane.historySize,
         limit: e.pane.historyLimit
       }))
+    );
+  }
+
+  /**
+   * PHASE 321, the operator's ruling of 2026-09-23. A question shape is read
+   * only while the session's AGENT holds the pane's terminal, and this is the
+   * one read that answers it: for each session about to be captured whose
+   * COMPILED row lists a shape, the command line of the process holding the
+   * terminal, `ps -o command=` of one pid (2.3 ms, research 64), taken only
+   * when that process or tmux's name for it changed since the last read. The
+   * rule itself, and which process holds the terminal, is `foregroundToRead`
+   * and `noteForeground` in ./state-machine.ts, read off the table this tick
+   * already took. A tick with no table reads nothing, and a row with no shape
+   * never costs a read.
+   */
+  private async readForegrounds(
+    wanted: readonly LiveSession[],
+    proc: ProcSnapshot | null
+  ): Promise<void> {
+    if (proc === null) return;
+    await Promise.all(
+      wanted.map(async (e) => {
+        const pid = foregroundToRead(e.pane, e.profile, e.st, proc);
+        if (pid === null) return;
+        const command = await this.readCommand(pid);
+        if (this.disposed) return;
+        noteForeground(e.st, e.pane, pid, command, e.session.agent);
+      })
     );
   }
 

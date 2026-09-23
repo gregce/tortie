@@ -1,0 +1,40 @@
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │                                                                                                                  │
+  │  ⚠ Workspace Trust Required                                                                                      │
+  │                                                                                                                  │
+  │  Cursor Agent can execute code and access files in this directory.                                               │
+  │                                                                                                                  │
+  │  Do you trust the contents of this directory?                                                                    │
+  │                                                                                                                  │
+  │    /work/cursor                                                                                                  │
+  │    xx                                                                                                            │
+  │                                                                                                                  │
+  │                                                                                                                  │
+  │  ▶ [a] Trust this workspace                                                                                      │
+  │    [q] Quit                                                                                                      │
+  │                                                                                                                  │
+  │  Use arrow keys to navigate, Enter to select, or press the key shown                                             │
+  │                                                                                                                  │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -64,12 +64,14 @@ const fixture = (name: string): string =>
  * floor, so a capture a later round commits is covered the moment it lands
  * rather than when somebody remembers to add it here. The floor below is the
  * count at this phase — thirteen — so a fixture deleted rather than added is
- * still a red test.
+ * still a red test. Phase 321 raised it to twenty-two with its nine redacted
+ * captures of the questions real agents draw; the verdict over every one of
+ * them still equals the parent's.
  */
 const FIXTURES = readdirSync(join(__dirname, 'fixtures'))
   .filter((name) => name.endsWith('.txt'))
   .sort();
-const FIXTURE_FLOOR = 13;
+const FIXTURE_FLOOR = 22;
 
 // ---------------------------------------------------------------------------
 // The floor: the verdict as it stood at the parent commit
