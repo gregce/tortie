@@ -33921,7 +33921,9 @@ release. That reader was not checked for this entry.
 
 **No release.**
 
-## Phase 319 — "so we can fix this correctly" — a question after a minute of silence (operator, 2026-09-22)
+## Phase 319 — "so we can fix this correctly" — a question after a minute of silence (operator, 2026-09-22) ⏸ PARKED 2026-09-23, his ruling
+
+**PARKED, NOT LANDED, READ BEFORE THE REST.** His words, choosing between landing, one more round and parking: "Park it, go to 321". The build was reverified twice and both answered needs_work; over every real recording it changed nothing, it helped only the modelled quiet fleet, it widened false ambers beyond the paste row he had accepted to the whole class of misread screens arriving in one write, and its integrator's repairs removed the lifted six-amber ceiling. The research (129) stands, the build sits uncommitted in `/private/tmp/wt-p319`, and silence is revisited after Phase 321 gives the detector shapes that misread less.
 
 **Subject.** `fix(activity): a question is seen however long the agent was quiet`
 
@@ -33997,6 +33999,8 @@ release. That reader was not checked for this entry.
 - **No release.**
 
 ## Phase 321 — "so we can fix this correctly", part two — the detector misses ten of twelve real questions (operator, research 129 §9 items 2 to 4, 2026-09-23)
+
+**CORRECTED 2026-09-23: 321 NO LONGER WAITS FOR 319**, which he parked. Every sentence below that says this phase runs after 319, or relies on 319 lifting the ceiling of six amber sessions, is superseded: the ceiling stands, so the phase measures its newly caught questions under it and names the ceiling as a limit rather than assuming it gone.
 
 **Subject.** `fix(activity): the questions real agents draw turn amber`
 
@@ -35454,3 +35458,5 @@ cycle rather than only the evening it was written.
 - 2026-09-23, **HE RULED ON RESEARCH 131.** (1) **Add `3.6` and `3.6b` to both version lists — "add to allow list but dont add a weird label"**: the rows carry plain subjects like the rows already there, and the honest account (built on this Mac with each distribution's patches, no Linux binary run, the shared 3.6-family defect) lives in research 131 and the commit body, not in a label. Owed a build entry, Tier 3 by the judge. (2) **Ubuntu 24.04, Debian 12 and Debian 13 stay unable to hold a session — "Not now"**; recorded as a known limit. (3) **An in-place-upgraded server is only reported, never ended** — his words "Only say so"; it binds whenever a pair read is built. (4) **Nothing is posted on issue 31.**
 
 - 2026-09-23, **PHASE 319's REVERIFY ANSWERED needs_work A SECOND TIME, AND IT GOES TO HIM.** Over every real recording the fix changes NOTHING: all fifteen agent rows, parent against HEAD, identical transitions and zero false ambers at both builds. On the modelled quiet fleet it catches more questions after silence (66 to 91 of 103 at 2 s, 83 to 101 at 1 s). But the accepted paste row is one member of a CLASS: any screen the detector misreads that arrives in one write after the window now turns amber where today misses it a quarter of the time — a working screen shaped like a dialog over a waiting child went 17 to 20 of 20 live, each new cell about 56 s of false amber — and the integrator's own repairs removed the second claim (six and eight blocked now read the same as today), while antigravity's captures rose 15% at 2 s. Nothing is committed; `/private/tmp/wt-p319` holds it.
+
+- 2026-09-23, **HE PARKED PHASE 319 — "Park it, go to 321" — and 321 starts now**, without 319 beneath it: the six-amber ceiling stands and 321 measures under it.
