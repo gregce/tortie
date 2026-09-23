@@ -73,7 +73,7 @@ const RULES = [
   ['G1', 'SPEC §2.6, §3.6', 'no key, JWT, token, payload, title, body, question or answer reaches any log call in src/main/push/ or the seam'],
   ['W1', 'SPEC §6.4', 'src/main/push/ names no main/logins/ and imports main/credentials/ and main/pocket/ by import type only; src/main/pocket/ names no main/push/'],
   ['Y1', 'SPEC §3.1', 'seenAtWake is computed only by blockedAge, WAKE_WINDOW_MS is declared once, and nothing in src/main/push/ compares a stamp with a resume time'],
-  ['S1', 'SPEC §1.1 row 1', 'the seam’s one status word equals statusVisual’s needs_input label in src/renderer/app/status.ts, byte for byte, and the seam spells no other']
+  ['S1', 'SPEC §1.1 row 1', 'the seam’s one status word equals statusVisual’s needs_input label in src/shared/status-words.ts, byte for byte, and the seam spells no other']
 ];
 
 if (process.argv.includes('--list')) {
@@ -239,7 +239,11 @@ const ENGINE = join(PUSH_DIR, 'engine.ts');
 const ATTENTION = join(SRC, 'main', 'tray', 'attention.ts');
 const PUSH_COPY = join(SRC, 'shared', 'push-copy.ts');
 const SEAM = join(SRC, 'main', 'harness', 'push-seam.ts');
-const STATUS = join(SRC, 'renderer', 'app', 'status.ts');
+// RE-POINTED IN PHASE 316.1: `statusVisual` MOVED, byte for byte, from
+// src/renderer/app/status.ts to src/shared/status-words.ts so main can answer
+// the phone every session's word. The renderer re-exports it; the cases this
+// rule reads live here now.
+const STATUS = join(SRC, 'shared', 'status-words.ts');
 const POCKET_DIR = join(SRC, 'main', 'pocket');
 
 const allSrc = sourcesUnder(SRC);
@@ -669,7 +673,7 @@ function statusWordRule() {
   const got = constString(seam, 'SEAM_STATUS_WORD');
   checked('S1', 2);
   if (want === undefined) {
-    fail('S1', 'statusVisual in src/renderer/app/status.ts has no case \'needs_input\' with a literal label, so there is nothing to hold the seam’s word to');
+    fail('S1', 'statusVisual in src/shared/status-words.ts has no case \'needs_input\' with a literal label, so there is nothing to hold the seam’s word to');
     return;
   }
   if (got !== want) {

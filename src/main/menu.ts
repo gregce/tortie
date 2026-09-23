@@ -596,6 +596,25 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           ...glyph('settings-gear'),
           click: () => openSettingsWindow()
         },
+        // Phase 316.1 (build/p316/SPEC.md section 6, decision 5, and his
+        // answer of 2026-09-22, "Yes, add Pair a Phone…"). Settings then Phone
+        // is a new surface, and a phase that adds one updates the native menus
+        // in the same commit. It sits directly under Settings… because that is
+        // the window it opens, straight at the Phone section, where Pair a
+        // phone is.
+        //
+        // NO MARK, and the refusal is argued rather than an omission. The mark
+        // this row would wear is the one its section wears on the Settings
+        // rail, `device-mobile`, and that name is not in the closed menu set:
+        // adding one means regenerating main's committed bitmaps with an
+        // Electron (build/generate-menu-icons.mjs), which is a step of its own.
+        // Every mark already in the set names another surface, and the gear is
+        // the row directly above. No accelerator either: a phone is paired
+        // once, and a pairing is not a chord's worth of habit.
+        {
+          label: 'Pair a Phone…',
+          click: () => openSettingsWindow('phone')
+        },
         // Phase 23: the one affordance for the configuration folder. It sits
         // next to Settings because both answer "where do I change Tortie",
         // and it has no accelerator on purpose — a folder a person opens
@@ -1413,7 +1432,14 @@ export function installAppMenu(): void {
       copyright:
         '© 2026 Ita Vero, LLC. All rights reserved.\n' +
         'Source: github.com/gregce/tortie\n' +
-        'Icons: codicons by Microsoft (CC BY 4.0) and Material Icon Theme by Material Extensions (MIT).'
+        'Icons: codicons by Microsoft (CC BY 4.0) and Material Icon Theme by Material Extensions (MIT).\n' +
+        // Phase 316.1. The pairing code in Settings then Phone is drawn by a
+        // vendored copy of Project Nayuki's QR Code generator library
+        // (src/renderer/settings/phone/qrcodegen.ts). It is MIT, whose notice
+        // must travel with every copy, and a minified bundle is not bound to
+        // keep the file's own header, so the credit is also here, where the
+        // icon credits are. NOTICE carries the licence text in full.
+        'QR codes: QR Code generator library by Project Nayuki (MIT).'
     });
   } catch (err) {
     // Cosmetic: an About panel that falls back to the bundle's own strings is

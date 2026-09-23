@@ -17,6 +17,13 @@
  * back refused proves a door that is off, so the honest arms are in the same
  * table as the attacks and a run where the honest arms fail is a FAILED run.
  *
+ * PHASE 316.1 WIDENED IT to the door switched on (build/p316/SPEC.md §4 S1,
+ * Method B): the door answers from the SHIPPING route composer and turns
+ * reader, the phone pins the QR's public-key `fp` the Swift way, and the new
+ * arms attack his (made-up) tailnet key, `others`, the refresh-before-read
+ * order, page indexes, a 4,000-character one-word ask, a removed session, a
+ * remote row and a Remove while the request is in flight.
+ *
  *   node build/p313/hostile-client.mjs
  */
 
@@ -66,8 +73,9 @@ if (problems.length > 0) {
   process.exit(1);
 }
 process.stdout.write(
-  `\n${TAG} PASS in ${seconds} s. ${String(arms.length)} arms: the honest phone read the three reads and every ` +
-    'attack was refused with its own reason. Two loopback listeners — the door, and arm 15’s second door ' +
+  `\n${TAG} PASS in ${seconds} s. ${String(arms.length)} arms: the honest phone read the three reads through the ` +
+    'shipping route composer, pinning the QR’s public key, and every attack was refused with its own reason. ' +
+    'The tailnet key was a made-up one. Two loopback listeners — the door, and arm 15’s second door ' +
     'with the self-origin refusal turned ON — and one scratch directory, all gone. ' +
     'No Swift, no Apple, no phone, no Electron, no real interface.\n'
 );

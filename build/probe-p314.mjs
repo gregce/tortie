@@ -1256,7 +1256,11 @@ try {
         GMUX_SPECSTORY_NO_CLOUD: '1',
         GMUX_CONFIG_ROOT: join(PROFILE, 'gmux', 'config'),
         GMUX_HARNESS_DIR: HARNESS,
-        GMUX_HARNESS_PUSH: PUSH_DIR
+        GMUX_HARNESS_PUSH: PUSH_DIR,
+        // Phase 316.1: a pairing window opens only on a LISTENING door (QR
+        // v:2 pins its key), so the seam opens the door for the pairing alone
+        // and shuts it again. It opens it only on loopback, and only with this.
+        GMUX_POCKET_LOOPBACK: '1'
       }),
       graceMs: 8_000,
       ceilingMs: 2_400_000

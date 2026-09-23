@@ -2,7 +2,7 @@
  * The integer rule, made mechanical (Phase 137).
  *
  * No integer appears on any view except a clock time, a date or an elapsed
- * time. The three formatters in ../clock.ts and formatAge are the only
+ * time. The formatters in src/shared/overview-clock.ts and formatAge are the only
  * sources of digits, and the views wrap their output in data-clock,
  * data-date or data-age spans. So the view sources themselves may hold no
  * digit in any string literal or any JSX text node.
@@ -18,7 +18,9 @@ const files = [
   ...readdirSync(DIR)
     .filter((name) => name.endsWith('.tsx'))
     .map((name) => join(DIR, name)),
-  join(DIR, 'copy.ts')
+  // Phase 316 moved the copy module to src/shared/. It is still the source
+  // of every sentence these views draw, so it is still scanned.
+  join(DIR, '..', '..', 'shared', 'overview-copy.ts')
 ];
 
 /** Comments go first, so a phase number in prose cannot fail the rule. */

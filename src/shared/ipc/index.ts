@@ -164,10 +164,14 @@ import type {
   GmuxOverviewExtras,
   OverviewInvokeChannelMap
 } from './overview';
-// `GmuxPocketExtras` is deliberately NOT imported here — see the note under
-// `InstalledGmuxApi` below. It is exported to the tree by the `export *` further
-// down, which is how src/preload/pocket.ts still types the object it builds.
-import type { PocketEventPayloadMap, PocketInvokeChannelMap } from './pocket';
+// Phase 316: `GmuxPocketExtras` joins the installed bridge in the same commit
+// that registers the `pocket:*` channels in main — see the note under
+// `InstalledGmuxApi` below.
+import type {
+  GmuxPocketExtras,
+  PocketEventPayloadMap,
+  PocketInvokeChannelMap
+} from './pocket';
 import type {
   ArchEventPayloadMap,
   ArchInvokeChannelMap,
@@ -492,25 +496,29 @@ export type InstalledGmuxApi = GmuxApi & {
   // Phase 202. The `logins` member: list, add, choose, remove.
   GmuxLoginsExtras &
   // Phase 243. The `baselines` member: load one, store one. Nothing else.
-  GmuxBaselinesExtras;
+  GmuxBaselinesExtras &
+  // Phase 316. The `pocket` member: Settings then Phone. Installed in the same
+  // commit that registers its channels in main (`conformance:pocket` B1).
+  GmuxPocketExtras;
 
 /**
- * PHASE 313, AND WHY `GmuxPocketExtras` IS NOT IN THE INTERSECTION ABOVE.
+ * PHASE 313 AND 316: WHY `GmuxPocketExtras` JOINED THE INTERSECTION ABOVE WHEN
+ * IT DID.
  *
- * It is declared in ./pocket.ts and `src/preload/pocket.ts` builds the object
- * it describes, and neither is installed on `window.gmux` yet, because the
- * eight `pocket:*` channels have no registered handler: main's registrar,
- * `src/main/pocket/ipc.ts`'s `registerPocketIpc`, is called from nowhere. This
+ * Phase 313 declared it in ./pocket.ts and `src/preload/pocket.ts` built the
+ * object it describes, and neither was installed on `window.gmux`, because the
+ * `pocket:*` channels had no registered handler: main's registrar,
+ * `src/main/pocket/ipc.ts`'s `registerPocketIpc`, was called from nowhere. This
  * intersection is what the preload's `api` const is annotated with, so naming
  * `GmuxPocketExtras` here is what MAKES the member compulsory — and a
- * compulsory member over eight channels that reject at run time is a bridge
+ * compulsory member over channels that reject at run time is a bridge
  * advertising a surface that throws. It was installed that way for one round
- * and the round was stopped for it.
+ * of Phase 313 and the round was stopped for it.
  *
- * So the two lines move together, in the commit that registers the channels:
- * the intersection member and the object in src/preload/index.ts. Adding one
- * without the other is a compile error naming the file that is behind, in
- * whichever direction it happens, which is the whole point of the annotation.
- * `GmuxProjectExtras.rename` is the standing precedent for a member declared
- * and deliberately not installed.
+ * Phase 316 registers the channels from `installMainCapabilities` and moves
+ * the two lines together in that same commit: the intersection member and the
+ * object in src/preload/index.ts. Taking either away without the other is a
+ * compile error naming the file that is behind, in whichever direction it
+ * happens, which is the whole point of the annotation; `conformance:pocket` B1
+ * reads all three places.
  */

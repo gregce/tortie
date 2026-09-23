@@ -62,7 +62,7 @@
  * hand. It reaches no Electron, so HELPER_USER_FLOOR does not move.
  */
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -85,7 +85,11 @@ const sourcesUnder = (root) => ({
   types: join(root, 'src', 'shared', 'types.ts'),
   gate: join(root, 'src', 'main', 'sessions', 'lifecycle-gate.ts'),
   resume: join(root, 'src', 'renderer', 'state', 'resume.ts'),
-  status: join(root, 'src', 'renderer', 'app', 'status.ts')
+  // Phase 316.1 moved `statusVisual` to src/shared/status-words.ts; a parent
+  // checkout from before that still has it in the renderer.
+  status: existsSync(join(root, 'src', 'shared', 'status-words.ts'))
+    ? join(root, 'src', 'shared', 'status-words.ts')
+    : join(root, 'src', 'renderer', 'app', 'status.ts')
 });
 
 // ---------------------------------------------------------------------------

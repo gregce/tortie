@@ -17,9 +17,10 @@
  *     the overview store, and that store is closed in the race further down.
  *
  * And one thing that must NOT be there: nothing in the composition root opens
- * a door. It opens when a person has switched it on and confirmed a pairing,
- * which is the pocket registrar's, so `startPocketDoor` must not appear in
- * this file at all.
+ * a door BY ITSELF. Since Phase 316 the door opens at launch through exactly
+ * one call, the owner's `openAtLaunch`, which binds only on fields a person
+ * confirmed; so `startPocketDoor` must not appear in this file at all, and the
+ * owner's own `start()` is never called from it.
  */
 
 import { readFileSync } from 'node:fs';
@@ -77,8 +78,20 @@ describe('the door in the quit', () => {
     expect(body.match(/beginPocketShutdown\(\)/g) ?? []).toHaveLength(1);
   });
 
-  it('opens no door at boot', () => {
-    expect(src).not.toContain('startPocketDoor');
+  it('shreds an open pairing window, and the tailnet key in it, at quit (Phase 316)', () => {
+    expect(body.match(/pocketHost\?\.pairing\.cancel\(\)/g) ?? []).toHaveLength(1);
+    // After the door is closed, so nothing can present into a window that is
+    // being shredded.
+    expect(body.indexOf('pocketHost?.pairing.cancel()')).toBeGreaterThan(
+      body.indexOf('await joinPocketDoor()')
+    );
+  });
+
+  it('opens no door at boot except through the launch step (Phase 316)', () => {
+    const all = code(src);
+    expect(all).not.toContain('startPocketDoor');
+    expect(all).not.toMatch(/pocketHost\??\.start\(/);
+    expect(all.match(/\.openAtLaunch\(/g) ?? []).toHaveLength(1);
   });
 
   it('logs counts and a boolean, and nothing a request carried', () => {

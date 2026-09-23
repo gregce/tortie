@@ -1,10 +1,16 @@
 /**
  * The two clock formatters for the Catch Me Up page (Phase 137).
  *
- * These two functions and formatAge in ../format.ts are the only sources of
+ * These two functions and formatAge in ./age.ts are the only sources of
  * digits on the page. The views wrap their output in spans that carry
  * data-clock, data-date or data-age, and the probe reads those attributes to
  * prove no other digit is drawn.
+ *
+ * MOVED TO SHARED IN PHASE 316, byte for byte, from
+ * `src/renderer/overview/clock.ts`. Main composes the phone's Catch Me Up line
+ * with `./overview-line.ts`, whose "nothing asked yet" arm draws a clock from
+ * here, so the line the phone reads and the line the Mac draws come from one
+ * formatter. Every importer was re-pointed; nothing re-exports it.
  */
 
 const MONTHS = [

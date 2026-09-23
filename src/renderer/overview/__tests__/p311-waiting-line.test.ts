@@ -27,8 +27,8 @@ import type {
   OverviewTurnView
 } from '@shared/overview';
 import type { SessionStatus } from '@shared/types';
-import { buildProjectLine, projectLineFor } from '../line';
-import { OUTCOME_WAITING } from '../copy';
+import { buildProjectLine, projectLineFor } from '@shared/overview-line';
+import { OUTCOME_WAITING } from '@shared/overview-copy';
 
 function turn(over: Partial<OverviewTurnView> = {}): OverviewTurnView {
   return {

@@ -24,8 +24,8 @@ import type {
   OverviewTurnView
 } from '@shared/overview';
 import { ProjectLines } from '../ProjectLines';
-import { formatTurnClock } from '../clock';
-import { buildProjectLine, projectLineFor } from '../line';
+import { formatTurnClock } from '@shared/overview-clock';
+import { buildProjectLine, projectLineFor } from '@shared/overview-line';
 
 const NOW = Date.UTC(2026, 7, 23, 12, 0, 0);
 

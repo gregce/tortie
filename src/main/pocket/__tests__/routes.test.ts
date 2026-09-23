@@ -30,9 +30,13 @@ import {
   pocketRouteIds,
   pocketRouteIdsAgree,
   pocketTableIsReadOnly,
+  readTurnRange,
   type PocketFacts,
   type PocketRoute
 } from '../routes';
+import { POCKET_AGE_HONESTY, POCKET_OTHERS_MAX } from '@shared/ipc/pocket';
+import { OUTCOME_REMOTE } from '@shared/overview-copy';
+import type { OverviewSessionActivity } from '@shared/overview';
 
 function session(over: Partial<Session> & Pick<Session, 'id' | 'name'>): Session {
   return {
@@ -121,7 +125,8 @@ function facts(over: Partial<PocketFacts> = {}): PocketFacts {
           answerAt: null,
           closed: true,
           interrupted: false,
-          notice: null
+          notice: null,
+          absence: null
         }
       ],
       more: false
@@ -332,7 +337,13 @@ describe('the turns', () => {
     });
   });
 
-  it('passes a range through, and refuses nonsense by falling back', async () => {
+  // PHASE 316. A limit that is not a number still falls back to the default,
+  // because a smaller or larger page is still the page asked for. An INDEX that
+  // is not a turn index is refused instead: a fallback would answer a page the
+  // phone did not ask for, and the phone would stitch it in as if it had. This
+  // test was "refuses nonsense by falling back" until Phase 316, and `-5` and
+  // 2^53 went straight through to the store.
+  it('passes a range through, falls back on a bad limit, and refuses a bad index', async () => {
     const seen: unknown[] = [];
     const routes = createPocketRoutes(
       facts({
@@ -343,19 +354,35 @@ describe('the turns', () => {
       })
     );
     await routes.turns('a', { limit: '5', from: '10', to: '20' });
-    await routes.turns('a', { limit: 'lots', from: 'x', to: null });
+    await routes.turns('a', { limit: 'lots', to: null });
     await routes.turns('a', { limit: '-3' });
-    expect(seen[0]).toEqual({ limit: 5, from: 10, to: 20 });
-    expect(seen[1]).toEqual({
-      limit: POCKET_DEFAULT_TURN_LIMIT,
-      from: null,
-      to: null
-    });
-    expect(seen[2]).toEqual({
-      limit: POCKET_DEFAULT_TURN_LIMIT,
-      from: null,
-      to: null
-    });
+    await routes.turns('a', { to: '7' });
+    await routes.turns('a', { from: '3' });
+    expect(seen).toEqual([
+      { limit: 5, from: 10, to: 20 },
+      { limit: POCKET_DEFAULT_TURN_LIMIT, from: null, to: null },
+      { limit: POCKET_DEFAULT_TURN_LIMIT, from: null, to: null },
+      { limit: POCKET_DEFAULT_TURN_LIMIT, from: null, to: 7 },
+      { limit: POCKET_DEFAULT_TURN_LIMIT, from: 3, to: null }
+    ]);
+    const before = seen.length;
+    for (const bad of [
+      { from: 'x' },
+      { to: '-1' },
+      { from: '-5', to: '3' },
+      { to: '1.5' },
+      { to: '1e3' },
+      { to: '0x10' },
+      { to: ' 7' },
+      { to: '07' },
+      { to: String(2 ** 53) },
+      { to: '99999999999999999999' },
+      { from: '10', to: '9' }
+    ]) {
+      expect(await routes.turns('a', bad), JSON.stringify(bad)).toBeNull();
+    }
+    // Refused BEFORE anything is read.
+    expect(seen).toHaveLength(before);
   });
 
   // THE CLAMP, AND IT IS AT THE DOOR. The fix round measured that nothing
@@ -456,5 +483,288 @@ describe('seen at the wake', () => {
       facts({ wakes: () => [{ suspendedAt: 100, resumedAt: 900 }] })
     ).session('a');
     expect(answer?.session.seenAtWake).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 316: every session, the words main draws, and fresh before read
+// ---------------------------------------------------------------------------
+
+const MIN = 60_000;
+
+describe('others: every listed session that is not waiting (Phase 316)', () => {
+  it('is exactly the complement of the blocked rows, by id', () => {
+    const answer = createPocketRoutes(facts()).blocked();
+    const blocked = answer.rows.map((r) => r.sessionId);
+    const others = answer.others.map((r) => r.sessionId);
+    // RE-DERIVED here, with this test's own filter.
+    const mine = SESSIONS.filter((s) => s.status !== 'needs_input').map((s) => s.id);
+    expect([...others].sort()).toEqual([...mine].sort());
+    expect(blocked.filter((id) => others.includes(id))).toEqual([]);
+    expect(blocked.length + others.length).toBe(SESSIONS.length);
+    expect(answer.othersOmitted).toBe(0);
+  });
+
+  it('orders newest output first, then the unseen newest created, the id breaking ties', () => {
+    const sessions: Session[] = [
+      session({ id: 'z-old-seen', name: 'one', status: 'idle', createdAt: 900 }),
+      session({ id: 'y-new-seen', name: 'two', status: 'running', createdAt: 100 }),
+      session({ id: 'x-unseen-new', name: 'three', status: 'exited', createdAt: 800 }),
+      session({ id: 'w-unseen-old', name: 'four', status: 'idle', createdAt: 200 }),
+      session({ id: 'b-tie', name: 'five', status: 'idle', createdAt: 500 }),
+      session({ id: 'a-tie', name: 'six', status: 'idle', createdAt: 500 }),
+      session({ id: 'blocked', name: 'seven', status: 'needs_input', createdAt: 50 })
+    ];
+    const lastOutput = new Map([
+      ['z-old-seen', 1_000],
+      ['y-new-seen', 5_000]
+    ]);
+    const answer = createPocketRoutes(
+      facts({
+        sessions: () => sessions,
+        activity: (id) =>
+          lastOutput.has(id) ? { lastActivityAt: lastOutput.get(id) as number } : undefined
+      })
+    ).blocked();
+    expect(answer.rows.map((r) => r.sessionId)).toEqual(['blocked']);
+    expect(answer.others.map((r) => r.sessionId)).toEqual([
+      'y-new-seen',
+      'z-old-seen',
+      'x-unseen-new',
+      'a-tie',
+      'b-tie',
+      'w-unseen-old'
+    ]);
+  });
+
+  it('holds at most POCKET_OTHERS_MAX and says how many it left out', () => {
+    const many: Session[] = [];
+    for (let i = 0; i < POCKET_OTHERS_MAX + 7; i += 1) {
+      many.push(session({ id: `s${String(i).padStart(4, '0')}`, name: `n${i}`, status: 'idle', createdAt: i }));
+    }
+    const answer = createPocketRoutes(facts({ sessions: () => many })).blocked();
+    expect(POCKET_OTHERS_MAX).toBe(200);
+    expect(answer.others).toHaveLength(POCKET_OTHERS_MAX);
+    expect(answer.othersOmitted).toBe(7);
+    // Newest created first, so the seven left out are the seven oldest.
+    expect(answer.others[0]?.sessionId).toBe(`s${String(POCKET_OTHERS_MAX + 6).padStart(4, '0')}`);
+    expect(answer.others.some((r) => r.sessionId === 's0000')).toBe(false);
+  });
+
+  it('hands over the age sentence Phase 314 spelled, never a second spelling', () => {
+    expect(createPocketRoutes(facts()).blocked().ageNote).toBe(POCKET_AGE_HONESTY);
+  });
+});
+
+describe('the words main draws (Phase 316)', () => {
+  it('raises the status word into a title with the one shared rule', () => {
+    const answer = createPocketRoutes(
+      facts({
+        statusWord: (s) =>
+          s.status === 'needs_input'
+            ? { dot: 'attention', label: 'needs input' }
+            : { dot: 'failed', label: 'failed (exit 1)' }
+      })
+    ).blocked();
+    expect(answer.rows[0]?.statusTitle).toBe('Needs input');
+    expect(answer.others[0]?.statusTitle).toBe('Failed (exit 1)');
+    // The lowercase word is still on the row, untouched.
+    expect(answer.others[0]?.statusLabel).toBe('failed (exit 1)');
+  });
+
+  it('ages a waiting row from its wait and any other row from its last output', () => {
+    const at = 10 * 60 * MIN;
+    const answer = createPocketRoutes(
+      facts({
+        now: () => at,
+        blockedSince: () => new Map([['a', at - 4 * MIN], ['b', at - 30_000], ['c', at - 3 * 60 * MIN], ['d', at - 2 * 24 * 60 * MIN]]),
+        activity: (id) => (id === 'e' ? { lastActivityAt: at - 9 * MIN } : undefined)
+      })
+    ).blocked();
+    const age = (id: string): string | undefined =>
+      [...answer.rows, ...answer.others].find((r) => r.sessionId === id)?.ageText;
+    expect(age('a')).toBe('4m');
+    expect(age('b')).toBe('now');
+    expect(age('c')).toBe('3h');
+    expect(age('d')).toBe('2d');
+    // `e` is running: its last output. `f` has none: its creation, at 60 ms,
+    // which is 60 ms short of ten hours before `at`, so one unit, floored.
+    expect(age('e')).toBe('9m');
+    expect(age('f')).toBe('9h');
+    expect(answer.at).toBe(at);
+  });
+
+  it('marks only a WAITING row as seen at the wake', () => {
+    // `f` was created (60) inside a wake window that also covers `a` (1,000).
+    const rows = createPocketRoutes(
+      facts({ wakes: () => [{ suspendedAt: null, resumedAt: 50 }] })
+    ).blocked();
+    expect(rows.rows.find((r) => r.sessionId === 'a')?.seenAtWake).toBe(true);
+    expect(rows.others.find((r) => r.sessionId === 'f')?.seenAtWake).toBe(false);
+    expect(rows.others.find((r) => r.sessionId === 'e')?.seenAtWake).toBe(false);
+  });
+});
+
+describe('the turn range, read before anything is read (Phase 316)', () => {
+  it('names why a page is refused', () => {
+    expect(readTurnRange({})).toEqual({ ok: true, from: null, to: null });
+    expect(readTurnRange({ from: '', to: '' })).toEqual({ ok: true, from: null, to: null });
+    expect(readTurnRange({ from: '0', to: String(Number.MAX_SAFE_INTEGER) })).toEqual({
+      ok: true,
+      from: 0,
+      to: Number.MAX_SAFE_INTEGER
+    });
+    expect(readTurnRange({ from: '4', to: '4' })).toEqual({ ok: true, from: 4, to: 4 });
+    expect(readTurnRange({ to: '-1' })).toEqual({ ok: false, reason: 'index' });
+    expect(readTurnRange({ to: String(2 ** 53) })).toEqual({ ok: false, reason: 'index' });
+    expect(readTurnRange({ from: '5', to: '4' })).toEqual({ ok: false, reason: 'backwards' });
+  });
+});
+
+describe('fresh before read (Phase 316)', () => {
+  const ACTIVITY: OverviewSessionActivity = {
+    sessionId: 'a',
+    coverage: 'complete',
+    reason: null,
+    userMessages: 20,
+    agentMessages: 21,
+    lastMessageAt: 123_456 - 2 * MIN,
+    lastMessageBy: 'you',
+    lastMessageClock: 'message',
+    readAt: 123_456
+  };
+
+  it('refreshes before every read of the conversation, and carries the counts', async () => {
+    const log: string[] = [];
+    const routes = createPocketRoutes(
+      facts({
+        refresh: async (id) => {
+          log.push(`refresh:${id}`);
+          return ACTIVITY;
+        },
+        catchUp: async (id) => {
+          log.push(`catchUp:${id}`);
+          return null;
+        },
+        lastTurn: async (id) => {
+          log.push(`lastTurn:${id}`);
+          return { answerText: null, turnCount: 0 };
+        },
+        turns: async (id) => {
+          log.push(`turns:${id}`);
+          return { turns: [], more: false };
+        }
+      })
+    );
+    const answer = await routes.session('a');
+    await routes.turns('a', {});
+    expect(log).toEqual(['refresh:a', 'catchUp:a', 'lastTurn:a', 'refresh:a', 'turns:a']);
+    expect(answer?.session.activity).toEqual(ACTIVITY);
+    expect(answer?.session.lastMessageText).toBe('2m');
+  });
+
+  it('draws no last-message age when the counts carry no time, never a zero', async () => {
+    const answer = await createPocketRoutes(
+      facts({
+        refresh: async () => ({ ...ACTIVITY, lastMessageAt: null, lastMessageBy: null, lastMessageClock: null })
+      })
+    ).session('a');
+    expect(answer?.session.lastMessageText).toBeNull();
+    const none = await createPocketRoutes(facts()).session('a');
+    expect(none?.session.activity).toBeNull();
+    expect(none?.session.lastMessageText).toBeNull();
+  });
+
+  it('answers a session removed while the refresh ran as an id nobody has', async () => {
+    let live = SESSIONS;
+    const read: string[] = [];
+    const routes = createPocketRoutes(
+      facts({
+        sessions: () => live,
+        refresh: async () => {
+          live = SESSIONS.filter((s) => s.id !== 'a');
+          await Promise.resolve();
+          return null;
+        },
+        catchUp: async () => {
+          read.push('catchUp');
+          return null;
+        },
+        turns: async () => {
+          read.push('turns');
+          return { turns: [], more: false };
+        }
+      })
+    );
+    expect(await routes.session('a')).toBeNull();
+    live = SESSIONS;
+    expect(await routes.turns('a', {})).toBeNull();
+    expect(read).toEqual([]);
+  });
+
+  it('answers a refresh that throws, rather than leaving the phone waiting', async () => {
+    const answer = await createPocketRoutes(
+      facts({
+        refresh: async () => {
+          throw new Error('the manifest is not open');
+        }
+      })
+    ).session('a');
+    expect(answer?.session.activity).toBeNull();
+    expect(answer?.session.name).toBe('aardvark');
+  });
+
+  it('answers null, never a hang, when a read throws', async () => {
+    const broken = createPocketRoutes(
+      facts({
+        lastTurn: async () => {
+          throw new Error('store will not open');
+        },
+        turns: async () => {
+          throw new Error('store will not open');
+        }
+      })
+    );
+    expect(await broken.session('a')).toBeNull();
+    expect(await broken.turns('a', {})).toBeNull();
+  });
+
+  it('answers a remote session’s turns with main’s sentence, and reads nothing', async () => {
+    const log: string[] = [];
+    const remote = session({
+      id: 'r',
+      name: 'far',
+      status: 'running',
+      machine: { id: 'studio', label: 'Mac Pro', color: 'blue', answering: true, canRestore: false } as unknown as Session['machine']
+    });
+    const answer = await createPocketRoutes(
+      facts({
+        sessions: () => [...SESSIONS, remote],
+        refresh: async () => {
+          log.push('refresh');
+          return null;
+        },
+        turns: async () => {
+          log.push('turns');
+          return { turns: [], more: true };
+        }
+      })
+    ).turns('r', {});
+    expect(answer).toEqual({ sessionId: 'r', turns: [], more: false, at: 123_456, note: OUTCOME_REMOTE });
+    expect(log).toEqual([]);
+  });
+
+  it('never says more on a page that added nothing, whatever a composer says', async () => {
+    const answer = await createPocketRoutes(
+      facts({ turns: async () => ({ turns: [], more: true }) })
+    ).turns('a', {});
+    expect(answer?.more).toBe(false);
+    expect(answer?.note).toBeNull();
+  });
+
+  it('answers every session with no hand-off', async () => {
+    for (const s of SESSIONS) {
+      expect((await createPocketRoutes(facts()).session(s.id))?.session.handoff).toBeNull();
+    }
   });
 });

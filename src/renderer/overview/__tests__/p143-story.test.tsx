@@ -37,10 +37,10 @@ import {
   STORY_NO_MODEL,
   STORY_TURNS_CLIPPED,
   STORY_TURNS_GONE
-} from '../copy';
+} from '@shared/overview-copy';
 import type { StoryState } from '../story';
 import { storyTurnsClipped } from '../story';
-import { formatTurnClock } from '../clock';
+import { formatTurnClock } from '@shared/overview-clock';
 
 const NOW = Date.UTC(2026, 7, 23, 12, 0, 0);
 

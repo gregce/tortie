@@ -16,102 +16,29 @@ import type { Session, SessionMachine, SessionStatus } from '@shared/types';
 // were checked, and none of them imports this module.
 import { effectiveStatusOf } from '../state/store';
 
-export type DotKind = 'working' | 'attention' | 'idle' | 'ended' | 'failed';
+// The status words — `DotKind`, `StatusVisual`, `SessionEnd`, the two readings
+// of how a session ended and `statusVisual` itself — moved to
+// src/shared/status-words.ts in Phase 316 (see that file for why). This
+// module imports what its own functions read and re-exports the names the
+// renderer already imports from here, so there is one definition and the
+// renderer keeps one door to it.
+import {
+  capturedSignalDeath,
+  endSignalName,
+  exitCodeIsApproximate,
+  type DotKind,
+  type SessionEnd
+} from '@shared/status-words';
 
-export interface StatusVisual {
-  dot: DotKind;
-  /** Row/strip text label; sentence case. */
-  label: string;
-}
-
-/**
- * How a session ended — the two independent halves main records (Phase 12.7
- * F2). Structurally satisfied by a whole `Session`, so callers pass the
- * session itself.
- */
-export interface SessionEnd {
-  exitCode?: number;
-  exitSignal?: string;
-  /**
-   * The session's SpecStory capture, when it had one — read for one field.
-   *
-   * `exitCodeApproximate` is set for the four providers whose wrapper
-   * COLLAPSES the agent's exit status to 1 (codex, droid, deepseek,
-   * antigravity — research 13 §4.2). A captured codex that exits 7 reaches
-   * gmux as a 1, so printing "exit 1" states as fact a number nobody
-   * measured. Structurally satisfied by a whole `Session` (its `capture`
-   * carries more fields), like `SessionEnd` itself.
-   */
-  capture?: { exitCodeApproximate: boolean };
-}
-
-/**
- * True when this session's recorded exit CODE is a floor, not a fact — the
- * SpecStory wrapper mirrored a collapsed 1 instead of the agent's own status.
- * The signal half is unaffected: a signal death is reported by tmux about the
- * process it actually reaped, not mirrored by the wrapper.
- */
-function exitCodeIsApproximate(end: SessionEnd | undefined): boolean {
-  return end?.capture?.exitCodeApproximate === true;
-}
-
-/**
- * True when this end describes the SpecStory capture process rather than the
- * agent (Phase 115). The rule lives here once and every branch reads it.
- *
- * tmux execs argv[0], and for a captured session wrapArgv puts the specstory
- * binary there. The process a SIGNAL death names is therefore specstory, and
- * the agent ran inside it. An exit CODE death is different. The wrapper
- * mirrors the agent's own exit status, so on that path the number does
- * describe the agent, and the copy for it does not change.
- */
-function capturedSignalDeath(end: SessionEnd | undefined): boolean {
-  return end?.capture !== undefined && endSignalName(end) !== null;
-}
-
-/**
- * macOS/BSD signal numbers → names, for decoding 128+n exit codes. Indexed
- * by number, so the table is written as one line per row of eight.
- */
-const SIGNAL_NAMES: readonly (string | undefined)[] = [
-  undefined,
-  'HUP', 'INT', 'QUIT', 'ILL', 'TRAP', 'ABRT', 'EMT', 'FPE',
-  'KILL', 'BUS', 'SEGV', 'SYS', 'PIPE', 'ALRM', 'TERM', 'URG',
-  'STOP', 'TSTP', 'CONT', 'CHLD', 'TTIN', 'TTOU', 'IO', 'XCPU',
-  'XFSZ', 'VTALRM', 'PROF', 'WINCH', 'INFO', 'USR1', 'USR2'
-];
-
-/**
- * The signal that ended this session, as a bare name ("TERM"), or null.
- *
- * Two sources, because agents disagree about how to die (research 21 §3/§7):
- *  - tmux's `#{pane_dead_signal}` for a process killed BY a signal — the
- *    honest case, and the one that used to leave no trace at all;
- *  - a 128+n exit code for an agent that TRAPS the signal and exits itself
- *    (claude maps SIGTERM to exit 143), which is the same event wearing a
- *    number.
- */
-export function endSignalName(end: SessionEnd | undefined): string | null {
-  if (end === undefined) return null;
-  if (end.exitSignal !== undefined && end.exitSignal.length > 0) {
-    const raw = end.exitSignal.replace(/^sig/i, '').toUpperCase();
-    return /^[A-Z0-9]+$/.test(raw) ? raw : null;
-  }
-  const code = end.exitCode;
-  if (code !== undefined && code > 128 && code < 160) {
-    return SIGNAL_NAMES[code - 128] ?? null;
-  }
-  return null;
-}
-
-/** A session that did NOT end cleanly (non-zero exit, or a signal). */
-export function endedBadly(end: SessionEnd | undefined): boolean {
-  if (end === undefined) return false;
-  return (
-    (end.exitCode !== undefined && end.exitCode !== 0) ||
-    endSignalName(end) !== null
-  );
-}
+export {
+  endSignalName,
+  endedBadly,
+  statusVisual,
+  type DotKind,
+  type SessionEnd,
+  type StatusFacts,
+  type StatusVisual
+} from '@shared/status-words';
 
 /**
  * The banner headline for a session that is over — the honest version of
@@ -276,80 +203,9 @@ export function exitDetailNote(end: SessionEnd): string {
   );
 }
 
-/**
- * What the label needs to know about a session beyond its status.
- *
- * It extends {@link SessionEnd} rather than replacing it, so every existing
- * call site is unchanged: they all already pass the whole session, which
- * satisfies both halves structurally.
- */
-export interface StatusFacts extends SessionEnd {
-  /**
-   * The machine this session runs on, when it is not this Mac (Phase 71).
-   *
-   * Only the `restorable` arm reads it, and read the comment there for what it
-   * changes and why.
-   */
-  machine?: SessionMachine;
-}
-
-export function statusVisual(
-  status: SessionStatus,
-  end?: StatusFacts
-): StatusVisual {
-  switch (status) {
-    case 'running':
-      return { dot: 'working', label: 'working' };
-    case 'needs_input':
-      return { dot: 'attention', label: 'needs input' };
-    case 'idle':
-      return { dot: 'idle', label: 'idle' };
-    case 'exited': {
-      // §6.6 exit-code truth: main records the real exit status (Phase 8,
-      // Session.exitCode) and, since Phase 12.7, the signal that killed it
-      // (Session.exitSignal — a signal death has NO exit code, so it used to
-      // read as a clean "ended"). Either one renders the failed variant.
-      if (!endedBadly(end)) return { dot: 'ended', label: 'ended' };
-      const signal = endSignalName(end);
-      // Phase 115. A captured signal death names SpecStory in the label,
-      // because the killed process was SpecStory (see capturedSignalDeath).
-      return {
-        dot: 'failed',
-        label:
-          signal !== null
-            ? capturedSignalDeath(end)
-              ? `SpecStory killed (SIG${signal})`
-              : `killed (SIG${signal})`
-            : exitCodeIsApproximate(end)
-              ? 'failed'
-              : `failed (exit ${end?.exitCode})`
-      };
-    }
-    case 'restorable':
-      // PHASE 71. `saved` is true of a session on this Mac and false of a
-      // session on another machine. Nothing about a remote session is saved
-      // here: no scrollback, no resume line, no launch snapshot. The machine
-      // holds all of it. Saying "saved" would be the exact class of claim
-      // Phase 67 existed to kill, and the honest word for a row a completed
-      // list stopped reporting is that it is not running.
-      return end?.machine !== undefined
-        ? { dot: 'idle', label: 'not running' }
-        : { dot: 'idle', label: 'saved' };
-    case 'unknown':
-      // Produced since Phase 67: main writes it when the session server
-      // cannot be reached and its death is not confirmed by a completed
-      // probe. A hollow dot, because hollow is what the other "not working
-      // right now" states use, and no new colour is invented for a state the
-      // user cannot act on. The label is the honest word: Tortie cannot see
-      // this session and cannot prove it is gone.
-      return { dot: 'ended', label: 'unreachable' };
-    case 'discarded':
-      // Added in Phase 19 item 6 with `unknown`; its producer is the
-      // reversible remove. This switch has no `default`, so a member with no
-      // case here is a compile error rather than a row that renders blank.
-      return { dot: 'ended', label: 'removed' };
-  }
-}
+// `StatusFacts` and `statusVisual` moved to src/shared/status-words.ts in
+// Phase 316, byte for byte, so main answers the phone the word this file
+// draws. They are imported and re-exported above.
 
 /**
  * True when the one local machine is unreachable, read off the rows.

@@ -25,7 +25,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import type { SessionStatus } from '@shared/types';
-import { formatTurnClock } from './clock';
+import { formatTurnClock } from '@shared/overview-clock';
 import {
   STORY_CLOCK_NOTE,
   STORY_GAP,
@@ -36,7 +36,7 @@ import {
   STORY_TURNS_CLIPPED,
   STORY_TURNS_GONE,
   WRITTEN_LEAD
-} from './copy';
+} from '@shared/overview-copy';
 import type { StoryEntry, StoryState } from './story';
 import {
   moveStoryCursor,

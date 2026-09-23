@@ -620,7 +620,7 @@ Release build has no transport yet (it arrives in S3), and says "not paired". No
     this rather than trusting it.
 
 **Not covered yet:**
-- no alerts (S5);
+- no alerts (S5): the Alerts switch in Settings → Phone sends nothing before then, so leave it off;
 - no End (317);
 - no buttons and no typing (318);
 - nothing answers while the Mac is asleep or Tortie is quit;
@@ -644,6 +644,13 @@ Release build has no transport yet (it arrives in S3), and says "not paired". No
   token's environment. If it does not choose the host per token, S5 edits `apns.ts` and says so.
 
 **Files.**
+- `src/main/capabilities.ts`: **compose Phase 314's engine in production, because nothing else does** (the
+  316.1 fix round, verifier lens 1). `createPushEngine` over the pocket host's `pushDestinations`,
+  `apnsKeyStoreForApp`, and the ONE `WakeMark` 316.1 already builds, registered with the ordered disposer
+  (`beginShutdown()` then `join()`), and inert until a person turns the switch on and confirms. Until this
+  lands, Settings → Phone's "Alert my phone when a session waits" records a confirmed field and sends nothing:
+  314 left the composition to 316, and 316.1 was forbidden push code. The push seam
+  (`src/main/harness/push-seam.ts`) stays the harness's and is not what ships.
 - `src/main/pocket/pairing.ts`: the sealed presentation gains optional `pt` (hex, at most 200 characters) and
   `pe` (`development` or `production`). Both are validated, and one bad field drops the presentation whole.
   They are stored with the phone, so they are in the confirmed hash and go with Remove.
@@ -744,3 +751,147 @@ The door client (`URLSession` plus one key) is not his decision. §3.2 measured 
 | Push for anybody but him | His ruling (research 127 §11.6) is still open | — |
 | A trial on the Simulator over his real tailnet | Dropped (§2 row 29) | Nothing carries the payload into a camera-less Simulator |
 | A release | After the phone works end to end, by his rule | — |
+
+---
+
+## §As built — 316.1
+
+Written by the integrator at `89458498` (origin/main, Phases 313 and 314 landed), over four builders' work in
+`/private/tmp/wt-p316`. Every row is a place the tree differs from §4 S1 as written, and why. Nothing here
+was committed, staged or stashed; no Electron ran.
+
+### What S1 got wrong about the tree at this head
+
+| # | S1 says | What is true | What was built |
+| --- | --- | --- | --- |
+| 1 | "Starts when": read 314's shared status-word table and `raisedLabel` in `src/shared/` | 314 REUSED the door's injected `PocketFacts.statusWord` and built no shared table (`build/p314/SPEC.md` §1.1 row 1). Nothing in main spelled the table | S1 built it once: `statusVisual` and its helpers moved byte for byte to `src/shared/status-words.ts` (the name 313 mechanism 8 pinned), with `raisedLabel`. `src/renderer/app/status.ts` imports and RE-EXPORTS them, so about 25 renderer importers did not move. Only `raisedLabel` left `src/renderer/session-manager/copy.ts`, which now imports it |
+| 2 | Mechanism 1: the question and choice are broadcast at `core.ts:936, :1012` | `:936` is the resume publish and carries no question or choice. Only the monitor's `onActivity` broadcast does. The monitor keeps only a HASH of the choice | One map, `src/main/sessions/activity-now.ts`, written in `core.ts` from the same updates just before the one `activity:changed` broadcast, read through `GmuxCore.activityOf`. It also keeps `lastActivityAt`, which orders `others`. Bounded at 1,000 sessions, least recently updated dropped first; it never drops a removed session's entry otherwise |
+| 3 | Mechanism 1: move `emptyLine` to one main-side constant | 314 already did (`NOTHING_NEEDS_YOU` in `src/main/tray/attention.ts`) | Read from there |
+| 4 | Mechanism 1: `catchUp` is `buildProjectLine` "over main's own session view" | Main has no session view that does not run git: `sessionsOverview` runs git on every call | `facts.ts` builds the view from the overview store and hands `toTurnView` the STORED git verdict, as the story's turn read does. A phone's question starts no process. Limit: the line reads "Answered" rather than "Done, and git agrees" until Catch Me Up has stored a verdict |
+| 5 | Mechanism 4: `ageNote` is "Ages start again when Tortie restarts on your Mac or when your Mac wakes" | 314 shipped a corrected sentence (`build/p314/SPEC.md` §1.2 row 10) | `ageNote` is 314's `POCKET_AGE_HONESTY`: "Waits first seen after your Mac wakes or Tortie restarts are timed from then." |
+| 6 | Mechanism 3 names two query shapes | A `from` with no `to` is a third | Read as "from there up to the newest": `listTurnsBetween(id, from, MAX_SAFE_INTEGER, limit)`. An index is digits only, no leading zero, a safe integer; anything else, and a `from` past its `to`, refuses the page (answered as an unknown id), read one character at a time because `conformance:pocket` R1 refuses any pattern in `routes.ts` |
+| 7 | Mechanism 5 names `pocket:setDoor` only; gates say "243 → 244 plus 314's" | 314 added no channel and left its push switch's channel to 316. The sheet cannot reach 314's switch without one | Two channels: `pocket:setDoor` and `pocket:setPushAlerts`. `gate:contract` 243 → 245; the baseline moved exactly three lines (the count and the two names). Ten `pocket:*` channels register at run time, not nine |
+| 8 | Mechanism 5: `PocketStatus` gains `grant` | The sheet had no way to confirm the door: no lines and no hash reached it | `PocketStatus` also gains `confirmLines` and `confirmHash` |
+| 9 | Mechanism 6: the key "is never in any IPC answer" | The QR is drawn in the renderer, and its payload carries `tk` | Exactly one exception, `beginPairing`'s own answer (`payload`). `K1` allows that one and no other. Residual, stated in `pairing.ts`: the pasted string and that payload are JavaScript strings, which cannot be zeroed |
+| 10 | Mechanism 6: zeroed "on expiry" | There is no timer | Zeroed at the first touch after the deadline (every read sweeps; the sheet reads once a second while a code shows), and at quit by the ordered disposer. Also zeroed on cancel, allow, a replacing window and any refused open after the key was read |
+| 11 | Mechanism 6: "its line says the phone must join and present inside it" | No builder wrote it (B: surface copy; C: not in the list) | The integrator wrote it: `SCAN_LINE`, "Scan it with Tortie on your iPhone. The phone must join and pair before this code shuts." |
+| 12 | Mechanism 7: QR colours in "one small constants file"; tokens if a gate refuses a literal | A hex literal there is refused by `conformance:hue` rule 26, and tokens would move rule 25's pinned dark digest and owe the 13-minute run | `src/renderer/settings/phone/qr-colors.ts` names CSS system colours, `Canvas` and `CanvasText`, under `color-scheme: light` pinned on the SVG. No literal, no token; `tokens.css` is untouched, so no `conformance:hue` is owed. UNMEASURED IN ELECTRON (see concerns) |
+| 13 | Mechanism 8: the row opens Settings → Phone | Settings had never opened to a section, and `src/main/settings/window.ts` was in no builder's set | `openSettingsWindow(section?: 'phone')`: a new window loads at `#phone`; an open one gets a fragment-only load unless it is already there. `sectionFromHash` in `SettingsApp.tsx` accepts only ids on the rail, and `replaceState` keeps the hash in step with the rail |
+| 14 | Files: `src/shared/ipc/pocket.ts` is builder A's | B and C had to edit it for the channels, the status fields and the two honesty sentences | Three builders edited disjoint sections of one file; every edit survived |
+| 15 | Gates: rules "T1" and "L1" | Both ids were taken | Named `T2` and `L5`, as the SPEC already did with `H2` |
+| 16 | 4.0: `HELPER_USER_FLOOR` 148, "149 if probe:p314 lands first" | It was 149 at this head | 150 (`probe:p313`) |
+| 17 | Files: the hostile arms go in `build/p313/hostile-client.mjs` | The arms live in the `.mts`; the `.mjs` is the runner | 75 arms in `hostile-client.mts` |
+| 18 | Method B: every arm in the hostile client | Three need a real host with a sealed store | `bindAtLaunch` with no confirm is probe arm L1; `setDoor` during quit is A4; Remove in flight is A3, plus composer-level `Rm4`/`Rm5` in the hostile client |
+| 19 | (not said) A Remove answers the phone's next request with a 404 | B enforced 313's own sentence ("the door asks again before it answers anything"): every press that moves a hashed field closes a LISTENING door until the person confirms again | Remove, flipping alerts, and an allow that recorded but could not save all close a listening door. The next request gets a dead socket; probe A3 asserts that. Removing one phone shuts the door for every other phone until Allow |
+| 20 | Parent measurement: "After: 9 registered" | See row 7 | 10 registered, 0 write routes |
+| 21 | S4 checklist: the fingerprint is "four groups" | `pairFingerprint` draws six groups of four | Not changed here; S4's to correct |
+
+### Decisions the builders and the integrator took, and where each comes from
+
+- **The age** (S1 "starts when", §2 row 23). `blockedSince` is 314's blocked feed (`src/main/tray/blocked-feed.ts`), installed by the facts composer the first time the core answers, never the tray's map. `seenAtWake` is `blockedAge`'s answer for a WAITING row only; any other row is handed no wakes, because its stamp is not a waiting stamp (at head it was computed from `createdAt`). `ageText` is `formatAge`, moved from `src/renderer/format.ts` to `src/shared/age.ts` with every importer re-pointed. A waiting row is aged from `blockedSince`, any other from its last output, else its creation.
+- **Fresh before read** (mechanism 2). `refresh` is an OPTIONAL member of `PocketFacts`: the push seam and the tests read no conversation. The production composer always supplies it; `T2` pins that it is awaited before any store read. Both routes look the session up again after the yield, so a Remove in flight answers as an unknown id. A read that throws answers null, because `bind.ts` swallows a rejected handler without ending the response. A remote row's turns answer `[]` with `note: OUTCOME_REMOTE`, and nothing is refreshed or read for it.
+- **The launch step** (mechanism 5, refusal 8). `openAtLaunch` returns unless the sealed store says `enabled` AND `bindAtLaunch` AND the gate says `confirmed`; otherwise the sheet says why in the gate's own sentence. `start()` asks the gate, awaits `beforeOpen`, asks the gate AGAIN, refuses if the confirmed address is not the one `bind.ts` would bind (`ADDRESS_NOT_BOUND`), and binds with nothing awaited between the last ask and `startPocketDoor`. `setDoor({on:true})` opens at once only when those exact fields were confirmed before.
+- **Integrator: the door is never what boots the core.** As the builders left it, `beforeOpen` called `getGmuxCore()` from `installMainCapabilities`, which runs at `whenReady` BEFORE `src/main/index.ts` asks the manifest whether a newer Tortie owns it (Phase 21: "the FIRST thing normal startup does") and before the agent overlay read, which must happen "BEFORE the core boots" (Phase 23). With the door on and confirmed, every launch would have booted the core first. `beforeOpen` now waits for the first window, which normal startup opens only after it has kicked the boot, and then joins that boot. This is `push-seam.ts`'s own rule. The refusal screen is a dialog and opens no window, so on that path the door never asks for the core.
+- **Composition** (B). `capabilities.ts` builds the host from `createPocketFacts` (the core the door's `beforeOpen` resolved, `overviewStore`, `foldChosenNow`) and a `WakeMark` over Electron's `powerMonitor` (314 left that to 316), registers beside `registerMachinesIpc`, calls `void pocketHost.openAtLaunch()`, and at quit shreds an open pairing window and disposes the `WakeMark`. The door's overview reads build their own deps rather than sharing `registerOverviewIpc`'s resolve cache, which keeps its deps private.
+- **QR v:2** (mechanism 6, §2 row 24, and his ruling that the QR pins the public key). `{v:2, host, port, fp, dk, dx, ps, exp, tk?}`, `fp` from `spkiPinOf(publicKeyFingerprint)` only while the door listens; no window opens with no pin. The key must start `tskey-auth-`, be at most 256 characters after trimming (anything over 1,024 raw is refused before it is walked), and be printable ASCII. Refusal sentences never repeat it; `holdsTailnetKey()` answers a boolean.
+- **The sheet** (mechanism 7). Just enough words: labels and one line each, the grant, the one-word narrowing, the preview line, the names residual and `POCKET_ORIGIN_HONESTY` behind one disclosure. The key field is an uncontrolled `type="password"` input, read and emptied in the same press, never React state, never logged, no browser storage. Turning alerts OFF confirms again in the same press only when the door was confirmed before and exactly one confirm line moved (314 §1.1 row 2); turning them ON waits for the person's Allow. The alert switch cannot be turned on while the door is off.
+- **The QR encoder** (§2 row 30). Project Nayuki's `qrcodegen.ts` vendored from commit `8329a710`, MIT header kept byte for byte, namespace made ES exports and 30 type-only `!`s added; 832 symbols and 9,475,166 modules checked identical to upstream. Credited in the About panel (a fourth line) and in `NOTICE` with the full MIT text.
+- **The menu** (§6 decision 5). Tortie → "Pair a Phone…" directly under Settings…, no mark (`device-mobile` is not in the closed menu set, and adding it regenerates the committed bitmaps with an Electron) and no accelerator.
+- **Integrator: Phase 314's push seam.** `beginPairing` now takes an input and refuses on a door that is not listening, and 314's seam "never calls `host.start()`". The seam now walks the sheet's order on LOOPBACK for the pairing alone (switch on, confirm, listening, pair with `tailnetKey: null`) and switches the door off before the engine starts, so every push it drives is still one "while the door is down" and its final confirmed fields are the ones 314's seam always confirmed. It opens the door only when the field address is `127.0.0.1`, which is the harness loopback override; otherwise it pairs nothing and says so, and `start()` would refuse the bind anyway. `probe:p314`'s launch env gains `GMUX_POCKET_LOOPBACK=1`. The seam still spells `SEAM_STATUS_WORD`, the second spelling `conformance:push` S1 holds equal to the shared table; retiring it changes 314's gate and was left.
+- **Re-pointed, not copied.** `build/conformance-push.mjs` S1, `build/probe-p143-story.mjs`, `build/p311/copy-drift.mjs` (every needle unchanged), and `build/p303/rederive.mjs` (reads `src/shared/status-words.ts` when it exists, the renderer file in a parent checkout).
+
+### Open concerns for the verifiers
+
+1. **The push switch has nothing behind it in production.** No production code composes Phase 314's engine: 314 §"No production composition" left it to 316, S1 says "no push code", and S5 names no composition either. Settings → Phone draws the switch because the brief says so; turning it on records a confirmed field and nothing is ever sent. No phone can hold a token before S5, so nothing false can be observed in 316.1, but the step that composes the engine has no owner.
+2. **`probe:p313` has not run.** It is the one app run and it owns every live claim: the order, the relaunch listening with no press (now AFTER the first window, see the integrator's launch-step change), the unconfirmed relaunch that must not bind, `setDoor` during quit, the Remove in flight, `blockedSince > createdAt`, the appended turn, and the key scan. Method A's independent reader is the verifier's to write (`P313_KEEP=1` keeps the answers).
+3. **`probe:p314` must be re-run** because the push seam changed. It spends two real model turns (Gemini CLI and Claude Code), which is the operator's standing ruling for that probe; the seam's new pairing path has no other live proof. Its door binds 127.0.0.1:8823 while the phones pair, so it must not run beside `probe:p313`.
+4. **The QR's colours are unmeasured.** Read `getComputedStyle` on `[data-qr-part=ground]` and `[data-qr-part=ink]` in both schemes; `fill` should be `rgb(255, 255, 255)` and `rgb(0, 0, 0)`. If Chromium resolves `Canvas`/`CanvasText` by the window's scheme rather than the SVG's own, the fallback is literals plus a named exemption in `build/conformance-hue.mjs`, which owes the 13-minute run.
+5. **The menu row's fragment load is unmeasured.** With Settings open on another section, "Pair a Phone…" must move it to Phone WITHOUT a reload (a browser-initiated fragment-only `loadFile`, which the trusted-window lock never sees because `will-navigate` is not emitted for it). With Settings already on Phone it must only focus.
+6. **Two `PocketHost`s share one store in a `probe:p314` run**: the production host (whose `openAtLaunch` reads no store and stays `off`) and the seam's. The production host caches the store the first time it reads a non-null one, so its Settings view could go stale if a harness drove both. Nothing drives both today.
+7. **`probe:p313` dials `pocket:setDoor({on:false})` in its channel census on launch 1**, which is benign on a fresh profile; a verifier reusing a profile should know it.
+8. **Named limits carried forward:** an agent id the registry does not know (including `shell`) is labelled with the id itself, not `Shell`; the Catch Me Up line reads "Answered" until a git verdict is stored; a store read that fails answers as an unknown id; the activity map is bounded but does not drop a removed session's entry; S2 must reconcile the phone mock's "press Pair a phone" with the Mac's heading and button.
+9. **Five `src/main` tests fail and are not this phase's**: `config/__tests__/store-watch.native.test.ts` (1) and `watcher/__tests__/repo-watcher.native.test.ts` (4), which need the native FSEvents stream. Every other `src/main` test passes (9,546).
+
+### The fix round (one pass, after lens 1 approved and lens 2 answered needs_work)
+
+Written by the fixer in `/private/tmp/wt-p316` at `89458498`. Nothing was committed, staged or stashed, and no
+Electron ran. Every major and minor finding was fixed at the place it was named. The reverify is independent.
+
+| Finding | Where it was fixed | What changed | Proof, run rather than read |
+| --- | --- | --- | --- |
+| **Lens 2, major.** A phone removed while its request was in flight still got its answer, read from the store after the press. Method B names this arm. | `src/main/pocket/server.ts`, `bind.ts`, `ipc.ts` | **Refusal 7.** After the answer is composed, and with nothing awaited before the send, the handler asks three things again: the quit, whether the phone it VERIFIED is still paired (`unpaired`), and whether the door INSTANCE that accepted the request has begun to stop (`shutdown`). `bind.ts` passes each handler that instance as a `DoorAdmission`, which is a third argument, because a stop drops the module's door before it joins. `verify` now names the phone (`phoneId`). The host answers `stillPaired` from its store, and `removePhone` already writes the store before its first await. The same instance check is also asked at the two earlier admission points. | `server.test.ts`: a control that answers, a phone removed inside the held composition refused with the log reason `unpaired`, and a stopping door refused with `shutdown`. Both refusals went red with the check removed, and the file was restored byte for byte. `ipc.test.ts`, through the SHIPPING owner (its handler, verifier and store) with the phone's half spelled in the test: a control at 200, then removal inside the held refresh refused with `unpaired`. The hostile client now has 78 arms. `Rm6` holds the refresh, removes the phone and reads `refused-404-composed-unpaired`. `Rm6b` shows the phone reads again. Arm `14` now stops the door with a request inside its composition: `14` reads `true-1` and `14c` reads `refused-404-composed`. The hostile deps now hand the quit flag alone, as `ipc.ts` does, so `14c` proves the instance and not the dependency. `conformance:pocket` gains `A4` (30 rules). **probe:p313 A3 no longer accepts a 200.** It holds the request's one signed byte of body, so the request is accepted and in flight when Remove is pressed on every run. The exact compose window is the hostile client's `Rm6`, because the app's timing cannot place it. |
+| **Lens 2, minor (X1).** A switch-on and a switch-off in one macrotask left the door listening while the store and the sheet said off. | `src/main/pocket/ipc.ts` `setDoor` and `start` | The switch-off counts itself (`switchedOff`) and writes both fields false BEFORE its first await, then stops. The stop still happens when the write fails, and the refusal is said after it. `start()` takes the count on entry and compares it with nothing awaited before `startPocketDoor`. It compares again after the bind returns, so a refusal the off caused is not shown to the person. After a bind that succeeded, `start()` also runs the same `closeUnlessConfirmed` that every hashed-field press runs. This covers a Remove or an alerts flip that landed while the socket was opening, which found nothing listening to close. It is the same class of defect, found while fixing X1. | `ipc.test.ts`: lens 2's X1 k=0 interleaving, now deterministic, binds nothing. A store that can be read but not written (the off cannot save) binds nothing, and only the count stops it. An alerts flip inside the listen closes the door that opened. The old "stops FIRST" test now asserts the store says off before the first await. Four clause ablations each reddened their own test and were restored by hash. `L5` gains clause (e), and `L5d` and `L5e` are its ablations. |
+| **Lens 2, nit (X2).** A stop within one tick of a start left an orphaned listener on the port. | `src/main/pocket/bind.ts` | Fixed because the X1 fix depends on it. After the listen, a door whose `stop()` ran inside it closes the new server and refuses. `startPocketDoor` no longer joins a start whose door has since been stopped. It waits for that start to release the port, then starts afresh. A person's stop inside an opening no longer sets the module's last refusal to "quitting". | `bind.test.ts`, real loopback. A stop inside the opening frees the port, which a squatter takes at once, and `lastRefusal` stays null. A start after such a stop gets a fresh door, not `port-taken`. A handler sees `stopping()` false, then true across the stop, while the module already reports not listening. Without each clause, its test went red. |
+| **Lens 1, minor.** The Alerts switch is drawn, and nothing in production composes Phase 314's engine. | `build/p316/SPEC.md` S5 **Files** and the S4 checklist | The composition now has an owner: S5's first file row names `src/main/capabilities.ts` composing `createPushEngine`. S4's "Not covered yet" tells him to leave the switch off until then. S1's code is unchanged. Mechanism 7 draws the switch, "Not in S1" forbids push code, and lens 1 said S1 need not change to commit. Hiding the group was the other option, and it would contradict mechanism 7 and the brief. | None, because no code changed here. The reverifier can confirm that outside tests, `createPushEngine` is still named only by its own module (`src/main/push/engine.ts`, `index.ts`) and by `src/main/harness/push-seam.ts`. |
+
+**Nothing was removed** under the no-regression rule. None of the changed code runs for a person who never
+switches the door on. The off path runs only on a press, `start()` only when the door is `enabled`, the handler
+only on a request, and the listener only once started. The launch step still returns `off` after one read of a
+file that is not there.
+
+**Not fixed, and why.**
+- **Lens 2 nit P2b** (after Allow, `/pair` answers `allowed` to any presenter from the allowed phone's address).
+  This is Phase 313 behaviour and nothing leaks, because that presenter's signed reads are refused `unpaired`.
+  Changing it moves `probe:p313`'s P2 arm, which asserts exactly this answer, and the pairing tests. The first
+  thing to consume the answer is S2's pairing screen, so S2's spec step should decide it. It is left for the
+  operator.
+- **Lens 1 nits.** Building concurrently in one `out/` is a workflow matter and not code. The live world covers
+  one absence sentence and only "now" ages. That is optional and does not block S1. The Catch Me Up line reads
+  "Answered" until git has run, which is the stated limit in row 4 above.
+
+**What this round did not run**: `probe:p313` (it starts an Electron, so it belongs to the reverifier), `npm run build`, `npm test`
+whole, the smokes, `package`, and `probe:p314`. The integrator's concern 3 still stands. `probe:p314` must be
+re-run, because this round changed `setDoor`'s off path and `start()`, and the push seam calls both.
+
+### The serial switch (one fix, after the reverify answered needs_work; his ruling of 2026-09-23)
+
+Written by the fixer in `/private/tmp/wt-p316` at `89458498`. Nothing was committed, staged or stashed. His ruling:
+"Yes, fix and land." ONE narrow fix: the door's switch handles one press at a time. Nothing changed outside
+`src/main/pocket/`, its tests, `probe:p313`, and the `conformance:pocket` and `ablation:p313` arms that pin it. No
+new surface, route, channel or contract line (`contract-inventory --check` is byte for byte), and `bind.ts` is
+unchanged. With the queue in place no start of the host's is ever inside `startPocketDoor`'s wait loop, so no start
+there needs cancelling.
+
+| Finding | Where it was fixed | What changed | Proof, run rather than read |
+| --- | --- | --- | --- |
+| **Reverify, minor 1** (X1b, X1c, X1d, X2b). On, off, on, off inside one turn ended with the store `enabled:false`, the sheet `off`, and the door LISTENING, and a paired phone read 200. A start waiting in `startPocketDoor`'s loop was not cancelled by an off that landed while it waited, because `stopPocketDoor` found `current === null`. | `src/main/pocket/ipc.ts` | **One serial queue on `PocketHost`** (`serially`). Every start (`openNow`) and every stop (`closeNow`, `closeNowUnlessConfirmed`) runs only inside a queued job. The public `start()`, `stop()` and the hashed-field close take their turn in the queue. **The last press decides.** Each accepted `setDoor` counts itself with `pressed()` before its first await. An off counts even when it cannot be saved; an on counts only once it has changed something. A start whose press is no longer the last one does four things. It stops waiting on the sessions, because the wait races the press's `superseded` promise. It binds nothing: `if (this.superseded(press)) return;` is the statement right before the bind. If it bound anyway, it closes that door inside its own job, before the next press runs. And it never shows the listen's refusal to the person. `switchedOff` is gone. | `src/main/pocket/__tests__/switch-queue.test.ts`, 34 tests, a REAL loopback TLS door, a real phone paired through the shipping window and reading with a real signature. After the last press settles, each test asserts that the sealed store, the sheet's state, the module, the socket and the phone agree. **The reverify's four shapes** (X1b; X1c with a phone; X1d at 3 and 4 microtasks; X2b with the off placed inside the first start's real listen): all 5 are red with the queue removed (`ipc.ts` swapped for the reverify snapshot's pre-queue file in a scratch clone, 10 of 34 red). **Serialization alone removed** (`serially` runs the job at once): 3 red, being on-on, on-off-on-off-on at 4 microtasks, and "closes a door that bound under it before the next press runs". **Supersession alone removed**: 3 red, being "stops waiting on the sessions", "on, on binds ONCE", and "closes a door that bound under it". The 19-row sweep around the shapes is coverage: 3 of its rows were red before the queue, as the reverify found. |
+| **Reverify, nit 2.** `probe:p313` A3 held the body byte, so the Remove landed before verify, the request was refused `shutdown`, and the arm passed at the pre-fix build too. | `build/probe-p313.mjs` A3 | **A3 now places the Remove AFTER verify and BEFORE the answer is written**, using nothing but the app's own paths. The composition's refresh is `sessionActivity`, whose calls run one at a time on a chain that yields between the rows of a call. So the renderer floods `overview:activity` for the two conversations, calibrated per machine to hold the chain about 1 s (`P313_A3_HOLD_MS`). The request is sent TWICE with one nonce. The door spends a nonce only after the signature holds, so when main prints `refused … : replay`, the other sending is inside the composition. The Remove is pressed only after that line, and only with exactly one sending still in flight. The arm asserts the composed request is refused 404 or cut, never answered, and that main prints `refused … : unpaired`. That is refusal 7's own reason: a request refused before verify says `shutdown`, because the Remove stops the door in the same task. A run that cannot place the Remove is UNREADABLE, never a pass. The unused held-body helper was removed. | **Head:** PASS, the composed request refused 404, `unpaired` printed (run 3; run 2 PASS with the request cut by the stop's 1 s join; run 1 UNREADABLE on a placement proof that was too strict, because main prints the replay line before that 404 reaches the client, since corrected). **Pre-fix** (an APFS clone of the reverify's kept snapshot `p316v/head`, with no `stillPaired` in its source or bundle, running this tree's probe file): FAIL every time. With a 0.7 s hold the composed request was **answered 200** after the Remove landed past verify, the major itself. With the 1.2 s and 2 s holds it was cut, and no refusal 7 reason was printed. |
+| **Reverify, nit 3.** `probe:p314` had not been re-run since the push seam and `setDoor`/`start` changed. | none | Re-run under the lock, exactly as its header says (two real model turns under his own sign-in, through its wrapper). | **PASS, exit 0**, every arm P0 to P9. P0: the seam paired A and B through the queued `setDoor` and `confirmDoor` on loopback and switched the door off (`door: off`, `confirm: confirmed`). P2 and P3: the real Claude Code permission requests. No Electron and no agent process of the run left. `model turns spent: 2`. |
+
+**The gates this round moved.**
+- `conformance:pocket` gains **`Q1`** (31 rules): the queue chains each job on ONE tail and swallows a failed job's
+  rejection. `stopPocketDoor` has one call site, in `closeNow`. Every call of `openNow`, `closeNow` and
+  `closeNowUnlessConfirmed` is an argument of `this.serially(...)` or is made from inside `openNow` or
+  `closeNowUnlessConfirmed`. Both halves of `setDoor` press before their first await, and that first await is the
+  queue. `pressed()` settles the previous press before replacing it. The sessions wait races the press. After the
+  bind, a superseded press closes before anything is said. Nine clause ablations in a scratch clone each reddened
+  `Q1` alone.
+- **`L5`** now reads `openNow` (the one bind site) and `this.pressed()` / `this.superseded(press)`. Its clause (e) now
+  requires the statement IMMEDIATELY before the bind to be the last-press check. The first full `ablation:p313` run
+  showed `L5d` GREEN, because an earlier check with no await after it satisfied the old textual clause. That clause
+  was decoration until it was tightened.
+- **`ablation:p313`**: `L5b`, `L5d` and `L5e` were re-pointed at the new text (`L5e` now also reddens `Q1`), and a
+  new arm, **`Q1a`**, makes the queue run each job at once. Full run: PASS, 57 of 57 arms red on their own rule.
+- `src/main/pocket/__tests__/ipc.test.ts`: "closes a door that opened while a press withdrew the agreement" now waits
+  until the start is inside its listen before it flips the alerts, and it does not await the flip until the listen
+  is released. Under the queue, the old order made the flip land before the start's job ran, so the test passed
+  without testing its sentence.
+
+**What a person sees that changed.** Nothing changes for a person who never turns the door on: the launch step
+still returns `off` after one read of a file that is not there, and nothing queues. With the door on, an off pressed
+while the sessions are still coming up is answered at once. It no longer waits for them, and the start it
+supersedes never binds. A Remove, an alerts flip, a forget or a confirm now waits its turn behind a start in
+progress. When the sessions are already up, that wait is one listen, milliseconds. At launch, before the first
+window, it can be as long as the boot. Only the IPC answer waits: the phone is refused `unpaired` from the store
+write, before any await.
+
+**Named limits.** Each `PocketHost` has its own queue, and the door is a module singleton. Two hosts that both drive
+the door are still not serialized with each other. Nothing drives two today (concern 6 above). The module-level
+shape the reverify also ran against `bind.ts` directly (start, stop, start, stop, with no host) still binds after
+the last stop. Only `PocketHost` calls `startPocketDoor` and `stopPocketDoor`, and `L5`/`Q1` pin that each has one
+call site, inside the queue. So the product cannot reach that shape. Measured: the reverify's own harness
+(`p316rv/rv-attack.test.ts.keep`), run unchanged against this tree in a scratch clone, reads 51 of 52. The one red row
+is that module-level X2b (`a: quitting, b: ok, tcpAfterLastStop: true`). At the reverify's head it read 47 of 52 (X1b
+k0, X1c, X1d k3 and k4, X2b). If he wants it closed too, `startPocketDoor` would need a stop counter checked after its
+wait loop. That is a change to `bind.ts`, which this ruling did not ask for, and it would make the host-level tests
+above unable to tell the queue from it.

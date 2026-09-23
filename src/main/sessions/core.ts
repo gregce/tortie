@@ -69,6 +69,7 @@ import {
 } from '../activity';
 import { AttachHost } from '../attach';
 import { warmDetectionAtBoot } from '../agents';
+import { noteActivityNow, type ActivityNow } from './activity-now';
 import { markMilestone, MILESTONES } from '../diagnostics/milestones';
 // The durable writer's own failure type and its own out-of-space test
 // (Phase 19 item 2). Do not write a second copy of either.
@@ -681,6 +682,14 @@ export class GmuxCore {
 
   /** manifest session id → live tmux `$-id` (rebuilt on every reconcile). */
   private readonly liveIds = new Map<string, string>();
+  /**
+   * PHASE 316. What the activity feed last said about each session — the
+   * question, the choice and the last output — written BESIDE the broadcast
+   * from the same updates, so main can answer the phone what the renderer is
+   * drawing. It is not a status and nothing derives one from it. See
+   * ./activity-now.ts.
+   */
+  private readonly activityNow = new Map<string, ActivityNow>();
   /** live tmux `$-id` → manifest session id. */
   private readonly byTmuxId = new Map<string, string>();
   /** Pending session-id harvests (Phase 13.5), cancelled on kill/shutdown. */
@@ -884,6 +893,17 @@ export class GmuxCore {
    */
   onSessionsBroadcast: ((sessions: Session[]) => void) | null = null;
 
+  /**
+   * PHASE 316. What the activity feed last said about one session: the
+   * question it is asking, the choice it drew and when tmux last saw output.
+   * A READ of the map written beside the `activity:changed` broadcast; it
+   * answers undefined for a session the feed has said nothing about. The
+   * phone's door reads it (src/main/pocket/facts.ts) and nothing else does.
+   */
+  activityOf(sessionId: string): ActivityNow | undefined {
+    return this.activityNow.get(sessionId);
+  }
+
   private constructor(manifest: ManifestStore) {
     this.manifest = manifest;
     // PHASE 125. The maps are handed over BY REFERENCE, so the feed and this
@@ -1009,6 +1029,9 @@ export class GmuxCore {
         this.applyDetectedStatus(sessionId, status);
       },
       onActivity: (updates) => {
+        // PHASE 316. The one map main keeps of this stream, written from the
+        // same updates the renderer is sent, before they are sent.
+        noteActivityNow(this.activityNow, updates);
         broadcast(EVT_ACTIVITY_CHANGED, updates);
       },
       onDead: (sessionId, exitCode, deadSignal) => {

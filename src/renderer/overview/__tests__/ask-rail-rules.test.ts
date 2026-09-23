@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { FOOTER_SESSION } from '../copy';
+import { FOOTER_SESSION } from '@shared/overview-copy';
 
 const railSource = readFileSync(join(__dirname, '..', 'AskRail.tsx'), 'utf8');
 const conversationSource = readFileSync(

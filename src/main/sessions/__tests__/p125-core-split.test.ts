@@ -114,7 +114,11 @@ describe('every public method of GmuxCore kept its name', () => {
     // Phase 200. The hook server's shutdown is a joined operation now.
     // `dispose()` starts it and `shutdownGmuxCore()` awaits it here, before
     // the ordered main disposer closes the usage service it would call.
-    'joinHookShutdown'
+    'joinHookShutdown',
+    // Phase 316. A READ of the map written beside the `activity:changed`
+    // broadcast (./activity-now.ts): the question, the choice and the last
+    // output the renderer is sent, for the phone's door to answer from.
+    'activityOf'
   ];
 
   const core = read('core.ts');

@@ -52,7 +52,8 @@ import type {
 import { defaultCaptureAgents } from '@shared/specstory-status';
 import { captureDefaultFor } from '@shared/settings';
 import type { DetectedAgent, LaunchableAgentId } from '@shared/types';
-import { formatAge, truncateMiddle, displayPath } from '../format';
+import { formatAge } from '@shared/age';
+import { truncateMiddle, displayPath } from '../format';
 import { AgentIcon, Codicon } from '../icons';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';

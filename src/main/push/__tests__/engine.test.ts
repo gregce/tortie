@@ -171,6 +171,9 @@ function rig(
         agent: 'claude',
         agentLabel: 'Claude Code',
         statusLabel: 'needs input',
+        // Phase 316's drawn fields, off the alert's allowlist, canaried.
+        statusTitle: `Needs input ${CANARY}`,
+        ageText: `now ${CANARY}`,
         statusDot: 'attention',
         question: `${CANARY} may I?`,
         choices: [],

@@ -42,16 +42,16 @@ import { ChoiceBlock } from './ChoiceBlock';
 // asked as a question instead of as a list" — and not a second copy of it.
 import { atNumberedChoice } from '../choice';
 import { statusVisual } from '../app/status';
-import { formatAge } from '../format';
+import { formatAge } from '@shared/age';
 import { AgentIcon } from '../icons';
-import { formatTurnClock } from './clock';
-import { honestLineHasClock, projectLineFor } from './line';
+import { formatTurnClock } from '@shared/overview-clock';
+import { honestLineHasClock, projectLineFor } from '@shared/overview-line';
 import {
   EMPTY_PROJECT,
   STORY_WORD,
   WRITTEN_LEAD,
   YOU_ASKED_LEAD
-} from './copy';
+} from '@shared/overview-copy';
 import { SessionStory } from './SessionStory';
 import {
   closeStory,

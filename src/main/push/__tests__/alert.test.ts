@@ -37,6 +37,10 @@ function row(over: Partial<PocketBlockedRow> & Pick<PocketBlockedRow, 'sessionId
     agent: `claude-${CANARY}`,
     agentLabel: 'Claude Code',
     statusLabel: 'needs input',
+    // Phase 316's two drawn fields are NOT on the alert's allowlist (§2.1), so
+    // they carry the canary too: the alert must never read either.
+    statusTitle: `Needs input ${CANARY}`,
+    ageText: `2m ${CANARY}`,
     statusDot: `attention-${CANARY}`,
     question: `Allow ${CANARY} to run rm -rf?`,
     choices: [{ marker: '1', text: `Yes ${CANARY}` }] as PocketBlockedRow['choices'],

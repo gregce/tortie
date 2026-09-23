@@ -19,13 +19,16 @@
  * ## The phone computes nothing
  *
  * Every field below that a person reads is a string main already drew. The
- * status word, the agent's question, the option rows, the Catch Me Up line and
- * the turns all arrive composed. THE ONE EXCEPTION IS NAMED RATHER THAN HIDDEN:
- * {@link PocketBlockedRow.blockedSince} is an epoch, because "how long has this
- * been waiting" changes while the screen is open and no module in this
- * repository owns a drawn string for it — the ⌘J sheet computes it in the
- * renderer from its own `attentionSince` map. A client redraws that one number
- * and nothing else.
+ * status word and its raised title, the agent's question, the option rows, the
+ * Catch Me Up line, the ages and the turns all arrive composed.
+ *
+ * PHASE 316 CLOSED THE ONE EXCEPTION PHASE 313 NAMED. {@link
+ * PocketBlockedRow.blockedSince} is still an epoch, and it stays on the shape
+ * because the push alert and the re-derivations read it, but a client no longer
+ * draws an age from it: main composes {@link PocketBlockedRow.ageText} with the
+ * one age formatter the Mac draws ages with (`src/shared/age.ts`), at the
+ * answer's own `at`. A client that wants a fresher age asks again; it does no
+ * arithmetic on a clock of its own.
  *
  * ## What is NOT here
  *
@@ -43,6 +46,7 @@
  * MAIN: src/main/pocket/ipc.ts, server.ts, routes.ts, pairing.ts.
  */
 
+import type { OverviewSessionActivity } from '../overview';
 import type { SessionChoiceOption } from './sessions';
 
 // ---------------------------------------------------------------------------
@@ -100,6 +104,13 @@ export interface PocketBlockedRow {
   agentLabel: string;
   /** `needs input`, `working`, `idle`, … — main's own word, never derived. */
   statusLabel: string;
+  /**
+   * The same word raised to start a line, e.g. `Needs input`, `Working`,
+   * `Failed (exit 1)` (Phase 316). Raised in main by `raisedLabel` in
+   * src/shared/status-words.ts, the rule the session manager raises it with,
+   * so a client never capitalises a word itself.
+   */
+  statusTitle: string;
   /** `attention`, `working`, `idle`, `ended`, `failed` — the dot's name. */
   statusDot: string;
   /**
@@ -125,8 +136,24 @@ export interface PocketBlockedRow {
    * age, and an age from {@link blockedSince} otherwise. Computed in main by
    * `blockedAge` in src/main/tray/attention.ts and nowhere else; the push alert
    * reads it off the same row.
+   *
+   * PHASE 316: it is true only of a row that IS blocked. A row that is not
+   * waiting carries its creation clock in {@link blockedSince} as a fallback,
+   * and a session created in the seconds after a wake was never "first seen
+   * waiting" then, so it reads false.
    */
   seenAtWake: boolean;
+  /**
+   * How long ago, drawn by main (Phase 316): `now`, `4m`, `2h`, `3d`, composed
+   * at the answer's `at` by `formatAge` in src/shared/age.ts, the formatter
+   * ⌘J and the session rail draw ages with.
+   *
+   * For a blocked row it is the age of {@link blockedSince}, the wait. For a
+   * row that is not blocked it is the age of the last output Tortie saw in the
+   * session, or of its creation when Tortie has seen none, which is what the
+   * session rail draws beside the same row.
+   */
+  ageText: string;
 }
 
 /** The Catch Me Up line, built in main and never written by a model. */
@@ -140,12 +167,18 @@ export interface PocketCatchUp {
 /**
  * Where a person carries on with this session by hand.
  *
- * Composed in main. A client opens the url and nothing else happens here: this
- * phase's door starts no process, and an `ssh://` url is a link a terminal app
- * the person already owns decides what to do with.
+ * Composed in main. A client opens the url and nothing else happens here.
+ *
+ * PHASE 316 REMOVED `'ssh'`. The phone's tailnet node is private to the app,
+ * so no other app on the phone can dial through it, and the grant a person
+ * pastes allows only the door's own port: an `ssh://` link could never have
+ * reached anything. And NOTHING COMPOSES `'claude'` YET: the door answers
+ * `handoff: null` for every session in Phase 316, because where the Remote
+ * Control URL is recorded is unmeasured (research 127) and no module in `src/`
+ * has one. The member stays so the later phase that measures it has a shape.
  */
 export interface PocketHandoff {
-  kind: 'ssh' | 'claude';
+  kind: 'claude';
   url: string;
   /**
    * What the row says about it, composed in main and never here.
@@ -167,18 +200,44 @@ export interface PocketSessionDetail extends PocketBlockedRow {
   lastAnswer: string | null;
   /** How many turns are on record. */
   turnCount: number;
-  /** Where to carry on by hand, or null when nothing offers one. */
+  /**
+   * Where to carry on by hand, or null when nothing offers one. Null for every
+   * session in Phase 316 (see {@link PocketHandoff}).
+   */
   handoff: PocketHandoff | null;
+  /**
+   * The session's counts, exactly the session manager's own answer (Phase 316).
+   *
+   * It is what `overview:activity` answers for this one id, taken from the
+   * SAME call that brought the session's stored conversation up to date before
+   * this answer was read, so the counts and the turns on the answer are one
+   * reading. Its two invariants are the session manager's: a null count is
+   * never a zero, and coverage says why a count is missing. Null only when main
+   * could not ask at all.
+   */
+  activity: OverviewSessionActivity | null;
+  /**
+   * The age of the last message, drawn by main: `now`, `2m`, `3h`, composed at
+   * the answer's `at` by the one age formatter (Phase 316). NULL EXACTLY WHEN
+   * {@link activity}'s `lastMessageAt` is null, and a client then draws the
+   * dash and the word the session manager draws for a missing time, never a
+   * zero.
+   */
+  lastMessageText: string | null;
 }
 
 /**
- * One turn of the conversation, exactly the overview store's own shape with
- * nothing added.
+ * One turn of the conversation, the overview store's own turn shape with the
+ * git mark left out and one sentence added.
  *
  * It is already redacted and already clipped to 4,000 characters by
- * src/main/overview/turn-view.ts, at one definition with one call site. A
- * client must not clip it again: a second cap would be a second place the truth
- * about what a person sees lives.
+ * src/main/overview/turn-view.ts, at one definition with one call site: every
+ * turn the door answers passes through `toTurnView` ONCE. A client must not
+ * clip it again: a second cap would be a second place the truth about what a
+ * person sees lives.
+ *
+ * The git mark is not on it (Phase 316): the phone draws no mark, and the mark
+ * is a judgement about a project the door is not asked about.
  */
 export interface PocketTurn {
   index: number;
@@ -191,15 +250,50 @@ export interface PocketTurn {
   closed: boolean;
   interrupted: boolean;
   notice: string | null;
+  /**
+   * The honest sentence for a turn with no answer on record (Phase 316), or
+   * null when {@link answerText} is not null. Chosen in main by `answerAbsence`
+   * in src/shared/overview-copy.ts — the rule the desktop's turn block draws
+   * with — from the turn's two flags and the session's status at the moment of
+   * the answer, so a client never decides between the three sentences itself.
+   */
+  absence: string | null;
 }
+
+/**
+ * The most sessions {@link PocketBlockedAnswer.others} carries (Phase 316).
+ *
+ * The list is every session Tortie lists that is not waiting, and a person with
+ * more than this many is told how many were left out rather than handed an
+ * answer of unbounded size. It is the same number as `MAX_TURN_LIMIT` and
+ * `OVERVIEW_ACTIVITY_MAX_IDS`, by choice rather than by derivation.
+ */
+export const POCKET_OTHERS_MAX = 200;
 
 /** The answer to `GET /v1/blocked`. */
 export interface PocketBlockedAnswer {
+  /** Every session waiting on a human, newest blocked first. */
   rows: PocketBlockedRow[];
+  /**
+   * EVERY OTHER SESSION TORTIE LISTS (Phase 316, his ruling of 2026-09-22: "Yes
+   * it should be able to open anything"). Exactly the listed sessions that are
+   * not in {@link rows}, at most {@link POCKET_OTHERS_MAX}: newest output first,
+   * then the sessions main has seen no output from (a session on another
+   * machine is one) newest created first, the id breaking a tie. Same row
+   * shape, so a client draws both lists with one drawing.
+   */
+  others: PocketBlockedRow[];
+  /** How many listed sessions were left out of {@link others} by the cap. */
+  othersOmitted: number;
   /** Epoch ms this answer was composed, so a client can say how old it is. */
   at: number;
   /** Drawn when `rows` is empty. One spelling, main's. */
   emptyLine: string;
+  /**
+   * The sentence drawn under the ages: {@link POCKET_AGE_HONESTY}, Phase 314's
+   * one spelling, handed over rather than spelled by a client.
+   */
+  ageNote: string;
 }
 
 /** The answer to `GET /v1/session`. */
@@ -211,10 +305,22 @@ export interface PocketSessionAnswer {
 /** The answer to `GET /v1/turns`. */
 export interface PocketTurnsAnswer {
   sessionId: string;
+  /** Ascending by index, newest LAST. */
   turns: PocketTurn[];
-  /** True when older turns exist before the first one here. */
+  /**
+   * True when older turns exist before the first one here. ALWAYS FALSE ON AN
+   * EMPTY PAGE, so a client paging back can never be told to go on by a page
+   * that added nothing.
+   */
   more: boolean;
   at: number;
+  /**
+   * Why there are no turns to read here, in main's words, or null (Phase 316).
+   * A session on another machine answers no turns and this is main's own
+   * sentence for it, `OUTCOME_REMOTE` from src/shared/overview-copy.ts: its
+   * conversation is on that machine, and that is not an error.
+   */
+  note: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,8 +374,10 @@ export interface PocketStatus {
   /** Whether the door comes up with the app. A confirmed field. */
   bindAtLaunch: boolean;
   /**
-   * The sha256 of Tortie's own certificate, which a paired client pins. It is
-   * public by construction: it is a hash of the thing the door presents.
+   * The sha256 of Tortie's own certificate. It is public by construction: it
+   * is a hash of the thing the door presents. A paired client does NOT pin it
+   * since Phase 316; it pins the public key's hash the QR carries as `fp`,
+   * because the certificate is renewed and the key is not.
    */
   certificateFingerprint: string | null;
   /** One sentence saying why the door is not answering. Null when it is. */
@@ -277,6 +385,15 @@ export interface PocketStatus {
   phones: PocketPhoneView[];
   /** The confirm gate's own word for the door's current fields. */
   confirmState: 'confirmed' | 'never' | 'changed' | 'unknown';
+  /**
+   * The lines a person reads before confirming the door AS IT STANDS NOW,
+   * exactly the hashed facts (Phase 316). The sheet draws them whenever
+   * {@link confirmState} is not `confirmed`, and hands them back, unedited,
+   * with {@link confirmHash} on `pocket:confirmDoor`.
+   */
+  confirmLines: readonly string[];
+  /** The hash {@link confirmLines} were drawn from. */
+  confirmHash: string;
   /** The routes this build has, so the sheet can say what it answers. */
   routes: readonly PocketRouteId[];
   /**
@@ -285,19 +402,54 @@ export interface PocketStatus {
    * person turns it on and confirms, so turning it on asks again.
    */
   pushAlerts: boolean;
+  /**
+   * The text a person pastes into their OWN Tailscale admin console, for the
+   * address and port the door binds, or null when this Mac has no tailnet
+   * address (Phase 316). Composed by {@link pocketGrantText} and nowhere else.
+   * It names no credential: Tortie holds none that could edit a policy.
+   */
+  grant: string | null;
+}
+
+/**
+ * The switch a person presses (Phase 316): `pocket:setDoor` and
+ * `pocket:setPushAlerts` take it. Turning either one ON moves a confirmed
+ * field, so the sheet draws the confirm lines and nothing opens or sends until
+ * the person confirms them.
+ */
+export interface PocketSwitchInput {
+  on: boolean;
+}
+
+/**
+ * What the person hands the pairing window (Phase 316): the tailnet auth key
+ * they minted by hand in their own admin console, or null when the phone
+ * already has a tailnet.
+ *
+ * IT IS HIS CREDENTIAL. Main holds it only inside the open pairing window,
+ * beside the one-shot secret, and zeroes it on cancel, on expiry and on allow.
+ * It is never written to disk, never logged, and never in any answer but the
+ * one offer whose QR carries it to the phone.
+ */
+export interface PocketPairingInput {
+  tailnetKey: string | null;
 }
 
 /** The QR and the words beside it, handed to the sheet when a window opens. */
 export interface PocketPairingOffer {
   /**
-   * The bytes the QR encodes. It carries the door's address, its port, the
-   * certificate fingerprint, Tortie's two public keys and a one-shot secret
-   * that dies with the window.
+   * The bytes the QR encodes, `v: 2` since Phase 316. It carries the door's
+   * address, its port, the fingerprint of the door's PUBLIC KEY (which
+   * survives the certificate's renewal), Tortie's two public keys, a one-shot
+   * secret that dies with the window and, when the person pasted one, the
+   * tailnet key the phone joins with.
    *
-   * IT IS NOT A BEARER TOKEN. Nothing in it is accepted on any route but
-   * `POST /pair`, nothing in it survives the window, and holding it grants no
-   * read: a phone that uses it still has to be allowed by the person, on the
-   * Mac, last.
+   * IT IS NOT A BEARER TOKEN FOR THIS DOOR. Nothing in it is accepted on any
+   * route but `POST /pair`, nothing in it survives the window, and holding it
+   * grants no read: a phone that uses it still has to be allowed by the
+   * person, on the Mac, last. The tailnet key in it is a one-off key for his
+   * tailnet, which is why the QR is drawn only while the window is open and
+   * this offer is answered once, to the sheet that asked.
    */
   payload: string;
   /** Epoch ms the window shuts. A few minutes. */
@@ -379,17 +531,21 @@ export const POCKET_READ_ONLY_HONESTY =
   'type into one, or change anything on this Mac.';
 
 /**
- * How the phone reaches the Mac today.
+ * How the phone and this Mac each reach the tailnet (rewritten in Phase 316.1,
+ * build/p316/SPEC.md section 2 row 26).
  *
  * The operator ruled on 2026-09-21 that the tailnet node is EMBEDDED in the
- * phone app — "download Tortie phone app and it works" — and that node arrives
- * in a later phase. Until it does, the phone reaches this door through the
- * Tailscale app. The sheet says so rather than reading as progress towards a
- * product he has already ruled against.
+ * phone app — "download Tortie phone app and it works" — so the phone carries
+ * its own connection and needs no Tailscale app (Phase 316.3 builds that
+ * node). THIS MAC does not: the door binds the address the Mac's own Tailscale
+ * already gives it, and a Mac without Tailscale is a later phase (the same
+ * SPEC, section 2 row 11). Settings then Phone draws this as its caption,
+ * because "this Mac has no tailnet address" is the first refusal a person can
+ * meet there.
  */
 export const POCKET_REACH_HONESTY =
-  'Your phone reaches this Mac through the Tailscale app. Tortie does not ' +
-  'carry a tailnet of its own yet.';
+  'Tortie on your phone brings its own connection. This Mac still reaches ' +
+  'your tailnet through the Tailscale app.';
 
 /**
  * The residual the pairing panel names, and the stated reason the writes wait.
@@ -406,18 +562,23 @@ export const POCKET_ORIGIN_HONESTY =
   'why anything that changes a session waits for the app.';
 
 /**
- * What is true about his tailnet until he pastes the grant, in plain words.
+ * What the grant does and does not do, in plain words (rewritten in Phase
+ * 316.1, build/p316/SPEC.md section 2 row 27).
  *
  * Research 128 section 3.1: Tailscale's shipped default is
  * `src: ["*"], dst: ["*:*"]`, so a phone joined to a tailnet reaches every
- * device on it, and a one-way grant is additive and buys nothing until that
- * default is narrowed. TORTIE NEVER WRITES HIS POLICY FILE and never holds a
- * credential that could: the sheet shows him the text and he pastes it.
+ * device on it. A grant is ADDITIVE: pasting it adds one rule and takes
+ * nothing away, so it keeps the phone to this door only once that default is
+ * narrowed too (his ruling of 2026-09-21). Phase 313's wording read as if the
+ * paste alone confined the phone, which is false. TORTIE NEVER WRITES HIS
+ * POLICY FILE and never holds a credential that could: the sheet shows him the
+ * text and he pastes it.
  */
 export const POCKET_TAILNET_GRANT_HONESTY =
-  'Until you paste this into your own Tailscale admin console, a phone on ' +
-  'your tailnet can reach every device on it, not just this door. Tortie ' +
-  'never edits your tailnet policy and holds no credential that could.';
+  'This grant only adds a rule. Your tailnet’s default rule still lets every ' +
+  'device reach every other, so the phone is kept to this door only once you ' +
+  'narrow that default too. Tortie never edits your tailnet policy and holds ' +
+  'no credential that could.';
 
 /**
  * How the ages a phone draws can be off, said where they are drawn (Phase 314).
@@ -462,7 +623,8 @@ export function pocketGrantText(address: string, port: number): string {
 /**
  * Settings then Phone, and nothing else, reaches these.
  *
- * `pocket:removePhone`, `pocket:confirmDoor` and `pocket:forgetDoor` DO change
+ * `pocket:setDoor`, `pocket:setPushAlerts`, `pocket:removePhone`,
+ * `pocket:confirmDoor` and `pocket:forgetDoor` DO change
  * state, and that is not a contradiction of "no write route": they are the
  * RENDERER's channels, reached by a person pressing a button in Tortie on this
  * Mac. The tailnet door's own route table is read only and holds none of them.
@@ -470,8 +632,23 @@ export function pocketGrantText(address: string, port: number): string {
 export interface PocketInvokeChannelMap {
   /** Everything the sheet draws. Reads the record; binds nothing. */
   'pocket:status': { req: []; res: PocketStatus };
-  /** Open a pairing window of a few minutes and answer the QR. */
-  'pocket:beginPairing': { req: []; res: PocketPairingOffer };
+  /**
+   * Turn the door on or off (Phase 316). On writes `enabled` and
+   * `bindAtLaunch` together, which moves a confirmed field, so nothing listens
+   * until `pocket:confirmDoor`. Off stops the door and writes both false.
+   */
+  'pocket:setDoor': { req: [input: PocketSwitchInput]; res: PocketStatus };
+  /**
+   * Turn the alerts through Apple on or off (Phase 314's switch, reached from
+   * the sheet in Phase 316). A hashed field: on asks again before anything is
+   * sent, off stops at once.
+   */
+  'pocket:setPushAlerts': { req: [input: PocketSwitchInput]; res: PocketStatus };
+  /**
+   * Open a pairing window of a few minutes and answer the QR. Refused unless
+   * the door is listening, so the QR always carries a key to pin.
+   */
+  'pocket:beginPairing': { req: [input: PocketPairingInput]; res: PocketPairingOffer };
   /** Shut the window now. Whatever presented is dropped. */
   'pocket:cancelPairing': { req: []; res: PocketPairingView };
   /** What the window is doing, including the fingerprint to match. */
@@ -505,7 +682,9 @@ export interface PocketEventPayloadMap {
 export interface GmuxPocketExtras {
   pocket: {
     status(): Promise<PocketStatus>;
-    beginPairing(): Promise<PocketPairingOffer>;
+    setDoor(input: PocketSwitchInput): Promise<PocketStatus>;
+    setPushAlerts(input: PocketSwitchInput): Promise<PocketStatus>;
+    beginPairing(input: PocketPairingInput): Promise<PocketPairingOffer>;
     cancelPairing(): Promise<PocketPairingView>;
     pairingState(): Promise<PocketPairingView>;
     allowPhone(input: PocketAllowInput): Promise<PocketAllowResult>;

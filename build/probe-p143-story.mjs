@@ -450,13 +450,14 @@ const SEL = {
  * person actually reads.
  */
 function copyString(name) {
+  // Phase 316 moved the Catch Me Up copy to src/shared/overview-copy.ts.
   const src = readFileSync(
-    join(repoRoot, 'src', 'renderer', 'overview', 'copy.ts'),
+    join(repoRoot, 'src', 'shared', 'overview-copy.ts'),
     'utf8'
   );
   const head = `export const ${name} =`;
   const at = src.indexOf(head);
-  if (at === -1) refuse(`src/renderer/overview/copy.ts exports no ${name}`);
+  if (at === -1) refuse(`src/shared/overview-copy.ts exports no ${name}`);
   const end = src.indexOf(';', at);
   const parts = src.slice(at + head.length, end).match(/'[^']*'/g) ?? [];
   if (parts.length === 0) refuse(`${name} in copy.ts is not a plain string`);

@@ -2,16 +2,9 @@
 
 import { useEffect, useState } from 'react';
 
-/** Compact age: "now", "4m", "2h", "3d" (S3 session rows, S7 overlay). */
-export function formatAge(sinceEpochMs: number, nowMs: number = Date.now()): string {
-  const delta = Math.max(0, nowMs - sinceEpochMs);
-  const minutes = Math.floor(delta / 60_000);
-  if (minutes < 1) return 'now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
+// `formatAge` moved to `src/shared/age.ts` in Phase 316, so main composes the
+// phone's ages with the formatter the Mac draws them with. Every importer was
+// re-pointed there; this module no longer names it.
 
 /** Re-render on an interval so ages stay honest. */
 export function useNow(intervalMs = 30_000): number {

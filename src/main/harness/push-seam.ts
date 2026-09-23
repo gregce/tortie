@@ -70,9 +70,18 @@
  * to `present`, and allowed from the sheet's own lines and hash — the
  * acknowledgement is supplied inside `PocketHost`, as it always is.
  *
- * IT NEVER CALLS `host.start()`. The door never listens in a run of this seam,
- * so every push it drives is "a push while the door is down", which is the
- * point: the push depends on the door's CONFIRMED fields, not on its socket.
+ * THE DOOR LISTENS FOR THE PAIRING ALONE, ON LOOPBACK, AND THEN IT IS SHUT
+ * (Phase 316). Since QR v:2 a pairing window opens only on a listening door,
+ * because the QR pins the key the door is listening with, so the seam walks the
+ * sheet's own order — the switch on, the confirm, listening, pair — and then
+ * switches the door off before the engine starts. It does so only when the
+ * door's field address is `127.0.0.1`, which is the harness loopback override
+ * (`GMUX_POCKET_LOOPBACK=1`, never in a packaged build); without it the seam
+ * pairs nothing and says so, and `PocketHost.start` would refuse the bind
+ * anyway, because a field of `127.0.0.1` is not the address `./bind.ts` would
+ * choose. Every push the seam drives is therefore still "a push while the door
+ * is down", which is the point: the push depends on the door's CONFIRMED
+ * fields, not on its socket.
  * It never passes `allowRemote`. It never prints or logs a key byte, a device
  * token, a provider token or a payload: the lines it prints carry counts,
  * states, phone labels and the door's rows WITHOUT the question or the choices.
@@ -99,7 +108,7 @@ import {
   type ApnsKeyStore,
   type ApnsProviderKey
 } from '../credentials';
-import { PocketHost } from '../pocket/ipc';
+import { PocketHost, pocketFieldAddress } from '../pocket/ipc';
 import {
   pocketConfirmStatus,
   readPocketStore,
@@ -129,9 +138,12 @@ export const PUSH_SEAM_TAG = '[gmux-push-seam]';
  * and therefore the alert, can ever draw is `statusVisual`'s `needs_input` arm.
  * This seam is the one composer of `PocketFacts` in this phase and spells that
  * word once, here. `conformance:push` rule S1 holds it byte-equal to
- * `src/renderer/app/status.ts`'s `case 'needs_input'` label, read as text.
- * Two spellings held equal by a gate is weaker than one spelling; the move is
- * Phase 316's.
+ * `statusVisual`'s `case 'needs_input'` label, read as text.
+ * Two spellings held equal by a gate is weaker than one spelling. Phase 316.1
+ * made the move: the table is `src/shared/status-words.ts` and the door's
+ * production composer (`../pocket/facts.ts`) reads it there. This harness-only
+ * composer still spells its one word, because S1 and `ablation:p314`'s S1 arm
+ * pin that literal; retiring it is a change to Phase 314's gate.
  */
 const SEAM_STATUS_WORD = 'needs input';
 /** `statusVisual`'s dot for the same arm, for the door row's `statusDot`. */
@@ -584,13 +596,45 @@ function phoneKeys(): { signingKey: string; exchangeKey: string } {
   };
 }
 
-/** Confirm the door as its fields stand now, and answer the state after. */
+/**
+ * Confirm the door as its fields stand now, and answer the state after. The
+ * record is written before `confirmDoor`'s first await, so the state read
+ * straight after is the new one; the rest of that call opens only a door that
+ * is switched on, and this seam's door is off whenever this is called.
+ */
 function confirmNow(host: PocketHost): string {
   const gate = pocketConfirmStatus(host.fields());
   if (gate.state !== 'confirmed') {
-    host.confirmDoor({ linesRead: gate.lines, hashRead: gate.hash });
+    void host.confirmDoor({ linesRead: gate.lines, hashRead: gate.hash });
   }
   return host.status().confirmState;
+}
+
+/**
+ * Open the door on loopback for the pairing, the sheet's own order: the switch
+ * on, the confirm, listening (Phase 316). True only when it is listening.
+ * Refused, with nothing written, unless the field address is the harness
+ * loopback override's `127.0.0.1`.
+ */
+async function openDoorForPairing(
+  host: PocketHost,
+  print: (line: string) => void
+): Promise<boolean> {
+  if (pocketFieldAddress() !== '127.0.0.1') {
+    print(`${PUSH_SEAM_TAG} pairing needs the loopback door (GMUX_POCKET_LOOPBACK=1), so no phone was paired`);
+    return false;
+  }
+  await host.setDoor({ on: true });
+  const gate = pocketConfirmStatus(host.fields());
+  if (gate.state !== 'confirmed') {
+    await host.confirmDoor({ linesRead: gate.lines, hashRead: gate.hash });
+  }
+  const state = host.status().state;
+  if (state !== 'listening') {
+    print(`${PUSH_SEAM_TAG} the loopback door did not open (${state}), so no phone was paired`);
+    return false;
+  }
+  return true;
 }
 
 /** The seed's key record, read from the file the seed names. */
@@ -650,12 +694,15 @@ async function composePushSeam(
     handoff: () => null
   };
 
-  // THE HOST, bound to loopback in its confirmed field and NEVER STARTED.
+  // THE HOST, bound to loopback in its confirmed field. It listens only while
+  // the phones pair, and is switched off again before the engine starts.
   const host = new PocketHost({ facts, bindAddress: () => '127.0.0.1' });
 
-  // THE PHONES, each through the shipping pairing path.
-  for (const phone of seed.phones) {
-    const offer = host.beginPairing();
+  // THE PHONES, each through the shipping pairing path, on a door that is
+  // listening because the QR pins its key (Phase 316), and with no tailnet key.
+  const doorOpen = await openDoorForPairing(host, print);
+  for (const phone of doorOpen ? seed.phones : []) {
+    const offer = host.beginPairing({ tailnetKey: null });
     const keys = phoneKeys();
     const body = sealPresentationAsPhone(offer.payload, {
       label: phone.label,
@@ -677,8 +724,12 @@ async function composePushSeam(
     }
     host.cancelPairing();
   }
+  // THE DOOR SHUT AGAIN, and both switches written false, so the fields the
+  // engine's pushes depend on are the ones this seam always confirmed: the
+  // door is down, and the push is the door's confirmed fields alone.
+  await host.setDoor({ on: false });
 
-  host.setPushAlerts(seed.alerts);
+  await host.setPushAlerts(seed.alerts);
   confirmNow(host);
 
   // THE ENGINE, with the sender aimed at the seed's loopback origins and
@@ -738,12 +789,16 @@ async function composePushSeam(
       };
     },
     setAlerts: (on) => {
-      host.setPushAlerts(on);
+      // The store is written before the call's first await, so the switch
+      // holds at once; the rest only closes a listening door, and this one is
+      // not listening.
+      void host.setPushAlerts(on);
     },
     removePhone: (label) => {
       const phone = host.status().phones.find((p) => p.label === label);
       if (phone === undefined) return false;
-      host.removePhone(phone.id);
+      // Written before the call's first await, as `setAlerts` above.
+      void host.removePhone(phone.id);
       return true;
     },
     confirm: () => confirmNow(host),

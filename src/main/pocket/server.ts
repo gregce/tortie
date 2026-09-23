@@ -38,6 +38,17 @@
  *    missing headers, an unknown phone, an address that is not the paired one,
  *    a clock outside the window, a nonce already spent, a signature that does
  *    not verify.
+ * 7. **The answer is admitted AGAIN before a byte of it leaves** (the Phase
+ *    316.1 fix round). Composing an answer awaits the refresh, and a person can
+ *    press Remove, or switch the door off, inside that await. So after the
+ *    answer is composed the handler asks three things once more, with nothing
+ *    awaited between the asking and the send: has the quit begun, is the phone
+ *    this request was VERIFIED for still paired (`unpaired` if not), and has
+ *    the door instance that ACCEPTED the request begun to stop. The last one is
+ *    asked of the instance `./bind.ts` hands the handler, never of the module's
+ *    current door, because a stop drops the module's door before it joins the
+ *    handlers it accepted. Before this, a phone removed while its request was
+ *    in flight was still answered, from the store as it stood AFTER the press.
  *
  * EVERY REFUSAL ANSWERS THE SAME THING: 404, an empty body, and the same
  * headers. The reason is a WORD in a bounded log and never on the wire, because
@@ -67,6 +78,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { getLog } from '../log';
+import type { DoorAdmission } from './bind';
 import {
   POCKET_PAIR_BODY_CAP_BYTES,
   type PocketPairAnswer,
@@ -91,14 +103,24 @@ export interface PocketHandlerDeps {
   pairingWindowOpen(): boolean;
   /** Hand a sealed presentation to the pairing owner. Answers one word. */
   present(body: Buffer, from: string): PocketPairAnswer;
-  /** Does this signed request come from an allowed phone, right now, once? */
+  /**
+   * Does this signed request come from an allowed phone, right now, once? The
+   * answer names the phone it verified, so the handler can ask again after the
+   * answer is composed.
+   */
   verify(input: {
     method: string;
     target: string;
     body: Buffer;
     from: string;
     headers: Readonly<Record<string, string | string[] | undefined>>;
-  }): { ok: true } | { ok: false; reason: PocketRefusalReason };
+  }): { ok: true; phoneId: string } | { ok: false; reason: PocketRefusalReason };
+  /**
+   * Is this phone still one the person allowed? Asked AFTER the answer is
+   * composed and before it is sent (refusal 7), so a Remove that landed while
+   * the request was in flight refuses it `unpaired`.
+   */
+  stillPaired(phoneId: string): boolean;
   /** Answer one of the three reads. Null means there is nothing to answer. */
   answer(route: PocketRoute, query: URLSearchParams): Promise<unknown | null>;
 }
@@ -149,7 +171,7 @@ export function sendPocket(
  */
 export function createPocketHandler(
   deps: PocketHandlerDeps
-): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
+): (req: IncomingMessage, res: ServerResponse, door?: DoorAdmission) => Promise<void> {
   /** One line per reason per process. A WORD, and never a value. */
   const logged = new Set<string>();
   const refuse = (res: ServerResponse, reason: PocketRefusalReason): void => {
@@ -162,9 +184,14 @@ export function createPocketHandler(
 
   return async function handle(
     req: IncomingMessage,
-    res: ServerResponse
+    res: ServerResponse,
+    door?: DoorAdmission
   ): Promise<void> {
-    if (deps.shuttingDown()) return refuse(res, 'shutdown');
+    // REFUSAL 1, asked of the quit AND of the door that accepted this request.
+    // `door` is `./bind.ts`'s; a handler driven without a listener (the unit
+    // tests' plain http server) has none, and the quit is then the only stop.
+    const closing = (): boolean => deps.shuttingDown() || door?.stopping() === true;
+    if (closing()) return refuse(res, 'shutdown');
     const address = deps.boundAddress();
     if (address === null) return refuse(res, 'shutdown');
     const from = normalisePocketAddress(req.socket.remoteAddress);
@@ -197,8 +224,10 @@ export function createPocketHandler(
     // passed every check before the quit began reaches this line afterwards,
     // and composing an answer here would read main's state during its own
     // disposal.
-    if (deps.shuttingDown()) return refuse(res, 'shutdown');
+    if (closing()) return refuse(res, 'shutdown');
 
+    /** The phone this request was verified for, asked about again at refusal 7. */
+    let verifiedPhone: string | null = null;
     if (route.signed) {
       // REFUSAL 6.
       const verdict = deps.verify({
@@ -209,6 +238,7 @@ export function createPocketHandler(
         headers: req.headers
       });
       if (!verdict.ok) return refuse(res, verdict.reason);
+      verifiedPhone = verdict.phoneId;
     }
 
     if (route.id === 'pair') {
@@ -220,7 +250,15 @@ export function createPocketHandler(
     }
 
     const body = await deps.answer(route, url.searchParams);
+    // REFUSAL 7. Nothing is awaited from here to the send, so the answer that
+    // leaves is one the person had not withdrawn by the time it left. The phone
+    // is asked before the door, so a Remove — which also stops the door — is
+    // refused for the reason that is true of it.
     if (deps.shuttingDown()) return refuse(res, 'shutdown');
+    if (verifiedPhone !== null && !deps.stillPaired(verifiedPhone)) {
+      return refuse(res, 'unpaired');
+    }
+    if (closing()) return refuse(res, 'shutdown');
     if (body === null) return refuse(res, 'route');
     sendPocket(res, 200, JSON.stringify(body));
   };

@@ -24,8 +24,8 @@ import type { SessionStatus } from '@shared/types';
 // at a numbered choice.
 import { ChoiceBlock } from './ChoiceBlock';
 import { statusVisual } from '../app/status';
-import { formatAge } from '../format';
-import { honestLineFor, honestLineHasClock } from './line';
+import { formatAge } from '@shared/age';
+import { honestLineFor, honestLineHasClock } from '@shared/overview-line';
 import { TurnBlock } from './TurnBlock';
 
 export interface SessionColumnsProps {

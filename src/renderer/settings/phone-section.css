@@ -1,0 +1,144 @@
+/*
+ * Settings → Phone (Phase 316.1). Colocated with PhoneSection.tsx.
+ *
+ * Every colour and every measure is a token, with ONE deliberate exception
+ * that is not in this file: the pairing code's ground and ink are the light
+ * scheme's own paper and ink whichever theme the window is in, because a
+ * camera reads dark modules on a light ground. They are named once, in
+ * phone/qr-colors.ts, and set on the code's own element by phone/Qr.tsx.
+ */
+
+.phone-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+
+.phone-block > .set-config-lines,
+.phone-block > .set-config-warning {
+  align-self: stretch;
+  margin: 0;
+}
+
+.phone-block > .set-config-actions {
+  margin-top: var(--space-2);
+}
+
+.phone-line,
+.phone-notice {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.phone-notice {
+  color: var(--text-primary);
+}
+
+.phone-error {
+  margin: 0 0 var(--space-5);
+}
+
+.phone-warn {
+  color: var(--status-attention);
+}
+
+/* ------------------------------------------------------------- the key */
+
+/* The field row, the field and its hint are the Machines sheet's own
+   (.mach-field-row, .mach-field-label, .mach-field and .mach-hint in
+   machines.css), so a pasted secret looks the same wherever Settings asks for
+   one. Nothing about them is restated here. */
+
+/* ------------------------------------------------------------ the code */
+
+.phone-showing {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+/* The width is set on the element in whole pixels per module (Qr.tsx), so a
+   module's edge lands on a pixel. The ground and the quiet zone are drawn
+   inside the SVG, so no border or padding here may add a coloured margin. */
+.phone-qr {
+  display: block;
+  flex: 0 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.phone-qr-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.phone-countdown {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ----------------------------------------------------------- the match */
+
+.phone-match-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.phone-fingerprint {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  letter-spacing: var(--track-caps);
+  color: var(--text-primary);
+}
+
+.phone-mono {
+  font-family: var(--font-mono);
+}
+
+/* -------------------------------------------------------- the disclosure */
+
+.phone-grant-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.phone-grant {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-primary);
+}
+
+.phone-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.phone-disclosure > .set-section-caption + .set-section-caption {
+  margin-top: var(--space-4);
+}

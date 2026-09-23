@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { formatReadClock, formatTurnClock } from '../clock';
+import { formatReadClock, formatTurnClock } from '@shared/overview-clock';
 
 // Local-time constructions, so the assertions hold in every zone.
 const NOW = new Date(2026, 7, 22, 15, 0).getTime();

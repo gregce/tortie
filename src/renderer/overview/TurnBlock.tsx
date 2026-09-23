@@ -17,20 +17,18 @@
 import React from 'react';
 import type { OverviewGitMark, OverviewTurnView } from '@shared/overview';
 import type { SessionStatus } from '@shared/types';
-import { AnswerBody } from './AnswerBody';
-import { formatTurnClock } from './clock';
+import { formatTurnClock } from '@shared/overview-clock';
 import {
   AGENT_LABEL,
-  ANSWER_NOT_IN_RECORD,
   MARK_AGREES,
   MARK_NOTHING_TO_CHECK,
   MARK_NO_RECORD,
-  NOT_ANSWERED_YET,
   REST_NOT_SHOWN,
-  STOPPED_BEFORE_ANSWER,
   YOU_LABEL,
+  answerAbsence,
   sessionStoppedNotice
-} from './copy';
+} from '@shared/overview-copy';
+import { AnswerBody } from './AnswerBody';
 
 export interface TurnBlockProps {
   turn: OverviewTurnView;
@@ -40,14 +38,9 @@ export interface TurnBlockProps {
   onSelect?: () => void;
 }
 
-/** The sentence for a turn with no answer on record. */
-function answerAbsence(turn: OverviewTurnView, status: SessionStatus): string {
-  if (!turn.closed && (status === 'running' || status === 'needs_input')) {
-    return NOT_ANSWERED_YET;
-  }
-  if (turn.interrupted) return STOPPED_BEFORE_ANSWER;
-  return ANSWER_NOT_IN_RECORD;
-}
+// The sentence for a turn with no answer on record is `answerAbsence` in
+// src/shared/overview-copy.ts (moved there in Phase 316), because the phone's
+// door answers the same sentence from main and the two must be one rule.
 
 function markText(mark: OverviewGitMark): string {
   if (mark === 'agrees') return MARK_AGREES;

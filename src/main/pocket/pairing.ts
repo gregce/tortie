@@ -52,17 +52,36 @@
  *     or in a path. A captured request proves only that that exact request was
  *     made, once, inside a small window, with a nonce that is now spent.
  *
- * ## What the QR does NOT carry, and this is one day old
+ * ## What the QR carries (v:2, Phase 316), and the one credential in it
  *
- * Research 127 section 2 said the QR carries three things and named the third
- * as a tailnet auth key minted by Tortie from a Tailscale API credential.
- * Research 128 section 3.2 OVERRULED that: Tortie holds no Tailscale API
- * credential, ever, because the OAuth client secret is itself a reusable
+ * The door's address and port; `fp`, the sha256 of the door's PUBLIC KEY
+ * (SubjectPublicKeyInfo), base64url, which the phone pins; Tortie's two public
+ * keys; the one-shot pairing secret; the window's deadline; and, only when the
+ * person pasted one, `tk`, a tailnet auth key.
+ *
+ * `fp` PINS THE KEY AND NOT THE CERTIFICATE. v:1 carried the certificate's
+ * hash, and `./tls.ts` renews that certificate from the same key every 397
+ * days, so every phone paired under v:1 would have stopped trusting this door
+ * thirteen months later with nothing on either screen saying why. The key
+ * outlives the certificate, so the pin does too. There is no `fp` without a
+ * listening door: {@link PocketPairing.open} refuses when the door has no key
+ * to pin, so a QR can never carry `fp: null`.
+ *
+ * `tk` IS HIS CREDENTIAL, AND TORTIE NEVER MADE IT. Research 127 section 2
+ * wanted Tortie to mint the key from a Tailscale API credential. Research 128
+ * section 3.2 OVERRULED that and it stays overruled: Tortie holds no Tailscale
+ * API credential, ever, because the OAuth client secret is itself a reusable
  * pre-approved auth key that never expires until revoked by hand, and it would
- * sit on the machine that runs every agent. So the QR carries the door's
- * address and port, the certificate fingerprint a client pins, Tortie's two
- * public keys, and the one-shot pairing secret. There is no tailnet key in it
- * and there is no credential behind it.
+ * sit on the machine that runs every agent. So the person mints ONE one-off key
+ * by hand in his own admin console and pastes it into the sheet, and the phone
+ * joins his tailnet with it once. Main holds it ONLY inside the open window,
+ * as bytes beside the one-shot secret, and zeroes them on cancel, on expiry,
+ * on allow and when a new window replaces this one. It is never written to
+ * `pocket.json` or anywhere else, never logged, and never in any answer but
+ * the one offer whose QR carries it to the phone. The residual is stated
+ * rather than hidden: the pasted string and that offer's payload are
+ * JavaScript strings, which cannot be zeroed, and they live until the
+ * collector takes them.
  *
  * ## Where the record lives, and why it is TWO answers rather than one
  *
@@ -117,6 +136,7 @@ import { app } from 'electron';
 import {
   POCKET_CONFIRM_WARNING,
   POCKET_ROUTE_IDS,
+  type PocketPairingInput,
   type PocketPairingOffer,
   type PocketPairingState,
   type PocketPairingView,
@@ -882,8 +902,80 @@ export function phoneIdOf(signingKey: string): string {
 // The pairing window
 // ---------------------------------------------------------------------------
 
-/** How long a window lives. A few minutes, and one shot. */
+/**
+ * How long a window lives. A few minutes, and one shot. The phone must join
+ * the tailnet AND present inside it, which is what the sheet's line says.
+ */
 export const POCKET_PAIRING_WINDOW_MS = 3 * 60_000;
+
+/** The QR's version. v:2 pins the key rather than the certificate (Phase 316). */
+export const POCKET_QR_VERSION = 2;
+
+/**
+ * Every tailnet AUTH key Tailscale mints begins with this (Phase 316). An API
+ * access token, an OAuth client secret or anything else pasted by mistake does
+ * not, and is refused before it reaches the window.
+ */
+export const TAILNET_AUTH_KEY_PREFIX = 'tskey-auth-';
+
+/** The longest tailnet key the sheet accepts. Tailscale's are far shorter. */
+export const TAILNET_KEY_MAX_CHARS = 256;
+
+/**
+ * The key a person pasted, as bytes the window can zero, or null for "the
+ * phone needs no key". Throws with ONE SENTENCE that never repeats the value.
+ *
+ * Surrounding whitespace is a paste artefact and is dropped. Anything else
+ * that is not printable ASCII — a space inside it, a line break, a control
+ * byte — is not part of any key Tailscale mints and refuses the whole value,
+ * because the QR is the phone's only copy and a mangled key fails on the
+ * phone with nobody watching the Mac.
+ */
+export function tailnetKeyOf(input: unknown): Buffer | null {
+  if (input === null || typeof input !== 'object') throw notAKey(KEY_NOT_READ);
+  const raw = (input as { tailnetKey?: unknown }).tailnetKey;
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'string') throw notAKey(KEY_NOT_READ);
+  // Length FIRST, before any other work on the value, so a pasted megabyte is
+  // refused for what it is rather than walked.
+  if (raw.length > TAILNET_KEY_MAX_CHARS * 4) throw notAKey(KEY_TOO_LONG);
+  const key = raw.trim();
+  if (key.length === 0) return null;
+  if (key.length > TAILNET_KEY_MAX_CHARS) throw notAKey(KEY_TOO_LONG);
+  if (!key.startsWith(TAILNET_AUTH_KEY_PREFIX) || key.length === TAILNET_AUTH_KEY_PREFIX.length) {
+    throw notAKey(KEY_NOT_AUTH);
+  }
+  if (!/^[\x21-\x7e]+$/.test(key)) throw notAKey(KEY_NOT_AUTH);
+  return Buffer.from(key, 'utf8');
+}
+
+const KEY_NOT_READ =
+  'Tortie could not read that tailnet key. Nothing was opened.';
+const KEY_TOO_LONG =
+  'That is longer than any tailnet key Tailscale makes. Nothing was opened.';
+const KEY_NOT_AUTH =
+  'That is not a tailnet auth key. Mint one in your Tailscale admin console; ' +
+  'it starts with tskey-auth-. Nothing was opened.';
+
+function notAKey(sentence: string): Error {
+  return gmuxError('INVALID_INPUT', sentence);
+}
+
+/**
+ * The QR's `fp`: sha256 over the door's SubjectPublicKeyInfo, base64url, from
+ * the colon-separated hex `./tls.ts` hands out. Null for anything that is not
+ * exactly 32 bytes, so a malformed fingerprint can never become a pin.
+ */
+export function spkiPinOf(publicKeyFingerprint: string | null): string | null {
+  if (publicKeyFingerprint === null) return null;
+  const hex = publicKeyFingerprint.replace(/:/g, '');
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) return null;
+  return b64u(Buffer.from(hex, 'hex'));
+}
+
+const NO_DOOR_TO_PIN =
+  'The door is not listening, so there is no key for a phone to pin. Turn ' +
+  'the door on and confirm it first. Nothing was opened.';
 
 /** The info string the pairing key is derived under. */
 const PAIRING_INFO = 'tortie-pocket-pair-v1';
@@ -907,6 +999,12 @@ export type PocketPairAnswer = 'pending' | 'allowed' | 'refused';
 
 interface OpenWindow {
   secret: Buffer;
+  /**
+   * The tailnet key the person pasted, or null (Phase 316). Zeroed with the
+   * secret, at every place the secret is, and never read again after the QR
+   * was composed.
+   */
+  tailnetKey: Buffer | null;
   expiresAt: number;
   presented: PocketPresentation | null;
   presentedFrom: string | null;
@@ -916,9 +1014,10 @@ interface OpenWindow {
 /**
  * The pairing window and the phone set, as one owner.
  *
- * It holds the ONE-SHOT secret in memory only. Nothing writes it to disk,
- * nothing logs it, and `cancel` and expiry both destroy it, which is what makes
- * a photographed screen useless after the window shuts.
+ * It holds the ONE-SHOT secret in memory only, and since Phase 316 the tailnet
+ * key the person pasted beside it. Nothing writes either to disk, nothing logs
+ * either, and `cancel`, expiry, the allow and a replacing window all zero both,
+ * which is what makes a photographed screen useless after the window shuts.
  */
 export class PocketPairing {
   private window: OpenWindow | null = null;
@@ -930,8 +1029,12 @@ export class PocketPairing {
       fieldsNow: () => PocketExecutionFields;
       /** Persist the phone set after a person allowed one. */
       savePhones: (phones: readonly PocketPhoneFields[]) => boolean;
-      /** The certificate fingerprint a client pins. */
-      certificateFingerprint: () => string | null;
+      /**
+       * The QR's `fp`: the listening door's public-key pin, base64url
+       * ({@link spkiPinOf}), or null while no door is listening, in which
+       * case no window opens.
+       */
+      publicKeyPin: () => string | null;
       now?: () => number;
     }
   ) {}
@@ -952,50 +1055,81 @@ export class PocketPairing {
     // ask, and afterwards the window is gone, the sheet is idle, and the
     // photographed screen is worth nothing.
     if (this.now() < w.expiresAt) return;
-    w.secret.fill(0);
+    shred(w);
     this.window = null;
   }
 
-  /** Open a window and answer the QR. Any window already open is replaced. */
-  open(): PocketPairingOffer {
-    const fields = this.deps.fieldsNow();
-    if (fields.bindAddress.length === 0) {
-      throw gmuxError(
-        'INVALID_INPUT',
-        'This Mac has no tailnet address, so there is nothing for a phone to ' +
-          'reach. Nothing was opened.'
-      );
+  /**
+   * Open a window and answer the QR. Any window already open is replaced.
+   *
+   * EVERY REFUSAL COMES BEFORE ANYTHING MOVES: a bad key, no address and no
+   * listening door each leave the window that was open, open, and mint
+   * nothing. The order after that is the safety: the old window is shredded,
+   * then the new one is made.
+   */
+  open(input: PocketPairingInput): PocketPairingOffer {
+    const tailnetKey = tailnetKeyOf(input);
+    try {
+      const fields = this.deps.fieldsNow();
+      if (fields.bindAddress.length === 0) {
+        throw gmuxError(
+          'INVALID_INPUT',
+          'This Mac has no tailnet address, so there is nothing for a phone to ' +
+            'reach. Nothing was opened.'
+        );
+      }
+      const pin = this.deps.publicKeyPin();
+      if (pin === null) throw gmuxError('INVALID_INPUT', NO_DOOR_TO_PIN);
+      const identity = this.deps.identity();
+      this.cancel();
+      const secret = randomBytes(16);
+      const expiresAt = this.now() + POCKET_PAIRING_WINDOW_MS;
+      this.window = {
+        secret,
+        tailnetKey,
+        expiresAt,
+        presented: null,
+        presentedFrom: null,
+        allowed: false
+      };
+      const payload = JSON.stringify({
+        v: POCKET_QR_VERSION,
+        host: fields.bindAddress,
+        port: fields.port,
+        fp: pin,
+        dk: identity.signPublic,
+        dx: identity.exchangePublic,
+        ps: b64u(secret),
+        exp: expiresAt,
+        ...(tailnetKey !== null ? { tk: tailnetKey.toString('utf8') } : {})
+      });
+      return { payload, expiresAt };
+    } catch (err) {
+      // A refusal after the key was read still zeroes the key: it never
+      // reached a window, so nothing else will.
+      if (tailnetKey !== null && this.window?.tailnetKey !== tailnetKey) {
+        tailnetKey.fill(0);
+      }
+      throw err;
     }
-    this.cancel();
-    const identity = this.deps.identity();
-    const secret = randomBytes(16);
-    const expiresAt = this.now() + POCKET_PAIRING_WINDOW_MS;
-    this.window = {
-      secret,
-      expiresAt,
-      presented: null,
-      presentedFrom: null,
-      allowed: false
-    };
-    const payload = JSON.stringify({
-      v: 1,
-      host: fields.bindAddress,
-      port: fields.port,
-      fp: this.deps.certificateFingerprint(),
-      dk: identity.signPublic,
-      dx: identity.exchangePublic,
-      ps: b64u(secret),
-      exp: expiresAt
-    });
-    return { payload, expiresAt };
   }
 
-  /** Shut the window now and destroy the secret. */
+  /** Shut the window now and destroy the secret and the tailnet key. */
   cancel(): void {
     const w = this.window;
     if (w === null) return;
-    w.secret.fill(0);
+    shred(w);
     this.window = null;
+  }
+
+  /**
+   * Is a tailnet key held right now? For the tests and the gate that prove it
+   * is dropped: it answers a boolean and never the bytes.
+   */
+  holdsTailnetKey(): boolean {
+    this.sweep();
+    const w = this.window;
+    return w !== null && w.tailnetKey !== null && w.tailnetKey.some((b) => b !== 0);
   }
 
   /** True only inside an open, unexpired window. `/pair` is dead otherwise. */
@@ -1189,9 +1323,17 @@ export class PocketPairing {
       };
     }
     w.allowed = true;
-    w.secret.fill(0);
+    // The window stays until its deadline so the phone can be told it was
+    // allowed, but what it held is spent: the secret and the tailnet key go now.
+    shred(w);
     return { allowed: true, refusal: null };
   }
+}
+
+/** Zero what a window held. The window object itself is dropped by the caller. */
+function shred(w: OpenWindow): void {
+  w.secret.fill(0);
+  w.tailnetKey?.fill(0);
 }
 
 /** Is this base64url SPKI really a public key of that kind? */

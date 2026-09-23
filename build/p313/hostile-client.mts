@@ -35,12 +35,32 @@
  * state directly and attacks the request path, which is its subject. The
  * pairing WINDOW and `present` are driven for real.
  *
+ * PHASE 316.1 WIDENED IT, and the door it drives now answers from the SHIPPING
+ * route composer (`createPocketRoutes`) and the SHIPPING turns reader
+ * (`readPocketTurns`) over facts written here, rather than from three canned
+ * answers. That is what lets the attack reach the clauses 316.1 added: the QR's
+ * public-key pin re-derived from the leaf the door served, the Swift way; his
+ * tailnet key refused when it is not the shape and gone when the window is;
+ * `others` cut from one list, complementary and capped; a turn read only after
+ * the refresh; page indexes that go backwards, are negative or are 2^53, each
+ * refused for its own reason; a 4,000-character one-word ask; a removed
+ * session, a remote row answered with its note, and a session removed WHILE
+ * the phone's request is in flight. The three arms that need the real host —
+ * `bindAtLaunch` with no confirm, `setDoor` during quit, and a Remove against a
+ * listening door — are `probe:p313`'s, because only the app has a sealed store.
+ * THE FIX ROUND ADDED TWO that hold the refresh open so the press lands INSIDE
+ * the composition, which the app cannot place: `Rm6`, a phone removed there,
+ * refused `unpaired` after its answer was composed; and `14c`, the door
+ * stopping there, refused by the door instance the listener hands the handler.
+ * The tailnet key every arm here uses is MADE UP for the run.
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
 import { createServer as createPlainServer } from 'node:net';
 import { request as httpsRequest } from 'node:https';
 import {
+  X509Certificate,
   createCipheriv,
   createHash,
   createPublicKey,
@@ -53,6 +73,7 @@ import {
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { inspect } from 'node:util';
 // Arm 15 speaks to its door by hand rather than through `ask()`, because what
 // it measures is a socket that never becomes an HTTP conversation at all.
 import { connect as tlsConnect } from 'node:tls';
@@ -68,19 +89,33 @@ import {
   POCKET_READ_BODY_CAP_BYTES,
   type PocketHandlerDeps
 } from '../../src/main/pocket/server.js';
-import { POCKET_ROUTES, type PocketRoute } from '../../src/main/pocket/routes.js';
+import {
+  POCKET_ROUTES,
+  createPocketRoutes,
+  readTurnRange,
+  type PocketFacts,
+  type PocketRoute
+} from '../../src/main/pocket/routes.js';
+import { createPocketFacts, readPocketTurns } from '../../src/main/pocket/facts.js';
 import {
   PocketPairing,
   PocketRequestVerifier,
   POCKET_HEADERS,
+  POCKET_PAIRING_WINDOW_MS,
   POCKET_REQUEST_ALGORITHM,
   canonicalRequestText,
   newIdentity,
   phoneIdOf,
   signAsPhone,
+  spkiPinOf,
   type PocketIdentity,
   type PocketPhoneFields
 } from '../../src/main/pocket/pairing.js';
+import type { StoredTurn } from '../../src/main/overview/store/index.js';
+import { POCKET_OTHERS_MAX } from '../../src/shared/ipc/pocket.js';
+import { OUTCOME_REMOTE } from '../../src/shared/overview-copy.js';
+import { statusVisual } from '../../src/shared/status-words.js';
+import type { Session, SessionStatus } from '../../src/shared/types.js';
 
 // ---------------------------------------------------------------------------
 // The report
@@ -199,28 +234,44 @@ interface Answer {
 
 let port = 0;
 /**
- * The certificate this client pins, sha256 of the DER, set once the door has an
- * identity. Nothing is accepted before it is set.
+ * The KEY this client pins: the QR's `fp`, set once the first window is open.
+ * Nothing is accepted before it is set.
  *
  * The door's certificate is self-signed and in no trust store, which is the
  * design — research 127 §5's door table: "Tortie terminates its own, with a key
  * sealed under safeStorage; its fingerprint rides in the pairing QR and the app
  * pins it." So the client turns the CA check off and PINS INSTEAD, which is
- * strictly stronger here than a CA path would be: only this exact certificate
- * is accepted, and a man in the middle presenting a perfectly valid certificate
+ * strictly stronger here than a CA path would be: only this exact key is
+ * accepted, and a man in the middle presenting a perfectly valid certificate
  * for some other key is refused.
+ *
+ * PHASE 316.1: THE PIN IS THE PUBLIC KEY'S, COMPUTED THE PHONE'S WAY. It was
+ * the certificate's sha256 until the QR's v:2, and the certificate is renewed
+ * every 397 days. The phone prepends the 26-byte P-256 SubjectPublicKeyInfo
+ * header to the leaf's 65-byte point and hashes that (build/p316/SPEC.md §3.3,
+ * 112 of 112 equal to `tls.ts`); this client does exactly the same, so every
+ * honest arm below is also a proof that the QR's `fp` is the key's.
  */
-let pinnedFingerprint: string | null = null;
+let pinnedKey: string | null = null;
+/** The leaf the last handshake presented, for arm F1's re-derivation. */
+let lastLeaf: { raw?: Buffer; pubkey?: Buffer } | null = null;
 
-/** The peer's certificate, or a sentence saying why it is not the pinned one. */
-function checkPin(peer: { raw?: Buffer } | undefined): Error | undefined {
-  if (pinnedFingerprint === null) return new Error('nothing is pinned yet');
-  const raw = peer?.raw;
-  if (raw === undefined) return new Error('the door presented no certificate');
-  const got = createHash('sha256').update(raw).digest('hex');
-  return got === pinnedFingerprint
+const SPKI_P256_HEADER = Buffer.from('3059301306072a8648ce3d020106082a8648ce3d030107034200', 'hex');
+
+/** The pin of a leaf, the phone's way, or null when the leaf is not a P-256 key. */
+function pinOfLeaf(peer: { pubkey?: Buffer } | null | undefined): string | null {
+  const point = peer?.pubkey;
+  if (point === undefined || !Buffer.isBuffer(point) || point.length !== 65) return null;
+  return createHash('sha256').update(Buffer.concat([SPKI_P256_HEADER, point])).digest().toString('base64url');
+}
+
+/** The peer's key, or a sentence saying why it is not the pinned one. */
+function checkPin(peer: { raw?: Buffer; pubkey?: Buffer } | undefined): Error | undefined {
+  if (pinnedKey === null) return new Error('nothing is pinned yet');
+  if (peer?.raw === undefined) return new Error('the door presented no certificate');
+  return pinOfLeaf(peer) === pinnedKey
     ? undefined
-    : new Error('the door presented a certificate that is not the pinned one');
+    : new Error('the door presented a key that is not the pinned one');
 }
 
 function ask(
@@ -266,8 +317,9 @@ function ask(
     // before a byte of the answer is read — and a mismatch ends the socket.
     req.on('socket', (socket) => {
       socket.on('secureConnect', () => {
-        const peer = (socket as unknown as { getPeerCertificate?: () => { raw?: Buffer } })
+        const peer = (socket as unknown as { getPeerCertificate?: () => { raw?: Buffer; pubkey?: Buffer } })
           .getPeerCertificate?.();
+        lastLeaf = peer ?? null;
         const bad = checkPin(peer);
         if (bad !== undefined) {
           socket.destroy();
@@ -328,6 +380,15 @@ function verdict(answer: Answer): string {
   return `refused-${String(answer.status)}`;
 }
 
+/** Wait, a turn at a time, until `ready` answers true. Throws after 5 s. */
+async function until(ready: () => boolean): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (!ready()) {
+    if (Date.now() > deadline) throw new Error('a held request never reached the refresh');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
@@ -379,6 +440,15 @@ try {
 
   const doorIdentity: PocketIdentity = newIdentity().identity;
   let phones: PocketPhoneFields[] = [];
+  /**
+   * The pairing owner's clock, moved by the arms that need a window to expire.
+   * Zero skew is the real clock, which is what every older arm ran on.
+   */
+  let skew = 0;
+  const clock = (): number => Date.now() + skew;
+  /** What the door's key pin is, and whether the door is "listening" for the pairing owner. */
+  let doorPin: string | null = null;
+  let doorListening = true;
   const pairing = new PocketPairing({
     identity: () => doorIdentity,
     fieldsNow: () => ({
@@ -393,35 +463,170 @@ try {
       phones = [...next];
       return true;
     },
-    certificateFingerprint: () => pinnedFingerprint
+    // THE SHIPPING CONVERSION, from the fingerprint the SHIPPING identity
+    // reports, exactly as `ipc.ts` wires it; the phone's side of it is re-derived
+    // from the leaf the door served, in arm F1.
+    publicKeyPin: () => (doorListening ? doorPin : null),
+    now: clock
   });
   const verifier = new PocketRequestVerifier({
     identity: () => doorIdentity,
     phones: () => phones
   });
 
-  const FACTS = {
-    blocked: [{ sessionId: 'ses_1', name: 'fix-login', age: '2m' }],
-    session: { sessionId: 'ses_1', name: 'fix-login' },
-    turns: [{ who: 'you', text: 'make the cookie httpOnly' }]
+  // -------------------------------------------------------------------------
+  // THE FACTS, written here; the ROUTES and the TURNS READER are shipping code.
+  // -------------------------------------------------------------------------
+
+  const T0 = Date.now() - 3_600_000;
+  const aSession = (id: string, name: string, status: SessionStatus, extra: Partial<Session> = {}): Session =>
+    ({
+      id,
+      name,
+      tmuxName: name,
+      projectPath: '/p313/project',
+      cwd: '/p313/project',
+      agent: 'claude',
+      status,
+      createdAt: T0,
+      ...extra
+    }) as Session;
+  const aTurn = (sessionId: string, index: number, askText: string, answerText: string | null, closed = true): StoredTurn => ({
+    sessionId,
+    index,
+    askText,
+    askAt: new Date(T0 + index * 1_000).toISOString(),
+    answerText,
+    answerAt: answerText === null ? null : new Date(T0 + index * 1_000 + 500).toISOString(),
+    queued: 0,
+    closed,
+    interrupted: false,
+    notice: null,
+    stopReason: null,
+    durationMs: null,
+    paths: [],
+    pathSource: 'text-only',
+    gitVerdict: null,
+    gitCheckedAt: null
+  });
+  /** A 4,000-character one-word ask, the longest that is not clipped, and one past it. */
+  const LONG_WORD = `p313${'w'.repeat(4_000 - 4)}`;
+  const LONGER_WORD = `${LONG_WORD}x`;
+  const TALK_TURNS: StoredTurn[] = [
+    ...Array.from({ length: 10 }, (_, i) => aTurn('ses_talk', i, `ask ${String(i)}`, i === 6 ? null : `answer ${String(i)}`)),
+    aTurn('ses_talk', 10, LONG_WORD, null, false),
+    aTurn('ses_talk', 11, LONGER_WORD, 'the last answer')
+  ];
+  const turnsOf = new Map<string, StoredTurn[]>([['ses_talk', TALK_TURNS]]);
+  /** The store's own two readers' semantics: ascending, the LAST `limit` of the range. */
+  const fakeStore = {
+    listTurns(sessionId: string, limit?: number): StoredTurn[] {
+      const all = turnsOf.get(sessionId) ?? [];
+      return limit === undefined ? [...all] : all.slice(Math.max(0, all.length - limit));
+    },
+    listTurnsBetween(sessionId: string, from: number, to: number, limit?: number): StoredTurn[] {
+      const range = (turnsOf.get(sessionId) ?? []).filter((t) => t.index >= from && t.index <= to);
+      return limit === undefined ? range : range.slice(Math.max(0, range.length - limit));
+    }
   };
+  let listed: Session[] = [
+    aSession('ses_1', 'fix-login', 'needs_input'),
+    aSession('ses_talk', 'talk', 'idle'),
+    aSession('ses_idle', 'quiet', 'idle'),
+    aSession('ses_remote', 'far-away', 'running', { machine: { id: 'm1', label: 'Mac Pro' } as Session['machine'] }),
+    aSession('ses_doomed', 'doomed', 'idle')
+  ];
+  /** The order the composer asked for things, so the refresh can be seen to come FIRST. */
+  const events: string[] = [];
+  /** A Remove that lands while the request is inside the refresh's yield. */
+  let removeDuringRefresh: string | null = null;
+  /**
+   * A refresh HELD OPEN (the Phase 316.1 fix round), so a Remove or a stop can
+   * land while a request is inside its composition, where the shipping
+   * composer awaits before it reads the store.
+   */
+  let holdRefresh: Promise<void> | null = null;
+  /** Every time the handler asked whether a phone is still paired, and the answer. */
+  const pairedAsked: { id: string; answer: boolean }[] = [];
+  const facts: PocketFacts = {
+    sessions: () => listed,
+    projects: () => [],
+    blockedSince: () => new Map([['ses_1', T0 + 60_000]]),
+    wakes: () => [],
+    activity: () => undefined,
+    statusWord: (session) => {
+      const word = statusVisual(session.status, session);
+      return { dot: word.dot, label: word.label };
+    },
+    agentLabel: (agent) => agent,
+    machineLabel: (session) => session.machine?.label ?? null,
+    emptyLine: 'Nothing needs you',
+    refresh: async (sessionId) => {
+      events.push(`refresh:${sessionId}`);
+      await Promise.resolve();
+      if (holdRefresh !== null) await holdRefresh;
+      if (removeDuringRefresh === sessionId) listed = listed.filter((s) => s.id !== sessionId);
+      return null;
+    },
+    catchUp: async (sessionId) => {
+      events.push(`catchUp:${sessionId}`);
+      return null;
+    },
+    lastTurn: async (sessionId) => {
+      events.push(`lastTurn:${sessionId}`);
+      const last = fakeStore.listTurns(sessionId, 1)[0];
+      return { answerText: last?.answerText ?? null, turnCount: (turnsOf.get(sessionId) ?? []).length };
+    },
+    turns: async (sessionId, range) => {
+      events.push(`turns:${sessionId}`);
+      const status = listed.find((s) => s.id === sessionId)?.status ?? 'idle';
+      return readPocketTurns(fakeStore, sessionId, range, status);
+    },
+    handoff: () => null
+  };
+  const routes = createPocketRoutes(facts);
 
   door = new PocketDoor();
   const deps: PocketHandlerDeps = {
     boundAddress: () => door?.address ?? null,
     boundPort: () => door?.port ?? 0,
-    shuttingDown: () => door?.shutdownStarted ?? true,
+    // THE QUIT FLAG ALONE, as the host hands it (`ipc.ts`: `pocketShutdownStarted`),
+    // and this run never quits. A door that is stopping is known only to the
+    // instance `bind.ts` hands the handler, which is what arm 14c proves; this
+    // dep asked the instance until the Phase 316.1 fix round, and so hid that
+    // the host's own composition did not.
+    shuttingDown: () => false,
     pairingWindowOpen: () => pairing.windowOpen(),
     present: (body, from) => pairing.present(body, from),
     verify: (input) => {
       const v = verifier.verify(input);
-      return v.ok ? { ok: true } : { ok: false, reason: v.reason };
+      return v.ok ? { ok: true, phoneId: v.phone.id } : { ok: false, reason: v.reason };
     },
-    answer: async (route: PocketRoute) => {
-      if (route.id === 'blocked') return FACTS.blocked;
-      if (route.id === 'session') return FACTS.session;
-      if (route.id === 'turns') return FACTS.turns;
-      return null;
+    // The host's own question, over the same phone set the verifier reads.
+    stillPaired: (id) => {
+      const answer = phones.some((p) => p.id === id);
+      pairedAsked.push({ id, answer });
+      return answer;
+    },
+    // The host's own dispatch (`ipc.ts`), spelled here because the host needs
+    // the OS keystore to be built. The answers are the SHIPPING composer's.
+    answer: async (route: PocketRoute, query) => {
+      switch (route.id) {
+        case 'blocked':
+          return routes.blocked();
+        case 'session': {
+          const id = query.get('id');
+          return id === null ? null : await routes.session(id);
+        }
+        case 'turns': {
+          const id = query.get('id');
+          return id === null
+            ? null
+            : await routes.turns(id, { limit: query.get('limit'), from: query.get('from'), to: query.get('to') });
+        }
+        case 'pair':
+          return null;
+      }
     }
   };
 
@@ -441,16 +646,19 @@ try {
     refuseSelfOrigin: false
   });
   if (!started.ok) throw new Error(`the door refused to start: ${started.reason} — ${started.sentence}`);
-  pinnedFingerprint = started.certificateFingerprint.replace(/[^0-9a-f]/gi, '').toLowerCase();
+  doorPin = spkiPinOf(started.publicKeyFingerprint);
+  const certificateSha = started.certificateFingerprint.replace(/[^0-9a-f]/gi, '').toLowerCase();
 
   // -------------------------------------------------------------------------
   // 0. It answers at all, and it answers the honest phone
   // -------------------------------------------------------------------------
 
-  const offer = pairing.open();
+  const offer = pairing.open({ tailnetKey: null });
   const qr = JSON.parse(offer.payload) as Record<string, unknown>;
   const secret = Buffer.from(String(qr['ps']), 'base64url');
   const doorExchangePublic = String(qr['dx']);
+  // THE PIN THE PHONE HOLDS is the QR's, and nothing else.
+  pinnedKey = typeof qr['fp'] === 'string' ? qr['fp'] : null;
 
   /**
    * Seal a presentation the way a phone does, under the QR's one-shot secret.
@@ -496,6 +704,57 @@ try {
     (JSON.parse(paired.body || '{}') as { state?: string }).state ?? 'none',
     'the human confirms on the Mac, LAST. A phone that has presented must not be able to read anything yet.'
   );
+
+  // F1. THE QR PINS THE DOOR'S PUBLIC KEY (Phase 316.1, build/p316/SPEC.md §2
+  // row 24). The /pair above is the first handshake of the run, and it was
+  // accepted only because the leaf the door served hashes, the phone's way, to
+  // the QR's `fp`. Here the same leaf is hashed a SECOND way, through node's
+  // own SubjectPublicKeyInfo export, and held against the certificate's hash,
+  // which is what v:1 pinned and what the 397-day renewal would change.
+  {
+    // Read through a cast: it is assigned inside the socket's callback, which
+    // the compiler's flow analysis does not follow.
+    const leaf = lastLeaf as { raw?: Buffer; pubkey?: Buffer } | null;
+    const leafPin = pinOfLeaf(leaf);
+    const x509Pin =
+      leaf?.raw === undefined
+        ? null
+        : createHash('sha256')
+            .update(new X509Certificate(leaf.raw).publicKey.export({ type: 'spki', format: 'der' }))
+            .digest()
+            .toString('base64url');
+    const certificatePin = Buffer.from(certificateSha, 'hex').toString('base64url');
+    record('F1a', 'the QR is v:2', '2', String(qr['v']), 'v:2 tells a phone the pin is the KEY’s; v:1 meant the certificate’s, which the door renews every 397 days.');
+    record(
+      'F1b',
+      'the QR’s fp is the served leaf’s key, hashed the phone’s way and node’s way',
+      'equal',
+      leafPin !== null && leafPin === qr['fp'] && x509Pin === qr['fp'] ? 'equal' : 'differs',
+      'the phone pins the 26-byte P-256 header plus the leaf’s 65-byte point, sha256, base64url; a QR whose fp is anything else pins nothing the door serves.'
+    );
+    record(
+      'F1c',
+      'and it is not the certificate’s hash',
+      'the-key',
+      qr['fp'] === certificatePin || qr['fp'] === certificateSha ? 'the-certificate' : 'the-key',
+      'a certificate pin un-pairs every phone thirteen months after it paired, with nothing on either screen saying why.'
+    );
+    doorListening = false;
+    let withoutPin = 'opened';
+    try {
+      pairing.open({ tailnetKey: null });
+    } catch {
+      withoutPin = 'refused';
+    }
+    doorListening = true;
+    record(
+      'F1d',
+      'no window opens while the door has no key to pin',
+      'refused',
+      withoutPin,
+      'a window on a door that is not listening would put fp: null in the QR, and a phone that pins null pins nothing.'
+    );
+  }
 
   // The person allowed it. That step seals a record and needs the keystore, so
   // the state it produces is built here and the request path is what is driven.
@@ -610,8 +869,8 @@ try {
 
   // 7. A second pairing while one is live.
   const second = makePhone('a second phone', '127.0.0.1', doorExchangePublic);
-  pairing.open();
-  const reopened = JSON.parse(pairing.open().payload) as Record<string, unknown>;
+  pairing.open({ tailnetKey: null });
+  const reopened = JSON.parse(pairing.open({ tailnetKey: null }).payload) as Record<string, unknown>;
   const liveSecret = Buffer.from(String(reopened['ps']), 'base64url');
   await ask(
     'POST',
@@ -719,7 +978,7 @@ try {
   // token by the first eight of its digest, computed HERE by this client's own
   // sha256 rather than read back from the door.
   {
-    const window17 = JSON.parse(pairing.open().payload) as Record<string, unknown>;
+    const window17 = JSON.parse(pairing.open({ tailnetKey: null }).payload) as Record<string, unknown>;
     const secret17 = Buffer.from(String(window17['ps']), 'base64url');
     const alerted = makePhone('a phone that asks for alerts', '127.0.0.1', doorExchangePublic);
     const stateOf = (answer: Answer): string =>
@@ -780,16 +1039,394 @@ try {
     pairing.cancel();
   }
 
-  // 14. The shutdown is a resource owner.
-  const report = await door.stop();
-  door = null;
-  record(
-    '14',
-    'the stop joins what it accepted',
-    'true',
-    String(report.joined),
-    'a stop that returns must have no handler still running, or a quit reads main’s state during its own disposal.'
-  );
+  // -------------------------------------------------------------------------
+  // PHASE 316.1 — the door switched on (build/p316/SPEC.md §4 S1, Method B)
+  // -------------------------------------------------------------------------
+
+  const stateOfAnswer = (answer: Answer): string =>
+    (JSON.parse(answer.body || '{}') as { state?: string }).state ?? `none-${verdict(answer)}`;
+  const bodyOf = (answer: Answer): Record<string, unknown> => {
+    try {
+      return JSON.parse(answer.body || '{}') as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  };
+
+  // K1. HIS TAILNET KEY. The key below is MADE UP for this run: it has the
+  // shape the door checks and no Tailscale server has ever seen it.
+  {
+    const KEY = `tskey-auth-kP313hostile${randomBytes(6).toString('hex')}-CNTRLp313hostile${randomBytes(12).toString('hex')}`;
+    const keyBytes = Array.from(Buffer.from(KEY, 'utf8').subarray(0, 16))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(' ');
+    /** The sentence a refusal carries, or `opened`. */
+    const refusalOf = (input: unknown): string => {
+      try {
+        pairing.open(input as { tailnetKey: string | null });
+        return 'opened';
+      } catch (err) {
+        const text = err instanceof Error ? err.message : String(err);
+        try {
+          return String((JSON.parse(text) as { message?: unknown }).message ?? text);
+        } catch {
+          return text;
+        }
+      }
+    };
+    const tooLong = refusalOf({ tailnetKey: `tskey-auth-${'k'.repeat(10 * 1024)}` });
+    record(
+      'K1a',
+      'a 10 KB key is refused, opens no window and holds nothing',
+      'refused-closed-empty',
+      `${tooLong === 'opened' ? 'opened' : 'refused'}-${pairing.windowOpen() ? 'open' : 'closed'}-${pairing.holdsTailnetKey() ? 'held' : 'empty'}`,
+      'a paste of any size is checked for its length before anything else, and a refusal leaves nothing behind.'
+    );
+    const notAuth = refusalOf({ tailnetKey: `tskey-api-p313hostile${randomBytes(8).toString('hex')}` });
+    record(
+      'K1b',
+      'a key that does not start tskey-auth- is refused, for its OWN reason',
+      'own-reason',
+      notAuth !== 'opened' && tooLong !== 'opened' && notAuth !== tooLong ? 'own-reason' : `same-or-opened`,
+      'an API key or an OAuth secret pasted by mistake is not a join key, and saying "too long" about it would send him looking for the wrong thing.'
+    );
+    record(
+      'K1c',
+      'and neither refusal repeats what was pasted',
+      'silent',
+      [tooLong, notAuth].some((t) => t.includes('kkkkkkkkkk') || t.includes('p313hostile')) ? 'echoed' : 'silent',
+      'a refusal sentence reaches the renderer and the log; it never carries the value it refused.'
+    );
+    const withKey = JSON.parse(pairing.open({ tailnetKey: KEY }).payload) as Record<string, unknown>;
+    record(
+      'K1d',
+      'an honest key rides in the QR as tk, and the sheet’s view does not carry it',
+      'tk-only',
+      withKey['tk'] === KEY && !JSON.stringify(pairing.view()).includes(KEY) ? 'tk-only' : withKey['tk'] === KEY ? 'also-on-the-view' : 'not-in-the-qr',
+      'the QR is the phone’s only copy, and the view is what every window of the app is sent.'
+    );
+    record('K1e', 'the window holds it while it is open', 'held', pairing.holdsTailnetKey() ? 'held' : 'not-held', 'the holder the next three arms empty must first be full, or they prove nothing.');
+    skew += POCKET_PAIRING_WINDOW_MS + 1_000;
+    const afterDeadline = pairing.windowOpen();
+    record(
+      'K1f',
+      'past its deadline the window is gone at the first touch, and the key with it',
+      'closed-zeroed',
+      `${afterDeadline ? 'open' : 'closed'}-${pairing.holdsTailnetKey() ? 'held' : 'zeroed'}`,
+      'expiry shreds what the window held; there is no timer, so the first thing that asks after the deadline is what shreds it, and quit shreds whatever is left.'
+    );
+    const expiredSecret = Buffer.from(String(withKey['ps']), 'base64url');
+    const next = JSON.parse(pairing.open({ tailnetKey: null }).payload) as Record<string, unknown>;
+    const reused = await ask(
+      'POST',
+      '/pair',
+      { 'content-type': 'application/json' },
+      present('a phone with the old code', good.fields.signingKey, good.fields.exchangeKey, expiredSecret)
+    );
+    record(
+      'K1g',
+      'a pairing code reused after its window: the next QR carries no key, and the old code opens nothing',
+      'no-tk-refused',
+      `${'tk' in next ? 'tk' : 'no-tk'}-${stateOfAnswer(reused)}`,
+      'the key belonged to ONE window. A later window the person opened without a key must not carry his old one, and a photographed code is worth nothing after its deadline.'
+    );
+    pairing.cancel();
+    skew = 0;
+    const graph = inspect(pairing, { depth: Infinity, showHidden: true, maxArrayLength: Infinity, maxStringLength: Infinity });
+    record(
+      'K1h',
+      'nothing in the pairing owner still holds the key, as text or as bytes',
+      'absent',
+      graph.includes(KEY) || graph.includes(KEY.slice(11)) || graph.includes(keyBytes) ? 'present' : 'absent',
+      'the whole object graph of the owner, private fields included, holds neither the string nor its first sixteen bytes.'
+    );
+    pairing.open({ tailnetKey: KEY });
+    pairing.cancel();
+    record('K1i', 'cancel zeroes it', 'zeroed', pairing.holdsTailnetKey() ? 'held' : 'zeroed', 'the person pressing Cancel is the commonest way a window ends.');
+    pairing.open({ tailnetKey: null });
+    doorListening = false;
+    const afterRead = refusalOf({ tailnetKey: KEY });
+    doorListening = true;
+    record(
+      'K1j',
+      'a refusal AFTER the key was read keeps nothing, and leaves the window that was open, open',
+      'refused-open-empty',
+      `${afterRead === 'opened' ? 'opened' : 'refused'}-${pairing.windowOpen() ? 'open' : 'closed'}-${pairing.holdsTailnetKey() ? 'held' : 'empty'}`,
+      'the door stopped listening between the paste and the press: the bytes read for that press are zeroed on the way out, and the window already open is not taken down by a press that did nothing.'
+    );
+    pairing.cancel();
+  }
+
+  // O1. OTHERS: exactly the listed sessions that are not blocked, capped.
+  {
+    const answer = await signedAsk(good, '/v1/blocked');
+    const body = bodyOf(answer) as { rows?: { sessionId: string }[]; others?: { sessionId: string }[]; othersOmitted?: number };
+    const rows = (body.rows ?? []).map((r) => r.sessionId);
+    const others = (body.others ?? []).map((r) => r.sessionId).sort();
+    const want = listed.map((s) => s.id).filter((id) => !rows.includes(id)).sort();
+    record(
+      'O1a',
+      'others, over the wire, is exactly the listed sessions that are not blocked',
+      'exact',
+      verdict(answer) === 'ok' && JSON.stringify(rows) === JSON.stringify(['ses_1']) && JSON.stringify(others) === JSON.stringify(want) && body.othersOmitted === 0
+        ? 'exact'
+        : `rows ${String(rows.length)}, others ${String(others.length)} of ${String(want.length)}, omitted ${String(body.othersOmitted)}`,
+      'his ruling: the phone may open anything, so it must be able to FIND anything, and a session in both lists or in neither is a session drawn twice or lost.'
+    );
+    const many: Session[] = Array.from({ length: POCKET_OTHERS_MAX + 5 }, (_, i) =>
+      aSession(`ses_m${String(i).padStart(3, '0')}`, `m${String(i)}`, i < 3 ? 'needs_input' : 'idle', { createdAt: T0 + i })
+    );
+    const big = createPocketRoutes({ ...facts, sessions: () => many, blockedSince: () => new Map() }).blocked();
+    const bigRows = new Set(big.rows.map((r) => r.sessionId));
+    const bigOthers = big.others.map((r) => r.sessionId);
+    const disjoint = bigOthers.every((id) => !bigRows.has(id)) && new Set(bigOthers).size === bigOthers.length;
+    record(
+      'O1b',
+      `${String(many.length)} sessions, 3 waiting: every waiting row, ${String(POCKET_OTHERS_MAX)} others, the rest counted, none twice`,
+      `3-${String(POCKET_OTHERS_MAX)}-2-disjoint`,
+      `${String(big.rows.length)}-${String(big.others.length)}-${String(big.othersOmitted)}-${disjoint ? 'disjoint' : 'overlapping'}`,
+      'an answer of unbounded size is the one the phone reads on a train; the cap is the contract’s, and the count of what it left out is said.'
+    );
+  }
+
+  // T2. FRESH BEFORE READ, and the conversation paged back whole.
+  {
+    events.length = 0;
+    const session = await signedAsk(good, '/v1/session?id=ses_talk');
+    const seenSession = [...events];
+    events.length = 0;
+    const page = await signedAsk(good, '/v1/turns?id=ses_talk&limit=3');
+    const seenTurns = [...events];
+    record(
+      'T2a',
+      '/v1/session asks the refresh BEFORE it reads the conversation',
+      'refresh-first',
+      verdict(session) === 'ok' && seenSession[0] === 'refresh:ses_talk' && seenSession.includes('lastTurn:ses_talk') && seenSession.filter((e) => e.startsWith('refresh')).length === 1
+        ? 'refresh-first'
+        : seenSession.join(',') || verdict(session),
+      'the store is written only when Catch Me Up, the fold or the counts ask, so a read that comes first answers what the conversation WAS.'
+    );
+    record(
+      'T2b',
+      '/v1/turns asks the refresh BEFORE it reads the turns',
+      'refresh-first',
+      verdict(page) === 'ok' && JSON.stringify(seenTurns) === JSON.stringify(['refresh:ses_talk', 'turns:ses_talk']) ? 'refresh-first' : seenTurns.join(',') || verdict(page),
+      'the probe appends a turn to a real record and reads it back; this holds the order the append depends on.'
+    );
+    const collected: { index: number; absence: unknown; answerText: unknown }[] = [];
+    let to: number | null = null;
+    let pages = 0;
+    let sane = true;
+    for (; pages < 20; pages += 1) {
+      const answer = await signedAsk(good, `/v1/turns?id=ses_talk&limit=4${to === null ? '' : `&to=${String(to)}`}`);
+      const body = bodyOf(answer) as { turns?: { index: number; absence: unknown; answerText: unknown }[]; more?: boolean };
+      if (verdict(answer) !== 'ok' || !Array.isArray(body.turns)) {
+        sane = false;
+        break;
+      }
+      collected.unshift(...body.turns);
+      if (body.more !== true) break;
+      if (body.turns.length === 0) {
+        sane = false;
+        break;
+      }
+      to = (body.turns[0]?.index ?? 0) - 1;
+    }
+    const indexes = collected.map((t) => t.index);
+    const whole = sane && JSON.stringify(indexes) === JSON.stringify(TALK_TURNS.map((t) => t.index));
+    const absences = collected.every((t) => (t.answerText === null ? typeof t.absence === 'string' && t.absence.length > 0 : t.absence === null));
+    record(
+      'T2c',
+      'paged back to the first turn: every turn once, in order, and each unanswered one says so',
+      `${String(TALK_TURNS.length)}-said`,
+      `${whole ? String(collected.length) : `broken(${indexes.join(',')})`}-${absences ? 'said' : 'unsaid'}`,
+      'the phone stitches pages together by index; a page that repeats, skips or never ends is a conversation drawn wrong.'
+    );
+  }
+
+  // PAGE INDEXES AN ATTACKER CHOOSES, each refused for its own reason.
+  for (const [n, query, reason] of [
+    ['Pg1', 'from=5&to=2', 'backwards'],
+    ['Pg2', 'to=-5', 'index'],
+    ['Pg3', 'from=-1&to=3', 'index'],
+    ['Pg4', `to=${String(2 ** 53)}`, 'index'],
+    ['Pg5', `from=${String(2 ** 53)}`, 'index'],
+    ['Pg6', 'to=1e3', 'index']
+  ] as const) {
+    const params = new URLSearchParams(query);
+    const decided = readTurnRange({ from: params.get('from'), to: params.get('to') });
+    const wire = await signedAsk(good, `/v1/turns?id=ses_talk&${query}`);
+    record(
+      n,
+      `a page asked as ${query}`,
+      `refused-404:${reason}`,
+      `${verdict(wire)}:${decided.ok ? 'accepted' : decided.reason}`,
+      'a page that is not a page is refused rather than guessed at: a fallback answers a page the phone did not ask for, and the phone stitches it in as if it had.'
+    );
+  }
+  {
+    const a = bodyOf(await signedAsk(good, '/v1/turns?id=ses_talk&limit=3&to=4')) as { turns?: { index: number }[] };
+    const b = bodyOf(await signedAsk(good, '/v1/turns?id=ses_talk&limit=3&to=5')) as { turns?: { index: number }[] };
+    const shared = (a.turns ?? []).filter((t) => (b.turns ?? []).some((u) => u.index === t.index));
+    const agree = shared.every((t) => JSON.stringify(t) === JSON.stringify((b.turns ?? []).find((u) => u.index === t.index)));
+    record(
+      'Pg7',
+      'two overlapping pages agree byte for byte where they overlap',
+      'agree-2',
+      `${agree ? 'agree' : 'disagree'}-${String(shared.length)}`,
+      'a turn read twice is the same turn twice, or the phone cannot tell a repeat from a change.'
+    );
+  }
+
+  // A 4,000-CHARACTER ONE-WORD ASK, and one character past the one clip.
+  {
+    const body = bodyOf(await signedAsk(good, '/v1/turns?id=ses_talk&from=10&to=11&limit=2')) as {
+      turns?: { index: number; askText: string; askClipped: boolean; answerText: string | null; absence: string | null }[];
+    };
+    const t10 = body.turns?.find((t) => t.index === 10);
+    const t11 = body.turns?.find((t) => t.index === 11);
+    record(
+      'Lg1',
+      'a 4,000-character one-word ask comes back whole and unclipped',
+      '4000-unclipped',
+      `${String(t10?.askText.length ?? 0)}-${t10?.askClipped === false && t10?.askText === LONG_WORD ? 'unclipped' : 'clipped-or-changed'}`,
+      'one word with no break is the shape that breaks a phone’s layout, and the door answers it whole: the phone wraps it, the door does not cut it.'
+    );
+    record(
+      'Lg2',
+      'one character more is clipped at the one clip, and says so',
+      '4000-clipped',
+      `${String(t11?.askText.length ?? 0)}-${t11?.askClipped === true ? 'clipped' : 'unclipped'}`,
+      'toTurnView holds the only clip, and a clip that is not said is a person reading half a sentence as the whole.'
+    );
+    record(
+      'Lg3',
+      'the unanswered long ask carries its absence sentence, the answered one none',
+      'said',
+      t10?.answerText === null && typeof t10?.absence === 'string' && t10.absence.length > 0 && t11?.absence === null ? 'said' : 'unsaid',
+      'main chooses the sentence from the turn’s flags and the session’s status, so the phone never decides between the three itself.'
+    );
+  }
+
+  // A REMOVED SESSION, A REMOTE ROW, AND A REMOVE WHILE THE REQUEST IS IN FLIGHT.
+  {
+    record('Rm1', 'the session of an id nobody lists', 'refused-404', verdict(await signedAsk(good, '/v1/session?id=ses_gone')), 'an id is not an admission; a session Tortie does not list is answered as nothing.');
+    record('Rm2', 'the turns of an id nobody lists', 'refused-404', verdict(await signedAsk(good, '/v1/turns?id=ses_gone')), 'the same, for its conversation.');
+    events.length = 0;
+    const remote = await signedAsk(good, '/v1/turns?id=ses_remote');
+    const rb = bodyOf(remote) as { note?: unknown; turns?: unknown[]; more?: unknown };
+    record(
+      'Rm3',
+      'a remote row’s turns: main’s own sentence, never an error, and nothing on this Mac read',
+      'note',
+      verdict(remote) === 'ok' && rb.note === OUTCOME_REMOTE && Array.isArray(rb.turns) && rb.turns.length === 0 && rb.more === false && !events.some((e) => e.endsWith(':ses_remote'))
+        ? 'note'
+        : `${verdict(remote)} note=${JSON.stringify(rb.note)} read=${events.join(',')}`,
+      'the conversation of a session on another machine is on that machine; the phone draws the sentence the Mac draws for it.'
+    );
+    removeDuringRefresh = 'ses_doomed';
+    events.length = 0;
+    const doomedSession = await signedAsk(good, '/v1/session?id=ses_doomed');
+    record(
+      'Rm4',
+      'a session Removed while its /v1/session is in flight is answered as unknown, and read no further',
+      'refused-404-unread',
+      `${verdict(doomedSession)}-${events.some((e) => e === 'lastTurn:ses_doomed' || e === 'catchUp:ses_doomed') ? 'read' : 'unread'}`,
+      'the refresh yields, so the route looks the session up AGAIN after it; a session removed in that gap is not read.'
+    );
+    listed = [...listed, aSession('ses_doomed', 'doomed', 'idle')];
+    events.length = 0;
+    const doomedTurns = await signedAsk(good, '/v1/turns?id=ses_doomed');
+    record(
+      'Rm5',
+      'the same Remove during /v1/turns',
+      'refused-404-unread',
+      `${verdict(doomedTurns)}-${events.includes('turns:ses_doomed') ? 'read' : 'unread'}`,
+      'and for its conversation.'
+    );
+    removeDuringRefresh = null;
+
+    // Rm6. A PHONE REMOVED while its request is inside the refresh (the Phase
+    // 316.1 fix round, the attack's R1). The route composes, because the
+    // session is still listed; the answer must still not leave, and the handler
+    // must have asked about THIS phone after the composition and been told no.
+    let release = (): void => undefined;
+    holdRefresh = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    events.length = 0;
+    pairedAsked.length = 0;
+    const heldAsk = signedAsk(good, '/v1/turns?id=ses_talk&limit=2');
+    await until(() => events.includes('refresh:ses_talk'));
+    const keptPhones = phones;
+    phones = phones.filter((p) => p.id !== good.fields.id);
+    verifier.forget(good.fields.id);
+    release();
+    const removedAnswer = await heldAsk;
+    holdRefresh = null;
+    phones = keptPhones;
+    const lastAsk = pairedAsked.filter((a) => a.id === good.fields.id).at(-1);
+    record(
+      'Rm6',
+      'a phone Removed while its request is inside the refresh: composed, then refused unpaired',
+      'refused-404-composed-unpaired',
+      `${verdict(removedAnswer)}-${events.includes('turns:ses_talk') ? 'composed' : 'uncomposed'}-${lastAsk === undefined ? 'never-asked' : lastAsk.answer ? 'still-paired' : 'unpaired'}`,
+      'SPEC S1 Method B: a Remove while the phone’s request is in flight. The answer was composed from the store as it stood AFTER the press, and before the fix it was sent; the handler now asks whether the phone it verified is still paired, with nothing awaited before the send.'
+    );
+    record(
+      'Rm6b',
+      'the phone reads again once the person has it back',
+      'ok',
+      verdict(await signedAsk(good, '/v1/blocked')),
+      'the refusal is about the phone’s membership at the moment of the send, not a door that stopped answering.'
+    );
+  }
+
+  // H2. THE HAND-OFF, from the one production composer and on the wire.
+  {
+    const shipped = createPocketFacts({ core: () => null, overview: {} as never, wakes: () => [] });
+    const onWire = (bodyOf(await signedAsk(good, '/v1/session?id=ses_1')) as { session?: { handoff?: unknown } }).session?.handoff;
+    record(
+      'H2',
+      'the production hand-off answers null, and the session detail carries none',
+      'null-null',
+      `${shipped.handoff(listed[0] as Session) === null ? 'null' : 'composed'}-${onWire === null ? 'null' : 'composed'}`,
+      'nothing on the phone can dial ssh through the app’s own node, and where Claude’s Remote Control URL is recorded is unmeasured.'
+    );
+  }
+
+  // 14. The shutdown is a resource owner — and since the Phase 316.1 fix round
+  // it is driven with a request INSIDE ITS COMPOSITION when the stop begins,
+  // which is where a person's switch-off, Remove or alerts flip meets a phone.
+  {
+    let release = (): void => undefined;
+    holdRefresh = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    events.length = 0;
+    const heldAsk = signedAsk(good, '/v1/turns?id=ses_talk&limit=2');
+    await until(() => events.includes('refresh:ses_talk'));
+    const stopping = door.stop();
+    release();
+    const report = await stopping;
+    const heldAnswer = await heldAsk;
+    holdRefresh = null;
+    door = null;
+    record(
+      '14',
+      'the stop joins what it accepted',
+      'true-1',
+      `${String(report.joined)}-${String(report.accepted)}`,
+      'a stop that returns must have no handler still running, or a quit reads main’s state during its own disposal.'
+    );
+    record(
+      '14c',
+      'a request inside its composition when the door began to stop: composed, then refused',
+      'refused-404-composed',
+      `${verdict(heldAnswer)}-${events.includes('turns:ses_talk') ? 'composed' : 'uncomposed'}`,
+      'the stop joins the handler rather than cutting it, so without a last ask the answer composed inside the join left a door the person had closed. The ask is of the door INSTANCE, because the module drops its door before it joins.'
+    );
+  }
   const afterStop = await ask('GET', '/v1/blocked', {}, null);
   record(
     '14b',

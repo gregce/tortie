@@ -470,6 +470,22 @@ export const CHECKS = [
   // with no hook, a control shell row byte for byte, and app.log afterwards with
   // no byte of any body in it. P311_CHECKOUT points it at a parent build.
   electron('probe:p311'),
+  // PHASE 316.1's app run: the door SWITCHED ON and read by a node phone, which
+  // Phase 313 named and never wrote. Three Electrons ONE AT A TIME on one
+  // scratch profile under a harness directory, a scratch HOME and the socket
+  // gmux-p313-<pid>, each ended by the helper's `finally`. GMUX_POCKET_LOOPBACK=1
+  // binds the door on 127.0.0.1 and the probe refuses to dial any host the QR
+  // names that is not loopback, so NO REAL INTERFACE is bound or dialled. The
+  // `claude` on the scratch PATH is a /bin/sh script printing the committed
+  // Phase 312 dialog fixture and planting the committed research 63 transcript
+  // under the scratch HOME, so NO VENDOR PROCESS RUNS AND NO TOKEN IS SPENT. The
+  // tailnet key it pastes is a MADE-UP `tskey-auth-…` string, and every file
+  // under the profile, the HOME and the log is scanned for its bytes at the
+  // end. The order (on, confirm, listening, pair with the key, Allow), the three
+  // reads with `others`, the conversation paged back to its first turn, a turn
+  // appended and read back, the relaunch listening with no press, and the attack
+  // arms that need the real host. P313_PARENT_CHECKOUT reads a parent build.
+  electron('probe:p313'),
   // PHASE 314's app run: the push driven inside the real app BY REAL AGENTS
   // (the operator's ruling of 2026-09-22). ONE Electron on a scratch profile
   // under a harness directory, a scratch HOME and the socket gmux-p314-<pid>,

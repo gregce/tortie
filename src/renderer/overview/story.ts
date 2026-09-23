@@ -21,7 +21,7 @@
 
 import type { OverviewTimeline, OverviewTurnView } from '@shared/overview';
 import { gmuxBridge } from '../bridge';
-import { STORY_BRIDGE_MISSING, STORY_TURNS_UNREADABLE } from './copy';
+import { STORY_BRIDGE_MISSING, STORY_TURNS_UNREADABLE } from '@shared/overview-copy';
 
 /** One entry of the drawn list, as main hands it over. */
 export type StoryEntry = OverviewTimeline['entries'][number];

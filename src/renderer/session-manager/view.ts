@@ -42,10 +42,10 @@
 
 import type { SessionStatus } from '@shared/types';
 import type { SessionSheetState } from '../state/session-manager-slice';
+import { raisedLabel } from '@shared/status-words';
 import {
   drawnLastMessageAt,
   drawnMessageTotal,
-  raisedLabel,
   type ManageSortKey
 } from './copy';
 import type { ManageGroup, ManageRow } from './projection';

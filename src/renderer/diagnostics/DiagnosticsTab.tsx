@@ -79,7 +79,7 @@ import {
   type SortSpec
 } from './format';
 import { LiveSubscription } from './live';
-import { formatAge } from '../format';
+import { formatAge } from '@shared/age';
 import { formatAbsolute } from '../scm/format';
 import { liveTerminalCount } from '../terminal/drop/registry';
 import './diagnostics.css';

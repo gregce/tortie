@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { OverviewSessionActivity } from '@shared/overview';
+import { raisedLabel } from '@shared/status-words';
 import * as copy from '../copy';
 import { exactTime } from '../format';
 
@@ -399,11 +400,13 @@ describe('batch End, its words and its plurals (Phase 293, SPEC 2.10)', () => {
     );
   });
 
+  // Phase 316 moved `raisedLabel` to src/shared/status-words.ts, so the phone's
+  // title and this sheet raise a word with one rule. The rows are unchanged.
   it('raises the first letter of a status label and nothing else', () => {
-    expect(copy.raisedLabel('working')).toBe('Working');
-    expect(copy.raisedLabel('failed (exit 1)')).toBe('Failed (exit 1)');
-    expect(copy.raisedLabel('killed (SIGTERM)')).toBe('Killed (SIGTERM)');
-    expect(copy.raisedLabel('')).toBe('');
+    expect(raisedLabel('working')).toBe('Working');
+    expect(raisedLabel('failed (exit 1)')).toBe('Failed (exit 1)');
+    expect(raisedLabel('killed (SIGTERM)')).toBe('Killed (SIGTERM)');
+    expect(raisedLabel('')).toBe('');
   });
 });
 

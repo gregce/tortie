@@ -7,8 +7,18 @@
  * second reference to the agent, the sentence is written around the outcome
  * instead. And no string here carries a digit, because the only integers the
  * page may show are a clock time, a date and an elapsed time, and those come
- * from the formatters in ./clock.ts and ../format.ts alone.
+ * from the formatters in ./overview-clock.ts and ./age.ts alone.
+ *
+ * MOVED TO SHARED IN PHASE 316, byte for byte, from
+ * `src/renderer/overview/copy.ts`, together with `answerAbsence`, which lived
+ * privately in `TurnBlock.tsx`. The phone's door answers every turn's absence
+ * sentence from main (`PocketTurn.absence`), and main cannot read a renderer
+ * module, so the three sentences and the rule that chooses between them now
+ * live where both processes read them. Every importer was re-pointed; nothing
+ * re-exports this module.
  */
+
+import type { SessionStatus } from './types';
 
 /** The label over each ask. */
 export const YOU_LABEL = 'you';
@@ -28,6 +38,28 @@ export const STOPPED_BEFORE_ANSWER = 'stopped before the agent answered';
 
 /** A turn whose closing answer never reached the record, which is gemini's usual line. */
 export const ANSWER_NOT_IN_RECORD = 'the agent’s answer is not in the record';
+
+/**
+ * The sentence for a turn with no answer on record (Phase 137, moved here in
+ * Phase 316 so the desktop's turn block and the phone's door choose it with
+ * ONE rule).
+ *
+ * An open turn of a session that is running or waiting on you has not been
+ * answered YET. An interrupted turn was stopped first. Anything else closed
+ * without its answer reaching the record. It reads only the turn's two flags
+ * and the session's own status, and it never reads the answer text, because it
+ * is asked only where there is none.
+ */
+export function answerAbsence(
+  turn: { readonly closed: boolean; readonly interrupted: boolean },
+  status: SessionStatus
+): string {
+  if (!turn.closed && (status === 'running' || status === 'needs_input')) {
+    return NOT_ANSWERED_YET;
+  }
+  if (turn.interrupted) return STOPPED_BEFORE_ANSWER;
+  return ANSWER_NOT_IN_RECORD;
+}
 
 /** The three git marks, right aligned under an answer. */
 export const MARK_AGREES = '✓ git agrees';

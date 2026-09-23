@@ -23,7 +23,8 @@ import { effectiveStatusOf, errorText, useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 import { statusVisual } from './status';
 import type { StatusVisual } from './status';
-import { displayPath, formatAge } from '../format';
+import { formatAge } from '@shared/age';
+import { displayPath } from '../format';
 import {
   BARE_RESTART_LABEL,
   BARE_RESTART_SUBLABEL,

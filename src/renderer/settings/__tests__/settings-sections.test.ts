@@ -18,7 +18,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { SECTIONS } from '../SettingsApp';
+import { SECTIONS, sectionFromHash } from '../SettingsApp';
 
 const ids = SECTIONS.map((s) => s.id);
 
@@ -37,7 +37,7 @@ describe('the Settings rail', () => {
     expect(ids).not.toContain('usage');
   });
 
-  it('draws the ten sections in this order', () => {
+  it('draws the eleven sections in this order', () => {
     // A new section is appended BEFORE diagnostics. Change this list in the
     // same commit that changes the rail, and keep diagnostics last.
     expect(ids).toEqual([
@@ -52,10 +52,30 @@ describe('the Settings rail', () => {
       'project-line',
       // Phase 158 appended this one before diagnostics.
       'arch',
+      // Phase 316.1 appended this one before diagnostics.
+      'phone',
       // Phase 181 appended a `usage` section here. Phase 181.1 removed it the
       // next day: the meters are a group inside Agents now, and no rail row,
       // menu row or chord names a Usage page any more.
       'diagnostics'
     ]);
+  });
+});
+
+// Phase 316.1. Tortie → Pair a Phone… is the first door that opens a section
+// directly, and it does it with a location hash. The hash may only choose a
+// section already on the rail.
+describe('the Settings rail, opened at a section', () => {
+  it('opens Phone at #phone', () => {
+    expect(sectionFromHash('#phone')).toBe('phone');
+  });
+
+  it('reads every rail id and nothing else', () => {
+    for (const id of ids) expect(sectionFromHash(`#${id}`)).toBe(id);
+    expect(sectionFromHash('#usage')).toBeNull();
+    expect(sectionFromHash('#')).toBeNull();
+    expect(sectionFromHash('')).toBeNull();
+    expect(sectionFromHash('#Phone')).toBeNull();
+    expect(sectionFromHash('#phone?x=1')).toBeNull();
   });
 });

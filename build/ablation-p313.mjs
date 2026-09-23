@@ -3,7 +3,7 @@
  * `npm run ablation:p313`. The attack on the door's two checks (Phase 313).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:pocket` asserts
- * twenty rules about `src/main/pocket/` — one `listen`, the address from the
+ * thirty-one rules about `src/main/pocket/` — one `listen`, the address from the
  * allowlist function alone, the closed table, the refusals, the disposer owning
  * the listener — and `conformance:pocket:hostile` drives a live door. Every one
  * of those rules is a clause a later round can delete in one line. THIS SCRIPT
@@ -88,6 +88,8 @@ const PRELOAD = 'src/preload/index.ts';
 const HOSTILE = 'build/p313/hostile-client.mts';
 const IPC = 'src/main/pocket/ipc.ts';
 const SHARED = 'src/shared/ipc/pocket.ts';
+const FACTS = 'src/main/pocket/facts.ts';
+const CAPABILITIES = 'src/main/capabilities.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -364,14 +366,18 @@ const ABLATIONS = [
     to: '          ? Math.floor(asked)',
     needs: ['gate']
   },
+  // RE-AIMED BY PHASE 316.1. The arm used to plant the bridge's member where
+  // Phase 313 had left it out on purpose; 316.1 installs the member AND calls
+  // the registrar, so the shape that is now one line from the defect is the
+  // registrar's call, taken out with the member left in.
   {
     n: 'B1',
     rule: 'B1',
-    name: 'the bridge installs a pocket member main does not serve',
-    why: 'the one thing the build round did that was measurably WORSE than the build before it. window.gmux went 60 to 61 keys and all eight invokes rejected in the running app with "No handler registered for pocket:status", because registerPocketIpc is called from nowhere. The preload is the one part of this domain the bundler does not tree-shake, so it shipped.',
-    file: PRELOAD,
-    from: '// PHASE 313 IS NOT INSTALLED HERE, ON PURPOSE.',
-    to: "import { pocket } from './pocket';\n// PHASE 313 IS NOT INSTALLED HERE, ON PURPOSE.",
+    name: 'the bridge installs a pocket member main no longer serves',
+    why: 'the one thing the Phase 313 build round did that was measurably WORSE than the build before it. window.gmux went 60 to 61 keys and all eight invokes rejected in the running app with "No handler registered for pocket:status", because registerPocketIpc was called from nowhere. The preload is the one part of this domain the bundler does not tree-shake, so it shipped.',
+    file: CAPABILITIES,
+    from: '  registerPocketIpc(ipcMain, pocketHost);\n',
+    to: '',
     needs: ['gate']
   },
   // -------------------------------------------------------------------------
@@ -384,7 +390,15 @@ const ABLATIONS = [
     why: "his rule: nothing in this repository binds a real interface. A check that passed a tailnet address would open his door on his own tailnet for as long as the check ran, on a machine that runs many agent processes at once — and it would do it on every commit.",
     file: HOSTILE,
     from: "'127.0.0.1'",
-    to: "'100.64.0.1'"
+    to: "'100.64.0.1'",
+    // THE GATE ALONE, since Phase 316.1. The arm used to RUN the mutated
+    // client, which then DIALLED 100.64.0.1 — a tailnet-range address off this
+    // machine — for every one of its arms until the runner's 90 s timeout
+    // killed it: packets towards a real address from the check whose whole
+    // point is that nothing does that, and a minute and a half of every
+    // ablation run. The rule this arm proves is T1, which is read from the
+    // source, so the source is all it needs to be shown.
+    needs: ['gate']
   },
   // -------------------------------------------------------------------------
   // His ruling of 2026-09-22, "lets skip the web app".
@@ -444,6 +458,290 @@ const ABLATIONS = [
     from: "import { createPocketHandler } from './server';",
     to: "import { createPocketHandler } from './server';\nimport '../push/engine';",
     needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 316.1, the door switched on (build/p316/SPEC.md §4 S1 "Gates"). Six
+  // rules, and at least one clause of each broken here. The SPEC named two of
+  // them T1 and L1, which were already this gate's; they are T2 and L5.
+  // -------------------------------------------------------------------------
+  {
+    n: 'K1a',
+    rule: 'K1',
+    name: 'the window stops zeroing his tailnet key',
+    why: 'his key is his credential and it is held for one window and no longer. The shred is ONE line beside the secret’s, and without it cancel, expiry and allow each leave the bytes in memory for as long as the process lives.',
+    file: PAIRING,
+    from: '  w.secret.fill(0);\n  w.tailnetKey?.fill(0);\n}',
+    to: '  w.secret.fill(0);\n}'
+  },
+  {
+    n: 'K1b',
+    rule: 'K1',
+    name: 'a log line that carries the pasted key',
+    why: 'app.log is a file on his disk that he attaches to bug reports. G1 reads the words key and token at word boundaries, and `tailnetKey` has neither, so this line is green under G1 — which is why the key has a rule of its own.',
+    file: IPC,
+    from: '    const offer = this.pairing.open(input);',
+    to: '    pocketLog.info(`a pairing window opened for ${String(input.tailnetKey)}`);\n    const offer = this.pairing.open(input);',
+    needs: ['gate']
+  },
+  {
+    n: 'K1c',
+    rule: 'K1',
+    name: 'the sheet’s view carries the key',
+    why: 'the pairing view is answered to every Tortie window that asks and rides the status broadcast; a key on it is a key in every renderer. It goes in through one input and out through the one offer whose QR carries it.',
+    file: SHARED,
+    from: 'export interface PocketPairingView {\n  state: PocketPairingState;',
+    to: 'export interface PocketPairingView {\n  state: PocketPairingState;\n  tailnetKey: string | null;',
+    needs: ['gate']
+  },
+  {
+    n: 'K1d',
+    rule: 'K1',
+    name: 'the tskey-auth- prefix no longer asked',
+    why: 'an API access token or an OAuth client secret pasted by mistake would ride to his phone in a QR and be handed to a tailnet node as a join key. The prefix is the one check that it is the thing he meant to paste.',
+    file: PAIRING,
+    from: '  if (!key.startsWith(TAILNET_AUTH_KEY_PREFIX) || key.length === TAILNET_AUTH_KEY_PREFIX.length) {',
+    to: '  if (key.length === TAILNET_AUTH_KEY_PREFIX.length) {'
+  },
+  {
+    n: 'O1a',
+    rule: 'O1',
+    name: 'others is no longer capped',
+    why: 'a person with a thousand sessions would be handed an answer of unbounded size on a phone on a train. The cap is the contract’s number, and the count of what it left out is said.',
+    file: ROUTES,
+    from: '        .slice(0, POCKET_OTHERS_MAX)',
+    to: '        .slice(0)'
+  },
+  {
+    n: 'O1b',
+    rule: 'O1',
+    name: 'others stops being the complement of the blocked set',
+    why: 'his ruling, "Yes it should be able to open anything", makes others the way the phone FINDS a session. A filter that is not the blocked set’s negation draws a waiting session twice, once in each list.',
+    file: ROUTES,
+    from: '        .filter((s) => !blockedIds.has(s.id))',
+    to: '        .filter((s) => s.id.length > 0)'
+  },
+  {
+    n: 'F1a',
+    rule: 'F1',
+    name: 'the QR pins the CERTIFICATE again',
+    why: 'the certificate is renewed from the same key every 397 days, so a certificate pin un-pairs every phone thirteen months after it paired, with nothing on either screen saying why (build/p316/SPEC.md §2 row 24).',
+    file: IPC,
+    from: 'return door.listening ? spkiPinOf(door.publicKeyFingerprint) : null;',
+    to: 'return door.listening ? spkiPinOf(door.certificateFingerprint) : null;',
+    needs: ['gate']
+  },
+  {
+    n: 'F1b',
+    rule: 'F1',
+    name: 'the QR says v:1',
+    why: 'the version is how a phone knows the pin is the key’s. A v:2 build that says v:1 tells an older reader to pin something else.',
+    file: PAIRING,
+    from: 'export const POCKET_QR_VERSION = 2;',
+    to: 'export const POCKET_QR_VERSION = 1;'
+  },
+  {
+    n: 'F1c',
+    rule: 'F1',
+    name: 'a window opens with nothing to pin',
+    why: 'with no listening door the pin is null, and a QR carrying fp: null tells a phone to trust whatever answers.',
+    file: PAIRING,
+    from: "      if (pin === null) throw gmuxError('INVALID_INPUT', NO_DOOR_TO_PIN);\n",
+    to: ''
+  },
+  {
+    n: 'T2a',
+    rule: 'T2',
+    name: '/v1/turns reads the store without the refresh',
+    why: 'the store is written only when Catch Me Up opens a project, the fold runs or the counts are asked (SPEC §2 row 7), so a bare read answers what the conversation WAS — the phone would show a working session as stuck.',
+    file: ROUTES,
+    from: '      await refresh(sessionId);\n      // AGAIN, after the yield (see `session`).',
+    to: '      // AGAIN, after the yield (see `session`).'
+  },
+  {
+    n: 'T2b',
+    rule: 'T2',
+    name: 'a turn built without toTurnView',
+    why: 'toTurnView holds the one clip. A turn shaped anywhere else reaches the phone unclipped, and a 60,000-character answer is a phone that stops scrolling.',
+    file: FACTS,
+    from: "  const view = toTurnView(turn, turn.gitVerdict ?? 'nothing-to-check', false);",
+    to: "  const view = { ...turn, git: 'nothing-to-check' as const, namedOnlyOutside: false, askClipped: false, answerClipped: false };"
+  },
+  {
+    n: 'T2c',
+    rule: 'T2',
+    name: 'the composer’s refresh stops going through the one read path',
+    why: 'the refresh is OPTIONAL on PocketFacts so the push seam need not supply one; the production composer must, through sessionActivity, or the routes ask it and nothing is brought up to date.',
+    file: FACTS,
+    from: '      const answer = await sessionActivity(deps.overview, { sessionIds: [sessionId] });',
+    to: '      const answer = { sessions: [] as OverviewSessionActivity[] };',
+    needs: ['gate']
+  },
+  {
+    n: 'L5a',
+    rule: 'L5',
+    name: 'the launch step stops asking for bindAtLaunch',
+    why: 'CLAUDE.md refusal 8. A person who turned the door on but never asked for it at launch would find it listening every time Tortie starts.',
+    file: IPC,
+    from: "    if (store === null || !store.enabled || !store.bindAtLaunch) return 'off';",
+    to: "    if (store === null || !store.enabled) return 'off';",
+    needs: ['gate']
+  },
+  {
+    n: 'L5b',
+    rule: 'L5',
+    name: 'the gate is not asked again after the await',
+    why: 'the sessions come up in the await, and the person may switch the door off or a field may move while they do; a bind on the answer from before the await opens a door nobody has on now.',
+    file: IPC,
+    from: '      if (this.superseded(press)) return;\n      if (!this.mayOpen()) return;\n    }',
+    to: '      if (this.superseded(press)) return;\n    }',
+    needs: ['gate']
+  },
+  {
+    n: 'L5c',
+    rule: 'L5',
+    name: 'the capability starts the door rather than the launch step',
+    why: 'openAtLaunch is the one launch path that asks for enabled AND bindAtLaunch; a start from the capability skips the at-launch question and opens a door he only switched on for the session.',
+    file: CAPABILITIES,
+    from: '  void pocketHost.openAtLaunch();',
+    to: '  void pocketHost.start();',
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // The 316.1 FIX ROUND: the last ask before a send (A4), and the switch-off
+  // recorded before its first await (L5). Each is one line a later round can
+  // delete, and the server and bind halves must redden the hostile client's
+  // Rm6 and 14c as well as the read, or the live arms prove nothing.
+  // -------------------------------------------------------------------------
+  {
+    n: 'A4a',
+    rule: 'A4',
+    alsoRed: ['hostile'],
+    name: 'the handler stops asking whether the verified phone is still paired',
+    why: 'the attack’s R1: a phone Removed while its request was inside the refresh was answered from the store as it stood after the press, because nothing asked about the phone again before the send.',
+    file: SERVER,
+    from: `    if (verifiedPhone !== null && !deps.stillPaired(verifiedPhone)) {
+      return refuse(res, 'unpaired');
+    }
+`,
+    to: '',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'A4s',
+    rule: 'hostile',
+    name: 'the phone is still asked about, but never for a signed route (the text of A4 holds)',
+    why: 'a guard whose condition can never be true reads exactly like a guard; only a live door with a phone removed mid-request tells them apart.',
+    file: SERVER,
+    from: 'if (verifiedPhone !== null && !deps.stillPaired(verifiedPhone)) {',
+    to: 'if (verifiedPhone === null && !deps.stillPaired(verifiedPhone)) {',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'A4b',
+    rule: 'A4',
+    alsoRed: ['hostile'],
+    name: 'the handler stops asking the door that accepted it after the answer is composed',
+    why: 'a stop JOINS the handlers it accepted rather than cutting them, so an answer composed inside a switch-off’s join left a door the person had closed.',
+    file: SERVER,
+    from: `      return refuse(res, 'unpaired');
+    }
+    if (closing()) return refuse(res, 'shutdown');`,
+    to: `      return refuse(res, 'unpaired');
+    }`,
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'A4c',
+    rule: 'A4',
+    alsoRed: ['hostile'],
+    name: 'the listener stops handing the handler its door',
+    why: 'the module drops its door on the first line of a stop, so a handler that cannot ask the instance that accepted it is asking about no door at all.',
+    file: BIND,
+    from: 'Promise.resolve(input.handle(req, res, admission))',
+    to: 'Promise.resolve(input.handle(req, res))',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'A4d',
+    rule: 'A4',
+    name: 'the host answers every phone as still paired',
+    why: 'the handler’s last ask is only as good as the answer the host composes; a constant turns the refusal into decoration while every server-side arm stays green.',
+    file: IPC,
+    from: 'this.readStore()?.phones.some((p) => p.id === phoneId) === true,',
+    to: 'true,',
+    needs: ['gate']
+  },
+  {
+    n: 'A4e',
+    rule: 'A4',
+    name: 'a Remove awaits before it writes the phone out of the store',
+    why: 'the last ask reads the store; a Remove that yields before its write lets a request in flight be asked about a phone that is still there.',
+    file: IPC,
+    from: `    const kept = store.phones.filter((p) => p.id !== phoneId);`,
+    to: `    await Promise.resolve();
+    const kept = store.phones.filter((p) => p.id !== phoneId);`,
+    needs: ['gate']
+  },
+  {
+    n: 'L5d',
+    rule: 'L5',
+    name: 'the bind stops asking whether a later press arrived while the start waited',
+    why: 'the attack’s X1 with a store that cannot be written: the off could not say so on disk, so only the press count stands between a start already past its gate and a door the sheet calls off.',
+    file: IPC,
+    from: `    if (this.superseded(press)) return;
+    const result = await startPocketDoor({`,
+    to: `    const result = await startPocketDoor({`,
+    needs: ['gate']
+  },
+  {
+    n: 'L5e',
+    rule: 'L5',
+    alsoRed: ['Q1'],
+    name: 'the switch-off yields before it records itself',
+    why: 'the attack’s X1: the off stopped first and wrote after, and a switch-on waiting on the sessions re-read a switch that still said on inside that stop and bound.',
+    file: IPC,
+    from: `      this.pressed();
+      let saved = true;`,
+    to: `      await this.stop();
+      this.pressed();
+      let saved = true;`,
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // HIS RULING OF 2026-09-23, "Yes, fix and land.": the switch handles one
+  // press at a time. The reverify drove on, off, on, off inside one turn and
+  // read the store and the sheet saying off beside a door a paired phone read
+  // 200 from. The queue is ONE line, and a queue that runs its job at once is
+  // every unit test that presses one switch at a time, still green.
+  // -------------------------------------------------------------------------
+  {
+    n: 'Q1a',
+    rule: 'Q1',
+    name: 'the switch’s queue runs each job at once instead of after the one before it',
+    why: 'the reverify’s X1c: two starts and two stops of one door interleaved inside the bind, the second stop found no door to stop, and the second start bound after the person’s last press said off. One press at a time is the whole of his ruling.',
+    file: IPC,
+    from: '    const run = this.doorJobs.then(job);',
+    to: '    const run = job();',
+    needs: ['gate']
+  },
+  {
+    n: 'H2a',
+    rule: 'H2',
+    name: 'the contract admits an ssh hand-off again',
+    why: 'the phone’s tailnet node is private to the app and the grant allows the door’s port alone, so an ssh link can reach nothing; a kind that can never work is a button that fails on his phone (SPEC §2 row 17).',
+    file: SHARED,
+    from: "  kind: 'claude';",
+    to: "  kind: 'ssh' | 'claude';",
+    needs: ['gate']
+  },
+  {
+    n: 'H2b',
+    rule: 'H2',
+    name: 'the composer hands off an ssh link',
+    why: 'Open in Claude is unmeasured (SPEC §2 row 20) and ssh cannot reach anything, so the hand-off answers null for every session in Phase 316.',
+    file: FACTS,
+    from: '    handoff: () => null,',
+    to: '    handoff: (session) => ({ kind: \'claude\', url: `ssh://p313.invalid/${session.id}`, label: session.name }),'
   }
 ];
 
@@ -513,7 +811,7 @@ function runChecks(which = CHECKS.map(([name]) => name)) {
 function checksFor(entry) {
   if (entry.needs !== undefined) return entry.needs;
   if (entry.file === HOSTILE) return ['gate', 'hostile'];
-  if (entry.file === ROUTES || entry.file === PAIRING) return ['gate', 'hostile'];
+  if (entry.file === ROUTES || entry.file === PAIRING || entry.file === FACTS) return ['gate', 'hostile'];
   return ['gate'];
 }
 

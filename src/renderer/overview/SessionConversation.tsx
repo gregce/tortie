@@ -21,10 +21,10 @@ import type { SessionStatus } from '@shared/types';
 // at a numbered choice.
 import { ChoiceBlock } from './ChoiceBlock';
 import { statusVisual } from '../app/status';
-import { formatAge } from '../format';
+import { formatAge } from '@shared/age';
 import { AgentIcon } from '../icons';
-import { honestLineFor, honestLineHasClock } from './line';
-import { NO_CLOCK_NOTE } from './copy';
+import { honestLineFor, honestLineHasClock } from '@shared/overview-line';
+import { NO_CLOCK_NOTE } from '@shared/overview-copy';
 import { AskRail } from './AskRail';
 import { registerConversation, scrollTurnIntoView } from './session-keys';
 import { TurnBlock } from './TurnBlock';

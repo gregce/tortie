@@ -1,6 +1,13 @@
 /**
  * The project view's one line per session (Phase 137). Pure.
  *
+ * MOVED TO SHARED IN PHASE 316, byte for byte, from
+ * `src/renderer/overview/line.ts`. The phone's door answers a session's Catch
+ * Me Up line from main (`PocketSessionDetail.catchUp`), built by
+ * `buildProjectLine` below over main's own reading of the overview store, so
+ * the line on the phone and the line on the Mac are one function's answer.
+ * Every importer was re-pointed; nothing re-exports this module.
+ *
  * The line is BUILT, never written by a model. The ask is the person's own
  * words clipped to their first clause, and the outcome is decided from git
  * and the path index. "the agent" appears only where the line reports a
@@ -8,9 +15,9 @@
  * done and git has no record of it.
  */
 
-import type { OverviewSessionView } from '@shared/overview';
-import type { SessionStatus } from '@shared/types';
-import { formatTurnClock } from './clock';
+import type { OverviewSessionView } from './overview';
+import type { SessionStatus } from './types';
+import { formatTurnClock } from './overview-clock';
 import {
   OUTCOME_ANSWERED,
   OUTCOME_DONE_GIT_AGREES,
@@ -26,7 +33,7 @@ import {
   OUTCOME_WRONG_CONVERSATION,
   outcomeNothingAsked,
   outcomeUnreadable
-} from './copy';
+} from './overview-copy';
 
 export interface ProjectLine {
   ask: string | null;

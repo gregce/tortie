@@ -810,7 +810,7 @@ export const CLONE_PATH_NOT_ABSOLUTE =
  * THE SENTENCE SAYS "unreachable" AND THE COLUMN HOLDS `unknown`, on purpose.
  * `unknown` is the value in the manifest and it is never drawn. The label the
  * person reads beside the row is "unreachable", written by `statusVisual` in
- * `src/renderer/app/status.ts`. This sentence and that row can be on one screen
+ * `src/shared/status-words.ts`. This sentence and that row can be on one screen
  * together, so the sentence uses the word the person can see. The Phase 117 fix
  * round changed it, because it said "marked unknown" and named a word that
  * appears nowhere in the window.

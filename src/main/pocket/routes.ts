@@ -11,15 +11,21 @@
  *
  * ## Three questions, and this phase is READ ONLY
  *
- * The blocked list, one session, and that session's turns. Every answer is
- * composed here in main from what main already computes, and every string a
- * person reads is one main already drew:
+ * The blocked list (with, since Phase 316, every other session Tortie lists),
+ * one session, and that session's turns. Every answer is composed here in main
+ * from what main already computes, and every string a person reads is one main
+ * already drew:
  *
  *   - the ORDER and the SET come from `../tray/attention.ts`'s own
  *     `attentionRows`, which is what already drives the menu-bar sentinel, so
  *     the phone and the menu bar cannot disagree about who is blocked;
+ *   - `others` is exactly the listed sessions that are NOT in that set, capped
+ *     at `POCKET_OTHERS_MAX` (Phase 316, his ruling "Yes it should be able to
+ *     open anything");
  *   - the status word and its dot come from main's own state through
- *     {@link PocketFacts.statusWord}, never from a second table;
+ *     {@link PocketFacts.statusWord}, never from a second table, and the
+ *     raised title and the age are composed here by the two shared rules the
+ *     Mac draws with (`raisedLabel`, `formatAge`);
  *   - the question and the numbered options are exactly what Phases 311 and
  *     312 landed on `activity:changed`, already redacted and already capped in
  *     `../activity/screen.ts` at one definition with one call site. NOTHING
@@ -27,6 +33,17 @@
  *     about what a person sees lives;
  *   - the Catch Me Up line and the turns come from `../overview/`, already
  *     redacted and already clipped to 4,000 characters by `turn-view.ts`.
+ *
+ * ## Fresh before read (Phase 316)
+ *
+ * The overview store is written only when Catch Me Up opens a project, the
+ * fold runs or the session manager asks for counts, so a bare read of it
+ * answers stale for exactly the sessions a phone asks about. `/v1/session` and
+ * `/v1/turns` therefore ask {@link PocketFacts.refresh} FIRST, which brings the
+ * one row up to date through the one read path (`sessionActivity`) and answers
+ * its counts, and only then read. The refresh yields, so the session is looked
+ * up AGAIN after it: a session removed while the phone's request was in flight
+ * is answered as the unknown id it now is, never read.
  *
  * ## The four refusals, built in rather than asserted
  *
@@ -56,7 +73,13 @@
 
 import type { Project, Session } from '@shared/types';
 import type { SessionChoiceInfo, SessionChoiceOption } from '@shared/ipc/sessions';
+import type { OverviewSessionActivity } from '@shared/overview';
+import { formatAge } from '@shared/age';
+import { OUTCOME_REMOTE } from '@shared/overview-copy';
+import { raisedLabel } from '@shared/status-words';
 import {
+  POCKET_AGE_HONESTY,
+  POCKET_OTHERS_MAX,
   POCKET_ROUTE_IDS,
   type PocketBlockedAnswer,
   type PocketBlockedRow,
@@ -173,10 +196,15 @@ export interface PocketFacts {
    * the push alert reads the answer off the same row.
    */
   wakes(): readonly WakeWindow[];
-  /** The question and the option rows Phases 311 and 312 put on the feed. */
+  /**
+   * The question and the option rows Phases 311 and 312 put on the feed, and
+   * (Phase 316) when tmux last saw output in the session, which orders
+   * `others` and ages a row that is not waiting.
+   */
   activity(sessionId: string): {
     question?: string;
     choice?: SessionChoiceInfo;
+    lastActivityAt?: number;
   } | undefined;
   /** Main's own status word and dot for one session. */
   statusWord(session: Session): { dot: string; label: string };
@@ -192,11 +220,30 @@ export interface PocketFacts {
    * main's own tray string, so the door and the menu bar say one thing.
    */
   emptyLine: string;
+  /**
+   * Bring ONE session's stored conversation up to date through the one read
+   * path, and answer its counts (Phase 316): `sessionActivity(deps,
+   * { sessionIds: [id] })` in `../overview/activity.ts`, serialised and
+   * yielding. The routes call it BEFORE `catchUp`, `lastTurn` and `turns`, so
+   * nothing they read is older than this request. Null when it could not ask.
+   *
+   * OPTIONAL ONLY FOR A COMPOSER THAT READS NO CONVERSATION, being the push
+   * seam and the tests, whose `catchUp`, `lastTurn` and `turns` answer nothing.
+   * The door's one production composer, `./facts.ts`, always supplies it.
+   */
+  refresh?(sessionId: string): Promise<OverviewSessionActivity | null>;
   /** The Catch Me Up line for one session, already built in main. */
   catchUp(sessionId: string): Promise<PocketCatchUp | null>;
   /** The agent's last answer, already redacted and clipped, and the count. */
   lastTurn(sessionId: string): Promise<{ answerText: string | null; turnCount: number }>;
-  /** The turns, from the overview store, already redacted and clipped. */
+  /**
+   * The turns, from the overview store, already redacted and clipped. `from`
+   * and `to` are indexes this module has already checked (see
+   * {@link readTurnRange}): both null is the newest `limit` turns; otherwise
+   * the newest `limit` turns at or between them, `from` defaulting to 0 and
+   * `to` to the newest. `more` is true when older turns exist before the
+   * first one answered, and false on an empty page.
+   */
   turns(
     sessionId: string,
     range: { limit: number; from: number | null; to: number | null }
@@ -238,11 +285,24 @@ function rowOf(
   facts: PocketFacts,
   session: Session,
   projectName: string,
-  blockedSince: number
+  blockedSince: number,
+  at: number
 ): PocketBlockedRow {
   const activity = facts.activity(session.id);
   const word = facts.statusWord(session);
   const question = activity?.question;
+  // The set `attentionRows` builds the blocked list from, asked of one row.
+  const waiting = session.status === 'needs_input';
+  // THE AGE a person reads. A waiting row is aged from when it started
+  // waiting. Any other row is aged from the last output Tortie saw in it, or
+  // from its creation when it has seen none, which is what the session rail
+  // draws beside the same row on the Mac.
+  const lastOutput = activity?.lastActivityAt;
+  const agedFrom = waiting
+    ? blockedSince
+    : typeof lastOutput === 'number'
+      ? lastOutput
+      : session.createdAt;
   return {
     sessionId: session.id,
     name: session.name,
@@ -251,6 +311,8 @@ function rowOf(
     agent: session.agent,
     agentLabel: facts.agentLabel(session.agent),
     statusLabel: word.label,
+    // Raised by the one rule the session manager raises a word with.
+    statusTitle: raisedLabel(word.label),
     statusDot: word.dot,
     // An EMPTY STRING is the explicit clear on the feed, so it is a question
     // that is over rather than a question that is empty. Both read as null.
@@ -258,8 +320,82 @@ function rowOf(
     choices: optionsOf(activity?.choice),
     blockedSince,
     // THE ONE AGE FUNCTION'S ANSWER, never a comparison of this module's own.
-    seenAtWake: blockedAge(blockedSince, facts.wakes()).seenAtWake
+    // A row that is not waiting is handed NO wakes, so the function answers
+    // false for it: its stamp is its creation clock, and a session created
+    // just after a wake was never first seen WAITING then (Phase 316).
+    seenAtWake: blockedAge(blockedSince, waiting ? facts.wakes() : []).seenAtWake,
+    ageText: formatAge(agedFrom, at)
   };
+}
+
+/**
+ * The order of `others` (Phase 316), and it is total.
+ *
+ * Sessions Tortie has seen output from come first, newest output first. Then
+ * the sessions it has seen none from — a session on another machine is one,
+ * because the feed watches this Mac's panes — newest created first. The id
+ * breaks every tie, so two answers over the same facts are the same list.
+ */
+function othersOrder(
+  facts: PocketFacts
+): (a: Session, b: Session) => number {
+  const seen = (s: Session): number | null => {
+    const at = facts.activity(s.id)?.lastActivityAt;
+    return typeof at === 'number' && Number.isFinite(at) ? at : null;
+  };
+  return (a, b) => {
+    const sa = seen(a);
+    const sb = seen(b);
+    if (sa !== null && sb === null) return -1;
+    if (sa === null && sb !== null) return 1;
+    if (sa !== null && sb !== null && sa !== sb) return sb - sa;
+    if (sa === null && a.createdAt !== b.createdAt) return b.createdAt - a.createdAt;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  };
+}
+
+/** Why a turn range was refused. A word, never a value. */
+export type PocketTurnRangeRefusal = 'index' | 'backwards';
+
+/**
+ * The page a `/v1/turns` query asks for, or why it is refused (Phase 316).
+ *
+ * An index is a turn index: a plain decimal of digits only, a SAFE integer, and
+ * never negative. Anything else — `-1`, `1.5`, `1e3`, `0x10`, ` 7`, `2^53` and
+ * above — REFUSES the page rather than falling back, because a fallback would
+ * answer a page the phone did not ask for and the phone would stitch it into
+ * the conversation as if it had. A `from` past its `to` is a page that goes
+ * backwards and refuses too. An absent or empty value is absent. The route
+ * answers a refused page the way it answers an unknown id.
+ */
+export function readTurnRange(query: {
+  from?: string | null;
+  to?: string | null;
+}):
+  | { ok: true; from: number | null; to: number | null }
+  | { ok: false; reason: PocketTurnRangeRefusal } {
+  const from = turnIndexOf(query.from);
+  const to = turnIndexOf(query.to);
+  if (from === undefined || to === undefined) return { ok: false, reason: 'index' };
+  if (from !== null && to !== null && from > to) return { ok: false, reason: 'backwards' };
+  return { ok: true, from, to };
+}
+
+/**
+ * Null for absent, undefined for a value that is not a turn index.
+ *
+ * Read one character at a time rather than by a pattern, because this module
+ * holds the closed route table and `conformance:pocket` R1 refuses any pattern
+ * in it: digits only, no leading zero but `0` itself, and a safe integer.
+ */
+function turnIndexOf(value: string | null | undefined): number | null | undefined {
+  if (value === null || value === undefined || value.length === 0) return null;
+  for (const ch of value) {
+    if (ch < '0' || ch > '9') return undefined;
+  }
+  if (value.length > 1 && value.charAt(0) === '0') return undefined;
+  const n = Number(value);
+  return Number.isSafeInteger(n) ? n : undefined;
 }
 
 /**
@@ -291,56 +427,120 @@ export function createPocketRoutes(facts: PocketFacts): {
   const sessionById = (id: string): Session | undefined =>
     facts.sessions().find((s) => s.id === id);
 
+  /**
+   * FRESH BEFORE READ. The one refresh, asked before anything reads the
+   * conversation. It yields, so the caller looks the session up again after it.
+   * A refresh that throws is answered as "could not ask": the store keeps what
+   * it held and the answer says nothing about counts, which is what
+   * `refreshRowForActivity` already does for one bad row.
+   */
+  const refresh = async (sessionId: string): Promise<OverviewSessionActivity | null> => {
+    if (facts.refresh === undefined) return null;
+    try {
+      return await facts.refresh(sessionId);
+    } catch {
+      return null;
+    }
+  };
+
   return {
     blocked(): PocketBlockedAnswer {
+      const at = now();
       const sessions = facts.sessions();
       const projects = facts.projects();
       // The ORDER and the SET are `attentionRows`'s, not this module's. It
       // filters `needs_input` across every project and sorts newest-blocked
       // first, and it is what already drives the menu-bar sentinel.
-      const ordered = attentionRows(sessions, projects, facts.blockedSince());
+      const stamps = facts.blockedSince();
+      const ordered = attentionRows(sessions, projects, stamps);
       const byId = new Map(sessions.map((s) => [s.id, s]));
       const rows: PocketBlockedRow[] = [];
+      const blockedIds = new Set<string>();
       for (const row of ordered) {
         const session = byId.get(row.sessionId);
         if (session === undefined) continue;
+        blockedIds.add(session.id);
         rows.push(
-          rowOf(facts, session, projectNameOf(projects, session.projectPath), row.since)
+          rowOf(facts, session, projectNameOf(projects, session.projectPath), row.since, at)
         );
       }
-      return { rows, at: now(), emptyLine: facts.emptyLine };
+      // EVERY OTHER LISTED SESSION (Phase 316). The complement of the set
+      // above, by id, so a session is in exactly one of the two lists.
+      const rest = sessions
+        .filter((s) => !blockedIds.has(s.id))
+        .sort(othersOrder(facts));
+      const others = rest
+        .slice(0, POCKET_OTHERS_MAX)
+        .map((session) =>
+          rowOf(
+            facts,
+            session,
+            projectNameOf(projects, session.projectPath),
+            stamps.get(session.id) ?? session.createdAt,
+            at
+          )
+        );
+      return {
+        rows,
+        others,
+        othersOmitted: rest.length - others.length,
+        at,
+        emptyLine: facts.emptyLine,
+        ageNote: POCKET_AGE_HONESTY
+      };
     },
 
     async session(sessionId: string): Promise<PocketSessionAnswer | null> {
+      if (sessionById(sessionId) === undefined) return null;
+      const activity = await refresh(sessionId);
+      // AGAIN, after the yield: removed while the request was in flight is
+      // answered as an id nobody has, and nothing of it is read.
       const session = sessionById(sessionId);
       if (session === undefined) return null;
+      const at = now();
       const since = facts.blockedSince().get(session.id) ?? session.createdAt;
       const base = rowOf(
         facts,
         session,
         projectNameOf(facts.projects(), session.projectPath),
-        since
+        since,
+        at
       );
-      const [catchUp, last] = await Promise.all([
-        facts.catchUp(session.id),
-        facts.lastTurn(session.id)
-      ]);
+      // A read that throws (a store that will not open) is answered as nothing
+      // to answer, never left hanging: `./bind.ts` swallows a rejected handler
+      // without ending the response, and a phone would wait out the timeout.
+      let catchUp: PocketCatchUp | null;
+      let last: { answerText: string | null; turnCount: number };
+      try {
+        [catchUp, last] = await Promise.all([
+          facts.catchUp(session.id),
+          facts.lastTurn(session.id)
+        ]);
+      } catch {
+        return null;
+      }
+      const lastMessageAt = activity?.lastMessageAt;
       const detail: PocketSessionDetail = {
         ...base,
         catchUp,
         lastAnswer: last.answerText,
         turnCount: last.turnCount,
-        handoff: facts.handoff(session)
+        handoff: facts.handoff(session),
+        activity,
+        // Null exactly when the counts carry no time, so a client draws the
+        // session manager's dash and word for it and never a zero.
+        lastMessageText:
+          typeof lastMessageAt === 'number' ? formatAge(lastMessageAt, at) : null
       };
-      return { session: detail, at: now() };
+      return { session: detail, at };
     },
 
     async turns(
       sessionId: string,
       query: { limit?: string | null; from?: string | null; to?: string | null }
     ): Promise<PocketTurnsAnswer | null> {
-      const session = sessionById(sessionId);
-      if (session === undefined) return null;
+      const known = sessionById(sessionId);
+      if (known === undefined) return null;
       const asked = Number(query.limit ?? '');
       // CLAMPED HERE. Anything that is not a finite positive number falls back
       // to the default, and anything above the store's own cap is cut down to
@@ -349,23 +549,41 @@ export function createPocketRoutes(facts: PocketFacts): {
         Number.isFinite(asked) && asked > 0
           ? Math.min(Math.floor(asked), MAX_TURN_LIMIT)
           : POCKET_DEFAULT_TURN_LIMIT;
-      const from = numberOrNull(query.from);
-      const to = numberOrNull(query.to);
-      const answered = await facts.turns(sessionId, { limit, from, to });
+      // The page is checked BEFORE anything is read, and a page that is not a
+      // page is refused rather than guessed at (see readTurnRange).
+      const range = readTurnRange(query);
+      if (!range.ok) return null;
+      if (known.machine !== undefined) {
+        // A session on another machine: its conversation is on that machine.
+        // That is an answer with main's own sentence, never an error, and
+        // nothing on this Mac is read or refreshed for it.
+        return { sessionId, turns: [], more: false, at: now(), note: OUTCOME_REMOTE };
+      }
+      await refresh(sessionId);
+      // AGAIN, after the yield (see `session`).
+      if (sessionById(sessionId) === undefined) return null;
+      let answered: { turns: PocketTurn[]; more: boolean };
+      try {
+        answered = await facts.turns(sessionId, {
+          limit,
+          from: range.from,
+          to: range.to
+        });
+      } catch {
+        // See `session`: answered, never left hanging.
+        return null;
+      }
       return {
         sessionId,
         turns: answered.turns,
-        more: answered.more,
-        at: now()
+        // The door's promise, held here whatever a composer says: an empty
+        // page never tells a client to go on.
+        more: answered.turns.length > 0 && answered.more,
+        at: now(),
+        note: null
       };
     }
   };
-}
-
-function numberOrNull(value: string | null | undefined): number | null {
-  if (value === null || value === undefined || value.length === 0) return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.floor(n) : null;
 }
 
 /** The contract's id list and this table are the same list, checked here. */

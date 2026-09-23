@@ -190,8 +190,18 @@ const data = (fields) => ({ verdict: 'data', ...fields });
 /** Copy no module owns yet, with the phase that owes it. */
 const owed = (fields) => ({ verdict: 'owed', ...fields });
 
-const STATUS = 'src/renderer/app/status.ts';
-const OVERVIEW_COPY = 'src/renderer/overview/copy.ts';
+/**
+ * RE-POINTED IN PHASE 316.1, both of them, because the words MOVED and were not
+ * copied. `statusVisual`'s table left `src/renderer/app/status.ts` for
+ * `src/shared/status-words.ts` so main can answer the phone every session's
+ * word and its raised title; Catch Me Up's copy left
+ * `src/renderer/overview/copy.ts` for `src/shared/overview-copy.ts` so main can
+ * say a turn's absence sentence and the remote note. Every needle below is
+ * byte for byte what it was; only the module that owns it moved, so a rule
+ * still fails the day its word changes.
+ */
+const STATUS = 'src/shared/status-words.ts';
+const OVERVIEW_COPY = 'src/shared/overview-copy.ts';
 const MANAGER_COPY = 'src/renderer/session-manager/copy.ts';
 const REGISTRY = 'src/main/agents/registry.ts';
 

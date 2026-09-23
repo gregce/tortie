@@ -399,10 +399,10 @@ export interface SessionContextHeader {
  * Write the header for the session readout.
  *
  * `age` is a pre-formatted string such as "3h", supplied by the caller from
- * `formatAge` in `src/renderer/format.ts`. It is a parameter rather than
- * something computed here because there is already one age formatter in the
- * codebase and a second one in shared code would drift from it. Pass null when
- * there is no start time to describe.
+ * `formatAge`, which moved to `src/shared/age.ts` in Phase 316. It is a
+ * parameter rather than something computed here because there is one age
+ * formatter in the codebase and the caller already holds its answer. Pass null
+ * when there is no start time to describe.
  *
  * EVERY BRANCH SAYS WHAT IS TRUE, INCLUDING THE ONES THAT SAY NOTHING IS.
  * "Nothing has changed since" is a real answer to the question the user asked

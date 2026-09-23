@@ -10,9 +10,14 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import * as copy from '../copy';
+import * as copy from '@shared/overview-copy';
 
-const source = readFileSync(join(__dirname, '..', 'copy.ts'), 'utf8');
+// Phase 316 moved the copy module to src/shared/ so main can compose the
+// phone's sentences from it. The rules below read it where it lives now.
+const source = readFileSync(
+  join(__dirname, '..', '..', '..', 'shared', 'overview-copy.ts'),
+  'utf8'
+);
 
 /**
  * Comments first (Phase 138.1), so the prose above a string may say what the

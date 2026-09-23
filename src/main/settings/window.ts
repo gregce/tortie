@@ -28,10 +28,29 @@ export function isSettingsWindow(win: BrowserWindow | null): boolean {
   return win !== null && settingsWindow !== null && win.id === settingsWindow.id;
 }
 
-/** Open the Settings window, or focus the existing one (single instance). */
-export function openSettingsWindow(): void {
+/**
+ * A Settings section a menu row may open straight to (Phase 316.1). The
+ * renderer reads it from the location hash with `sectionFromHash` in
+ * src/renderer/settings/SettingsApp.tsx, which takes only an id already on
+ * its rail, and keeps the hash in step with the rail after that.
+ */
+export type SettingsSectionLink = 'phone';
+
+/**
+ * Open the Settings window, or focus the existing one (single instance).
+ *
+ * With a `section`, the window opens at it; an open window moves to it by a
+ * fragment change, which the page hears as `hashchange` without reloading. A
+ * window already at that section is left alone, because loading the same URL
+ * again would reload it and shut whatever the person had open there.
+ */
+export function openSettingsWindow(section?: SettingsSectionLink): void {
   if (settingsWindow !== null && !settingsWindow.isDestroyed()) {
     if (settingsWindow.isMinimized()) settingsWindow.restore();
+    if (section !== undefined) {
+      const now = settingsWindow.webContents.getURL();
+      if (!now.endsWith(`#${section}`)) loadSettingsPage(settingsWindow, section);
+    }
     settingsWindow.focus();
     return;
   }
@@ -79,13 +98,24 @@ export function openSettingsWindow(): void {
     settingsWindow = null;
   });
 
-  // electron-vite: dev server URL in dev, bundled file otherwise. The
-  // settings entry is a second renderer input (electron.vite.config.ts).
+  loadSettingsPage(win, section);
+}
+
+/**
+ * electron-vite: dev server URL in dev, bundled file otherwise. The settings
+ * entry is a second renderer input (electron.vite.config.ts). A section rides
+ * as the location hash and nowhere else.
+ */
+function loadSettingsPage(win: BrowserWindow, section?: SettingsSectionLink): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (!app.isPackaged && devUrl) {
-    void win.loadURL(`${devUrl}/settings/index.html`);
+    const hash = section === undefined ? '' : `#${section}`;
+    void win.loadURL(`${devUrl}/settings/index.html${hash}`);
   } else {
-    void win.loadFile(join(__dirname, '../renderer/settings/index.html'));
+    void win.loadFile(
+      join(__dirname, '../renderer/settings/index.html'),
+      section === undefined ? undefined : { hash: section }
+    );
   }
 }
 

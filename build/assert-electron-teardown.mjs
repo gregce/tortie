@@ -292,12 +292,24 @@ const HELPER = 'electron-run.mjs';
  * the parent is measured by a second invocation and never beside the first.
  * The two stand-ins do not reach the helper and are not counted.
  *
+ * PHASE 316.1 RAISED IT FROM 150 TO 151, for build/probe-p313.mjs
+ * (`probe:p313`), the door switched on and read by a node phone: one Electron
+ * at a time on ONE scratch profile under a harness directory, a scratch HOME and
+ * the socket gmux-p313-<pid>, GMUX_POCKET_LOOPBACK=1 so the door binds
+ * 127.0.0.1 and never a real interface, a /bin/sh `claude` printing the
+ * committed dialog fixture and planting the committed transcript fixture so no
+ * vendor process runs and no token is spent, and three launches in sequence
+ * (the order, the relaunch, and the relaunch with nothing confirmed), each
+ * ended by the helper's `finally`. Phase 313 named `probe:p313` and never wrote
+ * it; build/p316/SPEC.md §4 S1 is where it was specified. Phases 314 and 320
+ * each raised the floor while this phase was built, so it lands at 151.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 150;
+const HELPER_USER_FLOOR = 151;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

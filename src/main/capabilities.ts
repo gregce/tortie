@@ -16,7 +16,7 @@
  * or silence them.
  */
 
-import { app, BrowserWindow, type IpcMain } from 'electron';
+import { app, BrowserWindow, powerMonitor, type IpcMain } from 'electron';
 import { writeSync } from 'node:fs';
 import { disposeActionsIpc, registerActionsIpc } from './actions';
 import { registerAgentsIpc } from './agents';
@@ -30,7 +30,11 @@ import { registerConfigIpc } from './config/ipc';
 import { stopAgentOverlayWatch } from './config/store';
 import { registerContextIpc } from './context/ipc';
 import { registerDiagnosticsIpc } from './diagnostics/ipc';
-import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
+import {
+  disposeOverviewIpc,
+  overviewStore,
+  registerOverviewIpc
+} from './overview/ipc';
 // Phase 181: the subscription usage meter. Two read channels and the held
 // snapshot they answer from, dropped in the ordered disposer below.
 import { disposeUsageService, registerUsageIpc } from './usage/ipc';
@@ -108,16 +112,22 @@ import {
   registerProjectCloneIpc,
   registerProjectCreateIpc
 } from './projects';
-// PHASE 313: the door on the tailnet. Two lines in the ordered disposer below
-// and nothing at boot — the door opens only when a person has switched it on
-// and a pairing has been confirmed, which is the pocket registrar's to arm.
+// PHASE 313: the door on the tailnet. Two lines in the ordered disposer below.
+// PHASE 316 switches it on: the `pocket:*` registrar and the launch step are
+// installed below, and the door opens at launch only on fields a person
+// confirmed.
 import { beginPocketShutdown, joinPocketDoor } from './pocket/bind';
+import { createPocketFacts } from './pocket/facts';
+import { PocketHost, registerPocketIpc } from './pocket/ipc';
+// Phase 314's wake record, composed here in Phase 316 over Electron's own
+// powerMonitor so the door can say which waits were first seen at a wake.
+import { WakeMark } from './power/wake-mark';
 import { disposeQuickOpenIpc, registerQuickOpenIpc } from './quickopen';
 import { registerRecentsIpc } from './recents';
 import { registerRestartIpc } from './restart';
 import { registerRestoreIpc } from './restore';
 import { disposeSearchIpc, registerSearchIpc } from './search';
-import { getGmuxCore, shutdownGmuxCore } from './sessions';
+import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from './sessions';
 import { registerSettingsIpc } from './settings';
 import { registerShellIpc } from './shell';
 import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
@@ -144,6 +154,24 @@ const FINISHED_SESSION_STATES: ReadonlySet<string> = new Set([
   'restorable',
   'discarded'
 ]);
+
+/**
+ * The door's owner (Phase 316), held so the disposer can shred an open pairing
+ * window — the one-shot secret and any tailnet key beside it — at quit. Null
+ * until `installMainCapabilities` has run.
+ */
+let pocketHost: PocketHost | null = null;
+
+/** The wake record the door's rows read (Phase 314's `WakeMark`), disposed at quit. */
+let pocketWakes: WakeMark | null = null;
+
+/** Resolves once any window exists: at once when one already does. */
+function firstWindow(): Promise<void> {
+  if (BrowserWindow.getAllWindows().length > 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    app.once('browser-window-created', () => resolve());
+  });
+}
 
 export interface MainCapabilityDeps {
   /** The IPC main the registrars bind their handlers to. */
@@ -296,6 +324,50 @@ export function installMainCapabilities(
   // presses in Settings. The other eight read memory, write one row, or write
   // one record.
   registerMachinesIpc(ipcMain);
+  // PHASE 316: the ONE `pocket:*` registrar, and the door's launch step. Ten
+  // channels, all Settings then Phone, and none of them reachable from the
+  // tailnet: the door's own route table is read only and holds none of them.
+  // The launch step reads one sealed file and does nothing else unless the
+  // person switched the door on AND the fields as they stand now hash to the
+  // agreement on record (CLAUDE.md refusal 8): a store edited by hand moves
+  // that hash, and the door stays shut and says why. Only when it will open
+  // does it wait for the session core the routes read, so a person who never
+  // turned it on pays one read of a file that is not there.
+  //
+  // The facts read the core SYNCHRONOUSLY, so they are handed the instance the
+  // door's own `beforeOpen` resolved, and nothing here boots a core a harness
+  // did not ask for: until the door opens, the facts answer empty. The
+  // overview deps are `registerOverviewIpc`'s own spelling — the same manifest
+  // getter, the same one store open and the same fold choice.
+  let pocketCore: GmuxCore | null = null;
+  const wakes = new WakeMark(powerMonitor);
+  pocketWakes = wakes;
+  pocketHost = new PocketHost({
+    facts: createPocketFacts({
+      core: () => pocketCore,
+      overview: {
+        manifest: async () => (await getGmuxCore()).manifest,
+        store: overviewStore,
+        foldChosen: () => foldChosenNow()
+      },
+      wakes: () => wakes.wakes()
+    }),
+    // THE DOOR IS NEVER WHAT BOOTS THE CORE. This runs at `whenReady`, before
+    // `src/main/index.ts` has asked the manifest whether a newer Tortie owns it
+    // (the Phase 21 refusal, "the FIRST thing normal startup does") and before
+    // the agent overlay is read, which must happen "BEFORE the core boots". So
+    // the door waits for the first window, which normal startup opens only
+    // after it has kicked the boot itself, and then joins that boot: the push
+    // seam's own rule (`./harness/push-seam.ts`, "Why the composition waits for
+    // a window"). A refusal screen is a dialog and opens no window, so on that
+    // path the door never asks for the core at all.
+    beforeOpen: async () => {
+      await firstWindow();
+      pocketCore = await getGmuxCore();
+    }
+  });
+  registerPocketIpc(ipcMain, pocketHost);
+  void pocketHost.openAtLaunch();
   // Phase 72: start keeping a copy of what sessions on other machines print.
   // It arms one timer and one subscription, and it reads nothing until a
   // machine has a live connection and rows on it, so a person with no machines
@@ -541,6 +613,11 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       }
     );
   }
+  // PHASE 316: and the pairing window, if one is open, is shredded — its
+  // one-shot secret and any tailnet key the person pasted beside it are zeroed
+  // now rather than left for the process's end. Synchronous, cannot throw.
+  pocketHost?.pairing.cancel();
+  pocketWakes?.dispose();
   // Phase 18.6: a clone in flight is cancelled the same way pressing
   // Cancel cancels it, with SIGTERM and never SIGKILL, because a hard kill
   // leaves a repository mid write. Awaited first and bounded inside, so

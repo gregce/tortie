@@ -35,6 +35,7 @@ import type {
   SessionSheetRetry,
   SessionSheetState
 } from '../state/session-manager-slice';
+import { raisedLabel } from '@shared/status-words';
 import { ageTwoUnits, dayLabel, exactTime } from './format';
 
 // ---------------------------------------------------------------------------
@@ -256,16 +257,9 @@ export function createdOld(age: string): string {
   return `${age} old`;
 }
 
-/**
- * A status label with its first letter raised.
- *
- * The grid raises it in CSS, so the text a probe reads stays `statusVisual`'s
- * own. This is for the places CSS cannot reach one word of a longer line: the
- * batch panel's `<group> · <State>`, and the state column's sort key.
- */
-export function raisedLabel(label: string): string {
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
+// `raisedLabel` moved to src/shared/status-words.ts in Phase 316, so main
+// raises the phone's status title with the rule this sheet raises its own
+// with. Its importers were re-pointed there.
 
 // ---------------------------------------------------------------------------
 // The cells

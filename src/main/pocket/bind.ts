@@ -285,11 +285,33 @@ export const DOOR_SENTENCES: Readonly<Record<DoorRefusalReason, string>> = {
   quitting: 'Tortie is quitting, so the door did not open.'
 };
 
+/**
+ * What a request's handler may ask of the door that ACCEPTED the request (the
+ * Phase 316.1 fix round).
+ *
+ * One question, asked of the INSTANCE rather than of the module: a stop drops
+ * the module's door before it joins the handlers that door accepted, so a
+ * handler that asked the module "is the door stopping?" after its own await
+ * would be told about no door at all, and would answer. `./server.ts` asks it
+ * again after the answer is composed, before a byte of it leaves.
+ */
+export interface DoorAdmission {
+  /** True from the first line of this door's `stop()` or `beginShutdown()`. */
+  stopping(): boolean;
+}
+
 export interface DoorStartInput {
   /** The confirmed port. */
   readonly port: number;
-  /** What answers a request. Passed in, so the listener imports no route. */
-  readonly handle: (req: IncomingMessage, res: ServerResponse) => void | Promise<void>;
+  /**
+   * What answers a request. Passed in, so the listener imports no route. It is
+   * handed the door that accepted the request as its third argument.
+   */
+  readonly handle: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    door: DoorAdmission
+  ) => void | Promise<void>;
   /** The names the certificate must cover beyond the bind address. */
   readonly dnsNames?: readonly string[];
   /** Injected in tests. Defaults to `os.networkInterfaces()`. */
@@ -452,6 +474,8 @@ export class PocketDoor {
     }
     const identity = outcome.identity;
     this.refuseSelf = input.refuseSelfOrigin ?? !loopback;
+    // THIS door, as its handler may ask about it. One object per start.
+    const admission: DoorAdmission = { stopping: () => this.shuttingDown };
 
     const server = createServer(
       {
@@ -463,7 +487,7 @@ export class PocketDoor {
       (req, res) => {
         // Tracked from the moment the request is accepted, so `stop()` has
         // something to join. It never rejects.
-        const job = Promise.resolve(input.handle(req, res)).then(
+        const job = Promise.resolve(input.handle(req, res, admission)).then(
           () => undefined,
           () => undefined
         );
@@ -519,6 +543,17 @@ export class PocketDoor {
             : 'bind-failed';
       log.warn(`the door did not open: ${reason}`, { reason });
       return refuse(reason);
+    }
+    // STOPPED WHILE IT WAS OPENING (the Phase 316.1 fix round). The listen is
+    // the one await in this method, and a `stop()` that ran inside it found no
+    // server to close, because none had been assigned yet. Without this the
+    // listener bound here would be assigned to a door nobody holds any more: it
+    // would accept TCP, destroy every socket and keep the port, and the next
+    // start would refuse `port-taken`, which is a refusal about Tortie itself.
+    if (this.shuttingDown) {
+      server.close();
+      log.warn('the door was stopped while it was opening, so it closed again');
+      return refuse('quitting');
     }
     // Never the reason a quit stays alive; the app's own windows do that.
     server.unref();
@@ -627,30 +662,44 @@ let current: PocketDoor | null = null;
 let quitting = false;
 let lastRefusal: DoorRefusalReason | null = null;
 /**
- * The start in flight. Two presses of one switch, or a settings write landing
- * beside a boot, would otherwise both reach the bind and the second would meet
- * the FIRST as a squatter and refuse `port-taken` — a refusal about Tortie
- * itself, which is the one thing that refusal must never mean.
+ * The start in flight, and the door it is starting. Two presses of one switch,
+ * or a settings write landing beside a boot, would otherwise both reach the
+ * bind and the second would meet the FIRST as a squatter and refuse
+ * `port-taken` — a refusal about Tortie itself, which is the one thing that
+ * refusal must never mean.
  */
-let starting: Promise<DoorStartResult> | null = null;
+let starting: { readonly door: PocketDoor; readonly run: Promise<DoorStartResult> } | null = null;
 
 /** Open the door. Calling it while it is open answers what is open. */
 export async function startPocketDoor(
   input: DoorStartInput
 ): Promise<DoorStartResult> {
   if (quitting) return refuse('quitting');
-  if (starting !== null) return starting;
+  // A START IN FLIGHT FOR A DOOR THAT WAS SINCE STOPPED IS NOT JOINED (the
+  // Phase 316.1 fix round). That door closes itself as its listen answers and
+  // refuses, so joining it would hand a later press a refusal it did not
+  // cause. Wait for it to let go of the port instead, then start afresh.
+  while (starting !== null && starting.door !== current) {
+    await starting.run.catch(() => undefined);
+  }
+  if (quitting) return refuse('quitting');
+  if (starting !== null) return starting.run;
   const door = current ?? new PocketDoor();
   current = door;
   const run = door.start(input).then((result) => {
-    lastRefusal = result.ok ? null : result.reason;
+    // A door stopped while it was opening answers `quitting` to its own
+    // caller. That is this module's last word only when the quit stopped it.
+    if (result.ok || current === door || quitting) {
+      lastRefusal = result.ok ? null : result.reason;
+    }
     return result;
   });
-  starting = run;
+  const mine = { door, run };
+  starting = mine;
   try {
     return await run;
   } finally {
-    starting = null;
+    if (starting === mine) starting = null;
   }
 }
 

@@ -33,6 +33,7 @@ import { GeneralSection } from './GeneralSection';
 import { KeyboardSection } from './KeyboardSection';
 import { LaunchDefaultsSection } from './LaunchDefaultsSection';
 import { MachinesSection } from './MachinesSection';
+import { PhoneSection } from './PhoneSection';
 import { useSettingsStore } from './settings-store';
 import { SpecStorySection } from './SpecStorySection';
 import './settings.css';
@@ -47,7 +48,8 @@ type SectionId =
   | 'appearance'
   | 'machines'
   | 'project-line'
-  | 'arch';
+  | 'arch'
+  | 'phone';
 
 /**
  * A rail entry wears either a codicon, which is what app chrome uses, or a
@@ -112,6 +114,13 @@ export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // the activity bar and the View menu, and the one thing this section
   // decides is who fills in that view's contract.
   { id: 'arch', label: 'Architecture', icon: { codicon: 'circuit-board' } },
+  // Phase 316.1 appended this one, under the same rule as the sections above,
+  // and before Diagnostics, which the test pins last. The `device-mobile`
+  // glyph, because the section is about the phone and nothing else in Tortie
+  // draws that mark, so it cannot be read as pointing somewhere else. It is
+  // the one section a menu row opens straight to: Tortie → Pair a Phone…
+  // loads this window at `#phone` (`sectionFromHash` below).
+  { id: 'phone', label: 'Phone', icon: { codicon: 'device-mobile' } },
   // Phase 181 appended a Usage section here and Phase 181.1 took it away
   // again the next day, at the operator's word. The meters are a group inside
   // Agents now, in ./UsageGroup.tsx, because that tab is where a person
@@ -128,8 +137,41 @@ export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   { id: 'diagnostics', label: 'Diagnostics', icon: { codicon: 'output' } }
 ];
 
+/**
+ * The section a location hash names, or null (Phase 316.1).
+ *
+ * Settings never deep linked to a section before this phase. Tortie → Pair a
+ * Phone… is the first door that opens one directly, and main does it by
+ * loading this window at `#phone`. Only an id already on the rail is read, so
+ * a hash can choose among the sections and can never make one.
+ */
+export function sectionFromHash(hash: string): SectionId | null {
+  const id = hash.startsWith('#') ? hash.slice(1) : hash;
+  return SECTIONS.find((s) => s.id === id)?.id ?? null;
+}
+
+/** The window's own location hash, or '' where there is no window. */
+function locationHash(): string {
+  return (globalThis as { location?: Location }).location?.hash ?? '';
+}
+
 export function SettingsApp(): React.JSX.Element {
-  const [section, setSection] = useState<SectionId>('general');
+  const [section, setSectionState] = useState<SectionId>(
+    () => sectionFromHash(locationHash()) ?? 'general'
+  );
+
+  // The hash follows the rail, so a later `#phone` from the menu is always a
+  // change the page hears, even when the person had been on Phone before.
+  // `replaceState` is a same-document history write: it is not a navigation,
+  // and the trusted-window policy's navigation lock never sees it.
+  const setSection = (next: SectionId): void => {
+    setSectionState(next);
+    try {
+      history.replaceState(null, '', `#${next}`);
+    } catch {
+      // No history in this context. The rail still moves.
+    }
+  };
   const init = useSettingsStore((s) => s.init);
   const ensureScan = useSettingsStore((s) => s.ensureScan);
   const available = useSettingsStore((s) => s.available);
@@ -142,6 +184,17 @@ export function SettingsApp(): React.JSX.Element {
     init();
     ensureScan();
   }, [init, ensureScan]);
+
+  // Phase 316.1. A menu row that asks for a section while this window is
+  // already open moves the hash, and the page follows it.
+  useEffect(() => {
+    const onHash = (): void => {
+      const next = sectionFromHash(locationHash());
+      if (next !== null) setSectionState(next);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   const idx = SECTIONS.findIndex((s) => s.id === section);
   const onNavKeyDown = (e: React.KeyboardEvent): void => {
@@ -214,6 +267,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'machines' ? <MachinesSection /> : null}
         {section === 'project-line' ? <FoldSection /> : null}
         {section === 'arch' ? <ArchSection /> : null}
+        {section === 'phone' ? <PhoneSection /> : null}
       </main>
     </div>
   );

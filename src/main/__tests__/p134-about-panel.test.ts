@@ -77,7 +77,7 @@ vi.mock('../manifest/reconstruct-operator', () => ({
 
 const { installAppMenu } = await import('../menu');
 
-/** The three lines the panel draws under the version, in order. */
+/** The lines the panel draws under the version, in order. */
 function copyrightLines(): string[] {
   installAppMenu();
   const copyright = state.about?.copyright;
@@ -99,8 +99,10 @@ beforeEach(() => {
 });
 
 describe('the About panel copyright field, Phase 134', () => {
-  it('holds exactly three lines', () => {
-    expect(copyrightLines()).toHaveLength(3);
+  // Phase 316.1 added a fourth line, the credit for the vendored QR encoder,
+  // which src/main/__tests__/p316-pair-phone-menu.test.ts holds.
+  it('holds exactly four lines', () => {
+    expect(copyrightLines()).toHaveLength(4);
   });
 
   it('names the company on the first line, spelled the one way', () => {

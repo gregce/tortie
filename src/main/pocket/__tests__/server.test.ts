@@ -61,6 +61,30 @@ vi.mock('electron', () => ({
   }
 }));
 
+/**
+ * Every line the door's log wrote, as `level message`. The handler logs each
+ * refusal's REASON once, so a test can read which refusal answered.
+ */
+const logged: string[] = [];
+
+vi.mock('../../log', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../log')>();
+  const capture =
+    (level: string) =>
+    (msg: string): void => {
+      logged.push(`${level} ${msg}`);
+    };
+  return {
+    ...real,
+    getLog: () => ({
+      error: capture('error'),
+      warn: capture('warn'),
+      info: capture('info'),
+      debug: capture('debug')
+    })
+  };
+});
+
 const {
   POCKET_HEADERS,
   POCKET_PAIRING_WINDOW_MS,
@@ -181,6 +205,16 @@ interface Door {
   phones: PocketPhoneFields[];
   clock: { now: number };
   quitting: { yes: boolean };
+  /**
+   * The door that accepted each request, as `./bind.ts` hands it to the
+   * handler (the Phase 316.1 fix round).
+   */
+  stopping: { yes: boolean };
+  /**
+   * An answer held open inside its composition, where the refresh awaits in
+   * the shipping composer. `reached` counts the answers that got there.
+   */
+  hold: { gate: Promise<void> | null; reached: number };
 }
 
 interface Reply {
@@ -194,6 +228,8 @@ async function withDoor(fn: (door: Door, call: Caller) => Promise<void>): Promis
   const phones: PocketPhoneFields[] = [];
   const clock = { now: 5_000_000 };
   const quitting = { yes: false };
+  const stopping = { yes: false };
+  const hold: Door['hold'] = { gate: null, reached: 0 };
   const fields: PocketExecutionFields = {
     bindAddress: '127.0.0.1',
     port: 0,
@@ -210,7 +246,8 @@ async function withDoor(fn: (door: Door, call: Caller) => Promise<void>): Promis
       phones.push(...next);
       return true;
     },
-    certificateFingerprint: () => 'aa:bb',
+    // QR v:2 (Phase 316): the pin a listening door hands the window.
+    publicKeyPin: () => 'p316-a-listening-door',
     now: () => clock.now
   });
   const verifier = new PocketRequestVerifier({
@@ -228,9 +265,14 @@ async function withDoor(fn: (door: Door, call: Caller) => Promise<void>): Promis
     present: (body, from) => pairing.present(body, from),
     verify: (input) => {
       const verdict = verifier.verify(input);
-      return verdict.ok ? { ok: true } : { ok: false, reason: verdict.reason };
+      return verdict.ok
+        ? { ok: true, phoneId: verdict.phone.id }
+        : { ok: false, reason: verdict.reason };
     },
+    stillPaired: (phoneId) => phones.some((p) => p.id === phoneId),
     answer: async (route, query) => {
+      hold.reached += 1;
+      if (hold.gate !== null) await hold.gate;
       switch (route.id) {
         case 'blocked':
           return routes.blocked();
@@ -249,7 +291,7 @@ async function withDoor(fn: (door: Door, call: Caller) => Promise<void>): Promis
   });
 
   const server: Server = createServer((req, res) => {
-    void handler(req, res);
+    void handler(req, res, { stopping: () => stopping.yes });
   });
   try {
     bound = await new Promise<number>((resolve) => {
@@ -259,7 +301,7 @@ async function withDoor(fn: (door: Door, call: Caller) => Promise<void>): Promis
     });
     const call = makeCaller(bound);
     await fn(
-      { port: bound, pairing, verifier, identity, phones, clock, quitting },
+      { port: bound, pairing, verifier, identity, phones, clock, quitting, stopping, hold },
       call
     );
   } finally {
@@ -362,7 +404,7 @@ function signed(
 
 /** Pair a phone the way a phone pairs, ending with the person's allow. */
 async function pair(door: Door, call: Caller, phone: FakePhone): Promise<void> {
-  const offer = door.pairing.open();
+  const offer = door.pairing.open({ tailnetKey: null });
   const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
   const reply = await call({
     method: 'POST',
@@ -386,6 +428,7 @@ async function pair(door: Door, call: Caller, phone: FakePhone): Promise<void> {
 
 beforeEach(() => {
   userData = mkdtempSync(join(tmpdir(), 'p313-server-'));
+  logged.length = 0;
 });
 
 afterEach(() => {
@@ -613,7 +656,7 @@ describe('the hostile client is refused, and told nothing', () => {
 
   it('refuses a 10 MiB body on the pairing route', async () => {
     await withDoor(async (door, call) => {
-      door.pairing.open();
+      door.pairing.open({ tailnetKey: null });
       const reply = await call({
         method: 'POST',
         path: '/pair',
@@ -637,7 +680,7 @@ describe('the hostile client is refused, and told nothing', () => {
           })
         ).status
       ).toBe(404);
-      const offer = door.pairing.open();
+      const offer = door.pairing.open({ tailnetKey: null });
       const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
       door.clock.now += POCKET_PAIRING_WINDOW_MS + 1;
       expect(
@@ -654,7 +697,7 @@ describe('the hostile client is refused, and told nothing', () => {
 
   it('refuses a presentation that never saw the QR', async () => {
     await withDoor(async (door, call) => {
-      door.pairing.open();
+      door.pairing.open({ tailnetKey: null });
       const reply = await call({
         method: 'POST',
         path: '/pair',
@@ -677,6 +720,72 @@ describe('the hostile client is refused, and told nothing', () => {
       expect((await call({ method: 'POST', path: '/pair', body: '{}' })).status).toBe(
         404
       );
+    });
+  });
+
+  // THE PHASE 316.1 FIX ROUND. A Remove, or a door that stops, while the
+  // phone's request is INSIDE its composition: the answer is composed (the
+  // held gate is where the shipping composer awaits the refresh) and must
+  // still not leave. Each is asserted on its refusal reason, read off the
+  // handler's own once-per-reason log line, and each has a control that
+  // answers, so a door that is merely closed cannot pass.
+  it('answers a request held inside its composition when nothing changed (the control)', async () => {
+    await withDoor(async (door, call) => {
+      const phone = makePhone();
+      await pair(door, call, phone);
+      let release = (): void => undefined;
+      door.hold.gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const inFlight = call(signed(door, phone, { path: '/v1/session?id=s1' }));
+      await vi.waitFor(() => expect(door.hold.reached).toBe(1));
+      release();
+      expect((await inFlight).status).toBe(200);
+    });
+  });
+
+  it('refuses, unpaired, an answer composed for a phone removed while it was in flight', async () => {
+    await withDoor(async (door, call) => {
+      const phone = makePhone();
+      await pair(door, call, phone);
+      let release = (): void => undefined;
+      door.hold.gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const inFlight = call(signed(door, phone, { path: '/v1/session?id=s1' }));
+      await vi.waitFor(() => expect(door.hold.reached).toBe(1));
+      // The person presses Remove: the phone leaves the set the verifier and
+      // the last check both read.
+      door.phones.length = 0;
+      door.verifier.forget(phoneIdOf(phone.signPublic));
+      release();
+      const reply = await inFlight;
+      expect(reply.status).toBe(404);
+      expect(reply.body).toBe('');
+      expect(logged).toContain('warn refused a request on the tailnet door: unpaired');
+      expect(logged.some((l) => l.endsWith(': shutdown'))).toBe(false);
+    });
+  });
+
+  it('refuses an answer composed while the door that accepted it began to stop', async () => {
+    await withDoor(async (door, call) => {
+      const phone = makePhone();
+      await pair(door, call, phone);
+      let release = (): void => undefined;
+      door.hold.gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const inFlight = call(signed(door, phone, { path: '/v1/turns?id=s1' }));
+      await vi.waitFor(() => expect(door.hold.reached).toBe(1));
+      // The person switched the door off; the quit has NOT begun, so only the
+      // door instance knows.
+      door.stopping.yes = true;
+      release();
+      const reply = await inFlight;
+      expect(reply.status).toBe(404);
+      expect(door.quitting.yes).toBe(false);
+      expect(logged).toContain('warn refused a request on the tailnet door: shutdown');
+      expect(logged.some((l) => l.endsWith(': unpaired'))).toBe(false);
     });
   });
 

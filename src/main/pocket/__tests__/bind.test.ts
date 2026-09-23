@@ -476,6 +476,76 @@ describe('the door', () => {
     expect(held.listening).toBe(true);
   });
 
+  // THE PHASE 316.1 FIX ROUND. The listen is the one await in a start, and a
+  // stop that lands inside it used to find no server to close.
+  it('closes again when it is stopped while it is still opening, and frees the port', async () => {
+    const port = await freePort();
+    const opening = startPocketDoor(startInput({ port }));
+    // The same turn: the start has reached its listen and nothing more.
+    await stopPocketDoor();
+    const result = await opening;
+    expect(result.ok).toBe(false);
+    expect(pocketDoorStatus().listening).toBe(false);
+    // A person's stop is not the quit, so the module's last word is not
+    // "quitting".
+    expect(pocketDoorStatus().lastRefusal).toBeNull();
+    // Nothing holds the port: a squatter can take it at once.
+    const held = await squat(port);
+    expect(held.listening).toBe(true);
+  });
+
+  it('opens a fresh door for a start that follows a stop inside an opening, rather than joining the stopped one', async () => {
+    const port = await freePort();
+    const first = startPocketDoor(startInput({ port }));
+    await stopPocketDoor();
+    const second = startPocketDoor(startInput({ port }));
+    const [one, two] = await Promise.all([first, second]);
+    expect(one.ok).toBe(false);
+    // Not `port-taken`, which would be a refusal about Tortie itself.
+    expect(two.ok).toBe(true);
+    expect(pocketDoorStatus().listening).toBe(true);
+    await stopPocketDoor();
+    const held = await squat(port);
+    expect(held.listening).toBe(true);
+  });
+
+  it('hands each handler the door that accepted its request, which says when it began to stop', async () => {
+    const port = await freePort();
+    let release = (): void => undefined;
+    const slow = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const seen: boolean[] = [];
+    await startPocketDoor(
+      startInput({
+        port,
+        handle: async (_req, res, door) => {
+          seen.push(door.stopping());
+          await slow;
+          seen.push(door.stopping());
+          res.statusCode = 200;
+          res.end('late');
+        }
+      })
+    );
+    const readBack = ensureDoorIdentity({
+      path: join(dir, 'pocket-identity.json'),
+      seal,
+      names: { addresses: ['127.0.0.1'], dnsNames: [] }
+    });
+    if (readBack.kind !== 'ready') throw new Error('no identity');
+    const inFlight = get(port, readBack.identity.certPem).catch(() => null);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    // The module drops its door on the stop's first line; the instance the
+    // handler holds is the one that still knows.
+    const stopping = stopPocketDoor();
+    expect(pocketDoorStatus().listening).toBe(false);
+    release();
+    await stopping;
+    await inFlight;
+    expect(seen).toEqual([false, true]);
+  });
+
   it('opens nothing once the quit has begun', async () => {
     const port = await freePort();
     await joinPocketDoor(); // the disposer's own line

@@ -31,7 +31,7 @@ import {
 } from './overview-flight';
 import { decideOverviewLevel } from './level';
 import { recordedOverviewChordOwner } from './overview-chord';
-import { OPEN_A_PROJECT_FIRST } from './copy';
+import { OPEN_A_PROJECT_FIRST } from '@shared/overview-copy';
 
 export { decideOverviewLevel } from './level';
 export type { LevelDecision, LevelInput } from './level';

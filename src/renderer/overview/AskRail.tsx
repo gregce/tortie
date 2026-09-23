@@ -16,7 +16,7 @@
 
 import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { OverviewSessionView } from '@shared/overview';
-import { formatTurnClock } from './clock';
+import { formatTurnClock } from '@shared/overview-clock';
 import { jumpToAsk, railSnapshot, subscribeRail } from './session-keys';
 import './ask-rail.css';
 

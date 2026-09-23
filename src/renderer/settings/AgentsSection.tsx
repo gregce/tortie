@@ -48,7 +48,8 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { formatAge, useNow } from '../format';
+import { formatAge } from '@shared/age';
+import { useNow } from '../format';
 import {
   AgentPages,
   agentPagePanelId,

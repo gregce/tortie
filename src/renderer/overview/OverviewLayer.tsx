@@ -27,13 +27,13 @@ import {
   leaveOverviewAndJump,
   showOverviewSession
 } from './open-overview';
-import { formatReadClock } from './clock';
+import { formatReadClock } from '@shared/overview-clock';
 import {
   FOOTER_COLUMNS,
   FOOTER_PROJECT,
   FOOTER_SESSION,
   FOOTER_STORY
-} from './copy';
+} from '@shared/overview-copy';
 import { handleSessionLevelKey } from './session-keys';
 import { SessionConversation } from './SessionConversation';
 import { SessionColumns, handleColumnsLevelKey } from './SessionColumns';

@@ -21,6 +21,7 @@
  */
 
 import {
+  X509Certificate,
   createCipheriv,
   createHash,
   createPublicKey,
@@ -30,7 +31,7 @@ import {
   sign as signWith,
   type KeyObject
 } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -70,7 +71,10 @@ const {
   POCKET_EXECUTION_HASH_ALGORITHM,
   POCKET_HEADERS,
   POCKET_PAIRING_WINDOW_MS,
+  POCKET_QR_VERSION,
   POCKET_REQUEST_ALGORITHM,
+  TAILNET_AUTH_KEY_PREFIX,
+  TAILNET_KEY_MAX_CHARS,
   PocketPairing,
   PocketRequestVerifier,
   assertPocketDoorMayBind,
@@ -91,8 +95,11 @@ const {
   readPocketStore,
   sealPresentationAsPhone,
   phoneView,
+  spkiPinOf,
+  tailnetKeyOf,
   writePocketStore
 } = await import('../pairing');
+const { POCKET_TLS_SEAL_PREFIX, ensureDoorIdentity } = await import('../tls');
 const { confirmPath } = await import('../../config/confirm-record');
 const { POCKET_CONFIRM_WARNING, POCKET_ROUTE_IDS } = await import(
   '@shared/ipc/pocket'
@@ -204,6 +211,21 @@ function phoneFields(phone: FakePhone, address = '100.64.0.9'): PocketPhoneField
     pushEnvironment: ''
   };
 }
+
+/** No tailnet key pasted: the phone already has a tailnet, or this is a test. */
+const NO_KEY = { tailnetKey: null };
+
+/**
+ * A pin in the QR's own shape, base64url of 32 bytes. What it is a hash OF is
+ * proved in 'the QR pins the public key' below, against a real door identity.
+ */
+const PIN = b64u(createHash('sha256').update('p316-a-door-key').digest());
+
+/**
+ * A MADE-UP tailnet auth key. No real key exists in this repository and none
+ * may: this string is Tortie-shaped and reaches no tailnet.
+ */
+const FAKE_KEY = 'tskey-auth-kP316FAKE1CNTRL-p316notarealkeyp316notarealkey';
 
 const BASE: PocketExecutionFields = {
   bindAddress: '100.64.0.1',
@@ -509,6 +531,7 @@ describe('the pairing window', () => {
   let clock = 1_000_000;
   let fields: PocketExecutionFields;
   let saved: readonly PocketPhoneFields[] = [];
+  let pin: string | null = PIN;
 
   function makePairing(): InstanceType<typeof PocketPairing> {
     return new PocketPairing({
@@ -518,7 +541,7 @@ describe('the pairing window', () => {
         saved = phones;
         return true;
       },
-      certificateFingerprint: () => 'ab:cd',
+      publicKeyPin: () => pin,
       now: () => clock
     });
   }
@@ -528,31 +551,47 @@ describe('the pairing window', () => {
     clock = 1_000_000;
     fields = BASE;
     saved = [];
+    pin = PIN;
   });
 
   it('refuses to open with no tailnet address', () => {
     fields = { ...BASE, bindAddress: '' };
-    expect(() => makePairing().open()).toThrow();
+    expect(() => makePairing().open(NO_KEY)).toThrow();
   });
 
-  it('carries no tailnet key and no bearer token in the QR', () => {
-    const offer = makePairing().open();
+  it('is v:2, pins the key it is handed, and carries no tailnet key unless one was pasted', () => {
+    const offer = makePairing().open(NO_KEY);
     const payload = JSON.parse(offer.payload) as Record<string, unknown>;
     expect(Object.keys(payload).sort()).toEqual(
       ['dk', 'dx', 'exp', 'fp', 'host', 'port', 'ps', 'v'].sort()
     );
-    // Research 128 §3.2: Tortie holds no Tailscale credential, so nothing in
-    // the QR can be a tailnet auth key. Tailscale's own keys begin `tskey-`.
+    expect(payload['v']).toBe(2);
+    expect(payload['fp']).toBe(PIN);
+    // Tortie mints no tailnet key and holds no Tailscale credential (research
+    // 128 §3.2), so with nothing pasted nothing in the QR can be one.
     expect(offer.payload).not.toContain('tskey');
     expect(offer.payload.toLowerCase()).not.toContain('bearer');
     expect(offer.payload.toLowerCase()).not.toContain('authorization');
     expect(payload['exp']).toBe(clock + POCKET_PAIRING_WINDOW_MS);
   });
 
+  it('refuses to open while there is no key to pin, and moves nothing', () => {
+    const pairing = makePairing();
+    const first = JSON.parse(pairing.open(NO_KEY).payload) as { ps: string };
+    pin = null;
+    expect(() => pairing.open(NO_KEY)).toThrow(/not listening/);
+    // The window that was open is still the one open: a refusal comes before
+    // anything moves.
+    expect(pairing.windowOpen()).toBe(true);
+    expect(
+      pairing.present(sealPresentation(first.ps, makePhone()), '100.64.0.9')
+    ).toBe('pending');
+  });
+
   it('is dead before it is opened and after it expires', () => {
     const pairing = makePairing();
     expect(pairing.windowOpen()).toBe(false);
-    pairing.open();
+    pairing.open(NO_KEY);
     expect(pairing.windowOpen()).toBe(true);
     clock += POCKET_PAIRING_WINDOW_MS + 1;
     expect(pairing.windowOpen()).toBe(false);
@@ -560,7 +599,7 @@ describe('the pairing window', () => {
 
   it('accepts a presentation sealed under the QR secret, and nothing else', () => {
     const pairing = makePairing();
-    const offer = pairing.open();
+    const offer = pairing.open(NO_KEY);
     const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
     const phone = makePhone('Greg iPhone');
     expect(pairing.present(sealPresentation(secret, phone), '100.64.0.9')).toBe(
@@ -568,7 +607,7 @@ describe('the pairing window', () => {
     );
     // A body sealed under a secret that was never on the screen.
     const other = makePairing();
-    other.open();
+    other.open(NO_KEY);
     expect(
       pairing.present(sealPresentation(b64u(randomBytes(16)), phone), '100.64.0.9')
     ).toBe('refused');
@@ -583,7 +622,7 @@ describe('the pairing window', () => {
 
   it('refuses a presentation whose keys are the wrong kind', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     const phone = makePhone();
     // The signing slot is handed an X25519 key, which cannot verify anything.
     const swapped: FakePhone = {
@@ -597,7 +636,7 @@ describe('the pairing window', () => {
 
   it('presents nothing and allows nothing outside the window', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     clock += POCKET_PAIRING_WINDOW_MS + 1;
     expect(
       pairing.present(sealPresentation(secret, makePhone()), '100.64.0.9')
@@ -607,7 +646,7 @@ describe('the pairing window', () => {
 
   it('shows the same fingerprint the phone can compute for itself', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     const phone = makePhone('Greg iPhone');
     pairing.present(sealPresentation(secret, phone), '100.64.0.9');
     const view = pairing.view();
@@ -621,7 +660,7 @@ describe('the pairing window', () => {
 
   it('the person allows it LAST, and that is what writes the record', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     const phone = makePhone('Greg iPhone');
     pairing.present(sealPresentation(secret, phone), '100.64.0.9');
     // Presenting has recorded nothing.
@@ -637,7 +676,7 @@ describe('the pairing window', () => {
 
   it('tells the allowed phone it was allowed, and tells nothing else', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     const phone = makePhone('Greg iPhone');
     pairing.present(sealPresentation(secret, phone), '100.64.0.9');
     const next = pairing.fieldsWithPending();
@@ -656,7 +695,7 @@ describe('the pairing window', () => {
 
   it('sweeps an ALLOWED window at its deadline, so the sheet goes idle', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     const phone = makePhone('Greg iPhone');
     pairing.present(sealPresentation(secret, phone), '100.64.0.9');
     pairing.allow(consentFor(pairing.fieldsWithPending()));
@@ -675,7 +714,7 @@ describe('the pairing window', () => {
 
   it('refuses an allow whose sheet was drawn for a different door', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     pairing.present(sealPresentation(secret, makePhone()), '100.64.0.9');
     expect(() => pairing.allow(consentFor(BASE))).toThrow();
     expect(saved).toEqual([]);
@@ -683,12 +722,348 @@ describe('the pairing window', () => {
 
   it('destroys the secret when the window is cancelled', () => {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     pairing.cancel();
     expect(pairing.windowOpen()).toBe(false);
     expect(
       pairing.present(sealPresentation(secret, makePhone()), '100.64.0.9')
     ).toBe('refused');
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Phase 316: QR v:2 — the pin is the public key, and the tailnet key is held
+// only inside the window
+// ---------------------------------------------------------------------------
+
+/** The bytes as text, and every base64 run inside them decoded, twice over. */
+function readableForms(bytes: Buffer): string[] {
+  const out = [bytes.toString('utf8')];
+  for (let depth = 0; depth < 2; depth += 1) {
+    const found: string[] = [];
+    for (const text of out) {
+      for (const run of text.match(/[A-Za-z0-9+/=_-]{16,}/g) ?? []) {
+        found.push(Buffer.from(run, run.includes('-') || run.includes('_') ? 'base64url' : 'base64').toString('utf8'));
+      }
+    }
+    out.push(...found);
+  }
+  return out;
+}
+
+/** A seal that is readable and therefore not one; `./tls.test.ts`'s shape. */
+function fakeTlsSeal(): Parameters<typeof ensureDoorIdentity>[0]['seal'] {
+  return {
+    available: () => true,
+    seal: (text: string) => Buffer.from(`${POCKET_TLS_SEAL_PREFIX}${text}`).toString('base64'),
+    open: (blob: unknown) => {
+      if (typeof blob !== 'string' || blob.length === 0) return '';
+      const text = Buffer.from(blob, 'base64').toString('utf8');
+      return text.startsWith(POCKET_TLS_SEAL_PREFIX)
+        ? text.slice(POCKET_TLS_SEAL_PREFIX.length)
+        : '';
+    }
+  };
+}
+
+/** A real door identity from `./tls.ts`, written under this test's directory. */
+function realDoor(now?: number): {
+  certPem: string;
+  certificateFingerprint: string;
+  publicKeyFingerprint: string;
+  notAfter: number;
+} {
+  const made = ensureDoorIdentity({
+    path: join(userData, 'p316-identity.json'),
+    seal: fakeTlsSeal(),
+    names: { addresses: ['127.0.0.1'], dnsNames: [] },
+    ...(now !== undefined ? { now } : {})
+  });
+  if (made.kind !== 'ready') throw new Error(`no identity: ${made.kind}`);
+  return made.identity;
+}
+
+describe('the QR pins the public key, not the certificate (F1)', () => {
+  it('is sha256 over the SubjectPublicKeyInfo, base64url, as Node itself reads the key', () => {
+    const door = realDoor();
+    // INDEPENDENT: OpenSSL parses the certificate and exports the key.
+    const spki = new X509Certificate(door.certPem).publicKey.export({
+      type: 'spki',
+      format: 'der'
+    });
+    const expected = b64u(createHash('sha256').update(spki).digest());
+    expect(spkiPinOf(door.publicKeyFingerprint)).toBe(expected);
+    // And never the certificate's own hash, which is what v:1 carried.
+    const der = new X509Certificate(door.certPem).raw;
+    expect(spkiPinOf(door.publicKeyFingerprint)).not.toBe(
+      b64u(createHash('sha256').update(der).digest())
+    );
+  });
+
+  it('is what the phone computes from the raw point, the way the Swift pin does', () => {
+    const door = realDoor();
+    // Research 128 / SPEC §3.3: the fixed 26-byte P-256 SPKI header, then the
+    // 65-byte uncompressed point SecKeyCopyExternalRepresentation hands back.
+    const jwk = new X509Certificate(door.certPem).publicKey.export({ format: 'jwk' });
+    const point = Buffer.concat([
+      Buffer.from([0x04]),
+      Buffer.from(String(jwk.x), 'base64url'),
+      Buffer.from(String(jwk.y), 'base64url')
+    ]);
+    expect(point.length).toBe(65);
+    const header = Buffer.from('3059301306072a8648ce3d020106082a8648ce3d030107034200', 'hex');
+    const swift = b64u(createHash('sha256').update(Buffer.concat([header, point])).digest());
+    expect(spkiPinOf(door.publicKeyFingerprint)).toBe(swift);
+  });
+
+  it('survives the certificate’s renewal, which the certificate’s hash does not', () => {
+    const born = Date.UTC(2026, 0, 1);
+    const first = realDoor(born);
+    const renewed = realDoor(first.notAfter - 10 * 24 * 60 * 60 * 1000);
+    expect(renewed.certificateFingerprint).not.toBe(first.certificateFingerprint);
+    expect(spkiPinOf(renewed.publicKeyFingerprint)).toBe(spkiPinOf(first.publicKeyFingerprint));
+  });
+
+  it('is never made from anything that is not 32 bytes', () => {
+    expect(spkiPinOf(null)).toBeNull();
+    expect(spkiPinOf('')).toBeNull();
+    expect(spkiPinOf('AB:CD')).toBeNull();
+    expect(spkiPinOf('A'.repeat(66))).toBeNull();
+    expect(spkiPinOf('ZZ'.repeat(32))).toBeNull();
+  });
+
+  it('is the fp a window carries, and a window with no pin does not open', () => {
+    const door = realDoor();
+    let pin: string | null = spkiPinOf(door.publicKeyFingerprint);
+    const pairing = new PocketPairing({
+      identity: () => newIdentity().identity,
+      fieldsNow: () => BASE,
+      savePhones: () => true,
+      publicKeyPin: () => pin
+    });
+    const payload = JSON.parse(pairing.open(NO_KEY).payload) as Record<string, unknown>;
+    expect(payload['v']).toBe(POCKET_QR_VERSION);
+    expect(POCKET_QR_VERSION).toBe(2);
+    expect(payload['fp']).toBe(pin);
+    pairing.cancel();
+    pin = null;
+    expect(() => pairing.open(NO_KEY)).toThrow(/not listening/);
+    expect(pairing.windowOpen()).toBe(false);
+  });
+});
+
+describe('the tailnet key the person pastes', () => {
+  let clock = 3_000_000;
+  let saved: readonly PocketPhoneFields[] = [];
+
+  function makePairing(): InstanceType<typeof PocketPairing> {
+    return new PocketPairing({
+      identity: () => door,
+      fieldsNow: () => BASE,
+      savePhones: (phones) => {
+        saved = phones;
+        return true;
+      },
+      publicKeyPin: () => PIN,
+      now: () => clock
+    });
+  }
+  let door: PocketIdentity;
+
+  /** Every buffer that was zeroed while it still held a tailnet key. */
+  let zeroed: string[] = [];
+  const realFill = Buffer.prototype.fill;
+
+  beforeEach(() => {
+    door = newIdentity().identity;
+    clock = 3_000_000;
+    saved = [];
+    zeroed = [];
+    vi.spyOn(Buffer.prototype, 'fill').mockImplementation(function (
+      this: Buffer,
+      ...args: unknown[]
+    ): Buffer {
+      const before = this.toString('utf8');
+      if (args[0] === 0 && before.startsWith(TAILNET_AUTH_KEY_PREFIX)) zeroed.push(before);
+      return (realFill as (...a: unknown[]) => Buffer).apply(this, args);
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('rides in the QR as tk, trimmed of the paste’s whitespace, and nowhere else', () => {
+    const pairing = makePairing();
+    const offer = pairing.open({ tailnetKey: `  ${FAKE_KEY}\n` });
+    const payload = JSON.parse(offer.payload) as Record<string, unknown>;
+    expect(payload['tk']).toBe(FAKE_KEY);
+    expect(Object.keys(payload).sort()).toEqual(
+      ['dk', 'dx', 'exp', 'fp', 'host', 'port', 'ps', 'tk', 'v'].sort()
+    );
+    expect(pairing.holdsTailnetKey()).toBe(true);
+    // The sheet's view never carries it, before or after a phone presents.
+    expect(JSON.stringify(pairing.view())).not.toContain(FAKE_KEY);
+    const secret = (payload as { ps: string }).ps;
+    pairing.present(sealPresentation(secret, makePhone('Greg iPhone')), '100.64.0.9');
+    expect(JSON.stringify(pairing.view())).not.toContain(FAKE_KEY);
+    expect(JSON.stringify(pairing.fieldsWithPending())).not.toContain(FAKE_KEY);
+  });
+
+  it('is no key at all when the field was left empty or null', () => {
+    for (const tailnetKey of [null, '', '   ']) {
+      const payload = JSON.parse(makePairing().open({ tailnetKey }).payload) as Record<
+        string,
+        unknown
+      >;
+      expect('tk' in payload).toBe(false);
+    }
+    expect(tailnetKeyOf({})).toBeNull();
+  });
+
+  const refused: [string, unknown, RegExp][] = [
+    ['a 10 KB key', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}${'a'.repeat(10 * 1024)}` }, /longer than any tailnet key/],
+    ['one character over the cap', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}${'a'.repeat(TAILNET_KEY_MAX_CHARS - TAILNET_AUTH_KEY_PREFIX.length + 1)}` }, /longer than any tailnet key/],
+    ['a key that does not start tskey-auth-', { tailnetKey: 'tskey-api-p316notarealkey' }, /not a tailnet auth key/],
+    ['an OAuth client secret', { tailnetKey: 'tskey-client-p316notarealkey' }, /not a tailnet auth key/],
+    ['the prefix alone', { tailnetKey: TAILNET_AUTH_KEY_PREFIX }, /not a tailnet auth key/],
+    ['a space inside it', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}p316 notarealkey` }, /not a tailnet auth key/],
+    ['a line break inside it', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}p316\nnotarealkey` }, /not a tailnet auth key/],
+    ['a non-ASCII character', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}p316é` }, /not a tailnet auth key/],
+    ['a number', { tailnetKey: 42 }, /could not read/],
+    ['no input at all', null, /could not read/],
+    ['a bare string', FAKE_KEY, /could not read/]
+  ];
+  for (const [name, input, sentence] of refused) {
+    it(`refuses ${name} with one sentence that never repeats it, and moves nothing`, () => {
+      const pairing = makePairing();
+      const first = JSON.parse(pairing.open(NO_KEY).payload) as { ps: string };
+      let message = '';
+      try {
+        pairing.open(input as { tailnetKey: string | null });
+      } catch (err) {
+        message = err instanceof Error ? err.message : String(err);
+      }
+      expect(message).toMatch(sentence);
+      const value =
+        input !== null && typeof input === 'object'
+          ? String((input as { tailnetKey?: unknown }).tailnetKey)
+          : String(input);
+      // The sentence names the prefix on purpose, so only a value that is MORE
+      // than the prefix can be said to have been repeated.
+      if (value !== TAILNET_AUTH_KEY_PREFIX) expect(message).not.toContain(value);
+      // The window that was open is still the one open.
+      expect(pairing.windowOpen()).toBe(true);
+      expect(
+        pairing.present(sealPresentation(first.ps, makePhone()), '100.64.0.9')
+      ).toBe('pending');
+    });
+  }
+
+  it('accepts a key exactly at the cap', () => {
+    const atCap = `${TAILNET_AUTH_KEY_PREFIX}${'a'.repeat(TAILNET_KEY_MAX_CHARS - TAILNET_AUTH_KEY_PREFIX.length)}`;
+    expect(atCap.length).toBe(TAILNET_KEY_MAX_CHARS);
+    const payload = JSON.parse(makePairing().open({ tailnetKey: atCap }).payload) as {
+      tk?: string;
+    };
+    expect(payload.tk).toBe(atCap);
+  });
+
+  it('is zeroed when the window is cancelled', () => {
+    const pairing = makePairing();
+    pairing.open({ tailnetKey: FAKE_KEY });
+    expect(zeroed).toEqual([]);
+    pairing.cancel();
+    expect(zeroed).toEqual([FAKE_KEY]);
+    expect(pairing.holdsTailnetKey()).toBe(false);
+  });
+
+  it('is zeroed when the window expires', () => {
+    const pairing = makePairing();
+    pairing.open({ tailnetKey: FAKE_KEY });
+    clock += POCKET_PAIRING_WINDOW_MS - 1;
+    expect(pairing.windowOpen()).toBe(true);
+    expect(zeroed).toEqual([]);
+    clock += 2;
+    expect(pairing.windowOpen()).toBe(false);
+    expect(zeroed).toEqual([FAKE_KEY]);
+  });
+
+  it('is zeroed by the allow, while the window stays to tell the phone', () => {
+    const pairing = makePairing();
+    const secret = (JSON.parse(pairing.open({ tailnetKey: FAKE_KEY }).payload) as { ps: string })
+      .ps;
+    const phone = makePhone('Greg iPhone');
+    pairing.present(sealPresentation(secret, phone), '100.64.0.9');
+    expect(pairing.holdsTailnetKey()).toBe(true);
+    expect(pairing.allow(consentFor(pairing.fieldsWithPending())).allowed).toBe(true);
+    expect(zeroed).toEqual([FAKE_KEY]);
+    expect(pairing.holdsTailnetKey()).toBe(false);
+    expect(pairing.view().state).toBe('allowed');
+    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
+    // What was saved about the phone carries no key.
+    expect(JSON.stringify(saved)).not.toContain(FAKE_KEY);
+  });
+
+  it('is zeroed when a new window replaces the one holding it', () => {
+    const pairing = makePairing();
+    pairing.open({ tailnetKey: FAKE_KEY });
+    const second = `${FAKE_KEY}2`;
+    pairing.open({ tailnetKey: second });
+    expect(zeroed).toEqual([FAKE_KEY]);
+    expect(pairing.holdsTailnetKey()).toBe(true);
+  });
+
+  it('is zeroed when the window refuses to open after reading it', () => {
+    let pin: string | null = null;
+    const pairing = new PocketPairing({
+      identity: () => door,
+      fieldsNow: () => BASE,
+      savePhones: () => true,
+      publicKeyPin: () => pin
+    });
+    expect(() => pairing.open({ tailnetKey: FAKE_KEY })).toThrow(/not listening/);
+    expect(zeroed).toEqual([FAKE_KEY]);
+    pin = PIN;
+    expect(pairing.holdsTailnetKey()).toBe(false);
+  });
+
+  it('reaches no file: a whole pairing leaves its bytes nowhere under userData', () => {
+    const pairing = makePairing();
+    const secret = (JSON.parse(pairing.open({ tailnetKey: FAKE_KEY }).payload) as { ps: string })
+      .ps;
+    pairing.present(sealPresentation(secret, makePhone('Greg iPhone')), '100.64.0.9');
+    pairing.allow(consentFor(pairing.fieldsWithPending()));
+    writePocketStore({
+      identity: {
+        signPrivate: 'x',
+        exchangePrivate: 'y'
+      },
+      phones: saved,
+      port: 8823,
+      bindAtLaunch: true,
+      enabled: true,
+      pushAlerts: false,
+      deadPushTokens: []
+    });
+    const files: string[] = [];
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else files.push(path);
+      }
+    };
+    walk(userData);
+    expect(files.length).toBeGreaterThan(0);
+    for (const path of files) {
+      // The raw bytes, and every base64 run in them decoded, because the fake
+      // seal is a readable transform and a sealed copy would hide there.
+      for (const text of readableForms(readFileSync(path))) {
+        expect(text.includes(FAKE_KEY)).toBe(false);
+      }
+    }
   });
 });
 
@@ -991,7 +1366,7 @@ describe('the device token arrives inside the sealed presentation, and nowhere e
       identity: () => door,
       fieldsNow: () => fields,
       savePhones: () => true,
-      certificateFingerprint: () => 'ab:cd',
+      publicKeyPin: () => PIN,
       now: () => 1_000_000
     });
   }
@@ -1006,7 +1381,7 @@ describe('the device token arrives inside the sealed presentation, and nowhere e
     pending: PocketPhoneFields | undefined;
   } {
     const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
+    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
     const phone = makePhone('Greg iPhone');
     const answer = pairing.present(sealPresentation(secret, phone, extra), '100.64.0.9');
     return {
@@ -1057,7 +1432,7 @@ describe('the device token arrives inside the sealed presentation, and nowhere e
 
   it('the helper the harness pairs through seals what the door opens', () => {
     const pairing = makePairing();
-    const offer = pairing.open();
+    const offer = pairing.open(NO_KEY);
     const phone = makePhone('Harness phone');
     const t = token('h');
     const body = sealPresentationAsPhone(offer.payload, {

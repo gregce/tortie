@@ -39,14 +39,12 @@ import { git } from './git';
 import { log } from './log';
 import { machines } from './machines';
 import { overview } from './overview';
-// PHASE 313 IS NOT INSTALLED HERE, ON PURPOSE. `./pocket.ts` is written and
-// typed, and the eight `pocket:*` channels are in the shared contract — but the
-// registrar that serves them, `src/main/pocket/ipc.ts`'s `registerPocketIpc`,
-// is called from nowhere yet. A member on `window.gmux` whose every invoke
-// rejects with "No handler registered" is a bridge advertising a surface that
-// throws, which is strictly worse than not having it, so the member is left out
-// until main registers the channels. `build/conformance-pocket.mjs` rule B1
-// holds the two halves together in both directions.
+// Phase 313's door, installed in Phase 316 in the SAME commit that calls
+// `registerPocketIpc` from `installMainCapabilities`. A member whose every
+// invoke rejects with "No handler registered" is a bridge advertising a surface
+// that throws, so the two halves move together; `build/conformance-pocket.mjs`
+// rule B1 holds them together in both directions.
+import { pocket } from './pocket';
 // Phase 181. The subscription usage meter's two reads.
 import { usage } from './usage';
 // Phase 202. Which vendor sign in a new session runs under. Names, never paths.
@@ -115,6 +113,10 @@ const api: InstalledGmuxApi = {
   // Phase 243. Two calls into Tortie's own data directory, and the bytes that
   // cross are a PREVIOUS state of a file the person still has on disk.
   baselines,
+  // Phase 316. Settings then Phone: the door's switch, the pairing window and
+  // the phones. A person pressing a button in Tortie on this Mac; nothing a
+  // phone sends ever arrives through it.
+  pocket,
   // Phase 63 optional extra, widened by Phase 158: the arch view's reads plus
   // the seed, enrich and accept asks. Main owns every write under docs/arch,
   // and enrich is the one method that can start an agent, refused in main

@@ -9,7 +9,7 @@ import type {
   OverviewSessionView,
   OverviewTurnView
 } from '@shared/overview';
-import { buildProjectLine, firstClause, honestLineHasClock } from '../line';
+import { buildProjectLine, firstClause, honestLineHasClock } from '@shared/overview-line';
 
 function turn(over: Partial<OverviewTurnView> = {}): OverviewTurnView {
   return {
