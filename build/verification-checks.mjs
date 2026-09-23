@@ -623,6 +623,17 @@ export const CHECKS = [
   remote('smoke:capture:remote'),
   remote('smoke:remote'),
   remote('probe:p95'),
+  // PHASE 320's app run, slice 1: the wheel over a program on another machine
+  // that asked for the mouse, Phase 95's swallow kept for one that did not, the
+  // stated gap for an alternate-screen program that asked for nothing, and Read
+  // Last Lines over a full-screen pane. ONE Electron through
+  // build/electron-run.mjs's withElectron on a scratch profile, a scratch HOME
+  // and the socket gmux-p320-<pid>, inside
+  // build/with-scratch-machine.mjs's loopback machine, which is why this is
+  // `remote` and not `electron`. Its rulers are two stand-ins under build/p320/
+  // typed into the panes, each logging what it received; it reads no drive of
+  // its own and uses probe:p95's. It spawns no agent and spends no token.
+  remote('probe:p320'),
   remote('probe:p131'),
   // PHASE 193. The reproduction behind npm run gate:knownhosts, run rather
   // than read: the mechanism is proved live against this run's own sshd, a

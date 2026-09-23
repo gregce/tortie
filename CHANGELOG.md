@@ -14,6 +14,11 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - A Claude Code session that is waiting on you now says what it is being asked — the tool and the one thing it is about to touch — on Sessions That Need Input and in Catch Me Up, instead of the last line of its screen, which was almost always the hint about which key cancels; Catch Me Up also stops saying such a session's answer is not in the record when it is only waiting. Sessions from the other agents still show their last line, and a row shortens a long question to fit one line — hover it to read the whole of it ([`a6aec811`](https://github.com/gregce/tortie/commit/a6aec811)), ([`d27acd8e`](https://github.com/gregce/tortie/commit/d27acd8e))
 
+### Fixed
+
+- The trackpad and mouse wheel now scroll Claude Code and other full-screen programs that use the mouse in a session on another machine, the way they do on your Mac; a plain shell, an agent that prints ordinary lines, or a program like less that ignores the mouse still does not scroll back there. Reported by [Jake Levirne](https://github.com/jakelevirne) in [#31](https://github.com/gregce/tortie/issues/31)
+- Read Last Lines no longer says a session kept nothing more when the program in it only ever drew one screen
+
 ## 0.110.0 (2026-09-21)
 
 This release is about the sign ins Tortie keeps for you and the sheet that lists your sessions. A Codex account you sign out of can be offered back for the first time, choosing one of your other sign ins can no longer destroy the one you were using, and the Manage Sessions sheet says whether a session is alive or over without opening anything and stops searching every project folder each time you open it. The first time you open the sheet after this release, each session is read again from the beginning, which takes a moment on a long one.

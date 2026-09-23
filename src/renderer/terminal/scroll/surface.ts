@@ -40,9 +40,20 @@
  * and gave the program an arrow key nobody pressed. `handleWheel` reads
  * `inMode` for this, and main keeps reporting the frame's history while the
  * pane is parked (src/main/tmux/scroll.ts, `parseState`), so the thumb stays.
+ *
+ * A FOURTH ROUTE, Phase 320: A PANE THAT IS NOT ON THIS MAC. Main has no pane
+ * to read for a session on another machine, so none of the routes above can
+ * be decided from tmux's state. xterm's own mouse mode decides it instead. The
+ * far tmux client asks this terminal for the mouse exactly while the far
+ * program has asked for it, so a program that asked (Claude Code's full
+ * screen renderer among them) gets the wheel as xterm's mouse report, on the
+ * attach, like a keystroke. A program that did not ask keeps Phase 95's
+ * swallow, because xterm would send it `ESC O A`. `wheelReachesProgram`
+ * carries this side's measurement, and docs/research/130-remote-scrollback.md
+ * section 3.3 carries the far side's.
  */
 
-import type { Terminal } from '@xterm/xterm';
+import type { IModes, Terminal } from '@xterm/xterm';
 import type { InstalledGmuxApi, TerminalScrollState } from '@shared/ipc';
 import { measureCells, screenElement } from '../capture/metrics';
 import { gmuxBridge } from '../../bridge';
@@ -73,6 +84,25 @@ const LIVE_POLL_MS = 1000;
 const SCROLLED_POLL_MS = 250;
 /** Wheel deltas are batched over this window into ONE tmux scroll command. */
 const WHEEL_COALESCE_MS = 16;
+
+/**
+ * Phase 320. Whether xterm, handed a wheel event, sends it to the program as a
+ * mouse report, from the mouse mode the program asked for.
+ *
+ * NOT `mode !== 'none'`. MEASURED 2026-09-22 on this repository's
+ * @xterm/xterm 6.0.0 through its own `CoreMouseService.triggerMouseEvent`,
+ * which is what xterm calls when the wheel handler returns true: `vt200`,
+ * `drag` and `any` each sent `ESC[<64;11;6M` for one wheel up, and `none` and
+ * `x10` sent nothing. X10's protocol reports button presses only
+ * (`CoreMouseService.ts`, `X10.events` is DOWN), so xterm never binds its own
+ * wheel listener for it and a wheel handed over falls through to the
+ * alternate-scroll branch (`CoreBrowserTerminal.ts`, the `!hasScrollback`
+ * arm), which types `ESC O A`. That is Phase 95's defect by another mode, so
+ * `x10` is swallowed like `none`.
+ */
+export function wheelReachesProgram(mode: IModes['mouseTrackingMode']): boolean {
+  return mode === 'vt200' || mode === 'drag' || mode === 'any';
+}
 
 /** What the scrollbar and the wheel router need to know. */
 export interface ScrollView {
@@ -273,12 +303,21 @@ export class ScrollSurface {
    * whole bug; returning true hands the event to the app inside the pane.
    */
   handleWheel(event: WheelEvent): boolean {
-    // Phase 95. There is nothing here to scroll, so the wheel does nothing at
-    // all. False, not true: true hands the event to xterm, whose
-    // alternate-scroll branch emits `ESC O A` and `ESC O B`, and claude and
-    // codex read those as prompt-history navigation. Doing nothing is honest.
-    // Sending the wrong keys is not.
-    if (this.noPane) return false;
+    // There is no pane on this Mac to scroll (Phase 95), so the program at
+    // the other end of the attach decides (Phase 320).
+    //
+    // A program that asked for the mouse gets the wheel as xterm's own mouse
+    // report, sent on the attach like a keystroke. That is how Claude Code's
+    // full screen renderer scrolls on another machine, the same way it does
+    // on this Mac, and no tmux command is involved.
+    //
+    // A program that did not ask keeps Phase 95's swallow. True would hand
+    // the event to xterm's alternate-scroll branch, which emits `ESC O A` and
+    // `ESC O B`, and claude and codex read those as prompt-history
+    // navigation. Doing nothing is honest. Sending the wrong keys is not.
+    if (this.noPane) {
+      return wheelReachesProgram(this.term.modes.mouseTrackingMode);
+    }
     if (scrollBridge() === null) return true;
     // Phase 292. A pane already scrolled back shows tmux's frozen frame, not
     // the program's screen, so the wheel is ours whatever the program has

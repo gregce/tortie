@@ -10,24 +10,27 @@
  *
  * It is NOT a scrollbar. Research 57 section 3.1 refused a real remote
  * scrollbar twice over, and this phase does not reopen that. The refusal is the
- * reason the panel exists at all, so the button that opens it carries the
- * refusal as its tooltip.
+ * reason the panel exists at all. The button that opens it carried the refusal
+ * as its tooltip until Phase 320, which took the tooltip away: it was text on a
+ * remote surface only because the surface was remote.
  *
- * ## The two facts that are never both on screen (Phase 99.1)
+ * ## A short answer, and the one cause that is drawn (Phase 99.1)
  *
  * A short answer has two possible causes and they are different facts.
  *
  *  1. TORTIE CUT IT. The bytes that came back were over the ceiling main holds,
  *     so main kept the newest ones and dropped the rest. `truncated` is true and
  *     {@link READ_LINES_CUT} says which end went.
- *  2. THE SESSION HAS NO MORE. `lines` came back under `asked`, which means the
- *     read reached the start of what that session has kept.
- *     {@link READ_LINES_ALL_THERE} says so, and only when `asked` is above zero
- *     and nothing was cut.
+ *  2. FEWER LINES CAME BACK THAN WERE ASKED FOR. Phase 100 drew a sentence
+ *     saying the session had kept nothing more. Phase 320 deleted it: under a
+ *     full screen agent tmux holds one screen while the whole conversation sits
+ *     in the agent's own memory, so the sentence was false exactly when it was
+ *     drawn (docs/research/130-remote-scrollback.md section 2). The count line
+ *     says what came back, and nothing more is claimed.
  *
  * Phase 99 carried a cut through main and never drew it, so a list that had
- * been cut was drawn as if it were whole. That is what these two sentences and
- * the test beside them exist to stop happening again.
+ * been cut was drawn as if it were whole. That is what the cut sentence and
+ * the test beside it exist to stop happening again.
  *
  * ## It opens on the NEWEST line
  *
@@ -70,7 +73,6 @@ import type { Session } from '@shared/types';
 import { useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
 import {
-  READ_LINES_ALL_THERE,
   READ_LINES_CUT,
   READ_LINES_DEPTH_LABEL,
   READ_LINES_DEPTH_SCREEN,
@@ -120,22 +122,6 @@ export function scrollToNewest(
 ): void {
   if (el === null) return;
   el.scrollTop = el.scrollHeight;
-}
-
-/**
- * True when the session has kept less than was asked for.
- *
- * It is a separate function so the test can state the table of states rather
- * than inferring the rule from what a render happened to produce. It is false
- * whenever anything was cut, because a cut answer says nothing about how much
- * the session kept, and it is false for the screen alone, where `asked` is zero
- * and "everything this session has kept" would be a claim about nothing.
- */
-export function showsAllThere(result: MachineSessionLinesResult): boolean {
-  if (result.mode !== 'read') return false;
-  if (result.truncated) return false;
-  if (result.asked <= 0) return false;
-  return result.lines < result.asked;
 }
 
 /**
@@ -278,9 +264,6 @@ export function RemoteLinesPanel({
             </p>
             {shown.truncated ? (
               <p className="remote-lines-cut">{READ_LINES_CUT}</p>
-            ) : null}
-            {showsAllThere(shown) ? (
-              <p className="remote-lines-all-there">{READ_LINES_ALL_THERE}</p>
             ) : null}
           </>
         ) : null}

@@ -17,12 +17,23 @@ import { formatScrollbackBytes } from '@shared/scrollback';
  * ../app/__tests__/p100-remote-lines.test.tsx reads every file under src and fails
  * on either of them.
  *
- * WHAT IS STILL NOT TRUE, and every sentence here has to keep saying so. There
- * is no scrollbar for a session on another machine and there is not going to
- * be one. Research 57 section 3.1 refused it, because the lane would need verbs
+ * PHASE 320 DELETED TWO MORE, by the same rule and for the same test. The
+ * button's tooltip explained that a session on another machine could not be
+ * scrolled back, which is text on a remote surface only because it is remote,
+ * and the operator's rule is that a remote session feels identical to a local
+ * one. And the panel's sentence saying the session had kept nothing more was
+ * false under a full screen agent, whose whole conversation is in the agent's
+ * own memory while tmux holds one screen of it
+ * (docs/research/130-remote-scrollback.md section 2). The count line already
+ * says what came back, and it stays.
+ *
+ * WHAT IS STILL NOT TRUE. There is no scrollbar for a session on another
+ * machine. Research 57 section 3.1 refused it, because the lane would need verbs
  * Tortie does not send and a wheel notch would cost about 32 times its budget.
- * What a person gets instead is one read at one instant, in a panel, and the
- * panel says on screen that it does not refresh.
+ * Phase 320 hands the wheel to a program there that asked for the mouse, which
+ * needs no verb, and leaves that refusal where it is. What a person gets for
+ * any other program is one read at one instant, in a panel, and the panel says
+ * on screen that it does not refresh.
  *
  * NO PROSE CROSSES THE CHANNEL. Main answers a mode word and a set of numbers
  * for one read, and this file holds every sentence a person reads about it.
@@ -31,13 +42,11 @@ import { formatScrollbackBytes } from '@shared/scrollback';
  * vocabulary audit reads.
  */
 
-/** The strip button, in both bands above a session on another machine. */
+/**
+ * The strip button, in both bands above a session on another machine. It
+ * carries no tooltip (Phase 320): its words say what it does.
+ */
 export const READ_LAST_LINES_HERE = 'Read last lines';
-
-/** Its tooltip, and the whole reason the button is there. */
-export const READ_LAST_LINES_HERE_TITLE =
-  'Tortie cannot scroll back through a session on another machine. ' +
-  'Open this to read the last lines it printed.';
 
 /** The session menu item, beside the capture items. */
 export const READ_LAST_LINES_ITEM = 'Read Last Lines…';
@@ -111,15 +120,6 @@ export const READ_LINES_CUT =
   'newest are shown. The size above is smaller than that because it counts ' +
   'the plain text that was left once the codes a terminal uses to colour and ' +
   'redraw were taken out.';
-
-/**
- * Drawn only when the session has kept less than was asked for.
- *
- * It is a DIFFERENT fact from the cut above and the two are never both on
- * screen. This one means the session itself has nothing older, because the read
- * clamps to the start of what that session has kept.
- */
-export const READ_LINES_ALL_THERE = 'That is everything this session has kept.';
 
 /** While the one read is in flight. */
 export function readLinesReading(label: string): string {

@@ -82,8 +82,6 @@ export interface RemoteLinesReading {
   counts: string;
   /** The cut sentence, or the empty string when it is not drawn. */
   cut: string;
-  /** The all there sentence, or the empty string when it is not drawn. */
-  allThere: string;
   /**
    * The settled sentence drawn in place of a body, or the empty string.
    *
@@ -166,7 +164,6 @@ function readPanel(absentWords: string[]): RemoteLinesReading {
     notLive: textOf('.remote-lines-note'),
     counts: textOf('.remote-lines-counts'),
     cut: textOf('.remote-lines-cut'),
-    allThere: textOf('.remote-lines-all-there'),
     empty: textOf('.remote-lines-empty'),
     reading: textOf('.remote-lines-reading'),
     depths: buttons.map((b) => (b.textContent ?? '').trim()),

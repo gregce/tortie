@@ -63,6 +63,15 @@
  * a deadline outside the client would cover the first spawn and none of the
  * others. One timer here covers every spawn there will ever be, local and
  * remote.
+ *
+ * ## Phase 320: every block goes to the command that asked for it
+ *
+ * Answers are matched to commands by ORDER alone: tmux writes one
+ * `%begin`/`%end` block per command in the order the commands arrived, and
+ * `closeBlock` hands each to the oldest pending slot. So every command written
+ * must own a slot, and the one this client writes for itself on every connect,
+ * `refresh-client -f no-output`, had none. Its empty block went to whichever
+ * caller came first after a connect. See `pushOwnSlot`.
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -205,6 +214,12 @@ interface PendingCommand {
   reject: (err: Error) => void;
 }
 
+/**
+ * The one command this client sends for itself, on every connect: suppress the
+ * `%output` firehose. Its answer has a pending slot of its own (Phase 320, P5).
+ */
+const CONTROL_NO_OUTPUT_COMMAND = 'refresh-client -f no-output';
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
@@ -309,7 +324,17 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
 
       // First command after the greeting: suppress %output — rendering goes
       // through per-pane attach clients, not the event bus.
-      this.enqueue('refresh-client -f no-output');
+      //
+      // PHASE 320, P5. Its answer gets a pending slot of its own, pushed in the
+      // same turn it is queued and before any caller can push one, because
+      // `closeBlock` hands each block to the FIRST pending slot. Without it the
+      // first command sent once `connected` fired, which the local scroll
+      // runner's `connected` guard allows, was handed THIS command's empty
+      // block, and every later answer could stay shifted by one (research 130
+      // §6 item 6: 10 of 10 trials, and 2 of 5 left shifted). An empty answer
+      // to a scroll read parses as a live pane.
+      this.pushOwnSlot(child, CONTROL_NO_OUTPUT_COMMAND);
+      this.enqueue(CONTROL_NO_OUTPUT_COMMAND);
     } catch (err) {
       this.starting = false;
       this.scheduleReconnect();
@@ -371,6 +396,28 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
     } else {
       this.outbox.push(command);
     }
+  }
+
+  /**
+   * PHASE 320, P5. The pending slot for a command this client sends for itself.
+   *
+   * Its answer is nobody's, so a block is swallowed. A `%error` for it is said
+   * as an `error` event while `child` is still the current child, and never as
+   * a rejection a caller receives, which is what it used to be. A drop fails
+   * every slot after the child has been let go, so this one says nothing then:
+   * the drop is already news through `disconnected`.
+   */
+  private pushOwnSlot(child: ChildProcessWithoutNullStreams, command: string): void {
+    this.pending.push({
+      resolve: () => undefined,
+      reject: (err: Error) => {
+        if (this.child !== child) return;
+        this.emit(
+          'error',
+          new Error(`control client for ${this.transport.machineId}: ${command}: ${err.message}`)
+        );
+      }
+    });
   }
 
   private flushOutbox(): void {

@@ -27,6 +27,10 @@
  *  - PHASE 83. A child that is spawned and never greets is killed when the
  *    deadline passes, the `greeting-timeout` event fires before `disconnected`,
  *    and a child that greets in time is never killed at all.
+ *  - PHASE 320, P5. `refresh-client -f no-output`'s empty block goes to a slot
+ *    of its own, so a command sent the instant `connected` fires, or before
+ *    the greeting, or after a reconnect, receives its own answer and no later
+ *    answer is shifted by one. Five of these six cases fail at the parent.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -315,5 +319,149 @@ describe('death', () => {
     const err = await client.sendCommand('list-sessions').catch((one: unknown) => one);
     expect(err).toBeInstanceOf(GmuxError);
     expect((err as GmuxError).payload.message).toContain('attic');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 320, P5. `refresh-client -f no-output` answers into a slot of its own
+// ---------------------------------------------------------------------------
+//
+// THE DEFECT, measured by research 130 §6 item 6 before this test existed:
+// `start()` queued `refresh-client -f no-output` with no pending slot, and
+// `closeBlock` hands every block after the greeting to the FIRST pending caller.
+// So the first command sent once `connected` had fired, which is exactly what
+// the local scroll runner's `this.control.connected` guard allows, was handed
+// refresh-client's EMPTY block: 10 of 10 trials, the local shape included, and
+// in 2 of 5 local trials every later answer stayed shifted by one. An empty
+// answer to `readPaneScroll` parses as a live pane, so after a reconnect the
+// renderer believed a parked pane was live and typed into copy mode.
+//
+// Every block below is what tmux writes: one `%begin`/`%end` pair per command,
+// IN THE ORDER THE COMMANDS WERE WRITTEN, refresh-client's being empty.
+
+/** One answer block as tmux writes it. `lines` is its body. */
+function block(n: number, lines: string[] = [], ok = true): string {
+  const guard = `${String(1_786_998_987 + n)} ${String(300 + n)} 1`;
+  return (
+    `%begin ${guard}\n` +
+    lines.map((l) => `${l}\n`).join('') +
+    `${ok ? '%end' : '%error'} ${guard}\n`
+  );
+}
+
+/** refresh-client's own answer: tmux writes an empty block for it. */
+const REFRESH_ANSWER = block(0);
+
+describe('Phase 320 P5: refresh-client answers into its own slot', () => {
+  it('hands a command sent the instant connected fires its OWN answer', async () => {
+    client = new TmuxControlClient(transport());
+    let first: Promise<string[]> | null = null;
+    client.on('connected', () => {
+      first = client?.sendCommand('display-message -p mode') ?? null;
+    });
+    await client.start();
+    feed(0, GREETING);
+    expect(first).not.toBeNull();
+    // The order tmux writes them in: refresh-client first, the caller's second.
+    expect(children[0]?.stdin.written).toEqual([
+      'refresh-client -f no-output\n',
+      'display-message -p mode\n'
+    ]);
+
+    feed(0, REFRESH_ANSWER);
+    feed(0, block(1, ['0|4977|44|152|1|0|0|']));
+
+    await expect(first).resolves.toEqual(['0|4977|44|152|1|0|0|']);
+  });
+
+  it('keeps every later answer on its own command, never shifted by one', async () => {
+    client = new TmuxControlClient(transport());
+    const answers: Promise<string[]>[] = [];
+    client.on('connected', () => {
+      if (client === null) return;
+      answers.push(client.sendCommand('display-message -p one'));
+      answers.push(client.sendCommand('display-message -p two'));
+    });
+    await client.start();
+    feed(0, GREETING);
+    answers.push(client.sendCommand('display-message -p three'));
+
+    feed(0, REFRESH_ANSWER);
+    feed(0, block(1, ['one']));
+    feed(0, block(2, ['two']));
+    feed(0, block(3, ['three']));
+
+    await expect(Promise.all(answers)).resolves.toEqual([['one'], ['two'], ['three']]);
+  });
+
+  it('gives a command sent BEFORE the greeting its own answer too', async () => {
+    client = new TmuxControlClient(transport());
+    await client.start();
+    // The child exists and has not greeted, so this waits in the outbox BEHIND
+    // refresh-client, and its answer arrives second.
+    const early = client.sendCommand('display-message -p early');
+    feed(0, GREETING);
+    expect(children[0]?.stdin.written).toEqual([
+      'refresh-client -f no-output\n',
+      'display-message -p early\n'
+    ]);
+    feed(0, REFRESH_ANSWER);
+    feed(0, block(1, ['early']));
+    await expect(early).resolves.toEqual(['early']);
+  });
+
+  it('does it again on every reconnect, where the misattribution used to recur', async () => {
+    vi.useFakeTimers();
+    client = new TmuxControlClient(transport());
+    await client.start();
+    feed(0, GREETING);
+    feed(0, REFRESH_ANSWER);
+
+    const answers: Promise<string[]>[] = [];
+    client.on('connected', () => {
+      if (client !== null) answers.push(client.sendCommand('display-message -p again'));
+    });
+    feed(0, '%exit\n');
+    await vi.advanceTimersByTimeAsync(600);
+    expect(spawns).toHaveLength(2);
+
+    feed(1, GREETING);
+    expect(answers).toHaveLength(1);
+    feed(1, REFRESH_ANSWER);
+    feed(1, block(1, ['1|4977|44|152|1|1|0|']));
+    await expect(answers[0]).resolves.toEqual(['1|4977|44|152|1|1|0|']);
+  });
+
+  it("surfaces refresh-client's own %error as an error event, never as a caller's rejection", async () => {
+    client = new TmuxControlClient(transport('studio'));
+    const errors: string[] = [];
+    client.on('error', (err) => errors.push(err.message));
+    let first: Promise<string[]> | null = null;
+    client.on('connected', () => {
+      first = client?.sendCommand('display-message -p mode') ?? null;
+    });
+    await client.start();
+    feed(0, GREETING);
+
+    feed(0, block(0, ['unknown flag -f'], false));
+    feed(0, block(1, ['answer']));
+
+    await expect(first).resolves.toEqual(['answer']);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('studio');
+    expect(errors[0]).toContain('refresh-client -f no-output');
+    expect(errors[0]).toContain('unknown flag -f');
+  });
+
+  it('says nothing about its own slot when the connection drops', async () => {
+    client = new TmuxControlClient(transport('studio'));
+    const errors: string[] = [];
+    client.on('error', (err) => errors.push(err.message));
+    await client.start();
+    feed(0, GREETING);
+    // refresh-client never answered; the drop fails its slot with the rest.
+    feed(0, '%exit\n');
+    await Promise.resolve();
+    expect(errors).toEqual([]);
   });
 });

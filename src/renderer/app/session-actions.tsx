@@ -43,7 +43,7 @@ import type { SessionGateEnv, SessionHandback } from '../state/resume';
 import { Codicon, menuGlyph } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import { openOverviewForSession } from '../overview/open-overview';
-import { READ_LAST_LINES_HERE, READ_LAST_LINES_HERE_TITLE } from '../machines/read-lines';
+import { READ_LAST_LINES_HERE } from '../machines/read-lines';
 import {
   REVIEW_ITEM_SUBLABEL,
   REVIEW_READING,
@@ -365,7 +365,6 @@ export function ReadLastLinesButton({
     <button
       type="button"
       className={className}
-      title={READ_LAST_LINES_HERE_TITLE}
       onClick={() => useApp.getState().openRemoteLines(session.id)}
     >
       <Codicon name="history" size="sm" />

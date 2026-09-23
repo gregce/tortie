@@ -19,13 +19,20 @@
  * 1 and 61. Asserting only the small number would pass just as well if the
  * surface were broken outright, so the old shape's count is asserted beside it.
  *
+ * PHASE 320 NARROWED ONE ANSWER. The wheel over a session with no pane here
+ * was swallowed whatever the program at the other end had asked for. It is
+ * still swallowed for a program that did not ask for the mouse, which is the
+ * case Phase 95 wrote it for, and it is handed to xterm for one that did,
+ * because xterm then sends a mouse report and never `ESC O A`. Both halves
+ * are pinned below, by the mode xterm itself reports.
+ *
  * WHAT THIS FILE IS NOT. It is not a screenshot and it is not a live drive.
  * What a person sees, and what the real app's console prints, is the
  * verifier's build/probe-p95-scroll.mjs.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Terminal } from '@xterm/xterm';
+import type { IModes, Terminal } from '@xterm/xterm';
 import type { TerminalScrollState } from '@shared/ipc';
 
 // ---------------------------------------------------------------------------
@@ -148,8 +155,15 @@ function answerThenFail(): Harness {
   return { counts, typed };
 }
 
-/** Only `rows` is read off the terminal by anything under test here. */
-const TERM = { rows: 30 } as unknown as Terminal;
+/**
+ * Only `rows` and the mouse mode are read off the terminal by anything under
+ * test here. The mode is the one xterm reports for what the program at the
+ * other end of the attach asked for, and a test sets it.
+ */
+const MODES: { mouseTrackingMode: IModes['mouseTrackingMode'] } = {
+  mouseTrackingMode: 'none'
+};
+const TERM = { rows: 30, modes: MODES } as unknown as Terminal;
 
 const { ScrollSurface } = await import('../surface');
 
@@ -171,6 +185,7 @@ async function started(): Promise<InstanceType<typeof ScrollSurface>> {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  MODES.mouseTrackingMode = 'none';
 });
 
 afterEach(() => {
@@ -253,23 +268,73 @@ describe('after hasPane false the surface is quiet', () => {
     surface.dispose();
   });
 
-  it('swallows the wheel rather than handing it to xterm', async () => {
-    // False cancels xterm's own handling. True would take xterm's
-    // alternate-scroll branch, which emits `ESC O A` and `ESC O B`, and claude
-    // and codex read those as prompt-history navigation.
-    const h = harness(stateOf({ hasPane: false }));
+  it.each(['none', 'x10'] as const)(
+    'swallows the wheel when the program asked for no wheel report (%s)',
+    async (mode) => {
+      // False cancels xterm's own handling. True would take xterm's
+      // alternate-scroll branch, which emits `ESC O A` and `ESC O B`, and
+      // claude and codex read those as prompt-history navigation. X10 is here
+      // beside none because its protocol reports button presses only, so
+      // xterm binds no wheel listener for it and a wheel handed over takes the
+      // same branch (`wheelReachesProgram` in ../surface.ts).
+      const h = harness(stateOf({ hasPane: false }));
+      const surface = await started();
+      const before = { ...h.counts };
+      MODES.mouseTrackingMode = mode;
+
+      const handled = surface.handleWheel({
+        deltaY: 120,
+        deltaMode: 0
+      } as unknown as WheelEvent);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await settle();
+
+      expect(handled).toBe(false);
+      expect(h.counts).toEqual(before);
+      surface.dispose();
+    }
+  );
+
+  it.each(['vt200', 'drag', 'any'] as const)(
+    'hands the wheel to xterm when the program asked for the mouse (%s)',
+    async (mode) => {
+      // Phase 320, the reporter's case. xterm then sends the wheel as a mouse
+      // report on the attach, `ESC[<64;col;rowM`, which is how a full screen
+      // Claude Code on another machine scrolls. The surface itself calls
+      // nothing and types nothing: the report is xterm's, and it reaches the
+      // attach through the same `onData` a keystroke does.
+      const h = harness(stateOf({ hasPane: false }));
+      const surface = await started();
+      const before = { ...h.counts };
+      MODES.mouseTrackingMode = mode;
+
+      const handled = surface.handleWheel({
+        deltaY: -120,
+        deltaMode: 0
+      } as unknown as WheelEvent);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await settle();
+
+      expect(handled).toBe(true);
+      expect(h.counts).toEqual(before);
+      surface.dispose();
+    }
+  );
+
+  it('reads the mode per event, so a program leaving full screen is swallowed again', async () => {
+    // xterm's mode follows the far program: `any` or `vt200` while it is full
+    // screen, `none` once it has gone (docs/research/130-remote-scrollback.md
+    // section 3.3). One mount sees both, so the answer cannot be cached.
+    harness(stateOf({ hasPane: false }));
     const surface = await started();
-    const before = { ...h.counts };
+    const wheel = { deltaY: -120, deltaMode: 0 } as unknown as WheelEvent;
 
-    const handled = surface.handleWheel({
-      deltaY: 120,
-      deltaMode: 0
-    } as unknown as WheelEvent);
-    await vi.advanceTimersByTimeAsync(2_000);
-    await settle();
-
-    expect(handled).toBe(false);
-    expect(h.counts).toEqual(before);
+    MODES.mouseTrackingMode = 'any';
+    expect(surface.handleWheel(wheel)).toBe(true);
+    MODES.mouseTrackingMode = 'none';
+    expect(surface.handleWheel(wheel)).toBe(false);
+    MODES.mouseTrackingMode = 'vt200';
+    expect(surface.handleWheel(wheel)).toBe(true);
     surface.dispose();
   });
 

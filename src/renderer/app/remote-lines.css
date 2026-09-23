@@ -52,10 +52,8 @@
 }
 
 /* Stated, not alarmed (ZEN-OF-TORTIE). A cut answer is still worth reading and
-   the sentence says which end was dropped. These two are never both drawn, so
-   they take the same box and the same colour rather than competing. */
-.modal.remote-lines-modal .remote-lines-cut,
-.modal.remote-lines-modal .remote-lines-all-there {
+   the sentence says which end was dropped. */
+.modal.remote-lines-modal .remote-lines-cut {
   margin: 0 0 var(--space-4);
   font-size: var(--text-xs);
   line-height: var(--lh-xs);

@@ -284,12 +284,20 @@ const HELPER = 'electron-run.mjs';
  * said the floor rose from 147 at :272; it was 148 at :282, which the Phase 313
  * entry had already recorded.
  *
+ * PHASE 320 RAISED IT FROM 149 TO 150, for build/p320/probe-p320.mjs
+ * (`probe:p320`), the app run for the wheel over a program on another machine:
+ * one Electron on a scratch profile and a scratch HOME inside
+ * build/with-scratch-machine.mjs's loopback machine, two stand-ins under
+ * build/p320/ typed into the panes as its rulers, and a `P320_CHECKOUT` knob so
+ * the parent is measured by a second invocation and never beside the first.
+ * The two stand-ins do not reach the helper and are not counted.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 149;
+const HELPER_USER_FLOOR = 150;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

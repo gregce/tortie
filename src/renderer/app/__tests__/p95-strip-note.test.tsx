@@ -21,6 +21,13 @@
  * describe below is what stops that returning: it reads both files and fails if
  * either stops mounting the shared component.
  *
+ * PHASE 320 TOOK ITS TOOLTIP AWAY. The tooltip explained that a session on
+ * another machine could not be scrolled back, which is text on a remote
+ * surface only because it is remote, against the operator's rule that a
+ * remote session feels identical to a local one. The button's own words say
+ * what it does, so it carries no title at all, and the sentence is pinned
+ * absent from every file under src by ./p100-remote-lines.test.tsx.
+ *
  * WHAT GETS NO BUTTON. Every session on this Mac, running or not. It has a real
  * scrollbar and a real wheel, and it has the two "Capture Last N Lines" items
  * as well, so a fourth way to read the same history would be clutter.
@@ -78,10 +85,8 @@ const { IdentityStrip } = await import('../TerminalRegion');
 const { ReadLastLinesButton, showsReadLastLines } = await import(
   '../session-actions'
 );
-const {
-  READ_LAST_LINES_HERE,
-  READ_LAST_LINES_HERE_TITLE
-} = await import('../../machines/read-lines');
+const lines = await import('../../machines/read-lines');
+const { READ_LAST_LINES_HERE } = lines;
 const { useApp } = await import('../../state/store');
 
 // ---------------------------------------------------------------------------
@@ -119,6 +124,10 @@ const stripHtml = (s: Session): string =>
     <IdentityStrip session={s} grouped={false} termFocused={false} />
   );
 
+/** The button's own opening tag, so another element's title cannot answer. */
+const buttonTag = (html: string): string =>
+  /<button type="button" class="strip-readback"[^>]*>/.exec(html)?.[0] ?? '';
+
 // ---------------------------------------------------------------------------
 // What the strip draws
 // ---------------------------------------------------------------------------
@@ -136,11 +145,10 @@ describe('the identity strip button that reads the last lines', () => {
     expect(html).toContain('<button type="button" class="strip-readback"');
   });
 
-  it('carries the full sentence as the item title', () => {
-    const html = stripHtml(session({ machine: machine() }));
-    // The title is escaped in the markup, so the sentence is compared after
-    // the one character React escapes here is put back.
-    expect(html.replace(/&#x27;/g, "'")).toContain(READ_LAST_LINES_HERE_TITLE);
+  it('carries no tooltip, because its words say what it does (Phase 320)', () => {
+    const tag = buttonTag(stripHtml(session({ machine: machine() })));
+    expect(tag).not.toBe('');
+    expect(tag).not.toContain('title=');
   });
 
   it('draws nothing for a running session on this Mac', () => {
@@ -169,7 +177,7 @@ describe('the rule behind the button', () => {
 
 describe('both bands draw the shared button', () => {
   // The component itself, rendered on its own, is what each band mounts.
-  it('draws the words and the sentence wherever it is mounted', () => {
+  it('draws the words and no tooltip wherever it is mounted', () => {
     const html = renderToStaticMarkup(
       <ReadLastLinesButton
         session={session({ machine: machine() })}
@@ -177,7 +185,7 @@ describe('both bands draw the shared button', () => {
       />
     );
     expect(html.split(READ_LAST_LINES_HERE).length - 1).toBe(1);
-    expect(html.replace(/&#x27;/g, "'")).toContain(READ_LAST_LINES_HERE_TITLE);
+    expect(html).not.toContain('title=');
   });
 
   it('draws nothing for a session on this Mac', () => {
@@ -227,9 +235,9 @@ describe('the words live in presentation.ts', () => {
     // list does not change for this phase. What has to stay true is that the
     // sentence is composed there and not typed into a component.
     expect(READ_LAST_LINES_HERE).toBe('Read last lines');
-    expect(READ_LAST_LINES_HERE_TITLE).toBe(
-      'Tortie cannot scroll back through a session on another machine. ' +
-        'Open this to read the last lines it printed.'
-    );
+    // Phase 320 deleted the tooltip, and nothing may bring the constant back.
+    expect(
+      (lines as unknown as Record<string, unknown>).READ_LAST_LINES_HERE_TITLE
+    ).toBeUndefined();
   });
 });

@@ -727,10 +727,17 @@ async function main() {
     // proves the same thing: the band above a session on another machine
     // carries the affordance, in both orientations. `readBack` below is the one
     // reading, written once so the two orientations cannot drift apart.
+    //
+    // PHASE 320 TURNED THE TOOLTIP HALF AROUND. The sentence it read, "Tortie
+    // cannot scroll back through a session on another machine…", was text a
+    // surface carried only because the session is remote, which the operator's
+    // rule forbids, and it became false the moment the wheel reached a
+    // full-screen program there. Slice 1 deletes it, so this step now asserts
+    // the button is still there and that sentence is NOT on it.
     const readBack = (s) =>
       s.note !== null &&
       s.note.text.includes('Read last lines') &&
-      s.note.title.includes('cannot scroll back');
+      !s.note.title.includes('cannot scroll back');
     state = await drive(cdp, 'orientation', 'top');
     await sleep(1500);
     state = await drive(cdp, 'state');
@@ -755,6 +762,11 @@ async function main() {
     );
 
     // -- STEP 6. the wheel and typing over the remote pane --------------------
+    // This step grades the error lines and a read, and nothing else: it does
+    // not ask whether the wheel TYPED anything into the far program. Since
+    // Phase 320 hands the wheel to a far program that asked for the mouse,
+    // that half is `probe:p320`'s arm R2, which counts the bytes a plain far
+    // program received (0 on both builds, measured).
     const beforeWheel = scrollErrorCount();
     await drive(cdp, 'wheel', 20, -120);
     measured.wheelScrollErrors = scrollErrorCount() - beforeWheel;

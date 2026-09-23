@@ -2,19 +2,23 @@
  * Phase 100, the panel that reads the last lines of a session on another
  * machine.
  *
- * WHAT THIS FILE IS FOR. The panel decides which sentence a person reads, and
- * two of those sentences describe two different facts that must never be on
- * screen together. Phase 99 carried a cut through main and never drew it, so a
- * list that had been cut was drawn as if it were whole, and that is recorded as
- * Phase 99.1. The table below is what stops the same shape happening here.
+ * WHAT THIS FILE IS FOR. The panel decides which sentence a person reads.
+ * Phase 99 carried a cut through main and never drew it, so a list that had
+ * been cut was drawn as if it were whole, and that is recorded as Phase 99.1.
+ * The table below is what stops the same shape happening here.
  *
- * THE TWO FACTS.
+ * A SHORT ANSWER HAS TWO CAUSES, AND ONE OF THEM IS DRAWN.
  *
  *  1. TORTIE CUT THE ANSWER. `truncated` is true. The bytes that came back were
- *     over the ceiling main holds, so main kept the newest ones.
- *  2. THE SESSION HAS NO MORE. `lines` came back under `asked`, with `asked`
- *     above zero and nothing cut. The read reached the start of what that
- *     session has kept.
+ *     over the ceiling main holds, so main kept the newest ones, and a sentence
+ *     says so.
+ *  2. FEWER LINES CAME BACK THAN WERE ASKED FOR, and nothing was cut. Phase 100
+ *     drew a sentence saying the session had kept nothing more. Phase 320
+ *     deleted it, because under a full screen agent tmux holds one screen while
+ *     the whole conversation sits in the agent's own memory, so the sentence was
+ *     false exactly when it was drawn (docs/research/130-remote-scrollback.md
+ *     section 2). The count line says what came back, and nothing more is
+ *     claimed.
  *
  * HOW THIS RENDERS. `environment` is node and this repository carries no jsdom
  * and no @testing-library/react, so the panel is rendered with
@@ -91,8 +95,8 @@ vi.stubGlobal('document', {
   removeEventListener() {}
 });
 
-const { RemoteLinesDepths, RemoteLinesPanel, scrollToNewest, showsAllThere } =
-  await import('../RemoteLinesModal');
+const modal = await import('../RemoteLinesModal');
+const { RemoteLinesDepths, RemoteLinesPanel, scrollToNewest } = modal;
 // Two files, because the panel's own words are in machines/read-lines.ts and the
 // instant it prints is composed by machines/session-restore.ts.
 const copy = {
@@ -261,87 +265,71 @@ describe('the cut sentence', () => {
   });
 });
 
-describe('the all there sentence', () => {
-  it('is drawn when the session has kept less than was asked for', () => {
+describe('a short answer that nothing cut', () => {
+  it('draws the count and claims nothing about what the session kept', () => {
+    // The full screen agent's signature (research 130 section 2.1): one
+    // screen at every depth, because tmux holds one screen of it.
     const html = readable(
-      panelHtml({ result: result({ asked: 1_000, lines: 220 }) })
+      panelHtml({ result: result({ asked: 1_000, lines: 24 }) })
     );
-    expect(html).toContain(copy.READ_LINES_ALL_THERE);
+    expect(html).toContain(copy.readLinesCount(24, 26));
+    expect(html).not.toContain('remote-lines-all-there');
+    expect(html).not.toContain(copy.READ_LINES_CUT);
   });
 
-  it('is never drawn for the screen alone', () => {
-    // `asked` is 0 there, so "everything this session has kept" would be a
-    // claim about nothing.
-    const html = readable(
-      panelHtml({ result: result({ asked: 0, lines: 40 }), depth: 0 })
-    );
-    expect(html).not.toContain(copy.READ_LINES_ALL_THERE);
-  });
-
-  it('is never drawn when the full depth came back', () => {
-    const html = readable(
-      panelHtml({ result: result({ asked: 1_000, lines: 1_000 }) })
-    );
-    expect(html).not.toContain(copy.READ_LINES_ALL_THERE);
+  it('draws the same sentences whether the whole depth came back or not', () => {
+    // Only the numbers in the count line differ, so nothing on screen reads
+    // a short answer as a statement about the session.
+    const sentences = (html: string): string[] =>
+      [...html.matchAll(/<p class="([^"]+)"/g)].map((m) => m[1] ?? '');
+    const short = panelHtml({ result: result({ asked: 1_000, lines: 24 }) });
+    const whole = panelHtml({ result: result({ asked: 1_000, lines: 1_000 }) });
+    expect(sentences(short)).toEqual(sentences(whole));
   });
 });
 
-describe('the two sentences are never both on screen', () => {
-  // One table, so a later change to either rule has to face both at once.
+describe('the cut sentence is drawn exactly when Tortie cut the answer', () => {
   const table: {
     name: string;
     over: Partial<MachineSessionLinesResult>;
     cut: boolean;
-    allThere: boolean;
   }[] = [
     {
       name: 'the full depth came back',
       over: { asked: 1_000, lines: 1_000, truncated: false },
-      cut: false,
-      allThere: false
+      cut: false
     },
     {
-      name: 'the session had less than was asked for',
+      name: 'fewer lines came back than were asked for',
       over: { asked: 1_000, lines: 220, truncated: false },
-      cut: false,
-      allThere: true
+      cut: false
     },
     {
       name: 'Tortie cut it and the count is under the depth',
       over: { asked: 25_000, lines: 9_100, truncated: true },
-      cut: true,
-      allThere: false
+      cut: true
     },
     {
       name: 'Tortie cut it and the count still equals the depth',
       over: { asked: 1_000, lines: 1_000, truncated: true },
-      cut: true,
-      allThere: false
+      cut: true
     },
     {
       name: 'the screen alone came back',
       over: { asked: 0, lines: 40, truncated: false },
-      cut: false,
-      allThere: false
+      cut: false
     },
     {
       name: 'the screen alone was cut',
       over: { asked: 0, lines: 40, truncated: true },
-      cut: true,
-      allThere: false
+      cut: true
     }
   ];
 
-  it.each(table)('$name', ({ over, cut, allThere }) => {
-    const one = result(over);
-    const html = readable(panelHtml({ result: one }));
-    expect([
-      html.includes(copy.READ_LINES_CUT),
-      html.includes(copy.READ_LINES_ALL_THERE)
-    ]).toEqual([cut, allThere]);
-    expect(showsAllThere(one)).toBe(allThere);
-    // The point of the table, stated once more as the thing it exists for.
-    expect(cut && allThere).toBe(false);
+  it.each(table)('$name', ({ over, cut }) => {
+    const html = readable(panelHtml({ result: result(over) }));
+    expect(html.includes(copy.READ_LINES_CUT)).toBe(cut);
+    expect(html).not.toContain('remote-lines-all-there');
   });
 });
 
@@ -569,15 +557,61 @@ describe('the two sentences Phase 100 made false', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The two Phase 100 sentences Phase 320 deleted, read off disk
+// ---------------------------------------------------------------------------
+
+describe('the two sentences Phase 320 deleted', () => {
+  // The button's tooltip was text on a remote surface only because it was
+  // remote, and the panel's last sentence was false under a full screen
+  // agent. As above, this file is the one place both are written out.
+  const GONE = [
+    'Tortie cannot scroll back through a session on another machine',
+    'That is everything this session has kept'
+  ];
+
+  function filesUnder(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...filesUnder(full));
+      else if (entry.isFile()) out.push(full);
+    }
+    return out;
+  }
+
+  it('appear in no file under src', () => {
+    const offenders: string[] = [];
+    for (const file of filesUnder(resolve(ROOT, 'src'))) {
+      if (file.endsWith('p100-remote-lines.test.tsx')) continue;
+      let source: string;
+      try {
+        source = readFileSync(file, 'utf8');
+      } catch {
+        continue;
+      }
+      for (const word of GONE) {
+        if (source.includes(word)) offenders.push(`${file}: ${word}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('are no longer exported, and neither is the rule that drew the second', () => {
+    const all = copy as unknown as Record<string, unknown>;
+    expect(all.READ_LAST_LINES_HERE_TITLE).toBeUndefined();
+    expect(all.READ_LINES_ALL_THERE).toBeUndefined();
+    expect((modal as unknown as Record<string, unknown>).showsAllThere).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The writing rules, over the sentences this phase adds
 // ---------------------------------------------------------------------------
 
 describe('the writing rules', () => {
   const sentences = [
-    copy.READ_LAST_LINES_HERE_TITLE,
     copy.READ_LINES_NOT_LIVE,
     copy.READ_LINES_CUT,
-    copy.READ_LINES_ALL_THERE,
     copy.READ_LINES_EMPTY,
     copy.READ_LINES_NO_SESSION,
     copy.READ_LINES_NO_BRIDGE,
