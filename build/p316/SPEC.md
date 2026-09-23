@@ -895,3 +895,335 @@ is that module-level X2b (`a: quitting, b: ok, tcpAfterLastStop: true`). At the 
 k0, X1c, X1d k3 and k4, X2b). If he wants it closed too, `startPocketDoor` would need a stop counter checked after its
 wait loop. That is a change to `bind.ts`, which this ruling did not ask for, and it would make the host-level tests
 above unable to tell the queue from it.
+
+---
+
+## §As built — 316.2
+
+Written by the integrator at `02c6b318` (origin/main, 313, 314 and 316.1 landed), over four builders' work in
+`/private/tmp/wt-p316`. Nothing was committed, staged or stashed. No Electron ran and no Simulator was created
+or booted; every iOS claim below is a BUILD for the Simulator SDK, a macOS XCTest run of the Door code, or a
+text gate. What the phone DOES on iOS is the verifiers' to measure under the lock.
+
+### What S2 got wrong about the tree at this head
+
+| # | S2 says | What is true | What was built |
+| --- | --- | --- | --- |
+| 1 | Files: builder D writes `build/p316/probe.mjs` and `vectors.mjs` | The task assigned `vectors.mjs` to A, and named the probe `probe-p316.mjs` | `build/p316/probe-p316.mjs` (D), `build/p316/vectors.mjs` (A, reruns itself under the pinned tsx, `--check`). D added `build/p316/node-phone.mjs` (a phone written from the wire format, Method A's reader) and `build/p316/test-ios.mjs` (the runner behind `test:ios`) |
+| 2 | Proof: the probe runs `TortieUITests` and an ATS unit test hosted in the app | No row of the Files table owned either, and `ios/TortieUITests/` did not exist. Every probe arm would have read UNREADABLE | The integrator wrote both, to the line protocol in the probe's header: `ios/TortieUITests/P316DriveUITests.swift` (`testDrive`: launch with the code, then `pair`, `list`, `open:<id>`, `conversation`, `first`, `unpaired`, each printing labels and frames from ONE accessibility snapshot, never a photograph, asserting nothing) and `ios/TortieTests/P316ATSTests.swift` (`testDialThroughSocks`: the SHIPPING `DoorClient` with a `.socks5` route to the stand-in, one `POST /pair`, one line). Both `XCTSkip` unless `P316_RUN` is set, so `test:ios` counts the ATS test as skipped |
+| 3 | Builder B: "a DEBUG-only payload given as a launch argument" in `PairingScreen.swift` | A put the argument reading in `Door/Pairing.swift` | `PairingDebugSeam` (`-TortieDebugPairingPayload`, `-TortieDebugForgetPairing`) inside `#if DEBUG` in `Door/Pairing.swift`, read once by `AppModel.launch()` inside `#if DEBUG`. The page arithmetic is A's `TurnPages` in `Door/Contract.swift`, not a screen |
+| 4 | "Both DEBUG seams" | A THIRD is needed. XCUITest waits for the app to go idle before and after every tap, and the attention dot's pulse repeats forever | `MotionDebugSeam` (`-TortieDebugStill`) inside `#if DEBUG` in `Screens/Pieces.swift`: the dot does not pulse, exactly as under Reduce Motion. It moves an opacity and nothing the probe reads. The Release binary holds none of the three (`strings`: 0 of `TortieDebug`, `MotionDebugSeam`, `PairingDebugSeam`, `DirectLoopbackTransport`, `127.0.0.1`; the Debug binary 6, 2, 2, 2, 2). An ablation moving it out of `#if DEBUG` reddens rule (d) on both the declaration and the read |
+| 5 | C: "the 14 colours" | 14 HEXES under 16 token names (`accent` and `statusWorking` share `#4d9de8`; `statusIdle` and `statusExited` share `#8b93a1`); 12 are drawn in S2 | `Tokens.swift` keeps all 16 names so the table matches the mocks; rule (a) reads 16 names onto 14 hexes of the dark base |
+| 6 | Signing: vectors "byte for byte" | CryptoKit's Ed25519 is randomized (A measured two signatures of one message differ); Node's is deterministic | The vectors hold the CANONICAL TEXT byte for byte, CryptoKit verifies Node's signature, and the door's own verifier accepts CryptoKit's (A's live run: 9 signed reads accepted) |
+| 7 | Method B: an unknown status word and an unknown dot "must end in a drawn sentence" | The status word and its title are MAIN's words (§4.0: every string the phone draws comes from main) and the phone computes nothing from them. Refusing the list over a word the phone has not seen would make every status word a later Mac adds a phone-breaking change | DRAWN, NOT REFUSED: the word is drawn as sent, an unknown dot as a ring with no colour of its own (`StatusDot.unknown`). `hostile-door.mjs` marks both arms `ends: 'drawn'` and exports `UNKNOWN_STATUS_TITLE`; the probe grades them as the list drawn, a dot on every row, main's unknown word on the dot's label, no failure sentence, the app alive. Every other hostile arm still ends in a sentence |
+| 8 | Method B: "each must end in a drawn sentence" (paging arms) | The conversation says a refused page of older turns in `conversation-older-line`, with the turns already read kept above it; the probe's sentence reader looked only for `*-failure` and `pairing-line` | The probe's `drawnSentence` also reads `conversation-older-line` |
+| 9 | Files, D: `build/p311/copy-drift.mjs` "reads Copy.swift; owns the pairing rows and Everything else; re-points the rest per §2 row 31" | Not built by any builder (the task did not give it to D) | The integrator built it. Six owed rows are OWNED by `ios/Tortie/Style/Copy.swift` now (the five pairing lines and "Everything else (9)"); the four message-box rows are owed to Phase 318; "Open in Terminal" is owed to no phase (removed, §7); "Open in Claude" to the phase that measures where the Remote Control URL is recorded; "Enter a code instead" to a later phase; "Tortie brings its own private network…" to 316.3. `OWNED_RULE_FLOOR` 26 → 33. And the gate READS `Copy.swift`: one owner line per word, every `/// Mac:` word the quoted module's word byte for byte (33 words, floor 30), every `/// Names:` control still said (3, floor 3), with six in-memory ablations in `--self-test`. It ports the rules `ios/TortieTests/CopyTests.swift` holds under XCTest, so a Mac with no Xcode still judges the phone's words |
+| 10 | 316.1 concern 8: "S2 must reconcile the phone mock's 'press Pair a phone'" | "Pair a phone" is the Mac sheet's GROUP HEADING (`PAIR_GROUP`) and cannot be pressed; the button is `BTN_PAIR = 'Pair'` | `docs/design/phone/Pairing.html` line 21 now reads "…open Settings then Phone and press Pair." — the phone's `Copy.pairStepOnMac` byte for byte, whose three nouns are pinned to the Mac by `/// Names:`. `CopyTests.testTheComposedLinesAreTheMocksLines` now holds that line too. One sentence of an approved mock changed; nothing else in `docs/design/phone/` moved |
+| 11 | §3.8: "the whole Simulator arm needs no team" | The SIGNATURE has none (`codesign -dv`: `Signature=adhoc`, `TeamIdentifier=not set`), but Xcode reads his team id from its own preferences and writes it into the Simulator build's SIMULATED entitlements even with `DEVELOPMENT_TEAM=''`: `Tortie.app-Simulated.xcent` holds `application-identifier` `<team>.com.itavero.tortie.phone`, the UI test runner's adds `keychain-access-groups`, and the Debug binary's `__TEXT,__entitlements` carries the id (4 `strings` hits) | Not changed. The id is his, already public at `electron-builder.yml:9`, and it is probably what lets the Keychain work in the Simulator. Named here because §3.8 said otherwise |
+| 12 | §3.4 pitfall (e) | Still happens. `~/Library/Caches/org.swift.swiftpm/package-collection.db-shm` moved at 14:38:30 during the integrator's own Release build (plain `xcodebuild`, derived data in scratch); D saw it move through `xcodebuildRun`, which passes every package-cache flag xcodebuild has | Named in `build/simulator-run.mjs`'s header rather than claimed away |
+| 13 | (not said) Xcode 26.3 | Builds Debug as a stub plus `Tortie.debug.dylib` and a previews dylib by default | `ENABLE_DEBUG_DYLIB = NO`, `ENABLE_PREVIEWS = NO` on the app target |
+| 14 | A: "a declared length over the cap is refused before its first byte" | URLSession holds back the response while it sniffs content when an answer has NO `Content-Type`, so such a 10 MiB answer ends at the 15 s timeout, not at once (A measured) | The door always sends `Content-Type` (`server.ts:162`), and the hostile door does too. Limit stated, not fixed |
+| 15 | (c) "a SOCKS proxy it builds never fails over" | `allowFailover` is ALREADY false by default (A measured), so taking the line out cannot redden a test | Held as text by rule (c) instead |
+| 16 | `seenAtWake`'s comment in `pocket.ts`: a client draws "since your Mac woke" | 316.1 moved every age into main (`ageText`, and `ageNote` for the wake) | The phone draws main's `ageText` and `ageNote` and no age of its own; the comment is stale and is the contract's to correct |
+| 17 | S4's checklist: fingerprint "four groups"; the mock draws three groups with dots | `pairFingerprint` draws six groups of four with spaces, on both screens | The probe compares the 24 hex digits; the drawn string is the Mac's six groups |
+| 18 | `DEVELOPMENT.md` (D's paragraph): the per-device log folder stays behind | `withSimulator` removes `~/Library/Logs/CoreSimulator/<own udid>` | The sentence says so |
+
+### Decisions the builders and the integrator took, and where each comes from
+
+- **Paired only after the first signed read** (316.1 nit P2b, the brief). `PairingFlow.run` presents every 2 s inside the window; on `allowed` it reads `/v1/blocked` SIGNED and writes the Keychain only when that answer comes back whole. `allowed` then a 404 ends `.notAccepted` with nothing kept (A's live run). The list draws that first answer without reading again (B). No Mac code changed.
+- **One network file** (§4 S2, rule c). `Door/DoorClient.swift`: https to an IPv4 literal only, the SPKI pin in the session delegate (a non-P-256 key cancels the challenge), 2 MiB counted as it arrives, 15 s request and resource timeouts, no redirect, cookie, cache or credential store, an empty proxy dictionary on the direct route, `allowFailover = false` on the SOCKS route. Every failure is a `DoorFailure` case with no words; `Screens/DoorWords.swift` is the one place a case becomes a `Copy` sentence.
+- **Release says "not paired"** (§4 S2). `DoorTransports.shipping` is nil outside DEBUG, so `LiveDoor` holds no client and the pairing screen draws `Copy.notPaired`.
+- **A 404 on the list goes to Pairing; a 404 on one session goes back to the list** (B, from S3's "goes to Pairing with one line"): the door's 404 does not say why, and the list's read decides. The kept pairing is NOT deleted on a 404, because a door that is quitting answers 404 too.
+- **Keychain** (§4 S2 builder A). One generic-password item, `WhenUnlockedThisDeviceOnly`, not synchronizable, written whole or removed whole; a record that does not read back is removed.
+- **Words** (§4.0). 55 words in `Copy.swift`: 33 the Mac's (each quoting its module byte for byte), 22 the phone's with a reason. Left out on purpose: the message box, "Open in …", "Enter a code instead", "Select", and the private-network line (false until 316.3).
+- **The probe's two channels** (integrator). Whether xcodebuild relays a test runner's stdout AS IT HAPPENS is unmeasured, and P1's Allow is a reaction to a line the UI test prints while it waits. So every line is written unbuffered to stdout AND appended to a scratch file the probe names (`P316_LINES`); each object carries `seq` and is read once from whichever channel brought it first. The file is read with `fs/promises`, never synchronously (pitfall b).
+- **The probe's reads bracket the app's** (integrator). The list step prints `list-before`, the probe reads the door, the app pulls to refresh, the app dumps, the probe reads again, so an age that ticks over a minute during the app's read is one of the ages the probe saw. The session is read by the node reader at the moment the app dumps it, not after the run. The list grader follows `Main.html`'s two row shapes (a waiting row `project · question`, every other row `status · project`) and counts `othersOmitted` in the second header.
+- **Ignored**: `ios/**/xcuserdata/` and `ios/**/*.xcuserstate` (C's hand-off; Xcode writes them the moment anybody opens the project).
+
+### Commands, as run by the integrator
+
+| Command | Exit | Reading |
+| --- | --- | --- |
+| `xcodebuild … -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath …/dd-integrator build` (ad hoc, no team) | 0 | 9.4 s; BUILD SUCCEEDED; 0 Swift warnings (one `appintentsmetadataprocessor` note) |
+| the same, `build-for-testing`, before and after the two new test files | 0, 0 | TEST BUILD SUCCEEDED both times, 0 Swift warnings; `P316DriveUITests` in the runner and `P316ATSTests` in `TortieTests.xctest` (nm) |
+| the same, `-configuration Release build` | 0 | `codesign -dv`: adhoc, `TeamIdentifier=not set`; the built plist holds exactly the one ATS exception; 0 seam strings (row 4) |
+| `node build/p316/vectors.mjs --check` | 0 | 0.64 s; 5 signed requests (+1 tampered), 2 pins, 2 seals, 3 QR payloads, 8 answers |
+| `npm run -s conformance:ios` | 0 | rules (a) to (j); 19 app files, 14 test files, 39 files under `ios/`; (d) finds three injection reads, all inside `#if DEBUG` |
+| `npm run -s ablation:p316` | 0 | 10.8 s; 20 of 20 arms red on their own rule; the clone removed, the tree unmoved |
+| the integrator's own ablation: `MotionDebugSeam` out of `#if DEBUG`, in a clone, `conformance-ios.mjs --root` | 1, as it must | (d) red on the declaration (line 268) and the launch-argument read (line 270); clone removed |
+| `npm run -s gate:simulator` | 0 | 0.27 s; 2 users against a floor of 2; 8 of 8 bad fixtures, 6 of 6 helper ablations |
+| `node build/p311/copy-drift.mjs --self-test` | 0 | 55 words, 33 judged against the Mac (floor 30), 22 the phone's, 3 named controls (floor 3); 33 owned rules matched (floor 33); 24 owed strings printed; 15 mutations red (6 of the mock, 6 of Copy.swift, 3 of the log rule) and the control green. An on-disk ablation (`messages` re-typed as `Message`) went red and `Copy.swift` was restored by sha256 |
+| `node build/p316/hostile-door.mjs --self-test` | 0 | 3.5 s; 15 arms serve what they claim; every listener closed |
+| `node build/p316/probe-p316.mjs --grader-self-test` | 0 | 9 of 9 dumps graded as they must be, after the two grader changes above |
+| `npm run -s typecheck` | 0 | tsc, import boundaries (58 fixtures, the `ios/` wall), no cycles, shared types |
+| `node build/assert-hermetic-checks.mjs` | 0 | the sixth type "Xcode and Go harness" |
+| `node build/assert-electron-teardown.mjs` | 0 | 152 of 152 (`HELPER_USER_FLOOR` 151 → 152 for `probe-p316.mjs`) |
+| `node build/assert-background-teardown.mjs` | 0 | 2 long-lived starts, both ended in a `finally`; 19 of 19 fixtures |
+| `node build/contract-inventory.mjs --check` | 0 | byte for byte; no channel moved in 316.2 |
+| `node build/assert-known-hosts-scoped.mjs` | 0 | — |
+| `npm run -s build` | 0 | 38.8 s; `gate:simulator` and `conformance:ios` ran inside it |
+| A's macOS XCTest harness over `ios/Tortie/Door/*.swift` and `ios/TortieTests/Door*.swift`, rerun | 0 | 63 tests, 0 failures (no Simulator, no keychain: `DoorKeychainTests` is iOS only) |
+| raw control bytes, over all 60 touched files | — | 0 files; tabs only in `project.pbxproj` (1,872) and `Info.plist` (64), Xcode's own formats, as in `build/entitlements.specstory.plist` |
+| end count | — | 0 devices named `p316-`, none booted; no Electron started |
+
+### The seams, read
+
+- `Door/Contract.swift` against `src/shared/ipc/pocket.ts`, field by field: `PocketBlockedRow` 14 of 14, `PocketSessionDetail` 6 more, `OverviewSessionActivity` 9 of 9, `PocketTurn` 11 of 11, the three answers and `{state}` of `/pair` (`server.ts:248`). Every field the contract always sends is required even when it may be null.
+- The signing input against `pairing.ts:1401-1411` and `server.ts:235` (`url.pathname + url.search`): seven lines, the method raised, the body's sha256, epoch ms, a 32-hex nonce inside 16 to 64, the binding (HKDF-SHA256 over X25519, salt `<dx>\n<phone xk>`, info `tortie-pocket-bind-v1`); `phoneIdOf` and `pairFingerprint` (`:886-899`).
+- The sealed presentation against `openPresentation` (`:1175-1213`): HKDF-SHA256(`ps`, empty salt, `tortie-pocket-pair-v1`), AES-256-GCM, iv 12 and tag 16, `{label, ek, xk}` inside `{iv, ct, tag}`, no `apt`/`ape` (so `presentedPush` answers no push).
+- `Copy.swift` against the Mac modules (now `conformance:phonecopy`), and `Tokens.swift` against the first `:root` of `tokens.css` (rule a).
+- Every accessibility identifier `probe-p316.mjs` and `P316DriveUITests.swift` read, checked against `Screens/Identifiers.swift` by script: all present.
+
+### Open concerns for the verifiers
+
+1. **Nothing has run on iOS.** Not `test:ios`, not one probe arm, not the Keychain. `DoorKeychainTests` and pairing's `store.save` depend on the Keychain working in a Simulator app signed ad hoc; if it does not, pairing ends `.couldNotSave` and draws "not paired" (row 11 is the likely reason it will work).
+2. **The live line.** P1 presses Allow when the UI test prints the fingerprint. If the Simulator's test runner cannot write the `P316_LINES` file AND xcodebuild does not relay stdout live, P1 cannot happen, and the arm reads a list that never came. The probe's report says `lines` per run; a zero there with a nonzero exit is this.
+3. **XCUITest and idle.** `-TortieDebugStill` removes the one animation that never ends; `ProgressView` spinners remain (list, conversation paging, the pairing foot). If a tap waits long for idle, the per-step `P316_WAIT_S` absorbs it; if it never returns, that is this concern.
+4. **Frames.** The 16 pt gutter, 28 pt headers and 6/16 row padding are from `Pieces.swift`'s `Frame`, and `RaisedLabel`'s accessibility label is the stored word, unraised: both are claims until `L1` reads them. `lineBox` sizes single lines to the mock's line box; the row's hairline sits inside the row's frame (1 pt, within the grader's 1.5 pt).
+5. **The unknown-word arms are graded as drawn** (row 7). A verifier who reads §4 S2 literally should attack that ruling rather than the arm.
+6. **The mock was edited** (row 10): one sentence of `Pairing.html`. It is the approved screen; he may prefer the phone to say something else, but the phone and the mock now agree and a gate holds both.
+7. **Named limits carried from the builders.** Pages whose indexes skip (a gap) are not refused, only ones that go backwards, overlap, repeat or run negative; `.inlineOnly` and `.inlineOnlyPreservingWhitespace` render the same characters on every input B measured, so no characters test tells them apart (a switch to `.full` is caught); removing `allowFailover = false` reddens only rule (c).
+8. **The attention dot's pulse under Reduce Motion is untested on a device**, and so is the camera scanner (the Simulator has none; S4 is where it is first used).
+9. **`probe:p316` has never run end to end.** Its first run is the verifier's. It needs `out/` (built here at 38.8 s) and the lock, and it takes two `build-for-testing` builds, one Electron, and three Simulators one after another.
+
+### The fix round (one pass, after lens 1 and lens 2 both answered needs_work)
+
+Written by the fixer in `/private/tmp/wt-p316` at `02c6b318`. Nothing was committed, staged or stashed. **No Electron
+ran.** The fixer took the lock twice (owner `p316`, released on the same command line both times) to drive the
+DEBUG app in Simulators made by `withSimulator`, against `hostile-door.mjs` on loopback, with a scratch driver
+that is not a repository file (`scratchpad/p316-2/fixer/fixer-drive.mjs`), and to run `test:ios`. That is the
+fixer checking its own fix, **not the reverify**: `probe:p316` against the real door is the reverifier's.
+
+| Finding | Where it was fixed | What changed | What was run |
+| --- | --- | --- | --- |
+| **Lens 1, major.** The conversation never loaded an older page. The spinner sat on screen and no page was asked for, so a conversation of more than 20 turns showed its newest 20 | `ios/Tortie/Screens/ConversationScreen.swift` | The GeometryReader preference (`TopEdge`, `coordinateSpace`, `onPreferenceChange`) is gone. The spinner now carries `.onScrollVisibilityChange(threshold: 0.01)` (iOS 18.0, inside the 18.1 floor), which calls the unchanged `model.top(visible:)`. `ConversationModel` and `TurnPages` did not change | Honest door, 45 turns, 3 pages: **45 of 45 drawn on iOS 26.3.1 and on 18.3.1**, `/v1/turns` asked 3 times each. At the parent it was 20 of 45 and 1 ask. `pages-backwards`, `pages-overlap`, `more-forever` and `more-negative` each drew `conversation-older-line` = `Copy.earlierTurnsUnreadable` with the turns already read kept above it (26.3; `pages-backwards` on 18.3 too). The app was alive (state 4) in every run |
+| Lens 1, major, second half: T1 passed on one page | `build/p316/probe-p316.mjs` D0 and T1 | D0 appends `PLANTED_TURNS` = 41 turns: the `**x**` turn first, which puts it on the OLDEST page, then 40 turns whose answers carry `**n**`. Timestamps are distinct, rising and inside the last minute. T1 now fails when the door holds the conversation on fewer than 2 pages | Not run: T1 needs the Electron. Verifier A's harness planted 47 turns in the same line shape, and the door read 47 |
+| **Lens 1, major.** L1 and F1 failed on a list that matches `Main.html` | `build/p316/probe-p316.mjs` `gradeList` and its `--grader-self-test` | The Swift is unchanged, because the layout is right. XCUITest reports a header container by the union of its children, which here is the 15.67 pt text, and a Text by its glyph box. The grader now works from positions. A header is `2 × (next row top − hairline − text centre)` = 28, with the words at x 16. A row's height is `6+22+2+20+6` plus the 1 pt hairline, so 57, or 56 for the very last row. The name's centre is at +17 and the second line's at +40. `rowGap`, `hairline`, `nameLine` and `secondLine` are read from `Main.html` at run time, as the others already were | `--grader-self-test`: 15 dumps. The honest one is verifier A's real iOS 26.3 frames, so a header container drawn as a text-sized box is green. The 24.17 pt gutter, a 30 pt header, a 26 pt header, a name 4 pt low, a second line 3 pt low, a missing hairline, a hairline on the last row and 8/16 padding are each red. **The new grader over verifier A's four REAL list dumps** (`va-run`, `va-run1`, `va-run5` on 26.3, and `va-run3` on 18.3) gave all four GREEN, with headers 28/28, rows 57/57/57/56, dots 16 in, and centres 17 and 40 |
+| **Lens 1, minor.** The four list arms served their body on pairing's first signed read, so they only ever drove the pairing screen, and `answerTooLarge` and `answerUnreadable` were never drawn | `build/p316/hostile-door.mjs`, `ios/TortieUITests/P316DriveUITests.swift`, `build/p316/probe-p316.mjs`, `ios/Tortie/Style/Copy.swift`, `ios/Tortie/Door/Pairing.swift`, `ios/TortieTests/DoorPairingTests.swift` | `huge-row`, `malformed`, `missing-fields` and `never-completes` are now `list: true`. They answer the FIRST signed `/v1/blocked` honestly (the event carries `honestFirst`) and every later one with their body, so the app pairs and the list's pull to refresh meets the body. The UI test gains a `sentence` step that waits for a sentence, because `never-completes` is said only after the client's 15 s. Every sentence arm names `at` (the element) and `expect` (its `Copy.swift` word), and the probe judges both, keeping the word's name and never its text. **Decision** (the verifier's "decide whether"): a first read that is too large or unreadable still ends pairing as `strangeAnswer` → `pairAnswerUnknown`. The phone is not paired, and the list's words are a paired phone's. `Copy.swift`'s comment and a comment at the mapping now say so | On iOS 26.3.1, each arm drew `list-failure` with 0 rows beside it, after an honest first read: `huge-row` `answerTooLarge` (also on 18.3.1), `malformed` `answerUnreadable`, `missing-fields` `answerUnreadable`, `never-completes` `macDidNotAnswer`. New XCTest `testAFirstReadThatCannotBeReadEndsItUnpaired`, over 4 failures after `allowed`: green, and red when `.tooLarge` was mapped to `.unreachable` in a clone. `hostile-door.mjs --self-test`: 15 of 15, and the list arms read honestly first |
+| Found while fixing: `more-negative` could never go below zero for the app | `build/p316/hostile-door.mjs` | The arm cut each page to the honest page's length, so an app asking 20 at a time reached index 0 and stopped quietly with no sentence. Every page is now the `limit` asked for, so the page below index 20 runs from −15 to 4 | 40 turns drawn, then refused with `earlierTurnsUnreadable`. The self-test pages it at 7 and again at the app's 20: 39 and 75 turns below zero |
+| Lens 1, nit: the `-L gmux` guard can raise a false alarm during a 17-minute run | `build/p316/probe-p316.mjs` header | One sentence: run it while he is not creating or ending sessions. `build/electron-run.mjs` is unchanged | — |
+
+**Not fixed, and why.**
+- **Lens 2, major: the Method B lens was never carried out.** That is a missing verification, not a defect in the
+  code. It cannot be fixed by the fixer, whose runs are not proof. The reverifier must run the hostile arms
+  itself, with `conformance:ios`, `ablation:p316` and the grep sweep.
+- **Lens 2, minor: two `npm run build` runs racing in one `out/`.** This is a workflow matter and no code
+  changed. This round ran exactly one build.
+- **Lens 1, nit: one CDP pocket call stalled 90 s after Remove.** It did not reproduce. It is recorded here and
+  nothing changed.
+
+**Nothing regressed for a person who never pairs.** No file under `src/` changed. The Swift change touches one
+view's paging trigger, and the rest is probe, door, test and comment text.
+
+**Commands this round, with exit codes.**
+
+| Command | Exit | Reading |
+| --- | --- | --- |
+| `xcodebuild … build-for-testing` (Simulator SDK, ad hoc, no team, `dd-fixer`), twice | 0, 0 | TEST BUILD SUCCEEDED; 0 Swift warnings |
+| builder A's macOS XCTest harness over `Door/*.swift` and `Door*Tests.swift` | 0 | 64 tests, 0 failures (was 63); the ablation clone exited 1 on the new test |
+| `node fixer-drive.mjs run 26.3 honest,pages-backwards,pages-overlap,more-forever,more-negative,huge-row,malformed,missing-fields,never-completes` (lock) | 0 | 9 of 9; 322 s; the device shut down and deleted; 0 `p316-` left |
+| `node fixer-drive.mjs run 18.3 honest,pages-backwards,huge-row` (lock) | 0 | 3 of 3; 141 s; 0 `p316-` left |
+| `P316_DERIVED_DATA=…/dd-fixer npm run -s test:ios` (lock, iOS 26.3.1) | 0 | 144 tests, 0 failures, 1 skipped (ATS), 35.4 s |
+| `node build/p316/probe-p316.mjs --grader-self-test` | 0 | 15 of 15 |
+| `node build/p316/hostile-door.mjs --self-test` | 0 | 15 of 15, 3.7 s |
+| `node build/p316/vectors.mjs --check` | 0 | 5 signed requests (+1 tampered), 2 pins, 2 seals, 3 QR payloads, 8 answers |
+| `npm run -s conformance:ios` | 0 | 10 rules; 19 app files, 14 test files, 39 files under `ios/` |
+| `npm run -s ablation:p316` | 0 | 20 of 20 red, 19 s |
+| `npm run -s gate:simulator` | 0 | 2 users, floor 2 |
+| `node build/p311/copy-drift.mjs --self-test` | 0 | phonecopy OK |
+| `node build/assert-hermetic-checks.mjs`, `assert-electron-teardown.mjs`, `assert-background-teardown.mjs`, `assert-import-boundaries.mjs`, `assert-known-hosts-scoped.mjs`, `contract-inventory.mjs --check` | 0 each | 152 of 152 (floor unchanged: no new script reaches `electron-run.mjs`); contract byte for byte |
+| `npm run -s typecheck` | 0 | — |
+| `npm run -s build` | 0 | 61 s; `gate:simulator` and `conformance:ios` inside it |
+| raw control bytes over the 8 files this round touched | — | 0 |
+
+**For the reverifier.** Re-run `probe:p316` whole. L1, F1, T1 (now at least 3 pages), H honest and the four
+paging arms must be green, and the four list arms must name `list-failure` and their `Copy` word. Then run the
+Method B lens that lens 2 never ran.
+
+### The overflow round (his ruling of 2026-09-23: "Yes, fix and land.")
+
+Written by the fixer in `/private/tmp/wt-p316` at `02c6b318`. Nothing was committed, staged or stashed. **No Electron
+ran.** The fixer took the lock four times (owner `p316`, released on the same command line every time) for
+`test:ios` on both runtimes and for the reverifier's own overflow arms. No Mac code moved and nothing of S3.
+
+The reverify found two things that ended the app, with checked-in code, on both runtimes: `othersOmitted = Int.max`
+on the list's refresh (`ListScreen.swift:88`, `others.count + max(0, answer.othersOmitted)`), and
+`userMessages = Int.max` on opening a session (`ActivityCells.swift:74`, `counts.user + replies`). Swift's `+` on an
+`Int` traps on overflow, and a trap ends the app.
+
+#### Every whole number the door sends, and what is done with it
+
+| Number | Where the app uses it | Before | Now |
+| --- | --- | --- | --- |
+| `othersOmitted` | the second header's count; `> 0`; `Copy.othersOmitted` (`String(n)`) | `others.count + max(0, n)`: a trap at `Int.max`; a negative count drawn as none | `DoorNumber.sum(others.count, n)`; nil throws `DoorFailure.malformed`, drawn as `Copy.answerUnreadable` |
+| `userMessages`, `agentMessages` | the Messages cell's total, the Last message cell's "anything said"; `grouped(n)`, `String(n)`, `== 0` | `counts.user + replies` and `counts.user + $0`: traps at `Int.max + 1` and `Int.min + -1`; `-1` drawn as `-1` | `counts` refuses a count outside the bound and `together` takes the sum through `DoorNumber.sum`; both cells THROW, `SessionDrawing.init` throws, `SessionModel` draws `Copy.answerUnreadable` |
+| `index` (a turn's) | `TurnPages`: comparisons, `olderBound`, the refresh's "turn after the newest held"; identifiers (`String(index)`); `&to=` in the page request | `heldLast.index + 1`: a trap once a page holding `Int.max` was held; `first.index - 1` (guarded `> 0`, could not trap) | `DoorNumber.sum(heldLast.index, 1)` and `DoorNumber.difference(first.index, 1)`; `check` refuses any index outside the bound, so a page holding one is refused |
+| `turnCount` | decoded, never used in arithmetic | — | decoded through the bound |
+| Epoch milliseconds (`at`, `blockedSince`, `lastMessageAt`, `readAt`, the QR's `exp`) | `/ 1000` into a `Date`, then formatted | Doubles, which never trap | Unchanged. Measured on macOS: `Date(timeIntervalSince1970:)` of ±1.797e308 ms and ±9.3e18 formats without a trap (an absurd clock is drawn). Named here as a limit; not an integer |
+| `Content-Length` (`expectedContentLength`, `Int64`) | compared with the 2 MiB cap | compare only | Unchanged |
+| The QR's `port` and `v` | range and equality checks; `UInt16(clamping:)` | compare only | Unchanged |
+
+Searched by grep over `ios/Tortie/` for `+`, `-`, `*`, `/`, `%`, their compound forms, `Int(`, `Int64(`, `UInt`,
+`...`, `..<`, `.count` and subscripts. No range, subscript, `Int(…)` of a Double, `abs`, `prefix(n)` or
+`repeating:count:` takes a door number.
+
+**THE BOUND.** Every whole number the contract carries is a count or an index, and main writes it with
+`JSON.stringify` from a JavaScript number, so the largest it can write exactly is `Number.MAX_SAFE_INTEGER`,
+9,007,199,254,740,991. `DoorNumber.largest` is that number, and `conformance:ios` compares the line with JavaScript's
+own constant rather than a second copy. A number outside `0...largest` refuses the WHOLE answer at decode
+(`KeyedDecodingContainer.doorNumber(forKey:)` and `nullableDoorNumber(forKey:)`, `Door/Contract.swift:57-69`),
+exactly as a missing field does, so the existing `DoorFailure.malformed` path draws the existing sentence. The same
+bound is asked again at every site, so a value that reaches a screen another way (a test, a later decoder) is refused
+there too. **One behaviour changed on purpose:** a negative `othersOmitted` was drawn as "none" (`max(0, n)`); it is
+now an unreadable answer, because no count is negative and main never sends one (`routes.ts:486`).
+
+**THE ONE CHECKED HELPER.** `enum DoorNumber` (`Door/Contract.swift:101`): `isCount`, `sum` with
+`addingReportingOverflow`, `difference` with `subtractingReportingOverflow`, each answering nil when an operand is
+outside the bound or the result overflows (and `difference` when it goes below zero). Inside the bound no sum can
+overflow (2 × largest is 2^54 − 2); the reporting forms are there so the property is local to the helper rather than
+depending on the decoder.
+
+**WHAT AN OVERFLOW DRAWS.** The screen's existing unreadable sentence, from `Copy.swift`:
+
+| Where | Sentence |
+| --- | --- |
+| the list (refresh, or the pairing's first read adopted) | `list-failure` = `Copy.answerUnreadable`, no row beside it |
+| one session | `session-failure` = `Copy.answerUnreadable`, no cell beside it |
+| the newest page of a conversation | `conversation-failure` = `Copy.answerUnreadable` |
+| an older page | `conversation-older-line` = `Copy.earlierTurnsUnreadable`, the turns already read kept (the existing line for a refused older page) |
+| pairing's first signed read | `Copy.pairAnswerUnknown`, nothing kept (the decision the first fix round recorded for an unreadable first read) |
+
+#### What changed
+
+| File | Change |
+| --- | --- |
+| `ios/Tortie/Door/Contract.swift` | `doorNumber(forKey:)`, `nullableDoorNumber(forKey:)`, `enum DoorNumber`; the five whole-number fields decoded through them; `TurnPages.check` refuses an index outside the bound; `olderBound` and `acceptNewest` take their difference and sum through `DoorNumber` (the refresh's "start again" moved into `startAgain(from:)`, same behaviour) |
+| `ios/Tortie/Screens/ListScreen.swift` | the second header's count through `DoorNumber.sum`; nil throws `DoorFailure.malformed` |
+| `ios/Tortie/Screens/ActivityCells.swift` | `counts` refuses a count outside the bound; `together` sums through `DoorNumber.sum`; `messages` and `lastMessage` throw |
+| `ios/Tortie/Screens/SessionScreen.swift` | `SessionDrawing.init` throws; `SessionModel.load` draws `Copy.answerUnreadable` when it does |
+| `ios/TortieTests/DoorContractTests.swift` | `testAWholeNumberNoDoorCouldSendRefusesTheAnswer`, `testTheCheckedArithmeticNeverTraps`, `testAnIndexNoDoorCouldSendIsRefused` |
+| `ios/TortieTests/ScreensDrawingTests.swift` | `testAnOmittedCountNoDoorCouldSendIsUnreadable`, `testCountsNoDoorCouldSendAreUnreadable`; the existing cell and session tests take `try` |
+| `ios/TortieTests/ScreensModelTests.swift` | `testAnOmittedCountNoDoorCouldSendIsOneSentence`, `testCountsNoDoorCouldSendAreOneSentence`, `testAnIndexNoDoorCouldSendIsOneSentence` |
+| `build/conformance-ios.mjs` | rule (k); the lexer records where each interpolation's code sits (`holes`), which only (k) reads |
+| `build/p316/ablation-ios.mjs` | arms `k1` to `k5`; every rule (a) to (k) must be proved |
+| `build/p316/probe-p316.mjs` | `gradeList` measures the right gutter; two self-test dumps at 24 pt |
+| `build/verification-checks.mjs` | the comment on `conformance:ios` and `ablation:p316` names (k) and 25 plants; no classification moved |
+
+#### The XCTest rows, per site, with `Int.max`, `Int.min` and `-1`
+
+| Site | Test | Values | Must |
+| --- | --- | --- | --- |
+| decode, all five fields | `testAWholeNumberNoDoorCouldSendRefusesTheAnswer` | `Int.max`, `Int.min`, `-1`, `2^53` as JSON digits; controls `0`, `3`, `2^53 − 1`, `null` | refuse the whole answer for each field; decode each control |
+| `DoorNumber` | `testTheCheckedArithmeticNeverTraps` | `Int.max`, `Int.min`, `-1`, `2^53` as either operand of `sum` and `difference`; the bound itself | nil, never a trap; `largest + largest` sums |
+| the list's sum | `testAnOmittedCountNoDoorCouldSendIsUnreadable`, `testAnOmittedCountNoDoorCouldSendIsOneSentence` | `Int.max`, `Int.min`, `-1`, `2^53`, with and without rows; the adopted first read | `DoorFailure.malformed`; `ListModel` state `.failed(Copy.answerUnreadable)`; no route to pairing; the bound itself drawn |
+| the session's sums | `testCountsNoDoorCouldSendAreUnreadable`, `testCountsNoDoorCouldSendAreOneSentence` | eleven pairs of `Int.max`, `Int.min`, `-1`, `2^53` and nil, `complete` and `partial` | both cells throw `.malformed`; `SessionDrawing` throws; `SessionModel` `.failed(Copy.answerUnreadable)`; two counts at the bound drawn |
+| the paging sum and difference | `testAnIndexNoDoorCouldSendIsRefused`, `testAnIndexNoDoorCouldSendIsOneSentence` | `Int.max`, `Int.min`, `-1`, `2^53` on the newest page, an older page and a refresh; the bound itself | refused, nothing kept, paging stopped; the newest page `Copy.answerUnreadable`, an older page `Copy.earlierTurnsUnreadable` with `[4, 5]` kept; a refresh at the bound keeps the older turns |
+
+The Door rows were proved able to fail: in a scratch clone with the two bound checks in the decoders and the one in
+`TurnPages.check` taken out, the macOS XCTest harness exited 1 with `testAWholeNumberNoDoorCouldSendRefusesTheAnswer`
+and `testAnIndexNoDoorCouldSendIsRefused` red on every out-of-bound value; the clone was removed.
+
+#### `conformance:ios` rule (k), and why it names every operator
+
+Text cannot follow a value. The session's trap was `counts.user + replies`: `counts` is a tuple a helper built from
+`userMessages`, and `replies` was bound from it, so no door field is written on the line that trapped. A rule that
+looked for door fields next to a `+` passes that defect. So (k) reads it the other way round, and that is what can be
+read honestly as text:
+
+- (k1) every whole-number field of the door's answers (`let x: Int` / `Int?` in `Contract.swift`) is assigned from
+  `doorNumber(` or `nullableDoorNumber(`, each of which asks `DoorNumber.isCount`; no `Int.self` (or `Int64.self`, …)
+  is decoded in `Contract.swift` anywhere else; the fields are DERIVED from those assignments (5, floor 5);
+- (k2) `DoorNumber` is declared once, holds no arithmetic operator of its own, calls `addingReportingOverflow` and
+  `subtractingReportingOverflow`, and its `largest` is `Number.MAX_SAFE_INTEGER` as node reads it;
+- (k3) EVERY arithmetic operator in `ios/Tortie/` (`+ - * / %`, the compound and wrapping forms, a prefix `-` on
+  anything but a literal, inside `\(…)` interpolations too) is proved off the integers by its own text (an operand
+  that is a string literal, `String(…)`, `Double(…)`/`Float(…)`/`CGFloat(…)`, a `static let NAME = "…"` constant, a
+  floating literal, or two integer literals), or NAMED in `ARITHMETIC_NAMED` by file and line with how many
+  operators the line holds and why; each entry must match exactly that many, so the table can neither rot nor wave a
+  new operator through; and an operand naming a door field as a member (or bare, inside the contract) is red whatever
+  the table says.
+
+At this tree: 77 operators in 19 files, 42 proved by their text, 35 named in 32 entries, none on a door number.
+Twenty-three new scanner fixtures prove (k) before any file is read, including both shipped defects, an alias, an
+interpolation, a named line that grew an operator, a stale entry, and a door field a named line tries to launder.
+
+**Measured at the parent.** The four app files were rebuilt in a scratch clone from this round's edits in reverse,
+and their sha256 matched the pre-fix digests recorded before the first edit (`Contract.swift` `a1f22bb4…`,
+`ListScreen.swift` `07bc1220…`, `ActivityCells.swift` `0c9602f9…`, `SessionScreen.swift` `f4a797a4…`). The new gate
+over that clone (`--root`) exited 1 with (k) red on 19 findings: `ListScreen.swift:88`, `ActivityCells.swift:74` and
+`:114`, `Contract.swift:416` and `:431`, the five unbounded `Int.self` decodes, the five unbounded fields, no bounded
+decoder and no helper. The clone was removed.
+
+**What (k) does not read**, stated rather than claimed away: a range over a door number (`a...b` traps when a > b), a
+subscript, `Int(…)` of a Double, `abs`, `prefix(n)`. None exists in the app today (the audit above), and the decode
+bound keeps every door number a non-negative count.
+
+`ablation:p316`: 25 of 25 arms red on the rule that owns them, 12.5 s. `k1` puts the list's trap back as it shipped,
+`k2` the session's (`counts.user + replies`, the alias), `k3` takes the paging sum bare, `k4` decodes
+`othersOmitted` with no bound, `k5` makes the helper add bare; each reddened (k) and nothing else.
+
+#### Item 2: the right gutter
+
+`gradeList` now measures each row's right gutter: the window's width less the rightmost of the row's parts (dot,
+name, machine badge, age, second line), which is the age. The row's own frame spans the window because the whole row
+is the tap target, so its words, not its frame, are what the mock's `.row { padding: 6px 16px }` places 16 pt in. A
+row with no age is a problem by name. The frames report carries `rightGutter`. Two self-test dumps: every row's
+words ending 24 pt from the edge, and one row only; both red, 17 of 17 graded as they must be. Over verifier A's four
+REAL list dumps (three on iOS 26.3, one on 18.3, the real door) every row reads `rightGutter` 16 and all four stay
+green. The reverifier's own paging arm read `lineRight` 16/16/16 on both runtimes against this build.
+
+#### The reverifier's own overflow arms, against this build
+
+The reverifier's door (`rv/rv-door.mjs`, unchanged) and a copy of its driver (`fx/rv-drive-fx.mjs`: derived data
+`dd-fixer2`, outputs in `fx/rv-out`, and STRICTER graders for the two overflow arms, which must now draw
+`Copy.answerUnreadable` with the app alive, not merely stay alive). The door answers `othersOmitted`
+`9223372036854775807` on the list's refresh, and `userMessages` `9223372036854775807` with `agentMessages` 1 on
+`/v1/session`, as the digits the reverifier wrote.
+
+| Runtime | Arm | App state at the end | Drawn | Beside it | Hostile answers served |
+| --- | --- | --- | --- | --- | --- |
+| iOS 26.3.1 | `list-overflow` | 4 (running, foreground) | `list-failure` = `Copy.answerUnreadable` | 0 rows, no second header | 1 |
+| iOS 26.3.1 | `session-overflow` | 4 | `session-failure` = `Copy.answerUnreadable` (the `session` dump, not `session-missing`) | no Messages cell | 1 |
+| iOS 18.3.1 | `list-overflow` | 4 | `list-failure` = `Copy.answerUnreadable` | 0 rows, no second header | 1 |
+| iOS 18.3.1 | `session-overflow` | 4 | `session-failure` = `Copy.answerUnreadable` | no Messages cell | 1 |
+
+At the parent the same four read state 1 (not running) with nothing drawn (`rv/results-263-38143.json`,
+`rv/results-183-91041.json`).
+
+Controls, all PASS: `paging` on both runtimes (57 of 57 turns paged to the first, the list's frames
+28/28 and 57/57/56 with 16 pt on both sides, and the session's Messages cell `113`, `57 you · 56 agent`, taken
+through the checked sum from the real door's answer); and, in a third run, `older-negative`, `older-backwards` and
+`list-malformed` on 26.3 (a negative index is now refused at decode rather than by `check`, and still draws `Copy.earlierTurnsUnreadable`
+with the turns read kept).
+
+#### Commands this round, with exit codes
+
+| Command | Exit | Reading |
+| --- | --- | --- |
+| `swift dates.swift` (scratch; `Date` of ±1.797e308, ±9.3e18, 1e300, 0 ms, formatted two ways) | 0 | no trap on any |
+| builder A's macOS XCTest harness over `Door/*.swift` and `Door*Tests.swift` | 0 | 67 tests, 0 failures (was 64) |
+| the same over a clone with the three bound checks taken out | 1, as it must | the two new Door rows red on every out-of-bound value |
+| `xcodebuild build-for-testing` (Simulator SDK, ad hoc, no team, `dd-fixer2`, no device) | 0 | TEST BUILD SUCCEEDED, 11.9 s, 0 warnings, 0 errors |
+| `npm run -s conformance:ios` | 0 | 11 rules; (k): 5 door numbers bounded, 77 operators, 42 proved, 35 named in 32 entries |
+| `node build/conformance-ios.mjs --root <parent clone>` | 1, as it must | (k) red, 19 findings |
+| `npm run -s ablation:p316` | 0 | 25 of 25 arms red on their own rule, the clone removed, the tree unmoved |
+| `node build/p316/probe-p316.mjs --grader-self-test` | 0 | 17 of 17 |
+| the grader over verifier A's four real list dumps | 0 | 4 green, `rightGutter` 16 on every row |
+| `node build/p316/vectors.mjs --check` | 0 | 5 signed requests (+1 tampered), 2 pins, 2 seals, 3 QR payloads, 8 answers |
+| `npm run -s typecheck` | 0 | — |
+| `assert-simulator-teardown`, `assert-hermetic-checks` (twice, the second after the comment edit), `assert-electron-teardown`, `assert-background-teardown`, `contract-inventory --check`, `assert-import-boundaries`, `assert-known-hosts-scoped`, `copy-drift --self-test`, `hostile-door --self-test` | 0 each | floors unchanged (152 Electron users, 2 Simulator users); contract byte for byte |
+| `P316_DERIVED_DATA=…/dd-fixer2 npm run -s test:ios` (lock, iOS 26.3.1) | 0 | 152 tests, 0 failures, 1 skipped (ATS), 32.2 s |
+| the same with `P316_RUNTIME=18.3` (lock) | 0 | 152 tests, 0 failures, 1 skipped, 29.9 s |
+| `node fx/rv-drive-fx.mjs 26.3 list-overflow,session-overflow,paging` (lock) | 0 | 3 of 3, 130 s; the device shut down and deleted |
+| `node fx/rv-drive-fx.mjs 18.3 list-overflow,session-overflow,paging` (lock) | 0 | 3 of 3, 110 s; the device shut down and deleted |
+| `node fx/rv-drive-fx.mjs 26.3 older-negative,older-backwards,list-malformed` (lock) | 0 | 3 of 3, 122 s |
+| raw control bytes over the 11 files this round touched | — | 0 |
+| end count | — | 0 devices named `p316-`, 0 booted, the lock released; no Electron started by this round |
+
+**Not done, and why.** `probe:p316` was not re-run (it needs the Electron; the only probe change is the grader's
+right gutter, proved above on real dumps). `hostile-door.mjs` gained no overflow arm, because the ruling named the
+XCTest rows and the gate; the reverifier's own door carried the live arms. `npm run -s build` was not run, so that no
+second build races in `out/`; the two gates it runs for the phone (`conformance:ios`, `gate:simulator`) were run
+directly. The gate index in `CLAUDE.md` still describes `conformance:ios` as "rules a to j" with "20 plants"; it is
+now (a) to (k) with 25, and that row is left for the main session to change. An absurd epoch (±1e308 ms) is drawn
+as a nonsense clock rather than refused; it cannot trap, and it is not an integer.

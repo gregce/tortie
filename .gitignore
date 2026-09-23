@@ -36,3 +36,9 @@ docs/arch/
 # here; the finished research goes to docs/research/ and the reusable helpers to
 # build/pNNN/. Nothing under here is ever part of the product.
 .p[0-9]*/
+
+# Phase 316.2: Xcode writes per-user state beside the committed project the
+# moment anybody opens it (breakpoints, the last scheme, window layout). The
+# committed .xcodeproj and its shared scheme are the source of truth.
+ios/**/xcuserdata/
+ios/**/*.xcuserstate

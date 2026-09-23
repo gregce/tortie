@@ -44,6 +44,24 @@ PATH. It is NOT needed to run a packaged Tortie. Since Phase 41 the app carries
 its own tmux 3.7b at `Contents/Resources/bin/tmux` and a packaged build resolves
 only that path.
 
+**The iPhone app needs Xcode for two checks and nothing else** (Phase 316). The
+app lives in `ios/`, and the committed `ios/Tortie.xcodeproj` is its source of
+truth: no project generator, no Swift package, nothing fetched. Every check the
+Mac app runs (`typecheck`, `build`, `test`, the smokes and `package`) needs only
+what is listed above, because `conformance:ios` and `gate:simulator` run inside
+`npm run build` and read the Swift, the plists and the scripts as text in plain
+node. `test:ios` and `probe:p316` need the full Xcode (26.3 is the version they
+are verified on) with the iOS 26.3 and iOS 18.3 Simulator runtimes, the second
+because the app's floor is iOS 18.1 and the phone it is for runs 18. They need
+no Apple account, no team and no keychain: a Simulator build signs ad hoc
+(`DEVELOPMENT_TEAM=''`, `CODE_SIGN_IDENTITY=-`). They create, boot, shut down
+and delete their own Simulator through `build/simulator-run.mjs` and never start
+Simulator.app, and `build/verification-checks.mjs` files them under the check
+type "Xcode and Go harness", because no CI runner has Xcode and Simulator state
+lands under your home while a device lives (`simctl delete` leaves a small log
+folder under `~/Library/Logs/CoreSimulator`, which the helper removes for the
+devices it made).
+
 ```sh
 npm install        # postinstall applies patches/ then runs electron-rebuild for node-pty + better-sqlite3
 npm run dev        # electron-vite dev server + Electron with HMR

@@ -39,7 +39,7 @@
  *     directions: every check script in package.json (the test, smoke, probe,
  *     conformance, gate, pin, assert and verify families) has exactly one
  *     entry, no entry names a script that does not exist, every entry's type
- *     is one of the five (or `aggregate` with members that are themselves
+ *     is one of the six (or `aggregate` with members that are themselves
  *     entries), and every entry states a nonempty environment requirement and
  *     skip rule.
  *  5. NO TEST SOURCE UNDER src/ RESOLVES A HOME DIRECTORY THROUGH THE PASSWD
@@ -69,6 +69,14 @@
  *     lane reads that file through .github/actions/setup. Its three readers
  *     are proved on fixtures, for the same reason rules 4 and 5 prove theirs.
  *
+ *  7. THE SIXTH TYPE REFUSES OUT LOUD (Phase 316.2). "Xcode and Go harness" is
+ *     the one type whose toolchain is missing from most machines that build
+ *     Tortie, so it is the one type that could be tempted to pass quietly when
+ *     it cannot run. Every entry of it states exactly `XCODE_SKIP`, and the
+ *     script its package.json line runs imports build/simulator-run.mjs, calls
+ *     its preflight `simulatorHarnessMissing(` and exits 2: a sentence naming
+ *     what is absent, never a green line. The reader is proved on three texts.
+ *
  * Run it with `npm run gate:checks`. It also runs inside `npm run build`, so
  * nothing that builds can skip it.
  */
@@ -76,7 +84,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHECKS, CHECK_TYPES } from './verification-checks.mjs';
+import { CHECKS, CHECK_TYPES, XCODE_HARNESS, XCODE_SKIP } from './verification-checks.mjs';
 // The namespace too, so clause 6 can say which export is missing rather
 // than dying on a named import before it prints anything.
 import * as verificationChecks from './verification-checks.mjs';
@@ -161,7 +169,7 @@ for (const name of checkScripts) {
   if (!byName.has(name)) {
     fail(
       `the check script "${name}" has no entry in ` +
-        `build/verification-checks.mjs. Classify it as one of the five types ` +
+        `build/verification-checks.mjs. Classify it as one of the six types ` +
         `and state its environment requirement and skip rule.`
     );
   }
@@ -608,6 +616,89 @@ if (nvmrcVersion !== null && runtimeTableReadable) {
 }
 
 // ---------------------------------------------------------------------------
+// 7. The sixth type refuses with a sentence, and never passes quietly
+// ---------------------------------------------------------------------------
+
+/** The script file a package.json line runs with `node`, or null. */
+function scriptFileOf(line) {
+  const m = /(?:^|&&\s*|\s)node\s+(build\/[^\s'"]+\.mjs)\b/.exec(String(line ?? ''));
+  return m === null ? null : m[1];
+}
+
+/**
+ * Proved on fixtures below: does this script refuse by name when Xcode is
+ * absent? The FIRST exit after the preflight's call must be exit 2, so an exit
+ * 2 elsewhere in the file cannot stand in for the one the preflight takes.
+ */
+function refusesWhenAbsent(text) {
+  const code = codeOnly(text);
+  if (!/from\s+['"](?:\.\.?\/)+simulator-run\.mjs['"]/.test(text)) return false;
+  const at = code.search(/\bsimulatorHarnessMissing\s*\(/);
+  if (at === -1) return false;
+  const next = /\bprocess\.exit\s*\(\s*(\d+)\s*\)/.exec(code.slice(at));
+  return next !== null && next[1] === '2';
+}
+
+const XCODE_FIXTURES = [
+  {
+    why: 'the shipping shape',
+    text: "import { simulatorHarnessMissing } from '../simulator-run.mjs';\nconst why = simulatorHarnessMissing();\nif (why !== null) { console.error(why); process.exit(2); }\n",
+    want: true
+  },
+  {
+    why: 'a script that exits 0 when Xcode is absent',
+    text: "import { simulatorHarnessMissing } from '../simulator-run.mjs';\nif (simulatorHarnessMissing() !== null) process.exit(0);\n",
+    want: false
+  },
+  {
+    why: 'an exit 2 elsewhere standing in for the preflight, which exits 0',
+    text: "import { simulatorHarnessMissing } from '../simulator-run.mjs';\nif (simulatorHarnessMissing() !== null) process.exit(0);\nif (badScratch) process.exit(2);\n",
+    want: false
+  },
+  {
+    why: 'the preflight named only in prose',
+    text: "import { withSimulator } from '../simulator-run.mjs';\n// simulatorHarnessMissing() would say what is absent\nprocess.exit(2);\n",
+    want: false
+  }
+];
+for (const one of XCODE_FIXTURES) {
+  if (refusesWhenAbsent(one.text) === one.want) continue;
+  fail(`clause 7's reader got "${one.why}" wrong. It answered ${String(!one.want)}.`);
+}
+
+let xcodeEntries = 0;
+for (const entry of CHECKS) {
+  if (entry.type !== XCODE_HARNESS) continue;
+  xcodeEntries += 1;
+  if (entry.skip !== XCODE_SKIP) {
+    fail(
+      `"${entry.name}" is an ${XCODE_HARNESS} and states the skip rule ` +
+        `"${entry.skip}". Every entry of that type states XCODE_SKIP: it ` +
+        `refuses with a sentence naming what is absent and never passes quietly.`
+    );
+  }
+  const file = scriptFileOf(pkg.scripts?.[entry.name]);
+  if (file === null) {
+    fail(`"${entry.name}" runs no build/*.mjs script this gate can read, so nothing proves it refuses when Xcode is absent.`);
+    continue;
+  }
+  let text = '';
+  try {
+    text = readFileSync(join(repoRoot, file), 'utf8');
+  } catch {
+    fail(`"${entry.name}" runs ${file}, which does not exist.`);
+    continue;
+  }
+  if (!refusesWhenAbsent(text)) {
+    fail(
+      `${file} ("${entry.name}") does not import build/simulator-run.mjs, call ` +
+        `simulatorHarnessMissing() and exit 2 with its sentence. On a machine ` +
+        `with no Xcode it would pass or fail for a reason nobody named.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Verdict
 // ---------------------------------------------------------------------------
 
@@ -636,6 +727,10 @@ process.stdout.write(
     `.nvmrc ${String(nvmrcVersion)}, with tsxCli() calling the preflight ` +
     `(${String(BODY_FIXTURES.length)} body fixtures and ` +
     `${String(RANGE_FIXTURES.length)} range fixtures behaving).\n`
+);
+process.stdout.write(
+  `  ${String(xcodeEntries)} ${XCODE_HARNESS} entr${xcodeEntries === 1 ? 'y' : 'ies'} ` +
+    `refuse by name when Xcode is absent (${String(XCODE_FIXTURES.length)} reader fixtures behaving).\n`
 );
 for (const type of [...CHECK_TYPES, 'aggregate']) {
   const n = counts.get(type) ?? 0;

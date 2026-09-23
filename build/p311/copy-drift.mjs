@@ -204,6 +204,16 @@ const STATUS = 'src/shared/status-words.ts';
 const OVERVIEW_COPY = 'src/shared/overview-copy.ts';
 const MANAGER_COPY = 'src/renderer/session-manager/copy.ts';
 const REGISTRY = 'src/main/agents/registry.ts';
+/**
+ * THE PHONE'S OWN WORDS (Phase 316.2). The iPhone app draws every word the door
+ * does not send from one Swift file, and each word there says who owns it on
+ * the line above it. The mock's pairing rows and its second list header are the
+ * phone's words, so they are OWNED by that file now rather than owed; and the
+ * file's `/// Mac:` lines are judged below against the Mac modules they quote,
+ * byte for byte, so the phone cannot drift from the Mac without this gate
+ * saying so (build/p316/SPEC.md §4.0 "Words", §2 row 31).
+ */
+const PHONE_COPY = 'ios/Tortie/Style/Copy.swift';
 
 const LEDGER = [
   // -------------------------------------------------------------------------
@@ -226,6 +236,54 @@ const LEDGER = [
     needle: "CHOICE_NOT_PRESSABLE = 'Answer this in the session.'",
     draws: 'Answer this in the session.',
     why: 'why the numbered choices are drawn unpressable until the operator rules'
+  }),
+  // PHASE 316.2 LANDED THESE. They were owed by Phase 313 (the pairing screen)
+  // and Phase 316 (the second header) while no app existed; the app's
+  // Style/Copy.swift owns them now, one `static let` each.
+  owned({
+    is: 'Everything else (9)',
+    module: PHONE_COPY,
+    needle: 'static let everythingElseLead = "Everything else ("',
+    draws: 'Everything else (',
+    why: "the second section header on the phone's list, every session that is not waiting (his ruling of 2026-09-22); ⌘J draws only the blocked section"
+  }),
+  owned({
+    is: 'Pair with your Mac',
+    module: PHONE_COPY,
+    needle: 'static let pairTitle = "Pair with your Mac"',
+    draws: 'Pair with your Mac',
+    why: "the pairing screen's title"
+  }),
+  owned({
+    // The approved mock said "press Pair a phone", which is the Mac's group
+    // HEADING and cannot be pressed; the button under it is "Pair" (316.1 as
+    // built, concern 8). The mock's line was corrected to the phone's in 316.2.
+    is: 'In Tortie on your Mac, open Settings then Phone and press Pair.',
+    module: PHONE_COPY,
+    needle: 'static let pairStepOnMac = "In Tortie on your Mac, open Settings then Phone and press Pair."',
+    draws: 'In Tortie on your Mac, open Settings then Phone and press Pair.',
+    why: 'the first step of pairing; its three nouns are the Mac\'s own, pinned by the `/// Names:` lines above it in Copy.swift'
+  }),
+  owned({
+    is: 'Point this at the QR code in Tortie on your Mac.',
+    module: PHONE_COPY,
+    needle: 'static let pairStepScan = "Point this at the QR code in Tortie on your Mac."',
+    draws: 'Point this at the QR code in Tortie on your Mac.',
+    why: 'the second step of pairing'
+  }),
+  owned({
+    is: 'Check this matches your Mac',
+    module: PHONE_COPY,
+    needle: 'static let pairMatchLabel = "Check this matches your Mac"',
+    draws: 'Check this matches your Mac',
+    why: "research 127 §7 item 18's fingerprint match, which binds a pairing to a key rather than a name"
+  }),
+  owned({
+    is: 'Your Mac will ask you to allow this iPhone. Nothing is paired until you do.',
+    module: PHONE_COPY,
+    needle: 'static let pairMatchNote = "Your Mac will ask you to allow this iPhone. Nothing is paired until you do."',
+    draws: 'Your Mac will ask you to allow this iPhone. Nothing is paired until you do.',
+    why: 'the promise that a human confirms every pairing on the Mac'
   }),
   owned({
     is: 'Needs your input (3)',
@@ -514,40 +572,40 @@ const LEDGER = [
     phase: 'Phase 317',
     why: 'the multi-select affordance for End these; no Tortie surface has the word today'
   }),
-  owed({
-    is: 'Everything else (9)',
-    phase: 'Phase 316',
-    why: "the second section header on the phone's list; ⌘J draws only the blocked section"
-  }),
+  // RE-POINTED IN PHASE 316.2 (build/p316/SPEC.md §2 row 31, §7). The message
+  // box stays the approved design for the reply door, so its four rows are owed
+  // there; the ssh hand-off is removed from the product and owed to nobody; and
+  // "Open in Claude" waits for the phase that first measures where the Remote
+  // Control URL is recorded.
   owed({
     is: 'Send',
-    phase: 'Phase 316',
-    why: "the composer's press. The reply door is Phase 317's successor and nothing ships this word yet"
+    phase: 'Phase 318',
+    why: "the composer's press. The reply door is Phase 318 and nothing ships this word yet"
   }),
   owed({
     is: 'Message this session',
-    phase: 'Phase 316',
+    phase: 'Phase 318',
     why: "the composer's placeholder and its label"
   }),
   owed({
     is: 'Goes to this session as one message.',
-    phase: 'Phase 316',
+    phase: 'Phase 318',
     why: 'the sentence under the composer that says the reply is one message rather than keystrokes'
   }),
   owed({
     is: 'Sending…',
-    phase: 'Phase 316',
+    phase: 'Phase 318',
     why: "the composer's in-flight word"
   }),
   owed({
     is: 'Open in Terminal',
-    phase: 'Phase 316',
-    why: "the ssh hand-off's press, research 127 §4"
+    phase: 'no phase: removed by Phase 316 (build/p316/SPEC.md §7)',
+    why: "the ssh hand-off's press, research 127 §4. The app's tailnet node is private to the app and the grant allows only the door's port, so an ssh link could reach nothing. The approved Session.html still draws it until the screen is redrawn"
   }),
   owed({
     is: 'Open in Claude',
-    phase: 'Phase 316',
-    why: "the Remote Control hand-off's press, research 127 §4"
+    phase: 'the phase that first measures where the Remote Control URL is recorded',
+    why: "the Remote Control hand-off's press, research 127 §4. No module in src/ has the URL, and the door answers `handoff: null` (build/p316/SPEC.md §2 row 20)"
   }),
   owed({
     is: 'End with Face ID',
@@ -581,39 +639,14 @@ const LEDGER = [
     why: "the mock's own note about the push, drawn on the lock screen sheet rather than in a caption. Phase 314 REFUSED the question line — a native alert is JSON Apple reads — so the decrypting extension that would add it is later Swift and its own entry, and this note is owed there rather than to 314"
   }),
   owed({
-    is: 'Pair with your Mac',
-    phase: 'Phase 313',
-    why: "the pairing screen's title"
-  }),
-  owed({
-    is: 'In Tortie on your Mac, open Settings then Phone and press Pair a phone.',
-    phase: 'Phase 313',
-    why: 'the first step of pairing, which names a Settings surface that does not exist yet'
-  }),
-  owed({
-    is: 'Point this at the QR code in Tortie on your Mac.',
-    phase: 'Phase 313',
-    why: 'the second step of pairing'
-  }),
-  owed({
-    is: 'Check this matches your Mac',
-    phase: 'Phase 313',
-    why: "research 127 §7 item 18's fingerprint match, which binds a pairing to a key rather than a name"
-  }),
-  owed({
-    is: 'Your Mac will ask you to allow this iPhone. Nothing is paired until you do.',
-    phase: 'Phase 313',
-    why: 'the promise that a human confirms every pairing on the Mac'
-  }),
-  owed({
     is: 'Tortie brings its own private network. There is nothing else to install.',
-    phase: 'Phase 315',
-    why: 'the embedded tailnet node, which Phase 315 measures before a line of Swift'
+    phase: 'Phase 316.3',
+    why: 'the embedded tailnet node. It is false until 316.3 carries the node inside the app, so 316.2 does not draw it'
   }),
   owed({
     is: 'Enter a code instead',
-    phase: 'Phase 313',
-    why: 'the pairing fallback when a camera cannot read the code'
+    phase: 'a later phase (build/p316/SPEC.md §7)',
+    why: 'the pairing fallback when a camera cannot read the code. The payload is several hundred characters and no short-code design exists'
   })
 ];
 
@@ -626,7 +659,7 @@ const OWED_ABSENCE_FLOOR = 16;
  * floor is what keeps this gate a comparison rather than a census. A deliberate
  * removal lowers it in the same commit and names the rule.
  */
-const OWNED_RULE_FLOOR = 26;
+const OWNED_RULE_FLOOR = 33;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -795,6 +828,204 @@ function checkContactSheet(names, sheet) {
   }
   return findings;
 }
+
+// ---------------------------------------------------------------------------
+// The phone's own words, read from Style/Copy.swift (Phase 316.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Copy.swift's shape, as its header states it: every string literal is the
+ * whole right side of a one line `static let`, and the doc comment directly
+ * above it says who owns the word, exactly once:
+ *
+ *   /// Mac: <file> ⟦<needle>⟧     the Mac already says it; <needle> is copied
+ *                                  from <file> byte for byte and the value is
+ *                                  the Mac's word inside it, unchanged
+ *   /// Phone: <why>                no Mac surface draws it; the reason is the
+ *                                  ledger entry
+ *   /// Names: <file> ⟦<needle>⟧   (beside a Phone line) a Mac control the line
+ *                                  names; the word <needle> quotes must be in
+ *                                  the line, so a renamed button cannot leave
+ *                                  the phone giving directions to a word gone
+ *
+ * The same rules ios/TortieTests/CopyTests.swift holds under XCTest, read here
+ * as text in plain node, so a machine with no Xcode still judges the phone's
+ * words on every run of this gate. Pure over its inputs so the self-test can
+ * mutate the file and the modules in memory.
+ */
+const PHONE_MAC_FLOOR = 30;
+const PHONE_NAMES_FLOOR = 3;
+
+/** `src/x.ts ⟦text⟧` to [path, text], or null. */
+function pathAndNeedle(body) {
+  const t = body.trim();
+  const open = t.indexOf(' ⟦');
+  if (open === -1 || !t.endsWith('⟧')) return null;
+  const path = t.slice(0, open);
+  const needle = t.slice(open + 2, -1);
+  if (path === '' || path.includes(' ') || needle === '') return null;
+  return [path, needle];
+}
+
+/** The word a needle quotes: `BTN_PAIR = 'Pair'` quotes `Pair`. */
+function quotedWord(needle) {
+  const first = needle.indexOf("'");
+  if (first === -1) return null;
+  const second = needle.indexOf("'", first + 1);
+  if (second === -1) return null;
+  const word = needle.slice(first + 1, second);
+  return word === '' ? null : word;
+}
+
+/**
+ * Whether the phone's word is the Mac's word inside `needle`, unchanged. A
+ * needle that quotes a word owns exactly that word, less a full stop or space
+ * the Mac composes after it; a needle that quotes nothing must hold the word
+ * with no letter or digit touching either end, so a word cut short is refused.
+ */
+function macWordHolds(literal, needle) {
+  const word = quotedWord(needle);
+  if (word !== null) {
+    if (literal === word) return true;
+    const trimmed = word.replace(/[. ]+$/u, '');
+    return trimmed !== '' && literal === trimmed;
+  }
+  const touches = (ch) => ch !== undefined && /[\p{L}\p{N}]/u.test(ch);
+  let from = 0;
+  for (;;) {
+    const at = needle.indexOf(literal, from);
+    if (at === -1) return false;
+    if (!touches(needle[at - 1]) && !touches(needle[at + literal.length])) return true;
+    from = at + 1;
+  }
+}
+
+/** Parse Copy.swift into its words and the problems with its shape. */
+function copySwiftEntries(swift) {
+  const entries = [];
+  const problems = [];
+  let block = [];
+  swift.split('\n').forEach((raw, k) => {
+    const n = k + 1;
+    const line = raw.trim();
+    if (line.startsWith('///')) {
+      block.push(line);
+      return;
+    }
+    const doc = block;
+    block = [];
+    if (line.startsWith('//') || !line.includes('"')) return;
+    const m = /^static let ([A-Za-z0-9]+) = "(.*)"$/u.exec(line);
+    if (m === null) {
+      problems.push(`line ${String(n)}: a string literal outside a one line static let`);
+      return;
+    }
+    const [, name, literal] = m;
+    if (literal.includes('\\') || literal.includes('"')) problems.push(`line ${String(n)}: ${name} escapes or interpolates`);
+    let owner = null;
+    let owners = 0;
+    const names = [];
+    for (const d of doc) {
+      const body = d.slice(3).trim();
+      if (body.startsWith('Mac:')) {
+        owners += 1;
+        const pn = pathAndNeedle(body.slice(4));
+        if (pn === null) problems.push(`line ${String(n)}: ${name} has a Mac line with no ⟦text⟧`);
+        else owner = { kind: 'mac', path: pn[0], needle: pn[1] };
+      } else if (body.startsWith('Phone:')) {
+        owners += 1;
+        const reason = body.slice(6).trim();
+        if (reason === '') problems.push(`line ${String(n)}: ${name} is the phone's with no reason`);
+        owner = { kind: 'phone', reason };
+      } else if (body.startsWith('Names:')) {
+        const pn = pathAndNeedle(body.slice(6));
+        if (pn === null) problems.push(`line ${String(n)}: ${name} has a Names line with no ⟦text⟧`);
+        else names.push({ path: pn[0], needle: pn[1] });
+      }
+    }
+    if (owners !== 1) problems.push(`line ${String(n)}: ${name} says who owns it ${String(owners)} times, not once`);
+    entries.push({ name, literal, owner, names, line: n });
+  });
+  return { entries, problems };
+}
+
+/**
+ * Judge Copy.swift. `readModule(path)` answers a module's text or null, so the
+ * self-test can hand it a module that moved on.
+ */
+function judgeCopySwift(swift, readModule) {
+  const findings = [];
+  const { entries, problems } = copySwiftEntries(swift);
+  for (const p of problems) findings.push({ file: PHONE_COPY, text: p, why: 'Copy.swift is not written the way its header says, so its words cannot be judged' });
+  const seen = new Map();
+  let mac = 0;
+  let phone = 0;
+  let named = 0;
+  for (const e of entries) {
+    if (seen.has(e.literal)) {
+      findings.push({ file: PHONE_COPY, text: e.name, why: `repeats the word ${seen.get(e.literal)} already declares; a word is declared once, next to its owner` });
+    }
+    seen.set(e.literal, e.name);
+    if (e.owner?.kind === 'mac') {
+      mac += 1;
+      const module = readModule(e.owner.path);
+      if (module === null || !module.includes(e.owner.needle)) {
+        findings.push({ file: e.owner.path, text: e.owner.needle, why: `${PHONE_COPY}'s ${e.name} quotes this, and the module no longer says it` });
+      } else if (!macWordHolds(e.literal, e.owner.needle)) {
+        findings.push({ file: PHONE_COPY, text: e.literal, why: `${e.name} is not the Mac's word inside ⟦${e.owner.needle}⟧ unchanged` });
+      }
+    } else if (e.owner?.kind === 'phone') {
+      phone += 1;
+    }
+    for (const nm of e.names) {
+      named += 1;
+      const module = readModule(nm.path);
+      const word = quotedWord(nm.needle);
+      if (module === null || !module.includes(nm.needle)) {
+        findings.push({ file: nm.path, text: nm.needle, why: `${PHONE_COPY}'s ${e.name} names this Mac control, and the module no longer says it` });
+      } else if (word === null || !e.literal.includes(word)) {
+        findings.push({ file: PHONE_COPY, text: e.literal, why: `${e.name} names ⟦${nm.needle}⟧ and does not say ${JSON.stringify(word)}` });
+      }
+    }
+  }
+  if (mac < PHONE_MAC_FLOOR) findings.push({ file: PHONE_COPY, text: `${String(mac)} Mac words`, why: `fewer than ${String(PHONE_MAC_FLOOR)} of the phone's words were judged against the Mac, so the reader has stopped reading` });
+  if (named < PHONE_NAMES_FLOOR) findings.push({ file: PHONE_COPY, text: `${String(named)} named controls`, why: `fewer than ${String(PHONE_NAMES_FLOOR)} Mac controls named by a phone line were checked` });
+  return { findings, mac, phone, named, words: entries.length };
+}
+
+/** The mutations that prove the Copy.swift judgement can fail. */
+const PHONE_MUTATIONS = [
+  {
+    what: 'a Mac word re-typed on the phone',
+    swift: (t) => t.replace('static let sessions = "Sessions"', 'static let sessions = "Session"'),
+    module: null
+  },
+  {
+    what: 'the Mac renames the word the phone copied',
+    swift: (t) => t,
+    module: ['src/renderer/session-manager/copy.ts', (t) => t.replace("SHEET_TITLE = 'Sessions'", "SHEET_TITLE = 'All sessions'")]
+  },
+  {
+    what: 'a word whose owner line is gone',
+    swift: (t) => t.replace('    /// Phone: the press that goes back to pairing.\n', ''),
+    module: null
+  },
+  {
+    what: 'the Mac renames the button a phone line sends a person to',
+    swift: (t) => t,
+    module: ['src/renderer/settings/PhoneSection.tsx', (t) => t.replace("BTN_PAIR = 'Pair'", "BTN_PAIR = 'Pair a phone'")]
+  },
+  {
+    what: 'a phone line that stops naming the Mac control it points at',
+    swift: (t) => t.replace('Phone and press Pair."', 'Phone and press Go."'),
+    module: null
+  },
+  {
+    what: 'a word declared twice',
+    swift: (t) => t.replace('static let pairAgain = "Pair again"', 'static let pairAgain = "Try again"'),
+    module: null
+  }
+];
 
 // ---------------------------------------------------------------------------
 // Run
@@ -1131,6 +1362,22 @@ function main() {
     });
   }
 
+  // The phone's own words (Phase 316.2).
+  const phoneSwift = readFileSync(join(ROOT, PHONE_COPY), 'utf8');
+  const moduleCache = new Map();
+  const readModule = (path) => {
+    if (!moduleCache.has(path)) {
+      try {
+        moduleCache.set(path, readFileSync(join(ROOT, path), 'utf8'));
+      } catch {
+        moduleCache.set(path, null);
+      }
+    }
+    return moduleCache.get(path);
+  };
+  const phone = judgeCopySwift(phoneSwift, readModule);
+  findings.push(...phone.findings);
+
   // Mechanism 6. It rides this script rather than a second one because the
   // entry says so: "the phase adds a rule to the copy gate below".
   const activity = readActivitySources();
@@ -1149,6 +1396,10 @@ function main() {
       `phonecopy: ${String(activity.size)} activity modules read, ` +
         `${String(logRule.callSites)} log calls found (floor ${String(LOG_CALL_FLOOR)}), ` +
         'none names a payload word'
+    );
+    console.log(
+      `phonecopy: ${PHONE_COPY}: ${String(phone.words)} words, ${String(phone.mac)} judged against the Mac module that owns them (floor ${String(PHONE_MAC_FLOOR)}), ` +
+        `${String(phone.phone)} the phone's own with a reason, ${String(phone.named)} Mac controls a phone line names (floor ${String(PHONE_NAMES_FLOOR)})`
     );
     console.log(
       `phonecopy: ${String(names.length - 1)} screens, ${String(segments)} segments, ` +
@@ -1192,6 +1443,29 @@ function main() {
         console.error(
           `phonecopy SELF-TEST FAIL: ${mutation.what} names a string the unmutated run already failed on, so it proves nothing`
         );
+      } else if (!quiet) {
+        console.log(`  self-test: ${mutation.what} → red, as it must be`);
+      }
+    }
+    for (const mutation of PHONE_MUTATIONS) {
+      const mutatedSwift = mutation.swift(phoneSwift);
+      if (mutatedSwift === phoneSwift && mutation.module === null) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing, so it proves nothing`);
+        continue;
+      }
+      const reader = mutation.module === null
+        ? readModule
+        : (path) => (path === mutation.module[0] ? mutation.module[1](readModule(path) ?? '') : readModule(path));
+      if (mutation.module !== null && reader(mutation.module[0]) === readModule(mutation.module[0])) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing in ${mutation.module[0]}, so it proves nothing`);
+        continue;
+      }
+      const red = judgeCopySwift(mutatedSwift, reader).findings.length > phone.findings.length;
+      if (!red) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding, so Copy.swift is not being judged`);
       } else if (!quiet) {
         console.log(`  self-test: ${mutation.what} → red, as it must be`);
       }

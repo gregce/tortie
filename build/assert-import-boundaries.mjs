@@ -64,6 +64,18 @@
  * stricter than build/assert-no-runtime-cycles.mjs, which counts runtime edges
  * only, and the two are meant to differ.
  *
+ * The Mac never names the phone (Phase 316.2). No production file under src/
+ * may import anything under ios/, the iPhone app's tree: not a source file,
+ * not a fixture, not a plist. The two meet at ONE contract,
+ * src/shared/ipc/pocket.ts, which the phone mirrors by hand in
+ * ios/Tortie/Door/Contract.swift and which build/p316/vectors.mjs holds the
+ * Swift to; a Mac module that imported a phone file would make the phone part
+ * of the Mac's build and give the contract a second spelling.
+ * build/p316/SPEC.md §2 row 14 is why this is not a DIRECTORY_WALLS row: that
+ * table's resolver answers null for anything outside src/, so a row naming
+ * ios/ could never match. This rule resolves against the repository root
+ * instead, and its fixtures prove it catches the shape.
+ *
  * Other package imports are out of scope, with ONE exception (Phase 35,
  * research 42 §8 and §12): only src/main/log/ may import electron-log. The
  * logging framework choice is safe precisely because one module owns it, so
@@ -293,6 +305,31 @@ const DIRECTORY_WALLS = [
 ];
 
 /**
+ * Phase 316.2. Top-level directories of the repository that no production file
+ * under src/ may name, and why. Resolved against the repository root, because
+ * targetPath() below answers null for anything outside src/.
+ */
+const OUTSIDE_SRC_WALLS = [
+  {
+    dir: 'ios/',
+    why:
+      'the iPhone app is its own product and the Mac never names its files. ' +
+      'The two meet at one contract, src/shared/ipc/pocket.ts, which the phone ' +
+      'mirrors in ios/Tortie/Door/Contract.swift and build/p316/vectors.mjs ' +
+      'holds it to; an import from ios/ would make the phone part of the Mac ' +
+      'build and give that contract a second spelling (build/p316/SPEC.md §4 S2).'
+  }
+];
+
+/** The repository-relative path a relative specifier names, or null. */
+function repoPath(fromFile, spec) {
+  if (!spec.startsWith('.')) return null;
+  const rel = relative(ROOT, resolve(fromFile, '..', spec));
+  if (rel.startsWith('..')) return null;
+  return rel.split(sep).join('/');
+}
+
+/**
  * The src-relative path a specifier names, forward-slashed, or null when it
  * names a bare package or resolves outside src/. It handles the same three
  * shapes targetLayer() handles, and it is the only other resolver here.
@@ -358,6 +395,14 @@ function violationsFor(absFile, text) {
           `${relFromRoot}:${line()} imports '${spec}', and only ` +
             `src/${owned.dir} may: ${owned.why}`
         );
+        continue;
+      }
+
+      const outside = repoPath(absFile, spec);
+      const walledOut =
+        outside === null ? undefined : OUTSIDE_SRC_WALLS.find((rule) => outside.startsWith(rule.dir));
+      if (walledOut !== undefined) {
+        out.push(`${relFromRoot}:${line()} imports '${spec}', and src/ may not name ${walledOut.dir}: ${walledOut.why}`);
         continue;
       }
 
@@ -613,7 +658,19 @@ const FIXTURES = [
     '../logins/paths'
   ],
   ['main/push/p314-fixture.ts', "import type { ApnsProviderKey } from '../credentials/apns-key';", null],
-  ['main/push/__tests__/p314-fixture.ts', "import { loginsRoot } from '../../logins/paths';", null]
+  ['main/push/__tests__/p314-fixture.ts', "import { loginsRoot } from '../../logins/paths';", null],
+  // Phase 316.2, the phone's tree. Three shapes that reach into ios/ from
+  // three layers, a directory whose name only STARTS with ios, and the test
+  // exemption every rule here keeps.
+  [
+    'main/pocket/p316-fixture.ts',
+    "import vectors from '../../../ios/TortieTests/Fixtures/vectors.json';",
+    '../../../ios/TortieTests/Fixtures/vectors.json'
+  ],
+  ['shared/p316-fixture.ts', "export { COPY } from '../../ios/Tortie/Style/copy';", '../../ios/Tortie/Style/copy'],
+  ['renderer/p316-fixture.tsx', "const plist = await import('../../ios/Tortie/Info.plist');", '../../ios/Tortie/Info.plist'],
+  ['shared/p316-fixture.ts', "import notes from '../../ios-notes/readme';", null],
+  ['main/__tests__/p316-fixture.ts', "import vectors from '../../../ios/TortieTests/Fixtures/vectors.json';", null]
 ];
 
 function runFixtures() {
@@ -668,5 +725,5 @@ console.log(
     `(${Object.keys(SOLE_OWNER_PACKAGES).length} sole-owner package rule, ` +
     `${Object.keys(NO_PLATFORM_ACCESS).length} layers with no platform ` +
     `access, ${FACADE_ONLY.length} facade directory, ` +
-    `${DIRECTORY_WALLS.length} directory wall)`
+    `${DIRECTORY_WALLS.length} directory wall, ${OUTSIDE_SRC_WALLS.length} wall around a tree outside src/)`
 );

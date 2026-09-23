@@ -1,0 +1,36 @@
+{
+  "configurations" : [
+    {
+      "id" : "31600000-0000-4000-8000-000000000316",
+      "name" : "Phase 316",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "preferredScreenCaptureFormat" : "screenshots",
+    "systemAttachmentLifetime" : "keepNever",
+    "uiTestingScreenshotsEnabled" : false,
+    "userAttachmentLifetime" : "keepNever"
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:Tortie.xcodeproj",
+        "identifier" : "316A00000000000000000031",
+        "name" : "TortieTests"
+      }
+    },
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:Tortie.xcodeproj",
+        "identifier" : "316A00000000000000000032",
+        "name" : "TortieUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

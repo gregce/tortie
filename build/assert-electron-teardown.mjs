@@ -312,12 +312,18 @@ const HELPER = 'electron-run.mjs';
  * runs and no token is spent. Phases 314, 320 and 316.1 each raised the floor
  * while this phase was built, so it lands at 152.
  *
+ * PHASE 316.2 RAISED IT FROM 152 TO 153, for build/p316/probe-p316.mjs
+ * (`probe:p316`), the iPhone app driven in the Simulator against the real door:
+ * ONE Electron with the door on loopback beside Simulators made one at a time by
+ * build/simulator-run.mjs, each shut down and deleted in its `finally`. Phase 321
+ * raised the floor while this phase was built, so it lands at 153.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 152;
+const HELPER_USER_FLOOR = 153;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

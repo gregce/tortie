@@ -2,14 +2,14 @@
  * verification-checks.mjs, every check in package.json, classified (Phase 145
  * stage 5).
  *
- * The plan's rule: every check is one of five types, and each states its
+ * The plan's rule: every check is one of six types, and each states its
  * environment requirement and its skip rule, so a missing SSH key can block a
  * remote probe without ever making a static gate ambiguous. This file is the
  * record, and `node build/assert-hermetic-checks.mjs` is the gate that keeps
  * it complete in both directions: a check script without an entry here fails
  * the build, and an entry naming a script that no longer exists fails it too.
  *
- * The five types, and what each requires of the host:
+ * The six types, and what each requires of the host:
  *
  *   pure contract or state test   node and the repository install from
  *                                 package-lock.json. Nothing else. Never
@@ -33,8 +33,23 @@
  *                                 "real machine" need one the operator names
  *                                 and a loaded SSH key, and refuse with a
  *                                 sentence when either is absent.
+ *   Xcode and Go harness          (Phase 316.2) needs a toolchain that is not
+ *                                 in package-lock.json and never will be: the
+ *                                 full Xcode with its iOS Simulator runtimes
+ *                                 now, and Go from Phase 316.3. What sets it
+ *                                 apart from an adapter test is not that the
+ *                                 tool is real (codesign, git and hdiutil are
+ *                                 real too) but that no CI runner has it, the
+ *                                 Go half needs the network for its modules,
+ *                                 and a Simulator writes state under the
+ *                                 person's home (build/p316/SPEC.md §2 row
+ *                                 18). Every one creates and deletes its own
+ *                                 Simulator through build/simulator-run.mjs,
+ *                                 and REFUSES, exit 2, with a sentence naming
+ *                                 what is absent; it never passes quietly and
+ *                                 no static gate reads its result.
  *
- * `aggregate` is not a sixth type. It marks a script that only runs other
+ * `aggregate` is not a seventh type. It marks a script that only runs other
  * classified checks, and its members are named so the gate can follow them.
  *
  * ## The runtime the checks are allowed to run on (Phase 262)
@@ -165,12 +180,16 @@ export function assertSupportedRuntime(version = process.versions.node) {
   throw new Error(lines.join(' '));
 }
 
+/** The sixth type's name, exported so build/assert-hermetic-checks.mjs names it once. */
+export const XCODE_HARNESS = 'Xcode and Go harness';
+
 export const CHECK_TYPES = [
   'pure contract or state test',
   'adapter integration test',
   'electron harness',
   'tmux harness',
-  'remote machine probe'
+  'remote machine probe',
+  XCODE_HARNESS
 ];
 
 /** The default statements, so the table below stays readable. */
@@ -186,8 +205,19 @@ const NEEDS = {
   loopback:
     'a loopback sshd scratch machine the harness starts itself with keys it generates; no operator credential is read',
   realMachine:
-    'a real second machine the operator names, plus an SSH identity the operator has loaded'
+    'a real second machine the operator names, plus an SSH identity the operator has loaded',
+  xcode:
+    "the full Xcode (26.3 is the version verified), its xcodebuild and simctl, the iOS 26.3 Simulator runtime and the iPhone 16 Pro device type; no Apple account, no team and no keychain, because a Simulator build signs ad hoc; a Simulator of the run's own, created, booted, shut down and deleted by build/simulator-run.mjs"
 };
+
+/**
+ * The one skip rule the sixth type may state, and build/assert-hermetic-checks.mjs
+ * clause 7 holds every entry of that type to it: the script behind the entry
+ * must call the helper's preflight, `simulatorHarnessMissing(`, and exit 2 with
+ * its sentence.
+ */
+export const XCODE_SKIP =
+  'refuses, exit 2, with one sentence naming what is absent (xcodebuild, simctl, a Simulator runtime or the device type) before anything is created; it never passes quietly, it is in no battery, and no build gate reads its result';
 
 const SKIP = {
   never: 'never skips',
@@ -230,6 +260,12 @@ const remote = (name, needs = NEEDS.loopback, skip = SKIP.neverFinally) => ({
   skip
 });
 const realRemote = (name) => remote(name, NEEDS.realMachine, SKIP.refuse);
+const xcode = (name, needs = NEEDS.xcode) => ({
+  name,
+  type: XCODE_HARNESS,
+  needs,
+  skip: XCODE_SKIP
+});
 
 export const CHECKS = [
   // The vitest suite, in lanes (Phase 145 stage 5).
@@ -456,6 +492,46 @@ export const CHECKS = [
   // P-256 key generated in memory. No Electron, no tmux, no ssh, no agent, no
   // token, NO NETWORK, and nothing under the person's home.
   pure('conformance:push'),
+  // PHASE 316.2, the iPhone app. `conformance:ios` READS ios/ AS TEXT in plain
+  // node with a small Swift lexer of its own, which is why it can run inside
+  // npm run build on a machine with no Xcode: the colours are tokens.css's dark
+  // base by name, no drawn literal outside Copy.swift, the network in
+  // DoorClient.swift alone and https only, both DEBUG seams inside #if DEBUG,
+  // exactly one ATS exception and no background mode, no NetworkExtension, no
+  // web view, the person's ask through Text(verbatim:) only, screenshots off in
+  // the test plan, build/p316/vectors.mjs --check (the one child it spawns,
+  // through the pinned tsx), and (k) no trapping arithmetic on a number the
+  // door sends. Every scanner is proved on its own fixtures first. No Xcode,
+  // no Simulator, no Electron, no socket.
+  pure('conformance:ios'),
+  // Its attack: twenty-five plants, at least one per rule, each into a `cp -Rc`
+  // clone under /private/tmp, each required to redden THE RULE THAT OWNS IT as
+  // a delta against the base, each file restored and proved by sha256, the
+  // clone removed in a `finally` and on a signal, and the working tree's bytes
+  // asserted unmoved. About 10 s. No Xcode, no Electron, no socket.
+  pure('ablation:p316'),
+  // The XCTest unit tests, on a Simulator of their own: decoding, the page
+  // arithmetic and its refusals, the pin, and every vector the shipping
+  // TypeScript wrote. build/p316/test-ios.mjs builds for testing into a scratch
+  // derived data path, then runs TortieTests on an iPhone 16 Pro it creates on
+  // iOS 26.3 (P316_RUNTIME=18.3 for the floor) through build/simulator-run.mjs,
+  // which shuts it down and deletes it in a `finally` and on SIGINT, SIGTERM
+  // and SIGHUP. It opens no socket and starts no Electron.
+  xcode('test:ios'),
+  // PHASE 316.2's app run: ONE Electron through build/electron-run.mjs's
+  // withElectron (scratch profile, scratch HOME, the socket gmux-p316-<pid>,
+  // GMUX_POCKET_LOOPBACK=1 so the door binds 127.0.0.1 and nothing else) and
+  // Simulators through build/simulator-run.mjs's withSimulator, one at a time:
+  // iOS 26.3 for the order, the list, a working session, its conversation paged
+  // to the first turn and the Remove; iOS 18.3 for the MANDATORY floor arm; and
+  // the ATS arm on both, dialling 100.64.0.1 through a loopback SOCKS stand-in
+  // with failover off, so no packet leaves the Mac. The hostile door and the
+  // stand-ins run in a child process of their own (pitfall b), on loopback,
+  // ended in a `finally`. The tailnet key is a made-up string. No screenshot.
+  xcode(
+    'probe:p316',
+    `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor arm; beside it ${NEEDS.electron}`
+  ),
   // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
   // Electron on a scratch profile with a scratch HOME and the socket
   // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that
@@ -590,6 +666,14 @@ export const CHECKS = [
 
   // Build gates and pins.
   pure('gate:electron'),
+  // PHASE 316.2. The Simulator half of the same rule: no file under build/ but
+  // build/simulator-run.mjs makes, boots, photographs or ends a Simulator, or
+  // runs an xcodebuild test (which boots its destination); the helper's
+  // teardown is in a `finally` read by matching braces; its net handles exit,
+  // SIGINT, SIGTERM and SIGHUP; and the population reaching it has a floor.
+  // Twelve fixtures and six helper ablations prove it. It spawns nothing and
+  // needs no Xcode, and it runs inside npm run build.
+  pure('gate:simulator'),
   // PHASE 206 ITEM 5. The same rule for anything else a script starts, being a
   // shell, a server, a sleeper or a load generator. It scans build/ for an
   // asynchronous spawn that is detached or is a runner that does not stop by
@@ -1047,8 +1131,13 @@ export const CHECKS = [
   // agent, spends no token, opens no native menu and touches `-L gmux` in one
   // place only, a read only session count taken before and after. `node
   // build/probe-p209-selection.mjs --self-test` proves the six graders on
-  // sixteen fixtures and launches nothing.
-  electron('probe:p209'),
+  // sixteen fixtures and launches nothing. Its needs line names `swiftc`
+  // since Phase 316.2 (build/p316/SPEC.md §2 row 18): the pasteboard keeper is
+  // compiled by it, which is a toolchain outside package-lock.json.
+  electron(
+    'probe:p209',
+    `${NEEDS.electron}; swiftc from the Xcode command line tools, to compile build/pasteboard-keep.swift into the run directory`
+  ),
   // PHASE 208. One app run on a scratch profile over a SCRATCH KEYCHAIN the
   // probe makes with `security create-keychain` under the harness directory,
   // never adds to the search list and deletes in a finally. It plants a
