@@ -16,8 +16,8 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- The trackpad and mouse wheel now scroll Claude Code and other full-screen programs that use the mouse in a session on another machine, the way they do on your Mac; a plain shell, an agent that prints ordinary lines, or a program like less that ignores the mouse still does not scroll back there. Reported by [Jake Levirne](https://github.com/jakelevirne) in [#31](https://github.com/gregce/tortie/issues/31)
-- Read Last Lines no longer says a session kept nothing more when the program in it only ever drew one screen
+- The trackpad and mouse wheel now scroll Claude Code and other full-screen programs that use the mouse in a session on another machine, the way they do on your Mac; a plain shell, an agent that prints ordinary lines, or a program like less that ignores the mouse still does not scroll back there. Reported by [Jake Levirne](https://github.com/jakelevirne) in [#31](https://github.com/gregce/tortie/issues/31) ([`b28d0eb4`](https://github.com/gregce/tortie/commit/b28d0eb4))
+- Read Last Lines no longer says a session kept nothing more when the program in it only ever drew one screen ([`b28d0eb4`](https://github.com/gregce/tortie/commit/b28d0eb4))
 
 ## 0.110.0 (2026-09-21)
 
