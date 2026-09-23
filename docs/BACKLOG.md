@@ -33994,6 +33994,558 @@ release. That reader was not checked for this entry.
 - **No committed recording.** Only the scripts, the tests and the two source files are committed.
 - **No release.**
 
+## Phase 321 — "so we can fix this correctly", part two — the detector misses ten of twelve real questions (operator, research 129 §9 items 2 to 4, 2026-09-23)
+
+**Subject.** `fix(activity): the questions real agents draw turn amber`
+
+**First body line.** `Phase 321: every recorded question turns amber, and nothing else does`
+
+**Semver.** Patch. Today most questions that real screen-watched agents ask never turn amber: cursor's permission question, qwen's permission question, opencode's permission question, the folder-trust gates of Claude Code 2.1.280, antigravity and cursor, and antigravity's numbered questions, which the detector can read but antigravity's own repaint hides. grok is never seen as waiting on anything, because Tortie counts its MCP servers as a tool that is still running. None of these reach the tray, ⌘J or the phone's push (Phase 314, landed `5e453f13`). After this phase each of those recorded questions turns amber, and no screen that is not a question does. **Unchanged on purpose:** the measured numbered verdict (`OPT1`, `OPT2`, `HINT`, `QUEST` and the 24-row window) and therefore every agent with no new shape, which includes gemini, codex, pi, omp, droid and every agent the build has never heard of; every constant and cadence Phase 319 left; the status set; the choice channel. No copy, no surface and no menu changes, so the native menus are untouched. No release: phases 311 onward accumulate unreleased until the phone works end to end.
+
+**Tier 3, because it claims to work across every screen-watched agent it names, and he asked for it, so the parent measurement is mandatory whatever the tier.** It changes status semantics for five registry rows (cursor, qwen, opencode, antigravity, grok) and for Claude Code's launch window, and claims each works across that agent's real screens, so **the evidence is a per-agent matrix over real recordings, at the parent and at HEAD**. A wrong status loses his attention, which is what a status exists to hold. The standing rules bind it both ways: **a false amber is as bad as a missed one**, and **"needs input" may only be raised by session behaviour, never by his own typing** (CLAUDE.md UI rules). Refusal 5 binds the mechanism: no configuration may set a status, so every new shape is compiled registry data that the configuration overlay cannot reach. **Independent methods, named before the work starts:** (1) **run over real data**, with a replay harness the verifier writes itself (not research 129's `replay-run.mjs` and not the builder's), plus one live confirmation on the installed agents; (2) **attack**, and its first arms are his own words spelling each new shape typed and pasted into each real agent's input box, and cursor's answered trust box that stays on screen (measured below); (3) **re-derive independently**, the verifier labelling the corpus itself from the byte timeline and the key events, never from any detector, and computing the recall and false-positive table itself; (4) **measure the parent commit**, every row at Phase 319's landing commit and at HEAD in the same run. Plus a fix round if any verdict is needs_work, and an independent reverify of that fix.
+
+**Charter.** `docs/research/129-the-question-after-silence.md`: §1 (the 9 misses are not timing), §2.2 (the per-agent table), §3.5 (what the recordings showed that is not timing), §5 items 1, 15, 16 and 17, §7 (what is unmeasured), §8 (where the corpus is, what it discloses, and grok's leaked MCP server), §9 items 2, 3 and 4 (this entry). Research 18 §5.4 (`docs/research/18-agent-activity.md:698-728`), where the detector and its 57 of 57 recall and 0 of 386 false positives were measured, and where "one generic detector, not a regex per agent" was ruled; this phase departs from that ruling for the named agents only, because the recordings disprove its premise that "the shape is universal". Research 18 §4.2 (`:504-557`), the tool-child rule and the CPU rule. Phase 314's committed spec (`build/p314/SPEC.md:1040` R3 and `:1058`), which measured Claude Code 2.1.280's folder-trust question drawn with no numerals, focused on "No, exit", with no hook firing for it, and never blocked in main in 3 of 3 runs. Phase 312's choice rows and the floor they pinned (`src/main/activity/__tests__/p312-choices.test.ts:370-417`, `conformance:choices` clauses 1 to 4 at `build/conformance-choices.mjs:43-46`). Phase 319's fix J, which lifts the ceiling of six that would otherwise hide newly seen questions. Phase 9.2's rule that his own input never raises `needs_input` (`src/main/activity/monitor.ts:508-520`). Phase 12.11's rule that what Tortie does to a session never raises its state (`src/main/activity/state-machine.ts:56-67`). Phase 23 refusal 5 and the overlay's refusal of `activity` (`src/shared/agent-overlay.ts:645-647`). The operator's rule that a phase lands only when a side-by-side against today shows no scenario worse, cost included.
+
+**Depends on.** **Phase 319 landed.** Its fix lifts the ceiling of six blocked sessions (research 129 §3.3), which would otherwise hide exactly the questions this phase makes visible, and its peek reads the dialog predicate this phase widens. Every line number below is read at `5ddbee19`, before 319; 319 moves lines in `state-machine.ts` and `monitor.ts`, and the builder re-reads them. Phase 314 has landed (`5e453f13`), so the push arm runs.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The count.** In investigator A's live run, 11 real questions and gates were recorded, and the shipping monitor caught 2 (gemini's trust gate and codex's update prompt) and missed 9 at both the 1 s and 2 s cadence. 7 were screens the detector cannot read (cursor ×2, qwen ×2, opencode ×1, the Claude Code and antigravity trust gates) and 2 were antigravity questions hidden by its own repaint (research 129 §1, §2.2). None of the 9 was a timing miss, so Phase 319 recovers none of them (§1).
+- **A twelfth, found while writing this entry.** Cursor's own workspace-trust gate (`⚠ Workspace Trust Required`, `▶ [a] Trust this workspace`, `[q] Quit`) was drawn 3.2 s after launch and was on screen for 36.4 s before it was answered, and neither live monitor raised it: `a/rec/status.jsonl` holds only `running` and `idle` for both cursor monitors. Research 129 did not count it. So A's run holds 12 questions, 2 caught and 10 missed. Across all three recording folders there are 17 question instances: 12 in A's run, 3 in investigator B's (cursor's trust gate, a cursor permission question, gemini's trust gate) and 2 in adversary 1's (cursor's trust gate and a cursor permission question under a held focus-out). Counted for this entry by distinctive text over each folder's captures, then read by eye.
+- **Why each one is missed, clause by clause.** Re-derived for this entry with a byte copy of the window and the four regexes at `src/main/activity/screen.ts:66-97`, over the last capture before each answering key in `a/rec/captures.jsonl`. The verdict needs a `1.` row, a `2.` row, and a `HINT` or `QUEST` row.
+
+  | Question (A's run) | `1.` and `2.` rows | `HINT` | `QUEST` | Verdict | What is drawn instead |
+  | --- | --- | --- | --- | --- | --- |
+  | cursor, workspace trust at launch | no | yes | yes | no | `▶ [a] Trust this workspace` / `[q] Quit`: letters, not numbers |
+  | cursor, run permission ×2 | no | no | no | no | `Run this command?`, `→ Run (once) (y)`, `Add Shell(sleep) to allowlist? (tab)`, `Skip & tell the agent what to do instead (esc or n)` |
+  | qwen, run permission ×2 (Ask mode only) | yes | no | no | no | `Allow execution of: 'sleep'?`, `4. No, suggest changes (esc)`, `⠏ Waiting for user confirmation...` |
+  | opencode, access to an outside folder | no | no | no | no | `△ Permission required`, then ONE row `Allow once   Allow always   Reject` beside `enter confirm`; the focused button is marked by colour only, which a plain capture loses |
+  | Claude Code 2.1.280, folder trust | no | yes | no | no | `❯ No, exit` / `Yes, I trust this folder`, `Enter to confirm · Esc to cancel`, asked as `Is this a project you created or one you trust?` |
+  | antigravity, folder trust | no | no | yes | no | `> Yes, I trust this folder` / `No, exit`, `↑/↓ Navigate · enter Confirm` |
+  | antigravity, run permission ×2 | yes | yes | no | yes | read, then masked by its repaint |
+  | gemini, folder trust | yes | no | yes | yes | caught, 12.5 s and 14.8 s late (below) |
+  | codex, update prompt | yes | yes | no | yes | caught |
+
+  Over all 5,884 captures in A's run the verdict fired on 140: gemini 32, codex 31, antigravity 77, and 0 for the other seven agents, which matches research 129 §3.5.
+- **The committed fixture is an older Claude Code.** `src/main/activity/__tests__/fixtures/claude-workspace-trust.txt` draws `❯ 1. Yes, I trust this folder` / `2. No, exit`, so every test that pins the trust gate through that fixture (`signals.test.ts:391-394` and `:402`, `p312-choices.test.ts:398`, `:460` and `:670`, `monitor.test.ts:354`, `:435` and `:787`, `p311-question.test.ts:751`) pins a shape 2.1.280 no longer draws. Phase 314 read the installed binary: `hideIndexes: !0, cancelFirst: !0, focus: "cancel"` (`build/p314/SPEC.md:1040`).
+- **The trap for any shape that reads option text alone.** After cursor's trust gate was answered, all 555 later cursor captures in A's run (the first 1.0 s after the key) still draw the answered box at the top of the screen, `⏳ Trusting workspace...` in place of its hint. Its `[a] Trust this workspace` row sits inside the detector's 24-row window in the first 25 of them. Its focus glyph `▶` and its `Enter to select` hint are gone in all 555. Measured for this entry, and re-counted by the checker over `a/rec/captures.jsonl`. A shape that reads the question and the options without the focus glyph or the hint would hold cursor amber after the question was answered.
+- **grok's masking.** In A's recorded process table (every 500 ms, 1,172 grok samples) a detached descendant was present in 1,168. Six MCP servers are direct children of grok, session leaders outside the foreground group (`Ss`, or `Rs` while running), first seen in the sample 6.6 s after launch and present to the end of the recording, in 1,165 samples. `hasToolChild` (`src/main/activity/process.ts:135-141`) counts any descendant that is a session leader and not in the foreground group, and `inferredVerdict` resets the dialog count on it every tick (`state-machine.ts:335`, `:351-352`), so all 8,148 of grok's replay ticks were `working`, idle included (research 129 §3.5). Every other agent's detached descendants were its own tool runs (`sleep`, `zsh`, `sh`, `bash`, `git`) or short-lived (gemini's updater in 21 samples; under Claude Code a `node` running `npm view vercel version` and a `Python` child, 6 samples together; a second `cursor-agent` in 4; a second `agy` in 3), and omp had none. Census taken for this entry. CPU would not hold grok working once the tool-child rule stops: in its two silent stretches after a turn (147 s and 140 s) its subtree CPU was at or above 5% in exactly one one-second interval in each (of 142 and 135 as first counted, 145 and 139 when the checker paired the half-second samples its own way), never two in a row, and the rule needs two (`CPU_BUSY_TICKS`, `process.ts:39`). Measured for this entry. `process.ts:20-21` says "zero transient children were seen across 657 idle child-set observations, so it needs no ignore list", which was true of the agents measured in August and is not true of grok here. **No grok question exists in the corpus:** its default mode ran every command without asking, including after four Shift+Tabs (`a/rec/events.jsonl`).
+- **antigravity's masking.** `agy` 1.2.7 writes every 2.0 s at idle, 169 chunks over 340 s (research 129 §2.2). Its registry row says `animatesWhenIdle: false` with the comment "Idle byte-silence VERIFIED" (`src/main/agents/registry.ts:1042-1043`). The comment names no version. The row's notes name 1.1.11 as the version its resume flag was verified on by hand, on 2026-08-10 (`:1036`), so the byte silence was presumably checked on that version or near it. It is not true of 1.2.7. Output newer than 2 s is strong evidence of work (`state-machine.ts:332-333`), so at a 1 s tick one tick of every pair resets the dialog count and it never reaches 2: caught 0 of 30 at 1 s for both questions, and 13 of 60 and 24 of 60 at 2 s with medians of 9.2 s and 6.8 s and a worst case of 53.2 s (research 129 §3.5). **The repaint moves tmux's clock and not the screen:** from 270 s to 594 s, after its turn, 0 captures in any 30 s bucket differed from the one before. **And CPU would not mask it:** while its two numbered questions were up (15.4 s and 60.7 s), subtree CPU was at or above 5% in 0 of 29 and 1 of 121 half-second intervals, never two in a row, and half-second sampling over-reads (research 18 §4.2). Both measured for this entry. **Nor would CPU hold it working at rest once output stops counting:** from 270 s to 595 s its subtree CPU reached 5% in 1 of 322 one-second intervals, never two in a row. Research 129 §3.5's "5% or more in 202 of 394 samples" does not describe rest: while `sleep 90` ran, 91 of 91 one-second intervals were at 5% or more, and 14 of 62 in the first 73 s after launch. Measured by the checker over `a/rec/ps.jsonl`.
+- **gemini is caught late, not missed.** Launching gemini ran its own updater, `npm install @google/gemini-cli@0.60.0`, as a detached child, which read as a tool and delayed its trust gate to +12.5 s and +14.8 s (research 129 §3.5). Gemini must not be launched again until his sign-in works (§7, §10 ruling 3).
+- **Two agents asked nothing to catch.** pi has no permission prompt, and omp asked none. droid is not installed. qwen asked only in its Ask permissions mode; in his default Auto mode it asked nothing (research 129 §2.2).
+- **The per-agent shapes have no home today, and configuration cannot reach the place they would go.** The tree has ONE generic detector (`screen.ts:56-65`) and no per-agent shape anywhere. What an agent's activity is, per agent, is `AgentActivityProfile` (`registry.ts:320-336`: `tier`, `native`, `animatesWhenIdle`, `hooks`, `verified`), compiled into each row's `activity` field (`:472`) and read through `activityProfileFor` (`:1999-2002`), which looks only at the compiled `AGENT_REGISTRY` and hands everything else `DEFAULT_ACTIVITY` (`:1987-1991`). The configuration overlay refuses `activity` whole, with a sentence naming the field (`src/shared/agent-overlay.ts:645-647`). So a new field on `AgentActivityProfile` is compiled data that no configuration file can set.
+- **The choice channel can carry digits only.** `SessionChoiceOption.marker` is "Digits only" (`src/shared/ipc/sessions.ts:272`), and the monitor sends `{ atChoice: false }` for any verdict without option rows (`monitor.ts:1155-1158`). Cursor's keys, opencode's buttons and the trust gates' arrow lists cannot be expressed on it without a contract change.
+- **What pins today's verdict.** `p312-choices.test.ts:370-417` asserts `detectDialog` equals a literal copy of the parent detector over every committed fixture (floor 13, `:72`) and every composed capture. `conformance:choices` pins the verdict's loop, that `detectDialog` is `detectDialogRows(...).atChoice`, that it has exactly one production call site (`state-machine.ts`), and the five measured literals (`build/conformance-choices.mjs:43-46`, clauses 1 to 4 at `:203-290`). `ablation:p312` has 23 arms.
+- **The corpus, and where it is.** Research 129 §8: `scratchpad/p319/`, being `/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/p319/`, holding `a/rec` (41 MB: per-agent `*.bytes.jsonl`, `captures.jsonl`, `ps.jsonl`, `panes.jsonl`, `events.jsonl`, `status.jsonl`, `choice.jsonl`), `adv1/rec` (4.8 MB, the focus-out run) and `rec` (5.6 MB, investigator B). **It is in `/private/tmp`, which does not survive a reboot.** It holds 7,591 captures (5,884, 405 and 1,302), which are 1,410 distinct screens after `normalizeCapture`'s trim, 4.8 MB of text. Counted for this entry. **Nobody has read it for what it discloses** (§8), and it does disclose: antigravity's banner draws his Google account address and plan, gemini's draws skill paths under his home, grok's process table names his MCP servers, every screen draws the scratch path, and the events hold the prompts that were typed.
+
+### The mechanism
+
+**The phase opens with a spec step, because research 129 found the misses and did not design their fix.** The spec step is investigators, an adversary and a judge, then ONE `build/p321/SPEC.md`, before any builder starts. It designs every shape against the labelled corpus, and the adversary attacks each shape with false ambers before a line of it is built. **Its first question goes to him, with a default:** keep one generic detector and widen it for every agent, or keep the measured numbered verdict for every agent and add named shapes only to the registry rows whose recordings show them. **Default: per-agent**, because a shape measured on one agent's screens has no measurement on any other agent's, and because the numbered verdict then stays byte for byte, so every agent with no shape reads exactly as today.
+
+1. **The corpus first, before anything else.** A reboot loses it.
+   - **The raw recordings are not committed.** They are real agent output under his sign-ins. If Phase 319 has moved them out of scratch, `build/p319/SPEC.md` names the place and each file's sha256, and this phase checks every sha256 before its first replay. If not, the main session moves them to a place outside the repository and records the sha256s in `build/p321/SPEC.md`.
+   - **What the tests need is copied into `build/fixtures/questions/` and committed**, because scratch does not survive. That is every distinct screen of the 1,410, redacted by one named mechanical pass: the scratch prefix to `/work/<agent>`, the home directory to `~`, the account address and plan line removed, MCP server names replaced, then the tree's own `redactText` (`src/main/overview/redact.ts:74`). Two checks are run over the pass. The parent verdict and the HEAD verdict of every screen must equal their verdicts on its raw source, so redaction can neither create nor destroy a match. And every screen that still matches a disclosure class after redaction is dropped, with the number dropped reported. The positive screens are also read by eye.
+   - **`build/fixtures/questions/labels.json`**, one entry per question instance (17): agent, folder, the first frame it was drawn in, and the answering key's time from that folder's events file, plus one label per screen, `question` or `not-question`. It is derived from the key events and the byte timeline and read by eye. It is **never** derived from a detector, including the new one.
+   - The positive screens also go into `src/main/activity/__tests__/fixtures/` as named captures (`claude-trust-2-1-280.txt`, `cursor-trust-gate.txt`, `cursor-run-permission.txt`, `qwen-run-permission.txt`, `opencode-permission.txt`, `antigravity-trust-gate.txt`, `antigravity-run-permission.txt`), and `FIXTURE_FLOOR` (`p312-choices.test.ts:72`) rises by the number added. The old numbered `claude-workspace-trust.txt` stays, because an older Claude Code still draws it.
+   - If the recordings are lost before this step, the recorder is re-run ONCE at no more than 4 real turns, on a scratch tmux socket of its own, never `-L gmux`, with no gemini, and grok's MCP subtree ended by pid in its `finally` (research 129 §8 records one that leaked).
+2. **`src/main/activity/screen.ts`: named shapes beside the verdict, never inside it.** `BORDER`, `OPT1`, `OPT2`, `HINT`, `QUEST`, `DIALOG_ROWS` and `detectDialogRows` (`:66-74`, `:284-303`) do not move, and `detectDialog` stays `detectDialogRows(...).atChoice` (`:99-101`). Beside them goes a closed set of named shapes, each one clause with one spelling and a comment naming the recordings it was measured on. The spec step starts from one shape per row of the table above and may merge or split them only with the corpus as the ruler: cursor's keyed permission rows, cursor's letter-keyed trust gate, qwen's numbered rows with its own question and footer, opencode's single button row under `Permission required`, and the arrow-list trust gate that Claude Code 2.1.280 and antigravity both draw. **Every shape must require what a live question has and an answered or quoted one does not**: the focus glyph or the key hint, not the option text alone, which is the cursor trap above. One exported `detectShapes(capture, shapes)` answers whether any listed shape is on the screen, over the same `dialogWindow` (`:90-97`). It takes no agent id and reads no registry.
+3. **`src/main/agents/registry.ts`: which shapes each agent's screen is read with.** `AgentActivityProfile` (`:320-336`) gains an optional `dialogs?: readonly DialogShapeId[]`, where the id union is declared beside the shapes in `screen.ts` and imported as a type. It is listed on cursor (`:616`), qwen (`:1200`), opencode (`:1603`), antigravity (`:1043`) and claude (`:547`). Claude's is read only while its native oracle is silent, which is its launch window before the pid file exists (`monitor.ts:587-591`). `DEFAULT_ACTIVITY` (`:1987`) and `SHELL_ACTIVITY` (`:1980`) list none. Each row's comment says which version the shape was measured on.
+4. **`src/main/activity/state-machine.ts:346`: one line.** `const dialog = screen !== null && (detectDialog(screen) || detectShapes(screen, profile.dialogs ?? []))`. `detectDialog` keeps its one production call site, so `conformance:choices` clause 3 still reads true. The confirm is still 2 consecutive captures (`DIALOG_CONFIRM_TICKS`, `:51`), strong evidence still resets it (`:351-352`), and release is unchanged (`:397-412`). Because Phase 319's peek reaches the detector through this same line of `inferredVerdict`, a peek reads the agent's shapes with no second call site. The proof checks it anyway.
+5. **The choice channel does not move.** `choiceUpdate` (`monitor.ts:1140-1190`) keeps asking `detectDialogRows` alone. A question seen only through a shape is `needs_input` with `{ atChoice: false }` and no screen question. The question row the hook or the screen supplies today is untouched. `gate:contract` must not move.
+6. **antigravity: the registry row, not the rules.** `registry.ts:1042-1043` becomes `animatesWhenIdle: true`, with the comment rewritten to say what was measured on 1.2.7 and when. That is the existing lever for "the output clock is unusable" (`registry.ts:325-331`, and deepseek and muse already use it at `:959-960` and `:1120`). Output then stops counting as work for antigravity (`state-machine.ts:333`), and the session is always worth a `ps` and a capture (`worthProbing`, `:235-236`). That is the cost the proof measures: one capture slot and one `ps` share on every tick while an antigravity session is open.
+7. **grok: helpers that were there before its first rest are not tools.** `hasToolChild` (`process.ts:135-141`) is unchanged for every agent. `AgentActivityProfile` gains `residentHelpers?: true`, set on grok's row alone (`registry.ts:1497`), whose comment gains the census above. For a profile with it, `SessionState` (`state-machine.ts:73-174`, zeroed in `freshState` at `:194`) records the detached descendants present on the first tick on which the session would read idle but for the tool-child evidence: no output, no CPU, and a screen unchanged across the memory window. From then on those pids are not tool children. A detached child born later counts exactly as today. The set is cleared when the agent leaves (Phase 141's `left`). It reads the same `ps` snapshot, so it adds no `ps`. The spec step may replace this rule with a better one that it has measured. It may never replace it with a list of process names, because those names are his own MCP configuration.
+8. **Tests.** `src/main/activity/__tests__/p321-shapes.test.ts` holds one row per shape: its question screens read `true`; every `not-question` screen of the same agent reads `false`; cursor's answered trust box reads `false`; every other agent's screens are reported per shape. `p321-masking.test.ts` drives the shipping class with a virtual clock, and covers grok's resident set, a grok tool born after its first rest still reading `working`, and antigravity's repaint no longer resetting the count. **Every existing row in `signals.test.ts`, `p312-choices.test.ts`, `monitor.test.ts`, `reflow.test.ts` and `turn-boundary.test.ts` stays green unchanged, the parent-verdict floor included.** A row that has to change is a finding for the verifier, not an edit. `gate:checks` runs because test files are added.
+9. **Gates, amended in the same commit.** `conformance:choices` keeps clauses 1 to 4 and gains: each shape one definition and one call site; `detectShapes` called only from `state-machine.ts`; the shapes reached only through a compiled row's `activity.dialogs`; and no shape's rows ever put on the choice channel. Its CLAUDE.md row (line 282) stops saying the verdict is the ONLY screen-derived route to `needs_input`, and names the shapes. `conformance:agents` gains two assertions: neither `dialogs` nor `residentHelpers` appears in the overlay's hand-written type, and `REFUSED_ROW_FIELDS.activity` still stands. `build/p321/ablation.mjs`, as `ablation:p321`, removes each shape's discriminating clause, the resident rule, and antigravity's flag one at a time from the SHIPPING source. The row that owns each must go red, every file is restored and compared by sha256 in a `finally`, and an unedited control must stay green. `ablation:p312` stays green unchanged.
+10. **`build/p321/probe-p321.mjs`, `probe:p321`**, the app run below. It reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises by one from the value its parent reads (149 at `5ddbee19`, `build/assert-electron-teardown.mjs:292`, and 319 raises it first). It is classified in `build/verification-checks.mjs`, and CLAUDE.md's probe table gains one line naming `screen.ts`'s shapes, the `activity` fields and `process.ts`'s tool-child rule as its triggers.
+
+### The proof, run rather than read
+
+- **Gates.** `npm run typecheck && npm run build && npm run smoke:t1`, then the integrator's full battery (test, smoke, smoke:t3, package). Plus the path-triggered gates for the files touched: `conformance:choices` (`screen.ts`, the choice half of `monitor.ts`), `conformance:handback` (`state-machine.ts`, `monitor.ts`), `conformance:agents`, `conformance:installs` and `conformance:resume:capture` (`registry.ts`), and `conformance:phonecopy` (`src/main/activity/**`: no log line may reach a capture). Also `ablation:p312`, `ablation:p321`, `ablation:p319` if 319 shipped one, `gate:checks`, and `gate:electron` and `gate:background` for the probe and its stand-ins. `gate:contract` must not move.
+- **The detector matrix over every committed screen, at the parent and at HEAD.** For each agent, and for each question and each screen: parent verdict and HEAD verdict. Required: every labelled question screen of cursor, qwen, opencode, the Claude Code 2.1.280 gate and antigravity reads `true` at HEAD; **0 `not-question` screens read `true` at HEAD for any agent**; and for every agent with no shape (gemini, codex, pi, omp, grok) HEAD equals the parent on every screen, byte for byte. Every shape is also run over every other agent's screens and the hits reported, never gated, for a later round that asks whether a shape could serve unknown agents. Every rate carries its denominator.
+- **The labels, re-derived.** The verifier derives its own labels from the byte timeline and the key events, by a method other than the builder's, before reading the builder's `labels.json`. Every disagreement is read by eye and ruled in the report.
+- **The per-agent replay matrix over real recordings, parent against HEAD.** This uses the verifier's own harness. It replays every banked recording into scratch panes on its own tmux socket, with each agent's recorded process table remapped onto the replay pane, and reads it through the BUILT monitor, at 1 s and 2 s over at least 10 tick phases. For each of the 17 questions: whether it reached `needs_input` and when. For each agent: false ambers, `running` transitions, turn boundaries, and captures and `ps` per tick. Required: every question the parent raises, HEAD raises no later than the parent's median plus one tick; every question the shapes read is raised at HEAD at both cadences; antigravity's two are raised at 1 s (parent 0 of 30); grok reads `idle` in its two silent stretches (parent: `working` on every tick); **0 false ambers at HEAD for any agent**. Every turn boundary the parent fires and HEAD does not, or HEAD fires and the parent does not, is attributed to its cause, and the phase lands only if none is a real turn lost or invented. A row says "not measurable" for gemini's turns (none completed), droid (not installed) and a grok question (none recorded) rather than being left out.
+- **After a minute of silence.** Each shape's recorded question collapsed into one write after 90 s of silence, at 2 s, over 200 cells, at HEAD: raised in every cell. This is the check that Phase 319's peek reads the new shapes.
+- **The attack, at the parent and at HEAD.**
+  - **His own words.** Each shape's text typed key by key and pasted in one burst into each real agent's input box, with no Enter, so no turn is spent, and into a plain shell. Neither cadence may raise amber at HEAD. The parent cannot read these shapes, so any amber is one this phase added, and the shape that caused it is dropped whole.
+  - **An agent printing the shapes.** Each agent's pane shows this entry, `screen.ts` and the new fixtures, working and idle. An agent working on Tortie's own repository is the likeliest place these exact strings are drawn.
+  - **Cursor's answered trust box** stays on screen for the rest of the session. So does a question answered and redrawn as history, and a shape drawn above 40 rows of later output.
+  - **grok's resident rule at its worst.** A tool started before grok's first rest reads idle only while that one tool lasts. A tool born after it reads `working`. A detached tool that outlives the turn reads `working`, as today for every agent. A `sleep 25` tool run, detached the way each agent runs its tools, still reads `working` under every agent (the case `process.ts:17-20` exists for). The agent leaving and returning clears the set.
+  - **antigravity's working.** Its recorded turn reads `working` at HEAD for as long as the parent read it, and it settles to `idle` after.
+  - **The cost on a real 30-session load**, on Phase 319's rig with antigravity sessions added: captures and `ps` per tick, and the monitor's and the tmux server's CPU, parent against HEAD. The only permitted increase is antigravity's always-watched share, stated per session. With no antigravity session and every session settled, the tick is exactly one `list-panes`, no `ps` and no capture (research 18's A9).
+- **One live confirmation on the installed agents**, because a recording ages with each release. It runs on a scratch tmux socket (`-L p321-*`, never `-L gmux`), in scratch folders deleted afterwards. The trust gates of cursor, Claude Code and antigravity cost no turn. At most 3 real turns: one each for cursor's and opencode's permission questions and qwen's in Ask mode. **Every question is refused** (Esc, `n` or Reject), so nothing is written. Parent and HEAD monitors watch the same panes at once and must match transition for transition, except where the parent missed. It runs no gemini and no droid. Claude Code runs as `probe:p314` runs it (`build/p314/SPEC.md` R6 and R8: inherited session variables stripped, `DISABLE_AUTOUPDATER=1`, `TMUX` unset). qwen is ended by pid, as research 129 §8 did, so its pending update never installs. grok's MCP subtree is ended by pid in the `finally`. What it leaves behind is stated: trust answers for deleted scratch folders in cursor's, Claude Code's and antigravity's own configuration, as research 129 §8 recorded, and nothing else.
+- **`probe:p321`, the app run, in `probe:p314`'s shape.** One Electron through `build/electron-run.mjs`, with a scratch profile, a scratch `HOME` and its own tmux socket, and no Tortie window focused so the poll runs at 2 s. The sessions are the real registry rows `cursor`, `qwen`, `opencode`, `antigravity`, `claude` and `grok`, each launched through a stand-in on the scratch `HOME`'s `PATH` that writes that agent's recorded bytes. The stand-in answers every argv the row sends it, cursor's `create-chat` id pre-assignment (`registry.ts:607`) among them. **Before any arm, the probe asserts that each bare name (`cursor-agent`, `qwen`, `opencode`, `agy`, `claude`, `grok`, `registry.ts:509-1523`) resolves to its stand-in inside the scratch login shell, and reads UNREADABLE and exits 2 if any resolves elsewhere**, because every one of these agents is installed on this Mac. The builder reads how `probe:p276` and `probe:p314` set the scratch `PATH` before choosing. grok's stand-in starts a detached helper at launch and a detached tool mid-turn, and both are ended by pid in the `finally`. Arms, each at the parent build and at HEAD: (a) each recorded question: amber, the tray, ⌘J and one push to Phase 314's local stand-in at HEAD; none at the parent for the shapes, and late or none for antigravity; (b) grok idle after its turn: `idle` at HEAD and `running` at the parent; (c) his own typing into each session: no amber at either; (d) a control pi row and a shell row: identical at both. Electrons are counted once, at the end.
+- **What cannot be proven here, stated rather than hidden.** What grok asks and how it draws it, because it asked nothing. Whether gemini's next release draws the same gate, because gemini is not launched. droid. How each shape fares on the next release of its agent, which is why every shape's comment names the version it was measured on.
+
+### What is NOT in this phase
+
+- **No change to the numbered verdict.** `BORDER`, `OPT1`, `OPT2`, `HINT`, `QUEST` and the 24-row window (`screen.ts:66-74`) do not move, `detectDialog` stays `detectDialogRows(...).atChoice`, and Phase 312's parent-verdict floor stays green unchanged.
+- **No widening for unknown agents, shell sessions or agents with no recorded question.** `DEFAULT_ACTIVITY` and `SHELL_ACTIVITY` list no shape. gemini, codex, pi, omp and droid read exactly as today. An agent run by hand in a plain shell session gets the numbered verdict only. Widening the floor for every agent is its own entry, with a negative corpus across agents.
+- **No shape and no helper rule from configuration.** Both are compiled registry fields under `activity`, which the overlay refuses whole. No new door, setting or file may carry either (CLAUDE.md refusal 5).
+- **No choice rows and no screen question for the new shapes.** They raise `needs_input` with `{ atChoice: false }`. Carrying cursor's keys, opencode's buttons, qwen's rows or the trust gates' lists needs a contract change (`marker` is digits only) and is its own entry. Where a surface offers a text box for a question with no rows, it will offer one here. The phone's message box stays off until Phase 318, by his ruling.
+- **No change to Phase 319's J, and no constant moved.** `QUIET_MS`, `AMBIGUOUS_WINDOW_MS`, `MAX_CAPTURES_PER_TICK`, `REFLOW_GRACE_MS`, `DIALOG_CONFIRM_TICKS`, `DIALOG_CLEAR_TICKS`, `CPU_BUSY_PERCENT`, `CPU_BUSY_TICKS` and both cadences stay.
+- **No change to `hasToolChild` for any agent but grok, and no list of process names anywhere.**
+- **No grok title oracle and no grok hooks.** Its row's comment (`registry.ts:1486-1496`) keeps both deferred, and in its own words the hooks collide "with the spirit of Phase 23 refusal 8".
+- **No fix for gemini's late trust gate.** Its own updater's child is the cause. It is reported in the matrix and not fixed, and gemini is not launched.
+- **No fix for his own words read as a question** (research 129 §9 item 6). It is an existing fault in the numbered verdict. This phase must not widen it, and the attack proves that it did not.
+- **No amber while scrolled back** (§9 item 5), **no App Nap work** (§9 item 8) and **nothing for remote sessions** (`remoteRowStatus` never produces `needs_input`, `src/main/machines/remote-sessions.ts:1032`).
+- **Nothing for Claude Code's permission prompts or for Codex.** Their oracles speak first. Claude Code gains a shape only for its launch window, while its oracle is silent.
+- **No button that presses a choice, and no phone write route.**
+- **No live gemini, no droid, and no read or delete of any agent's conversation store.**
+- **No committed raw recording.** Only redacted distinct screens, the labels, the fixtures, the tests, the scripts and the source are committed.
+- **No status, no status word, no copy, no surface and no menu.**
+- **No release.**
+
+## Phase 322 — "Measure the control connection on the tmux versions Linux distributions ship" — issue 31's second question (research 130 §10, answered yes by the operator, 2026-09-23)
+
+**Subject.** `docs(research): which tmux a Linux machine runs, and whether the live connection opens on it`
+
+**First body line.** `Phase 322: the tmux each Linux distribution ships, measured against both gates`
+
+**Semver.** None. This phase ships one document, `docs/research/131-tmux-on-linux.md`, and touches no shipping
+byte. The number is 131 if it is still free when the phase starts, and the next free number otherwise. The phase
+adds no row to `TESTED_REMOTE_TMUX_VERSIONS`, no row to `build/tmux-probe-versions.json` and no probe to
+`package.json`. Whatever it recommends is queued as its own build phase after he reads it.
+
+**Tier 1 by the table's last row, because the commit is a document.** The research lane sets the discipline:
+Investigate → Attack → Judge → ONE document → Commit, with the adversaries attacking before a word is written.
+Phase 280 wrote first and had to rewrite; this phase does not.
+
+**The evidence is held to Tier 3's standard anyway.** The build this feeds is Tier 3 by two of CLAUDE.md's
+questions: it will claim to work across machines, and it decides which machines get a live connection that Phase
+320.1 will run commands over. So the matrix is per row. Every cell is run rather than read, except the cells that
+can only be read, and those say so.
+
+**The process rules bind every harness.** The research starts scratch tmux servers and control children.
+- Every socket a harness starts is named `p322-*`. The builder's own rule 6 starts one more server per build, on
+  `p83-<version>-<pid>`, and ends it by the pid that server reports (`build/build-tmux-version.mjs:37-41`); the
+  closing count below covers both prefixes.
+- `refuseRealSockets` (`build/scratch-machine.mjs:69`) refuses `gmux` and `default` before anything starts.
+- Every child is ended in a `finally`, by the pid it recorded.
+- No Electron is started and no agent is run.
+
+**Charter.**
+- **The operator's yes to research 130 §10 question 2**, recorded in the running log on 2026-09-23:
+  "Measure the control connection on the tmux versions Linux distributions ship?"
+  (`docs/research/130-remote-scrollback.md:611-615`).
+- **Issue 31**, filed 2026-09-21 by Jake Levirne (`jakelevirne`). His far machine is Linux, from one frame of his
+  video (research 130 §2.3). Its tmux version was not observed (research 130 §8, `:561-563`).
+- **Phase 320.1 is approved** (running log, 2026-09-23), and it reaches only machines whose control connection
+  opens. On any other machine, after Phase 320, a program that asked for the mouse scrolls, and a plain shell,
+  classic Claude and Codex do not (research 130 §1, `:74-77`).
+- **Research 52 §4** (`docs/research/52-control-mode-dialect.md:177-179`): "Both sides ran macOS. No Linux tmux
+  was opened in control mode by this probe, so a distro build's stream is unmeasured whatever version it reports."
+- **The control gate's own comment** (`src/main/tmux/version.ts:261-269`): it "TAKES NO ACCEPTANCE, AND IT NEVER
+  WILL", and "A later round that wants to widen this has to argue with that measurement first." This phase
+  gathers the evidence for that argument. It does not make it.
+- **Phase 320's refusal** (`docs/BACKLOG.md:33897-33898`) named this research as not queued. It is queued now. That
+  refusal still binds Phase 320 itself.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Read from the tree at `5ddbee19` (origin/main). No source file cited here changed between `e18be0e1`, where this was first read, and `5ddbee19`; only the backlog line moved. The package data was read as data on 2026-09-23 with `curl` against each
+distribution's own interface, listed under the table. No ssh was run, no machine was contacted, no tmux server was
+started and nothing was installed.
+
+**There are two gates. A Linux machine meets the first one before it reaches the one this issue names.**
+
+- **The exec gate** is `decideRemoteVersionGate` (`src/main/tmux/version.ts:318-331`). It runs at Prepare
+  (`src/main/machines/prepare.ts:387-413`), and the launch sign-in runs Prepare too
+  (`src/main/sessions/core.ts:1340-1350`).
+  - A version not on the list stops Prepare with "Tortie has not measured the program this machine runs."
+    (`src/main/machines/errors.ts:279`), and nothing is started on the machine.
+  - Phase 83 lets a person accept that exact version through the machine's confirm sheet
+    (`MACHINE_VERSION_ACCEPT_OFFER`, `errors.ts:354-360`). Sessions then start.
+- **The control gate** is `decideRemoteControlGate` (`version.ts:271-282`). It runs before every live connection
+  (`src/main/machines/control-plane.ts:579-589`), and again in the transport's precheck on every reconnect
+  (`:477-483`).
+  - It reads no acceptance.
+  - A version not on the list leaves the link reading `polling`, with the reason "runs a version Tortie has not
+    measured" (`control-plane.ts:581`).
+  - No surface draws a sentence for `polling` (`src/main/machines/machine-state.ts:110-112`).
+- **Both gates compare the whole version string, byte for byte** (`version.ts:278-280`, `:314-316`: "THERE IS NO
+  VERSION ARITHMETIC HERE AND THERE MUST NEVER BE").
+- **Neither gate reads a row's `subject`**, the field that says which copy of a version was measured
+  (`version.ts:144-149`). Every row's subject is a macOS build (`version.ts:171-237`):
+  - 3.6a is "the copy of tmux already on this Mac", which is Homebrew's (`/opt/homebrew/bin/tmux` links into `Cellar/tmux/3.6a`);
+  - 3.7b is the vendored copy;
+  - 3.7c was built here from the upstream tarball.
+- **Both gates read the SERVER's version.** `display-message -p '#{version}'` answered the running server's
+  version in all three directions `version.ts:20-22` measured.
+  - The binary's own `-V` is read only when no server answers (`prepare.ts:174-202`).
+  - The control child and every attach run the machine's own binary (`control-plane.ts:16-17`,
+    `src/main/attach/attach-plan.ts:175-186`).
+  - So nothing ever compares a machine's binary with its running server.
+
+**What rides the control connection on a machine, and what a machine without one gets instead.**
+
+| With a live connection | Without one |
+| --- | --- |
+| The session list is read when the machine says a session was created, killed or renamed (`src/main/machines/remote-sessions.ts:2945-2964`) | The list is read on a timer: every 5,000 ms while a Tortie window has focus, and every 30,000 ms while none has (`REMOTE_POLL_FOCUSED_MS`, `REMOTE_POLL_IDLE_MS`, `remote-sessions.ts:414`, `:421`) |
+| Saved output is copied to this Mac every 120,000 ms, at most 8 sessions a pass (`REMOTE_CAPSULE_CADENCE_MS` and `REMOTE_CAPSULE_PER_PASS`, `src/main/machines/remote-capsule.ts:102`, `:111`) | **No saved output is ever copied.** `remote-capsule.ts:381-383` refuses the timer feed: "No copy is ever taken over the timer feed". So nothing an agent printed there can be read here once the machine stops answering |
+| A killed far side is noticed in 0.1 s and a frozen one in about 19 s (research 52 §0) | Loss is noticed at the next list, which waits up to 10,000 ms for an answer (`REMOTE_POLL_TIMEOUT_MS`, `remote-sessions.ts:424`) |
+| After Phase 320.1, every session scrolls like one on this Mac | After Phase 320.1, only a program that asked for the mouse scrolls |
+
+Everything else a machine does rides the exec plane and works either way:
+- the status list, which runs on both feeds at the same cadence (`remote-sessions.ts:3058-3070`);
+- the connected harvest;
+- every file, git, search and context read, which refuse only when the link is neither `connected` nor `polling`
+  (`linkAnswering`, `src/main/machines/liveness.ts:96-104`).
+
+**What Tortie sends over a machine's control connection today is two things:**
+- the attach, `<the machine's tmux> -L gmux -f /dev/null -C new-session -A -s gmux-control`
+  (`CONTROL_ATTACH_ARGS`, `src/main/tmux/control-client.ts:108-114`, composed at `control-plane.ts:486`);
+- `refresh-client -f no-output` (`control-client.ts:312`).
+
+The parser has a named arm for six notifications (`src/main/tmux/control-parser.ts:117-157`), beside the
+`%begin`, `%end` and `%error` guards: `%sessions-changed`, `%session-changed`, `%session-renamed`,
+`%session-window-changed`, `%output` and `%exit`.
+
+**Phase 320.1 adds six shapes:**
+- `display-message -p -t $N -F <STATE_FORMAT>`, whose eight fields include `#{copy_position_limit}`
+  (`src/main/tmux/scroll.ts:134-145`);
+- `copy-mode -e`;
+- `send-keys -X -N <n> scroll-up|scroll-down`;
+- `send-keys -X goto-line`, with a fallback for a tmux that lacks it (`scroll.ts:227-232`, `:245`);
+- `send-keys -X top-line`;
+- `send-keys -X cancel`.
+
+**Prepare has to finish before the connection matters, and on an old tmux it can fail even after an acceptance.**
+- `ensureRemoteServer` awaits one `set-option` for each of the twelve rows in `SERVER_OPTIONS`
+  (`src/main/tmux/server-options.ts:65-106`, awaited at `src/main/machines/remote-server.ts:165-168`). One
+  option a version does not know throws and fails the whole Prepare.
+- Which of the twelve each version knows was not read.
+- The list the feed reads uses the `q:` modifier on all ten fields (`REMOTE_LIST_FORMAT`,
+  `remote-sessions.ts:381-387`). Which versions expand it was not read either.
+
+**The probe that set `measured.control` compares like with like, and it reads his server.**
+- `build/probe-control-dialect.mjs` opens two children of the SAME program, one local and one over a loopback
+  sshd, and compares them (`:631-635`). A match says the ssh hop did not change that version's stream. It does
+  not say the stream is one the shipping client was written for.
+- It reads the operator's own `-L gmux` server before and after (`readOperatorServer`, `:126`), and this phase may
+  not touch that server.
+- It measures only `which tmux` and the vendored copy (`:305-322`).
+- **So this phase does not run it and does not edit it.** Its harness copies the steps into scratch and drives the
+  shipping client instead.
+
+**What each named distribution ships, read as data on 2026-09-23.** "Package" is the source package version the
+distribution publishes. The string each binary prints was not read, so "matches by string" assumes it prints the
+upstream version.
+
+| Distribution | Package | Exec gate today | Control gate today |
+| --- | --- | --- | --- |
+| Ubuntu 26.04 LTS, resolute (Launchpad: "Current Stable Release") | 3.6a-2ubuntu0.1 | matches by string | matches by string, on a Linux build nobody measured |
+| Ubuntu 24.04 LTS, noble ("Supported") | 3.4-1ubuntu0.1 | refused, acceptance offered | refused |
+| Ubuntu 22.04 LTS, jammy ("Supported") | 3.2a-4ubuntu0.2 | refused, acceptance offered | refused |
+| Debian 13.7 trixie, stable | 3.5a-3, and 3.6b-1~bpo13+1 in trixie-backports | refused (3.6b is not 3.6a) | refused |
+| Debian 12.15 bookworm, oldstable | 3.3a-3, and 3.5a-2~bpo12+1 in bookworm-backports | refused | refused |
+| Ubuntu 26.10, stonking (development series) | 3.7b-1 | matches by string | matches by string, on a Linux build nobody measured |
+| Debian forky (testing) and sid | 3.7c-1 | matches by string | matches by string |
+| Fedora 43, 44 and rawhide | 3.7c (2.fc43, 1.fc44, 1.fc46) | matches by string | matches by string |
+| Arch Linux, `extra` | 3.7_c-1, built 2026-08-17 | matches by string | matches by string |
+| Homebrew on Linux | 3.7c, with `arm64_linux` and `x86_64_linux` bottles | matches by string | matches by string |
+
+Sources, each read on 2026-09-23:
+- Launchpad `api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=tmux`, and
+  `api.launchpad.net/1.0/ubuntu/<series>` for each series' version and status;
+- `sources.debian.org/api/src/tmux/`, and `deb.debian.org/debian/dists/{stable,oldstable,testing}/Release`;
+- `mdapi.fedoraproject.org/{f43,f44,rawhide}/srcpkg/tmux`, whose branch list names no other Fedora release;
+- `archlinux.org/packages/extra/x86_64/tmux/json/`;
+- `formulae.brew.sh/api/formula/tmux.json`;
+- `api.github.com/repos/tmux/tmux/releases`.
+
+Three things follow. Each is a question for the phase, not an answer.
+1. **The long-term-support servers are refused on both planes.** These are Ubuntu 24.04 and 22.04 and Debian 13
+   and 12. A person on one of them can accept the version and start sessions, and then gets the right-hand column
+   above.
+2. **The rolling and newest distributions pass by string, on builds nobody measured.** These are Ubuntu 26.04 and
+   the 26.10 development series, Fedora, Arch, Debian testing and Homebrew on Linux. Research 52 §4 says a distribution's stream is unmeasured
+   whatever version it reports.
+3. **The list will soon go stale on the rolling distributions.** Upstream published `3.8-rc` on 2026-09-09, and
+   3.6b on 2026-05-20 (GitHub releases). On the day Arch, Fedora or Homebrew ships 3.8, those machines fall off
+   both lists.
+
+**The reporter started a session on his Linux machine, so his machine passed the exec gate.** Either it reports
+3.6a, 3.7b or 3.7c, or he accepted its version. This was read from the tree, because Prepare is the only way to a
+session. It was not observed. Which of the two it was decides whether Phase 320.1 reaches him.
+
+**Debian warns about the same pair `version.ts` measured hanging.** Debian's `debian/NEWS` for tmux (read at
+`sources.debian.org/data/main/t/tmux/3.7c-1/debian/NEWS`) has the same paragraph for 3.1, 3.6 and 3.7:
+
+> Please restart tmux entirely after upgrading to 3.7: an old server and a new client will not be fully compatible
+> with each other and the new client may hang.
+
+- Tortie's far server sets `exit-empty off` (`server-options.ts:84`), so it outlives an upgrade by design.
+- The gates read that server's version, but the control child and the attach run the upgraded binary.
+- `version.ts:24-26` measured that shape hanging on this Mac: a 3.7b client against a 3.5a server.
+- The greeting deadline, 10,000 ms (`control-client.ts:99`, handled at `control-plane.ts:641-651`), ends a control
+  child that hangs.
+- Nothing named in this entry ends an attach that hangs. The phase measures whether one does.
+
+**The distribution patches read so far, headers only:**
+- Debian 3.5a-3 has two patches: `platform-quirks.diff`, touching `compat.h`, and an upstream cherry-pick touching
+  `input.c`.
+- Debian 3.7c-1 has `platform-quirks.diff` alone.
+- Ubuntu 22.04 carries five: `platform-quirks.diff`; `upstream-32f2d9d089ce.diff`, touching `tmux.c`;
+  `upstream-b1a8c0fe022e.diff`, touching `configure.ac`; `lp1976110-respect-sizing.diff`, touching
+  `cmd-new-session.c`, which is the command the control attach runs (`new-session -A`); and
+  `CVE-2022-47016.patch`, touching `control.c`, `file.c` and `window.c`.
+- Ubuntu 24.04 carries `platform-quirks.diff` and `lp-2068393-fix-sixel-invalid-colour-register.patch`, which fixes a
+  SIXEL crash and touches `image-sixel.c`, `input.c`, `screen-write.c` and `screen.c`.
+- Ubuntu 26.04 carries `platform-quirks.diff` and `CVE-2026-11623.patch`, touching `image.c`, `screen.c` and
+  `tmux.h`.
+
+Ubuntu's series and patch headers were read from `git.launchpad.net/ubuntu/+source/tmux/plain/debian/patches/` on the
+`ubuntu/{jammy,noble,resolute}-devel` branches on 2026-09-23. So at least one supported distribution build carries a
+patch to control-mode code, and another patches the command the control attach runs. The other patch sets (Fedora,
+Arch, Homebrew) were not read.
+
+**The builder for probe-only versions already exists.** `build/build-tmux-version.mjs` builds a version named in
+`build/tmux-probe-versions.json` from its upstream tarball.
+- The pin has one row today, 3.7c.
+- The builder checks each tarball against its pinned sha256.
+- It writes into `build/vendor/tmux-probe/<version>/` and never into the shipped `build/vendor/tmux/` (its rules
+  1 to 6, `:14-42`).
+- It builds arm64 macOS only.
+
+### What the research must answer, in this order
+
+1. **Which tmux each distribution ships, read as data.** Re-read every row of the table on the day, with the URL
+   and the read date, and add:
+   - **The version string**, read from upstream's `configure.ac` in the source package. It is also read out of the
+     packaged binary as bytes, where the tools already on this Mac can open the archive. The package is
+     downloaded into scratch and never installed or executed. This turns "matches by string" from an assumption
+     into a reading.
+   - **The build flags** each package uses (utf8proc, jemalloc, systemd, sixel), read from `debian/rules`, the
+     spec file, the `PKGBUILD` and the Homebrew formula.
+   - **Every distribution patch and the files it touches.** A patch that touches any file on the control-mode list
+     is named, with its effect in one sentence. Investigator A writes that list from the upstream source and the
+     adversaries attack it. It starts from `control.c`, `control-notify.c`, `cmd-refresh-client.c`,
+     `cmd-send-keys.c`, `cmd-display-message.c`, `window-copy.c`, `format.c`, `server-client.c`, `client.c` and
+     the protocol version in `tmux-protocol.h`.
+   - **Fedora's release against its updates**, read from Bodhi. mdapi answered 3.7c for Fedora 43 without saying
+     which.
+2. **Whether each version works with the SHIPPING client, measured on this Mac from pinned upstream source.**
+   - **What is built.** 3.2a, 3.3a, 3.4, 3.5a and 3.6b, which are what the supported distributions ship, and
+     3.8-rc for direction. Each goes through `build/build-tmux-version.mjs`. Its row is added to
+     `build/tmux-probe-versions.json` in the research worktree and is never committed.
+   - **A second source for each tarball.** Each tarball's sha256 is checked against a source that does not depend
+     on GitHub. That is the Debian `.dsc`'s `Checksums-Sha256` for the orig tarball, where Debian ships upstream's
+     own `.tar.gz`, or the Homebrew formula. A disagreement is recorded, not resolved.
+   - **The controls.** 3.6a, 3.7b and 3.7c go through the same harness. If a control fails, the harness is wrong,
+     and nothing it says about another version is evidence.
+   - **The setup.** For each version, the ssh hop is replaced by a local shell exactly as research 130 did. The
+     scratch server is booted the way `ensureRemoteServer` boots one.
+   - **The exec plane**: the four shapes `build/probe-execplane.mjs` measures, plus `REMOTE_LIST_FORMAT`
+     answering ten fields through its `q:` modifiers.
+   - **The boot**: `remoteBootArgs()` (`remote-server.ts:71`), then each of the twelve `set-option` rows. Each
+     row is recorded as answered, refused or read back different, because one refusal fails Prepare.
+   - **The control connection, through `TmuxControlClient` itself, over `CONTROL_ATTACH_ARGS`:**
+     - the greeting arrives inside the deadline;
+     - `refresh-client -f no-output` is answered with no `%error`, and no `%output` follows it;
+     - a second client's create, rename and kill each produce the notifications the parser names;
+     - `%exit` arrives when the server ends;
+     - one list over control is byte-equal to the same list over exec.
+   - **Phase 320.1's six shapes**, each answered or refused, and `STATE_FORMAT`'s eight fields, each a number or
+     empty. An unknown format variable may expand to nothing rather than fail, so an empty field is a finding,
+     not a pass.
+3. **The pair an upgrade leaves behind.** Measure each upgrade a supported distribution can make without a reboot:
+   - Debian 13 to its backport: server 3.5a, binary 3.6b;
+   - Debian 12 to its backport: server 3.3a, binary 3.5a;
+   - the rolling distributions to the next release: server 3.7c, binary 3.8-rc.
+
+   For each pair, start the server with the older build. Then run Tortie's version read, the control child and an
+   attach with the newer binary. The attach uses the remote attach argv (`attach-plan.ts:175-186`), with `ssh -t`
+   replaced by a pty the harness owns. Record:
+   - what `display-message -p '#{version}'` answers, because that is the gate's input;
+   - whether the control child greets or hangs;
+   - whether the attach draws the session or hangs.
+
+   Every child is killed by a deadline the harness sets and records.
+4. **What a person on each row gets, today and under each option.** One row per distribution, from questions 1 to
+   3:
+   - whether Prepare finishes without an acceptance, only with one, or not at all;
+   - whether the control connection opens;
+   - what that means, in the words of the "without one" column above.
+
+   Then the options, each with its cost:
+   - (a) add measured rows to `TESTED_REMOTE_TMUX_VERSIONS`, each with a `subject` that names the copy honestly;
+   - (b) the same, and make the gate read `subject` or the platform;
+   - (c) any rule wider than byte equality, argued against `version.ts:314-316`'s four data points and the one
+     measured failure, which is one minor version apart;
+   - (d) change nothing.
+
+   Part of the cost is how often the list would need a new row, measured from the release dates upstream
+   publishes.
+5. **What the reporter's machine is, without asking it.** The document says which rows his case can be, from the
+   fact that he started a session. It ends with the two commands the operator could ask him to run, `tmux -V` and
+   `cat /etc/os-release`. Whether to ask is the operator's decision.
+
+### The mechanism
+
+1. **Three investigators, on disjoint questions.**
+   - A: question 1, the distribution table, from package data only.
+   - B: question 2, the builds, and the shipping client driven over them.
+   - C: question 3, the upgrade pairs and the attach.
+
+   The harnesses live under `scratchpad/p322/{invA,invB,invC,adv1,adv2,adv3,judge}/`, in the worktree
+   `/private/tmp/wt-p322` at main's tip. They are not in the tree, as research 130's were not.
+2. **Three adversaries attack the findings before anything is written.**
+   - **Adversary 1 attacks the stand-in**: the claim that a macOS build of upstream X says anything about a
+     distribution's X. It hunts every patch and build flag that could change the control stream, the boot or the
+     six shapes. For each row it says whether the macOS measurement stands, stands with a named patch, or does
+     not stand.
+   - **Adversary 2 attacks the gate as shipped.** It tries to make the SHIPPING `decideRemoteControlGate` and
+     `parseTmuxVersion` open a live connection that then hangs or misparses. Its inputs are the upgrade pairs, a
+     `3.8-rc` or `next-3.8` string, and a row that passes by string on a patched build. Anything it finds is a
+     defect in today's product. It is recorded for its own entry, not fixed here.
+   - **Adversary 3 attacks the recommendation.** It tests the claim that adding rows helps against how fast the
+     rolling distributions move, and the claim that any wider rule is safe against the measured hang.
+3. **A judge** rules on every disagreement, typed. The judge re-measures any claim nobody measured end to end, and
+   records the refutations that survived in the shape of research 130 §6.
+4. **ONE document**, `docs/research/131-tmux-on-linux.md`, in this order:
+   - the answer;
+   - the per-row matrix;
+   - the measurements;
+   - what was not measured;
+   - what the attack killed;
+   - the rulings it needs from him, asked in his terms the way research 130 §10 was.
+
+   It ends by naming the build phase it would queue, sized and tiered. That build is Tier 3, because it claims to
+   work across machines and it decides which machines 320.1 runs commands on. The build's verifier re-runs this
+   matrix with a harness of its own, and the attack runs alongside it.
+
+### The proof, run rather than read
+
+- **The attack happened first.** The document names each investigator's question, each adversary's refutations and
+  each of the judge's verdicts. A document whose adversaries ran after it was written is the Phase 280 failure and
+  is not accepted.
+- **Every package fact carries its URL and the date it was read.** These pages change without notice. The table
+  above goes out of date the day 3.8 ships.
+- **Every run fact carries** the tarball's sha256 and its second source, the configure flags, the scratch socket,
+  the harness path and the raw log.
+- **The per-row matrix** has one row per distribution and one column per check in question 2, plus the upgrade
+  pair.
+  - Every cell reads measured, refused, empty, hung (with the deadline that ended it), or not run (with the
+    reason).
+  - The three controls sit in the same table.
+- **His servers were never touched, shown rather than asserted.**
+  - Every argv the harnesses ran is recorded. The number that name `-L gmux`, or no `-L` at all, is 0.
+  - At the end, one count of `tmux` processes on a `p322-*` or `p83-*` socket is 0.
+- **Gates.** It is docs only, so nothing moves:
+  - `gate:contract` is untouched;
+  - `HELPER_USER_FLOOR` does not change;
+  - no probe is registered;
+  - `build/tmux-probe-versions.json` is byte-identical to the parent in the commit.
+
+### What is NOT in this phase
+
+- **No change to either gate.**
+  - No row is added to `TESTED_REMOTE_TMUX_VERSIONS`.
+  - `decideRemoteControlGate`, `decideRemoteVersionGate` and `parseTmuxVersion` are not edited.
+  - The control gate gets no acceptance.
+  - `version.ts:261-269` stands until a build phase argues with it using this document.
+- **No version arithmetic is built.** The document may argue for a wider rule. Building one belongs to a build
+  phase, after his ruling.
+- **No real machine, no ssh, no container and no virtual machine.** No Linux binary is run. The distributions'
+  builds are read as data. The gap between reading a patch and running a build is stated for each row rather than
+  closed. A measurement on a real Linux machine is his to attend, as research 52 §4 says of his own machines.
+- **Nothing is installed.** No `apt`, no `brew`, no `docker` and no package manager of any kind. The only downloads
+  are:
+  - upstream tarballs into the builder's cache, each checked against two sources;
+  - packages opened in scratch as archives, which are never installed or executed.
+- **His `-L gmux` server and his default tmux server are never touched, not even read.** That is why
+  `build/probe-control-dialect.mjs` is not run. Whether that probe should stop reading his server is a finding
+  for its own entry.
+- **No fix for anything the attack finds.** A hang in today's product found by adversary 2, such as an attach
+  across an upgrade pair, gets its own entry with its own tier.
+- **No change to Phase 320 or 320.1.** 320.1 builds on its own schedule. Suppose one of its six shapes fails on a
+  version the document would add. The document says so, and the build phase adds that version without the
+  scroll, or not at all.
+- **No other distributions.** RHEL and its rebuilds, Amazon Linux, Alpine, openSUSE and NixOS are named in the
+  document as not measured. So is any tmux older than 3.2a.
+- **Nothing is posted on issue 31.** The question for the reporter is the operator's to ask.
+- **The create that can start a far server with tmux's defaults** (research 130 §9) stays its own entry.
+- **No release.**
+
+## Phase 323 — ending a Gemini session leaves Gemini running (Phase 314's fixer, 2026-09-22, and his Mac, 2026-09-23)
+
+**Subject.** `fix(sessions): End ends what the hang-up leaves running`
+
+**First body line.** `Phase 323: End ends the session's own processes that outlive the hang-up`
+
+**Semver.** Patch. Today, when he ends a Gemini CLI session, the session disappears from Tortie but both of Gemini's processes keep running in the background, with nothing pointing at them, until something ends them by hand. The same is true of anything else an agent started that ignores or never receives the hang-up: grok's MCP servers, and, predicted but not yet measured, a tool command an agent was running when he pressed End. After this phase, End ends every process that was part of that session when he pressed it and outlived the hang-up. Restart ends the old session the same way, because it reaches the same code. The test harness that launches real agents stops leaving them behind. Unchanged on purpose: the hang-up is still the first signal, and for every agent that ends on it, the only signal; the scrollback is still saved before anything is ended; the End still answers the window as fast as it does today, plus one read of the process table; plain `shell` sessions, Remove, Restore, quit, reconcile, boot and every session on another machine behave as they do today. No copy, no surface and no menu changes, so the native menus are untouched. One CHANGELOG item goes under `## Unreleased`. No release: phases 311 onward stay unreleased until the phone works end to end.
+
+**Tier 3, because three of the table's questions answer yes.** It signals processes, and CLAUDE.md's tmux safety rule is that Tortie never ends what it did not create. It changes session lifecycle, being End and Restart, and a signal sent to the wrong process loses work. It also claims to work for every agent, so the evidence is a per-agent matrix over real agents, at the parent and at HEAD. **Independent methods, named before the work starts:** (1) run over real data, with every installed agent launched to its first screen in every launch shape, at the parent and at HEAD; (2) attack, where the first arms are a stranger process with the same command line, a second session of the same agent, and a person's own `nohup` job in a plain shell session; (3) re-derive, with the verifier's own census of what survived, found by working directory and never by parent pid; (4) measure the parent commit, every row. Plus a fix round if any verdict is needs_work, and an independent reverify of that fix.
+
+**Charter.** `docs/research/21-sigterm-forensics.md` §2 and §3, which measured that `tmux kill-session` delivers the hang-up (SIGHUP, exit 129) and that every pane process is a direct child of the server in its own session and group, and §6 and fix F1, which say to end only the session Tortie can prove belongs to the row. `docs/research/129-the-question-after-silence.md` §2.3 and §3.5 (agents run their tools and grok its MCP servers as detached session leaders), §3.5 again (launching Gemini starts its auto-updater), and §8 (a grok MCP server still running 1 h 44 min after it started, with its grok and its tmux server already ended, and the instruction that any later recorder ends grok's subtree by pid). Phase 314's app run, `build/probe-p314.mjs`, whose by-pid ending is the shape this phase moves into the product, and its spec's rows R7 and R8 and its defect note (`build/p314/SPEC.md:1044-1045`, `:1059`, committed in `5e453f13`). Phases 13.8 and 167's safety argument in `src/main/proc/orphans.ts`: prove the process is ours before signalling it, and name the shape that cannot be proved rather than guess. Phase 116's ledger, which a quit joins. CLAUDE.md's tmux safety rules (identity by `@gmux-id` and `GMUX_SESSION_ID`, never a bare name, never kill what is not ours) and its machine discipline (every process a script starts is ended in a `finally`). The operator's rule that **Tortie never auto-ends a session** (no reaper, no timer, no suspend on close, because ending is his call). This phase is the other half of that promise: when he does press End, the session actually ends. Nothing in it runs unless he pressed End or Restart. His rule that a phase lands only when a side-by-side against today shows no scenario worse also applies.
+
+**Depends on.** Nothing queued. Phase 314 has landed (`5e453f13`), so its probe and stand-in are in the tree.
+
+### What was measured before this entry was written, so no round re-derives it
+
+All paths and line numbers were read from the tree at `5ddbee19` (origin/main) on 2026-09-23. `build/p314/SPEC.md`, `build/probe-p314.mjs` and `HELPER_USER_FLOOR` = 149 exist only from `5e453f13`, and `package.json` moved three lines after `7990b2c1`.
+
+- **Every local End reaches one line, and that line only sends the hang-up.** `sessions:kill` (`src/main/ipc.ts:132-134`) calls `killSession` (`src/main/sessions/core.ts:2816`), which is admitted by the ledger and runs `killSessionAdmitted` (`:2825`): the Phase 293 refusal (`:2840`), the remote branch (`:2861-2887`), the target read from `liveIds` by row id (`:2900`), the end-time capture (`:2910-2927`), then `tmux.killSession(target)` (`:2928`), the status write (`:2932`), the SpecStory flush (`:2935`) and the broadcast (`:2942-2943`). `tmux.killSession` is `kill-session -t <$-id>` and nothing else (`src/main/tmux/sessions.ts:230-240`). Restart reaches the same verb, in its step 3 (`src/main/restart/restart.ts:184-201`), and so do ⌘J's End and the session manager's batch End, through the same IPC call. Nothing in the tree sends a signal to an agent's process after its session is gone.
+- **The hang-up, measured.** Research 21 §3 (`:52-64`) measured `kill-session` delivering SIGHUP with exit status 129 on tmux 3.6a. The bundled tmux is now 3.7b (`build/tmux-release.json`, and `/Applications/Tortie.app/Contents/Resources/bin/tmux -V` reads `tmux 3.7b` on 2026-09-23), so the census below measures the hang-up again on the shipped tmux rather than assuming it. The kernel delivers a terminal's hang-up to that terminal's foreground process group and its session leader. A process in another session, such as one that called `setsid`, gets none. A process that catches or ignores the signal keeps running.
+- **Gemini survives it, measured twice.** Phase 314's fixer, on a scratch socket: "both its processes survived a `kill-server` and ended on the first TERM". Its probe then read `orphansEnded` = 38 in each of runs 1 to 3, which is both processes of each of its 19 Gemini sessions, and 0 were left after its own by-pid ending (`SPEC.md` R7, line 1044, and the defect note at line 1059, which also records four `gemini … --yolo --skip-trust` pairs at parent pid 1 on this Mac that nobody inspected). On 2026-09-23 the main session found 24 orphaned Gemini pairs on his Mac: 48 processes, parent pid 1, about 13 MB each, spread over 16 days. Every one came from this repository's own `conformance:resume` runs, a Phase 312 verifier, and research scratch. Each exited on a SIGTERM sent to its pid. The pairs with `--yolo --skip-trust` carry `conformance:resume`'s bypass flags for Gemini (`src/main/conformance/cases.ts:51`). A `ps` read later that day found no Gemini process running.
+- **Why, as far as Gemini's own source says.** This is read from the installed bundle, whose `package.json` reads 0.54.0 with an mtime of 2026-08-06 14:46:28; Phase 314's preflight saw 0.60.0 drawn on screen (R1). In `bundle/gemini.js`, the launcher process installs empty handlers for SIGINT, SIGTERM and SIGHUP (`:70-73`). It then starts the real CLI as a child node process over an IPC channel (`:76-79`). The spawn passes no `detached`, so the child stays in the launcher's process group, and research 129's recorded process table agrees: the launcher is the pane process at `Ss+` and the child is `S+` (`scratchpad/p319/a/rec/ps.jsonl`). The launcher exits only when that child closes (`:95-98`, `:102-105`). The child's SIGHUP handler awaits a clean-up before it exits (`chunk-43HYOV6F.js:85-97`, one of three copies of that module). Why the child does not finish is **not measured**, and the fix does not depend on the answer. `GEMINI_CLI_NO_RELAUNCH` (`gemini.js:65`) would remove the launcher, and it is refused below. qwen is a fork of Gemini CLI, and its bundle also names a `NO_RELAUNCH` switch (three chunks under `~/.local/lib/qwen-code/lib/chunks/`). That makes qwen the likeliest second row, but it is not measured.
+- **Grok's subtree survives it, measured once.** Research 129 §8 (`:482-487`) records pid 22095, a `bun … talk_to_figma_mcp/server.ts`, at parent pid 1, still running 1 h 44 min after it started, when research 129 was written, after its grok and its tmux server had been ended. Grok's MCP servers (bun, npm ×4, tessl, node) run as session leaders outside the foreground group (`Ss`, `:243-244`), and cursor's and omp's run as `S+` (`:246-247`).
+- **A running tool is predicted to survive, and this is not measured.** The same research found that the tool command ran as a detached `Ss` child for cursor, qwen, pi, opencode, codex and claude (`:137-139`), and research 18 found that agents `setsid` the commands they run (`src/main/activity/process.ts:17-21`). A process in its own session gets no hang-up, so a tool running when he presses End is predicted to keep running.
+- **Claude Code ends on the hang-up.** Its session file is "deleted on exit, including `tmux kill-session`" (`src/main/activity/claude-registry.ts:7-8`). That makes it the control row.
+- **The harness leaves them because nothing ends a process that outlived its pane.** `conformance:resume` runs on a scratch socket through `build/harness-socket.mjs` (`package.json:237`). Its cases end sessions three ways, and each one only sends the hang-up. The first is the simulated reboot at step 5, `killOwnSession` (`src/main/conformance/resume.ts:571`, `src/main/conformance/scratch.ts:62-72`). The second is the per-case clean-up, `core.killSession` then `killOwnSession` (`scratch.ts:123-127`). The third is the start-of-run sweep (`:150`, `:158`). The watchdog calls `app.exit(1)` from a timer (`resume.ts:719-723`), which skips every `finally`. `withTimeout` (`:840`) settles a case as FAIL while that case is still running. The only backstop is `harness-socket.mjs`'s teardown, which sends `kill-server` (`:221-245`), and its reap of dead runs does the same (`:125-156`). Both hang up every pane, and the survivors are re-parented to launchd. That script wraps 105 lines of `package.json` (`grep -c`, 2026-09-23), so one teardown covers every harness run through it.
+- **The harness's simulated reboot is not a reboot for any agent that survives the hang-up.** This comes from reading the code, and the matrix measures it. After step 5, a real reboot would have ended the original Gemini pair. Here it is still running when step 6 restores the session and resumes the same conversation id.
+- **Restart leaves the old pair beside the new session.** This also comes from reading `restart.ts:184-201`, and it is measured below.
+- **What Tortie can read about a process from outside, on this Mac.** It cannot read the environment, so the `GMUX_SESSION_ID` stamp cannot be read off a surviving process (`src/main/harness/identity.ts:70-71`). `ps -L` on 2026-09-23 lists `lstart`, `pgid`, `tpgid`, `sess` and `sigmask`, and **no `sigignore` and no `sigcatch`**. So from outside, Tortie cannot tell a person's `nohup` job, which ignores the hang-up, from Gemini's launcher, which catches it. `ps -o pid=,ppid=,pgid=,tpgid=,stat=,lstart=,command=` returns a fixed 24-character start time with 1-second resolution. The only proof that a process belongs to a session is its parentage, read while the pane is still alive.
+- **The agents on this Mac and their launch shapes.** `command -v` on 2026-09-23, on the tool shell's PATH, which is not necessarily Tortie's login-shell PATH, resolves 12 of the registry's 13 launchable binaries. `droid` is absent. Checked with `file`: qwen, muse and cursor-agent launch through a shell script; gemini, pi, deepseek and codex through a node script; claude, omp, opencode, grok and agy are native. This describes the process tree at rest and says nothing about survival. A pane has one of three shapes. **Created**: the agent, or the SpecStory wrapper, is the pane process itself, because tmux runs a multi-word argv directly (`sessions.ts:180-183`). **Restored**: a login shell is the pane process, and the agent runs as a job inside it (`src/main/restore/restore.ts:1-11`). **Wrapped**: `specstory run` is the pane process and the agent is its child (`src/main/sessions/launch-plan.ts:273-283`).
+- **The helpers to reuse, so nothing is written twice.** `src/main/proc/ps.ts` holds one parsed `ps` reader (`PS_ARGS` at `:35`, `descendantsOf` at `:68`, `readPsTable` at `:86`). `src/main/proc/orphans.ts` holds the injected `KillFn` (`:200`), the ending of stranded probes (`:212`), which sends SIGKILL to each pid AND to its group (`kill(-pid)`, `:220`) and so is not the shape to copy, and Phase 167's measured finding that an interactive zsh ignores SIGTERM (`:51-69`). `src/main/proc/guarded.ts:79` ends a process group, and that shape is refused here, below. Phase 314's probe records every process under its panes by pid and command line (`build/probe-p314.mjs:355-389`), and ends by pid the recorded processes that are no longer under a live pane, SIGTERM then SIGKILL (`:769-804`, and again in its `finally` at `:1337-1356`). That method is the one to adopt. What it lacks is the start time, which is what protects a reused pid.
+- **The cost of one read.** One `ps -axo pid=,ppid=,time=,stat=` on this Mac takes 36.7 ms of wall time and 33.3 ms of CPU (research 129 `:279`). The wider read this phase adds, with `lstart` and `command`, has not been timed. A quit waits at most `MUTATION_JOIN_DEADLINE_MS` = 10,000 for admitted work (`src/main/sessions/mutation-ledger.ts:25`).
+
+### The mechanism
+
+**Step 0, before any builder starts: the census, at the parent.** `build/p323/probe-p323.mjs` runs a census arm that needs only the shipping create and End, so it runs unchanged at the parent. It uses one Electron through `build/electron-run.mjs` on its own tmux socket. It launches every installed agent through `GmuxCore.createSession`, the way `conformance:resume:capture` does, with no model turn. It waits for each agent's first screen and never sends a key that answers anything. It then reads the pane's whole process tree and presses End through the renderer's own `window.gmux.sessions.kill`. The shapes are **created**, **restored** (built the way a restore builds one: a login-shell pane with the agent's plain launch command typed and entered, so no conversation is needed) and **wrapped**, which applies to every installed row that declares a SpecStory provider and runs with `GMUX_SPECSTORY_NO_CLOUD=1`. It runs under **two HOMEs**, and the app itself always runs under a scratch HOME, as CLAUDE.md's probe rule requires. One arm launches every agent under that scratch HOME. The other launches each agent through a wrapper on the scratch PATH that restores his own HOME for that agent's process alone, the way `probe:p314` runs Claude (`build/probe-p314.mjs:458-461`); `conformance:resume:capture` already launches every agent under his HOME, with the whole app under it. It is needed because the tree an agent builds depends on the settings it reads (grok's MCP servers exist only under his). Every run has Phase 314's R8 protections: Gemini's scratch settings turn its updater off, with the key paths read from the installed bundle's schema; an `npm` on the PATH refuses and records the call; Claude runs with `DISABLE_AUTOUPDATER=1`; and `TMUX` and `TMUX_PANE` are unset for Claude, so the session file it writes in his home cannot name a scratch pane his own Tortie would read as one of his. **A setting written into his real HOME is refused, so an agent whose updater can be switched off only by a setting runs in the scratch arm alone.** That is Gemini, and it is qwen, which said an update would install on exit and was ended with SIGKILL, so it never exited normally (research 129 §8); an End is an exit. qwen's and Gemini's installed versions are read before and after every arm, and the census stops if either moved. The spec step reads qwen's own off switch from its bundle and sets it in the scratch HOME. The census records the following for each row: every process in the tree, with basename, pid, ppid, pgid, `tpgid`, STAT and start time; which processes exit on the hang-up and how long the slowest takes; which survive; and whether SIGTERM ends them. The table goes into `build/p323/SPEC.md`. **The census stops the phase before any builder starts if any tree holds a process that is an application bundle (`.app/Contents/MacOS/`), or a process that a second session of the same agent also uses.** The spec then says what happens to that process first. The census's own `finally` ends every process it recorded by pid, with the start time and command line re-read first, SIGTERM then SIGKILL, because at the parent the product will not.
+
+**His three rulings, with the default the phase proceeds on.** The matrix reports both sides of the first two.
+
+- **R1. A descendant that left the session's terminal.** This means a process that called `setsid`: grok's MCP servers, and a tool the agent was running when he pressed End. **The default is that it is ended.** It is part of the session's own tree, and research 129 §8 records one still running 1 h 44 min after it started, long after its session was gone. The alternative is to end only the foreground process group, the group the hang-up was aimed at. That still ends Gemini's pair if the census places both processes there, but leaves grok's MCP servers and every detached tool running.
+- **R2. Plain `shell` sessions.** **The default is the hang-up only, exactly as today.** `nohup`, `disown` and `setsid` in a plain shell are a person asking for a job to outlive the terminal, and from outside Tortie cannot tell that from an agent ignoring the hang-up (no `sigignore`, measured above). So the rule depends on the session's type, not on how a process handles the signal. A restored agent session counts as an agent session. The attack measures a person's `nohup` job inside one and reports the result, so he can rule on that case too.
+- **R3. Launching Gemini at all.** Research 129 §10 ruling 3's default is that nothing launches Gemini again until his sign-in works, because a launch starts its own updater, and Phase 321 keeps that default. This phase cannot measure its own defect without launching Gemini. **The default is that Gemini runs, in the scratch HOME arm only, with Phase 314's R8 protections**, which is how `probe:p314` launched it 19 times per run without an install, and its install's version and mtime are read before and after. If he keeps ruling 3 as written, Gemini's rows read "not launched, by his ruling", and the phase proves itself on grok and on a planted process that ignores the hang-up.
+
+1. **`src/main/proc/session-tree.ts`, new.** It is pure plus injected, with no Electron import, in the shape of `guarded.ts` and `orphans.ts`. It reads the tree from one `ps -axo pid=,ppid=,pgid=,tpgid=,stat=,lstart=,command=`, rooted at a pane pid, and returns entries of pid, start time and command line. It keeps the pane process and its descendants, capped the way `descendantsOf` caps them, and never includes the root's parent, so the tmux server and Tortie are structurally out of reach. Its ending function takes the entries, an injected reader and an injected `KillFn`. It re-reads each pid and **signals it only when the start time and command line both match what the tree read recorded**. It sends SIGTERM, waits, re-reads, then sends SIGKILL to whatever still matches. **It signals each pid on its own. It never sends a signal to a negative pid, a process group, a pattern, `pkill` or `killall`.** A group id is not an identity, and a descendant that called `setsid` is not in the group. The two waits are constants named in this file and taken from the census. The first wait is longer than the slowest orderly exit on the hang-up that the census measured, so **an agent that ends itself on the hang-up today is never sent a signal after this phase**. Both waits and both reads must fit well inside the ledger's 10,000 ms. A failed `ps` returns no tree. The End still ends, one log line says so, and no process is signalled.
+2. **`src/main/sessions/core.ts`, `killSessionAdmitted`'s local branch.** After the capture (`:2910-2927`) and before `tmux.killSession(target)` (`:2928`), and only when the row's agent is not `shell` (R2), it reads the pane pid **by the `$-id` that `liveIds` holds** (`:2900`), never by name and never from the manifest's create-time `panePid`, then reads the tree. **THE ORDER IS THE PROMISE, and it is unchanged:** the capture, then the tree read, then the hang-up. Nothing is signalled before the hang-up. After the broadcast (`:2942-2943`), the survivors are ended as a continuation with three properties. The End's answer to the window is not delayed by the waits, so a batch End of N sessions does not take N times as long. A quit that begins while survivors are pending waits for them within `MUTATION_JOIN_DEADLINE_MS`. A shutdown that begins after the End was admitted can never refuse that continuation. One log line names each process ended by basename, pid and the signal that ended it. `reapDeadSession` (`:2344`) is **not** changed: its pane is already dead, its descendants have already been re-parented, and there is no tree left to prove anything against. The remote branch is not changed either.
+3. **`src/main/conformance/scratch.ts`.** `killOwnSession` (`:62-72`) and the sweep (`:158`) read the tree before their `tmux.killSession` and end its survivors through the same module. That makes step 5's simulated reboot end what a reboot ends. The prefix guard at `:63` stays first. **`src/main/conformance/resume.ts` gains a closing check: no agent process of this run is left.** Every tree the run recorded is re-read at the end, and any count above 0 is red. This is Phase 314's closing arm, applied to the harness that caused most of the leak.
+4. **`build/harness-socket.mjs`, the backstop for every run it wraps.** In `teardown` (`:221-245`) and in `reapDeadRuns` (`:125-156`), before `kill-server` on a socket whose marker proves it belongs to the run, it reads every pane pid on that socket (`list-panes -a -F '#{pane_pid}'`) and one tree. After `kill-server`, it ends the survivors through the same module. That covers the watchdog's `app.exit(1)`, a case abandoned by `withTimeout`, and a run killed with SIGKILL whose server a later run reaps. It prints one line with the count. **One implementation:** the spec step decides how this `.mjs` reaches `session-tree.ts` and measures what that costs each run. A second copy of the matching and ending logic would be a duplicated block, which the growth guardrail forbids.
+5. **Tests.** `src/main/proc/__tests__/session-tree.test.ts` drives the matcher over planted tables, one case per rule: a reused pid with the same number and a different start time; a process that `exec`s a different program after the read, so its command line changes; a process that joins the group after the read; a process that exits during the wait; a descendant that called `setsid`; the tmux server as the root's parent; and a cycle in the table. `src/main/sessions/__tests__/p323-end-tree.test.ts` drives `killSessionAdmitted` with an injected reader and killer. It checks the order (capture, tree read, hang-up, then signals); that `shell` rows are skipped; that a failed `ps` signals nothing; that the End's promise settles before the waits; and that a quit joins the waits. `gate:checks` runs because test files are added.
+6. **`conformance:endtree`, new, about 1 s, spawns nothing.** It checks these points, reading function bodies by matching braces: `killSessionAdmitted` reads the tree before `tmux.killSession(target)` and ends survivors after the broadcast; the tree root comes from `liveIds` and never from `rec.panePid` or a name; `session-tree.ts` names no negative pid, no group signal, no `pkill` and no `killall`, and every `kill` it makes is preceded by the identity re-read; the module is called from exactly the known call sites (`killSessionAdmitted`, `scratch.ts`, `harness-socket.mjs`), with the count pinned; **nothing on the reconcile, `reapDeadSession`, boot, quit or timer paths reaches it**, which is "Tortie never auto-ends a session" written as text; and `shell` rows are excluded. `build/p323/ablation.mjs` (`ablation:p323`) removes each clause from the SHIPPING source one at a time, checks that the rule that owns it goes red, and restores every file by sha256 in a `finally`, with an unedited control that must stay green.
+7. **`probe:p323`**, the census and the attack in one app run (below). It reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises by one from the value its parent reads (149 at `5ddbee19`, `build/assert-electron-teardown.mjs:292`; Phases 319 and 321 may raise it first) in the same commit. It is classified in `build/verification-checks.mjs`. CLAUDE.md's gate table gains the `conformance:endtree` row, triggered by `src/main/proc/session-tree.ts`, `killSessionAdmitted` in `core.ts`, `src/main/conformance/scratch.ts` and `build/harness-socket.mjs`. Its probe table gains `probe:p323` with the same triggers.
+8. **CHANGELOG, under `## Unreleased`**, one item in his style, naming the agents the census found. For example: "Ending a Gemini CLI session now ends Gemini too; before, its two processes kept running in the background after the session was gone." The commit link is added by the follow-up docs commit.
+
+### The proof, run rather than read
+
+- **Gates.** `npm run typecheck && npm run build && npm run smoke:t1`, then the integrator's full battery (test, smoke, smoke:t3, package). Also: `conformance:endtree`, `ablation:p323`, `gate:background` (because `harness-socket.mjs` changes), `gate:electron` at the raised floor, `gate:checks`, `conformance:resume:capture` (because the harness changed), **one full `conformance:resume`** (about 3 minutes of real turns, once per phase), and **`probe:p167` once**, because the phase changes how sessions close. `gate:contract` must not move, because no IPC, storage key, environment name or schema changes.
+- **The per-agent matrix, at the parent and at HEAD, from `probe:p323`'s census arm.** There is one row per installed agent, per shape (created, restored, wrapped where a provider exists), per HOME. Droid gets a row that says "not installed" rather than being left out. Each row records: the tree at rest; which processes exit on the hang-up and the slowest exit time; the survivors at the parent; **the signals Tortie sent at HEAD, which must be 0 on every row that had no survivor at the parent**; the survivors at HEAD, which must be 0 for everything in scope, with anything out of scope named against R1 or R2; and the End's round trip through the IPC at the parent and at HEAD, which must be equal within one tree read. Rates carry their denominators.
+- **Restart, parent against HEAD.** Restart a Gemini row through the renderer's own restart. At the parent the old pair is still running beside the new session. At HEAD it is not, and the new session's tree is unchanged by pid and start time.
+- **The attack, at the parent and at HEAD.** (a) **A stranger with the same command line:** a `gemini` started outside Tortie, in a separate scratch tmux server, in the same folder. It survives End at HEAD with its pid and start time unchanged. (b) **Two sessions of the same agent, for every agent:** End one, and the other's tree is unchanged by pid and start time and still at its first screen. (c) **A person's own job in a plain shell session:** `nohup sleep 600 &` and `setsid sleep 600` both survive End at HEAD, exactly as at the parent (R2). (d) **The same `nohup` inside a restored agent session:** the result is reported for his ruling. (e) **A running tool at End:** one real Claude Code turn runs `perl -e 'select(undef,undef,undef,90)'`, which Claude Code accepted where it refused a bare `sleep 90` (research 129 `:497-498`), and End is pressed while it runs. At the parent the tool survives if it was detached; at HEAD the result follows R1. (f) **Quit during the waits:** survivors are 0 once the quit completes, within 10,000 ms. (g) **`ps` unavailable, by injection:** the End still ends, nothing is signalled, and one log line appears. (h) **Batch End of eight Gemini sessions from the session manager:** at HEAD it takes no longer than at the parent plus one tree read per session. (i) **The tmux server and the Electron app:** each has the same pid before and after every arm. (j) **The harness:** `conformance:resume:capture` leaves N survivors at the parent and 0 at HEAD. A run forced into its watchdog with a small `GMUX_CONF_WATCHDOG_MS` leaves 0 at HEAD, because the wrapper's teardown catches it. A `harness-socket.mjs` run killed with SIGKILL mid-case has its server and survivors ended by the next run's reap. Pid reuse and a changed command line cannot be forced live, so they are the unit fixtures in mechanism item 5, and the ablation proves each one can fail.
+- **Re-derivation, with the verifier's own census.** Every run's agents work in scratch folders that belong to that run alone. The verifier lists the survivors by working directory (`lsof -a -d cwd +D <run scratch>`), never reading a parent pid, and compares that list row by row against the tree-derived survivor set, at the parent and at HEAD. Any disagreement is a finding.
+- **His world, listed only.** His `-L gmux` sessions are counted before and after, and never typed into or killed. The children of his server's pid that are not any live pane's pid are counted before and after. Those are processes that outlived sessions he ended before this phase. **They are reported to him and never signalled**, because nobody read their tree while their pane was alive. Every process outside the runs keeps the same pid and start time. His Gemini install's version and mtime are the same before and after (0.54.0, 2026-08-06 14:46:28).
+- **`probe:p323`, in `probe:p314`'s shape.** One Electron through `build/electron-run.mjs`, with a scratch profile, the two HOMEs described above, and its own tmux socket. End and Restart go through the renderer's own IPC. The parent build runs through `P323_PARENT_CHECKOUT`, one build after the other and never both at once. Its `finally` ends every process it recorded by pid, start time and command line, SIGTERM then SIGKILL, and ends the scratch server. Electrons are counted once, at the end.
+- **What cannot be proven here, stated rather than hidden.** Droid is not installed. Each row is one version of one agent, and the version is recorded. A process that double-forks away before End is already at parent pid 1 when the tree is read, so it is not in the tree and it survives. A process born in the milliseconds between the tree read and the hang-up is not in the tree either. macOS has no way to hold a pid, so a pid could in principle be reused between the identity re-read and the signal, and that remaining window is named rather than closed. Why Gemini's child never finishes its own shutdown is also left unexplained. Gemini cannot take a turn on this Mac ("API key not valid", research 129 `:110`), so whether its conversation file is intact after a TERM is untested for Gemini. It is tested instead on the first surviving agent that can take a turn here, if there is one, by reading that agent's store with its own format.
+
+### What is NOT in this phase
+
+- **No change to the first signal.** The hang-up is still sent first, through `kill-session`, and for every agent that ends on it, it is the only signal. Sending SIGTERM first or using `respawn-pane -k` instead would change how every agent that works today ends.
+- **No group signal, no pattern and no name.** No `kill(-pgid)`, `pkill`, `killall` or `pgrep` match, and no command-line pattern is ever the proof that a process is ours.
+- **No boot sweep of existing orphans.** A process at parent pid 1 whose session ended before this phase has no proof of ownership. A `gemini` he runs himself in another terminal looks exactly the same. It is not ours to end without the proof, and the proof is gone. That is `orphans.ts`'s rule for the shape it cannot reach.
+- **Nothing on his live server is signalled,** not even processes that outlived sessions he ended. The count goes to him.
+- **Nothing that Tortie starts on its own.** No reaper, no timer, and nothing on reconcile, `reapDeadSession`, boot, quit or suspend. Only his End and his Restart reach this code.
+- **No change to plain `shell` sessions** unless he rules otherwise (R2).
+- **No fix by launch setting.** `GEMINI_CLI_NO_RELAUNCH` would change how Gemini runs (it drops the launcher's memory flags). It would also add a `launch.env` value to a registry row, which moves the confirm hash, and it would fix one agent only. No agent's configuration is written.
+- **Nothing for sessions on another machine.** `remoteKill` (`src/main/machines/remote-sessions.ts:1960-1973`) sends the same `kill-session` over the exec plane, so the same defect applies there. Ending processes on the far side needs either `respawn-pane`, which the exec plane refuses by name (`VERBS_THIS_RUNG_REFUSES`, `src/main/machines/exec-plane.ts:377-381`), or a new door that sends a far `kill`, so it gets its own entry.
+- **No change to `reapDeadSession`, Remove, Restore, the end-time capture, `endRefusal`, or the SpecStory flush.**
+- **No sweep of the other build scripts that send `kill-server` themselves.** 108 tracked files under `build/` name it, 104 of them scripts (`git grep -l kill-server -- build` at `5ddbee19`). Only `harness-socket.mjs`'s teardown and reap change. A probe that ends its own server before the wrapper's teardown keeps its own by-pid ending, as `probe:p314` does.
+- **No fix for Gemini's sign-in or its auto-updater,** and no setting written under his HOME.
+- **No status, no copy, no surface and no menu.**
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -34888,3 +35440,5 @@ cycle rather than only the evening it was written.
 - 2026-09-23, **PHASE 314 LANDED, the phone is told when a session starts waiting, `5e453f13`, unreleased and with no CHANGELOG item because there is no phone to send to until 316.** The sender is node:http2 plus an ES256 token from node:crypto with no dependency, the provider key sealed through Phase 304's vault, the device token carried sealed inside the pairing message so no route was added, the switch a hashed field of the door's confirm, and the wake rule: everything that blocked during a sleep becomes ONE alert with a count and one age function every surface reads. A person who never pairs a phone sees nothing change: no engine, no timer, no key read, no connection. The build's two lenses answered needs_work and one fix round closed seven defects; the reverify proved them live and re-derived 25 requests byte for byte, and its second needs_work — a FAKE agent the screen monitor missed — went to him, and his ruling put REAL agents in the app run: Gemini's trust question and a real Claude Code permission request, green twice, 20 of 20, under an independent reverifier who showed each binary was real. `conformance:push` 23 rules / 2,165 checks, `ablation:p314` 31 arms, the battery green but for the two FSEvents files red on unchanged main. **Next: 316.1, the door switched on.**
 
 - 2026-09-23, **PHASE 316.1 STARTED, the door switched on**, in `/private/tmp/wt-p316` at `89458498` with 313 and 314 landed: the facts composer, fresh turns before every read, `others` so the phone lists every session (his ruling), QR v:2 pinned to the PUBLIC KEY (which retires 313's 397-day certificate limit), the tailnet key held only in the pairing window, Settings → Phone with 314's push switch, `Pair a Phone…` beside `Settings…`, and `probe:p313` at last. Four builders, an integrator, a re-derivation from the stores and an attack, one fix, one reverify. Tier 3. Beside it: Phase 320 slice 1's remainder is being reverified, and entries 321 to 323 are being drafted.
+
+- 2026-09-23, **PHASES 321, 322 AND 323 QUEUED** above this log, each drafted from the tree and then re-read citation by citation by an independent checker who corrected them in place. **321, the detector misses ten of twelve real questions** — a CORRECTION to 319's log line above, which said nine of eleven: the banked recordings hold a twelfth, cursor's own folder-trust gate, up for 36.4 s and never raised. It runs after 319, over a redacted corpus committed to `build/fixtures/questions/` (the raw recordings disclose his account address and prompts and stay out of the repository), and its first question for him is whether per-agent shapes become a registry field, against research 18 §5.4's "not a regex per agent". **322, tmux on Linux** (research lane, his yes of today): there are TWO version gates and the control one never takes an acceptance; Ubuntu 24.04 and 22.04 and Debian 13 and 12 are refused at both, and Ubuntu 26.04, Fedora, Arch and Homebrew on Linux pass by version string on Linux builds nobody measured. **323, ending a Gemini session leaves Gemini running**: every local End reaches one `tmux.killSession`, which only sends the hang-up; the phase measures every installed agent's survival first, then ends only the session's own process tree, and launches Gemini only under a scratch HOME unless he says otherwise.
