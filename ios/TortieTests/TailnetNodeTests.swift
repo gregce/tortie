@@ -256,6 +256,41 @@ final class TailnetNodeTests: XCTestCase {
         await assertRefused(tailnet, .notPaired)
     }
 
+    /// Clause (d), Phase 316.4: a tailnet that requires network flow logs
+    /// takes the key and then turns a node whose logs are off OFF. The
+    /// pairing names flow logs, not the key, so a new key is not tried in
+    /// vain, and keeps nothing, as for any refusal. Fails when `join` stops
+    /// telling `TailnetFlowLogsRequired` apart from a refused key.
+    func testATailnetThatRequiresFlowLogsSaysSo() async throws {
+        let engine = StandInEngine(up: .flowLogs)
+        let tailnet = node(engine)
+        do {
+            try await tailnet.prepareToPair(host: "100.64.0.1", key: madeUpKey())
+            XCTFail("a node turned off for flow logs joined")
+        } catch {
+            XCTAssertEqual(error as? PairingFailure, .tailnetFlowLogs)
+        }
+        XCTAssertEqual(DoorWords.pairingSentence(for: .tailnetFlowLogs), Copy.tailnetFlowLogs)
+        XCTAssertNotEqual(Copy.tailnetFlowLogs, Copy.tailnetKeyRefused)
+        XCTAssertEqual(engine.events, ["start with a key", "up", "stop"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path), "a join turned off for flow logs left its state")
+        XCTAssertFalse(tailnet.reaches("100.64.0.1"))
+    }
+
+    /// The flow logs refusal is read from the backend's own words at the pin
+    /// (tailscale.com v1.94.1, ipn/ipnlocal/local.go 1772, as `tsnet.Up`
+    /// wraps them), and nothing else Tailscale says is taken for it. Fails
+    /// when `TailnetRules.flowLogsRefusal` or `TailnetFlowLogsRequired.said`
+    /// is changed so the pinned words no longer match, or match everything.
+    func testTheFlowLogsRefusalIsTheBackendsOwnWords() {
+        let pinned = "tsnet.Up: backend: tailnet requires logging to be enabled. Remove --no-logs-no-support from tailscaled command line."
+        XCTAssertTrue(TailnetFlowLogsRequired.said(pinned))
+        XCTAssertFalse(TailnetFlowLogsRequired.said("tsnet.Up: backend: invalid key: unable to validate API key"))
+        XCTAssertFalse(TailnetFlowLogsRequired.said("tsnet.Up: context canceled"))
+        XCTAssertFalse(TailnetFlowLogsRequired.said(""))
+        XCTAssertFalse(TailnetFlowLogsRequired.said(nil))
+    }
+
     /// Clause (d): a join with no answer inside its limit says so, stops the
     /// node, and KEEPS the directory without the mark: Tailscale may have
     /// spent the one-off key, and a registered node joins again from its state.
@@ -444,6 +479,7 @@ final class TailnetNodeTests: XCTestCase {
         let lines: [(TailnetRefusal, String?)] = [
             (.noKey, Copy.tailnetNoKey),
             (.keyRefused, Copy.tailnetKeyRefused),
+            (.flowLogsRequired, Copy.tailnetFlowLogs),
             (.joinTimedOut, Copy.tailnetUnreachable),
             (.couldNotStart, Copy.tailnetUnavailable),
             (.interrupted, nil)
@@ -624,7 +660,7 @@ enum UIApplicationNames {
 /// joins, refuses (the backend's error), or never answers until stopped, as
 /// the test says. It writes a state file the way tsnet does, without the key.
 final class StandInEngine: TailnetEngine, @unchecked Sendable {
-    enum Up { case joins, refuses, never }
+    enum Up { case joins, refuses, flowLogs, never }
     struct Refused: Error {}
     struct Stopped: Error {}
 
@@ -675,6 +711,9 @@ final class StandInEngine: TailnetEngine, @unchecked Sendable {
             return
         case .refuses:
             throw Refused()
+        case .flowLogs:
+            // What the live node's `up()` throws for the backend's own words.
+            throw TailnetFlowLogsRequired()
         case .never:
             while !node.isStopped { try await Task.sleep(for: .milliseconds(5)) }
             throw Stopped()

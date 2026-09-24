@@ -1646,3 +1646,163 @@ Two things the reverify approved with and that S4 must carry, because S4 is wher
    `ipn/ipnlocal/local.go:1771-1785` sets `WantRunning=false` with "tailnet requires logging to be enabled".
    The app would show that only as a join that never completes. The S4 checklist has him confirm network flow
    logs are OFF in his tailnet before the first join, and the app's join failure sentence names it.
+
+---
+
+## §As built — 316.4
+
+Written by the integrator in `/private/tmp/wt-p316` at `c756e345` (316.3's landing), over two builders' work (A the
+Release configuration, the icon and `conformance:ios` rules r and s; B `test:ios`'s device archive, the checklist,
+the CHANGELOG item and the backlog's closing section). origin/main has since gained `3284b1c4` alone, a running-log
+line at the end of `docs/BACKLOG.md` far from this round's edit there; the tree was not moved onto it, because
+nothing may be committed, staged or stashed here. **Nothing was signed, uploaded or signed into.** Every agent build
+was unsigned (`CODE_SIGNING_ALLOWED=NO`) or ad hoc for the Simulator; the one Simulator session held the lock.
+
+### What S4 got wrong about the tree at this head
+
+| # | S4 says | What is true | What was built |
+| --- | --- | --- | --- |
+| 1 | Checklist row 1: "run `npm run package` … open `dist/mac-arm64/Tortie.app`" | His Tortie is a dev build he starts with `npm run dev`, in `/Users/gdc/gmux`, which holds two unpushed `docs(design)` commits over merge base `0a7391ea`, a modified `package-lock.json`, a deleted `.claude/scheduled_tasks.lock` and three untracked files. Read only: none of the untracked paths is tracked upstream, `package.json` changed only in its scripts since `0a7391ea`, and no upstream commit touches `package-lock.json` | Row 1 is `git pull --rebase --autostash origin main` then `npm run dev`. §5 row 6's `npm run package` is superseded the same way |
+| 2 | Row 7: "the same four groups of characters" | `pairFingerprint` (`src/main/pocket/pairing.ts:886-891`) and `Signing.swift:211-216` draw 24 hex characters as SIX groups of four | Six groups, on both screens |
+| 3 | "Owed to S4" item 2: a tailnet that requires flow logs turns the node off, "the app would show that only as a join that never completes" | **Not a join that never completes.** At the pin the backend sends the refusal as `ErrMessage` (`ipn/ipnlocal/local.go:1771-1785`: `b.sendLocked(ipn.Notify{ErrMessage: &msg, …})`), `tsnet.Up` returns it at once (`tsnet/tsnet.go:396-397`: `tsnet.Up: backend: tailnet requires logging to be enabled. …`), libtailscale records it (`TsnetUp` → `recErr`) and TailscaleKit throws it as `TailscaleError.internalError(details)`. `Node.swift`'s `join` mapped every failure that was not a timeout or a cancel to `keyRefused`: the phone would have said "Tailscale refused the Tailnet key. Nothing was paired.", the checklist would have sent him to mint another key, and every new key would have been spent the same way. Read from the pinned sources in scratch (`p316-3/hr/go/gomodcache/tailscale.com@v1.94.1`, and libtailscale `59d4bb82` unpacked from the vendored archive), not driven | The integrator built the owed sentence (decision below) |
+| 4 | "the app's join failure sentence names it" | Neither builder built it (B named it left for others) | Built by the integrator |
+| 5 | "`Assets.xcassets` with the 1024 icon flattened onto an opaque ground" | Which ground was not said | A: the light base's `--bg-canvas`, `#f5f7fa` (decision below) |
+| 6 | Method A: "the entitlements are empty" | An archive made with `CODE_SIGNING_ALLOWED=NO` carries no signature and so no entitlements at all (`codesign -d`: "code object is not signed at all"); what the source asks for is `Tortie.entitlements` | Read from the source file and the Simulator's ad hoc build (A); his signed archive will carry what automatic signing adds (the application identifier and team), which no agent can read |
+| 7 | §3.9 and §5 row 9: go back to 0.109.0 | 0.110.0 (`e481b693`, 2026-09-21) is the newest release, and nothing under `src/main/manifest` or `src/main/db` changed since 0.109.0 (`git log 0375c8a9..HEAD` and `v0.109.0..HEAD`, both empty, and `0375c8a9..origin/main` empty too) | The checklist says reopen 0.110.0 |
+| 8 | The integrator's count: exactly one `- ` line under `## Unreleased` without `tortie/commit/` | **Zero.** The new item covers the door and the app, whose commits never had an item of their own (313's `38346773`, 316.1's `8c7f0b2f`, 316.2's `d19a906a`, 316.3's `eaef6ee4`), and it links all four. It lacks only its own S4 link, which the follow-up docs commit adds | Left as it is, and said here |
+| 9 | Row 2: "Open Settings → Phone"; the brief calls it "the Tortie menu" | In `npm run dev` the menu bar names the app menu from the running bundle, `node_modules/electron/dist/Electron.app`, whose `CFBundleName` is Electron (read from his checkout) | Row 2 names the app's own menu, and says a dev build may call it Electron |
+
+### Decisions the builders and the integrator took, and where each comes from
+
+- **The icon's ground is the light `--bg-canvas`, `#f5f7fa`** (A). The cat's body is `#212a2b`, which reads 1.17 to
+  1.30 to 1 against the dark tokens, so only its blue seams would show; on paper it reads 13.68 to 1.
+  `node build/p316/app-icon.mjs --write` makes the icon from the master and `tokens.css`; without `--write` it
+  checks. 8-bit RGB, no alpha, sRGB-tagged, 310,024 B, one universal 1024 entry. A second flattening by ImageMagick
+  differs from it in 0 pixels.
+- **Release: team `4GRQMF5T5U`, Automatic, Apple Development; Debug unchanged, ad hoc with no team** (A, SPEC §3.8,
+  §6 decision 6). Automatic signing archives with Apple Development and the Organizer re-signs for distribution,
+  which is why the identity is not Apple Distribution. `ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO` in both,
+  so no generated Swift file is compiled into the app unread by any rule. Every agent build still overrides the
+  team away (`AD_HOC_SETTINGS`, or `CODE_SIGNING_ALLOWED=NO`).
+- **`test:ios` archives the device Release unsigned and reads it** (B, "Owed to S4" item 1), refuses a signed one
+  (`signedProblem`), and `builtAppProblems` now also refuses a code coverage section (`otool -l`), which 316.3 had
+  left as a separate `otool | grep`. `--read-app` takes an `.xcarchive`, so he can drag the Organizer's archive onto
+  Terminal. `test-ios.mjs`'s runtime is a `main()` run only when node is asked to run that file, compared by real
+  path (B imported it once to call a helper and it booted a Simulator with no lock held; nobody else held it, the
+  device was deleted, and the guard is proved with `P316_RUNTIME=99.9` as a net).
+- **The flow logs refusal is its own sentence** (the integrator, "Owed to S4" item 2, row 3 above).
+  `TailnetRules.flowLogsRefusal` holds the backend's words (`"tailnet requires logging to be enabled"`); the live
+  node's `up()` turns exactly `TailscaleError.internalError` carrying them into `TailnetFlowLogsRequired`; `join`
+  maps that to `TailnetRefusal.flowLogsRequired` BEFORE `keyRefused`, removing the directory as for any refusal
+  (the key is spent all the same); `PairingFailure.tailnetFlowLogs`; `DoorWords`; and one phone word,
+  `Copy.tailnetFlowLogs`: "Your tailnet requires network flow logs, which Tortie turns off. Nothing was paired."
+  Held by `conformance:ios` rule q (clause q4: the words one plain literal of at least 12 characters, the catch,
+  `said`'s one question, the join's order, and **every built slice holding the words**, so a pin that rewords them
+  is refused rather than drawn as a refused key; 10 scanner fixtures; arms q7 to q9) and by two XCTest rows,
+  `testATailnetThatRequiresFlowLogsSaysSo` (a stand-in engine throwing `TailnetFlowLogsRequired`) and
+  `testTheFlowLogsRefusalIsTheBackendsOwnWords` (the pinned message and three that are not). The read path is not
+  changed: a node turned off this way AFTER pairing says "Tortie could not reach your Mac.", which the checklist's
+  "Not covered yet" names.
+- **The CHANGELOG item** (B, integrator): written fresh, two sentences, menu paths in the house spelling
+  ("Settings then Phone", "Pair a Phone… in the Tortie menu"), the limit in one clause.
+- **The checklist** (B, integrator): sixteen rows in his words, then "Not covered yet", "When you are done" and a
+  table of where every word it names was found. Beyond S4's twelve: row 4 (flow logs off before the first join,
+  and what the phone says if not), row 7 (`--read-app` on the archive before the upload), row 6's "no devices"
+  stop and its fix, row 8's expected symbols warning (the archive's `dSYMs` holds `Tortie.app.dSYM` alone), row 3's
+  comma for the policy file's syntax, Remove corrected (the door closes until he presses Allow again). Copied into
+  the Phase 316 entry's closing section, byte for byte apart from the heading depth.
+- **CLAUDE.md** (integrator): the `conformance:ios` row names rules a to s, the q4 clause, 133 plants and the new
+  path triggers (the brand master, the light `--bg-canvas`, `build/p316/app-icon.mjs`, `build/png-read.mjs`); the
+  `test:ios` row names the device archive, the coverage read, the `.xcarchive` form and its measured time.
+  `build/verification-checks.mjs`'s two comments likewise.
+
+### Commands, as run by the integrator
+
+| Command | Exit | Reading |
+| --- | --- | --- |
+| `xcodebuild archive -project ios/Tortie.xcodeproj -scheme Tortie -configuration Release -destination 'generic/platform=iOS' -archivePath …/p316-4/Tortie.xcarchive CODE_SIGNING_ALLOWED=NO -derivedDataPath …/p316-4/dd-integrator` (A's archive moved aside to `Tortie-builderA.xcarchive` first) | 0 | 15 s; `** ARCHIVE SUCCEEDED **`; 0 Swift warnings (the one `warning:` line is `appintentsmetadataprocessor`'s); no signing step in the log |
+| `node build/p316/test-ios.mjs --read-app` on the `.xcarchive`, and on its `Tortie.app` | 0, 0 | 2 Mach-O files; none links NetworkExtension, none carries code coverage, the switch exported and called |
+| the archive, read independently (`PlistBuddy`, `plutil`, `codesign`, `assetutil`, `sips`, `strings`, `nm`, `otool`) | — | `com.itavero.tortie.phone`, 1.0.0 (1), display name and name Tortie, `MinimumOSVersion` 18.1, `UIDeviceFamily` [1]; `CFBundleIcons` → `CFBundlePrimaryIcon` → `CFBundleIconName` AppIcon; ATS exactly `{"NSExceptionDomains":{"100.64.0.0/10":{"NSExceptionAllowsInsecureHTTPLoads":true}}}`; no `ITSAppUsesNonExemptEncryption`, no `UIBackgroundModes`; "not signed at all"; `Assets.car`'s AppIcon 1024 × 1024 `Opaque=true`, sRGB; `hasAlpha: no` for the catalog PNG and both small copies in this DEVICE build; the archive's own `Info.plist` Team and SigningIdentity empty; `dSYMs/` holds `Tortie.app.dSYM` only (TailscaleKit's UUID `4A61126D-EFCA-3521-9D0D-1F306B1801DB`). Release binary: 0 of `TortieDebug`, `TailnetDebugSeam`, `DebugDoorTransport`, `DirectLoopbackTransport`, `127.0.0.1`, `PairingDebugSeam`, `MotionDebugSeam`, `TS_NO_LOGS`, `TortieDebugTailnetControl`, `TortieDebugPairingPayload`, `tailscaleSession`; the flow logs words in the app 1 and in the framework 1; `_tailscale_no_logs_no_support` undefined in the app 1; linked: TailscaleKit and system libraries only. `Tortie` 847,408 B (A's archive, before the flow logs change, 847,272 B); `TailscaleKit` 23,213,296 B; the app 23,988 KB |
+| **THE LOCK** (00:52:35 to 00:56:20): `P316_DERIVED_DATA=…/dd-integrator-testios npm run -s test:ios` | 0 | 120 s. Debug 12 and Release 13 Mach-O files read clean; the device archive clean (2) and unsigned. **iOS 26.3.1: Debug 187 executed, 0 failures, 1 skipped; Release 183, 0 failures, 1 skipped** (185 and 181 before: the two new rows) |
+| the same with `P316_RUNTIME=18.3` | 0 | 90 s. **iOS 18.3.1: Debug 187, 0 failures, 1 skipped; Release 183, 0 failures, 1 skipped**; the device deleted, 0 `p316-` devices, 0 booted |
+| `npm run -s conformance:ios` (after every edit) | 0 | 19 rules (a) to (s) over 20 app files, 16 test files and 45 files under `ios/`; (q) reads the flow logs words in both built slices |
+| `npm run -s ablation:p316` | 0 | **133 of 133** arms red on the rule that owns them (A's 130 and the integrator's q7, q8, q9), 88 s, the working tree's `git status` unmoved |
+| `npm run -s conformance:phonecopy`, and `node build/p311/copy-drift.mjs` | 0, 0 | `phonecopy OK` |
+| `npm run -s gate:simulator` | 0 | 480 scripts read; 2 reach `simulator-run.mjs` against a floor of 2 |
+| `npm run -s pin:tailscalekit:check` | 0 | 101 of 101 |
+| `npm run -s gate:checks`, `assert-electron-teardown`, `assert-background-teardown`, `assert-known-hosts-scoped`, `assert-import-boundaries`, `contract-inventory --check` | 0 each | 153 reach `electron-run.mjs` against a floor of 153 (no new script); 3 long-lived starts, each ended in a `finally`; the contract byte for byte, no channel moved |
+| `node build/p316/app-icon.mjs` | 0 | the committed icon is the master on `#f5f7fa`, pixel for pixel |
+| `npm run -s typecheck`; `npm run -s build` | 0, 0 | the build 30 s, with `gate:simulator`, `gate:checks` and `conformance:ios` inside it |
+| `git log --oneline 0375c8a9..HEAD -- src/main/manifest src/main/db` (and `v0.109.0..HEAD`, `0375c8a9..origin/main`) | — | empty, empty, empty: he can go back |
+| raw control bytes over the 17 touched text files | — | 0; tabs only in `project.pbxproj` (2,023) |
+| end count | — | 18 Electron-family lines, all his (the same 18 builder B counted), none started by this round; 0 devices named `p316-`, 0 booted; the lock released; no `p316-test-ios-*` or `p316-ablation-*` directory left |
+
+Not run by the integrator, and why: `smoke:t1` and the full battery (`test`, `smoke`, `smoke:t3`, `package`) are the
+main session's, and this round changes nothing the Mac runs (Swift, gates, the checklist and prose only).
+
+### The seams, read
+
+- **The checklist to the tree.** Every `file:line` in the checklist's table printed and read against the word it
+  names; the lines the flow logs sentence moved (`Copy.swift` 234 → 240, 241 → 247, 246 → 252; `Node.swift` 122 →
+  127) re-derived by `grep` and corrected. The door's lines (`describePocketDoor`), the grant
+  (`POCKET_TAILNET_GRANT_TEMPLATE` with `pocketGrantText`), the key field emptied at the press (`PhoneSection.tsx`
+  `press`), the fingerprint shown as soon as a code is read with the spinner while `prepareToPair` runs
+  (`PairingScreen.swift` `read`, `foot`), Remove closing the door until confirmed (`ipc.ts` `removePhone` →
+  `closeUnlessConfirmed`) and a refused list sending the phone to Pairing (`DoorWords` `.refused` → `.pairAgain`)
+  all read as the rows say. The TLS in row 9 is `DoorClient`'s https-only builder over the door's own certificate
+  (§3.2).
+- **The Release settings to the checklist.** Release is Automatic with his team, so Archive (the scheme's Archive
+  action is Release, `revealArchiveInOrganizer = "YES"`) signs as him, and "Tortie 1.0.0 (1)" is what the archive's
+  own `Info.plist` says. Debug has no team, so no Debug build runs on his phone; he never needs one.
+- **`test:ios`'s device step to his archive.** The step reads the same `builtAppProblems` his row 7 runs; only
+  `test:ios` asks `signedProblem`, so his signed archive passes row 7.
+- **The flow logs chain** (row 3 of the first table): `local.go` → `tsnet.Up` → `TsnetUp`/`recErr` →
+  `TailscaleNode.up()`'s `fromPosixErrCode(-1, message)` = `.internalError(message)` → `LiveTailnetRunning.up()` →
+  `join` → `PairingFailure.tailnetFlowLogs` → `Copy.tailnetFlowLogs`. The message is 116 characters, inside
+  `tailscale_errmsg`'s 256-byte buffer.
+
+### Open concerns for the verifiers
+
+1. **The flow logs refusal was never driven against a node.** Its chain is read from the pinned sources and
+   held by text (rule q4) and by a stand-in engine; no agent may run a control server that ACCEPTS a key
+   (`Node.swift`'s header, "A LOOPBACK CONTROL MUST REFUSE EVERY KEY"), and the refusal happens only after one
+   does. The integrator's own reading of the order: in `SetControlClientStatus` the refusal returns at
+   `local.go:1787`, before `b.stateMachineLocked()` at `:1828`, so on a FIRST netmap no `Running` precedes the
+   `ErrMessage` and `Up` fails rather than succeeding. A tailnet that turns flow logs on AFTER pairing reaches the
+   same return with the node already Running; that is the read path the checklist's "Not covered yet" names.
+   Attack the reading.
+2. **The two new XCTest rows have not been ablated on iOS.** Arms q7 to q9 redden the text rule; nothing has
+   yet shown `testATailnetThatRequiresFlowLogsSaysSo` going red with the join's line taken out.
+3. **The checklist's words on his side were not read**: Tailscale's console (Access controls, Logs, Network flow
+   logs, Keys, Generate auth key…, Pre-approved, Machines), App Store Connect (Missing Compliance, Manage) and
+   TestFlight, and Xcode's "Distribute App" and "no devices" message and its symbols warning. Xcode's other
+   labels were read from Xcode 26.3's binaries by B. Whether `autogroup:admin` in the grant's `tagOwners` covers
+   a tailnet OWNER is 316.1's wording and was not re-checked here.
+4. **Signing is untested by construction.** Three likely stops are in the checklist (an unregistered iPhone, the
+   keychain prompt, the symbols warning); none can be measured without his account.
+5. **Reading the icon's alpha.** Read the catalog PNG, the device build's small copies or the rendition inside
+   `Assets.car`; A found Xcode's `AppIcon60x60@2x.png` in a SIMULATOR build reading `hasAlpha: yes` with every
+   pixel opaque.
+6. **The icon is coupled to two inputs.** A change to the brand master or the light `--bg-canvas` turns rule (r)
+   red until `node build/p316/app-icon.mjs --write` is run.
+7. **B's unlocked Simulator boot** (00:25, while building) is recorded above; the cause is fixed and proved with a
+   runtime that does not exist, not by importing the script again.
+8. **The tree is at `c756e345`, not origin/main.** The one commit between is a running-log line; the committer
+   rebases.
+
+### Owed to S5 by 316.4's verifiers (the main session, 2026-09-24)
+
+Both lenses approved 316.4. Three things they found belong to S5, the next phase that touches the app and the sheet:
+
+1. **The Pair a phone card keeps "Paired with iPhone." after Remove** (`src/renderer/settings/PhoneSection.tsx`
+   `onRemovePhone`, from 316.1): the notice Allow sets is never cleared by Remove, so the card contradicts
+   **Phones**' "No phone yet." on the same screen. His checklist's row 16 tells him to ignore it until S5.
+2. **Nothing durable refuses a Release build compiled with DEBUG.** At 316.4 the Release binary has no seam
+   (proved), but an optimised build hides `127.0.0.1` and the seam names from `strings`, so if a later edit
+   defined DEBUG in Release, the injection and the loopback transport would ship with every gate green. S5
+   adds a `conformance:ios` clause that no Release configuration defines DEBUG (in
+   `SWIFT_ACTIVE_COMPILATION_CONDITIONS` or `OTHER_SWIFT_FLAGS`), and `--read-app` looks for the seams'
+   ARGUMENT strings, which do survive optimisation.
+3. The checklist was corrected by the main session from the verifiers' minors: the key is made just before
+   pairing (row 10), the archive and the read run in a NEW Terminal tab, codesign's prompt takes **Always
+   Allow**, "Shuts in 3:00" and the capitalised labels, and where **Register Device** appears.

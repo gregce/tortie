@@ -229,6 +229,12 @@ enum Copy {
     /// Names: src/renderer/settings/PhoneSection.tsx ⟦KEY_LABEL = 'Tailnet key'⟧
     static let tailnetKeyRefused = "Tailscale refused the Tailnet key. Nothing was paired."
 
+    /// Phone: Tailscale took the key, then turned the node off because his
+    /// tailnet requires network flow logs, which Tortie turns off with the
+    /// rest of Tailscale's logs (Phase 316.4). No Mac surface joins a tailnet,
+    /// so none says it.
+    static let tailnetFlowLogs = "Your tailnet requires network flow logs, which Tortie turns off. Nothing was paired."
+
     /// Phone: the node could not reach Tailscale to join inside its limit
     /// (Phase 316.3). No Mac surface joins a tailnet, so none says it.
     static let tailnetUnreachable = "Tortie could not reach Tailscale. Nothing was paired."

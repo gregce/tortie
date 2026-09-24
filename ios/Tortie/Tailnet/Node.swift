@@ -56,7 +56,12 @@
 // sentence is said once the node has CLOSED, so that nothing still writes the
 // directory it leaves: after a join that timed out that is about 39 s from the
 // start, not 30 (measured on the Simulator against a server that never
-// answers, in 316.3's verification).
+// answers, in 316.3's verification). One refusal is told apart from a refused
+// key (Phase 316.4): a tailnet that requires network flow logs takes the key,
+// then turns a node whose logs are off OFF, and tsnet's `Up` fails with the
+// backend's words for it (`TailnetRules.flowLogsRefusal`), so the pairing
+// names flow logs rather than the key. The directory is removed as for any
+// refusal; the key is spent all the same.
 //
 // A NODE THAT IS GONE. The joined mark or tsnet's state is missing (a
 // reinstall, a restore, the directory removed), or Tailscale answers that the
@@ -137,6 +142,15 @@ enum TailnetRules {
     static let upLimit: Duration = .seconds(15)
     /// The backend state tsnet reports for a node Tailscale no longer knows.
     static let needsLogin = "NeedsLogin"
+    /// The words tsnet's `Up` fails with when his tailnet requires network
+    /// flow logs and this node's logs are off (tailscale.com v1.94.1,
+    /// ipn/ipnlocal/local.go 1771-1785: the node registers, is handed a
+    /// netmap carrying `CapabilityDataPlaneAuditLogs`, sets `WantRunning`
+    /// false and sends this as the backend's `ErrMessage`, which `tsnet.Up`
+    /// returns and libtailscale hands over as `TailscaleError.internalError`).
+    /// conformance:ios rule q requires every built slice to hold it, so a new
+    /// pin that rewords it is refused rather than drawn as a refused key.
+    static let flowLogsRefusal = "tailnet requires logging to be enabled"
 }
 
 /// The two waits, injectable so a test can end one in milliseconds.
@@ -220,6 +234,10 @@ enum TailnetRefusal: Error, Equatable, Sendable {
     case noKey
     /// Tailscale refused the key (the backend's own error).
     case keyRefused
+    /// Tailscale took the key, then turned the node off because his tailnet
+    /// requires network flow logs, which a node with its logs off never sends
+    /// (the backend's own error, `TailnetRules.flowLogsRefusal`).
+    case flowLogsRequired
     /// No answer inside the join limit.
     case joinTimedOut
     /// The directory could not be made, or the node would not start.
@@ -232,6 +250,7 @@ enum TailnetRefusal: Error, Equatable, Sendable {
         switch self {
         case .noKey: return .noTailnetKey
         case .keyRefused: return .tailnetKeyRefused
+        case .flowLogsRequired: return .tailnetFlowLogs
         case .joinTimedOut: return .tailnetUnreachable
         case .couldNotStart: return .tailnetUnavailable
         case .interrupted: return .cancelled
@@ -558,6 +577,7 @@ actor TailnetNode: DoorTransport {
             if error is TailnetWait.Expired { throw TailnetRefusal.joinTimedOut }
             // Tailscale said no. Nothing half made is kept.
             directory.discard()
+            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }
             throw TailnetRefusal.keyRefused
         }
         if joining?.token == token { joining = nil }
@@ -771,6 +791,17 @@ enum TailnetLogs {
 /// A node whose logs could not be turned off, which is never started.
 struct TailnetLogsStillOn: Error {}
 
+/// A join Tailscale took and then turned off, because his tailnet requires
+/// network flow logs and this node's logs are off: the second cost of turning
+/// them off (build/p316/SPEC.md, "Owed to S4"). Without this it would read as
+/// a refused key, and a new key would fail the same way.
+struct TailnetFlowLogsRequired: Error, Equatable {
+    /// Whether the words the backend failed with are that refusal.
+    static func said(_ message: String?) -> Bool {
+        message?.contains(TailnetRules.flowLogsRefusal) ?? false
+    }
+}
+
 /// The app's engine: a TailscaleKit node per start, and never one whose logs
 /// would go to Tailscale.
 private struct LiveTailnetEngine: TailnetEngine {
@@ -786,7 +817,11 @@ private struct LiveTailnetRunning: TailnetRunning {
     let node: TailscaleNode
 
     func up() async throws {
-        try await node.up()
+        do {
+            try await node.up()
+        } catch TailscaleError.internalError(let message) where TailnetFlowLogsRequired.said(message) {
+            throw TailnetFlowLogsRequired()
+        }
     }
 
     func proxy() async throws -> TailnetProxy {

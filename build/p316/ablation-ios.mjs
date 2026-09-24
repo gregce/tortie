@@ -4,7 +4,7 @@
  * 316.3, build/p316/SPEC.md §4 S2 and S3).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:ios` reads the
- * phone app as text for seventeen refusals, (a) to (q), and every one of them is
+ * phone app as text for nineteen refusals, (a) to (s), and every one of them is
  * a line a later round can add in a hurry: a colour typed straight into a
  * screen, a sentence in a `Text`, a `URLSession` outside the door client, a
  * DEBUG seam that leaked into Release, a second ATS exception, a background
@@ -24,7 +24,14 @@
  * `performExpiringActivity` and a background URLSession; the raw code, which
  * carries the key, kept in the Keychain, logged or bound to a name the rule
  * does not watch; and a value holding the key with its redacting mirror taken
- * out. THIS SCRIPT PLANTS EACH ONE
+ * out. Phase 316.4 added the first TestFlight build's: the brand master
+ * shipped as the icon with its alpha channel, the icon laid on another ground
+ * or given a transparent colour, a second picture or a dark appearance in the
+ * icon set, a build naming no icon, asset symbols compiled into the app, his
+ * team in Debug or on a second target, another team, Release signed by hand
+ * or as a distribution identity, a profile named, the bundle id or the build
+ * number moved in Release alone, the Home Screen name changed, and the team
+ * set by an xcconfig. THIS SCRIPT PLANTS EACH ONE
  * IN A CLONE OF THE SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
  *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
@@ -35,7 +42,8 @@
  *
  * IT NEVER WRITES INTO THE WORKING TREE. Several builders work in one worktree
  * during a phase, so the plants go into a CLONE: `cp -Rc` (APFS clonefile) of
- * `ios/`, `src/` and every entry of `build/` but `vendor/` under
+ * `ios/`, `src/`, the brand master rule (r) reads, and every entry of
+ * `build/` but `vendor/` under
  * `/private/tmp/p316-ablation-<pid>`, with `package.json` and the tsconfigs
  * copied and `node_modules` and `build/vendor` symlinked (the vendored
  * framework and its Go cache are never copied, and an arm whose file resolves
@@ -57,9 +65,12 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { crc32 } from 'node:zlib';
+import { decodePng } from '../png-read.mjs';
+import { ICON_MASTER, ICON_PATH, encodeRgbPng, flatten, groundOf } from './app-icon.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[p316-ablation]';
@@ -105,6 +116,8 @@ const append = (text) => (src) => `${src}${src.endsWith('\n') ? '' : '\n'}${text
 const NODE = `${APP}/Tailnet/Node.swift`;
 const PBX = 'ios/Tortie.xcodeproj/project.pbxproj';
 const INFO = `${APP}/Info.plist`;
+const ICON = ICON_PATH;
+const ICON_SET_CONTENTS = `${APP}/Assets.xcassets/AppIcon.appiconset/Contents.json`;
 
 /** The app's own privacy manifest, found rather than named. */
 const appManifest = (root) => {
@@ -1014,6 +1027,175 @@ const ARMS = [
     what: 'a node started through the C API, around the switch',
     file: () => NODE,
     edit: (src) => src.replace('    func forgetKey() async {', '    func p316Ablation() { _ = tailscale_up(tailscale_new()) }\n\n    func forgetKey() async {')
+  },
+  // Phase 316.4's integrator: the switch's second cost, a tailnet that
+  // requires network flow logs, told apart from a refused key (rule q4).
+  {
+    id: 'q7',
+    rule: 'q',
+    what: 'the flow logs refusal reworded, so no built slice holds the words the node reads',
+    file: () => NODE,
+    edit: (src) => src.replace('static let flowLogsRefusal = "tailnet requires logging to be enabled"', 'static let flowLogsRefusal = "tailnet requires network flow logs"')
+  },
+  {
+    id: 'q8',
+    rule: 'q',
+    what: "the live node's up() passing TailscaleKit's error through, so flow logs read as a refused key",
+    file: () => NODE,
+    edit: (src) => src.replace(/\} catch TailscaleError\.internalError\(let message\) where TailnetFlowLogsRequired\.said\(message\) \{\n\s*throw TailnetFlowLogsRequired\(\)\n\s*\}/, '} catch {\n            throw error\n        }')
+  },
+  {
+    id: 'q9',
+    rule: 'q',
+    what: 'the join drawing a tailnet that requires flow logs as a refused key',
+    file: () => NODE,
+    edit: (src) => src.replace('            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n', '')
+  },
+  // Phase 316.4, the first TestFlight build (rules r and s). An arm marked
+  // `bytes` edits the file's bytes rather than its text, because a PNG is not
+  // text.
+  {
+    id: 'r1',
+    rule: 'r',
+    what: 'the brand master itself shipped as the icon, alpha channel and all',
+    file: () => ICON,
+    bytes: true,
+    edit: () => readFileSync(join(REPO, ICON_MASTER))
+  },
+  {
+    id: 'r2',
+    rule: 'r',
+    what: 'the icon laid on the dark base\'s --bg-canvas instead of the ground the script names',
+    file: () => ICON,
+    bytes: true,
+    edit: () => {
+      const master = decodePng(readFileSync(join(REPO, ICON_MASTER)));
+      return encodeRgbPng(master.width, master.height, flatten(master, groundOf(readFileSync(join(REPO, 'src', 'renderer', 'styles', 'tokens.css'), 'utf8'), { base: 'dark', token: '--bg-canvas' })));
+    }
+  },
+  {
+    id: 'r3',
+    rule: 'r',
+    what: 'an opaque icon given a transparent colour (a tRNS chunk after its header)',
+    file: () => ICON,
+    bytes: true,
+    edit: (buf) => {
+      const at = 8 + 12 + buf.readUInt32BE(8);
+      const body = Buffer.from([0, 245, 0, 247, 0, 250]);
+      const head = Buffer.alloc(8);
+      head.writeUInt32BE(body.length, 0);
+      head.write('tRNS', 4, 'latin1');
+      const crc = Buffer.alloc(4);
+      crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), body])) >>> 0, 0);
+      return Buffer.concat([buf.subarray(0, at), head, body, crc, buf.subarray(at)]);
+    }
+  },
+  {
+    id: 'r4',
+    rule: 'r',
+    what: "the script's ground moved to another token and the icon not made again",
+    file: () => 'build/p316/app-icon.mjs',
+    edit: (src) => src.replace("export const ICON_GROUND = Object.freeze({ base: 'light', token: '--bg-canvas' });", "export const ICON_GROUND = Object.freeze({ base: 'light', token: '--bg-surface' });")
+  },
+  {
+    id: 'r5',
+    rule: 'r',
+    what: 'a dark appearance named in the icon set',
+    file: () => ICON_SET_CONTENTS,
+    edit: (src) => src.replace('"images" : [', '"images" : [\n    {\n      "appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ],\n      "idiom" : "universal",\n      "platform" : "ios",\n      "size" : "1024x1024"\n    },')
+  },
+  {
+    id: 'r6',
+    rule: 'r',
+    what: 'a second picture dropped into the icon set',
+    file: () => `${APP}/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png`,
+    create: true,
+    edit: () => 'not an icon\n'
+  },
+  {
+    id: 'r7',
+    rule: 'r',
+    what: 'the Release build naming no icon',
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)\n\t*ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;/, '$1')
+  },
+  {
+    id: 'r8',
+    rule: 'r',
+    what: 'asset symbols generated into the app',
+    file: () => PBX,
+    edit: (src) => src.replace('ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;', 'ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;')
+  },
+  {
+    id: 's1',
+    rule: 's',
+    what: 'his team written into the app\'s Debug configuration',
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000072 \/\* Debug \*\/ = \{[\s\S]*?)DEVELOPMENT_TEAM = "";/, '$1DEVELOPMENT_TEAM = 4GRQMF5T5U;')
+  },
+  {
+    id: 's2',
+    rule: 's',
+    what: "a second team, on the unit tests' Release configuration",
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000075 \/\* Release \*\/ = \{[\s\S]*?)DEVELOPMENT_TEAM = "";/, '$1DEVELOPMENT_TEAM = 4GRQMF5T5U;')
+  },
+  {
+    id: 's3',
+    rule: 's',
+    what: 'another team in Release',
+    file: () => PBX,
+    edit: (src) => src.replace('DEVELOPMENT_TEAM = 4GRQMF5T5U;', 'DEVELOPMENT_TEAM = P316ABLATE;')
+  },
+  {
+    id: 's4',
+    rule: 's',
+    what: 'Release signed by hand again',
+    file: () => PBX,
+    edit: (src) => src.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
+  },
+  {
+    id: 's5',
+    rule: 's',
+    what: 'a distribution identity written into Release',
+    file: () => PBX,
+    edit: (src) => src.replace('CODE_SIGN_IDENTITY = "Apple Development";', 'CODE_SIGN_IDENTITY = "Apple Distribution";')
+  },
+  {
+    id: 's6',
+    rule: 's',
+    what: 'a provisioning profile named in Release',
+    file: () => PBX,
+    edit: (src) => src.replace('DEVELOPMENT_TEAM = 4GRQMF5T5U;', 'DEVELOPMENT_TEAM = 4GRQMF5T5U;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "Tortie App Store";')
+  },
+  {
+    id: 's7',
+    rule: 's',
+    what: 'the bundle id changed in Release, which the first upload makes permanent',
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)PRODUCT_BUNDLE_IDENTIFIER = com\.itavero\.tortie\.phone;/, '$1PRODUCT_BUNDLE_IDENTIFIER = com.itavero.tortie.phone2;')
+  },
+  {
+    id: 's8',
+    rule: 's',
+    what: 'Release a build ahead of Debug',
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 1;/, '$1CURRENT_PROJECT_VERSION = 2;')
+  },
+  {
+    id: 's9',
+    rule: 's',
+    what: 'the Home Screen name changed in Info.plist',
+    file: () => INFO,
+    edit: (src) => src.replace(/(<key>CFBundleDisplayName<\/key>\s*<string>)Tortie(<\/string>)/, '$1Tortie Phone$2')
+  },
+  {
+    id: 's10',
+    rule: 's',
+    what: 'the team set by a new xcconfig',
+    file: () => 'ios/P316AblationSigning.xcconfig',
+    create: true,
+    edit: () => 'DEVELOPMENT_TEAM = 4GRQMF5T5U\n'
   }
 ];
 
@@ -1047,6 +1229,7 @@ function treeDigest() {
   };
   walk(join(REPO, 'ios'));
   h.update(readFileSync(join(REPO, 'src', 'renderer', 'styles', 'tokens.css')));
+  h.update(ICON_MASTER).update(readFileSync(join(REPO, ICON_MASTER)));
   const source = frameworkManifestSource(REPO);
   if (source !== null) h.update(source).update(readFileSync(join(REPO, source)));
   return h.digest('hex');
@@ -1059,6 +1242,9 @@ function buildClone() {
     if (r.status !== 0) throw new Error(`cp -Rc ${relative(REPO, from)} failed: ${String(r.stderr).trim()}`);
   };
   for (const name of ['ios', 'src']) clone(join(REPO, name), join(scratch, name));
+  // Rule (r) lays the brand master over its ground, so the clone holds it.
+  mkdirSync(join(scratch, dirname(ICON_MASTER)), { recursive: true });
+  clone(join(REPO, ICON_MASTER), join(scratch, ICON_MASTER));
   // build/, but never build/vendor/: the vendored framework and, while a
   // build runs, 1.43 GiB of Go cache. The gate only READS the built framework,
   // so the clone links to it, and no arm may plant under it (see run).
@@ -1164,8 +1350,9 @@ try {
       continue;
     }
     const original = readFileSync(path);
-    const edited = arm.remove === true ? null : arm.edit(original.toString('utf8'));
-    if (edited === original.toString('utf8')) {
+    // A `bytes` arm edits the file's bytes (a PNG); every other arm its text.
+    const edited = arm.remove === true ? null : arm.bytes === true ? arm.edit(original) : arm.edit(original.toString('utf8'));
+    if (arm.bytes === true ? edited !== null && Buffer.compare(edited, original) === 0 : edited === original.toString('utf8')) {
       failed += 1;
       rows.push({ arm, verdict: 'FAIL', why: `the edit changed nothing in ${relPath}; its anchor is gone, so this rule is no longer proved` });
       continue;
@@ -1205,7 +1392,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -1218,5 +1405,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (q) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (s) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

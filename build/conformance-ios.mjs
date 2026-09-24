@@ -145,20 +145,45 @@
  *       every `TailscaleNode(` is guarded by that wrapper before it, in the
  *       same block; nothing calls the C API to start a node itself; the
  *       script still patches the switch in; and each built slice, when it is
- *       here, declares it and holds it in its symbol table.
+ *       here, declares it and holds it in its symbol table. From Phase 316.4,
+ *       the switch's second cost: a tailnet that requires network flow logs
+ *       turns such a node off, and the backend's words for it are named once
+ *       in Node.swift, turned into their own error by the live node's up(),
+ *       told apart from a refused key by the join, and held in every built
+ *       slice, so the pairing names flow logs rather than the key.
+ *
+ *   PHASE 316.4, the first TestFlight build (SPEC §4 S4):
+ *
+ *   (r) The app icon is the brand master
+ *       (docs/brand/tortie/master/tortie-master-1024.png) laid over one opaque
+ *       ground, the light base's `--bg-canvas`, named by
+ *       build/p316/app-icon.mjs and read from tokens.css. It is an 8-bit RGB
+ *       PNG with no alpha channel and no transparent colour, because App
+ *       Store Connect refuses an icon that has one. Every pixel is checked
+ *       against the arithmetic by this file's own code. The catalog holds
+ *       that one icon and nothing else, every configuration of the app names
+ *       it, and none generates asset symbols.
+ *   (s) His team, 4GRQMF5T5U, is written once, in the app's Release
+ *       configuration, with automatic signing as Apple Development. Every
+ *       Debug configuration is ad hoc with no team. No profile is named, and
+ *       no xcconfig sets a signing or identity setting. The app is
+ *       `com.itavero.tortie.phone`, one version in Debug and Release, and
+ *       Info.plist takes the bundle id and both versions from the project and
+ *       shows "Tortie".
  *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
  * WHAT IT REFUSES TO DO. It spawns only the pinned tsx, through
  * build/p316/vectors.mjs, for (j), and /usr/bin/plutil, which every Mac has,
- * to read a property list (e, o). It needs no Xcode, no Go and no vendored
+ * to read a property list (e, o, s). It decodes the icon and the master in
+ * node (r). It needs no Xcode, no Go and no vendored
  * framework (rules o and q read the built framework only when it is there),
  * starts no Simulator, opens no socket and reads nothing under the person's
  * home.
  *
  *   node build/conformance-ios.mjs
- *   node build/conformance-ios.mjs --root <dir>   read <dir>/ios, <dir>/build and <dir>/src/renderer/styles/tokens.css
+ *   node build/conformance-ios.mjs --root <dir>   read <dir>/ios, <dir>/build, <dir>/src/renderer/styles/tokens.css and <dir>/docs/brand/tortie/master
  *   node build/conformance-ios.mjs --json         end with one CONFORMANCE_IOS:{…} line
  */
 
@@ -166,6 +191,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { crc32, deflateSync } from 'node:zlib';
+import { decodePng } from './png-read.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..');
@@ -2509,7 +2536,7 @@ export function conditionalLines(code) {
  */
 export function ruleLogsOff(nodeName, nodeSource, appFiles, script) {
   const findings = [];
-  const said = { wrappers: [], starts: 0, gated: 0 };
+  const said = { wrappers: [], starts: 0, gated: 0, flowLogsWords: null };
   for (const f of appFiles) {
     const { bare } = lexSwift(f.source);
     for (const m of bare.matchAll(/\btailscale_(?:new|start|up|loopback|listen|dial)\s*\(/g)) {
@@ -2604,6 +2631,325 @@ export function ruleLogsOff(nodeName, nodeSource, appFiles, script) {
       ['applies the patch after it unpacks', /\bapplyNoLogsPatch\s*\(\s*srcDir\b/.test(script.text)]
     ]) {
       if (!ok) findings.push(`build/build-tailscalekit.mjs no longer ${clause}, so TailscaleKit has no working logs switch`);
+    }
+  }
+
+  // (q4) Phase 316.4, the switch's second cost (SPEC "Owed to S4" item 2). A
+  // tailnet that requires network flow logs takes the key and then turns a
+  // node whose logs are off OFF, and tsnet's Up fails with the backend's own
+  // words (tailscale.com v1.94.1 ipn/ipnlocal/local.go 1771-1785). Without a
+  // clause of its own that failure is drawn as a refused key, and a new key
+  // fails the same way. The node writes the words once, as a plain literal
+  // (`flowLogsRefusal`, returned in `said.flowLogsWords` so the caller can
+  // hold every built slice to it), turns exactly TailscaleKit's error that
+  // carries them into TailnetFlowLogsRequired, and the join maps that to its
+  // own refusal rather than to keyRefused.
+  const { strings } = lexSwift(nodeSource);
+  const words = /\bstatic\s+let\s+flowLogsRefusal\s*=\s*"/.exec(bare);
+  const literal = words === null ? undefined : strings.find((s) => s.start >= words.index + words[0].length - 1 && s.start <= words.index + words[0].length);
+  said.flowLogsWords = literal !== undefined && !literal.interpolated && literal.value.trim().length >= 12 ? literal.value : null;
+  if (said.flowLogsWords === null) {
+    findings.push(`${nodeName} does not name the backend's flow logs refusal as one plain literal of at least 12 characters (static let flowLogsRefusal = "…"), so a tailnet that requires flow logs reads as a refused key`);
+  }
+  if (!/\bcatch\s+TailscaleError\s*\.\s*internalError\s*\(\s*let\s+(\w+)\s*\)\s*where\s+TailnetFlowLogsRequired\s*\.\s*said\s*\(\s*\1\s*\)\s*\{\s*throw\s+TailnetFlowLogsRequired\s*\(\s*\)\s*\}/.test(bare)) {
+    findings.push(`${nodeName} no longer turns TailscaleKit's internalError carrying the flow logs refusal into TailnetFlowLogsRequired in the live node's up(), so that refusal reads as a refused key`);
+  }
+  if (!/\bstatic\s+func\s+said\s*\(\s*_\s+\w+\s*:\s*String\?\s*\)\s*->\s*Bool\s*\{\s*\w+\s*\?\s*\.\s*contains\s*\(\s*TailnetRules\s*\.\s*flowLogsRefusal\s*\)\s*\?\?\s*false\s*\}/.test(bare)) {
+    findings.push(`${nodeName}'s TailnetFlowLogsRequired.said no longer asks only whether the backend's words contain TailnetRules.flowLogsRefusal`);
+  }
+  if (!/\bif\s+error\s+is\s+TailnetFlowLogsRequired\s*\{\s*throw\s+TailnetRefusal\s*\.\s*flowLogsRequired\s*\}\s*throw\s+TailnetRefusal\s*\.\s*keyRefused\b/.test(bare)) {
+    findings.push(`${nodeName}'s join no longer tells TailnetFlowLogsRequired apart, just before a refused key, so a tailnet that requires flow logs reads as a refused key`);
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Rules (r) and (s): the first TestFlight build (Phase 316.4, SPEC §4 S4)
+// ---------------------------------------------------------------------------
+//
+// (r) THE APP ICON. App Store Connect refuses an app icon that has an alpha
+// channel, and the brand master has one (SPEC §3.9). So the icon is the master
+// laid over ONE opaque ground, a token Tortie already uses, and it is written
+// as RGB. build/p316/app-icon.mjs makes it. This rule does not trust that
+// file's encoder. It reads the PNG's own chunks for the channel, then decodes
+// the icon and the master and checks every pixel against the arithmetic with
+// its own code. The ground comes from tokens.css through the ROOT's own
+// app-icon.mjs, so an ablation clone is judged by its own choice. The catalog
+// holds the icon and nothing else. A colour set would be a colour written
+// outside Tokens.swift (rule a), and an image set would be a picture no rule
+// reads. The project names the icon in every configuration of the app and
+// generates no asset symbols, so every Swift file compiled into the app is one
+// this gate reads.
+//
+// (s) SIGNING AND IDENTITY. The archive he uploads is signed by HIS team, and
+// nothing an agent builds is. So his team is written exactly once in the
+// project, in the app's Release configuration, with automatic signing (Xcode
+// picks the profile, and the Organizer picks the distribution identity when he
+// exports). Every Debug configuration is ad hoc with no team, which is what
+// the Simulator arm runs (SPEC §3.8). No profile is named, and no xcconfig
+// sets a signing or identity setting where this rule does not read it. The
+// app's bundle id is the one he registered, which cannot change after the
+// first upload (SPEC §6 decision 6). Its two versions agree between Debug and
+// Release. Info.plist takes all three from the project, and it shows the name
+// "Tortie" (CLAUDE.md: user-visible copy always says Tortie). Every agent
+// build overrides the team away on its own command line
+// (build/simulator-run.mjs AD_HOC_SETTINGS, or CODE_SIGNING_ALLOWED=NO), so
+// this rule is about what the project hands HIM.
+
+/** His team: Gregory Ceccarelli, the team whose Developer ID signs Tortie for the Mac (electron-builder.yml's header). */
+export const RELEASE_TEAM = '4GRQMF5T5U';
+
+/** The bundle id he registered (SPEC §6 decision 6). It cannot change after the first upload. */
+export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
+
+/** The asset catalog, relative to the app folder, and the one set it holds. */
+const ICON_CATALOG = 'Assets.xcassets';
+const ICON_SET = 'AppIcon.appiconset';
+const ICON_NAME = 'AppIcon';
+
+/**
+ * A PNG's own facts, read from its chunk list and never from a decoder:
+ * `{ width, height, bitDepth, colorType, interlace, chunks }`, or
+ * `{ problem }` when the bytes are not a whole PNG.
+ */
+export function pngFacts(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 8 || buf.readUInt32BE(0) !== 0x89504e47 || buf.readUInt32BE(4) !== 0x0d0a1a0a) return { problem: 'is not a PNG' };
+  const chunks = [];
+  let ihdr = null;
+  let off = 8;
+  while (off + 8 <= buf.length) {
+    const len = buf.readUInt32BE(off);
+    const type = buf.toString('latin1', off + 4, off + 8);
+    if (off + 12 + len > buf.length) return { problem: `ends inside its ${type} chunk` };
+    chunks.push(type);
+    if (type === 'IHDR' && len >= 13) ihdr = buf.subarray(off + 8, off + 8 + len);
+    off += 12 + len;
+    if (type === 'IEND') break;
+  }
+  if (ihdr === null || chunks[0] !== 'IHDR') return { problem: 'has no IHDR chunk first' };
+  if (chunks[chunks.length - 1] !== 'IEND') return { problem: 'has no IEND chunk' };
+  return { width: ihdr.readUInt32BE(0), height: ihdr.readUInt32BE(4), bitDepth: ihdr[8], colorType: ihdr[9], interlace: ihdr[12], chunks };
+}
+
+const ALPHA_TYPES = { 3: 'a palette, which can carry a transparent colour', 4: 'grey with an alpha channel', 6: 'RGB with an alpha channel' };
+
+/**
+ * Rule (r), the picture: `iconBuf` is an 8-bit RGB PNG with no alpha channel
+ * and no transparent colour, `side` × `side`, and every pixel is the master
+ * (`masterBuf`, straight RGBA) laid over `ground` (`[r, g, b]`):
+ * round((m·a + g·(255 − a)) / 255) per channel.
+ */
+export function ruleIconImage(name, iconBuf, masterName, masterBuf, ground, side = 1024) {
+  const findings = [];
+  const facts = pngFacts(iconBuf);
+  if (facts.problem !== undefined) return [`${name} ${facts.problem}`];
+  if (facts.width !== side || facts.height !== side) findings.push(`${name} is ${String(facts.width)} × ${String(facts.height)}; the icon App Store Connect takes is ${String(side)} × ${String(side)}`);
+  if (facts.colorType !== 2) {
+    findings.push(`${name} is PNG colour type ${String(facts.colorType)}${ALPHA_TYPES[facts.colorType] === undefined ? '' : `, ${ALPHA_TYPES[facts.colorType]}`}; the icon is RGB with no alpha channel (colour type 2), because App Store Connect refuses an icon that has one (SPEC §3.9)`);
+  }
+  if (facts.chunks.includes('tRNS')) findings.push(`${name} carries a tRNS chunk, which makes a colour of it transparent; the icon is opaque`);
+  if (facts.bitDepth !== 8) findings.push(`${name} is ${String(facts.bitDepth)} bits a channel; the icon is 8`);
+  if (facts.interlace !== 0) findings.push(`${name} is interlaced; the icon is written plainly`);
+  if (findings.length > 0) return findings;
+  let master;
+  let icon;
+  try {
+    master = decodePng(masterBuf);
+    icon = decodePng(iconBuf);
+  } catch (err) {
+    return [`${name} or ${masterName} cannot be decoded: ${String(err?.message ?? err)}`];
+  }
+  if (master.width !== side || master.height !== side) return [`${masterName} is ${String(master.width)} × ${String(master.height)}, so the icon cannot be the master at ${String(side)} × ${String(side)}`];
+  let wrong = 0;
+  let first = null;
+  for (let p = 0; p < side * side; p += 1) {
+    const a = master.data[p * 4 + 3];
+    for (let c = 0; c < 3; c += 1) {
+      if (icon.data[p * 4 + c] !== Math.round((master.data[p * 4 + c] * a + ground[c] * (255 - a)) / 255)) {
+        wrong += 1;
+        if (first === null) first = `(${String(p % side)}, ${String(Math.floor(p / side))})`;
+        break;
+      }
+    }
+  }
+  if (wrong > 0) {
+    const hex = `#${ground.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    findings.push(`${name} differs from ${masterName} laid over ${hex} at ${String(wrong)} pixel(s), the first at ${String(first)}; the icon is the master on its ground and nothing else (node build/p316/app-icon.mjs --write makes it)`);
+  }
+  return findings;
+}
+
+/**
+ * Rule (r), the catalog and the project. `catalog` is what the tree holds:
+ * `{ entries, rootContents, setEntries, setContents }`, each Contents.json
+ * parsed (or `undefined` when it is missing, `null` when it is not JSON).
+ */
+export function ruleIconCatalog(catalog, iconFile, pbxproj, xcconfigs = []) {
+  const findings = [];
+  const said = { configurations: 0 };
+  if (catalog === null) {
+    findings.push(`ios/Tortie/${ICON_CATALOG} does not exist, so the app ships with no icon and App Store Connect refuses the upload`);
+  } else {
+    const extra = catalog.entries.filter((e) => e !== 'Contents.json' && e !== ICON_SET);
+    if (extra.length > 0) findings.push(`ios/Tortie/${ICON_CATALOG} holds ${JSON.stringify(extra)}; it holds the app icon and nothing else (a colour lives only in Tokens.swift, rule a)`);
+    if (!catalog.entries.includes('Contents.json') || catalog.rootContents === undefined) findings.push(`ios/Tortie/${ICON_CATALOG} has no Contents.json`);
+    else if (catalog.rootContents === null) findings.push(`ios/Tortie/${ICON_CATALOG}/Contents.json is not JSON`);
+    if (!catalog.entries.includes(ICON_SET)) findings.push(`ios/Tortie/${ICON_CATALOG} holds no ${ICON_SET}`);
+    else {
+      const setExtra = catalog.setEntries.filter((e) => e !== 'Contents.json' && e !== iconFile);
+      if (setExtra.length > 0) findings.push(`${ICON_SET} holds ${JSON.stringify(setExtra)}; it holds its Contents.json and ${iconFile}, and nothing else`);
+      if (!catalog.setEntries.includes(iconFile)) findings.push(`${ICON_SET} holds no ${iconFile}`);
+      const images = catalog.setContents?.images;
+      const want = { filename: iconFile, idiom: 'universal', platform: 'ios', size: '1024x1024' };
+      const one = Array.isArray(images) && images.length === 1 ? images[0] : null;
+      const same = one !== null && typeof one === 'object' && Object.keys(one).length === Object.keys(want).length && Object.entries(want).every(([k, v]) => one[k] === v);
+      if (catalog.setContents === undefined) findings.push(`${ICON_SET} has no Contents.json`);
+      else if (catalog.setContents === null) findings.push(`${ICON_SET}/Contents.json is not JSON`);
+      else if (!same) {
+        findings.push(`${ICON_SET}/Contents.json names ${JSON.stringify(images ?? null)}; it names exactly one image, ${JSON.stringify(want)}, the single size App Store Connect takes, with no other appearance`);
+      }
+    }
+  }
+  if (typeof pbxproj === 'string') {
+    const apps = appConfigurations(pbxproj);
+    said.configurations = apps.length;
+    for (const c of apps) {
+      const icon = settingAssignments(c.settings, 'ASSETCATALOG_COMPILER_APPICON_NAME');
+      if (!icon.some((a) => a.conditions === '' && a.value === ICON_NAME) || icon.some((a) => a.value !== ICON_NAME)) {
+        findings.push(`the app's ${c.name} configuration does not set ASSETCATALOG_COMPILER_APPICON_NAME = ${ICON_NAME} and nothing else, so that build has no icon`);
+      }
+      const symbols = settingAssignments(c.settings, 'ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS');
+      if (!symbols.some((a) => a.conditions === '' && a.value === 'NO') || symbols.some((a) => a.value !== 'NO')) {
+        findings.push(`the app's ${c.name} configuration does not set ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO, so Xcode compiles a Swift file into the app that no rule here reads`);
+      }
+    }
+    for (const m of pbxproj.matchAll(/membershipExceptions\s*=\s*\(([^)]*)\)/g)) {
+      if (/Assets\.xcassets/.test(m[1])) findings.push('project.pbxproj takes Assets.xcassets out of the app target with a membership exception, so the app would ship with no icon');
+    }
+  }
+  const sources = [...(typeof pbxproj === 'string' ? [{ name: 'project.pbxproj', text: pbxproj }] : []), ...xcconfigs.map((x) => ({ name: x.name, text: xcconfigBare(x.text) }))];
+  for (const s of sources) {
+    for (const a of settingAssignments(s.text, 'ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES')) {
+      if (a.value !== '') findings.push(`${s.name} names alternate app icons (${a.value}); the app has one icon, the one this rule reads`);
+    }
+    for (const a of settingAssignments(s.text, 'ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS')) {
+      if (/^YES$/i.test(a.value)) findings.push(`${s.name} sets ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES; the app has one icon, the one this rule reads`);
+    }
+    if (s.name !== 'project.pbxproj') {
+      for (const setting of ['ASSETCATALOG_COMPILER_APPICON_NAME', 'ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS']) {
+        for (const a of settingAssignments(s.text, setting)) findings.push(`${s.name} sets ${setting}${a.conditions}; the icon settings are the project's, where this rule reads them`);
+      }
+    }
+  }
+  return { findings, said };
+}
+
+/**
+ * Every build configuration in the project, whoever owns it:
+ * `{ id, name, owner, settings }`, `owner` being the target's name or
+ * `the project`.
+ */
+export function allConfigurations(pbx) {
+  const out = [];
+  for (const l of pbx.matchAll(/(?:^|\n)\s*(\w+)\s*\/\*\s*Build configuration list for (PBXNativeTarget|PBXProject) "([^"]*)"\s*\*\/\s*=\s*\{/g)) {
+    const list = pbxObject(pbx, l[1]);
+    if (list === null) continue;
+    const ids = [.../buildConfigurations\s*=\s*\(([^)]*)\)/.exec(list)?.[1].matchAll(/\b(\w{6,})\b\s*\/\*/g) ?? []].map((m) => m[1]);
+    for (const id of ids) {
+      const body = pbxObject(pbx, id);
+      if (body === null) continue;
+      out.push({ id, name: /\bname\s*=\s*"?([^";]+)"?\s*;\s*\}$/.exec(body)?.[1] ?? id, owner: l[2] === 'PBXProject' ? 'the project' : l[3], settings: body });
+    }
+  }
+  return out;
+}
+
+/** The one unconditional value a configuration gives a setting, or null when it gives none, several, or a conditional one. */
+function onlyValue(settings, name) {
+  const all = settingAssignments(settings, name);
+  return all.length === 1 && all[0].conditions === '' ? all[0].value : null;
+}
+
+/**
+ * Rule (s), over the project, every xcconfig under ios/ and Info.plist as
+ * CoreFoundation reads it.
+ */
+export function ruleSigning(pbxproj, xcconfigs = [], plist = null) {
+  const findings = [];
+  const said = { configurations: 0, debug: 0 };
+  if (typeof pbxproj !== 'string') return { findings: ['project.pbxproj cannot be read, so who signs the app cannot be said'], said };
+  const configs = allConfigurations(pbxproj);
+  said.configurations = configs.length;
+  const apps = appConfigurations(pbxproj);
+  const appRelease = apps.filter((c) => c.name === 'Release');
+  if (apps.length === 0) findings.push('project.pbxproj has no application target this rule can read');
+  if (appRelease.length !== 1) findings.push(`the app has ${String(appRelease.length)} Release configuration(s); it has one, the one he archives`);
+
+  // His team, once, in the app's Release configuration.
+  const teams = settingAssignments(pbxproj, 'DEVELOPMENT_TEAM');
+  const named = teams.filter((a) => a.value !== '');
+  for (const a of named) {
+    if (a.value !== RELEASE_TEAM) findings.push(`project.pbxproj names the team ${JSON.stringify(a.value)} (at ${String(lineOf(pbxproj, a.at))}); the one team the project names is his, ${RELEASE_TEAM}`);
+  }
+  if (named.length !== 1) findings.push(`project.pbxproj names a team ${String(named.length)} time(s); his team is written once, in the app's Release configuration, and every other configuration names none`);
+  for (const c of appRelease) {
+    if (onlyValue(c.settings, 'DEVELOPMENT_TEAM') !== RELEASE_TEAM) findings.push(`the app's Release configuration does not set DEVELOPMENT_TEAM = ${RELEASE_TEAM} once and plainly, so the archive he uploads is not signed by his team`);
+    if (onlyValue(c.settings, 'CODE_SIGN_STYLE') !== 'Automatic') findings.push("the app's Release configuration does not sign automatically, so Xcode would not make the profile his archive needs");
+    if (onlyValue(c.settings, 'CODE_SIGN_IDENTITY') !== 'Apple Development') {
+      findings.push(`the app's Release configuration sets CODE_SIGN_IDENTITY to ${JSON.stringify(settingAssignments(c.settings, 'CODE_SIGN_IDENTITY').map((a) => `${a.conditions}${a.value}`))}; under automatic signing it is "Apple Development", once, and the Organizer picks the distribution identity when he exports`);
+    }
+  }
+
+  // Every Debug configuration: ad hoc, no team (SPEC §3.8).
+  for (const c of configs.filter((x) => x.name === 'Debug')) {
+    said.debug += 1;
+    const who = c.owner === 'the project' ? "the project's" : `${c.owner}'s`;
+    if (onlyValue(c.settings, 'DEVELOPMENT_TEAM') !== '') findings.push(`${who} Debug configuration does not set DEVELOPMENT_TEAM = "" once and plainly; Debug names no team`);
+    if (onlyValue(c.settings, 'CODE_SIGN_STYLE') !== 'Manual') findings.push(`${who} Debug configuration does not set CODE_SIGN_STYLE = Manual; Debug signs ad hoc`);
+    if (onlyValue(c.settings, 'CODE_SIGN_IDENTITY') !== '-') findings.push(`${who} Debug configuration does not set CODE_SIGN_IDENTITY = "-"; Debug signs ad hoc`);
+  }
+  if (said.debug === 0) findings.push('project.pbxproj has no Debug configuration, so the ad hoc build the Simulator runs cannot be read');
+
+  // No profile named: automatic signing picks it, and it is a thing of his account.
+  for (const setting of ['PROVISIONING_PROFILE', 'PROVISIONING_PROFILE_SPECIFIER']) {
+    for (const a of settingAssignments(pbxproj, setting)) {
+      if (a.value !== '') findings.push(`project.pbxproj names ${setting}${a.conditions} = ${JSON.stringify(a.value)} (at ${String(lineOf(pbxproj, a.at))}); automatic signing picks the profile, and the repository names nothing of his account but the team`);
+    }
+  }
+  // Nothing an xcconfig sets where this rule does not read it.
+  for (const x of xcconfigs) {
+    const text = xcconfigBare(x.text);
+    for (const setting of ['DEVELOPMENT_TEAM', 'CODE_SIGN_STYLE', 'CODE_SIGN_IDENTITY', 'PROVISIONING_PROFILE', 'PROVISIONING_PROFILE_SPECIFIER', 'PRODUCT_BUNDLE_IDENTIFIER', 'MARKETING_VERSION', 'CURRENT_PROJECT_VERSION']) {
+      for (const a of settingAssignments(text, setting)) findings.push(`${x.name} sets ${setting}${a.conditions}; the signing and identity settings are the project's, where this rule reads them`);
+    }
+  }
+
+  // The app's identity.
+  const versions = { MARKETING_VERSION: new Set(), CURRENT_PROJECT_VERSION: new Set() };
+  for (const c of apps) {
+    if (onlyValue(c.settings, 'PRODUCT_BUNDLE_IDENTIFIER') !== PHONE_BUNDLE_ID) {
+      findings.push(`the app's ${c.name} configuration does not set PRODUCT_BUNDLE_IDENTIFIER = ${PHONE_BUNDLE_ID} once and plainly; that is the id he registered, and it cannot change after the first upload`);
+    }
+    for (const setting of Object.keys(versions)) {
+      const v = onlyValue(c.settings, setting);
+      if (v === null) findings.push(`the app's ${c.name} configuration does not set ${setting} once and plainly`);
+      else versions[setting].add(v);
+    }
+  }
+  for (const [setting, values] of Object.entries(versions)) {
+    if (values.size > 1) findings.push(`the app's configurations disagree on ${setting} (${JSON.stringify([...values])}); Debug and Release are one version`);
+  }
+  for (const v of versions.MARKETING_VERSION) if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(v)) findings.push(`MARKETING_VERSION is ${JSON.stringify(v)}; it is three whole numbers, like 1.0.0`);
+  for (const v of versions.CURRENT_PROJECT_VERSION) if (!/^[1-9]\d*$/.test(v)) findings.push(`CURRENT_PROJECT_VERSION is ${JSON.stringify(v)}; it is a whole number from 1, one more for every upload`);
+  if (plist !== null) {
+    const want = {
+      CFBundleIdentifier: '$(PRODUCT_BUNDLE_IDENTIFIER)',
+      CFBundleShortVersionString: '$(MARKETING_VERSION)',
+      CFBundleVersion: '$(CURRENT_PROJECT_VERSION)',
+      CFBundleDisplayName: 'Tortie'
+    };
+    for (const [key, value] of Object.entries(want)) {
+      if (plist[key] !== value) findings.push(`Info.plist sets ${key} to ${JSON.stringify(plist[key] ?? null)}; it is ${JSON.stringify(value)}`);
     }
   }
   return { findings, said };
@@ -3091,6 +3437,31 @@ const expect = (what, ok) => {
     '        return try TailscaleNode(config: c, logger: nil)',
     '    }',
     '}',
+    'enum TailnetRules {',
+    '    static let flowLogsRefusal = "tailnet requires logging to be enabled"',
+    '}',
+    'struct TailnetFlowLogsRequired: Error {',
+    '    static func said(_ message: String?) -> Bool {',
+    '        message?.contains(TailnetRules.flowLogsRefusal) ?? false',
+    '    }',
+    '}',
+    'actor Node {',
+    '    func join() throws {',
+    '        do { try up() } catch {',
+    '            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }',
+    '            throw TailnetRefusal.keyRefused',
+    '        }',
+    '    }',
+    '}',
+    'private struct Running {',
+    '    func up() async throws {',
+    '        do {',
+    '            try await node.up()',
+    '        } catch TailscaleError.internalError(let message) where TailnetFlowLogsRequired.said(message) {',
+    '            throw TailnetFlowLogsRequired()',
+    '        }',
+    '    }',
+    '}',
     ''
   ].join('\n');
   const goPatch = '//export TsnetNoLogsNoSupport\nfunc TsnetNoLogsNoSupport() C.int {\n\tenvknob.SetNoLogsNoSupport()\n\tif !envknob.NoLogsNoSupport() {\n\t\treturn -1\n\t}\n\treturn 0\n}\n';
@@ -3117,6 +3488,121 @@ const expect = (what, ok) => {
   expect('(q) catches a script that never applies its patch', qRun(logsNode, [], { ...scriptOk, text: '// applyNoLogsPatch is not called' }).length > 0);
   expect('(q) catches no vendoring script', qRun(logsNode, [], null).length > 0);
   expect('(q) catches a node file with no start at all', qRun('enum TailnetLogs {\n    static func off() -> Bool { tailscale_no_logs_no_support() == 0 }\n}\n').length > 0);
+  // (q4) The flow logs refusal, Phase 316.4.
+  expect('(q4) reads the flow logs words from the fixture', ruleLogsOff('N.swift', logsNode, [], scriptOk).said.flowLogsWords === 'tailnet requires logging to be enabled');
+  expect('(q4) catches the words gone', qRun(logsNode.replace('    static let flowLogsRefusal = "tailnet requires logging to be enabled"\n', '')).length > 0);
+  expect('(q4) catches the words built by interpolation', qRun(logsNode.replace('"tailnet requires logging to be enabled"', '"tailnet requires \\(what)"')).length > 0);
+  expect('(q4) catches the words cut too short to mean anything', qRun(logsNode.replace('"tailnet requires logging to be enabled"', '"tailnet"')).length > 0);
+  expect('(q4) catches the live up() no longer turning the error into its own', qRun(logsNode.replace(' where TailnetFlowLogsRequired.said(message)', '')).length > 0);
+  expect('(q4) catches the live up() throwing something else for it', qRun(logsNode.replace('            throw TailnetFlowLogsRequired()\n', '            throw E()\n')).length > 0);
+  expect('(q4) catches said() answering true for everything', qRun(logsNode.replace('message?.contains(TailnetRules.flowLogsRefusal) ?? false', 'true')).length > 0);
+  expect('(q4) catches the join drawing it as a refused key', qRun(logsNode.replace('            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n', '')).length > 0);
+  expect('(q4) catches the join telling it apart only AFTER a refused key', qRun(logsNode.replace('            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n            throw TailnetRefusal.keyRefused\n', '            throw TailnetRefusal.keyRefused\n            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n')).length > 0);
+  expect('(q4) does not take a word inside a comment for the catch', qRun(logsNode.replace('        } catch TailscaleError.internalError(let message) where TailnetFlowLogsRequired.said(message) {\n            throw TailnetFlowLogsRequired()\n        }\n', '        } catch {}\n        // catch TailscaleError.internalError(let message) where TailnetFlowLogsRequired.said(message) { throw TailnetFlowLogsRequired() }\n')).length > 0);
+
+  // (r) The icon. Two-pixel pictures written here with filter 0, so the rule
+  // is proved on bytes whose every field this block chose.
+  const png = (w, h, colorType, pixels, extra = []) => {
+    const part = (type, body) => {
+      const head = Buffer.alloc(8);
+      head.writeUInt32BE(body.length, 0);
+      head.write(type, 4, 'latin1');
+      const crc = Buffer.alloc(4);
+      crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), body])) >>> 0, 0);
+      return Buffer.concat([head, body, crc]);
+    };
+    const channels = colorType === 6 ? 4 : 3;
+    const rows = [];
+    for (let y = 0; y < h; y += 1) rows.push(Buffer.from([0, ...pixels.slice(y * w * channels, (y + 1) * w * channels)]));
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(w, 0);
+    ihdr.writeUInt32BE(h, 4);
+    ihdr[8] = 8;
+    ihdr[9] = colorType;
+    return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), part('IHDR', ihdr), ...extra.map(([t, b]) => part(t, b)), part('IDAT', deflateSync(Buffer.concat(rows))), part('IEND', Buffer.alloc(0))]);
+  };
+  // A master of one opaque pixel, one clear pixel, one half-clear pixel and one clear coloured pixel.
+  const masterPx = [33, 42, 43, 255, 0, 0, 0, 0, 200, 100, 50, 128, 10, 20, 30, 0];
+  const paper = [245, 247, 250];
+  const flat = (g) => [0, 1, 2, 3].flatMap((p) => [0, 1, 2].map((c) => Math.round((masterPx[p * 4 + c] * masterPx[p * 4 + 3] + g[c] * (255 - masterPx[p * 4 + 3])) / 255)));
+  const masterPng = png(2, 2, 6, masterPx);
+  const iconOk = png(2, 2, 2, flat(paper));
+  const rImg = (icon) => ruleIconImage('I.png', icon, 'M.png', masterPng, paper, 2);
+  expect('(r) reads a PNG\'s colour type from its own header', pngFacts(iconOk).colorType === 2 && pngFacts(masterPng).colorType === 6);
+  expect('(r) accepts the master laid over its ground', rImg(iconOk).length === 0);
+  expect('(r) catches the master itself, which has an alpha channel', rImg(masterPng).length > 0);
+  expect('(r) catches an opaque icon still written with an alpha channel', rImg(png(2, 2, 6, flat(paper).flatMap((v, i) => (i % 3 === 2 ? [v, 255] : [v])))).length > 0);
+  expect('(r) catches a transparent colour in an RGB icon', rImg(png(2, 2, 2, flat(paper), [['tRNS', Buffer.from([0, 245, 0, 247, 0, 250])]])).length > 0);
+  expect('(r) catches the master laid over another ground', rImg(png(2, 2, 2, flat([19, 20, 23]))).length > 0);
+  expect('(r) catches one channel of one pixel off by one', rImg(png(2, 2, 2, flat(paper).map((v, i) => (i === 7 ? v + 1 : v)))).length > 0);
+  expect('(r) catches an icon of another size', ruleIconImage('I.png', iconOk, 'M.png', masterPng, paper, 4).length > 0);
+  expect('(r) catches bytes that are not a PNG', rImg(Buffer.from('not a png')).length > 0);
+  const setOk = { images: [{ filename: 'AppIcon.png', idiom: 'universal', platform: 'ios', size: '1024x1024' }], info: { author: 'xcode', version: 1 } };
+  const catalogOk = { entries: ['AppIcon.appiconset', 'Contents.json'], rootContents: { info: {} }, setEntries: ['AppIcon.png', 'Contents.json'], setContents: setOk };
+  const iconSettings = '        ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;\n        ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;\n';
+  const rCat = (catalog, pbx = pbxApp(iconSettings, iconSettings), xc = []) => ruleIconCatalog(catalog, 'AppIcon.png', pbx, xc).findings;
+  expect('(r) accepts the one icon named in both configurations', rCat(catalogOk).length === 0);
+  expect('(r) catches no catalog at all', rCat(null).length > 0);
+  expect('(r) catches a colour set in the catalog', rCat({ ...catalogOk, entries: [...catalogOk.entries, 'AccentColor.colorset'] }).length > 0);
+  expect('(r) catches a second picture in the set', rCat({ ...catalogOk, setEntries: [...catalogOk.setEntries, 'AppIcon-dark.png'] }).length > 0);
+  expect('(r) catches a dark appearance named in the set', rCat({ ...catalogOk, setContents: { ...setOk, images: [...setOk.images, { appearances: [{ appearance: 'luminosity', value: 'dark' }], idiom: 'universal', platform: 'ios', size: '1024x1024' }] } }).length > 0);
+  expect('(r) catches the set naming another file', rCat({ ...catalogOk, setContents: { ...setOk, images: [{ ...setOk.images[0], filename: 'Other.png' }] } }).length > 0);
+  expect('(r) catches a configuration that names no icon', rCat(catalogOk, pbxApp(iconSettings, '        ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;\n')).length > 0);
+  expect('(r) catches asset symbols generated into the app', rCat(catalogOk, pbxApp(iconSettings, '        ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;\n')).length > 0);
+  expect('(r) catches alternate icons', rCat(catalogOk, `${pbxApp(iconSettings, iconSettings)}ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "Other";\n`).length > 0);
+  expect('(r) catches an xcconfig naming another icon', rCat(catalogOk, pbxApp(iconSettings, iconSettings), [{ name: 'X.xcconfig', text: 'ASSETCATALOG_COMPILER_APPICON_NAME = Other\n' }]).length > 0);
+
+  // (s) Signing and identity: a project of an app and a test target, each
+  // with Debug and Release, and the project's own two.
+  const conf = (id, name, body) => `    ${id} /* ${name} */ = {\n      isa = XCBuildConfiguration;\n      buildSettings = {\n${body}      };\n      name = ${name};\n    };`;
+  const adHoc = '        CODE_SIGN_IDENTITY = "-";\n        CODE_SIGN_STYLE = Manual;\n        DEVELOPMENT_TEAM = "";\n';
+  const identity = '        CURRENT_PROJECT_VERSION = 1;\n        MARKETING_VERSION = 1.0.0;\n        PRODUCT_BUNDLE_IDENTIFIER = com.itavero.tortie.phone;\n';
+  const his = `        CODE_SIGN_IDENTITY = "Apple Development";\n        CODE_SIGN_STYLE = Automatic;\n        DEVELOPMENT_TEAM = ${RELEASE_TEAM};\n`;
+  const list = (id, kind, owner, a, b) => `    ${id} /* Build configuration list for ${kind} "${owner}" */ = {\n      isa = XCConfigurationList;\n      buildConfigurations = (\n        ${a} /* Debug */,\n        ${b} /* Release */,\n      );\n    };`;
+  const pbxSign = ({ appDebug = adHoc + identity, appRelease = his + identity, testRelease = adHoc, projectRelease = adHoc, tail = '' } = {}) =>
+    [
+      '    BBBB00000001 /* Tortie */ = {',
+      '      isa = PBXNativeTarget;',
+      '      buildConfigurationList = BBBB00000002 /* Build configuration list for PBXNativeTarget "Tortie" */;',
+      '      productType = "com.apple.product-type.application";',
+      '    };',
+      '    BBBB00000009 /* TortieTests */ = {',
+      '      isa = PBXNativeTarget;',
+      '      buildConfigurationList = BBBB0000000A /* Build configuration list for PBXNativeTarget "TortieTests" */;',
+      '      productType = "com.apple.product-type.bundle.unit-test";',
+      '    };',
+      list('BBBB00000002', 'PBXNativeTarget', 'Tortie', 'BBBB00000003', 'BBBB00000004'),
+      list('BBBB0000000A', 'PBXNativeTarget', 'TortieTests', 'BBBB0000000B', 'BBBB0000000C'),
+      list('BBBB00000010', 'PBXProject', 'Tortie', 'BBBB00000011', 'BBBB00000012'),
+      conf('BBBB00000003', 'Debug', appDebug),
+      conf('BBBB00000004', 'Release', appRelease),
+      conf('BBBB0000000B', 'Debug', adHoc),
+      conf('BBBB0000000C', 'Release', testRelease),
+      conf('BBBB00000011', 'Debug', adHoc),
+      conf('BBBB00000012', 'Release', projectRelease),
+      tail
+    ].join('\n');
+  const plistOk = { CFBundleIdentifier: '$(PRODUCT_BUNDLE_IDENTIFIER)', CFBundleShortVersionString: '$(MARKETING_VERSION)', CFBundleVersion: '$(CURRENT_PROJECT_VERSION)', CFBundleDisplayName: 'Tortie' };
+  const sRun = (pbx, xc = [], pl = plistOk) => ruleSigning(pbx, xc, pl).findings;
+  expect('(s) finds every configuration and whose it is', allConfigurations(pbxSign()).map((c) => `${c.owner}:${c.name}`).join() === 'Tortie:Debug,Tortie:Release,TortieTests:Debug,TortieTests:Release,the project:Debug,the project:Release');
+  expect('(s) accepts his team once, in the app\'s Release, and ad hoc everywhere else', sRun(pbxSign()).length === 0);
+  expect('(s) catches his team in Debug', sRun(pbxSign({ appDebug: his + identity })).length > 0);
+  expect('(s) catches a second team on another target', sRun(pbxSign({ testRelease: `        DEVELOPMENT_TEAM = ${RELEASE_TEAM};\n` })).length > 0);
+  expect('(s) catches another team in Release', sRun(pbxSign({ appRelease: his.replace(RELEASE_TEAM, 'ABCDE12345') + identity })).length > 0);
+  expect('(s) catches no team in Release', sRun(pbxSign({ appRelease: adHoc + identity })).length > 0);
+  expect('(s) catches Release signed by hand', sRun(pbxSign({ appRelease: his.replace('Automatic', 'Manual') + identity })).length > 0);
+  expect('(s) catches a distribution identity written into Release', sRun(pbxSign({ appRelease: his.replace('Apple Development', 'Apple Distribution') + identity })).length > 0);
+  expect('(s) catches a conditional identity beside the plain one', sRun(pbxSign({ appRelease: `${his}        "CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";\n${identity}` })).length > 0);
+  expect('(s) catches a profile named', sRun(pbxSign({ appRelease: `${his}        PROVISIONING_PROFILE_SPECIFIER = "Tortie App Store";\n${identity}` })).length > 0);
+  expect('(s) accepts an empty profile specifier, which Xcode writes', sRun(pbxSign({ appRelease: `${his}        PROVISIONING_PROFILE_SPECIFIER = "";\n${identity}` })).length === 0);
+  expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
+  expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
+  expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace('CURRENT_PROJECT_VERSION = 1;', 'CURRENT_PROJECT_VERSION = 2;') })).length > 0);
+  expect('(s) catches a marketing version that is not three numbers', sRun(pbxSign({ appDebug: adHoc + identity.replace('1.0.0', '1.0'), appRelease: his + identity.replace('1.0.0', '1.0') })).length > 0);
+  expect('(s) catches a Debug configuration signed with an identity', sRun(pbxSign({ projectRelease: adHoc }).replace(/(BBBB00000011 \/\* Debug \*\/ = \{[\s\S]*?)CODE_SIGN_IDENTITY = "-";/, '$1CODE_SIGN_IDENTITY = "Apple Development";')).length > 0);
+  expect('(s) catches a display name that is not Tortie', sRun(pbxSign(), [], { ...plistOk, CFBundleDisplayName: 'gmux' }).length > 0);
+  expect('(s) catches a bundle id written into Info.plist', sRun(pbxSign(), [], { ...plistOk, CFBundleIdentifier: 'com.itavero.tortie.phone' }).length > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -3130,7 +3616,7 @@ const record = (id, title, findings, said) => {
 const missing = (path) => (existsSync(path) ? [] : [`${rel(path)} does not exist`]);
 
 if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
-  for (const id of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+  for (const id of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
 } else {
   const others = appSwift.filter((p) => p !== TOKENS_SWIFT);
   // (a)
@@ -3440,14 +3926,94 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
         for (const symbol of [`_${NO_LOGS_SWITCH}`, '_TsnetNoLogsNoSupport']) {
           if (bytes.indexOf(Buffer.from(`${symbol}\0`)) === -1) f.push(`${rel(binary)} holds no symbol ${symbol}, so it is not the build that turns the logs off; run npm run vendor:tailscalekit again`);
         }
+        // (q4) The backend's flow logs refusal, as Node.swift names it, is in
+        // the Go the slice was built from, so a pin that rewords it is refused
+        // here rather than drawn on his phone as a refused key.
+        if (r.said.flowLogsWords !== null && bytes.indexOf(Buffer.from(r.said.flowLogsWords)) === -1) {
+          f.push(`${rel(binary)} does not hold the words ${JSON.stringify(r.said.flowLogsWords)} that ${rel(NODE)} reads as the flow logs refusal, so on this build that refusal would read as a refused key`);
+        }
       }
-      said.push(`${String(slices.length)} built slice(s) declaring it and holding _${NO_LOGS_SWITCH} and _TsnetNoLogsNoSupport`);
+      said.push(`${String(slices.length)} built slice(s) declaring it and holding _${NO_LOGS_SWITCH} and _TsnetNoLogsNoSupport${r.said.flowLogsWords === null ? '' : ' and the flow logs refusal\'s words'}`);
     }
     record(
       'q',
       "Tailscale's own diagnostic logs are off before every start",
       f,
-      `${NO_LOGS_SWITCH}() asked only by ${r.said.wrappers.join(', ') || 'nothing'}, which checks it answered 0, outside every #if; ${String(r.said.gated)} of ${String(r.said.starts)} node start(s) guarded by it before, in the same block; build/build-tailscalekit.mjs patches it into the pinned source; ${said.join('; ')}`
+      `${NO_LOGS_SWITCH}() asked only by ${r.said.wrappers.join(', ') || 'nothing'}, which checks it answered 0, outside every #if; ${String(r.said.gated)} of ${String(r.said.starts)} node start(s) guarded by it before, in the same block; build/build-tailscalekit.mjs patches it into the pinned source; a tailnet that requires flow logs is its own refusal; ${said.join('; ')}`
+    );
+  }
+
+  // Phase 316.4. Every xcconfig under ios/, for (r) and (s).
+  const xcconfigs = allText.filter((q) => q.endsWith('.xcconfig')).map((q) => ({ name: rel(q), text: read(q) }));
+  // (r)
+  {
+    const f = [];
+    let said = '';
+    // The ROOT's own derivation, so a clone the ablation made is judged by its own choice of ground.
+    const scriptPath = join(ROOT, 'build', 'p316', 'app-icon.mjs');
+    let icon = null;
+    if (!existsSync(scriptPath)) f.push(`${rel(scriptPath)} does not exist, so nothing says which ground the icon is laid on`);
+    else {
+      try {
+        icon = await import(pathToFileURL(scriptPath).href);
+      } catch (err) {
+        f.push(`${rel(scriptPath)} cannot be loaded: ${String(err?.message ?? err)}`);
+      }
+    }
+    const iconFile = icon?.ICON_PATH === undefined ? 'AppIcon.png' : icon.ICON_PATH.split('/').pop();
+    const catalogDir = join(APP, ICON_CATALOG);
+    const setDir = join(catalogDir, ICON_SET);
+    const json = (path) => {
+      if (!existsSync(path)) return undefined;
+      try {
+        return JSON.parse(read(path));
+      } catch {
+        return null;
+      }
+    };
+    const listing = (dir) => (existsSync(dir) ? readdirSync(dir).filter((n) => n !== '.DS_Store').sort() : []);
+    const catalog = existsSync(catalogDir)
+      ? { entries: listing(catalogDir), rootContents: json(join(catalogDir, 'Contents.json')), setEntries: listing(setDir), setContents: json(join(setDir, 'Contents.json')) }
+      : null;
+    const c = ruleIconCatalog(catalog, iconFile, pbx, xcconfigs);
+    f.push(...c.findings);
+    if (icon !== null) {
+      const iconPath = join(ROOT, ...icon.ICON_PATH.split('/'));
+      const masterPath = join(ROOT, ...icon.ICON_MASTER.split('/'));
+      if (!iconPath.startsWith(setDir + sep)) f.push(`${rel(scriptPath)} writes the icon to ${icon.ICON_PATH}, outside ${rel(setDir)}`);
+      f.push(...missing(iconPath), ...missing(masterPath), ...missing(TOKENS_CSS));
+      if (existsSync(iconPath) && existsSync(masterPath) && existsSync(TOKENS_CSS)) {
+        let ground = null;
+        try {
+          ground = icon.groundOf(read(TOKENS_CSS));
+        } catch (err) {
+          f.push(String(err?.message ?? err));
+        }
+        if (ground !== null) {
+          f.push(...ruleIconImage(rel(iconPath), readFileSync(iconPath), rel(masterPath), readFileSync(masterPath), ground, icon.ICON_SIDE));
+          said = `${rel(iconPath)} is ${rel(masterPath)} laid over ${icon.ICON_GROUND.token} of the ${icon.ICON_GROUND.base} base (#${ground.map((v) => v.toString(16).padStart(2, '0')).join('')}), pixel for pixel, RGB with no alpha channel; `;
+        }
+      }
+    }
+    record('r', 'the app icon is the brand master on one opaque ground, with no alpha channel', f, `${said}the catalog holds that icon alone, and ${String(c.said.configurations)} app configuration(s) name it and generate no asset symbols`);
+  }
+  // (s)
+  {
+    let plist = null;
+    const f = [];
+    try {
+      plist = existsSync(INFO_PLIST) ? readPlistFile(INFO_PLIST) : null;
+    } catch (err) {
+      f.push(`${rel(INFO_PLIST)} could not be read: ${String(err?.message ?? err)}`);
+    }
+    if (plist === null && f.length === 0) f.push(`${rel(INFO_PLIST)} does not exist`);
+    const r = ruleSigning(pbx, xcconfigs, plist);
+    f.push(...r.findings);
+    record(
+      's',
+      "the Release build is signed by his team alone, and every Debug build by nobody",
+      f,
+      `DEVELOPMENT_TEAM = ${RELEASE_TEAM} once, in the app's Release configuration, signed automatically as Apple Development with no profile named; ${String(r.said.debug)} Debug configuration(s) ad hoc with no team, of ${String(r.said.configurations)}; the app is ${PHONE_BUNDLE_ID}, one version in Debug and Release, and Info.plist takes all three from the project and shows "Tortie"`
     );
   }
 }

@@ -546,17 +546,25 @@ export const CHECKS = [
   // reader of its own (the reverify built an app whose entity-spelled key the
   // old reader never decoded), which is the one host tool it needs and every
   // Mac has, and adds (q), Tailscale's own logs off before every start.
+  // PHASE 316.4 adds (r), the app icon: the brand master under docs/brand/
+  // laid over tokens.css's light --bg-canvas, every pixel checked with the
+  // gate's own arithmetic, RGB with no alpha channel, the catalog holding it
+  // alone; and (s), his team once in the app's Release configuration with
+  // automatic signing, every Debug configuration ad hoc with no team, no
+  // profile named, and the bundle id he registered. Both are read in node:
+  // the PNG through build/png-read.mjs, nothing new on the host.
   pure(
     'conformance:ios',
     'node and the repository install from package-lock.json, and macOS\'s own /usr/bin/plutil (every Mac has it, with or without Xcode), which reads every property list under ios/ as CoreFoundation does'
   ),
-  // Its attack: one plant per clause, at least one per rule (a) to (q), each
+  // Its attack: one plant per clause, at least one per rule (a) to (s), each
   // into a `cp -Rc` clone under /private/tmp (build/vendor/ is linked, never
   // copied, and no arm may plant there), each required to redden THE RULE
   // THAT OWNS IT as a delta against the base, each file restored (or a planted
   // file removed) and proved by sha256, the clone removed in a `finally` and
-  // on a signal, and the working tree's bytes asserted unmoved. Under a
-  // minute. No Xcode, no Electron, no socket.
+  // on a signal, and the working tree's bytes asserted unmoved. About a
+  // minute and a half (133 arms, 88 s at Phase 316.4). No Xcode, no Electron,
+  // no socket.
   pure(
     'ablation:p316',
     "node and the repository install from package-lock.json, and macOS's own /usr/bin/plutil, which the gate it runs reads every property list with"
@@ -564,10 +572,14 @@ export const CHECKS = [
   // The XCTest unit tests, on a Simulator of their own: decoding, the page
   // arithmetic and its refusals, the pin, and every vector the shipping
   // TypeScript wrote. build/p316/test-ios.mjs builds for testing into a scratch
-  // derived data path, then runs TortieTests on an iPhone 16 Pro it creates on
-  // iOS 26.3 (P316_RUNTIME=18.3 for the floor) through build/simulator-run.mjs,
-  // which shuts it down and deletes it in a `finally` and on SIGINT, SIGTERM
-  // and SIGHUP. It opens no socket and starts no Electron.
+  // derived data path, reads every Mach-O file of both built apps and, since
+  // Phase 316.4, of a Release archive for the DEVICE made unsigned with no team
+  // (no NetworkExtension link, no code coverage section, the logs switch
+  // exported and called, and the archive not signed), then runs TortieTests on
+  // an iPhone 16 Pro it creates on iOS 26.3 (P316_RUNTIME=18.3 for the floor)
+  // through build/simulator-run.mjs, which shuts it down and deletes it in a
+  // `finally` and on SIGINT, SIGTERM and SIGHUP. It opens no socket and starts
+  // no Electron.
   xcode('test:ios'),
   // PHASE 316.2's app run: ONE Electron through build/electron-run.mjs's
   // withElectron (scratch profile, scratch HOME, the socket gmux-p316-<pid>,

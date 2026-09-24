@@ -176,6 +176,9 @@ enum PairingFailure: Error, Equatable, Sendable {
     case noTailnetKey
     /// Tailscale refused the code's `tk` (316.3).
     case tailnetKeyRefused
+    /// Tailscale took the `tk`, then turned the node off because his tailnet
+    /// requires network flow logs, which the node never sends (316.4).
+    case tailnetFlowLogs
     /// The node could not reach Tailscale to join inside its limit (316.3).
     case tailnetUnreachable
     /// The node's directory could not be made, or the node would not start
