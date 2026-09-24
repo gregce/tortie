@@ -389,6 +389,33 @@ final class ScreensModelTests: XCTestCase {
         XCTAssertEqual(phone.begun, ["same", "other", "other"])
     }
 
+    /// Clause (conformance:ios rule p): the code last read, which carries
+    /// the tailnet key, is kept as `spent` and as the launch code, and
+    /// neither model repeats it to `dump` or `Mirror`. Fails when either
+    /// model's `customMirror` is taken out (measured on iOS in 316.3's
+    /// hardening round). The needle is the code's own text: the fix round
+    /// looked for "p316mirror" in a code that held "kP316mirror", so the test
+    /// could not fail, and the reverify took each mirror out with it green.
+    func testTheModelsNeverMirrorTheCode() async {
+        let needle = "P316mirrorMadeUpNotAKey"
+        let code = "{\"tk\":\"tskey-auth-k\(needle)\"}"
+        // The positive control: a holder of the models' own shape with no
+        // customMirror IS repeated, so the search finds the code where it is.
+        final class Unredacted {
+            private var spent: String?
+            init(_ code: String) { spent = code }
+        }
+        XCTAssertTrue(everythingSaid(about: Unredacted(code)).contains(needle), "the search cannot find the code even where it is kept, so it proves nothing")
+        let phone = StandInPhone(beginFailure: .badCode)
+        let (model, _) = pairing(phone)
+        await model.read(code)
+        XCTAssertEqual(phone.begun, [code])
+        XCTAssertFalse(everythingSaid(about: model).contains(needle), everythingSaid(about: model))
+        let app = AppModel(door: StandInPhone(), label: "iPhone", launchCode: code)
+        XCTAssertFalse(everythingSaid(about: app).contains(needle), everythingSaid(about: app))
+        XCTAssertEqual(app.takeLaunchCode(), code)
+    }
+
     /// Clause: text that is not a code says so and presents nothing.
     func testNotACodePresentsNothing() async {
         let phone = StandInPhone(beginFailure: .badCode)

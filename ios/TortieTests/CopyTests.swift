@@ -107,6 +107,8 @@ final class CopyTests: XCTestCase {
             (pairing, Copy.pairStepScan),
             (pairing, Copy.pairMatchLabel),
             (pairing, Copy.pairMatchNote),
+            // Drawn since Phase 316.3, when the tailnet node is in the app.
+            (pairing, Copy.pairPrivateNetwork),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")

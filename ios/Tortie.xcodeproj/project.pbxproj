@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		316C00000000000000000002 /* TailscaleKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 316C00000000000000000001 /* TailscaleKit.xcframework */; };
+		316C00000000000000000003 /* TailscaleKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 316C00000000000000000001 /* TailscaleKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		316A00000000000000000050 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -23,11 +28,26 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		316C00000000000000000004 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				316C00000000000000000003 /* TailscaleKit.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		316A00000000000000000010 /* Tortie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tortie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		316A00000000000000000011 /* TortieTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TortieTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		316A00000000000000000012 /* TortieUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TortieUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		316A00000000000000000013 /* Tortie.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Tortie.xctestplan; sourceTree = "<group>"; };
+		316C00000000000000000001 /* TailscaleKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TailscaleKit.xcframework; path = ../build/vendor/tailscalekit/TailscaleKit.xcframework; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -67,6 +87,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				316C00000000000000000002 /* TailscaleKit.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,8 +115,17 @@
 				316A00000000000000000020 /* Tortie */,
 				316A00000000000000000021 /* TortieTests */,
 				316A00000000000000000022 /* TortieUITests */,
+				316C00000000000000000006 /* Frameworks */,
 				316A00000000000000000003 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		316C00000000000000000006 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				316C00000000000000000001 /* TailscaleKit.xcframework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		316A00000000000000000003 /* Products */ = {
@@ -115,9 +145,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 316A00000000000000000061 /* Build configuration list for PBXNativeTarget "Tortie" */;
 			buildPhases = (
+				316C00000000000000000005 /* TailscaleKit is vendored */,
 				316A00000000000000000040 /* Sources */,
 				316A00000000000000000041 /* Frameworks */,
 				316A00000000000000000042 /* Resources */,
+				316C00000000000000000004 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -246,6 +278,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		316C00000000000000000005 /* TailscaleKit is vendored */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "TailscaleKit is vendored";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Phase 316.3. TailscaleKit is built from pinned source by\n# npm run vendor:tailscalekit (build/build-tailscalekit.mjs) and is never\n# committed. This phase only CHECKS that the copy beside the project is the\n# pinned build: the stamp that script writes last must name the commit the\n# pin names, each slice's binary must be there at the size the stamp records,\n# and each slice's whole directory must hash to the digest the stamp records\n# (every file by its path and its sha256, the pipeline below, which\n# frameworkTreeDigest in that script mirrors), so a copy missing a file, or\n# holding one changed by a byte, is this sentence and not a compiler or linker\n# error, and the command below rebuilds it. Each slice's header must also\n# declare tailscale_no_logs_no_support, the switch that turns Tailscale's own\n# logs off before every start (the hardening round). When there is no copy at\n# all Xcode stops before any phase runs, with \"There is no XCFramework found\n# at\" and the path.\n# The files are read without being declared as inputs on purpose: the\n# script sandbox denies only SRCROOT (ios/) and the build directories, and\n# build/ is outside both, so a missing stamp is this sentence rather than\n# Xcode's \"Build input file cannot be found\".\npin=\"${SRCROOT}/../build/tailscalekit-release.json\"\nstamp=\"${SRCROOT}/../build/vendor/tailscalekit/TailscaleKit.stamp.json\"\nwant=$(/usr/bin/plutil -extract commit raw -o - \"$pin\" 2>/dev/null)\nhave=$(/usr/bin/plutil -extract commit raw -o - \"$stamp\" 2>/dev/null)\nif [ -z \"$want\" ] || [ \"$want\" != \"$have\" ]; then\n  echo \"error: TailscaleKit here is not the pinned build. Run npm run vendor:tailscalekit in the repository.\"\n  exit 1\nfi\nkit=\"${SRCROOT}/../build/vendor/tailscalekit/TailscaleKit.xcframework\"\nfor slice in ios-arm64 ios-arm64_x86_64-simulator; do\n  fw=\"$kit/$slice/TailscaleKit.framework\"\n  bytes=$(/usr/bin/plutil -extract \"slices.$slice.bytes\" raw -o - \"$stamp\" 2>/dev/null)\n  size=$(/usr/bin/stat -f %z \"$fw/TailscaleKit\" 2>/dev/null)\n  tree=$(/usr/bin/plutil -extract \"slices.$slice.tree\" raw -o - \"$stamp\" 2>/dev/null)\n  hash=$(cd \"$fw\" 2>/dev/null && /usr/bin/find . -type f -print0 | LC_ALL=C /usr/bin/sort -z | /usr/bin/xargs -0 /usr/bin/shasum -a 256 | /usr/bin/shasum -a 256 | /usr/bin/cut -d \" \" -f 1)\n  if [ -z \"$bytes\" ] || [ \"$bytes\" != \"$size\" ] || [ -z \"$tree\" ] || [ \"$tree\" != \"$hash\" ] || ! /usr/bin/grep -q tailscale_no_logs_no_support \"$fw/Headers/TailscaleKit.h\" 2>/dev/null; then\n    echo \"error: TailscaleKit here is not the pinned build. Run npm run vendor:tailscalekit in the repository.\"\n    exit 1\n  fi\ndone\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		316A00000000000000000040 /* Sources */ = {

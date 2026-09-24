@@ -286,6 +286,13 @@ const LEDGER = [
     why: 'the promise that a human confirms every pairing on the Mac'
   }),
   owned({
+    is: 'Tortie brings its own private network. There is nothing else to install.',
+    module: PHONE_COPY,
+    needle: 'static let pairPrivateNetwork = "Tortie brings its own private network. There is nothing else to install."',
+    draws: 'Tortie brings its own private network. There is nothing else to install.',
+    why: 'the tailnet node the app carries since Phase 316.3 (Tailnet/Node.swift). Owed to 316.3 until it landed, because it was false before the node was in the app'
+  }),
+  owned({
     is: 'Needs your input (3)',
     module: 'src/renderer/app/AttentionOverlay.tsx',
     needle: 'Needs your input (',
@@ -639,11 +646,6 @@ const LEDGER = [
     why: "the mock's own note about the push, drawn on the lock screen sheet rather than in a caption. Phase 314 REFUSED the question line — a native alert is JSON Apple reads — so the decrypting extension that would add it is later Swift and its own entry, and this note is owed there rather than to 314"
   }),
   owed({
-    is: 'Tortie brings its own private network. There is nothing else to install.',
-    phase: 'Phase 316.3',
-    why: 'the embedded tailnet node. It is false until 316.3 carries the node inside the app, so 316.2 does not draw it'
-  }),
-  owed({
     is: 'Enter a code instead',
     phase: 'a later phase (build/p316/SPEC.md §7)',
     why: 'the pairing fallback when a camera cannot read the code. The payload is several hundred characters and no short-code design exists'
@@ -659,7 +661,7 @@ const OWED_ABSENCE_FLOOR = 16;
  * floor is what keeps this gate a comparison rather than a census. A deliberate
  * removal lowers it in the same commit and names the rule.
  */
-const OWNED_RULE_FLOOR = 33;
+const OWNED_RULE_FLOOR = 34;
 
 // ---------------------------------------------------------------------------
 // Judgement

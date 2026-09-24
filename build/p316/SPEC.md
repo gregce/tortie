@@ -1227,3 +1227,422 @@ second build races in `out/`; the two gates it runs for the phone (`conformance:
 directly. The gate index in `CLAUDE.md` still describes `conformance:ios` as "rules a to j" with "20 plants"; it is
 now (a) to (k) with 25, and that row is left for the main session to change. An absurd epoch (±1e308 ms) is drawn
 as a nonsense clock rather than refused; it cannot trap, and it is not an integer.
+
+---
+
+## §As built — 316.3
+
+Written by the integrator in `/private/tmp/wt-p316` at `d19a906a` (316.2's app; origin/main has since gained only two
+`docs(backlog)` commits, `e371324b` and `2df03bb1`, which touch none of these files), over three builders' work
+(A vendoring, B the node, C the gates). Nothing was committed, staged or stashed. **No Electron ran, no Simulator was
+created or booted, and no tailnet node was started anywhere.** Every iOS claim below is a BUILD for the Simulator or
+device SDK, a reading of the built products, a macOS XCTest run of `Door/` and `Tailnet/` over stand-in TailscaleKit
+and UIKit modules, or a text gate. What the node DOES on iOS is the verifiers' to measure, under the lock.
+
+### What S3 got wrong about the tree at this head
+
+| # | S3 says | What is true | What was built |
+| --- | --- | --- | --- |
+| 1 | C: `conformance:ios` gains (k) to (n) | The overflow round had taken (k) | Rules (l) to (p): (l) the node only in `Tailnet/Node.swift`, private, `tortie-phone`, `ephemeral: false`, no background task, the framework from `build/vendor/` signed on copy, build phases that only check; (m) the state directory; (n) the Keychain; (o) both privacy manifests; (p) the key written nowhere. (c), (e), (f) widened |
+| 2 | C: "`gate:checks` gets entries" | The gate classifies check scripts; a vendoring step fits no existing skip rule | `vendor:tailscalekit` under the sixth type with its own `GO_SKIP` (exit 1); clause 8: any `build/` script that runs Go is classified and sets all seven Go settings under one directory it owns |
+| 3 | B: "a build phase that only CHECKS it is present and names `npm run vendor:tailscalekit` when it is not"; Method B: "a missing xcframework must give the named sentence" | Xcode checks an xcframework reference while it PLANS, before any phase runs: with no copy, a direct `xcodebuild` says `There is no XCFramework found at '<path>'` (twice, exit 65). A scheme pre-action can speak first but prints the whole shell environment into the log (63 variables, two with secret-looking names), so A did not ship it | A's phase "TailscaleKit is vendored" (first in the app target) says `TailscaleKit here is not the pinned build. Run npm run vendor:tailscalekit in the repository.` whenever the stamp is missing, stale or names another commit. The integrator added `vendoredTailscaleKitProblem()` to `build/build-tailscalekit.mjs` (the build's own fast-path test) and `test:ios` and `probe:p316` ask it after the Simulator preflight and refuse, exit 2, with that sentence, so every npm path names the command; only a build straight from Xcode with no copy at all gets Xcode's sentence |
+| 4 | B (e): the node hands `DoorClient` a `URLSessionConfiguration` (`loopback(` / `tailscaleSession(`) | TailscaleKit's `tailscaleSession` builds a `.default` configuration (cache, cookies, credential store) and leaves proxy failover at its default | The node hands over a ROUTE, `.socks5(host, port, "tsnet", credential)` from `loopback()`, and the door client makes the same two calls the helper makes (`ProxyConfiguration(socksv5Proxy:)`, `applyCredential`) inside its own ephemeral configuration with `allowFailover = false`. `tailscaleSession` is referenced by no binary (0 `strings` hits, Debug and Release) |
+| 5 | Proof: "start the node with no state and no key" | tsnet with neither begins an interactive login against Tailscale's servers | The node refuses BEFORE anything starts (`noKey`, `Copy.tailnetNoKey`) |
+| 6 | "When there is no state it joins with `tk`"; with state the key is ignored | Ignoring the key forever deadlocks once Tailscale forgets the node | B: a node whose backend reports `NeedsLogin` has its state removed and reads refuse as `notPaired`, so the next code's key is used. Unmeasured against a real tailnet |
+| 7 | §3.6: 43 modules, "13 of them AWS SDK modules carrying NOTICE files" | 42 dependencies plus libtailscale itself; 17 BSD-3-Clause, 19 Apache-2.0, 2 BSD-2-Clause, 5 MIT; only 2 carry a NOTICE (`aws-sdk-go-v2`, `smithy-go`), the other 11 AWS modules have `LICENSE.txt` only | The pin records the 43 as `modules` with licence and NOTICE, derived from each module's own files on every build |
+| 8 | Method A: "`go list -m all` equals the pinned list" | `go list -m all` names 564 modules (the build list), not 43 | The pin records both, `modules` (43, compiled into the device slice) and `buildList` (564); the build refuses on either drifting, before `make` |
+| 9 | §3.5: device binary 23,245,688 B | 23,212,920 B at this pin, in A's build and again in the integrator's `--force` rebuild; xcframework 74,871,211 B both times | Informational in the pin, not a gate |
+| 10 | Research 128 and S3 are silent on it | **tsnet uploads the node's own logs to log.tailscale.com** unless `TS_NO_LOGS_NO_SUPPORT` is in the process environment when the Go runtime loads, which an iOS app cannot set for itself. The built framework holds `https://log.tailscale.com` and `TS_NO_LOGS_NO_SUPPORT` (`strings`) | Not fixed: it is his (open concern 2). The app's own manifest and the framework's declare no collected data. The DEBUG control seam now REQUIRES `TS_NO_LOGS_NO_SUPPORT=true`, and a build for the Simulator names no control server at all without the seam (decision below), so no agent-run node can reach either Tailscale server |
+| 11 | B: "The app's own `PrivacyInfo.xcprivacy`" (categories unsaid) | The app's own Swift calls no required-reason API; the Go runtime's calls live in the framework, which carries its own manifest | `ios/Tortie/PrivacyInfo.xcprivacy`: tracking false, no domains, no collected data, no API types; rule (o) derives the app's categories from its Swift |
+| 12 | The Files table does not list the pairing line | 316.2 owed "Tortie brings its own private network. There is nothing else to install." to 316.3 (`copy-drift.mjs`), and `PairingScreen.swift` said it becomes true here | Drawn at the pairing foot above the one line (`pairing-network`), `Copy.pairPrivateNetwork` (a phone word), the ledger row moved from owed to OWNED, `OWNED_RULE_FLOOR` 33 → 34, `CopyTests` holds it against the mock |
+| 13 | B: "A fresh install (no marker file) deletes the pairing's Keychain items first" | Not built by B (not in B's list) | Built by the integrator (decision below) |
+| 14 | (not said) `probe:p316`'s B1 builds a copy of `ios/` without the ATS key at `xcode/ios-nokey` | The project now reads `../build/tailscalekit-release.json` and embeds `../build/vendor/tailscalekit/TailscaleKit.xcframework`, neither of which exists beside that copy, so B1 and both ATS arms would have failed | The copy is at `xcode/nokey/ios` beside `xcode/nokey/build` holding `cp -Rc` clones of the pin and the vendored directory (clones, not links, so the probe's `rmSync` can never reach the real ones). Not run |
+| 15 | (not said) | S2's macOS harness (Door/ compiled alone) no longer builds, because `Transport.swift` names the node | The harness compiles `Tailnet/Node.swift` over stand-in TailscaleKit and UIKit modules (B's `run-mac.sh`, scratch) |
+
+### Decisions the integrator took, and where each comes from
+
+- **`NSLocalNetworkUsageDescription`** (S3 B, research 128 §2, rule e): "Tortie reaches your Mac directly when both are
+  on the same network." One sentence, one full stop. `InfoPlistTests.testTheLocalNetworkIsExplainedInOneSentence`
+  reads it from the built app.
+- **A fresh install forgets the pairing** (S3 B). `PairingStore.forgetOnFreshInstall(_:)` and `InstallMark` in
+  `Door/Keys.swift`, called first in `AppModel.launch()`: with no `Application Support/installed`, the pairing is
+  removed, and ONLY THEN is the empty mark written, excluded from backup in the same body. A forget that fails leaves
+  no mark, so the next launch tries again. Excluded from backup because the node's state is: a phone restored from a
+  backup is a fresh install too. An update from a build that had no mark (only 316.2's Simulator builds) counts as
+  fresh. `DoorInstallTests`: three rows on the Mac, each red under its own ablation (no forget; no mark check; the
+  mark before the forget; no backup exclusion), plus one iOS row reading the running app's own mark.
+- **No Simulator reaches Tailscale** (the task's hard rule; §7: no trial on the Simulator over his tailnet).
+  `TailnetControl.chosen` is nil in any build for the Simulator unless the DEBUG seam names a loopback server, so
+  such a node never starts, whatever code it is handed: with no `tk` it says `Copy.tailnetNoKey`, with one it says
+  `Copy.tailnetUnavailable`. The Simulator binaries reference `kDefaultControlURL` 0 times and the device binaries
+  once (`nm -m`, Debug and Release). And `TailnetDebugSeam.control` refuses unless `TS_NO_LOGS_NO_SUPPORT=true` is in
+  the environment (row 10); the macOS harness reddens `testTheControlSeamTakesOnlyThisMacsLoopback` when that clause
+  is taken out.
+- **`pin:tailscalekit:check`** (A's suggestion): `node build/build-tailscalekit.mjs --self-test`, classified `pure`,
+  with a path-triggered row in `CLAUDE.md`. 75 checks (A's 70 and five for `vendoredTailscaleKitProblem`, four of
+  which go red when it answers null).
+- **Words** corrected where a builder's text claimed the old behaviour: `DEVELOPMENT.md`, `verification-checks.mjs`'s
+  `NEEDS.xcode` and `XCODE_SKIP` (now naming the vendored framework), `NEEDS.go` (the `work/` directory, about 505 MB,
+  kept after a failed build for its `make.log`), the `CLAUDE.md` `test:ios` row. "It writes nothing under your home"
+  became "Go writes nothing under your home", because every `xcodebuild`, the one inside `make ios-fat` included,
+  still touches `~/Library/Caches/org.swift.swiftpm/package-collection.db-shm` and appends a line to
+  `~/Library/Logs/CoreSimulator/CoreSimulator.log` (§3.4 pitfall e; measured again this round).
+
+### Commands, as run by the integrator
+
+| Command | Exit | Reading |
+| --- | --- | --- |
+| `node build/build-tailscalekit.mjs --force` (his Go folders snapshotted before and after) | 0 | 77.5 s (78.1 s wall; cold module download, and his own `go test -race` of another project running beside it); 43 modules and 564 in the build list equal the pin; 2 slices at minos 18.1, system links only, no NetworkExtension; categories derived from `nm -u` equal the pin; xcframework 74,871,211 B, device binary 23,212,920 B, the same as A's; `.cache/` and `work/` gone; the directory holds `cache/`, the xcframework and the stamp (73,276 KB) |
+| his home, over that run (19:58:28 to 19:59:51) | — | `~/go`, `~/Library/Caches/go-build`, `~/Library/Application Support/go`: **0 entries written in the window**, 0 new in `go-build` at all. 4 telemetry files appeared at 20:00:01-02, AFTER the run, named `go1.26.8`; the vendoring used `go1.26.0`, and pid 18947 (`go test -race … ./cmd/runstory`, started 19:58:13) is his other project. `~/Library/Developer/Xcode/DerivedData` unchanged |
+| B's alarm, traced (102,616 `go-build` files 19:06 to 19:12) | — | **Not ours.** A's first Go run started 19:14:52 (A's marker). The 19:07 burst is Go's module index (`go index v2`) over his other trees (runstory, lore, `phase144`…): 0 of its 47,276 data entries names libtailscale, `tailscale.com`, `wt-p316` or tailscalekit, and no entry in the window is a `go object ios`. The 19:12 burst is 578 `go1.26.8` darwin objects of betterleaks from `/Users/gdc/go/pkg/mod`. `~/go/pkg/sumdb/sum.golang.org/latest` moved at 19:28:48, after A's last run ended at 19:27:02; its writer cannot be read from its bytes |
+| builder B's macOS harness (integrator's copy), twice | 0, 0 | 90 tests, 0 failures (B's 87 and `DoorInstallTests`' 3); the integrator's 5 ablations each red on the named test, the control green, the tree unmoved by sha256 |
+| `xcodebuild build-for-testing`, Simulator, Debug, ad hoc, no team, `-derivedDataPath …/p316-3/dd-integrator` | 0 | 0 Swift warnings (only `appintentsmetadataprocessor`'s note) |
+| `xcodebuild build`, Simulator, Release; device Debug and Release with `CODE_SIGNING_ALLOWED=NO` | 0, 0, 0 | 0 Swift warnings each; run twice (after the seam change too) |
+| the built products, read | — | App and framework both `minos 18.1`, sdk 26.2; the Simulator app and its TailscaleKit.framework `Signature=adhoc`, `TeamIdentifier=not set`, `codesign --verify --deep --strict` passes, the framework's `PrivacyInfo.xcprivacy` sealed in its `CodeResources`; both manifests in the bundle as written; `NSLocalNetworkUsageDescription` in the built plist; device app arm64, Simulator app arm64 and x86_64; 0 `NEVPN`/`NETunnel`/`NetworkExtension` symbols in app or framework; Release binary: 0 of `TortieDebug`, `TailnetDebugSeam`, `DebugDoorTransport`, `DirectLoopbackTransport`, `127.0.0.1`, `PairingDebugSeam`, `MotionDebugSeam`, `TS_NO_LOGS`, `TortieDebugTailnetControl`, `tailscaleSession` (Debug: 4, 1, 1, 1, 1, 1, 1, 1, 1, 0). The framework's `Info.plist` carries `CFBundleShortVersionString` 1.0, `CFBundleVersion` 1, `MinimumOSVersion` 18.1 and bundle id `io.tailscale.Tailscale` |
+| **App size**, device Release unsigned: `git archive d19a906a ios` built beside, against this tree | 0, 0 | **Before 2,212 KB, 530,588 B zipped; after 24,984 KB, 8,585,765 B zipped** (the framework 22,680 KB, the app binary 2,343,368 B). The SPEC's "about 23 MB and about 8 MB" holds |
+| `npm run -s conformance:ios` | 0 | 16 rules over 20 app files, 16 test files and 43 files under `ios/`; (o) reads the app's manifest (no category; the app's Swift uses none), the pin's categories and both built slices |
+| `npm run -s ablation:p316` | 0 | 61 of 61 arms red on the rule that owns them, 33.7 s, the working tree's `git status` unmoved |
+| `npm run -s gate:simulator` | 0 | 479 scripts read; 2 users against a floor of 2 |
+| `node build/assert-hermetic-checks.mjs` | 0 | 238 check scripts classified (237 plus `pin:tailscalekit:check`); 3 "Xcode and Go harness" entries; 1 script runs Go, with the seven settings (9 fixtures) |
+| `assert-electron-teardown`, `assert-background-teardown`, `assert-known-hosts-scoped`, `assert-import-boundaries`, `contract-inventory --check` | 0 each | 153 of 153 (floor unchanged: no new script reaches `electron-run.mjs`); 3 long-lived starts, each ended in a `finally`; the contract byte for byte, no channel moved |
+| `node build/p311/copy-drift.mjs --self-test` and the full run | 0, 0 | 60 words (33 the Mac's, floor 30; 27 the phone's), 5 named Mac controls (floor 3); 34 owned rules matched (floor 34) |
+| `npm run -s pin:tailscalekit:check` | 0 | 75 of 75 |
+| `node build/p316/vectors.mjs --check`, `hostile-door.mjs --self-test`, `probe-p316.mjs --grader-self-test` | 0 each | unchanged: 5 signed requests (+1 tampered), 2 pins, 2 seals, 3 QR payloads, 8 answers; 15 arms; 17 dumps |
+| `npm run -s typecheck` | 0 | — |
+| `npm run -s build` | 0 | 34.8 s; `gate:simulator`, `gate:checks` and `conformance:ios` inside it |
+| raw control bytes over all 30 touched files | — | 0; tabs only in `project.pbxproj` (2,007) and `Info.plist` (66), Xcode's own formats |
+| end count | — | 0 devices named `p316-`, 0 booted; 20 Electron-family lines, all his (Tortie since earlier days, and one Chrome crashpad handler at 20:09); none started by this round |
+
+### The seams, read
+
+- **The node to the door client.** `TailnetNode.route(to:)` → `.socks5(host, port, "tsnet", credential)` from
+  TailscaleKit's `loopback()`; `DoorClient.configuration(_:limits:)` (`Door/DoorClient.swift:324-335`) turns it into
+  `ProxyConfiguration(socksv5Proxy:)`, `allowFailover = false`, `applyCredential`, in its ephemeral configuration.
+  `LiveDoor.pairedReader()` asks `transport.reaches(host)` (the node has its mark and tsnet's state) before reading a
+  kept pairing, and `LiveDoor.pair` calls `transport.prepareToPair(host:key:)` before anything is presented. Release
+  ships `TailnetNode.shared`; DEBUG ships `DebugDoorTransport`, which sends `127.0.0.1` direct and every other host to
+  the node.
+- **The xcframework to the project.** `316C…01` references `../build/vendor/tailscalekit/TailscaleKit.xcframework`
+  (SOURCE_ROOT), linked, embedded with `CodeSignOnCopy, RemoveHeadersOnCopy` into `Frameworks`; the check phase reads
+  the stamp's `commit` against the pin's. Both device builds hold the arm64 slice only; the Simulator builds hold
+  arm64 and x86_64.
+- **The manifests to the bundle.** The app's `PrivacyInfo.xcprivacy` is taken in by the synchronized `Tortie` folder
+  (no project edit) and sits at the app's root; TailscaleKit's is at the framework's root, written by A's script and
+  sealed by Embed and Sign. `InfoPlistTests.testBothPrivacyManifestsShipInTheBundle` reads both from the running app.
+- **The gates to the source.** `conformance:ios` (l) to (p) read B's `Node.swift`, A's pin and project entries, and
+  the integrator's plist and manifest, all green; `KEY_NAMED`'s one entry is `TortieApp.swift`'s
+  `prepareToPair(host:key: pending.offer.tailnetKey)`, unchanged; `gate:checks` clause 8 reads A's `childEnv`.
+
+### Open concerns for the verifiers
+
+1. **Nothing of 316.3 has run on iOS.** Six rows exist only there and have never run or been ablated:
+   `testTheRunningAppsNodeDirectoryIsExcludedFromBackup`, `testThePairingJoinsBeforeItPresents`,
+   `testTheRunningAppLeftItsMarkExcludedFromBackup`, `testTheLocalNetworkIsExplainedInOneSentence`,
+   `testBothPrivacyManifestsShipInTheBundle`, `testASimulatorNeverReachesTailscalesOwnServer`.
+2. **HIS QUESTION, before S4: the node uploads its logs to Tailscale** (row 10). Every Tailscale client does, and
+   research 128 never weighed it. Both manifests declare no collected data. Whether that is honest for Apple's
+   privacy details, and whether he wants it, is his; an app cannot turn it off from Swift, so turning it off means a
+   change to the pinned library.
+3. **A node in the Simulator.** A build for the Simulator starts no node unless it is launched with
+   `-TortieDebugTailnetControl http://127.0.0.1:<port>` AND `TS_NO_LOGS_NO_SUPPORT=true` in the app's environment.
+   Method B's refused join needs a control stand-in that speaks Tailscale's protocol (`tailscale.com`'s
+   `testcontrol` with `RequireAuthKey` answers "invalid authkey"); nobody has built one, and the injected-error rows
+   (`TailnetNodeTests`, a stand-in engine) are the arm that ran. Method B's "tk while state exists" can be driven
+   without any node: plant `joined` and a `tailscaled.state` in the app's `Application Support/tailnet`, hand in a
+   tailnet code with a key, and read the Keychain, the container and `UserDefaults` for the key afterwards.
+4. **"Start the node with no state and no key, its sentence within 5 s"** is drivable in the Simulator now: a
+   `-TortieDebugPairingPayload` code for a `100.x` host with no `tk` must draw `Copy.tailnetNoKey`, and with a `tk`
+   `Copy.tailnetUnavailable`, both before any presentation, with no node started.
+5. **The missing-framework attack** should be run both ways: `test:ios` or `probe:p316` with
+   `build/vendor/tailscalekit/` moved aside (restored in a `finally`) must refuse, exit 2, naming the command; a plain
+   `xcodebuild` must end in Xcode's one sentence, not a linker wall.
+6. **The fresh-install forget** assumes `xcodebuild test` installs over the app rather than deleting it; if it ever
+   deletes, the probe's later steps would find no pairing.
+7. **Unmeasured against a real tailnet**, all of it S4's: the 30 s join and 15 s read limits, whether a node removed
+   from his Machines page reports `NeedsLogin` with a login URL (the `isGone` test), how `up()` fails on a spent key,
+   the local network prompt's timing, and whether `forgetKey` (`tailscale_set_authkey(h, "")`) leaves a copy in Go's
+   heap until it is collected (it may).
+8. **`probe:p316` has not run in 316.3.** Its B1 copy moved (row 14); the rest is unchanged, and it pairs over
+   loopback, which never touches the node.
+9. **Every `xcodebuild` touches two files under his home** (SwiftPM's `package-collection.db-shm` and
+   `CoreSimulator.log`), including the one inside `make ios-fat`; Go itself touched nothing of his in the integrator's
+   run.
+
+### The fix round (one pass, after lens 1 answered approved and lens 2 needs_work)
+
+Written by the fixer in `/private/tmp/wt-p316` at `d19a906a`. Nothing was committed, staged or stashed. **No
+Electron ran, no Simulator was created or booted, and no tailnet node was started.** The fixer took no lock. Its
+proof is the gates, the four builds read from outside, a partial vendored copy built with plain `xcodebuild`, the
+macOS XCTest harness with four runtime ablations, and the verification's own hostile plant scripts, copied into
+scratch and run against the fixed gate. That is the fixer checking its own fix, **not the reverify**: every row
+that exists only on iOS (`test:ios` on 26.3 and 18.3, including the new `testTheModelsNeverMirrorTheCode`) is the
+reverifier's, under the lock.
+
+| Finding | Where it was fixed | What changed | What was run |
+| --- | --- | --- | --- |
+| **Lens 2, major.** `UIBackgroundModes~iphone` and `UIBackgroundModes-iphoneos` passed rule (e), and the running app read `fetch` back from its own Info.plist | `build/conformance-ios.mjs` `plistBaseKey`, `rulePlist`; `build/p316/ablation-ios.mjs` e8 to e12 | Every plist key is compared by the name CFBundle folds it to: every trailing `-word` and `~word` is taken off before the refused names are matched (`UIBackgroundModes`, `BGTaskSchedulerPermittedIdentifiers`, `NSAllowsArbitraryLoads*`, `NSAllowsLocalNetworking`, `ITSAppUsesNonExemptEncryption`). A modified spelling of a key the rule pins exactly (`NSAppTransportSecurity`, `NSExceptionDomains`, `NSLocalNetworkUsageDescription`), or of anything inside the ATS dictionary, is refused, because the device would read it beside or over the value the rule checked. A modifier on any other key (`UISupportedInterfaceOrientations~ipad`) is left alone. Every `.xcconfig` under `ios/` is read for the same injected `INFOPLIST_KEY_` names, and for an `INFOPLIST_FILE` that would point the app at a plist the rule never reads | The verification's plants BG2, BG3 and BG5 now RED on (e). 9 new scanner fixtures. Ablation arms e8 `~iphone`, e9 `-iphoneos`, e10 `~ipad`, e11 an xcconfig, e12 `NSAppTransportSecurity~iphone`: each red on (e) |
+| **Lens 2, major.** Scoped imports, `@import` in a `.m`, `#import <NetworkExtension/…>` in a `.h`, `-framework NetworkExtension` in the project or an xcconfig all passed rule (f). A scoped class import with one use linked the framework | `build/conformance-ios.mjs` `VPN_TOKENS`, `NE_CLASS`, `NE_NAME`, `ruleNoVpn`, `allText`; ablation f5 to f11 | Swift: the import pattern takes `import typealias/struct/class/enum/protocol/let/var/func/actor NetworkExtension`, and every NetworkExtension class is refused by Apple's `NE…` prefixes (VPN, Tunnel, PacketTunnel, AppProxy, DNSProxy, DNSSettings, Hotspot, Filter, AppPush, Relay, OnDemand, Proxy, TransparentProxy, and the rest), in code or inside a string, which is how `NSClassFromString` reaches one. Every other file (project, plist, entitlements, xcconfig, and now `.m .mm .h .hh .hpp .c .cc .cpp .cxx .modulemap`, which `allText` never read) may not spell `NetworkExtension` at all, after C and xcconfig comments are blanked. That one word covers `@import`, `#import <…/…>`, `-framework` and `-weak_framework` as a string or an array, and a file reference to `NetworkExtension.framework` | NE4, NE5, NE10, NE11, NE12 and NE14 now RED on (f), and CTRL1 (the word in a Swift comment) stays green. 12 new scanner fixtures, 3 of them controls that must stay green. Arms f5 to f11, each red on (f) |
+| **Lens 2, minor.** A copy with the stamp and manifests intact but a slice's binary missing passed every check. Xcode then ended in `ld: framework 'TailscaleKit' not found`, and `npm run vendor:tailscalekit` said "already built" | `build/build-tailscalekit.mjs` `alreadyBuilt` and its self-test; the "TailscaleKit is vendored" phase in `ios/Tortie.xcodeproj/project.pbxproj`; `DEVELOPMENT.md`; `CLAUDE.md` | `alreadyBuilt`, which is also `vendoredTailscaleKitProblem`, now requires each slice's `TailscaleKit` to be a regular file of exactly the `slices[id].bytes` the stamp recorded when the build proved it. A missing, resized or replaced binary answers "not the pinned build", so `test:ios` and `probe:p316` refuse with the sentence and exit 2, and the named command rebuilds instead of answering "already built". The Xcode phase does the same for both slices, with `plutil -extract "slices.$slice.bytes"` and `/usr/bin/stat -f %z`, and says the same sentence. The stamp's format did not change: it already recorded the sizes | The self-test went from 75 to 81: no slice sizes, a missing binary, another size, a directory in its place, and back again all answer as they must, and the phase is read for both slices, the extract and the stat. A partial copy (`ios/`, the pin, the vendored directory cloned with the simulator binary deleted) gave the sentence from `vendoredTailscaleKitProblem`. Plain `xcodebuild build` for the Simulator exited **65 in 4 s with `error: TailscaleKit here is not the pinned build. Run npm run vendor:tailscalekit in the repository.`, 0 SwiftCompile and no `ld:` line**. Lens 2 read 64 SwiftCompile and the linker error. The real copy still answers null, and `npm run vendor:tailscalekit` says "already built" in 0 s |
+| **Lens 2, minor.** The key reached storage through values that hold it without naming it: the raw QR text in the Keychain (KEY5), `print(offer)` (KEY2) and `String(describing: offer)` written to a file (KEY3) | `ios/Tortie/Door/Pairing.swift`, `ios/Tortie/Tailnet/Node.swift`, `ios/Tortie/Screens/PairingScreen.swift`, `ios/Tortie/App/TortieApp.swift`; `build/conformance-ios.mjs` rule (p); tests in `DoorPairingTests.swift`, `TailnetNodeTests.swift` and `ScreensModelTests.swift`; ablation p8 to p14 | **Two halves.** (1) **The raw code is watched as the key is.** `KEY_NAMES_IN` names every name the code travels under before it is parsed: `payload` in Pairing.swift (the parse's parameter, renamed from `text`), DoorWords.swift, PairingScreen.swift and TortieApp.swift, `spent` and `code` in PairingScreen.swift, and `launchCode` and `code` in TortieApp.swift. Each is held WHOLE: `payload.utf8` is the code. Two shapes were added to the proof: a comparison with another watched value (the screen's spent-code test) and a closure's own parameter. Seven hand-offs are NAMED in `KEY_NAMED`, each with where the code goes: the parse, its two measuring lines and its decode, `return launchCode`, the two `read(code)` calls and `onCode?(code)`. `CODE_SOURCES` (a machine-readable code object, Vision's `payloadStringValue`, the DEBUG `injectedPayload(`) must each be bound to a watched name in the statement that reads it, so the name set is closed. (2) **Every value that holds the key or the code mirrors itself without it.** `PairingOffer` (only the address), its private `Wire`, `TailnetStart` (host name, directory and control URL) and the two models that keep a code, `PairingModel` (`spent`) and `AppModel` (`launchCode`), each declare `customMirror`. The rule finds a holder by a stored field, or an enum case's value, named by the key or by a watched name, and requires `customMirror` in its body or an extension | Gate: KEY5 and KEY1 RED on (p) (KEY1 was red before, on d and o). **KEY2 and KEY3 stay green at the gate, by design**, because printing or describing an offer no longer repeats the key. The macOS harness proves it: `testTheCodeNeverRepeatsItsKey` reads `String(describing:)`, `String(reflecting:)`, interpolation, `dump` and every `Mirror` child to eight levels, over a parsed offer carrying `v.madeUpTailnetKey` and over the `PendingPairing` that holds it. `testTheStartNeverRepeatsItsKey` does the same for `TailnetStart`. 92 tests, 0 failures (was 90). Taking the offer's mirror out failed exactly `testTheCodeNeverRepeatsItsKey`, and a mirror that lists the key failed it too. Taking the start's mirror out failed exactly `testTheStartNeverRepeatsItsKey`. **Why the mirror and not `description`:** the fixer first wrote both. With the description taken out and the mirror kept, NOTHING leaked, because a value that declares no description is printed, interpolated and described through `Mirror(reflecting:)`, which honours `customMirror`. So the mirror alone is the load-bearing member, the descriptions were removed, and the gate asks for the mirror alone. `KeySearch` in `TailnetNodeTests` now opens a `TailnetStart` and a `PairingOffer` by their fields, because a redacted mirror would otherwise hide a key from it. Taking that line out failed exactly `testTheKeyIsKeptNowhere` ("the property reader cannot find a key at all"). 17 new (p) scanner fixtures. Arms p8 to p14 (Wire's mirror, the offer's, the start's, the pairing model's, the code in the Keychain, the code logged, the camera's code bound to an unwatched name), each red on (p) |
+| **Lens 2, minor.** `performExpiringActivity` in the node and a background `URLSessionConfiguration` in the door client passed the gate | `build/conformance-ios.mjs` `BACKGROUND_KEEPALIVE` (rule l) and the new `ruleEphemeralOnly` (rule c); ablation l10, l11, c5 | Rule (l) adds `performExpiringActivity`, `.background(withIdentifier`, `backgroundSessionConfiguration`, `sessionSendsLaunchEvents`, `setMinimumBackgroundFetchInterval`, `allowsBackgroundLocationUpdates` and `BGContinuedProcessing…`. `beginBackgroundTask(withName:)` was already caught. Rule (c) pins every `URLSessionConfiguration` in the app to `.ephemeral` (no `.default`, no `.background`, no initialiser), and the door client must build one | BG7 and BG10 now RED, BG10 on c and l both. Arms l10, l11 (red on l, and on c too) and c5 (`.default`), each red on its rule |
+| **Lens 2, minor.** "No agent-run node can reach either Tailscale server" held only because nothing accepts a join. A node that reaches Running runs tsnet's captive-portal detection against `controlplane.tailscale.com/generate_204`, `login.tailscale.com/generate_204` and the static DERP map compiled into the framework, even when the control sends an EMPTY DERP map | `ios/Tortie/Tailnet/Node.swift` header, and this section | The header says it: a loopback control keeps the JOIN off Tailscale and nothing more. The only stand-in an agent may run refuses every key, which is `tailscale.com`'s testcontrol with `RequireAuthKey` set to a key no run sends, as lens 2 built it. One that accepts must also send `NodeAttrDisableCaptivePortalDetection` and a DERP map of loopback nodes only, and an empty DERP map is not protection. **Row 10 and the decision "No Simulator reaches Tailscale" above are corrected by this row**: a Simulator build never dials Tailscale's own CONTROL server unless the seam names one, and only a refusing stand-in keeps a seam-started node off Tailscale entirely | Text only, with the lines lens 2 read: `ipn/ipnlocal/local.go` 5648 to 5655 and `net/captivedetection/endpoints.go` 83 to 88 and 124 to 125, at v1.94.1 |
+| **Lens 1, minor.** Every build through the scheme, Release included, was instrumented for code coverage | `ios/Tortie.xctestplan` (`"codeCoverage" : false`); rule (i); ablation i3, i4 | The plan left coverage at its default, and `xcodebuild` applies a scheme's test coverage to every build through the scheme. Rule (i) now requires `codeCoverage: false` in every plan's defaults, refuses a configuration that turns it back on and a scheme with `codeCoverageEnabled = "YES"`, and refuses `CLANG_COVERAGE_MAPPING = YES` and the profile flags in the project or an xcconfig | Measured on the parent's own Release device binaries (`dd-integrator`, `dd-verA`): **9 `__llvm_prf`/`__llvm_cov` sections and 1 `_setenv`, 2,343,368 B**. With the fix: **0 sections and 0 `_setenv` in all four configurations, 1,973,664 B** (369,704 B less). `-showBuildSettings -configuration Release` no longer sets `CLANG_COVERAGE_MAPPING`. `ENABLE_CODE_COVERAGE = YES` remains: it is Xcode's default permission, it instruments nothing, and the zero sections prove that. Arms i3 (the plan's switch turned back on) and i4 (`CLANG_COVERAGE_MAPPING = YES`), each red on (i). **At S4:** `otool -l <archived binary> \| grep __llvm_prf` must print nothing |
+| **Lens 1, minor. His, unchanged.** The framework uploads the node's logs to `log.tailscale.com`, and both manifests declare no collected data | — | Open concern 2 above, confirmed on the built product by lens 1 (2 `https://log.tailscale.com` strings). Declaring the data, or patching the pin so tsnet's logtail is off, is his decision before S4. A `setenv` from Swift is too late, because the Go runtime copies the environment when the library loads | — |
+| Lens 1, nit: `go list -m all` equals `buildList` as a SET, not in Go's order | `build/tailscalekit-release.json` `note` | One sentence: `buildList` is `go list -m all` without its first line, stored sorted by JavaScript code unit, and compared as a set (`moduleDrift` compares maps), so a byte diff against Go's order shows a false drift | `pin:tailscalekit:check` 81 of 81, and the real copy still answers null. `stampDigest` does not read the note |
+
+**Nits recorded rather than changed, and why.**
+- **Lens 2: a join with no answer says its sentence about 39 s after it began, not 30.** The node's close is awaited
+  before the refusal is said, so that nothing still writes the directory the timeout keeps. The alternative is to
+  hand the stop to the `stopping` chain and throw at once. Then a refused join's `discard()` would run after the
+  next join's `prepare()` and remove the directory it had just made ready and excluded from backup. That race is
+  worse than nine seconds. `Node.swift`'s header now says "about 39 s from the start, not 30", measured. **S4
+  checklist:** a join Tailscale never answers shows its sentence about 40 s after the scan.
+- **Lens 2: a stale node plus a fresh `tk` costs a second scan.** The key is correctly ignored because state
+  exists. The node reports `NeedsLogin` and is forgotten, and the screen says it is not paired. Retrying the join
+  once with the same key inside the same pairing would change when a key is used (row 6), and nobody has measured
+  it against a real tailnet. **S4 checklist:** after removing the phone from his Machines page, the first scan
+  says "not paired" and the second joins.
+- **Lens 1: "within 5 s".** On the Simulator the sentence was on screen 0.05 to 0.21 s after the app was up in
+  every run. The 5 s window is XCUITest's launch time (up to 5.36 s by itself). **The clock for S3's "within 5 s"
+  starts when the app is launched, not when XCUITest's launch call starts.**
+- **Lens 1: §3.8's "no team anywhere" is true of signing only.** The Simulator app's `__TEXT,__entitlements`
+  (Xcode's simulated entitlements) carries `application-identifier` `4GRQMF5T5U.com.itavero.tortie.phone`, and the
+  Simulator Keychain item's access group is that id. The parent is identical. The signature still reads
+  `Signature=adhoc`, `TeamIdentifier=not set`, and the entitlements `codesign` reads are an empty dict.
+- **Lens 1: open concern 3's "nobody has built one".** The pinned tarball ships `tstestcontrol/`, a C-callable
+  testcontrol that TailscaleKit's own tests use. As shipped it does not set `RequireAuthKey`, so it ACCEPTS any key,
+  and per the captive-portal row above it must not be used as it stands. Lens 2 built tailscale.com's testcontrol
+  at v1.94.1 with `RequireAuthKey` set, in scratch, and drove the refused join end to end (A4). That is the arm the
+  S3 Method B asked for, and it is the verifiers' tool, not a repository file.
+
+**The verification's hostile plants, re-run against this gate.** Copied from `vb/plants*.mjs` into
+`scratchpad/p316-3/fixer/` with only the tree path changed, over a `cp -Rc` copy. Before, 14 of the 30 hostile
+plants walked past. After: NE1 to NE14, BG1 to BG10, KEY1 and KEY4 to KEY6 are all RED. KEY2 and KEY3 are green at the
+gate and harmless at run time (row 4). CTRL1 and the three nothing-planted controls stay green. The copy was
+restored, and the worktree's `ios/` did not move.
+
+**Nothing regressed for a person who never pairs.** No file under `src/` changed. The Swift changes add mirrors,
+rename one parameter, and correct two comments. The Release app is 369,704 B smaller, because it is no longer
+instrumented. Device Release, unsigned: 24,620 KB `du`, 25,190,590 B across 7 files, `ditto -c -k` 8,491,906 B
+(lens 1 read 24,984 KB and 8,585,754 B with coverage on).
+
+**Commands this round, with exit codes.**
+
+| Command | Exit | Reading |
+| --- | --- | --- |
+| the macOS XCTest harness (builder B's `run-mac.sh`, the fixer's copy) | 0 | 90 tests at the start of the round; 92, 0 failures, about 8 s, after it (the new two). One run between failed `testTheKeyIsKeptNowhere`'s positive control, which is what put the two field reads into `KeySearch` |
+| its 4 runtime ablations over a `cp -Rc` copy of `ios/` | 1 each | each failed exactly its named test; the worktree's `ios/` digest unmoved |
+| `npm run -s conformance:ios` | 0 | 16 rules over 20 app files, 16 test files and 43 files under `ios/`. (p): 63 mentions, 54 proved by shape, 9 named in 8 entries, 2 code sources bound, 5 holders mirrored |
+| `npm run -s ablation:p316`, twice | 0, 0 | **85 of 85** arms red on the rule that owns them (61 plus 24), about 48 s, the working tree unmoved |
+| the verification's `plants.mjs`, `plants-bg.mjs`, `plants-key.mjs` (fixer's copies) | 0 each | as in the paragraph above |
+| `xcodebuild` Simulator Debug `build-for-testing`, Simulator Release, device Debug and Release (`CODE_SIGNING_ALLOWED=NO`), ad hoc, no team, `-derivedDataPath …/p316-3/dd-fixer` | 0, 0, 0, 0 | 10, 9, 6 and 9 s; 0 `: warning:` lines; the check phase ran in each. All four: `minos 18.1`, 0 NetworkExtension links, 0 coverage sections. Release, device and Simulator: 0 of the DEBUG tokens the integrator listed. Debug device: 4, 1, 1, 1, 1, 1, 1, 1, 1, 0 as before. `kDefaultControlURL` (`nm -m`): device 1, Simulator Release 0. The Simulator app is `Signature=adhoc`, `TeamIdentifier=not set`, `codesign --verify --deep --strict` passes, its entitlements are an empty dict, both privacy manifests are in the bundle, `NSLocalNetworkUsageDescription` is the one sentence, and there is no `UIBackgroundModes` |
+| plain `xcodebuild build` over the partial copy (simulator binary deleted) | 65 | 4 s; the sentence; 0 SwiftCompile; no `ld:` |
+| `npm run -s vendor:tailscalekit` (fast path; his Go folders snapshotted) | 0 | "already built", 0 s. `~/go` 118,380, `~/Library/Caches/go-build` 216,634 and `~/Library/Application Support/go` 108 entries before and after, and **0 entries newer than the fixer's marker** in any of them at the end of the round. No Go ran this round |
+| `npm run -s pin:tailscalekit:check` | 0 | 81 of 81 |
+| `npm run -s gate:simulator` | 0 | 479 scripts read; 2 users against a floor of 2 |
+| `node build/assert-hermetic-checks.mjs` | 0 | 238 check scripts classified; 3 "Xcode and Go harness" entries; 1 script runs Go, with the seven settings |
+| `assert-electron-teardown`, `assert-background-teardown`, `assert-known-hosts-scoped`, `assert-import-boundaries`, `contract-inventory --check` | 0 each | 153 of 153 (floor unchanged); 3 long-lived starts, each ended in a `finally`; the contract byte for byte |
+| `node build/p311/copy-drift.mjs --self-test` and the full run | 0, 0 | 60 words, 34 owned rules matched (floor 34) |
+| `node build/p316/vectors.mjs --check`, `hostile-door.mjs --self-test`, `probe-p316.mjs --grader-self-test` | 0 each | unchanged: 5 (+1), 2, 2, 3, 8; 15 arms; 17 dumps |
+| `npm run -s typecheck` | 0 | — |
+| `npm run -s build` | 0 | 32 s; `gate:simulator`, `gate:checks` and `conformance:ios` inside it |
+| raw control bytes over the 16 files this round touched | — | 0; tabs only in `project.pbxproj` (2,007), Xcode's own format |
+| end count | — | 0 devices named `p316-`; 18 Electron-family lines, every one started before this round (the latest at 17:16), none by it |
+
+**For the reverifier.** (1) `test:ios` on 26.3 and 18.3: 185 declared, so 184 executed and the ATS skip, with `testTheModelsNeverMirrorTheCode`,
+`testTheCodeNeverRepeatsItsKey` and `testTheStartNeverRepeatsItsKey` new and the six iOS-only rows unchanged. (2)
+Re-run lens 2's plants and the two live escapes (`UIBackgroundModes~iphone` read back from the running app, and a
+scoped NetworkExtension import linked into the binary). Each must now fail `conformance:ios` before any build. (3)
+Read a Release archive-shaped build for `__llvm_prf`. (4) `probe:p316` is unchanged by this round except through
+`vendoredTailscaleKitProblem`, which now also asks for both slice binaries.
+
+### The hardening round (his rulings of 2026-09-23: "Harden, then land" and "Turn them off")
+
+Written by the hardening fixer in `/private/tmp/wt-p316` at `d19a906a`, after the reverify answered needs_work on the
+checks and not the app. Nothing was committed, staged or stashed. **No Electron ran. Every Simulator was made and
+deleted by `withSimulator`, under the lock, and no node an agent started reached any host but this Mac's loopback.**
+No real key was held: the one node started carried a made-up `tskey-auth-p316HR-madeUpNotAKey-…` and was refused by a
+loopback testcontrol that requires a key no run sends. The two rulings, and nothing else: no `src/`, no S4.
+
+#### Item 1: the reverify's findings
+
+| Finding | Where it was fixed | What changed | What was run |
+| --- | --- | --- | --- |
+| **MAJOR, rule (e).** The gate read Info.plist with a reader of its own, which decoded five named entities and no character reference; the reverify built apps whose running Info.plist held `UIBackgroundModes` and `NSAllowsArbitraryLoads` spelled `UIBackground&#77;odes` and `NSAppTransport&#83;ecurity`, from a second plist on one configuration, and from an `INFOPLIST_PREPROCESS` macro, all with (e) green | `build/conformance-ios.mjs`: `parsePlist` deleted; `readPlistFile`, `readPlistText`, `refusedPlistKey`, `settingAssignments`, `appConfigurations`, `ruleInfoPlistSource`, `rulePlistSpelling`; the (e) and (o) run; `build/verification-checks.mjs` (the gate's needs line names plutil) | **Every property list under ios/ (`.plist`, `.entitlements`, `.xcprivacy`) is read by CoreFoundation**, `/usr/bin/plutil -convert json -o -`, which every Mac has without Xcode; a list it cannot turn into JSON is a finding, never a guess. Info.plist gets the whole rule, every other list the refused keys at any depth. **Spelling:** a `<key>` holding `&` or `<` (a reference, CDATA) or `$(`/`${` is refused, and so is a file that spells more keys than CoreFoundation reads (a key written twice, whose LAST value the device keeps). **Source:** every `INFOPLIST_FILE` assignment anywhere, conditions included (`"INFOPLIST_FILE[sdk=iphonesimulator*]"`), in the project or any xcconfig, must be `Tortie/Info.plist`; every configuration of the application target (found by product type, then its configuration list) must set `INFOPLIST_FILE = Tortie/Info.plist` and `GENERATE_INFOPLIST_FILE = NO`; `INFOPLIST_PREPROCESS`, `INFOPLIST_PREFIX_HEADER`, `INFOPLIST_PREPROCESSOR_DEFINITIONS` and `INFOPLIST_OTHER_PREPROCESSOR_FLAGS` are refused by name; an `INFOPLIST_KEY_` whose base name is refused or pinned is refused; an xcconfig may not set `GENERATE_INFOPLIST_FILE` to anything but NO. Because the app must not generate, `NSLocalNetworkUsageDescription` is now taken from the plist only (the fixture that took it from a build setting now answers red) | The bypass shapes below, each BUILT and its built Info.plist read by plutil; 19 new scanner fixtures and one turned around; arms e13 to e20; the reverifier's own plants (`rv-plants.mjs`, copied with only the tree path changed): E1 to E6 all RED now, the control green |
+| **The dead test.** `testTheModelsNeverMirrorTheCode` looked for `p316mirror` in a code holding `kP316mirror`, so it could not fail | `ios/TortieTests/ScreensModelTests.swift` | The needle is the code's own text (`P316mirrorMadeUpNotAKey`, interpolated into the code), and a **positive control** first: a holder of the models' own shape (a final class with `private var spent`) and no `customMirror` IS found by the same search, or the test fails saying the search proves nothing | ON iOS 26.3.1, three builds of the tree: as shipped **passed**; `AppModel`'s `customMirror` taken out **FAILED** (`XCTAssertFalse failed`, naming `Tortie.AppModel`); `PairingModel`'s taken out **FAILED** (naming `Tortie.PairingModel`). See the session below |
+| **Rule (f).** `import \`NetworkExtension\`` and `NEPacket` (not in the prefix list) linked the framework with (f) green; a link flag built from two settings did too | `build/conformance-ios.mjs` `NE_CLASS`, `VPN_TOKENS`, `SWIFT_PACKAGES`, `IMPORT_TAILSCALEKIT`; `build/p316/test-ios.mjs` `builtAppProblems` | The import pattern takes the module in backticks (and rule (l)'s TailscaleKit import pattern too, which had the same hole); every `\bNE[A-Z][A-Za-z]` name is refused in Swift code and strings (comments are blanked first; nothing in the app is named that way); a Swift package in the project is refused. **`test:ios` reads every Mach-O file of both built apps with `otool -L`** and refuses, exit 1, before any device boots, when one names NetworkExtension; `node build/p316/test-ios.mjs --read-app <Tortie.app>` is that step alone | F2 (backticks + NEPacket) RED on (f) and its built app refused by the reader; **F3 (`OTHER_LDFLAGS = "-framework $(P316_A)$(P316_B)"`) is GREEN at the gate by design** (no text names the framework) and its built app is refused by the reader, exit 1, naming `/System/Library/Frameworks/NetworkExtension.framework/NetworkExtension`; arms f12 to f14 |
+| **The ephemeral rule.** `URLSession.shared`, `configuration: .default` and a typed `let c: URLSessionConfiguration = .default` passed | `build/conformance-ios.mjs` `ruleEphemeralOnly`, `configurationFunctions`, `argumentAt` | `URLSession.shared` is refused anywhere; every `configuration:` argument is `.ephemeral`, `URLSessionConfiguration.ephemeral`, or one whole call to one of the door client's own builders (found as its functions that return `URLSessionConfiguration`, today `configuration`); every value typed `URLSessionConfiguration` is `.ephemeral`, and a builder's own `return .x` or single-expression `.x` is too | C1, C2, C3 RED; arms c6 (`URLSession.shared`), c7 (`configuration: .default`), c8 (a typed `.default`), c9 (the builder returning `.default`), each red on (c) |
+| **`alreadyBuilt`.** Same-size bytes, and a slice missing its Modules or Headers, read as the pinned build | `build/build-tailscalekit.mjs` `frameworkTreeDigest`, `alreadyBuilt`, the stamp's `slices[id].tree`; the "TailscaleKit is vendored" phase in `ios/Tortie.xcodeproj/project.pbxproj` | The stamp records a digest of each slice's WHOLE framework directory: sha256 over `"<sha256 of the file>  ./<relative path>\n"` for every regular file, sorted by path bytes, which is exactly what `find . -type f -print0 \| LC_ALL=C sort -z \| xargs -0 shasum -a 256 \| shasum -a 256` prints. `alreadyBuilt` (and so `vendoredTailscaleKitProblem`, `test:ios` and `probe:p316`) compares it after the sizes; the Xcode phase computes it in shell and compares it too, so a plain `xcodebuild` over a partial or altered copy says the named sentence. The sizes stay, as the cheap first check | The shell pipeline and `frameworkTreeDigest` agree on both real slices (`8bc37e57…`, `ecda9fa6…`); the self-test drives a flipped byte at the same size, a slice without Modules, an extra file, a stamp with no digest: each "not the pinned build", with the sentence |
+| **Nits** | `build/conformance-ios.mjs` `CODE_SOURCES`, the binding of a deep link, `BACKGROUND_KEEPALIVE`, `ruleTestPlan`; `build/p316/test-ios.mjs` | `CODE_SOURCES` gains `messageString` (Core Image's QR reader), `payloadData` (Vision), `onOpenURL` (bound to its closure's own parameter) and `UIPasteboard` (read or written), and says the list is OPEN; Core Location monitoring is refused (`startMonitoringSignificantLocationChanges`, `startMonitoringVisits`, `startMonitoringLocationPushes`, `startMonitoring(for:`, `CLMonitor`, `CLBackgroundActivitySession`), because it relaunches an app with no background mode; `XCRemoteSwiftPackageReference`, `XCLocalSwiftPackageReference` and `XCSwiftPackageProductDependency` are refused (rule f); rule (i)'s sentence says "every `xcodebuild build` through the scheme" (the reverify archived with coverage on and found no section); **`test:ios` runs `TortieTests` in Release too**, built with `ENABLE_TESTABILITY=YES` into `<derived data>-release`, on the same device after the Debug run | P1 (Core Image), P3 (deep link) and L1 (significant-change monitoring) RED; arms p15 to p18, l12, l13. **The counts:** 186 test functions are declared; the Debug build compiles 185 (it leaves out the `#else` row) and runs 185 with the ATS row skipped; the Release build compiles 181 (it leaves out the five DEBUG-only rows and takes in `testAReleaseBuildReachesTheDoorThroughTheNode`) and runs 181 with the ATS row skipped. The fix round's "185 declared, so 184 executed" becomes 186 declared (the one new row below), 185 Debug and 181 Release |
+
+#### Item 2: Tailscale's own logs, off
+
+**What the pinned source says** (tailscale.com v1.94.1, fetched by `go mod download` into scratch with every Go
+setting redirected there and verified by libtailscale's own `go.sum`, `h1:0dAst/oz…`; nothing built).
+`tsnet.Server.startLogger` (`tsnet/tsnet.go` 845-883) always makes a logtail logger whose transport is
+`logpolicy.NewLogtailTransport(logtail.DefaultHost, …)`, and `TransportOptions.New` (`logpolicy/logpolicy.go` 874)
+returns a transport that sends nothing when `envknob.NoLogsNoSupport()` reads true, which is
+`Bool("TS_NO_LOGS_NO_SUPPORT")` (`envknob/envknob.go` 456-460) through `os.Getenv`. `hostinfo.New()` reports the
+same switch to the control server (`hostinfo/hostinfo.go` 67). **An app cannot set that variable for itself:** Go's
+`os.Getenv` reads `syscall`'s copy of `runtime.envs`, which `goenvs_unix` (`runtime/runtime1.go` 83-96, go1.26.0)
+fills from the process's own startup block when the c-archive's runtime loads, before any Swift runs, so a
+`setenv` from Swift never reaches it. **And libtailscale exports no switch at this pin** (`tailscale.go`: no
+`envknob`, no `Setenv`). The switch that exists is `envknob.SetNoLogsNoSupport()` (`envknob/envknob.go` 474-477),
+the one tailscaled's `--no-logs-no-support` flips; no export reached it. So TailscaleKit's own equivalent option
+does not exist, and the right switch is one line of Go.
+
+**What was built.**
+- `build/build-tailscalekit.mjs` `NO_LOGS_PATCH`, `patchSource`, `applyNoLogsPatch`: the ONE change the build makes to
+  the pinned source, applied right after unpacking and before the module derivation and `make`. Five edits, each
+  anchored on text the pinned source holds EXACTLY once or the build refuses naming the file and the anchor:
+  `tailscale.go` imports `tailscale.com/envknob` and exports `TsnetNoLogsNoSupport()`, which calls
+  `envknob.SetNoLogsNoSupport()` and returns 0 only when `envknob.NoLogsNoSupport()` then reads true, else -1;
+  `tailscale.c` wraps it as `tailscale_no_logs_no_support(void)`; `tailscale.h` and
+  `swift/TailscaleKit/TailscaleKit.h` (the header Swift reads) declare it. The patch is part of `stampDigest`, so a
+  copy built without it is not the pinned build; the stamp says `patch`; the pin's `note` says the build is patched
+  and why. `assertXcframework` requires each slice to export `_tailscale_no_logs_no_support` and
+  `_TsnetNoLogsNoSupport` (`nm -gU`) and its header to declare it.
+- `ios/Tortie/Tailnet/Node.swift`: `TailnetLogs.off()` is `tailscale_no_logs_no_support() == 0`, and
+  `LiveTailnetEngine.start` begins `guard TailnetLogs.off() else { throw TailnetLogsStillOn() }`, before the
+  `TailscaleNode(` it makes, in every build (outside every `#if`), device and Simulator, Debug and Release. A node
+  whose logs cannot be turned off is never started: its error is the start's own ("could not start its private
+  network"). The header's "WHAT TAILSCALEKIT DOES THAT THIS FILE CANNOT STOP" paragraph is replaced by what is now
+  true, **with the cost: Tailscale's support cannot see this node's logs.**
+- **The DEBUG seam no longer asks the launcher for `TS_NO_LOGS_NO_SUPPORT=true`** (`TailnetDebugSeam.control`,
+  `noLogsVariable` removed): the node turns the logs off itself before every start, so a run that starts a node
+  through the seam proves the switch rather than the launcher. `testTheControlSeamTakesOnlyThisMacsLoopback` drops
+  its environment rows and says why.
+- `ios/TortieTests/TailnetNodeTests.swift` gains `testTailscalesOwnLogsAreOffBeforeANodeStarts` (iOS only, the REAL
+  framework): the test host was launched without the variable, and `TailnetLogs.off()` answers true, twice.
+- **`conformance:ios` rule (q)** (`ruleLogsOff`, `conditionalLines`): `tailscale_no_logs_no_support(` is called only
+  inside a `func … -> Bool` that compares it `== 0`, outside every `#if`; every `TailscaleNode(` in Node.swift has a
+  `guard <that wrapper>() else {` BEFORE it in its own body whose block the start never leaves (a guard in a
+  sibling branch does not count); no app file calls `tailscale_new/start/up/loopback/listen/dial` itself; the
+  vendoring script's `NO_LOGS_PATCH`, IMPORTED AS DATA from the root's own script (so an ablation clone is judged by
+  its own), still imports envknob, exports the function with exactly that body, wraps it in C and declares it in the
+  Swift header, and the script still calls `applyNoLogsPatch(srcDir`; and each built slice, when it is here, declares
+  it in `Headers/TailscaleKit.h` and holds `_tailscale_no_logs_no_support` and `_TsnetNoLogsNoSupport` in its symbol
+  table (a byte search, so no Xcode is needed). 13 scanner fixtures; arms q1 (the guard removed), q2 (the answer
+  dropped, `_ = TailnetLogs.off()`), q3 (the wrapper answering true whatever the switch said), q4 (the wrapper in
+  DEBUG only, a constant `true` in Release), q5 (the script's patch no longer calling `SetNoLogsNoSupport`), q6 (a
+  node started through the C API), each red on (q).
+- **The privacy manifests keep saying the app collects nothing, and it is now true of the node too.** Neither
+  manifest changed: the app's declares no category and no collected data, TailscaleKit's declares FileTimestamp
+  C617.1 and SystemBootTime 35F9.1 and no collected data, and rule (o) still holds both.
+
+**Proved from the built product.** The rebuild (`node build/build-tailscalekit.mjs`, 55.8 s, exit 0): the patch
+applied to all four files, 43 modules and 564 in the build list equal to the pin, both slices at minos 18.1 linking
+the system only; xcframework 74,872,593 B, device binary 23,213,296 B (376 B more than 23,212,920); `nm -gU` of each
+slice: `T _TsnetNoLogsNoSupport`, `T _tailscale_no_logs_no_support`; `envknob.SetNoLogsNoSupport` is inlined into
+the export, which calls `_tailscale.com/envknob.Setenv` (present, local); both headers declare it at line 90. His
+Go folders: `~/go` 118,383, `~/Library/Caches/go-build` 216,841 and `~/Library/Application Support/go` 108 entries
+before and after, **0 entries newer than the marker**. The four app builds (Simulator Debug and Release, device
+Debug and Release): every one's `Tortie` binary has `_tailscale_no_logs_no_support` among its undefined symbols
+(`nm -u`: 1 each), and `test-ios.mjs --read-app` passes each. The strings `https://log.tailscale.com` (2) and
+`TS_NO_LOGS_NO_SUPPORT` are still in the framework, as they must be: the code that would upload is there, and the
+switch is what keeps it from sending.
+
+**Proved on the Simulator (iOS 26.3.1), under the lock, by the network, twice.** Both arms launched the Debug app
+through a scratch UI test with the DEBUG seam naming a control on this Mac's loopback and a pairing code carrying a
+made-up key, and with **no `TS_NO_LOGS_NO_SUPPORT` in the app's environment** (`ps -wwE` of the app's pid, read from
+the host: absent). As a safety net only, the app's environment named `HTTPS_PROXY` = a loopback catcher that records
+what reaches it and forwards nothing, so an upload the switch failed to stop could not have left the Mac.
+- **Arm 1, a refused join** (tailscale.com's own testcontrol at v1.94.1, lens 2's build, requiring a key no run
+  sends): the pairing line was "Tailscale refused the Tailnet key. Nothing was paired." The control saw exactly two
+  requests, both from `127.0.0.1` (`GET /key`, `POST /ts2021`), and **the node's own `RegisterRequest` carried
+  `"Hostinfo": { …, "Hostname": "tortie-phone", "NoLogsNoSupport": true }`**: tsnet read the switch as true when the
+  node started, and the only thing that could have set it is `TailnetLogs.off()`. `nettop`: the app's pid moved 880
+  bytes in and 1,518 out in its whole life, all before its first sample and not one byte after in the 34 s it stayed
+  up; the catcher received nothing.
+- **Arm 2, a join that never answers** (a loopback server that accepts and never replies, so the node stays up for the
+  whole 30 s join limit and every socket it holds lives long enough to be listed): the pairing line was "Tortie could
+  not reach Tailscale. Nothing was paired." `lsof -i` of the app's pid, 61 samples: two unconnected UDP sockets
+  (magicsock's binds) and one TCP connection, `127.0.0.1 → 127.0.0.1:<the hang server>`, and nothing else. `nettop`
+  over the whole run (54,051 rows, 96 flows of the device's processes): the app's flows went to ONE loopback peer and
+  **0 non-loopback peers, 0 DERP addresses** (lens 2's DERP list), 0 bytes in and 82 out; the catcher received
+  nothing. The node left its directory as a timed-out join does (`tailscaled.state`, `tailscaled.log.conf` naming its
+  log collection, and a 230 B local log buffer): **tsnet still WRITES its log buffer into the node's own state
+  directory, excluded from backup, and uploads none of it.** The key was in none of those files.
+
+**What was not run, on purpose.** No node was ever started with the switch taken out. That run is the only one that
+could show an upload being attempted, and it is a run in which a node tries to reach log.tailscale.com; the hard rule
+forbids it, and a loopback HTTPS proxy is not proof enough to risk it. The switch's failure mode is covered instead
+by the readback (a node whose switch does not answer 0 is never started), the text rule and its six arms, and the
+testcontrol's own record of what the node reported.
+
+#### The bypass shapes, built (Simulator SDK, nothing booted), their built Info.plist read by plutil
+
+| Shape | `conformance:ios` | What the BUILT Info.plist or binary holds |
+| --- | --- | --- |
+| B1 `UIBackground&#77;odes` (a character reference) | RED (e) | `UIBackgroundModes: [fetch]` |
+| B2 `UIBackgroundModes&#x7E;iphone` | RED (e) | `UIBackgroundModes~iphone: [fetch]`, a background mode on an iPhone |
+| B3 `UIBackgroundModes` in a CDATA key | RED (e) | `UIBackgroundModes: [fetch]` |
+| B4 a second ATS dictionary spelled with references | RED (e) | `NSAppTransportSecurity: {NSAllowsArbitraryLoads: true}`, the checked one gone, because CoreFoundation keeps the LAST of two keys |
+| B5 Release from `Tortie/Release/Info.plist` (inside the synchronized folder) | RED (e) | does not build: "Multiple commands produce …/Info.plist" |
+| B5b Release from `P316Release.plist` (outside it) | RED (e) | `UIBackgroundModes: [fetch]` in the Release app |
+| B6 `INFOPLIST_PREPROCESS` with `-DP316BG=UIBackgroundModes` | RED (e) | `UIBackgroundModes: [fetch]` |
+| B7 `GENERATE_INFOPLIST_FILE = YES` with `INFOPLIST_KEY_UIBackgroundModes` | RED (e) | no background mode: Xcode generates no such key, and the rule refuses it anyway |
+| B7b the same with `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` | RED (e) | `ITSAppUsesNonExemptEncryption` merged into the app's Info.plist, which is why every app configuration must say `GENERATE_INFOPLIST_FILE = NO` |
+| B8 a key `$(P316BG)` with `P316BG = UIBackgroundModes` | RED (e) | the key `$(P316BG)` literally: Xcode expands build settings in values, not in keys; refused anyway, as a key the file does not show plainly |
+| B9 `UIUserInterfaceStyle` written Dark, then Light | RED (e) | `Light`: the file's first spelling is not what the device reads |
+| B10 `"INFOPLIST_FILE[sdk=iphonesimulator*]" = Tortie/Sim/Info.plist` | RED (e) | does not build (the same duplicate) |
+| B10b the same, `= P316Sim.plist` outside the folder | RED (e) | `UIBackgroundModes: [fetch]` in the Simulator app |
+| F2 `import \`NetworkExtension\`` and `NEPacket` | RED (f) | `Tortie` links `/System/Library/Frameworks/NetworkExtension.framework/NetworkExtension`; `test-ios.mjs --read-app` exit 1 |
+| F3 `OTHER_LDFLAGS = "-framework $(P316_A)$(P316_B)"` | green, by design | the same link; `test-ios.mjs --read-app` exit 1 naming it, so `test:ios` refuses the app before any device boots |
+
+**Commands this round, with exit codes.**
+
+| Command | Exit | Reading |
+| --- | --- | --- |
+| `go mod download -json tailscale.com` in the unpacked pinned libtailscale, every Go setting (`childEnv`) under `scratchpad/p316-3/hr/go` | 0 | `tailscale.com@v1.94.1`, `h1:0dAst/ozTuFkgmxZULc3oNwR9+qPIt5ucvzH7kaM0Jw=` from libtailscale's own `go.sum`; read only |
+| `node build/build-tailscalekit.mjs` (the patch changes the stamp's digest, so the old copy was not the pinned build) | 0 | 55.8 s; as above. His Go folders: 0 entries newer than the marker |
+| the shell pipeline of the Xcode phase and `frameworkTreeDigest`, over both real slices | — | equal: `8bc37e57…` and `ecda9fa6…`; `vendoredTailscaleKitProblem()` null |
+| `npm run -s conformance:ios` | 0 | 17 rules, 1.5 s (plutil included), 249 scanner fixtures first (56 new: 19 for e, 24 for c, f, l and p, 13 for q); (e) 3 property lists read by CoreFoundation, 2 app configurations; (c) the client's builder `configuration`; (q) as above |
+| `npm run -s ablation:p316`, twice (before and after the last doc edits) | 0, 0 | **112 of 112** arms red on the rule that owns them (85 plus 27: e13 to e20, f12 to f14, c6 to c9, l12, l13, p15 to p18, q1 to q6), every rule (a) to (q) proved able to fail, about 75 s, the working tree unmoved |
+| the reverifier's `rv-plants.mjs` over a `cp -Rc` copy (only the tree path changed) | 0 | E1 to E6, F1, F2, F4, C1 to C4, L1, L2, P1 to P3, I1 RED; F3 green (the load-command reader's); the control green; the copy restored |
+| `scratchpad/p316-3/hr/bypass-builds.mjs` (the table above; each shape in its own clone, derived data `dd-hardening-bypass-<id>`, removed after) | 0 | 15 shapes built or refused as the table says |
+| `npm run -s pin:tailscalekit:check` | 0 | **101 of 101** (81 plus 20: the directory digest and the patch) |
+| `npm run -s gate:simulator` | 0 | 479 scripts; 2 users against a floor of 2 (the first run was RED on a `test-ios.mjs` log sentence that read as an xcodebuild test line; reworded) |
+| `npm run -s typecheck` | 0 | — |
+| `node build/assert-hermetic-checks.mjs` | 0 | 238 check scripts classified; `conformance:ios` and `ablation:p316` name `/usr/bin/plutil` in their needs |
+| `assert-electron-teardown`, `assert-background-teardown`, `assert-known-hosts-scoped`, `assert-import-boundaries`, `contract-inventory --check` | 0 each | 153 of 153 (floor unchanged); 3 long-lived starts, each ended in a `finally`; the contract byte for byte |
+| `copy-drift.mjs --self-test` and the full run, `vectors.mjs --check`, `hostile-door.mjs --self-test`, `probe-p316.mjs --grader-self-test` | 0 each | unchanged |
+| `npm run -s build` | 0 | 32 s; `gate:simulator`, `gate:checks` and `conformance:ios` inside it |
+| the macOS XCTest harness (builder B's `run-mac.sh`, this round's copy, the stand-in TailscaleKit given `tailscale_no_logs_no_support`) | 0 | 92 tests, 0 failures |
+| `xcodebuild` Simulator Debug `build-for-testing`, Simulator Release, device Debug and Release (`CODE_SIGNING_ALLOWED=NO`), ad hoc, no team, `-derivedDataPath …/p316-3/dd-hardening` | 0, 0, 0, 0 | 12, 10, 9 and 9 s; 0 warnings, 0 errors; the check phase ran in each. All four: minos 18.1, 0 coverage sections, 0 `_setenv`, `_tailscale_no_logs_no_support` undefined in `Tortie` (1 each), no `UIBackgroundModes`, the one ATS exception, both manifests in the bundle, `--read-app` passes. Release, device and Simulator: 0 of every DEBUG token listed before. `TS_NO_LOGS`: 0 in all four now (the seam no longer names it). `kDefaultControlURL`: device 1, Simulator 0. The Simulator app: `Signature=adhoc`, `TeamIdentifier=not set`, `codesign --verify --deep --strict` passes, entitlements an empty dict. Device Release `Tortie`: 1,975,224 B (1,560 B more than the fix round's) |
+| `node build/p316/test-ios.mjs --read-app` over the fix round's own Simulator app (`dd-fixer`, before this round) | 1 | "the embedded TailscaleKit does not export `_tailscale_no_logs_no_support`" and "the app's own binary never calls" it: the parent measurement |
+| **THE LOCK, session 1** (23:12:46 to 23:20:28): `P316_DERIVED_DATA=…/dd-hardening-testios npm run -s test:ios` | 0 | 132 s. Both built apps read (12 and 13 Mach-O files, no NetworkExtension, the switch present). **iOS 26.3.1: Debug 185 executed, 0 failures, 1 skipped; Release 181 executed, 0 failures, 1 skipped** |
+| the same with `P316_RUNTIME=18.3` | 0 | 95 s. **iOS 18.3.1: Debug 185, 0 failures, 1 skipped; Release 181, 0 failures, 1 skipped** |
+| `hr/mirror-ablate.mjs test` (three `build-for-testing` builds before the lock, each 0) | 0 | iOS 26.3.1: as shipped passed; no `AppModel` mirror FAILED; no `PairingModel` mirror FAILED |
+| `hr/logs-proof.mjs run` (arm 1), with `hr/netwatch.mjs` (nettop) around it | 0 | as above |
+| **THE LOCK, session 2** (23:22:41 to 23:24:29; a first try at 23:21:52 ran no test, because the first arm's kept result bundle was in the way, exit 64) `LOGS_ARM=hang hr/logs-proof.mjs run`, with nettop around it | 0 | as above |
+| end count | — | 0 devices named `p316-`, 0 booted; no testcontrol, catcher, hang server or nettop left; 18 Electron-family lines, the same 18 as before the round, none started by it; no `/private/tmp/p316-ablation-*` clone left; the lock released |
+
+**What this round supersedes.** Row 10 of "What S3 got wrong", the decision "No Simulator reaches Tailscale" (its
+sentence that the seam requires `TS_NO_LOGS_NO_SUPPORT=true`), open concern 2 and the fix round's "His, unchanged"
+row: the node now turns Tailscale's logs off itself, in every build, and the seam asks the launcher for nothing
+else. "Every `.plist` is read for `UIBackgroundModes` by text" in the fix round's (e) row is now "every property list
+is read by CoreFoundation". The fix round's count "185 declared, so 184 executed" is now 186 declared, 185 in Debug
+and 181 in Release.
+
+**For the reverifier.** (1) Rebuild nothing: `build/vendor/tailscalekit/` holds the patched build, and
+`vendoredTailscaleKitProblem()` answers null; a copy without the patch is refused with the named sentence. (2)
+`test:ios` on 26.3 and 18.3 runs Debug then Release; the new iOS row is `testTailscalesOwnLogsAreOffBeforeANodeStarts`.
+(3) The logs proof's harness is `scratchpad/p316-3/hr/logs-proof.mjs` (both arms) with `hr/netwatch.mjs` and
+`hr/netread.mjs`, and the testcontrol binary is lens 2's `vb/p316verifierctl`. (4) Not run by design: a node with the
+switch taken out. (5) The Go side reads the switch through `envknob.NoLogsNoSupport()` each time a server starts, so
+calling it once per process would do; the guard runs before every start so no path can start a node without it.
+
+### Owed to S4 by 316.3's final reverify (the main session, 2026-09-24)
+
+Two things the reverify approved with and that S4 must carry, because S4 is where they bite:
+
+1. **The built-app reader reads only Simulator products.** `test-ios.mjs --read-app` is the only check that
+   refuses a NetworkExtension link assembled from build settings, and `test:ios` builds only for the Simulator.
+   S4 builds device Release unsigned inside `test:ios` and runs the reader on it, and the S4 checklist runs
+   `node build/p316/test-ios.mjs --read-app <archived Tortie.app>` on the archive he uploads.
+2. **The logs switch has a second cost.** With `TS_NO_LOGS_NO_SUPPORT` on, a tailnet whose netmap carries
+   network flow logs (`tailcfg.CapabilityDataPlaneAuditLogs`) turns the node off: tailscale.com v1.94.1
+   `ipn/ipnlocal/local.go:1771-1785` sets `WantRunning=false` with "tailnet requires logging to be enabled".
+   The app would show that only as a join that never completes. The S4 checklist has him confirm network flow
+   logs are OFF in his tailnet before the first join, and the app's join failure sentence names it.

@@ -1,15 +1,16 @@
 // Pairing: read the Mac's code, match the fingerprint, and wait for Allow
 // (Phase 316.2).
 //
-// docs/design/phone/Pairing.html, frame for frame, less two things:
+// docs/design/phone/Pairing.html, frame for frame, less one thing:
 //
 //   - "Enter a code instead" (build/p316/SPEC.md section 7: the payload is
 //     several hundred characters and no short-code design exists). Its slot at
 //     the foot draws this screen's one line instead, and `Pair again` in its
 //     button's shape once a pairing stopped.
-//   - "Tortie brings its own private network. There is nothing else to
-//     install." It becomes true at 316.3, when the tailnet node is carried in
-//     the app; in 316.2 the app has no network of its own, so it is not said.
+//
+// "Tortie brings its own private network. There is nothing else to install."
+// is drawn at the foot above that line since Phase 316.3, which carries the
+// tailnet node inside the app (Tailnet/Node.swift); in 316.2 it was not true.
 //
 // THE ORDER is Door/Pairing.swift's and the Mac's: read the code, draw the
 // fingerprint of this phone's new keys, present until the Mac answers, and be
@@ -122,6 +123,13 @@ final class PairingModel {
     }
 }
 
+/// `dump` and `Mirror` would show `spent`, the last code read, which carries
+/// the tailnet key: the model mirrors itself with nothing in it
+/// (conformance:ios rule p).
+extension PairingModel: CustomReflectable {
+    nonisolated var customMirror: Mirror { Mirror(self, children: [:], displayStyle: .class) }
+}
+
 // MARK: - The screen
 
 struct PairingScreen: View {
@@ -223,10 +231,13 @@ struct PairingScreen: View {
         .padding(.horizontal, Frame.gutter)
     }
 
-    /// `padding: 0 16px 32px; gap: 12px`: the one line, then `Pair again` in
-    /// the shape of the mock's button once a try stopped.
+    /// `padding: 0 16px 32px; gap: 12px`: the private network line, the one
+    /// line, then `Pair again` in the shape of the mock's button once a try
+    /// stopped.
     private var foot: some View {
         VStack(alignment: .leading, spacing: Frame.cardGap) {
+            Words(Copy.pairPrivateNetwork, .small, Tokens.textMuted, lines: nil)
+                .accessibilityIdentifier(ID.pairingNetwork)
             if model.busy, model.fingerprint != nil {
                 ProgressView()
                     .tint(Tokens.textMuted)

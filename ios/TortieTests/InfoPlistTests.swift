@@ -63,6 +63,41 @@ final class InfoPlistTests: XCTestCase {
         XCTAssertEqual(sentence.filter { $0 == "." }.count, 1, sentence)
     }
 
+    /// Clause (Phase 316.3): the node's direct path to a Mac on the same
+    /// network is a local network send, so iOS asks, and the app says why in
+    /// one sentence (research 128 section 2).
+    func testTheLocalNetworkIsExplainedInOneSentence() throws {
+        let sentence = try XCTUnwrap(info["NSLocalNetworkUsageDescription"] as? String)
+        XCTAssertTrue(sentence.hasSuffix("."))
+        XCTAssertEqual(sentence.filter { $0 == "." }.count, 1, sentence)
+    }
+
+    /// Clause (Phase 316.3): the BUILT app carries its own privacy manifest,
+    /// tracking nothing and collecting nothing, and the embedded TailscaleKit
+    /// carries its own at the framework's root with the two categories he
+    /// decided (section 6 decision 8), read from the bundle that ships.
+    func testBothPrivacyManifestsShipInTheBundle() throws {
+        let app = try XCTUnwrap(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"))
+        let own = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: app), format: nil) as? [String: Any])
+        XCTAssertEqual(own["NSPrivacyTracking"] as? Bool, false)
+        XCTAssertEqual((own["NSPrivacyCollectedDataTypes"] as? [Any])?.count, 0)
+
+        let frameworks = try XCTUnwrap(Bundle.main.privateFrameworksURL)
+        let kit = frameworks.appendingPathComponent("TailscaleKit.framework/PrivacyInfo.xcprivacy", isDirectory: false)
+        let theirs = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: kit), format: nil) as? [String: Any])
+        XCTAssertEqual(theirs["NSPrivacyTracking"] as? Bool, false)
+        let types = try XCTUnwrap(theirs["NSPrivacyAccessedAPITypes"] as? [[String: Any]])
+        var declared: [String: [String]] = [:]
+        for entry in types {
+            let category = try XCTUnwrap(entry["NSPrivacyAccessedAPIType"] as? String)
+            declared[category] = try XCTUnwrap(entry["NSPrivacyAccessedAPITypeReasons"] as? [String])
+        }
+        XCTAssertEqual(declared, [
+            "NSPrivacyAccessedAPICategoryFileTimestamp": ["C617.1"],
+            "NSPrivacyAccessedAPICategorySystemBootTime": ["35F9.1"],
+        ])
+    }
+
     /// Clause: `Tortie.entitlements` is empty: no networking entitlement, no
     /// VPN, no push, no keychain group (section 4 S2, rule (f)).
     func testTheEntitlementsAreEmpty() throws {

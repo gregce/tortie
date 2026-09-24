@@ -171,9 +171,10 @@ final class DoorClientTests: XCTestCase {
         }
     }
     #else
-    /// Clause: a Release build has no transport until Phase 316.3.
-    func testAReleaseBuildHasNoTransport() {
-        XCTAssertNil(DoorTransports.shipping)
+    /// Clause (Phase 316.3): a Release build reaches the door through the
+    /// tailnet node and nothing else.
+    func testAReleaseBuildReachesTheDoorThroughTheNode() {
+        XCTAssertTrue(DoorTransports.shipping is TailnetNode)
     }
     #endif
 }

@@ -311,6 +311,24 @@ final class DoorPairingTests: XCTestCase {
         refused(try code { $0["tk"] = 7 })
     }
 
+    /// Clause (conformance:ios rule p): a value that holds the key never
+    /// repeats it. `print`, `String(describing:)`, `String(reflecting:)`,
+    /// interpolation, `dump` and `Mirror` all read the offer, and the pending
+    /// pairing that holds it, without the key: every one of them reads the
+    /// offer through its mirror. Fails when `PairingOffer`'s `customMirror` is
+    /// taken out.
+    func testTheCodeNeverRepeatsItsKey() throws {
+        let keyed = try PairingOffer.parse(try code { $0["tk"] = v.madeUpTailnetKey })
+        XCTAssertEqual(keyed.tailnetKey, v.madeUpTailnetKey)
+        let pending = PendingPairing(offer: keyed, keys: PhoneKeys.generate(), label: "x", fingerprint: "f")
+        for value in [keyed as Any, pending as Any] {
+            let said = everythingSaid(about: value)
+            XCTAssertFalse(said.contains(v.madeUpTailnetKey), said)
+            XCTAssertFalse(said.contains("tailnetKey"), said)
+            XCTAssertTrue(said.contains(keyed.address.host), "the description says nothing at all: \(said)")
+        }
+    }
+
     // MARK: Keeping it
 
     private func paired(_ secrets: MemorySecrets) throws -> PairedDoor {
@@ -445,4 +463,22 @@ final class StepLog: @unchecked Sendable {
     private var steps: [PairingStep] = []
     func append(_ step: PairingStep) { lock.withLock { steps.append(step) } }
     var all: [PairingStep] { lock.withLock { steps } }
+}
+
+/// Everything Swift says about a value: `print`'s and interpolation's words,
+/// `debugPrint`'s, `dump`'s, and every label and value `Mirror` walks to eight
+/// levels. The rule p tests read it for the key.
+func everythingSaid(about value: Any) -> String {
+    var out = "\(String(describing: value))\n\(String(reflecting: value))\n\(value)\n"
+    dump(value, to: &out)
+    func walk(_ mirror: Mirror, _ depth: Int) {
+        guard depth < 8 else { return }
+        for child in mirror.children {
+            out += "\(child.label ?? "_")=\(String(reflecting: child.value))\n"
+            walk(Mirror(reflecting: child.value), depth + 1)
+        }
+        if let parent = mirror.superclassMirror { walk(parent, depth + 1) }
+    }
+    walk(Mirror(reflecting: value), 0)
+    return out
 }

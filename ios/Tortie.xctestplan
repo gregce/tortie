@@ -9,6 +9,7 @@
     }
   ],
   "defaultOptions" : {
+    "codeCoverage" : false,
     "preferredScreenCaptureFormat" : "screenshots",
     "systemAttachmentLifetime" : "keepNever",
     "uiTestingScreenshotsEnabled" : false,

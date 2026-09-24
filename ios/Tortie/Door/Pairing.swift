@@ -23,8 +23,14 @@
 //
 // WHAT THE CODE HOLDS. `ps` is a one-shot secret that dies with the window,
 // and `tk` is his tailnet credential: both live only in the parsed offer in
-// memory, and neither is ever stored or logged. 316.3 uses `tk` to join; 316.2
-// parses it and keeps it nowhere.
+// memory, and neither is ever stored or logged. The tailnet node joins with
+// `tk` before the first presentation when it has no state of its own, and
+// keeps it nowhere (Tailnet/Node.swift, Phase 316.3). A value that holds the
+// key mirrors itself without it, and `print`, `dump`, `String(describing:)`,
+// `String(reflecting:)` and interpolation all read a value through its mirror
+// when it declares no description, so none of them repeats it (conformance:ios
+// rule p). The raw code, which carries the key too, is only ever compared,
+// parsed or handed on under a name the rule watches.
 //
 // THE DEBUG SEAM. The Simulator has no camera, so a DEBUG build takes the
 // code as a launch argument, and a DEBUG build also accepts a code whose
@@ -38,7 +44,7 @@ import Foundation
 // MARK: - The code the Mac draws
 
 /// What the QR carries, checked. Nothing in it is trusted before this.
-struct PairingOffer: Sendable, Equatable {
+struct PairingOffer: Sendable, Equatable, CustomReflectable {
     /// `POCKET_QR_VERSION`.
     static let version = 2
     /// Far above any real code (a few hundred characters); anything longer
@@ -57,7 +63,7 @@ struct PairingOffer: Sendable, Equatable {
     let secret: Data
     /// `exp`, epoch ms on the Mac's clock.
     let expiresAt: Double
-    /// `tk`, his tailnet key, or nil. Memory only; 316.3 joins with it.
+    /// `tk`, his tailnet key, or nil. Memory only; the node joins with it.
     let tailnetKey: String?
 
     /// Is the window still open by this phone's clock?
@@ -65,7 +71,11 @@ struct PairingOffer: Sendable, Equatable {
         date.timeIntervalSince1970 * 1000 < expiresAt
     }
 
-    private struct Wire: Decodable {
+    /// What `print`, `dump`, `String(describing:)`, `String(reflecting:)`
+    /// and interpolation see: the Mac's address, and never the key.
+    var customMirror: Mirror { Mirror(self, children: ["address": address], displayStyle: .struct) }
+
+    private struct Wire: Decodable, CustomReflectable {
         let v: Int
         let host: String
         let port: Int
@@ -75,13 +85,17 @@ struct PairingOffer: Sendable, Equatable {
         let ps: String
         let exp: Double
         let tk: String?
+
+        /// The code as read, which holds the key and the one-shot secret, so
+        /// it shows neither.
+        var customMirror: Mirror { Mirror(self, children: [:], displayStyle: .struct) }
     }
 
     /// The code, or `badCode` / `unsupportedCode`. Unknown fields are
     /// ignored; a field that is present and wrong refuses the whole code.
-    static func parse(_ text: String) throws -> PairingOffer {
-        guard !text.isEmpty, text.utf8.count <= maxPayloadBytes,
-              let wire = try? JSONDecoder().decode(Wire.self, from: Data(text.utf8)) else {
+    static func parse(_ payload: String) throws -> PairingOffer {
+        guard !payload.isEmpty, payload.utf8.count <= maxPayloadBytes,
+              let wire = try? JSONDecoder().decode(Wire.self, from: Data(payload.utf8)) else {
             throw PairingFailure.badCode
         }
         guard wire.v == version else { throw PairingFailure.unsupportedCode }
@@ -154,10 +168,19 @@ enum PairingFailure: Error, Equatable, Sendable {
     case unreachable
     /// The Keychain would not keep the pairing.
     case couldNotSave
-    /// This build has no way to reach a Mac (a Release build before 316.3).
+    /// This build has no way to reach a Mac.
     case notAvailable
     /// The person left the pairing screen.
     case cancelled
+    /// The tailnet node has no state and the code carries no `tk` (316.3).
+    case noTailnetKey
+    /// Tailscale refused the code's `tk` (316.3).
+    case tailnetKeyRefused
+    /// The node could not reach Tailscale to join inside its limit (316.3).
+    case tailnetUnreachable
+    /// The node's directory could not be made, or the node would not start
+    /// (316.3).
+    case tailnetUnavailable
 }
 
 // MARK: - The sealed presentation

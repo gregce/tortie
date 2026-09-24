@@ -17,10 +17,9 @@
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
-// the seam between them (`PhoneDoor`, Screens/DoorWords.swift). A Release build
-// of 316.2 has no transport yet (`DoorTransports.shipping` is nil until the
-// tailnet node arrives in 316.3), so it holds no reader and says it is not
-// paired.
+// the seam between them (`PhoneDoor`, Screens/DoorWords.swift). The transport
+// is the tailnet node the app carries (Tailnet/Node.swift, Phase 316.3), which
+// starts in the foreground and stops in the background on its own.
 
 import SwiftUI
 import UIKit
@@ -88,6 +87,12 @@ final class AppModel {
 
     /// The app as it launches on a phone or in the Simulator.
     static func launch() -> AppModel {
+        // A fresh install forgets a pairing an earlier install left in the
+        // Keychain, before anything reads it: its tailnet node is gone
+        // (Door/Keys.swift, `forgetOnFreshInstall`, Phase 316.3).
+        if let mark = try? InstallMark.standard() {
+            PairingStore.keychain.forgetOnFreshInstall(mark)
+        }
         let door = LiveDoor(store: .keychain, transport: DoorTransports.shipping)
         var launchCode: String?
         #if DEBUG
@@ -163,6 +168,13 @@ final class AppModel {
     func isTop(_ route: Route?) -> Bool {
         path.last == route
     }
+}
+
+/// `dump` and `Mirror` would show `launchCode`, the code handed in at launch,
+/// which carries the tailnet key: the model mirrors itself with nothing in it
+/// (conformance:ios rule p).
+extension AppModel: CustomReflectable {
+    nonisolated var customMirror: Mirror { Mirror(self, children: [:], displayStyle: .class) }
 }
 
 // MARK: - The root
@@ -300,8 +312,8 @@ struct PairedReader: DoorReading {
     }
 }
 
-/// Door/ as the app uses it. With no transport (a Release build of 316.2)
-/// there is no client: nothing is read and nothing pairs.
+/// Door/ as the app uses it. With no transport there is no client: nothing is
+/// read and nothing pairs.
 struct LiveDoor: PhoneDoor {
     let store: PairingStore
     let client: DoorClient?
@@ -311,8 +323,11 @@ struct LiveDoor: PhoneDoor {
         client = transport.map { DoorClient(transport: $0) }
     }
 
+    /// The kept pairing, unless the transport cannot reach it: a pairing whose
+    /// tailnet node is gone (a reinstall, the node's state removed) is not
+    /// read, and the phone goes to Pairing with its one line.
     func pairedReader() -> (any DoorReading)? {
-        guard let client, let door = store.load() else { return nil }
+        guard let client, let door = store.load(), client.transport.reaches(door.address.host) else { return nil }
         return PairedReader(client: client, door: door)
     }
 
@@ -324,6 +339,16 @@ struct LiveDoor: PhoneDoor {
 
     func pair(_ pending: PendingPairing, progress: @escaping @Sendable (PairingStep) -> Void) async -> PairResult {
         guard let client else { return .failed(.notAvailable) }
+        // The tailnet node first: it joins with the code's key when it has no
+        // state of its own, and a code it cannot join with is refused before
+        // anything is presented.
+        do {
+            try await client.transport.prepareToPair(host: pending.offer.address.host, key: pending.offer.tailnetKey)
+        } catch let failure as PairingFailure {
+            return .failed(failure)
+        } catch {
+            return .failed(.notAvailable)
+        }
         switch await PairingFlow(exchange: client, store: store).run(pending, progress: progress) {
         case .paired(let door, let first):
             return .paired(PairedReader(client: client, door: door), first)

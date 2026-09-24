@@ -195,6 +195,7 @@ import {
   withSimulator,
   xcodebuildRun
 } from '../simulator-run.mjs';
+import { vendoredTailscaleKitProblem } from '../build-tailscalekit.mjs';
 import { HOSTILE_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv } from './hostile-door.mjs';
 import { fingerprintDigits, makePhone, pageBack, present, sealPresentation, shaHex, signedGet } from './node-phone.mjs';
 
@@ -238,6 +239,13 @@ function preflight() {
     console.error(`${TAG} ${missing}`);
     process.exit(2);
   }
+  // Phase 316.3: the app embeds TailscaleKit from build/vendor/, and with no
+  // copy Xcode stops while it plans, in its own words.
+  const kit = vendoredTailscaleKitProblem();
+  if (kit !== null) {
+    console.error(`${TAG} ${kit}`);
+    process.exit(2);
+  }
 }
 
 const SCHEME = 'Tortie';
@@ -254,7 +262,13 @@ const BIN = join(HOME, '.local', 'bin');
 const XCODE = join(RUN, 'xcode');
 const DD = resolve((process.env['P316_DERIVED_DATA'] ?? '').trim() || join(XCODE, 'dd'));
 const DD_NOKEY = `${DD}-nokey`;
-const IOS_NOKEY = join(XCODE, 'ios-nokey');
+/**
+ * The copy without the ATS key. It sits at `nokey/ios` beside a `nokey/build`
+ * holding clones of the two things the project reads from `../build/` (Phase
+ * 316.3): the pin, which the project's check phase reads, and the vendored
+ * TailscaleKit it embeds. A copy anywhere else would not find either.
+ */
+const IOS_NOKEY = join(XCODE, 'nokey', 'ios');
 const SOCKET = `gmux-p316-${String(process.pid)}`;
 const KEEP = (process.env['P316_KEEP'] ?? '') === '1';
 const NEXT = join(RUN, 'fake-next');
@@ -917,7 +931,10 @@ try {
     derivedDataPath: DD,
     args: ['build-for-testing', '-project', PROJECT, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator']
   });
+  mkdirSync(join(dirname(IOS_NOKEY), 'build', 'vendor'), { recursive: true });
   cp(join(ROOT, 'ios'), IOS_NOKEY);
+  cp(join(ROOT, 'build', 'tailscalekit-release.json'), join(dirname(IOS_NOKEY), 'build', 'tailscalekit-release.json'));
+  cp(join(ROOT, 'build', 'vendor', 'tailscalekit'), join(dirname(IOS_NOKEY), 'build', 'vendor', 'tailscalekit'));
   const plistPath = join(IOS_NOKEY, 'Tortie', 'Info.plist');
   const plist = readFileSync(plistPath, 'utf8');
   const stripped = plist.replace(/\s*<key>NSAppTransportSecurity<\/key>\s*<dict>[\s\S]*?<\/dict>\s*<\/dict>\s*<\/dict>/, '');

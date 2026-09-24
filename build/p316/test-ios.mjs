@@ -19,19 +19,36 @@
  *   2. `vectors.mjs --check`, so a stale fixture fails here by name rather
  *      than as a wall of Swift assertion failures.
  *   3. `build-for-testing` for the Simulator SDK, which boots nothing, into a
- *      scratch derived data path, ad hoc with no team.
- *   4. `test-without-building -only-testing:TortieTests` on ONE iPhone 16 Pro
+ *      scratch derived data path, ad hoc with no team: Debug, and Release
+ *      beside it (`<derived data>-release`, with ENABLE_TESTABILITY=YES so the
+ *      tests can import the app), because a Release build compiles tests the
+ *      Debug one does not (316.3's hardening round: the `#else` of
+ *      `testTheDebugTransportDialsLoopbackOnly`, and the Release halves of
+ *      the pairing and vector rows, had never run).
+ *   4. THE BUILT APPS, READ (the hardening round). Every Mach-O file in each
+ *      built Tortie.app, by `otool -L`: none may link NetworkExtension, whose
+ *      name a link flag assembled from build settings never spells, so no
+ *      text rule can see it (the reverify linked it that way with
+ *      conformance:ios green). And the switch that turns Tailscale's own logs
+ *      off: the embedded TailscaleKit exports `_tailscale_no_logs_no_support`
+ *      and the app's binary calls it (`nm`). A problem refuses, exit 1,
+ *      before any device boots. `--read-app <Tortie.app>` does this step
+ *      alone and boots nothing.
+ *   5. `test-without-building -only-testing:TortieTests` on ONE iPhone 16 Pro
  *      from build/simulator-run.mjs's withSimulator, which shuts it down and
- *      deletes it in a `finally` and on SIGINT, SIGTERM and SIGHUP.
- *   5. The end-of-run count: devices named `p316-`, and how many are booted.
+ *      deletes it in a `finally` and on SIGINT, SIGTERM and SIGHUP: the Debug
+ *      build's tests, then the Release build's, on the same device.
+ *   6. The end-of-run count: devices named `p316-`, and how many are booted.
  *
  * The test plan turns screenshots off and keeps no attachment (conformance:ios
  * rule i), so the result bundle holds no photograph, and it is deleted with the
  * scratch directory anyway.
  *
  *   npm run test:ios
+ *   node build/p316/test-ios.mjs --read-app <path to Tortie.app>   step 4 alone
  *   P316_RUNTIME=18.3 npm run test:ios            the floor runtime
- *   P316_DERIVED_DATA=<dir> npm run test:ios      derived data somewhere of yours (never the repo, never home)
+ *   P316_DERIVED_DATA=<dir> npm run test:ios      derived data somewhere of yours (never the repo, never home);
+ *                                                 the Release build goes to <dir>-release beside it
  *   P316_KEEP=1 npm run test:ios                  keep the scratch directory
  *
  * VERIFIERS ONLY run it: it boots a Simulator, so take the orchestrator's lock.
@@ -39,9 +56,9 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { closeSync, existsSync, mkdtempSync, openSync, readdirSync, readSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   RUNTIME_CURRENT,
@@ -51,6 +68,7 @@ import {
   withSimulator,
   xcodebuildRun
 } from '../simulator-run.mjs';
+import { vendoredTailscaleKitProblem } from '../build-tailscalekit.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[test:ios]';
@@ -58,12 +76,101 @@ const say = (line) => process.stdout.write(`${TAG} ${line}\n`);
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 const SCHEME = 'Tortie';
 
+// ---------------------------------------------------------------------------
+// Step 4: the built app, read
+// ---------------------------------------------------------------------------
+
+/** The four bytes every Mach-O file, thin or fat, begins with. */
+const MACH_O = new Set(['feedface', 'cefaedfe', 'feedfacf', 'cffaedfe', 'cafebabe', 'bebafeca', 'cafebabf', 'bfbafeca']);
+
+/** Every Mach-O file under a built bundle, found by its first bytes rather than by its name. */
+function machOFiles(dir) {
+  const out = [];
+  const walk = (at) => {
+    for (const e of readdirSync(at, { withFileTypes: true })) {
+      const p = join(at, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.isFile()) {
+        const head = Buffer.alloc(4);
+        const fd = openSync(p, 'r');
+        try {
+          readSync(fd, head, 0, 4, 0);
+        } finally {
+          closeSync(fd);
+        }
+        if (MACH_O.has(head.toString('hex'))) out.push(p);
+      }
+    }
+  };
+  walk(dir);
+  return out.sort();
+}
+
+function tool(file, args) {
+  const r = spawnSync(file, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 120_000 });
+  return { ok: r.status === 0, out: `${r.stdout ?? ''}`, err: `${r.stderr ?? ''}${r.error ? r.error.message : ''}` };
+}
+
+/** The switch Tailnet/Node.swift calls before every start (conformance:ios rule q). */
+const NO_LOGS_SYMBOL = '_tailscale_no_logs_no_support';
+
+/**
+ * What a built Tortie.app says about itself that no text rule can: every
+ * Mach-O file's load commands (`otool -L`) name no NetworkExtension, and the
+ * logs switch is in the embedded TailscaleKit and called by the app. Returns
+ * the problems (sentences) and what was read.
+ */
+export function builtAppProblems(app) {
+  const problems = [];
+  if (!existsSync(app)) return { problems: [`${app} does not exist, so the built app cannot be read`], files: 0 };
+  const files = machOFiles(app);
+  if (files.length === 0) problems.push(`${app} holds no Mach-O file, so it cannot be read`);
+  for (const f of files) {
+    const l = tool('/usr/bin/otool', ['-L', f]);
+    if (!l.ok) {
+      problems.push(`otool -L could not read ${relative(app, f)}: ${l.err.trim().split('\n').pop()}`);
+      continue;
+    }
+    for (const line of l.out.split('\n').filter((x) => /NetworkExtension/.test(x))) {
+      problems.push(`${relative(app, f)} links ${line.trim().split(' ')[0]} (otool -L); the phone carries a node, never a VPN, and a link flag assembled from build settings is how this gets past conformance:ios (research 128 §3)`);
+    }
+  }
+  const kit = join(app, 'Frameworks', 'TailscaleKit.framework', 'TailscaleKit');
+  const exported = tool('/usr/bin/nm', ['-gU', kit]);
+  if (!exported.ok || !new RegExp(` T ${NO_LOGS_SYMBOL}$`, 'm').test(exported.out)) {
+    problems.push(`the embedded TailscaleKit does not export ${NO_LOGS_SYMBOL}, so the node's logs would go to log.tailscale.com; run npm run vendor:tailscalekit`);
+  }
+  const callers = files.filter((f) => !f.startsWith(join(app, 'Frameworks') + '/') && !f.startsWith(join(app, 'PlugIns') + '/'));
+  const calls = callers.some((f) => {
+    const u = tool('/usr/bin/nm', ['-u', f]);
+    return u.ok && new RegExp(`^\\s*${NO_LOGS_SYMBOL}$`, 'm').test(u.out);
+  });
+  if (!calls) problems.push(`the app's own binary never calls ${NO_LOGS_SYMBOL}, so a node could start with Tailscale's logs on`);
+  return { problems, files: files.length };
+}
+
+const readAt = process.argv.indexOf('--read-app');
+if (readAt !== -1) {
+  const app = resolve(process.argv[readAt + 1] ?? '');
+  const r = builtAppProblems(app);
+  for (const p of r.problems) process.stdout.write(`${TAG} ${p}\n`);
+  say(`${app}: ${String(r.files)} Mach-O file(s) read; ${r.problems.length === 0 ? `none links NetworkExtension, and ${NO_LOGS_SYMBOL} is exported by TailscaleKit and called by the app` : `${String(r.problems.length)} problem(s)`}`);
+  process.exit(r.problems.length === 0 ? 0 : 1);
+}
+
 const runtime = (process.env['P316_RUNTIME'] ?? '').trim() || RUNTIME_CURRENT;
 
 // 1. The preflight, synchronous, before anything exists.
 const missing = simulatorHarnessMissing({ runtimes: [runtime] });
 if (missing !== null) {
   process.stderr.write(`${TAG} ${missing}\n`);
+  process.exit(2);
+}
+// The app embeds TailscaleKit from build/vendor/ (Phase 316.3). With no copy
+// Xcode stops while it plans, in its own words, so the command is said here.
+const kit = vendoredTailscaleKitProblem();
+if (kit !== null) {
+  process.stderr.write(`${TAG} ${kit}\n`);
   process.exit(2);
 }
 
@@ -94,39 +201,64 @@ if (scratchWhy !== null) {
   process.exit(2);
 }
 const derivedDataPath = resolve((process.env['P316_DERIVED_DATA'] ?? '').trim() || join(scratch, 'dd'));
+const releaseDerivedDataPath = `${derivedDataPath}-release`;
 const keep = (process.env['P316_KEEP'] ?? '') === '1';
+const CONFIGURATIONS = [
+  { name: 'Debug', derivedDataPath, extra: [] },
+  // Release as it ships, with testability on so the test bundle can import it.
+  { name: 'Release', derivedDataPath: releaseDerivedDataPath, extra: ['ENABLE_TESTABILITY=YES'] }
+];
 let code = 1;
 try {
-  // 3. Build for testing. No device, so nothing boots.
-  say(`building for testing into ${derivedDataPath}`);
-  const built = await xcodebuildRun({
-    label: 'build-for-testing',
-    scratch,
-    derivedDataPath,
-    args: ['build-for-testing', '-project', PROJECT, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator']
-  });
-  if (built.code !== 0) {
-    const tail = `${built.stdout}${built.stderr}`.trim().split('\n').filter((l) => /error:|BUILD FAILED|\*\* /.test(l)).slice(-12);
-    say(`build-for-testing exited ${String(built.code)} in ${String(built.ms)} ms${built.timedOut ? ' (timed out)' : ''}:`);
-    for (const l of tail) process.stdout.write(`  ${l}\n`);
-    process.exitCode = 1;
-  } else {
-    say(`built in ${String(built.ms)} ms`);
-    // 4. The unit tests on a device of this run's own.
+  // 3. Build for testing, both configurations. No device, so nothing boots.
+  let built = true;
+  for (const c of CONFIGURATIONS) {
+    say(`building ${c.name} for testing into ${c.derivedDataPath}`);
+    const b = await xcodebuildRun({
+      label: `build-for-testing-${c.name}`,
+      scratch,
+      derivedDataPath: c.derivedDataPath,
+      args: ['build-for-testing', '-project', PROJECT, '-scheme', SCHEME, '-configuration', c.name, '-destination', 'generic/platform=iOS Simulator', ...c.extra]
+    });
+    if (b.code !== 0) {
+      const tail = `${b.stdout}${b.stderr}`.trim().split('\n').filter((l) => /error:|BUILD FAILED|\*\* /.test(l)).slice(-12);
+      say(`build-for-testing (${c.name}) exited ${String(b.code)} in ${String(b.ms)} ms${b.timedOut ? ' (timed out)' : ''}:`);
+      for (const l of tail) process.stdout.write(`  ${l}\n`);
+      built = false;
+      break;
+    }
+    say(`built ${c.name} in ${String(b.ms)} ms`);
+    // 4. The built app, read, before anything boots.
+    const app = join(c.derivedDataPath, 'Build', 'Products', `${c.name}-iphonesimulator`, 'Tortie.app');
+    const read = builtAppProblems(app);
+    for (const p of read.problems) process.stdout.write(`  ${p}\n`);
+    say(`the built ${c.name} app: ${String(read.files)} Mach-O file(s), ${read.problems.length === 0 ? `none links NetworkExtension, and ${NO_LOGS_SYMBOL} is exported by TailscaleKit and called by the app` : `${String(read.problems.length)} problem(s); nothing boots`}`);
+    if (read.problems.length > 0) {
+      built = false;
+      break;
+    }
+  }
+  if (!built) process.exitCode = 1;
+  else {
+    // 5. The unit tests on a device of this run's own: Debug, then Release.
     await withSimulator({ label: 'test:ios', runtime, scratch: join(scratch, 'sim'), derivedDataPath, keep }, async (sim) => {
-      const run = await sim.xcodebuild(
-        ['test-without-building', '-project', PROJECT, '-scheme', SCHEME, '-only-testing:TortieTests'],
-        { label: 'unit', timeoutMs: 900_000 }
-      );
-      const s = summaryOf(`${run.stdout}${run.stderr}`);
-      const failing = `${run.stdout}${run.stderr}`.split('\n').filter((l) => /error: -\[|: error: .*XCT|Test Case .* failed/.test(l)).slice(0, 30);
-      for (const l of failing) process.stdout.write(`  ${l.trim()}\n`);
-      say(
-        `TortieTests on iOS ${sim.runtime}: xcodebuild exited ${String(run.code)} in ${String(run.ms)} ms; ` +
-          `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
-      );
-      code = run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 ? 0 : 1;
-      if (run.code === 0 && (s.executed ?? 0) === 0) say('xcodebuild exited 0 and ran no test, which is not a pass');
+      let passed = 0;
+      for (const c of CONFIGURATIONS) {
+        const run = await sim.xcodebuild(
+          ['test-without-building', '-project', PROJECT, '-scheme', SCHEME, '-configuration', c.name, '-only-testing:TortieTests'],
+          { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000 }
+        );
+        const s = summaryOf(`${run.stdout}${run.stderr}`);
+        const failing = `${run.stdout}${run.stderr}`.split('\n').filter((l) => /error: -\[|: error: .*XCT|Test Case .* failed/.test(l)).slice(0, 30);
+        for (const l of failing) process.stdout.write(`  ${l.trim()}\n`);
+        say(
+          `TortieTests (${c.name}) on iOS ${sim.runtime}: xcodebuild exited ${String(run.code)} in ${String(run.ms)} ms; ` +
+            `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
+        );
+        if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0) passed += 1;
+        if (run.code === 0 && (s.executed ?? 0) === 0) say(`${c.name}: ` + 'xcodebuild exited 0 and ran no test, which is not a pass');
+      }
+      code = passed === CONFIGURATIONS.length ? 0 : 1;
     });
   }
 } catch (err) {
@@ -136,7 +268,7 @@ try {
   if (!keep && (process.env['P316_SCRATCH'] ?? '').trim() === '') rmSync(scratch, { recursive: true, force: true });
 }
 
-// 5. Counted once, at the end.
+// 6. Counted once, at the end.
 const left = countDevicesNamed('p316-');
 say(`devices named p316- on this Mac: ${String(left.named)}, booted: ${String(left.booted)}${left.readable ? '' : ' (the list could not be read)'}`);
 process.exit(code);

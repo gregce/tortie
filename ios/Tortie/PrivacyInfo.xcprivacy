@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The app's own privacy manifest (Phase 316.3, build/p316/SPEC.md section 4 S3).
+  Tortie tracks nobody, contacts no tracking domain and collects nothing. The
+  app's own Swift calls none of Apple's required-reason APIs, which
+  conformance:ios rule (o) reads from the source rather than from this file.
+  The Go runtime inside TailscaleKit does call two (FileTimestamp and
+  SystemBootTime); they are declared in the framework's OWN manifest, which
+  build/build-tailscalekit.mjs writes at each slice's root with the reasons he
+  decided (SPEC section 6 decision 8), because a manifest describes the bundle
+  it sits in.
+-->
+<plist version="1.0">
+<dict>
+  <key>NSPrivacyTracking</key>
+  <false/>
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array/>
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array/>
+</dict>
+</plist>

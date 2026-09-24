@@ -35,6 +35,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Tortie uses the camera only to read the pairing code your Mac shows.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Tortie reaches your Mac directly when both are on the same network.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

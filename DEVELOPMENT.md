@@ -44,23 +44,46 @@ PATH. It is NOT needed to run a packaged Tortie. Since Phase 41 the app carries
 its own tmux 3.7b at `Contents/Resources/bin/tmux` and a packaged build resolves
 only that path.
 
-**The iPhone app needs Xcode for two checks and nothing else** (Phase 316). The
-app lives in `ios/`, and the committed `ios/Tortie.xcodeproj` is its source of
-truth: no project generator, no Swift package, nothing fetched. Every check the
-Mac app runs (`typecheck`, `build`, `test`, the smokes and `package`) needs only
-what is listed above, because `conformance:ios` and `gate:simulator` run inside
-`npm run build` and read the Swift, the plists and the scripts as text in plain
-node. `test:ios` and `probe:p316` need the full Xcode (26.3 is the version they
-are verified on) with the iOS 26.3 and iOS 18.3 Simulator runtimes, the second
-because the app's floor is iOS 18.1 and the phone it is for runs 18. They need
-no Apple account, no team and no keychain: a Simulator build signs ad hoc
+**The iPhone app needs Xcode and Go for three scripts and nothing else** (Phase
+316). The app lives in `ios/`, and the committed `ios/Tortie.xcodeproj` is its
+source of truth: no project generator and no Swift package. Every check the Mac
+app runs (`typecheck`, `build`, `test`, the smokes and `package`) needs only
+what is listed above, because `conformance:ios`, `gate:simulator` and
+`gate:checks` run inside `npm run build` and read the Swift, the plists and the
+scripts as text in plain node.
+
+The app carries its own tailnet node, TailscaleKit, which Tailscale does not
+publish as a binary. `npm run vendor:tailscalekit` builds it from one pinned
+libtailscale commit (`build/tailscalekit-release.json`: the commit, the source
+archive's sha256, the 43 Go modules with their licences, and the two privacy
+categories) into `build/vendor/tailscalekit/`, which git ignores. It needs Go
+(1.26.0 is the version verified; `GOTOOLCHAIN=local`, so no toolchain is
+downloaded), `make` and the full Xcode with its iOS SDKs, and the network once
+for the archive and the modules. Go writes nothing under your home: its
+`HOME`, `GOPATH`, `GOMODCACHE` and `GOCACHE` all point under
+`build/vendor/tailscalekit/.cache/`, because Go writes telemetry into `HOME`
+even with `GOTELEMETRY=off`, and that directory is deleted when the run ends.
+While a build runs it also unpacks the source into `work/` (about half a
+gigabyte), removed when the build succeeds and kept when it fails, for its
+`make.log`.
+`gate:checks` refuses any script that runs Go without those seven settings.
+
+`test:ios` and `probe:p316` need that framework built, and the full Xcode (26.3
+is the version they are verified on) with the iOS 26.3 and iOS 18.3 Simulator
+runtimes, the second because the app's floor is iOS 18.1 and the phone it is
+for runs 18. Both check the framework first and refuse, exit 2, with one
+sentence naming `npm run vendor:tailscalekit` when it is not the pinned build.
+A build straight from Xcode says the same sentence at the project's first
+phase, except when there is no framework at all: then Xcode stops before any
+phase runs and says "There is no XCFramework found at" with the path. They need no Apple
+account, no team and no keychain: a Simulator build signs ad hoc
 (`DEVELOPMENT_TEAM=''`, `CODE_SIGN_IDENTITY=-`). They create, boot, shut down
 and delete their own Simulator through `build/simulator-run.mjs` and never start
-Simulator.app, and `build/verification-checks.mjs` files them under the check
-type "Xcode and Go harness", because no CI runner has Xcode and Simulator state
-lands under your home while a device lives (`simctl delete` leaves a small log
-folder under `~/Library/Logs/CoreSimulator`, which the helper removes for the
-devices it made).
+Simulator.app, and `build/verification-checks.mjs` files all three under the
+check type "Xcode and Go harness", because no CI runner has Xcode or Go and
+Simulator state lands under your home while a device lives (`simctl delete`
+leaves a small log folder under `~/Library/Logs/CoreSimulator`, which the
+helper removes for the devices it made).
 
 ```sh
 npm install        # postinstall applies patches/ then runs electron-rebuild for node-pty + better-sqlite3
@@ -88,6 +111,7 @@ and the patch is reviewed, not skipped.
 | `npm run shot`      | Build, then screenshot the window after 3 s (`GMUX_SHOT=/path.png npm run shot`) |
 | `npm run package`   | electron-builder `--dir` build (unsigned dev packaging stub)         |
 | `npm run vendor:tmux` | Build the pinned tmux into `build/vendor/tmux/bin/tmux`. Measured between 31 s and 55 s the first time, depending on what else the machine is compiling, and 0.1 s afterwards, because a binary that already reports the pinned version is left alone. `npm run package` runs it for you. |
+| `npm run vendor:tailscalekit` | Build the pinned TailscaleKit.xcframework the iPhone app embeds into `build/vendor/tailscalekit/`, from source with Go and Xcode. Its `make ios-fat` took about 50 s on the operator's Mac (build/p316/SPEC.md §3.5); a product whose stamp matches the pin, with each slice's whole directory hashing to the digest the stamp records (every file by its path and its sha256), is left alone, so a second run builds nothing, and a copy missing a file, or holding one changed by a byte, is built again. The build makes ONE change to the pinned source, the export `tailscale_no_logs_no_support()`, which the app calls before every start so the node uploads none of its logs to Tailscale (the cost: Tailscale's support cannot see them). It refuses with one sentence when Go, Xcode, an iOS SDK or `make` is missing, and when the Go modules or the privacy categories drift from the pin. Nothing runs it for you: the Mac app does not need it. |
 | `npm run pin:tmux:check` | Prove `build/tmux-release.json` and `src/main/tmux/version.ts` say the same thing. Spawns nothing, makes no request, measured at 0.1 s. `npm run package` runs it too, so a drifted pin cannot reach a build. |
 | `npm run conformance:tmux-pair` | Drive the release's one tested tmux version pair with a real attach: a warm server on the older tmux, the app's create and verify smoke halves as the newer client, and proof the old server never moved. |
 

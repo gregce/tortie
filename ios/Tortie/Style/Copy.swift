@@ -184,6 +184,11 @@ enum Copy {
     /// Phone: the promise that a person on the Mac allows every pairing.
     static let pairMatchNote = "Your Mac will ask you to allow this iPhone. Nothing is paired until you do."
 
+    /// Phone: the tailnet node the app carries (Phase 316.3,
+    /// Tailnet/Node.swift), so no VPN app and no profile is needed. No Mac
+    /// surface says it, because the Mac's node is his own Tailscale.
+    static let pairPrivateNetwork = "Tortie brings its own private network. There is nothing else to install."
+
     /// Mac: src/renderer/settings/PhoneSection.tsx ⟦CODE_EXPIRED = 'The code expired. Nothing was paired.'⟧
     static let codeExpired = "The code expired. Nothing was paired."
 
@@ -210,9 +215,27 @@ enum Copy {
     /// Phone: the camera is off for Tortie, so the code cannot be read.
     static let cameraOff = "Allow the camera for Tortie in your iPhone’s Settings to scan the code."
 
-    /// Phone: no pairing, or the Mac removed this one. The Release build of
-    /// Phase 316.2 has no transport yet and draws only this.
+    /// Phone: no pairing, the Mac removed this one, or the tailnet node this
+    /// pairing used is gone (a reinstall, or Tailscale forgot the node).
     static let notPaired = "This iPhone is not paired with a Mac."
+
+    /// Phone: the tailnet node has no state of its own and the code carries no
+    /// key to join with (Phase 316.3). The Mac's field for the key is named.
+    /// Names: src/renderer/settings/PhoneSection.tsx ⟦KEY_LABEL = 'Tailnet key'⟧
+    static let tailnetNoKey = "This code carries no Tailnet key. Nothing was paired."
+
+    /// Phone: Tailscale refused the code's key: used already, expired, or not
+    /// a key for his tailnet (Phase 316.3).
+    /// Names: src/renderer/settings/PhoneSection.tsx ⟦KEY_LABEL = 'Tailnet key'⟧
+    static let tailnetKeyRefused = "Tailscale refused the Tailnet key. Nothing was paired."
+
+    /// Phone: the node could not reach Tailscale to join inside its limit
+    /// (Phase 316.3). No Mac surface joins a tailnet, so none says it.
+    static let tailnetUnreachable = "Tortie could not reach Tailscale. Nothing was paired."
+
+    /// Phone: the node's state directory could not be made, or the node would
+    /// not start (Phase 316.3).
+    static let tailnetUnavailable = "Tortie could not start its private network. Nothing was paired."
 
     /// Phone: the press that goes back to pairing.
     static let pairAgain = "Pair again"

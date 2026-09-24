@@ -155,6 +155,11 @@ enum DoorWords {
         case .unreachable: return Copy.cannotReachMac
         case .couldNotSave, .notAvailable: return Copy.notPaired
         case .cancelled: return nil
+        // The tailnet node's join (Phase 316.3, Tailnet/Node.swift).
+        case .noTailnetKey: return Copy.tailnetNoKey
+        case .tailnetKeyRefused: return Copy.tailnetKeyRefused
+        case .tailnetUnreachable: return Copy.tailnetUnreachable
+        case .tailnetUnavailable: return Copy.tailnetUnavailable
         }
     }
 }

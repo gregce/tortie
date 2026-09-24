@@ -43,11 +43,21 @@
  *                                 Go half needs the network for its modules,
  *                                 and a Simulator writes state under the
  *                                 person's home (build/p316/SPEC.md §2 row
- *                                 18). Every one creates and deletes its own
- *                                 Simulator through build/simulator-run.mjs,
- *                                 and REFUSES, exit 2, with a sentence naming
- *                                 what is absent; it never passes quietly and
- *                                 no static gate reads its result.
+ *                                 18). Every one that runs the app creates and
+ *                                 deletes its own Simulator through
+ *                                 build/simulator-run.mjs, and REFUSES, exit 2,
+ *                                 with a sentence naming what is absent; it
+ *                                 never passes quietly and no static gate reads
+ *                                 its result. The Go half (Phase 316.3) is
+ *                                 `vendor:tailscalekit`, which starts no
+ *                                 Simulator: it refuses with one sentence
+ *                                 before anything is fetched, and every Go
+ *                                 command it starts has HOME, GOPATH,
+ *                                 GOMODCACHE and GOCACHE redirected under
+ *                                 build/vendor/tailscalekit/.cache/, because
+ *                                 cmd/go wrote telemetry into HOME even with
+ *                                 GOTELEMETRY=off (SPEC §3.7). gate:checks
+ *                                 clause 8 holds that as text.
  *
  * `aggregate` is not a seventh type. It marks a script that only runs other
  * classified checks, and its members are named so the gate can follow them.
@@ -207,7 +217,9 @@ const NEEDS = {
   realMachine:
     'a real second machine the operator names, plus an SSH identity the operator has loaded',
   xcode:
-    "the full Xcode (26.3 is the version verified), its xcodebuild and simctl, the iOS 26.3 Simulator runtime and the iPhone 16 Pro device type; no Apple account, no team and no keychain, because a Simulator build signs ad hoc; a Simulator of the run's own, created, booted, shut down and deleted by build/simulator-run.mjs"
+    "the full Xcode (26.3 is the version verified), its xcodebuild and simctl, the iOS 26.3 Simulator runtime and the iPhone 16 Pro device type; no Apple account, no team and no keychain, because a Simulator build signs ad hoc; a Simulator of the run's own, created, booted, shut down and deleted by build/simulator-run.mjs; and, from Phase 316.3, TailscaleKit.xcframework under build/vendor/tailscalekit/, which the app embeds and npm run vendor:tailscalekit builds (test:ios and probe:p316 ask for it after the Simulator preflight and refuse, exit 2, with one sentence naming that command; a build straight from Xcode says the same sentence at the project's first phase, or, with no copy at all, stops before any phase with Xcode's own 'There is no XCFramework found at')",
+  go:
+    "Go (go1.26.0 verified; GOTOOLCHAIN=local, so the Go on PATH is used and no toolchain is ever downloaded), make, and the full Xcode with its iphoneos and iphonesimulator SDKs; the network ONCE, for the pinned libtailscale archive (sha256 in build/tailscalekit-release.json) and its Go modules; no Apple account and no signing, because the framework is built unsigned and the app's Embed and Sign signs it. It writes only under build/vendor/tailscalekit/, which git ignores: the archive, the product and its stamp, HOME, GOPATH, GOMODCACHE and GOCACHE under .cache/ (about 1.43 GiB while a build runs), deleted in a finally when the run made it, and the unpacked source under work/ (about 505 MB), removed when the build succeeds and kept when it fails, for its make.log"
 };
 
 /**
@@ -217,7 +229,17 @@ const NEEDS = {
  * its sentence.
  */
 export const XCODE_SKIP =
-  'refuses, exit 2, with one sentence naming what is absent (xcodebuild, simctl, a Simulator runtime or the device type) before anything is created; it never passes quietly, it is in no battery, and no build gate reads its result';
+  'refuses, exit 2, with one sentence naming what is absent (xcodebuild, simctl, a Simulator runtime, the device type, or, for a script that builds the app, TailscaleKit built from the pin by npm run vendor:tailscalekit) before anything is created; it never passes quietly, it is in no battery, and no build gate reads its result';
+
+/**
+ * The skip rule the sixth type's Go half states (Phase 316.3), held by
+ * build/assert-hermetic-checks.mjs clause 7: the script declares a preflight,
+ * calls it, and has no path that exits 0 by name. It says exit 1, because it
+ * is a vendoring step whose refusal nothing reads as a skip, and that is what
+ * build/build-tailscalekit.mjs does.
+ */
+export const GO_SKIP =
+  'refuses, exit 1, with one sentence naming what is absent (macOS, Go, a Go older than the pinned go.mod asks for, the full Xcode, its iphoneos or iphonesimulator SDK, or make) before anything is fetched; it never passes quietly, it is in no battery, and no build gate reads its result';
 
 const SKIP = {
   never: 'never skips',
@@ -265,6 +287,12 @@ const xcode = (name, needs = NEEDS.xcode) => ({
   type: XCODE_HARNESS,
   needs,
   skip: XCODE_SKIP
+});
+const goHarness = (name, needs = NEEDS.go) => ({
+  name,
+  type: XCODE_HARNESS,
+  needs,
+  skip: GO_SKIP
 });
 
 export const CHECKS = [
@@ -501,15 +529,38 @@ export const CHECKS = [
   // web view, the person's ask through Text(verbatim:) only, screenshots off in
   // the test plan, build/p316/vectors.mjs --check (the one child it spawns,
   // through the pinned tsx), and (k) no trapping arithmetic on a number the
-  // door sends. Every scanner is proved on its own fixtures first. No Xcode,
-  // no Simulator, no Electron, no socket.
-  pure('conformance:ios'),
-  // Its attack: twenty-five plants, at least one per rule, each into a `cp -Rc`
-  // clone under /private/tmp, each required to redden THE RULE THAT OWNS IT as
-  // a delta against the base, each file restored and proved by sha256, the
-  // clone removed in a `finally` and on a signal, and the working tree's bytes
-  // asserted unmoved. About 10 s. No Xcode, no Electron, no socket.
-  pure('ablation:p316'),
+  // door sends. PHASE 316.3 adds (l) to (p), the tailnet node: TailscaleKit
+  // imported and TailscaleNode named only in Tailnet/Node.swift and held
+  // private there, tortie-phone, ephemeral: false written out, no background
+  // task, the framework from build/vendor/ signed on copy with build phases
+  // that only check; its state in Application Support/tailnet excluded from
+  // backup; every Keychain item ThisDeviceOnly; both privacy manifests (the
+  // app's against the required-reason APIs its own Swift names, TailscaleKit's
+  // from the pin's privacy.categories, and every built slice's when the
+  // framework is built here, which is the one thing it reads under
+  // build/vendor/ and never needs); and the tailnet key written nowhere. (c)
+  // widens to Node.swift for the network types, and only the door client
+  // sends. Every scanner is proved on its own fixtures first. No Xcode, no Go,
+  // no Simulator, no Electron, no socket. 316.3's HARDENING ROUND reads every
+  // property list through CoreFoundation's /usr/bin/plutil rather than a
+  // reader of its own (the reverify built an app whose entity-spelled key the
+  // old reader never decoded), which is the one host tool it needs and every
+  // Mac has, and adds (q), Tailscale's own logs off before every start.
+  pure(
+    'conformance:ios',
+    'node and the repository install from package-lock.json, and macOS\'s own /usr/bin/plutil (every Mac has it, with or without Xcode), which reads every property list under ios/ as CoreFoundation does'
+  ),
+  // Its attack: one plant per clause, at least one per rule (a) to (q), each
+  // into a `cp -Rc` clone under /private/tmp (build/vendor/ is linked, never
+  // copied, and no arm may plant there), each required to redden THE RULE
+  // THAT OWNS IT as a delta against the base, each file restored (or a planted
+  // file removed) and proved by sha256, the clone removed in a `finally` and
+  // on a signal, and the working tree's bytes asserted unmoved. Under a
+  // minute. No Xcode, no Electron, no socket.
+  pure(
+    'ablation:p316',
+    "node and the repository install from package-lock.json, and macOS's own /usr/bin/plutil, which the gate it runs reads every property list with"
+  ),
   // The XCTest unit tests, on a Simulator of their own: decoding, the page
   // arithmetic and its refusals, the pin, and every vector the shipping
   // TypeScript wrote. build/p316/test-ios.mjs builds for testing into a scratch
@@ -532,6 +583,16 @@ export const CHECKS = [
     'probe:p316',
     `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor arm; beside it ${NEEDS.electron}`
   ),
+  // PHASE 316.3, the Go half of the sixth type. Not a check: the vendoring
+  // step every entry above now needs, classified because it is the one script
+  // that runs Go, and gate:checks clause 8 finds a script that runs Go and
+  // requires it to be here. build/build-tailscalekit.mjs builds the pinned
+  // libtailscale (build/tailscalekit-release.json: the commit, the archive's
+  // sha256, the 43 modules with their licences and the privacy categories)
+  // with upstream's own `make ios-fat`, writes PrivacyInfo.xcprivacy at each
+  // slice's framework root, and refuses when the modules, the categories or
+  // the floor drift. It starts no Simulator, no Electron and no tailnet node.
+  goHarness('vendor:tailscalekit'),
   // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
   // Electron on a scratch profile with a scratch HOME and the socket
   // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that
@@ -720,6 +781,15 @@ export const CHECKS = [
   pure('gate:menu-accelerators'),
   pure('assert:doctypes'),
   pure('pin:tmux:check'),
+  // PHASE 316.3. build/build-tailscalekit.mjs --self-test: the pin's shape,
+  // the source archive's sha256 and pax commit, the Go environment and its
+  // directory's lifetime, the licence reader, module and privacy drift, the
+  // manifest text, the question test:ios and probe:p316 ask before they
+  // build, and the project's reference, Embed and Sign and check phase, all
+  // over fixtures. No Go, no Xcode, no network; its only writes are two
+  // scratch directories under build/vendor/tailscalekit/, removed in a
+  // `finally`.
+  pure('pin:tailscalekit:check'),
   pure(
     'pin:skills:check',
     'network access to the npm registry, because drift against what the registry publishes is its subject',

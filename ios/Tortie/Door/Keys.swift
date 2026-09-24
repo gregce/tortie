@@ -243,6 +243,25 @@ final class PairingStore: Sendable {
         return try JSONEncoder().encode(record)
     }
 
+    /// A FRESH INSTALL forgets the pairing before anything reads it (Phase
+    /// 316.3, build/p316/SPEC.md section 4 S3 B). A Keychain item outlives the
+    /// app that wrote it, but the tailnet node's state does not (it is in the
+    /// app's container, and excluded from backup), so a reinstall would
+    /// otherwise find keys whose node is gone. The mark goes down only once
+    /// the pairing is gone, so a forget that fails is tried again at the next
+    /// launch. Answers whether this launch was a fresh install.
+    @discardableResult
+    func forgetOnFreshInstall(_ mark: InstallMark) -> Bool {
+        guard !mark.isPresent else { return false }
+        do {
+            try forget()
+        } catch {
+            return true
+        }
+        try? mark.put()
+        return true
+    }
+
     static func decode(_ data: Data) -> PairedDoor? {
         guard let record = try? JSONDecoder().decode(Record.self, from: data),
               record.v == 1,
@@ -261,5 +280,46 @@ final class PairingStore: Sendable {
             pairedAt: record.pairedAt,
             keys: keys
         )
+    }
+}
+
+// MARK: - The mark a launched install leaves
+
+/// An empty file in Application Support saying this install has launched and
+/// has forgotten any pairing an earlier install left in the Keychain. It is
+/// excluded from backup, so a phone restored from a backup is a fresh install
+/// too: the tailnet node's state is not in the backup either.
+struct InstallMark: Sendable {
+    static let name = "installed"
+
+    let url: URL
+
+    /// The app's mark, in its own container.
+    static func standard() throws -> InstallMark {
+        let support = try FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        )
+        return InstallMark(url: support.appendingPathComponent(name, isDirectory: false))
+    }
+
+    var isPresent: Bool {
+        FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+    }
+
+    /// Put the mark down, excluded from backup in the same body.
+    func put() throws {
+        try Data().write(to: url, options: .atomic)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        var excluded = url
+        try excluded.setResourceValues(values)
+    }
+
+    /// The flag as the file system reports it now, read through a fresh URL.
+    /// Nil when there is no mark.
+    var isExcludedFromBackup: Bool? {
+        let fresh = URL(fileURLWithPath: url.path(percentEncoded: false), isDirectory: false)
+        guard isPresent else { return nil }
+        return try? fresh.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup
     }
 }

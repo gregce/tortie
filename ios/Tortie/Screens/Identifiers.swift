@@ -47,8 +47,8 @@
 //   turn-answer-<index>, turn-answer-clipped-<index>, turn-absence-<index>,
 //   turn-notice-<index>
 //   pairing-title, pairing-step, pairing-scanner, pairing-point,
-//   pairing-match, pairing-fingerprint, pairing-allow-on-mac, pairing-line,
-//   pairing-again
+//   pairing-match, pairing-fingerprint, pairing-allow-on-mac,
+//   pairing-network, pairing-line, pairing-again
 //   <failure id>-retry           `Try again` under list-failure,
 //                                session-failure and conversation-failure
 //
@@ -129,6 +129,7 @@ enum ID {
     static let pairingMatch = "pairing-match"
     static let pairingFingerprint = "pairing-fingerprint"
     static let pairingAllowOnMac = "pairing-allow-on-mac"
+    static let pairingNetwork = "pairing-network"
     static let pairingLine = "pairing-line"
     static let pairingAgain = "pairing-again"
 

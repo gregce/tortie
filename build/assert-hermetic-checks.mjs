@@ -76,6 +76,26 @@
  *     script its package.json line runs imports build/simulator-run.mjs, calls
  *     its preflight `simulatorHarnessMissing(` and exits 2: a sentence naming
  *     what is absent, never a green line. The reader is proved on three texts.
+ *     Its Go half (Phase 316.3, `vendor:tailscalekit`) starts no Simulator, so
+ *     it states `GO_SKIP` instead, and its script declares a preflight, calls
+ *     it, and names no `process.exit(0)`: a refusal is a thrown sentence and a
+ *     nonzero exit. That reader is proved on four texts.
+ *
+ *  8. EVERY SCRIPT THAT RUNS GO KEEPS GO OUT OF THE PERSON'S HOME (Phase
+ *     316.3, SPEC §3.7, §4.0). With `GOTELEMETRY=off` exported, cmd/go still
+ *     wrote seven telemetry files into `HOME`, so redirecting `GOPATH`,
+ *     `GOMODCACHE` and `GOCACHE` alone leaves his home written to. A script
+ *     under build/ that runs Go (it names `GOTOOLCHAIN`, hands `go` to a
+ *     spawn, or runs `ios-fat`) must set all seven: `HOME`, `GOPATH`,
+ *     `GOMODCACHE` and `GOCACHE` to something that is not his home,
+ *     `GOTOOLCHAIN` to `local`, `GOTELEMETRY` to `off` and `GOFLAGS` to one
+ *     holding `-modcacherw`; and it must be the script of an entry of the
+ *     sixth type stating `GO_SKIP`, so a new Go script cannot arrive
+ *     unclassified. At least one such script must be found, so a reader that
+ *     stopped finding is never a clean tree. The four directories must each
+ *     be assigned under ONE directory the script owns (`join(dir, …)`), so a
+ *     hostile literal its own self-test hands in cannot stand in for the
+ *     redirect. Proved on nine texts.
  *
  * Run it with `npm run gate:checks`. It also runs inside `npm run build`, so
  * nothing that builds can skip it.
@@ -84,7 +104,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHECKS, CHECK_TYPES, XCODE_HARNESS, XCODE_SKIP } from './verification-checks.mjs';
+import { CHECKS, CHECK_TYPES, GO_SKIP, XCODE_HARNESS, XCODE_SKIP } from './verification-checks.mjs';
 // The namespace too, so clause 6 can say which export is missing rather
 // than dying on a named import before it prints anything.
 import * as verificationChecks from './verification-checks.mjs';
@@ -666,20 +686,59 @@ for (const one of XCODE_FIXTURES) {
   fail(`clause 7's reader got "${one.why}" wrong. It answered ${String(!one.want)}.`);
 }
 
+/**
+ * Proved on fixtures below: does the Go half refuse out loud? It declares a
+ * preflight (`preflight`, or a name ending in `Missing`), calls it, and names
+ * no `process.exit(0)`, so a missing toolchain is a thrown sentence and a
+ * nonzero exit, never a quiet green.
+ */
+function refusesWithoutToolchain(text) {
+  const code = codeOnly(text);
+  const decl = /\bfunction\s+(preflight|[A-Za-z_$][\w$]*Missing)\s*\(/.exec(code);
+  if (decl === null) return false;
+  const declAt = decl.index + decl[0].indexOf(decl[1]);
+  const called = [...code.matchAll(new RegExp(`\\b${decl[1]}\\s*\\(`, 'g'))].some((m) => m.index !== declAt);
+  if (!called) return false;
+  return !/\bprocess\.exit\s*\(\s*0\s*\)|\bprocess\.exitCode\s*=\s*0\b/.test(code);
+}
+
+const GO_REFUSAL_FIXTURES = [
+  {
+    why: 'the shipping shape: a preflight that throws its sentence, and a nonzero exit',
+    text: "function preflight(env) {\n  if (readLine('go', ['version'], env) === null) throw new Error('Go is not on PATH.');\n}\nasync function main() { preflight(env); }\nmain().catch((err) => { console.error(err.message); process.exit(1); });\n",
+    want: true
+  },
+  {
+    why: 'a script that exits 0 when Go is absent',
+    text: "function preflight() {\n  if (!go) { console.log('skipped'); process.exit(0); }\n}\npreflight();\n",
+    want: false
+  },
+  { why: 'no preflight at all', text: "main().catch(() => process.exit(1));\n", want: false },
+  { why: 'a preflight declared and never called', text: "function goMissing() { return null; }\nprocess.exit(1);\n", want: false }
+];
+for (const one of GO_REFUSAL_FIXTURES) {
+  if (refusesWithoutToolchain(one.text) === one.want) continue;
+  fail(`clause 7's Go reader got "${one.why}" wrong. It answered ${String(!one.want)}.`);
+}
+
 let xcodeEntries = 0;
+let goEntries = 0;
 for (const entry of CHECKS) {
   if (entry.type !== XCODE_HARNESS) continue;
-  xcodeEntries += 1;
-  if (entry.skip !== XCODE_SKIP) {
+  const goHalf = entry.skip === GO_SKIP;
+  if (goHalf) goEntries += 1;
+  else xcodeEntries += 1;
+  if (entry.skip !== XCODE_SKIP && !goHalf) {
     fail(
       `"${entry.name}" is an ${XCODE_HARNESS} and states the skip rule ` +
-        `"${entry.skip}". Every entry of that type states XCODE_SKIP: it ` +
-        `refuses with a sentence naming what is absent and never passes quietly.`
+        `"${entry.skip}". Every entry of that type states XCODE_SKIP, or GO_SKIP ` +
+        `for its Go half: it refuses with a sentence naming what is absent and ` +
+        `never passes quietly.`
     );
   }
   const file = scriptFileOf(pkg.scripts?.[entry.name]);
   if (file === null) {
-    fail(`"${entry.name}" runs no build/*.mjs script this gate can read, so nothing proves it refuses when Xcode is absent.`);
+    fail(`"${entry.name}" runs no build/*.mjs script this gate can read, so nothing proves it refuses when ${goHalf ? 'Go or Xcode' : 'Xcode'} is absent.`);
     continue;
   }
   let text = '';
@@ -689,6 +748,16 @@ for (const entry of CHECKS) {
     fail(`"${entry.name}" runs ${file}, which does not exist.`);
     continue;
   }
+  if (goHalf) {
+    if (!refusesWithoutToolchain(text)) {
+      fail(
+        `${file} ("${entry.name}") declares no preflight that it calls, or ` +
+          `names process.exit(0). The Go half refuses with a thrown sentence and ` +
+          `a nonzero exit when Go or Xcode is absent, never a quiet green.`
+      );
+    }
+    continue;
+  }
   if (!refusesWhenAbsent(text)) {
     fail(
       `${file} ("${entry.name}") does not import build/simulator-run.mjs, call ` +
@@ -696,6 +765,166 @@ for (const entry of CHECKS) {
         `with no Xcode it would pass or fail for a reason nobody named.`
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Every script that runs Go keeps Go out of the person's home
+// ---------------------------------------------------------------------------
+
+// Built from parts, so this file's own text is never read as a Go script.
+const TOOLCHAIN_VAR = 'GO' + 'TOOLCHAIN';
+
+/** A script's text with its comments removed and its strings kept. */
+function withoutComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\/|(^|[^:\\'"`])\/\/[^\n]*/g, (m, lead) => (m.startsWith('/*') ? '' : lead ?? ''));
+}
+
+/** Does this script run Go? It names the toolchain variable in code, hands `go` to a spawn, or runs `ios-fat`. */
+function runsGo(text) {
+  const kept = withoutComments(text);
+  return new RegExp(`\\b${TOOLCHAIN_VAR}\\b`).test(codeOnly(text)) || /['"]go['"]\s*,\s*\[/.test(kept) || /['"]ios-fat['"]/.test(kept);
+}
+
+/** A value that is the person's own home. */
+const HOME_READER = /^(?:process\.env(?:\.HOME|\[\s*['"]HOME['"]\s*\])|(?:os\.)?homedir\s*\(|process\.env\s*$)/;
+
+/** The directory a value is built under: `join(base, …)`, `resolve(base, …)` or a template starting `${base}/`. */
+const UNDER = /^(?:path\.)?(?:join|resolve)\s*\(\s*([A-Za-z_$][\w$.]*)\s*[,)]|^`\$\{([A-Za-z_$][\w$.]*)\}\//;
+
+/**
+ * What a Go-running script fails to set, as sentences; empty when it sets all
+ * seven. The four directories must each be assigned UNDER one directory the
+ * script owns, the same one for all four (SPEC §4.0), so a hostile literal a
+ * self-test hands the script cannot stand in for the redirect it tests.
+ */
+function goEnvProblems(text) {
+  const kept = withoutComments(text);
+  const problems = [];
+  const bases = [];
+  for (const name of ['HOME', 'GOPATH', 'GOMODCACHE', 'GOCACHE']) {
+    // An object key (after `{` or `,`) or a property assignment (`.NAME =`,
+    // `['NAME'] =`); never a ternary's `:`, which line 959 of the shipping
+    // script has right after `e.HOME`.
+    const assigned = new RegExp(`(?:[{,]\\s*['"]?${name}['"]?\\s*:(?!:)|\\.${name}\\s*=(?!=)|\\[\\s*['"]${name}['"]\\s*\\]\\s*=(?!=))\\s*([^;\\n]+)`, 'g');
+    const values = [...kept.matchAll(assigned)].map((m) => m[1].trim());
+    if (values.some((v) => HOME_READER.test(v))) {
+      problems.push(`sets ${name} to the person's own home`);
+      continue;
+    }
+    const under = new Set(values.map((v) => UNDER.exec(v)).filter((m) => m !== null).map((m) => m[1] ?? m[2]));
+    if (under.size === 0) problems.push(`never sets ${name} under a directory the script owns, so Go writes under the person's home`);
+    else bases.push(under);
+  }
+  if (bases.length === 4 && ![...bases[0]].some((b) => bases.every((set) => set.has(b)))) {
+    problems.push('sets HOME, GOPATH, GOMODCACHE and GOCACHE under different directories, so no one directory holds what Go writes and one finally cannot remove it');
+  }
+  if (!new RegExp(`\\b${TOOLCHAIN_VAR}['"]?\\s*[:=]\\s*['"]local['"]`).test(kept)) problems.push(`never sets ${TOOLCHAIN_VAR} to local, so Go may download a toolchain`);
+  if (!/\bGOTELEMETRY['"]?\s*[:=]\s*['"]off['"]/.test(kept)) problems.push('never sets GOTELEMETRY to off');
+  if (!/\bGOFLAGS['"]?\s*[:=]\s*['"][^'"]*-modcacherw/.test(kept)) problems.push('never sets GOFLAGS to hold -modcacherw, so the module cache cannot be deleted');
+  return problems;
+}
+
+const GO_ENV_FIXTURES = [
+  {
+    why: 'the shipping shape',
+    text: `env.HOME = join(goDir, 'home');\nenv.GOPATH = join(goDir, 'gopath');\nenv.GOMODCACHE = join(goDir, 'gomodcache');\nenv.GOCACHE = join(goDir, 'gocache');\nenv.${TOOLCHAIN_VAR} = 'local';\nenv.GOTELEMETRY = 'off';\nenv.GOFLAGS = '-modcacherw';\nspawnSync('go', ['version'], { env });\n`,
+    goes: true,
+    clean: true
+  },
+  {
+    why: 'HOME left alone, the shape SPEC §3.7 measured writing into his home',
+    text: `const env = { ...process.env, GOPATH: g, GOMODCACHE: m, GOCACHE: c, ${TOOLCHAIN_VAR}: 'local', GOTELEMETRY: 'off', GOFLAGS: '-modcacherw' };\nspawnSync('go', ['build'], { env });\n`,
+    goes: true,
+    clean: false
+  },
+  {
+    why: 'HOME set back to his own',
+    text: `const env = { HOME: process.env.HOME, GOPATH: g, GOMODCACHE: m, GOCACHE: c, ${TOOLCHAIN_VAR}: 'local', GOTELEMETRY: 'off', GOFLAGS: '-modcacherw' };\nspawnSync('go', ['build'], { env });\n`,
+    goes: true,
+    clean: false
+  },
+  {
+    why: 'a toolchain allowed to download',
+    text: `const env = { HOME: h, GOPATH: g, GOMODCACHE: m, GOCACHE: c, ${TOOLCHAIN_VAR}: 'auto', GOTELEMETRY: 'off', GOFLAGS: '-modcacherw' };\nspawnSync('make', ['ios-fat'], { env });\n`,
+    goes: true,
+    clean: false
+  },
+  {
+    why: 'a self-test handing the script a hostile HOME beside the real redirect',
+    text: `env.HOME = join(goDir, 'home');\nenv.GOPATH = join(goDir, 'gopath');\nenv.GOMODCACHE = join(goDir, 'gomodcache');\nenv.GOCACHE = join(goDir, 'gocache');\nenv.${TOOLCHAIN_VAR} = 'local';\nenv.GOTELEMETRY = 'off';\nenv.GOFLAGS = '-modcacherw';\ncheck(childEnv({ HOME: '/Users/someone', GOPATH: '/Users/someone/go' }, '/v'));\nspawnSync('go', ['version'], { env });\n`,
+    goes: true,
+    clean: true
+  },
+  {
+    why: 'only the hostile HOME, the redirect itself gone',
+    text: `env.GOPATH = join(goDir, 'gopath');\nenv.GOMODCACHE = join(goDir, 'gomodcache');\nenv.GOCACHE = join(goDir, 'gocache');\nenv.${TOOLCHAIN_VAR} = 'local';\nenv.GOTELEMETRY = 'off';\nenv.GOFLAGS = '-modcacherw';\ncheck(childEnv({ HOME: '/Users/someone' }, '/v'));\nspawnSync('go', ['version'], { env });\n`,
+    goes: true,
+    clean: false
+  },
+  {
+    why: 'the four under two directories',
+    text: `env.HOME = join(scratch, 'home');\nenv.GOPATH = join(goDir, 'gopath');\nenv.GOMODCACHE = join(goDir, 'gomodcache');\nenv.GOCACHE = join(goDir, 'gocache');\nenv.${TOOLCHAIN_VAR} = 'local';\nenv.GOTELEMETRY = 'off';\nenv.GOFLAGS = '-modcacherw';\nspawnSync('go', ['version'], { env });\n`,
+    goes: true,
+    clean: false
+  },
+  { why: 'a script that runs no Go', text: "spawnSync('git', ['status']);\n", goes: false, clean: true },
+  { why: 'Go named only in a comment', text: `// ${TOOLCHAIN_VAR}=local would be set here\nconst x = 1;\n`, goes: false, clean: true }
+];
+for (const one of GO_ENV_FIXTURES) {
+  const goes = runsGo(one.text);
+  const clean = !goes || goEnvProblems(one.text).length === 0;
+  if (goes === one.goes && clean === one.clean) continue;
+  fail(`clause 8's reader got "${one.why}" wrong: it read runs-go ${String(goes)} and clean ${String(clean)}.`);
+}
+
+/** Every script under build/, recursively, never entering build/vendor/ or a node_modules. */
+function buildScriptsDeep(dir) {
+  const out = [];
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    const path = join(dir, e.name);
+    if (e.isDirectory()) {
+      if (path === join(buildDir, 'vendor') || e.name === 'node_modules') continue;
+      out.push(...buildScriptsDeep(path));
+    } else if (/\.(mjs|cjs|mts|js)$/.test(e.name)) out.push(path);
+  }
+  return out;
+}
+
+/** At least one script runs Go (vendor:tailscalekit's), so a reader that stopped finding is never a clean tree. */
+const GO_SCRIPT_FLOOR = 1;
+const goScripts = [];
+const RULE_8_SELF = join(buildDir, 'assert-hermetic-checks.mjs');
+for (const path of buildScriptsDeep(buildDir)) {
+  if (path === RULE_8_SELF) continue;
+  const text = readFileSync(path, 'utf8');
+  if (!runsGo(text)) continue;
+  const rel = path.slice(repoRoot.length + 1).split('\\').join('/');
+  goScripts.push(rel);
+  for (const problem of goEnvProblems(text)) {
+    fail(`${rel} runs Go and ${problem} (build/p316/SPEC.md §3.7 and §4.0: HOME, GOPATH, GOMODCACHE and GOCACHE under a directory the script owns, ${TOOLCHAIN_VAR}=local, GOTELEMETRY=off, GOFLAGS=-modcacherw).`);
+  }
+  const owners = Object.keys(pkg.scripts ?? {}).filter((name) => scriptFileOf(pkg.scripts[name]) === rel);
+  if (!owners.some((name) => byName.get(name)?.type === XCODE_HARNESS && byName.get(name)?.skip === GO_SKIP)) {
+    fail(
+      `${rel} runs Go, and no package.json script that runs it has an entry of ` +
+        `the type "${XCODE_HARNESS}" stating GO_SKIP in build/verification-checks.mjs. ` +
+        `Classify it, with what it needs and how it refuses.`
+    );
+  }
+}
+if (goScripts.length < GO_SCRIPT_FLOOR) {
+  fail(
+    `${String(goScripts.length)} script(s) under build/ run Go against a floor of ` +
+      `${String(GO_SCRIPT_FLOOR)}. build/build-tailscalekit.mjs runs it; a reader ` +
+      `that finds none has stopped reading. A deliberate deletion lowers the floor ` +
+      `in the same commit and names the file.`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -730,7 +959,13 @@ process.stdout.write(
 );
 process.stdout.write(
   `  ${String(xcodeEntries)} ${XCODE_HARNESS} entr${xcodeEntries === 1 ? 'y' : 'ies'} ` +
-    `refuse by name when Xcode is absent (${String(XCODE_FIXTURES.length)} reader fixtures behaving).\n`
+    `refuse by name when Xcode is absent (${String(XCODE_FIXTURES.length)} reader fixtures behaving), ` +
+    `and ${String(goEntries)} of its Go half when Go or Xcode is (${String(GO_REFUSAL_FIXTURES.length)} fixtures).\n`
+);
+process.stdout.write(
+  `  ${String(goScripts.length)} script(s) under build/ run Go (${goScripts.join(', ')}), each ` +
+    `classified and each keeping HOME, GOPATH, GOMODCACHE and GOCACHE off the person's home ` +
+    `with ${TOOLCHAIN_VAR}=local, GOTELEMETRY=off and GOFLAGS=-modcacherw (${String(GO_ENV_FIXTURES.length)} fixtures behaving).\n`
 );
 for (const type of [...CHECK_TYPES, 'aggregate']) {
   const n = counts.get(type) ?? 0;
