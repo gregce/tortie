@@ -36311,6 +36311,693 @@ so.
 - **Nothing about the upload failure he reported on 2026-09-29.** Its error text is research 132 §13
   question 3, and this phase does not attribute it to TailscaleKit.
 
+## Phase 331 — "you can't scroll up in the window" — inline mode for every agent that has a switch (operator, 2026-09-29; research 133 and 134)
+
+**Subject.** `fix(agents): launch and resume Codex and Claude Code in the terminal's scrollback`
+
+**First body line.** `Phase 331: the wheel scrolls Codex again, and Codex and Claude Code keep their whole conversation in Tortie's scrollback`
+
+**Semver.** Patch, and unreleased: phases 311 onward stay unreleased until the phone works end to end.
+
+**His report, 2026-09-29.** "in the new version of codex cli installed on my machine, you can't scroll up in the
+window. when you try to scroll up in the window or press up / down arrows it shows you prompt history. Please look at
+/users/gdc/codex and also reproduce and then queue a build phase so we can fix"
+
+**His ruling, 2026-09-29.** "i like the inline mode lets do that". Where an agent offers an inline switch Tortie can
+safely compile, Tortie launches and resumes it inline. The switch is compiled registry data, never a user setting.
+This answers research 133's first question: inline everywhere, including a Mac without a trusted-directory tmux,
+where today's fullscreen Codex scrolls itself.
+
+**What he sees today.**
+- Since Codex 0.158, the trackpad and mouse wheel over a Codex session do not scroll. Each notch recalls an older
+  prompt into Codex's input box, and the conversation does not move.
+- Tortie's scrollbar draws nothing. Capture, Read last lines, saved output and the restore snapshot hold one screen
+  of the conversation.
+- **With an approval open, the same notches move the highlighted answer.** Two notches up land on `2. Yes, and don't
+  ask again for commands that start with …`, so a person who scrolls to read the command and then presses Enter
+  grants a standing allow rule.
+- A Claude Code that runs full-screen (a saved `tui: fullscreen`, or Claude's own choice) scrolls through the mouse
+  pass-through, but Capture, Read last lines and saved output hold one screen of it, and it prints tmux advice that is
+  false in Tortie. His own Claude runs classic, so nothing visible changes for it on his Mac.
+
+**After this phase.**
+- Tortie launches and resumes every Codex with `-c tui.fullscreen_transcript=false`, Codex's own Scrollback mode,
+  which is how Codex behaved before 0.158. The wheel, the scrollbar, Shift+PageUp, drag-select and ⌘C work over the
+  whole conversation again, and so do the history surfaces. The wheel never reaches Codex's input box or an approval.
+- Tortie launches and resumes every Claude Code on this Mac with `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`. Search,
+  Read last lines and capture hold its whole conversation. A person whose Claude ran full-screen gives up Claude's own
+  mouse, Focus view and `/diff` side panel inside Tortie.
+- Rows recorded before this phase are brought across at the next Tortie launch: every Codex resume argv, on this Mac
+  and on another machine, and every Claude row's env on this Mac. They restore inline too.
+
+**Unchanged on purpose.**
+- Up and Down still recall prompts in Codex, because that is Codex's own design in every mode and every version. The
+  phase claims only the wheel.
+- A process already running keeps the view it started with until its next restore or restart. Tortie never ends or
+  restarts a session.
+- The wheel router and tmux's `mouse off` are untouched, so vim, less, htop, fullscreen agents and every remote
+  session behave exactly as today.
+- The other eleven launchable agents run with the argv and env they have today, byte for byte. Each row gains a
+  compiled screen record that nothing runs.
+- A Claude on another machine stays as it is today.
+- Codex's Ctrl+T transcript pager still opens full screen, and the wheel scrolls it the way it scrolls vim.
+- A person keeps one opt-out of their own for each agent: a later `-c tui.fullscreen_transcript=true` in their own
+  Codex flags, and `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` set to `"0"` in their Claude settings env block. A `/tui`
+  choice made inside either agent is overridden at every launch and restore, which is the ruling's "never a user
+  setting".
+
+**Words, menus and release.** No copy and no surface change, so the native menus are untouched and the UI rule's
+menu clause has nothing to update. The one visible change is Settings refusing one more passthrough name,
+`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN`, through the refusal it already draws. One CHANGELOG item goes under
+`## Unreleased`, `### Fixed`. No release.
+
+**Tier 3, because three of the table's questions answer yes.**
+- It writes the manifest at boot and changes the resume argv and env that restore arms, so it can lose a session's way
+  back into its conversation.
+- It spawns agents with a different argv and a different env.
+- It claims a result per agent across every launchable row, and for Codex across machines, so the evidence is a
+  per-agent matrix over real installed agents.
+
+He personally reported it, so the parent measurement is mandatory whatever the tier.
+
+**Independent methods, named before the work starts:**
+1. **Measure the parent commit.** One app run at the parent build and one at HEAD, one Electron at a time, on the same
+   scratch profile. The parent must show the defect or the arm is UNREADABLE.
+2. **Attack.** The boot pass runs twice over a COPY of his manifest with hostile rows planted in it. The wheel is
+   driven over an open Codex approval. A person's own `-c tui.fullscreen_transcript=true` and a Claude settings `"0"`
+   must win. A SpecStory-captured row must stay captured. A pass that throws half way must lose nothing.
+3. **Run over real data.** The per-agent matrix runs over the real installed claude, cursor, codex, deepseek, muse,
+   pi, omp and opencode, at the parent and at HEAD. Gemini, Qwen, Antigravity (`agy`) and Grok are never started, and
+   Droid is not installed.
+
+Plus a fix round if any verdict is needs_work, and an independent reverify of that fix. **Model turns are spent in
+two places only:** the one full `conformance:resume` owed after an agent-CLI upgrade, and the Claude question re-read
+by `probe:p314`'s Claude route (below). Each verdict says how many. Every other Codex runs in a scratch `CODEX_HOME`
+against a local mock provider, and every other Claude under a scratch `HOME` with a fake key.
+
+**Charter.** `docs/research/133-codex-scroll.md`, all of it:
+- §1: the answer.
+- §2.2 to §2.6: the release history, the bytes, the tmux mouse check, the keys and the three spellings.
+- §3.1 and §3.2: the router and the launch, resume, restore, Restart and contract paths.
+- §4: every Codex measurement this entry cites.
+- §5 and §6: the candidates, the no-regression reading, and what the attack killed.
+- §8: what stays unmeasured.
+- §9: the report text for OpenAI.
+- §12: its five questions.
+
+`docs/research/134-inline-mode-every-agent.md`, all of it:
+- §1 and §2: the answer and the per-agent table.
+- §4: the row, the readers, the boot pass, other machines and what is superseded.
+- §5: the version guard. A switch is compiled only when a build that lacks it is left exactly as it is today, so a
+  bare command-line flag is never compiled.
+- §6: running sessions.
+- §7 and §8: the gates and proof, and what the attack refuted.
+- §9 and §10: what is not settled, and what was found on the way.
+- §12: its two questions.
+
+Research 134 supersedes research 133 §7 ("the phase is Codex only") and §12 question 4. For the two compiled rows it
+also supersedes the Phase 320 line "Tortie does not choose an agent's renderer" (`docs/BACKLOG.md:34153-34155`).
+
+It also rests on:
+- **Research 130** (`docs/research/130-remote-scrollback.md`) §2.6, "A fullscreen agent's transcript is never in
+  tmux", and §9, Claude's tmux hint.
+- **Phase 12.3's founding measurement** at `src/main/tmux/scroll.ts:4-18`. Its item 1 is this defect. Its item 2 is
+  the premise 0.158 broke.
+- **Phase 215:**
+  - `src/main/sessions/resume-argv.ts`, one composition with more than one caller.
+  - `src/main/sessions/codex-repair.ts`, the boot repair's rules: no row emptied, a correct row byte identical,
+    idempotent by construction, measured on a copy of his manifest.
+- **Phase 275**: a name a compiled `launch.env` sets is refused on the passthrough lists.
+- **Phase 12.7 F3**: agents launch by bare name.
+- **The deepseek lesson** in `resumeArgvFor`'s doc (`src/main/agents/registry.ts:1962-1980`): an argv a CLI rejects
+  is a dead pane.
+- **`src/main/restore/restore.ts:321-336`**: restore reads the row, not the registry.
+- **CLAUDE.md's boundary**: configuration selects from choices the compiled world already contains. The screen record
+  is compiled and refused on the overlay.
+- **His standing rules**: no regression against today's build, and Tortie never ends a session on its own.
+
+**His rulings, and the defaults the phase proceeds on.**
+- Research 133 question 1, inline everywhere: answered yes by his ruling above.
+- Research 133 question 4, a read of the Claude bundle: superseded by the same ruling. Research 134 read and ran the
+  Claude 2.1.284 and 2.1.285 binaries under a scratch `HOME` and `CLAUDE_CONFIG_DIR`, and read no config and no
+  credential of his. He is told so in the phase report.
+
+These defaults stand unless he rules otherwise. None of them is his ruling:
+1. **No fullscreen launch preset**, for Codex or for Claude (research 133 question 2). On his Mac a fullscreen Codex
+   still turns the wheel into arrows that move approval choices.
+2. **No Codex launch under his own sign-in by a verifier** (research 133 question 3). Whether the switch keeps Codex's
+   shared background server rests on source (`codex-rs/tui/src/daemon_startup.rs:63`) and is a stated limit.
+3. **Nothing filed with OpenAI** (research 133 question 5). The report text stays in research 133 §9.
+4. **Claude on another machine stays as today** (research 134 question 1). `REMOTE_ENV_ALLOWED`
+   (`src/main/machines/remote-env.ts:85-88`) does not grow.
+5. **Gemini, Qwen, Antigravity and Grok are never started by the verifier** (research 134 question 2). Every run that
+   creates agents names its subset, and its verdict says which agents were not started and why.
+
+**Depends on.** Nothing queued.
+- Phase 330 is building in `/private/tmp/wt-p330` and touches `src/main/pocket/**` and the phone. Neither phase
+  touches the other's files.
+- Line numbers below are read at `217f47e5`. Only documents changed between it and `1287658a`, so they hold at
+  `1287658a`.
+- **The research worktree cannot build as it stands.** `/private/tmp/wt-p331/node_modules` and `build/vendor` held 0
+  regular files. The build re-copies both with `cp -Rc` from his checkout, as CLAUDE.md's machine rules describe, and
+  confirms `build/vendor/specstory/bin/specstory --version` before it starts.
+
+### What was measured before this entry was written, so no round re-derives it
+
+From research 133's and research 134's rounds: 0 model turns, 0 tokens, scratch homes, and scratch tmux servers
+(`-L p331-*`, `-L p331i-*`) under a copy of `resources/gmux-tmux.conf`. Two Electrons, both research 133's, one at a
+time under the lock. Nobody touched his `-L gmux` server or his default tmux server, or opened his config files or
+credentials. cursor-agent ran under his `HOME` and read its own sign-in through its own path, because it cannot reach
+its main screen without one.
+
+**Codex (research 133).**
+- **Tortie runs the bun-installed Codex 0.158.0**, through `/Users/gdc/.local/bin/codex`, a symlink to
+  `.bun/bin/codex`. His live panes are `node /Users/gdc/.local/bin/codex resume <id> --yolo`.
+- **Bytes at start, fullscreen, which is 0.158's default:**
+  - `?2004h`, `CSI >4;0m` and `CSI >5u`, then `?1004h` and the probes.
+  - Then `?1049h` at byte 69 and `?1007h` at byte 89, and no mouse mode at all.
+  - tmux reads `alternate_on` 1, `mouse_any_flag` 0 and `history_size` 0, and history stays 0 after 150 printed
+    lines.
+- **With `-c tui.fullscreen_transcript=false`:** no 1049, no 1007, `alternate_on` 0, and `history_size` rising from
+  11 to 22 over a `!seq`. That is a tmux reading. This spelling has never been driven in the app.
+- **Why Codex asks for no mouse.** Codex asks Tortie's server `#{mouse}` through `/opt/homebrew/bin/tmux` and reads
+  `off` (`codex-rs/tui/src/tui/tmux.rs:23-66`). With the scratch server set to `mouse on`, or with `TMUX` and
+  `TMUX_PANE` unset, the same binary sends `?1007l ?1000h ?1002h ?1006h ?1003h`. Only a Mac with tmux in one of
+  Codex's trusted directories hits the defect.
+- **The app, at `217f47e5`.** One Electron through `build/electron-run.mjs`, the session made through the renderer's
+  own create path, and three CDP wheel notches:
+  - xterm sent `["\eOA","\eOA","\eOA"]`;
+  - the composer went from `› Ask Codex to do anything` to `› P331-HISTORY-TWO`;
+  - the top screen row stayed `P331-SEQ-16`, and `pane_in_mode` stayed 0.
+- **The app, with a flag spliced in by session name** (a measuring device, never the fix): `--no-alt-screen` and
+  `-c tui.alternate_screen="never"` each made xterm send nothing. tmux entered copy mode at `scroll_position` 18 with
+  the composer unchanged. An unflagged control in the same build reproduced the parent exactly.
+- **Resume.**
+  - Plain `resume <id>` comes back fullscreen.
+  - `resume <id> -c tui.fullscreen_transcript=false --yolo` comes back inline, with `permissions: YOLO mode` kept.
+    The leading position works too.
+  - `-c …=false -c …=true` comes back fullscreen: the later flag wins.
+  - With `config.toml` saying `fullscreen_transcript = true`, a `-c …=false` still gives inline.
+- **An approval, driven by a local mock provider, keys sent through tmux:**
+
+  | Key | Selected answer |
+  | --- | --- |
+  | (at open) | `1. Yes, proceed` |
+  | Up | `3. No…` |
+  | Up | `2. Yes, and don't ask again for commands that start with …` |
+  | PageUp | `1. Yes, proceed` |
+  | PageDown | `3. No…` |
+
+  Under the switch the same approval opens with `alternate_on` 0, `mouse_any_flag` 0 and no `?1049h` in its capture.
+  So at HEAD the wheel over it is Tortie's and never reaches Codex. That is a tmux reading, and arm (b) below drives
+  it in the app. A typed Up still moves the selection, which is Codex's keyboard. Tortie's shipping
+  `detectDialogRows` and `codexTitleVerdict` read the approval identically in both modes: `atChoice` true, three
+  options, `needs_input`/native.
+- **The Ctrl+T pager** under the switch stays on the alternate screen, with tmux history 37 before, while open and
+  after, and no `ED3`. Under `--no-alt-screen` it was 37, 72, then 27.
+- **Inline mode clears and replays the scrollback after a command.** A reader parked 15 lines back kept their line
+  while `history_size` went from 36 to 76. Both replay paths predate 0.147.
+- **`-c tui.alternate_screen="never"` shows a warning.** The footer reads `⚠ 1 warning · f2 to view`, and F2 reads
+  "Running without the shared background server…". The allowlist admits `tui.fullscreen_transcript` as a bool
+  (`codex-rs/tui/src/daemon_startup.rs:63`, source only).
+- **An older Codex given the key.** 0.147 and older ignore it silently. Only builds of 2026-09-11 to 2026-09-19 print
+  one warning line, and those had no fullscreen view anyway. Tortie never passes `--strict-config`.
+- **His `~/.codex/config.toml`, as key counts:** `alternate_screen` 0 and `fullscreen_transcript` 0.
+
+**Every other agent (research 134 §2 and §11).** Claude 2.1.284 and 2.1.285, cursor, deepseek, muse, pi, omp and
+opencode were run live. Gemini, Qwen, Antigravity and Grok were read from their installed files and docs, never
+started. Droid is not installed. Mechanism item 2's table gives each row's class and what was found.
+
+**Claude's switch.**
+- It holds on `claude --resume <id>`: 120 of 120 lines in tmux history, against 35 full-screen.
+- It beats the person's saved `tui: fullscreen` and `CLAUDE_CODE_NO_FLICKER=1`.
+- It loses to the person's settings env block saying `"0"` (measured) and to `CLAUDE_CODE_SESSION_KIND=bg`, which
+  Tortie never sets.
+- A Claude older than 2.1.132 ignores it and stays as it is, so it cannot kill a pane.
+- The SpecStory wrap inherits it (measured).
+- Claude's folder trust question reads byte identical in both modes.
+- `--settings '{"tui":"default"}'` is refuted as the switch. With two `--settings` the last wins, and
+  `withClaudeSettingsFlag` skips Tortie's hook file whenever one is present (`src/main/activity/hooks.ts:969`), which
+  would drop Phase 311's question.
+- Classic Claude's `CSI 3J` and replay on resize (research 130) was not reproduced at an idle prompt on 2.1.284 or
+  2.1.285. During streaming it is unmeasured, which is why the parked-reader arms below are a gate.
+- Full-screen Claude under `mouse off` prints "tmux detected · scroll with PgUp/PgDn · or add 'set -g mouse on' to
+  ~/.tmux.conf for wheel scroll". That is false in Tortie, and it goes away under the switch.
+
+**Where the argv and env live today.**
+- The claude row: `src/main/agents/registry.ts:528`, with `launch` at `:554-559` and no `env`.
+- The codex row: `:697`, with `launch.argv: ['codex']` at `:726` and `resume.template: ['resume', SESSION_ID_SLOT]`
+  at `:731`.
+- `AgentRegistryEntry` at `:403`, `launchArgvFor` at `:1945` and `resumeArgvFor` at `:1999-2017`.
+- `compiledLaunchEnvKeys`'s doc (`:1836-1837`) and `sharedRefusedEnvKeys`'s doc (`src/main/settings/store.ts:192-196`)
+  both say two names today: cursor's `FORCE_COLOR` (`registry.ts:637`) and grok's `GROK_PRIVACY_NOTICE_ROLLOUT`.
+- `agentExtrasOf` is `rec.argv.slice(1)`, or SpecStory's `agentArgv` (`src/main/sessions/launch-plan.ts:101-104`). It
+  feeds `src/main/sessions/codex-repair.ts:244` and `src/main/sessions/id-harvest.ts:408`, `:438`, `:532` and
+  `:639`. `writeRemoteHarvest` passes `record.argv.slice(1)` to `registryResumeArgv` directly
+  (`src/main/machines/remote-record.ts:659-664`).
+- `recoverLaunchExtras`: `src/main/restart/extras.ts:96-150`, with Shape 1 at `:135-136`, called from
+  `src/main/restart/restart.ts:141`.
+- The row's env: `buildLaunchSpec` copies `launch.env` (`src/main/manifest/agents.ts:766`,
+  `src/main/sessions/launch-plan.ts:443`), `paneEnvFor` makes it the base layer (`launch-plan.ts:299-361`), and
+  restore replays it (`src/main/restore/restore.ts:1026-1036`).
+- Restore arms `rec.resumeArgv` word for word (`restore.ts:777`). The remote arm types
+  `[binOnMachine, ...recordedResumeArgv.slice(1)]` (`src/main/machines/remote-arm.ts:286`, fed from
+  `src/main/machines/remote-restore.ts:417`) and admits only tokens from the compiled template (`armedResumeTokens`,
+  `remote-arm.ts:193-199`).
+- The row's `agentContract` is write-once (`src/main/manifest/sessions-repository.ts:358-359`) and records the resume
+  template (`src/main/manifest/agents.ts:600`).
+- `repairCodexResumeIds` is the first pass of `resumeIdHarvests` (`id-harvest.ts:319-338`).
+- `REFUSED_ROW_FIELDS` is at `src/shared/agent-overlay.ts:632-651`. `ConfigExecutionFields` is at
+  `src/main/config/confirm.ts:114`, and its canonical text emits every key even when empty, so a new hashed field
+  would move the hash of every confirmed row.
+- `src/main/agents/flags.ts:193` reads `helpVerifiedVersion: 'codex-cli 0.147.0'`.
+- `HELPER_USER_FLOOR` is 153 (`build/assert-electron-teardown.mjs:326`).
+- No file under `src/` or `build/` names `fullscreen_transcript`, `no-alt-screen`, `alternate_screen` or
+  `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN`.
+
+### The mechanism
+
+**The rule in one sentence: an agent whose inline switch a build that lacks it would ignore is launched and resumed
+inline, from compiled registry data spelled once, and every path that records, recovers or recomposes that agent's
+launch agrees on it.** Today that is Codex, carried in the argv, and Claude Code, carried in the env, and no other
+row.
+
+1. **The worktree.** Re-copy `node_modules` and `build/vendor` (above) before anything else.
+
+2. **A compiled screen record on every launchable row** (`AgentRegistryEntry`, `registry.ts:403`). The builder names
+   it. A suggested shape:
+
+   ```ts
+   screen: {
+     class: 'switch-to-inline' | 'inline-already' | 'fullscreen-with-mouse' | 'unknown';
+     carriage?: 'argv' | 'env';        // only on switch-to-inline
+     measured: string;                 // "0.84.2, 2026-09-29, live" or "0.22.0, read only"
+     notes: readonly string[];         // refused switches, each with its reason
+   }
+   ```
+
+   - Nothing in the app reads it at runtime. `conformance:agents` and `conformance:resume` read it.
+   - It goes in `REFUSED_ROW_FIELDS` (`src/shared/agent-overlay.ts:632-651`), beside `activity`, so a configuration
+     row carrying it is dropped whole with the field named.
+   - It is never added to `ConfigExecutionFields`. With both switches in fields the row already has, only a person
+     holding an execution-bearing `agents.json` patch of codex or claude is asked to confirm again, which
+     `src/main/config/overlay.ts:139-180` already calls intended.
+
+   The class is one of four: switch-to-inline (Tortie compiles a switch), inline-already, fullscreen-with-mouse (the
+   wheel works through the pass-through, and the transcript is not in tmux) and unknown.
+
+   | Agent | Row | Class | What the record's notes say |
+   | --- | --- | --- | --- |
+   | claude | `:528` | switch-to-inline, env | Item 4. Measured live on 2.1.284 and 2.1.285 |
+   | codex | `:697` | switch-to-inline, argv | Item 3. Measured live on 0.158.0 (research 133) |
+   | cursor | `:612` | inline-already | 2026.09.18, live: no `1049` and no mouse. It clears with `ESC[H ESC[2J ESC[3J` on mount and on every resize, then prints its latest 10 turns until `/full-conversation` (`1218.index.js` about byte 49616, 2026.09.18) |
+   | gemini | `:785` | inline-already | `ui.useAlternateBuffer` defaults to false in 0.60.0 (read, not run). Opting in asks for `1002/1006`, which the pass-through serves. Ctrl+S turns the mouse on inline. The row's version text (0.54.0) is not changed without a measurement |
+   | droid | `:857` | unknown | Not installed. Factory's docs name no screen or mouse setting (read 2026-09-29) |
+   | deepseek | `:930` | fullscreen-with-mouse | 0.8.26, live, asks for `1049` and `1000/1002/1003/1015/1006`. `--no-alt-screen` and `tui.alternate_screen = "never"` are both ignored on 0.8.26. CodeWhale's `never` (0.9.12 and later) is refused: it is a viewport that commits nothing to host scrollback, forces the mouse off and can be set only in the config file |
+   | antigravity | `:1034` | fullscreen-with-mouse | 1.2.8, read only. Full-screen in a `tmux-256color` pane by its own log. Its only switch is `altScreenMode: "never"` in its settings file. A planted `SSH_CONNECTION` is refused. On a machine reached over ssh it probably runs inline (unmeasured) |
+   | muse | `:1136` | inline-already | 1.4.1 measured inline on create and on `resume <uuid>`. Its bundled skill text calls it an alternate-screen agent, which is wrong |
+   | qwen | `:1208` | fullscreen-with-mouse | 0.22.0, read only, asks for `1049`, and `1002` or `1003` with `1006`. Its only real switch is `ui.useTerminalBuffer: false` in the person's settings. Refused: `--screen-reader`, `QWEN_CODE_SYSTEM_SETTINGS_PATH`, `QWEN_HOME` and any truthy `CI_*` variable |
+   | pi | `:1291` | inline-already | 0.84.2, live. `--tui-mode regular` (0.84.0 and later) beats `tuiMode: fullscreen` and is recorded, not compiled, because an older pi dies on the unknown flag after its trust question |
+   | omp | `:1378` | inline-already | 18.0.11, live. First paint sends `CSI H 2J 3J`. Each resize borrows the alternate screen for about 120 ms. Upstream can1357/oh-my-pi#10232 would need a revisit |
+   | grok | `:1462` | unknown | 1.0.41, read only. `--minimal` is the inline spelling and is held until measured: Experimental, a bare flag, and its binary contradicts itself on whether it is sticky. `--no-alt-screen` is not inline. Its `auto` mode may depend on whether Tortie's control-mode client is the current client |
+   | opencode | `:1594` | fullscreen-with-mouse | 1.18.32, live: `1049` and `1000/1002/1003/1006`. `--mini` (1.17.10 and later) is refused: image drop regresses, an older opencode dies printing only help, every resize clears and replays, and `OTUI_USE_ALTERNATE_SCREEN` in the pane kills it |
+
+3. **The codex row** (`registry.ts:697`).
+   - One exported constant (the builder names it, for example `CODEX_SCROLLBACK_ARGS = ['-c',
+     'tui.fullscreen_transcript=false'] as const`) is spread into `launch.argv` after `'codex'` (`:726`) and into
+     `resume.template` after `SESSION_ID_SLOT` (`:731`). The template is not optional: `resumeArgvFor` never reads
+     `launch.argv`, so a switch in the launch alone runs create inline and resume fullscreen.
+   - The comment above it names research 133 and the three reasons for this spelling over `--no-alt-screen` and
+     `tui.alternate_screen`: the pager, the background server, and a later flag being able to undo it.
+   - The person's own extras still trail (`resumeExtrasPosition` stays trailing), which is what lets their
+     `-c tui.fullscreen_transcript=true` win.
+   - `resume.notes` gains the 0.158 measurements: fullscreen by default, the tmux `#{mouse}` check, and that launch
+     flags are still not restored by `codex resume`.
+   - `activity`, `multilineKey`, `imageDrop` and `specstory` do not change.
+
+4. **The claude row** (`registry.ts:528`, `launch` at `:554-559`).
+   - `launch.env` gains `{ CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1' }` from one exported constant. Nothing goes on
+     its argv, its template or `--settings`.
+   - A quirk line records research 134, the 2.1.132 floor, what the switch beats and loses to (above), and that it
+     reaches this Mac only.
+   - `activity`, `imageDrop`, `multilineKey` and `specstory` do not change.
+   - Create and restore need no code change: the env path above carries it into the row, the pane and every restore.
+   - Because the name is now in a compiled `launch.env`, `sharedRefusedEnvKeys` refuses it on the shared passthrough
+     list, and `compiledLaunchEnvKeys` refuses it on Claude's own list (`src/main/settings/ipc.ts:189`). A person
+     who already listed it has it dropped on load (`sanitizeEnvPassthrough` and `sanitizeEnvPassthroughShared`,
+     `store.ts:908-923`), and `loadFile` reports the refusal. The verifier reads the sentence Settings draws for it
+     and confirms it is true.
+   - Comments and pins that move in the same commit:
+     - `compiledLaunchEnvKeys`'s "all but two" (`registry.ts:1836-1837`) and `sharedRefusedEnvKeys`'s "Today exactly
+       two" (`store.ts:194`) become three;
+     - cursor's quirk about the sole env injection (`registry.ts:637-639`) names Claude, Phase 331;
+     - `REFUSED_COMPILED` in `src/main/settings/__tests__/p275-env-shared-seal.test.ts:457-458` gains the name;
+     - `src/main/agents/__tests__/registry.test.ts` pins Claude's `launch.env` beside the grok pin at `:155-162`.
+   - **A stated edge.** An `agents.json` patch of claude or codex that brings its own `launch` replaces the compiled
+     launch whole, so its create drops the switch. Codex's resume template still carries the pair, and the boot pass
+     adds Claude's variable back to the row. The spec step either composes the switch from the constant independently
+     of a launch patch, or states that limit.
+
+5. **One helper for "the person's own flags".**
+   - It answers the agent argv after argv[0] with the registry's fixed launch tokens (`entry.launch.argv.slice(1)`)
+     removed when they lead. It answers that argv unchanged when they do not lead, because that is a row written
+     before this phase. Under SpecStory capture it reads `rec.specstory.agentArgv`, exactly as today.
+   - `agentExtrasOf` (`launch-plan.ts:101`) calls it. Without it the harvest, which gets the create path's own extras,
+     and the rescue, admission and repair paths, which use `agentExtrasOf`, compose different resume argvs: the pair
+     twice against once.
+   - `recoverLaunchExtras` (`extras.ts:96-150`) calls it, or gains a pre-phase shape beside Shape 1. Today's Shape 1
+     fails for every Codex row written before this phase, so Restart would come back without his `--yolo`. That was
+     read and not driven; the verifier drives it.
+   - `writeRemoteHarvest` (`remote-record.ts:659-664`) calls it in place of `record.argv.slice(1)`. It is the one
+     recomposition `agentExtrasOf` does not reach (research 134 §4.2).
+   - Claude's env switch touches none of them.
+   - **Stated limit:** a pre-phase row whose own extras began with the same two tokens has them read as the
+     registry's. Nothing runs differently, because the template carries the same pair. Only the Restart dialog shows
+     one flag fewer. `extras.ts:109-118` already records the same class for `-l`.
+
+6. **The boot pass, a new module under `src/main/sessions/`** (the builder names it).
+   - **Where it runs.** It is called from `resumeIdHarvests` (`id-harvest.ts:319`) directly after
+     `repairCodexResumeIds` (`:329`), in its own try and catch shaped like `:328-338`, and before the claim seeding.
+   - **What it does.** It brings each row to exactly what a create of that agent records today, with one arm per
+     carriage.
+   - **The argv arm: Codex, on this Mac and on another machine.** Every row whose agent's resume template carries
+     fixed tokens (codex, and only codex today), with a non-empty `agentSessionId` and a non-empty `resumeArgv`.
+     - A local row is recomposed through `composeResumeArgv(rec, agent, rec.agentSessionId, <the helper>(rec))`.
+     - A row with a `machineId` has only its tail recomposed, through `resumeArgvFor`, and keeps its recorded far
+       `argv[0]`, because the remote arm types `[binOnMachine, ...recordedResumeArgv.slice(1)]`
+       (`remote-arm.ts:286`). `armedResumeTokens` already admits the pair, because it is in the template. His ruling
+       includes these rows, and the commit body says so.
+   - **The env arm: Claude, on this Mac only.** Rows from `manifest.listSessions()` (`sessions-repository.ts:300`)
+     whose agent is `claude` and which carry no `machineId`.
+     - When `env` has no key `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN`, it makes one `updateSession(id, { env })`
+       (`:311`) with the compiled pair merged in. An absent `env` gains a one-key record. `env` is patchable
+       (`src/main/manifest/codecs.ts:282-292`).
+     - Whether rows in the Past list are included is the spec step's call, read from whether restore can reach them.
+
+   **The rules it is judged on**, Phase 215's plus two:
+   - **No row is ever emptied.** A null composition leaves the row as it is.
+   - **A captured row is re-wrapped or left alone.** A `captureLost` composition leaves the row exactly as it is. It
+     is never armed bare, which is where this pass differs from `codex-repair.ts`: a scroll fix is no reason to stop a
+     capture. A captured Claude row gains the env and keeps its argv.
+   - **A row already right is byte identical afterwards.** That is a Codex row whose inner resume argv already carries
+     the pair, in any position, where "inner" for a wrapped row is the argv the wrap was made from, read the way the
+     pass can prove. It is also a Claude row whose `env` already names the variable, with any value, `"0"` included.
+   - **A row with no id is left alone.** Its harvest composes with the new template when it lands.
+   - **Every Claude row on another machine, and every row of any other agent, is byte identical.**
+   - **One durable write per row**, of `resumeArgv` or `env` alone. It writes the manifest and nothing else, opens
+     nothing of any agent's, and signals no process.
+   - **The row's `agentContract` is not touched.** It is write-once, and it records the template in force at launch,
+     which stays true.
+   - **Whether `resumeProvenance` gains a note is the spec step's call**, and the commit body says which.
+   - **Idempotent by construction.** A digest over every row after pass 2 equals the digest after pass 1.
+   - **No schema migration**, so `gate:contract` does not move.
+   - **A Claude pane whose holder shell started before the pass keeps its old env until its next restore.** Stated,
+     not fixed.
+
+7. **`src/main/agents/flags.ts`, the codex catalog.** Re-read `codex --help` and `codex resume --help` on the installed
+   0.158.0 in a scratch `HOME`. Set `helpVerifiedVersion` (`:193`) to what it prints, and correct each preset's
+   provenance to what 0.158 says. `--yolo` is measured working on resume (research 133 §4.4). No preset is added.
+
+8. **`src/main/tmux/scroll.ts`, header item 2 (`:13-18`), comment only.** It says Codex and Claude draw in the normal
+   buffer because Tortie launches Codex in Scrollback mode and Claude with `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`
+   (Phase 331, research 133 and 134). It also says Codex 0.158's own default is a fullscreen view that, under
+   Tortie's `mouse off`, asks for no mouse. The verifier proves the diff is comment-only by comparing the file with
+   comments blanked, so `probe:p292` is not owed for this file.
+
+9. **`src/main/conformance/resume.ts`, a screen reading for every row.**
+   - After create, and after the restored resume in the full run, it reads the pane's `#{alternate_on}` and
+     `#{mouse_any_flag}` on the harness socket. It records them beside the row's class in the report and in
+     `GMUX_CONF_JSON`.
+   - A switch-to-inline row that reads `alternate_on` 1 fails.
+   - Every other row records its reading and prints a mismatch with its class without failing, because a person's
+     own setting may choose otherwise.
+   - In `GMUX_CONF_MODE=capture` only the create reading runs.
+   - This is what makes the run owed after any agent-CLI upgrade catch the next Codex or Claude that renames, drops
+     or overrides its switch.
+
+10. **Tests.** `src/main/sessions/__tests__/p331-codex-scrollback.test.ts`, or split by domain as the builder sees fit.
+    They hold:
+    - The Codex create argv and resume argv each carry the pair once, from the constant, and a person's
+      `-c tui.fullscreen_transcript=true` trails it on both.
+    - Claude's `launch.env` reaches the row and the pane env at create and at restore, and is refused on both
+      passthrough lists.
+    - The helper on a pre-phase row, a post-phase row, a captured row of each, a remote row, and a row whose own
+      extras begin with the pair.
+    - The harvest, the rescue and the remote harvest compose byte-identical argvs for the same row.
+    - `recoverLaunchExtras` returns `['--yolo']` for `[<abs>/codex, '--yolo']` and for `[<abs>/codex, '-c',
+      'tui.fullscreen_transcript=false', '--yolo']`.
+    - `wrapArgv`, `isWrappedArgv`, `unwrapArgv` (`src/main/specstory/wrap.ts`) and `commandRunsAgent` over a
+      captured Codex create and resume carrying the pair. Each must still find specstory's own `-c`, because today
+      that holds by ordering and nothing pins it.
+    - The boot pass over every hostile row in the proof below, and two passes compared by digest.
+
+    These existing tests stay green unchanged apart from the pins item 4 names:
+    `src/main/settings/__tests__/p275-env-shared-seal.test.ts`, `src/main/agents/__tests__/registry.test.ts`,
+    `src/main/restart/__tests__/extras.test.ts` (its round trip unchanged),
+    `src/main/sessions/__tests__/launch-plan.test.ts`, `src/main/sessions/__tests__/codex-repair.test.ts`, `src/main/manifest/__tests__/resume-capture.test.ts`,
+    `src/main/manifest/__tests__/harvest-claim-race.test.ts`, `src/main/machines/__tests__/remote-arm.test.ts`,
+    `src/main/machines/__tests__/remote-harvest.test.ts`, `src/main/sessions/__tests__/p141-resume-in-place.test.ts`
+    and the specstory tests. A row that has to change is a finding for the verifier, not an edit. `gate:checks` runs
+    because a test file is added.
+
+11. **Gates amended in the same commit.**
+    - **`conformance:agents`** (`build/conformance-agents.mjs`, `build/agents-conformance-probe.mts`) gains these
+      clauses. Each is read from the registry's own export and each has an ablation that must read red. Section 2's
+      consistency check cannot see a switch go, because both sides move together.
+      - Every launchable row declares a screen record with one of the four classes.
+      - A switch-to-inline row with argv carriage ends both `launch.argv` and `resume.template` with the constant's
+        tokens.
+      - A switch-to-inline row with env carriage has its variable in `launch.env` and in `sharedRefusedEnvKeys()`.
+      - The screen record is named in `REFUSED_ROW_FIELDS` and absent from `ConfigExecutionFields`, and a
+        configuration row carrying it is dropped whole with the field named.
+      - Exactly two rows are switch-to-inline, codex and claude, so a third cannot be added without this gate moving.
+    - **`build/p331/ablation.mjs`, as `ablation:p331`**, breaks the SHIPPING source one clause at a time, and the row
+      that owns each must go red:
+      - Codex: the pair off `launch.argv`; the pair off `resume.template`; the helper not setting the pair aside;
+        `recoverLaunchExtras` without the pre-phase shape; the remote harvest not calling the helper; the pass not
+        called; the pass arming a `captureLost` row bare; the pass rewriting a row that already carries the pair; the
+        pass rewriting a remote row's `argv[0]`.
+      - Claude: the variable taken out of `launch.env`; the pass not merging env; the pass merging into a row on
+        another machine; the pass overwriting a present `"0"`.
+      - Both: the pass writing on its second run; one row's screen record removed; the record dropped from
+        `REFUSED_ROW_FIELDS`; the `conformance:resume` failure taken out.
+
+      An unedited control must stay green, and every file is restored and compared by sha256 in a `finally`.
+    - **`gate:contract` must not move.** No channel, schema column, key or env name changes.
+
+12. **`build/p331/probe-p331.mjs`, as `probe:p331`**, the app run below.
+    - It reaches `build/electron-run.mjs`, so `HELPER_USER_FLOOR` rises by one, in the same commit, from whatever the
+      parent reads (153 at `1287658a`; Phase 330's probe may raise it first).
+    - It is classified in `build/verification-checks.mjs`, and `gate:electron` and `gate:background` read it.
+    - CLAUDE.md's probe table gains one line naming its triggers: the codex and claude switches, the screen record,
+      the boot pass, the helper and `recoverLaunchExtras`.
+    - CLAUDE.md's `conformance:agents` row gains one sentence for the new clauses, and its
+      `conformance:resume:capture` row gains "and each row's screen class".
+
+13. **CHANGELOG.** One item under `## Unreleased`, `### Fixed`, in the house style. A suggested text: "The trackpad and
+    mouse wheel scroll a Codex session again instead of recalling old prompts or moving the answer picked in an
+    approval, and Capture and Read last lines hold the whole conversation of a Codex or Claude Code session. Both now
+    always open in their scrollback view inside Tortie, so Claude's own mouse, Focus view and diff panel are not
+    available there, a Claude on another machine keeps its full-screen view, and a session already running keeps its
+    view until it restarts." The follow-up docs commit adds the commit link.
+
+14. **The Phase 320 line** at `docs/BACKLOG.md:34153-34155` is not rewritten. A one-line pointer to research 134 may
+    be added beside it, as an edit to something that already exists.
+
+### The proof, run rather than read
+
+- **Gates.** `npm run typecheck && npm run build && npm run smoke:t1`, then the integrator's full battery: test,
+  smoke, smoke:t3 and package. The path-triggered gates for the files touched:
+  - `conformance:agents`, `conformance:installs` and `conformance:resume:capture`, for `registry.ts` and
+    `src/shared/agent-overlay.ts`;
+  - `conformance:choices`, once, because the claude row is edited, although its `dialogs` field is not;
+  - `conformance:logins`, for `launch-plan.ts`;
+  - `conformance:derived`, because the pass sits beside `codex-repair.ts` and reads the same rows;
+  - `conformance:machines`, for `remote-record.ts`;
+  - `conformance:handback`, if the build touches `src/main/restore/restore.ts` or
+    `src/main/sessions/resume-in-place.ts`. The design touches neither, and the verdict says whether the build did;
+  - `ablation:p331`, `gate:checks`, and `gate:electron` and `gate:background` for the probe;
+  - `gate:contract`, byte identical.
+
+  `conformance:resume:capture` creates every launchable agent by default, so it runs with
+  `GMUX_CONF_AGENTS=claude,cursor,codex,deepseek,muse,pi,omp,opencode`, as every run in this phase that creates
+  agents does.
+- **One full `conformance:resume`**, owed anyway because Codex moved from 0.147.0 to 0.158.0 and Claude to 2.1.285
+  under the registry's notes.
+  - It runs with the same `GMUX_CONF_AGENTS`. The verdict names Gemini, Qwen, Antigravity and Grok as not started and
+    says why, and names Droid as not installed.
+  - It spends two short real turns per agent under his sign-in and leaves a session record in each agent's store,
+    which is the standing cost CLAUDE.md names. The verdict says how many turns were spent.
+  - Codex and Claude must pass the round trip and read `alternate_on` 0 after create and after the resume. Every
+    other row records its reading beside its class.
+- **`probe:p331`, the app run, in `probe:p292`'s shape.** ONE Electron at the parent build and ONE at HEAD, one at a
+  time under the shared Electron lock (`mkdir <scratchpad>/electron.lock`), each through `build/electron-run.mjs`.
+  The parent runs first (`P331_PARENT_CHECKOUT`). HEAD then runs on the same profile, so HEAD's boot pass meets rows
+  the parent wrote. No third launch is made: the pass's idempotence is proven over the manifest copy below.
+  - A scratch profile, a scratch `HOME` and the probe's own tmux socket, all ended in the helper's `finally`. The
+    readings are taken from outside the app on that socket, so the parent build needs no new code.
+  - The real installed Codex in a scratch `CODEX_HOME`: a dummy key written by `codex login --with-api-key`,
+    `daemon_auto_start = false`, `check_for_update_on_startup = false`, and the project trusted. A local mock
+    Responses provider on `127.0.0.1`, in the probe's own process and in the shape of research 133's `adv-arm.mjs`,
+    makes the turn that writes a rollout, and so a harvested id, cost 0 tokens. Codex's composer history is seeded
+    with three entries.
+  - Claude with a fake `ANTHROPIC_API_KEY` and a scratch `.claude.json` whose settings say `tui: fullscreen`, so the
+    parent's Claude is full-screen whatever his own settings say.
+  - Update and network guards in the environment the app is given: `DISABLE_AUTOUPDATER=1` for Claude (it updated
+    itself during research 134), `MUSE_NO_AUTO_UPDATE=1`, `OPENCODE_DISABLE_AUTOUPDATE=1`, omp's
+    `startup.checkUpdate` off in its scratch config, and Codex's two keys above. The probe reads each pane's
+    environment and marks the arm UNREADABLE if a guard did not reach it.
+  - Codex fetches `https://github.com/openai/plugins.git` at start into its `HOME` (research 133 §9). The probe turns
+    that off if a config key does, and states it otherwise.
+
+  **Before any arm the probe checks three things**, and exits 2 as UNREADABLE rather than passing a defect it never
+  saw:
+  - The scratch login shell resolves `command -v codex` to a Codex 0.158 or later and `command -v claude` to a Claude
+    2.1.132 or later.
+  - It records which of `/opt/homebrew/bin/tmux`, `/usr/local/bin/tmux` and `/opt/local/bin/tmux` exist.
+  - It reads the parent's Codex pane flags. If they read `mouse_any_flag` 1 (a Mac where Codex's tmux check cannot
+    run), the reproduction arms are UNREADABLE.
+
+  **Codex.** At HEAD the probe first reads the Codex argv from the process table. It requires exactly
+  `codex -c tui.fullscreen_transcript=false` at create, and `codex resume <id> -c tui.fullscreen_transcript=false`
+  followed by the person's own flags at restore. Research 133 measured this spelling only in tmux, so this is its
+  first drive in the app.
+
+  | Arm | Parent (required) | HEAD (required) |
+  | --- | --- | --- |
+  | (a) three wheel notches over a fresh Codex composer after a `!seq` | xterm `\eOA` ×3, the composer recalls history, `pane_in_mode` 0 | xterm sends nothing, `pane_in_mode` 1, `scroll_position` > 0, the top row older, the composer unchanged |
+  | (b) three wheel notches over an open approval (the mock answers with an escalated `exec_command`) | The highlighted answer moves off `1. Yes, proceed`. This is the first in-app measurement of it, and it is recorded, never pressed | The highlighted answer is unchanged, nothing reaches Codex, and tmux history scrolls |
+  | (c) Ctrl+T, three notches, `q` | Recorded | The pager is on the alternate screen; tmux `history_size` is equal before, during and after; nothing reaches the composer after close |
+  | (d) a Codex row the PARENT created and harvested, restored at HEAD after its tmux session is ended out of band (the reboot) | Made here, with extras `--yolo` | The boot pass rewrote its resume argv once. The restore arms it with the pair and `--yolo`. `alternate_on` 0, the header reads `permissions: YOLO mode`, and (a)'s readings hold on it |
+  | (e) Restart of that pre-phase row | Not run | The restart dialog's flags read `--yolo`, and the new pane is inline |
+  | (f) a Codex created with the person's own extra `-c tui.fullscreen_transcript=true` | Not run | `alternate_on` 1: the person's choice wins. The wheel over it reproduces the parent's arrows, which is the stated limit behind the no-preset default |
+  | (g) a SpecStory-captured Codex, created and then restored | As (a) | The wrapped argv carries the pair inside specstory's `-c` string, the capture indicator holds, `alternate_on` 0, and (a)'s readings hold |
+  | (h) controls: a plain shell, `vim` with no mouse, and a stand-in that asks for 1049 plus SGR mouse | Shell: Tortie scrolls. vim: arrows. The stand-in: SGR reports | Identical to the parent, byte for byte on what xterm sent |
+
+  **Every agent.** claude, cursor, codex, deepseek, muse, pi, omp and opencode, each created through the app's own
+  create path in a scratch folder. Nothing is typed but the keys needed to reach the main screen, and no model turn
+  is spent. Cursor has no sign-in under a scratch `HOME` and stops at its login screen, which is inline too; the
+  probe says the main chat was not reached. Per agent and per build it records:
+  - the count of `ESC[?1049h` in a `pipe-pane -o` stream from create until the screen settles;
+  - after settling, `#{alternate_on}`, `#{mouse_any_flag}` and `#{history_size}`;
+  - the mouse modes seen in the stream.
+
+  | Agent | Parent | HEAD |
+  | --- | --- | --- |
+  | claude | `1049` present, mouse on | `1049` absent, `mouse_any_flag` 0 |
+  | codex | As arm (a) | As arm (a) |
+  | cursor, muse, pi, omp | `1049` absent, mouse off | Identical to the parent on every reading |
+  | deepseek, opencode | `1049` present, mouse on | Identical to the parent on every reading |
+
+  **A non-switched agent whose HEAD reading differs from its parent reading fails the phase, whatever its class
+  says.**
+
+  **Claude, in the same two runs.**
+  - **Resume.** The probe ends a parent-made Claude row's tmux session out of band, plants a fabricated 120-line
+    transcript at the row's own session file under the scratch `HOME`, and restores through the app. At the parent:
+    `alternate_on` 1 and history 0. At HEAD: `alternate_on` 0, mouse 0, and `capture-pane -S -1000` holds transcript
+    line 001. If line 001 is absent at HEAD because the plant did not take, the arm is UNREADABLE, not passed.
+  - **The wheel and the history surfaces**, over the inline Claude and the inline Codex at HEAD: three notches (xterm
+    sends nothing, tmux copy mode moves), the scrollbar, Read last lines and capture, each holding transcript line
+    001.
+  - **A reader parked in copy mode across a resize and across a return to the session**, the readings `probe:p292`'s
+    arms d and f take. A classic Claude that sends `CSI 3J` and replays on resize would move the reader, and that is
+    recorded as found, not assumed.
+  - **The tmux hint.** The parent's full-screen Claude line "tmux detected · scroll with PgUp/PgDn …" is recorded,
+    and HEAD's screen must not hold it.
+  - **Settings.** `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` typed into the shared list and into Claude's own list is
+    refused, and the sentence drawn is true.
+
+  Electrons are counted once, at the end, with the command in CLAUDE.md's machine discipline section. Every agent
+  pid the probe saw is ended by pid in its `finally`. No Simulator is made.
+- **The boot pass over real data, and the attack.** A copy of his live manifest is taken with SQLite's own backup into
+  scratch, never opening the live file for write, as Phase 215 measured `codex-repair` ("pass 1 moved 4, pass 2 moved
+  0"). Before reading the builder's code, the verifier composes, by its own method, the expected resume argv of every
+  Codex row and the expected `env` of every Claude row in the copy. Then the pass runs twice over the copy, and the
+  verdict reports:
+  - the Codex rows recomposed, local and remote, and the Claude rows that gained the variable, each compared with the
+    verifier's own expectation;
+  - that every row of any other agent is byte identical;
+  - that every row already right is untouched;
+  - that no row was emptied;
+  - that every captured row is still captured;
+  - that the digest over every row after pass 2 equals the digest after pass 1.
+
+  Hostile rows are planted in the copy:
+  - a pre-phase Codex row with `--yolo`, then taken through Restart, whose dialog must read `--yolo`;
+  - a Codex row already carrying the pair, leading or trailing;
+  - a captured Codex row that re-wraps, and one whose wrap cannot be rebuilt, which is left alone;
+  - a remote Codex row, whose tail is recomposed and whose far `argv[0]` is kept;
+  - a Codex row whose recorded resume argv was hand-edited to name a different binary, which is left alone or
+    recomposed from its own recorded binary, never from today's `PATH`;
+  - a Claude row on another machine (untouched), a SpecStory-wrapped Claude row (env merged, argv untouched), a
+    Claude row whose `env` holds the variable as `"0"` (untouched), a Claude row with no `env` (gains a one-key
+    record), and a patched-claude row with its own `launch` (gains it, and the limit is stated);
+  - a row with no conversation id, a row with an empty resume argv, and a row of an agent with no switch;
+  - a pass that throws half way: every row it did not reach keeps its argv and env, and the rescue that follows still
+    runs.
+
+  The copy is deleted in a `finally`.
+- **Question detection.** Phase 311's Claude question comes from the hook and does not depend on the renderer. The
+  verifier re-reads Claude's named shape and the numbered verdict against a classic capture of a real permission
+  request, by the route `probe:p314`'s Claude arm already uses, with real turns under his sign-in, and says how many.
+  If classic Claude makes any question read worse than today, the Claude half of the phase is dropped under his
+  no-regression rule and Codex lands alone.
+- **What cannot be proven here, stated rather than hidden.**
+  - Whether the Codex switch keeps Codex's shared background server. It rests on source.
+  - A Mac with no trusted-directory tmux. The parent arm there is UNREADABLE by design, and this Mac has Homebrew's.
+  - A real session on another machine. The pass over the copy's remote Codex rows is the evidence, and remote
+    scrolling is Phase 320.1's.
+  - Any Codex but the installed 0.158.x and any Claude but the installed one. Older builds are read from source,
+    changelog and `git log`.
+  - Claude while it streams, and Claude under managed or policy settings or a shell start-up file that exports
+    `"0"`.
+  - Gemini, Qwen, Antigravity, Grok and Droid live. Their records rest on installed files, strings and docs.
+  - A real trackpad's momentum rather than CDP wheel events.
+
+### What is NOT in this phase
+
+- **No switch for any agent but Codex and Claude Code.** No command-line flag is compiled for pi (`--tui-mode
+  regular`), opencode (`--mini`) or grok (`--minimal`), and no version floor is built for any of them.
+- **No other agent's argv or env**, and no fixed launch tokens for any other row. Claude's switch is env, not argv.
+- **No refused lever.** No CodeWhale `tui.alternate_screen = "never"`, no Qwen `CI_*` variable or settings-path
+  variable, no `--screen-reader`, no `GEMINI_CLI_SYSTEM_SETTINGS_PATH`, no `QWEN_HOME` or `--gemini_dir`, and no
+  planted `SSH_CONNECTION`.
+- **No `--settings` JSON for Claude**, and no `tui` key in Tortie's hook settings file.
+- **No Claude variable on another machine.** `REMOTE_ENV_ALLOWED` is unchanged unless he answers research 134's
+  question 1 yes, and then it is a later round, with `conformance:machines` and `conformance:shellenv` moving with it.
+- **No change to the wheel router** (`src/renderer/terminal/scroll/**`, `src/renderer/terminal/keys/index.ts`). No
+  PageUp/PageDown translation, no unrequested SGR reports, no new swallow, no per-agent route and no key translation
+  for the broken class, because each was rejected in research 133 §5.
+- **No change to tmux's `mouse` option** (`resources/gmux-tmux.conf:63`, `src/main/tmux/server-options.ts:85`), and
+  no `env -u TMUX`.
+- **No change to Up and Down.** They are Codex's prompt history.
+- **No fullscreen preset, no opt-back setting, no Settings surface and no menu change.**
+- **No write to any agent's own configuration**, his `~/.codex/config.toml` included. Tortie never runs `/tui` for
+  anyone.
+- **No restart or end of a running session.** The pass changes only what the next restore arms.
+- **No new field in `ConfigExecutionFields`**, and the screen record is refused on the overlay.
+- **No change to the row's `agentContract`**, and no schema migration.
+- **No change to any activity profile, dialog shape or `animatesWhenIdle`.** A shape that reads worse under classic
+  Claude drops the Claude half; it is not patched in this phase.
+- **Nothing for remote scrolling**, which is Phase 320.1's.
+- **No fix for cursor's clear on mount, omp's resize borrow and first-paint clear, Qwen's start clear, Antigravity's
+  likely difference on another machine, or grok's dependence on the control-mode client.**
+- **No widening of `ARGV_REJECTED_PATTERNS`** (`src/main/conformance/cases.ts:260`) for opencode's help-only exit. A
+  later phase that compiles a bare flag needs it first.
+- **Nothing for Droid.**
+- **No start of Gemini, Qwen, Antigravity or Grok** by any builder or verifier, and no Codex under his own sign-in.
+- **Found on the way, queued separately and not built here** (research 134 §10):
+  - The local handback composes nothing for a hook-enabled Claude session. `composeArmedResumeText` refuses the
+    `--settings <path>` every such row records, and nothing strips it in the local handback
+    (`src/main/sessions/resume-in-place.ts:1025-1044`). This phase adds no Claude argv token, so it neither widens
+    nor fixes that.
+  - Muse reads an Enter that arrives right after a fast burst of typing as a newline.
+
+  Each is queued as its own entry.
+- **Nothing filed upstream**, with OpenAI or anyone else.
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -37265,3 +37952,5 @@ cycle rather than only the evening it was written.
 - 2026-09-29, **RESEARCH 133 LANDED — why Codex 0.158's wheel walks its prompt history.** Codex 0.158 opens a fullscreen view by default; on entry it asks tmux whether the mouse is on, reads Tortie's own `mouse off`, and so asks for no mouse; Tortie's wheel router hands the wheel to xterm, which on the alternate buffer sends Up and Down (`\eOA`), and Codex reads them as prompt history. Reproduced in the real renderer at `217f47e5`: three notches, three `\eOA`, an old prompt in the composer and a screen that did not move. **It is also a safety defect**: two arrows over an open Codex approval land on "Yes, and don't ask again", measured with tmux key presses and owed in the app. The judge chose `-c tui.fullscreen_transcript=false` (Codex's own Scrollback mode, the 0.147 world) in the codex registry row's launch argv AND resume template, `agentExtrasOf` and `recoverLaunchExtras` setting the fixed tokens aside so Restart keeps `--yolo`, and a boot pass that recomposes recorded Codex resume argvs under Phase 215's rules, because restore replays the recorded argv word for word. His ruling of today already answers its first question (inline everywhere). Its other four defaults stand: no fullscreen preset, no launch under his sign-in, Claude out of this phase, nothing filed with OpenAI. The Phase 331 build entry is written once research 134 (every other agent) lands, so it covers every agent at once. 0 model turns, 0 tokens.
 
 - 2026-09-29, **RESEARCH 134 LANDED — inline mode for every agent: two switches Tortie compiles, eleven agents it leaves alone.** Measured live in scratch tmux for Claude Code (2.1.284 and 2.1.285), cursor-agent, opencode, pi, omp, muse and deepseek; read from installed files and docs only for Gemini, Qwen, Antigravity and Grok, which update themselves and were never started; Droid is not installed. **Compiled in Phase 331**: Codex's `-c tui.fullscreen_transcript=false` (research 133) and Claude Code's `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` in the claude row's compiled `launch.env`, both measured on create and on the exact resume shape, both left exactly as today by a build that lacks them. **Already inline**: cursor, gemini, muse, pi, omp. **Full-screen and asking for the mouse, so the wheel already works**: deepseek, antigravity, qwen, opencode, each inline switch refused for a named reason. **Unknown**: droid (not installed) and grok (`--minimal` held until measured). A bare CLI flag is never compiled, because an unknown flag kills the pane and the recorded resume argv replays it at every restore. One boot pass brings recorded rows to the registry under Phase 215's rules; Claude on another machine stays as today, because Tortie sends no environment to a far machine but its two identity stamps. The Phase 320 line "Tortie does not choose an agent's renderer" is superseded by name for these two rows. 0 model turns; the claude binaries were read and run under a scratch HOME and CLAUDE_CONFIG_DIR, reading none of his config or credentials.
+
+- 2026-09-29, **PHASE 331 QUEUED AND STARTING — the wheel scrolls Codex again, and Codex and Claude Code keep their whole conversation in Tortie's scrollback.** Full entry above the log, from research 133 and 134 and his ruling "i like the inline mode lets do that": Codex launched and resumed with `-c tui.fullscreen_transcript=false` on both the launch argv and the resume template, Claude Code with `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` in its compiled `launch.env`, one shared helper so a person's own flags are neither lost nor doubled, and one boot pass under Phase 215's rules bringing recorded rows across (Codex on this Mac and on other machines, Claude on this Mac). Tier 3: measure the parent, attack the boot pass over a copy of a manifest with hostile rows and the wheel over an open Codex approval, and a per-agent matrix over the eight installed agents Tortie may start. His two defaults stand after "ok great": Claude on another machine stays as today, and Gemini, Qwen, Antigravity and Grok are never started. Build lane in `/private/tmp/wt-p331b`, beside Phase 330.
