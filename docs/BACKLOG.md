@@ -35836,6 +35836,481 @@ Everything below was counted for this entry over research 129's recording `a/rec
 - **No status, no status word, no copy, no surface and no menu.**
 - **No release.**
 
+## Phase 330 — "THE ABSOLUTE SIMPLEST experience for a user, preferably just scan a QR code from their mac" — the phone never joins the tailnet (research 132, operator, 2026-09-29)
+
+**Subject.** `feat(pocket): pair a phone by scanning one code, through Tailscale Funnel`
+
+**First body line.** `Phase 330: the phone never joins the tailnet`
+
+**Semver.** Minor, and **still unreleased** under his ruling of 2026-09-21 that nothing is released until the
+phone works end to end.
+
+What a person notices:
+
+- **Pairing the iPhone is one press on the Mac, a scan and a match.** Nobody mints a key, pastes a policy or
+  signs in on the phone.
+- **The first time on a tailnet, Tailscale's own web page asks once to approve Funnel.** After that, a new
+  phone or a reinstall is about 9 to 11 actions, against about 15 to 18 today, and adds no device to his
+  tailnet.
+- **The phone app shrinks by about 23 MB** and loses the local-network prompt and the join wait of up to about
+  40 s.
+- **The door answers the internet** at `https://<mac>.<tailnet>.ts.net:8443`, and the lines he allows say so.
+
+The CHANGELOG's iPhone item under `## Unreleased` is rewritten to say what is now true: switch it on, approve
+Funnel once on Tailscale's page, scan. **Unchanged on purpose:** every route the door answers, every status,
+the manifest, the tmux layer, the push path (Phase 314) and the native menus (`Pair a Phone…` stays at
+`src/main/menu.ts:615`, and the gate asserts it did not move).
+
+**Tier 3.** CLAUDE.md's fourth question applies three times over:
+
+- **It spawns a process.** Tailscale's command line runs as a long-lived child, and Tortie's first
+  `utilityProcess` starts beside it.
+- **It sends his words somewhere new.** The door that answers session names, questions and whole
+  conversations moves from his tailnet to the public internet.
+- **It holds keys.** The door's TLS key and every phone's client key decide who gets in.
+
+**Two independent methods, one of them an attack, plus the parent-commit measurement his no-regression rule
+makes mandatory:**
+
+1. **The attack.** A hostile internet client reaches the door through a stand-in funnel with no client
+   certificate, a flood, a forged PROXY header, a replay, a leaked code presented from elsewhere, a paired
+   phone's signature over another phone's connection, a profile switch and a crashed Tortie's orphan.
+2. **The re-derivation.** A second implementation of the phone, with its own TLS stack and its own reader,
+   recomposes the confirm hash's canonical text, the v:3 code and the client-key pin, and must agree byte for
+   byte.
+3. **The parent-commit measurement.** It proves a person who never turns the door on sees nothing new.
+
+**No agent's run can prove Funnel itself**, because no agent may run a `tailscale` command. His measurement
+(the gate below) and his checklist are that proof, and the entry says so rather than letting a green probe
+imply it.
+
+**Charter.** Research 132 (`docs/research/132-the-simplest-pairing.md`) chose Route 1, and its §9 lists the
+conditions this build must meet. Four sources bind it:
+
+- **Research 128 §3.2 stands untouched.** Tortie holds no Tailscale API key, OAuth client, auth key or trust
+  credential, ever.
+- **Research 127 §7 items 10, 11 and 16 are revisited, not repealed.**
+  - Items 10 and 11 refused `tailscale serve` because TLS ended in tailscaled. Raw `--tcp` keeps TLS inside
+    Tortie (research 132 §3.2), so their reason does not reach this design.
+  - Item 16, "never `tailscale status` at bind time", is kept in its spirit. The status is read at the
+    person's press and before each start, never at the bind, and every value read is a hashed field.
+- **His rulings bind as research 132 §8.2 tabulates them.** Confined to Tortie's door, kept more strongly. Read
+  records and never the terminal. Embed rather than require a second app. No relay Tortie runs. Tailscale's
+  logs off, now moot.
+- **CLAUDE.md refusals 1, 6 and 8 bind as well.**
+
+**THE GATE. THIS PHASE DOES NOT START UNTIL BOTH OF THESE ARE TRUE, AND NO AGENT MAY SATISFY EITHER:**
+
+1. **He answers research 132 §13 question 1 yes.** That question asks him to accept three things: the door
+   on the internet; a standing Funnel right for every member device; and a beta dependency.
+2. **His measurement (§13 question 2) shows Safari on the phone over cellular reaching his Mac's
+   `CN=funnel-test` listener through `funnel --tcp=8443`.**
+
+If either fails, this entry is withdrawn and Route 2B is written as its own entry, with the security
+adversary's three conditions (research 132 §8.1). His report also fixes three numbers the build reads rather
+than guesses: the approval page's clicks, the minutes until the phone resolved the name, and whether crt.sh
+shows a certificate.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Every Tailscale line below is in `tailscale.com v1.94.1`, the module libtailscale `59d4bb82` pins, and every
+one was re-read by research 132's judge on 2026-09-29.
+
+**Raw TCP passes TLS through untouched.**
+
+- `tcpHandlerForServe` wraps a connection in `tls.Server` only when `TerminateTLS` is set, and otherwise
+  copies bytes to the target (`ipn/ipnlocal/serve.go:669-701`).
+- Funnel's ingress reaches the same handler (`:488-502`).
+- So the door keeps its own key, and the QR's pin (`spkiPinOf`, `src/main/pocket/pairing.ts:969`) keeps
+  meaning what it means today.
+
+**The macOS extensions refuse only a non-localhost target and path serving.**
+
+- `serve_v2.go:1136-1137` (`IsMacAppStore() || IsMacSysExt()`) and `:1167-1169`; `NodeCanFunnel` has no
+  variant check (`ipn/serve.go:610-618`).
+- **So the door must bind `127.0.0.1`**, which today is the harness-only `HARNESS_LOOPBACK_ENV` that a
+  packaged build refuses (`src/main/pocket/bind.ts:121`, `:647-650`).
+
+**The command's refusals, each needing a sentence.**
+
+- **An approval URL is printed and the command waits** (`cmd/tailscale/cli/serve_legacy.go:814-818`).
+- **`os.Exit(0)` publishes nothing** when the server says not to wait (`:820-826`). A non-admin lands here.
+- **Shields-up refuses** ("Unable to turn on Funnel while shields-up is enabled",
+  `ipn/ipnlocal/serve.go:329-331`).
+- **Port 443 is checked even for `--tcp=8443`** (`serve_v2.go:410`).
+- **A port already served refuses another type** (`ipn/ipnlocal/serve.go:1686`, `:1695`, `:1709`).
+- **The flags exist at the pin.** `--tcp` is at `serve_v2.go:248` and `--proxy-protocol` (1 or 2) at `:250`.
+- **The configuration can be read back.** `serve status --json` exists (`serve_legacy.go:616`, flag at
+  `serve_v2.go:262`), and it carries the foreground sessions (`ipn/serve.go:74`).
+
+**The child's life.**
+
+- A foreground funnel lives under `sc.Foreground[sessionID]` (`serve_v2.go:490-508`).
+- It ends on SIGINT (`:395`, `signal.NotifyContext(ctx, os.Interrupt)`) or when its bus watch closes, and
+  `defer b.DeleteForegroundSession(sessionID)` removes the public port then (`ipn/ipnlocal/local.go:3181`).
+- **Nothing in it watches its parent**, so a SIGKILLed Tortie leaves it publishing.
+
+**The status read.**
+
+- `BackendState` is at `ipn/ipnstate/ipnstate.go:43`, `CurrentTailnet` at `:68` (with `MagicDNSSuffix`,
+  `:163-172`), and `CertDomains` at `:75`.
+- The node's `https` and `funnel` capabilities are what `NodeCanFunnel` reads.
+
+**The program Tortie already runs.**
+
+- `TAILSCALE_CANDIDATES` has the app bundle's copy first (`src/main/machines/tailscale.ts:57-61`).
+- `resolveTailscale` honours `GMUX_TAILSCALE_BIN` only in a development build (`:93-131`). That is how every
+  run below substitutes a stand-in, and why a packaged build cannot be pointed at one.
+
+**The door's pre-signature surface lives in Electron main.**
+
+- `createServer` is at `bind.ts:480`.
+- `src/main/capabilities.ts` imports `./credentials` (`:51`) and the pocket door (`:119-121`) into one
+  process.
+- Refusals 2 to 5 run before the signature (`src/main/pocket/server.ts:197-236`).
+- `MAX_CONNECTIONS = 32` (`bind.ts:99`).
+
+**The address pin, the thing loopback breaks.**
+
+- The pin is `address` in the hashed phone fields (`pairing.ts:183-184`, emitted at `:266`).
+- `present()` answers `allowed` by address (`:1162`).
+- The verifier refuses `phone.address !== input.from` (`:1506`).
+- The confirm line reads `Allows the phone … at <address>` (`describePocketDoor`, `:355-394`).
+- Behind loopback every one of those reads `127.0.0.1`.
+
+**The tailnet key's code, all of which goes.**
+
+- `tailnetKeyOf` (`pairing.ts:934`), `TAILNET_AUTH_KEY_PREFIX` (`:919`) and `TAILNET_KEY_MAX_CHARS` (`:922`).
+- The window's `tailnetKey`, and `tk` in the payload (`:1095-1105`).
+- `tailnetKey` on the shared input (`src/shared/ipc/pocket.ts:435`).
+- `POCKET_TAILNET_GRANT_TEMPLATE` (`:602`) and `pocketGrantText` (`:612`), used at
+  `src/main/pocket/ipc.ts:479` and `:486`.
+- `KEY_LABEL`, `GRANT_SUMMARY` and `GRANT_COPY_LABEL` (`src/renderer/settings/PhoneSection.tsx:71`, `:94-95`).
+
+**The phone's side.**
+
+- `ios/Tortie/Door/Transport.swift` already has a `.direct` route.
+- `ios/Tortie/Door/DoorClient.swift` requires an IPv4 literal host today, and pins the door's key in its
+  trust challenge (`:390`).
+- `ios/Tortie/Tailnet/Node.swift` is 899 lines.
+- `ios/Tortie/Info.plist` carries one ATS key (`100.64.0.0/10`) and `NSLocalNetworkUsageDescription`.
+- `build/p316/SPEC.md` §3.2 measured `URLSession` to `door.tail00000.ts.net` at -1200 without an exact-host
+  entry, and `NWConnection` with a verify block at 200 under every plist. A `ts.net` subdomain exception
+  reached a name once, on iOS 26.3 only, against Apple's own page.
+
+### The mechanism
+
+**S0. The first hour, before any code: the measurements the design rests on.** One spec step writes
+`build/p330/SPEC.md`. These runs are the builders', in the Simulator and on this Mac's loopback. No
+`tailscale` is run.
+
+1. **App Transport Security on a name.** On the iOS 18.3 AND 26.3 Simulators, measure `URLSession` to a
+   `.ts.net` name under an `NSExceptionDomains` → `ts.net` → `NSIncludesSubdomains` +
+   `NSExceptionAllowsInsecureHTTPLoads` exception. Measure it the way `build/p316/SPEC.md` §3.2 did: through a
+   DEBUG-only loopback SOCKS5 stand-in with a domain address, so `URLSession` sees the name.
+2. **A client identity.** Measure it through `URLSession`'s client-certificate challenge and through
+   `NWConnection`'s `sec_protocol_options_set_local_identity`. The identity is a P-256 key in the keychain
+   (`WhenUnlockedThisDeviceOnly`; the Secure Enclave where the device has one, which the Simulator cannot
+   show) and a certificate the Mac issued.
+3. **The Mac's side of the handshake.** Measure a Node `tls` server that requests a client certificate and
+   destroys the socket at `secureConnection` when the peer's key is not a paired phone's. Count that zero
+   HTTP bytes reach the parser. There is no certificate authority to chain to, so the pin IS the
+   verification: Node's CA check is set aside only because the key pin replaces it, exactly as the phone
+   already pins the door. `conformance:pocket` holds that no data handler exists on a socket before the pin
+   check has run.
+
+**The client is chosen from the numbers:**
+
+- **`URLSession`** only if the name exception AND a client identity both hold on both runtimes.
+- **Otherwise `NWConnection`,** with a hand-written, bounded HTTP/1.1 client. The door promises
+  `Content-Length` and never chunked encoding, and `conformance:pocket` pins that.
+- **If neither client can present an identity on iOS 18.3, the phase STOPS and goes to him**, because the judge
+  made mutual TLS a condition rather than an option.
+
+**S1. The funnel child — new `src/main/pocket/funnel.ts`.** It reuses `resolveTailscale`
+(`src/main/machines/tailscale.ts`) and writes no second resolver. That module's header gains its second caller
+and says why.
+
+1. **The status read.** One `execFile`, no shell, `TAILSCALE_DEADLINE_MS` and `TAILSCALE_MAX_OUTPUT` as today,
+   of `[path, 'status', '--json']`. It reads `BackendState` (must be `Running`), `Self.DNSName`,
+   `CurrentTailnet.Name` and `MagicDNSSuffix`, and whether `Self` holds the `https` and `funnel`
+   capabilities. That decides, before the person presses anything, which sentence the sheet draws.
+2. **Choosing the port.** `[path, 'serve', 'status', '--json']` shows which ports his own Serve already holds.
+   The door takes 8443, or 10000 when 8443 is held. It never takes 443. **The port is chosen BEFORE the lines
+   are drawn**, because it is a hashed field.
+3. **The argv, exactly.** `[path, 'funnel', '--tcp=<publicPort>', '--proxy-protocol=2',
+   'tcp://127.0.0.1:<doorPort>']`, spawned with no shell and stdin closed.
+   - **Never** `--bg`, `reset`, `off`, `--https` or `--tls-terminated-tcp`. The TLS-terminating modes cannot be
+     pinned, because tailscaled makes a fresh key per certificate (`ipn/ipnlocal/cert.go:646`).
+   - The child starts at the door's confirmed Allow, and at launch when `bindAtLaunch` is a CONFIRMED field.
+     **It never starts at Pair.**
+4. **A start counts only when the configuration read back says so.** `serve status --json` must show a
+   foreground entry forwarding `<publicPort>` to that exact target, with Funnel on for `<publicName>:<publicPort>`
+   (`HasFunnelForTarget`, `ipn/serve.go:908-917`). **Any exit before that is a refusal with its own sentence,
+   exit 0 included.**
+   - **An approval URL printed:** the sheet offers **Open Tailscale** only for an `https:` URL on
+     `login.tailscale.com`, and otherwise tells him to run the command in Terminal.
+   - **Exit 0 with nothing published:** "Tailscale did not turn Funnel on. An admin of your tailnet must
+     approve it."
+   - **Shields-up.**
+   - **`funnel-ports` without 443.**
+   - **The port taken.**
+   - **Tailscale not running or signed out.**
+
+   Each sentence lives in `src/shared/ipc/pocket.ts` beside `DOOR_SENTENCES`, and none is longer than the
+   refusal needs (the "just enough words" rule).
+5. **Stopping, and the orphan.**
+   - **Stop** is SIGINT (the child's own documented exit), then SIGTERM, then SIGKILL by pid. It runs in the
+     door's stop path and inside the shutdown `beginPocketShutdown()` and `joinPocketDoor()` already run from
+     `src/main/capabilities.ts`.
+   - **The record.** The child's pid, its start time (`ps -o lstart=`) and its argv are written to
+     `<userData>/gmux/pocket-funnel.json` at 0o600.
+   - **At launch**, a process matching ALL THREE is ended before any new child starts. A process matching
+     fewer is left alone and named in the log, because Tortie never ends what it cannot prove it started.
+6. **Restart after an unexpected exit** only while the door is listening AND a fresh status read still returns
+   the confirmed program, tailnet, name and port. Attempts have a floor between them that doubles to a cap.
+   While it is down, one line says Tailscale stopped publishing the door and Tortie is trying again. **A moved
+   field never restarts it: it asks again.**
+
+**S2. The hash — `src/main/pocket/pairing.ts`.**
+
+1. `PocketExecutionFields` loses `bindAddress`, because the door always binds `127.0.0.1`, which is a
+   constant and not a choice.
+2. It gains `funnelProgram` (the absolute path S1 ran), `tailnet`, `publicName` and `publicPort`.
+3. Each `PocketPhoneFields` loses `address` and gains `clientKey`, the phone's P-256 SPKI in base64url.
+4. `NORMALIZE` gets a line for each, because the mapped type makes a missing line a compile error.
+5. The algorithm becomes `sha256-pocket-exec-v3`, so every record written today reads `changed` and asks
+   again, which is the safe direction.
+6. `describePocketDoor`'s first line names the internet: `Answers on the internet at https://<publicName>:<publicPort>, through Tailscale Funnel on <tailnet>`.
+   Its second line names the program. Each phone's line names its key's fingerprint and no address. The
+   refusals are unchanged.
+
+**S3. The door leaves Electron main — new `src/main/pocket/door-process.ts`, Tortie's first `utilityProcess`.**
+
+**How it is built and started.** It is built as its own entry in `electron.vite.config.ts` (`pocket-door`,
+beside `quickopen-worker` and `symbols-worker`, emitted as `out/main/pocket-door.js`). It is started with
+`utilityProcess.fork` from `PocketHost`'s open path (`src/main/pocket/ipc.ts`), and it is joined and ended in
+the shutdown order `capabilities.ts` already runs.
+
+**What main hands it, over its port, at start:**
+
+- the TLS key and certificate, which main unseals because `safeStorage` is main's
+  (`pocketTlsMaterial()`, `src/main/pocket/tls.ts:390`);
+- the paired phones' client-key pins;
+- the public host and port;
+- whether a pairing window is open, updated as it changes.
+
+**What it does, in this order:**
+
+1. It listens on `127.0.0.1:<doorPort>` with `MAX_CONNECTIONS`, the four timeouts and the stop shape moved from
+   `bind.ts`.
+2. It reads the PROXY v2 header, bounded in bytes and time and refused whole if malformed. The source address
+   is used for ONE thing, a per-source cap on concurrent connections and handshakes.
+3. It runs TLS with `requestCert: true`.
+4. At `secureConnection` it destroys any socket whose client key is not a paired phone's, unless a window is
+   open.
+5. It runs today's refusals 1 to 5 (`server.ts`), with the `Host` now `<publicName>:<publicPort>`. A
+   connection with no client certificate may reach `POST /pair` and nothing else.
+6. It forwards `{ route, target, method, the four signature headers, body, channelPhoneId }` to main.
+
+Main runs refusal 6 (the verifier) and refusal 7 (admission again), composes the answer with the routes it
+already has, and sends the bytes back for the utility to write through `sendPocket`'s one set of headers.
+
+**What stays and what goes.** `bind.ts` keeps the life of the utility and the child and loses the listener.
+`tailnetCandidates`, `chooseTailnetAddress`, `pocketBindAddress`, `isSelfOrigin` and `HARNESS_LOOPBACK_ENV` are
+deleted. Its header's rule 1 is rewritten: the door binds `127.0.0.1` only and is reached from outside only
+through the confirmed Funnel. **The PROXY source never reaches the verifier, the hash or a log line that names
+a phone.**
+
+**S4. Identity at the handshake — `pairing.ts` and `tls.ts`.**
+
+1. **The presentation.** The phone's sealed presentation (`openPresentation`) carries a third public key, its
+   P-256 client key.
+2. **The certificate.** On Allow, the Mac issues the phone's client certificate with the DER writer
+   `tls.ts` already owns (`issueCertificate`, `:474`, and the `der*` helpers), signed by the door's key.
+   `/pair` returns it with `allowed`.
+3. **Who gets `allowed`.** `present()` stops keying on address and answers `allowed` only to a presentation
+   signed by the PRESENTED phone's Ed25519 key over the window's challenge. `presentedFrom` goes.
+4. **The verifier's address refusal becomes `channel`.** The request's phone id must be the phone whose client
+   key completed THIS connection's handshake. So a thief needs the client key AND the signing key, which keeps
+   today's two secrets. The client key is non-extractable where the Secure Enclave holds it.
+5. **The QR goes to v:3.** `{ v: 3, host: <publicName>, port: <publicPort>, fp, dk, dx, ps, exp }`, with no
+   `tk` and no address. A v:2 phone reads "This iPhone is not paired with a Mac." and pairs again.
+
+**S5. Settings → Phone and the first pairing — `src/renderer/settings/PhoneSection.tsx`, `src/main/pocket/ipc.ts`, `src/shared/ipc/pocket.ts`.**
+
+1. **What goes.** The Tailnet key field and the "Keep the phone to this door" disclosure are deleted with
+   their constants and `pocketGrantText`.
+2. **One press on a first pairing.** When the door is off, `Pair a Phone…` draws the door's lines with ONE
+   button that confirms the hash, starts the utility and the child, and opens the window once S1 counts the
+   start. On later pairings the door is already on, and **Pair** is as today.
+3. **The approval URL.** It appears as **Open Tailscale** (`shell.openExternal` on the checked URL alone), and
+   the sheet carries on by itself when the capabilities arrive.
+4. **The contract changes.** `gate:contract`'s baseline (`docs/audits/contract-baseline.txt`) is regenerated,
+   and the commit body names every line that moved.
+5. **One line under the code:** "Do not show this code on a shared screen." Research 132 §7.7 is why.
+
+**S6. The phone — `ios/`.**
+
+1. **What is deleted.** `ios/Tortie/Tailnet/Node.swift` and the whole `Tailnet` group. TailscaleKit and the
+   "TailscaleKit is vendored" phase leave `ios/Tortie.xcodeproj/project.pbxproj`. `build/build-tailscalekit.mjs`,
+   `build/tailscalekit-release.json` and the git-ignored `build/vendor/tailscalekit/` are retired, with
+   `vendor:tailscalekit` and `pin:tailscalekit:check` out of `package.json` and out of
+   `build/verification-checks.mjs`'s classification (`gate:checks`).
+2. **The privacy manifest.** The Go runtime's two categories leave `ios/Tortie/PrivacyInfo.xcprivacy`.
+3. **The shipping route.** `DoorTransports.shipping` (`ios/Tortie/Door/Transport.swift`) becomes a direct
+   transport. The DEBUG loopback seam stays inside `#if DEBUG`.
+4. **The client.** `ios/Tortie/Door/DoorClient.swift` takes a host that is a lowercase DNS name ending
+   `.ts.net`, 253 characters at most, and never an address. It stays https-only, keeps the pin exactly, keeps
+   the 2 MiB cap and 15 s, and presents the client identity. `URLSession` or `NWConnection` is as S0 decided.
+5. **The keys.** `ios/Tortie/Door/Keys.swift` holds the P-256 client key `ThisDeviceOnly` (the Secure Enclave
+   where present) and the issued certificate.
+6. **Pairing.** `ios/Tortie/Door/Pairing.swift` reads v:3 only, carries the client key in the presentation,
+   signs its `allowed` poll, and **retries silently while the window is open** when the name does not
+   resolve yet (research 132 §3.4).
+7. **Copy.** `ios/Tortie/Style/Copy.swift` loses the four tailnet sentences (no key, key refused, flow logs,
+   could not reach Tailscale).
+8. **The plist.** `ios/Tortie/Info.plist` loses `NSLocalNetworkUsageDescription`, and its ATS key is S0's
+   answer: the `ts.net` exception, or none at all under `NWConnection`.
+
+**S7. The gates widen rather than multiply.**
+
+**`build/conformance-pocket.mjs` gains these rules:**
+
+- **the argv exactly**, with no `--bg`, `reset`, `off`, `--https` or `--tls-terminated-tcp` anywhere in the
+  domain;
+- **the program only from `resolveTailscale`;**
+- **the child started only from the confirmed open path**, and its kill inside a `finally` of the stop;
+- **the hash covering the four new fields and every phone's `clientKey`**, with no `address`;
+- **no read of the PROXY source** outside the utility's rate limiter;
+- **a certificate-less connection reaching `/pair` alone, inside a window;**
+- **`Content-Length` on every answer;**
+- **no `tailnetKey`, `tk` or `tskey-` anywhere in `src/`.**
+
+Today's `S2` and `S4` (the self-origin destroy) are removed with the thing they read, and the commit body says
+so.
+
+**The other gates:**
+
+- `build/assert-import-boundaries.mjs` gains a wall for `main/pocket/door-process.ts`. It may import node's
+  `net`, `tls` and `http` builtins and `src/shared/` only, never `electron`'s main modules, `main/credentials/`,
+  `main/logins/`, `main/push/` or `main/sessions/`.
+- `build/p313/hostile-client.mjs` dials through the stand-in funnel.
+- `build/conformance-ios.mjs`:
+  - **(c):** one network file, `Door/DoorClient.swift`.
+  - **(e):** the ATS answer S0 chose and no local-network string.
+  - **(l), (m) and (q):** replaced by one rule, no `Tailnet` directory, no TailscaleKit import or framework
+    and no Go in the built app.
+  - **(p):** no `tk` read anywhere.
+  - **(o):** re-read without the Go categories.
+  - **A new (t):** the client presents an identity on every connection and the key pin is unchanged.
+- `ablation:p316` and `ablation:p313` gain one arm per new rule, each red on the rule that owns it.
+- `build/p316/test-ios.mjs --read-app`'s pass line becomes "none links NetworkExtension or TailscaleKit, none
+  carries code coverage".
+- CLAUDE.md's path-triggered table is edited in the same commit: the pocket row and the `ios/**` row say what
+  their gates now hold, the `pin:tailscalekit:check` and `vendor:tailscalekit` rows are deleted, and a
+  `probe:p330` row is added.
+
+### The proof, run rather than read
+
+- **The gates.** `typecheck`, `build` (which runs `conformance:ios`, `gate:contract`, `gate:electron`,
+  `gate:background`, `gate:checks` and `gate:simulator`), `test`, `smoke:t1`, `smoke`, `smoke:t3`, `package`,
+  `conformance:pocket`, `conformance:pocket:hostile`, `ablation:p313`, `ablation:p316`, and `test:ios` in
+  Debug and Release on iOS 26.3 AND 18.3.
+- **The obligations.** `HELPER_USER_FLOOR` (`build/assert-electron-teardown.mjs:326`, 153 at `7d14342d`) is
+  raised by one in the same commit for the new probe. The stand-in funnel's forwarder is a long-lived child,
+  so it is killed in a `finally` that names it (`gate:background`).
+- **`probe:p330`, the app run** (`build/p330/probe-p330.mjs` through `build/electron-run.mjs`). It uses a
+  scratch profile, a scratch `HOME` and its own tmux socket, and a development build whose
+  `GMUX_TAILSCALE_BIN` names `build/p330/tailscale-standin.mjs`. That is a script this phase writes, run
+  through a `/bin/sh` wrapper in scratch. It answers `status --json` and `serve status --json` from fixtures
+  shaped by the pinned source, and runs `funnel --tcp=… --proxy-protocol=2 tcp://…` as a real TCP forwarder
+  that writes a PROXY v2 header. On request it prints an approval URL and waits, exits 0 having published
+  nothing, refuses shields-up, holds 8443, or changes the tailnet name between two reads.
+
+  **One run drives, in order:**
+
+  1. The door off: no child, no utility, no Tailscale call.
+  2. The switch and its lines naming the internet.
+  3. The one press on a first pairing.
+  4. The approval-URL arm, then approval.
+  5. The exact argv read from the process table.
+  6. The pair and every read by the independent phone through the forwarder.
+  7. Every refusal sentence, one arm each.
+  8. A Remove.
+  9. A profile switch that must refuse a restart and ask again.
+  10. The unexpected-exit restart.
+
+  **Then two launches, one after the other, never at once:** the app is ended hard so the stand-in child
+  orphans, and the relaunch must end exactly that orphan and nothing else. A decoy process with the same argv
+  and a different start time must survive.
+- **Method 1, the attack.** Each arm is asserted on the REASON it was refused, and on the utility's parser
+  counter where it applies:
+  - **No client certificate outside a window:** destroyed at the handshake, with zero bytes into the parser.
+  - **A certificate from a key that is not paired:** the same.
+  - **A paired phone's valid signature sent over another phone's connection:** refused `channel`.
+  - **A forged PROXY header from a local process:** reaches no identity.
+  - **A replayed request:** refused `replay`.
+  - **A second presenter with a leaked code, from another source:** the card flips and an Allow pressed on
+    the old card is refused by hash.
+  - **An `allowed` poll with no proof of the presented key:** refused.
+  - **A wrong pin on the phone:** zero requests served.
+  - **A flood of 200 handshakes with no certificate:** main's event-loop delay is read through the harness
+    at HEAD against the parent's door on loopback. It must be no worse, because the handshakes now cost the
+    utility and not main.
+- **Method 2, the re-derivation.** A standalone node script with its own reader recomposes three things from
+  what the sheet draws and the app answers: the canonical hash text, the v:3 payload and the client-key pin. It
+  completes a pair and a read with its own TLS stack. It must go red when a field is dropped from `NORMALIZE`,
+  and when the pin is taken over the certificate rather than the key.
+- **The parent-commit measurement**, at `7d14342d` and at HEAD, for a person who never turns the door on:
+  - the count of Tailscale program spawns;
+  - listening sockets;
+  - utility processes;
+  - Settings → Phone's rectangles;
+  - quit time.
+
+  All are equal, and the first three are zero. A second arm checks that his existing v:2 pairing is refused
+  with the pair-again sentence rather than an error.
+- **HIS CHECKLIST, the only proof of Funnel itself**, written as `build/p330/CHECKLIST.md` in the shape of
+  `build/p316/CHECKLIST.md`. His steps:
+  1. Switch on and allow.
+  2. Approve on Tailscale's page, counting the clicks.
+  3. Install, scan and match.
+  4. Read with Wi-Fi off.
+  5. Sleep and wake the Mac, then pull.
+  6. Quit Tortie, confirm the phone says it cannot reach the Mac, and reopen.
+  7. Remove, and pair again.
+  8. If today's TestFlight build is on the phone, time one pull on each build.
+  9. Look up the Mac's name on crt.sh.
+
+  It ends by telling him that the tag, grant and narrowed default rule he pasted on 2026-09-29, and any
+  `tortie-phone` on his Machines page, are no longer used, and that removing them is his. Tortie never
+  writes his policy.
+
+### What is NOT in this phase
+
+- **No Tailscale credential of any kind.** No API key, OAuth client, auth key, workload identity or
+  `auth_keys:create:once` app. Research 128 §3.2 stands, and research 132 §5.1 re-examined it on the new facts.
+- **No `--bg`, no `funnel reset` or `serve reset`, no port 443, and no HTTPS-terminating Funnel mode.** The
+  last cannot be pinned, and 443 is his.
+- **Tortie writes nothing in his policy file.** The funnel attribute is written by Tailscale after he
+  approves on Tailscale's page. The tag, grant and narrowing he pasted are left for him to remove.
+- **No tailnet node on the phone and no sign-in on it.** Route 2B is the fallback and is not built here.
+  Route 2A is refused.
+- **No home Wi-Fi bind, no iroh, no CloudKit.**
+- **No universal link and no page on tortie.sh.** That is research 132 §13 question 4, and the default is
+  not now.
+- **No longer pairing window.** It grows only if his measurement shows public DNS beyond 3 minutes, and then
+  as its own change with the number he measured.
+- **No refused-connection counter on Settings → Phone.** The security adversary proposed one and the judge
+  did not adopt it. The bounded refusal log stays.
+- **No sentence and no route for a person who is not an admin of their tailnet** beyond the one refusal
+  sentence. Today's policy paste needs an admin too.
+- **No write route.** End is Phase 317, and alerts are 316.5's. Both ride on this door unchanged.
+- **No App Store submission and no release.**
+- **Nothing about the upload failure he reported on 2026-09-29.** Its error text is research 132 §13
+  question 3, and this phase does not attribute it to TailscaleKit.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -36776,3 +37251,5 @@ cycle rather than only the evening it was written.
 - 2026-09-29, **HE UPLOADED THE FIRST TESTFLIGHT BUILD**, Tortie 1.0.0 (1), archived on his Mac with his team; the main session ran the pre-upload read on his archive and it passed (no NetworkExtension, no coverage, the logs switch exported and called); the upload finished "Uploaded to Apple" with the expected TailscaleKit symbols warning. His Tailscale policy now carries `tag:tortie-phone` in `tagOwners`, the default grant narrowed to `autogroup:member`, and the one grant to the door; he is on the Free plan, so network flow logs do not exist for him. Next on his side: compliance, install, key, pair (checklist rows 8 to 16).
 
 - 2026-09-29, **PHASE 329 RESEARCH STARTED, the simplest pairing**, his words: "i want it to be THE ABSOLUTE SIMPLEST experience for a user, preferably just scan a QR code from their mac to pair with the phone having already configured tailscale on their mac." Research lane in `/private/tmp/wt-p329`: three investigators on four routes (Funnel on the Mac so the phone never joins the tailnet; a sign-in on the phone instead of a minted key; the Mac's own signed-in Tailscale doing the joining with no credential held by Tortie; no Tailscale on the phone at all), a security adversary and a simplicity adversary that counts every hidden step, a judge ranking against his rulings, then ONE `docs/research/132-the-simplest-pairing.md` and the build entry. No tailscale command, no LocalAPI call, nothing changed on his tailnet. (The docs worktree lost its `.git` link to macOS's /private/tmp cleaner a second time and was recreated.)
+
+- 2026-09-29, **PHASE 329 RESEARCH DELIVERED, `docs/research/132-the-simplest-pairing.md`, and Phase 330's build entry queued above this log.** The chosen route is **Tailscale Funnel on the Mac, and the phone never joins the tailnet**: Tortie runs the Mac's own Tailscale as `funnel --tcp=8443 tcp://127.0.0.1:<door port>`, a raw pass-through so TLS still ends inside Tortie under the key the QR pins, and the phone becomes an ordinary pinned TLS client — TailscaleKit, Go, the tailnet key, the policy edit and the admin console all leave the person's path, and the phone is confined by construction because it has no tailnet at all. About 14 to 21 actions the first time on a tailnet (one Tailscale approval page) and 9 to 11 after, against about 30 to 38 today; the floor his own rulings keep is about 11. Research 127 §2's "Funnel is unavailable on his variant" rested on one Tailscale table that its newer pages and the pinned source contradict. **It needs his yes to three trades** (the door on the public internet behind Tortie's own mutual TLS and signatures; approving Funnel lets any process signed in as him publish a local port; Funnel is beta) **and his five-minute measurement first**; if he declines, Route 2B (a Tailscale sign-in on the phone asking for `tag:tortie-phone`) is built instead. Refused: iroh (a relay contract), same Wi-Fi alone (fails leaving the house), CloudKit (a different product), and the Mac minting keys (no credential-free way exists).
