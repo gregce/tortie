@@ -38028,6 +38028,7 @@ released.
 
 - 2026-09-30, **PHASE 333 RESEARCH DELIVERED, `docs/research/136-the-phone-in-peoples-hands.md`, `<hash>`, and entries 333.1 to 333.10 queued above this log.** His answer: not before today; now a public TestFlight link first, then the App Store, both inside the release he already fixed. The order: 316.5, 317 and 318 as ruled; 333.2 after 316.5 and 333.5 (privacy and support pages, his site repository, his go-ahead) beside them; after 318, 333.1 (a stranger's phone), 333.3 (See a sample, which is how App Review uses an app whose Mac half is not yet released) and 333.4 (the iPad, iOS 27 and Touch ID devices review uses); his end-to-end check; 333.6 (his upload through App Store Connect, never Internal Only, and Beta App Review); 333.7 (the public link, the Mac release and the site and README changes on one day); then the store (333.8 to 333.10) once the beta has carried a build and the seller path is settled. Findings sent: to 316.5, ask for notification permission only when the paired Mac holds an alert key; to 317, `NSFaceIDUsageDescription` and a Touch ID and passcode path; to 318's research 135, where typed words go and no raw terminal. Nine rulings are his (research 136 §16), each with a default: the seller path (default: stay Individual for the beta and request Ita Vero's D-U-N-S number now), alerts for other people, the reviewer route, store screenshots, export compliance, public contact details, the EU storefronts, the standalone Apple logo, and installing the iOS 27 runtime. Nothing was installed, signed into or run.
 
+<<<<<<< HEAD
 ## Phase 318 — "318 Reply" — one tap on a numbered choice, or one message, from the phone (research 135, operator, 2026-09-30)
 
 **Subject.** `feat(pocket): answer a choice or send one message from the phone`
@@ -38468,6 +38469,191 @@ The follow-up docs commit adds the commit link.
   gate** are each owed their own entry (research 135 §9).
 - **Nothing of Phase 325 is built here** beyond the one attach-host seam, if this phase lands first.
 - **No release.**
+=======
+---
+
+## Phase 332.1 — "show progress re: public dns checking in the phone screen (that is delightful and not overwhelming)" — the Pair card shows the name check working (operator, 2026-09-30; Phase 332, `build/p332/SPEC.md` §4.12)
+
+**Subject.** `feat(pocket): show the Mac's name check working on the Pair card`
+
+**First body line.** `Phase 332.1: the Pair card shows the name check working`
+
+**Semver.** Patch, and unreleased under his rule: nothing from Phase 311 on ships until the phone works end to end.
+
+**His words, 2026-09-30.** "we definitely should add a follow up phase to show progress re: public dns checking in
+the phone screen (that is delightful and not overwhelming)". "The phone screen" is Settings → Phone on the Mac, where
+he watched the wait. The iPhone never sees it, because no code exists until the wait ends.
+
+### What was measured before this entry was written
+
+**On his Mac, 2026-09-30, 14:21 to 14:25.**
+- After he turned the door on, the **Pair a phone** card showed only `Pair opens once your Mac’s name is on the
+  internet, which can take a few minutes.` for minutes, and nothing on it moved. He asked "but the pair ability isn't
+  there yet".
+- His dev terminal logged one line, `the Mac’s name check read no: nxdomain`, and nothing more. The check logs only
+  when its verdict changes (`src/main/pocket/ipc.ts:1307`).
+- The four `ts.net` servers (ns1.dnsimple.com, ns2.dnsimple-edge.net, ns3.dnsimple.com, ns4.dnsimple-edge.org)
+  FLAPPED while Tailscale re-published his name: the same question to the same server a second apart answered the
+  record, then NXDOMAIN, then the record, and `dig` saw it too. Per round, 1 to 3 of 4 answered the record. Any
+  NXDOMAIN makes a round no (`roundVerdictOf`, `src/main/pocket/public-name.ts:559-566`), so every round read no.
+
+**In the tree, at `333087da`.** `askNameRound` works out each server's answer (`public-name.ts:628-637`) and hands out
+only the verdict (`:639`). A status is pushed only when `nameCheck` or `pairable` moves (`ipc.ts:1337`). No clock is
+read (D4, `build/conformance-pocket.mjs:4188`). The `naming` face is one line
+(`src/renderer/settings/PhoneSection.tsx:402-409`).
+
+### After this phase
+
+- Four small dots, one per zone server, each filled when that server's last answer was the record, beside one line
+  that moves: `Publishing your Mac’s name · 3 of 4 see it`. Below it, quietly: `2 min · checking again in 40 s`.
+- When a round confirms the name: `Your Mac’s name is live` and `Took 8 min`, then Pair or, after a carried press,
+  the code.
+- When Pair opens without a confirmation (one unreadable round, or the 18th round of no), the unreadable sentence
+  takes the moving line's place, checking goes on under it, and Pair appears below. Nothing above Pair moves.
+- A remembered name shows Pair at once with no dots, as today.
+
+**Tier 2.** CLAUDE.md's questions: he reported it, so Tier 2 at least and the parent measurement is mandatory; it is
+a rendered surface WITH new state (four fields on the status and a clock read in main), so not Tier 1. It loses no
+work, claims nothing across agents or machines, and sends nothing 332 does not already send. **Independent methods:**
+(1) **measure the parent**, the same flapping script at `333087da`; (2) **re-derive**: the verifier builds its own
+expected card from the stand-ins' logs, never from the shipping composers, and compares it with the DOM at every
+round.
+
+**Charter.**
+- His words above, and the running-log line that queues this entry.
+- Phase 332 and `build/p332/SPEC.md` §4.7, §4.9, §4.12 and §4.14, with its fix round's constants
+  (`public-name.ts:103-132`). This phase draws the check. It changes no rule.
+- Research 136 §11.2 and §12.6: every public-beta tester's first pairing meets this wait.
+- "Just enough words"; DESIGN.md §5 (motion only for a state change; the needs-input pulse is the one perpetual
+  motion); and the Phase 174.1 rule that a line keeps its place whether or not it speaks (`docs/DESIGN-SPEC.md:832`).
+
+### The mechanism
+
+**1. The round hands out its answers (`src/main/pocket/public-name.ts`).** `NameRoundResult` (`:234-237`) gains
+`answers: readonly NameAnswer[]`, kinds only, in server order, which `askNameRound` (`:609`) already builds.
+`NameCheckDeps` (`:220-227`) gains `clock()`, `performance.now()` in `defaultNameCheckDeps` (`:895`) and injected in
+tests. It is monotonic and counts awake time, as the timer does, so a Mac that slept shows the time spent checking,
+not the night. The parser, the verdict, `roundVerdictOf` and `nextNameStreak` do not change.
+
+**2. The host (`PocketHost`, `src/main/pocket/ipc.ts`).** `NameRun` (`:258-273`) gains `startedAt`, `nextAt`,
+`endedAt` and `answers`, stamped in `beginNameCheck` (`:1224`), `armNameRound` (`:1344`) and `settleNameRound`
+(`:1292`). A new `nameProgressNow()` builds the field: null for a `reask` run, so the switch-on round stays invisible,
+and null once the door unpublishes; after a confirmation it keeps the last round, frozen, until the next run.
+`nameRoundNow` (`:1267`) pushes when a round starts and `settleNameRound` when it ends, so at most two pushes a minute
+after the first rounds. **The log does not move**: one line per change of verdict.
+
+**3. The contract (`src/shared/ipc/pocket.ts`)**, after `PocketNameCheck` (`:390`):
+
+```ts
+export type PocketNameAnswer = 'record' | 'negative' | 'unreadable';
+export interface PocketNameProgress {
+  answers: readonly PocketNameAnswer[]; // the last answered round, server order, at most four
+  asking: boolean;                      // a round is being asked now
+  elapsedMs: number;                    // how long this check has run, frozen when it ends
+  nextInMs: number | null;              // until the next round; null while asking or ended
+}
+```
+
+`PocketStatus` (`:419`) gains `nameProgress: PocketNameProgress | null` after `pairable` (`:486`). Durations, not
+times: main and the renderer are different processes, and a duration crosses without a wall clock. No free text, so
+no name, server, address or reason word reaches the renderer. `POCKET_NAME_SENTENCES` (`:702-705`) does not move a
+byte: `checking` is still the first half of `beginPairing`'s refusal (`ipc.ts:1586`, `:1600`).
+
+**4. The card (`PhoneSection.tsx`, `src/renderer/settings/phone-section.css`).**
+- One block, drawn by the `naming` face and by the `ready` face (`:411-424`) when this mount watched the wait. Row
+  one: the dots, then the moving line. Row two: the timing line. Both keep their height whatever they say.
+- The words are the sheet's own, drafts for his approval, beside `CODE_FIRST_NAME` (`:87`): `Publishing your Mac’s
+  name`, `N of M see it`, `Your Mac’s name is live`, `checking again in N s` (rounded up to 5 s), `checking now`,
+  `N min`, `Took N min`.
+- On hover: the block's title is `POCKET_NAME_SENTENCES.checking`; each dot says `Sees your Mac’s name`, `Not there
+  yet` or `Did not answer`; the timing line says `Pair opens when a round finds your Mac’s name and no server says it
+  is missing.`
+- The dots are 6px, smaller than a session's 8px `.dot` (`src/renderer/styles/globals.css:282`) and never its
+  classes. Filled is `--text-secondary`; otherwise a 1.5px ring of `--text-muted`. No amber (needs input) and no
+  accent (working's blue): shape carries the state.
+- The dim is one breath a round, not a loop: half opacity over `--dur-base`, back when the round answers, so
+  DESIGN.md §5 stands. Under `prefers-reduced-motion` the house rule refuses the transition
+  (`src/renderer/styles/tokens.css:696`).
+- The dot row is `role="img"` (`3 of 4 name servers see your Mac’s name`); the moving line is `aria-live="polite"`.
+- A 1 s interval runs only while the block is drawn, on the renderer's own `performance.now()`. `pairingStage`
+  (`:203-218`), `pairAfterAllowNext` and `onPair` never read `nameProgress`: Pair follows `pairable` alone.
+- No new token, so `tokens.css` is untouched and `conformance:hue` is not owed.
+
+**5. The phone does not change.** No code exists during the wait, and in the fallback `Copy.pairNameNotYet` and
+`Copy.pairNameNotFound` (`ios/Tortie/Style/Copy.swift:230`, `:241`) already say the right thing. 316.5, 317 and 318
+own `ios/` now, and a phone change would owe a TestFlight build.
+
+### The question left to the spec step
+
+Should "one round with a record and no NXDOMAIN" become "every server answered the record at least once in the last N
+rounds"? His flapping name would then have confirmed within minutes. **But 332 waits for a reason this must not
+weaken**: a phone whose resolver meets an NXDOMAIN keeps it for 300 s, longer than the 3:00 window, and a server still
+flapping at scan time hands that miss to some phones. The spec step answers with the flapping measurement: how often
+one question got NXDOMAIN, minute by minute, until the flapping stopped. A change moves when a code shows, which is
+Tier 3, so it goes to him as its own ruling. By default this phase changes no rule and builds either way.
+
+### The gates
+
+- **`conformance:pocket`.** D4 narrows: the wall clock stays refused, and `this.names.clock()` is read only in
+  `beginNameCheck`, `armNameRound`, `settleNameRound` and `nameProgressNow`. **New D10, the progress decides nothing
+  and carries nothing**: the run's stamps and answers are read only by `nameProgressNow`; `nextNameStreak`,
+  `pairable`, `nameCheckNow`, `beginPairing`, `pairingStage`, `pairAfterAllowNext` and `onPair` name none of them nor
+  `nameProgress`; `PocketNameProgress` has exactly its four members. D5 gains a clause: every log call in
+  `settleNameRound` sits behind a change of verdict, of `opened` or of the confirmation.
+- **`ablation:p313`** gains one arm per new clause, each red on the rule that owns it.
+- **`conformance:pocket:hostile`**, which the paths trigger; nothing it drives moves.
+- **`conformance:phonecopy`**, because `Copy.swift` quotes `PhoneSection.tsx` words that must not move.
+- **`gate:contract`** stays byte for byte: types are not in the inventory (`build/p332/SPEC.md` §3, row 1).
+- `CLAUDE.md`'s pocket row names D10. `HELPER_USER_FLOOR` (`build/assert-electron-teardown.mjs:351`, 156) does not
+  move: no new script reaches `build/electron-run.mjs`.
+
+### The proof, run rather than read
+
+- **The battery**: `typecheck`, `build`, `test`, `smoke:t1`, `smoke`, `smoke:t3`, `package`, and the gates above.
+- **Vitest.** `src/main/pocket/__tests__/public-name.test.ts`: answers in server order, every hostile verdict
+  unchanged. `src/main/pocket/__tests__/ipc.test.ts`, over a fake clock: two pushes a round, `nextInMs` per gap,
+  elapsed frozen at a confirmation, null for `reask` and after an off, 18 rounds of no drawn as `unreadable`, one log
+  line per change.
+  `src/renderer/settings/__tests__/p316-phone-section.test.tsx`: the composers, and one block for both faces.
+- **`build/p332/dns-standin.mjs`** gains a `{ script }` mode, its nth question getting the nth answer, and a
+  `--self-test` row.
+- **One app run per build: `probe:p332`**, extended, never a screenshot. Four stand-ins in
+  `GMUX_POCKET_NAME_SERVERS`, closed in the `finally`. The sheet reader (`build/p332/probe-p332.mjs:753`) gains each
+  dot's `data-answer`, `data-asking`, both lines and the block's rectangles.
+  - **H7, the flapping name**, replaying his measurement: 2 of 4, then 1 with one server silent, then 3, then 2, then
+    4. At every round the dots equal its answers in server order, the count matches, and the next check is the gap
+    rounded up to 5 s. While round two waits out its silent server every dot reads `data-asking`, the card holds no
+    `CSSAnimation`, and its one `CSSTransition` ends within `--dur-base`. After round five: `Your Mac’s name is live`,
+    `Took N min`, then Pair.
+  - **P7, the parent** (`P332_PARENT_CHECKOUT` at `333087da`), the same script: the card's text is one unchanging
+    sentence. His complaint, measured.
+  - **H8, reduced motion**, through `Emulation.setEmulatedMedia` as `build/p240/save-choice.mjs:316` does:
+    `document.getAnimations()` over the card is empty during the held round.
+  - **H9, the fallback**, four silent stand-ins: the unreadable sentence in the moving line's place with
+    `data-phone-name-unreadable`, Pair below, and the dot row's and both lines' rectangles equal before and after Pair
+    appears. The 18-round route wears the same face and is driven in vitest; no live arm waits 15½ minutes.
+  - H1 reads the checking sentence from the block's title. H0 still sees no packet with the door off.
+- **His checklist.** `build/p330/CHECKLIST.md` quotes the old line at `:34`, `:157`, `:211` and `:214`; those rows
+  move in the same commit, and the one that asks how long the wait lasted can read `Took N min`.
+- **The CHANGELOG.** The iPhone item under `## Unreleased` gains one clause: the Pair card shows the check working.
+
+**The menus do not change.** `Pair a Phone…` stays at `src/main/menu.ts:615`.
+
+**Order.** After Phase 316.5 (alerts), which edits `PhoneSection.tsx` and may add to `PocketStatus`. Before or beside
+333.2, which edits `SCAN_LINE` and the alerts group in the same file; they touch different functions, and whichever
+lands second rebases.
+
+### What is NOT in this phase
+
+- **No change to when a code shows.** The round rule, the gaps, both open-anyway rules and the 3:00 window stay.
+- **No phone change, no TestFlight build, no `test:ios`.**
+- **No server name, address, reason word, packet or round count on the renderer.** His public name shows only where
+  the switch line already shows it.
+- **No new log line, channel, event, preload member or `GMUX_*` name.**
+- **No new token, no looping animation, no amber and no accent.**
+- **No notification, sound, badge or menu-bar mark** when the name goes live.
+- **No menu change and no release.**
+>>>>>>> a878503c (docs(backlog): progress while the Mac's name is checked, queued)
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -39471,3 +39657,7 @@ cycle rather than only the evening it was written.
 - 2026-09-30, **HIS FIRST PAIRING THROUGH FUNNEL WORKED — "i was able to pair my mac! i didn't have to approve any tailscale thing".** Build 1.0.0 (2) on his iPhone paired with his dev build at `333087da`: no key, no policy edit, no Tailscale on the phone, and no approval page, because he approved Funnel for his tailnet on 2026-09-29. Measured on the way, for 332.1 and 333: after he switched the door on (about 14:19), the Pair a phone card waited about 7 minutes before Pair opened (the first time, 8). During that wait the four ts.net servers FLAPPED — the same non-recursive question to the same server a second apart answered the record, then NXDOMAIN — with 1 to 3 of 4 answering the record per round until 14:26, when all four agreed; his terminal showed one "name check read no: nxdomain" line and nothing more, and one "refused a connection at the door: handshake" (a connection with no paired phone's certificate, turned away before any byte was read; most likely a scanner, as the name is public). So Tailscale withdraws his public record at some point after Funnel stops and re-publishes it on the next start, which answers 330's O2: the record did not survive overnight. The approval page's host and click count (330's O3) remain unmeasured, because his tailnet was approved from Terminal. Phase 332.1 (progress on the card while the name is checked) is being written up at his request.
 
 - 2026-09-30, **RESEARCH 135 LANDED AND PHASE 318 QUEUED — the reply door.** The phone gains two write verbs beside 317's End, `choose` and `say`, through the ONE write door 317 builds (317's entry is amended before it is built): signed per request, a 128-bit write id in the signed body so a replay never acts twice, one write in flight per phone and session, the gate re-asked with nothing awaited before the act, one log line with no words. A choice is pressable only on a measured press shape (Claude Code 2.1.285's permission prompt, Codex 0.159.1's command approval), proved to be the same question by a main-minted question id and a fresh capture, and sent as the digit alone (never Enter), with a read-back that says answered or "not taken, nothing was changed". A message goes only to Claude Code or Codex on this Mac at an empty composer, as a bracketed paste loaded on stdin, then Enter, in one tmux command list; a shell would submit each line, so shells are refused. Tier 3, after 316.5 and 317. Three questions are his: Face ID for every write (default yes), whether a widening option such as "don't ask again" is pressable (default no), and whether a message may start with `/` or `!` (default no).
+
+- 2026-09-30, **PHASE 332.1 QUEUED — the Pair a phone card shows the name check's progress, "delightful and not overwhelming".** His words: "we definitely should add a follow up phase to show progress re: public dns checking in the phone screen (that is delightful and not overwhelming)", after his card sat on one sentence for about 7 minutes while the four ts.net servers flapped. The Mac card only: four small dots, one per zone server, filled when its last answer was the record, dimming once per round while a question is out (the needs-input pulse stays the only perpetual motion); one moving line; a quiet line with elapsed time and the next check; "Took N min" once confirmed; the fallback's line in the same card with no jump. `PocketStatus` gains a words-free `nameProgress` of durations; the confirm rule does not change unless the spec step's measurement and his ruling say so. Tier 2, after 316.5 (both edit `PhoneSection.tsx`).
+
+- 2026-09-30, **HE RULED ON 318's THREE QUESTIONS, each AGAINST the default.** (1) Face ID: **"Only for End"** — answering a choice and sending a message do not ask for Face ID; End always does. (2) Widening options: **"Yes, allow them"** — every option a measured press shape offers is pressable from the phone, "Yes, and don't ask again", "always allow" and "switch to auto mode" included. (3) Commands: **"Yes, allow them"** — a message may begin with `/` or `!`, exactly as at the desk. The Phase 318 entry above was written on the defaults; these rulings bind its build over the entry.
