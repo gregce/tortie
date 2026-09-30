@@ -467,6 +467,21 @@ import { exitDetailFrom } from './exit-detail';
 // this file: an End on a removed row and a Remove on a live local one. This
 // class owns the throw and the error code; the leaf owns whether and what.
 import { endRefusal, removeRefusal } from './lifecycle-gate';
+// PHASE 323. What End ends after the hang-up: the session's tree, read while
+// its panes are alive, and the processes in the groups the hang-up was aimed at
+// that outlived it, each proved the same process before it is signalled. Pure
+// plus injected; `endTreeDeps` below is the one real reader and signal.
+import {
+  defaultEndDeps,
+  endHangupSurvivors,
+  livePanesVia,
+  parsePaneRoots,
+  readSessionTree,
+  sessionPanesArgv,
+  TREE_READ_TIMEOUT_MS,
+  type EndDeps,
+  type SessionTree
+} from '../proc/session-tree';
 // PHASE 125. The fail closed durability gate, as its own leaf. It imports
 // nothing from this file: it learns whether the core is disposed and how to
 // build the refusal through the object the constructor hands it.
@@ -694,6 +709,24 @@ export class GmuxCore {
   private readonly byTmuxId = new Map<string, string>();
   /** Pending session-id harvests (Phase 13.5), cancelled on kill/shutdown. */
   private readonly idCaptureWatches = new Map<string, SessionIdWatch>();
+  /**
+   * PHASE 323. The process table reader, the identity re-read, the signal and
+   * the clock End's ending of what the hang-up left running is given. The unit
+   * test's fake core replaces it; nothing else does.
+   *
+   * THE SECOND FIX ROUND's pane check asks THIS app's server, the one that
+   * answered the tree read, for the panes it still shows, within a read's
+   * bound, before any signal: a session whose window another session still
+   * shows was never hung up (research in build/p323/SPEC.md §As built). Only
+   * "no server running" confirms the server is gone (Phase 67's verdict), and
+   * any other failure signals nothing on that poll.
+   */
+  private readonly endTreeDeps: EndDeps = defaultEndDeps(
+    livePanesVia(
+      (argv) => tmux.execTmux(argv, { timeoutMs: TREE_READ_TIMEOUT_MS }),
+      (err) => tmux.serverProbeVerdict(err) === 'no-server'
+    )
+  );
   /** Session ids with a restore in flight ("Restore all" double-clicks). */
   private readonly restoresInFlight = new Set<string>();
   /**
@@ -2921,7 +2954,21 @@ export class GmuxCore {
     // gmux never created. No live binding ⇒ nothing to kill; the row still
     // ends, because ending it is what the user asked for.
     const target = this.liveIds.get(sessionId);
+    // PHASE 323. The session's own processes, read BEFORE the hang-up, and
+    // ended after the broadcast if they outlive it. Null for a plain shell (a
+    // person's `nohup` there is his to keep, ruling R2), for a row with no live
+    // binding, and whenever the read could not prove anything.
+    let tree: SessionTree | null = null;
     if (target !== undefined) {
+      // PHASE 323, THE FIX ROUND. The tree read STARTS here, beside the
+      // capture below, and is awaited after it and before the hang-up. Both
+      // are reads, so what the order promises still holds: the scrollback is
+      // written before anything is hung up, and nothing is signalled before
+      // the hang-up. Taken one after the other they made every End answer the
+      // window about 57 ms later on his Mac (the verifier's side by side),
+      // which is worse than today.
+      const treeRead =
+        rec.agent !== 'shell' ? this.readEndTree(target, rec.name) : null;
       // Session-close snapshot (§2.4 Step 2 capture point) — best-effort,
       // BEFORE the pane disappears. Best-effort means a full disk can never
       // block ending a session; it no longer means silent (Phase 26.3). The
@@ -2948,6 +2995,10 @@ export class GmuxCore {
           });
         });
       }
+      // PHASE 323. THE ORDER IS THE PROMISE: the capture and the tree read
+      // above, both finished, then the hang-up. Nothing is signalled before
+      // the hang-up.
+      tree = treeRead === null ? null : await treeRead;
       await tmux.killSession(target); // idempotent — already-gone is fine
       this.byTmuxId.delete(target);
     }
@@ -2964,6 +3015,84 @@ export class GmuxCore {
     this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
     this.broadcastSessions();
+    // PHASE 323. LAST, and not awaited: the End answers the window before the
+    // waits, and a quit does not wait for them either (the fix round).
+    if (tree !== null) this.endAfterHangup(tree, rec.name);
+  }
+
+  /**
+   * PHASE 323. The session's tree, read by the `$-id` `liveIds` holds and
+   * never by a name, the manifest's create-time `panePid` or anything else a
+   * row remembers. The roots are the session's LIVE panes whose process is the
+   * answering server's own child (`../proc/session-tree.ts` says why), and the
+   * processes read are those on the panes' terminals, which is every process
+   * the hang-up is aimed at, in about 4 ms rather than the whole table's 60.
+   *
+   * Null means only the hang-up is sent, which is what End did before this
+   * phase: no live pane (nothing to log), or a read that failed (one line).
+   */
+  private async readEndTree(
+    target: string,
+    name: string
+  ): Promise<SessionTree | null> {
+    try {
+      const roots = parsePaneRoots(
+        await tmux.execTmux(sessionPanesArgv(tmux.formatSessionTarget(target)), {
+          timeoutMs: TREE_READ_TIMEOUT_MS
+        })
+      );
+      if (roots.length === 0) return null;
+      const table = await this.endTreeDeps.readTerminals(
+        roots.map((r) => r.tty)
+      );
+      if (table !== null) return readSessionTree(table, roots, process.pid);
+    } catch {
+      // Falls through to the one line below.
+    }
+    sessionsLog.warn(
+      `the panes or processes of "${name}" could not be read when it was ` +
+        'ended, so only the hang-up was sent'
+    );
+    return null;
+  }
+
+  /**
+   * PHASE 323. End what the hang-up was aimed at and did not end, in the
+   * background of the End that read it. One line names each process ended by
+   * its program's name, pid and the last signal it was sent, and never by its
+   * command line.
+   *
+   * THE FIX ROUND: handed to nothing a quit waits on. Joining it made a quit
+   * that followed an End wait out the graces with the window still on screen
+   * (4.8 s after a Gemini End, 6.6 s for a process that ignores both signals,
+   * against no wait at all today), which is worse than today. So an End
+   * followed at once by a quit leaves what it would have ended running, as it
+   * always did; an End that the app outlives by the graces ends it.
+   */
+  private endAfterHangup(tree: SessionTree, name: string): void {
+    void endHangupSurvivors(tree, this.endTreeDeps)
+      .then((report) => {
+        if (report.ended.length > 0) {
+          const each = report.ended
+            .map((p) => `${p.name} ${p.pid} ${p.signal}`)
+            .join(', ');
+          sessionsLog.info(
+            `ended ${report.ended.length} process(es) of "${name}" that ` +
+              `outlived the hang-up: ${each}`
+          );
+        }
+        if (report.readFailed) {
+          sessionsLog.warn(
+            `the process table could not be read again after "${name}" ` +
+              'was ended, so nothing further was signalled'
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        sessionsLog.warn(
+          `ending what outlived "${name}" failed: ${(err as Error).message}`
+        );
+      });
   }
 
   /**

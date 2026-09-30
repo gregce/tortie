@@ -133,11 +133,14 @@ import {
   CONF_PREFIX,
   SCRATCH_ROOT,
   cleanupCase,
+  closingVerdict,
   killOwnSession,
+  leftBehind,
   pollManifest,
   sweepLeftovers,
   tmuxIdFor,
-  waitForStatus
+  waitForStatus,
+  type LeftBehind
 } from './scratch';
 import {
   containsJoined,
@@ -772,7 +775,11 @@ async function runCase(
     return finish('PASS');
   } catch (err) {
     stages.add('cleanup', false, (err as Error).message);
-    return finish('FAIL', (err as Error).message);
+    // Phase 323's fix round: a case whose agent had already died used to be
+    // reported as whatever the next call threw about the missing session
+    // (SESSION_NOT_FOUND), which hid the cause. The death, when the reaper
+    // recorded one, leads the reason.
+    return finish('FAIL', deathFirst(core, session, (err as Error).message));
   } finally {
     if (!cfg.keep) {
       await cleanupCase(core, session, cwd).catch((err: unknown) => {
@@ -848,6 +855,7 @@ export async function runResumeConformance(): Promise<void> {
         `(private manifest — the user's gmux has no row for anything here)`
     );
 
+    holdSelfUpdatesHere();
     // THE SCAN COVERS THE AGENTS ASKED FOR AND NO OTHER (Phase 331's fix
     // round). A detection scan runs `--version` on every agent it resolves,
     // and the core starts one as it boots on this empty profile, so before
@@ -863,6 +871,7 @@ export async function runResumeConformance(): Promise<void> {
     const swept = await sweepLeftovers(core);
     if (swept > 0) console.log(`[gmux-conf] swept ${swept} leftover(s)`);
     undoBypassEnv = await publishBypassEnv(cfg.agents, cfg.bypass);
+    await holdSelfUpdatesOnTheServer();
 
     // Phase 21. The report has to be able to say WHICH BUILD it passed
     // against, so the versions are read before any case runs and the same
@@ -946,7 +955,11 @@ export async function runResumeConformance(): Promise<void> {
     // This used to be a blind 1.5 s delay (the old BUILD-STATUS.md #1);
     // it is now an awaited drain under the same bound.
     await drainWatcherCloses(1_500);
-    const code = exitCodeFor(results, cfg.strict);
+    // Phase 323: the closing check, after the shutdown and the drain. The
+    // shutdown does not wait for what an End is still ending (the fix round),
+    // so the check itself waits for the product's Ends to finish first.
+    const leftCode = await closingCheck();
+    const code = Math.max(exitCodeFor(results, cfg.strict), leftCode);
     console.log(code === 0 ? '[gmux-conf] PASS' : '[gmux-conf] FAIL');
     app.exit(code);
   } catch (err) {
@@ -981,6 +994,107 @@ async function stampInstalls(
     }
   }
   return out;
+}
+
+/**
+ * Phase 323's closing check: is any process this run's sessions held still
+ * running after the run ended them? It waits for the product's Ends to finish
+ * ending what they recorded, re-reads every tree the run recorded before a
+ * hang-up, and prints one line.
+ *
+ * A hang-up target still running is red, whatever the cases said, because
+ * that process is what a person would find at ppid 1 tomorrow. A process that
+ * left the session's terminal (its own group, a `setsid` child) is spared on
+ * purpose, in the product and in this harness, so it is named and never red.
+ *
+ * A session whose tree could not be read before its hang-up is red too, and
+ * says so: the check cannot look at it, and a check that could not look never
+ * reads as one that found nothing (the tools round after his ruling of
+ * 2026-09-30). The words and the code are `closingVerdict`'s, in ./scratch,
+ * where the unit rows drive them.
+ *
+ * The watchdog's `app.exit(1)`, a case `withTimeout` abandoned and the `catch`
+ * path never reach this. build/harness-socket.mjs's teardown is what covers
+ * those, through the same module.
+ */
+async function closingCheck(): Promise<number> {
+  let left: LeftBehind | { failed: string };
+  try {
+    left = await leftBehind();
+  } catch (err) {
+    left = { failed: (err as Error).message };
+  }
+  const verdict = closingVerdict(left);
+  if (verdict.code === 0) console.log(verdict.line);
+  else console.error(verdict.line);
+  return verdict.code;
+}
+
+/**
+ * Phase 323's fix round. The switches that stop the agents updating their own
+ * installs, the ones the Phase 323 probe has always set (build/p323/SPEC.md §3,
+ * each confirmed present in its binary by the spec step). A verifier's run of
+ * this harness under his HOME on 2026-09-30 updated his cursor-agent and
+ * replaced his opencode binary in place, and a test run must install nothing.
+ * Cursor's own `--disable-auto-update` is a launch flag, which this harness
+ * does not add to the registry's argv, so for Cursor the update check is
+ * pointed at a closed port instead.
+ */
+const SELF_UPDATE_OFF: Readonly<Record<string, string>> = Object.freeze({
+  DISABLE_AUTOUPDATER: '1',
+  MUSE_NO_AUTO_UPDATE: '1',
+  OPENCODE_DISABLE_AUTOUPDATE: '1',
+  AGENT_CLI_UPDATE_CHECK_URL: 'http://127.0.0.1:9/',
+  NO_UPDATE_NOTIFIER: '1'
+});
+
+/** In this process, before anything is spawned: the `--version` scan runs from here. */
+function holdSelfUpdatesHere(): void {
+  for (const [name, value] of Object.entries(SELF_UPDATE_OFF)) {
+    process.env[name] ??= value;
+  }
+}
+
+/**
+ * In the run's scratch server's global environment, which every case's pane
+ * inherits. Never on his live server, the same refusal `publishBypassEnv`
+ * makes.
+ */
+async function holdSelfUpdatesOnTheServer(): Promise<void> {
+  if (tmux.activeTmuxSocket() === tmux.TMUX_SOCKET) {
+    console.warn(
+      `[gmux-conf] not holding agent self-updates on the real server -L ` +
+        `${tmux.TMUX_SOCKET}; run through harness-socket`
+    );
+    return;
+  }
+  await tmux.ensureServer();
+  for (const [name, value] of Object.entries(SELF_UPDATE_OFF)) {
+    await tmux.execTmux(['set-environment', '-g', name, value]);
+  }
+  console.log(
+    `[gmux-conf] agent self-updates held off on -L ${tmux.activeTmuxSocket()}: ` +
+      Object.keys(SELF_UPDATE_OFF).join(', ')
+  );
+}
+
+/**
+ * A case's reason when it threw: the session's recorded death first, when the
+ * reaper recorded one, then what was thrown.
+ */
+function deathFirst(
+  core: GmuxCore,
+  session: Session | null,
+  thrown: string
+): string {
+  if (session === null) return thrown;
+  const rec = core.listSessionRecords().find((r) => r.id === session.id);
+  const code = rec?.exitCode;
+  const signal = rec?.exitSignal;
+  if (code === undefined && signal === undefined) return thrown;
+  const how =
+    signal !== undefined ? `signal ${signal}` : `exit ${String(code)}`;
+  return `the session had already ended (${how}) when: ${thrown}`;
 }
 
 /** One agent must never eat the whole run's budget. */

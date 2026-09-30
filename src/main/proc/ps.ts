@@ -54,7 +54,9 @@ export function parsePsTable(stdout: string): Map<number, ProcRow> {
 }
 
 /** pid → its direct children. */
-export function childIndex(rows: Map<number, ProcRow>): Map<number, number[]> {
+export function childIndex(
+  rows: ReadonlyMap<number, { pid: number; ppid: number }>
+): Map<number, number[]> {
   const kids = new Map<number, number[]>();
   for (const row of rows.values()) {
     const list = kids.get(row.ppid);

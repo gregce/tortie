@@ -79,10 +79,27 @@
  * that put sessions on the operator's live server twice. The reason is on the
  * line itself, at the spawn below.
  *
+ * WHAT PHASE 323 ADDED. `kill-server` only hangs up every pane, and a created
+ * Gemini session survives the hang-up, as does anything in a pane's own group
+ * that ignores or catches it; the survivors re-parent to launchd and run for
+ * good. That covers everything a wrapped run abandons: the conformance
+ * watchdog's `app.exit(1)`, a case `withTimeout` gave up on, a run killed with
+ * SIGKILL whose server a later run reaps. So `teardown` and `reapDeadRuns` now
+ * ask, before each `kill-server`, whether the server still holds a live pane,
+ * and only then read its process tree, send the `kill-server`, and end what
+ * the hang-up was aimed at and outlived it. The reading and the ending are the
+ * product's own module, src/main/proc/session-tree.ts, reached through ONE
+ * runner, build/session-tree-cli.mts, under the pinned tsx: this file never
+ * parses a process table and never signals a process, so there is one
+ * implementation of the promise and not two. A server with no live pane, the
+ * common teardown, starts no runner at all. A process that left its session's
+ * terminal (a `setsid` child, its own group) is never signalled, exactly as in
+ * the product (build/p323/SPEC.md §2).
+ *
  * Usage: node build/harness-socket.mjs [--fresh] <socket-name> '<shell command>'
  */
 
-import { execFile, spawn } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -92,8 +109,13 @@ import {
   refuseReason,
   MAX_SOCKET_NAME
 } from './harness-run-tag.mjs';
+import { tsxCli } from './ts-runner.mjs';
 
 const execFileP = promisify(execFile);
+
+// Up here rather than beside the spawn, because the dead-run reap below runs
+// before the spawn and reaches the tree runner, which runs from this folder.
+const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 function refuse(why) {
   console.error(`[harness-socket] ${why}`);
@@ -103,6 +125,95 @@ function refuse(why) {
 /** Where tmux keeps its socket files for this user. */
 function socketDir() {
   return join(process.env['TMUX_TMPDIR'] ?? '/tmp', `tmux-${process.getuid()}`);
+}
+
+/**
+ * How long the runner's `end` may take. Longer than the longest an ending can
+ * run, src/main/proc/session-tree.ts `ENDING_WORST_MS` (94,500 ms since Phase
+ * 323's second fix round: its graces are 10 s and 60 s, so an agent's own
+ * orderly exit is never cut), which `conformance:endtree` E11 holds this to. A
+ * process that ignores SIGTERM too keeps a teardown here up to its graces.
+ */
+const END_RUNNER_TIMEOUT_MS = 120_000;
+
+/**
+ * Whether the server on `name` still holds a pane. It is asked first, and when
+ * it answers no, no TypeScript runner starts, so the common teardown, whose
+ * harness's own last session has already ended, costs nothing.
+ */
+function holdsAPane(name) {
+  const r = spawnSync('tmux', ['-L', name, 'list-panes', '-a', '-F', '#{pane_id}'], {
+    encoding: 'utf8',
+    timeout: 5_000
+  });
+  return r.status === 0 && /%\d+/.test(r.stdout ?? '');
+}
+
+/**
+ * Run build/session-tree-cli.mts in one mode and hand back its stdout, or null
+ * when it did not answer cleanly or, for `read`, when the tree holds nothing
+ * the hang-up was aimed at, so no `end` runner starts for it. See that file's
+ * header for the two modes.
+ *
+ * Synchronous and waited for, so nothing started here outlives this line: a
+ * `read` is bounded at 15 s, and an `end` at END_RUNNER_TIMEOUT_MS, which is
+ * longer than the longest an ending can run. Any failure answers null, and a
+ * null tree means the teardown sends only the `kill-server`, which is what it
+ * did before Phase 323: the runner can never stop a server from being ended, a
+ * socket file from being unlinked or a marker from being removed. A `read`
+ * that fails says so once, on stderr, because a run that could not look may be
+ * leaving something behind.
+ */
+function sessionTreeCli(mode, args, input) {
+  let answer = null;
+  try {
+    const r = spawnSync(
+      process.execPath,
+      [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/session-tree-cli.mts', mode, ...args],
+      { input, encoding: 'utf8', timeout: mode === 'end' ? END_RUNNER_TIMEOUT_MS : 15_000, cwd: repoRoot }
+    );
+    if (r.status === 0) answer = r.stdout;
+  } catch {
+    answer = null;
+  }
+  if (mode !== 'read') return answer;
+  if (answer === null) {
+    console.error(
+      `[harness-socket] could not read the process tree on -L ${args[0]}; only the hang-up was sent`
+    );
+    return null;
+  }
+  let targets = 0;
+  try {
+    targets = JSON.parse(answer)?.targets?.length ?? 0;
+  } catch {
+    targets = 0;
+  }
+  return targets > 0 ? answer : null;
+}
+
+/**
+ * The one line, printed only when something was ended. An `end` that did not
+ * answer, or answered that it could not re-read the table, says so once on
+ * stderr instead, because it may have left something running.
+ */
+function reportEnded(answer, name, when) {
+  let parsed = null;
+  try {
+    parsed = JSON.parse(answer ?? 'null');
+  } catch {
+    parsed = null;
+  }
+  const ended = Number(parsed?.ended);
+  if (parsed === null || !Number.isInteger(ended) || parsed.readFailed === true) {
+    console.error(
+      `[harness-socket] could not finish ending what the hang-up left running on -L ${name} (${when})`
+    );
+  }
+  if (!Number.isInteger(ended) || ended <= 0) return;
+  console.log(
+    `[harness-socket] ended ${ended} process(es) the hang-up left running on -L ${name} (${when})`
+  );
 }
 
 /**
@@ -143,7 +254,13 @@ async function reapDeadRuns() {
     } catch (err) {
       if (err?.code !== 'ESRCH') continue; // alive but owned by someone else
     }
+    // Phase 323: the tree first, while the dead run's panes are still alive,
+    // then the hang-up, then what it left running.
+    const tree = holdsAPane(name) ? sessionTreeCli('read', [name]) : null;
     await execFileP('tmux', ['-L', name, 'kill-server']).catch(() => undefined);
+    if (tree !== null) {
+      reportEnded(sessionTreeCli('end', [name], tree), name, 'a run that had exited');
+    }
     rmSync(join(dir, name), { force: true });
     rmSync(join(dir, entry), { force: true });
     ended += 1;
@@ -229,9 +346,13 @@ async function teardown(when) {
     .then((r) => r.stdout.trim())
     .catch(() => '');
   if (path !== '') {
+    // Phase 323: the tree first, while the panes are still alive, then the
+    // hang-up, then what it left running. See the header.
+    const tree = holdsAPane(socket) ? sessionTreeCli('read', [socket]) : null;
     await execFileP('tmux', ['-L', socket, 'kill-server']).catch(
       () => undefined
     );
+    if (tree !== null) reportEnded(sessionTreeCli('end', [socket], tree), socket, when);
     if (path.endsWith(`/${socket}`)) rmSync(path, { force: true });
   } else {
     // No server answered, so there is nothing to kill — but a socket file it
@@ -265,7 +386,6 @@ writeFileSync(
 // `npm run` is what puts node_modules/.bin on PATH, so driving this script with
 // plain `node` used to exit 127 with "electron: command not found". The folder
 // is added here instead, so both ways of driving a harness work.
-const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const binDir = join(repoRoot, 'node_modules', '.bin');
 
 const child = spawn(command, {

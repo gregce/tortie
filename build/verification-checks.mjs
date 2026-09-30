@@ -701,6 +701,36 @@ export const CHECKS = [
   // never started. Every agent pid it saw is ended by pid in a `finally`.
   // Exit 2 when a precondition or an arm cannot be read, which is never a pass.
   electron('probe:p331'),
+  // PHASE 323's app run, in probe:p314's shape (build/p323/SPEC.md §8.1): ONE
+  // Electron at a time through build/electron-run.mjs, the parent build first
+  // (P323_PARENT_CHECKOUT, which must exist and be built or it exits 2) and
+  // then HEAD, each on a scratch profile under a harness directory, a scratch
+  // HOME and its own socket gmux-p323-<pid>, with the vendored tmux. It ends
+  // sessions through the renderer's own bridge (kill, restart, the session
+  // manager's batch End) over REAL agents launched to their first screen with
+  // no model turn but one, created, restored and wrapped, under the scratch
+  // HOME and, created only, under his; Gemini under the scratch HOME alone,
+  // with Phase 314's R8 settings and an npm that refuses every call (only an
+  // install verb fails the run; a registry read is named); qwen, agy and grok
+  // are never reached and the probe refuses before launch if one would be. The
+  // planted modes (a pane that ignores the hang-up, one that ignores both
+  // signals, a setsid child, a shared server, an app bundle executable) run
+  // under the droid row through build/p323/stand-in.sh. End's round trip is
+  // graded in ABBA order within the run: each build is launched once more, in
+  // the other order, for that block alone. Every install's path, mtime and
+  // size, every global npm package's version and mtime, and his Codex server's
+  // pids are read before and after every arm, read only, and a moved install
+  // exits 2. Its `finally` ends everything
+  // it recorded by pid with the start time, command line and group re-read
+  // first, then both of its scratch servers and their socket files.
+  electron('probe:p323'),
+  // PHASE 323's harness half (build/p323/SPEC.md §8.2): build/harness-socket.mjs's
+  // teardown and its reap of a dead run, driven at the parent and at HEAD over
+  // a scratch server holding a created Gemini session (scratch HOME, R8) and a
+  // planted process that ignores the hang-up. No Electron; every process it
+  // starts is ended by pid in a `finally`, and survivors are counted by working
+  // directory.
+  tmux('probe:p323:harness'),
   // PHASE 312. The choices the agent drew. build/conformance-choices.mjs reads
   // this repository's own source and asserts twenty clauses over it: the
   // verdict's own loop pinned byte for byte with OPT1, OPT2, HINT and QUEST, the
@@ -726,6 +756,28 @@ export const CHECKS = [
   // copies with its rule broken, every one of which must read red. About 1.5 s
   // now.
   pure('conformance:choices'),
+  // PHASE 323. End ends only what the hang-up was aimed at and outlived it.
+  // build/conformance-endtree.mjs reads src/main/proc/session-tree.ts,
+  // killSessionAdmitted and its two helpers in core.ts, the mutation ledger,
+  // src/main/conformance/scratch.ts, build/harness-socket.mjs and
+  // build/session-tree-cli.mts with the TypeScript parser (a module, not a
+  // process) and asserts fifteen rules, E1 to E15: the order (the tree read
+  // started beside the capture and awaited before the hang-up, then the
+  // broadcast, then the continuation, not awaited), the root from liveIds, the
+  // shell guard (R2), one pid at a time behind the identity re-read and never a
+  // group, a pattern or a name, the selection no wider than the pane process's
+  // own group (R1's held half, and since the second fix round never the
+  // terminal's foreground group), the importers, nothing on reconcile, reap,
+  // boot, quit or a timer, graces long enough for an agent's own orderly exit
+  // (10 s and 60 s) and the closing check's wait, a quit that does NOT wait
+  // for the ending (the ledger is the parent's), the C locale with one pid per
+  // `ps -p` and a bounded pane read, nothing on the remote branch, a failed
+  // re-read asked again rather than read as the end, and the pane check before
+  // each signal (a window another session still shows was never hung up).
+  // Each rule is asked again over in-memory copies with it broken, every one
+  // of which must read red. It spawns nothing and reads nothing under his
+  // home. About 1 s.
+  pure('conformance:endtree'),
   adapter(
     'conformance:specstory:entitlement',
     'macOS codesign and the vendored specstory binary; it signs scratch copies and runs them'
@@ -1819,6 +1871,18 @@ export const CHECKS = [
   // file restored and proved by sha256 and an unedited control green first and
   // last. P331_ONLY runs named arms. No Electron, no tmux, no agent, no token.
   pure('ablation:p331'),
+  // PHASE 323's attack on its own clauses (build/p323/SPEC.md §7, its two
+  // fix rounds and the tools round, whose six arms hold the conformance
+  // closing check to saying when it could not look): forty-three arms,
+  // one clause each, over a `cp -Rc` clone of src/ and the build files the gate
+  // reads, with node_modules and build/vendor symlinked. Each needle matches the
+  // shipping source exactly once, and each arm must turn its owner red, a
+  // conformance:endtree rule or a named row of the session-tree and p323
+  // vitest files, with every file restored and proved by sha256 and an unedited
+  // control green first and last. It never writes the worktree. No Electron, no
+  // tmux, no ssh, no agent, no token; every process table the tests read is
+  // planted, so no live one is read.
+  pure('ablation:p323', NEEDS.vitest),
   // PHASE 296's attack on `conformance:handback`'s menu section, and the reason
   // that phase is worth doing: the section had been RED SINCE 25 AUGUST because a
   // needle stopped matching a row nobody moved, and nothing could tell that from

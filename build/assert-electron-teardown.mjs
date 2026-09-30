@@ -342,13 +342,19 @@ const HELPER = 'electron-run.mjs';
  * after the other at HEAD, each ended by the helper's `finally`. The stand-in
  * Tailscale's pids are ended by pid in the probe's `finally`, and the DNS
  * stand-in is closed there.
+ * PHASE 323 RAISED IT FROM 156 TO 157, for build/p323/probe-p323.mjs
+ * (`probe:p323`), End and Restart driven over real agents and planted
+ * processes at the parent and at HEAD: ONE Electron at a time on a scratch
+ * profile, a scratch HOME and its own tmux socket, with a second scratch
+ * server of its own for the stranger, and every process it recorded ended by
+ * pid in its `finally`.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 156;
+const HELPER_USER_FLOOR = 157;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.
