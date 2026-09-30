@@ -37239,6 +37239,795 @@ independent reverify.
 - **No new hashed field, no change to `NORMALIZE` or the algorithm, and no status set.**
 - **No menu change and no release.**
 
+## Phase 333 — "have we mapped out the process to get the phone on the app store so that people can download it from tortie.sh and our github page?" — research 136, how people get Tortie for iPhone (operator, 2026-09-30) ✅ DELIVERED `<hash>`, 2026-09-30, `docs/research/136-the-phone-in-peoples-hands.md`
+
+**Subject.** `docs(research): how people get Tortie for iPhone, TestFlight then the Store`
+
+**First body line.** `Phase 333: the phone in people's hands`
+
+**Semver.** None. Documents only, and nothing is released.
+
+**His answer, in his terms.** Not before today. Research 128 §4 priced the App Store before any Swift, and
+Phase 316 then refused external TestFlight, Beta App Review, a demo mode, a privacy page and a D-U-N-S
+number on purpose (`docs/BACKLOG.md:33462`). His rulings of 2026-09-30, "Both, TestFlight then the Store",
+lift exactly those. Research 136 is the map, and entries 333.1 to 333.10 below are the work.
+
+**Tier.** Research lane, so there is no build tier: Investigate, then Attack, then Judge, then Write one
+document. Three investigators each owned questions (A: Apple's requirements; B: the guidelines against the
+app now and after 316.5, 317 and 318; C: his steps, every asset and the two sites). One adversary fetched
+every Apple page again on its own, re-read the site against public `gregce/tortiedotsh` main and live
+tortie.sh, and refuted or weakened sixteen of the investigators' claims, and research 128 in four places,
+before a word was written. A ruling settled each disagreement. Research 136 §13 records what the attack killed.
+
+**Charter.**
+- His question and his two rulings of 2026-09-30 (the running-log line that begins "PHASE 333 RESEARCH
+  STARTS"). The seller name is his, and research 136 §10 lays out both paths without deciding.
+- Research 128 §4 and §5, corrected in four places (research 136 §13, last row).
+- Research 127 §6 and §11.6, and Phase 314's open Ruling 6 (`docs/BACKLOG.md:33326`): push for anyone but
+  him.
+- Research 132 §3.4 and §3.8: Funnel's beta and Personal plan, and what its relay sees.
+- Phase 330 as built: the app is an ordinary pinned TLS client, with no Tailscale inside, no local-network
+  key and no background mode.
+- His release rule: nothing is released until the phone works end to end, and 316.5, 317 and 318 are in
+  this release.
+
+### What his ruling lifts, and what stays refused
+
+**Lifted:** external TestFlight and Beta App Review; a sample mode everyone can see; privacy and support
+pages on tortie.sh; an App Store submission; a D-U-N-S number and an organisation account, as one of two
+seller paths for him to choose.
+
+**Still refused:** a hosted demo door or any server Ita Vero runs; a push relay (research 48); the APNs key
+shipped inside Tortie for Mac without his ruling; another company's product name in the app's name,
+subtitle or keywords; a background mode, NetworkExtension or VPN wording; a raw terminal on the phone,
+ever; an agent writing `ITSAppUsesNonExemptEncryption` or answering any legal question; an agent taking a
+screenshot, unless he opens 333.8; an App Store Connect API key, unless he asks.
+
+### What this sends to 316.5, 317 and 318
+
+1. **To 316.5, now.** Do not ask a phone for notification permission, and do not draw "Pair again to get
+   alerts", unless the paired Mac holds an alert key and its switch is on. A Mac with no key shows no alert
+   switch. Only his Mac holds Ita Vero's APNs key, which Apple says "must remain private", so a stranger's
+   Mac never will. `build/p316/SPEC.md:660` asks at pairing today, which on a stranger's phone requests a
+   feature that cannot work (5.1.1(iii)). How the phone knows is 316.5's spec step's to decide, most
+   likely a field the door answers. If 316.5 does not take this, 333.1 does, and becomes Tier 3.
+2. **To 317.** Face ID needs `NSFaceIDUsageDescription` in `ios/Tortie/Info.plist`, which holds only
+   `NSCameraUsageDescription` today. `conformance:ios` keeps no allow list (`PINNED_PLIST_KEYS` is empty,
+   `build/conformance-ios.mjs:855`), so 317 only adds it. It also needs a Touch ID and passcode path,
+   because iOS 18.1 runs on Touch ID iPhones and App Review tests iPhone apps on iPads, and its words must
+   never say "Face ID" on a device without it.
+3. **To 318, through research 135.** Answer 4.7 and 5.1.2(i): say once where typed words go (to the
+   person's own agent on their own Mac, and from there to that agent's maker), and decide whether the first
+   send shows it. Add no raw terminal: since Phase 330 the door binds `127.0.0.1` behind Funnel
+   (`src/main/pocket/bind.ts:13`), so 4.2.7(a)'s local-network way out no longer exists.
+
+### The order
+
+1. Now, beside 316.5: this research, and two things he can start at no cost, a D-U-N-S request for Ita
+   Vero, LLC and the choice of a public contact mailbox.
+2. 316.5, then 317, then 318, one after another, as he ruled.
+3. Beside the phone line: 333.2 once 316.5 has landed, and 333.5 in his site repository with his go-ahead.
+4. After 318, in order: 333.1, 333.3, 333.4.
+5. His end-to-end check on an internal TestFlight build that carries all of the above.
+6. 333.6, the public beta: his upload through App Store Connect and Beta App Review.
+7. 333.7, launch day: the public link, the Mac release and the site and README changes, on one day.
+8. From then on, every phone build goes to the public group, and a new approved build goes up at least
+   every 90 days.
+9. The store: 333.8 (or his own capture), 333.9 and 333.10, once the public beta has carried at least one
+   build with no phone-breaking report and the seller path is settled.
+
+### What is NOT in this phase
+
+- **No code, no build, no upload, no App Store Connect, and no change to tortie.sh or the README.**
+- **No decision on the seller name.** Both paths are laid out and he chooses.
+- **No edit to 316.5's spec, 317's entry or research 135.** The findings go to them from here.
+- **Nothing installed, signed into, booted or run.** No keychain, credential, APNs key or signed-in page was
+  read.
+- **Not queued: every paired phone arrives on the Mac labelled 'iPhone'.** `UIDevice.current.name`
+  (`ios/Tortie/App/TortieApp.swift:106`) is the generic 'iPhone' on iOS 16 and later without an
+  entitlement Tortie does not hold. It is recorded as a follow-up.
+
+---
+
+## Phase 333.1 — "so that people can download it" — a stranger's phone says where Tortie for Mac comes from, links privacy and support, and names which side to update (research 136 §7 and §14, 2026-09-30)
+
+**Subject.** `feat(ios): say where Tortie for Mac comes from, and which side to update`
+
+**First body line.** `Phase 333.1: the phone's words for a stranger`
+
+**Semver.** The iOS app only. It stays 1.0.0 and takes its next build number when 333.6 archives. No Mac
+change, and nothing is released.
+
+What a person notices:
+
+- **The pairing screen says where Tortie for Mac comes from**, in one line naming tortie.sh.
+- **Privacy and Support open `tortie.sh/privacy` and `tortie.sh/support` in Safari**, from the pairing
+  screen and from one place on the list the spec step chooses (the list hides its navigation bar,
+  `ios/Tortie/Screens/ListScreen.swift:225`).
+- **A Tortie code from another version says which side to update.** Today it reads "That is not a Tortie
+  pairing code.", which is false.
+- **If 316.5 did not take it**, the phone asks for alerts only when its Mac can send.
+
+**Tier 2**: a rendered surface and words, with no new state. **It becomes Tier 3 if it carries the push
+permission**, because that needs a door field and so a contract change. **Independent method: a hostile
+fixture of pairing codes**, and **the parent measurement** (the same codes read the old sentence at the
+parent).
+
+**Charter.** Research 136 §7 (guidelines 5.1.1(i), 1.5 and 4.2.3(i)), §14 (versions on separate clocks)
+and §12 (the words). Needs 318 landed, because the phone line is serial and `Copy.swift` is shared, and
+333.5's two URLs fixed.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **No privacy link and no pointer to the Mac app.** No `privacy` or `tortie.sh` string exists under
+  `ios/Tortie` (research 136 §5). Guideline 5.1.1(i) requires the link "within the app in an easily
+  accessible manner", and 2.2 applies the guidelines to TestFlight builds.
+- **The version sentence is wrong, and it is wrong one step earlier than it looks.** `PairingOffer.version`
+  is 3 (`ios/Tortie/Door/Pairing.swift:52`). `parse` decodes the whole `Wire` shape first (`:93-97`) and
+  checks `v` only after (`:98`), so a code whose other fields differ (v:2 carried a tailnet key and no
+  public name) fails as `badCode` before its version is read. Both failures map to `Copy.pairNotACode`,
+  "That is not a Tortie pairing code." (`ios/Tortie/Screens/DoorWords.swift:155`,
+  `ios/Tortie/Style/Copy.swift:214`). Build 1 already met this against the newer door
+  (`build/p330/CHECKLIST.md`).
+- **Where the words live.** Every drawn word is a one-line `static let` in `Copy.swift`, with a `/// Mac:`
+  or `/// Phone:` owner above it (`Copy.swift:1-35`), read by `conformance:phonecopy` and `CopyTests.swift`.
+  `conformance:ios` rule (b) refuses a drawn literal anywhere else.
+- **Opening Safari is not a network call.** Rule (c) refuses Network.framework types outside the door
+  client and the URL loading system everywhere (`build/conformance-ios.mjs:713-760`). A SwiftUI `Link` or
+  `openURL` names none of them, and no rule yet pins which URLs the app may open.
+- **CLAUDE.md is stale in one clause.** Its `conformance:ios` row says rule (e) "requires the local network
+  string", but the gate refuses `NSLocalNetworkUsageDescription` (`build/conformance-ios.mjs:868`).
+
+### The mechanism
+
+1. **The version is read first.** `Pairing.swift` decodes `{ v }` alone before the full shape. A `v` above 3
+   throws a new `codeFromNewerMac`, a `v` from 1 to 2 throws `codeFromOlderMac`, and anything else that is
+   not the full v:3 shape stays `badCode`. `DoorWords.pairingSentence` maps each to its own sentence.
+2. **The words, in `Copy.swift`, each with a `/// Phone:` owner.** Drafts, for his approval:
+   - `pairGetMac`: "Tortie for Mac is free at tortie.sh."
+   - `pairNewerMac`: "This code is from a newer Tortie for Mac. Update Tortie on this iPhone."
+   - `pairOlderMac`: "This code is from an older Tortie for Mac. Update Tortie on your Mac."
+   - `privacyLink`: "Privacy", and `supportLink`: "Support".
+3. **Two URLs and no more.** `https://tortie.sh/privacy` and `https://tortie.sh/support`, each a constant
+   in one file, opened in Safari with `Link` and never in a view inside the app. They carry no query
+   string and no identifier.
+4. **A new `conformance:ios` rule (w)**: the app opens exactly these two URLs, both `https` and both on
+   `tortie.sh`, and names no other URL literal. Its fixtures and one `ablation:p316` arm each go red on a
+   third URL, an `http` URL and an added query string.
+5. **The push permission, only if 316.5 did not take it**: the phone asks only when its paired Mac reports
+   an alert key with its switch on, through one door field. `gate:contract`'s baseline is then regenerated
+   and the commit body names the lines that moved.
+6. **CLAUDE.md**: the `conformance:ios` row's rule (e) clause says the gate refuses the local network
+   string, and the row names rule (w).
+
+### The proof, run rather than read
+
+- **The gates.** `typecheck`, `build` (which runs `conformance:ios` and `gate:contract`), `test`,
+  `smoke:t1`, `conformance:phonecopy`, `ablation:p316`, and `test:ios` in Debug and Release on iOS 26.3 and
+  18.3.
+- **The hostile fixture.** `DoorPairingTests.swift` reads codes with `v` of 1, 2, 4, 99, `"3"`, -1, 2^53
+  and missing, a v:2 code as the 316.4 Mac drew it, and a v:3 code with one field wrong. Each must give
+  its own sentence, and none may crash.
+- **The parent measurement.** The same fixture at the parent reads `pairNotACode` for v:2 and v:4, which
+  is the defect this entry fixes.
+- **One app run.** `probe:p316` gains one arm that reads, as XCUITest labels, the pairing screen's
+  tortie.sh line, both links' destinations and the two version sentences. No photograph.
+
+### What is NOT in this phase
+
+- **No web view and no in-app browser.** The pages open in Safari.
+- **No typed-code fallback for a person who denies the camera.** It stays a known 5.1.1(iv) exposure.
+- **No change to the QR version or the door's routes.** From the first public build, both change only by
+  adding, or with a sentence on both sides naming which one to update.
+- **No fix for the 'iPhone' label**, which is a follow-up.
+- **No release.**
+
+---
+
+## Phase 333.2 — "Where do I get the phone app?" — the Mac says it (research 136 §5 and §11, 2026-09-30)
+
+**Subject.** `feat(pocket): Settings then Phone names where to get the phone app`
+
+**First body line.** `Phase 333.2: the Mac names tortie.sh/iphone`
+
+**Semver.** Patch, and unreleased under his rule.
+
+What a person notices:
+
+- **Settings then Phone says where the phone app comes from**, in words: the scan line names
+  `tortie.sh/iphone`.
+- **A Mac that holds no alert key shows no alert switch**, under the default push ruling and if 316.5 did
+  not already do this.
+
+Nothing else changes. **The native menus do not move**: `Pair a Phone…` stays at `src/main/menu.ts:615`.
+
+**Tier 2**: a rendered surface. **Independent method: the parent measurement**, the sheet's rectangles and
+words at the parent against HEAD, with only the scan line's text and the switch's presence allowed to
+differ.
+
+**Charter.** Research 136 §5 (the asset row "A Mac line naming where to get the phone app") and §9 (alerts
+stay his alone by default). Runs after 316.5 lands, because both edit `PhoneSection.tsx`, and beside 317
+and 318.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The Mac never says where the phone app comes from.** `SCAN_LINE = 'Scan it with Tortie on your
+  iPhone.'` (`src/renderer/settings/PhoneSection.tsx:75`), and a grep of that file, `src/shared/ipc/pocket.ts`
+  and `src/main/pocket` finds no TestFlight, App Store or tortie.sh.
+- **The alert switch is drawn for every Mac.** `PUSH_LABEL` (`PhoneSection.tsx:97`) is rendered at `:603`
+  and `:613`, enabled once the door is on, whatever key the Mac holds.
+- **`SCAN_LINE` is read elsewhere.** `src/renderer/settings/__tests__/p316-phone-section.test.tsx`,
+  `build/p330/probe-p330.mjs` and the two checklists name it, so each moves in the same commit.
+- **`tortie.sh/iphone` does not exist yet.** It is 333.7's redirect. A Mac release carrying this line before
+  333.7 would point at a 404, which is why the Mac release and 333.7 land on one day.
+
+### The mechanism
+
+1. **The words.** `SCAN_LINE` becomes, as a draft for his approval, "Scan it with Tortie on your iPhone,
+   from tortie.sh/iphone." Text only, with no link, no button and no QR for the store.
+2. **The switch.** When the Mac holds no alert key, the alerts group is not drawn. The fact comes from
+   main and is never worked out again in the renderer. If 316.5's status does not already carry it, this
+   phase adds one field and regenerates `gate:contract`'s baseline, and the commit body names the lines.
+3. **`conformance:phonecopy`** runs, because `Copy.swift` quotes `PhoneSection.tsx` words by owner. The
+   pocket gates run because the status is read.
+
+### The proof, run rather than read
+
+- **The gates.** `typecheck`, `build`, `test`, `smoke:t1`, `conformance:pocket`, `conformance:phonecopy`.
+- **One app run.** A scratch profile through `build/electron-run.mjs`, the door forced to loopback: the scan
+  line's text, and the alerts group absent with no key and present with a stand-in key.
+- **The parent measurement.** The same run at the parent: every rectangle in the section equal except the
+  two named. `HELPER_USER_FLOOR` rises only if a new probe script is added.
+
+### What is NOT in this phase
+
+- **No link in the sheet**, no App Store badge and no Apple logo.
+- **No menu change.**
+- **No push behaviour change** beyond hiding a switch that cannot work.
+- **No release.**
+
+---
+
+## Phase 333.3 — "See a sample" — the app works before a Mac is paired (research 136 §8, 2026-09-30)
+
+**Subject.** `feat(ios): See a sample, the app before a Mac is paired`
+
+**First body line.** `Phase 333.3: See a sample`
+
+**Semver.** The iOS app only, a new build number at 333.6. No Mac change.
+
+What a person notices:
+
+- **"See a sample" on the pairing screen, for everyone.** It opens made-up sessions, so a person can look
+  around before they pair.
+- **Every sample screen says it is a sample**, and "Leave sample" returns to pairing.
+- **End and Reply work on the sample's own copy.** Nothing leaves the phone.
+
+**This is App Review's route.** The first external Beta App Review happens before any public Mac release
+carries the door, so a reviewer cannot pair at all. A pairing-only agent companion was rejected under
+2.1(a) this month and cured it with an in-app demo (Control Plane PR #52). The one 4.2.3 rejection found
+was cured by making part of the app work alone (forum 114795). The sample is also the only honest source of
+store screenshots, because 2.3.9 requires made-up data.
+
+**Tier 2, plus an attack.** It holds no credential and sends nothing, but its whole promise is that it
+never reaches the network or the keychain, so that promise is attacked rather than read.
+
+**Charter.** Research 136 §8 and his reviewer-route ruling (default: See a sample, plus his optional
+video). Needs 333.1 landed, and 317 and 318, so the sample covers End and Reply.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The seam already exists.** `protocol DoorReading` has three reads, `blocked`, `session` and `turns`
+  (`ios/Tortie/Screens/DoorWords.swift:34-38`). The app model holds `reader: (any DoorReading)?`
+  (`ios/Tortie/App/TortieApp.swift:64`), and the paired reader is one conformance
+  (`TortieApp.swift:299`). A sample reader is a second conformance, and no screen changes to draw it.
+- **The decoders are the door's own.** `Door/Contract.swift` decodes every answer, so a sample decoded
+  through it cannot drift from what the door sends.
+- **One network file.** Rule (c) allows Network.framework only in `Door/DoorClient.swift`
+  (`build/conformance-ios.mjs:713-750`), and rule (n) owns the keychain. Neither yet names a directory
+  that must never reach them.
+- **Hidden features are refused by name.** 2.3.1(a): "Don't include any hidden, dormant, or undocumented
+  features". A reviewer-only gesture would be one.
+
+### The mechanism
+
+1. **`ios/Tortie/Sample/SampleReader.swift`** conforms to `DoorReading` and answers from
+   `Sample/sample.json`, bundled in the app, decoded through `Contract.swift`. The sessions are fictional
+   and redacted: made-up names, projects and conversations, with statuses covering working, idle, needs
+   input with a numbered choice, and ended.
+2. **The entry.** A "See a sample" button on the pairing screen, drawn for everyone.
+3. **The label.** A persistent sample line on every sample screen, so no 'Needs your input' reads as the
+   person's own Mac, and "Leave sample".
+4. **End and Reply** act on the sample reader's in-memory copy. The sample raises no alert and no badge.
+5. **Words** in `Copy.swift`, each with a `/// Phone:` owner. The fixture's session names are data, and
+   `conformance:phonecopy` records them as data with that reason.
+6. **A new `conformance:ios` rule (x)**: nothing under `Sample/` names `DoorClient`, a Network.framework
+   type, a keychain call, `Keys` or `PairingOffer`. One `ablation:p316` arm per clause, each red on it.
+7. **Agents in the sample** are drawn the way the app draws any agent. Whether a vendor's mark may appear in
+   a store screenshot is his call in 333.8, and the spec step says which marks the sample shows.
+
+### The proof, run rather than read
+
+- **The gates.** `typecheck`, `build` (with `conformance:ios`), `test`, `smoke:t1`, `ablation:p316`,
+  `conformance:phonecopy`, and `test:ios` in Debug and Release on iOS 26.3 and 18.3.
+- **One app run.** `probe:p316` gains an arm from a fresh install: See a sample, the list, a session, its
+  conversation to the first turn, End and Reply on the sample, Leave sample. Every claim is an XCUITest
+  frame or label. No photograph.
+- **The attack.** The same arm runs with the door stand-in counting connections and must count zero. A
+  second arm opens the sample on a phone that is paired: the sample shows no paired session, the paired
+  reads stop while it is open, and Leave sample returns to the paired list with the pairing unchanged.
+  Ablations put a `DoorClient` call, an `NWConnection` and a keychain read under `Sample/`, and each goes
+  red.
+- **The parent measurement.** The pairing screen at the parent has no sample, and makes zero requests.
+
+### What is NOT in this phase
+
+- **No hosted demo door**, no server and no network in the sample.
+- **No hidden switch and no reviewer-only gesture.**
+- **No real sessions in the sample**, ever.
+- **No sample on the Mac.**
+- **No release.**
+
+---
+
+## Phase 333.4 — the devices App Review uses (research 136 §7, the adversary's finding, 2026-09-30)
+
+**Subject.** `test(ios): drive the app on an iPad, on iOS 27 and without Face ID`
+
+**First body line.** `Phase 333.4: the devices App Review uses`
+
+**Semver.** None unless a fix lands, and then the iOS app's build number only.
+
+What a person notices: nothing, unless the app was broken on one of these devices. Then it works there.
+
+**Tier 2 verification with a fix round.** No new state, but a failure here is a rejection. **Independent
+method: run over real devices**, meaning each device type and runtime App Review uses, driven through the
+shipping Release build. The first run is the measurement of the parent, and each failure is fixed and run
+again in this phase, with an independent reverify.
+
+**Charter.** Research 136 §7. iPhone-only apps were rejected under 2.1 on an "iPad Air 11-inch (M3)" in
+February and March 2026 (forums 815079, 820096). Guideline 2.4.1: "iPhone apps should run on iPad whenever
+possible." iOS 27 submissions opened on 9 September, and iPhone Duo ships on 23 October on iOS 27.1. Needs
+333.3, and 317 for the authentication paths.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The app has run on one device type.** `DEVICE_TYPE_NAME = 'iPhone 16 Pro'`, `RUNTIME_CURRENT = '26.3'`,
+  `RUNTIME_FLOOR = '18.3'` (`build/simulator-run.mjs:127`, `:130`, `:137`). `withSimulator` already takes a
+  `deviceType` option (`:689`, `:735`). The toolchain is Xcode 26.3 (`build/p316/SPEC.md:103-104`).
+- **The app is iPhone only.** `TARGETED_DEVICE_FAMILY = 1` (`ios/Tortie.xcodeproj/project.pbxproj:437`), so
+  an iPad runs it in compatibility mode.
+- **The gate's floor.** `SIMULATOR_USER_FLOOR = 2` (`build/assert-simulator-teardown.mjs:84`).
+- **UNMEASURED, and the spec step's first measurements:** the exact Simulator device type names; whether
+  `simctl` installs an iPhone-only build on an iPad Simulator; whether Xcode 26.3 accepts an iOS 27 runtime
+  or needs Xcode 27; how a test enrols and matches Face ID or Touch ID on a Simulator; whether an iPhone Duo
+  Simulator exists yet.
+
+### The mechanism
+
+1. **The matrix.** The Release app on an iPad Air 11-inch in iPhone compatibility mode, on iOS 27, on iPhone
+   Duo if a Simulator exists, on a Touch ID iPhone, and with no biometrics enrolled.
+2. **`withSimulator`** gains the device types. `gate:simulator`'s fixtures gain an iPad caller that passes
+   through the helper, and the floor rises if a new script reaches it.
+3. **Each failure is fixed here**: layout in compatibility mode, 317's words on a Touch ID phone, the
+   passcode path with no biometrics.
+4. **He installs the iOS 27 runtime, and iPhone Duo's if Xcode offers it.** Agents install nothing. Without
+   them, those rows stay UNMEASURED and are reported to him.
+
+### The proof, run rather than read
+
+- **The gates.** `build` (with `gate:simulator`), `test:ios` on each device and runtime in the matrix.
+- **One run per device**, each driving pairing through the loopback door, See a sample, the list, a session,
+  the conversation and End's authentication. Every claim is a frame or label XCUITest read. Every Simulator
+  is made and ended by `build/simulator-run.mjs`, and `xcrun simctl list devices | grep -c p316-` reads 0 at
+  the end.
+- **IPv6-only networks stay UNMEASURED**, accepted as low risk because the client dials a host name through
+  `NWConnection` (`ios/Tortie/Door/DoorClient.swift:318`).
+
+### What is NOT in this phase
+
+- **No iPad app.** `TARGETED_DEVICE_FAMILY` stays 1 and no iPad layout is designed.
+- **No screenshot**, no physical device and no install by an agent.
+- **No release.**
+
+---
+
+## Phase 333.5 — the privacy and support pages on tortie.sh (research 136 §12.5 and §12.6, 2026-09-30)
+
+**Repository.** His site repository, `tortiedotsh`, written only with his go-ahead. The Tortie repository
+records this section and changes nothing.
+
+**Subject.** `feat(site): privacy and support pages for Tortie for iPhone`
+
+**First body line.** `Phase 333.5: the privacy and support pages`
+
+**Semver.** None. The site is not versioned.
+
+What a person notices:
+
+- **`tortie.sh/privacy`** says what leaves the phone and where it goes, and that Ita Vero collects nothing.
+- **`tortie.sh/support`** gives a real way to reach him.
+- **Both are in the footer.**
+
+**Tier 2.** A page of copy would be Tier 1, but every sentence here is a claim about what leaves a person's
+phone, and Apple and strangers will hold him to it. **Independent method: re-derivation.** A verifier who
+did not write the page maps every sentence to the `file:line` that makes it true, and any sentence with no
+line is cut.
+
+**Charter.** Research 136 §12.5 and §12.6 (the drafts), §6.2 (the Support URL "must lead to actual contact
+information"), guideline 5.1.1(i) and 1.5. Needs his push ruling, his contact ruling, and research 135's
+sentence on where typed words go. Both pages must be live before 333.6's submission.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **Neither page exists.** `tortie.sh/privacy`, `/support`, `/privacy-policy`, `/docs/privacy` and
+  `/contact` return 404 (2026-09-30). `src/pages` holds `404.astro`, `changelog`, `compare`, `demo.astro`,
+  `docs` and `index.astro`, and the footer links only Compare, Docs, Changelog, GitHub and License
+  (`src/components/Footer.astro:24-33`).
+- **What leaves the phone.** The sealed pairing presentation with the phone's public keys and the label
+  (`ios/Tortie/Door/Pairing.swift:13-19`), where the label is the generic 'iPhone'
+  (`ios/Tortie/App/TortieApp.swift:106`); then signed reads. After 316.5, the APNs token, sealed inside the
+  pairing. Funnel's relay sees the phone's public address, the Mac's name, timing and sizes, and no content
+  (research 132 §3.8).
+- **Two sentences are not yet known to be true**: that the camera keeps and sends no picture, and what
+  deleting the app removes from the phone. Keychain items can outlive an app, so neither is written until
+  this phase has read the code.
+- **The route check.** `scripts/verify-site-routes.mjs` asserts the macOS download on every page with the
+  shared header and nothing about these pages.
+
+### The mechanism
+
+1. **`src/pages/privacy.astro`** in the site's `BaseLayout`, from research 136 §12.5, with only the brackets
+   his rulings keep and a "Last updated" date.
+2. **`src/pages/support.astro`** from §12.6, with the mailbox he chooses, and an address or P.O. box and a
+   phone number only where his EU trader answer requires them.
+3. **The footer** gains Privacy and Support.
+4. **`scripts/verify-site-routes.mjs`** asserts both pages exist in the built output and are in the sitemap.
+
+### The proof, run rather than read
+
+- **The site's own build and route check**, run in his repository.
+- **The re-derivation table**, sentence by sentence against the Tortie tree at the commit the page names.
+- **The live check after he merges**: both URLs answer 200.
+
+### What is NOT in this phase
+
+- **No analytics, no cookie, no contact form and no field that collects anything.**
+- **No promise about alerts**, unless his push ruling makes one true.
+- **No mention of a relay or a server Ita Vero runs**, because there is none.
+- **No change to the Tortie repository.**
+
+---
+
+## Phase 333.6 — the public beta: his checklist and Beta App Review (research 136 §3, 2026-09-30)
+
+**Subject.** `build(ios): archive the first public beta build and write his checklist`
+
+**First body line.** `Phase 333.6: the public beta`
+
+**Semver.** The iOS app's build number only. Nothing is released until 333.7.
+
+What he does: uploads a build that can go to strangers, fills in Test Information and submits it to Beta
+App Review. **What a person notices: nothing yet.** The public link is 333.7's.
+
+**Tier 2.** It sends nothing of his anywhere an agent controls, and every step that reaches Apple is his.
+**Independent method: attack the checklist.** A verifier who did not write it checks every row against
+Apple's page and the Xcode 26.3 label it names, as 316.4's "Where each row was checked" table did, and
+looks for any path that uploads Internal Only.
+
+**Charter.** Research 136 §3, steps 8 to 14. Needs 333.1 to 333.5 landed, and his end-to-end check of
+316.5, 317 and 318 on internal TestFlight.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **An Internal Only build cannot go to strangers.** Apple: "Builds uploaded as TestFlight Internal Only
+  ... can only be added to internal tester groups." Both checklists say to upload that way
+  (`build/p316/CHECKLIST.md:95`, `build/p330/CHECKLIST.md:87`).
+- **The command line cannot upload.** `xcodebuild -exportArchive` refused with "Failed to find an account
+  with App Store Connect access for team 4GRQMF5T5U" (`docs/BACKLOG.md:38211`). The archive and its read
+  succeeded the same day.
+- **The build number is 2** (`ios/Tortie.xcodeproj/project.pbxproj:417`, `:449`), on team 4GRQMF5T5U
+  (`:450`).
+- **An external group needs an internal group first**, the first build gets a full review, and each build
+  expires 90 days after upload.
+
+### The mechanism
+
+1. **The agent** raises `CURRENT_PROJECT_VERSION` in every configuration, archives Release for a generic iOS
+   device on team 4GRQMF5T5U with automatic signing, and runs `node build/p316/test-ios.mjs --read-app` on
+   the archive.
+2. **The agent writes `build/p333/CHECKLIST.md`** in the shape of `build/p316/CHECKLIST.md`, with his steps:
+   - In the Organizer, **Distribute App**, then **App Store Connect**, then **Distribute**. The checklist
+     says once that **TestFlight Internal Only** is never chosen, and why.
+   - Answer export compliance when the build shows Missing Compliance.
+   - Test Information: the Beta App Description, the feedback email, the marketing URL `https://tortie.sh`,
+     the privacy URL `https://tortie.sh/privacy`, the review contact, and notes telling the reviewer to
+     open See a sample, all pasted from research 136 §12 with the brackets his rulings keep.
+   - Confirm the internal group, create the external group, add the build, write What to Test and submit.
+3. **Later checklists** for phone builds say App Store Connect too, and `build/p330/CHECKLIST.md` gains one
+   line pointing here.
+
+### The proof, run rather than read
+
+- **The archive read** exits 0 on the archive he will upload: no NetworkExtension, no TailscaleKit, no code
+  coverage and no DEBUG seam, the same read his checklist runs (CLAUDE.md's `test:ios` row).
+- **The attack on the checklist**: every row checked against its source, every URL it names answering 200,
+  and no path through it that uploads Internal Only.
+- **`test:ios`** in Release on iOS 26.3 and 18.3.
+
+### What is NOT in this phase
+
+- **No upload by an agent, and no App Store Connect API key.**
+- **No `ITSAppUsesNonExemptEncryption` in Info.plist.** He answers per upload unless he rules otherwise.
+- **No public link and no Mac release.** Both are 333.7's.
+
+---
+
+## Phase 333.7 — "download it from tortie.sh and our github page" — launch day (research 136 §11, 2026-09-30)
+
+**Repositories.** Tortie (`README.md`, and `CHANGELOG.md` in the release commit) and his site repository,
+`tortiedotsh`, with his go-ahead. One commit in each, both carrying the phase label.
+
+**Subject.** `docs(readme): Tortie for iPhone, a public beta on TestFlight` and, in the site repository,
+`feat(site): link Tortie for iPhone's public beta`
+
+**First body line.** `Phase 333.7: the public beta goes live`
+
+**Semver.** None of its own. The Mac release he promotes that day carries the phone phases.
+
+What a person notices:
+
+- **`tortie.sh/iphone` opens the public TestFlight link.**
+- **tortie.sh's Download section has a second action**, not blue, for the iPhone beta. The hero and the
+  navigation keep their one macOS action.
+- **A docs page, "Your iPhone"**, beside "Remote machines", with four steps.
+- **The README has "On your iPhone (beta)"**, and a neutral link in its badge row.
+
+**All on one day, in this order**: Beta App Review approves; he creates the public link, filtered to iPhone
+and iOS 18.1 or later; he promotes the Mac release that carries Settings then Phone; within the hour these
+changes merge; he starts the site's changelog refresh by hand.
+
+**Tier 2**: a rendered surface. **Independent methods: the parent measurement** (the site's Download
+section and navigation at the parent against HEAD, at 1280 and 400 pixels wide: the macOS action's
+rectangle unchanged, the new action stacking at 400 with no horizontal scroll) **and following every link**
+(the redirect answers 307 to the TestFlight link, and the README link resolves).
+
+**Charter.** Research 136 §11. Needs 333.6 approved.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **One file feeds every download link.** `src/data/site-links.ts:1-2`, read by the hero, the navigation,
+  the Download section, the demo page, the docs' install steps and the JSON-LD `downloadUrl`
+  (`src/pages/index.astro:30`).
+- **One blue action.** "The One Blue Rule ... rare enough that the download path is unmistakable"
+  (`DESIGN.md:104`), and the navigation keeps "one persistent blue download action" (`DESIGN.md:163`).
+- **The Download section needs layout work.** Its actions sit in column 3 of a 3-column grid as a flex row
+  with no wrap on desktop, and stack below 720 pixels (`src/components/Download.astro`).
+- **No redirects exist.** `vercel.json` holds one headers rule.
+- **The machine-readable facts say macOS only**: `public/llms.txt:25`, the JSON-LD `operatingSystem`
+  (`src/pages/index.astro:28`), and the comparison row `platform: ["macos"]` sourced from the README's
+  Install anchor (`src/data/comparison-catalog.ts:951`, `:953`).
+- **Release pages carry no link.** `scripts/sync-changelog.mjs:38-46` strips markdown links from items, and
+  a link in the lead paragraph prints literally (`src/pages/docs/changelog/index.astro:41`). The feed
+  refreshes weekly (`.github/workflows/refresh-changelog.yml`, cron `47 7 * * 1`).
+- **No badge is allowed yet.** Apple's badge licence covers only apps "available for download on the App
+  Store", and Apple offers no TestFlight badge.
+- **The README.** The badge row links the Mac release and the website (`README.md:9-16`), and Install has
+  three steps (`README.md:171-178`).
+
+### The mechanism
+
+1. **`vercel.json`**: a temporary redirect from `/iphone` to the public link.
+2. **`src/data/site-links.ts`**: `TORTIE_IPHONE_URL = "https://tortie.sh/iphone"`.
+3. **`src/components/Download.astro`**: a second action, `btn` and never `btn-primary`, reading "Tortie for
+   iPhone · Join the beta" over "Needs Tortie on your Mac · iOS 18.1 or later", with no Apple logo, and the
+   layout reworked so two actions fit column 3 and stack on a phone.
+4. **`src/data/docs.ts`**: "Your iPhone" beside "Remote machines" (`:137`), in the words the app and the Mac
+   draw: join the beta from `tortie.sh/iphone`; in Tortie on your Mac choose **Pair a Phone…** and switch
+   on **Let my phone reach this Mac**; approve Funnel once if Tailscale asks; press **Pair**, scan, check
+   the six groups match, and press **Allow** on your Mac. Its limits, one clause each: Tailscale signed in
+   on the Mac, the Mac awake with Tortie open, and the first code can take several minutes.
+5. **`public/llms.txt`, the JSON-LD and the comparison row** name the iPhone app, with the README's new
+   section as the primary-source evidence the comparison policy asks for.
+6. **`scripts/verify-site-routes.mjs`** asserts the redirect and the docs page.
+7. **`README.md`**: "### On your iPhone (beta)" under Install with the same steps, and a neutral link to
+   `tortie.sh/iphone` in the badge row.
+8. **`CHANGELOG.md`**, in the release commit: the iPhone item's last clause, "and the app is on TestFlight
+   rather than the App Store", becomes "and the app is a public beta on TestFlight, linked from tortie.sh",
+   in words and with no link, on his word. The item keeps its commit links.
+
+### The proof, run rather than read
+
+- **The site's build and route check**, run in his repository.
+- **One site run** at 1280 and 400 pixels, reading rectangles at the parent and at HEAD.
+- **Every link followed**, the redirect's status and target read.
+- **The Tortie gates** for a README and CHANGELOG change: `typecheck`, `build`, `smoke:t1`.
+
+### What is NOT in this phase
+
+- **No badge, and no Apple logo on the new action.**
+- **No second blue action, and no change to the hero or the navigation.**
+- **No link inside a CHANGELOG item**, and no change to the site's changelog sync.
+- **No QR code on the site.**
+
+---
+
+## Phase 333.8 — store frames, only if he opens the lane (research 136 §6.4, 2026-09-30)
+
+**Subject.** `test(ios): photograph See a sample for the store, and nothing else`
+
+**First body line.** `Phase 333.8: store frames`
+
+**Semver.** None.
+
+What he gets: 1 to 10 screenshots of See a sample at 1320 by 2868 pixels with no alpha channel, ready to
+upload. **If he declines the lane, this entry is withdrawn** and he captures See a sample himself on a
+6.9-inch or 6.5-inch iPhone.
+
+**Tier 2, plus an attack**, because it amends three standing refusals. **The attack: the exception is
+exactly one file.** A second script or test that photographs must still go red, and no verdict anywhere
+may read the images.
+
+**Charter.** Research 136 §6.4 and his screenshot ruling. Needs 333.3.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **Every photograph is refused today.** `conformance:ios` rule (i) refuses `.screenshot(`, `XCUIScreen`,
+  `XCTAttachment` images, `UIGraphicsImageRenderer` and `drawHierarchy` in any test
+  (`build/conformance-ios.mjs:1199`) and requires `uiTestingScreenshotsEnabled` false (`:1175`).
+  `gate:simulator` refuses `simctl io screenshot` and `recordVideo` (`build/assert-simulator-teardown.mjs:91`,
+  `:159`). CLAUDE.md's Simulator rule says no screenshot is ever taken.
+- **Apple's sizes.** 6.9 inch: 1260 by 2736, 1290 by 2796 or 1320 by 2868. 6.5 inch: 1242 by 2688 or 1284
+  by 2778. No alpha channel. A 6.3-inch device's 1206 by 2622 is not accepted.
+- **The reader exists.** `build/png-read.mjs` decodes a PNG's width, height and colour type with no
+  dependency.
+
+### The mechanism
+
+1. **One named script**, `build/p333/store-frames.mjs`, makes a 6.9-inch Simulator through `withSimulator`,
+   opens See a sample, and photographs each chosen screen through one new function in
+   `build/simulator-run.mjs`.
+2. **Each image is checked** with `build/png-read.mjs`: 1320 by 2868, colour type 2 (RGB, no alpha).
+3. **The images go to a git-ignored directory** and to him. They are never committed and never evidence.
+4. **The three refusals each gain one named exception and one ablation**: `conformance:ios` rule (i),
+   `gate:simulator`, and CLAUDE.md's Simulator rule. A second caller of the new function, or a photograph
+   anywhere else, stays red.
+
+### The proof, run rather than read
+
+- **The gates.** `build` (with `conformance:ios` and `gate:simulator`) and each new ablation red.
+- **The script run once**, every image's size and colour type read by `png-read.mjs`, and
+  `xcrun simctl list devices | grep -c p316-` reading 0 at the end.
+- **The attack**: a planted second photographing test and a planted second caller, each red; a grep that
+  no verdict or probe reads the output directory.
+
+### What is NOT in this phase
+
+- **No photograph of his real sessions**, of a design mock, or of anything but See a sample.
+- **No app preview video and no iPad set.**
+- **No marketing frame or overlay**, unless he supplies one.
+
+---
+
+## Phase 333.9 — the store listing and submission (research 136 §4 and §12.4, 2026-09-30)
+
+**Subject.** `docs(ios): the App Store checklist and listing`
+
+**First body line.** `Phase 333.9: the store listing`
+
+**Semver.** None of its own.
+
+What he does: fills in the listing and submits the app to App Review, released manually.
+
+**Tier 2.** A document, but every claim in the listing is one Apple and strangers will hold him to.
+**Independent method: re-derivation.** A verifier who did not write it checks every listing claim against
+the tree and re-measures every field's length against Apple's limit.
+
+**Charter.** Research 136 §4 (his steps) and §12.4 (the listing words). Needs the public beta to have
+carried at least one build with no phone-breaking report, the seller path settled (B1 complete if he chose
+it, and never started while a build is in review or a Mac release is due), and 333.8 or his own capture.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The drafted fields fit.** Name "Tortie", 6 characters. Subtitle "Companion to Tortie for Mac", 27 of 30.
+  Promotional text 140 of 170. Keywords 97 of 100 bytes, naming no other app or company. Description about
+  1,400 of 4,000 characters. Review notes about 1,700 of 4,000.
+- **Copyright** is Ita Vero, LLC (`LICENSE:189`).
+- **Peers' age ratings range from 4+ to 12+** for apps that show unfiltered model output (T3 Code 12+,
+  Remote Codetrol 9+, Happy and Mobile for Claude Code 4+).
+- **An iPhone app is listed on the Mac and Vision Pro stores by default**, and
+  `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO` (`ios/Tortie.xcodeproj/project.pbxproj:432`) is not known to
+  be enough on its own.
+
+### The mechanism
+
+1. **The agent writes `build/p333/STORE-CHECKLIST.md`**, his steps from research 136 §4, and the listing's
+   words with the brackets his rulings and 317 and 318 keep.
+2. **His steps**, each his alone:
+   - App Privacy: "No, we do not collect data from this app" is the default attestation, and it changes if
+     Ita Vero ever runs a relay or adds crash reporting.
+   - The age-rating questionnaire, answered deliberately.
+   - Primary category Developer Tools, content rights, and the EU trader declaration.
+   - Price Free; Mac and Vision Pro availability off; China mainland left out.
+   - Copyright "2026 Ita Vero, LLC", the review contact and notes, and version release set to Manual.
+   - Add for Review, Submit for Review, and replies to App Review.
+
+### The proof, run rather than read
+
+- **The re-derivation table**: each listing claim against a `file:line` or a checklist row, and each field
+  length re-measured.
+- **Every URL the listing names answers 200.**
+
+### What is NOT in this phase
+
+- **Nothing done in App Store Connect by an agent.**
+- **No price but Free, no in-app purchase and no pre-order.**
+- **No agent vendor's name in the name, subtitle or keywords.**
+
+---
+
+## Phase 333.10 — the badge (research 136 §11.3, 2026-09-30)
+
+**Repositories.** His site repository with his go-ahead, and Tortie's `README.md`.
+
+**Subject.** `docs(readme): the App Store badge` and, in the site repository,
+`feat(site): Tortie for iPhone on the App Store`
+
+**First body line.** `Phase 333.10: the badge`
+
+**Semver.** None of its own.
+
+What a person notices: **tortie.sh and the README show Apple's App Store badge**, `tortie.sh/iphone` opens
+the store, and Safari on an iPhone shows a banner for the app.
+
+**All on the day he presses Release**, after the version reads Pending Developer Release.
+
+**Tier 2**: a rendered surface. **Independent method: re-derive Apple's badge rules from the rectangles**:
+one badge per layout, at least 40 pixels high at every width, and clear space of at least a quarter of its
+height.
+
+**Charter.** Research 136 §11.3, and his ruling on the standalone Apple logo. Needs 333.9 approved and
+released.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The badge licence.** It covers only apps "available for download on the App Store", binds use to
+  Apple's trademark rules, and is accepted by "an authorized representative for your developer account",
+  which is him.
+- **The standalone Apple logo.** `src/components/AppleMark.astro` draws on every "Download for macOS" button
+  (`Hero.astro:20`, `Nav.astro:72` and `:76`, `Download.astro:14`), and the README's badge asks for
+  `logo=apple` (`README.md:11`). Apple's guidelines say "Don't use the standalone Apple logo".
+- **No place for credit lines.** The footer has only its links (`src/components/Footer.astro:24-33`).
+- **A head slot exists** on the index (`src/pages/index.astro:53`) in `BaseLayout.astro`.
+
+### The mechanism
+
+1. **Apple's own black badge**, unmodified, which he downloads after accepting the licence, in the Download
+   section in place of the beta action, and in the README badge row.
+2. **`vercel.json`**: `/iphone` moves to `https://apps.apple.com/app/id<Apple ID>`.
+3. **The Smart App Banner**, `<meta name="apple-itunes-app" content="app-id=<Apple ID>">`, in the layout's
+   head.
+4. **Apple's credit lines** in the footer, copied from the marketing guidelines on the day.
+5. **`llms.txt` and the README** name the store.
+6. **The standalone Apple logo** is replaced with text or a neutral icon, unless he rules otherwise.
+
+### The proof, run rather than read
+
+- **The site's build and route check.**
+- **One site run** reading the badge's rectangles at 1280 and 400 pixels against the three rules.
+- **The redirect followed** to the store page.
+
+### What is NOT in this phase
+
+- **No modified badge, no second badge per layout, and no badge in the hero or the navigation.**
+- **No pre-order badge.**
+
+---
+
+## The running-log line (append at the very bottom of `docs/BACKLOG.md`)
+
+- 2026-09-30, **PHASE 333 RESEARCH DELIVERED, `docs/research/136-the-phone-in-peoples-hands.md`, `<hash>`, and entries 333.1 to 333.10 queued above this log.** His answer: not before today; now a public TestFlight link first, then the App Store, both inside the release he already fixed. The order: 316.5, 317 and 318 as ruled; 333.2 after 316.5 and 333.5 (privacy and support pages, his site repository, his go-ahead) beside them; after 318, 333.1 (a stranger's phone), 333.3 (See a sample, which is how App Review uses an app whose Mac half is not yet released) and 333.4 (the iPad, iOS 27 and Touch ID devices review uses); his end-to-end check; 333.6 (his upload through App Store Connect, never Internal Only, and Beta App Review); 333.7 (the public link, the Mac release and the site and README changes on one day); then the store (333.8 to 333.10) once the beta has carried a build and the seller path is settled. Findings sent: to 316.5, ask for notification permission only when the paired Mac holds an alert key; to 317, `NSFaceIDUsageDescription` and a Touch ID and passcode path; to 318's research 135, where typed words go and no raw terminal. Nine rulings are his (research 136 §16), each with a default: the seller path (default: stay Individual for the beta and request Ita Vero's D-U-N-S number now), alerts for other people, the reviewer route, store screenshots, export compliance, public contact details, the EU storefronts, the standalone Apple logo, and installing the iOS 27 runtime. Nothing was installed, signed into or run.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -38233,3 +39022,5 @@ cycle rather than only the evening it was written.
 - 2026-09-30, **HE PUT THREE PHONE PHASES IN THE RELEASE — "316.5 Alerts", "317 End, behind Face ID", "318 Reply".** 316.5 starts now (the alert opens the session it names, on Phase 314's sender, reconciled with Phase 330's pairing as built; his two steps are the Push Notifications capability and importing his APNs key through Settings → Phone). His choice of 317 answers research 127 §11.1, the question 317 waited on: yes, the phone may end a session, behind Face ID, with main's own refusals; Restore and Remove stay off the phone. 317 builds after 316.5 lands, because both change the door's routes and the app. 318 (answer a numbered choice with one tap, or type one message) has been only named; its research starts now, beside 316.5, and writes research 135 and the Phase 318 entry. Each ends in a TestFlight build and his check on the phone.
 
 - 2026-09-30, **PHASE 333 RESEARCH STARTS — how people download the phone app from tortie.sh and GitHub.** His question: "have we mapped out the process to get the phone on the app store so that people can download it from tortie.sh and our github page?" Research 128 §4 mapped App Review's price before any Swift, and every phone phase since refused the store on purpose; Phase 330 has since changed what the app is. His rulings today: **"Both, TestFlight then the Store"** (a public TestFlight link first, then the App Store), and run the research now; the seller name (his individual account or Ita Vero, LLC, which needs an organisation account and a D-U-N-S number) stays open for him, with both paths laid out. Research lane, documents only: Apple's current requirements for external TestFlight and the store, the guidelines re-read against the app as it now is (4.2.3 an app that needs another app, 4.2.7 remote desktop, 2.1 a reviewer demo, 4.7 for Phase 318's typing), every asset and step that is his, and the links on tortie.sh and the GitHub page. It writes research 136 and the build entries it implies.
+
+- 2026-09-30, **RESEARCH 136 LANDED AND PHASES 333.1 TO 333.10 QUEUED — how people get Tortie for iPhone.** The answer to his question: not mapped before today; now a public TestFlight link first, then the App Store, both after 316.5, 317, 318 and his end-to-end check. The top review risks are 2.1(a) (a reviewer cannot use an app that needs a Tortie Mac, answered by an in-app "See a sample", 333.3) and 4.3 spam (answered by the product-page rules and an identity paragraph in the review notes). Every upload is his (Distribute App, never "TestFlight Internal Only"). Nine questions are his, each with a default; the one that could not wait went to 316.5 while it builds: alerts stay his alone, so a phone asks for notification permission only when its Mac can send, and nothing promises alerts to anyone else. Entries appended above the log in order: 333, 333.1 (the phone's words for a stranger), 333.2 (the Mac names where to get the app), 333.3 (See a sample), 333.4 (the devices App Review uses), 333.5 (privacy and support pages on tortie.sh), 333.6 (the public beta), 333.7 (launch day), 333.8 (store frames, if he opens the lane), 333.9 (the listing and submission), 333.10 (the badge).
